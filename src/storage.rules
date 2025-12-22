@@ -1,0 +1,74 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // --- HELPERS ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Check if user owns the folder (matches their UID)
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Check if user is Super Admin
+    function isSuperAdmin() {
+       return isSignedIn() && (
+         request.auth.token.email == 'admin@trucking.com' || 
+         (request.auth.token.keys().hasAny(['globalRole']) && request.auth.token.globalRole == 'super_admin')
+      );
+    }
+
+    // Check if user is part of the company team
+    function isCompanyTeam(companyId) {
+      return isSignedIn() && (
+        isSuperAdmin() || 
+        (
+          request.auth.token.keys().hasAny(['roles']) &&
+          request.auth.token.roles.keys().hasAny([companyId]) &&
+          request.auth.token.roles[companyId] in ['company_admin', 'hr_user']
+        )
+      );
+    }
+    
+    // --- RULES ---
+
+    // 1. COMPANY ASSETS (Logos)
+    match /company_assets/{companyId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if isCompanyTeam(companyId);
+    }
+
+    // 2. MASTER DRIVER PROFILE UPLOADS
+    match /drivers/{driverId}/{allPaths=**} {
+      allow read, write: if isOwner(driverId) || isSuperAdmin();
+    }
+
+    // 3. COMPANY APPLICATION FILES (Fix for Test & Guest Apply)
+    // Path: companies/{companyId}/applications/{applicantId}/...
+    match /companies/{companyId}/applications/{applicantId}/{allPaths=**} {
+      // HR Team and Driver can READ their files
+      allow read: if isOwner(applicantId) || isCompanyTeam(companyId);
+      
+      // PUBLIC WRITE: Allows guests (and the System Test) to upload CDLs
+      allow write: if true; 
+    }
+
+    // 4. GLOBAL LEADS FILES
+    match /global_leads/{applicantId}/{allPaths=**} {
+      allow read, write: if isOwner(applicantId) || isSuperAdmin();
+    }
+
+    // 5. SYSTEM HEALTH DIAGNOSTICS
+    // Allows the System Health tool to read/write test files
+    match /system_health_tests/{fileName} {
+      allow read, write: if isSignedIn();
+    }
+    
+    // 6. FALLBACK (Deny everything else)
+    match /{allPaths=**} {
+      allow read, write: if false; 
+    }
+  }
+}
