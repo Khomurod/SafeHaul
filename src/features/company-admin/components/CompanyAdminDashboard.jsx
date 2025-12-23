@@ -26,7 +26,7 @@ import { OnboardingTour } from '@features/onboarding/components/OnboardingTour';
 
 import { 
   LogOut, Search, FileText, Settings, Zap, Briefcase, 
-  Upload, Replace, Users, ChevronDown, Layout
+  Upload, Replace, Users, ChevronDown, Layout, User
 } from 'lucide-react';
 
 export function CompanyAdminDashboard() {
@@ -350,8 +350,4 @@ export function CompanyAdminDashboard() {
       {showTour && <OnboardingTour onComplete={completeTour} />}
     </>
   );
-}
-
-function User({size, className}) {
-    return <Users size={size} className={className} />
 }

@@ -2,13 +2,26 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // --- HELPER FUNCTIONS ---
+    // =========================================================
+    // 1. HELPER FUNCTIONS
+    // =========================================================
 
     function isSignedIn() {
       return request.auth != null;
     }
 
-    // Check if user is Super Admin
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Legacy support for older apps matched by Email
+    function isEmailOwner(emailField) {
+      return isSignedIn() && 
+             request.auth.token.email_verified && 
+             request.auth.token.email == emailField;
+    }
+
+    // ROBUST SUPER ADMIN CHECK (Supports both Email and Claim)
     function isSuperAdmin() {
       return isSignedIn() && (
          request.auth.token.email == 'admin@trucking.com' || 
@@ -17,19 +30,7 @@ service cloud.firestore {
       );
     }
 
-    // Check if user is an Admin/Recruiter for a specific company
-    function isCompanyTeam(companyId) {
-      return isSignedIn() && (
-        isSuperAdmin() || 
-        (
-          request.auth.token.keys().hasAny(['roles']) &&
-          request.auth.token.roles.keys().hasAny([companyId]) &&
-          request.auth.token.roles[companyId] in ['company_admin', 'hr_user']
-        )
-      );
-    }
-
-    // Check if user is a Company Admin (Higher privilege)
+    // COMPANY ADMIN: Can manage settings & team
     function isCompanyAdmin(companyId) {
       return isSignedIn() && (
         isSuperAdmin() || 
@@ -41,44 +42,92 @@ service cloud.firestore {
       );
     }
 
-    // Check if user has ANY staff role (Recruiter or Admin)
+    // COMPANY TEAM: HR/Recruiters (Read access)
+    function isCompanyTeam(companyId) {
+      return isSignedIn() && (
+        isCompanyAdmin(companyId) || 
+        (
+          request.auth.token.keys().hasAny(['roles']) &&
+          request.auth.token.roles.keys().hasAny([companyId]) &&
+          request.auth.token.roles[companyId] in ['company_admin', 'hr_user', 'recruiter']
+        )
+      );
+    }
+
     function isStaff() {
       return isSignedIn() && request.auth.token.keys().hasAny(['roles']) && request.auth.token.roles.keys().size() > 0;
     }
 
-    // Check if the user is the owner of the data (Driver logic)
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
+    // =========================================================
+    // 2. DATA VALIDATION
+    // =========================================================
+
+    function isValidAuthenticatedApplication() {
+      let data = request.resource.data;
+      return data.keys().hasAny(['applicantId', 'driverId']) &&
+             data.companyId is string &&
+             (
+               (data.keys().hasAll(['applicantId']) && data.applicantId == request.auth.uid) ||
+               (data.keys().hasAll(['driverId']) && data.driverId == request.auth.uid)
+             );
     }
 
-    // --- COLLECTION RULES ---
+    function isValidGuestApplication(companyId) {
+      let data = request.resource.data;
+      return data.keys().hasAll(['applicantId', 'companyId', 'personalInfo']) &&
+             data.companyId == companyId &&
+             data.applicantId is string &&
+             data.personalInfo.keys().hasAny(['email', 'phone']);
+    }
 
-    // 1. COMPANIES & DASHBOARD DATA
+    // =========================================================
+    // 3. COLLECTION RULES
+    // =========================================================
+
+    // --- COMPANIES ---
     match /companies/{companyId} {
-      // Public read needed for Application Wizard to load Company Name/Logo
       allow read: if true;
       allow create, delete: if isSuperAdmin();
       allow update: if isCompanyAdmin(companyId);
 
-      // Applications Sub-collection
+      // --- APPLICATIONS (Nested) ---
       match /applications/{applicationId} {
-        // Public: Allow anyone to CREATE a new application (for public apply flow)
-        allow create: if true;
-        // Authenticated: Allow owners or company team to update
-        allow update: if isOwner(applicationId) || isCompanyTeam(companyId);
+        // Create: Auth User, Guest (Public), or Super Admin (System Health)
+        allow create: if (
+          (isSignedIn() && isValidAuthenticatedApplication()) ||
+          (!isSignedIn() && isValidGuestApplication(companyId)) ||
+          isSuperAdmin()
+        );
         
-        // Allow Company Team and owners to read
-        allow read: if isCompanyTeam(companyId) || isOwner(applicationId);
+        // Read: 
+        // 1. Company Team (The missing role causes this to fail!)
+        // 2. Applicant Owner (ID match)
+        // 3. Applicant Email (Legacy match)
+        allow read: if isCompanyTeam(companyId) || 
+                   (isSignedIn() && (
+                      resource.data.applicantId == request.auth.uid || 
+                      resource.data.driverId == request.auth.uid ||
+                      isEmailOwner(resource.data.email)
+                   ));
+        
+        allow update: if isCompanyTeam(companyId) ||
+                       (
+                         isSignedIn() && 
+                         (resource.data.applicantId == request.auth.uid || resource.data.driverId == request.auth.uid) &&
+                         request.resource.data.applicantId == resource.data.applicantId &&
+                         request.resource.data.companyId == resource.data.companyId
+                       );
+                       
         allow delete: if isCompanyTeam(companyId);
-        
-        // Sub-collections (Files, Notes)
+
+        // HR Sub-collections
         match /dq_files/{fileId} { allow read, write: if isCompanyTeam(companyId); }
         match /general_documents/{fileId} { allow read, write: if isCompanyTeam(companyId); }
         match /internal_notes/{noteId} { allow read, write: if isCompanyTeam(companyId); }
         match /activities/{activityId} { allow read, write: if isCompanyTeam(companyId); }
       }
 
-      // Leads Sub-collection (Imported lists)
+      // --- LEADS ---
       match /leads/{leadId} {
         allow read, write: if isCompanyTeam(companyId);
         match /activity_logs/{logId} { allow read, write: if isCompanyTeam(companyId); }
@@ -86,73 +135,91 @@ service cloud.firestore {
         match /internal_notes/{noteId} { allow read, write: if isCompanyTeam(companyId); }
       }
       
-      // Team Members
+      // --- TEAM ---
       match /team/{userId} {
         allow read: if isSignedIn();
         allow write: if isCompanyAdmin(companyId);
       }
     }
 
-    // 2. GLOBAL LEADS (Unbranded / General Pool)
+    // --- GLOBAL LEADS ---
     match /leads/{leadId} {
-      // Drivers can create their own lead entry
-      allow create, update: if isOwner(leadId);
-      // Admins can read
-      allow read: if isSuperAdmin();
+      allow create: if isSignedIn();
+      allow read: if isSuperAdmin() || isOwner(leadId) || resource.data.userId == request.auth.uid || isEmailOwner(resource.data.email);
+      allow update: if isSuperAdmin() || isOwner(leadId) || resource.data.userId == request.auth.uid;
+      allow delete: if isSuperAdmin();
     }
 
-    // 3. MASTER DRIVER PROFILES
+    // --- DRIVERS ---
     match /drivers/{driverId} {
-      // Drivers can read/write their own profile
-      allow read, write: if isOwner(driverId) || isSuperAdmin();
+      allow read: if isOwner(driverId) || isSuperAdmin() || isStaff();
+      allow create: if (isSignedIn() && request.auth.uid == driverId) || isSuperAdmin();
+      allow update: if isOwner(driverId) || isSuperAdmin();
+      allow delete: if isSuperAdmin();
       
-      // Allow draft saving
-      match /drafts/{draftId} {
-        allow read, write: if isOwner(driverId);
-      }
+      match /drafts/{draftId} { allow read, write: if isOwner(driverId); }
+      match /saved_jobs/{jobId} { allow read, write: if isOwner(driverId); }
     }
 
-    // 4. USERS (Admin Profiles)
+    // --- USERS ---
     match /users/{userId} {
-      // SECURITY FIX: Only allow read if user is Staff (Recruiter/Admin), Super Admin, or accessing their own profile
       allow read: if isOwner(userId) || isStaff() || isSuperAdmin();
-      allow write: if isOwner(userId) || isSuperAdmin();
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      allow update: if isOwner(userId) || isSuperAdmin();
+      allow delete: if isSuperAdmin();
     }
 
-    // 5. MEMBERSHIPS (Role Links)
+    // --- MEMBERSHIPS ---
     match /memberships/{membershipId} {
-      allow read: if isSignedIn();
-      allow write: if isSuperAdmin() || isSignedIn(); // Allow invites logic
+      allow read: if isSignedIn() && (
+        isSuperAdmin() ||
+        resource.data.userId == request.auth.uid ||
+        isCompanyAdmin(resource.data.companyId)
+      );
+
+      allow create, update: if isSuperAdmin() ||
+                    (
+                      isCompanyAdmin(request.resource.data.companyId) && 
+                      request.resource.data.role != 'super_admin'
+                    );
+
+      allow delete: if isSuperAdmin() || isCompanyAdmin(resource.data.companyId);
     }
 
-    // 6. NOTIFICATIONS
+    // --- NOTIFICATIONS ---
     match /notifications/{notificationId} {
-      allow read: if isOwner(resource.data.recipientId);
-      allow write: if isSignedIn(); // Allow system/functions to write
+      allow read, update, delete: if isSignedIn() && resource.data.recipientId == request.auth.uid;
+      allow create: if isSignedIn();
     }
 
-    // 7. ANALYTICS
+    // --- ANALYTICS ---
     match /analytics/{docId} {
       allow read: if isSuperAdmin();
+      allow write: if false; 
     }
     
-    // 8. RECRUITER LINKS
+    // --- RECRUITER LINKS ---
     match /recruiter_links/{code} {
       allow read: if true;
-      allow write: if isSignedIn();
+      allow create, update: if isSignedIn();
+      allow delete: if isSuperAdmin();
     }
 
-    // 9. COLLECTION GROUP QUERIES (Essential for Dashboards)
+    // --- COLLECTION GROUP QUERIES ---
     match /{path=**}/applications/{appId} {
-      allow read: if isSuperAdmin() || (isSignedIn() && isCompanyTeam(resource.data.companyId));
+      allow read: if isSuperAdmin() ||
+                   (isSignedIn() && (
+                     resource.data.applicantId == request.auth.uid ||
+                     resource.data.driverId == request.auth.uid ||
+                     isEmailOwner(resource.data.email)
+                   )) ||
+                   // CRITICAL: This line allows Admin to see ALL apps, provided 'roles' claim is set
+                   (isSignedIn() && isCompanyTeam(resource.data.companyId));
     }
     
     match /{path=**}/leads/{leadId} {
-      allow read: if isSuperAdmin() || (isSignedIn() && isCompanyTeam(resource.data.companyId));
-    }
-    
-    match /{path=**}/activities/{activityId} {
-      allow read: if isSuperAdmin() || (isSignedIn() && isCompanyTeam(resource.data.companyId));
+      allow read: if isSuperAdmin() ||
+                   (isSignedIn() && isCompanyTeam(resource.data.companyId));
     }
   }
 }

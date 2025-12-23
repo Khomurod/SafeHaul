@@ -106,7 +106,7 @@ export function useAppActions({
     if (!storagePath || !window.confirm("Remove file?") || !canEdit) return;
     setIsUploading(true);
     try {
-        try { await deleteObject(ref(storage, storagePath)); } catch(e) {}
+        try { await deleteObject(ref(storage, storagePath)); } catch(e) { console.warn("Storage file may not exist:", e.code); }
         
         setAppData(prev => ({ ...prev, [fieldKey]: null }));
         setFileUrls(prev => ({ ...prev, [fieldKey]: null }));

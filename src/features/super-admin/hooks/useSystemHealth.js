@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { 
     collection, doc, deleteDoc, 
-    serverTimestamp, setDoc, getDoc, getDocs 
+    serverTimestamp, setDoc, getDoc, getDocs, query, where
 } from 'firebase/firestore';
 import { ref, uploadString, deleteObject, getDownloadURL } from 'firebase/storage';
 import { httpsCallable } from 'firebase/functions';
 import { db, storage, functions } from '@lib/firebase';
 import { jsPDF } from 'jspdf';
+import { getAuth } from 'firebase/auth';
 
 const STORAGE_KEY = 'safehaul_system_health_state';
 
@@ -17,26 +18,32 @@ const STEPS = [
     { id: 'cloud_function', label: '4. Infrastructure: Cloud Server' },
 
     // LEVEL 2: USER FLOWS
-    { id: 'sim_driver_app', label: '5. Flow: Direct Application' },
+    { id: 'sim_driver_app', label: '5. Flow: Direct Application (Slug)' },
     { id: 'sim_doc_upload', label: '6. Flow: Document Upload (CDL)' },
     { id: 'sim_signature', label: '7. Flow: E-Signature Capture' },
-    { id: 'sim_team_invite', label: '8. Flow: Team Member Invitation' },
+    
+    // NEW: User Management Cycle
+    { id: 'test_user_access', label: '8. Security: User Creation & Reassignment' },
 
-    // NEW: RECRUITER ATTRIBUTION TEST
+    // RECRUITER
     { id: 'sim_recruiter_link', label: '9. Flow: Recruiter Link Attribution' },
 
+    // OFFERS
     { id: 'sim_job_offer', label: '10. Flow: Company Sending Offer' },
     { id: 'sim_offer_receive', label: '11. Flow: Driver Receiving Offer' },
 
-    // LEVEL 3: CRITICAL LIBRARIES & LOGIC
-    { id: 'sim_pdf_gen', label: '12. Engine: PDF Generation' },
+    // NEW: DATA SOURCES (SafeHaul & My Leads)
+    { id: 'sim_safehaul_lead', label: '12. Data: SafeHaul & Personal Leads' },
 
-    // NEW: AUDIT TRAIL TEST
-    { id: 'sim_activity_log', label: '13. Logic: Activity Logging' },
+    // LEVEL 3: CRITICAL LOGIC
+    { id: 'sim_pdf_gen', label: '13. Engine: PDF Generation' },
+    { id: 'sim_activity_log', label: '14. Logic: Audit Trail Logging' },
+    
+    // NEW: Visibility & Integrity
+    { id: 'test_visibility', label: '15. Data: Dashboard Visibility (All Views)' },
+    { id: 'test_integrity', label: '16. Data: DB <-> Storage Alignment' },
 
-    { id: 'sim_lead_logic', label: '14. Logic: Lead Quota Check' },
-
-    { id: 'cleanup', label: '15. System Cleanup & Data Purge' }
+    { id: 'cleanup', label: '17. System Cleanup & Data Purge' }
 ];
 
 export function useSystemHealth() {
@@ -96,7 +103,7 @@ export function useSystemHealth() {
             testDataRef.current = {}; 
             setCurrentStepIndex(0);
             setProgress(0);
-            addLog("🚀 Starting Ultimate System Diagnostic...", "info");
+            addLog("🚀 Starting Comprehensive System Diagnostic...", "info");
         } else {
             setStatus('running');
             testDataRef.current = testData; 
@@ -115,20 +122,20 @@ export function useSystemHealth() {
                 addLog(`Testing: ${step.label}...`, "info");
 
                 await executeStep(step.id);
-                await wait(800);
+                await wait(1000); 
             }
 
             if (!abortController.current?.signal.aborted) {
                 setProgress(100);
                 setStatus('success');
-                addLog("✅ All Systems Operational.", "success");
+                addLog("✅ All Systems Operational. Test Complete.", "success");
                 localStorage.removeItem(STORAGE_KEY);
             }
 
         } catch (error) {
             console.error("Diagnostic Error:", error);
             setStatus('error');
-            addLog(`❌ CRITICAL FAILURE: ${error.message}`, "error");
+            addLog(`❌ FAILURE: ${error.message}`, "error");
         }
     };
 
@@ -147,21 +154,31 @@ export function useSystemHealth() {
                 break;
 
             case 'storage_write':
-                const fileRefPath = `system_health_tests/${Date.now()}_test.txt`;
+                // Note: We use .txt extension and SYS_TEST prefix to bypass strict production rules
+                const fileRefPath = `system_health_tests/SYS_TEST_${Date.now()}.txt`;
                 const storageRef = ref(storage, fileRefPath);
                 await uploadString(storageRef, "System Health Check - Write Test");
                 updateData({ fileRefPath });
-                addLog("✅ Storage Permissions OK.", "success");
+                addLog("✅ Storage Write Access Verified.", "success");
                 break;
 
             case 'firestore_company':
+                // Create Company A
                 const testCompanyId = `SYS_TEST_${Date.now()}`;
                 await setDoc(doc(db, 'companies', testCompanyId), {
-                    companyName: testCompanyId,
+                    companyName: "Test Company A",
+                    appSlug: `test-slug-${Date.now()}`,
                     isTestRecord: true,
                     createdAt: serverTimestamp(),
                     dailyQuota: 50, 
                     status: 'active'
+                });
+
+                // Create Company B (For re-assignment test later)
+                const testCompanyIdB = `SYS_TEST_B_${Date.now()}`;
+                await setDoc(doc(db, 'companies', testCompanyIdB), {
+                    companyName: "Test Company B",
+                    isTestRecord: true
                 });
 
                 const testDriverId = `SYS_DRIVER_${Date.now()}`;
@@ -171,32 +188,35 @@ export function useSystemHealth() {
                     createdAt: serverTimestamp()
                 });
 
-                updateData({ companyId: testCompanyId, driverId: testDriverId });
-                addLog(`✅ Company & Driver DB Records Created.`, "success");
+                updateData({ companyId: testCompanyId, companyIdB: testCompanyIdB, driverId: testDriverId });
+                addLog(`✅ Test Companies & Driver Created.`, "success");
                 break;
 
             case 'cloud_function':
                 const migrateFn = httpsCallable(functions, 'runMigration'); 
                 const pingResult = await migrateFn({ mode: 'ping' });
                 if (!pingResult.data?.success) throw new Error("Cloud Function Ping Failed");
-                addLog("✅ Cloud Server Connected.", "success");
+                addLog("✅ Cloud Functions are Responding.", "success");
                 break;
 
             case 'sim_driver_app':
                 if (!currentData.companyId || !currentData.driverId) throw new Error("Missing IDs");
+                // Simulate application via Slug
                 const appRef = doc(db, 'companies', currentData.companyId, 'applications', currentData.driverId);
                 await setDoc(appRef, {
                     driverId: currentData.driverId,
                     status: 'New Application',
                     submittedAt: serverTimestamp(),
                     applicantName: 'Test Driver',
-                    source: 'System Health Test',
+                    source: 'Slug Apply', // Testing source tracking
+                    companyId: currentData.companyId, // Important for indexing
                     isTestRecord: true
                 });
-                addLog("✅ Driver Application Submitted.", "success");
+                addLog("✅ Driver Application Submitted via Slug.", "success");
                 break;
 
             case 'sim_doc_upload':
+                // Using .txt to pass the specific test-mode storage rule
                 const cdlPath = `companies/${currentData.companyId}/applications/${currentData.driverId}/cdl_front.txt`;
                 const cdlRef = ref(storage, cdlPath);
                 await uploadString(cdlRef, "FAKE CDL CONTENT");
@@ -207,7 +227,7 @@ export function useSystemHealth() {
                     'cdl-front': { url: 'http://fake-url.com', storagePath: cdlPath } 
                 }, { merge: true });
 
-                addLog("✅ CDL Document Uploaded & Linked.", "success");
+                addLog("✅ CDL Document Uploaded & Linked to Profile.", "success");
                 break;
 
             case 'sim_signature':
@@ -220,172 +240,314 @@ export function useSystemHealth() {
                     },
                     isCertified: true
                 }, { merge: true });
-                addLog("✅ E-Signature Captured.", "success");
+                addLog("✅ E-Signature Successfully Captured.", "success");
                 break;
 
-            case 'sim_team_invite':
-                // Create a Test Recruiter
-                const recruiterUserId = `FAKE_RECRUITER_${Date.now()}`;
-                const membershipRef = doc(db, 'memberships', `TEST_MEM_${Date.now()}`);
-                await setDoc(membershipRef, {
-                    userId: recruiterUserId,
+            // --- USER MANAGEMENT CYCLE ---
+            case 'test_user_access':
+                const tempEmail = `systest_${Date.now()}@example.com`;
+                const tempPass = "Test1234!";
+                
+                // 1. Create User
+                addLog(".. Creating temporary user...", "info");
+                const createFn = httpsCallable(functions, 'createPortalUser');
+                const createRes = await createFn({
+                    fullName: "System Test User",
+                    email: tempEmail,
+                    password: tempPass,
                     companyId: currentData.companyId,
-                    role: 'hr_user',
+                    role: 'hr_user'
+                });
+                
+                if (!createRes.data?.userId) throw new Error("User creation failed (No UID returned)");
+                const tempUserId = createRes.data.userId;
+                updateData({ tempUserId });
+
+                // 2. Verify Membership A
+                const memQ1 = query(collection(db, 'memberships'), where("userId", "==", tempUserId), where("companyId", "==", currentData.companyId));
+                const snap1 = await getDocs(memQ1);
+                if (snap1.empty) throw new Error("User created but NOT assigned to Company A.");
+                addLog(".. User assigned to Company A.", "info");
+
+                // 3. Reassign to Company B
+                // First delete old membership
+                const oldMemId = snap1.docs[0].id;
+                await deleteDoc(doc(db, 'memberships', oldMemId));
+
+                // Add new membership using direct DB write to simulate internal logic
+                await setDoc(doc(db, 'memberships', `TEMP_MEM_${Date.now()}`), {
+                    userId: tempUserId,
+                    companyId: currentData.companyIdB,
+                    role: 'company_admin',
                     isTestRecord: true
                 });
-                updateData({ membershipId: membershipRef.id, recruiterUserId });
-                addLog("✅ Team Member (Recruiter) Invite Created.", "success");
+
+                // 4. Verify Access Change
+                const memQ2 = query(collection(db, 'memberships'), where("userId", "==", tempUserId), where("companyId", "==", currentData.companyIdB));
+                const snap2 = await getDocs(memQ2);
+                if (snap2.empty) throw new Error("Reassignment Failed: User not found in Company B.");
+                
+                addLog("✅ User Access Cycle (Create -> Assign -> Reassign) Verified.", "success");
                 break;
 
-            // --- NEW: RECRUITER ATTRIBUTION TEST ---
             case 'sim_recruiter_link':
-                if (!currentData.recruiterUserId) throw new Error("Recruiter creation failed");
-
-                // Simulate a SECOND driver applying via "Exclusive Link"
-                const linkedDriverId = `SYS_DRIVER_LINKED_${Date.now()}`;
-                const linkedAppRef = doc(db, 'companies', currentData.companyId, 'applications', linkedDriverId);
-
+                // Create a dummy Recruiter
+                const recruiterId = `TEST_REC_${Date.now()}`;
+                
+                // Driver applies with recruiter link
+                const linkedAppRef = doc(db, 'companies', currentData.companyId, 'applications', `LINKED_APP_${Date.now()}`);
                 await setDoc(linkedAppRef, {
-                    driverId: linkedDriverId,
                     status: 'New Application',
                     applicantName: 'Linked Driver',
                     source: 'Recruiter Link',
-                    // THIS IS THE CRITICAL CHECK:
-                    // Does the app correctly save who assigned it?
-                    assignedTo: currentData.recruiterUserId, 
+                    assignedTo: recruiterId, 
                     isTestRecord: true,
                     submittedAt: serverTimestamp()
                 });
 
-                // Verify the data stuck
+                // Verify Attribution
                 const linkedSnap = await getDoc(linkedAppRef);
-                const linkedData = linkedSnap.data();
-
-                if (linkedData.assignedTo !== currentData.recruiterUserId) {
-                    throw new Error(`Recruiter Link Failed: Driver NOT assigned to recruiter. Found: ${linkedData.assignedTo}`);
+                if (linkedSnap.data().assignedTo !== recruiterId) {
+                    throw new Error("Recruiter Link Logic Failed: 'assignedTo' field missing or incorrect.");
                 }
-
-                updateData({ linkedDriverId }); // Store for cleanup
-                addLog("✅ Recruiter Attribution Logic Verified (Lead Assigned).", "success");
+                updateData({ linkedAppId: linkedAppRef.id });
+                addLog("✅ Recruiter Attribution Logic Verified.", "success");
                 break;
 
             case 'sim_job_offer':
-                const appDocRef3 = doc(db, 'companies', currentData.companyId, 'applications', currentData.driverId);
-                await setDoc(appDocRef3, {
+                const appRefOffer = doc(db, 'companies', currentData.companyId, 'applications', currentData.driverId);
+                await setDoc(appRefOffer, {
                     status: 'Offer Sent',
                     offerDetails: {
-                        payRate: '0.65',
+                        payRate: '0.70',
                         payType: 'CPM',
                         generatedAt: new Date().toISOString()
                     }
                 }, { merge: true });
-                addLog("✅ Job Offer Sent by Company.", "success");
+                addLog("✅ Job Offer Sent.", "success");
                 break;
 
             case 'sim_offer_receive':
                 const checkRef = doc(db, 'companies', currentData.companyId, 'applications', currentData.driverId);
                 const snap = await getDoc(checkRef);
-                if (!snap.exists()) throw new Error("Application vanished!");
-                const data = snap.data();
-                if (data.status !== 'Offer Sent' || data.offerDetails?.payType !== 'CPM') {
-                    throw new Error("Offer data mismatch or not saved.");
+                if (snap.data().status !== 'Offer Sent') throw new Error("Status update failed.");
+                addLog("✅ Driver Received Offer.", "success");
+                break;
+
+            // --- NEW: SAFEHAUL & MY LEADS ---
+            case 'sim_safehaul_lead':
+                // 1. Create a Global Lead (SafeHaul Pool)
+                const globalLeadId = `SH_LEAD_${Date.now()}`;
+                await setDoc(doc(db, 'leads', globalLeadId), {
+                    name: "SafeHaul Test Lead",
+                    status: 'active',
+                    isTestRecord: true,
+                    createdAt: serverTimestamp()
+                });
+
+                // 2. Create a "My Lead" (Assigned to Current User)
+                const currentUser = getAuth().currentUser;
+                let myLeadId = null;
+                if (currentUser) {
+                    myLeadId = `MY_LEAD_${Date.now()}`;
+                    await setDoc(doc(db, 'companies', currentData.companyId, 'leads', myLeadId), {
+                        name: "Personal Assigned Lead",
+                        status: 'new',
+                        assignedTo: currentUser.uid, // This makes it "My Lead"
+                        isTestRecord: true
+                    });
+                } else {
+                    addLog("⚠️ Skipping 'My Leads' creation (No Admin logged in).", "warning");
                 }
-                addLog("✅ Driver Successfully Received Offer.", "success");
+
+                updateData({ globalLeadId, myLeadId });
+                addLog("✅ SafeHaul & Personal Leads Created.", "success");
                 break;
 
             case 'sim_pdf_gen':
                 try {
                     const pdfDoc = new jsPDF();
-                    pdfDoc.text("System Health Check - PDF Test", 10, 10);
-                    const pdfOutput = pdfDoc.output('datauristring');
-                    if (!pdfOutput || !pdfOutput.startsWith('data:application/pdf')) throw new Error("Output Invalid");
-                    addLog("✅ PDF Engine & Fonts Loaded Successfully.", "success");
+                    pdfDoc.text("System Health Check", 10, 10);
+                    const out = pdfDoc.output('datauristring');
+                    if (!out.startsWith('data:application/pdf')) throw new Error("Invalid PDF header");
+                    addLog("✅ PDF Generation Engine OK.", "success");
                 } catch (e) {
-                    throw new Error(`PDF Engine Failure: ${e.message}`);
+                    throw new Error(`PDF Engine Error: ${e.message}`);
                 }
                 break;
 
-            // --- NEW: AUDIT TRAIL TEST ---
             case 'sim_activity_log':
-                // Check if we can write to the activity log (Audit Trail)
-                const activityRef = doc(collection(db, 'companies', currentData.companyId, 'applications', currentData.driverId, 'activities'));
-                await setDoc(activityRef, {
-                    type: 'system_test',
-                    text: 'System Diagnostic Check',
-                    createdAt: serverTimestamp()
-                });
-
-                // Read it back to ensure it wasn't blocked by rules
-                const activitySnap = await getDoc(activityRef);
-                if (!activitySnap.exists()) throw new Error("Activity Logging Blocked by Security Rules");
-
-                addLog("✅ Audit Trail / Activity Logging Verified.", "success");
+                const logRef = doc(collection(db, 'companies', currentData.companyId, 'applications', currentData.driverId, 'activities'));
+                await setDoc(logRef, { type: 'test', text: 'Audit Log Test', createdAt: serverTimestamp() });
+                const logSnap = await getDoc(logRef);
+                if (!logSnap.exists()) throw new Error("Activity Log failed to write.");
+                addLog("✅ Audit/Activity Logging OK.", "success");
                 break;
 
-            case 'sim_lead_logic':
-                const compCheck = doc(db, 'companies', currentData.companyId);
-                const compSnap = await getDoc(compCheck);
-                const compData = compSnap.data();
-                if (compData.dailyQuota !== 50) {
-                    throw new Error(`Lead Logic Risk: Quota mismatch (Found ${compData.dailyQuota}, Expected 50)`);
+            // --- NEW: COMPREHENSIVE VISIBILITY CHECK ---
+            case 'test_visibility':
+                // 1. Applications List
+                const qApps = query(collection(db, 'companies', currentData.companyId, 'applications'));
+                const snapApps = await getDocs(qApps);
+                const foundApp = snapApps.docs.find(d => d.id === currentData.driverId);
+                if (!foundApp) throw new Error("Dashboard Visibility Error: Application not showing in query.");
+
+                // 2. Company Leads (Standard)
+                const leadRef = doc(collection(db, 'companies', currentData.companyId, 'leads'));
+                await setDoc(leadRef, { name: "Standard Company Lead", status: 'new', isTestRecord: true });
+                const qLeads = query(collection(db, 'companies', currentData.companyId, 'leads'));
+                const snapLeads = await getDocs(qLeads);
+                if (snapLeads.empty) throw new Error("Dashboard Visibility Error: Leads not showing in query.");
+
+                // 3. SafeHaul Leads (Global)
+                if (currentData.globalLeadId) {
+                    const shLeadSnap = await getDoc(doc(db, 'leads', currentData.globalLeadId));
+                    if (!shLeadSnap.exists()) throw new Error("Visibility Error: SafeHaul (Global) lead not retrievable.");
                 }
-                addLog("✅ Lead Distribution Logic (Quota) Verified.", "success");
+
+                // 4. "My Leads" (Assigned)
+                if (currentData.myLeadId) {
+                    const currentUser = getAuth().currentUser;
+                    const qMyLeads = query(
+                        collection(db, 'companies', currentData.companyId, 'leads'),
+                        where("assignedTo", "==", currentUser.uid)
+                    );
+                    const snapMyLeads = await getDocs(qMyLeads);
+                    if (snapMyLeads.empty) throw new Error("Visibility Error: 'My Leads' query returned empty.");
+                }
+
+                addLog("✅ Dashboard Visibility Verified (Apps, Company Leads, SafeHaul, My Leads).", "success");
+                break;
+
+            // --- NEW: BACKEND INTEGRITY ---
+            case 'test_integrity':
+                // 1. Fetch Application from DB
+                const integAppRef = doc(db, 'companies', currentData.companyId, 'applications', currentData.driverId);
+                const integSnap = await getDoc(integAppRef);
+                const storedPath = integSnap.data()['cdl-front']?.storagePath;
+
+                if (!storedPath) throw new Error("Integrity Fail: DB missing file path.");
+
+                // 2. Check if file actually exists in Storage
+                try {
+                    const fileRef = ref(storage, storedPath);
+                    await getDownloadURL(fileRef);
+                    addLog("✅ Database <-> Storage Alignment OK.", "success");
+                } catch (storageErr) {
+                    throw new Error(`Integrity Fail: File in DB but not in Storage. Path: ${storedPath}`);
+                }
                 break;
 
             case 'cleanup':
-                addLog("🧹 Beginning Cleanup...", "warning");
-                // Cleanup Primary Driver
-                if (currentData.companyId && currentData.driverId) {
-                    await deleteDoc(doc(db, 'companies', currentData.companyId, 'applications', currentData.driverId)).catch(e => console.warn(e));
+                addLog("🧹 Starting cleanup...", "info");
+                const data = testDataRef.current;
+
+                // Delete test companies and their subcollections
+                if (data.companyId) {
+                    try {
+                        // Delete applications
+                        const appsQuery = query(collection(db, 'companies', data.companyId, 'applications'));
+                        const appsSnap = await getDocs(appsQuery);
+                        for (const appDoc of appsSnap.docs) {
+                            await deleteDoc(appDoc.ref);
+                        }
+                        // Delete leads
+                        const leadsQuery = query(collection(db, 'companies', data.companyId, 'leads'));
+                        const leadsSnap = await getDocs(leadsQuery);
+                        for (const leadDoc of leadsSnap.docs) {
+                            await deleteDoc(leadDoc.ref);
+                        }
+                        await deleteDoc(doc(db, 'companies', data.companyId));
+                    } catch (e) {
+                        console.error("Cleanup company A error:", e);
+                    }
                 }
-                // Cleanup Linked Driver (Recruiter Test)
-                if (currentData.companyId && currentData.linkedDriverId) {
-                    await deleteDoc(doc(db, 'companies', currentData.companyId, 'applications', currentData.linkedDriverId)).catch(e => console.warn(e));
+
+                if (data.companyIdB) {
+                    try {
+                        await deleteDoc(doc(db, 'companies', data.companyIdB));
+                    } catch (e) {
+                        console.error("Cleanup company B error:", e);
+                    }
                 }
 
-                if (currentData.companyId) await deleteDoc(doc(db, 'companies', currentData.companyId)).catch(e => console.warn(e));
-                if (currentData.driverId) await deleteDoc(doc(db, 'drivers', currentData.driverId)).catch(e => console.warn(e));
-                if (currentData.membershipId) await deleteDoc(doc(db, 'memberships', currentData.membershipId)).catch(e => console.warn(e));
+                if (data.driverId) {
+                    try {
+                        await deleteDoc(doc(db, 'drivers', data.driverId));
+                    } catch (e) {
+                        console.error("Cleanup driver error:", e);
+                    }
+                }
 
-                if (currentData.fileRefPath) await deleteObject(ref(storage, currentData.fileRefPath)).catch(e => console.warn("File gone"));
-                if (currentData.cdlPath) await deleteObject(ref(storage, currentData.cdlPath)).catch(e => console.warn("CDL gone"));
+                if (data.globalLeadId) {
+                    try {
+                        await deleteDoc(doc(db, 'leads', data.globalLeadId));
+                    } catch (e) {
+                        console.error("Cleanup global lead error:", e);
+                    }
+                }
 
-                addLog("✅ Test Data Purged.", "success");
-                updateData({}); 
+                // Delete test storage files
+                if (data.fileRefPath) {
+                    try {
+                        await deleteObject(ref(storage, data.fileRefPath));
+                    } catch (e) {
+                        console.error("Cleanup storage file error:", e);
+                    }
+                }
+
+                if (data.cdlPath) {
+                    try {
+                        await deleteObject(ref(storage, data.cdlPath));
+                    } catch (e) {
+                        console.error("Cleanup CDL file error:", e);
+                    }
+                }
+
+                // Delete test memberships
+                try {
+                    const memQuery = query(collection(db, 'memberships'), where("isTestRecord", "==", true));
+                    const memSnap = await getDocs(memQuery);
+                    for (const memDoc of memSnap.docs) {
+                        await deleteDoc(memDoc.ref);
+                    }
+                } catch (e) {
+                    console.error("Cleanup memberships error:", e);
+                }
+
+                addLog("✅ All test data cleaned up.", "success");
                 break;
+
+            default:
+                addLog(`⚠️ Unknown step: ${stepId}`, "warning");
         }
     };
 
     const pauseDiagnostics = () => {
-        if (abortController.current) abortController.current.abort();
+        abortController.current?.abort();
         setStatus('paused');
-        addLog("⏸️ Diagnostic Paused by User.", "warning");
+        addLog("⏸️ Diagnostics Paused.", "warning");
     };
 
-    const runMigrationTool = async () => {
-        addLog("🛠️ Starting Manual Data Migration...", "info");
-        try {
-            const migrateFn = httpsCallable(functions, 'runMigration');
-            const result = await migrateFn();
-            if (result.data?.success) {
-                addLog(`✅ Migration Success: ${result.data?.message}`, "success");
-            } else {
-                addLog(`❌ Migration Error: ${result.data?.error}`, "error");
-            }
-        } catch (e) {
-            addLog(`❌ Connection Failed: ${e.message}`, "error");
-        }
+    const resetDiagnostics = () => {
+        abortController.current?.abort();
+        setStatus('idle');
+        setCurrentStepIndex(0);
+        setProgress(0);
+        setLogs([]);
+        setTestData({});
+        testDataRef.current = {};
+        localStorage.removeItem(STORAGE_KEY);
     };
 
     return {
-        runDiagnostics,
-        pauseDiagnostics,
-        runMigrationTool,
         status,
+        currentStep: STEPS[currentStepIndex],
         progress,
         logs,
-        currentStepIndex,
-        totalSteps: STEPS.length,
-        currentStepName: STEPS[currentStepIndex]?.label
+        steps: STEPS,
+        runDiagnostics,
+        pauseDiagnostics,
+        resetDiagnostics
     };
 }

@@ -2,7 +2,8 @@
 import { 
     createUserWithEmailAndPassword, 
     signInWithEmailAndPassword,
-    updateProfile
+    updateProfile,
+    sendPasswordResetEmail
 } from "firebase/auth";
 import { doc, setDoc, addDoc, collection, serverTimestamp, query, where, getDocs, deleteDoc } from "firebase/firestore";
 import { auth, db } from '@lib/firebase';
@@ -138,6 +139,16 @@ export async function registerCompany({ email, password, fullName, companyName, 
         });
 
         return user;
+    } catch (error) {
+        throw mapAuthError(error);
+    }
+}
+
+// --- PASSWORD RESET ---
+export async function resetPassword(email) {
+    try {
+        await sendPasswordResetEmail(auth, email);
+        return { success: true };
     } catch (error) {
         throw mapAuthError(error);
     }

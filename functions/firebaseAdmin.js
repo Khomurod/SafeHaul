@@ -9,9 +9,13 @@ if (!admin.apps.length) {
 // 2. Get Firestore Instance
 const db = getFirestore();
 
-// 3. Prevent "Invalid data: undefined" errors
+// 3. Get Auth Instance (CRITICAL MISSING PIECE)
+const auth = admin.auth();
+
+// 4. Prevent "Invalid data: undefined" errors
 db.settings({ ignoreUndefinedProperties: true });
 
 console.log("✅ Firebase Admin Initialized Successfully");
 
-module.exports = { admin, db };
+// Export auth so other files can use it
+module.exports = { admin, db, auth };

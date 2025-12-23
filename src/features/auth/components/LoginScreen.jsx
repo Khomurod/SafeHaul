@@ -1,9 +1,9 @@
 // src/features/auth/components/LoginScreen.jsx
 import React, { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { loginUser } from '../services/authService';
+import { loginUser, resetPassword } from '../services/authService';
 import { getPortalUser, getMembershipsForUser } from '../services/userService';
-import { Mail, Lock, ArrowRight, Loader2, CheckCircle2, Users, Briefcase, TrendingUp } from 'lucide-react';
+import { Mail, Lock, ArrowRight, Loader2, CheckCircle2, Users, Briefcase, ArrowLeft } from 'lucide-react';
 
 const SafeHaulLogo = ({ className = "" }) => (
   <svg className={className} viewBox="0 0 150 128" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -25,9 +25,48 @@ export function LoginScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  
+  // Forgot password state (separate from login state)
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetEmailSent, setResetEmailSent] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetError, setResetError] = useState('');
 
   const navigate = useNavigate();
   const location = useLocation();
+
+  const openForgotPassword = () => {
+    setResetEmail(email); // Pre-fill with login email if available
+    setResetError('');
+    setResetEmailSent(false);
+    setShowForgotPassword(true);
+  };
+
+  const closeForgotPassword = () => {
+    setShowForgotPassword(false);
+    setResetEmail('');
+    setResetError('');
+    setResetEmailSent(false);
+  };
+
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    if (!resetEmail) {
+      setResetError('Please enter your email address');
+      return;
+    }
+    setResetError('');
+    setResetLoading(true);
+    try {
+      await resetPassword(resetEmail);
+      setResetEmailSent(true);
+    } catch (err) {
+      setResetError(err.message || 'Failed to send reset email');
+    } finally {
+      setResetLoading(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -135,18 +174,9 @@ export function LoginScreen() {
             </div>
 
             <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label htmlFor="password" className="block text-sm font-medium text-slate-700">
-                  Password
-                </label>
-                <button 
-                  type="button" 
-                  className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-                  onClick={() => {}}
-                >
-                  Forgot password?
-                </button>
-              </div>
+              <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-1.5">
+                Password
+              </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
                   <Lock size={18} className="text-slate-400" />
@@ -162,6 +192,15 @@ export function LoginScreen() {
                   className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
                   placeholder="Enter your password"
                 />
+              </div>
+              <div className="mt-2 text-right">
+                <button 
+                  type="button" 
+                  className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                  onClick={openForgotPassword}
+                >
+                  Forgot password?
+                </button>
               </div>
             </div>
 
@@ -264,6 +303,83 @@ export function LoginScreen() {
           </div>
         </div>
       </div>
+
+      {/* Forgot Password Modal */}
+      {showForgotPassword && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 animate-in fade-in zoom-in-95 duration-200">
+            {resetEmailSent ? (
+              <div className="text-center">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle2 size={32} className="text-green-600" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-900 mb-2">Check your email</h3>
+                <p className="text-slate-500 mb-6">
+                  We've sent password reset instructions to <strong className="text-slate-700">{resetEmail}</strong>
+                </p>
+                <button
+                  onClick={closeForgotPassword}
+                  className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all"
+                >
+                  Back to Sign In
+                </button>
+              </div>
+            ) : (
+              <>
+                <button
+                  onClick={closeForgotPassword}
+                  className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 mb-4"
+                >
+                  <ArrowLeft size={16} /> Back to login
+                </button>
+                <h3 className="text-xl font-bold text-slate-900 mb-2">Reset your password</h3>
+                <p className="text-slate-500 mb-6">
+                  Enter your email address and we'll send you a link to reset your password.
+                </p>
+
+                {resetError && (
+                  <div className="mb-4 p-3 bg-red-50 border border-red-100 rounded-lg">
+                    <p className="text-sm text-red-600">{resetError}</p>
+                  </div>
+                )}
+
+                <form onSubmit={handleForgotPassword}>
+                  <div className="mb-4">
+                    <label htmlFor="reset-email" className="block text-sm font-medium text-slate-700 mb-1.5">
+                      Email address
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                        <Mail size={18} className="text-slate-400" />
+                      </div>
+                      <input
+                        id="reset-email"
+                        type="email"
+                        value={resetEmail}
+                        onChange={(e) => setResetEmail(e.target.value)}
+                        className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 placeholder-slate-400 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all"
+                        placeholder="you@example.com"
+                        required
+                      />
+                    </div>
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={resetLoading}
+                    className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-sm transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+                  >
+                    {resetLoading ? (
+                      <Loader2 size={20} className="animate-spin" />
+                    ) : (
+                      'Send Reset Link'
+                    )}
+                  </button>
+                </form>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
     </div>
   );

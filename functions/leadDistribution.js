@@ -1,4 +1,4 @@
-// hr portal/functions/leadDistribution.js
+// functions/leadDistribution.js
 
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
@@ -8,14 +8,16 @@ const {
     runCleanup,
     processLeadOutcome,
     generateDailyAnalytics,
-    confirmDriverInterest // <-- Import the new function
+    confirmDriverInterest
 } = require("./leadLogic");
 
+// --- FIXED: Added cors: true ---
 const RUNTIME_OPTS = {
     timeoutSeconds: 540,
     memory: '256MiB',
     maxInstances: 1,
-    concurrency: 1
+    concurrency: 1,
+    cors: true // <--- CRITICAL FIX FOR CORS ERROR
 };
 
 // --- EXPORT 1: Manual Distribution (Force Rotate) ---
@@ -32,11 +34,11 @@ exports.distributeDailyLeads = onCall(RUNTIME_OPTS, async (request) => {
 });
 
 // --- EXPORT 2: Scheduled Distribution (Standard Rotate) ---
-// Runs at midnight EST
 exports.distributeDailyLeadsScheduled = onSchedule({
     schedule: "0 0 * * *", 
     timeZone: "America/New_York",
-    ...RUNTIME_OPTS 
+    timeoutSeconds: 540,
+    memory: '256MiB'
 }, async (event) => {
     try {
         const result = await runLeadDistribution(false);
@@ -59,16 +61,15 @@ exports.cleanupBadLeads = onCall(RUNTIME_OPTS, async (request) => {
     }
 });
 
-// --- EXPORT 4: Lead Outcome Handler (Pool Logic) ---
+// --- EXPORT 4: Lead Outcome Handler ---
 exports.handleLeadOutcome = onCall(RUNTIME_OPTS, async (request) => {
     if (!request.auth) throw new HttpsError("unauthenticated", "Login required.");
-    
+
     const { leadId, companyId, outcome } = request.data;
-    
-    // Security Check: User must belong to the company they are reporting for
+
     const userRole = request.auth.token.roles?.[companyId];
     const isSuper = request.auth.token.roles?.globalRole === 'super_admin';
-    
+
     if (!isSuper && !userRole) {
         throw new HttpsError("permission-denied", "You do not have access to this company.");
     }
@@ -78,17 +79,16 @@ exports.handleLeadOutcome = onCall(RUNTIME_OPTS, async (request) => {
         return result;
     } catch (error) {
         console.error("Outcome Error:", error);
-        // We return success: false instead of throwing to prevent frontend crashes on background logic
         return { success: false, error: error.message };
     }
 });
 
 // --- EXPORT 5: Analytics Aggregator (Scheduled) ---
-// Runs at 11:55 PM EST to capture the day's activity before midnight reset
 exports.aggregateAnalytics = onSchedule({
     schedule: "55 23 * * *",
     timeZone: "America/New_York",
-    ...RUNTIME_OPTS
+    timeoutSeconds: 540,
+    memory: '256MiB'
 }, async (event) => {
     try {
         const result = await generateDailyAnalytics();
@@ -98,13 +98,9 @@ exports.aggregateAnalytics = onSchedule({
     }
 });
 
-// --- EXPORT 6: Confirm Driver Interest (New) ---
+// --- EXPORT 6: Confirm Driver Interest ---
 exports.confirmDriverInterest = onCall(RUNTIME_OPTS, async (request) => {
-    // This endpoint is public (no auth check) because drivers click it from SMS/Email links.
-    // Security is handled by validating the Lead ID existence and Company mapping.
-    
     const { leadId, companyId, recruiterId } = request.data;
-    
     try {
         const result = await confirmDriverInterest(leadId, companyId, recruiterId);
         return result;
@@ -114,5 +110,5 @@ exports.confirmDriverInterest = onCall(RUNTIME_OPTS, async (request) => {
     }
 });
 
-// Disable Migration export to prevent accidents
+// Disabled Exports
 exports.migrateDriversToLeads = onCall(RUNTIME_OPTS, async() => { return {message: "Disabled"} });

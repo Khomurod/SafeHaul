@@ -1,15 +1,15 @@
-// hr portal/functions/leadLogic.js
+// functions/leadLogic.js
 
 const { admin, db } = require("./firebaseAdmin");
 
 // --- CONSTANTS ---
-const EXPIRY_SHORT_MS = 24 * 60 * 60 * 1000; // 24 Hours (Company view)
-const EXPIRY_LONG_MS = 7 * 24 * 60 * 60 * 1000; // 7 Days (Company view)
+const EXPIRY_SHORT_MS = 24 * 60 * 60 * 1000; // 24 Hours
+const EXPIRY_LONG_MS = 7 * 24 * 60 * 60 * 1000; // 7 Days
 
 // POOL RULES
 const POOL_COOL_OFF_DAYS = 7;
-const POOL_INTEREST_LOCK_DAYS = 7; // Driver clicked "Yes" -> Lock for 7 days
-const POOL_HIRED_LOCK_DAYS = 60; // Hired/Approved -> Lock for 2 months (60 days)
+const POOL_INTEREST_LOCK_DAYS = 7;
+const POOL_HIRED_LOCK_DAYS = 60;
 
 const ENGAGED_STATUSES = [
     "Contacted", "Application Started", "Offer Sent", "Offer Accepted", "Interview Scheduled", "Hired", "Approved"
@@ -82,13 +82,13 @@ async function runLeadDistribution(forceRotate = false) {
     return { success: true, message: "Distribution Complete", details: distributionDetails };
 }
 
-// --- 2. CLEANUP LOGIC ---
+// --- 2. CLEANUP LOGIC (FIXED) ---
 async function processCompanyCleanup(companyId, now, forceRotate) {
     const companyLeadsRef = db.collection("companies").doc(companyId).collection("leads");
     const currentLeadsSnap = await companyLeadsRef.where("isPlatformLead", "==", true).get();
 
     let batch = db.batch();
-    let opCount = 0;
+    let batchSize = 0; // Tracks ACTUAL writes, not just loops
     let activeCount = 0;
 
     for (const docSnap of currentLeadsSnap.docs) {
@@ -96,7 +96,6 @@ async function processCompanyCleanup(companyId, now, forceRotate) {
         let shouldDelete = false;
         const status = data.status || "New Lead";
 
-        // Extended status check
         const isEngaged = ENGAGED_STATUSES.includes(status) && status !== "New Lead" && status !== "Attempted";
 
         if (forceRotate && !isEngaged) {
@@ -119,31 +118,39 @@ async function processCompanyCleanup(companyId, now, forceRotate) {
         if (shouldDelete) {
             await harvestNotesBeforeDelete(docSnap, data);
 
-            // Release lock on global lead if not specially locked (hired)
             if (data.originalLeadId) {
                  const leadRef = db.collection("leads").doc(data.originalLeadId);
-                 const leadDoc = await leadRef.get();
-
-                 if (leadDoc.exists) {
-                     const currentUnavailable = leadDoc.data().unavailableUntil;
-                     // Only reset if it's not locked far in the future (Hired/Interest)
-                     if (!currentUnavailable || currentUnavailable.toDate() < now) {
-                         // It's free
-                     } else {
-                         // Keep lock.
-                     }
-                 }
+                 batch.update(leadRef, { 
+                    unavailableUntil: null, 
+                    lastAssignedTo: null 
+                 });
+                 batchSize++; 
             }
+
             batch.delete(docSnap.ref);
+            batchSize++;
         } else {
             activeCount++;
         }
 
-        opCount++;
-        if (opCount >= 400) { await batch.commit(); batch = db.batch(); opCount = 0; }
+        // Only commit if we have enough operations
+        if (batchSize >= 400) { 
+            await batch.commit(); 
+            batch = db.batch(); 
+            batchSize = 0; 
+        }
     }
 
-    if (opCount > 0) await batch.commit();
+    // FIXED: Only commit if there is something to commit
+    if (batchSize > 0) {
+        await batch.commit();
+    }
+
+    // Tiny delay to allow indexes to settle
+    if (batchSize > 0) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+    }
+
     return activeCount;
 }
 
@@ -151,10 +158,10 @@ async function processCompanyCleanup(companyId, now, forceRotate) {
 async function processCompanyReplenishment(companyId, needed, nowTs, assignedLeadIds, allCompanyIds) {
     const companyLeadsRef = db.collection("companies").doc(companyId).collection("leads");
 
-    // Fetch pool: leads where unavailableUntil is NULL or in the PAST
+    // Query 1: Leads that have expired locks (past timestamp)
     const poolQuery = db.collection("leads")
-        .where("unavailableUntil", "<=", nowTs) // Using Timestamp for comparison
-        .orderBy("unavailableUntil", "asc") // Required for inequality filter
+        .where("unavailableUntil", "<=", nowTs)
+        .orderBy("unavailableUntil", "asc")
         .limit((needed * 5) + assignedLeadIds.size);
 
     let leadDocs = [];
@@ -162,22 +169,28 @@ async function processCompanyReplenishment(companyId, needed, nowTs, assignedLea
         const poolSnap = await poolQuery.get();
         leadDocs = poolSnap.docs;
 
+        // Query 2: Leads that are explicitly unlocked (null)
+        // This is needed because "<=" queries usually ignore null values
         if (leadDocs.length < needed) {
              const nullQuery = db.collection("leads").where("unavailableUntil", "==", null).limit(needed * 2);
              const nullSnap = await nullQuery.get();
-             leadDocs = [...leadDocs, ...nullSnap.docs];
+
+             const existingIds = new Set(leadDocs.map(d => d.id));
+             nullSnap.docs.forEach(d => {
+                 if(!existingIds.has(d.id)) leadDocs.push(d);
+             });
         }
     } catch (e) {
-        console.warn("Pool query warning:", e);
-        // Fallback: Just get latest
+        console.warn("Pool query warning (Index likely missing):", e);
+        // Fallback: Just get latest leads
         const backupSnap = await db.collection("leads").orderBy("createdAt", "desc").limit(needed * 5).get();
         leadDocs = backupSnap.docs;
     }
 
-    leadDocs = shuffleArray(leadDocs); // Randomize
+    leadDocs = shuffleArray(leadDocs);
 
     let batch = db.batch();
-    let opCount = 0;
+    let batchSize = 0;
     let addedCount = 0;
 
     for (const leadDoc of leadDocs) {
@@ -189,12 +202,11 @@ async function processCompanyReplenishment(companyId, needed, nowTs, assignedLea
 
         const rawData = leadDoc.data();
 
-        // Fairness / Cycle check
         let visited = rawData.visitedCompanyIds || [];
         if (visited.includes(companyId)) continue;
+
         if (visited.length >= Math.max(1, allCompanyIds.length - 1)) visited = [];
 
-        // Data Prep
         const safeLeadData = {
             firstName: rawData.firstName || 'Unknown',
             lastName: rawData.lastName || 'Driver',
@@ -217,10 +229,9 @@ async function processCompanyReplenishment(companyId, needed, nowTs, assignedLea
             status: "New Lead"
         };
 
-        // Write to Company
         batch.set(companyLeadsRef.doc(leadDoc.id), distData);
+        batchSize++;
 
-        // Lock Global Lead (24 hours default for distribution)
         const tomorrow = new Date();
         tomorrow.setDate(tomorrow.getDate() + 1);
 
@@ -229,19 +240,25 @@ async function processCompanyReplenishment(companyId, needed, nowTs, assignedLea
             lastAssignedTo: companyId,
             visitedCompanyIds: [...visited, companyId]
         });
+        batchSize++;
 
         assignedLeadIds.add(leadDoc.id);
         addedCount++;
-        opCount++;
 
-        if (opCount >= 400) { await batch.commit(); batch = db.batch(); opCount = 0; }
+        if (batchSize >= 400) { 
+            await batch.commit(); 
+            batch = db.batch(); 
+            batchSize = 0; 
+        }
     }
 
-    if (opCount > 0) await batch.commit();
+    if (batchSize > 0) {
+        await batch.commit();
+    }
     return addedCount;
 }
 
-// --- 4. OUTCOME HANDLER (RECRUITER MANUAL) ---
+// --- 4. OUTCOME HANDLER ---
 async function processLeadOutcome(leadId, companyId, outcome) {
     if (!leadId) return { error: "No Lead ID" };
 
@@ -250,12 +267,10 @@ async function processLeadOutcome(leadId, companyId, outcome) {
     let lockUntil = new Date();
     let reason = "pool_recycle";
 
-    // Handle "Approved" or "Hired" -> 2 Month Lock
     if (outcome === 'hired_elsewhere' || outcome === 'hired' || outcome === 'Approved') {
         lockUntil.setDate(now.getDate() + POOL_HIRED_LOCK_DAYS);
         reason = "hired";
     } else if (outcome === 'not_interested' || outcome === 'not_qualified' || outcome === 'Rejected') {
-        // Lock for 7 Days (Cool off)
         lockUntil.setDate(now.getDate() + POOL_COOL_OFF_DAYS);
         reason = "rejected";
     } else {
@@ -272,26 +287,19 @@ async function processLeadOutcome(leadId, companyId, outcome) {
     return { success: true, mode: reason, lockedUntil: lockUntil };
 }
 
-// --- 5. DRIVER INTEREST HANDLER (DRIVER CLICKED LINK) ---
+// --- 5. DRIVER INTEREST ---
 async function confirmDriverInterest(leadId, companyIdOrSlug, recruiterId) {
-    // 1. Validation
     if (!leadId || !companyIdOrSlug) return { success: false, error: "Missing data" };
 
-    // --- LOOKUP COMPANY ID IF SLUG IS PASSED ---
     let companyId = companyIdOrSlug;
-
-    // Check if it looks like a slug by querying
     const companyQuery = await db.collection("companies").where("appSlug", "==", companyIdOrSlug).limit(1).get();
     if (!companyQuery.empty) {
         companyId = companyQuery.docs[0].id;
     } else {
-        // If not found by slug, maybe it is a direct ID? Check existence.
-        // check existence
         const directDoc = await db.collection("companies").doc(companyIdOrSlug).get();
         if (!directDoc.exists) return { success: false, error: "Invalid Company Link" };
         companyId = companyIdOrSlug;
     }
-    // -------------------------------------------
 
     const leadRef = db.collection("leads").doc(leadId);
     const leadSnap = await leadRef.get();
@@ -303,7 +311,6 @@ async function confirmDriverInterest(leadId, companyIdOrSlug, recruiterId) {
     const leadData = leadSnap.data();
     const nowTs = admin.firestore.Timestamp.now();
 
-    // 2. Determine Recruiter Name (if provided)
     let recruiterName = "Assigned Recruiter";
     if (recruiterId) {
         try {
@@ -312,37 +319,30 @@ async function confirmDriverInterest(leadId, companyIdOrSlug, recruiterId) {
         } catch(e) { console.warn("Could not fetch recruiter name"); }
     }
 
-    // 3. Prepare Application Data
-    // We create this directly in 'applications' collection
     const appRef = db.collection("companies").doc(companyId).collection("applications").doc(leadId);
-
-    // We clean up 'leads' entry for this company if it exists (so it doesn't show up in two places)
     const oldLeadRef = db.collection("companies").doc(companyId).collection("leads").doc(leadId);
 
     const appData = {
         ...leadData,
-        status: "New Application", // Explicit status for Interest
-        source: "Driver Interest Link", // Mark source
+        status: "New Application", 
+        source: "Driver Interest Link", 
         isPlatformLead: true,
         originalLeadId: leadId,
-        assignedTo: recruiterId, // Assign to specific recruiter
+        assignedTo: recruiterId, 
         assignedToName: recruiterName,
-        createdAt: nowTs, // Reset date so it appears at top
+        createdAt: nowTs,
         submittedAt: nowTs,
         updatedAt: nowTs
     };
 
-    // 4. Calculate 7-Day Exclusive Lock
     const lockDate = new Date();
     lockDate.setDate(lockDate.getDate() + POOL_INTEREST_LOCK_DAYS);
     const lockTs = admin.firestore.Timestamp.fromDate(lockDate);
 
-    // 5. Execute Batch
     const batch = db.batch();
-    batch.set(appRef, appData, { merge: true }); // Create Application
-    batch.delete(oldLeadRef); // Remove from Leads list
+    batch.set(appRef, appData, { merge: true });
+    batch.delete(oldLeadRef);
 
-    // Lock Global Lead
     batch.update(leadRef, {
         unavailableUntil: lockTs,
         lastAssignedTo: companyId,
@@ -354,16 +354,14 @@ async function confirmDriverInterest(leadId, companyIdOrSlug, recruiterId) {
     return { success: true, message: "Application created and assigned." };
 }
 
-// --- 6. ANALYTICS AGGREGATOR ---
+// --- 6. ANALYTICS ---
 async function generateDailyAnalytics() {
     const todayStr = new Date().toISOString().split('T')[0];
     const analyticsRef = db.collection("analytics").doc(todayStr);
 
-    // Snapshot Counts
     const companiesCount = (await db.collection("companies").count().get()).data().count;
     const leadsCount = (await db.collection("leads").count().get()).data().count;
 
-    // Activity Aggregation
     const todayStart = new Date();
     todayStart.setHours(0,0,0,0);
     const todayTs = admin.firestore.Timestamp.fromDate(todayStart);
@@ -429,16 +427,18 @@ async function runCleanup() {
     const leadsRef = db.collection("leads");
     const snapshot = await leadsRef.get();
     let batch = db.batch();
+    let batchSize = 0; // Fix here as well
     let count = 0;
     for (const doc of snapshot.docs) {
         const data = doc.data();
         if (!data.phone && !data.email && data.firstName === 'Unknown') {
             batch.delete(doc.ref);
+            batchSize++;
             count++;
         }
-        if (count >= 400) { await batch.commit(); batch = db.batch(); count = 0; }
+        if (batchSize >= 400) { await batch.commit(); batch = db.batch(); batchSize = 0; }
     }
-    if (count > 0) await batch.commit();
+    if (batchSize > 0) await batch.commit();
     return { success: true, deleted: count };
 }
 
@@ -449,6 +449,6 @@ module.exports = {
     runMigration, 
     runCleanup,
     processLeadOutcome, 
-    confirmDriverInterest, // <-- EXPORTED NEW FUNCTION
+    confirmDriverInterest,
     generateDailyAnalytics 
 };

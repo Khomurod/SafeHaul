@@ -158,8 +158,25 @@ export function PublicApplyHandler() {
         const timestamp = serverTimestamp();
         const recruiterCode = sessionStorage.getItem('pending_application_recruiter');
 
+        // --- CRITICAL FIX START: Align with Firestore Rules ---
+        // 1. Generate unique Guest ID for 'applicantId' field
+        const guestId = `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
         const applicationData = {
+            // 2. Satisfy rules requiring 'applicantId'
+            applicantId: guestId,
+
+            // 3. Satisfy rules requiring nested 'personalInfo' object
+            personalInfo: {
+                firstName: formData.firstName || '',
+                lastName: formData.lastName || '',
+                email: formData.email || '',
+                phone: formData.phone || '',
+            },
+
+            // Spread the rest of the data (flat) for backward compatibility
             ...formData,
+
             companyId: company.id,
             companyName: company.companyName,
             recruiterCode: recruiterCode || null,
@@ -175,6 +192,7 @@ export function PublicApplyHandler() {
             schools: Array.isArray(formData.schools) ? formData.schools : [],
             military: Array.isArray(formData.military) ? formData.military : []
         };
+        // --- CRITICAL FIX END ---
 
         const applicationsRef = collection(db, "companies", company.id, "applications");
         await addDoc(applicationsRef, applicationData);
