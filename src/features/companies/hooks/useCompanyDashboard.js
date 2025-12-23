@@ -96,7 +96,11 @@ export function useCompanyDashboard(companyId) {
 
       // A. Tab Constraints
       if (activeTab === 'applications') {
-          if (!isSearchMode) constraints.push(orderBy("submittedAt", "desc"));
+          if (!isSearchMode) {
+              // FIX: Changed from 'submittedAt' to 'createdAt' to ensure all docs (even imports) appear
+              // Note: Ensure your applications actually have 'createdAt'. If not, we might need a composite check.
+              constraints.push(orderBy("createdAt", "desc"));
+          }
       } else {
           // Leads Logic
           if (activeTab === 'find_driver') {
