@@ -24,17 +24,11 @@ function shuffleArray(array) {
     return array;
 }
 
-function chunkArray(array, size) {
-    const result = [];
-    for (let i = 0; i < array.length; i += size) {
-        result.push(array.slice(i, i + size));
-    }
-    return result;
-}
-
 // --- 1. LEAD DISTRIBUTION ORCHESTRATOR ---
 async function runLeadDistribution(forceRotate = false) {
     console.log(`Starting Lead Distribution Engine (Force: ${forceRotate})...`);
+    
+    // 1. Fetch Companies
     const companiesSnap = await db.collection("companies").get();
     const allCompanyDocs = companiesSnap.docs;
     const allCompanyIds = allCompanyDocs.map(doc => doc.id);
@@ -43,20 +37,23 @@ async function runLeadDistribution(forceRotate = false) {
     const now = new Date();
     const nowTs = admin.firestore.Timestamp.now();
 
+    // Track assigned IDs in memory to prevent duplicates within this specific run
     const assignedLeadIds = new Set(); 
 
-    const companyChunks = chunkArray(allCompanyDocs, 5);
-    for (const chunk of companyChunks) {
-        const results = await Promise.all(chunk.map(async (companyDoc) => {
+    // 2. Process Sequentially (Critical for preventing Race Conditions)
+    // We do NOT use Promise.all here because we need the DB locks from Company A 
+    // to be committed before Company B queries the pool.
+    for (const companyDoc of allCompanyDocs) {
+        try {
             const companyId = companyDoc.id;
             const companyData = companyDoc.data();
             const plan = companyData.planType || 'free';
-            const LIMIT = plan === 'paid' ? 200 : 50;
+            const LIMIT = plan === 'paid' ? 200 : 50; // Quota
 
-            // A. CLEANUP
+            // A. CLEANUP (Remove expired/unwanted leads)
             const activeCount = await processCompanyCleanup(companyId, now, forceRotate);
 
-            // B. REPLENISH
+            // B. REPLENISH (Fill up to the limit)
             const needed = LIMIT - activeCount;
             let addedCount = 0;
             let msg = "";
@@ -73,22 +70,26 @@ async function runLeadDistribution(forceRotate = false) {
             } else {
                 msg = `${companyData.companyName}: Full (${activeCount}/${LIMIT})`;
             }
-            return msg;
-        }));
+            
+            console.log(msg);
+            distributionDetails.push(msg);
 
-        distributionDetails.push(...results);
+        } catch (err) {
+            console.error(`Error processing company ${companyDoc.id}:`, err);
+            distributionDetails.push(`Error ${companyDoc.id}: ${err.message}`);
+        }
     }
 
     return { success: true, message: "Distribution Complete", details: distributionDetails };
 }
 
-// --- 2. CLEANUP LOGIC (FIXED) ---
+// --- 2. CLEANUP LOGIC ---
 async function processCompanyCleanup(companyId, now, forceRotate) {
     const companyLeadsRef = db.collection("companies").doc(companyId).collection("leads");
     const currentLeadsSnap = await companyLeadsRef.where("isPlatformLead", "==", true).get();
 
     let batch = db.batch();
-    let batchSize = 0; // Tracks ACTUAL writes, not just loops
+    let batchSize = 0; 
     let activeCount = 0;
 
     for (const docSnap of currentLeadsSnap.docs) {
@@ -102,24 +103,31 @@ async function processCompanyCleanup(companyId, now, forceRotate) {
             shouldDelete = true;
         } else {
             if (!data.distributedAt) {
+                // If data is malformed and missing distribution time, clean it up
                 shouldDelete = true;
             } else {
                 const distributedTime = data.distributedAt.toDate().getTime();
                 const age = now.getTime() - distributedTime;
 
+                // Rule: If > 7 days and not Hired/Accepted -> Delete
                 if (age > EXPIRY_LONG_MS) {
                     if (!["Hired", "Offer Accepted", "Approved"].includes(status)) shouldDelete = true;
-                } else if (age > EXPIRY_SHORT_MS) {
+                } 
+                // Rule: If > 24 hours and untouched -> Delete
+                else if (age > EXPIRY_SHORT_MS) {
                     if (!isEngaged) shouldDelete = true;
                 }
             }
         }
 
         if (shouldDelete) {
+            // Save notes back to global history before deleting
             await harvestNotesBeforeDelete(docSnap, data);
 
+            // Unlock the lead in the global pool immediately
             if (data.originalLeadId) {
                  const leadRef = db.collection("leads").doc(data.originalLeadId);
+                 // We nullify the lock so it can be picked up by others
                  batch.update(leadRef, { 
                     unavailableUntil: null, 
                     lastAssignedTo: null 
@@ -133,7 +141,6 @@ async function processCompanyCleanup(companyId, now, forceRotate) {
             activeCount++;
         }
 
-        // Only commit if we have enough operations
         if (batchSize >= 400) { 
             await batch.commit(); 
             batch = db.batch(); 
@@ -141,14 +148,8 @@ async function processCompanyCleanup(companyId, now, forceRotate) {
         }
     }
 
-    // FIXED: Only commit if there is something to commit
     if (batchSize > 0) {
         await batch.commit();
-    }
-
-    // Tiny delay to allow indexes to settle
-    if (batchSize > 0) {
-        await new Promise(resolve => setTimeout(resolve, 500));
     }
 
     return activeCount;
@@ -158,11 +159,15 @@ async function processCompanyCleanup(companyId, now, forceRotate) {
 async function processCompanyReplenishment(companyId, needed, nowTs, assignedLeadIds, allCompanyIds) {
     const companyLeadsRef = db.collection("companies").doc(companyId).collection("leads");
 
-    // Query 1: Leads that have expired locks (past timestamp)
+    // Strategy: Fetch more than we need because some will be filtered out (already visited, etc)
+    const fetchLimit = (needed * 5) + 10; 
+
+    // Query 1: Leads where lock has expired (unavailableUntil <= NOW)
+    // Note: requires Composite Index (unavailableUntil ASC, __name__ DESC)
     const poolQuery = db.collection("leads")
         .where("unavailableUntil", "<=", nowTs)
         .orderBy("unavailableUntil", "asc")
-        .limit((needed * 5) + assignedLeadIds.size);
+        .limit(fetchLimit);
 
     let leadDocs = [];
     try {
@@ -170,23 +175,27 @@ async function processCompanyReplenishment(companyId, needed, nowTs, assignedLea
         leadDocs = poolSnap.docs;
 
         // Query 2: Leads that are explicitly unlocked (null)
-        // This is needed because "<=" queries usually ignore null values
-        if (leadDocs.length < needed) {
-             const nullQuery = db.collection("leads").where("unavailableUntil", "==", null).limit(needed * 2);
+        // Firestores "<=" query does NOT include nulls, so we must query them separately
+        if (leadDocs.length < fetchLimit) {
+             const nullQuery = db.collection("leads")
+                .where("unavailableUntil", "==", null)
+                .limit(fetchLimit - leadDocs.length);
+             
              const nullSnap = await nullQuery.get();
-
+             // Merge results deduplicating by ID
              const existingIds = new Set(leadDocs.map(d => d.id));
              nullSnap.docs.forEach(d => {
                  if(!existingIds.has(d.id)) leadDocs.push(d);
              });
         }
     } catch (e) {
-        console.warn("Pool query warning (Index likely missing):", e);
-        // Fallback: Just get latest leads
-        const backupSnap = await db.collection("leads").orderBy("createdAt", "desc").limit(needed * 5).get();
+        console.warn("Pool query warning (Index likely missing, falling back to recent):", e);
+        // Fallback: Just get latest leads if index fails
+        const backupSnap = await db.collection("leads").orderBy("createdAt", "desc").limit(fetchLimit).get();
         leadDocs = backupSnap.docs;
     }
 
+    // Shuffle to ensure fairness
     leadDocs = shuffleArray(leadDocs);
 
     let batch = db.batch();
@@ -194,19 +203,26 @@ async function processCompanyReplenishment(companyId, needed, nowTs, assignedLea
     let addedCount = 0;
 
     for (const leadDoc of leadDocs) {
+        // Hard Stop if we filled the quota
         if (addedCount >= needed) break;
+
+        // Skip if assigned to another company in this specific run
         if (assignedLeadIds.has(leadDoc.id)) continue;
 
+        // Double check: Does this company already have this lead? (Safety check)
         const existsCheck = await companyLeadsRef.doc(leadDoc.id).get();
         if (existsCheck.exists) continue;
 
         const rawData = leadDoc.data();
 
+        // Check if company has already seen this driver
         let visited = rawData.visitedCompanyIds || [];
         if (visited.includes(companyId)) continue;
 
+        // If driver has cycled through everyone, reset the cycle
         if (visited.length >= Math.max(1, allCompanyIds.length - 1)) visited = [];
 
+        // Prepare data for Company Subcollection
         const safeLeadData = {
             firstName: rawData.firstName || 'Unknown',
             lastName: rawData.lastName || 'Driver',
@@ -229,16 +245,19 @@ async function processCompanyReplenishment(companyId, needed, nowTs, assignedLea
             status: "New Lead"
         };
 
+        // 1. Add to Company
         batch.set(companyLeadsRef.doc(leadDoc.id), distData);
         batchSize++;
 
+        // 2. Lock in Global Pool
+        // We lock it for 24h (or until next run) so no one else grabs it immediately
         const tomorrow = new Date();
         tomorrow.setDate(tomorrow.getDate() + 1);
 
         db.collection("leads").doc(leadDoc.id).update({ 
             unavailableUntil: admin.firestore.Timestamp.fromDate(tomorrow),
             lastAssignedTo: companyId,
-            visitedCompanyIds: [...visited, companyId]
+            visitedCompanyIds: [...visited, companyId] // Add to visited list
         });
         batchSize++;
 
@@ -267,6 +286,7 @@ async function processLeadOutcome(leadId, companyId, outcome) {
     let lockUntil = new Date();
     let reason = "pool_recycle";
 
+    // Logic: If hired, lock for 60 days. If rejected, cool off for 7 days.
     if (outcome === 'hired_elsewhere' || outcome === 'hired' || outcome === 'Approved') {
         lockUntil.setDate(now.getDate() + POOL_HIRED_LOCK_DAYS);
         reason = "hired";
@@ -292,6 +312,7 @@ async function confirmDriverInterest(leadId, companyIdOrSlug, recruiterId) {
     if (!leadId || !companyIdOrSlug) return { success: false, error: "Missing data" };
 
     let companyId = companyIdOrSlug;
+    // Resolve Slug if needed
     const companyQuery = await db.collection("companies").where("appSlug", "==", companyIdOrSlug).limit(1).get();
     if (!companyQuery.empty) {
         companyId = companyQuery.docs[0].id;
@@ -319,6 +340,7 @@ async function confirmDriverInterest(leadId, companyIdOrSlug, recruiterId) {
         } catch(e) { console.warn("Could not fetch recruiter name"); }
     }
 
+    // Convert Lead to Application directly
     const appRef = db.collection("companies").doc(companyId).collection("applications").doc(leadId);
     const oldLeadRef = db.collection("companies").doc(companyId).collection("leads").doc(leadId);
 
@@ -335,13 +357,17 @@ async function confirmDriverInterest(leadId, companyIdOrSlug, recruiterId) {
         updatedAt: nowTs
     };
 
+    // Lock the driver in the pool so they aren't distributed elsewhere while applying
     const lockDate = new Date();
     lockDate.setDate(lockDate.getDate() + POOL_INTEREST_LOCK_DAYS);
     const lockTs = admin.firestore.Timestamp.fromDate(lockDate);
 
     const batch = db.batch();
     batch.set(appRef, appData, { merge: true });
-    batch.delete(oldLeadRef);
+    
+    // Remove from "leads" subcollection if they were there
+    const oldCheck = await oldLeadRef.get();
+    if (oldCheck.exists) batch.delete(oldLeadRef);
 
     batch.update(leadRef, {
         unavailableUntil: lockTs,
@@ -366,6 +392,7 @@ async function generateDailyAnalytics() {
     todayStart.setHours(0,0,0,0);
     const todayTs = admin.firestore.Timestamp.fromDate(todayStart);
 
+    // Count calls made today
     const activitiesSnap = await db.collectionGroup("activities")
         .where("timestamp", ">=", todayTs)
         .get();
@@ -427,10 +454,11 @@ async function runCleanup() {
     const leadsRef = db.collection("leads");
     const snapshot = await leadsRef.get();
     let batch = db.batch();
-    let batchSize = 0; // Fix here as well
+    let batchSize = 0; 
     let count = 0;
     for (const doc of snapshot.docs) {
         const data = doc.data();
+        // Delete junk leads with no contact info
         if (!data.phone && !data.email && data.firstName === 'Unknown') {
             batch.delete(doc.ref);
             batchSize++;
@@ -442,6 +470,7 @@ async function runCleanup() {
     return { success: true, deleted: count };
 }
 
+// Stub for migration
 async function runMigration() { return {success:true}; }
 
 module.exports = { 
