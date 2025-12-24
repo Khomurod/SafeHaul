@@ -24,13 +24,16 @@ exports.sendAutomatedEmail = companyAdmin.sendAutomatedEmail;
 exports.getTeamPerformanceHistory = companyAdmin.getTeamPerformanceHistory;
 
 // --- 4. MAINTENANCE TOOLS ---
+// "Run Migration" = Quota Fixer (Legacy but useful)
 exports.runMigration = companyAdmin.runMigration;
-exports.migrateDriversToLeads = companyAdmin.migrateDriversToLeads;
+
+// "Fix Data" = Driver -> Lead Copier (The new logic you need)
+// FIX: Pointing this to leadDistribution so it uses the real copier
+exports.migrateDriversToLeads = leadDistribution.migrateDriversToLeads;
 
 // --- 5. LEAD DISTRIBUTION SYSTEM (CONSOLIDATED) ---
 
 // The Main Scheduled Task (Runs Midnight EST)
-// Now points to leadDistribution.js which uses the robust logic
 exports.runLeadDistribution = leadDistribution.runLeadDistribution;
 
 // The Manual "Distribute" Button (Callable)
