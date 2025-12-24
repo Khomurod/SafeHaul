@@ -11,36 +11,25 @@ const {
     confirmDriverInterest
 } = require("./leadLogic");
 
-// --- FIXED: Added cors: true ---
 const RUNTIME_OPTS = {
     timeoutSeconds: 540,
     memory: '256MiB',
     maxInstances: 1,
     concurrency: 1,
-    cors: true // <--- CRITICAL FIX FOR CORS ERROR
+    cors: true 
 };
 
-// --- EXPORT 1: Manual Distribution (Force Rotate) ---
-exports.distributeDailyLeads = onCall(RUNTIME_OPTS, async (request) => {
-    if (!request.auth || request.auth.token.roles?.globalRole !== 'super_admin') {
-        throw new HttpsError("permission-denied", "Super Admin only.");
-    }
-    try {
-        const result = await runLeadDistribution(true); 
-        return result;
-    } catch (error) {
-        throw new HttpsError("internal", error.message);
-    }
-});
-
-// --- EXPORT 2: Scheduled Distribution (Standard Rotate) ---
-exports.distributeDailyLeadsScheduled = onSchedule({
-    schedule: "0 0 * * *", 
+// --- 1. SCHEDULED TASK (Every 24 Hours) ---
+// This replaces the conflicting function in companyAdmin.js
+exports.runLeadDistribution = onSchedule({
+    schedule: "0 0 * * *", // Midnight EST
     timeZone: "America/New_York",
     timeoutSeconds: 540,
-    memory: '256MiB'
+    memory: '512MiB'
 }, async (event) => {
+    console.log("--- STARTING SCHEDULED LEAD DISTRIBUTION ---");
     try {
+        // Run standard distribution (Respecting 24h/7d locks)
         const result = await runLeadDistribution(false);
         console.log("Scheduled result:", result);
     } catch (error) {
@@ -48,7 +37,23 @@ exports.distributeDailyLeadsScheduled = onSchedule({
     }
 });
 
-// --- EXPORT 3: Cleanup Tool ---
+// --- 2. MANUAL BUTTON (Force Rotate Option) ---
+// Called by the "Distribute Leads" button in Super Admin
+exports.distributeDailyLeads = onCall(RUNTIME_OPTS, async (request) => {
+    if (!request.auth || request.auth.token.roles?.globalRole !== 'super_admin') {
+        throw new HttpsError("permission-denied", "Super Admin only.");
+    }
+    try {
+        // Pass true to force rotation if needed, or false for standard
+        // For manual buttons, we usually imply 'Run Now', adhering to rules.
+        const result = await runLeadDistribution(false); 
+        return result;
+    } catch (error) {
+        throw new HttpsError("internal", error.message);
+    }
+});
+
+// --- 3. CLEANUP TOOL ---
 exports.cleanupBadLeads = onCall(RUNTIME_OPTS, async (request) => {
     if (!request.auth || request.auth.token.roles?.globalRole !== 'super_admin') {
         throw new HttpsError("permission-denied", "Super Admin only.");
@@ -61,12 +66,12 @@ exports.cleanupBadLeads = onCall(RUNTIME_OPTS, async (request) => {
     }
 });
 
-// --- EXPORT 4: Lead Outcome Handler ---
+// --- 4. LEAD OUTCOME HANDLER ---
+// Called when a recruiter marks a lead as Hired, Rejected, etc.
 exports.handleLeadOutcome = onCall(RUNTIME_OPTS, async (request) => {
     if (!request.auth) throw new HttpsError("unauthenticated", "Login required.");
 
     const { leadId, companyId, outcome } = request.data;
-
     const userRole = request.auth.token.roles?.[companyId];
     const isSuper = request.auth.token.roles?.globalRole === 'super_admin';
 
@@ -83,7 +88,7 @@ exports.handleLeadOutcome = onCall(RUNTIME_OPTS, async (request) => {
     }
 });
 
-// --- EXPORT 5: Analytics Aggregator (Scheduled) ---
+// --- 5. ANALYTICS (Scheduled) ---
 exports.aggregateAnalytics = onSchedule({
     schedule: "55 23 * * *",
     timeZone: "America/New_York",
@@ -98,7 +103,7 @@ exports.aggregateAnalytics = onSchedule({
     }
 });
 
-// --- EXPORT 6: Confirm Driver Interest ---
+// --- 6. DRIVER INTEREST LINK ---
 exports.confirmDriverInterest = onCall(RUNTIME_OPTS, async (request) => {
     const { leadId, companyId, recruiterId } = request.data;
     try {
@@ -109,6 +114,9 @@ exports.confirmDriverInterest = onCall(RUNTIME_OPTS, async (request) => {
         throw new HttpsError("internal", error.message);
     }
 });
+
+// Alias for compatibility (can be removed if not used)
+exports.distributeDailyLeadsScheduled = exports.runLeadDistribution;
 
 // Disabled Exports
 exports.migrateDriversToLeads = onCall(RUNTIME_OPTS, async() => { return {message: "Disabled"} });
