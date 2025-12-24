@@ -36,37 +36,18 @@ async function processDriverData(data, docId) {
             console.log(`Driver exists (Auth): ${email}`);
         } catch (e) {
             if (e.code === 'auth/user-not-found') {
-                // User doesn't exist -> Create Auth User
-                try {
-                    const newDriverAuth = await auth.createUser({
-                        email: email,
-                        emailVerified: true,
-                        displayName: `${data.firstName || ''} ${data.lastName || ''}`.trim(),
-                        // Only add phone if it's unique/valid, otherwise skip to avoid E.164 errors
-                        phoneNumber: undefined 
-                    });
-                    driverUid = newDriverAuth.uid;
-
-                    // Create the public User document for roles
-                    await db.collection("users").doc(driverUid).set({
-                        name: `${data.firstName} ${data.lastName}`,
-                        email: email,
-                        role: 'driver',
-                        createdAt: admin.firestore.FieldValue.serverTimestamp()
-                    });
-                    console.log(`Created new Driver Auth: ${email}`);
-                } catch (createErr) {
-                    console.error("Failed to create Auth user:", createErr);
-                    // Fallback: If Auth fails (e.g. bad password policy), use docId as driverUid
-                    driverUid = docId;
-                }
+                // --- CRITICAL FIX: DO NOT CREATE AUTH USER AUTOMATICALLY ---
+                // Previously, we created an account here. Now, we treat this as a "Shadow Profile".
+                // The driver receives a profile in the database, but NO login account yet.
+                // They will claim this when they sign up on the app later.
+                driverUid = docId;
+                console.log(`Lead processed as Shadow Profile (No Auth yet): ${email}`);
             } else {
                 throw e;
             }
         }
     } else {
         // --- SCENARIO B: Placeholder Email (Phone Only) ---
-        // We cannot use Auth easily because Auth requires unique emails.
         // Strategy: Check if a Master Profile already exists in 'drivers' with this phone.
 
         const driversRef = db.collection('drivers');
@@ -124,6 +105,14 @@ async function processDriverData(data, docId) {
     lastApplicationDate: admin.firestore.FieldValue.serverTimestamp(),
     updatedAt: admin.firestore.FieldValue.serverTimestamp()
   };
+
+  // If this is a new Shadow Profile, mark it so we can clean it up later if needed
+  if (driverUid === docId) {
+      masterProfileData.driverProfile = {
+          status: 'shadow', // Mark as shadow so we know they haven't signed up
+          source: 'lead_import'
+      };
+  }
 
   await driverDocRef.set(masterProfileData, { merge: true });
   console.log(`Successfully synced Master Profile for ${driverUid}`);

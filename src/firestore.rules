@@ -54,8 +54,17 @@ service cloud.firestore {
       );
     }
 
+    // STAFF CHECK (HARDCODED FIX: DRIVERS != USERS)
+    // This ensures only specific administrative roles can be considered "Staff"
     function isStaff() {
-      return isSignedIn() && request.auth.token.keys().hasAny(['roles']) && request.auth.token.roles.keys().size() > 0;
+      return isSignedIn() && 
+             request.auth.token.keys().hasAny(['roles']) && 
+             request.auth.token.roles.keys().size() > 0 &&
+             // Ensure the role is actually an admin role, not just a random tag
+             (
+               isSuperAdmin() ||
+               request.auth.token.roles.values().hasAny(['company_admin', 'hr_user', 'recruiter', 'super_admin'])
+             );
     }
 
     // =========================================================
@@ -86,30 +95,26 @@ service cloud.firestore {
 
     // --- COMPANIES ---
     match /companies/{companyId} {
-      allow read: if true;
+      allow read: if true; // Public read needed for Login Chooser & Apply Pages
       allow create, delete: if isSuperAdmin();
       allow update: if isCompanyAdmin(companyId);
 
       // --- APPLICATIONS (Nested) ---
       match /applications/{applicationId} {
-        // Create: Auth User, Guest (Public), or Super Admin (System Health)
+        // Create: Auth User, Guest (Public), or Super Admin
         allow create: if (
           (isSignedIn() && isValidAuthenticatedApplication()) ||
           (!isSignedIn() && isValidGuestApplication(companyId)) ||
           isSuperAdmin()
         );
-        
-        // Read: 
-        // 1. Company Team (The missing role causes this to fail!)
-        // 2. Applicant Owner (ID match)
-        // 3. Applicant Email (Legacy match)
-        allow read: if isCompanyTeam(companyId) || 
+        // Read: Company Team OR The Applicant Themselves
+        allow read: if isCompanyTeam(companyId) ||
                    (isSignedIn() && (
                       resource.data.applicantId == request.auth.uid || 
                       resource.data.driverId == request.auth.uid ||
                       isEmailOwner(resource.data.email)
                    ));
-        
+        // Update: Company Team OR Applicant (limited)
         allow update: if isCompanyTeam(companyId) ||
                        (
                          isSignedIn() && 
@@ -117,7 +122,6 @@ service cloud.firestore {
                          request.resource.data.applicantId == resource.data.applicantId &&
                          request.resource.data.companyId == resource.data.companyId
                        );
-                       
         allow delete: if isCompanyTeam(companyId);
 
         // HR Sub-collections
@@ -144,7 +148,8 @@ service cloud.firestore {
 
     // --- GLOBAL LEADS ---
     match /leads/{leadId} {
-      allow create: if isSignedIn();
+      // Drivers create leads implicitly via frontend logic if needed, usually backend handles this
+      allow create: if isSignedIn(); 
       allow read: if isSuperAdmin() || isOwner(leadId) || resource.data.userId == request.auth.uid || isEmailOwner(resource.data.email);
       allow update: if isSuperAdmin() || isOwner(leadId) || resource.data.userId == request.auth.uid;
       allow delete: if isSuperAdmin();
@@ -162,8 +167,10 @@ service cloud.firestore {
     }
 
     // --- USERS ---
+    // Protected: Only Staff and Super Admins can see the list of users
     match /users/{userId} {
       allow read: if isOwner(userId) || isStaff() || isSuperAdmin();
+      // Only the user themselves can create their profile (gatekeeper for Auth)
       allow create: if isSignedIn() && request.auth.uid == userId;
       allow update: if isOwner(userId) || isSuperAdmin();
       allow delete: if isSuperAdmin();
@@ -176,13 +183,11 @@ service cloud.firestore {
         resource.data.userId == request.auth.uid ||
         isCompanyAdmin(resource.data.companyId)
       );
-
       allow create, update: if isSuperAdmin() ||
                     (
                       isCompanyAdmin(request.resource.data.companyId) && 
                       request.resource.data.role != 'super_admin'
                     );
-
       allow delete: if isSuperAdmin() || isCompanyAdmin(resource.data.companyId);
     }
 
@@ -213,12 +218,16 @@ service cloud.firestore {
                      resource.data.driverId == request.auth.uid ||
                      isEmailOwner(resource.data.email)
                    )) ||
-                   // CRITICAL: This line allows Admin to see ALL apps, provided 'roles' claim is set
                    (isSignedIn() && isCompanyTeam(resource.data.companyId));
     }
     
     match /{path=**}/leads/{leadId} {
       allow read: if isSuperAdmin() ||
+                   (isSignedIn() && isCompanyTeam(resource.data.companyId));
+    }
+    
+    match /{path=**}/activities/{activityId} {
+       allow read: if isSuperAdmin() ||
                    (isSignedIn() && isCompanyTeam(resource.data.companyId));
     }
   }

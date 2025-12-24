@@ -117,7 +117,7 @@ exports.sendAutomatedEmail = onCall({ cors: true }, async (request) => {
     return { success: true, message: "Email simulation successful." };
 });
 
-// --- FEATURE 5: GET PERFORMANCE HISTORY (Real) ---
+// --- FEATURE 5: GET PERFORMANCE HISTORY (Simplified) ---
 exports.getTeamPerformanceHistory = onCall({ cors: true }, async (request) => {
     if (!request.auth) throw new HttpsError('unauthenticated', 'Login required.');
     
@@ -130,21 +130,22 @@ exports.getTeamPerformanceHistory = onCall({ cors: true }, async (request) => {
         const start = new Date(startDate);
         const end = new Date(endDate);
 
-        // Uses collectionGroup query - Requires Index in Firestore
         const activitiesQuery = db.collectionGroup('activities')
             .where('companyId', '==', companyId)
             .where('timestamp', '>=', start)
             .where('timestamp', '<=', end);
 
         const snapshot = await activitiesQuery.get();
-        const statsByUser = {};
+        
+        const statsByUser = {}; 
 
         snapshot.forEach(doc => {
             const data = doc.data();
             const userId = data.performedBy || 'unknown';
-            const userName = data.performedByName || 'Unknown Agent';
+            const userName = data.performedByName || 'Unknown Recruiter';
             const outcome = data.outcome;
-
+            
+            // 1. Leaderboard Init
             if (!statsByUser[userId]) {
                 statsByUser[userId] = {
                     id: userId, name: userName, dials: 0, connected: 0, 
@@ -152,22 +153,39 @@ exports.getTeamPerformanceHistory = onCall({ cors: true }, async (request) => {
                 };
             }
 
+            // 2. Increment Dials
             statsByUser[userId].dials++;
 
+            // 3. Outcome Logic
             switch (outcome) {
-                case 'interested': statsByUser[userId].connected++; break;
-                case 'callback': statsByUser[userId].callback++; break;
+                case 'interested': 
+                case 'callback': 
+                    statsByUser[userId].callback += (outcome === 'callback' ? 1 : 0);
+                    // Treat as connected
+                    statsByUser[userId].connected++;
+                    break;
                 case 'not_interested':
-                case 'hired_elsewhere': statsByUser[userId].notInt++; break;
+                case 'hired_elsewhere': 
+                    statsByUser[userId].notInt++; 
+                    break;
                 case 'not_qualified':
-                case 'wrong_number': statsByUser[userId].notQual++; break;
+                case 'wrong_number': 
+                    statsByUser[userId].notQual++; 
+                    break;
                 case 'voicemail':
-                case 'no_answer': statsByUser[userId].vm++; break;
-                default: if (data.isContact) statsByUser[userId].connected++; break;
+                case 'no_answer': 
+                    statsByUser[userId].vm++; 
+                    break;
+                default: 
+                    if (data.isContact) statsByUser[userId].connected++;
+                    break;
             }
         });
 
-        return { success: true, data: Object.values(statsByUser) };
+        return { 
+            success: true, 
+            data: Object.values(statsByUser) // Just the list, no trends
+        };
 
     } catch (error) {
         console.error("Performance Report Error:", error);
