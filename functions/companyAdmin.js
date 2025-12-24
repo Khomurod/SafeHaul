@@ -45,7 +45,7 @@ async function deleteQueryBatch(db, query, resolve) {
 
 // --- FEATURE 1: GET COMPANY PROFILE (CORS ENABLED) ---
 exports.getCompanyProfile = onCall({ 
-    cors: true, // <--- THIS IS THE CRITICAL FIX
+    cors: true, 
     maxInstances: 10 
 }, async (request) => {
     const { companyId } = request.data;
@@ -198,13 +198,94 @@ exports.sendAutomatedEmail = onCall({ cors: true }, async (request) => {
     return { success: true, message: "Email simulation successful." };
 });
 
-// --- FEATURE 6: GET PERFORMANCE HISTORY (Stub) ---
+// --- FEATURE 6: GET PERFORMANCE HISTORY (REAL IMPLEMENTATION) ---
 exports.getTeamPerformanceHistory = onCall({ cors: true }, async (request) => {
-    return { data: [
-        { date: '2023-10-01', applications: 12, hires: 2 },
-        { date: '2023-10-02', applications: 15, hires: 3 },
-        { date: '2023-10-03', applications: 8, hires: 1 },
-    ]};
+    // 1. Auth & Validation
+    if (!request.auth) throw new HttpsError('unauthenticated', 'Login required.');
+    
+    const { companyId, startDate, endDate } = request.data;
+    if (!companyId) throw new HttpsError('invalid-argument', 'Missing companyId.');
+
+    const { db } = getServices();
+
+    try {
+        // 2. Parse Dates
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+
+        // 3. Query "activities" across all subcollections (Collection Group Query)
+        // Note: You must create a composite index in Firebase Console for this query.
+        const activitiesQuery = db.collectionGroup('activities')
+            .where('companyId', '==', companyId)
+            .where('timestamp', '>=', start)
+            .where('timestamp', '<=', end);
+
+        const snapshot = await activitiesQuery.get();
+
+        // 4. Aggregate Data by User
+        const statsByUser = {};
+
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            const userId = data.performedBy || 'unknown';
+            const userName = data.performedByName || 'Unknown Agent';
+            const outcome = data.outcome; // 'interested', 'voicemail', etc.
+
+            if (!statsByUser[userId]) {
+                statsByUser[userId] = {
+                    id: userId,
+                    name: userName,
+                    dials: 0,
+                    connected: 0,
+                    callback: 0,
+                    notInt: 0,
+                    notQual: 0,
+                    vm: 0
+                };
+            }
+
+            // Increment Dials (All activities count as a dial)
+            statsByUser[userId].dials++;
+
+            // Increment Specific Outcomes based on mapping
+            switch (outcome) {
+                case 'interested':
+                    statsByUser[userId].connected++;
+                    break;
+                case 'callback':
+                    statsByUser[userId].callback++;
+                    break;
+                case 'not_interested':
+                case 'hired_elsewhere':
+                    statsByUser[userId].notInt++;
+                    break;
+                case 'not_qualified':
+                case 'wrong_number':
+                    statsByUser[userId].notQual++;
+                    break;
+                case 'voicemail':
+                case 'no_answer':
+                    statsByUser[userId].vm++;
+                    break;
+                default:
+                    // 'connected' or other statuses fall here
+                    if (data.isContact) statsByUser[userId].connected++;
+                    break;
+            }
+        });
+
+        // 5. Convert to Array and Return
+        const reportData = Object.values(statsByUser);
+
+        return { 
+            success: true, 
+            data: reportData 
+        };
+
+    } catch (error) {
+        console.error("Performance Report Error:", error);
+        throw new HttpsError('internal', error.message);
+    }
 });
 
 // --- FEATURE 7: MANUAL MIGRATION TOOL (CALLABLE) ---
