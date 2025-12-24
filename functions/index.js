@@ -5,7 +5,7 @@ const hrAdmin = require("./hrAdmin");
 const companyAdmin = require("./companyAdmin");
 const leadDistribution = require("./leadDistribution");
 
-// --- 1. DRIVER PROFILE SYNC (Triggers) ---
+// --- 1. DRIVER PROFILE SYNC ---
 exports.onApplicationSubmitted = driverSync.onApplicationSubmitted;
 exports.onLeadSubmitted = driverSync.onLeadSubmitted;
 
@@ -23,29 +23,30 @@ exports.moveApplication = companyAdmin.moveApplication;
 exports.sendAutomatedEmail = companyAdmin.sendAutomatedEmail;
 exports.getTeamPerformanceHistory = companyAdmin.getTeamPerformanceHistory;
 
-// --- 4. SCHEDULED TASKS & MAINTENANCE ---
-// The main scheduled task (runs every 24 hours)
-exports.runLeadDistribution = companyAdmin.runLeadDistribution;
-// The manual migration tool
+// --- 4. MAINTENANCE TOOLS ---
 exports.runMigration = companyAdmin.runMigration;
-// Alias for migration (for compatibility)
 exports.migrateDriversToLeads = companyAdmin.migrateDriversToLeads;
 
-// --- 5. LEAD DISTRIBUTION & ANALYTICS ---
-// The "Distribute Leads" button (Manual Callable)
+// --- 5. LEAD DISTRIBUTION SYSTEM (CONSOLIDATED) ---
+
+// The Main Scheduled Task (Runs Midnight EST)
+// Now points to leadDistribution.js which uses the robust logic
+exports.runLeadDistribution = leadDistribution.runLeadDistribution;
+
+// The Manual "Distribute" Button (Callable)
 exports.distributeDailyLeads = leadDistribution.distributeDailyLeads;
 
-// The Scheduled Backup (Midnight EST)
+// Backup/Alias for scheduling
 exports.distributeDailyLeadsScheduled = leadDistribution.distributeDailyLeadsScheduled;
 
-// Cleanup Tool (Manual Callable)
+// Cleanup Tool
 exports.cleanupBadLeads = leadDistribution.cleanupBadLeads;
 
 // Recruiter Logic (Pool Outcomes)
 exports.handleLeadOutcome = leadDistribution.handleLeadOutcome;
 
-// Daily Analytics (Scheduled 11:55 PM)
+// Daily Analytics
 exports.aggregateAnalytics = leadDistribution.aggregateAnalytics;
 
-// Driver Interest Link Handler (Public Callable)
+// Driver Interest Link
 exports.confirmDriverInterest = leadDistribution.confirmDriverInterest;
