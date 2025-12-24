@@ -82,10 +82,11 @@ export function SuperAdminDashboard() {
     if(!window.confirm("Are you sure you want to distribute daily leads? This will FORCE ROTATE current leads.")) return;
     
     setDistributing(true);
-    showInfo("Distribution started. This may take up to 30 seconds...");
+    showInfo("Distribution started. This may take a few minutes...");
     
     try {
-        const distribute = httpsCallable(functions, 'distributeDailyLeads');
+        // FIX: Added timeout option (600,000ms = 10 minutes) to prevent "deadline-exceeded"
+        const distribute = httpsCallable(functions, 'distributeDailyLeads', { timeout: 600000 });
         const result = await distribute();
         const details = result.data.details || [];
         const detailMsg = details.length > 0 ? details.join('\n') : "Distribution complete.";
@@ -110,7 +111,7 @@ export function SuperAdminDashboard() {
     showInfo("Starting migration... this may take a moment.");
     
     try {
-        const fixFn = httpsCallable(functions, 'migrateDriversToLeads');
+        const fixFn = httpsCallable(functions, 'migrateDriversToLeads', { timeout: 540000 });
         const result = await fixFn();
         showSuccess(result.data.message);
         refreshData();
@@ -127,7 +128,7 @@ export function SuperAdminDashboard() {
     showInfo("Purging trash leads...");
     
     try {
-        const cleanupFn = httpsCallable(functions, 'cleanupBadLeads');
+        const cleanupFn = httpsCallable(functions, 'cleanupBadLeads', { timeout: 540000 });
         const result = await cleanupFn();
         showSuccess(result.data.message);
         refreshData();
