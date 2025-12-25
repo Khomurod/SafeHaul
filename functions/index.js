@@ -1,55 +1,63 @@
-// hr portal/functions/index.js
+const functions = require('firebase-functions/v1');
+const admin = require('firebase-admin');
 
-const driverSync = require("./driverSync");
-const hrAdmin = require("./hrAdmin");
-const companyAdmin = require("./companyAdmin");
-const leadDistribution = require("./leadDistribution");
+// Initialize Admin SDK once
+if (!admin.apps.length) {
+  admin.initializeApp();
+}
 
-// --- 1. DRIVER PROFILE SYNC ---
-exports.onApplicationSubmitted = driverSync.onApplicationSubmitted;
-exports.onLeadSubmitted = driverSync.onLeadSubmitted;
+// --- IMPORT MODULES ---
+const driverSync = require('./driverSync');
+const hrAdmin = require('./hrAdmin');
+const companyAdmin = require('./companyAdmin');
+const leadLogic = require('./leadLogic'); // Keep for legacy if needed, or use leadDistribution
+const leadDistribution = require('./leadDistribution');
+const digitalSealing = require('./digitalSealing');
+const notifySigner = require('./notifySigner');
+const publicSigning = require('./publicSigning'); // <--- NEW IMPORT
 
-// --- 2. HR & USER MANAGEMENT ---
+// --- EXPORTS ---
+
+// 1. Docs & Email & Public Signing
+exports.sealDocument = digitalSealing.sealDocument;
+exports.notifySigner = notifySigner.notifySigner; 
+exports.getPublicEnvelope = publicSigning.getPublicEnvelope;    // <--- NEW
+exports.submitPublicEnvelope = publicSigning.submitPublicEnvelope; // <--- NEW
+
+// 2. Auth & User Management
 exports.createPortalUser = hrAdmin.createPortalUser;
-exports.onMembershipWrite = hrAdmin.onMembershipWrite;
 exports.deletePortalUser = hrAdmin.deletePortalUser;
 exports.updatePortalUser = hrAdmin.updatePortalUser;
-exports.joinCompanyTeam = hrAdmin.joinCompanyTeam;
+exports.onMembershipWrite = hrAdmin.onMembershipWrite; // Corrected source: hrAdmin
 
-// --- 3. COMPANY ADMINISTRATION ---
-exports.deleteCompany = companyAdmin.deleteCompany;
+// 3. Company Admin
 exports.getCompanyProfile = companyAdmin.getCompanyProfile;
-exports.moveApplication = companyAdmin.moveApplication;
-exports.sendAutomatedEmail = companyAdmin.sendAutomatedEmail;
+exports.joinCompanyTeam = hrAdmin.joinCompanyTeam; // Corrected source: hrAdmin
+exports.deleteCompany = companyAdmin.deleteCompany;
 exports.getTeamPerformanceHistory = companyAdmin.getTeamPerformanceHistory;
 
-// --- 4. MAINTENANCE TOOLS ---
-// "Run Migration" = Quota Fixer (Legacy but useful)
+// 4. Applications & Driver Sync
+exports.onApplicationSubmitted = driverSync.onApplicationSubmitted; // Corrected source: driverSync
+exports.onLeadSubmitted = driverSync.onLeadSubmitted; // Corrected source: driverSync
+exports.moveApplication = companyAdmin.moveApplication;
+exports.sendAutomatedEmail = companyAdmin.sendAutomatedEmail;
+
+// 5. Leads & Distribution
+exports.cleanupBadLeads = leadDistribution.cleanupBadLeads;
+exports.handleLeadOutcome = leadDistribution.handleLeadOutcome;
+exports.migrateDriversToLeads = leadDistribution.migrateDriversToLeads;
+exports.confirmDriverInterest = leadDistribution.confirmDriverInterest;
+exports.runLeadDistribution = leadDistribution.runLeadDistribution;
+exports.distributeDailyLeads = leadDistribution.distributeDailyLeads; // Manual trigger
+exports.distributeDailyLeadsScheduled = leadDistribution.distributeDailyLeadsScheduled; // Scheduled
+
+// 6. Data Migration
 exports.runMigration = companyAdmin.runMigration;
 
-// "Fix Data" = Driver -> Lead Copier (The new logic you need)
-// FIX: Pointing this to leadDistribution so it uses the real copier
-exports.migrateDriversToLeads = leadDistribution.migrateDriversToLeads;
-
-// --- 5. LEAD DISTRIBUTION SYSTEM (CONSOLIDATED) ---
-
-// The Main Scheduled Task (Runs Midnight EST)
-exports.runLeadDistribution = leadDistribution.runLeadDistribution;
-
-// The Manual "Distribute" Button (Callable)
-exports.distributeDailyLeads = leadDistribution.distributeDailyLeads;
-
-// Backup/Alias for scheduling
-exports.distributeDailyLeadsScheduled = leadDistribution.distributeDailyLeadsScheduled;
-
-// Cleanup Tool
-exports.cleanupBadLeads = leadDistribution.cleanupBadLeads;
-
-// Recruiter Logic (Pool Outcomes)
-exports.handleLeadOutcome = leadDistribution.handleLeadOutcome;
-
-// Daily Analytics
-exports.aggregateAnalytics = leadDistribution.aggregateAnalytics;
-
-// Driver Interest Link
-exports.confirmDriverInterest = leadDistribution.confirmDriverInterest;
+// 7. Analytics (Commented out to prevent Gen 1 CPU errors)
+/*
+exports.aggregateAnalytics = functions.pubsub.schedule('every 24 hours').onRun(async (context) => {
+    const analytics = require('./leadDistribution');
+    return analytics.aggregateAnalytics(context);
+});
+*/

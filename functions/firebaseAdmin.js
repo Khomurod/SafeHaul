@@ -1,21 +1,24 @@
 const admin = require("firebase-admin");
 const { getFirestore } = require("firebase-admin/firestore");
+const { getStorage } = require("firebase-admin/storage");
 
-// 1. Initialize App (Guard against multiple initializations)
+// 1. Initialize App with Explicit Bucket
 if (!admin.apps.length) {
-  admin.initializeApp();
+  admin.initializeApp({
+      // This tells Firebase exactly where to look for files
+      storageBucket: "truckerapp-system.firebasestorage.app" 
+  });
 }
 
-// 2. Get Firestore Instance
+// 2. Get Instances
 const db = getFirestore();
-
-// 3. Get Auth Instance (CRITICAL MISSING PIECE)
 const auth = admin.auth();
+const storage = getStorage(); // This was missing before!
 
-// 4. Prevent "Invalid data: undefined" errors
+// 3. Settings
 db.settings({ ignoreUndefinedProperties: true });
 
 console.log("✅ Firebase Admin Initialized Successfully");
 
-// Export auth so other files can use it
-module.exports = { admin, db, auth };
+// 4. Export everything (including storage)
+module.exports = { admin, db, auth, storage };

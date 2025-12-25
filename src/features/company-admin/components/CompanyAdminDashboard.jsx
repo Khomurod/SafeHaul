@@ -26,7 +26,8 @@ import { OnboardingTour } from '@features/onboarding/components/OnboardingTour';
 
 import { 
   LogOut, Search, FileText, Settings, Zap, Briefcase, 
-  Upload, Replace, Users, ChevronDown, Layout, User
+  Upload, Replace, Users, ChevronDown, Layout, User,
+  PenTool // Icon for Documents
 } from 'lucide-react';
 
 export function CompanyAdminDashboard() {
@@ -156,6 +157,17 @@ export function CompanyAdminDashboard() {
             </div>
 
             <div className="flex items-center gap-3">
+                
+                {/* --- NEW: SEND DOCUMENT BUTTON --- */}
+                {isCompanyAdmin && (
+                    <button 
+                        onClick={() => navigate('/company/documents')}
+                        className="hidden sm:flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-all shadow-sm"
+                     >
+                       <PenTool size={16} /> Documents
+                    </button>
+                )}
+
                 {isCompanyAdmin && (
                     <button 
                         onClick={() => setIsUploadModalOpen(true)}
