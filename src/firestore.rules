@@ -144,12 +144,37 @@ service cloud.firestore {
         allow read: if isSignedIn();
         allow write: if isCompanyAdmin(companyId);
       }
+
+      // --- SIGNING REQUESTS (Secure Envelopes) ---
+      // This is the new secure collection for DocuSign-like workflow
+      match /signing_requests/{requestId} {
+         // READ: Company Team or the specific Driver (recipient)
+         allow read: if isCompanyTeam(companyId) || 
+                      (isSignedIn() && resource.data.recipientId == request.auth.uid);
+
+         // CREATE: Only Company Admins/Team can initiate a signing request
+         allow create: if isCompanyTeam(companyId);
+
+         // UPDATE: 
+         // 1. Company Team can update (e.g., voiding the envelope)
+         // 2. Driver can update specific fields (status to 'viewed', 'declined')
+         // Note: 'Signed' status is usually handled by the Backend Function to ensure validity
+         allow update: if isCompanyTeam(companyId) || 
+                          (
+                            isSignedIn() && 
+                            resource.data.recipientId == request.auth.uid && 
+                            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'viewedAt', 'declinedReason', 'clientMetadata'])
+                          );
+
+         // DELETE: Only Admin
+         allow delete: if isCompanyAdmin(companyId);
+      }
     }
 
     // --- GLOBAL LEADS ---
     match /leads/{leadId} {
       // Drivers create leads implicitly via frontend logic if needed, usually backend handles this
-      allow create: if isSignedIn(); 
+      allow create: if isSignedIn();
       allow read: if isSuperAdmin() || isOwner(leadId) || resource.data.userId == request.auth.uid || isEmailOwner(resource.data.email);
       allow update: if isSuperAdmin() || isOwner(leadId) || resource.data.userId == request.auth.uid;
       allow delete: if isSuperAdmin();
@@ -228,6 +253,13 @@ service cloud.firestore {
     
     match /{path=**}/activities/{activityId} {
        allow read: if isSuperAdmin() ||
+                   (isSignedIn() && isCompanyTeam(resource.data.companyId));
+    }
+    
+    // Group Query for Signing Requests
+    match /{path=**}/signing_requests/{requestId} {
+       allow read: if isSuperAdmin() || 
+                   (isSignedIn() && resource.data.recipientId == request.auth.uid) ||
                    (isSignedIn() && isCompanyTeam(resource.data.companyId));
     }
   }
