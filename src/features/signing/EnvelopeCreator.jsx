@@ -10,7 +10,7 @@ import { v4 as uuidv4 } from 'uuid';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
-// FIX: Use import method for worker (Vite/Vercel compatible)
+// Fix: Use local worker to avoid CORS and 404s
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   'pdfjs-dist/build/pdf.worker.min.mjs',
   import.meta.url,
@@ -21,12 +21,13 @@ const ResizableDraggableField = ({ field, pageNum, pageWidth, pageHeight, onStop
     const nodeRef = useRef(null); 
     const [size, setSize] = useState({ width: field.width, height: field.height });
 
-    // Calculate initial pixel position from percentage
+    // Calculate initial pixel position from percentage so it doesn't jump
     const initialX = (field.x / 100) * pageWidth;
     const initialY = (field.y / 100) * pageHeight;
 
+    // Handle resizing logic locally for performance
     const handleMouseDown = (e) => {
-        e.stopPropagation(); 
+        e.stopPropagation(); // Prevent drag
         const startX = e.clientX;
         const startY = e.clientY;
         const startWidth = size.width;
@@ -42,6 +43,7 @@ const ResizableDraggableField = ({ field, pageNum, pageWidth, pageHeight, onStop
         const stopDrag = () => {
             window.removeEventListener('mousemove', doDrag);
             window.removeEventListener('mouseup', stopDrag);
+            // Save final size to parent
             onResize(field.id, size.width, size.height);
         };
 
@@ -53,10 +55,9 @@ const ResizableDraggableField = ({ field, pageNum, pageWidth, pageHeight, onStop
         <Draggable
             nodeRef={nodeRef}
             bounds="parent"
-            // FIX: Use calculated position so it maps to logic
             defaultPosition={{ x: initialX, y: initialY }}
             onStop={(e, data) => onStop(field.id, pageNum, data)}
-            cancel=".resize-handle" 
+            cancel=".resize-handle" // Prevent dragging when clicking resize handle
         >
             <div 
                 ref={nodeRef} 
@@ -68,18 +69,22 @@ const ResizableDraggableField = ({ field, pageNum, pageWidth, pageHeight, onStop
                 }
                 style={{ width: size.width, height: size.height }}
             >
+                {/* Header / Icon Area */}
                 <div className="flex items-center gap-1 p-1 overflow-hidden">
                     {getIcon(field.type)}
                     {size.width > 60 && <span className="text-[10px] font-bold uppercase truncate">{field.type}</span>}
                 </div>
                 
+                {/* Remove Button */}
                 <button 
                     onMouseDown={(e) => { e.stopPropagation(); onRemove(field.id); }}
+                    onTouchStart={(e) => { e.stopPropagation(); onRemove(field.id); }}
                     className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5 shadow hover:bg-red-700 z-50"
                 >
                     <X size={10} />
                 </button>
 
+                {/* Resize Handle */}
                 <div 
                     className="resize-handle absolute bottom-0 right-0 w-4 h-4 cursor-se-resize flex items-end justify-end p-0.5 opacity-0 group-hover:opacity-100 transition"
                     onMouseDown={handleMouseDown}
@@ -115,6 +120,7 @@ export default function EnvelopeCreator({ companyId, onClose }) {
   const addField = (type) => {
     if (!file) return;
     
+    // Default Sizes based on type
     let w = 160, h = 50;
     if (type === 'checkbox') { w = 30; h = 30; }
     if (type === 'text') { w = 200; h = 40; }
@@ -124,8 +130,8 @@ export default function EnvelopeCreator({ companyId, onClose }) {
         id: uuidv4(),
         type, 
         page: 1, 
-        x: 40, y: 40, 
-        width: w, height: h, 
+        x: 40, y: 40, // % position
+        width: w, height: h, // px size
         label: type
     };
     setFields(prev => [...prev, newField]);
@@ -166,6 +172,7 @@ export default function EnvelopeCreator({ companyId, onClose }) {
         const fileRef = ref(storage, storagePath);
         await uploadBytes(fileRef, file);
 
+        // Generate Secure Token for Public Access
         const accessToken = uuidv4();
 
         const docData = {
@@ -178,7 +185,9 @@ export default function EnvelopeCreator({ companyId, onClose }) {
             storagePath, 
             senderId: auth.currentUser.uid,
             recipientId: null,
+            // Trigger Email flag for Backend
             sendEmail: true, 
+            // Save the secure token
             accessToken: accessToken,
             fields: fields.map(f => ({
                 id: f.id,
@@ -323,7 +332,7 @@ export default function EnvelopeCreator({ companyId, onClose }) {
                                             key={field.id}
                                             field={field}
                                             pageNum={pageNum}
-                                            // Pass dimensions to calculate position
+                                            // Pass dimensions to calculate initial position
                                             pageWidth={700}
                                             pageHeight={pageRefs.current[index]?.offsetHeight || 900}
                                             onStop={updateFieldPosition}

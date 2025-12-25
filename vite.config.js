@@ -19,4 +19,16 @@ export default defineConfig({
       '@assets': path.resolve(__dirname, './attached_assets'),
     },
   },
+  optimizeDeps: {
+    include: ['pdfjs-dist'], 
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          pdfjs: ['pdfjs-dist']
+        }
+      }
+    }
+  }
 })

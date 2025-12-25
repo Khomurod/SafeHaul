@@ -10,6 +10,7 @@ import confetti from 'canvas-confetti';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
+// Fix: Use local worker to avoid CORS and 404s
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   'pdfjs-dist/build/pdf.worker.min.mjs',
   import.meta.url,
@@ -18,7 +19,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
 export default function SigningRoom() {
   const { companyId, requestId } = useParams();
   const [searchParams] = useSearchParams();
-  const accessToken = searchParams.get('token'); // Get token from URL
+  const accessToken = searchParams.get('token'); 
   
   const [request, setRequest] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -97,7 +98,7 @@ export default function SigningRoom() {
     try {
         // Collect Audit Info
         const auditData = {
-            ip: '127.0.0.1', // Cloud Function will resolve real IP if needed, or we fetch from an IP service here
+            ip: '127.0.0.1', // Cloud Function will resolve real IP if needed
             userAgent: navigator.userAgent,
             timestamp: new Date().toISOString()
         };
