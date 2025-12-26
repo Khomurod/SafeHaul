@@ -1,0 +1,266 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =========================================================
+    // 1. HELPER FUNCTIONS
+    // =========================================================
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Legacy support for older apps matched by Email
+    function isEmailOwner(emailField) {
+      return isSignedIn() && 
+             request.auth.token.email_verified && 
+             request.auth.token.email == emailField;
+    }
+
+    // ROBUST SUPER ADMIN CHECK (Supports both Email and Claim)
+    function isSuperAdmin() {
+      return isSignedIn() && (
+         request.auth.token.email == 'admin@trucking.com' || 
+         (request.auth.token.keys().hasAny(['globalRole']) && request.auth.token.globalRole == 'super_admin') ||
+         (request.auth.token.keys().hasAny(['roles']) && request.auth.token.roles.keys().hasAny(['globalRole']) && request.auth.token.roles.globalRole == 'super_admin')
+      );
+    }
+
+    // COMPANY ADMIN: Can manage settings & team
+    function isCompanyAdmin(companyId) {
+      return isSignedIn() && (
+        isSuperAdmin() || 
+        (
+          request.auth.token.keys().hasAny(['roles']) &&
+          request.auth.token.roles.keys().hasAny([companyId]) &&
+          request.auth.token.roles[companyId] == 'company_admin'
+        )
+      );
+    }
+
+    // COMPANY TEAM: HR/Recruiters (Read access)
+    function isCompanyTeam(companyId) {
+      return isSignedIn() && (
+        isCompanyAdmin(companyId) || 
+        (
+          request.auth.token.keys().hasAny(['roles']) &&
+          request.auth.token.roles.keys().hasAny([companyId]) &&
+          request.auth.token.roles[companyId] in ['company_admin', 'hr_user', 'recruiter']
+        )
+      );
+    }
+
+    // STAFF CHECK (HARDCODED FIX: DRIVERS != USERS)
+    // This ensures only specific administrative roles can be considered "Staff"
+    function isStaff() {
+      return isSignedIn() && 
+             request.auth.token.keys().hasAny(['roles']) && 
+             request.auth.token.roles.keys().size() > 0 &&
+             // Ensure the role is actually an admin role, not just a random tag
+             (
+               isSuperAdmin() ||
+               request.auth.token.roles.values().hasAny(['company_admin', 'hr_user', 'recruiter', 'super_admin'])
+             );
+    }
+
+    // =========================================================
+    // 2. DATA VALIDATION
+    // =========================================================
+
+    function isValidAuthenticatedApplication() {
+      let data = request.resource.data;
+      return data.keys().hasAny(['applicantId', 'driverId']) &&
+             data.companyId is string &&
+             (
+               (data.keys().hasAll(['applicantId']) && data.applicantId == request.auth.uid) ||
+               (data.keys().hasAll(['driverId']) && data.driverId == request.auth.uid)
+             );
+    }
+
+    function isValidGuestApplication(companyId) {
+      let data = request.resource.data;
+      return data.keys().hasAll(['applicantId', 'companyId', 'personalInfo']) &&
+             data.companyId == companyId &&
+             data.applicantId is string &&
+             data.personalInfo.keys().hasAny(['email', 'phone']);
+    }
+
+    // =========================================================
+    // 3. COLLECTION RULES
+    // =========================================================
+
+    // --- COMPANIES ---
+    match /companies/{companyId} {
+      allow read: if true; // Public read needed for Login Chooser & Apply Pages
+      allow create, delete: if isSuperAdmin();
+      allow update: if isCompanyAdmin(companyId);
+
+      // --- APPLICATIONS (Nested) ---
+      match /applications/{applicationId} {
+        // Create: Auth User, Guest (Public), or Super Admin
+        allow create: if (
+          (isSignedIn() && isValidAuthenticatedApplication()) ||
+          (!isSignedIn() && isValidGuestApplication(companyId)) ||
+          isSuperAdmin()
+        );
+        // Read: Company Team OR The Applicant Themselves
+        allow read: if isCompanyTeam(companyId) ||
+                   (isSignedIn() && (
+                      resource.data.applicantId == request.auth.uid || 
+                      resource.data.driverId == request.auth.uid ||
+                      isEmailOwner(resource.data.email)
+                   ));
+        // Update: Company Team OR Applicant (limited)
+        allow update: if isCompanyTeam(companyId) ||
+                       (
+                         isSignedIn() && 
+                         (resource.data.applicantId == request.auth.uid || resource.data.driverId == request.auth.uid) &&
+                         request.resource.data.applicantId == resource.data.applicantId &&
+                         request.resource.data.companyId == resource.data.companyId
+                       );
+        allow delete: if isCompanyTeam(companyId);
+
+        // HR Sub-collections
+        match /dq_files/{fileId} { allow read, write: if isCompanyTeam(companyId); }
+        match /general_documents/{fileId} { allow read, write: if isCompanyTeam(companyId); }
+        match /internal_notes/{noteId} { allow read, write: if isCompanyTeam(companyId); }
+        match /activities/{activityId} { allow read, write: if isCompanyTeam(companyId); }
+      }
+
+      // --- LEADS ---
+      match /leads/{leadId} {
+        allow read, write: if isCompanyTeam(companyId);
+        match /activity_logs/{logId} { allow read, write: if isCompanyTeam(companyId); }
+        match /activities/{activityId} { allow read, write: if isCompanyTeam(companyId); }
+        match /internal_notes/{noteId} { allow read, write: if isCompanyTeam(companyId); }
+      }
+      
+      // --- TEAM ---
+      match /team/{userId} {
+        allow read: if isSignedIn();
+        allow write: if isCompanyAdmin(companyId);
+      }
+
+      // --- SIGNING REQUESTS (Secure Envelopes) ---
+      // This is the new secure collection for DocuSign-like workflow
+      match /signing_requests/{requestId} {
+         // READ: Company Team or the specific Driver (recipient)
+         allow read: if isCompanyTeam(companyId) || 
+                      (isSignedIn() && resource.data.recipientId == request.auth.uid);
+
+         // CREATE: Only Company Admins/Team can initiate a signing request
+         allow create: if isCompanyTeam(companyId);
+
+         // UPDATE: 
+         // 1. Company Team can update (e.g., voiding the envelope)
+         // 2. Driver can update specific fields (status to 'viewed', 'declined')
+         // Note: 'Signed' status is usually handled by the Backend Function to ensure validity
+         allow update: if isCompanyTeam(companyId) || 
+                          (
+                            isSignedIn() && 
+                            resource.data.recipientId == request.auth.uid && 
+                            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'viewedAt', 'declinedReason', 'clientMetadata'])
+                          );
+
+         // DELETE: Only Admin
+         allow delete: if isCompanyAdmin(companyId);
+      }
+    }
+
+    // --- GLOBAL LEADS ---
+    match /leads/{leadId} {
+      // Drivers create leads implicitly via frontend logic if needed, usually backend handles this
+      allow create: if isSignedIn();
+      allow read: if isSuperAdmin() || isOwner(leadId) || resource.data.userId == request.auth.uid || isEmailOwner(resource.data.email);
+      allow update: if isSuperAdmin() || isOwner(leadId) || resource.data.userId == request.auth.uid;
+      allow delete: if isSuperAdmin();
+    }
+
+    // --- DRIVERS ---
+    match /drivers/{driverId} {
+      allow read: if isOwner(driverId) || isSuperAdmin() || isStaff();
+      allow create: if (isSignedIn() && request.auth.uid == driverId) || isSuperAdmin();
+      allow update: if isOwner(driverId) || isSuperAdmin();
+      allow delete: if isSuperAdmin();
+      
+      match /drafts/{draftId} { allow read, write: if isOwner(driverId); }
+      match /saved_jobs/{jobId} { allow read, write: if isOwner(driverId); }
+    }
+
+    // --- USERS ---
+    // Protected: Only Staff and Super Admins can see the list of users
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isStaff() || isSuperAdmin();
+      // Only the user themselves can create their profile (gatekeeper for Auth)
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      allow update: if isOwner(userId) || isSuperAdmin();
+      allow delete: if isSuperAdmin();
+    }
+
+    // --- MEMBERSHIPS ---
+    match /memberships/{membershipId} {
+      allow read: if isSignedIn() && (
+        isSuperAdmin() ||
+        resource.data.userId == request.auth.uid ||
+        isCompanyAdmin(resource.data.companyId)
+      );
+      allow create, update: if isSuperAdmin() ||
+                    (
+                      isCompanyAdmin(request.resource.data.companyId) && 
+                      request.resource.data.role != 'super_admin'
+                    );
+      allow delete: if isSuperAdmin() || isCompanyAdmin(resource.data.companyId);
+    }
+
+    // --- NOTIFICATIONS ---
+    match /notifications/{notificationId} {
+      allow read, update, delete: if isSignedIn() && resource.data.recipientId == request.auth.uid;
+      allow create: if isSignedIn();
+    }
+
+    // --- ANALYTICS ---
+    match /analytics/{docId} {
+      allow read: if isSuperAdmin();
+      allow write: if false; 
+    }
+    
+    // --- RECRUITER LINKS ---
+    match /recruiter_links/{code} {
+      allow read: if true;
+      allow create, update: if isSignedIn();
+      allow delete: if isSuperAdmin();
+    }
+
+    // --- COLLECTION GROUP QUERIES ---
+    match /{path=**}/applications/{appId} {
+      allow read: if isSuperAdmin() ||
+                   (isSignedIn() && (
+                     resource.data.applicantId == request.auth.uid ||
+                     resource.data.driverId == request.auth.uid ||
+                     isEmailOwner(resource.data.email)
+                   )) ||
+                   (isSignedIn() && isCompanyTeam(resource.data.companyId));
+    }
+    
+    match /{path=**}/leads/{leadId} {
+      allow read: if isSuperAdmin() ||
+                   (isSignedIn() && isCompanyTeam(resource.data.companyId));
+    }
+    
+    match /{path=**}/activities/{activityId} {
+       allow read: if isSuperAdmin() ||
+                   (isSignedIn() && isCompanyTeam(resource.data.companyId));
+    }
+    
+    // Group Query for Signing Requests
+    match /{path=**}/signing_requests/{requestId} {
+       allow read: if isSuperAdmin() || 
+                   (isSignedIn() && resource.data.recipientId == request.auth.uid) ||
+                   (isSignedIn() && isCompanyTeam(resource.data.companyId));
+    }
+  }
+}

@@ -1,0 +1,13 @@
+# Dependencies
+node_modules/
+
+# Environment & Secrets
+.env
+.env.local
+*.local
+
+# Logs
+*.log
+
+# Cache
+.cache/
