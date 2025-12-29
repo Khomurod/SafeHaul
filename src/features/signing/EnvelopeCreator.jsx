@@ -4,24 +4,20 @@ import { ref, uploadBytes } from 'firebase/storage';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { Document, Page, pdfjs } from 'react-pdf';
 import Draggable from 'react-draggable';
-import { Loader2, UploadCloud, Save, X, Plus, Type, CheckSquare, Calendar, PenTool, Scaling } from 'lucide-react';
+import { Loader2, UploadCloud, Save, X, Plus, Type, CheckSquare, Calendar, PenTool, Scaling, FileText } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
-// Fix: Use local worker to avoid CORS and 404s
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   'pdfjs-dist/build/pdf.worker.min.mjs',
   import.meta.url,
 ).toString();
 
-// --- SUB-COMPONENT: Resizable & Draggable Field (Handles % <-> px conversion) ---
-const ResizableDraggableField = ({ field, pageNum, pageWidth, pageHeight, onStop, onResize, onRemove, getIcon }) => {
+// --- SUB-COMPONENT: Resizable & Draggable Field ---
+const ResizableDraggableField = ({ field, pageNum, pageWidth, pageHeight, onStop, onResize, onRemove, getIcon, onLabelChange }) => {
     const nodeRef = useRef(null); 
-
-    // 1. Convert stored Percentages to Pixels for rendering
-    // Fallback to defaults if pageHeight isn't ready yet
     const safePageHeight = pageHeight || 800;
     const wPx = (field.width / 100) * pageWidth;
     const hPx = (field.height / 100) * safePageHeight;
@@ -30,14 +26,12 @@ const ResizableDraggableField = ({ field, pageNum, pageWidth, pageHeight, onStop
 
     const [size, setSize] = useState({ width: wPx, height: hPx });
 
-    // Sync size state if external props change (e.g. after page load)
     useEffect(() => {
         setSize({ width: wPx, height: hPx });
     }, [wPx, hPx]);
 
-    // Handle resizing logic locally for performance
     const handleMouseDown = (e) => {
-        e.stopPropagation(); // Prevent drag
+        e.stopPropagation();
         const startX = e.clientX;
         const startY = e.clientY;
         const startWidth = size.width;
@@ -45,41 +39,33 @@ const ResizableDraggableField = ({ field, pageNum, pageWidth, pageHeight, onStop
 
         const doDrag = (dragEvent) => {
             setSize({
-                width: Math.max(20, startWidth + dragEvent.clientX - startX),
-                height: Math.max(20, startHeight + dragEvent.clientY - startY)
+                // PRECISION FIX: Minimum size reduced to 8px
+                width: Math.max(8, startWidth + dragEvent.clientX - startX),
+                height: Math.max(8, startHeight + dragEvent.clientY - startY)
             });
         };
 
         const stopDrag = () => {
             window.removeEventListener('mousemove', doDrag);
             window.removeEventListener('mouseup', stopDrag);
-
-            // 2. Convert final Pixels back to Percentage
-            const wPercent = (size.width / pageWidth) * 100;
-            const hPercent = (size.height / safePageHeight) * 100;
-            onResize(field.id, wPercent, hPercent);
+            onResize(field.id, (size.width / pageWidth) * 100, (size.height / safePageHeight) * 100);
         };
 
         window.addEventListener('mousemove', doDrag);
         window.addEventListener('mouseup', stopDrag);
     };
 
-    // Handle Drag Stop
     const handleDragStop = (e, data) => {
-        // 3. Convert final Position Pixels back to Percentage
-        const xPercent = (data.x / pageWidth) * 100;
-        const yPercent = (data.y / safePageHeight) * 100;
-        onStop(field.id, pageNum, xPercent, yPercent);
+        onStop(field.id, pageNum, (data.x / pageWidth) * 100, (data.y / safePageHeight) * 100);
     };
 
     return (
         <Draggable
             nodeRef={nodeRef}
             bounds="parent"
-            // Use key to force re-init if position changes drastically
             position={{ x: xPx, y: yPx }}
             onStop={handleDragStop}
-            cancel=".resize-handle" 
+            cancel=".resize-handle, .label-input" 
         >
             <div 
                 ref={nodeRef} 
@@ -91,43 +77,48 @@ const ResizableDraggableField = ({ field, pageNum, pageWidth, pageHeight, onStop
                 }
                 style={{ width: size.width, height: size.height }}
             >
-                {/* Header / Icon Area */}
-                <div className="flex items-center gap-1 p-1 overflow-hidden">
+                <div className="flex items-center gap-1 p-1 overflow-hidden shrink-0">
                     {getIcon(field.type)}
-                    {size.width > 50 && <span className="text-[10px] font-bold uppercase truncate">{field.type}</span>}
+                    {size.width > 40 && (
+                        <input 
+                            className="label-input bg-transparent border-none text-[9px] font-bold uppercase w-full focus:ring-0 p-0 truncate cursor-text"
+                            value={field.label}
+                            onChange={(e) => onLabelChange(field.id, e.target.value)}
+                            onMouseDown={(e) => e.stopPropagation()}
+                        />
+                    )}
                 </div>
 
-                {/* Remove Button */}
                 <button 
                     onMouseDown={(e) => { e.stopPropagation(); onRemove(field.id); }}
-                    onTouchStart={(e) => { e.stopPropagation(); onRemove(field.id); }}
                     className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5 shadow hover:bg-red-700 z-50"
                 >
                     <X size={10} />
                 </button>
 
-                {/* Resize Handle */}
                 <div 
-                    className="resize-handle absolute bottom-0 right-0 w-4 h-4 cursor-se-resize flex items-end justify-end p-0.5 opacity-0 group-hover:opacity-100 transition"
+                    className="resize-handle absolute bottom-0 right-0 w-3 h-3 cursor-se-resize flex items-end justify-end p-0.5 opacity-0 group-hover:opacity-100 transition"
                     onMouseDown={handleMouseDown}
                 >
-                    <Scaling size={12} className="text-gray-600" />
+                    <Scaling size={10} className="text-gray-600" />
                 </div>
             </div>
         </Draggable>
     );
 };
 
-export default function EnvelopeCreator({ companyId, onClose }) {
+export default function EnvelopeCreator({ companyId, onClose, initialMode = 'request' }) {
   const [file, setFile] = useState(null);
   const [numPages, setNumPages] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [creatorMode, setCreatorMode] = useState(initialMode); // 'request' or 'template'
+
+  // Recipient details only needed for 'request' mode
   const [recipientEmail, setRecipientEmail] = useState('');
   const [recipientName, setRecipientName] = useState('');
   const [title, setTitle] = useState('');
 
   const [fields, setFields] = useState([]); 
-  // Store actual page dimensions to support consistent % calculations
   const [pageDimensions, setPageDimensions] = useState({}); 
 
   const handleFileChange = (e) => {
@@ -143,9 +134,8 @@ export default function EnvelopeCreator({ companyId, onClose }) {
   const addField = (type) => {
     if (!file) return;
 
-    // Default Sizes in PERCENTAGES
-    let w = 25, h = 5; // ~175px x 35px on 700px width
-    if (type === 'checkbox') { w = 4; h = 3; } // ~28px square
+    let w = 25, h = 5; 
+    if (type === 'checkbox') { w = 4; h = 3; } 
     if (type === 'text') { w = 30; h = 5; }
     if (type === 'date') { w = 20; h = 5; }
 
@@ -153,83 +143,93 @@ export default function EnvelopeCreator({ companyId, onClose }) {
         id: uuidv4(),
         type, 
         page: 1, 
-        x: 10, y: 10, // Default 10% from top-left
+        x: 10, y: 10, 
         width: w, height: h,
-        label: type
+        label: type === 'text' ? 'Label' : type
     };
     setFields(prev => [...prev, newField]);
   };
 
-  const removeField = (id) => {
-      setFields(prev => prev.filter(f => f.id !== id));
-  };
+  const removeField = (id) => setFields(prev => prev.filter(f => f.id !== id));
 
   const updateFieldPosition = (id, pageNum, xPercent, yPercent) => {
-     setFields(prev => prev.map(f => 
-        f.id === id ? { ...f, x: xPercent, y: yPercent, page: pageNum } : f
-     ));
+     setFields(prev => prev.map(f => f.id === id ? { ...f, x: xPercent, y: yPercent, page: pageNum } : f));
   };
 
   const updateFieldSize = (id, widthPercent, heightPercent) => {
-      setFields(prev => prev.map(f =>
-          f.id === id ? { ...f, width: widthPercent, height: heightPercent } : f
-      ));
+      setFields(prev => prev.map(f => f.id === id ? { ...f, width: widthPercent, height: heightPercent } : f));
+  };
+
+  const updateFieldLabel = (id, newLabel) => {
+      setFields(prev => prev.map(f => f.id === id ? { ...f, label: newLabel } : f));
   };
 
   const onPageLoadSuccess = (page) => {
-      setPageDimensions(prev => ({
-          ...prev,
-          [page.pageNumber]: { width: page.width, height: page.height }
-      }));
+      setPageDimensions(prev => ({ ...prev, [page.pageNumber]: { width: page.width, height: page.height } }));
   };
 
-  const handleSend = async () => {
-    if (!file || !recipientEmail || fields.length === 0) {
-        alert("Please upload a file, set a recipient, and place at least one field.");
+  const handleSave = async () => {
+    if (!file || fields.length === 0) {
+        alert("Please upload a file and place fields.");
+        return;
+    }
+
+    if (creatorMode === 'request' && (!recipientEmail || !recipientName)) {
+        alert("Please provide recipient details for a direct request.");
         return;
     }
 
     setLoading(true);
     try {
-        const storagePath = `secure_documents/${companyId}/originals/${Date.now()}_${file.name}`;
+        const folder = creatorMode === 'template' ? 'templates' : 'originals';
+        const storagePath = `secure_documents/${companyId}/${folder}/${Date.now()}_${file.name}`;
         const fileRef = ref(storage, storagePath);
         await uploadBytes(fileRef, file);
 
-        const accessToken = uuidv4();
-
-        const docData = {
+        const commonData = {
             companyId,
-            recipientEmail,
-            recipientName,
             title,
-            status: 'sent',
-            createdAt: serverTimestamp(),
-            storagePath, 
-            senderId: auth.currentUser.uid,
-            recipientId: null,
-            sendEmail: true, 
-            accessToken: accessToken,
+            storagePath,
             fields: fields.map(f => ({
                 id: f.id,
                 type: f.type,
+                label: f.label,
                 pageNumber: f.page,
-                // These are now guaranteed to be PERCENTAGES
                 xPosition: f.x,
                 yPosition: f.y,
                 width: f.width, 
                 height: f.height, 
                 required: true 
-            }))
+            })),
+            updatedAt: serverTimestamp()
         };
 
-        await addDoc(collection(db, 'companies', companyId, 'signing_requests'), docData);
+        if (creatorMode === 'template') {
+            await addDoc(collection(db, 'companies', companyId, 'templates'), {
+                ...commonData,
+                createdAt: serverTimestamp(),
+                createdBy: auth.currentUser.uid
+            });
+            alert("Template saved successfully!");
+        } else {
+            const accessToken = uuidv4();
+            await addDoc(collection(db, 'companies', companyId, 'signing_requests'), {
+                ...commonData,
+                recipientEmail,
+                recipientName,
+                status: 'sent',
+                createdAt: serverTimestamp(),
+                senderId: auth.currentUser.uid,
+                accessToken: accessToken,
+                sendEmail: true
+            });
+            alert("Document sent to recipient!");
+        }
 
-        alert("Document sent! Signer will be notified.");
         if(onClose) onClose();
-
     } catch (err) {
-        console.error("Error sending:", err);
-        alert("Failed to send.");
+        console.error("Error saving:", err);
+        alert("Action failed. Check console for details.");
     } finally {
         setLoading(false);
     }
@@ -237,117 +237,144 @@ export default function EnvelopeCreator({ companyId, onClose }) {
 
   const getIcon = (type) => {
       switch(type) {
-          case 'signature': return <PenTool size={16} />;
-          case 'text': return <Type size={16} />;
-          case 'checkbox': return <CheckSquare size={16} />;
-          case 'date': return <Calendar size={16} />;
-          default: return <Plus size={16} />;
+          case 'signature': return <PenTool size={14} />;
+          case 'text': return <Type size={14} />;
+          case 'checkbox': return <CheckSquare size={14} />;
+          case 'date': return <Calendar size={14} />;
+          default: return <Plus size={14} />;
       }
   };
 
   return (
     <div className="flex flex-col h-screen bg-gray-100 font-sans">
-      <div className="bg-white border-b px-6 py-4 flex justify-between items-center shadow-sm z-20">
-        <h2 className="text-xl font-bold flex items-center gap-2 text-gray-800">
-            <UploadCloud className="text-blue-600" /> New Envelope
-        </h2>
+      <div className="bg-white border-b px-6 py-4 flex justify-between items-center shadow-sm z-20 shrink-0">
+        <div className="flex items-center gap-4">
+            <h2 className="text-xl font-bold flex items-center gap-2 text-gray-800">
+                {creatorMode === 'template' ? <FileText className="text-purple-600" /> : <UploadCloud className="text-blue-600" />}
+                {creatorMode === 'template' ? 'Create Template' : 'New Envelope'}
+            </h2>
+            <div className="flex bg-gray-100 p-1 rounded-lg">
+                <button 
+                    onClick={() => setCreatorMode('request')}
+                    className={`px-3 py-1 text-xs font-bold rounded-md transition ${creatorMode === 'request' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                    One-off Send
+                </button>
+                <button 
+                    onClick={() => setCreatorMode('template')}
+                    className={`px-3 py-1 text-xs font-bold rounded-md transition ${creatorMode === 'template' ? 'bg-white shadow text-purple-600' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                    Save Template
+                </button>
+            </div>
+        </div>
         <div className="flex gap-3">
             <button onClick={onClose} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">Cancel</button>
             <button 
-                onClick={handleSend}
+                onClick={handleSave}
                 disabled={loading}
-                className="px-6 py-2 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 flex items-center gap-2 disabled:opacity-50"
+                className={`px-6 py-2 text-white font-bold rounded-lg flex items-center gap-2 disabled:opacity-50 transition-all shadow-md
+                    ${creatorMode === 'template' ? 'bg-purple-600 hover:bg-purple-700' : 'bg-blue-600 hover:bg-blue-700'}`}
             >
                 {loading ? <Loader2 className="animate-spin" /> : <Save size={18} />}
-                Send Document
+                {creatorMode === 'template' ? 'Save Template' : 'Send Document'}
             </button>
         </div>
       </div>
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar Controls */}
-        <div className="w-80 bg-white border-r flex flex-col z-10 shadow-lg">
-            <div className="p-6 border-b">
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-2">1. Recipient</label>
-                <input 
-                    type="text" placeholder="Name" 
-                    className="w-full mb-2 p-2 text-sm border rounded bg-gray-50"
-                    value={recipientName} onChange={e => setRecipientName(e.target.value)}
-                />
-                <input 
-                    type="email" placeholder="Email" 
-                    className="w-full p-2 text-sm border rounded bg-gray-50"
-                    value={recipientEmail} onChange={e => setRecipientEmail(e.target.value)}
-                />
-            </div>
+        <div className="w-80 bg-white border-r flex flex-col z-10 shadow-lg shrink-0">
+            {creatorMode === 'request' && (
+                <div className="p-6 border-b animate-in fade-in slide-in-from-top-2">
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-2">1. Recipient</label>
+                    <input 
+                        type="text" placeholder="Recipient Name" 
+                        className="w-full mb-2 p-2 text-sm border rounded bg-gray-50 focus:bg-white transition-colors"
+                        value={recipientName} onChange={e => setRecipientName(e.target.value)}
+                    />
+                    <input 
+                        type="email" placeholder="Recipient Email" 
+                        className="w-full p-2 text-sm border rounded bg-gray-50 focus:bg-white transition-colors"
+                        value={recipientEmail} onChange={e => setRecipientEmail(e.target.value)}
+                    />
+                </div>
+            )}
 
             <div className="p-6 flex-1 overflow-y-auto">
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-4">2. Drag & Resize Fields</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase mb-4">
+                    {creatorMode === 'request' ? '2. Setup Fields' : '1. Setup Fields'}
+                </label>
                 {!file ? (
-                    <div className="text-center p-6 border-2 border-dashed border-gray-300 rounded-xl bg-gray-50">
-                        <p className="text-sm text-gray-400 mb-2">Upload a PDF first</p>
+                    <div className="text-center p-6 border-2 border-dashed border-gray-300 rounded-xl bg-gray-50 hover:border-blue-400 transition-colors">
+                        <p className="text-sm text-gray-400 mb-2 font-medium">Upload a PDF first</p>
                         <input type="file" accept="application/pdf" onChange={handleFileChange} className="hidden" id="pdf-upload"/>
-                        <label htmlFor="pdf-upload" className="px-4 py-2 bg-white border border-gray-300 rounded text-sm font-medium cursor-pointer hover:bg-gray-50">Choose File</label>
+                        <label htmlFor="pdf-upload" className="px-4 py-2 bg-white border border-gray-300 rounded shadow-sm text-sm font-bold cursor-pointer hover:bg-gray-50 active:scale-95 transition-transform inline-block">Choose File</label>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-2 gap-3">
-                        {[
-                            { id: 'signature', label: 'Signature', icon: <PenTool size={18}/>, color: 'bg-yellow-50 text-yellow-700 border-yellow-200' },
-                            { id: 'text', label: 'Text Box', icon: <Type size={18}/>, color: 'bg-blue-50 text-blue-700 border-blue-200' },
-                            { id: 'date', label: 'Date', icon: <Calendar size={18}/>, color: 'bg-green-50 text-green-700 border-green-200' },
-                            { id: 'checkbox', label: 'Checkbox', icon: <CheckSquare size={18}/>, color: 'bg-purple-50 text-purple-700 border-purple-200' },
-                        ].map((tool) => (
-                            <button
-                                key={tool.id}
-                                onClick={() => addField(tool.id)}
-                                className={`flex flex-col items-center justify-center p-3 border rounded-xl transition hover:shadow-md ${tool.color}`}
-                            >
-                                <div className="mb-1">{tool.icon}</div>
-                                <span className="text-xs font-bold">{tool.label}</span>
-                            </button>
-                        ))}
-                    </div>
+                    <>
+                        <div className="grid grid-cols-2 gap-3 mb-6">
+                            {[
+                                { id: 'signature', label: 'Signature', icon: <PenTool size={18}/>, color: 'bg-yellow-50 text-yellow-700 border-yellow-200' },
+                                { id: 'text', label: 'Text/Placeholder', icon: <Type size={18}/>, color: 'bg-blue-50 text-blue-700 border-blue-200' },
+                                { id: 'date', label: 'Date', icon: <Calendar size={18}/>, color: 'bg-green-50 text-green-700 border-green-200' },
+                                { id: 'checkbox', label: 'Checkbox', icon: <CheckSquare size={18}/>, color: 'bg-purple-50 text-purple-700 border-purple-200' },
+                            ].map((tool) => (
+                                <button
+                                    key={tool.id}
+                                    onClick={() => addField(tool.id)}
+                                    className={`flex flex-col items-center justify-center p-3 border rounded-xl transition hover:shadow-md active:scale-95 ${tool.color}`}
+                                >
+                                    <div className="mb-1">{tool.icon}</div>
+                                    <span className="text-[10px] font-bold uppercase">{tool.label}</span>
+                                </button>
+                            ))}
+                        </div>
+
+                        {fields.some(f => f.type === 'text') && (
+                            <div className="mb-6 p-3 bg-blue-50 rounded-lg border border-blue-100">
+                                <p className="text-[10px] text-blue-700 leading-relaxed font-medium">
+                                    <strong>Tip:</strong> Use labels like <code className="bg-blue-100 px-1 rounded">{"{{full_name}}"}</code> to auto-fill driver data when sending.
+                                </p>
+                            </div>
+                        )}
+                    </>
                 )}
 
-                <div className="mt-8">
-                    <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Placed Fields ({fields.length})</label>
-                    <div className="space-y-2">
-                        {fields.map((f) => (
-                            <div key={f.id} className="flex justify-between items-center p-2 bg-gray-50 border rounded text-xs">
-                                <div className="flex items-center gap-2">
-                                    {getIcon(f.type)}
-                                    <span>{f.type}</span>
+                {fields.length > 0 && (
+                    <div className="mt-4">
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Placed Fields ({fields.length})</label>
+                        <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                            {fields.map((f) => (
+                                <div key={f.id} className="flex justify-between items-center p-2 bg-gray-50 border rounded-lg text-xs group">
+                                    <div className="flex items-center gap-2 truncate">
+                                        <div className="text-gray-400 shrink-0">{getIcon(f.type)}</div>
+                                        <span className="font-bold truncate">{f.label}</span>
+                                    </div>
+                                    <button onClick={() => removeField(f.id)} className="text-red-400 hover:text-red-600 hover:bg-red-50 p-1 rounded transition-colors"><X size={14}/></button>
                                 </div>
-                                <button onClick={() => removeField(f.id)} className="text-red-500 hover:bg-red-50 p-1 rounded"><X size={12}/></button>
-                            </div>
-                        ))}
+                            ))}
+                        </div>
                     </div>
-                </div>
+                )}
             </div>
         </div>
 
-        {/* PDF Canvas Area */}
-        <div className="flex-1 overflow-y-auto bg-gray-200 p-8 flex justify-center relative">
+        <div className="flex-1 overflow-y-auto bg-gray-200 p-8 flex justify-center relative scroll-smooth">
             {file && (
                 <Document
                     file={file}
                     onLoadSuccess={({ numPages }) => setNumPages(numPages)}
-                    className="flex flex-col gap-6"
+                    className="flex flex-col gap-8 pb-16"
                 >
                     {Array.from(new Array(numPages), (el, index) => {
                         const pageNum = index + 1;
-                        // Get captured dimensions for this page (or null if loading)
-                        // Note: We use the rendered width (700) for calculations
                         const dims = pageDimensions[pageNum]; 
 
                         return (
-                            <div 
-                                key={pageNum} 
-                                className="relative shadow-xl border border-gray-300 bg-white inline-block"
-                            >
+                            <div key={pageNum} className="relative shadow-2xl border border-gray-400 bg-white inline-block ring-1 ring-black/5">
                                 <Page 
                                     pageNumber={pageNum} 
-                                    width={700} // Fixed width for Admin creation to ensure consistency
+                                    width={700} 
                                     onLoadSuccess={onPageLoadSuccess}
                                     renderAnnotationLayer={false}
                                     renderTextLayer={false}
@@ -359,12 +386,12 @@ export default function EnvelopeCreator({ companyId, onClose }) {
                                             field={field}
                                             pageNum={pageNum}
                                             pageWidth={700}
-                                            // Pass the actual rendered height if available, else guess based on A4
                                             pageHeight={dims ? dims.height : 900} 
                                             onStop={updateFieldPosition}
                                             onResize={updateFieldSize}
                                             onRemove={removeField}
                                             getIcon={getIcon}
+                                            onLabelChange={updateFieldLabel}
                                         />
                                     ))}
                                 </div>

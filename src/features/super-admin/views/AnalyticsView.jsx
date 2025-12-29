@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
 import { 
-    BarChart3, Download, Calendar, Users, Phone, 
-    FileText, Zap, TrendingUp, ArrowUpRight, User 
+     BarChart3, Download, Calendar, Users, Phone, 
+     FileText, Zap, TrendingUp, ArrowUpRight, User 
 } from 'lucide-react';
 import { useAnalytics } from '@features/analytics';
+import LeadInventoryWidget from '../components/LeadInventoryWidget'; // <--- NEW IMPORT
+
+// --- HELPER COMPONENTS (PRESERVED) ---
 
 function SummaryCard({ title, value, icon: Icon, colorClass, trend }) {
     return (
@@ -27,11 +30,10 @@ function SummaryCard({ title, value, icon: Icon, colorClass, trend }) {
 
 function ActivityTrendChart({ data }) {
     if (!data || data.length === 0) return <div className="h-48 flex items-center justify-center text-gray-400 text-sm">No data available</div>;
-
     const height = 200;
     const width = 800;
     const padding = 20;
-    
+
     const maxValue = Math.max(...data.map(d => d.value), 5);
     const points = data.map((d, i) => {
         const x = (i / (data.length - 1)) * (width - padding * 2) + padding;
@@ -51,31 +53,27 @@ function ActivityTrendChart({ data }) {
                         y2={height - (tick * (height - padding * 2)) - padding} 
                         stroke="#f3f4f6" 
                         strokeWidth="1" 
-                    />
+                     />
                 ))}
-                
                 <polyline 
-                    fill="none" 
-                    stroke="#2563eb" 
-                    strokeWidth="3" 
-                    points={points} 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round"
+                     fill="none" 
+                     stroke="#2563eb" 
+                     strokeWidth="3" 
+                     points={points} 
+                     strokeLinecap="round" 
+                     strokeLinejoin="round" 
                 />
-                
                 <polygon 
-                    fill="url(#gradient)" 
-                    points={`${padding},${height-padding} ${points} ${width-padding},${height-padding}`} 
-                    opacity="0.1"
+                     fill="url(#gradient)" 
+                     points={`${padding},${height-padding} ${points} ${width-padding},${height-padding}`} 
+                     opacity="0.1" 
                 />
-                
                 <defs>
                     <linearGradient id="gradient" x1="0" x2="0" y1="0" y2="1">
                         <stop offset="0%" stopColor="#2563eb" />
                         <stop offset="100%" stopColor="white" />
                     </linearGradient>
                 </defs>
-
                 <text x={padding} y={height} className="text-[10px] fill-gray-400">{data[0]?.date}</text>
                 <text x={width/2} y={height} className="text-[10px] fill-gray-400 text-anchor-middle">{data[Math.floor(data.length/2)]?.date}</text>
                 <text x={width-padding} y={height} className="text-[10px] fill-gray-400 text-anchor-end">{data[data.length-1]?.date}</text>
@@ -83,6 +81,8 @@ function ActivityTrendChart({ data }) {
         </div>
     );
 }
+
+// --- MAIN VIEW COMPONENT ---
 
 export function AnalyticsView() {
     const { loading, stats, dateRange, setDateRange } = useAnalytics();
@@ -96,9 +96,9 @@ export function AnalyticsView() {
         if (activeTab === 'users') {
             headers = ['Recruiter Name', 'Company', 'Calls Made', 'Last Active'];
             rows = stats.userPerformance.map(u => [
-                u.userName, 
-                u.companyName, 
-                u.callsMade, 
+                u.userName,
+                u.companyName,
+                u.callsMade,
                 u.lastActive ? new Date(u.lastActive.seconds * 1000).toLocaleString() : 'N/A'
             ]);
             filename = `recruiter_performance_${dateRange}.csv`;
@@ -107,7 +107,7 @@ export function AnalyticsView() {
             rows = stats.companyPerformance.map(c => [c.companyName, c.callsMade, c.actions]);
             filename = `company_performance_${dateRange}.csv`;
         }
-        
+
         const csvContent = "data:text/csv;charset=utf-8," + [headers, ...rows].map(e => e.join(",")).join("\n");
         const encodedUri = encodeURI(csvContent);
         const link = document.createElement("a");
@@ -118,9 +118,12 @@ export function AnalyticsView() {
         document.body.removeChild(link);
     };
 
+    if (loading) return <div className="p-12 text-center text-gray-500">Loading analytics...</div>;
+
     return (
         <div className="space-y-6 h-full flex flex-col">
-            
+
+            {/* 1. Header & Controls */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-4 rounded-xl border border-gray-200 shadow-sm shrink-0">
                 <div>
                     <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
@@ -128,24 +131,24 @@ export function AnalyticsView() {
                     </h2>
                     <p className="text-sm text-gray-500">Monitor usage and performance across all companies.</p>
                 </div>
-                
+
                 <div className="flex gap-2">
                     <div className="flex bg-gray-100 p-1 rounded-lg">
                         {['7d', '30d', '90d'].map(range => (
-                            <button
+                            <button 
                                 key={range}
                                 onClick={() => setDateRange(range)}
                                 className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
                                     dateRange === range 
-                                    ? 'bg-white text-blue-700 shadow-sm' 
-                                    : 'text-gray-500 hover:text-gray-700'
+                                     ? 'bg-white text-blue-700 shadow-sm' 
+                                     : 'text-gray-500 hover:text-gray-700'
                                 }`}
                             >
                                 {range.toUpperCase()}
                             </button>
                         ))}
                     </div>
-                    
+
                     <button 
                         onClick={handleExport}
                         className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 transition shadow-sm"
@@ -155,6 +158,12 @@ export function AnalyticsView() {
                 </div>
             </div>
 
+            {/* 2. NEW: LEAD INVENTORY WIDGET */}
+            <div className="shrink-0">
+                <LeadInventoryWidget />
+            </div>
+
+            {/* 3. Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 shrink-0">
                 <SummaryCard 
                     title="Total Calls" 
@@ -186,6 +195,7 @@ export function AnalyticsView() {
                 />
             </div>
 
+            {/* 4. Tabs & Content */}
             <div className="flex-1 min-h-0 bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden flex flex-col">
                 <div className="flex border-b border-gray-200 px-6 pt-2 overflow-x-auto">
                     <button 
@@ -209,7 +219,7 @@ export function AnalyticsView() {
                 </div>
 
                 <div className="flex-1 overflow-auto p-6 bg-gray-50">
-                    
+
                     {activeTab === 'overview' && (
                         <div className="space-y-6">
                             <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
@@ -290,8 +300,8 @@ export function AnalyticsView() {
                                             <td className="px-6 py-4 text-right">
                                                 <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-bold ${
                                                     comp.callsMade > 20 
-                                                    ? 'bg-green-100 text-green-700' 
-                                                    : 'bg-yellow-100 text-yellow-700'
+                                                        ? 'bg-green-100 text-green-700' 
+                                                        : 'bg-yellow-100 text-yellow-700'
                                                 }`}>
                                                     {comp.callsMade > 20 ? 'High' : 'Low'} <ArrowUpRight size={12} />
                                                 </span>
@@ -341,7 +351,6 @@ export function AnalyticsView() {
                             </table>
                         </div>
                     )}
-
                 </div>
             </div>
         </div>

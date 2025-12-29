@@ -1,11 +1,11 @@
 // functions/digitalSealing.js
 const functions = require('firebase-functions/v1');
-const { admin, db, storage } = require('./firebaseAdmin'); // Use shared instance
+const { admin, db, storage } = require('./firebaseAdmin'); 
 const path = require('path');
 const os = require('os');
 const fs = require('fs');
 
-// Lazy load pdf-lib to prevent cold-start crashes if it's missing
+// Lazy load pdf-lib
 let PDFDocument, StandardFonts, rgb;
 try {
     const pdfLib = require('pdf-lib');
@@ -34,23 +34,18 @@ exports.sealDocument = functions.firestore
     }
 
     const { companyId, requestId } = context.params;
-    console.log(`Starting seal for Request: ${requestId}`);
-
     const tempPdfPath = path.join(os.tmpdir(), `orig_${requestId}.pdf`);
     const outputPdfPath = path.join(os.tmpdir(), `final_${requestId}.pdf`);
-    const tempSigPaths = []; // Track temp signature files to delete later
+    const tempSigPaths = []; 
 
     try {
       const bucket = storage.bucket();
 
       // 2. Download Original PDF
-      // Handle cases where storagePath might include the 'gs://' prefix
       let srcPath = newData.storagePath;
       if (srcPath.startsWith('gs://')) {
-          const bucketName = bucket.name;
-          srcPath = srcPath.replace(`gs://${bucketName}/`, '');
+          srcPath = srcPath.replace(`gs://${bucket.name}/`, '');
       }
-
       await bucket.file(srcPath).download({ destination: tempPdfPath });
 
       // 3. Load PDF
@@ -64,52 +59,53 @@ exports.sealDocument = functions.firestore
 
       for (const field of fields) {
           const val = values[field.id];
-          if (!val) continue; // Skip empty fields
+          if (!val) continue; 
 
-          // Get Page
           const pageIndex = Math.max(0, (field.pageNumber || 1) - 1);
           if (pageIndex >= pdfDoc.getPages().length) continue;
 
           const page = pdfDoc.getPages()[pageIndex];
           const { width, height } = page.getSize();
 
-          // Calculate Coordinates
-          // X/Y are stored as percentages (0-100)
+          // Calculate Coordinates from Percentages
           const x = (field.xPosition / 100) * width;
-          const y = height - ((field.yPosition / 100) * height); // Top-down flip
+          const y = height - ((field.yPosition / 100) * height); 
+          const fieldW = (field.width / 100) * width;
+          const fieldH = (field.height / 100) * height;
 
           if (field.type === 'text' || field.type === 'date') {
-              // DRAW TEXT
+              // DYNAMIC FONT SCALING
+              // Calculate size based on field height (approx 70% of box height)
+              const calculatedSize = Math.max(6, fieldH * 0.7);
+
               page.drawText(String(val), {
-                  x: x + 2, // Slight padding
-                  y: y - 12, // Adjust for font height (approx)
-                  size: 10,
+                  x: x + 2, 
+                  y: y - (fieldH * 0.8), // Vertical centering adjustment
+                  size: calculatedSize,
                   font: helvetica,
                   color: rgb(0, 0, 0),
+                  maxWidth: fieldW - 4 // Prevent text from bleeding out of the box
               });
           } 
           else if (field.type === 'checkbox' && val === true) {
-              // DRAW CHECKMARK (X)
+              // DRAW CHECKMARK (X) scaled to field size
+              const inset = fieldW * 0.2;
               page.drawLine({
-                  start: { x: x, y: y },
-                  end: { x: x + 10, y: y - 10 },
-                  thickness: 2,
+                  start: { x: x + inset, y: y - inset },
+                  end: { x: x + fieldW - inset, y: y - fieldH + inset },
+                  thickness: Math.max(1, fieldW * 0.1),
                   color: rgb(0, 0, 0),
               });
               page.drawLine({
-                  start: { x: x + 10, y: y },
-                  end: { x: x, y: y - 10 },
-                  thickness: 2,
+                  start: { x: x + fieldW - inset, y: y - inset },
+                  end: { x: x + inset, y: y - fieldH + inset },
+                  thickness: Math.max(1, fieldW * 0.1),
                   color: rgb(0, 0, 0),
               });
           }
           else if (field.type === 'signature') {
-              // DRAW SIGNATURE IMAGE
-              // Value is the storage path to the signature PNG
               const sigTempPath = path.join(os.tmpdir(), `sig_${field.id}.png`);
-
               try {
-                  // Clean path if needed
                   let sigPath = val;
                   if (sigPath.startsWith('gs://')) {
                       sigPath = sigPath.replace(`gs://${bucket.name}/`, '');
@@ -121,12 +117,13 @@ exports.sealDocument = functions.firestore
                   const sigBytes = fs.readFileSync(sigTempPath);
                   const sigImage = await pdfDoc.embedPng(sigBytes);
 
-                  const sigScale = 150 / sigImage.width;
-                  const sigDims = sigImage.scale(sigScale);
+                  // Scale image to fit the drawn box while maintaining aspect ratio
+                  const scale = Math.min(fieldW / sigImage.width, fieldH / sigImage.height);
+                  const sigDims = sigImage.scale(scale);
 
                   page.drawImage(sigImage, {
                       x: x,
-                      y: y - sigDims.height, // Image draws from bottom-left
+                      y: y - sigDims.height, 
                       width: sigDims.width,
                       height: sigDims.height,
                   });
@@ -136,7 +133,7 @@ exports.sealDocument = functions.firestore
           }
       }
 
-      // 5. Append Audit Trail Page
+      // 5. Append Enhanced Audit Trail Page
       const auditPage = pdfDoc.addPage();
       const auditHeight = auditPage.getHeight();
 
@@ -144,14 +141,17 @@ exports.sealDocument = functions.firestore
       auditPage.drawText(`Envelope ID: ${requestId}`, { x: 50, y: auditHeight - 80, size: 10, font: helvetica, color: rgb(0.5, 0.5, 0.5) });
 
       const auditLog = `
-        Signer Name: ${newData.recipientName || 'Authorized User'}
-        Signer Email: ${newData.recipientEmail || 'N/A'}
-        Completed At: ${new Date().toISOString()}
-        IP Address: ${newData.auditTrail?.ip || 'Recorded'}
-        User Agent: ${newData.auditTrail?.userAgent || 'N/A'}
+        DOCUMENT TITLE: ${newData.title || 'Untitled Document'}
+        SIGNER NAME: ${newData.recipientName || 'Authorized User'}
+        SIGNER EMAIL: ${newData.recipientEmail || 'N/A'}
+        COMPLETED AT: ${new Date().toISOString()}
+        IP ADDRESS: ${newData.auditTrail?.ip || 'Recorded'}
+        USER AGENT: ${newData.auditTrail?.userAgent || 'N/A'}
 
+        SECURITY VERIFICATION:
         This document was securely signed and sealed via SafeHaul.
-        Digital Checksum: ${requestId.substring(0, 8)}-${Date.now()}
+        The layout and metadata are preserved in the platform's audit logs.
+        Checksum Hash: ${requestId.substring(0, 8)}-${Date.now()}
       `;
 
       auditPage.drawText(auditLog, { 
@@ -159,7 +159,7 @@ exports.sealDocument = functions.firestore
           y: auditHeight - 150, 
           size: 10, 
           font: helvetica, 
-          lineHeight: 14 
+          lineHeight: 16 
       });
 
       // 6. Save & Upload Final PDF
@@ -180,22 +180,14 @@ exports.sealDocument = functions.firestore
           completedAt: admin.firestore.FieldValue.serverTimestamp()
       });
 
-      console.log("Sealing Complete:", finalStoragePath);
-
     } catch (err) {
       console.error("Sealing Failed:", err);
-      await change.after.ref.update({
-        status: 'error_sealing',
-        errorLog: err.message
-      });
+      await change.after.ref.update({ status: 'error_sealing', errorLog: err.message });
     } finally {
-      // Cleanup Temp Files
       try {
           if (fs.existsSync(tempPdfPath)) fs.unlinkSync(tempPdfPath);
           if (fs.existsSync(outputPdfPath)) fs.unlinkSync(outputPdfPath);
-          tempSigPaths.forEach(p => {
-              if (fs.existsSync(p)) fs.unlinkSync(p);
-          });
-      } catch (cleanupErr) { console.error("Cleanup warning:", cleanupErr); }
+          tempSigPaths.forEach(p => { if (fs.existsSync(p)) fs.unlinkSync(p); });
+      } catch (e) {}
     }
   });

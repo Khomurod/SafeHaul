@@ -1,13 +1,17 @@
+// src/features/super-admin/hooks/useSuperAdminData.js
+
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { db } from '@lib/firebase';
+import { db, functions } from '@lib/firebase';
+import { httpsCallable } from 'firebase/functions';
 import { 
     collection, 
     getDocs, 
     collectionGroup, 
     query, 
-    orderBy 
+    orderBy, 
+    limit, 
+    getCountFromServer 
 } from 'firebase/firestore';
-import { loadAllMemberships } from '@features/auth';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 
 export function useSuperAdminData() {
@@ -16,10 +20,13 @@ export function useSuperAdminData() {
     // --- STATE ---
     const [companyList, setCompanyList] = useState([]);
     const [userList, setUserList] = useState([]);
-    const [allApplications, setAllApplications] = useState([]);
+    const [allApplications, setAllApplications] = useState([]); // Unified Leads/Apps
     const [allCompaniesMap, setAllCompaniesMap] = useState(new Map());
 
     const [loading, setLoading] = useState(true);
+    const [isSearching, setIsSearching] = useState(false);
+
+    // Preserved Error State
     const [statsError, setStatsError] = useState({
         companies: false,
         users: false,
@@ -34,239 +41,157 @@ export function useSuperAdminData() {
 
     const [searchQuery, setSearchQuery] = useState('');
 
-    // --- MAIN FETCH FUNCTION ---
-    const loadAllData = useCallback(async () => {
+    // --- 1. LOAD RECENT DATA (Optimized: Limit 50) ---
+    const loadRecentData = useCallback(async () => {
         setLoading(true);
         setStatsError({ companies: false, users: false, apps: false });
+        console.log("🚀 Fetching recent dashboard data (Optimized)...");
 
-        console.log("🚀 Starting Super Admin Full Data Fetch...");
+        try {
+            // A. Fetch Recent Companies (Limit 50)
+            const companiesPromise = getDocs(query(collection(db, "companies"), orderBy('createdAt', 'desc'), limit(50)));
 
-        // --- 1. Fetch Companies ---
-        const fetchCompanies = async () => {
-            try {
-                const companies = [];
-                const compMap = new Map();
-                compMap.set('general-leads', 'SafeHaul Pool (Unassigned)');
+            // B. Fetch Recent Users (Limit 50)
+            const usersPromise = getDocs(query(collection(db, "users"), orderBy('createdAt', 'desc'), limit(50)));
 
-                // FIX: Removed orderBy('createdAt') to prevent hiding docs missing that field
-                const compQuery = query(collection(db, "companies"));
-                const companiesSnap = await getDocs(compQuery);
+            // C. Fetch Recent Activity (Leads + Apps mixed)
+            const leadsPromise = getDocs(query(collectionGroup(db, 'leads'), orderBy('createdAt', 'desc'), limit(25)));
+            const appsPromise = getDocs(query(collectionGroup(db, 'applications'), orderBy('createdAt', 'desc'), limit(25)));
 
-                companiesSnap.forEach((doc) => {
-                    const data = doc.data();
-                    companies.push({ id: doc.id, ...data });
-                    compMap.set(doc.id, data.companyName);
-                });
+            // D. Fetch REAL Total Counts (Server-Side Aggregation)
+            const countCompaniesPromise = getCountFromServer(collection(db, "companies"));
+            const countUsersPromise = getCountFromServer(collection(db, "users"));
+            const countLeadsPromise = getCountFromServer(collectionGroup(db, "leads"));
 
-                // Sort in memory (Safe)
-                companies.sort((a, b) => {
-                    const tA = a.createdAt?.seconds || 0;
-                    const tB = b.createdAt?.seconds || 0;
-                    return tB - tA;
-                });
+            const [
+                compSnap, userSnap, leadsSnap, appsSnap,
+                totalComp, totalUser, totalLeads
+            ] = await Promise.all([
+                companiesPromise, usersPromise, leadsPromise, appsPromise,
+                countCompaniesPromise, countUsersPromise, countLeadsPromise
+            ]);
 
-                return { companies, compMap };
-            } catch (e) {
-                console.error("Error loading companies:", e);
-                setStatsError(prev => ({ ...prev, companies: true }));
-                return { companies: [], compMap: new Map() };
-            }
-        };
+            // --- Process Companies ---
+            const companies = [];
+            const compMap = new Map();
+            compMap.set('general-leads', 'SafeHaul Pool (Unassigned)');
 
-        // --- 2. Fetch Users & Memberships ---
-        const fetchUsers = async () => {
-            try {
-                // FIX: Removed orderBy to ensure we get all users
-                const userQuery = query(collection(db, "users"));
+            compSnap.forEach((doc) => {
+                const data = doc.data();
+                companies.push({ id: doc.id, ...data });
+                compMap.set(doc.id, data.companyName);
+            });
 
-                const [usersSnap, membershipsSnap] = await Promise.all([
-                    getDocs(userQuery),
-                    loadAllMemberships(),
-                ]);
+            // --- Process Users ---
+            const users = userSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-                const membershipsMap = new Map();
-                membershipsSnap.forEach((doc) => {
-                    const membership = doc.data();
-                    if (!membershipsMap.has(membership.userId)) {
-                        membershipsMap.set(membership.userId, []);
-                    }
-                    membershipsMap.get(membership.userId).push(membership);
-                });
+            // --- Process Unified Activity (Apps + Leads) ---
+            const processedLeads = leadsSnap.docs.map(doc => {
+                const data = doc.data();
+                const parentCollection = doc.ref.parent;
+                const parentDoc = parentCollection.parent;
+                const companyId = parentDoc ? parentDoc.id : 'general-leads';
+                return {
+                    id: doc.id,
+                    ...data,
+                    companyId,
+                    status: data.status || 'New Lead',
+                    sourceType: data.isPlatformLead ? 'Distributed Lead' : 'Direct Lead'
+                };
+            });
 
-                const users = usersSnap.docs.map((userDoc) => ({
-                    id: userDoc.id,
-                    ...userDoc.data(),
-                    memberships: membershipsMap.get(userDoc.id) || [],
-                }));
+            const processedApps = appsSnap.docs.map(doc => {
+                const data = doc.data();
+                const parent = doc.ref.parent.parent;
+                const companyId = parent ? parent.id : (data.companyId || 'unknown');
+                return {
+                    id: doc.id,
+                    ...data,
+                    companyId,
+                    status: data.status || 'New Application',
+                    sourceType: 'Company App'
+                };
+            });
 
-                // Sort in memory
-                users.sort((a, b) => {
-                    const tA = a.createdAt?.seconds || 0;
-                    const tB = b.createdAt?.seconds || 0;
-                    return tB - tA;
-                });
+            // Merge and Sort Recent Activity
+            const combinedActivity = [...processedLeads, ...processedApps].sort((a, b) => {
+                const tA = a.createdAt?.seconds || 0;
+                const tB = b.createdAt?.seconds || 0;
+                return tB - tA;
+            });
 
-                return users;
-            } catch (e) {
-                console.error("Error loading users:", e);
-                setStatsError(prev => ({ ...prev, users: true }));
-                return [];
-            }
-        };
+            setCompanyList(companies);
+            setAllCompaniesMap(compMap);
+            setUserList(users);
+            setAllApplications(combinedActivity);
 
-        // --- 3. Fetch Unified DB (Apps + Leads + Bulk Drivers) ---
-        const fetchApps = async () => {
-            try {
-                // We keep orderBy here because 'submittedAt' is usually consistent on apps,
-                // but if this fails, we can remove it too.
-                const appQuery = query(
-                    collectionGroup(db, 'applications'), 
-                    orderBy('createdAt', 'desc')
-                );
+            setStats({
+                companyCount: totalComp.data().count,
+                userCount: totalUser.data().count,
+                appCount: totalLeads.data().count // Using leads count as primary metric
+            });
 
-                const leadsQuery = query(
-                    collectionGroup(db, 'leads'), 
-                    orderBy('createdAt', 'desc')
-                );
-
-                // Removed orderBy for drivers to be safe
-                const driversQuery = query(collection(db, 'drivers'));
-
-                const [appSnap, leadSnap, bulkSnap] = await Promise.all([
-                    getDocs(appQuery),
-                    getDocs(leadsQuery),
-                    getDocs(driversQuery)
-                ]);
-
-                // --- Process Applications ---
-                const brandedApps = appSnap.docs.map((doc) => {
-                    const data = doc.data();
-                    const parent = doc.ref.parent.parent;
-                    const companyId = parent ? parent.id : data.companyId;
-                    return {
-                        id: doc.id,
-                        ...data,
-                        companyId: companyId,
-                        sourceType: 'Company App',
-                        status: data.status || 'New Application'
-                    };
-                });
-
-                // --- Process Leads ---
-                const allLeads = leadSnap.docs.map((doc) => {
-                    const data = doc.data();
-                    const parentCollection = doc.ref.parent;
-                    const parentDoc = parentCollection.parent;
-
-                    if (!parentDoc) {
-                        return {
-                            id: doc.id,
-                            ...data,
-                            companyId: 'general-leads',
-                            status: data.status || 'New Lead',
-                            sourceType: 'Global Pool'
-                        };
-                    } else {
-                        const isDistributed = data.isPlatformLead === true;
-                        return {
-                            id: doc.id,
-                            ...data,
-                            companyId: parentDoc.id,
-                            status: data.status || 'New Lead',
-                            sourceType: isDistributed ? 'Distributed Lead' : 'Company Import'
-                        };
-                    }
-                });
-
-                // --- Process Bulk Drivers ---
-                const existingIds = new Set([...brandedApps, ...allLeads].map(x => x.id));
-                const bulkLeads = bulkSnap.docs
-                    .map(doc => ({ id: doc.id, ...doc.data() }))
-                    .filter(d => d.driverProfile?.isBulkUpload)
-                    .filter(d => !existingIds.has(d.id))
-                    .map(d => ({
-                        id: d.id,
-                        ...d.personalInfo,
-                        companyId: 'general-leads',
-                        status: 'Bulk Lead',
-                        sourceType: 'Global Pool',
-                        createdAt: d.createdAt
-                    }));
-
-                const combined = [...brandedApps, ...allLeads, ...bulkLeads];
-
-                combined.sort((a, b) => {
-                    const dateA = a.createdAt?.seconds || a.submittedAt?.seconds || 0;
-                    const dateB = b.createdAt?.seconds || b.submittedAt?.seconds || 0;
-                    return dateB - dateA;
-                });
-
-                return combined;
-
-            } catch (e) {
-                console.error("Error loading apps/leads:", e);
-                setStatsError(prev => ({ ...prev, apps: true }));
-                return [];
-            }
-        };
-
-        // --- EXECUTE ---
-        const [compResult, usersResult, appsResult] = await Promise.all([
-            fetchCompanies(),
-            fetchUsers(),
-            fetchApps()
-        ]);
-
-        setCompanyList(compResult.companies);
-        setAllCompaniesMap(compResult.compMap);
-        setUserList(usersResult);
-        setAllApplications(appsResult);
-
-        setStats({
-            companyCount: compResult.companies.length,
-            userCount: usersResult.length,
-            appCount: appsResult.length
-        });
-
-        setLoading(false);
-
+        } catch (e) {
+            console.error("Error loading recent data:", e);
+            setStatsError({ companies: true, users: true, apps: true });
+            showError("Failed to load dashboard data.");
+        } finally {
+            setLoading(false);
+        }
     }, [showError]);
 
+    // --- 2. SERVER-SIDE SEARCH (Cloud Function) ---
+    const performServerSearch = useCallback(async (term) => {
+        setIsSearching(true);
+        setLoading(true);
+        console.log(`🔍 Calling Cloud Search for: "${term}"`);
+
+        try {
+            const searchFn = httpsCallable(functions, 'searchUnifiedData');
+            const result = await searchFn({ query: term });
+            const data = result.data.data;
+
+            setCompanyList(data.companies || []);
+            setUserList(data.users || []);
+
+            const mappedApps = (data.leads || []).map(l => ({
+                id: l.id,
+                firstName: l.firstName,
+                lastName: l.lastName,
+                email: l.email,
+                phone: l.phone,
+                status: l.status,
+                companyId: l.companyId || 'unknown',
+                sourceType: 'Search Result',
+                createdAt: { seconds: Date.now() / 1000 }
+            }));
+            setAllApplications(mappedApps);
+
+        } catch (e) {
+            console.error("Search failed:", e);
+            showError("Search failed. Please try again.");
+        } finally {
+            setLoading(false);
+            setIsSearching(false);
+        }
+    }, [showError]);
+
+    // --- 3. CONTROLLER ---
     useEffect(() => {
-        loadAllData();
-    }, [loadAllData]);
+        const timer = setTimeout(() => {
+            if (searchQuery && searchQuery.trim().length >= 2) {
+                performServerSearch(searchQuery);
+            } else {
+                if (searchQuery.trim().length === 0) {
+                    loadRecentData();
+                }
+            }
+        }, 600);
 
-    // --- SEARCH LOGIC ---
-    const searchResults = useMemo(() => {
-        const term = searchQuery.toLowerCase().trim();
-        if (!term) return { companies: [], users: [], applications: [] };
+        return () => clearTimeout(timer);
+    }, [searchQuery, loadRecentData, performServerSearch]);
 
-        const matchedCompanies = companyList.filter(c => 
-            c.companyName?.toLowerCase().includes(term) || 
-            c.appSlug?.toLowerCase().includes(term)
-        );
-
-        const matchedUsers = userList.filter(u => 
-            u.name?.toLowerCase().includes(term) || 
-            u.email?.toLowerCase().includes(term)
-        );
-
-        const matchedApps = allApplications.filter(a => {
-            const fname = a.firstName || a['first-name'] || a.personalInfo?.firstName || '';
-            const lname = a.lastName || a['last-name'] || a.personalInfo?.lastName || '';
-            const fullName = `${fname} ${lname}`.toLowerCase();
-            const email = (a.email || a.personalInfo?.email || '').toLowerCase();
-            const phone = (a.phone || a.personalInfo?.phone || '').toLowerCase();
-            const id = a.id.toLowerCase();
-
-            return fullName.includes(term) || email.includes(term) || phone.includes(term) || id.includes(term);
-        });
-
-        return { companies: matchedCompanies, users: matchedUsers, applications: matchedApps };
-    }, [searchQuery, companyList, userList, allApplications]);
-
-    const totalSearchResults = searchResults.companies.length + searchResults.users.length + searchResults.applications.length;
-
+    // --- RETURN (Preserving Interface) ---
     return {
         companyList,
         userList,
@@ -274,11 +199,16 @@ export function useSuperAdminData() {
         allCompaniesMap,
         stats,
         loading,
-        statsError,
+        statsError, // Preserved
         searchQuery,
         setSearchQuery,
-        searchResults,
-        totalSearchResults,
-        refreshData: loadAllData
+        // UI expects this structure for rendering tables
+        searchResults: {
+            companies: companyList,
+            users: userList,
+            applications: allApplications
+        },
+        totalSearchResults: companyList.length + userList.length + allApplications.length,
+        refreshData: loadRecentData
     };
 }

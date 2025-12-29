@@ -14,15 +14,17 @@ const leadLogic = require('./leadLogic'); // Keep for legacy if needed, or use l
 const leadDistribution = require('./leadDistribution');
 const digitalSealing = require('./digitalSealing');
 const notifySigner = require('./notifySigner');
-const publicSigning = require('./publicSigning'); // <--- NEW IMPORT
+const publicSigning = require('./publicSigning');
+const systemIntegrity = require('./systemIntegrity'); 
+const searchHandler = require('./searchHandler'); // <--- NEW IMPORT
 
 // --- EXPORTS ---
 
 // 1. Docs & Email & Public Signing
 exports.sealDocument = digitalSealing.sealDocument;
 exports.notifySigner = notifySigner.notifySigner; 
-exports.getPublicEnvelope = publicSigning.getPublicEnvelope;    // <--- NEW
-exports.submitPublicEnvelope = publicSigning.submitPublicEnvelope; // <--- NEW
+exports.getPublicEnvelope = publicSigning.getPublicEnvelope;    
+exports.submitPublicEnvelope = publicSigning.submitPublicEnvelope;
 
 // 2. Auth & User Management
 exports.createPortalUser = hrAdmin.createPortalUser;
@@ -50,11 +52,19 @@ exports.confirmDriverInterest = leadDistribution.confirmDriverInterest;
 exports.runLeadDistribution = leadDistribution.runLeadDistribution;
 exports.distributeDailyLeads = leadDistribution.distributeDailyLeads; // Manual trigger
 exports.distributeDailyLeadsScheduled = leadDistribution.distributeDailyLeadsScheduled; // Scheduled
+exports.getLeadSupplyAnalytics = leadDistribution.getLeadSupplyAnalytics;
+exports.bulkAssignLeads = leadDistribution.bulkAssignLeads; // <--- Preserved from previous step
 
-// 6. Data Migration
+// 6. System Integrity
+exports.syncSystemStructure = systemIntegrity.syncSystemStructure; 
+
+// 7. Data Migration
 exports.runMigration = companyAdmin.runMigration;
 
-// 7. Analytics (Commented out to prevent Gen 1 CPU errors)
+// 8. Global Search (NEW)
+exports.searchUnifiedData = searchHandler.searchUnifiedData; // <--- NEW EXPORT
+
+// 9. Analytics (Commented out to prevent Gen 1 CPU errors)
 /*
 exports.aggregateAnalytics = functions.pubsub.schedule('every 24 hours').onRun(async (context) => {
     const analytics = require('./leadDistribution');

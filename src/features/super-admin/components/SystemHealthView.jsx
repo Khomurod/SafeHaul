@@ -1,7 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { 
-  Activity, CheckCircle, AlertTriangle, Play, Pause, 
-  RotateCcw, Terminal, Server, Database, HardDrive, ShieldCheck
+  Activity, Play, Pause, RotateCcw, Terminal, Server, Database, HardDrive, ShieldCheck, Wrench, RefreshCw
 } from 'lucide-react';
 import { useSystemHealth } from '../hooks/useSystemHealth';
 
@@ -9,11 +8,13 @@ export function SystemHealthView() {
   const { 
     runDiagnostics, 
     pauseDiagnostics,
-    runMigrationTool,
+    resetDiagnostics,
+    runSystemRepair, // <--- NEW: Connected to hook
+    repairStatus,    // <--- NEW: Connected to hook
     status, 
     progress, 
     logs, 
-    currentStepName 
+    currentStep 
   } = useSystemHealth();
 
   const logsEndRef = useRef(null);
@@ -46,13 +47,17 @@ export function SystemHealthView() {
         </div>
 
         <div className="flex gap-3">
-            {/* NEW MIGRATION BUTTON */}
+            {/* --- NEW REPAIR BUTTON --- */}
             <button
-                onClick={runMigrationTool}
-                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg shadow-md transition-all flex items-center gap-2"
-                title="Fix missing Daily Quotas for existing companies"
+                onClick={runSystemRepair}
+                disabled={repairStatus === 'running'}
+                className={`px-4 py-2 text-white font-bold rounded-lg shadow-md transition-all flex items-center gap-2
+                    ${repairStatus === 'running' ? 'bg-gray-400 cursor-not-allowed' : 
+                      repairStatus === 'success' ? 'bg-green-600 hover:bg-green-700' : 'bg-indigo-600 hover:bg-indigo-700'}`}
+                title="Force database structure to match Schema Config"
             >
-                <Database size={18} /> Run Data Migration
+                {repairStatus === 'running' ? <RefreshCw className="animate-spin" size={18}/> : <Wrench size={18}/>}
+                {repairStatus === 'running' ? 'Repairing...' : 'Sync Backend Structure'}
             </button>
         </div>
       </header>
@@ -76,7 +81,7 @@ export function SystemHealthView() {
                 </div>
                 <div className="flex justify-between text-xs font-semibold opacity-75">
                     <span>{progress}% Complete</span>
-                    <span>{currentStepName || 'Waiting...'}</span>
+                    <span>{currentStep?.label || 'Waiting...'}</span>
                 </div>
             </div>
 
@@ -109,16 +114,16 @@ export function SystemHealthView() {
                         </button>
                     )}
 
-                    {(status === 'paused' || status === 'error') && (
+                    {(status === 'paused' || status === 'error' || status === 'success') && (
                         <button 
                             onClick={() => {
-                                if(window.confirm("This will clear saved test progress. Continue?")) {
-                                    runDiagnostics(false);
+                                if(status === 'success' || window.confirm("This will clear saved test progress. Continue?")) {
+                                    resetDiagnostics();
                                 }
                             }}
                             className="w-full py-2 bg-gray-100 text-gray-600 font-semibold rounded-lg hover:bg-gray-200 flex items-center justify-center gap-2"
                         >
-                            <RotateCcw size={16} /> Restart Fresh
+                            <RotateCcw size={16} /> Reset
                         </button>
                     )}
                 </div>
@@ -126,10 +131,10 @@ export function SystemHealthView() {
 
             {/* Capability Badges */}
             <div className="flex flex-wrap gap-2">
-                <Badge icon={<HardDrive size={14}/>} label="Storage Write/Read" />
-                <Badge icon={<Database size={14}/>} label="Firestore CRUD" />
-                <Badge icon={<Server size={14}/>} label="Cloud Functions" />
-                <Badge icon={<Activity size={14}/>} label="Latency Check" />
+                <Badge icon={<HardDrive size={14}/>} label="Storage" />
+                <Badge icon={<Database size={14}/>} label="Firestore" />
+                <Badge icon={<Server size={14}/>} label="Functions" />
+                <Badge icon={<Activity size={14}/>} label="Latency" />
             </div>
         </div>
 
@@ -144,7 +149,7 @@ export function SystemHealthView() {
                 <div className="flex-1 p-4 overflow-y-auto font-mono text-sm space-y-2">
                     {logs.length === 0 && (
                         <div className="text-gray-600 text-center mt-20">
-                            Waiting for diagnostic start...
+                            Waiting for diagnostic or repair start...
                         </div>
                     )}
                     {logs.map((log) => (

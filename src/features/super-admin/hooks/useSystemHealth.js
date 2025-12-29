@@ -16,33 +16,18 @@ const STEPS = [
     { id: 'storage_write', label: '2. Infrastructure: Storage System' },
     { id: 'firestore_company', label: '3. Infrastructure: Database Write' },
     { id: 'cloud_function', label: '4. Infrastructure: Cloud Server' },
-
-    // LEVEL 2: USER FLOWS
     { id: 'sim_driver_app', label: '5. Flow: Direct Application (Slug)' },
     { id: 'sim_doc_upload', label: '6. Flow: Document Upload (CDL)' },
     { id: 'sim_signature', label: '7. Flow: E-Signature Capture' },
-    
-    // NEW: User Management Cycle
     { id: 'test_user_access', label: '8. Security: User Creation & Reassignment' },
-
-    // RECRUITER
     { id: 'sim_recruiter_link', label: '9. Flow: Recruiter Link Attribution' },
-
-    // OFFERS
     { id: 'sim_job_offer', label: '10. Flow: Company Sending Offer' },
     { id: 'sim_offer_receive', label: '11. Flow: Driver Receiving Offer' },
-
-    // NEW: DATA SOURCES (SafeHaul & My Leads)
     { id: 'sim_safehaul_lead', label: '12. Data: SafeHaul & Personal Leads' },
-
-    // LEVEL 3: CRITICAL LOGIC
     { id: 'sim_pdf_gen', label: '13. Engine: PDF Generation' },
     { id: 'sim_activity_log', label: '14. Logic: Audit Trail Logging' },
-    
-    // NEW: Visibility & Integrity
     { id: 'test_visibility', label: '15. Data: Dashboard Visibility (All Views)' },
     { id: 'test_integrity', label: '16. Data: DB <-> Storage Alignment' },
-
     { id: 'cleanup', label: '17. System Cleanup & Data Purge' }
 ];
 
@@ -51,6 +36,9 @@ export function useSystemHealth() {
     const [currentStepIndex, setCurrentStepIndex] = useState(0);
     const [progress, setProgress] = useState(0);
     const [logs, setLogs] = useState([]);
+
+    // Repair State
+    const [repairStatus, setRepairStatus] = useState('idle'); // idle, running, success, error
 
     const [testData, setTestData] = useState({}); 
     const testDataRef = useRef({}); 
@@ -94,6 +82,28 @@ export function useSystemHealth() {
     }, []);
 
     const wait = (ms) => new Promise(res => setTimeout(res, ms));
+
+    // --- NEW: SYSTEM REPAIR FUNCTION ---
+    const runSystemRepair = async () => {
+        setRepairStatus('running');
+        addLog("🛠️ Initiating System Structure Repair...", "info");
+        try {
+            const repairFn = httpsCallable(functions, 'syncSystemStructure');
+            const result = await repairFn();
+
+            if (result.data.success) {
+                setRepairStatus('success');
+                addLog(`✅ Repair Complete: ${result.data.message}`, "success");
+                addLog(`📊 Stats: Scanned ${result.data.stats.companies + result.data.stats.leads} docs, Fixed ${result.data.stats.fixes} issues.`, "success");
+            } else {
+                throw new Error(result.data.message || "Unknown failure");
+            }
+        } catch (error) {
+            console.error("Repair failed:", error);
+            setRepairStatus('error');
+            addLog(`❌ Repair Failed: ${error.message}`, "error");
+        }
+    };
 
     const runDiagnostics = async (resume = false) => {
         if (!resume) {
@@ -154,7 +164,6 @@ export function useSystemHealth() {
                 break;
 
             case 'storage_write':
-                // Note: We use .txt extension and SYS_TEST prefix to bypass strict production rules
                 const fileRefPath = `system_health_tests/SYS_TEST_${Date.now()}.txt`;
                 const storageRef = ref(storage, fileRefPath);
                 await uploadString(storageRef, "System Health Check - Write Test");
@@ -163,7 +172,6 @@ export function useSystemHealth() {
                 break;
 
             case 'firestore_company':
-                // Create Company A
                 const testCompanyId = `SYS_TEST_${Date.now()}`;
                 await setDoc(doc(db, 'companies', testCompanyId), {
                     companyName: "Test Company A",
@@ -174,7 +182,6 @@ export function useSystemHealth() {
                     status: 'active'
                 });
 
-                // Create Company B (For re-assignment test later)
                 const testCompanyIdB = `SYS_TEST_B_${Date.now()}`;
                 await setDoc(doc(db, 'companies', testCompanyIdB), {
                     companyName: "Test Company B",
@@ -201,22 +208,20 @@ export function useSystemHealth() {
 
             case 'sim_driver_app':
                 if (!currentData.companyId || !currentData.driverId) throw new Error("Missing IDs");
-                // Simulate application via Slug
                 const appRef = doc(db, 'companies', currentData.companyId, 'applications', currentData.driverId);
                 await setDoc(appRef, {
                     driverId: currentData.driverId,
                     status: 'New Application',
                     submittedAt: serverTimestamp(),
                     applicantName: 'Test Driver',
-                    source: 'Slug Apply', // Testing source tracking
-                    companyId: currentData.companyId, // Important for indexing
+                    source: 'Slug Apply', 
+                    companyId: currentData.companyId, 
                     isTestRecord: true
                 });
                 addLog("✅ Driver Application Submitted via Slug.", "success");
                 break;
 
             case 'sim_doc_upload':
-                // Using .txt to pass the specific test-mode storage rule
                 const cdlPath = `companies/${currentData.companyId}/applications/${currentData.driverId}/cdl_front.txt`;
                 const cdlRef = ref(storage, cdlPath);
                 await uploadString(cdlRef, "FAKE CDL CONTENT");
@@ -243,12 +248,10 @@ export function useSystemHealth() {
                 addLog("✅ E-Signature Successfully Captured.", "success");
                 break;
 
-            // --- USER MANAGEMENT CYCLE ---
             case 'test_user_access':
                 const tempEmail = `systest_${Date.now()}@example.com`;
                 const tempPass = "Test1234!";
-                
-                // 1. Create User
+
                 addLog(".. Creating temporary user...", "info");
                 const createFn = httpsCallable(functions, 'createPortalUser');
                 const createRes = await createFn({
@@ -258,23 +261,19 @@ export function useSystemHealth() {
                     companyId: currentData.companyId,
                     role: 'hr_user'
                 });
-                
+
                 if (!createRes.data?.userId) throw new Error("User creation failed (No UID returned)");
                 const tempUserId = createRes.data.userId;
                 updateData({ tempUserId });
 
-                // 2. Verify Membership A
                 const memQ1 = query(collection(db, 'memberships'), where("userId", "==", tempUserId), where("companyId", "==", currentData.companyId));
                 const snap1 = await getDocs(memQ1);
                 if (snap1.empty) throw new Error("User created but NOT assigned to Company A.");
                 addLog(".. User assigned to Company A.", "info");
 
-                // 3. Reassign to Company B
-                // First delete old membership
                 const oldMemId = snap1.docs[0].id;
                 await deleteDoc(doc(db, 'memberships', oldMemId));
 
-                // Add new membership using direct DB write to simulate internal logic
                 await setDoc(doc(db, 'memberships', `TEMP_MEM_${Date.now()}`), {
                     userId: tempUserId,
                     companyId: currentData.companyIdB,
@@ -282,19 +281,15 @@ export function useSystemHealth() {
                     isTestRecord: true
                 });
 
-                // 4. Verify Access Change
                 const memQ2 = query(collection(db, 'memberships'), where("userId", "==", tempUserId), where("companyId", "==", currentData.companyIdB));
                 const snap2 = await getDocs(memQ2);
                 if (snap2.empty) throw new Error("Reassignment Failed: User not found in Company B.");
-                
+
                 addLog("✅ User Access Cycle (Create -> Assign -> Reassign) Verified.", "success");
                 break;
 
             case 'sim_recruiter_link':
-                // Create a dummy Recruiter
                 const recruiterId = `TEST_REC_${Date.now()}`;
-                
-                // Driver applies with recruiter link
                 const linkedAppRef = doc(db, 'companies', currentData.companyId, 'applications', `LINKED_APP_${Date.now()}`);
                 await setDoc(linkedAppRef, {
                     status: 'New Application',
@@ -305,7 +300,6 @@ export function useSystemHealth() {
                     submittedAt: serverTimestamp()
                 });
 
-                // Verify Attribution
                 const linkedSnap = await getDoc(linkedAppRef);
                 if (linkedSnap.data().assignedTo !== recruiterId) {
                     throw new Error("Recruiter Link Logic Failed: 'assignedTo' field missing or incorrect.");
@@ -334,9 +328,7 @@ export function useSystemHealth() {
                 addLog("✅ Driver Received Offer.", "success");
                 break;
 
-            // --- NEW: SAFEHAUL & MY LEADS ---
             case 'sim_safehaul_lead':
-                // 1. Create a Global Lead (SafeHaul Pool)
                 const globalLeadId = `SH_LEAD_${Date.now()}`;
                 await setDoc(doc(db, 'leads', globalLeadId), {
                     name: "SafeHaul Test Lead",
@@ -345,7 +337,6 @@ export function useSystemHealth() {
                     createdAt: serverTimestamp()
                 });
 
-                // 2. Create a "My Lead" (Assigned to Current User)
                 const currentUser = getAuth().currentUser;
                 let myLeadId = null;
                 if (currentUser) {
@@ -353,7 +344,7 @@ export function useSystemHealth() {
                     await setDoc(doc(db, 'companies', currentData.companyId, 'leads', myLeadId), {
                         name: "Personal Assigned Lead",
                         status: 'new',
-                        assignedTo: currentUser.uid, // This makes it "My Lead"
+                        assignedTo: currentUser.uid, 
                         isTestRecord: true
                     });
                 } else {
@@ -384,28 +375,23 @@ export function useSystemHealth() {
                 addLog("✅ Audit/Activity Logging OK.", "success");
                 break;
 
-            // --- NEW: COMPREHENSIVE VISIBILITY CHECK ---
             case 'test_visibility':
-                // 1. Applications List
                 const qApps = query(collection(db, 'companies', currentData.companyId, 'applications'));
                 const snapApps = await getDocs(qApps);
                 const foundApp = snapApps.docs.find(d => d.id === currentData.driverId);
                 if (!foundApp) throw new Error("Dashboard Visibility Error: Application not showing in query.");
 
-                // 2. Company Leads (Standard)
                 const leadRef = doc(collection(db, 'companies', currentData.companyId, 'leads'));
                 await setDoc(leadRef, { name: "Standard Company Lead", status: 'new', isTestRecord: true });
                 const qLeads = query(collection(db, 'companies', currentData.companyId, 'leads'));
                 const snapLeads = await getDocs(qLeads);
                 if (snapLeads.empty) throw new Error("Dashboard Visibility Error: Leads not showing in query.");
 
-                // 3. SafeHaul Leads (Global)
                 if (currentData.globalLeadId) {
                     const shLeadSnap = await getDoc(doc(db, 'leads', currentData.globalLeadId));
                     if (!shLeadSnap.exists()) throw new Error("Visibility Error: SafeHaul (Global) lead not retrievable.");
                 }
 
-                // 4. "My Leads" (Assigned)
                 if (currentData.myLeadId) {
                     const currentUser = getAuth().currentUser;
                     const qMyLeads = query(
@@ -419,16 +405,13 @@ export function useSystemHealth() {
                 addLog("✅ Dashboard Visibility Verified (Apps, Company Leads, SafeHaul, My Leads).", "success");
                 break;
 
-            // --- NEW: BACKEND INTEGRITY ---
             case 'test_integrity':
-                // 1. Fetch Application from DB
                 const integAppRef = doc(db, 'companies', currentData.companyId, 'applications', currentData.driverId);
                 const integSnap = await getDoc(integAppRef);
                 const storedPath = integSnap.data()['cdl-front']?.storagePath;
 
                 if (!storedPath) throw new Error("Integrity Fail: DB missing file path.");
 
-                // 2. Check if file actually exists in Storage
                 try {
                     const fileRef = ref(storage, storedPath);
                     await getDownloadURL(fileRef);
@@ -442,16 +425,13 @@ export function useSystemHealth() {
                 addLog("🧹 Starting cleanup...", "info");
                 const data = testDataRef.current;
 
-                // Delete test companies and their subcollections
                 if (data.companyId) {
                     try {
-                        // Delete applications
                         const appsQuery = query(collection(db, 'companies', data.companyId, 'applications'));
                         const appsSnap = await getDocs(appsQuery);
                         for (const appDoc of appsSnap.docs) {
                             await deleteDoc(appDoc.ref);
                         }
-                        // Delete leads
                         const leadsQuery = query(collection(db, 'companies', data.companyId, 'leads'));
                         const leadsSnap = await getDocs(leadsQuery);
                         for (const leadDoc of leadsSnap.docs) {
@@ -487,7 +467,6 @@ export function useSystemHealth() {
                     }
                 }
 
-                // Delete test storage files
                 if (data.fileRefPath) {
                     try {
                         await deleteObject(ref(storage, data.fileRefPath));
@@ -504,7 +483,6 @@ export function useSystemHealth() {
                     }
                 }
 
-                // Delete test memberships
                 try {
                     const memQuery = query(collection(db, 'memberships'), where("isTestRecord", "==", true));
                     const memSnap = await getDocs(memQuery);
@@ -548,6 +526,8 @@ export function useSystemHealth() {
         steps: STEPS,
         runDiagnostics,
         pauseDiagnostics,
-        resetDiagnostics
+        resetDiagnostics,
+        runSystemRepair, // <--- NEW EXPORT
+        repairStatus     // <--- NEW EXPORT
     };
 }

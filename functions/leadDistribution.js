@@ -2,9 +2,10 @@
 
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
+const { admin, db } = require("./firebaseAdmin"); // <--- Added admin/db imports
 const { 
     runLeadDistribution, 
-    populateLeadsFromDrivers, // <--- IMPORTED
+    populateLeadsFromDrivers, 
     runCleanup,
     processLeadOutcome,
     generateDailyAnalytics,
@@ -13,34 +14,36 @@ const {
 
 const RUNTIME_OPTS = {
     timeoutSeconds: 540,
-    memory: '512MiB', // Increased Memory for Heavy Migration
+    memory: '512MiB', 
     maxInstances: 1,
     concurrency: 1,
     cors: true 
 };
 
-// --- 1. SCHEDULED TASK ---
+// --- 1. SCHEDULED TASK (6:30 AM Central Time) ---
 exports.runLeadDistribution = onSchedule({
-    schedule: "0 0 * * *", 
-    timeZone: "America/New_York",
+    schedule: "30 6 * * *", 
+    timeZone: "America/Chicago",
     timeoutSeconds: 540,
     memory: '512MiB'
 }, async (event) => {
     try {
-        const result = await runLeadDistribution(false);
+        console.log("Running scheduled daily distribution (6:30 AM CT)...");
+        const result = await runLeadDistribution(true);
         console.log("Scheduled result:", result);
     } catch (error) {
         console.error("Scheduled failed:", error);
     }
 });
 
-// --- 2. MANUAL BUTTON ---
+// --- 2. MANUAL BUTTON (Force New Round) ---
 exports.distributeDailyLeads = onCall(RUNTIME_OPTS, async (request) => {
     if (!request.auth || request.auth.token.roles?.globalRole !== 'super_admin') {
         throw new HttpsError("permission-denied", "Super Admin only.");
     }
     try {
-        const result = await runLeadDistribution(false); 
+        console.log("Super Admin forcing manual lead distribution round...");
+        const result = await runLeadDistribution(true); 
         return result;
     } catch (error) {
         throw new HttpsError("internal", error.message);
@@ -82,7 +85,7 @@ exports.handleLeadOutcome = onCall(RUNTIME_OPTS, async (request) => {
 // --- 5. ANALYTICS ---
 exports.aggregateAnalytics = onSchedule({
     schedule: "55 23 * * *",
-    timeZone: "America/New_York",
+    timeZone: "America/Chicago",
     timeoutSeconds: 540,
     memory: '256MiB'
 }, async (event) => {
@@ -104,8 +107,7 @@ exports.confirmDriverInterest = onCall(RUNTIME_OPTS, async (request) => {
     }
 });
 
-// --- 7. MIGRATION TOOL (Fix Data Button) ---
-// This now uses the REAL logic
+// --- 7. MIGRATION TOOL ---
 exports.migrateDriversToLeads = onCall(RUNTIME_OPTS, async (request) => {
     if (!request.auth || request.auth.token.roles?.globalRole !== 'super_admin') {
         throw new HttpsError("permission-denied", "Super Admin only.");
@@ -114,6 +116,76 @@ exports.migrateDriversToLeads = onCall(RUNTIME_OPTS, async (request) => {
         const result = await populateLeadsFromDrivers();
         return result;
     } catch (error) {
+        throw new HttpsError("internal", error.message);
+    }
+});
+
+// --- 8. LEAD SUPPLY & DEMAND ANALYZER (NEW) ---
+exports.getLeadSupplyAnalytics = onCall(RUNTIME_OPTS, async (request) => {
+    if (!request.auth || request.auth.token.roles?.globalRole !== 'super_admin') {
+        throw new HttpsError("permission-denied", "Super Admin only.");
+    }
+
+    try {
+        const now = admin.firestore.Timestamp.now();
+
+        // 1. ANALYZE DEMAND (Company Quotas)
+        const companiesSnap = await db.collection("companies").where("isActive", "==", true).get();
+        let totalDailyDemand = 0;
+        let activeCompanies = 0;
+
+        companiesSnap.forEach(doc => {
+            const d = doc.data();
+            const quota = d.dailyLeadQuota || (d.planType === 'paid' ? 200 : 50);
+            totalDailyDemand += quota;
+            activeCompanies++;
+        });
+
+        // 2. ANALYZE SUPPLY (Global Pool)
+        const totalGlobalSnap = await db.collection("leads").count().get();
+        const totalGlobal = totalGlobalSnap.data().count;
+
+        const unlockedSnap = await db.collection("leads")
+            .where("unavailableUntil", "<=", now)
+            .count().get();
+
+        const freshSnap = await db.collection("leads")
+            .where("unavailableUntil", "==", null)
+            .count().get();
+
+        const availableSupply = unlockedSnap.data().count + freshSnap.data().count;
+
+        // 3. ANALYZE DISTRIBUTION (Subcollection Scan)
+        const distributedSnap = await db.collectionGroup("leads")
+            .where("isPlatformLead", "==", true)
+            .count().get();
+
+        const privateSnap = await db.collectionGroup("leads")
+            .where("isPlatformLead", "==", false)
+            .count().get();
+
+        return {
+            demand: {
+                companiesCount: activeCompanies,
+                totalDailyQuota: totalDailyDemand
+            },
+            supply: {
+                totalInPool: totalGlobal,
+                availableNow: availableSupply,
+                locked: totalGlobal - availableSupply
+            },
+            distribution: {
+                totalDistributedInCirculation: distributedSnap.data().count,
+                totalPrivateUploads: privateSnap.data().count
+            },
+            health: {
+                status: availableSupply >= totalDailyDemand ? 'surplus' : 'deficit',
+                gap: availableSupply - totalDailyDemand 
+            }
+        };
+
+    } catch (error) {
+        console.error("Analytics Error:", error);
         throw new HttpsError("internal", error.message);
     }
 });
