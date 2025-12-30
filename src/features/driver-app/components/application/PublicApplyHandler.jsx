@@ -136,7 +136,7 @@ export function PublicApplyHandler() {
     try {
         const timestamp = serverTimestamp();
         const recruiterCode = sessionStorage.getItem('pending_application_recruiter');
-
+        
         // DUPLICATION PREVENTION: Prefill detection for Lead IDs
         const prefillLeadId = searchParams.get('prefill') || searchParams.get('leadId');
         const guestId = `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -153,7 +153,7 @@ export function PublicApplyHandler() {
             ...formData,
             // FIX: Construct the signature field expected by the backend PDF generator
             signature: `TEXT_SIGNATURE:${formData.signatureName}`,
-
+            
             companyId: company.id,
             companyName: company.companyName,
             recruiterCode: recruiterCode || null,
@@ -186,7 +186,7 @@ export function PublicApplyHandler() {
   };
 
   if (loading) return <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center"><Loader2 className="animate-spin text-blue-600 mb-4" size={48} /><h2 className="text-lg font-semibold text-gray-700">Loading Application...</h2></div>;
-
+  
   if (error) return <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4"><div className="bg-white p-8 rounded-xl shadow-lg border border-red-100 text-center max-w-md"><AlertCircle size={32} className="text-red-600 mx-auto mb-4" /><h3 className="text-xl font-bold text-gray-900 mb-2">Link Error</h3><p className="text-gray-600">{error}</p></div></div>;
 
   if (submissionStatus === 'success') return (
@@ -195,4 +195,19 @@ export function PublicApplyHandler() {
           <Building2 size={40} className="text-green-600 mx-auto mb-6" />
           <h2 className="text-2xl font-bold text-gray-900 mb-3">Application Submitted!</h2>
           <p className="text-gray-600 mb-6">Your application has been received and a recruiter will contact you soon.</p>
-          <button onClick={() => navigate('/')} className="text-blue-600 hover:underline text-sm font-medium">Go to home</button
+          <button onClick={() => navigate('/')} className="text-blue-600 hover:underline text-sm font-medium">Go to home</button>
+        </div>
+      </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-gray-50 pb-24">
+      <div className="bg-white border-b border-gray-200 sticky top-0 z-20 px-4 py-3 shadow-sm">
+        <div className="max-w-4xl mx-auto flex items-center justify-between font-bold">{company.companyName}</div>
+      </div>
+      <div className="max-w-4xl mx-auto mt-6 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <Stepper step={currentStep} formData={formData} updateFormData={handleUpdateFormData} onNavigate={handleNavigate} onPartialSubmit={handlePartialSubmit} onFinalSubmit={handleFinalSubmit} handleFileUpload={handleFileUpload} isUploading={isUploading} submissionStatus={submissionStatus} />
+      </div>
+    </div>
+  );
+}
