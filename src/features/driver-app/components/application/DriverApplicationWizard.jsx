@@ -78,8 +78,6 @@ export function DriverApplicationWizard() {
   const handleUpdateFormData = (name, value) => {
       const newData = { ...formData, [name]: value };
       setFormData(newData);
-      // Debounce save or save on navigation? 
-      // For now, we update state immediately. Stepper handles navigation save.
   };
 
   const handleNavigate = (direction) => {
@@ -97,7 +95,6 @@ export function DriverApplicationWizard() {
       if (!file) return;
       setIsUploading(true);
       try {
-          // Path logic: use company folder if targeting a company, else global pool
           const basePath = targetCompanyId 
             ? `companies/${targetCompanyId}/applications/${currentUser.uid}`
             : `global_leads/${currentUser.uid}`;
@@ -127,6 +124,13 @@ export function DriverApplicationWizard() {
   };
 
   const handleFinalSubmit = async () => {
+    // FIX: Add Validation for Signature
+    if (!formData.signatureName || !formData['final-certification']) {
+        showError("Please complete the electronic signature in the final step.");
+        setCurrentStep(8); // Jump to Step 9
+        return;
+    }
+
     try {
         const timestamp = serverTimestamp();
         const activeCompanyId = targetCompanyId;
@@ -134,6 +138,8 @@ export function DriverApplicationWizard() {
         // Prepare Payload
         const finalData = {
             ...formData,
+            // FIX: Ensure signature format matches PDF generator expectation
+            signature: `TEXT_SIGNATURE:${formData.signatureName}`,
             userId: currentUser.uid,
             driverId: currentUser.uid,
             status: 'New Application',
@@ -179,7 +185,6 @@ export function DriverApplicationWizard() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
-        {/* Simple Header with Exit */}
         <div className="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center sticky top-0 z-30">
             <h1 className="font-bold text-gray-900">Driver Application</h1>
             <button onClick={() => navigate('/driver/dashboard')} className="text-sm text-gray-500 hover:text-gray-800 font-medium">
