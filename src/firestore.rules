@@ -1,0 +1,203 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =========================================================
+    // 1. HELPER FUNCTIONS
+    // =========================================================
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Legacy support for older apps matched by Email
+    function isEmailOwner(emailField) {
+      return isSignedIn() && 
+             request.auth.token.email_verified && 
+             request.auth.token.email == emailField;
+    }
+
+    // ROBUST SUPER ADMIN CHECK
+    function isSuperAdmin() {
+      return isSignedIn() && (
+         request.auth.token.email == 'admin@trucking.com' || 
+         (request.auth.token.keys().hasAny(['globalRole']) && request.auth.token.globalRole == 'super_admin') ||
+         (request.auth.token.keys().hasAny(['roles']) && request.auth.token.roles.keys().hasAny(['globalRole']) && request.auth.token.roles.globalRole == 'super_admin')
+      );
+    }
+
+    // COMPANY ADMIN: Can manage settings & team
+    function isCompanyAdmin(companyId) {
+      return isSignedIn() && (
+        isSuperAdmin() || 
+        (
+          request.auth.token.keys().hasAny(['roles']) &&
+          request.auth.token.roles.keys().hasAny([companyId]) &&
+          request.auth.token.roles[companyId] == 'company_admin'
+        )
+      );
+    }
+
+    // COMPANY TEAM: HR/Recruiters (Read access)
+    function isCompanyTeam(companyId) {
+      return isSignedIn() && (
+        isCompanyAdmin(companyId) || 
+        (
+          request.auth.token.keys().hasAny(['roles']) &&
+          request.auth.token.roles.keys().hasAny([companyId]) &&
+          request.auth.token.roles[companyId] in ['company_admin', 'hr_user', 'recruiter']
+        )
+      );
+    }
+
+    // STAFF CHECK
+    function isStaff() {
+      return isSignedIn() && 
+             request.auth.token.keys().hasAny(['roles']) && 
+             request.auth.token.roles.keys().size() > 0 &&
+             (
+               isSuperAdmin() ||
+               request.auth.token.roles.values().hasAny(['company_admin', 'hr_user', 'recruiter', 'super_admin'])
+             );
+    }
+
+    // =========================================================
+    // 2. DATA VALIDATION
+    // =========================================================
+
+    function isValidAuthenticatedApplication() {
+      let data = request.resource.data;
+      return data.keys().hasAny(['applicantId', 'driverId']) &&
+             data.companyId is string &&
+             (
+               (data.keys().hasAll(['applicantId']) && data.applicantId == request.auth.uid) ||
+               (data.keys().hasAll(['driverId']) && data.driverId == request.auth.uid)
+             );
+    }
+
+    function isValidGuestApplication(companyId) {
+      let data = request.resource.data;
+      return data.keys().hasAll(['applicantId', 'companyId', 'personalInfo']) &&
+             data.companyId == companyId &&
+             data.applicantId is string &&
+             data.personalInfo.keys().hasAny(['email', 'phone']);
+    }
+
+    // =========================================================
+    // 3. COLLECTION RULES
+    // =========================================================
+
+    match /companies/{companyId} {
+      allow read: if true;
+      allow create, delete: if isSuperAdmin();
+      allow update: if isCompanyAdmin(companyId);
+
+      // --- TEMPLATES (NEW: Support for reusable forms) ---
+      match /templates/{templateId} {
+        allow read, write: if isCompanyTeam(companyId);
+      }
+
+      // --- SIGNING REQUESTS (Secure Envelopes) ---
+      match /signing_requests/{requestId} {
+         allow read: if isCompanyTeam(companyId) || (isSignedIn() && resource.data.recipientId == request.auth.uid);
+         allow create: if isCompanyTeam(companyId);
+         allow update: if isCompanyTeam(companyId) || (
+                            isSignedIn() && 
+                            resource.data.recipientId == request.auth.uid && 
+                            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'viewedAt', 'declinedReason', 'clientMetadata'])
+                       );
+         allow delete: if isCompanyAdmin(companyId);
+      }
+
+      // --- APPLICATIONS (Nested) ---
+      match /applications/{applicationId} {
+        allow create: if (isSignedIn() && isValidAuthenticatedApplication()) || (!isSignedIn() && isValidGuestApplication(companyId)) || isSuperAdmin();
+        allow read: if isCompanyTeam(companyId) || (isSignedIn() && (resource.data.applicantId == request.auth.uid || resource.data.driverId == request.auth.uid || isEmailOwner(resource.data.email)));
+        allow update: if isCompanyTeam(companyId) || (isSignedIn() && (resource.data.applicantId == request.auth.uid || resource.data.driverId == request.auth.uid) && request.resource.data.applicantId == resource.data.applicantId && request.resource.data.companyId == resource.data.companyId);
+        allow delete: if isCompanyTeam(companyId);
+
+        match /dq_files/{fileId} { allow read, write: if isCompanyTeam(companyId); }
+        match /general_documents/{fileId} { allow read, write: if isCompanyTeam(companyId); }
+        match /internal_notes/{noteId} { allow read, write: if isCompanyTeam(companyId); }
+        match /activities/{activityId} { allow read, write: if isCompanyTeam(companyId); }
+      }
+
+      // --- LEADS ---
+      match /leads/{leadId} {
+        allow read, write: if isCompanyTeam(companyId);
+        match /activity_logs/{logId} { allow read, write: if isCompanyTeam(companyId); }
+        match /activities/{activityId} { allow read, write: if isCompanyTeam(companyId); }
+        match /internal_notes/{noteId} { allow read, write: if isCompanyTeam(companyId); }
+      }
+      
+      match /team/{userId} {
+        allow read: if isSignedIn();
+        allow write: if isCompanyAdmin(companyId);
+      }
+    }
+
+    match /leads/{leadId} {
+      allow create: if isSignedIn();
+      allow read: if isSuperAdmin() || isOwner(leadId) || resource.data.userId == request.auth.uid || isEmailOwner(resource.data.email);
+      allow update: if isSuperAdmin() || isOwner(leadId) || resource.data.userId == request.auth.uid;
+      allow delete: if isSuperAdmin();
+    }
+
+    match /drivers/{driverId} {
+      allow read: if isOwner(driverId) || isSuperAdmin() || isStaff();
+      allow create: if (isSignedIn() && request.auth.uid == driverId) || isSuperAdmin();
+      allow update: if isOwner(driverId) || isSuperAdmin();
+      allow delete: if isSuperAdmin();
+      
+      match /drafts/{draftId} { allow read, write: if isOwner(driverId); }
+      match /saved_jobs/{jobId} { allow read, write: if isOwner(driverId); }
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isStaff() || isSuperAdmin();
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      allow update: if isOwner(userId) || isSuperAdmin();
+      allow delete: if isSuperAdmin();
+    }
+
+    match /memberships/{membershipId} {
+      allow read: if isSignedIn() && (isSuperAdmin() || resource.data.userId == request.auth.uid || isCompanyAdmin(resource.data.companyId));
+      allow create, update: if isSuperAdmin() || (isCompanyAdmin(request.resource.data.companyId) && request.resource.data.role != 'super_admin');
+      allow delete: if isSuperAdmin() || isCompanyAdmin(resource.data.companyId);
+    }
+
+    match /notifications/{notificationId} {
+      allow read, update, delete: if isSignedIn() && resource.data.recipientId == request.auth.uid;
+      allow create: if isSignedIn();
+    }
+
+    match /analytics/{docId} {
+      allow read: if isSuperAdmin();
+      allow write: if false; 
+    }
+    
+    match /recruiter_links/{code} {
+      allow read: if true;
+      allow create, update: if isSignedIn();
+      allow delete: if isSuperAdmin();
+    }
+
+    // COLLECTION GROUPS
+    match /{path=**}/applications/{appId} {
+      allow read: if isSuperAdmin() || (isSignedIn() && (resource.data.applicantId == request.auth.uid || resource.data.driverId == request.auth.uid || isEmailOwner(resource.data.email))) || (isSignedIn() && isCompanyTeam(resource.data.companyId));
+    }
+    match /{path=**}/leads/{leadId} {
+      allow read: if isSuperAdmin() || (isSignedIn() && isCompanyTeam(resource.data.companyId));
+    }
+    match /{path=**}/activities/{activityId} {
+       allow read: if isSuperAdmin() || (isSignedIn() && isCompanyTeam(resource.data.companyId));
+    }
+    match /{path=**}/signing_requests/{requestId} {
+       allow read: if isSuperAdmin() || (isSignedIn() && resource.data.recipientId == request.auth.uid) || (isSignedIn() && isCompanyTeam(resource.data.companyId));
+    }
+  }
+}
