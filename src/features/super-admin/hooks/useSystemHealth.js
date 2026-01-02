@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { 
-    collection, doc, deleteDoc, 
+import {
+    collection, doc, deleteDoc,
     serverTimestamp, setDoc, getDoc, getDocs, query, where
 } from 'firebase/firestore';
 import { ref, uploadString, deleteObject, getDownloadURL } from 'firebase/storage';
@@ -28,7 +28,8 @@ const STEPS = [
     { id: 'sim_activity_log', label: '14. Logic: Audit Trail Logging' },
     { id: 'test_visibility', label: '15. Data: Dashboard Visibility (All Views)' },
     { id: 'test_integrity', label: '16. Data: DB <-> Storage Alignment' },
-    { id: 'cleanup', label: '17. System Cleanup & Data Purge' }
+    { id: 'cleanup', label: '17. System Cleanup & Data Purge' },
+    { id: 'security_audit', label: '18. Security: Automated Audit Scan' }
 ];
 
 export function useSystemHealth() {
@@ -40,8 +41,8 @@ export function useSystemHealth() {
     // Repair State
     const [repairStatus, setRepairStatus] = useState('idle'); // idle, running, success, error
 
-    const [testData, setTestData] = useState({}); 
-    const testDataRef = useRef({}); 
+    const [testData, setTestData] = useState({});
+    const testDataRef = useRef({});
     const abortController = useRef(null);
 
     useEffect(() => {
@@ -73,11 +74,11 @@ export function useSystemHealth() {
     }, [status, currentStepIndex, logs, testData, progress]);
 
     const addLog = useCallback((message, type = 'info') => {
-        setLogs(prev => [...prev, { 
-            id: Date.now() + Math.random(), 
-            time: new Date().toISOString(), 
-            message, 
-            type 
+        setLogs(prev => [...prev, {
+            id: Date.now() + Math.random(),
+            time: new Date().toISOString(),
+            message,
+            type
         }]);
     }, []);
 
@@ -110,13 +111,13 @@ export function useSystemHealth() {
             setStatus('running');
             setLogs([]);
             setTestData({});
-            testDataRef.current = {}; 
+            testDataRef.current = {};
             setCurrentStepIndex(0);
             setProgress(0);
             addLog("🚀 Starting Comprehensive System Diagnostic...", "info");
         } else {
             setStatus('running');
-            testDataRef.current = testData; 
+            testDataRef.current = testData;
             addLog("🔄 Resuming Diagnostic...", "info");
         }
 
@@ -132,7 +133,7 @@ export function useSystemHealth() {
                 addLog(`Testing: ${step.label}...`, "info");
 
                 await executeStep(step.id);
-                await wait(1000); 
+                await wait(1000);
             }
 
             if (!abortController.current?.signal.aborted) {
@@ -178,7 +179,7 @@ export function useSystemHealth() {
                     appSlug: `test-slug-${Date.now()}`,
                     isTestRecord: true,
                     createdAt: serverTimestamp(),
-                    dailyQuota: 50, 
+                    dailyQuota: 50,
                     status: 'active'
                 });
 
@@ -200,7 +201,7 @@ export function useSystemHealth() {
                 break;
 
             case 'cloud_function':
-                const migrateFn = httpsCallable(functions, 'runMigration'); 
+                const migrateFn = httpsCallable(functions, 'runMigration');
                 const pingResult = await migrateFn({ mode: 'ping' });
                 if (!pingResult.data?.success) throw new Error("Cloud Function Ping Failed");
                 addLog("✅ Cloud Functions are Responding.", "success");
@@ -214,8 +215,8 @@ export function useSystemHealth() {
                     status: 'New Application',
                     submittedAt: serverTimestamp(),
                     applicantName: 'Test Driver',
-                    source: 'Slug Apply', 
-                    companyId: currentData.companyId, 
+                    source: 'Slug Apply',
+                    companyId: currentData.companyId,
                     isTestRecord: true
                 });
                 addLog("✅ Driver Application Submitted via Slug.", "success");
@@ -228,8 +229,8 @@ export function useSystemHealth() {
                 updateData({ cdlPath });
 
                 const appDocRef1 = doc(db, 'companies', currentData.companyId, 'applications', currentData.driverId);
-                await setDoc(appDocRef1, { 
-                    'cdl-front': { url: 'http://fake-url.com', storagePath: cdlPath } 
+                await setDoc(appDocRef1, {
+                    'cdl-front': { url: 'http://fake-url.com', storagePath: cdlPath }
                 }, { merge: true });
 
                 addLog("✅ CDL Document Uploaded & Linked to Profile.", "success");
@@ -295,7 +296,7 @@ export function useSystemHealth() {
                     status: 'New Application',
                     applicantName: 'Linked Driver',
                     source: 'Recruiter Link',
-                    assignedTo: recruiterId, 
+                    assignedTo: recruiterId,
                     isTestRecord: true,
                     submittedAt: serverTimestamp()
                 });
@@ -344,7 +345,7 @@ export function useSystemHealth() {
                     await setDoc(doc(db, 'companies', currentData.companyId, 'leads', myLeadId), {
                         name: "Personal Assigned Lead",
                         status: 'new',
-                        assignedTo: currentUser.uid, 
+                        assignedTo: currentUser.uid,
                         isTestRecord: true
                     });
                 } else {
@@ -494,6 +495,30 @@ export function useSystemHealth() {
                 }
 
                 addLog("✅ All test data cleaned up.", "success");
+                break;
+
+            case 'security_audit':
+                addLog("🕵️ Running Security & Integrity Audit...", "info");
+                const auditFn = httpsCallable(functions, 'runSecurityAudit');
+                try {
+                    const res = await auditFn({ scanOnly: true });
+                    const report = res.data.report;
+
+                    if (report.criticalIssues > 0) {
+                        addLog(`⚠️ Audit Found ${report.criticalIssues} Critical Issues. Score: ${report.score}/100`, "warning");
+                    } else {
+                        addLog(`v Audit Passed. Score: ${report.score}/100`, "success");
+                    }
+
+                    // Log individual checks
+                    report.checks.forEach(check => {
+                        const icon = check.status === 'PASS' ? '✅' : (check.status === 'FAIL' ? '❌' : 'ℹ️');
+                        addLog(`${icon} [${check.type}] ${check.message}`, check.status === 'FAIL' ? 'error' : 'info');
+                    });
+
+                } catch (e) {
+                    throw new Error(`Security Audit Failed: ${e.message}`);
+                }
                 break;
 
             default:

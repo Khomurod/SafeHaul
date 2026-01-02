@@ -108,3 +108,15 @@ temp/
 # OPTIONAL: Large generated files
 # ===========================================
 # package-lock.json
+
+# ===========================================
+# SECURITY & SECRETS (EXTRA SAFEGUARDS)
+# ===========================================
+.runtimeconfig.json
+service-account.json
+creds.json
+*.pem
+*.key
+google-services.json
+GoogleService-Info.plist
+

@@ -24,10 +24,14 @@ function getServices() {
 }
 
 // --- FEATURE 1: GET COMPANY PROFILE ---
-exports.getCompanyProfile = onCall({ 
-    cors: true, 
-    maxInstances: 10 
+// --- FEATURE 1: GET COMPANY PROFILE ---
+exports.getCompanyProfile = onCall({
+    cors: true,
+    maxInstances: 10
 }, async (request) => {
+    // SECURITY: Strict Auth Check
+    if (!request.auth) throw new HttpsError('unauthenticated', 'Login required.');
+
     const { companyId } = request.data;
     if (!companyId) throw new HttpsError('invalid-argument', 'Missing companyId.');
 
@@ -44,10 +48,10 @@ exports.getCompanyProfile = onCall({
 });
 
 // --- FEATURE 2: DELETE COMPANY (Admin Only - Refactored for Stability) ---
-exports.deleteCompany = onCall({ 
-    cors: true, 
+exports.deleteCompany = onCall({
+    cors: true,
     timeoutSeconds: 540, // Maximize timeout for deletion operations
-    memory: '1GiB' 
+    memory: '1GiB'
 }, async (request) => {
     if (!request.auth) throw new HttpsError('unauthenticated', 'User must be logged in.');
 
@@ -61,7 +65,8 @@ exports.deleteCompany = onCall({
     const { companyId } = request.data;
     if (!companyId) throw new HttpsError('invalid-argument', 'Missing companyId.');
 
-    const { db } = getServices();
+    const { db, admin } = getServices();
+    const storage = admin.storage();
 
     try {
         // 1. Recursive Delete using firebase-tools (Handles huge collections safely)
@@ -80,6 +85,19 @@ exports.deleteCompany = onCall({
         memSnap.forEach(doc => batch.delete(doc.ref));
         await batch.commit();
 
+        // 3. Clean up Storage (Bucket Cleanup)
+        const bucket = storage.bucket();
+        const prefixes = [
+            `secure_documents/${companyId}/`,
+            `company_assets/${companyId}/`,
+            `companies/${companyId}/`
+        ];
+
+        for (const prefix of prefixes) {
+            await bucket.deleteFiles({ prefix });
+            console.log(`Deleted storage prefix: ${prefix}`);
+        }
+
         console.log(`Successfully deleted company ${companyId}`);
         return { success: true, message: `Company ${companyId} deleted.` };
     } catch (error) {
@@ -92,21 +110,69 @@ exports.deleteCompany = onCall({
 exports.moveApplication = onCall({ cors: true }, async (request) => {
     if (!request.auth) throw new HttpsError('unauthenticated', 'Login required.');
 
-    const { companyId, applicationId, newStatus } = request.data;
+    const { sourceCompanyId, destinationCompanyId, applicationId } = request.data;
+
+    // Support legacy/alternate signature if needed, or strictly enforce new one.
+    // Client sends: sourceCompanyId, destinationCompanyId, applicationId
+    if (!sourceCompanyId || !destinationCompanyId || !applicationId) {
+        throw new HttpsError('invalid-argument', 'Missing required parameters for move.');
+    }
+
+    // RBAC Check: Must be Admin of the SOURCE company (or Super Admin)
+    const roles = request.auth.token.roles || {};
+    const globalRole = request.auth.token.globalRole || roles.globalRole;
+    const isSuperAdmin = globalRole === "super_admin";
+    const canMove = isSuperAdmin || roles[sourceCompanyId] === 'company_admin';
+
+    if (!canMove) {
+        throw new HttpsError('permission-denied', 'You do not have permission to move applications from this company.');
+    }
+
     const { db } = getServices();
 
     try {
-        await db.collection('companies').doc(companyId)
-                .collection('applications').doc(applicationId)
-                .update({ status: newStatus });
-        return { success: true };
+        await db.runTransaction(async (t) => {
+            // 1. Get Source Doc
+            const sourceRef = db.collection('companies').doc(sourceCompanyId).collection('applications').doc(applicationId);
+            const sourceSnap = await t.get(sourceRef);
+
+            if (!sourceSnap.exists) throw new HttpsError('not-found', 'Application not found in source company.');
+
+            const appData = sourceSnap.data();
+
+            // 2. Prepare Dest Data
+            const destRef = db.collection('companies').doc(destinationCompanyId).collection('applications').doc(applicationId);
+
+            const newAppData = {
+                ...appData,
+                companyId: destinationCompanyId,
+                movedFrom: sourceCompanyId,
+                movedAt: new Date(),
+                status: 'New Application', // Reset status or keep it? usually reset for new company
+                history: appData.history || []
+            };
+
+            // 3. Perform Move
+            t.set(destRef, newAppData);
+            t.delete(sourceRef);
+        });
+
+        return { success: true, message: 'Application moved successfully.' };
     } catch (e) {
+        console.error("Move Application Error:", e);
         throw new HttpsError('internal', e.message);
     }
 });
 
 // --- FEATURE 4: SEND AUTOMATED EMAIL ---
 exports.sendAutomatedEmail = onCall({ cors: true }, async (request) => {
+    // SECURITY: Strict Auth Check
+    if (!request.auth) throw new HttpsError('unauthenticated', 'Login required.');
+
+    // Optional: Add Role Check (e.g., Company Admin Only)
+    // const roles = request.auth.token.roles || {};
+    // if (!roles[request.data.companyId] && request.auth.token.globalRole !== 'super_admin') ...
+
     return { success: true, message: "Email simulation successful." };
 });
 
@@ -130,7 +196,7 @@ exports.getTeamPerformanceHistory = onCall({ cors: true }, async (request) => {
 
         const snapshot = await activitiesQuery.get();
 
-        const statsByUser = {}; 
+        const statsByUser = {};
 
         snapshot.forEach(doc => {
             const data = doc.data();
@@ -140,7 +206,7 @@ exports.getTeamPerformanceHistory = onCall({ cors: true }, async (request) => {
 
             if (!statsByUser[userId]) {
                 statsByUser[userId] = {
-                    id: userId, name: userName, dials: 0, connected: 0, 
+                    id: userId, name: userName, dials: 0, connected: 0,
                     callback: 0, notInt: 0, notQual: 0, vm: 0
                 };
             }
@@ -148,32 +214,32 @@ exports.getTeamPerformanceHistory = onCall({ cors: true }, async (request) => {
             statsByUser[userId].dials++;
 
             switch (outcome) {
-                case 'interested': 
-                case 'callback': 
+                case 'interested':
+                case 'callback':
                     statsByUser[userId].callback += (outcome === 'callback' ? 1 : 0);
                     statsByUser[userId].connected++;
                     break;
                 case 'not_interested':
-                case 'hired_elsewhere': 
-                    statsByUser[userId].notInt++; 
+                case 'hired_elsewhere':
+                    statsByUser[userId].notInt++;
                     break;
                 case 'not_qualified':
-                case 'wrong_number': 
-                    statsByUser[userId].notQual++; 
+                case 'wrong_number':
+                    statsByUser[userId].notQual++;
                     break;
                 case 'voicemail':
-                case 'no_answer': 
-                    statsByUser[userId].vm++; 
+                case 'no_answer':
+                    statsByUser[userId].vm++;
                     break;
-                default: 
+                default:
                     if (data.isContact) statsByUser[userId].connected++;
                     break;
             }
         });
 
-        return { 
-            success: true, 
-            data: Object.values(statsByUser) 
+        return {
+            success: true,
+            data: Object.values(statsByUser)
         };
 
     } catch (error) {
@@ -186,6 +252,9 @@ exports.getTeamPerformanceHistory = onCall({ cors: true }, async (request) => {
 const migrationLogic = onCall({
     cors: true, region: "us-central1", maxInstances: 10
 }, async (request) => {
+    // SECURITY: Strict Auth Check (Super Admin Only recommended, but at least Auth)
+    if (!request.auth) throw new HttpsError('unauthenticated', 'Login required.');
+
     if (request.data?.mode === 'ping') return { success: true, message: "Pong!" };
     try {
         const { db } = getServices();

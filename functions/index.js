@@ -15,15 +15,15 @@ const leadDistribution = require('./leadDistribution');
 const digitalSealing = require('./digitalSealing');
 const notifySigner = require('./notifySigner');
 const publicSigning = require('./publicSigning');
-const systemIntegrity = require('./systemIntegrity'); 
+const systemIntegrity = require('./systemIntegrity');
 const searchHandler = require('./searchHandler'); // <--- NEW IMPORT
 
 // --- EXPORTS ---
 
 // 1. Docs & Email & Public Signing
 exports.sealDocument = digitalSealing.sealDocument;
-exports.notifySigner = notifySigner.notifySigner; 
-exports.getPublicEnvelope = publicSigning.getPublicEnvelope;    
+exports.notifySigner = notifySigner.notifySigner;
+exports.getPublicEnvelope = publicSigning.getPublicEnvelope;
 exports.submitPublicEnvelope = publicSigning.submitPublicEnvelope;
 
 // 2. Auth & User Management
@@ -56,7 +56,9 @@ exports.getLeadSupplyAnalytics = leadDistribution.getLeadSupplyAnalytics;
 exports.bulkAssignLeads = leadDistribution.bulkAssignLeads; // <--- Preserved from previous step
 
 // 6. System Integrity
-exports.syncSystemStructure = systemIntegrity.syncSystemStructure; 
+exports.syncSystemStructure = systemIntegrity.syncSystemStructure;
+exports.runSecurityAudit = systemIntegrity.runSecurityAudit; // <--- FIX: Export Security Audit
+exports.getSignedUploadUrl = require('./storageSecure').getSignedUploadUrl; // <--- NEW EXPORT 
 
 // 7. Data Migration
 exports.runMigration = companyAdmin.runMigration;

@@ -81,11 +81,11 @@ const Step6_Employment = ({ formData, updateFormData, onNavigate }) => {
 
     const renderMilitaryRow = (index, item, handleChange) => (
         <div key={index} className="space-y-3">
-            <RadioGroup 
-                label="Branch of Service" 
-                name="branch" 
+            <RadioGroup
+                label="Branch of Service"
+                name="branch"
                 options={MILITARY_BRANCH_OPTIONS}
-                value={item.branch} 
+                value={item.branch}
                 onChange={(name, value) => handleChange(name, value)}
                 required={true}
                 horizontal={false}
@@ -93,18 +93,18 @@ const Step6_Employment = ({ formData, updateFormData, onNavigate }) => {
             <InputField label="Start Date (mm/yyyy)" id={'mil-start-' + index} name="start" value={item.start} onChange={handleChange} required={true} />
             <InputField label="End Date (mm/yyyy)" id={'mil-end-' + index} name="end" value={item.end} onChange={handleChange} required={true} />
             <InputField label="Rank of Discharge" id={'mil-rank-' + index} name="rank" value={item.rank} onChange={handleChange} required={true} />
-            <RadioGroup 
-                label="Did you operate heavy equipment/machinery?" 
-                name="heavyEq" 
+            <RadioGroup
+                label="Did you operate heavy equipment/machinery?"
+                name="heavyEq"
                 options={yesNoOptions}
-                value={item.heavyEq} 
+                value={item.heavyEq}
                 onChange={(name, value) => handleChange(name, value)}
             />
-             <RadioGroup 
-                label="Did you receive an honorable discharge?" 
-                name="honorable" 
+            <RadioGroup
+                label="Did you receive an honorable discharge?"
+                name="honorable"
                 options={yesNoOptions}
-                value={item.honorable} 
+                value={item.honorable}
                 onChange={(name, value) => handleChange(name, value)}
             />
             <div className="space-y-2">
@@ -117,7 +117,7 @@ const Step6_Employment = ({ formData, updateFormData, onNavigate }) => {
     return (
         <div id="page-6" className="form-step space-y-6">
             <h3 className="text-xl font-semibold text-gray-800">Step 6 of 9: Employment History</h3>
-            <p className="text-sm text-gray-600">Please provide **3 years** of work history. In addition, please identify any employers for whom you have operated a commercial motor vehicle over the **past 10 years**. Your work history should include any military service, driving schools, and periods of unemployment, as applicable.</p>
+            <p className="text-sm text-gray-600">To comply with DOT regulations (49 CFR 391.21), please provide a complete **10-year employment history**. This includes all employers (commercial driving and non-driving), periods of unemployment, military service, and driving schools. Failure to provide a complete 10-year history may delay your application.</p>
 
             {/* Previous Employers - Configurable */}
             {!empHistoryConfig.hidden && (
@@ -161,7 +161,7 @@ const Step6_Employment = ({ formData, updateFormData, onNavigate }) => {
 
             <fieldset className="border border-gray-300 rounded-lg p-4 space-y-4 mt-6">
                 <legend className="text-lg font-semibold text-gray-800 px-2">Military Service</legend>
-                 <DynamicRow
+                <DynamicRow
                     listKey="military"
                     formData={formData}
                     updateFormData={updateFormData}
@@ -172,15 +172,15 @@ const Step6_Employment = ({ formData, updateFormData, onNavigate }) => {
             </fieldset>
 
             <div className="flex justify-between pt-6">
-                <button 
-                    type="button" 
+                <button
+                    type="button"
                     onClick={() => onNavigate('back')}
                     className="w-auto px-6 py-3 bg-gray-600 text-white font-semibold rounded-lg shadow-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition duration-200"
                 >
                     Back
                 </button>
-                <button 
-                    type="button" 
+                <button
+                    type="button"
                     onClick={handleContinue}
                     className="w-auto px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-200"
                 >

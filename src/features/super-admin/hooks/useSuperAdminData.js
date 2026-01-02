@@ -3,14 +3,15 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { db, functions } from '@lib/firebase';
 import { httpsCallable } from 'firebase/functions';
-import { 
-    collection, 
-    getDocs, 
-    collectionGroup, 
-    query, 
-    orderBy, 
-    limit, 
-    getCountFromServer 
+import {
+    collection,
+    getDocs,
+    collectionGroup,
+    query,
+    orderBy,
+    limit,
+    getCountFromServer,
+    where
 } from 'firebase/firestore';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 
@@ -82,8 +83,35 @@ export function useSuperAdminData() {
                 compMap.set(doc.id, data.companyName);
             });
 
-            // --- Process Users ---
-            const users = userSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            // --- Process Users & Fetch Memberships ---
+            const initialUsers = userSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+            // Fetch Memberships for these users (Chunked to 10 for 'in' query)
+            const userIds = initialUsers.map(u => u.id);
+            const membershipMap = new Map(); // userId -> [memberships]
+
+            if (userIds.length > 0) {
+                const chunks = [];
+                for (let i = 0; i < userIds.length; i += 10) {
+                    chunks.push(userIds.slice(i, i + 10));
+                }
+
+                await Promise.all(chunks.map(async (chunk) => {
+                    const q = query(collection(db, "memberships"), where("userId", "in", chunk));
+                    const snap = await getDocs(q);
+                    snap.forEach(doc => {
+                        const m = doc.data();
+                        const current = membershipMap.get(m.userId) || [];
+                        current.push(m);
+                        membershipMap.set(m.userId, current);
+                    });
+                }));
+            }
+
+            const users = initialUsers.map(user => ({
+                ...user,
+                memberships: membershipMap.get(user.id) || []
+            }));
 
             // --- Process Unified Activity (Apps + Leads) ---
             const processedLeads = leadsSnap.docs.map(doc => {

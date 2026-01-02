@@ -28,42 +28,42 @@ async function processDriverData(data, docId) {
   // 1. Resolve Driver Identity (Auth UID or Database ID)
   try {
     if (!isPlaceholder) {
-        // --- SCENARIO A: Valid Email ---
-        // We try to match with an existing Firebase Auth User
-        try {
-            const existingUser = await auth.getUserByEmail(email);
-            driverUid = existingUser.uid;
-            console.log(`Driver exists (Auth): ${email}`);
-        } catch (e) {
-            if (e.code === 'auth/user-not-found') {
-                // --- CRITICAL FIX: DO NOT CREATE AUTH USER AUTOMATICALLY ---
-                // Previously, we created an account here. Now, we treat this as a "Shadow Profile".
-                // The driver receives a profile in the database, but NO login account yet.
-                // They will claim this when they sign up on the app later.
-                driverUid = docId;
-                console.log(`Lead processed as Shadow Profile (No Auth yet): ${email}`);
-            } else {
-                throw e;
-            }
-        }
-    } else {
-        // --- SCENARIO B: Placeholder Email (Phone Only) ---
-        // Strategy: Check if a Master Profile already exists in 'drivers' with this phone.
-
-        const driversRef = db.collection('drivers');
-        // We query the master profiles for this phone number
-        const q = driversRef.where('personalInfo.phone', '==', phone).limit(1);
-        const snap = await q.get();
-
-        if (!snap.empty) {
-            // Found existing profile -> Update it
-            driverUid = snap.docs[0].id;
-            console.log(`Matched existing driver by phone: ${phone}`);
+      // --- SCENARIO A: Valid Email ---
+      // We try to match with an existing Firebase Auth User
+      try {
+        const existingUser = await auth.getUserByEmail(email);
+        driverUid = existingUser.uid;
+        console.log(`Driver exists (Auth): ${email}`);
+      } catch (e) {
+        if (e.code === 'auth/user-not-found') {
+          // --- CRITICAL FIX: DO NOT CREATE AUTH USER AUTOMATICALLY ---
+          // Previously, we created an account here. Now, we treat this as a "Shadow Profile".
+          // The driver receives a profile in the database, but NO login account yet.
+          // They will claim this when they sign up on the app later.
+          driverUid = docId;
+          console.log(`Lead processed as Shadow Profile (No Auth yet): ${email}`);
         } else {
-            // No match -> Create new Master Profile using the Source ID
-            driverUid = docId;
-            console.log(`Creating new shadow profile for phone: ${phone}`);
+          throw e;
         }
+      }
+    } else {
+      // --- SCENARIO B: Placeholder Email (Phone Only) ---
+      // Strategy: Check if a Master Profile already exists in 'drivers' with this phone.
+
+      const driversRef = db.collection('drivers');
+      // We query the master profiles for this phone number
+      const q = driversRef.where('personalInfo.phone', '==', phone).limit(1);
+      const snap = await q.get();
+
+      if (!snap.empty) {
+        // Found existing profile -> Update it
+        driverUid = snap.docs[0].id;
+        console.log(`Matched existing driver by phone: ${phone}`);
+      } else {
+        // No match -> Create new Master Profile using the Source ID
+        driverUid = docId;
+        console.log(`Creating new shadow profile for phone: ${phone}`);
+      }
     }
   } catch (error) {
     console.error("Error managing driver identity:", error);
@@ -72,58 +72,50 @@ async function processDriverData(data, docId) {
 
   if (!driverUid) return;
 
-  // 2. Create/Update Master Profile
+  // 2. Create Staging/Pending Update (Instead of Overwriting Master Profile)
   const driverDocRef = db.collection("drivers").doc(driverUid);
 
-  const masterProfileData = {
-    personalInfo: {
-      firstName: data.firstName || "",
-      lastName: data.lastName || "",
-      email: email,
-      phone: data.phone || "",
-      dob: data.dob || "",
-      ssn: data.ssn || "",
-      street: data.street || "",
-      city: data.city || "",
-      state: data.state || "",
-      zip: data.zip || ""
-    },
-    qualifications: {
-      experienceYears: data.experience || data['experience-years'] || "",
-    },
-    // Only overwrite licenses if new data has them
-    ...(data.cdlNumber ? {
-        licenses: [
-          {
-            state: data.cdlState || "",
-            number: data.cdlNumber || "",
-            expiration: data.cdlExpiration || "",
-            class: data.cdlClass || ""
-          }
-        ]
-    } : {}),
-    lastApplicationDate: admin.firestore.FieldValue.serverTimestamp(),
-    updatedAt: admin.firestore.FieldValue.serverTimestamp()
+  // PHASE 2 FIX: STOP AUTO-MERGING
+  // Instead of updating the main profile, we push to a 'pending_updates' subcollection.
+  // The user (Mobile App) or Admin (Dashboard) can approve these changes.
+
+  const stagingData = {
+    source: docId.includes('lead') ? 'lead' : 'application',
+    sourceId: docId,
+    receivedAt: admin.firestore.FieldValue.serverTimestamp(),
+    proposedChanges: {
+      personalInfo: {
+        firstName: data.firstName || "",
+        lastName: data.lastName || "",
+        email: email,
+        phone: data.phone || "",
+        // ... strict subset of safe fields
+      },
+      qualifications: {
+        experienceYears: data.experience || data['experience-years'] || "",
+      },
+      // Don't sync matching licenses blindly, put them in staging
+      licenses: data.cdlNumber ? [{
+        state: data.cdlState || "",
+        number: data.cdlNumber || "",
+        expiration: data.cdlExpiration || "",
+        class: data.cdlClass || ""
+      }] : []
+    }
   };
 
-  // If this is a new Shadow Profile, mark it so we can clean it up later if needed
-  if (driverUid === docId) {
-      masterProfileData.driverProfile = {
-          status: 'shadow', // Mark as shadow so we know they haven't signed up
-          source: 'lead_import'
-      };
-  }
+  // Writing to subcollection
+  await driverDocRef.collection('pending_updates').add(stagingData);
 
-  await driverDocRef.set(masterProfileData, { merge: true });
-  console.log(`Successfully synced Master Profile for ${driverUid}`);
+  console.log(`Redirected driver update for ${driverUid} to 'pending_updates'.`);
 }
 
 // --- EXPORT: Triggers for Driver Profile Sync ---
 
 // 1. Direct Applications
 exports.onApplicationSubmitted = onDocumentCreated({
-    document: "companies/{companyId}/applications/{applicationId}",
-    maxInstances: 2
+  document: "companies/{companyId}/applications/{applicationId}",
+  maxInstances: 2
 }, async (event) => {
   if (!event.data) return;
   await processDriverData(event.data.data(), event.params.applicationId);
@@ -131,8 +123,8 @@ exports.onApplicationSubmitted = onDocumentCreated({
 
 // 2. Global Leads (Unbranded)
 exports.onLeadSubmitted = onDocumentCreated({
-    document: "leads/{leadId}",
-    maxInstances: 2
+  document: "leads/{leadId}",
+  maxInstances: 2
 }, async (event) => {
   if (!event.data) return;
   await processDriverData(event.data.data(), event.params.leadId);
@@ -140,8 +132,8 @@ exports.onLeadSubmitted = onDocumentCreated({
 
 // 3. Company Leads (Bulk Uploads / Private) - NEW
 exports.onCompanyLeadSubmitted = onDocumentCreated({
-    document: "companies/{companyId}/leads/{leadId}",
-    maxInstances: 2
+  document: "companies/{companyId}/leads/{leadId}",
+  maxInstances: 2
 }, async (event) => {
   if (!event.data) return;
   await processDriverData(event.data.data(), event.params.leadId);

@@ -6,80 +6,80 @@ const { admin, db, auth } = require("./firebaseAdmin");
 
 // --- 1. CREATE USER ---
 exports.createPortalUser = onCall({ maxInstances: 2 }, async (request) => {
-  const { fullName, email, password, companyId, role } = request.data;
+    const { fullName, email, password, companyId, role } = request.data;
 
-  if (!request.auth) throw new HttpsError("unauthenticated", "Login required.");
+    if (!request.auth) throw new HttpsError("unauthenticated", "Login required.");
 
-  const roles = request.auth.token.roles || {};
+    const roles = request.auth.token.roles || {};
 
-  // Security Check: Only a Super Admin can create another Super Admin
-  if (role === "super_admin") {
-     const isGlobalSuperAdmin = roles.globalRole === "super_admin";
-     if (!isGlobalSuperAdmin) throw new HttpsError("permission-denied", "Only Super Admins can create other Super Admins.");
-  }
-
-  // Security Check: Regular admins can only add to their own company
-  if (role === "company_admin" || role === "hr_user") {
-    const isAdminForThisCompany = roles[companyId] === "company_admin";
-    const isGlobalSuperAdmin = roles.globalRole === "super_admin";
-
-    if (!isGlobalSuperAdmin && !isAdminForThisCompany) {
-        throw new HttpsError("permission-denied", "You do not have permission to add users to this company.");
+    // Security Check: Only a Super Admin can create another Super Admin
+    if (role === "super_admin") {
+        const isGlobalSuperAdmin = roles.globalRole === "super_admin";
+        if (!isGlobalSuperAdmin) throw new HttpsError("permission-denied", "Only Super Admins can create other Super Admins.");
     }
-  }
 
-  let userId;
-  let isNewUser = false;
+    // Security Check: Regular admins can only add to their own company
+    if (role === "company_admin" || role === "hr_user") {
+        const isAdminForThisCompany = roles[companyId] === "company_admin";
+        const isGlobalSuperAdmin = roles.globalRole === "super_admin";
 
-  try {
-    try {
-        const userRecord = await auth.getUserByEmail(email);
-        userId = userRecord.uid;
-    } catch (e) {
-        if (e.code === 'auth/user-not-found') {
-            const newUserRecord = await auth.createUser({
-                email, 
-                password, 
-                displayName: fullName, 
-                emailVerified: true,
-            });
-            userId = newUserRecord.uid;
-            isNewUser = true;
-
-            await db.collection("users").doc(userId).set({ 
-                name: fullName, 
-                email,
-                createdAt: admin.firestore.FieldValue.serverTimestamp()
-            });
-        } else {
-            throw e;
+        if (!isGlobalSuperAdmin && !isAdminForThisCompany) {
+            throw new HttpsError("permission-denied", "You do not have permission to add users to this company.");
         }
     }
 
-    // Check if membership already exists to prevent duplicates
-    const memQuery = await db.collection("memberships")
-        .where("userId", "==", userId)
-        .where("companyId", "==", companyId)
-        .get();
+    let userId;
+    let isNewUser = false;
 
-    if (!memQuery.empty) {
-        return { status: "success", message: "User is already in this company." };
+    try {
+        try {
+            const userRecord = await auth.getUserByEmail(email);
+            userId = userRecord.uid;
+        } catch (e) {
+            if (e.code === 'auth/user-not-found') {
+                const newUserRecord = await auth.createUser({
+                    email,
+                    password,
+                    displayName: fullName,
+                    emailVerified: true,
+                });
+                userId = newUserRecord.uid;
+                isNewUser = true;
+
+                await db.collection("users").doc(userId).set({
+                    name: fullName,
+                    email,
+                    createdAt: admin.firestore.FieldValue.serverTimestamp()
+                });
+            } else {
+                throw e;
+            }
+        }
+
+        // Check if membership already exists to prevent duplicates
+        const memQuery = await db.collection("memberships")
+            .where("userId", "==", userId)
+            .where("companyId", "==", companyId)
+            .get();
+
+        if (!memQuery.empty) {
+            return { status: "success", message: "User is already in this company." };
+        }
+
+        await db.collection("memberships").add({
+            userId,
+            companyId,
+            role,
+            createdAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        const msg = isNewUser ? "User created successfully." : "User added to company.";
+        return { status: "success", message: msg, userId };
+
+    } catch (error) {
+        console.error("Create User Error:", error);
+        throw new HttpsError("internal", error.message);
     }
-
-    await db.collection("memberships").add({ 
-        userId, 
-        companyId, 
-        role,
-        createdAt: admin.firestore.FieldValue.serverTimestamp()
-    });
-
-    const msg = isNewUser ? "User created successfully." : "User added to company.";
-    return { status: "success", message: msg, userId };
-
-  } catch (error) {
-    console.error("Create User Error:", error);
-    throw new HttpsError("internal", error.message);
-  }
 });
 
 // --- 2. SYNC CLAIMS TRIGGER (The Critical Fix) ---
@@ -101,8 +101,8 @@ exports.onMembershipWrite = onDocumentWritten({
         await auth.getUser(userId);
     } catch (e) {
         console.error("Error fetching user for claims sync:", e);
-        if (e.code === 'auth/user-not-found') return; 
-        throw e; 
+        if (e.code === 'auth/user-not-found') return;
+        throw e;
     }
 
     // Fetch ALL memberships to rebuild the permissions from scratch
@@ -133,57 +133,57 @@ exports.onMembershipWrite = onDocumentWritten({
 
 // --- 3. DELETE USER ---
 exports.deletePortalUser = onCall({ maxInstances: 2 }, async (request) => {
-  if (!request.auth) throw new HttpsError("unauthenticated", "Login required.");
+    if (!request.auth) throw new HttpsError("unauthenticated", "Login required.");
 
-  const { userId, companyId } = request.data;
-  if (!userId) throw new HttpsError("invalid-argument", "Missing User ID.");
+    const { userId, companyId } = request.data;
+    if (!userId) throw new HttpsError("invalid-argument", "Missing User ID.");
 
-  const roles = request.auth.token.roles || {};
-  const isSuperAdmin = roles.globalRole === "super_admin";
-  const isCompanyAdmin = companyId && roles[companyId] === "company_admin";
+    const roles = request.auth.token.roles || {};
+    const isSuperAdmin = roles.globalRole === "super_admin";
+    const isCompanyAdmin = companyId && roles[companyId] === "company_admin";
 
-  if (!isSuperAdmin && !isCompanyAdmin) {
-    throw new HttpsError("permission-denied", "Permission denied.");
-  }
-
-  try {
-    if (isSuperAdmin && !companyId) {
-        // Super Admin Force Delete
-        await auth.deleteUser(userId);
-        await db.collection("users").doc(userId).delete();
-        const membershipsSnap = await db.collection("memberships").where("userId", "==", userId).get();
-        const batch = db.batch();
-        membershipsSnap.forEach((doc) => batch.delete(doc.ref));
-        await batch.commit();
-        return { message: "User completely deleted." };
-    } else {
-        // Company Admin remove
-        const memQuery = await db.collection("memberships")
-            .where("userId", "==", userId)
-            .where("companyId", "==", companyId)
-            .get();
-
-        const batch = db.batch();
-        memQuery.forEach((doc) => batch.delete(doc.ref));
-        await batch.commit();
-
-        // Cleanup orphaned users
-        const remaining = await db.collection("memberships").where("userId", "==", userId).get();
-        if (remaining.empty) {
-            try {
-                await auth.deleteUser(userId);
-                await db.collection("users").doc(userId).delete();
-                return { message: "User removed and account deleted (orphaned)." };
-            } catch (e) {
-                console.log("Could not delete auth user (likely already gone):", e);
-            }
-        }
-        return { message: "User removed from team." };
+    if (!isSuperAdmin && !isCompanyAdmin) {
+        throw new HttpsError("permission-denied", "Permission denied.");
     }
-  } catch (error) {
-    console.error("Error deleting user:", error);
-    throw new HttpsError("internal", error.message);
-  }
+
+    try {
+        if (isSuperAdmin && !companyId) {
+            // Super Admin Force Delete
+            await auth.deleteUser(userId);
+            await db.collection("users").doc(userId).delete();
+            const membershipsSnap = await db.collection("memberships").where("userId", "==", userId).get();
+            const batch = db.batch();
+            membershipsSnap.forEach((doc) => batch.delete(doc.ref));
+            await batch.commit();
+            return { message: "User completely deleted." };
+        } else {
+            // Company Admin remove
+            const memQuery = await db.collection("memberships")
+                .where("userId", "==", userId)
+                .where("companyId", "==", companyId)
+                .get();
+
+            const batch = db.batch();
+            memQuery.forEach((doc) => batch.delete(doc.ref));
+            await batch.commit();
+
+            // Cleanup orphaned users
+            const remaining = await db.collection("memberships").where("userId", "==", userId).get();
+            if (remaining.empty) {
+                try {
+                    await auth.deleteUser(userId);
+                    await db.collection("users").doc(userId).delete();
+                    return { message: "User removed and account deleted (orphaned)." };
+                } catch (e) {
+                    console.log("Could not delete auth user (likely already gone):", e);
+                }
+            }
+            return { message: "User removed from team." };
+        }
+    } catch (error) {
+        console.error("Error deleting user:", error);
+        throw new HttpsError("internal", error.message);
+    }
 });
 
 // --- 4. UPDATE USER ---
@@ -225,33 +225,27 @@ exports.updatePortalUser = onCall({ maxInstances: 2 }, async (request) => {
 });
 
 // --- 5. JOIN TEAM ---
+// 5. JOIN COMPANY TEAM (Admin Only / Invite System Placeholder)
 exports.joinCompanyTeam = onCall({ maxInstances: 2 }, async (request) => {
-    const { companyId, fullName, email, password } = request.data;
+    // SECURITY FIX: This function previously allowed public registration into any company.
+    // It is now disabled until a proper Invite System is implemented.
 
-    let userId;
-    try {
-        const user = await auth.getUserByEmail(email);
-        userId = user.uid;
-    } catch (e) {
-        if (e.code === 'auth/user-not-found') {
-            const newUser = await auth.createUser({
-                email, password, displayName: fullName, emailVerified: true
-            });
-            userId = newUser.uid;
+    // 1. Strict Auth Check
+    if (!request.auth) throw new HttpsError('unauthenticated', 'Login required.');
 
-            await db.collection("users").doc(userId).set({ 
-                name: fullName, email, createdAt: admin.firestore.FieldValue.serverTimestamp() 
-            });
-        } else {
-            throw e;
-        }
+    // 2. Strict Role Check (Super Admin Only for now)
+    const roles = request.auth.token.roles || {};
+    const globalRole = request.auth.token.globalRole || roles.globalRole;
+
+    if (globalRole !== 'super_admin') {
+        throw new HttpsError('permission-denied', 'This feature is currently disabled for security.');
     }
 
-    await db.collection("memberships").add({
-        userId,
-        companyId,
-        role: "hr_user",
-        createdAt: admin.firestore.FieldValue.serverTimestamp()
-    });
-    return { success: true };
+    // Original Logic (Commented out for reference/future restoration)
+    /*
+    const { companyId, fullName, email, password } = request.data;
+    // ... impl ...
+    */
+
+    throw new HttpsError('unimplemented', 'Please use the "Add User" feature in the dashboard.');
 });
