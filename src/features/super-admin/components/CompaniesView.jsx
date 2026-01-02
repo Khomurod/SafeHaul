@@ -91,7 +91,11 @@ export function CompaniesView({
                     <tr><td colSpan="4" className="p-10 text-center text-gray-400">No companies found.</td></tr>
                 ) : (
                     paginatedData.map(company => (
-                        <tr key={company.id} className="hover:bg-gray-50 transition-colors">
+                        <tr 
+                            key={company.id} 
+                            onClick={() => onEdit(company.id)}
+                            className="hover:bg-gray-50 transition-colors cursor-pointer"
+                        >
                             <td className="px-6 py-4 align-middle">
                                 <div className="flex items-center gap-3">
                                     <div className="w-10 h-10 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center text-lg font-bold text-gray-500 shrink-0">
