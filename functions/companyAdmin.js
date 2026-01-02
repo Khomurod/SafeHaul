@@ -1,7 +1,7 @@
 // functions/companyAdmin.js
 
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
-const firebase_tools = require('firebase-tools');
+// const firebase_tools = require('firebase-tools'); // <--- MOVED INSIDE FUNCTION
 
 // --- HELPER: Lazy Database Connection ---
 let dbInstance = null;
@@ -67,6 +67,9 @@ exports.deleteCompany = onCall({
 
     const { db, admin } = getServices();
     const storage = admin.storage();
+
+    // LAZY LOAD HEAVY MODULE
+    const firebase_tools = require('firebase-tools');
 
     try {
         // 1. Recursive Delete using firebase-tools (Handles huge collections safely)
@@ -185,7 +188,29 @@ exports.getTeamPerformanceHistory = onCall({ cors: true }, async (request) => {
 
     const { db } = getServices();
 
+    // PERMISSIONS: Check if requester is Company Admin or Super Admin
+    const roles = request.auth.token.roles || {};
+    const globalRole = request.auth.token.globalRole || roles.globalRole;
+
+    // Check if user is explicit admin of THIS company
+    const isCompanyAdmin = (roles[companyId] === 'company_admin') || (globalRole === 'super_admin');
+
+    const excludedUserIds = new Set();
+
     try {
+        // If NOT admin, we must hide stats of Company Admins
+        if (!isCompanyAdmin) {
+            const adminQuery = await db.collection('memberships')
+                .where('companyId', '==', companyId)
+                .where('role', '==', 'company_admin')
+                .get();
+
+            adminQuery.forEach(doc => {
+                const data = doc.data();
+                if (data.userId) excludedUserIds.add(data.userId);
+            });
+        }
+
         const start = new Date(startDate);
         const end = new Date(endDate);
 
@@ -197,13 +222,23 @@ exports.getTeamPerformanceHistory = onCall({ cors: true }, async (request) => {
         const snapshot = await activitiesQuery.get();
 
         const statsByUser = {};
+        const dailyStats = {}; // { "YYYY-MM-DD": { userId: { dials: 0, ... } } }
 
         snapshot.forEach(doc => {
             const data = doc.data();
             const userId = data.performedBy || 'unknown';
+
+            // FILTER: Skip excluded users (Company Admins seen by regular staff)
+            if (excludedUserIds.has(userId)) return;
+
             const userName = data.performedByName || 'Unknown Recruiter';
             const outcome = data.outcome;
 
+            // Normalize Date (UTC YYYY-MM-DD)
+            const dateObj = data.timestamp.toDate();
+            const dateKey = dateObj.toISOString().split('T')[0];
+
+            // Initialize User Stats (Summary)
             if (!statsByUser[userId]) {
                 statsByUser[userId] = {
                     id: userId, name: userName, dials: 0, connected: 0,
@@ -211,7 +246,13 @@ exports.getTeamPerformanceHistory = onCall({ cors: true }, async (request) => {
                 };
             }
 
+            // Initialize Daily Stats
+            if (!dailyStats[dateKey]) dailyStats[dateKey] = {};
+            if (!dailyStats[dateKey][userId]) dailyStats[dateKey][userId] = 0; // Tracking dials count for graph
+
+            // --- AGGREGATION ---
             statsByUser[userId].dials++;
+            dailyStats[dateKey][userId]++;
 
             switch (outcome) {
                 case 'interested':
@@ -237,9 +278,25 @@ exports.getTeamPerformanceHistory = onCall({ cors: true }, async (request) => {
             }
         });
 
+        // Format Daily Stats for Frontend Graph { name: "MM/DD", userId: count, ... }
+        const formattedHistory = Object.keys(dailyStats).sort().map(dateKey => {
+            const dateObj = new Date(dateKey);
+            // Format nice display date (e.g. "10/24")
+            const displayDate = `${dateObj.getUTCMonth() + 1}/${dateObj.getUTCDate()}`;
+
+            const point = { name: displayDate, fullDate: dateKey };
+
+            // Add each user's count to the point
+            Object.keys(dailyStats[dateKey]).forEach(uid => {
+                point[uid] = dailyStats[dateKey][uid];
+            });
+            return point;
+        });
+
         return {
             success: true,
-            data: Object.values(statsByUser)
+            data: Object.values(statsByUser), // Summary (Leaderboard)
+            history: formattedHistory         // Time Series (Graph)
         };
 
     } catch (error) {

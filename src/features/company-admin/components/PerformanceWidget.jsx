@@ -78,26 +78,8 @@ export function PerformanceWidget({ companyId }) {
           setSelectedRecruiters(sortedLeaderboard.slice(0, 5).map(r => r.id));
         }
 
-        // Mock Time Series (Since getTeamPerformanceHistory likely returns aggregates)
-        // In real impl, backend should return array of { date: '...', userA: 10, userB: 5 ... }
-        // We'll generate a linear distribution for the visual requirement based on the aggregate.
-        const days = Math.max(1, Math.ceil((baseEnd - baseStart) / (1000 * 60 * 60 * 24)));
-        const mockSeries = [];
-        for (let i = 0; i < days; i++) {
-          const dayDate = new Date(baseStart);
-          dayDate.setDate(dayDate.getDate() + i);
-          const dayStr = dayDate.toLocaleDateString();
-
-          const point = { name: dayStr };
-          sortedLeaderboard.forEach(agent => {
-            // Distribute total dials roughly evenly with some random variance
-            const baseDaily = Math.floor(agent.dials / days);
-            const variance = Math.floor(Math.random() * (baseDaily * 0.5));
-            point[agent.id] = Math.max(0, baseDaily + (Math.random() > 0.5 ? variance : -variance));
-          });
-          mockSeries.push(point);
-        }
-        setHistoryData(mockSeries);
+        // REAL DATA: Use the aggregated history from backend
+        setHistoryData(result.data.history || []);
       }
     } catch (error) {
       console.error("Failed to fetch performance:", error);
