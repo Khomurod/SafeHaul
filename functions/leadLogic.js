@@ -27,7 +27,7 @@ async function runLeadDistribution(forceRotate = false) {
         if (companiesSnap.empty) return { success: false, message: "No active companies found." };
 
         const companies = companiesSnap.docs.map(d => ({ id: d.id, ...d.data() }))
-                                            .sort(() => Math.random() - 0.5);
+            .sort(() => Math.random() - 0.5);
 
         for (const company of companies) {
             try {
@@ -62,7 +62,7 @@ async function dealLeadsToCompany(company, planLimit, forceRotate) {
 
     if (needed <= 0) return `${company.companyName}: Full (${activeWorkingCount}/${planLimit})`;
 
-    const buffer = Math.ceil(needed * 1.5); 
+    const buffer = Math.ceil(needed * 1.5);
     let candidates = [];
 
     const freshSnap = await db.collection("leads").where("unavailableUntil", "==", null).limit(buffer).get();
@@ -235,6 +235,8 @@ async function processLeadOutcome(data) {
 
 async function runCleanup() {
     let deletedCount = 0;
+
+    // 1. Cleanup Bad Leads (Existing Logic)
     const leadsSnap = await db.collection("leads").get();
     let batch = db.batch();
     let bSize = 0;
@@ -249,7 +251,29 @@ async function runCleanup() {
         if (bSize >= 400) { await batch.commit(); batch = db.batch(); bSize = 0; }
     }
     if (bSize > 0) await batch.commit();
-    return { success: true, message: `Purged ${deletedCount} bad items.` };
+
+    // 2. Cleanup Bad Companies (New Logic)
+    let companyDeletedCount = 0;
+    const companiesSnap = await db.collection("companies").get();
+    let cBatch = db.batch();
+    let cSize = 0;
+
+    for (const doc of companiesSnap.docs) {
+        const d = doc.data();
+        // Invalid if no name OR no createdAt date
+        if (!d.companyName || !d.createdAt) {
+            cBatch.delete(doc.ref);
+            cSize++;
+            companyDeletedCount++;
+        }
+        if (cSize >= 400) { await cBatch.commit(); cBatch = db.batch(); cSize = 0; }
+    }
+    if (cSize > 0) await cBatch.commit();
+
+    return {
+        success: true,
+        message: `Cleanup Complete. Purged ${deletedCount} bad leads and ${companyDeletedCount} invalid companies.`
+    };
 }
 
 async function populateLeadsFromDrivers() {
@@ -302,7 +326,7 @@ async function harvestNotesBeforeDelete(docSnap, data) {
         if (originalId && notesToShare.length > 0) {
             await db.collection("leads").doc(originalId).update({
                 sharedHistory: admin.firestore.FieldValue.arrayUnion(...notesToShare)
-            }).catch(() => {});
+            }).catch(() => { });
         }
     } catch (e) { }
 }
