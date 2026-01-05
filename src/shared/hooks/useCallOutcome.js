@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { db, auth, functions } from '@lib/firebase';
-import { addDoc, collection, serverTimestamp, doc, updateDoc, getDoc, setDoc } from 'firebase/firestore';
+// FIX: Added 'deleteDoc' to the imports below
+import { addDoc, collection, serverTimestamp, doc, updateDoc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { sendNotification } from '@lib/notificationService';
 import { useToast } from '@shared/components/feedback/ToastProvider';
@@ -135,7 +136,7 @@ export function useCallOutcome(lead, companyId, onUpdate, onClose) {
                     history: lead.history || []
                 });
 
-                // Delete Lead
+                // Delete Lead - This call was previously failing due to missing import
                 await deleteDoc(companyLeadRef);
 
                 console.log(`Converted lead ${lead.id} to application.`);
