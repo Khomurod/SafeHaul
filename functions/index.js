@@ -41,6 +41,7 @@ exports.getTeamPerformanceHistory = companyAdmin.getTeamPerformanceHistory;
 // 4. Applications & Driver Sync
 exports.onApplicationSubmitted = driverSync.onApplicationSubmitted; // Corrected source: driverSync
 exports.onLeadSubmitted = driverSync.onLeadSubmitted; // Corrected source: driverSync
+exports.syncDriverOnLog = driverSync.syncDriverOnLog; // <--- NEW EXPORT
 exports.moveApplication = companyAdmin.moveApplication;
 exports.sendAutomatedEmail = companyAdmin.sendAutomatedEmail;
 
@@ -71,8 +72,11 @@ exports.runMigration = companyAdmin.runMigration;
 exports.searchUnifiedData = searchHandler.searchUnifiedData;
 
 // 9. Scheduled Jobs
+// 9. Scheduled Jobs
+// 9. Scheduled Jobs
 const customJobs = require('./customJobs');
-exports.checkDocumentExpirations = customJobs.checkDocumentExpirations;
+// exports.checkDocumentExpirations = customJobs.checkDocumentExpirations;
+exports.debugAppCounts = customJobs.debugAppCounts;
 
 // 9. Analytics (Commented out to prevent Gen 1 CPU errors)
 /*

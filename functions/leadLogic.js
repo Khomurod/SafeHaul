@@ -185,9 +185,23 @@ async function confirmDriverInterest(data) {
 
     const lockTs = admin.firestore.Timestamp.fromDate(new Date(Date.now() + POOL_INTEREST_LOCK_DAYS * 24 * 60 * 60 * 1000));
 
+    // ISOLATION FIX: Do not copy previous operational history (from other companies)
+    const rawData = leadSnap.data();
+    const safePayload = { ...rawData };
+
+    // Whitelist / Blacklist Logic
+    const OPERATIONAL_FIELDS = [
+        'lastContactedAt', 'lastContactedBy',
+        'lastCallOutcome', 'lastOutcome', 'lastOutcomeBy',
+        'lastCall', 'status', 'assignedTo', 'convertedAt',
+        'subStatus', 'internalNotes', 'lastAssignedTo'
+    ];
+
+    OPERATIONAL_FIELDS.forEach(field => delete safePayload[field]);
+
     const batch = db.batch();
     batch.set(db.collection("companies").doc(companyId).collection("applications").doc(leadId), {
-        ...leadSnap.data(),
+        ...safePayload,
         status: "New Application",
         source: "Driver Interest Link",
         isPlatformLead: true,

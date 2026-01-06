@@ -130,6 +130,58 @@ exports.onLeadSubmitted = onDocumentCreated({
   await processDriverData(event.data.data(), event.params.leadId);
 });
 
+// 4. Sync Driver Log Activity (Fix for Permission Error)
+exports.syncDriverOnLog = onDocumentCreated("companies/{companyId}/{collectionId}/{leadId}/activity_logs/{logId}", async (event) => {
+  if (!event.data) return;
+
+  const data = event.data.data();
+  const leadId = event.params.leadId;
+
+  // Only proceed if data changed OR it was a call
+  if (data.dataChanged !== true && data.type !== 'call') return;
+
+  console.log(`[syncDriverOnLog] Syncing log activity for driver: ${leadId}`);
+
+  try {
+    const globalDriverRef = db.collection("drivers").doc(leadId);
+    const updateData = {};
+
+    // 1. Update Last Call Info
+    if (data.type === 'call') {
+      updateData.lastNetworkCall = {
+        outcome: data.outcomeLabel || data.outcome,
+        timestamp: admin.firestore.FieldValue.serverTimestamp() // Use admin timestamp
+      };
+    }
+
+    // 2. Sync Profile Changes (if flagged)
+    if (data.dataChanged === true) {
+      // We need to fetch the LEAD document to get the new values, 
+      // because the log only says *that* it changed, not necessarily *what* (except in notes).
+      // However, for efficiency, the client usually writes the *latest* state to the lead doc 
+      // right before creating the log. So we fetch the parent lead doc.
+
+      const parentCollectionPath = `companies/${event.params.companyId}/${event.params.collectionId}`;
+      const leadSnap = await db.collection(parentCollectionPath).doc(leadId).get();
+
+      if (leadSnap.exists) {
+        const leadData = leadSnap.data();
+        if (leadData.driverType) updateData['driverProfile.type'] = leadData.driverType;
+        if (leadData.experienceLevel) updateData['qualifications.experienceYears'] = leadData.experienceLevel;
+        updateData.infoSource = 'recruiter';
+      }
+    }
+
+    if (Object.keys(updateData).length > 0) {
+      await globalDriverRef.set(updateData, { merge: true });
+      console.log(`[syncDriverOnLog] Successfully synced driver ${leadId}`);
+    }
+
+  } catch (error) {
+    console.error(`[syncDriverOnLog] Failed to sync driver ${leadId}:`, error);
+  }
+});
+
 // 3. Company Leads (Bulk Uploads / Private) - NEW
 exports.onCompanyLeadSubmitted = onDocumentCreated({
   document: "companies/{companyId}/leads/{leadId}",

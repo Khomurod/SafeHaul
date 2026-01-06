@@ -221,15 +221,23 @@ exports.getTeamPerformanceHistory = onCall({ cors: true }, async (request) => {
         const start = new Date(startDate);
         const end = new Date(endDate);
 
+        // DUAL QUERY: Fetch from both legacy 'activities' and new 'activity_logs' to ensure no data loss
         const activitiesQuery = db.collectionGroup('activities')
             .where('companyId', '==', companyId)
             .where('timestamp', '>=', start)
             .where('timestamp', '<=', end);
 
+        const logsQuery = db.collectionGroup('activity_logs')
+            .where('companyId', '==', companyId)
+            .where('timestamp', '>=', start)
+            .where('timestamp', '<=', end);
 
-        let snapshot;
+        let activitiesSnapshot, logsSnapshot;
         try {
-            snapshot = await activitiesQuery.get();
+            [activitiesSnapshot, logsSnapshot] = await Promise.all([
+                activitiesQuery.get(),
+                logsQuery.get()
+            ]);
         } catch (queryError) {
             // Check for Missing Index Error
             if (queryError.code === 9 || queryError.message.includes("requires an index")) {
@@ -238,80 +246,131 @@ exports.getTeamPerformanceHistory = onCall({ cors: true }, async (request) => {
             }
             throw queryError; // Rethrow other errors
         }
-        console.log(`[PERFORMANCE] Found ${snapshot.size} activities for company ${companyId}`);
+
+        // MERGE RESULTS
+        const allDocs = [...activitiesSnapshot.docs, ...logsSnapshot.docs];
+        console.log(`[PERFORMANCE] Raw Docs Found: ${activitiesSnapshot.size} (activities) + ${logsSnapshot.size} (logs) = ${allDocs.length} total.`);
 
         const statsByUser = {};
-        const dailyStats = {}; // { "YYYY-MM-DD": { userId: { dials: 0, ... } } }
+        const dailyStats = {}; // { "YYYY-MM-DD": { userId: { uniqueCalls: 0 } } }
 
-        snapshot.forEach(doc => {
-            const data = doc.data();
+        // Deduplicate Docs by ID first (in case of overlap)
+        const uniqueDocs = new Map();
+        allDocs.forEach(doc => uniqueDocs.set(doc.id, doc.data()));
+
+        // GROUP BY RECRUITER -> LEAD -> CALLS
+        const recruiterActivityMap = {}; // { userId: { leadId: [timestamps] } }
+
+        uniqueDocs.forEach((data) => {
             const userId = data.performedBy || 'unknown';
-            // console.log(`[PERFORMANCE] Activity by user ${userId} (${data.performedByName})`);
+            const leadId = data.leadId || data.applicationId || data.targetId || 'unknown_lead';
 
-            // FILTER: Skip excluded users (Company Admins seen by regular staff)
-            // if (excludedUserIds.has(userId)) return;
+            // Only count CONTACT calls (ignore notes, status changes unless requested)
+            // If type is missing, we assume it's a call if it has an outcome? 
+            // Better to be permissive for legacy data, but stricter for new data.
+            const isCall = data.type === 'call' || (!data.type && data.outcome);
 
-            const userName = data.performedByName || 'Unknown Recruiter';
-            const outcome = data.outcome;
+            if (!isCall) return;
 
-            // --- FIX START: Safe Date Handling ---
+            // Safe Date Parsing
             let dateObj;
             try {
                 if (data.timestamp && typeof data.timestamp.toDate === 'function') {
                     dateObj = data.timestamp.toDate();
                 } else if (data.timestamp instanceof Date) {
-                    dateObj = data.timestamp; // It's already a JS Date
+                    dateObj = data.timestamp;
                 } else {
-                    // It's a string, number, or missing. Skip this record.
-                    console.warn(`[PERFORMANCE] Skipped invalid timestamp in doc: ${doc.id}`, data.timestamp);
-                    return; 
+                    return;
                 }
-            } catch (err) {
-                console.warn(`[PERFORMANCE] Date parsing error in doc: ${doc.id}`, err);
-                return;
-            }
-            // --- FIX END ---
+            } catch (err) { return; }
 
-            const dateKey = dateObj.toISOString().split('T')[0];
+            if (!recruiterActivityMap[userId]) recruiterActivityMap[userId] = {};
+            if (!recruiterActivityMap[userId][leadId]) recruiterActivityMap[userId][leadId] = [];
 
-            // Initialize User Stats (Summary)
+            recruiterActivityMap[userId][leadId].push({
+                timestamp: dateObj,
+                data: data
+            });
+        });
+
+        // APPLY 7-DAY LOGIC
+        Object.keys(recruiterActivityMap).forEach(userId => {
+            // Initialize User Stats
             if (!statsByUser[userId]) {
+                const userName = recruiterActivityMap[userId]['unknown_lead']?.[0]?.data?.performedByName || 'Unknown';
+                // We might need to find a better name source if 'unknown_lead' isn't there. 
+                // Just use the first available name.
+                let firstData = null;
+                for (const lid in recruiterActivityMap[userId]) {
+                    if (recruiterActivityMap[userId][lid].length > 0) {
+                        firstData = recruiterActivityMap[userId][lid][0].data;
+                        break;
+                    }
+                }
+
                 statsByUser[userId] = {
-                    id: userId, name: userName, dials: 0, connected: 0,
-                    callback: 0, notInt: 0, notQual: 0, vm: 0
+                    id: userId,
+                    name: firstData?.performedByName || 'Unknown Recruiter',
+                    dials: 0,
+                    connected: 0,
+                    callback: 0, notInt: 0, notQual: 0, vm: 0,
+                    rawCallCount: 0 // Debugging info
                 };
             }
 
-            // Initialize Daily Stats
-            if (!dailyStats[dateKey]) dailyStats[dateKey] = {};
-            if (!dailyStats[dateKey][userId]) dailyStats[dateKey][userId] = 0; // Tracking dials count for graph
+            const leads = recruiterActivityMap[userId];
+            Object.keys(leads).forEach(leadId => {
+                const calls = leads[leadId].sort((a, b) => a.timestamp - b.timestamp);
 
-            // --- AGGREGATION ---
-            statsByUser[userId].dials++;
-            dailyStats[dateKey][userId]++;
+                let lastCountedTime = 0;
 
-            switch (outcome) {
-                case 'interested':
-                case 'callback':
-                    statsByUser[userId].callback += (outcome === 'callback' ? 1 : 0);
-                    statsByUser[userId].connected++;
-                    break;
-                case 'not_interested':
-                case 'hired_elsewhere':
-                    statsByUser[userId].notInt++;
-                    break;
-                case 'not_qualified':
-                case 'wrong_number':
-                    statsByUser[userId].notQual++;
-                    break;
-                case 'voicemail':
-                case 'no_answer':
-                    statsByUser[userId].vm++;
-                    break;
-                default:
-                    if (data.isContact) statsByUser[userId].connected++;
-                    break;
-            }
+                calls.forEach(call => {
+                    statsByUser[userId].rawCallCount++; // Track raw attempts
+
+                    const time = call.timestamp.getTime();
+                    const diffDays = (time - lastCountedTime) / (1000 * 60 * 60 * 24);
+
+                    // 7-DAY RULE: Count if first call OR > 7 days since last COUNTED call
+                    if (lastCountedTime === 0 || diffDays > 7) {
+                        statsByUser[userId].dials++;
+                        lastCountedTime = time;
+
+                        // Add to Daily Stats (using the counted date)
+                        const dateKey = call.timestamp.toISOString().split('T')[0];
+                        if (!dailyStats[dateKey]) dailyStats[dateKey] = {};
+                        if (!dailyStats[dateKey][userId]) dailyStats[dateKey][userId] = 0;
+                        dailyStats[dateKey][userId]++;
+
+                        // Log Outcome Stats (Only for counted calls? Or all calls? 
+                        // Usually stats like 'Connected' should track *unique* engagements too to match 'Dials')
+                        const outcome = call.data.outcome;
+                        const isContact = call.data.isContact;
+
+                        switch (outcome) {
+                            case 'interested':
+                            case 'callback':
+                                statsByUser[userId].callback += (outcome === 'callback' ? 1 : 0);
+                                statsByUser[userId].connected++;
+                                break;
+                            case 'not_interested':
+                            case 'hired_elsewhere':
+                                statsByUser[userId].notInt++;
+                                break;
+                            case 'not_qualified':
+                            case 'wrong_number':
+                                statsByUser[userId].notQual++;
+                                break;
+                            case 'voicemail':
+                            case 'no_answer':
+                                statsByUser[userId].vm++;
+                                break;
+                            default:
+                                if (isContact) statsByUser[userId].connected++;
+                                break;
+                        }
+                    }
+                });
+            });
         });
 
         // Format Daily Stats for Frontend Graph { name: "MM/DD", userId: count, ... }
