@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { db, auth, functions } from '@lib/firebase';
-// FIX: Added 'deleteDoc' to the imports below
-import { addDoc, collection, serverTimestamp, doc, updateDoc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
+import { addDoc, collection, serverTimestamp, doc, updateDoc, getDoc, setDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { sendNotification } from '@lib/notificationService';
 import { useToast } from '@shared/components/feedback/ToastProvider';
@@ -123,6 +122,8 @@ export function useCallOutcome(lead, companyId, onUpdate, onClose) {
 
             let isConversion = false;
             // CHECK FOR CONVERSION: Leads -> Applications (If Interested)
+            // USER REQUEST: Disable auto-conversion. Driver must accept manually.
+            /*
             if (collectionName === 'leads' && outcome === 'interested') {
                 isConversion = true;
                 const appRef = doc(db, 'companies', companyId, 'applications', lead.id);
@@ -136,32 +137,33 @@ export function useCallOutcome(lead, companyId, onUpdate, onClose) {
                     history: lead.history || []
                 });
 
-                // Delete Lead - This call was previously failing due to missing import
+                // Delete Lead
                 await deleteDoc(companyLeadRef);
 
                 console.log(`Converted lead ${lead.id} to application.`);
             } else {
-                // NORMAL UPDATE
-                if (!leadSnap.exists()) {
-                    await setDoc(companyLeadRef, {
-                        ...lead,
-                        status: 'Attempted',
-                        createdAt: serverTimestamp(),
-                        updatedAt: serverTimestamp(),
-                        source: 'Search DB Call',
-                        isPlatformLead: true,
-                        originalLeadId: lead.id
-                    });
-                }
-
-                await updateDoc(companyLeadRef, updateData);
+            */
+            // NORMAL UPDATE
+            if (!leadSnap.exists()) {
+                await setDoc(companyLeadRef, {
+                    ...lead,
+                    status: 'Attempted',
+                    createdAt: serverTimestamp(),
+                    updatedAt: serverTimestamp(),
+                    source: 'Search DB Call',
+                    isPlatformLead: true,
+                    originalLeadId: lead.id
+                });
             }
+
+            await updateDoc(companyLeadRef, updateData);
+            // }
 
             // --- Activity Logging (Always Log) ---
             // If converted, log to NEW application. Else log to lead.
             const targetCollection = isConversion ? 'applications' : collectionName;
 
-            await addDoc(collection(db, 'companies', companyId, targetCollection, lead.id, 'activity_logs'), {
+            await addDoc(collection(db, 'companies', companyId, targetCollection, lead.id, 'activities'), {
                 type: 'call',
                 action: 'Call Logged',
                 outcome: outcome,
@@ -191,21 +193,9 @@ export function useCallOutcome(lead, companyId, onUpdate, onClose) {
                 type: 'call_log'
             });
 
-            // --- Global Updates (Driver Profile) ---
-            const globalDriverRef = doc(db, "drivers", lead.id);
-            const globalUpdate = {
-                lastNetworkCall: {
-                    outcome: outcomeLabel,
-                    timestamp: serverTimestamp()
-                }
-            };
-            if (dataChanged) {
-                if (driverType) globalUpdate['driverProfile.type'] = driverType;
-                if (experienceLevel) globalUpdate['qualifications.experienceYears'] = experienceLevel;
-                globalUpdate.infoSource = 'recruiter';
-            }
-
-            await setDoc(globalDriverRef, globalUpdate, { merge: true }).catch(err => console.log("Skipped global update:", err));
+            // --- Global Updates (Handled by Cloud Trigger now) ---
+            // The client no longer writes to drivers/{lead.id} directly to avoid permission errors.
+            // See functions/driverSync.js -> syncDriverOnLog
 
             // --- Pool Logic ---
             if (lead.isPlatformLead && (outcome === 'hired_elsewhere' || outcome === 'not_interested' || outcome === 'not_qualified')) {

@@ -37,7 +37,10 @@ export function ViewRouter({
     onAppClick,
     onDeleteCompany,
     onDeleteUser,
-    onDataUpdate
+    onDataUpdate,
+    loadMore,
+    hasMoreCompanies,
+    hasMoreApps
 }) {
 
     if (isSearching) {
@@ -76,6 +79,8 @@ export function ViewRouter({
                     onViewApps={onViewApps}
                     onEdit={onEditCompany}
                     onDelete={onDeleteCompany}
+                    loadMore={loadMore}
+                    hasMore={hasMoreCompanies}
                 />
             );
         case 'users':
@@ -91,16 +96,18 @@ export function ViewRouter({
             );
         case 'applications':
             return (
-                <UnifiedDriverList 
+                <UnifiedDriverList
                     allApplications={allApplications}
                     allCompaniesMap={allCompaniesMap}
                     onAppClick={onAppClick}
                     onDataUpdate={onDataUpdate}
+                    loadMore={loadMore}
+                    hasMore={hasMoreApps}
                 />
             );
         case 'features':
             return (
-                <FeaturesView 
+                <FeaturesView
                     companyList={companyList}
                     onDataUpdate={onDataUpdate}
                 />
@@ -111,9 +118,9 @@ export function ViewRouter({
             );
         case 'bulk-lead-adding':
             return (
-                <BulkLeadAddingView 
-                    onDataUpdate={onDataUpdate} 
-                    onClose={() => setActiveView('dashboard')} 
+                <BulkLeadAddingView
+                    onDataUpdate={onDataUpdate}
+                    onClose={() => setActiveView('dashboard')}
                 />
             );
         case 'create':

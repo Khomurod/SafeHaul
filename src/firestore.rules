@@ -173,6 +173,7 @@ service cloud.firestore {
       match /leads/{leadId} {
         allow read, write: if isCompanyTeam(companyId) || isSuperAdmin();
         match /activity_logs/{logId} { allow read, write: if isCompanyTeam(companyId) || isSuperAdmin(); }
+        match /activities/{activityId} { allow read, write: if isCompanyTeam(companyId) || isSuperAdmin(); }
         match /internal_notes/{noteId} { allow read, write: if isCompanyTeam(companyId) || isSuperAdmin(); }
       }
       

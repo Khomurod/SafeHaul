@@ -2,9 +2,9 @@
 import React, { useState, useMemo } from 'react';
 import { db } from '@lib/firebase'; // Updated to use alias
 import { doc, deleteDoc } from 'firebase/firestore';
-import { 
-    Search, Trash2, Filter, Download, 
-    FileText, Zap, User, Briefcase, Share2, Loader2 
+import {
+    Search, Trash2, Filter, Download,
+    FileText, Zap, User, Briefcase, Share2, Loader2
 } from 'lucide-react';
 import { getFieldValue } from '@shared/utils/helpers'; // Updated to use alias
 import { useToast } from '@shared/components/feedback'; // Updated to use alias
@@ -15,25 +15,25 @@ const SourceBadge = ({ type }) => {
         case 'Company App':
             return (
                 <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700 border border-blue-200">
-                    <FileText size={12}/> Direct App
+                    <FileText size={12} /> Direct App
                 </span>
             );
         case 'Global Pool':
             return (
                 <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-700 border border-purple-200">
-                    <Zap size={12}/> Global Pool
+                    <Zap size={12} /> Global Pool
                 </span>
             );
         case 'Distributed Lead':
             return (
                 <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700 border border-indigo-200">
-                    <Share2 size={12}/> Distributed
+                    <Share2 size={12} /> Distributed
                 </span>
             );
         case 'Company Import':
             return (
                 <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-orange-100 text-orange-700 border border-orange-200">
-                    <Briefcase size={12}/> Company Import
+                    <Briefcase size={12} /> Company Import
                 </span>
             );
         default:
@@ -45,11 +45,13 @@ const SourceBadge = ({ type }) => {
     }
 };
 
-export function UnifiedDriverList({ 
-    allApplications, 
-    allCompaniesMap, 
+export function UnifiedDriverList({
+    allApplications,
+    allCompaniesMap,
     onAppClick,
-    onDataUpdate
+    onDataUpdate,
+    loadMore,
+    hasMore
 }) {
     const { showSuccess, showError } = useToast();
     const [search, setSearch] = useState('');
@@ -157,10 +159,10 @@ export function UnifiedDriverList({
                 <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
                     {/* Search */}
                     <div className="relative">
-                        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"/>
-                        <input 
-                            type="text" 
-                            placeholder="Global Search..." 
+                        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <input
+                            type="text"
+                            placeholder="Global Search..."
                             className="pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none w-full sm:w-64"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
@@ -169,8 +171,8 @@ export function UnifiedDriverList({
 
                     {/* Filter */}
                     <div className="relative">
-                        <Filter size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"/>
-                        <select 
+                        <Filter size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <select
                             className="pl-9 pr-8 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none appearance-none"
                             value={filterSource}
                             onChange={(e) => setFilterSource(e.target.value)}
@@ -201,8 +203,8 @@ export function UnifiedDriverList({
                         </thead>
                         <tbody className="divide-y divide-gray-100">
                             {paginatedData.map(item => (
-                                <tr 
-                                    key={item.id} 
+                                <tr
+                                    key={item.id}
                                     onClick={() => onAppClick(item)}
                                     className="hover:bg-blue-50 cursor-pointer transition-colors group"
                                 >
@@ -228,18 +230,18 @@ export function UnifiedDriverList({
                                         </span>
                                     </td>
                                     <td className="px-6 py-3 text-sm text-gray-500">
-                                        {item.createdAt?.seconds 
-                                            ? new Date(item.createdAt.seconds * 1000).toLocaleDateString() 
+                                        {item.createdAt?.seconds
+                                            ? new Date(item.createdAt.seconds * 1000).toLocaleDateString()
                                             : '--'}
                                     </td>
                                     <td className="px-6 py-3 text-right" onClick={e => e.stopPropagation()}>
-                                        <button 
+                                        <button
                                             onClick={(e) => handleDelete(e, item)}
                                             disabled={deletingId === item.id}
                                             className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
                                             title="Delete Permanently"
                                         >
-                                            {deletingId === item.id ? <Loader2 size={16} className="animate-spin"/> : <Trash2 size={16} />}
+                                            {deletingId === item.id ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
                                         </button>
                                     </td>
                                 </tr>
@@ -259,14 +261,14 @@ export function UnifiedDriverList({
                 <div className="p-4 border-t border-gray-200 bg-gray-50 flex justify-between items-center text-sm text-gray-600">
                     <div>Showing {paginatedData.length} of {filteredData.length}</div>
                     <div className="flex gap-2">
-                        <button 
+                        <button
                             disabled={currentPage === 1}
                             onClick={() => setCurrentPage(p => p - 1)}
                             className="px-3 py-1 bg-white border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50"
                         >
                             Prev
                         </button>
-                        <button 
+                        <button
                             disabled={currentPage === totalPages}
                             onClick={() => setCurrentPage(p => p + 1)}
                             className="px-3 py-1 bg-white border border-gray-300 rounded hover:bg-gray-100 disabled:opacity-50"

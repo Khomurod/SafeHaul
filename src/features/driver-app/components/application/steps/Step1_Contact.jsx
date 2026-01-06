@@ -5,10 +5,12 @@ import DynamicRow from '@shared/components/form/DynamicRow';
 import { useUtils } from '@shared/hooks/useUtils';
 import { useData } from '@/context/DataContext';
 import { AlertCircle } from 'lucide-react';
+import { useToast } from '@shared/components/feedback';
 
 const Step1_Contact = ({ formData, updateFormData, onNavigate, onPartialSubmit }) => {
     const { states } = useUtils();
     const { currentCompanyProfile } = useData();
+    const { showError } = useToast();
     const currentCompany = currentCompanyProfile;
 
     // --- Configuration Helper ---
@@ -46,7 +48,46 @@ const Step1_Contact = ({ formData, updateFormData, onNavigate, onPartialSubmit }
         updateFormData(name, value);
     };
 
+    const validateStep = () => {
+        const requiredFields = {
+            firstName: 'First Name',
+            lastName: 'Last Name',
+            phone: 'Phone',
+            email: 'Email',
+            street: 'Address 1',
+            city: 'City',
+            state: 'State',
+            zip: 'ZIP Code'
+        };
+
+        // 1. Check Not Empty
+        for (const [field, label] of Object.entries(requiredFields)) {
+            if (!formData[field] || formData[field].trim() === '') {
+                showError(`${label} is required.`);
+                return false;
+            }
+        }
+
+        // 2. Strict Email Regex
+        const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+        if (!emailRegex.test(formData.email)) {
+            showError("Please enter a valid email address.");
+            return false;
+        }
+
+        // 3. Phone (at least 10 digits)
+        const digitsOnly = formData.phone.replace(/\D/g, '');
+        if (digitsOnly.length < 10) {
+            showError("Phone number must have at least 10 digits.");
+            return false;
+        }
+
+        return true;
+    };
+
     const handleContinue = () => {
+        if (!validateStep()) return;
+
         const form = document.getElementById('driver-form');
         if (form) {
             if (!form.checkValidity()) {
