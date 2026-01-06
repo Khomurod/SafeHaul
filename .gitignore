@@ -15,15 +15,6 @@ build/
 out/
 
 # ===========================================
-# ENVIRONMENT & SECRETS (NEVER COMMIT!)
-# ===========================================
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-*.local
-
 # ===========================================
 # REPLIT-SPECIFIC FILES
 # ===========================================
