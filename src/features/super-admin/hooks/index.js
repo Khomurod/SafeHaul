@@ -1,1 +1,0 @@
-export { useSuperAdminData } from './useSuperAdminData';
