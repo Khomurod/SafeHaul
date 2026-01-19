@@ -216,18 +216,11 @@ exports.getTeamPerformanceHistory = onCall({ cors: true }, async (request) => {
     const isCompanyAdmin = (roles[companyId] === 'company_admin') || (globalRole === 'super_admin');
 
     try {
-        // Format dates for document ID range query (YYYY-MM-DD) in CHICAGO TIMEZONE
-        // This aligns with statsAggregator which uses Chicago time for dateKey
-        const chicagoFormatter = new Intl.DateTimeFormat('en-CA', {
-            timeZone: 'America/Chicago',
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit'
-        });
-
-        // Parse the incoming dates and format to Chicago timezone
-        const startKey = chicagoFormatter.format(new Date(startDate));
-        const endKey = chicagoFormatter.format(new Date(endDate));
+        // FIX: Trust the YYYY-MM-DD format sent by the client (which is already Chicago time)
+        // Converting it to 'new Date()' treats it as UTC Midnight, which causes a shift to "Yesterday"
+        // when formatted back to Chicago time.
+        const startKey = startDate;
+        const endKey = endDate;
 
         console.log(`[PERFORMANCE] Querying stats_daily from ${startKey} to ${endKey} (Chicago TZ)`);
 

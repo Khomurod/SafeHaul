@@ -165,9 +165,9 @@ export function CompanyAdminDashboard() {
                     <div className="flex justify-between items-center max-w-[1600px] mx-auto w-full">
                         <div className="flex items-center gap-3">
                             <div className="h-10 w-10 flex-shrink-0">
-                                {currentCompanyProfile?.logoUrl && !imgError ? (
+                                {currentCompanyProfile?.companyLogoUrl && !imgError ? (
                                     <img
-                                        src={currentCompanyProfile.logoUrl}
+                                        src={currentCompanyProfile.companyLogoUrl}
                                         alt={companyName}
                                         onError={() => setImgError(true)}
                                         className="h-full w-full object-contain rounded-lg shadow-sm"

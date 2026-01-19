@@ -122,7 +122,22 @@ export function DashboardBody({
     return (
         <tbody className="divide-y divide-gray-100 bg-white">
             {data.map(item => {
-                const name = `${getFieldValue(item['firstName'])} ${getFieldValue(item['lastName'])}`;
+                // Handle both fullName (distributed leads) and firstName/lastName patterns
+                let firstName, lastName, name;
+
+                if (item.fullName) {
+                    // Distributed leads have fullName field
+                    name = item.fullName;
+                    // Parse for avatar initial
+                    const nameParts = item.fullName.trim().split(' ');
+                    firstName = nameParts[0] || 'Unknown';
+                    lastName = nameParts.slice(1).join(' ') || 'Driver';
+                } else {
+                    // Legacy pattern or direct applications
+                    firstName = item.firstName || 'Unknown';
+                    lastName = item.lastName || 'Driver';
+                    name = `${firstName} ${lastName}`.trim();
+                }
                 const isSelected = selectedId === item.id;
                 const isChecked = selectedRowIds.includes(item.id);
 

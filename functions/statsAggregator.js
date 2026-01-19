@@ -24,7 +24,7 @@ function getDb() {
 
 // --- SHARED HELPER: Process Stats Update ---
 // This function contains all the common logic for all 3 triggers
-async function processStatsUpdate(db, companyId, data, triggerName) {
+async function processStatsUpdate(db, companyId, data, logId, triggerName) {
     const userId = data.performedBy || 'unknown';
     const outcome = data.outcome || 'other';
     const isCall = data.type === 'call' || (!data.type && data.outcome);
@@ -67,7 +67,19 @@ async function processStatsUpdate(db, companyId, data, triggerName) {
     const statsRef = db.collection('companies').doc(companyId)
         .collection('stats_daily').doc(dateKey);
 
+    // IDEMPOTENCY: Use logId to prevent double counting
+    const processedRef = statsRef.collection('processed_signals').doc(logId);
+
     await db.runTransaction(async (transaction) => {
+        // 1. Check if already processed
+        // We do this inside transaction to be safe, though separated is also okay.
+        // Doing it inside guarantees we don't race.
+        const processedDoc = await transaction.get(processedRef);
+        if (processedDoc.exists) {
+            console.log(`[${triggerName}] Log ${logId} already processed. Skipping.`);
+            return;
+        }
+
         const statsDoc = await transaction.get(statsRef);
 
         let stats = statsDoc.exists ? statsDoc.data() : {
@@ -84,14 +96,18 @@ async function processStatsUpdate(db, companyId, data, triggerName) {
         // Increment global counters
         stats.totalDials = (stats.totalDials || 0) + 1;
 
+        // Unified "Connected" Definition: Trust the boolean flag from frontend
+        // This includes Interested, Callback, Not Interested, Not Qualified, Hired Elsewhere
+        if (data.isContact) {
+            stats.connected = (stats.connected || 0) + 1;
+        }
+
         // Increment outcome-specific counters
         switch (outcome) {
-            case 'interested':
+            case 'interested': // Already counted in connected
+                break;
             case 'callback':
-                stats.connected = (stats.connected || 0) + 1;
-                if (outcome === 'callback') {
-                    stats.callback = (stats.callback || 0) + 1;
-                }
+                stats.callback = (stats.callback || 0) + 1;
                 break;
             case 'not_interested':
             case 'hired_elsewhere':
@@ -106,9 +122,6 @@ async function processStatsUpdate(db, companyId, data, triggerName) {
                 stats.voicemail = (stats.voicemail || 0) + 1;
                 break;
             default:
-                if (data.isContact) {
-                    stats.connected = (stats.connected || 0) + 1;
-                }
                 break;
         }
 
@@ -122,12 +135,15 @@ async function processStatsUpdate(db, companyId, data, triggerName) {
         }
         stats.byUser[userId].dials = (stats.byUser[userId].dials || 0) + 1;
 
-        if (['interested', 'callback'].includes(outcome) || data.isContact) {
+        // User stats also use the same consistent definition
+        if (data.isContact) {
             stats.byUser[userId].connected = (stats.byUser[userId].connected || 0) + 1;
         }
 
         stats.updatedAt = new Date();
+
         transaction.set(statsRef, stats);
+        transaction.set(processedRef, { processedAt: new Date() });
     });
 
     return dateKey;
@@ -149,7 +165,7 @@ exports.onActivityLogCreated = onDocumentCreated(
         }
 
         try {
-            const dateKey = await processStatsUpdate(db, event.params.companyId, data, 'StatsAggregator');
+            const dateKey = await processStatsUpdate(db, event.params.companyId, data, event.params.logId, 'StatsAggregator');
             if (dateKey) {
                 console.log(`[StatsAggregator] Updated stats for ${event.params.companyId}/${dateKey}`);
             }
@@ -172,7 +188,7 @@ exports.onLegacyActivityCreated = onDocumentCreated(
         if (!data) return;
 
         try {
-            const dateKey = await processStatsUpdate(db, event.params.companyId, data, 'LegacyAggregator');
+            const dateKey = await processStatsUpdate(db, event.params.companyId, data, event.params.activityId, 'LegacyAggregator');
             if (dateKey) {
                 console.log(`[LegacyAggregator] Updated stats for ${event.params.companyId}/${dateKey}`);
             }
@@ -198,7 +214,7 @@ exports.onLeadsActivityLogCreated = onDocumentCreated(
         }
 
         try {
-            const dateKey = await processStatsUpdate(db, event.params.companyId, data, 'LeadsAggregator');
+            const dateKey = await processStatsUpdate(db, event.params.companyId, data, event.params.logId, 'LeadsAggregator');
             if (dateKey) {
                 console.log(`[LeadsAggregator] Updated stats for LEAD activity: ${event.params.companyId}/${dateKey}`);
             }
