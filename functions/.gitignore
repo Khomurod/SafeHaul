@@ -1,0 +1,14 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Environment & Secrets
+.env
+.env.local
+*.local
+
+# Logs
+*.log
+
+# Cache
+.cache/
