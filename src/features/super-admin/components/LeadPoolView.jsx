@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { functions, db } from '@lib/firebase';
-import { doc, onSnapshot, setDoc } from 'firebase/firestore';
+import { doc, onSnapshot, setDoc, updateDoc } from 'firebase/firestore';
 import {
     Loader2,
     RefreshCw,
@@ -98,6 +98,32 @@ export function LeadPoolView({ onDataUpdate }) {
     // Maintenance mode
     const [maintenanceMode, setMaintenanceMode] = useState(false);
     const [savingMaintenance, setSavingMaintenance] = useState(false);
+
+    // Toggle loading state for individual companies
+    const [togglingCompany, setTogglingCompany] = useState(null);
+
+    // --- Toggle Company Active Status ---
+    const toggleCompanyActive = async (companyId, companyName, currentStatus) => {
+        const action = currentStatus ? 'deactivate' : 'activate';
+        if (!window.confirm(`${action.toUpperCase()} "${companyName}"?\n\n${currentStatus
+            ? 'This company will stop receiving platform leads.'
+            : 'This company will start receiving platform leads.'}`)) {
+            return;
+        }
+
+        setTogglingCompany(companyId);
+        try {
+            await updateDoc(doc(db, 'companies', companyId), {
+                isActive: !currentStatus
+            });
+            // Refresh the list
+            fetchCompanyDistribution();
+        } catch (err) {
+            alert(`Failed to ${action} company: ${err.message}`);
+        } finally {
+            setTogglingCompany(null);
+        }
+    };
 
     // --- Fetch Data ---
     const fetchSupplyData = useCallback(async () => {
@@ -523,17 +549,32 @@ export function LeadPoolView({ onDataUpdate }) {
                                                 </div>
                                             </td>
                                             <td className="py-3 px-4 text-center">
-                                                {isActive ? (
-                                                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-green-100 text-green-700 text-xs font-semibold">
-                                                        <CheckCircle size={12} />
-                                                        Active
-                                                    </span>
-                                                ) : (
-                                                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-100 text-gray-600 text-xs font-semibold">
-                                                        <XCircle size={12} />
-                                                        Inactive
-                                                    </span>
-                                                )}
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        toggleCompanyActive(company.id, company.companyName, isActive);
+                                                    }}
+                                                    disabled={togglingCompany === company.id}
+                                                    className="group relative"
+                                                    title={`Click to ${isActive ? 'deactivate' : 'activate'} this company`}
+                                                >
+                                                    {togglingCompany === company.id ? (
+                                                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-blue-100 text-blue-600 text-xs font-semibold">
+                                                            <Loader2 size={12} className="animate-spin" />
+                                                            Updating...
+                                                        </span>
+                                                    ) : isActive ? (
+                                                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-green-100 text-green-700 text-xs font-semibold hover:bg-green-200 transition-colors cursor-pointer">
+                                                            <CheckCircle size={12} />
+                                                            Active
+                                                        </span>
+                                                    ) : (
+                                                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-100 text-red-600 text-xs font-semibold hover:bg-red-200 transition-colors cursor-pointer">
+                                                            <XCircle size={12} />
+                                                            Inactive
+                                                        </span>
+                                                    )}
+                                                </button>
                                             </td>
                                             <td className="py-3 px-4 text-center">
                                                 <span className="font-semibold text-gray-900">{company.dailyQuota || 0}</span>

@@ -1,12 +1,29 @@
+# Critical Functions - Core application functionality
+# These functions must be deployed first for the app to work
 $functions = @(
-    "getCompanyProfile", "deleteCompany", "getTeamPerformanceHistory", "moveApplication", "sendAutomatedEmail", "runMigration",
+    # Company & Profile (required for login/auth)
+    "getCompanyProfile", "resolveCompanySlug", "deleteCompany", "getTeamPerformanceHistory",
+    
+    # Application Processing (core workflow)
+    "moveApplication", "sendAutomatedEmail", "runMigration",
+    
+    # Stats Aggregation (real-time updates)
     "onActivityLogCreated", "onLegacyActivityCreated", "onLeadsActivityLogCreated",
+    
+    # Lead Distribution (daily operations)
     "planLeadDistribution", "runLeadDistribution", "distributeDailyLeads", "getLeadSupplyAnalytics",
-    "cleanupBadLeads", "handleLeadOutcome", "confirmDriverInterest", "migrateDriversToLeads"
+    "getCompanyDistributionStatus", "processCompanyDistribution",
+    
+    # Lead Management
+    "cleanupBadLeads", "handleLeadOutcome", "confirmDriverInterest", "migrateDriversToLeads",
+    "recallAllPlatformLeads", "forceUnlockPool", "getBadLeadsAnalytics"
 )
 
 $logFile = "deployment_critical_report.md"
 "# Critical Functions Deployment Report - $(Get-Date)" | Out-File $logFile
+"" | Out-File $logFile -Append
+"Total critical functions: $($functions.Count)" | Out-File $logFile -Append
+"" | Out-File $logFile -Append
 "| Function | Status | Time |" | Out-File $logFile -Append
 "|---|---|---|" | Out-File $logFile -Append
 

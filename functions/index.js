@@ -95,6 +95,7 @@ const smsIntegrations = require('./integrations/index');
 
 exports.connectFacebookPage = facebook.connectFacebookPage;
 exports.facebookWebhook = facebook.facebookWebhook;
+exports.facebookWebhookV1 = facebook.facebookWebhookV1; // V1 version - public by default
 exports.saveIntegrationConfig = smsIntegrations.saveIntegrationConfig;
 exports.sendTestSMS = smsIntegrations.sendTestSMS;
 exports.executeReactivationBatch = smsIntegrations.executeReactivationBatch;

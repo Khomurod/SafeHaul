@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { getFieldValue } from '@shared/utils/helpers.js';
-import { Building, FileText, Edit2, Trash2, Search, ChevronLeft, ChevronRight, Loader2, Crown, Shield, MessageSquare, Phone, Database } from 'lucide-react';
+import { Building, FileText, Edit2, Trash2, Search, ChevronLeft, ChevronRight, Loader2, Crown, Shield, MessageSquare, Phone, Database, CheckCircle, XCircle } from 'lucide-react';
 import { db } from '@lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { SafeHaulLoader } from '@shared/components/SafeHaulLoader';
 
 function Card({ title, icon, children, className = '' }) {
@@ -34,6 +34,34 @@ export function CompaniesView({
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(20);
     const [enrichedCompanies, setEnrichedCompanies] = useState({}); // ID -> { defaultPhoneNumber, smsProvider }
+    const [togglingCompany, setTogglingCompany] = useState(null);
+
+    // Toggle company active status
+    const toggleCompanyActive = async (e, companyId, companyName, currentStatus) => {
+        e.stopPropagation();
+        const action = currentStatus ? 'deactivate' : 'activate';
+        if (!window.confirm(`${action.toUpperCase()} "${companyName}"?\n\n${currentStatus
+            ? 'This company will stop receiving platform leads.'
+            : 'This company will start receiving platform leads.'}`)) {
+            return;
+        }
+
+        setTogglingCompany(companyId);
+        try {
+            await updateDoc(doc(db, 'companies', companyId), {
+                isActive: !currentStatus
+            });
+            // Update local state to reflect change
+            setEnrichedCompanies(prev => ({
+                ...prev,
+                [companyId]: { ...prev[companyId], isActive: !currentStatus }
+            }));
+        } catch (err) {
+            alert(`Failed to ${action} company: ${err.message}`);
+        } finally {
+            setTogglingCompany(null);
+        }
+    };
 
     useEffect(() => {
         if (!isIntegrationMode || companyList.length === 0) return;
@@ -130,16 +158,17 @@ export function CompaniesView({
                             <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider border-b border-gray-200">Company Name</th>
                             <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider border-b border-gray-200">Slug / ID</th>
                             <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider border-b border-gray-200">{isIntegrationMode ? "SMS Number" : "Plan"}</th>
+                            <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider border-b border-gray-200 text-center">Status</th>
                             <th className="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider border-b border-gray-200 text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 bg-white">
                         {listLoading ? (
-                            <tr><td colSpan="4" className="p-10 text-center text-gray-500"><SafeHaulLoader size="h-10 w-10" className="mx-auto mb-2" />Loading companies...</td></tr>
+                            <tr><td colSpan="5" className="p-10 text-center text-gray-500"><SafeHaulLoader size="h-10 w-10" className="mx-auto mb-2" />Loading companies...</td></tr>
                         ) : statsError.companies ? (
-                            <tr><td colSpan="4" className="p-10 text-center text-red-500">Error loading companies.</td></tr>
+                            <tr><td colSpan="5" className="p-10 text-center text-red-500">Error loading companies.</td></tr>
                         ) : filteredCompanyList.length === 0 ? (
-                            <tr><td colSpan="4" className="p-10 text-center text-gray-400">No companies found.</td></tr>
+                            <tr><td colSpan="5" className="p-10 text-center text-gray-400">No companies found.</td></tr>
                         ) : (
                             paginatedData.map(company => (
                                 <tr
@@ -188,6 +217,28 @@ export function CompaniesView({
                                                 <Shield size={12} /> Free Plan
                                             </span>
                                         )}
+                                    </td>
+                                    <td className="px-6 py-4 align-middle text-center">
+                                        <button
+                                            onClick={(e) => toggleCompanyActive(e, company.id, company.companyName, company.isActive !== false)}
+                                            disabled={togglingCompany === company.id}
+                                            className="group"
+                                            title={`Click to ${company.isActive !== false ? 'deactivate' : 'activate'}`}
+                                        >
+                                            {togglingCompany === company.id ? (
+                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 text-blue-600 text-xs font-semibold">
+                                                    <Loader2 size={10} className="animate-spin" />
+                                                </span>
+                                            ) : company.isActive !== false ? (
+                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-xs font-semibold hover:bg-green-200 cursor-pointer">
+                                                    <CheckCircle size={10} /> Active
+                                                </span>
+                                            ) : (
+                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 text-red-600 text-xs font-semibold hover:bg-red-200 cursor-pointer">
+                                                    <XCircle size={10} /> Inactive
+                                                </span>
+                                            )}
+                                        </button>
                                     </td>
                                     <td className="px-6 py-4 align-middle text-right">
                                         <div className="flex justify-end gap-2">

@@ -1,0 +1,88 @@
+# Deployed Firebase Functions
+
+Last Updated: 2026-01-22
+
+## All Functions (48 total)
+
+### 1. Documents & Email & Public Signing
+- sealDocument
+- notifySigner
+- getPublicEnvelope
+- submitPublicEnvelope
+
+### 2. Auth & User Management
+- createPortalUser
+- deletePortalUser
+- updatePortalUser
+- onMembershipWrite
+
+### 3. Company Admin
+- getCompanyProfile
+- resolveCompanySlug
+- joinCompanyTeam
+- deleteCompany
+- getTeamPerformanceHistory
+
+### 4. Applications & Driver Sync
+- onApplicationSubmitted
+- onLeadSubmitted
+- syncDriverOnLog
+- syncDriverOnActivity
+- moveApplication
+- sendAutomatedEmail
+
+### 5. Leads & Distribution
+- cleanupBadLeads
+- handleLeadOutcome
+- migrateDriversToLeads
+- confirmDriverInterest
+- runLeadDistribution
+- planLeadDistribution
+- distributeDailyLeads
+- getLeadSupplyAnalytics
+- recallAllPlatformLeads
+- forceUnlockPool
+- getBadLeadsAnalytics
+- getCompanyDistributionStatus
+
+### 6. System Integrity
+- syncSystemStructure
+- runSecurityAudit
+- getSignedUploadUrl
+
+### 7. Email Testing
+- testEmailConnection
+
+### 8. Data Migration
+- runMigration
+
+### 9. Global Search
+- searchUnifiedData
+
+### 10. Scheduled Jobs
+- debugAppCounts
+
+### 11. Integrations
+- connectFacebookPage
+- facebookWebhook
+- saveIntegrationConfig
+- sendTestSMS
+- executeReactivationBatch
+- assignPhoneNumber
+- addManualPhoneNumber
+- addPhoneLine
+- removePhoneLine
+- testLineConnection
+- verifyLineConnection
+
+### 12. Stats Aggregation
+- onActivityLogCreated
+- onLegacyActivityCreated
+- onLeadsActivityLogCreated
+
+### 13. Cloud Tasks Worker
+- processCompanyDistribution
+
+### 14. Stats Backfill (Admin Tools)
+- backfillCompanyStats
+- backfillAllStats
