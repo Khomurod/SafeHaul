@@ -1,0 +1,153 @@
+/* 
+ * Mission Control Theme - Dark Mode Design System
+ * SafeHaul Engagement Engine
+ */
+
+:root {
+  /* Core Colors - Deep Space Palette */
+  --mc-bg-primary: #0A0E17;
+  --mc-bg-secondary: #131A2B;
+  --mc-bg-tertiary: #1A2332;
+  --mc-bg-card: #0F1623;
+  
+  /* Accent Colors */
+  --mc-accent-primary: #3B82F6;
+  --mc-accent-primary-glow: rgba(59, 130, 246, 0.3);
+  --mc-accent-success: #10B981;
+  --mc-accent-success-glow: rgba(16, 185, 129, 0.3);
+  --mc-accent-warning: #F59E0B;
+  --mc-accent-warning-glow: rgba(245, 158, 11, 0.3);
+  --mc-accent-danger: #EF4444;
+  --mc-accent-danger-glow: rgba(239, 68, 68, 0.3);
+  --mc-accent-purple: #8B5CF6;
+  --mc-accent-purple-glow: rgba(139, 92, 246, 0.3);
+  
+  /* Text Colors */
+  --mc-text-primary: #F8FAFC;
+  --mc-text-secondary: #94A3B8;
+  --mc-text-muted: #64748B;
+  --mc-text-dimmed: #475569;
+  
+  /* Border & Surface */
+  --mc-border-subtle: rgba(255, 255, 255, 0.06);
+  --mc-border-visible: rgba(255, 255, 255, 0.12);
+  --mc-surface-glass: rgba(255, 255, 255, 0.03);
+  --mc-surface-hover: rgba(255, 255, 255, 0.06);
+  
+  /* Shadows */
+  --mc-shadow-glow-blue: 0 0 40px rgba(59, 130, 246, 0.15);
+  --mc-shadow-glow-green: 0 0 40px rgba(16, 185, 129, 0.15);
+  --mc-shadow-glow-purple: 0 0 40px rgba(139, 92, 246, 0.15);
+  --mc-shadow-card: 0 4px 24px rgba(0, 0, 0, 0.4);
+  --mc-shadow-elevated: 0 8px 48px rgba(0, 0, 0, 0.5);
+  
+  /* Typography */
+  --mc-font-display: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --mc-font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  
+  /* Spacing Scale */
+  --mc-space-xs: 4px;
+  --mc-space-sm: 8px;
+  --mc-space-md: 16px;
+  --mc-space-lg: 24px;
+  --mc-space-xl: 32px;
+  --mc-space-2xl: 48px;
+  --mc-space-3xl: 64px;
+  
+  /* Border Radius */
+  --mc-radius-sm: 8px;
+  --mc-radius-md: 12px;
+  --mc-radius-lg: 16px;
+  --mc-radius-xl: 24px;
+  --mc-radius-2xl: 32px;
+  --mc-radius-full: 9999px;
+  
+  /* Transitions */
+  --mc-transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --mc-transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  --mc-transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
+  --mc-transition-spring: 500ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Base Mission Control Container */
+.mission-control {
+  background: var(--mc-bg-primary);
+  color: var(--mc-text-primary);
+  font-family: var(--mc-font-display);
+  min-height: 100vh;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Gradient Mesh Background */
+.mission-control::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: 
+    radial-gradient(ellipse 80% 50% at 20% 40%, rgba(59, 130, 246, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse 60% 40% at 80% 20%, rgba(139, 92, 246, 0.06) 0%, transparent 50%),
+    radial-gradient(ellipse 50% 30% at 50% 80%, rgba(16, 185, 129, 0.05) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.mission-control > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Typography Utilities */
+.mc-text-display {
+  font-size: 3rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.mc-text-headline {
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.mc-text-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.mc-text-body {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  line-height: 1.6;
+}
+
+.mc-text-caption {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--mc-text-muted);
+}
+
+.mc-text-mono {
+  font-family: var(--mc-font-mono);
+  font-size: 0.875rem;
+}
+
+/* Status Colors */
+.mc-status-active {
+  color: var(--mc-accent-success);
+}
+
+.mc-status-pending {
+  color: var(--mc-accent-warning);
+}
+
+.mc-status-failed {
+  color: var(--mc-accent-danger);
+}
+
+.mc-status-idle {
+  color: var(--mc-text-muted);
+}

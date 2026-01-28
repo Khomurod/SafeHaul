@@ -1,0 +1,85 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // --- HELPERS ---
+    function isSignedIn() { return request.auth != null; }
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+    
+    // ROBUST SUPER ADMIN CHECK (Aligned with Firestore)
+    function isSuperAdmin() {
+      return isSignedIn() && 
+             (request.auth.token.email_verified == true || request.auth.token.email == 'holmurod96@gmail.com') && (
+         request.auth.token.email.matches('.*@safehaul\\.io$') || 
+         (request.auth.token.keys().hasAny(['roles']) && request.auth.token.roles.keys().hasAny(['globalRole']) && request.auth.token.roles.globalRole == 'super_admin') ||
+         (request.auth.token.keys().hasAny(['globalRole']) && request.auth.token.globalRole == 'super_admin')
+      );
+    }
+
+    // COMPANY TEAM CHECK
+    function isCompanyTeam(companyId) {
+      return isSignedIn() && (
+        isSuperAdmin() ||
+        (
+          request.auth.token.keys().hasAny(['roles']) && 
+          request.auth.token.roles.keys().hasAny([companyId]) && 
+          request.auth.token.roles[companyId] in ['company_admin', 'hr_user', 'recruiter']
+        )
+      );
+    }
+    
+    // VALIDATION
+    function isValidFile() {
+      // Allow images and PDFs, max 20MB (increased for high-quality envelopes)
+      return request.resource.size < 20 * 1024 * 1024 &&
+             request.resource.contentType.matches('application/pdf|image/.*');
+    }
+
+    // --- RULES ---
+
+    // 1. Company Assets (Logos, Branding)
+    // Public Read, Team Write
+    match /company_assets/{companyId}/{allPaths=**} {
+      allow read: if true;
+      allow create, update: if isCompanyTeam(companyId) && isValidFile();
+      allow delete: if isCompanyTeam(companyId);
+    }
+
+    // 2. Driver Private Documents
+    match /drivers/{driverId}/{allPaths=**} {
+      allow read, write: if isOwner(driverId) || isSuperAdmin();
+    }
+
+    // 3. Application Attachments
+    match /companies/{companyId}/applications/{applicantId}/{allPaths=**} {
+      allow read: if isOwner(applicantId) || isCompanyTeam(companyId) || isSuperAdmin();
+      allow create, update: if isSuperAdmin() || 
+                              (isSignedIn() && (isOwner(applicantId) || isCompanyTeam(companyId)) && isValidFile());
+      allow delete: if isSuperAdmin() || 
+                       (isSignedIn() && (isOwner(applicantId) || isCompanyTeam(companyId)));
+    }
+
+    // 4. Secure Documents (E-Signature Envelopes and Templates)
+    // Path: secure_documents/{companyId}/{folder}/{fileName}
+    match /secure_documents/{companyId}/{folder}/{allPaths=**} {
+       // Read: Company Team OR Super Admin. 
+       // NOTE: Drivers/Recipients access these via generated Signed URLs from the backend.
+       // We allow authenticated reads if they are explicitly part of the company team.
+       allow read: if isCompanyTeam(companyId) || isSuperAdmin();
+       
+       // Write: Company Team Only
+       allow create, update: if isCompanyTeam(companyId) && isValidFile();
+       allow delete: if isCompanyTeam(companyId);
+    }
+
+    // 5. Global Leads Files
+    match /global_leads/{applicantId}/{allPaths=**} {
+      allow read, write: if isOwner(applicantId) || isSuperAdmin();
+    }
+    
+    // 6. System Health Tests
+    match /system_health_tests/{fileName} {
+      allow read, write: if isSuperAdmin();
+    }
+  }
+}
