@@ -13,9 +13,21 @@ const { decrypt } = require("./integrations/encryption");
 const assertCompanyAdmin = async (userId, companyId) => {
     if (!userId || !companyId) throw new HttpsError('invalid-argument', 'Missing authentication context.');
 
-    // 1. Check Team Membership (Subcollection)
+    // 1. Check Team Membership (Subcollection - Legacy)
     const memberSnap = await db.collection('companies').doc(companyId).collection('team').doc(userId).get();
     if (memberSnap.exists) return; // Success
+
+    // 1b. Check Global Memberships Collection (New System)
+    try {
+        const memSnapshot = await db.collection('memberships')
+            .where('userId', '==', userId)
+            .where('companyId', '==', companyId)
+            .limit(1)
+            .get();
+        if (!memSnapshot.empty) return; // Success
+    } catch (err) {
+        console.warn(`[Auth Warning] Failed to check memberships for ${userId}: ${err.message}`);
+    }
 
     // 2. Check Company Document Fields (Owner/Creator Fallback)
     const companySnap = await db.collection('companies').doc(companyId).get();
