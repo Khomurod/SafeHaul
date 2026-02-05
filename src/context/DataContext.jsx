@@ -62,7 +62,7 @@ export function DataProvider({ children }) {
           setCurrentUser(user);
 
           // 1. Get Claims
-          const idTokenResult = await user.getIdTokenResult();
+          const idTokenResult = await user.getIdTokenResult(true);
           const claims = idTokenResult.claims;
           setCurrentUserClaims(claims);
 
