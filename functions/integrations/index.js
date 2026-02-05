@@ -16,10 +16,16 @@ const encryptedCallOptions = {
 function hasCompanyIntegrationAccess(request, companyId) {
     const token = request.auth?.token || {};
     const roles = token.roles || {};
+    
+    // Support both token.globalRole and token.roles.globalRole
     const globalRole = token.globalRole || roles.globalRole;
 
-    const isSuperAdmin = globalRole === 'super_admin' || token.email?.endsWith('@safehaul.io');
-    const isCompanyAdmin = roles[companyId] === 'company_admin';
+    const isSuperAdmin = globalRole === 'super_admin' || 
+                        token.email?.endsWith('@safehaul.io') || 
+                        token.admin === true;
+                        
+    const isCompanyAdmin = roles[companyId] === 'company_admin' || 
+                          roles[companyId] === 'admin';
 
     return { isSuperAdmin, isCompanyAdmin, globalRole };
 }
@@ -40,7 +46,7 @@ exports.saveIntegrationConfig = onCall(encryptedCallOptions, async (request) => 
     const { isSuperAdmin, isCompanyAdmin, globalRole } = hasCompanyIntegrationAccess(request, companyId);
     if (!isSuperAdmin && !isCompanyAdmin) {
         console.warn(`[PermissionDenied] saveIntegrationConfig user=${request.auth.uid} globalRole=${globalRole} company=${companyId}`);
-        throw new HttpsError('permission-denied', 'Only Company Admins can save integration configs.');
+        throw new HttpsError('permission-denied', 'Unauthorized: Only Super Admins or Company Admins can manage integrations.');
     }
 
     // CRITICAL: Fetch existing config to preserve credentials if __PRESERVE__ marker is sent
