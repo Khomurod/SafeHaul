@@ -381,7 +381,7 @@ exports.verifyLineConnection = onCall(encryptedCallOptions, async (request) => {
 
     if (!isSuperAdmin && !isCompanyAdmin) {
         console.warn(`[PermissionDenied] verifyLineConnection user=${request.auth.uid} globalRole=${globalRole} company=${companyId}`);
-        throw new HttpsError('permission-denied', 'Only Company Admins can verify connections.');
+        throw new HttpsError('permission-denied', 'Unauthorized: Only Super Admins or Company Admins can verify connections.');
     }
 
     try {
@@ -539,7 +539,7 @@ exports.addPhoneLine = onCall(encryptedCallOptions, async (request) => {
 
     if (!isSuperAdmin && !isCompanyAdmin) {
         console.warn(`[PermissionDenied] addPhoneLine user=${request.auth.uid} globalRole=${globalRole} company=${companyId}`);
-        throw new HttpsError('permission-denied', 'You do not have permission to add phone lines to this company.');
+        throw new HttpsError('permission-denied', 'Unauthorized: Only Super Admins or Company Admins can add phone lines.');
     }
 
     const db = admin.firestore();

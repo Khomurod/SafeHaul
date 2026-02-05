@@ -302,6 +302,11 @@ service cloud.firestore {
       allow delete: if isSuperAdmin();
     }
 
+    // --- SYSTEM SETTINGS ---
+    match /system_settings/{settingId} {
+      allow read, write: if isSuperAdmin();
+    }
+
     // --- JOB POSTS (Public Job Board) ---
     match /job_posts/{postId} {
       // Public read for the job board (drivers browsing jobs)
