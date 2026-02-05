@@ -12,6 +12,18 @@ const encryptedCallOptions = {
     secrets: ['SMS_ENCRYPTION_KEY']
 };
 
+
+function hasCompanyIntegrationAccess(request, companyId) {
+    const token = request.auth?.token || {};
+    const roles = token.roles || {};
+    const globalRole = token.globalRole || roles.globalRole;
+
+    const isSuperAdmin = globalRole === 'super_admin' || token.email?.endsWith('@safehaul.io');
+    const isCompanyAdmin = roles[companyId] === 'company_admin';
+
+    return { isSuperAdmin, isCompanyAdmin, globalRole };
+}
+
 // --- 1. Save Configuration (Super Admin) ---
 exports.saveIntegrationConfig = onCall(encryptedCallOptions, async (request) => {
     // RBAC Check: Must be Super Admin (or equivalent high-privilege role)
@@ -22,6 +34,13 @@ exports.saveIntegrationConfig = onCall(encryptedCallOptions, async (request) => 
     const { companyId, provider, config } = request.data;
     if (!companyId || !provider || !config) {
         throw new HttpsError('invalid-argument', 'Missing required fields.');
+    }
+
+    // Permission Check: Allow Super Admin OR Company Admin
+    const { isSuperAdmin, isCompanyAdmin, globalRole } = hasCompanyIntegrationAccess(request, companyId);
+    if (!isSuperAdmin && !isCompanyAdmin) {
+        console.warn(`[PermissionDenied] saveIntegrationConfig user=${request.auth.uid} globalRole=${globalRole} company=${companyId}`);
+        throw new HttpsError('permission-denied', 'Only Company Admins can save integration configs.');
     }
 
     // CRITICAL: Fetch existing config to preserve credentials if __PRESERVE__ marker is sent
@@ -340,15 +359,22 @@ exports.verifyLineConnection = onCall(encryptedCallOptions, async (request) => {
 
     // Check Permissions (Aligned with companyAdmin.js)
     const db = admin.firestore();
-    const membershipRef = db.collection('memberships')
-        .where('userId', '==', request.auth.uid)
-        .where('companyId', '==', companyId);
+    const { isSuperAdmin, isCompanyAdmin: isCompanyAdminByClaims, globalRole } = hasCompanyIntegrationAccess(request, companyId);
 
-    const membershipSnap = await membershipRef.get();
-    const isSuperAdmin = request.auth.token.role === 'super_admin';
-    const isCompanyAdmin = !membershipSnap.empty && membershipSnap.docs[0].data().role === 'company_admin';
+    let isCompanyAdmin = isCompanyAdminByClaims;
+    if (!isSuperAdmin && !isCompanyAdmin) {
+        // Fallback for stale token claims: check authoritative membership record.
+        const membershipRef = db.collection('memberships')
+            .where('userId', '==', request.auth.uid)
+            .where('companyId', '==', companyId)
+            .where('role', '==', 'company_admin')
+            .limit(1);
+        const membershipSnap = await membershipRef.get();
+        isCompanyAdmin = !membershipSnap.empty;
+    }
 
     if (!isSuperAdmin && !isCompanyAdmin) {
+        console.warn(`[PermissionDenied] verifyLineConnection user=${request.auth.uid} globalRole=${globalRole} company=${companyId}`);
         throw new HttpsError('permission-denied', 'Only Company Admins can verify connections.');
     }
 
@@ -503,16 +529,10 @@ exports.addPhoneLine = onCall(encryptedCallOptions, async (request) => {
     }
 
     // Permission Check: Allow Super Admin OR Company Admin (Self-Service)
-    // Permission Check: Allow Super Admin OR Company Admin (Self-Service)
-    const token = request.auth.token;
-    const roles = token.roles || {};
-    const globalRole = token.globalRole || roles.globalRole;
-
-    const isSuperAdmin = globalRole === 'super_admin' || token.email?.endsWith('@safehaul.io');
-    const isCompanyAdmin = roles[companyId] === 'company_admin';
+    const { isSuperAdmin, isCompanyAdmin, globalRole } = hasCompanyIntegrationAccess(request, companyId);
 
     if (!isSuperAdmin && !isCompanyAdmin) {
-        console.warn(`[PermissionDenied] User: ${request.auth.uid}, GlobalRole: ${globalRole}, Target: ${companyId}`);
+        console.warn(`[PermissionDenied] addPhoneLine user=${request.auth.uid} globalRole=${globalRole} company=${companyId}`);
         throw new HttpsError('permission-denied', 'You do not have permission to add phone lines to this company.');
     }
 
@@ -677,15 +697,10 @@ exports.removePhoneLine = onCall(encryptedCallOptions, async (request) => {
     }
 
     // Permission Check: Allow Super Admin OR Company Admin (Self-Service)
-    const token = request.auth.token;
-    const roles = token.roles || {};
-    const globalRole = token.globalRole || roles.globalRole;
-
-    const isSuperAdmin = globalRole === 'super_admin' || token.email?.endsWith('@safehaul.io');
-    const isCompanyAdmin = roles[companyId] === 'company_admin';
+    const { isSuperAdmin, isCompanyAdmin, globalRole } = hasCompanyIntegrationAccess(request, companyId);
 
     if (!isSuperAdmin && !isCompanyAdmin) {
-        console.warn(`[PermissionDenied] User: ${request.auth.uid}, GlobalRole: ${globalRole}, Target: ${companyId}`);
+        console.warn(`[PermissionDenied] removePhoneLine user=${request.auth.uid} globalRole=${globalRole} company=${companyId}`);
         throw new HttpsError('permission-denied', 'You do not have permission to remove phone lines from this company.');
     }
 
