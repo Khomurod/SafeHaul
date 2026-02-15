@@ -7,7 +7,7 @@ export function useBulkImport() {
     const [importMethod, setImportMethod] = useState('file');
     const [sheetUrl, setSheetUrl] = useState('');
 
-    const parseBuffer = async (buffer) => {
+    const parseBuffer = async (buffer, fileType, fileName) => {
         return new Promise((resolve, reject) => {
             try {
                 // Instantiate worker
@@ -34,7 +34,7 @@ export function useBulkImport() {
                     reject(err);
                 };
 
-                worker.postMessage({ buffer });
+                worker.postMessage({ buffer, fileType, fileName });
 
             } catch (err) {
                 console.error("Main Thread Error:", err);
@@ -49,7 +49,7 @@ export function useBulkImport() {
         if (!file) return;
         setCsvData([]);
         const reader = new FileReader();
-        reader.onload = async (event) => await parseBuffer(event.target.result);
+        reader.onload = async (event) => await parseBuffer(event.target.result, file.type, file.name);
         reader.readAsArrayBuffer(file);
         e.target.value = '';
     };
@@ -67,7 +67,7 @@ export function useBulkImport() {
             const response = await fetch(exportUrl);
             if (!response.ok) throw new Error("Failed to fetch sheet. Check permissions (Anyone with link).");
             const arrayBuffer = await response.arrayBuffer();
-            await parseBuffer(arrayBuffer);
+            await parseBuffer(arrayBuffer, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'GoogleSheet.xlsx');
         } catch (error) {
             console.error("Sheet Error:", error);
             alert("Error importing sheet: " + error.message);

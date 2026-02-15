@@ -78,16 +78,9 @@ export function LoginScreen() {
         getMembershipsForUser(user.uid)
       ]);
 
-      // Check Super Admin based on the same claims shape enforced by Firestore rules.
-      // Force refresh so newly assigned claims are picked up immediately after login.
-      const token = await user.getIdTokenResult(true);
-      const claimsGlobalRole = token.claims.globalRole || token.claims.roles?.globalRole;
-      const isSuperAdmin = claimsGlobalRole === 'super_admin';
-
-      // Keep a diagnostic warning to make claim mismatches obvious in production logs.
-      if (!isSuperAdmin && userDoc?.role === 'super_admin') {
-        console.warn('User document marks super_admin, but auth token claims are missing super_admin privileges.');
-      }
+      // Check Super Admin via claims or role
+      const token = await user.getIdTokenResult();
+      const isSuperAdmin = token.claims.super_admin || userDoc?.role === 'super_admin';
 
       if (isSuperAdmin) {
         navigate('/super-admin', { replace: true });

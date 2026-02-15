@@ -53,17 +53,17 @@ describe('CampaignsDashboard', () => {
         let sessionCallback;
 
         mockOnSnapshot.mockImplementation((q, cb) => {
-             // Heuristic: drafts query has 'campaign_drafts', sessions has 'bulk_sessions'
-             // But 'q' is an opaque object here.
-             // However, React runs effects in order.
-             // 1. Fetch Drafts
-             // 1b. Fetch Sessions
-             if (!draftCallback) {
-                 draftCallback = cb;
-             } else {
-                 sessionCallback = cb;
-             }
-             return vi.fn();
+            // Heuristic: drafts query has 'campaign_drafts', sessions has 'bulk_sessions'
+            // But 'q' is an opaque object here.
+            // However, React runs effects in order.
+            // 1. Fetch Drafts
+            // 1b. Fetch Sessions
+            if (!draftCallback) {
+                draftCallback = cb;
+            } else {
+                sessionCallback = cb;
+            }
+            return vi.fn();
         });
 
         render(<CampaignsDashboard companyId="123" />);
@@ -85,8 +85,10 @@ describe('CampaignsDashboard', () => {
         ];
 
         // Trigger updates
-        if (draftCallback) draftCallback({ docs: draftDocs });
-        if (sessionCallback) sessionCallback({ docs: sessionDocs });
+        await React.act(async () => {
+            if (draftCallback) draftCallback({ docs: draftDocs });
+            if (sessionCallback) sessionCallback({ docs: sessionDocs });
+        });
 
         // Check if Drafts are shown by default
         await waitFor(() => {

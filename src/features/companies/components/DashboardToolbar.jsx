@@ -1,8 +1,7 @@
 // src/features/companies/components/DashboardToolbar.jsx
 
-import React, { useState, useMemo, useEffect, useRef, memo } from 'react';
-import { Search, Filter, X, Zap, Briefcase, Info, Clock, Eye, CheckSquare, Square, RefreshCw, Users } from 'lucide-react';
-import { ALL_COLUMNS } from './tableConfig';
+import React, { useState, useEffect, useMemo, memo } from 'react';
+import { Search, Filter, X, Zap, Briefcase, Info, Clock, RefreshCw, Users } from 'lucide-react';
 
 // --- CONFIGURATION ---
 const DRIVER_TYPE_OPTIONS = [
@@ -12,46 +11,35 @@ const DRIVER_TYPE_OPTIONS = [
 ];
 
 // --- SECTION TIMER COMPONENT ---
+// M5 FIX: Now fetches rotationEndsAt from system_settings instead of local 7AM calculation
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db } from '@lib/firebase';
+
 function BatchTimer({ startTime }) {
     const [timeLeft, setTimeLeft] = useState('--:--:--');
     const [isUrgent, setIsUrgent] = useState(false);
     const [status, setStatus] = useState('pending'); // pending, active, expired
+    const [rotationEndsAt, setRotationEndsAt] = useState(null);
+
+    // Listen to system_settings/distribution for rotationEndsAt
+    useEffect(() => {
+        const unsub = onSnapshot(doc(db, 'system_settings', 'distribution'), (snap) => {
+            if (snap.exists() && snap.data().rotationEndsAt) {
+                setRotationEndsAt(snap.data().rotationEndsAt.toDate());
+            }
+        });
+        return () => unsub();
+    }, []);
 
     useEffect(() => {
+        if (!rotationEndsAt) {
+            setStatus('pending');
+            return;
+        }
+
         const calculate = () => {
             const now = new Date();
-
-            // 1. Get current time parts in CT
-            const formatter = new Intl.DateTimeFormat('en-US', {
-                timeZone: 'America/Chicago',
-                year: 'numeric', month: 'numeric', day: 'numeric',
-                hour: 'numeric', minute: 'numeric', second: 'numeric',
-                hour12: false
-            });
-
-            const parts = formatter.formatToParts(now);
-            const getPart = (type) => {
-                const part = parts.find(p => p.type === type);
-                return part ? parseInt(part.value) : 0;
-            };
-
-            const ctYear = getPart('year');
-            const ctMonth = getPart('month');
-            const ctDay = getPart('day');
-            const ctHour = getPart('hour');
-            const ctMin = getPart('minute');
-            const ctSec = getPart('second');
-
-            // 2. Construct "Next 7 AM" in CT
-            // We treat the CT parts as if they were local to calculate the diff
-            const ctNowAsLocal = new Date(ctYear, ctMonth - 1, ctDay, ctHour, ctMin, ctSec);
-            const ctTargetAsLocal = new Date(ctYear, ctMonth - 1, ctDay, 7, 0, 0);
-
-            if (ctHour >= 7) {
-                ctTargetAsLocal.setDate(ctTargetAsLocal.getDate() + 1);
-            }
-
-            const diff = ctTargetAsLocal.getTime() - ctNowAsLocal.getTime();
+            const diff = rotationEndsAt.getTime() - now.getTime();
 
             if (diff <= 0) {
                 setTimeLeft("00:00:00");
@@ -74,7 +62,7 @@ function BatchTimer({ startTime }) {
         calculate();
         const interval = setInterval(calculate, 1000);
         return () => clearInterval(interval);
-    }, []);
+    }, [rotationEndsAt]);
 
     // Render based on status
     if (status === 'pending') {
@@ -120,14 +108,12 @@ export const DashboardToolbar = memo(function DashboardToolbar({
     visibleColumns,
     setVisibleColumns,
 
-    // NEW PROPS
     selectedCount = 0,
     onAssignLeads,
-    canAssign
+    canAssign,
+    teamMembers = []
 }) {
     const [showFilters, setShowFilters] = useState(false);
-    const [showViewMenu, setShowViewMenu] = useState(false);
-    const menuRef = useRef(null);
 
     // Helper: Dynamic Tab Title
     const getTabTitle = () => {
@@ -148,30 +134,7 @@ export const DashboardToolbar = memo(function DashboardToolbar({
         return filters && (filters.state || filters.driverType || filters.dob || filters.assignee);
     }, [filters]);
 
-    // Handle toggling columns
-    const toggleColumn = (key) => {
-        if (visibleColumns.includes(key)) {
-            // Prevent hiding the last column
-            if (visibleColumns.length <= 1) return;
-            setVisibleColumns(visibleColumns.filter(c => c !== key));
-        } else {
-            // Restore original order based on config
-            const newSet = new Set([...visibleColumns, key]);
-            const newOrder = ALL_COLUMNS.filter(col => newSet.has(col.key)).map(col => col.key);
-            setVisibleColumns(newOrder);
-        }
-    };
 
-    // Close menu when clicking outside
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (menuRef.current && !menuRef.current.contains(event.target)) {
-                setShowViewMenu(false);
-            }
-        };
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-    }, []);
 
     return (
         <div className="p-4 border-b border-gray-200 bg-white z-30 flex flex-col gap-3 shrink-0 relative">
@@ -232,48 +195,6 @@ export const DashboardToolbar = memo(function DashboardToolbar({
                         />
                     </div>
 
-                    {/* View / Column Toggle */}
-                    <div className="relative" ref={menuRef}>
-                        <button
-                            onClick={() => setShowViewMenu(!showViewMenu)}
-                            className={`p-2 rounded-lg border transition-all flex items-center gap-2 text-sm font-medium ${showViewMenu
-                                ? 'bg-blue-50 border-blue-200 text-blue-700'
-                                : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
-                                }`}
-                            title="Customize Columns"
-                        >
-                            <Eye size={16} />
-                            <span className="hidden sm:inline">View</span>
-                        </button>
-
-                        {/* Dropdown Menu */}
-                        {showViewMenu && (
-                            <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-200 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
-                                <div className="p-3 border-b border-gray-100 bg-gray-50">
-                                    <span className="text-xs font-bold text-gray-500 uppercase">Show Columns</span>
-                                </div>
-                                <div className="p-2 space-y-1">
-                                    {ALL_COLUMNS.map(col => {
-                                        const isVisible = visibleColumns.includes(col.key);
-                                        return (
-                                            <button
-                                                key={col.key}
-                                                onClick={() => toggleColumn(col.key)}
-                                                className="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors text-left"
-                                            >
-                                                {isVisible ?
-                                                    <CheckSquare size={16} className="text-blue-600" /> :
-                                                    <Square size={16} className="text-gray-400" />
-                                                }
-                                                {col.label}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
                     {/* Filter Toggle Button */}
                     <button
                         onClick={() => setShowFilters(!showFilters)}
@@ -323,13 +244,17 @@ export const DashboardToolbar = memo(function DashboardToolbar({
                         {/* Filter: Assignee */}
                         <div>
                             <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Assigned To</label>
-                            <input
-                                type="text"
-                                placeholder="Search recruiter..."
+                            <select
                                 className="w-full p-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none"
                                 value={filters?.assignee || ''}
                                 onChange={(e) => handleFilterChange('assignee', e.target.value)}
-                            />
+                            >
+                                <option value="">All</option>
+                                <option value="__unassigned__">Unassigned</option>
+                                {teamMembers.map(m => (
+                                    <option key={m.id} value={m.id}>{m.name || m.displayName || m.email}</option>
+                                ))}
+                            </select>
                         </div>
 
                         {/* Clear Button */}

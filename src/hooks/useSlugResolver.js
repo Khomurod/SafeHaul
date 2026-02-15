@@ -55,7 +55,7 @@ export function useSlugResolver(slug) {
 
         try {
             const q = query(
-                collection(db, "companies"),
+                collection(db, "public_profiles"),
                 where("appSlug", "==", normalizedSlug),
                 limit(1)
             );
@@ -133,7 +133,7 @@ export async function resolveSlug(slug) {
 
     try {
         const q = query(
-            collection(db, "companies"),
+            collection(db, "public_profiles"),
             where("appSlug", "==", normalizedSlug),
             limit(1)
         );

@@ -40,7 +40,7 @@ export async function initQueue() {
 
         request.onsuccess = () => {
             db = request.result;
-            console.log('[SubmissionQueue] Database initialized');
+            // Database initialized
             resolve(db);
         };
 
@@ -52,7 +52,7 @@ export async function initQueue() {
                 store.createIndex('status', 'status', { unique: false });
                 store.createIndex('companyId', 'companyId', { unique: false });
                 store.createIndex('createdAt', 'createdAt', { unique: false });
-                console.log('[SubmissionQueue] Object store created');
+                // Object store created
             }
         };
     });
@@ -101,7 +101,7 @@ export async function enqueueSubmission(data, companyId, options = {}) {
         const request = store.add(entry);
 
         request.onsuccess = () => {
-            console.log(`[SubmissionQueue] Enqueued submission ${entry.id}`);
+            // Enqueued
             resolve(entry.id);
         };
 
@@ -126,7 +126,7 @@ export async function dequeueSubmission(id) {
         const request = store.delete(id);
 
         request.onsuccess = () => {
-            console.log(`[SubmissionQueue] Dequeued submission ${id}`);
+            // Dequeued
             resolve(true);
         };
 
@@ -284,7 +284,7 @@ export async function processEntry(entry, submitFn) {
 
         // Success - remove from queue
         await dequeueSubmission(entry.id);
-        console.log(`[SubmissionQueue] Successfully processed ${entry.id}`);
+        // Successfully processed
         return { success: true };
 
     } catch (error) {
@@ -308,7 +308,7 @@ export async function processEntry(entry, submitFn) {
  */
 export async function processQueue(submitFn) {
     const pending = await getAllPending();
-    console.log(`[SubmissionQueue] Processing ${pending.length} pending submissions`);
+    // Processing pending submissions
 
     const results = { processed: 0, succeeded: 0, failed: 0 };
 
@@ -323,7 +323,7 @@ export async function processQueue(submitFn) {
         }
     }
 
-    console.log(`[SubmissionQueue] Processed: ${results.processed}, Succeeded: ${results.succeeded}, Failed: ${results.failed}`);
+    // Processing complete
     return results;
 }
 
@@ -340,7 +340,7 @@ export async function clearQueue() {
         const request = store.clear();
 
         request.onsuccess = () => {
-            console.log('[SubmissionQueue] Queue cleared');
+            // Queue cleared
             resolve();
         };
 
@@ -355,7 +355,7 @@ export function closeQueue() {
     if (db) {
         db.close();
         db = null;
-        console.log('[SubmissionQueue] Database closed');
+        // Database closed
     }
 }
 

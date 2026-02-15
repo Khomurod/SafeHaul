@@ -3,6 +3,16 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { CampaignDetails } from './CampaignDetails';
 import { describe, it, expect, vi } from 'vitest';
 
+vi.mock('@/context/DataContext', () => ({
+    useData: vi.fn(() => ({
+        currentCompanyProfile: { id: 'company123', name: 'Test Company' }
+    }))
+}));
+
+vi.mock('@shared/components/feedback/ToastProvider', () => ({
+    useToast: vi.fn(() => ({ showSuccess: vi.fn(), showError: vi.fn() }))
+}));
+
 describe('CampaignDetails', () => {
     const mockCampaign = {
         id: '123',
@@ -22,7 +32,7 @@ describe('CampaignDetails', () => {
     };
 
     it('renders campaign details correctly', () => {
-        render(<CampaignDetails campaign={mockCampaign} onClose={() => {}} />);
+        render(<CampaignDetails campaign={mockCampaign} onClose={() => { }} />);
 
         expect(screen.getByText('Test Campaign')).toBeInTheDocument();
         expect(screen.getByText('active')).toBeInTheDocument();

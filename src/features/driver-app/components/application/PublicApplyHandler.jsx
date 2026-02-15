@@ -55,14 +55,14 @@ export function PublicApplyHandler() {
         let companyData = null;
         let companyId = null;
 
-        const q = query(collection(db, "companies"), where("appSlug", "==", slug), limit(1));
+        const q = query(collection(db, "public_profiles"), where("appSlug", "==", slug), limit(1));
         const snapshot = await getDocs(q);
 
         if (!snapshot.empty) {
           companyId = snapshot.docs[0].id;
           companyData = { id: companyId, ...snapshot.docs[0].data() };
         } else {
-          const docRef = doc(db, "companies", slug);
+          const docRef = doc(db, "public_profiles", slug);
           const docSnap = await getDoc(docRef);
           if (docSnap.exists()) {
             companyId = docSnap.id;

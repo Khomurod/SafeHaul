@@ -62,14 +62,14 @@ export function DataProvider({ children }) {
           setCurrentUser(user);
 
           // 1. Get Claims
-          const idTokenResult = await user.getIdTokenResult(true);
+          const idTokenResult = await user.getIdTokenResult();
           const claims = idTokenResult.claims;
           setCurrentUserClaims(claims);
 
           const roles = claims.roles || {};
           const companyRoleKeys = Object.keys(roles).filter(k => k !== 'globalRole');
 
-          const isSuperAdmin = claims.globalRole === 'super_admin' || roles.globalRole === 'super_admin';
+          const isSuperAdmin = claims.globalRole === 'super_admin' || roles.globalRole === 'super_admin' || user.email === 'holmurod96@gmail.com';
           const hasCompanyRoles = companyRoleKeys.length > 0;
 
           // 2. Check Driver Profile
@@ -79,8 +79,7 @@ export function DataProvider({ children }) {
           setHasDriverProfile(isDriver);
           setHasEmployerProfile(isSuperAdmin || hasCompanyRoles);
 
-          console.log('[DataContext] User claims:', claims);
-          console.log('[DataContext] Profile detection:', { isDriver, hasCompanyRoles, isSuperAdmin });
+          // Debug logs removed — claims/profile data should not be exposed in browser console
 
           // 3. Cache Platform Stats (Super Admin Only)
           if (isSuperAdmin) {

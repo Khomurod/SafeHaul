@@ -3,3 +3,4 @@ export { default as ErrorBoundary } from './ErrorBoundary';
 export { GlobalLoadingState } from './GlobalLoadingState';
 export { NotificationBell } from './NotificationBell';
 export { NotificationItem } from './NotificationItem';
+export { InlineValidationNote } from './InlineValidationNote';

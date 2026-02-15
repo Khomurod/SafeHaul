@@ -26,7 +26,14 @@ async function sendDynamicEmail(companyId, to, subject, html, options = {}) {
         }
 
         const companyData = companyDoc.data();
-        const emailSettings = companyData.emailSettings;
+        // MIGRATION: Fetch from subcollection if not in legacy field
+        let emailSettings = companyData.emailSettings;
+
+        if (!emailSettings) {
+            const settingsDoc = await db.collection('companies').doc(companyId)
+                .collection('system_settings').doc('email_config').get();
+            emailSettings = settingsDoc.data();
+        }
 
         // Validate SMTP settings exist
         if (!emailSettings || !emailSettings.smtpHost || !emailSettings.smtpUser || !emailSettings.smtpPass) {

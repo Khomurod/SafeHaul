@@ -130,11 +130,19 @@ export function useAppFetch(companyId, applicationId) {
 
         const [cdl, cdlBack, ssc, medical, twic, mvrConsent, drugTestConsent] = await Promise.all([
           getUrl(data['cdl-front']), getUrl(data['cdl-back']), getUrl(data['ssc-upload']),
-          getUrl(data['med-card-upload']), getUrl(data['twic-card-upload']),
+          getUrl(data['medical-card-upload']), getUrl(data['twic-card-upload']),
           getUrl(data['mvr-consent-upload']), getUrl(data['drug-test-consent-upload'])
         ]);
 
-        setFileUrls({ cdl, cdlBack, ssc, medical, twic, mvrConsent, drugTestConsent });
+        setFileUrls({
+          'cdl-front': cdl,
+          'cdl-back': cdlBack,
+          'ssc-upload': ssc,
+          'medical-card-upload': medical,
+          'twic-card-upload': twic,
+          'mvr-consent-upload': mvrConsent,
+          'drug-test-consent-upload': drugTestConsent
+        });
 
       } else {
         setError(`Could not find record (ID: ${applicationId}).`);

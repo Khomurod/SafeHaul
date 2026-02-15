@@ -23,16 +23,15 @@ service cloud.firestore {
     }
 
     // ROBUST SUPER ADMIN CHECK
-    // ROBUST SUPER ADMIN CHECK
+    // Checks multiple possible locations for the globalRole claim
     function isSuperAdmin() {
       return isSignedIn() && (
-        // Preferred shape used across backend claim sync.
-        (request.auth.token.keys().hasAny(['roles']) &&
-         request.auth.token.roles.keys().hasAny(['globalRole']) &&
-         request.auth.token.roles.globalRole == 'super_admin') ||
-        // Backward compatibility for older claim emitters.
-        (request.auth.token.keys().hasAny(['globalRole']) &&
-         request.auth.token.globalRole == 'super_admin')
+        // Direct globalRole claim
+        (request.auth.token.keys().hasAny(['globalRole']) && request.auth.token.globalRole == 'super_admin') ||
+        // Nested in roles object (legacy/alternate structure)
+        (request.auth.token.keys().hasAny(['roles']) && 
+         request.auth.token.roles.keys().hasAny(['globalRole']) && 
+         request.auth.token.roles.globalRole == 'super_admin')
       );
     }
 
@@ -67,6 +66,16 @@ service cloud.firestore {
              request.auth.token.roles.keys().size() > 0;
     }
 
+    // PARENT OWNERSHIP CHECK FOR SUBCOLLECTIONS (M6 Fix)
+    // Checks if the signed-in user owns the parent application document
+    function isParentApplicationOwner(companyId, applicationId) {
+      let app = get(/databases/$(database)/documents/companies/$(companyId)/applications/$(applicationId));
+      return app != null && (
+        app.data.applicantId == request.auth.uid || 
+        app.data.driverId == request.auth.uid
+      );
+    }
+
     // =========================================================
     // 2. SUPER ADMIN GLOBAL BYPASS REMOVED
     // =========================================================
@@ -88,21 +97,37 @@ service cloud.firestore {
     // Guest Applications must have companyId and personalInfo logic
     function isValidGuestApplication(companyId) {
       let data = request.resource.data;
-      return data.companyId == companyId &&
-             data.applicantId is string;
+      // ENFORCED: Require App Check token for guest (unauthenticated) applications
+      // This proves the request comes from the genuine web app, not a script/bot
+      return (request.appcheck.token.recaptchaV3.score > 0.0) &&
+             data.companyId == companyId &&
+             data.applicantId is string && data.applicantId.size() > 0;
+    }
+
+    // DETERMINISTIC ID CHECK: Ensures the Firestore document ID matches
+    // the applicantId field in the submission data. The client generates
+    // a SHA-256 hash as both the doc ID and applicantId, so they must match.
+    // Also validates that the companyId field matches the URL path companyId.
+    function isDeterministicApplicationId(companyId, applicationId) {
+      let data = request.resource.data;
+      return applicationId == data.applicantId &&
+             data.companyId == companyId;
     }
 
     // =========================================================
     // 4. COLLECTION RULES
     // =========================================================
 
-    // --- COMPANIES ---
+    // --- PUBLIC PROFILES (Safe, sanitized data for public pages) ---
+    match /public_profiles/{companyId} {
+      allow read: if true; // Safe because it only contains sanitized data
+    }
+
+    // --- COMPANIES (Locked down — sensitive data) ---
     match /companies/{companyId} {
-      // PUBLIC READ: Essential for branding, landing pages, and application forms
-      allow get: if true; 
-      
-      // LIST: Super Admin can list all. Public limited to 1 (for slug lookups)
-      allow list: if isSuperAdmin() || request.query.limit <= 1;
+      // LOCKED: Only team members and super admins can read company data
+      allow get: if isCompanyTeam(companyId) || isSuperAdmin();
+      allow list: if isSuperAdmin();
 
       // WRITE: Super Admin or Company Admin
       allow create, delete: if isSuperAdmin();
@@ -153,6 +178,20 @@ service cloud.firestore {
         allow read: if isCompanyTeam(companyId) || isSuperAdmin();
       }
 
+      // NOTIFICATIONS: Company activity notifications
+      match /notifications/{notificationId} {
+        allow read: if isCompanyTeam(companyId) || isSuperAdmin();
+        allow create: if isCompanyAdmin(companyId) || isSuperAdmin();
+        allow update: if isCompanyTeam(companyId) || isSuperAdmin();
+        allow delete: if isCompanyAdmin(companyId) || isSuperAdmin();
+      }
+
+      // SECURE SETTINGS: Email Config & System Keys
+      // Moved from public document to private subcollection
+      match /system_settings/email_config {
+        allow read, write: if isCompanyAdmin(companyId) || isSuperAdmin();
+      }
+
       // SIGNING REQUESTS: Secure Envelopes for E-Signatures
       match /signing_requests/{requestId} {
          // Read: Sender (Company), Recipient, or Super Admin
@@ -178,11 +217,11 @@ service cloud.firestore {
       // APPLICATIONS (The Core Record)
       match /applications/{applicationId} {
         // CREATE: 
-        // 1. Auth User (Driver) -> Submitting their own app
-        // 2. Guest -> Submitting via public link (TODO: Add App Check enforcement here for production)
-        // 3. Super Admin / Company Team (Manual Entry)
-        allow create: if (isSignedIn() && isValidAuthenticatedApplication()) || 
-                         (isValidGuestApplication(companyId)) || 
+        // 1. Auth User (Driver) -> Submitting their own app (MUST use deterministic ID)
+        // 2. Guest -> Submitting via public link (MUST use deterministic ID + App Check)
+        // 3. Super Admin / Company Team (Manual Entry — bypasses ID check)
+        allow create: if (isSignedIn() && isValidAuthenticatedApplication() && isDeterministicApplicationId(companyId, applicationId)) || 
+                         (isValidGuestApplication(companyId) && isDeterministicApplicationId(companyId, applicationId)) || 
                          isCompanyTeam(companyId);
 
         // READ:
@@ -204,11 +243,13 @@ service cloud.firestore {
 
         // Application Subcollections
         match /dq_files/{fileId} { 
-          allow read: if isCompanyTeam(companyId) || isSuperAdmin() || (isSignedIn() && (resource.data.applicantId == request.auth.uid || resource.data.driverId == request.auth.uid));
+          // M6 FIX: Use parent ownership check instead of checking file doc's applicantId
+          allow read: if isCompanyTeam(companyId) || isSuperAdmin() || (isSignedIn() && isParentApplicationOwner(companyId, applicationId));
           allow write: if isCompanyTeam(companyId) || isSuperAdmin(); 
         }
         match /general_documents/{fileId} { 
-          allow read: if isCompanyTeam(companyId) || isSuperAdmin() || (isSignedIn() && (resource.data.applicantId == request.auth.uid || resource.data.driverId == request.auth.uid));
+          // M6 FIX: Use parent ownership check instead of checking file doc's applicantId
+          allow read: if isCompanyTeam(companyId) || isSuperAdmin() || (isSignedIn() && isParentApplicationOwner(companyId, applicationId));
           allow write: if isCompanyTeam(companyId) || isSuperAdmin(); 
         }
         match /internal_notes/{noteId} { allow read, write: if isCompanyTeam(companyId) || isSuperAdmin(); }
@@ -222,11 +263,13 @@ service cloud.firestore {
         match /activity_logs/{logId} { allow read, write: if isCompanyTeam(companyId) || isSuperAdmin(); }
         match /activities/{activityId} { allow read, write: if isCompanyTeam(companyId) || isSuperAdmin(); }
         match /internal_notes/{noteId} { allow read, write: if isCompanyTeam(companyId) || isSuperAdmin(); }
+        match /dq_files/{fileId} { allow read, write: if isCompanyTeam(companyId) || isSuperAdmin(); }
+        match /general_documents/{fileId} { allow read, write: if isCompanyTeam(companyId) || isSuperAdmin(); }
       }
       
       // TEAM MEMBERS
       match /team/{userId} {
-        allow read: if isSignedIn(); // Allow reading to resolve names
+        allow read: if isCompanyTeam(companyId) || isSuperAdmin();
         allow write: if isCompanyAdmin(companyId) || isSuperAdmin();
       }
 
@@ -286,7 +329,7 @@ service cloud.firestore {
     // --- NOTIFICATIONS ---
     match /notifications/{notificationId} {
       allow read, update, delete: if isSignedIn() && resource.data.recipientId == request.auth.uid;
-      allow create: if isSignedIn(); // System/Functions create these, but allow client logic for now
+      allow create: if false; // Server-only: notifications created by Cloud Functions (Admin SDK bypasses rules)
     }
 
     // --- ANALYTICS ---
@@ -294,17 +337,18 @@ service cloud.firestore {
       allow read: if isSuperAdmin();
       allow write: if false; // Only updated by server-side functions
     }
+
+    // --- SYSTEM SETTINGS ---
+    match /system_settings/{settingId} {
+      allow read: if isStaff() || isSuperAdmin();
+      allow write: if isSuperAdmin();
+    }
     
     // --- RECRUITER LINKS ---
     match /recruiter_links/{code} {
       allow read: if true; // Public access to resolve links
       allow create, update: if isStaff() || isSuperAdmin(); // Staff can generate links
       allow delete: if isSuperAdmin();
-    }
-
-    // --- SYSTEM SETTINGS ---
-    match /system_settings/{settingId} {
-      allow read, write: if isSuperAdmin();
     }
 
     // --- JOB POSTS (Public Job Board) ---

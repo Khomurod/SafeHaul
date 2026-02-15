@@ -253,7 +253,7 @@ exports.onApplicationSubmitted = onDocumentCreated({
   }
 });
 
-// HELPER: Real-time Stats Verification
+// HELPER: Real-time Stats Verification (Sharded)
 async function updateLeadStats(data, delta) {
   try {
     const inc = admin.firestore.FieldValue.increment;
@@ -273,7 +273,12 @@ async function updateLeadStats(data, delta) {
     if (cleanPhone && cleanPhone.length < 10) updates['stats.shortPhones'] = inc(delta);
     if (name.includes('test') || name.includes('health check')) updates['stats.testData'] = inc(delta);
 
-    await db.collection('system_settings').doc('lead_pool_stats').set(updates, { merge: true });
+    // WRITE HOTSPOT FIX: Use Random Shard (0-9)
+    const shardId = Math.floor(Math.random() * 10).toString();
+    const shardRef = db.collection('system_settings').doc('lead_pool_stats')
+      .collection('shards').doc(shardId);
+
+    await shardRef.set(updates, { merge: true });
   } catch (e) {
     console.warn("Failed to update lead stats:", e);
   }

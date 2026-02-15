@@ -37,30 +37,52 @@ export function PersonalInfoSection({
 
     return (
         <Section title="Personal Information">
-            <InfoGrid>
+            {/* ─── Identity Block ─── */}
+            <div className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
+                <h4 className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-3">Identity</h4>
+                <div className="space-y-4">
+                    <InfoItem label="First Name" value={appData.firstName} isEditing={isEditing} onChange={v => handleDataChange('firstName', v)} />
+                    <InfoItem label="Middle Name" value={appData.middleName} isEditing={isEditing} onChange={v => handleDataChange('middleName', v)} />
+                    <InfoItem label="Last Name" value={appData.lastName} isEditing={isEditing} onChange={v => handleDataChange('lastName', v)} />
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Suffix</label>
+                        {isEditing ? (
+                            <input
+                                type="text"
+                                value={appData.suffix || ''}
+                                onChange={(e) => handleDataChange('suffix', e.target.value)}
+                                className="w-full p-2 border border-gray-300 rounded"
+                                placeholder="Jr."
+                            />
+                        ) : (
+                            <p className="text-lg font-medium text-gray-900">{appData.suffix || '-'}</p>
+                        )}
+                    </div>
 
-                {/* Row 1: Name */}
-                <InfoItem label="First Name" value={appData.firstName} isEditing={isEditing} onChange={v => handleDataChange('firstName', v)} />
-                <InfoItem label="Middle" value={appData.middleName} isEditing={isEditing} onChange={v => handleDataChange('middleName', v)} />
-                <InfoItem label="Last Name" value={appData.lastName} isEditing={isEditing} onChange={v => handleDataChange('lastName', v)} />
-
-                {/* NEW: Suffix */}
-                <div className="col-span-1">
-                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Suffix</label>
-                    {isEditing ? (
-                        <input
-                            type="text"
-                            value={appData.suffix || ''}
-                            onChange={(e) => handleDataChange('suffix', e.target.value)}
-                            className="w-full p-2 border border-gray-300 rounded"
-                            placeholder="Jr."
-                        />
-                    ) : (
-                        <p className="text-lg font-medium text-gray-900">{appData.suffix || '-'}</p>
+                    {/* Other Names (Aliases) */}
+                    {appData['known-by-other-name'] === 'yes' && (
+                        <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200 mt-2">
+                            <label className="flex items-center gap-2 text-xs font-bold text-yellow-800 uppercase mb-1">
+                                <User size={14} /> Known By Other Name(s)
+                            </label>
+                            {isEditing ? (
+                                <input
+                                    type="text"
+                                    value={appData.otherName || ''}
+                                    onChange={(e) => handleDataChange('otherName', e.target.value)}
+                                    className="w-full p-2 border border-yellow-300 rounded"
+                                />
+                            ) : (
+                                <p className="text-sm font-medium text-gray-900">{appData.otherName}</p>
+                            )}
+                        </div>
                     )}
                 </div>
+            </div>
 
-                {/* Row 2: Contact & Identity */}
+            {/* ─── Demographics Block ─── */}
+            <InfoGrid>
+                {/* Contact & Identity */}
                 <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Phone</label>
                     {isEditing ? (
@@ -104,35 +126,17 @@ export function PersonalInfoSection({
                     )}
                 </div>
 
-                {/* NEW: Other Names (Aliases) */}
-                {appData['known-by-other-name'] === 'yes' && (
-                    <div className="col-span-full bg-yellow-50 p-3 rounded-lg border border-yellow-200 mt-2">
-                        <label className="flex items-center gap-2 text-xs font-bold text-yellow-800 uppercase mb-1">
-                            <User size={14} /> Known By Other Name(s)
-                        </label>
-                        {isEditing ? (
-                            <input
-                                type="text"
-                                value={appData.otherName || ''}
-                                onChange={(e) => handleDataChange('otherName', e.target.value)}
-                                className="w-full p-2 border border-yellow-300 rounded"
-                            />
-                        ) : (
-                            <p className="text-sm font-medium text-gray-900">{appData.otherName}</p>
-                        )}
-                    </div>
-                )}
 
                 {/* Row 3: Current Address */}
                 <div className="col-span-full pt-4 border-t border-gray-100">
                     <h4 className="text-sm font-bold text-gray-700 mb-3">Current Address</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-4">
                         <InfoItem label="Street" value={appData.street} isEditing={isEditing} onChange={v => handleDataChange('street', v)} />
-                        <div className="grid grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <InfoItem label="City" value={appData.city} isEditing={isEditing} onChange={v => handleDataChange('city', v)} />
                             <InfoItem label="State" value={appData.state} isEditing={isEditing} onChange={v => handleDataChange('state', v)} />
-                            <InfoItem label="Zip" value={appData.zip} isEditing={isEditing} onChange={v => handleDataChange('zip', v)} />
                         </div>
+                        <InfoItem label="Zip" value={appData.zip} isEditing={isEditing} onChange={v => handleDataChange('zip', v)} />
                     </div>
                     <div className="mt-2">
                         <span className="text-xs text-gray-500">Lived here 3+ years? </span>
@@ -168,13 +172,13 @@ export function PersonalInfoSection({
                             </div>
                         ) : (
                             /* Fallback for legacy flat field data */
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-4">
                                 <InfoItem label="Prev Street" value={appData.prevStreet} isEditing={isEditing} onChange={v => handleDataChange('prevStreet', v)} />
-                                <div className="grid grid-cols-3 gap-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <InfoItem label="Prev City" value={appData.prevCity} isEditing={isEditing} onChange={v => handleDataChange('prevCity', v)} />
                                     <InfoItem label="Prev State" value={appData.prevState} isEditing={isEditing} onChange={v => handleDataChange('prevState', v)} />
-                                    <InfoItem label="Prev Zip" value={appData.prevZip} isEditing={isEditing} onChange={v => handleDataChange('prevZip', v)} />
                                 </div>
+                                <InfoItem label="Prev Zip" value={appData.prevZip} isEditing={isEditing} onChange={v => handleDataChange('prevZip', v)} />
                             </div>
                         )}
                     </div>

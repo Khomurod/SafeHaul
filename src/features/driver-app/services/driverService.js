@@ -318,6 +318,7 @@ export async function submitDriverApplication(currentUser, formData, activeCompa
         signatureType: formData.signatureType || 'drawn',
         userId: currentUser.uid,
         driverId: currentUser.uid,
+        applicantId: applicationId, // REQUIRED: Must match doc ID for Firestore rules deterministic ID check
         email: email,
         phone: phone,
         status: 'New Application',

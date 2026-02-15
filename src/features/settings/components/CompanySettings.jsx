@@ -51,6 +51,11 @@ export function CompanySettings() {
     const isCompanyAdmin = currentUserClaims?.roles?.[currentCompanyProfile?.id] === 'company_admin'
         || currentUserClaims?.roles?.globalRole === 'super_admin';
 
+    // Redirect non-admins back to dashboard
+    if (!isCompanyAdmin && currentCompanyProfile) {
+        return <Navigate to="/company/dashboard" replace />;
+    }
+
     const showSuccess = (msg) => {
         setSuccessMsg(msg);
         setTimeout(() => setSuccessMsg(''), 3000);

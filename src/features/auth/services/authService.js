@@ -1,6 +1,6 @@
 // src/features/auth/services/authService.js
-import { 
-    createUserWithEmailAndPassword, 
+import {
+    createUserWithEmailAndPassword,
     signInWithEmailAndPassword,
     updateProfile,
     sendPasswordResetEmail
@@ -44,28 +44,8 @@ export async function registerDriver({ email, password, firstName, lastName, pho
         const cleanPhone = normalizePhone(phone);
 
         // --- SHADOW PROFILE MERGE LOGIC ---
-        // Check if a profile already exists with this phone number (Shadow Profile)
-        let existingData = {};
-        if (cleanPhone) {
-            try {
-                const driversRef = collection(db, "drivers");
-                // Look for drivers with this phone who are NOT bulk uploads (or merge bulk too)
-                // We mainly want to catch leads that were converted to shadow profiles
-                const q = query(driversRef, where("personalInfo.normalizedPhone", "==", cleanPhone));
-                const snap = await getDocs(q);
-
-                if (!snap.empty) {
-                    const oldDoc = snap.docs[0];
-                    existingData = oldDoc.data();
-                    console.log(`[Auth] Found existing shadow profile (${oldDoc.id}). Merging...`);
-
-                    // Delete the old shadow profile to avoid duplicates
-                    await deleteDoc(doc(db, "drivers", oldDoc.id));
-                }
-            } catch (err) {
-                console.warn("[Auth] Shadow profile check failed:", err);
-            }
-        }
+        // MOVED TO SERVER: functions/userOnboarding.js (onDriverProfileCreated)
+        // Client no longer attempts to read/delete other users' docs.
 
         // Prepare the new profile data, prioritizing new input but keeping old history
         const newProfileData = {
@@ -87,7 +67,7 @@ export async function registerDriver({ email, password, firstName, lastName, pho
                 source: existingData.driverProfile?.source || 'web_signup'
             },
             // Ensure timestamps are updated
-            createdAt: existingData.createdAt || timestamp, 
+            createdAt: existingData.createdAt || timestamp,
             updatedAt: timestamp,
             claimedAt: timestamp // Mark when they claimed the account
         };

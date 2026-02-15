@@ -22,10 +22,10 @@ export function LaunchPad({ companyId, campaign, onLaunchSuccess }) {
 
             const payload = {
                 companyId,
-                name: campaign.name,
+                sessionName: campaign.name,
                 filters: cleanFilters,
                 rawData: rawData || null,
-                messageConfig: campaign.messageConfig,
+                config: campaign.messageConfig,
                 scheduledFor: null // User requested removal of scheduling ("action and shot")
             };
 

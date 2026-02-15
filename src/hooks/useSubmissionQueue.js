@@ -58,12 +58,12 @@ export function useSubmissionQueue() {
     // Monitor online/offline status
     useEffect(() => {
         const handleOnline = () => {
-            console.log('[useSubmissionQueue] Online detected');
+            // Online detected
             setIsOnline(true);
         };
 
         const handleOffline = () => {
-            console.log('[useSubmissionQueue] Offline detected');
+            // Offline detected
             setIsOnline(false);
         };
 
@@ -127,7 +127,7 @@ export function useSubmissionQueue() {
                 return { processed: 0, succeeded: 0, failed: 0 };
             }
 
-            console.log(`[useSubmissionQueue] Processing ${pending.length} queued submissions`);
+            // Processing queued submissions
 
             const results = await processQueue(submitToFirestore);
 

@@ -8,7 +8,10 @@ const fs = require('fs');
 // Fail-fast: If pdf-lib is missing, crash immediately at cold start
 const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
 
-exports.sealDocument = functions.firestore
+exports.sealDocument = functions.runWith({
+    memory: '1GB',
+    timeoutSeconds: 300
+}).firestore
     .document('companies/{companyId}/signing_requests/{requestId}')
     .onUpdate(async (change, context) => {
         const newData = change.after.data();
@@ -34,6 +37,20 @@ exports.sealDocument = functions.firestore
             if (srcPath.startsWith('gs://')) {
                 srcPath = srcPath.replace(`gs://${bucket.name}/`, '');
             }
+
+            // SECURITY: Path Traversal Prevention
+            // Ensure path MUST start with allowed prefixes for this company
+            const allowedPrefixes = [
+                `companies/${companyId}/`,
+                `secure_documents/${companyId}/`
+            ];
+
+            const isAllowed = allowedPrefixes.some(prefix => srcPath.startsWith(prefix));
+            if (!isAllowed) {
+                console.error(`[Security] unauthorized access attempt. Company ${companyId} tried to access ${srcPath}`);
+                throw new Error("Security Violation: Unauthorized document path.");
+            }
+
             await bucket.file(srcPath).download({ destination: tempPdfPath });
 
             // 3. Load PDF

@@ -124,10 +124,7 @@ exports.onMembershipWrite = onDocumentWritten({
 
     // Apply the Global Role if found
     if (isGlobalAdmin) {
-        // Canonical nested claim used by most backend checks.
         newClaims.roles.globalRole = 'super_admin';
-        // Backward-compatibility claim for clients/rules reading top-level globalRole.
-        newClaims.globalRole = 'super_admin';
     }
 
     await auth.setCustomUserClaims(userId, newClaims);

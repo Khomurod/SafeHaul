@@ -30,7 +30,8 @@ export default defineConfig({
       'firebase/auth',
       'firebase/firestore',
       'firebase/functions',
-      'firebase/storage'
+      'firebase/storage',
+      'firebase/app-check'
     ],
     include: ['pdfjs-dist'],
     esbuildOptions: {

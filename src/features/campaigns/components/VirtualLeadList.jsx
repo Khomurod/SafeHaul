@@ -4,7 +4,7 @@ import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/lib/firebase/config';
 import { Loader2, AlertCircle, CheckCircle2, XCircle } from 'lucide-react';
 
-export default function VirtualLeadList({ companyId, filters, excludedIds = [], onToggleExclusion }) {
+export default function VirtualLeadList({ companyId, filters, excludedIds = [], onToggleExclusion, localData = null }) {
     const [leads, setLeads] = useState([]);
     const [loading, setLoading] = useState(false);
     const [lastDocId, setLastDocId] = useState(null);
@@ -15,6 +15,7 @@ export default function VirtualLeadList({ companyId, filters, excludedIds = [], 
     const fetchingRef = useRef(false);
 
     const loadMore = useCallback(async (reset = false) => {
+        if (localData) return; // No loading needed for local data
         if (fetchingRef.current) return;
         if (!reset && !hasMore) return;
 
@@ -55,30 +56,36 @@ export default function VirtualLeadList({ companyId, filters, excludedIds = [], 
             setLoading(false);
             fetchingRef.current = false;
         }
-    }, [companyId, filters, lastDocId, hasMore]);
+    }, [companyId, filters, lastDocId, hasMore, localData]);
 
     // Reset and load when filters change
     useEffect(() => {
-        // Reset state completely
-        setLeads([]);
-        setLastDocId(null);
-        setHasMore(true);
-        fetchingRef.current = false;
-
-        // Trigger initial load
-        loadMore(true);
-    }, [filters, companyId]); // Deep comparison if filters is object? Assuming parent creates new ref.
+        if (localData) {
+            // Local Mode
+            setLeads(localData);
+            setLoading(false);
+            setHasMore(false);
+        } else {
+            // Remote Mode
+            setLeads([]);
+            setLastDocId(null);
+            setHasMore(true);
+            fetchingRef.current = false;
+            loadMore(true);
+        }
+    }, [filters, companyId, localData]);
 
     // Row Renderer
     const rowContent = (index, user) => {
-        const isExcluded = excludedIds.includes(user.id);
+        const safeId = user.id || `import_${index}`;
+        const isExcluded = excludedIds.includes(safeId);
         const name = user.firstName ? `${user.firstName} ${user.lastName || ''}` : (user.name || 'Unknown');
         const contact = user.phone || user.normalizedPhone || user.email || 'No Contact Info';
 
         return (
             <div className="pb-2 pr-2">
                 <div
-                    onClick={() => onToggleExclusion && onToggleExclusion(user.id)}
+                    onClick={() => onToggleExclusion && onToggleExclusion(safeId)}
                     className={`
                         p-3 rounded-xl flex items-center gap-4 border transition-all cursor-pointer group
                         ${isExcluded

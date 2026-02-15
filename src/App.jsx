@@ -11,6 +11,12 @@ import { LoginScreen, TeamMemberSignup } from '@features/auth';
 // --- LAZY LOADED FEATURES (Performance Optimization) ---
 const SuperAdminDashboard = React.lazy(() => import('@features/super-admin/components/SuperAdminDashboard').then(m => ({ default: m.SuperAdminDashboard })));
 const CompanyAdminDashboard = React.lazy(() => import('@features/company-admin/components/CompanyAdminDashboard').then(m => ({ default: m.CompanyAdminDashboard })));
+const CompanyAppShell = React.lazy(() => import('@features/company-admin/layout/CompanyAppShell').then(m => ({ default: m.CompanyAppShell })));
+const CompanyCandidatesListPage = React.lazy(() => import('@features/company-admin/views/CompanyCandidatesListPage').then(m => ({ default: m.CompanyCandidatesListPage })));
+const SearchDriversPage = React.lazy(() => import('@features/company-admin/views/SearchDriversPage').then(m => ({ default: m.SearchDriversPage })));
+const ImportLeadsPage = React.lazy(() => import('@features/company-admin/views/ImportLeadsPage').then(m => ({ default: m.ImportLeadsPage })));
+const QuickAddLeadPage = React.lazy(() => import('@features/company-admin/views/QuickAddLeadPage').then(m => ({ default: m.QuickAddLeadPage })));
+const UserProfilePage = React.lazy(() => import('@features/company-admin/views/UserProfilePage').then(m => ({ default: m.UserProfilePage })));
 const CompanySettings = React.lazy(() => import('@features/settings/components/CompanySettings').then(m => ({ default: m.CompanySettings })));
 const DriverDashboard = React.lazy(() => import('@features/driver-app/components/DriverDashboard').then(m => ({ default: m.DriverDashboard })));
 const DriverApplicationWizard = React.lazy(() => import('@features/driver-app/components/application/DriverApplicationWizard').then(m => ({ default: m.DriverApplicationWizard })));
@@ -76,24 +82,30 @@ function AppRoutes() {
         } />
 
         {/* Company Admin / HR */}
-        <Route path="/company/dashboard" element={
-          <ProtectedRoute allowedRoles={['company_admin', 'super_admin']}>
-            {currentCompanyProfile ? <CompanyAdminDashboard /> : <div className="min-h-screen flex items-center justify-center">Please select a company.</div>}
+        {/* Company Admin / HR */}
+        <Route path="/company" element={
+          <ProtectedRoute allowedRoles={['company_admin', 'super_admin', 'hr_user', 'recruiter']}>
+            <CompanyAppShell />
           </ProtectedRoute>
-        } />
+        }>
+          <Route index element={<Navigate to="dashboard" replace />} />
+          <Route path="dashboard" element={
+            currentCompanyProfile ? <CompanyAdminDashboard /> : <div className="min-h-screen flex items-center justify-center text-white">Please select a company.</div>
+          } />
 
-        {/* Documents Center Hub */}
-        <Route path="/company/documents" element={
-          <ProtectedRoute allowedRoles={['company_admin', 'super_admin']}>
-            <DocumentsManager />
-          </ProtectedRoute>
-        } />
+          {/* Placeholder Routes for New Structure */}
+          <Route path="drivers/applications" element={<CompanyCandidatesListPage scope="applications" />} />
+          <Route path="drivers/leads/safehaul" element={<CompanyCandidatesListPage scope="find_driver" />} />
+          <Route path="drivers/leads/company" element={<CompanyCandidatesListPage scope="company_leads" />} />
+          <Route path="drivers/leads/my" element={<CompanyCandidatesListPage scope="my_leads" />} />
 
-        <Route path="/company/settings" element={
-          <ProtectedRoute allowedRoles={['company_admin', 'super_admin']}>
-            {currentCompanyProfile ? <CompanySettings /> : <Navigate to="/company/dashboard" />}
-          </ProtectedRoute>
-        } />
+          <Route path="search" element={<SearchDriversPage />} />
+          <Route path="e-docs" element={<DocumentsManager />} />
+          <Route path="import-leads" element={<ImportLeadsPage />} />
+          <Route path="quick-add-lead" element={<QuickAddLeadPage />} />
+          <Route path="profile" element={<UserProfilePage />} />
+          <Route path="settings" element={currentCompanyProfile ? <CompanySettings /> : <Navigate to="/company/dashboard" />} />
+        </Route>
 
         {/* Driver App */}
         <Route path="/driver/dashboard" element={

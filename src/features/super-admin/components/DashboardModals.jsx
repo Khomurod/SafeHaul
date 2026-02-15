@@ -6,7 +6,7 @@ import {
     DeleteCompanyModal,
     DeleteUserModal
 } from './modals';
-import { ApplicationDetailViewV2 } from '@features/company-admin/components/application-v2';
+import { DriverProfileModal } from '@features/company-admin/components/modals/driver-dossier/DriverProfileModal';
 
 export function DashboardModals({
     // Modal States
@@ -69,12 +69,11 @@ export function DashboardModals({
             )}
 
             {selectedApplication && (
-                <ApplicationDetailViewV2
+                <DriverProfileModal
                     companyId={selectedApplication.companyId}
-                    applicationId={selectedApplication.appId}
-                    collectionName="applications"
+                    driverId={selectedApplication.appId}
+                    isOpen={true}
                     onClose={onClose}
-                    onStatusChange={onRefreshData}
                 />
             )}
         </>

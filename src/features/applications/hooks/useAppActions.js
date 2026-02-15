@@ -4,6 +4,7 @@ import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage
 import { db, storage } from '@lib/firebase';
 import { logActivity } from '@shared/utils/activityLogger';
 import { useToast } from '@shared/components/feedback';
+import { normalizePhone } from '@shared/utils/helpers';
 
 const simpleRetry = async (fn, retries = 3, delay = 1000) => {
   for (let i = 0; i < retries; i++) {
@@ -147,15 +148,25 @@ export function useAppActions({
     setIsSaving(true);
     try {
       const docRef = getDocRef();
-      const diff = computeDiff(originalData || {}, appData);
 
-      await simpleRetry(() => updateDoc(docRef, appData));
+      // Auto-normalize phone if changed
+      let finalData = { ...appData };
+      if (finalData.phone) {
+        finalData.phoneNormalized = normalizePhone(finalData.phone);
+      }
+
+      const diff = computeDiff(originalData || {}, finalData);
+
+      await simpleRetry(() => updateDoc(docRef, finalData));
 
       if (!isGlobal && diff) {
         await logActivity(companyId, collectionName, applicationId, "Details Updated", diff);
       } else if (!isGlobal && !diff) {
         await logActivity(companyId, collectionName, applicationId, "Details Saved", "No changes detected");
       }
+
+      // Update local state to match saved data (including normalized phone)
+      setAppData(finalData);
 
       showSuccess("Changes saved successfully");
 

@@ -1,4 +1,5 @@
 import ExcelJS from 'exceljs';
+import Papa from 'papaparse';
 import { formatPhoneNumber, normalizePhone } from '@/shared/utils/helpers';
 
 // Helper to find key in row object
@@ -8,38 +9,58 @@ const findKey = (row, keywords) => {
 };
 
 self.onmessage = async (e) => {
-    const { buffer } = e.data;
+    const { buffer, fileType, fileName } = e.data;
+    let jsonData = [];
 
     try {
-        const workbook = new ExcelJS.Workbook();
-        await workbook.xlsx.load(buffer);
+        const isCsv = fileType?.includes('csv') || fileName?.toLowerCase().endsWith('.csv');
 
-        const worksheet = workbook.worksheets[0];
-        if (!worksheet || worksheet.rowCount === 0) {
-            self.postMessage({ success: false, error: "File appears empty." });
-            return;
-        }
+        if (isCsv) {
+            // CSV Parsing
+            const decoder = new TextDecoder('utf-8');
+            const csvText = decoder.decode(buffer);
 
-        const headerRow = worksheet.getRow(1);
-        const headers = [];
-        headerRow.eachCell((cell, colNumber) => {
-            headers[colNumber] = cell.value ? String(cell.value).trim() : '';
-        });
+            const result = Papa.parse(csvText, {
+                header: true,
+                skipEmptyLines: true
+            });
 
-        const jsonData = [];
-        worksheet.eachRow((row, rowNumber) => {
-            if (rowNumber === 1) return;
-            const rowData = {};
-            row.eachCell((cell, colNumber) => {
-                const header = headers[colNumber];
-                if (header) {
-                    rowData[header] = cell.value !== null && cell.value !== undefined ? String(cell.value).trim() : '';
+            if (result.errors.length > 0 && result.data.length === 0) {
+                throw new Error("CSV Parse Error: " + result.errors[0].message);
+            }
+            jsonData = result.data;
+
+        } else {
+            // Excel Parsing
+            const workbook = new ExcelJS.Workbook();
+            await workbook.xlsx.load(buffer);
+
+            const worksheet = workbook.worksheets[0];
+            if (!worksheet || worksheet.rowCount === 0) {
+                self.postMessage({ success: false, error: "File appears empty." });
+                return;
+            }
+
+            const headerRow = worksheet.getRow(1);
+            const headers = [];
+            headerRow.eachCell((cell, colNumber) => {
+                headers[colNumber] = cell.value ? String(cell.value).trim() : '';
+            });
+
+            worksheet.eachRow((row, rowNumber) => {
+                if (rowNumber === 1) return;
+                const rowData = {};
+                row.eachCell((cell, colNumber) => {
+                    const header = headers[colNumber];
+                    if (header) {
+                        rowData[header] = cell.value !== null && cell.value !== undefined ? String(cell.value).trim() : '';
+                    }
+                });
+                if (Object.keys(rowData).length > 0) {
+                    jsonData.push(rowData);
                 }
             });
-            if (Object.keys(rowData).length > 0) {
-                jsonData.push(rowData);
-            }
-        });
+        }
 
         if (jsonData.length === 0) {
             self.postMessage({ success: false, error: "File appears empty." });

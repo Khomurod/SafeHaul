@@ -43,11 +43,11 @@ exports.checkExpiringDocuments = onSchedule("every 24 hours", async (event) => {
 
         logger.info(`Found ${notifications.length} expiring documents. Sending alerts...`);
 
-        // 4. Send Compliance Alert Emails
+        // 4. Send Compliance Alert Emails (Concurrent Batches)
         let emailsSent = 0;
         let emailsFailed = 0;
 
-        for (const note of notifications) {
+        const processNotification = async (note) => {
             try {
                 // Extract companyId from path: "companies/{companyId}/applications/..."
                 const pathParts = note.path.split('/');
@@ -55,14 +55,14 @@ exports.checkExpiringDocuments = onSchedule("every 24 hours", async (event) => {
 
                 if (!companyId) {
                     logger.warn(`Could not extract companyId from path: ${note.path}`);
-                    continue;
+                    return false;
                 }
 
                 // Get company admin email
                 const companyDoc = await db.collection('companies').doc(companyId).get();
                 if (!companyDoc.exists) {
                     logger.warn(`Company not found: ${companyId}`);
-                    continue;
+                    return false;
                 }
 
                 const companyData = companyDoc.data();
@@ -70,7 +70,7 @@ exports.checkExpiringDocuments = onSchedule("every 24 hours", async (event) => {
 
                 if (!adminEmail) {
                     logger.warn(`No admin email configured for company: ${companyId}`);
-                    continue;
+                    return false;
                 }
 
                 await sendDynamicEmail(
@@ -99,12 +99,23 @@ exports.checkExpiringDocuments = onSchedule("every 24 hours", async (event) => {
                 );
 
                 logger.info(`Email sent to ${adminEmail} for ${note.fileName}`);
-                emailsSent++;
+                return true;
             } catch (emailErr) {
                 logger.error(`Failed to send alert for ${note.fileName}:`, { error: emailErr.message });
-                emailsFailed++;
-                // Continue loop - don't let one failure stop others
+                return false;
             }
+        };
+
+        // Process in batches of 10 to prevent rate limits/memory spikes while ensuring speed
+        const BATCH_SIZE = 10;
+        for (let i = 0; i < notifications.length; i += BATCH_SIZE) {
+            const batch = notifications.slice(i, i + BATCH_SIZE);
+            const results = await Promise.all(batch.map(note => processNotification(note)));
+
+            results.forEach(success => {
+                if (success) emailsSent++;
+                else emailsFailed++;
+            });
         }
 
         logger.info(`Compliance check complete. Emails sent: ${emailsSent}, Failed: ${emailsFailed}`);

@@ -20,10 +20,7 @@ const RUNTIME_OPTS = {
     cors: true
 };
 
-// --- 1. PLANNING PHASE (6:00 AM Central Time) ---
-// --- 1. PLANNING PHASE (REMOVED) ---
-// Previously scheduled for 6:00 AM. Removed as "useless" dry-run for now.
-// To restore: Re-add onSchedule trigger calling runLeadDistribution(false).
+
 
 // --- 2. EXECUTION PHASE (7:00 AM Central Time) ---
 exports.runLeadDistribution = onSchedule({
@@ -326,16 +323,42 @@ exports.forceUnlockPool = onCall(RUNTIME_OPTS, async (request) => {
     }
 });
 
-// --- 11. BAD LEADS ANALYTICS (OPTIMIZED) ---
-// Reads cached stats instead of scanning.
+// --- 11. BAD LEADS ANALYTICS (OPTIMIZED - SHARD AWARE) ---
+// Reads cached stats + aggregates shards.
 exports.getBadLeadsAnalytics = onCall(RUNTIME_OPTS, async (request) => {
     if (!request.auth || request.auth.token.roles?.globalRole !== 'super_admin') {
         throw new HttpsError("permission-denied", "Super Admin only.");
     }
     try {
         const doc = await db.collection("system_settings").doc("lead_pool_stats").get();
-        if (!doc.exists) return { success: false, message: "Stats calculation pending. Please wait for scheduled job." };
-        return { success: true, ...doc.data() };
+        let baseStats = doc.exists ? doc.data() : { stats: {} };
+
+        // AGGREGATE SHARDS
+        const shardsSnap = await db.collection("system_settings").doc("lead_pool_stats")
+            .collection("shards").get();
+
+        let aggregated = { ...baseStats.stats };
+
+        shardsSnap.forEach(shard => {
+            const d = shard.data();
+            // Deep merge / Sum
+            for (const [key, val] of Object.entries(d.stats || {})) {
+                aggregated[key] = (aggregated[key] || 0) + val;
+            }
+        });
+
+        // Mix in breakdown structure if missing
+        return {
+            success: true,
+            stats: aggregated,
+            breakdown: {
+                critical: (aggregated.missingContact || 0) + (aggregated.testData || 0),
+                warning: (aggregated.placeholderEmails || 0) + (aggregated.shortPhones || 0) + (aggregated.missingNames || 0),
+                info: aggregated.duplicatePhones || 0
+            },
+            lastUpdated: baseStats.lastUpdated
+        };
+
     } catch (error) {
         Sentry.captureException(error);
         throw new HttpsError("internal", error.message);
@@ -344,6 +367,9 @@ exports.getBadLeadsAnalytics = onCall(RUNTIME_OPTS, async (request) => {
 
 // --- 13. REBUILD LEAD STATS (Background Worker) ---
 // Scans database to populate the cache. Runs monthly to correct drift.
+// --- 13. REBUILD LEAD STATS (Background Worker) ---
+// Scans database to populate the cache. Runs monthly to correct drift.
+// OOM FIX: Uses stream() instead of get() to handle large datasets.
 exports.rebuildLeadStats = onSchedule({
     schedule: "0 3 1 * *", // 1st of month at 3 AM
     timeZone: "America/Chicago",
@@ -351,11 +377,11 @@ exports.rebuildLeadStats = onSchedule({
     memory: '1GiB'
 }, async (event) => {
     try {
-        console.log("Starting full lead pool scan for analytics...");
-        const leadsSnap = await db.collection("leads").get();
+        console.log("Starting full lead pool scan for analytics (STREAMING)...");
 
+        // Stats Accumulator
         let stats = {
-            total: leadsSnap.size,
+            total: 0,
             missingContact: 0,
             missingNames: 0,
             placeholderEmails: 0,
@@ -366,27 +392,43 @@ exports.rebuildLeadStats = onSchedule({
 
         const phoneMap = new Map();
 
-        leadsSnap.forEach(doc => {
-            const d = doc.data();
-            const phone = d.phone || d.normalizedPhone || '';
-            const email = d.email || '';
-            const firstName = d.firstName || '';
-            const lastName = d.lastName || '';
-            const name = `${firstName} ${lastName} ${d.fullName || ''}`.toLowerCase();
+        // Use streaming to prevent OOM
+        const stream = db.collection("leads").stream();
 
-            if (!phone && !email) stats.missingContact++;
-            if (!firstName && !lastName && !d.fullName) stats.missingNames++;
-            if (email.includes('placeholder') || email.includes('no_email')) stats.placeholderEmails++;
+        await new Promise((resolve, reject) => {
+            stream.on('data', (docSnapshot) => {
+                stats.total++;
+                const d = docSnapshot.data();
+                const phone = d.phone || d.normalizedPhone || '';
+                const email = d.email || '';
+                const firstName = d.firstName || '';
+                const lastName = d.lastName || '';
+                const name = `${firstName} ${lastName} ${d.fullName || ''}`.toLowerCase();
 
-            const cleanPhone = phone.replace(/\D/g, '');
-            if (cleanPhone && cleanPhone.length < 10) stats.shortPhones++;
-            if (name.includes('test') || name.includes('health check')) stats.testData++;
+                if (!phone && !email) stats.missingContact++;
+                if (!firstName && !lastName && !d.fullName) stats.missingNames++;
+                if (email.includes('placeholder') || email.includes('no_email')) stats.placeholderEmails++;
 
-            if (cleanPhone && cleanPhone.length >= 10) {
-                phoneMap.set(cleanPhone, (phoneMap.get(cleanPhone) || 0) + 1);
-            }
+                const cleanPhone = phone.replace(/\D/g, '');
+                if (cleanPhone && cleanPhone.length < 10) stats.shortPhones++;
+                if (name.includes('test') || name.includes('health check')) stats.testData++;
+
+                if (cleanPhone && cleanPhone.length >= 10) {
+                    // OOM SAFEGUARD: Stop tracking duplicates if memory pressure is high
+                    if (phoneMap.size < 500000) {
+                        phoneMap.set(cleanPhone, (phoneMap.get(cleanPhone) || 0) + 1);
+                    } else if (phoneMap.size === 500000) {
+                        console.warn("Warning: Lead pool exceeded memory limit for duplicate tracking. Partial stats only.");
+                        phoneMap.set("OOM_LIMIT_REACHED", 1);
+                    }
+                }
+            });
+
+            stream.on('end', resolve);
+            stream.on('error', reject);
         });
 
+        // Calculate duplicates
         for (const [phone, count] of phoneMap) {
             if (count > 1) stats.duplicatePhones += count - 1;
         }
@@ -402,7 +444,7 @@ exports.rebuildLeadStats = onSchedule({
             lastUpdated: admin.firestore.FieldValue.serverTimestamp()
         });
 
-        console.log("Lead stats rebuilt successfully.");
+        console.log(`Lead stats rebuilt successfully. Processed ${stats.total} leads.`);
     } catch (error) {
         console.error("Rebuild Stats Failed:", error);
         Sentry.captureException(error);

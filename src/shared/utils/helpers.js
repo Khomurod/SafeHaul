@@ -114,3 +114,43 @@ export function createFileLink(url, label, fileName) {
     }
     return `<span class="text-gray-500">${label} (${fName === "Not Specified" ? "File not available" : fName})</span>`;
 }
+
+/**
+ * Formats a date object, timestamp, or string into a readable date string.
+ * Supports Firestore Timestamps.
+ */
+export function formatDate(date, includeTime = false) {
+    if (!date) return '--';
+
+    try {
+        let dateObj = date;
+
+        // Handle Firestore Timestamp
+        if (date && typeof date.toDate === 'function') {
+            dateObj = date.toDate();
+        } else if (typeof date === 'string') {
+            dateObj = new Date(date);
+        }
+
+        // Validate Date
+        if (!(dateObj instanceof Date) || isNaN(dateObj)) {
+            return '--';
+        }
+
+        const options = {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        };
+
+        if (includeTime) {
+            options.hour = '2-digit';
+            options.minute = '2-digit';
+        }
+
+        return dateObj.toLocaleDateString('en-US', options);
+    } catch (err) {
+        console.warn('Date formatting error:', err);
+        return '--';
+    }
+}

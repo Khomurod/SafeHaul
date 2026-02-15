@@ -21,6 +21,7 @@ export function useCompanyDashboard(companyId) {
     const [error, setError] = useState('');
 
     const [latestBatchTime, setLatestBatchTime] = useState(null);
+    const [teamMembers, setTeamMembers] = useState([]);
     const [stats, setStats] = useState({
         applications: 0,
         platformLeads: 0,
@@ -122,7 +123,12 @@ export function useCompanyDashboard(companyId) {
             constraints.push(where("driverType", "array-contains", filters.driverType));
         }
         if (filters.assignee) {
-            constraints.push(where("assignedTo", "==", filters.assignee));
+            if (filters.assignee === '__unassigned__') {
+                // Filter for unassigned: assignedTo is null/empty
+                constraints.push(where("assignedTo", "==", ""));
+            } else {
+                constraints.push(where("assignedTo", "==", filters.assignee));
+            }
         }
 
         return constraints;
@@ -153,7 +159,14 @@ export function useCompanyDashboard(companyId) {
                 if (isEmail) {
                     searchConstraints.push(where("email", "==", term.toLowerCase()));
                 } else if (isPhone) {
-                    searchConstraints.push(where("phone", "==", term));
+                    // M4: Search by normalized phone
+                    const normalized = normalizePhone(term);
+                    if (normalized) {
+                        searchConstraints.push(where("phoneNormalized", "==", normalized));
+                    } else {
+                        // Fallback if normalization fails (unlikely for matched regex)
+                        searchConstraints.push(where("phone", "==", term));
+                    }
                 } else {
                     const termFixed = term.charAt(0).toUpperCase() + term.slice(1);
                     searchConstraints.push(where("lastName", ">=", termFixed));
@@ -264,6 +277,22 @@ export function useCompanyDashboard(companyId) {
         fetchStats();
     }, [companyId, fetchStats]);
 
+    // D. Fetch Team Members
+    useEffect(() => {
+        const fetchTeamMembers = async () => {
+            if (!companyId) return;
+            try {
+                const teamRef = collection(db, "companies", companyId, "team");
+                const snapshot = await getDocs(teamRef);
+                const members = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                setTeamMembers(members);
+            } catch (e) {
+                console.error("Error fetching team members:", e);
+            }
+        };
+        fetchTeamMembers();
+    }, [companyId]);
+
     // B. Reset Pagination on Tab/Filter Change
     useEffect(() => {
         setData([]);
@@ -293,6 +322,7 @@ export function useCompanyDashboard(companyId) {
         paginatedData: data,
         counts: stats,
         latestBatchTime,
+        teamMembers,
         loading,
         error,
 

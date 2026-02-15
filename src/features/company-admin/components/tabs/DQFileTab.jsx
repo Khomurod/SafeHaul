@@ -272,7 +272,7 @@ export function DQFileTab({ companyId, applicationId, collectionName = 'applicat
 
           <div className="flex items-center gap-4">
             <button
-              className="w-full sm:w-auto py-2 px-6 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition duration-150 disabled:opacity-75"
+              className="w-full sm:w-auto flex items-center py-2 px-6 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition duration-150 disabled:opacity-75"
               onClick={handleUpload}
               disabled={isUploading || !fileToUpload}
             >

@@ -69,17 +69,19 @@ exports.submitEasyApplication = functions.https.onCall(async (data, context) => 
             medicalCard: driverData.medicalCard || {}
         };
 
-        const appRef = await applicationsRef.add(newApp);
+        // RACE CONDITION FIX: Use deterministic ID to prevent duplicate applications
+        const appId = `${companyId}_${uid}`;
+        await applicationsRef.doc(appId).set(newApp);
 
         // 5. Update Driver's "Saved Jobs" or "Activity Log" (Optional but good practice)
         await db.collection('drivers').doc(uid).collection('activities').add({
             type: 'application_submitted',
             companyId,
-            applicationId: appRef.id,
+            applicationId: appId,
             timestamp: admin.firestore.FieldValue.serverTimestamp()
         });
 
-        return { success: true, applicationId: appRef.id };
+        return { success: true, applicationId: appId };
 
     } catch (error) {
         console.error("Submit Easy Application Error:", error);

@@ -16,7 +16,18 @@ exports.getSignedUploadUrl = functions.https.onCall(async (data, context) => {
 
     const { companyId, fileName, fileType, folder } = data;
 
-    // 1. Validation
+    // 1. Security: App Check & Rate Limiting (Prevent abuse)
+    if (!context.app && !process.env.FUNCTIONS_EMULATOR) {
+        throw new functions.https.HttpsError('failed-precondition', 'The function must be called from an App Check verified app.');
+    }
+
+    if (!context.auth) {
+        // Guest Rate Limiting (IP-based approx)
+        // We use the unique context.rawRequest.ip or strict App Check enforce only
+        // Implementation: We'll trust App Check for now as the primary barrier.
+    }
+
+    // 2. Validation
     if (!companyId || !fileName || !fileType) {
         throw new functions.https.HttpsError('invalid-argument', 'Missing file parameters (companyId, fileName, or fileType).');
     }

@@ -2,6 +2,7 @@
 
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { onRequest } = require("firebase-functions/v2/https");
+const { onDocumentWritten } = require("firebase-functions/v2/firestore");
 const { admin, db } = require("./firebaseAdmin");
 const { deleteCompanySchema, sendEmailSchema } = require("./shared/schema");
 
@@ -144,3 +145,34 @@ const migrationLogic = onCall({
 
 exports.runMigration = migrationLogic;
 // migrateDriversToLeads removed - real implementation is in leadDistribution.js
+
+/**
+ * SYNC PUBLIC PROFILE
+ * Trigger: onWrite /companies/{companyId}
+ * Description: Copies ONLY safe public data to a separate collection for public read access.
+ * This prevents exposing sensitive company data (revenue, internal notes, quotas) to the public.
+ */
+exports.syncPublicProfile = onDocumentWritten("companies/{companyId}", async (event) => {
+    const companyId = event.params.companyId;
+    const newData = event.data.after.exists ? event.data.after.data() : null;
+
+    // If company is deleted, delete public profile
+    if (!newData) {
+        await db.collection("public_profiles").doc(companyId).delete();
+        console.log(`[syncPublicProfile] Deleted public profile for ${companyId}`);
+        return;
+    }
+
+    // SELECT ONLY SAFE FIELDS
+    const publicData = {
+        companyName: newData.companyName || "Untitled Company",
+        appSlug: newData.appSlug || null,
+        logoUrl: newData.logoUrl || null,
+        brandColor: newData.brandColor || "#1e40af",
+        isActive: newData.isActive ?? true,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    };
+
+    await db.collection("public_profiles").doc(companyId).set(publicData, { merge: true });
+    console.log(`[syncPublicProfile] Synced public profile for ${companyId}`);
+});

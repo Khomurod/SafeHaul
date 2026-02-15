@@ -15,7 +15,7 @@ export function Section({ title, children, className = "" }) {
 
 export function InfoGrid({ children }) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
       {children}
     </div>
   );
@@ -30,7 +30,7 @@ export function InfoItem({ label, value, isEditing, onChange, type = "text", opt
 
       {isEditing ? (
         options.length > 0 ? (
-          <select 
+          <select
             className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none bg-white"
             value={value || ''}
             onChange={(e) => onChange(e.target.value)}

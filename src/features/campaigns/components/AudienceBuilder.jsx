@@ -188,11 +188,62 @@ export function AudienceBuilder({ companyId, filters, onChange }) {
                         ) : (
                             /* UPLOAD MODE UI (Simplified for brevity, logic maintained) */
                             <div className="text-center py-8">
-                                <UploadCloud className="mx-auto text-slate-300 mb-4" size={48} />
-                                <h3 className="font-bold text-slate-900">Import Contacts</h3>
-                                {/* ... Reuse existing upload UI logic here ... */}
-                                <input type="file" onChange={handleFileChange} className="mt-4" />
+                                <div className="max-w-md mx-auto">
+                                    <div className="flex gap-2 justify-center mb-6">
+                                        <button
+                                            onClick={() => setLocalFilters(p => ({ ...p, _importTab: 'file' }))}
+                                            className={`px-4 py-2 rounded-lg text-sm font-bold ${(!localFilters._importTab || localFilters._importTab === 'file') ? 'bg-blue-50 text-blue-700' : 'text-slate-500'}`}
+                                        >
+                                            File Upload (CSV/XLSX)
+                                        </button>
+                                        <button
+                                            onClick={() => setLocalFilters(p => ({ ...p, _importTab: 'sheet' }))}
+                                            className={`px-4 py-2 rounded-lg text-sm font-bold ${localFilters._importTab === 'sheet' ? 'bg-green-50 text-green-700' : 'text-slate-500'}`}
+                                        >
+                                            Google Sheets
+                                        </button>
+                                    </div>
+
+                                    {(!localFilters._importTab || localFilters._importTab === 'file') ? (
+                                        <div className="border-2 border-dashed border-slate-200 rounded-2xl p-8 hover:bg-slate-50 transition-colors relative">
+                                            <UploadCloud className="mx-auto text-blue-300 mb-4" size={48} />
+                                            <h3 className="font-bold text-slate-900 mb-1">Click to Upload</h3>
+                                            <p className="text-xs text-slate-400 mb-4">Support: .csv, .xlsx, .xls</p>
+                                            <input
+                                                type="file"
+                                                onChange={handleFileChange}
+                                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                                accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
+                                            />
+                                        </div>
+                                    ) : (
+                                        <div className="border border-slate-200 rounded-2xl p-8">
+                                            <FileSpreadsheet className="mx-auto text-green-500 mb-4" size={48} />
+                                            <h3 className="font-bold text-slate-900 mb-4">Paste Sheet URL</h3>
+                                            <div className="flex gap-2">
+                                                <input
+                                                    type="text"
+                                                    placeholder="https://docs.google.com/spreadsheets/d/..."
+                                                    className="flex-1 p-2 border border-slate-200 rounded-lg text-sm"
+                                                    value={sheetUrl}
+                                                    onChange={(e) => setSheetUrl(e.target.value)}
+                                                />
+                                                <button
+                                                    onClick={handleSheetImport}
+                                                    disabled={processingSheet}
+                                                    className="px-4 py-2 bg-green-600 text-white rounded-lg font-bold text-sm disabled:opacity-50"
+                                                >
+                                                    {processingSheet ? 'Loading...' : 'Import'}
+                                                </button>
+                                            </div>
+                                            <p className="text-[10px] text-slate-400 mt-2 text-left">
+                                                Make sure the sheet is accessible to "Anyone with the link" or public.
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
+
                         )}
                     </div>
                 </div>
@@ -224,20 +275,14 @@ export function AudienceBuilder({ companyId, filters, onChange }) {
 
                         {/* VIRTUAL LIST AREA */}
                         <div className="flex-1 bg-black/20 min-h-0 relative">
-                            {isUploadMode ? (
-                                /* Simple List for Upload (Static) */
-                                <div className="p-4 text-center text-slate-500">
-                                    {csvData.length > 0 ? `${csvData.length} rows ready.` : "Waiting for file..."}
-                                </div>
-                            ) : (
-                                /* Smart Infinite List */
-                                <VirtualLeadList
-                                    companyId={companyId}
-                                    filters={localFilters}
-                                    excludedIds={localFilters.excludedLeadIds}
-                                    onToggleExclusion={handleToggleExclusion}
-                                />
-                            )}
+                            {/* Smart Infinite List (Handles both CRM and Import) */}
+                            <VirtualLeadList
+                                companyId={companyId}
+                                filters={localFilters}
+                                excludedIds={localFilters.excludedLeadIds}
+                                onToggleExclusion={handleToggleExclusion}
+                                localData={isUploadMode ? csvData : null}
+                            />
                         </div>
 
                         {/* Footer Action */}
