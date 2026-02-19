@@ -134,9 +134,7 @@ missing_functions.txt
 # ===========================================
 # ENVIRONMENT & SECRETS (ADDED BY AUDIT)
 # ===========================================
-.env
-.env.local
-.env.*.local
+
 cloud_functions.txt
 .gemini/
 .vercel/
