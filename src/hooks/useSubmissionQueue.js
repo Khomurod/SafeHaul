@@ -79,7 +79,7 @@ export function useSubmissionQueue() {
 
     // Submit function for queue processing
     const submitToFirestore = useCallback(async (data, companyId, entry) => {
-        const isGuest = entry?.meta?.type === 'guest' || data?.lifecycle?.isGuest;
+        const isGuest = entry?.type === 'guest' || data?.lifecycle?.isGuest;
 
         // Guest submissions → Cloud Function (Admin SDK, bypasses rules)
         if (isGuest) {
