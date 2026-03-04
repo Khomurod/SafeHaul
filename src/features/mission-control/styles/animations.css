@@ -1,0 +1,354 @@
+/* 
+ * Mission Control Animations
+ * Premium motion design keyframes
+ */
+
+/* Fade Animations */
+@keyframes mc-fade-in {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes mc-fade-in-up {
+    from {
+        opacity: 0;
+        transform: translateY(16px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes mc-fade-in-down {
+    from {
+        opacity: 0;
+        transform: translateY(-16px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes mc-fade-in-scale {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* Pulse Animations */
+@keyframes mc-pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+}
+
+@keyframes mc-pulse-glow {
+
+    0%,
+    100% {
+        box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+    }
+
+    50% {
+        box-shadow: 0 0 40px rgba(59, 130, 246, 0.5);
+    }
+}
+
+@keyframes mc-pulse-ring {
+    0% {
+        transform: scale(0.8);
+        opacity: 1;
+    }
+
+    100% {
+        transform: scale(2);
+        opacity: 0;
+    }
+}
+
+/* Heartbeat for live indicators */
+@keyframes mc-heartbeat {
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    14% {
+        transform: scale(1.1);
+    }
+
+    28% {
+        transform: scale(1);
+    }
+
+    42% {
+        transform: scale(1.1);
+    }
+
+    70% {
+        transform: scale(1);
+    }
+}
+
+/* Radar Sweep */
+@keyframes mc-radar-sweep {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Float Animation */
+@keyframes mc-float {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-8px);
+    }
+}
+
+/* Shimmer Loading Effect */
+@keyframes mc-shimmer {
+    0% {
+        background-position: -200% 0;
+    }
+
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+/* Particle Drift */
+@keyframes mc-drift {
+    0% {
+        transform: translateY(0) translateX(0);
+        opacity: 0;
+    }
+
+    10% {
+        opacity: 1;
+    }
+
+    90% {
+        opacity: 1;
+    }
+
+    100% {
+        transform: translateY(-100vh) translateX(50px);
+        opacity: 0;
+    }
+}
+
+/* Spin */
+@keyframes mc-spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Bounce */
+@keyframes mc-bounce {
+
+    0%,
+    100% {
+        transform: translateY(0);
+        animation-timing-function: cubic-bezier(0.8, 0, 1, 1);
+    }
+
+    50% {
+        transform: translateY(-12px);
+        animation-timing-function: cubic-bezier(0, 0, 0.2, 1);
+    }
+}
+
+/* Slide In */
+@keyframes mc-slide-in-right {
+    from {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes mc-slide-in-left {
+    from {
+        opacity: 0;
+        transform: translateX(-100%);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* Number Counter */
+@keyframes mc-count-up {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Success Celebration */
+@keyframes mc-confetti {
+    0% {
+        transform: translateY(0) rotate(0deg);
+        opacity: 1;
+    }
+
+    100% {
+        transform: translateY(-100vh) rotate(720deg);
+        opacity: 0;
+    }
+}
+
+/* Error Shake */
+@keyframes mc-shake {
+
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    10%,
+    30%,
+    50%,
+    70%,
+    90% {
+        transform: translateX(-4px);
+    }
+
+    20%,
+    40%,
+    60%,
+    80% {
+        transform: translateX(4px);
+    }
+}
+
+/* Utility Classes */
+.mc-animate-fade-in {
+    animation: mc-fade-in var(--mc-transition-base) ease-out;
+}
+
+.mc-animate-fade-in-up {
+    animation: mc-fade-in-up var(--mc-transition-slow) ease-out;
+}
+
+.mc-animate-pulse {
+    animation: mc-pulse 2s ease-in-out infinite;
+}
+
+.mc-animate-pulse-glow {
+    animation: mc-pulse-glow 2s ease-in-out infinite;
+}
+
+.mc-animate-heartbeat {
+    animation: mc-heartbeat 1.5s ease-in-out infinite;
+}
+
+.mc-animate-float {
+    animation: mc-float 3s ease-in-out infinite;
+}
+
+.mc-animate-spin {
+    animation: mc-spin 1s linear infinite;
+}
+
+.mc-animate-bounce {
+    animation: mc-bounce 1s infinite;
+}
+
+.mc-animate-shake {
+    animation: mc-shake 0.5s ease-in-out;
+}
+
+/* Shimmer Loading Placeholder */
+.mc-shimmer {
+    background: linear-gradient(90deg,
+            rgba(255, 255, 255, 0.03) 25%,
+            rgba(255, 255, 255, 0.08) 50%,
+            rgba(255, 255, 255, 0.03) 75%);
+    background-size: 200% 100%;
+    animation: mc-shimmer 1.5s infinite;
+}
+
+/* Stagger Children Animation */
+.mc-stagger-children>* {
+    animation: mc-fade-in-up var(--mc-transition-slow) ease-out both;
+}
+
+.mc-stagger-children>*:nth-child(1) {
+    animation-delay: 0ms;
+}
+
+.mc-stagger-children>*:nth-child(2) {
+    animation-delay: 50ms;
+}
+
+.mc-stagger-children>*:nth-child(3) {
+    animation-delay: 100ms;
+}
+
+.mc-stagger-children>*:nth-child(4) {
+    animation-delay: 150ms;
+}
+
+.mc-stagger-children>*:nth-child(5) {
+    animation-delay: 200ms;
+}
+
+.mc-stagger-children>*:nth-child(6) {
+    animation-delay: 250ms;
+}
+
+.mc-stagger-children>*:nth-child(7) {
+    animation-delay: 300ms;
+}
+
+.mc-stagger-children>*:nth-child(8) {
+    animation-delay: 350ms;
+}

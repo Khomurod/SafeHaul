@@ -1,0 +1,44 @@
+﻿
+[1m[46m RUN [49m[22m [36mv4.0.17 [39m[90mC:/Users/Kholmurod/Desktop/SafeHaul-for-Gemini-Antigravity[39m
+
+ [31mΓ¥»[39m src/features/campaigns/components/AudienceBuilder.test.jsx [2m([22m[2m1 test[22m[2m | [22m[31m1 failed[39m[2m)[22m[32m 246[2mms[22m[39m
+[31m     [31m├ù[31m renders and handles exclusions[39m[32m 242[2mms[22m[39m
+ [31mΓ¥»[39m src/tests/auth.test.jsx [2m([22m[2m5 tests[22m[2m | [22m[31m5 failed[39m[2m)[22m[32m 258[2mms[22m[39m
+[31m     [31m├ù[31m should render login form with email and password fields[39m[32m 172[2mms[22m[39m
+[31m     [31m├ù[31m should handle successful login[39m[32m 42[2mms[22m[39m
+[31m     [31m├ù[31m should display error message on wrong password[39m[32m 2[2mms[22m[39m
+[31m     [31m├ù[31m should display error message on network error[39m[32m 1[2mms[22m[39m
+[31m     [31m├ù[31m should show loading state during authentication[39m[32m 39[2mms[22m[39m
+ [31mΓ¥»[39m src/tests/dashboard.test.jsx [2m([22m[2m4 tests[22m[2m | [22m[31m4 failed[39m[2m)[22m[32m 265[2mms[22m[39m
+[31m     [31m├ù[31m should render without crashing when provided with mock company profile[39m[32m 137[2mms[22m[39m
+[31m     [31m├ù[31m should display company name when profile is provided[39m[32m 29[2mms[22m[39m
+[31m     [31m├ù[31m should handle missing company profile gracefully[39m[32m 35[2mms[22m[39m
+[31m     [31m├ù[31m should render key dashboard sections[39m[32m 60[2mms[22m[39m
+ [31mΓ¥»[39m functions/test/bulkActions.test.js [2m([22m[2m0 test[22m[2m)[22m
+ [31mΓ¥»[39m functions/test/unit/encryption.test.js [2m([22m[2m5 tests[22m[2m | [22m[31m5 failed[39m[2m)[22m[32m 16[2mms[22m[39m
+[31m     [31m├ù[31m should encrypt and decrypt a string correctly[39m[32m 8[2mms[22m[39m
+[31m     [31m├ù[31m should produce different ciphertext for same input (random IV)[39m[32m 1[2mms[22m[39m
+[31m     [31m├ù[31m should return null for empty/null input[39m[32m 1[2mms[22m[39m
+[31m     [31m├ù[31m should throw if encryption key is missing[39m[32m 1[2mms[22m[39m
+[31m     [31m├ù[31m should throw if encryption key is wrong length[39m[32m 1[2mms[22m[39m
+ [31mΓ¥»[39m functions/test/email.unit.test.js [2m([22m[2m0 test[22m[2m)[22m
+ [31mΓ¥»[39m src/tests/helpers.test.js [2m([22m[2m0 test[22m[2m)[22m
+ [31mΓ¥»[39m functions/test/integration/driverFlow.test.js [2m([22m[2m0 test[22m[2m)[22m
+ [32mΓ£ô[39m src/features/campaigns/components/CampaignResultsTable.test.jsx [2m([22m[2m2 tests[22m[2m)[22m[32m 164[2mms[22m[39m
+[90mstdout[2m | functions/test/unit/rateLimiter.test.js
+[22m[39mΓ£à Firebase Admin Initialized Successfully
+
+ [31mΓ¥»[39m functions/test/unit/rateLimiter.test.js [2m([22m[2m0 test[22m[2m)[22m
+ [32mΓ£ô[39m src/features/campaigns/components/CampaignDetails.test.jsx [2m([22m[2m2 tests[22m[2m)[22m[33m 400[2mms[22m[39m
+ [32mΓ£ô[39m src/features/campaigns/components/CampaignCard.test.jsx [2m([22m[2m3 tests[22m[2m)[22m[32m 211[2mms[22m[39m
+ [32mΓ£ô[39m src/lib/submissionQueue.test.js [2m([22m[2m21 tests[22m[2m)[22m[32m 126[2mms[22m[39m
+ [32mΓ£ô[39m src/features/campaigns/CampaignsDashboard.test.jsx [2m([22m[2m2 tests[22m[2m)[22m[32m 163[2mms[22m[39m
+ [32mΓ£ô[39m src/features/campaigns/components/LaunchPad.test.jsx [2m([22m[2m1 test[22m[2m)[22m[32m 145[2mms[22m[39m
+ [32mΓ£ô[39m src/lib/applicationId.test.js [2m([22m[2m23 tests[22m[2m)[22m[32m 42[2mms[22m[39m
+ [32mΓ£ô[39m functions/test/unit/schema.test.js [2m([22m[2m11 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+
+[2m Test Files [22m [1m[31m9 failed[39m[22m[2m | [22m[1m[32m8 passed[39m[22m[90m (17)[39m
+[2m      Tests [22m [1m[31m15 failed[39m[22m[2m | [22m[1m[32m65 passed[39m[22m[90m (80)[39m
+[2m   Start at [22m 22:55:46
+[2m   Duration [22m 20.83s[2m (transform 3.17s, setup 11.30s, import 9.51s, tests 2.06s, environment 25.33s)[22m
+
