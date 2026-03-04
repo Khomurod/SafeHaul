@@ -132,15 +132,3 @@ exported_functions.txt
 missing_functions.txt
 
 # ===========================================
-# ENVIRONMENT & SECRETS (ADDED BY AUDIT)
-# ===========================================
-.env
-.env.local
-.env.*.local
-serviceAccountKey.json
-*-key.json
-functions/serviceAccountKey.json
-cloud_functions.txt
-.gemini/
-.vercel/
-
