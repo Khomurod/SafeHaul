@@ -553,6 +553,27 @@ service cloud.firestore {
     // direct read, and no browser can append a forged record.
     match /environment_audit_log/{id} { allow read, write: if false; } // server-only (audit)
 
+    // --- SHARED AI PLATFORM + NEWS & INSIGHTS (server-only) ---
+    // AI provider settings: enabled/disabled, account ids, model overrides,
+    // health and cooldown state. No credential value is ever stored here — those
+    // live in Secret Manager — but the document still reveals which providers a
+    // deployment uses, so it is closed to every client. Super Admins read it
+    // through `listAiProviders`.
+    match /ai_provider_config/{providerId} { allow read, write: if false; } // server-only (AI Integrations)
+
+    // AI operational telemetry: task type, provider, model, outcome, latency.
+    // Diagnostic only, and closed to clients so no browser can forge a record or
+    // enumerate which providers are failing.
+    match /ai_telemetry/{id} { allow read, write: if false; } // server-only (AI telemetry)
+
+    // Published articles. Deliberately NOT client-readable even though the
+    // content is public: the public surface is the server-rendered /news routes,
+    // which filter to published, non-deleted posts and strip generation
+    // metadata. A direct client read would expose tombstoned posts, unpublished
+    // rows, source fingerprints and provider/model records. Writes are the
+    // scheduler's alone; deletion goes through `deleteBlogPost`.
+    match /blog_posts/{postId} { allow read, write: if false; } // server-only (News & Insights)
+
     // --- SYSTEM SETTINGS ---
     match /system_settings/{settingId} {
       allow read: if isStaff() || isSuperAdmin();

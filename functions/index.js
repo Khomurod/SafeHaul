@@ -259,6 +259,25 @@ exports.updateAiProviderConfig = aiIntegrations.updateAiProviderConfig;
 exports.testAiProvider = aiIntegrations.testAiProvider;
 exports.migrateGroqCredential = aiIntegrations.migrateGroqCredential;
 
+// 22. SafeHaul News & Insights
+// Public rendering is one onRequest handler behind Hosting rewrites, so /news,
+// /news/{slug}, the feed, the sitemap and the landing card endpoint share a
+// single ordering-obvious rewrite block. The scheduler runs hourly and fills
+// whichever of the day's three themed slots are due and still empty.
+const blogPublic = require('./blog/publicApi');
+exports.serveBlogPublic = blogPublic.serveBlogPublic;
+
+const blogScheduler = require('./blog/scheduler');
+exports.publishScheduledBlogPosts = blogScheduler.publishScheduledBlogPosts;
+
+const blogAdmin = require('./blog/callables');
+exports.listBlogPosts = blogAdmin.listBlogPosts;
+exports.deleteBlogPost = blogAdmin.deleteBlogPost;
+exports.listMediaProviders = blogAdmin.listMediaProviders;
+exports.saveMediaCredential = blogAdmin.saveMediaCredential;
+exports.deleteMediaCredential = blogAdmin.deleteMediaCredential;
+exports.runBlogPublicationNow = blogAdmin.runBlogPublicationNow;
+
 // 19. Legacy Compatibility Callables (frontend contract preservation)
 exports.updateBulkSessionStatus = legacyCompat.updateBulkSessionStatus;
 exports.backfillEmployerFields = legacyCompat.backfillEmployerFields;
