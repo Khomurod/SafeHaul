@@ -266,6 +266,7 @@ jobs:
     env:
       FIREBASE_PROJECT_ID: truckerapp-system
       FIREBASE_HOSTING_TARGET: ${{ github.repository == 'Khomurod/SafeHaul' && 'production' || 'testing' }}
+      FIREBASE_LANDING_TARGET: ${{ github.repository == 'Khomurod/SafeHaul' && 'landing-production' || 'landing-testing' }}
 
     steps:
       - uses: actions/checkout@v5
@@ -308,8 +309,8 @@ jobs:
       - name: Strip sourcemaps from deploy artifact
         run: find dist -name '*.map' -delete
 
-      - name: Deploy Firebase Hosting
-        run: npx firebase deploy --only "hosting:$FIREBASE_HOSTING_TARGET" --project "$FIREBASE_PROJECT_ID" --non-interactive
+      - name: Deploy app and landing-page Hosting sites
+        run: npx firebase deploy --only "hosting:$FIREBASE_HOSTING_TARGET,hosting:$FIREBASE_LANDING_TARGET" --project "$FIREBASE_PROJECT_ID" --non-interactive
 
       # Rules + Storage first so an indexes IAM issue does not block rule rollouts.
       #

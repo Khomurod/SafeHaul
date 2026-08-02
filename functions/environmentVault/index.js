@@ -40,6 +40,8 @@ const vaultOptions = {
         'GROQ_API_KEY',
         'BULK_WORKER_SECRET',
         'PROCESS_BULK_BATCH_URL',
+        'LANDING_TELEGRAM_BOT_TOKEN',
+        'LANDING_TELEGRAM_CHAT_ID',
     ],
 };
 

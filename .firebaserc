@@ -8,6 +8,12 @@
         "production": [
           "safehaul-app-production"
         ],
+        "landing-production": [
+          "safehaul-landing-production"
+        ],
+        "landing-testing": [
+          "safehaul-landing-testing"
+        ],
         "testing": [
           "truckerapp-system"
         ]

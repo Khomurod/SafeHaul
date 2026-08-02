@@ -188,6 +188,8 @@ describe('environment registry — coverage of each required area', () => {
             'FACEBOOK_APP_SECRET',
             'FACEBOOK_VERIFY_TOKEN',
             'GROQ_API_KEY',
+            'LANDING_TELEGRAM_BOT_TOKEN',
+            'LANDING_TELEGRAM_CHAT_ID',
             'PROCESS_BULK_BATCH_URL',
             'SMS_ENCRYPTION_KEY',
         ]);

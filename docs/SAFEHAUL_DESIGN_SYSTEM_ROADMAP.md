@@ -8099,3 +8099,35 @@ terminal deny for the new `environment_audit_log` collection.
   Functions runtime has no access to the bundle's inlined values, so the server
   reports `unknown` and the client refines it from a presence boolean. This is
   the only correct answer available, and both the row and the docs say so.
+
+---
+
+## 2026-08-03 marketing-site Firebase integration
+
+- [~] Move the existing SafeHaul marketing landing page into both application
+  repositories and deploy it beside the application through named Firebase
+  Hosting targets.
+  - Files: `landing/**`, `.firebaserc`, `firebase.json`,
+    `.github/workflows/main.yml`, `functions/landingLead.js`,
+    `functions/test/unit/landingLead.test.js`, Environment Vault registry and
+    inventory tests, `README.md`, and `docs/FIREBASE_HOSTING_RUNBOOK.md`.
+  - Architecture: the landing page remains a deliberately isolated static site;
+    it does not import application features or design-system code. The same
+    repository workflow deploys separate application and landing targets, so no
+    route or application composition changes.
+  - Security: removed the publicly embedded Telegram credential. The form now
+    uses a same-origin Hosting rewrite to a server-side Function with an origin
+    allowlist, strict validation, a honeypot, fail-closed per-IP rate limiting,
+    bounded instances, safe error output, and Secret Manager bindings.
+  - Verification so far: Firebase JSON parsed; function export/deploy planners
+    passed (109 exports mapped); backend lint passed; 64 backend suites / 490
+    tests passed; frontend lint passed with 0 errors and 107 pre-existing
+    warnings; production Vite build passed; `git diff --check` passed; static
+    credential and nested-route asset-path scans passed.
+  - Visual/mobile/a11y: inherited landing content is unchanged apart from
+    root-safe URLs, secure form transport, spam field, Escape handling, focus
+    return, and dialog naming. Live desktop/mobile review and Firebase/domain
+    verification remain required before this item can be marked complete.
+  - Status remains in progress until both Firebase default URLs are verified,
+    `safehaul.io`/`www.safehaul.io` are certified and live, and Vercel no longer
+    owns or auto-deploys the production landing domain.
