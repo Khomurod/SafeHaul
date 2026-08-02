@@ -33,28 +33,19 @@ jest.mock('../../shared/companyAccess', () => ({
   assertCompanyAccessForRequest: jest.fn().mockResolvedValue(undefined),
 }));
 
+// The callable now reaches the vendor through the shared AI task, which owns
+// provider selection and fallback. Mocking at the task boundary keeps these
+// tests about what this callable is responsible for — authorization, limits,
+// validation and clamping — and leaves routing to the router's own suite.
 const mockAnalyzeDocumentPages = jest.fn();
-jest.mock('../../shared/documentVisionProvider', () => {
-  class DocumentVisionError extends Error {
-    constructor(kind, message) {
-      super(message);
-      this.kind = kind;
-    }
-  }
-  return {
-    DocumentVisionError,
-    getDocumentVisionProvider: () => ({
-      name: 'test-provider',
-      model: 'test-model',
-      analyzeDocumentPages: (...args) => mockAnalyzeDocumentPages(...args),
-    }),
-  };
-});
+jest.mock('../../ai/tasks/edocFieldPlacement', () => ({
+  analyzeDocumentPages: (...args) => mockAnalyzeDocumentPages(...args),
+}));
 
 const { analyzeEdocFieldPlacement, __private } = require('../../edocFieldPlacement');
 const { checkRateLimit } = require('../../shared/rateLimiter');
 const { assertCompanyAccessForRequest } = require('../../shared/companyAccess');
-const { DocumentVisionError } = require('../../shared/documentVisionProvider');
+const { AiError } = require('../../ai/router/errors');
 
 const PNG = 'data:image/png;base64,';
 const imageOfLength = (chars) => PNG + 'A'.repeat(Math.max(0, chars - PNG.length));
@@ -365,23 +356,47 @@ describe('provider output validation', () => {
 
 describe('provider failures', () => {
   it('maps a missing provider configuration to failed-precondition', async () => {
-    mockAnalyzeDocumentPages.mockRejectedValue(new DocumentVisionError('not-configured', 'no key'));
+    mockAnalyzeDocumentPages.mockRejectedValue(new AiError('not_configured', 'no provider'));
+    await expect(callWith({ companyId: 'c1', scanId: 's1', pages: onePage() })).rejects.toMatchObject({
+      code: 'failed-precondition',
+    });
+  });
+
+  it('maps no vision-capable provider to failed-precondition', async () => {
+    // Every configured provider is text-only, so an image task cannot run.
+    // The operator, not the user, has something to fix.
+    mockAnalyzeDocumentPages.mockRejectedValue(new AiError('capability_unavailable', 'text only'));
     await expect(callWith({ companyId: 'c1', scanId: 's1', pages: onePage() })).rejects.toMatchObject({
       code: 'failed-precondition',
     });
   });
 
   it('maps a network failure to unavailable', async () => {
-    mockAnalyzeDocumentPages.mockRejectedValue(new DocumentVisionError('unavailable', 'timeout'));
+    mockAnalyzeDocumentPages.mockRejectedValue(new AiError('network', 'timeout'));
+    await expect(callWith({ companyId: 'c1', scanId: 's1', pages: onePage() })).rejects.toMatchObject({
+      code: 'unavailable',
+    });
+  });
+
+  it('maps a total-deadline overrun to unavailable', async () => {
+    mockAnalyzeDocumentPages.mockRejectedValue(new AiError('deadline_exceeded', 'too slow'));
     await expect(callWith({ companyId: 'c1', scanId: 's1', pages: onePage() })).rejects.toMatchObject({
       code: 'unavailable',
     });
   });
 
   it('maps unreadable model output to internal', async () => {
-    mockAnalyzeDocumentPages.mockRejectedValue(new DocumentVisionError('unreadable', 'garbage'));
+    mockAnalyzeDocumentPages.mockRejectedValue(new AiError('malformed_response', 'garbage'));
     await expect(callWith({ companyId: 'c1', scanId: 's1', pages: onePage() })).rejects.toMatchObject({
       code: 'internal',
+    });
+  });
+
+  it('maps exhaustion of every provider to internal', async () => {
+    mockAnalyzeDocumentPages.mockRejectedValue(new AiError('all_providers_failed', '4 attempted'));
+    await expect(callWith({ companyId: 'c1', scanId: 's1', pages: onePage() })).rejects.toMatchObject({
+      code: 'internal',
+      message: 'The AI service could not analyze this document.',
     });
   });
 

@@ -1,76 +1,66 @@
+/**
+ * CDL auto-fill callable.
+ *
+ * The callable name `parseCdlWithGroq` is retained deliberately. It names a
+ * vendor that is now only the *first* provider the shared router tries, but
+ * deployed driver-application clients call it by this name and renaming it
+ * would break every browser that has not reloaded. It is a compatibility
+ * alias; the routing decision lives in `functions/ai/`.
+ *
+ * What this file owns: authentication posture, tenant admission, rate
+ * limiting, payload validation and the response contract.
+ * What it no longer owns: which AI vendor answers, which model is used, and
+ * how that vendor's wire format looks. Those moved to the shared AI platform.
+ *
+ * Privacy: the submitted image is a photograph of a real driver's licence.
+ * Nothing derived from its content — not the model's output, not an excerpt,
+ * not a provider error body — is ever logged here.
+ */
+
 const functions = require("firebase-functions/v1");
 const { db } = require("./firebaseAdmin");
 const { checkRateLimit } = require("./shared/rateLimiter");
 const { assertCompanyAcceptingIntake } = require("./shared/companyTenant");
+const { extractCdlFields, CDL_JSON_SCHEMA, normalizeFields } = require("./ai/tasks/cdlExtraction");
+const { extractJsonObject } = require("./ai/validation/schema");
 
-const DEFAULT_GROQ_MODEL = process.env.GROQ_VISION_MODEL || "meta-llama/llama-4-scout-17b-16e-instruct";
-const GROQ_ENDPOINT = "https://api.groq.com/openai/v1/responses";
+/**
+ * Server-side ceiling on the submitted image.
+ *
+ * The browser already refuses anything over 8 MB before upload, so this
+ * rejects nothing a well-behaved client would send; it exists because the
+ * callable is reachable by unauthenticated guests and the server should not
+ * depend on the client's limit. Base64 inflates by about 4/3, so 12 MB of
+ * characters is roughly a 9 MB image.
+ */
+const MAX_IMAGE_CHARS = 12 * 1024 * 1024;
 
-const STRICT_JSON_SCHEMA = {
-    type: "object",
-    properties: {
-        firstName: { type: "string" },
-        lastName: { type: "string" },
-        dateOfBirth: { type: "string" },
-        fullAddress: { type: "string" },
-        cdlNumber: { type: "string" },
-        expirationDate: { type: "string" },
-    },
-    required: [
-        "firstName",
-        "lastName",
-        "dateOfBirth",
-        "fullAddress",
-        "cdlNumber",
-        "expirationDate",
-    ],
-    additionalProperties: false,
-};
-
-function normalizeOutput(payload) {
-    const safe = payload && typeof payload === "object" ? payload : {};
-    return {
-        firstName: String(safe.firstName || "").trim(),
-        lastName: String(safe.lastName || "").trim(),
-        dateOfBirth: String(safe.dateOfBirth || "").trim(),
-        fullAddress: String(safe.fullAddress || "").trim(),
-        cdlNumber: String(safe.cdlNumber || "").trim(),
-        expirationDate: String(safe.expirationDate || "").trim(),
-    };
-}
-
-function extractJsonObject(text) {
-    if (!text || typeof text !== "string") return null;
-    const trimmed = text.trim();
-    try {
-        return JSON.parse(trimmed);
-    } catch (_) {
-        // keep trying below
+/**
+ * Maps a shared-platform failure category onto the HttpsError codes and
+ * user-facing strings this callable has always returned. Preserved exactly so
+ * the driver-application wizard's error handling keeps working unchanged.
+ */
+function toHttpsError(category) {
+    switch (category) {
+        case "not_configured":
+        case "capability_unavailable":
+            return new functions.https.HttpsError(
+                "failed-precondition",
+                "AI auto-fill is not configured on the server.",
+            );
+        case "timeout":
+        case "network":
+        case "deadline_exceeded":
+            return new functions.https.HttpsError("unavailable", "Could not reach AI service. Please retry.");
+        case "malformed_response":
+        case "schema_validation_failed":
+            return new functions.https.HttpsError("internal", "AI returned unreadable data. Please retry.");
+        default:
+            return new functions.https.HttpsError(
+                "internal",
+                "AI parsing failed. Please retry with a clearer photo.",
+            );
     }
-
-    const start = trimmed.indexOf("{");
-    const end = trimmed.lastIndexOf("}");
-    if (start < 0 || end <= start) return null;
-    const candidate = trimmed.slice(start, end + 1);
-    try {
-        return JSON.parse(candidate);
-    } catch (_) {
-        return null;
-    }
-}
-
-function extractAssistantTextFromResponses(payload) {
-    const output = Array.isArray(payload?.output) ? payload.output : [];
-    for (const item of output) {
-        if (item?.type !== "message") continue;
-        const content = Array.isArray(item.content) ? item.content : [];
-        for (const part of content) {
-            if (part?.type === "output_text" && typeof part.text === "string" && part.text.trim()) {
-                return part.text;
-            }
-        }
-    }
-    return "";
 }
 
 exports.parseCdlWithGroq = functions
@@ -84,6 +74,9 @@ exports.parseCdlWithGroq = functions
         if (!imageDataUrl || typeof imageDataUrl !== "string" || !imageDataUrl.startsWith("data:image/")) {
             throw new functions.https.HttpsError("invalid-argument", "imageDataUrl must be a data:image/* base64 URL.");
         }
+        if (imageDataUrl.length > MAX_IMAGE_CHARS) {
+            throw new functions.https.HttpsError("invalid-argument", "Image is too large. Please upload a smaller photo.");
+        }
 
         await assertCompanyAcceptingIntake(db, companyId);
 
@@ -96,74 +89,19 @@ exports.parseCdlWithGroq = functions
             );
         }
 
-        const apiKey = process.env.GROQ_API_KEY;
-        if (!apiKey) {
-            throw new functions.https.HttpsError("failed-precondition", "GROQ_API_KEY is not configured on the server.");
-        }
-
-        const prompt = [
-            "You are an OCR data extractor for US Commercial Driver Licenses (CDL).",
-            "Return ONLY strict JSON. No markdown. No prose.",
-            "Required keys: firstName, lastName, dateOfBirth, fullAddress, cdlNumber, expirationDate.",
-            "If a value is missing or unreadable, return empty string for that key.",
-            "Keep dates exactly as printed on the card when possible.",
-            "For fullAddress, prefer USPS-style with commas: street line, city, ST ZIP (ZIP+4 ok).",
-            "If the card prints on one line with no commas, keep that single line; do not invent commas.",
-        ].join(" ");
-
-        const requestBody = {
-            model: DEFAULT_GROQ_MODEL,
-            temperature: 0,
-            max_output_tokens: 450,
-            text: {
-                format: {
-                    type: "json_schema",
-                    name: "cdl_extraction",
-                    schema: STRICT_JSON_SCHEMA,
-                },
-            },
-            input: [
-                {
-                    role: "user",
-                    content: [
-                        { type: "input_text", text: prompt },
-                        { type: "input_image", image_url: imageDataUrl },
-                    ],
-                },
-            ],
-        };
-
-        let response;
+        let result;
         try {
-            response = await fetch(GROQ_ENDPOINT, {
-                method: "POST",
-                headers: {
-                    Authorization: `Bearer ${apiKey}`,
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify(requestBody),
-            });
-        } catch (networkErr) {
-            console.error("[parseCdlWithGroq] Groq network error:", networkErr);
-            throw new functions.https.HttpsError("unavailable", "Could not reach AI service. Please retry.");
+            result = await extractCdlFields({ imageDataUrl });
+        } catch (error) {
+            // Category and provider id only. A provider's error body can quote
+            // the submitted licence back at us, so it never reaches a log.
+            console.error(
+                `[parseCdlWithGroq] AI task failed category=${error?.category || "internal"} provider=${error?.providerId || "none"}`,
+            );
+            throw toHttpsError(error?.category);
         }
 
-        if (!response.ok) {
-            const errText = await response.text().catch(() => "");
-            console.error("[parseCdlWithGroq] Groq API error:", response.status, errText);
-            throw new functions.https.HttpsError("internal", "AI parsing failed. Please retry with a clearer photo.");
-        }
-
-        const raw = await response.json();
-        const content = extractAssistantTextFromResponses(raw);
-        const parsed = extractJsonObject(content);
-
-        if (!parsed) {
-            console.error("[parseCdlWithGroq] Non-JSON model output:", content);
-            throw new functions.https.HttpsError("internal", "AI returned unreadable data. Please retry.");
-        }
-
-        const normalized = normalizeOutput(parsed);
+        const normalized = result.fields;
         if (!normalized.firstName && !normalized.lastName && !normalized.cdlNumber) {
             throw new functions.https.HttpsError(
                 "failed-precondition",
@@ -174,15 +112,18 @@ exports.parseCdlWithGroq = functions
         return {
             success: true,
             fields: normalized,
-            sourceModel: DEFAULT_GROQ_MODEL,
+            // Still the model that actually produced the answer — it is simply
+            // no longer guaranteed to be a Groq one.
+            sourceModel: result.model,
+            provider: result.providerId,
             storagePath: storagePath || null,
-            schema: STRICT_JSON_SCHEMA,
+            schema: CDL_JSON_SCHEMA,
         };
     });
 
 exports.__private = {
-    normalizeOutput,
+    normalizeOutput: normalizeFields,
     extractJsonObject,
-    extractAssistantTextFromResponses,
+    MAX_IMAGE_CHARS,
+    toHttpsError,
 };
-
