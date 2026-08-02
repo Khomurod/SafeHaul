@@ -35,11 +35,11 @@ function pickDefined(config) {
 const missingFirebaseKeys = requiredFirebaseKeys.filter((key) => !rawFirebaseConfig[key]);
 const isE2ETestMode = import.meta.env.VITE_E2E_TEST_MODE === '1';
 
-// E2E runs must be hermetic. CI injects the real `VITE_FIREBASE_*` secrets at the
-// workflow level, so without this the Playwright dev server pointed a browser at
+// E2E runs must be hermetic. A developer may have real `VITE_FIREBASE_*` values
+// locally, so without this the Playwright dev server can point a browser at
 // the **real** Firestore project while `DataContext` supplied a mock (non-Firebase)
 // user — every listener then failed `PERMISSION_DENIED`, which is neither the local
-// behaviour nor anything a spec can assert against. Locally there is no `.env`, so
+// behaviour nor anything a spec can assert against. With no `.env`,
 // the placeholder branch below applied and the same specs passed; that divergence
 // is what broke `frontend-quality` after #123. Forcing the placeholder project
 // whenever E2E mode is on makes CI and local identical and guarantees the suite can
@@ -48,12 +48,6 @@ const isE2ETestMode = import.meta.env.VITE_E2E_TEST_MODE === '1';
 const forcePlaceholderForE2E = isE2ETestMode && !import.meta.env.PROD;
 const canUsePlaceholderConfig =
   (missingFirebaseKeys.length > 0 || forcePlaceholderForE2E) && !import.meta.env.PROD;
-
-if (missingFirebaseKeys.length > 0 && import.meta.env.PROD) {
-  throw new Error(
-    `[firebase] Missing required Firebase env vars in production: ${missingFirebaseKeys.join(', ')}`,
-  );
-}
 
 const PLACEHOLDER_FIREBASE_CONFIG = Object.freeze({
   apiKey: 'AIzaSyE2EPlaceholderKey1234567890123',
@@ -72,14 +66,52 @@ if (canUsePlaceholderConfig) {
   console.warn(`[firebase] ${reason}. Using placeholder config in ${modeLabel}.`);
 }
 
-const firebaseConfig = forcePlaceholderForE2E
-  ? // Whole-object replacement, not per-key `||` fallbacks: in CI every real key is
-    // present, so a per-key fallback would silently keep using the real project and
-    // defeat the isolation this branch exists to provide.
-    { ...PLACEHOLDER_FIREBASE_CONFIG }
-  : canUsePlaceholderConfig
-    ? { ...PLACEHOLDER_FIREBASE_CONFIG, ...pickDefined(rawFirebaseConfig) }
-    : rawFirebaseConfig;
+/**
+ * Firebase Hosting exposes the active web-app configuration at this reserved
+ * endpoint. Production therefore has one Google-managed source of truth and no
+ * longer depends on Vercel or GitHub repository environment variables.
+ */
+async function loadFirebaseConfig() {
+  if (!import.meta.env.PROD) {
+    return forcePlaceholderForE2E
+      ? // Whole-object replacement, not per-key `||` fallbacks: E2E must never
+        // inherit even one credential for the real Firebase project.
+        { ...PLACEHOLDER_FIREBASE_CONFIG }
+      : canUsePlaceholderConfig
+        ? { ...PLACEHOLDER_FIREBASE_CONFIG, ...pickDefined(rawFirebaseConfig) }
+        : rawFirebaseConfig;
+  }
+
+  let response;
+  try {
+    response = await fetch('/__/firebase/init.json', {
+      cache: 'no-store',
+      headers: { Accept: 'application/json' },
+    });
+  } catch (error) {
+    throw new Error('[firebase] Could not load Firebase Hosting runtime configuration.', {
+      cause: error,
+    });
+  }
+
+  if (!response.ok) {
+    throw new Error(
+      `[firebase] Firebase Hosting runtime configuration returned HTTP ${response.status}.`,
+    );
+  }
+
+  const runtimeConfig = await response.json();
+  const missingRuntimeKeys = requiredFirebaseKeys.filter((key) => !runtimeConfig?.[key]);
+  if (missingRuntimeKeys.length > 0) {
+    throw new Error(
+      `[firebase] Runtime configuration is missing required keys: ${missingRuntimeKeys.join(', ')}`,
+    );
+  }
+
+  return runtimeConfig;
+}
+
+const firebaseConfig = await loadFirebaseConfig();
 
 // Initialize Firebase with HMR safety
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();

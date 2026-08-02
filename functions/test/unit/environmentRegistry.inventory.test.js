@@ -183,9 +183,12 @@ describe('environment registry — coverage of each required area', () => {
     it('covers every Secret Manager binding', () => {
         const registered = bySource('secret-manager').map((entry) => entry.key).sort();
         expect(registered).toEqual([
+            'BULK_WORKER_SECRET',
             'FACEBOOK_APP_ID',
             'FACEBOOK_APP_SECRET',
             'FACEBOOK_VERIFY_TOKEN',
+            'GROQ_API_KEY',
+            'PROCESS_BULK_BATCH_URL',
             'SMS_ENCRYPTION_KEY',
         ]);
     });
@@ -199,12 +202,11 @@ describe('environment registry — coverage of each required area', () => {
         expect([...workflowSecrets].filter((key) => !registered.has(key)).sort()).toEqual([]);
     });
 
-    it('marks GitHub Actions secrets as not retrievable, and still keeps them listed', () => {
+    it('keeps only GitHub\'s automatic per-run token in the inventory', () => {
         const githubRows = bySource('github-actions-secret');
-        expect(githubRows.length).toBeGreaterThan(15);
+        expect(githubRows.map((row) => row.key)).toEqual(['GITHUB_TOKEN']);
         for (const row of githubRows) {
             expect(row.availability).toBe(AVAILABILITY.NOT_RETRIEVABLE);
-            // Still revealable: the eye stays, and reports the limitation.
             expect(row.permissions.revealable).toBe(true);
             expect(row.permissions.editable).toBe(false);
             expect(row.permissions.deletable).toBe(false);

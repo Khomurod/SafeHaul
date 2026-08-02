@@ -7,26 +7,12 @@ on:
     branches: [ "main" ]
   workflow_dispatch:
 
-# Expose repo Secrets to Vite as env vars (same names as root .env — must match VITE_ prefix).
-env:
-  VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
-  VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
-  VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
-  VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
-  VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
-  VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
-  VITE_FACEBOOK_APP_ID: ${{ secrets.VITE_FACEBOOK_APP_ID }}
-  VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
-  VITE_SENTRY_TRACES_SAMPLE_RATE: ${{ secrets.VITE_SENTRY_TRACES_SAMPLE_RATE }}
-  VITE_SUPER_ADMIN_EMAIL: ${{ secrets.VITE_SUPER_ADMIN_EMAIL }}
-  VITE_DRIVER_APP_URL: ${{ secrets.VITE_DRIVER_APP_URL }}
-  VITE_SOCRATA_APP_TOKEN: ${{ secrets.VITE_SOCRATA_APP_TOKEN }}
-  PROCESS_BULK_BATCH_URL: ${{ secrets.PROCESS_BULK_BATCH_URL }}
-  BULK_WORKER_SECRET: ${{ secrets.BULK_WORKER_SECRET }}
-
 jobs:
   secret-scan:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       # Full history so Gitleaks can resolve base..head (merge pushes need both parents' ancestry).
       - uses: actions/checkout@v5
@@ -260,7 +246,7 @@ jobs:
             ui-debug.log
 
   deploy-hosting:
-    name: Deploy Firebase Hosting and Rules
+    name: Deploy Firebase Hosting and Production Rules
     runs-on: ubuntu-latest
     needs:
       - secret-scan
@@ -276,8 +262,10 @@ jobs:
       cancel-in-progress: true
     permissions:
       contents: read
+      id-token: write
     env:
       FIREBASE_PROJECT_ID: truckerapp-system
+      FIREBASE_HOSTING_TARGET: ${{ github.repository == 'Khomurod/SafeHaul' && 'production' || 'testing' }}
 
     steps:
       - uses: actions/checkout@v5
@@ -291,8 +279,18 @@ jobs:
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v3
         with:
-          credentials_json: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_TRUCKERAPP_SYSTEM }}'
+          workload_identity_provider: projects/725898258453/locations/global/workloadIdentityPools/safehaul-github/providers/safehaul-github-provider
+          service_account: safehaul-github-deployer@truckerapp-system.iam.gserviceaccount.com
           project_id: ${{ env.FIREBASE_PROJECT_ID }}
+
+      - name: Load browser settings from Google Secret Manager
+        id: browser-settings
+        uses: google-github-actions/get-secretmanager-secrets@v3
+        with:
+          secrets: |-
+            VITE_FACEBOOK_APP_ID:truckerapp-system/VITE_FACEBOOK_APP_ID
+            VITE_SENTRY_DSN:truckerapp-system/VITE_SENTRY_DSN
+            VITE_SOCRATA_APP_TOKEN:truckerapp-system/VITE_SOCRATA_APP_TOKEN
 
       - name: Install Frontend Dependencies
         run: npm ci
@@ -300,24 +298,10 @@ jobs:
       - name: Build Frontend
         env:
           VITE_RELEASE_SHA: ${{ github.sha }}
+          VITE_FACEBOOK_APP_ID: ${{ steps.browser-settings.outputs.VITE_FACEBOOK_APP_ID }}
+          VITE_SENTRY_DSN: ${{ steps.browser-settings.outputs.VITE_SENTRY_DSN }}
+          VITE_SOCRATA_APP_TOKEN: ${{ steps.browser-settings.outputs.VITE_SOCRATA_APP_TOKEN }}
         run: npm run build
-
-      # E1: Upload the hidden sourcemaps to Sentry (keyed to the release SHA) so production
-      # stack traces de-minify. Guarded so it is a safe no-op when the Sentry secrets are not
-      # configured (e.g. forks) instead of breaking the deploy.
-      - name: Upload sourcemaps to Sentry
-        env:
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
-          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
-        run: |
-          if [ -z "$SENTRY_AUTH_TOKEN" ] || [ -z "$SENTRY_ORG" ] || [ -z "$SENTRY_PROJECT" ]; then
-            echo "Sentry secrets not set; skipping sourcemap upload."
-            exit 0
-          fi
-          npx --yes @sentry/cli releases new "$GITHUB_SHA"
-          npx --yes @sentry/cli releases files "$GITHUB_SHA" upload-sourcemaps ./dist --url-prefix '~/assets'
-          npx --yes @sentry/cli releases finalize "$GITHUB_SHA"
 
       # E1: Never publish *.map files to Firebase Hosting (no public source disclosure).
       # Runs unconditionally, after any upload and before deploy.
@@ -325,31 +309,20 @@ jobs:
         run: find dist -name '*.map' -delete
 
       - name: Deploy Firebase Hosting
-        run: npx firebase deploy --only hosting --project "$FIREBASE_PROJECT_ID" --non-interactive
+        run: npx firebase deploy --only "hosting:$FIREBASE_HOSTING_TARGET" --project "$FIREBASE_PROJECT_ID" --non-interactive
 
       # Rules + Storage first so an indexes IAM issue does not block rule rollouts.
       #
-      # If "Deploy Firestore indexes" returns HTTP 403 on .../collectionGroups/.../indexes:
-      # 1. Open the JSON in GitHub secret FIREBASE_SERVICE_ACCOUNT_TRUCKERAPP_SYSTEM and copy "client_email".
-      # 2. GCP Console → IAM & Admin → Grant access → paste THAT email (it may differ from firebase-adminsdk-*).
-      # 3. Add role: "Cloud Datastore Index Admin" (IAM role id: roles/datastore.indexAdmin).
-      # 4. Save; re-run the workflow. Rules/storage deploy above should already succeed.
-      #
-      # Optional CLI equivalent (run locally as Owner): 
-      #   gcloud projects add-iam-policy-binding truckerapp-system \
-      #     --member="serviceAccount:PASTE_CLIENT_EMAIL" \
-      #     --role="roles/datastore.indexAdmin"
-      #
-      # Note: Firebase may warn about indexes present in the project but not in firestore.indexes.json — 
-      # that does not cause 403; 403 is always missing IAM on the CI service account.
+      # Production alone owns the shared rules and indexes. The test repository
+      # deploys only its Hosting target and can never alter backend access policy.
       - name: Deploy Firestore rules and Storage rules
+        if: github.repository == 'Khomurod/SafeHaul'
         run: npx firebase deploy --only firestore:rules,storage --project "$FIREBASE_PROJECT_ID" --non-interactive
 
       - name: Deploy Firestore indexes
+        if: github.repository == 'Khomurod/SafeHaul'
         run: npx firebase deploy --only firestore:indexes --project "$FIREBASE_PROJECT_ID" --non-interactive
 
-  # Deploy uses the service account in FIREBASE_SERVICE_ACCOUNT_TRUCKERAPP_SYSTEM. If deploy fails with
-  # firebaseextensions.googleapis.com 403, add IAM role "Firebase Extensions Viewer" to that account.
   deploy-functions:
     name: Deploy Cloud Functions
     runs-on: ubuntu-latest
@@ -361,12 +334,13 @@ jobs:
       - storybook-build
       - callable-contract
       - rules-emulator
-    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
+    if: github.repository == 'Khomurod/SafeHaul' && ((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch')
     concurrency:
       group: firebase-functions-live
       cancel-in-progress: true
     permissions:
       contents: read
+      id-token: write
     env:
       FIREBASE_PROJECT_ID: truckerapp-system
 
@@ -387,7 +361,8 @@ jobs:
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v3
         with:
-          credentials_json: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_TRUCKERAPP_SYSTEM }}'
+          workload_identity_provider: projects/725898258453/locations/global/workloadIdentityPools/safehaul-github/providers/safehaul-github-provider
+          service_account: safehaul-github-deployer@truckerapp-system.iam.gserviceaccount.com
           project_id: ${{ env.FIREBASE_PROJECT_ID }}
 
       # Root lockfile pins firebase-tools; without this, npx downloads a random CLI each run.
@@ -397,39 +372,6 @@ jobs:
       - name: Install Functions Dependencies
         run: npm ci
         working-directory: ./functions
-
-      # Inject runtime env vars consumed by Functions code (process.env.*).
-      # Repo-level GitHub Secrets are NOT auto-propagated into Firebase runtime;
-      # creating functions/.env ensures firebase deploy uploads these vars.
-      #
-      # Use env + printf (not echo "${{ secrets... }}") so shell metacharacters cannot break the file,
-      # and fail fast if the secret is missing in this workflow context (fork PRs, typos, etc.).
-      - name: Write Functions runtime env file
-        env:
-          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-          PROCESS_BULK_BATCH_URL: ${{ secrets.PROCESS_BULK_BATCH_URL }}
-          BULK_WORKER_SECRET: ${{ secrets.BULK_WORKER_SECRET }}
-        run: |
-          if [ -z "$GROQ_API_KEY" ]; then
-            echo "::error::secrets.GROQ_API_KEY is empty or not exposed to this job. Fix the secret name, repo Actions permissions, or avoid deploy workflows from contexts without secrets."
-            exit 1
-          fi
-          if [ -z "$PROCESS_BULK_BATCH_URL" ]; then
-            echo "::error::secrets.PROCESS_BULK_BATCH_URL is empty. Bulk campaigns require the processBulkBatch Cloud Run URL (see docs/production-readiness-runbook.md)."
-            exit 1
-          fi
-          if [ -z "$BULK_WORKER_SECRET" ]; then
-            echo "::error::secrets.BULK_WORKER_SECRET is empty. Set a strong shared secret for processBulkBatch worker auth."
-            exit 1
-          fi
-          printf '%s\n' \
-            "GROQ_API_KEY=$GROQ_API_KEY" \
-            "GROQ_VISION_MODEL=meta-llama/llama-4-scout-17b-16e-instruct" \
-            "GROQ_DOCUMENT_VISION_MODEL=meta-llama/llama-4-maverick-17b-128e-instruct" \
-            "PROCESS_BULK_BATCH_URL=$PROCESS_BULK_BATCH_URL" \
-            "BULK_WORKER_SECRET=$BULK_WORKER_SECRET" \
-            > functions/.env
-          node -e "const fs=require('fs');const t=fs.readFileSync('functions/.env','utf8');const groq=t.match(/^GROQ_API_KEY=(.+)$/m);if(!groq||groq[1].length<8){console.error('GROQ_API_KEY in functions/.env is too short');process.exit(1)}const url=t.match(/^PROCESS_BULK_BATCH_URL=(.+)$/m);if(!url||!url[1].startsWith('https://')){console.error('PROCESS_BULK_BATCH_URL must be a https URL');process.exit(1)}const sec=t.match(/^BULK_WORKER_SECRET=(.+)$/m);if(!sec||sec[1].length<16){console.error('BULK_WORKER_SECRET must be at least 16 characters');process.exit(1)}console.log('functions/.env: GROQ_API_KEY, PROCESS_BULK_BATCH_URL, BULK_WORKER_SECRET present');"
 
       # Legacy trigger removed from driverSync.js — Cloud still had it; deploy --non-interactive refuses to delete without confirmation.
       # Safe to ignore failure once the function is already gone (continue-on-error).

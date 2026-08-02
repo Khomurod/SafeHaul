@@ -41,11 +41,11 @@ browser map cannot resolve fails there.
 
 | Area | Rows |
 | --- | --- |
-| Global registry entries | **73** |
+| Global registry entries | **54** |
 | — browser / build (`vite-build`) | 16 |
-| — Cloud Functions env (`functions-env`) | 12 |
-| — Secret Manager (`secret-manager`) | 4 |
-| — GitHub Actions secrets (`github-actions-secret`) | 20 |
+| — Cloud Functions env (`functions-env`) | 9 |
+| — Secret Manager (`secret-manager`) | 7 |
+| — GitHub automatic token (`github-actions-secret`) | 1 |
 | — Firebase runtime (`firebase-runtime`) | 4 |
 | — workflow variable (`github-actions-variable`) | 1 |
 | — repository config (`repo-config`) | 1 |
@@ -60,13 +60,13 @@ browser map cannot resolve fails there.
 Company rows are expanded per tenant at list time, so the number of company rows
 on screen is `fields × configured integrations`, not a fixed number.
 
-### Why some keys appear twice
+### Where deployment values now live
 
-A `VITE_*` key is stored in **two** places with **different** permissions: as a
-GitHub Actions repository secret, and inlined into the browser bundle at build
-time. Those are genuinely different sources — one cannot be read back at all,
-the other is already public in the shipped JavaScript — so each gets its own
-row rather than one row that would be wrong about both.
+SafeHaul stores no application or deployment secret in GitHub. Firebase browser
+configuration comes from Firebase Hosting at runtime. Browser integration settings
+such as Facebook, Sentry, and Socrata, plus backend credentials, come from Google
+Secret Manager. `GITHUB_TOKEN` is the only GitHub row because
+GitHub creates that short-lived token automatically for each workflow run.
 
 ---
 
@@ -110,50 +110,31 @@ Value availability values:
 | --- | --- | --- | --- | --- | --- |
 | `APP_BASE_URL` | SafeHaul platform | public | `server-runtime` | reveal / — / — | Yes |
 | `BULK_SESSION_MAX_SENDS` | SafeHaul platform | internal | `server-runtime` | reveal / — / — | Yes |
-| `BULK_WORKER_SECRET` | SafeHaul platform | critical | `server-runtime` | reveal / — / — | Yes |
 | `DOCUMENT_VISION_PROVIDER` | Groq (AI) | internal | `server-runtime` | reveal / — / — | Yes |
 | `FACEBOOK_APP_SECRET_VALUE` | Facebook Lead Ads | critical | `server-runtime` | reveal / — / — | Yes |
 | `FACEBOOK_VERIFY_TOKEN_VALUE` | Facebook Lead Ads | sensitive | `server-runtime` | reveal / — / — | Yes |
 | `FUNCTION_REGION` | Google Cloud Tasks | internal | `server-runtime` | reveal / — / — | Yes |
 | `GCP_REGION` | Google Cloud Tasks | internal | `server-runtime` | reveal / — / — | Yes |
-| `GROQ_API_KEY` | Groq (AI) | critical | `server-runtime` | reveal / — / — | Yes |
 | `GROQ_DOCUMENT_VISION_MODEL` | Groq (AI) | internal | `server-runtime` | reveal / — / — | Yes |
 | `GROQ_VISION_MODEL` | Groq (AI) | internal | `server-runtime` | reveal / — / — | Yes |
-| `PROCESS_BULK_BATCH_URL` | SafeHaul platform | internal | `server-runtime` | reveal / — / — | Yes |
 
 ### 3. Secret Manager-backed values (`source: secret-manager`)
 
 | Key | Integration | Sensitivity | Value availability | Reveal / Edit / Delete | Deploy needed |
 | --- | --- | --- | --- | --- | --- |
+| `BULK_WORKER_SECRET` | SafeHaul platform | critical | `server-runtime` | reveal / — / — | Yes |
 | `FACEBOOK_APP_ID` | Facebook Lead Ads | sensitive | `server-runtime` | reveal / — / — | Yes |
 | `FACEBOOK_APP_SECRET` | Facebook Lead Ads | critical | `server-runtime` | reveal / — / — | Yes |
 | `FACEBOOK_VERIFY_TOKEN` | Facebook Lead Ads | sensitive | `server-runtime` | reveal / — / — | Yes |
+| `GROQ_API_KEY` | Groq (AI) | critical | `server-runtime` | reveal / — / — | Yes |
+| `PROCESS_BULK_BATCH_URL` | SafeHaul platform | internal | `server-runtime` | reveal / — / — | Yes |
 | `SMS_ENCRYPTION_KEY` | SafeHaul platform | critical | `server-runtime` | reveal / — / — | Yes |
 
-### 4. GitHub Actions secrets (`source: github-actions-secret`)
+### 4. GitHub automatic workflow token (`source: github-actions-secret`)
 
 | Key | Integration | Sensitivity | Value availability | Reveal / Edit / Delete | Deploy needed |
 | --- | --- | --- | --- | --- | --- |
-| `BULK_WORKER_SECRET` | SafeHaul platform | critical | `not-retrievable` | reveal / — / — | Yes |
-| `FIREBASE_SERVICE_ACCOUNT_TRUCKERAPP_SYSTEM` | Firebase | critical | `not-retrievable` | reveal / — / — | Yes |
 | `GITHUB_TOKEN` | GitHub Actions | sensitive | `not-retrievable` | reveal / — / — | Yes |
-| `GROQ_API_KEY` | Groq (AI) | critical | `not-retrievable` | reveal / — / — | Yes |
-| `PROCESS_BULK_BATCH_URL` | SafeHaul platform | internal | `not-retrievable` | reveal / — / — | Yes |
-| `SENTRY_AUTH_TOKEN` | Sentry | critical | `not-retrievable` | reveal / — / — | Yes |
-| `SENTRY_ORG` | Sentry | internal | `not-retrievable` | reveal / — / — | Yes |
-| `SENTRY_PROJECT` | Sentry | internal | `not-retrievable` | reveal / — / — | Yes |
-| `VITE_DRIVER_APP_URL` | SafeHaul platform | public | `not-retrievable` | reveal / — / — | Yes |
-| `VITE_FACEBOOK_APP_ID` | Facebook Lead Ads | public | `not-retrievable` | reveal / — / — | Yes |
-| `VITE_FIREBASE_API_KEY` | Firebase | public | `not-retrievable` | reveal / — / — | Yes |
-| `VITE_FIREBASE_APP_ID` | Firebase | public | `not-retrievable` | reveal / — / — | Yes |
-| `VITE_FIREBASE_AUTH_DOMAIN` | Firebase | public | `not-retrievable` | reveal / — / — | Yes |
-| `VITE_FIREBASE_MESSAGING_SENDER_ID` | Firebase | public | `not-retrievable` | reveal / — / — | Yes |
-| `VITE_FIREBASE_PROJECT_ID` | Firebase | public | `not-retrievable` | reveal / — / — | Yes |
-| `VITE_FIREBASE_STORAGE_BUCKET` | Firebase | public | `not-retrievable` | reveal / — / — | Yes |
-| `VITE_SENTRY_DSN` | Sentry | public | `not-retrievable` | reveal / — / — | Yes |
-| `VITE_SENTRY_TRACES_SAMPLE_RATE` | Sentry | public | `not-retrievable` | reveal / — / — | Yes |
-| `VITE_SOCRATA_APP_TOKEN` | Socrata (FMCSA) | internal | `not-retrievable` | reveal / — / — | Yes |
-| `VITE_SUPER_ADMIN_EMAIL` | SafeHaul platform | internal | `not-retrievable` | reveal / — / — | Yes |
 
 ### 5. Firebase runtime configuration (`source: firebase-runtime`)
 
@@ -405,7 +386,7 @@ session, a rate-limit rejection and a confirmation mismatch all leave a trace.
 **"Every Secret Manager row says Missing."**
 The vault callables must bind the secrets to see them. Check that
 `functions/environmentVault/index.js` still declares
-`secrets: ['SMS_ENCRYPTION_KEY', 'FACEBOOK_APP_ID', 'FACEBOOK_APP_SECRET', 'FACEBOOK_VERIFY_TOKEN']`
+`secrets: ['SMS_ENCRYPTION_KEY', 'FACEBOOK_APP_ID', 'FACEBOOK_APP_SECRET', 'FACEBOOK_VERIFY_TOKEN', 'GROQ_API_KEY', 'BULK_WORKER_SECRET', 'PROCESS_BULK_BATCH_URL']`
 — `functions/test/unit/smsSecretBindings.test.js` guards this — and redeploy.
 
 **"A company credential will not decrypt."**
@@ -415,16 +396,14 @@ version in Secret Manager; if it is genuinely lost, each affected company must
 re-enter its credentials through the existing SMS Integrations workflow. This is
 why the key is Reveal-only and has no Edit, Replace or Delete control here.
 
-**"A GitHub Actions secret shows as Not retrievable."**
-That is correct and expected — GitHub does not return stored secrets. To confirm
-what is set, look at the repository's Actions secrets page; to change one, rotate
-it there and re-run the deploy workflow.
+**"GITHUB_TOKEN shows as Not retrievable."**
+That is correct and expected. GitHub mints it automatically for one workflow
+run; it is not an application secret and cannot be edited.
 
 **"A build-time value is wrong in production."**
-Update the corresponding GitHub Actions secret and re-run
-`CI/CD Pipeline` on `main`. The value only reaches the browser through a new
-build; the vault marks these rows *Needs deployment* and does not pretend
-otherwise.
+Update the corresponding Google Secret Manager value and re-run `CI/CD Pipeline`
+on `main`. Firebase's six browser SDK values are the exception: Hosting supplies
+them directly through `/__/firebase/init.json` at page load.
 
 **"Reveal returns `resource-exhausted`."**
 The fail-closed rate limiter tripped (30 reveals or 10 mutations per 5 minutes

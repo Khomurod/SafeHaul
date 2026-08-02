@@ -21,11 +21,8 @@
  *
  * `source` is *where the value is stored* and therefore decides what can be done
  * to it. `category` is *what kind of configuration it is* and is what an
- * operator filters by. They overlap but are not the same axis: a `VITE_*` key is
- * stored twice (as a GitHub Actions secret, and inlined into the browser bundle
- * at build time), and those two copies have completely different permissions.
- * Such keys therefore get **two rows**, one per storage location, rather than
- * one row that lies about both.
+ * operator filters by. They overlap but are not the same axis: a public value
+ * can be inlined into the browser while its deployment source remains Google.
  */
 
 /** Configuration categories, matching the operator-facing filter. */
@@ -46,7 +43,7 @@ const CATEGORIES = Object.freeze({
 const SOURCES = Object.freeze({
     /** Inlined into the browser bundle by Vite at build time. */
     VITE_BUILD: 'vite-build',
-    /** `functions/.env`, written by the release workflow and uploaded on deploy. */
+    /** Legacy plain Functions environment value. */
     FUNCTIONS_ENV: 'functions-env',
     /** Google Secret Manager, bound with `secrets: [...]` / `defineSecret`. */
     SECRET_MANAGER: 'secret-manager',
@@ -273,16 +270,6 @@ const BROWSER_ENTRIES = [
 
 const FUNCTIONS_ENTRIES = [
     {
-        key: 'GROQ_API_KEY',
-        displayName: 'Groq API key',
-        description: 'Authenticates SafeHaul to Groq for CDL OCR and E-Doc field-placement analysis.',
-        category: CATEGORIES.GLOBAL_INTEGRATION,
-        integration: 'Groq (AI)',
-        sensitivity: SENSITIVITY.CRITICAL,
-        consumers: ['functions/cdlParser.js', 'functions/shared/documentVisionProvider.js'],
-        ...DEPLOYMENT_MANAGED,
-    },
-    {
         key: 'GROQ_VISION_MODEL',
         displayName: 'Groq CDL vision model',
         description: 'Model pin for the CDL parser. Falls back to meta-llama/llama-4-scout-17b-16e-instruct.',
@@ -312,29 +299,6 @@ const FUNCTIONS_ENTRIES = [
         optional: true,
         consumers: ['functions/shared/documentVisionProvider.js'],
         ...DEPLOYMENT_MANAGED,
-    },
-    {
-        key: 'PROCESS_BULK_BATCH_URL',
-        displayName: 'Bulk batch worker URL',
-        description: 'Cloud Run URL of processBulkBatch. Cloud Tasks needs it to recurse through a campaign.',
-        category: CATEGORIES.FUNCTIONS_ENV,
-        integration: 'SafeHaul platform',
-        sensitivity: SENSITIVITY.INTERNAL,
-        consumers: ['functions/bulkActions/services/queueService.js'],
-        ...DEPLOYMENT_MANAGED,
-    },
-    {
-        key: 'BULK_WORKER_SECRET',
-        displayName: 'Bulk worker shared secret',
-        description: 'Shared secret authenticating Cloud Tasks calls into processBulkBatch. The worker rejects every request when it is unset.',
-        category: CATEGORIES.INFRASTRUCTURE,
-        integration: 'SafeHaul platform',
-        sensitivity: SENSITIVITY.CRITICAL,
-        consumers: [
-            'functions/bulkActions/services/queueService.js',
-            'functions/bulkActions/workers/batchWorker.js',
-        ],
-        ...PROTECTED,
     },
     {
         key: 'BULK_SESSION_MAX_SENDS',
@@ -420,6 +384,36 @@ const FUNCTIONS_ENTRIES = [
 
 const SECRET_MANAGER_ENTRIES = [
     {
+        key: 'GROQ_API_KEY',
+        displayName: 'Groq API key',
+        description: 'Authenticates SafeHaul to Groq for CDL OCR and E-Doc field-placement analysis.',
+        category: CATEGORIES.GLOBAL_INTEGRATION,
+        integration: 'Groq (AI)',
+        sensitivity: SENSITIVITY.CRITICAL,
+        consumers: ['functions/cdlParser.js', 'functions/shared/documentVisionProvider.js'],
+    },
+    {
+        key: 'BULK_WORKER_SECRET',
+        displayName: 'Bulk worker shared secret',
+        description: 'Shared secret authenticating Cloud Tasks calls into processBulkBatch. The worker rejects every request when it is unset.',
+        category: CATEGORIES.INFRASTRUCTURE,
+        integration: 'SafeHaul platform',
+        sensitivity: SENSITIVITY.CRITICAL,
+        consumers: [
+            'functions/bulkActions/services/queueService.js',
+            'functions/bulkActions/workers/batchWorker.js',
+        ],
+    },
+    {
+        key: 'PROCESS_BULK_BATCH_URL',
+        displayName: 'Bulk batch worker URL',
+        description: 'Cloud Run URL of processBulkBatch. Cloud Tasks needs it to recurse through a campaign.',
+        category: CATEGORIES.FUNCTIONS_ENV,
+        integration: 'SafeHaul platform',
+        sensitivity: SENSITIVITY.INTERNAL,
+        consumers: ['functions/bulkActions/services/queueService.js'],
+    },
+    {
         key: 'SMS_ENCRYPTION_KEY',
         displayName: 'SMS credential encryption key',
         description: 'AES-256 key that encrypts every stored SMS provider credential, dedicated-line JWT and legacy SMTP password. Rotating it makes every existing ciphertext undecryptable.',
@@ -474,33 +468,13 @@ const SECRET_MANAGER_ENTRIES = [
 }));
 
 // ---------------------------------------------------------------------------
-// 4. GitHub Actions secrets referenced by the workflows
+// 4. GitHub's automatic per-run token
 //
-// GitHub never returns a stored secret's plaintext through its API. These rows
-// keep their eye control and report that limitation instead of inventing a
-// value — they are the one accepted exception to showing the real value.
+// SafeHaul stores no application or deployment secrets in GitHub. GITHUB_TOKEN
+// is minted automatically for one workflow run and cannot be moved elsewhere.
 // ---------------------------------------------------------------------------
 
 const GITHUB_SECRET_KEYS = [
-    ['VITE_FIREBASE_API_KEY', 'Firebase', SENSITIVITY.PUBLIC, 'Build-time source of the browser Firebase API key.'],
-    ['VITE_FIREBASE_AUTH_DOMAIN', 'Firebase', SENSITIVITY.PUBLIC, 'Build-time source of the browser Firebase auth domain.'],
-    ['VITE_FIREBASE_PROJECT_ID', 'Firebase', SENSITIVITY.PUBLIC, 'Build-time source of the browser Firebase project ID.'],
-    ['VITE_FIREBASE_STORAGE_BUCKET', 'Firebase', SENSITIVITY.PUBLIC, 'Build-time source of the browser Storage bucket.'],
-    ['VITE_FIREBASE_MESSAGING_SENDER_ID', 'Firebase', SENSITIVITY.PUBLIC, 'Build-time source of the browser messaging sender ID.'],
-    ['VITE_FIREBASE_APP_ID', 'Firebase', SENSITIVITY.PUBLIC, 'Build-time source of the browser Firebase app ID.'],
-    ['VITE_FACEBOOK_APP_ID', 'Facebook Lead Ads', SENSITIVITY.PUBLIC, 'Build-time source of the browser Facebook app ID.'],
-    ['VITE_SENTRY_DSN', 'Sentry', SENSITIVITY.PUBLIC, 'Build-time source of the browser Sentry DSN.'],
-    ['VITE_SENTRY_TRACES_SAMPLE_RATE', 'Sentry', SENSITIVITY.PUBLIC, 'Build-time source of the browser trace sample rate.'],
-    ['VITE_SUPER_ADMIN_EMAIL', 'SafeHaul platform', SENSITIVITY.INTERNAL, 'Build-time source of the historical Super Admin fallback email.'],
-    ['VITE_DRIVER_APP_URL', 'SafeHaul platform', SENSITIVITY.PUBLIC, 'Build-time source of the driver app base URL.'],
-    ['VITE_SOCRATA_APP_TOKEN', 'Socrata (FMCSA)', SENSITIVITY.INTERNAL, 'Build-time source of the Socrata app token.'],
-    ['PROCESS_BULK_BATCH_URL', 'SafeHaul platform', SENSITIVITY.INTERNAL, 'Deploy-time source of the bulk worker URL written into functions/.env.'],
-    ['BULK_WORKER_SECRET', 'SafeHaul platform', SENSITIVITY.CRITICAL, 'Deploy-time source of the bulk worker shared secret written into functions/.env.'],
-    ['GROQ_API_KEY', 'Groq (AI)', SENSITIVITY.CRITICAL, 'Deploy-time source of the Groq API key written into functions/.env.'],
-    ['FIREBASE_SERVICE_ACCOUNT_TRUCKERAPP_SYSTEM', 'Firebase', SENSITIVITY.CRITICAL, 'Service-account JSON the deploy jobs authenticate with. Grants hosting, rules, index and functions deployment.'],
-    ['SENTRY_AUTH_TOKEN', 'Sentry', SENSITIVITY.CRITICAL, 'Token used to upload hidden sourcemaps to Sentry. The deploy step skips the upload when it is unset.'],
-    ['SENTRY_ORG', 'Sentry', SENSITIVITY.INTERNAL, 'Sentry organisation slug for the sourcemap upload.'],
-    ['SENTRY_PROJECT', 'Sentry', SENSITIVITY.INTERNAL, 'Sentry project slug for the sourcemap upload.'],
     ['GITHUB_TOKEN', 'GitHub Actions', SENSITIVITY.SENSITIVE, 'Ephemeral token GitHub mints per workflow run; used by the Gitleaks secret scan.'],
 ];
 

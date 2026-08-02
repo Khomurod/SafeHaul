@@ -13,7 +13,11 @@ const {
 /**
  * 1. Initialize Bulk Session
  */
-exports.initBulkSession = onCall({ cors: true, timeoutSeconds: 540 }, async (request) => {
+exports.initBulkSession = onCall({
+    cors: true,
+    timeoutSeconds: 540,
+    secrets: ['BULK_WORKER_SECRET', 'PROCESS_BULK_BATCH_URL'],
+}, async (request) => {
     if (!request.auth) throw new HttpsError('unauthenticated');
 
     const { companyId, filters, config, sessionName, targetIds } = request.data;
@@ -573,14 +577,19 @@ const updateSessionStatus = async (request, status) => {
 };
 
 exports.pauseBulkSession = onCall({ cors: true }, (req) => updateSessionStatus(req, 'paused'));
-exports.resumeBulkSession = onCall({ cors: true }, (req) => updateSessionStatus(req, 'active'));
+exports.resumeBulkSession = onCall(
+    { cors: true, secrets: ['BULK_WORKER_SECRET', 'PROCESS_BULK_BATCH_URL'] },
+    (req) => updateSessionStatus(req, 'active'),
+);
 exports.cancelBulkSession = onCall({ cors: true }, (req) => updateSessionStatus(req, 'cancelled'));
 
 
 /**
  * 3. Retry Failed
  */
-exports.retryFailedAttempts = onCall({ cors: true }, async (request) => {
+exports.retryFailedAttempts = onCall(
+    { cors: true, secrets: ['BULK_WORKER_SECRET', 'PROCESS_BULK_BATCH_URL'] },
+    async (request) => {
     if (!request.auth) throw new HttpsError('unauthenticated');
     // BUG-1 FIX: Frontend sends 'originalSessionId' but backend expected 'sessionId'.
     // Accept both for backward compatibility.

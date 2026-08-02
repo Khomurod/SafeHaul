@@ -1,5 +1,17 @@
 {
   "projects": {
     "default": "truckerapp-system"
+  },
+  "targets": {
+    "truckerapp-system": {
+      "hosting": {
+        "production": [
+          "safehaul-app-production"
+        ],
+        "testing": [
+          "truckerapp-system"
+        ]
+      }
+    }
   }
 }

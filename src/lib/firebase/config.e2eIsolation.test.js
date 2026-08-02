@@ -1,11 +1,11 @@
 /**
  * Proves E2E runs can never be pointed at a real Firebase project.
  *
- * CI exposes the real `VITE_FIREBASE_*` secrets as workflow-level env vars, which
- * Vite inlines into whatever it builds or serves — including the Playwright dev
+ * A developer may have real `VITE_FIREBASE_*` values locally. Vite inlines them
+ * into whatever it builds or serves — including the Playwright dev
  * server. Before this guard, the E2E browser therefore talked to the production
  * Firestore project while `DataContext` supplied a mock (non-Firebase) user, so
- * every listen failed `PERMISSION_DENIED`. Locally there is no `.env`, the
+ * every listen failed `PERMISSION_DENIED`. With no `.env`, the
  * placeholder branch applied, and the same specs passed — the divergence that
  * broke `frontend-quality` after #123.
  *

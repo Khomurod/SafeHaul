@@ -22,7 +22,11 @@ const MAX_SESSION_SENDS = Number(process.env.BULK_SESSION_MAX_SENDS) || 100000;
 // the whole campaign session is marked failed -- i.e. campaigns silently don't send even when
 // the line is correctly provisioned (the config/test-send functions DO bind the secret, which
 // is why Super Admin shows the line as working while bulk sends fail).
-exports.processBulkBatch = onRequest({ timeoutSeconds: 540, memory: '512MiB', secrets: ['SMS_ENCRYPTION_KEY'] }, async (req, res) => {
+exports.processBulkBatch = onRequest({
+    timeoutSeconds: 540,
+    memory: '512MiB',
+    secrets: ['SMS_ENCRYPTION_KEY', 'BULK_WORKER_SECRET', 'PROCESS_BULK_BATCH_URL'],
+}, async (req, res) => {
     // --- SECURITY GATE: Shared Secret Verification ---
     // Reject requests that don't carry the internal auth header.
     // This prevents external actors from triggering the worker even if they know the URL.
