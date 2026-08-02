@@ -55,6 +55,13 @@ const ALLOWED_METADATA = Object.freeze([
     'entryCount',
     'valueLength',
     'reason',
+    // AI Integrations shares this audit trail rather than starting a second
+    // one. These name *which* provider and setting were touched; none of them
+    // can carry a credential value.
+    'providerId',
+    'capability',
+    'enabled',
+    'setting',
 ]);
 
 /** Coerces a metadata value to a small, safe scalar. */

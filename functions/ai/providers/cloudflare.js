@@ -29,14 +29,20 @@ function requireAccountId(config) {
 }
 
 /**
- * Model ids are vendor-namespaced (`@cf/meta/…`) and go into the path, so they
- * are constrained to the characters Cloudflare actually uses. This keeps a
- * model override from introducing path traversal.
+ * Model ids are vendor-namespaced (`@cf/meta/…`) and are interpolated into the
+ * request path, which makes them a path-traversal surface. The pattern below
+ * therefore anchors the vendor prefix and permits only single-character dots,
+ * so no `..` segment can appear: a permissive character class alone is not
+ * enough, because `.`, `/` and `-` are all legitimate model characters and
+ * `../../accounts/other/ai/run/x` is built entirely from them.
  */
-const MODEL_PATTERN = /^@?[A-Za-z0-9._/-]{1,120}$/;
+const MODEL_PATTERN = /^@[a-z]+(?:\/[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?)+$/;
 
 function requireModel(model) {
-    if (typeof model !== 'string' || !MODEL_PATTERN.test(model)) {
+    if (typeof model !== 'string'
+        || model.length > 120
+        || model.includes('..')
+        || !MODEL_PATTERN.test(model)) {
         throw new AiError('model_unavailable', 'Cloudflare model id is malformed.', {
             providerId: 'cloudflare',
         });
@@ -98,4 +104,10 @@ const cloudflareAdapter = {
     },
 };
 
-module.exports = { cloudflareAdapter, extractText, ACCOUNT_ID_PATTERN };
+module.exports = {
+    cloudflareAdapter,
+    extractText,
+    ACCOUNT_ID_PATTERN,
+    MODEL_PATTERN,
+    requireModel,
+};
