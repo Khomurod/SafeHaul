@@ -16,13 +16,11 @@
  *  - generic failure messages — no plaintext, no ciphertext, no key material in
  *    any error, log line or response.
  *
- * ## Why the SMS secret is bound here
+ * ## Why Secret Manager values are bound here
  *
- * `SMS_ENCRYPTION_KEY` is what makes company credential fields decryptable, and
- * the Facebook secrets are what make those rows report a real status. Without
- * the bindings `process.env` would be empty inside these functions and the vault
- * would report every Secret Manager entry as missing — which is worse than
- * useless, because it would look like an outage.
+ * The bindings make each allowlisted Google Secret Manager value available to
+ * the reveal callable as `process.env`. Without them the vault would incorrectly
+ * report a configured integration as missing.
  */
 
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
@@ -34,7 +32,15 @@ const { validateNewKeyName } = require('./registry');
 
 const vaultOptions = {
     cors: true,
-    secrets: ['SMS_ENCRYPTION_KEY', 'FACEBOOK_APP_ID', 'FACEBOOK_APP_SECRET', 'FACEBOOK_VERIFY_TOKEN'],
+    secrets: [
+        'SMS_ENCRYPTION_KEY',
+        'FACEBOOK_APP_ID',
+        'FACEBOOK_APP_SECRET',
+        'FACEBOOK_VERIFY_TOKEN',
+        'GROQ_API_KEY',
+        'BULK_WORKER_SECRET',
+        'PROCESS_BULK_BATCH_URL',
+    ],
 };
 
 /** Value-free audit metadata for a resolved entry. */

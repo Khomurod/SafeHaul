@@ -5,8 +5,8 @@ import { afterEach, vi } from 'vitest';
 /**
  * Vitest always wires Firebase via `@lib/firebase` for components like CampaignDetails.
  *
- * GitHub Actions often injects `VITE_FIREBASE_*` from secrets for `npm run build`. If those
- * secrets are missing, wrong, or still set to `.example` placeholders, Firebase Auth throws
+ * A developer may provide `VITE_FIREBASE_*` locally for a build. If those values are missing,
+ * wrong, or still set to `.example` placeholders, Firebase Auth throws
  * `auth/invalid-api-key` during module load. Unit tests should not depend on real keys.
  *
  * Set `VITE_USE_REAL_FIREBASE_IN_TESTS=1` (with valid `.env`) only if you intentionally run

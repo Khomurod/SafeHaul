@@ -214,7 +214,7 @@ async function assertEdocsFeatureEnabled(companyId) {
 }
 
 exports.analyzeEdocFieldPlacement = onCall(
-  { cors: true, memory: '1GiB', timeoutSeconds: 120 },
+  { cors: true, memory: '1GiB', timeoutSeconds: 120, secrets: ['GROQ_API_KEY'] },
   async (request) => {
     if (!request.auth?.uid) {
       throw new HttpsError('unauthenticated', 'You must be signed in.');

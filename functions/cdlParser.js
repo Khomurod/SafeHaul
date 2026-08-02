@@ -74,7 +74,7 @@ function extractAssistantTextFromResponses(payload) {
 }
 
 exports.parseCdlWithGroq = functions
-    .runWith({ memory: "512MB", timeoutSeconds: 60 })
+    .runWith({ memory: "512MB", timeoutSeconds: 60, secrets: ["GROQ_API_KEY"] })
     .https.onCall(async (data, context) => {
         const { companyId, imageDataUrl, storagePath } = data || {};
 

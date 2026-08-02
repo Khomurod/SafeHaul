@@ -260,7 +260,11 @@ cd functions && npm install && cd ..
 > repository by `functions/test/unit/environmentRegistry.inventory.test.js`, so a
 > new configuration key cannot silently escape it.
 
-#### Frontend (`.env`)
+#### Frontend (Firebase Hosting runtime config)
+
+Production reads the six Firebase values from Firebase Hosting's reserved
+`/__/firebase/init.json` endpoint. They are no longer stored in GitHub or
+Vercel. A local `.env` remains optional for local development only.
 
 | Variable | Description |
 |----------|-------------|
@@ -274,14 +278,17 @@ cd functions && npm install && cd ..
 | `VITE_FACEBOOK_APP_ID` | Facebook Lead Ads integration |
 | `VITE_SUPER_ADMIN_EMAIL` | Super admin fallback email |
 
-#### Cloud Functions (`functions/.env`)
+#### Cloud Functions (Google Secret Manager)
 
 | Variable | Description |
 |----------|-------------|
 | `PROCESS_BULK_BATCH_URL` | Cloud Run URL for `processBulkBatch` (required for bulk campaigns) |
 | `BULK_WORKER_SECRET` | Shared secret for bulk worker HTTP auth (same on `initBulkSession` and `processBulkBatch`) |
 | `GROQ_API_KEY` | Groq vision API for CDL parsing |
-| `SMS_ENCRYPTION_KEY` | AES key for encrypting SMS provider credentials (bound via Secret Manager, not `functions/.env`) |
+| `SMS_ENCRYPTION_KEY` | AES key for encrypting SMS provider credentials |
+
+These production values are bound directly from Google Secret Manager. A local
+`functions/.env` is only for emulator development and must never be committed.
 
 > `SENTRY_DSN` was previously listed here for server-side error tracking. The
 > 2026-08-02 configuration audit found no backend code that reads it — only the
@@ -388,20 +395,20 @@ firebase deploy --only firestore:rules
 firebase deploy --only storage
 ```
 
-### Automatic GitHub Deploys (Hosting + Rules)
+### Automatic GitHub Deploys
 
-The workflow in `.github/workflows/main.yml` deploys both Hosting and Firebase rules on successful pushes to `main`:
+The workflow uses keyless Google Workload Identity Federation. No Google JSON
+key or application setting is stored in GitHub.
 
-```bash
-npx firebase-tools deploy --only hosting --project truckerapp-system --non-interactive
-npx firebase-tools deploy --only firestore:rules,firestore:indexes,storage --project truckerapp-system --non-interactive
-```
+- `Khomurod/SafeHaul-for-Gemini-Antigravity` deploys Hosting to
+  `truckerapp-system.web.app` only.
+- `Khomurod/SafeHaul` deploys Hosting to `app.safehaul.io` and owns shared
+  Functions, Firestore rules, Storage rules, and indexes.
+- The workflow decides the destination from `github.repository`, so the same
+  repository files can be copied between test and production safely.
 
-One-time GitHub setup is still required:
-
-1. Create a GitHub Actions secret named `FIREBASE_SERVICE_ACCOUNT_TRUCKERAPP_SYSTEM`.
-2. Store the JSON for a Google service account that can deploy Hosting and manage Firestore/Storage rules in the `truckerapp-system` Firebase project.
-3. Push or merge changes into `main`.
+Push or merge changes into `main`; successful checks trigger the appropriate
+deployment automatically.
 
 > **Important**: When deploying Cloud Functions, deploy them **one at a time** if you have limited CPU to avoid OOM issues during build.
 

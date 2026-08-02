@@ -125,7 +125,7 @@ afterEach(() => {
 describe('authorization', () => {
     const callables = [
         ['listEnvironmentAndIntegrations', {}],
-        ['revealEnvironmentValue', { entryId: 'functions-env:GROQ_API_KEY' }],
+        ['revealEnvironmentValue', { entryId: 'secret-manager:GROQ_API_KEY' }],
         ['updateEnvironmentValue', { entryId: 'company:co-alpha:sms_provider:clientSecret', value: 'x' }],
         ['addEnvironmentValue', { entryId: 'company:co-alpha:sms_provider:senderId', value: 'x' }],
         ['deleteEnvironmentValue', { entryId: 'company:co-alpha:sms_provider:jwt', confirmation: 'jwt' }],
@@ -161,7 +161,7 @@ describe('authorization', () => {
 
     it('records a value-free denial for every rejected call', async () => {
         const auth = { uid: 'user-1', token: { auth_time: nowSeconds() } };
-        await expect(vault.revealEnvironmentValue(request(auth, { entryId: 'functions-env:GROQ_API_KEY' })))
+        await expect(vault.revealEnvironmentValue(request(auth, { entryId: 'secret-manager:GROQ_API_KEY' })))
             .rejects.toMatchObject({ code: 'permission-denied' });
 
         const records = auditRecords();
@@ -175,7 +175,7 @@ describe('recent authentication', () => {
     const stale = superAdmin({ auth_time: nowSeconds() - (60 * 60) });
 
     it('is required to reveal', async () => {
-        await expect(vault.revealEnvironmentValue(request(stale, { entryId: 'functions-env:GROQ_API_KEY' })))
+        await expect(vault.revealEnvironmentValue(request(stale, { entryId: 'secret-manager:GROQ_API_KEY' })))
             .rejects.toMatchObject({ code: 'failed-precondition', message: expect.stringContaining('REAUTH_REQUIRED') });
     });
 
@@ -193,7 +193,7 @@ describe('recent authentication', () => {
 
     it('is not satisfied by a missing auth_time claim', async () => {
         const noAuthTime = { uid: 'super-3', token: { globalRole: 'super_admin' } };
-        await expect(vault.revealEnvironmentValue(request(noAuthTime, { entryId: 'functions-env:GROQ_API_KEY' })))
+        await expect(vault.revealEnvironmentValue(request(noAuthTime, { entryId: 'secret-manager:GROQ_API_KEY' })))
             .rejects.toMatchObject({ code: 'failed-precondition' });
     });
 });
@@ -226,9 +226,9 @@ describe('inventory listing', () => {
 
         expect(ids).toEqual(expect.arrayContaining([
             'secret-manager:SMS_ENCRYPTION_KEY',
-            'functions-env:GROQ_API_KEY',
+            'secret-manager:GROQ_API_KEY',
             'vite-build:VITE_FIREBASE_API_KEY',
-            'github-actions-secret:FIREBASE_SERVICE_ACCOUNT_TRUCKERAPP_SYSTEM',
+            'github-actions-secret:GITHUB_TOKEN',
             'company:co-alpha:sms_provider:clientId',
             'company:co-alpha:sms_provider:clientSecret',
             'company:co-alpha:sms_keychain:+15550001111:jwt',
@@ -241,12 +241,12 @@ describe('inventory listing', () => {
         const { entries } = await vault.listEnvironmentAndIntegrations(request(superAdmin()));
         const byId = new Map(entries.map((entry) => [entry.id, entry]));
 
-        expect(byId.get('functions-env:GROQ_API_KEY').status).toBe('configured');
+        expect(byId.get('secret-manager:GROQ_API_KEY').status).toBe('configured');
         expect(byId.get('functions-env:APP_BASE_URL').status).toBe('missing');
         // The Cloud Functions runtime cannot see the browser bundle's values.
         expect(byId.get('vite-build:VITE_FIREBASE_API_KEY').status).toBe('unknown');
         expect(byId.get('vite-build:VITE_FIREBASE_API_KEY').statusResolvedBy).toBe('client-bundle');
-        expect(byId.get('github-actions-secret:SENTRY_AUTH_TOKEN').status).toBe('unknown');
+        expect(byId.get('github-actions-secret:GITHUB_TOKEN').status).toBe('unknown');
         expect(byId.get('company:co-alpha:sms_provider:clientSecret').status).toBe('configured');
     });
 
@@ -340,7 +340,7 @@ describe('reveal', () => {
 
     it('reveals a Cloud Functions runtime value', async () => {
         const result = await vault.revealEnvironmentValue(request(superAdmin(), {
-            entryId: 'functions-env:GROQ_API_KEY',
+            entryId: 'secret-manager:GROQ_API_KEY',
         }));
         expect(result.value).toBe(GROQ_KEY_PLAINTEXT);
         expect(result.readFrom).toBe('process-env');
@@ -367,7 +367,7 @@ describe('reveal', () => {
 
     it('reports a GitHub Actions secret honestly instead of inventing a value', async () => {
         const result = await vault.revealEnvironmentValue(request(superAdmin(), {
-            entryId: 'github-actions-secret:SENTRY_AUTH_TOKEN',
+            entryId: 'github-actions-secret:GITHUB_TOKEN',
         }));
         expect(result.value).toBeNull();
         expect(result.availability).toBe('not-retrievable');
@@ -411,7 +411,7 @@ describe('reveal', () => {
 
     it('rate-limits repeated reveals', async () => {
         const auth = superAdmin();
-        const entryId = 'functions-env:GROQ_API_KEY';
+        const entryId = 'secret-manager:GROQ_API_KEY';
         let denied = null;
         for (let i = 0; i < 40 && !denied; i += 1) {
             try {
@@ -475,9 +475,9 @@ describe('mutations', () => {
     it('refuses to edit a deployment-managed or protected global key', async () => {
         for (const entryId of [
             'secret-manager:SMS_ENCRYPTION_KEY',
-            'functions-env:BULK_WORKER_SECRET',
+            'secret-manager:BULK_WORKER_SECRET',
             'vite-build:VITE_FIREBASE_API_KEY',
-            'github-actions-secret:GROQ_API_KEY',
+            'github-actions-secret:GITHUB_TOKEN',
         ]) {
             await expect(vault.updateEnvironmentValue(request(superAdmin(), { entryId, value: 'x' })))
                 .rejects.toMatchObject({ code: 'failed-precondition' });
