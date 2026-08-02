@@ -289,6 +289,8 @@ jobs:
         with:
           secrets: |-
             VITE_FACEBOOK_APP_ID:truckerapp-system/VITE_FACEBOOK_APP_ID
+            VITE_SENTRY_DSN:truckerapp-system/VITE_SENTRY_DSN
+            VITE_SOCRATA_APP_TOKEN:truckerapp-system/VITE_SOCRATA_APP_TOKEN
 
       - name: Install Frontend Dependencies
         run: npm ci
@@ -297,6 +299,8 @@ jobs:
         env:
           VITE_RELEASE_SHA: ${{ github.sha }}
           VITE_FACEBOOK_APP_ID: ${{ steps.browser-settings.outputs.VITE_FACEBOOK_APP_ID }}
+          VITE_SENTRY_DSN: ${{ steps.browser-settings.outputs.VITE_SENTRY_DSN }}
+          VITE_SOCRATA_APP_TOKEN: ${{ steps.browser-settings.outputs.VITE_SOCRATA_APP_TOKEN }}
         run: npm run build
 
       # E1: Never publish *.map files to Firebase Hosting (no public source disclosure).

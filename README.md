@@ -276,7 +276,11 @@ Vercel. A local `.env` remains optional for local development only.
 | `VITE_FIREBASE_APP_ID` | Firebase app ID |
 | `VITE_SENTRY_DSN` | Sentry error tracking DSN |
 | `VITE_FACEBOOK_APP_ID` | Facebook Lead Ads integration |
+| `VITE_SOCRATA_APP_TOKEN` | FMCSA carrier autocomplete |
 | `VITE_SUPER_ADMIN_EMAIL` | Super admin fallback email |
+
+The deploy workflow reads the Facebook, Sentry, and Socrata browser settings
+from Google Secret Manager. They are shared by the test and production builds.
 
 #### Cloud Functions (Google Secret Manager)
 

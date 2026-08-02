@@ -63,8 +63,9 @@ on screen is `fields × configured integrations`, not a fixed number.
 ### Where deployment values now live
 
 SafeHaul stores no application or deployment secret in GitHub. Firebase browser
-configuration comes from Firebase Hosting at runtime, and backend credentials
-come from Google Secret Manager. `GITHUB_TOKEN` is the only GitHub row because
+configuration comes from Firebase Hosting at runtime. Browser integration settings
+such as Facebook, Sentry, and Socrata, plus backend credentials, come from Google
+Secret Manager. `GITHUB_TOKEN` is the only GitHub row because
 GitHub creates that short-lived token automatically for each workflow run.
 
 ---
