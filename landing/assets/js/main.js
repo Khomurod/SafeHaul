@@ -116,4 +116,130 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+
+    /* ======================================================================
+       SafeHaul News & Insights — latest article cards
+       ----------------------------------------------------------------------
+       Articles are published after deployment, so the cards cannot be committed
+       to this repository. They are fetched from /api/news/latest, a same-origin
+       Firebase Hosting rewrite onto the serveBlogPublic function.
+
+       Every value from that response is inserted with textContent or as an
+       attribute via setAttribute — never with innerHTML. The server already
+       escapes its own HTML output, but this page must not depend on that: the
+       DOM API makes injection impossible here regardless of what the endpoint
+       returns.
+
+       If the request fails, the placeholder is replaced with a link to /news
+       rather than an error. A marketing page should degrade quietly.
+       ====================================================================== */
+    var newsGrid = document.getElementById('newsGrid');
+
+    if (newsGrid) {
+        var renderNewsFallback = function (message) {
+            newsGrid.setAttribute('aria-busy', 'false');
+            newsGrid.textContent = '';
+            var note = document.createElement('p');
+            note.className = 'news-empty';
+            note.textContent = message;
+            var link = document.createElement('a');
+            link.href = '/news';
+            link.className = 'news-read-more';
+            link.textContent = 'Visit News & Insights';
+            note.appendChild(document.createElement('br'));
+            note.appendChild(link);
+            newsGrid.appendChild(note);
+        };
+
+        var buildNewsCard = function (post) {
+            var card = document.createElement('article');
+            card.className = 'news-card';
+
+            if (post.image && post.image.url) {
+                var imageLink = document.createElement('a');
+                imageLink.className = 'news-card-image';
+                imageLink.href = post.url;
+                var img = document.createElement('img');
+                img.src = post.image.url;
+                // Descriptive alt text is stored with the image; fall back to
+                // the title rather than leaving it empty.
+                img.alt = post.image.altText || post.title;
+                img.loading = 'lazy';
+                imageLink.appendChild(img);
+                card.appendChild(imageLink);
+            }
+
+            var body = document.createElement('div');
+            body.className = 'news-card-body';
+
+            if (post.themeName) {
+                var eyebrow = document.createElement('p');
+                eyebrow.className = 'news-eyebrow';
+                eyebrow.textContent = post.themeName;
+                body.appendChild(eyebrow);
+            }
+
+            var heading = document.createElement('h3');
+            var titleLink = document.createElement('a');
+            titleLink.href = post.url;
+            titleLink.textContent = post.title;
+            heading.appendChild(titleLink);
+            body.appendChild(heading);
+
+            if (post.excerpt) {
+                var excerpt = document.createElement('p');
+                excerpt.className = 'news-card-excerpt';
+                excerpt.textContent = post.excerpt;
+                body.appendChild(excerpt);
+            }
+
+            if (post.publicationDate) {
+                var meta = document.createElement('p');
+                meta.className = 'news-meta';
+                var time = document.createElement('time');
+                time.setAttribute('datetime', post.publicationDate);
+                // Parsed at UTC noon so the displayed date matches the
+                // publication date in every reader's timezone.
+                var parsed = new Date(post.publicationDate + 'T12:00:00Z');
+                time.textContent = isNaN(parsed.getTime())
+                    ? post.publicationDate
+                    : parsed.toLocaleDateString('en-US', {
+                        year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC'
+                    });
+                meta.appendChild(time);
+                body.appendChild(meta);
+            }
+
+            var readMore = document.createElement('a');
+            readMore.className = 'news-read-more';
+            readMore.href = post.url;
+            readMore.textContent = 'Read Article';
+            body.appendChild(readMore);
+
+            card.appendChild(body);
+            return card;
+        };
+
+        fetch('/api/news/latest?limit=3', { headers: { Accept: 'application/json' } })
+            .then(function (response) {
+                if (!response.ok) throw new Error('Request failed');
+                return response.json();
+            })
+            .then(function (payload) {
+                var posts = (payload && Array.isArray(payload.posts)) ? payload.posts : [];
+                if (posts.length === 0) {
+                    renderNewsFallback('The first articles are on their way.');
+                    return;
+                }
+                newsGrid.textContent = '';
+                posts.slice(0, 3).forEach(function (post) {
+                    if (post && post.title && post.url) newsGrid.appendChild(buildNewsCard(post));
+                });
+                newsGrid.setAttribute('aria-busy', 'false');
+            })
+            .catch(function () {
+                renderNewsFallback('Articles could not be loaded right now.');
+            });
+    }
+
 });
