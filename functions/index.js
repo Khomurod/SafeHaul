@@ -222,6 +222,10 @@ exports.getSignedDocumentUrl = require('./getSignedDocumentUrl').getSignedDocume
 // at view time so company users can open CDLs/medical cards (the persisted URL expires).
 exports.getSignedApplicationFileUrl = require('./getSignedApplicationFileUrl').getSignedApplicationFileUrl;
 
+// Public marketing-site lead form. Hosting rewrites /api/landing-lead here;
+// Telegram credentials remain server-side in Google Secret Manager.
+exports.submitLandingLead = require('./landingLead').submitLandingLead;
+
 // 18. Feature Scheduler
 const featureScheduler = require('./featureScheduler');
 exports.enforceFeatureSchedules = featureScheduler.enforceFeatureSchedules;

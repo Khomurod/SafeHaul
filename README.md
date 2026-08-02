@@ -381,7 +381,7 @@ Custom Claims Structure:
 
 ## Deployment
 
-The app is deployed to **Firebase Hosting** at [truckerapp-system.web.app](https://truckerapp-system.web.app/).
+The application and marketing landing page are deployed to **Firebase Hosting**.
 
 Pushes to `main` now deploy Hosting automatically from GitHub Actions after the existing Functions checks and frontend build pass.
 
@@ -389,8 +389,8 @@ Pushes to `main` now deploy Hosting automatically from GitHub Actions after the 
 # Full deployment (frontend + functions + rules)
 firebase deploy
 
-# Frontend only
-npm run build && firebase deploy --only hosting
+# Application and landing page (select the appropriate named targets)
+npm run build && firebase deploy --only hosting:testing,hosting:landing-testing
 
 # Firestore rules only
 firebase deploy --only firestore:rules
@@ -405,14 +405,19 @@ The workflow uses keyless Google Workload Identity Federation. No Google JSON
 key or application setting is stored in GitHub.
 
 - `Khomurod/SafeHaul-for-Gemini-Antigravity` deploys Hosting to
-  `truckerapp-system.web.app` only.
-- `Khomurod/SafeHaul` deploys Hosting to `app.safehaul.io` and owns shared
-  Functions, Firestore rules, Storage rules, and indexes.
+  `truckerapp-system.web.app` and `safehaul-landing-testing.web.app`.
+- `Khomurod/SafeHaul` deploys Hosting to `app.safehaul.io`, `safehaul.io`, and
+  `www.safehaul.io`, and owns shared Functions, Firestore rules, Storage rules,
+  and indexes.
 - The workflow decides the destination from `github.repository`, so the same
   repository files can be copied between test and production safely.
 
 Push or merge changes into `main`; successful checks trigger the appropriate
 deployment automatically.
+
+See [docs/FIREBASE_HOSTING_RUNBOOK.md](docs/FIREBASE_HOSTING_RUNBOOK.md) for the
+simple test-to-production copy process, DNS rules, landing-form security, and
+recovery steps.
 
 > **Important**: When deploying Cloud Functions, deploy them **one at a time** if you have limited CPU to avoid OOM issues during build.
 
