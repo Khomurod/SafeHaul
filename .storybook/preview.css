@@ -1,0 +1,36 @@
+/*
+ * Catalog stylesheet.
+ *
+ * This mirrors `src/index.css` — the application's real CSS entry — with two
+ * deliberate differences:
+ *
+ * 1. It does not `@import url('https://rsms.me/inter/inter.css')`. The catalog
+ *    must build and render with no network access, and a webfont that may or may
+ *    not have loaded is exactly the kind of timing-dependent difference that
+ *    makes a catalog untrustworthy. The local fallback stack below is the same
+ *    one the application already falls back to.
+ * 2. It does not carry the application's `.agreement-box` / `.legal-prose`
+ *    component layers. Those are feature typography for the public driver
+ *    application, not design-system contracts, and the catalog must not imply
+ *    they are approved primitives.
+ *
+ * Everything else — the token contract and the Tailwind bridge — is loaded in
+ * the same order as the application, from the same files and the same
+ * `tailwind.config.js`, so a component cannot look different here than it does
+ * in the product.
+ */
+@import '../src/design-system/index.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    font-family:
+      'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+      'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}

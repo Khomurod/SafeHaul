@@ -1,0 +1,82 @@
+{
+  "//": "Shared behavioral test vectors for the two searchNormalization copies (functions CJS + src ESM). Both unit suites run every vector; a change to one copy fails the other suite until it matches.",
+  "normalizeSearchText": [
+    { "input": null, "expected": "" },
+    { "input": "", "expected": "" },
+    { "input": "  John   MICHAEL  ", "expected": "john michael" },
+    { "input": "O'Brien", "expected": "o'brien" },
+    { "input": 42, "expected": "42" }
+  ],
+  "normalizeSearchName": [
+    { "input": "  McDonald ", "expected": "mcdonald" },
+    { "input": "DE LA CRUZ", "expected": "de la cruz" }
+  ],
+  "normalizeSearchEmail": [
+    { "input": " Driver@Example.COM ", "expected": "driver@example.com" },
+    { "input": null, "expected": "" }
+  ],
+  "normalizeSearchPhone": [
+    { "input": "(555) 123-4567", "expected": "5551234567" },
+    { "input": "+1 555 123 4567", "expected": "5551234567" },
+    { "input": "1-555-123-4567", "expected": "5551234567" },
+    { "input": "555.123.4567", "expected": "5551234567" },
+    { "input": "1234567", "expected": "1234567" },
+    { "input": "+44 20 7946 0958", "expected": "442079460958" },
+    { "input": null, "expected": "" },
+    { "input": "abc", "expected": "" }
+  ],
+  "normalizeSearchConfirmation": [
+    { "input": " saf-2026-a7b2c ", "expected": "SAF-2026-A7B2C" },
+    { "input": "SAF - 2026 - A7B2C", "expected": "SAF-2026-A7B2C" },
+    { "input": null, "expected": "" }
+  ],
+  "normalizeSearchApplicationId": [
+    { "input": " 3A7F2B9C8D1E4F5A6B7C ", "expected": "3a7f2b9c8d1e4f5a6b7c" },
+    { "input": "anon_abc_def", "expected": "anon_abc_def" }
+  ],
+  "buildApplicationSearchFields": [
+    {
+      "input": {
+        "firstName": "  Anthony ",
+        "lastName": "COLLINS",
+        "email": "Driver@Example.com",
+        "phone": "(555) 111-2222",
+        "confirmationNumber": "saf-2026-abcde",
+        "applicationId": "3A7F2B9C8D1E4F5A6B7C"
+      },
+      "expected": {
+        "firstNameNormalized": "anthony",
+        "lastNameNormalized": "collins",
+        "fullNameNormalized": "anthony collins",
+        "emailNormalized": "driver@example.com",
+        "phoneNormalized": "5551112222",
+        "confirmationNumberNormalized": "SAF-2026-ABCDE",
+        "applicationIdNormalized": "3a7f2b9c8d1e4f5a6b7c"
+      }
+    },
+    {
+      "input": {},
+      "expected": {
+        "firstNameNormalized": "",
+        "lastNameNormalized": "",
+        "fullNameNormalized": "",
+        "emailNormalized": "",
+        "phoneNormalized": "",
+        "confirmationNumberNormalized": "",
+        "applicationIdNormalized": ""
+      }
+    },
+    {
+      "input": { "firstName": "Cher", "lastName": "", "phone": "+1 (312) 555-0000" },
+      "expected": {
+        "firstNameNormalized": "cher",
+        "lastNameNormalized": "",
+        "fullNameNormalized": "cher",
+        "emailNormalized": "",
+        "phoneNormalized": "3125550000",
+        "confirmationNumberNormalized": "",
+        "applicationIdNormalized": ""
+      }
+    }
+  ]
+}

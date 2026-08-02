@@ -1,0 +1,8 @@
+/*
+ * SafeHaul's canonical design-system CSS entry point.
+ *
+ * The legacy stylesheet remains last in the cascade during the incremental
+ * migration so this foundation pass cannot change existing rendered screens.
+ */
+@import './tokens/index.css';
+@import '../shared/styles/designTokens.css';

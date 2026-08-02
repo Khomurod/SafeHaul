@@ -1,0 +1,605 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =========================================================
+    // 1. HELPER FUNCTIONS
+    // =========================================================
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Basic ownership check
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Legacy support for older apps matched by Email
+    function isEmailOwner(emailField) {
+      return isSignedIn() && 
+             request.auth.token.email_verified == true && 
+             request.auth.token.email == emailField;
+    }
+
+    // ROBUST SUPER ADMIN CHECK
+    // Checks multiple possible locations for the globalRole claim
+    function isSuperAdmin() {
+      return isSignedIn() && (
+        // Direct globalRole claim
+        (request.auth.token.keys().hasAny(['globalRole']) && request.auth.token.globalRole == 'super_admin') ||
+        // Nested in roles object (legacy/alternate structure)
+        (request.auth.token.keys().hasAny(['roles']) && 
+         request.auth.token.roles.keys().hasAny(['globalRole']) && 
+         request.auth.token.roles.globalRole == 'super_admin')
+      );
+    }
+
+    // COMPANY ADMIN: Can manage settings & team
+    function isCompanyAdmin(companyId) {
+      return isSignedIn() && (
+        isSuperAdmin() || 
+        (
+          request.auth.token.keys().hasAny(['roles']) &&
+          request.auth.token.roles.keys().hasAny([companyId]) &&
+          request.auth.token.roles[companyId] == 'company_admin'
+        )
+      );
+    }
+
+    // COMPANY TEAM: HR/Recruiters (Read access + Operational Write)
+    function isCompanyTeam(companyId) {
+      return isSignedIn() && (
+        isSuperAdmin() ||
+        isCompanyAdmin(companyId) || 
+        (
+          request.auth.token.keys().hasAny(['roles']) &&
+          request.auth.token.roles.keys().hasAny([companyId]) &&
+          request.auth.token.roles[companyId] in ['company_admin', 'hr_user', 'recruiter']
+        )
+      );
+    }
+
+    // STAFF CHECK (Any Dashboard User)
+    function isStaff() {
+      return isSignedIn() &&
+             request.auth.token.keys().hasAny(['roles']) &&
+             request.auth.token.roles.keys().size() > 0;
+    }
+
+    // SEC-002: true only when the caller belongs to at least one company that the
+    // target profile document (a driver or a staff user) is ALSO associated with.
+    // This replaces the previous "any staff can read any profile" global access.
+    //
+    // - profileCompanyIds is the server-maintained `companyIds` array on the profile
+    //   doc (users: set by onMembershipWrite from the user's memberships; drivers:
+    //   set by the application/lead sync as arrayUnion of the owning company).
+    // - request.auth.token.companyTeamIds is the caller's denormalized list of
+    //   team companies (also maintained by onMembershipWrite) — the same trust
+    //   signal storage.rules already uses.
+    //
+    // Missing/legacy companyIds (field absent) => not a list => returns false, so a
+    // profile is NOT readable by staff until it has been backfilled. Run the
+    // backfillProfileCompanyIds callable BEFORE deploying these rules so existing
+    // teammate lookups (lead upload/assignment, team management) keep working.
+    function readerSharesCompany(profileCompanyIds) {
+      return isSignedIn() &&
+             profileCompanyIds is list &&
+             request.auth.token.keys().hasAny(['companyTeamIds']) &&
+             request.auth.token.companyTeamIds is list &&
+             request.auth.token.companyTeamIds.hasAny(profileCompanyIds);
+    }
+
+    // Driver-owned application updates: strict allowlist model (default deny).
+    function applicationDriverSelfUpdateAllowedKeys() {
+      return [
+        // Profile/contact fields
+        'firstName', 'lastName', 'middleName', 'email', 'phone', 'dob',
+        'address', 'city', 'state', 'zip', 'licenseNumber', 'cdlState', 'cdlClass', 'cdlExpiration',
+        'experience', 'experience-years',
+        // Structured self-reported sections
+        'employers', 'violations', 'accidents', 'schools', 'military', 'previousAddresses',
+        // Driver-submitted uploads and signatures
+        'cdl-front', 'cdl-back', 'medical-card-upload', 'twic-card-upload', 'mvr-upload',
+        'mvr-consent-upload', 'drug-test-consent-upload', 'ssc-upload',
+        'signature', 'signatureType',
+        // Offer response fields (driver can only accept/decline)
+        'offerDetails', 'offerResponseDate', 'status',
+        // Non-privileged presentation metadata
+        'sourceType', 'sourceSlug',
+        // Derived, non-privileged normalized search fields (kept in sync with
+        // the profile/contact fields above by shared/searchNormalization).
+        // applicationIdNormalized is included so a driver RE-submission can
+        // lazily add it to legacy documents that predate normalized fields.
+        'firstNameNormalized', 'lastNameNormalized', 'fullNameNormalized',
+        'emailNormalized', 'phoneNormalized', 'applicationIdNormalized',
+        // Lifecycle + timestamps related to self-submission
+        'submittedAt', 'updatedAt', 'lifecycle'
+      ];
+    }
+
+    function applicationDriverSelfUpdateAllowed() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(applicationDriverSelfUpdateAllowedKeys());
+    }
+
+    function applicationDriverSelfStatusTransitionAllowed() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status']) ||
+             (
+               request.resource.data.status in ['Offer Accepted', 'Offer Declined'] &&
+               request.resource.data.offerDetails.response == request.resource.data.status
+             );
+    }
+
+    // ATS + legacy pipeline statuses company recruiters may set on applications/leads
+    function allowedRecruiterPipelineStatus() {
+      return [
+        'New',
+        'New Lead',
+        'Contact Attempt 1',
+        'Contact Attempt 2',
+        'Contact Attempt 3',
+        'Contacted',
+        'Attempted',
+        'Disqualified',
+        'In Process',
+        'Interested',
+        'Hired',
+        'Terminated',
+        'Declined',
+        'New Application',
+        'Approved',
+        'Rejected',
+        'Background Check',
+        'In Review',
+        'Qualified',
+        'Hold',
+        'Stale',
+        'Offer Accepted',
+        'Offer Declined'
+      ];
+    }
+
+    function applicationCompanyTeamUpdateAllowed() {
+      return (!request.resource.data.keys().hasAny(['status'])) ||
+             (request.resource.data.status is string &&
+              request.resource.data.status in allowedRecruiterPipelineStatus());
+    }
+
+    function leadCompanyTeamWriteAllowed() {
+      return (!request.resource.data.keys().hasAny(['status'])) ||
+             (request.resource.data.status is string &&
+              request.resource.data.status in allowedRecruiterPipelineStatus());
+    }
+
+    // Path-bound tenant: companyId in document must match companies/{companyId} path.
+    function tenantCompanyIdMatches(companyId) {
+      return request.resource.data.companyId == companyId;
+    }
+
+    function tenantCompanyIdImmutable() {
+      return request.resource.data.companyId == resource.data.companyId;
+    }
+
+    function canReadApplicationSubcollectionDoc(fileData) {
+      return isSignedIn() && (
+        fileData.driverId == request.auth.uid ||
+        fileData.applicantId == request.auth.uid ||
+        fileData.userId == request.auth.uid ||
+        (fileData.ownerUserIds is list && fileData.ownerUserIds.hasAny([request.auth.uid]))
+      );
+    }
+
+    // =========================================================
+    // 2. SUPER ADMIN GLOBAL BYPASS REMOVED
+    // =========================================================
+    // Previous global wildcard removed for security hardening.
+    // Access is now controlled by specific collection rules.
+
+    // =========================================================
+    // 3. DATA VALIDATION (SIMPLIFIED)
+    // =========================================================
+
+    // Allows ANY signed-in user to create an application IF they are the driver/applicant
+    // We intentionally removed strict field enumerations to prevent brittle failures.
+    function isValidAuthenticatedApplication() {
+      let data = request.resource.data;
+      return (data.driverId == request.auth.uid) || 
+             (data.applicantId == request.auth.uid);
+    }
+
+    // SEC-004: the unauthenticated guest direct-create path (isValidGuestApplication)
+    // was removed. Public/guest applications go exclusively through the
+    // submitGuestApplication callable (Admin SDK — rate-limited + server-sanitized),
+    // which bypasses these rules. Direct client creation is no longer possible for
+    // an unauthenticated caller, closing the spam / fake-record surface.
+
+    // DETERMINISTIC ID CHECK: Ensures the Firestore document ID matches
+    // the applicantId field in the submission data. The client generates
+    // a SHA-256 hash as both the doc ID and applicantId, so they must match.
+    // Also validates that the companyId field matches the URL path companyId.
+    function isDeterministicApplicationId(companyId, applicationId) {
+      let data = request.resource.data;
+      return applicationId == data.applicantId &&
+             data.companyId == companyId;
+    }
+
+    // =========================================================
+    // 4. COLLECTION RULES
+    // =========================================================
+
+    // --- PUBLIC PROFILES (Safe, sanitized data for public pages) ---
+    match /public_profiles/{companyId} {
+      allow read: if true; // Safe because it only contains sanitized data
+    }
+
+    // --- VERIFICATION REQUESTS (Token-based public access via Cloud Functions only) ---
+    // All reads/writes go through Cloud Functions (Admin SDK) — no direct client access.
+    // This rule blocks any direct Firestore client access to verification_requests.
+    match /verification_requests/{token} {
+      allow read: if isSuperAdmin();
+      allow write: if false; // Only Cloud Functions (Admin SDK) can write
+      
+      match /responses/{responseId} {
+        allow read: if isSuperAdmin();
+        allow write: if false; // Only Cloud Functions (Admin SDK) can write
+      }
+    }
+
+    // --- CHANGE REVIEWS (Token-based public access via Cloud Functions only) ---
+    // Driver review of company-proposed application edits. The token doc is read
+    // and resolved exclusively through the getChangeReview / submitChangeResolution
+    // callables (Admin SDK); no direct client access.
+    match /change_reviews/{token} {
+      allow read: if isSuperAdmin();
+      allow write: if false;
+    }
+
+    // --- COMPANIES (Locked down — sensitive data) ---
+    match /companies/{companyId} {
+      // LOCKED: Only team members and super admins can read company data
+      allow get: if isCompanyTeam(companyId) || isSuperAdmin();
+      allow list: if isSuperAdmin();
+
+      // WRITE: Super Admin or Company Admin
+      allow create, delete: if isSuperAdmin();
+      allow update: if isCompanyAdmin(companyId) || isSuperAdmin();
+
+      // --- SUBCOLLECTIONS ---
+
+      // TEMPLATES: Used for hiring offers/forms (E-Docs).
+      // Aligned with the rest of the E-Docs feature: any company team member who
+      // can create/send a signing_request (isCompanyTeam) and upload the source PDF
+      // to secure_documents (isCompanyTeam) can also save/edit a reusable template.
+      // Deletion stays admin-only, mirroring signing_requests delete.
+      match /templates/{templateId} {
+        allow read: if isCompanyTeam(companyId) || isSuperAdmin();
+        allow create, update: if isCompanyTeam(companyId) || isSuperAdmin();
+        allow delete: if isCompanyAdmin(companyId) || isSuperAdmin();
+      }
+
+      // MESSAGE TEMPLATES: Used for campaigns
+      match /message_templates/{templateId} {
+        allow read: if isCompanyTeam(companyId) || isSuperAdmin();
+        allow write: if isCompanyAdmin(companyId) || isSuperAdmin();
+      }
+
+      // BULK SESSIONS: Tracking messaging campaigns
+      match /bulk_sessions/{sessionId} {
+        allow read, write: if isCompanyTeam(companyId) || isSuperAdmin();
+        
+        // Logs Subcollection - Critical for Reports
+        match /logs/{logId} {
+             allow read: if isCompanyTeam(companyId) || isSuperAdmin();
+        }
+      }
+
+      // CAMPAIGN DRAFTS: Persistent storage for wizard states
+      match /campaign_drafts/{draftId} {
+        allow read, write: if isCompanyTeam(companyId) || isSuperAdmin();
+      }
+
+      // SEGMENTS (Audience Intelligence)
+      match /segments/{segmentId} {
+        allow read: if isCompanyTeam(companyId) || isSuperAdmin();
+        allow write: if isCompanyAdmin(companyId) || isSuperAdmin();
+        
+        match /members/{memberId} {
+            allow read: if isCompanyTeam(companyId) || isSuperAdmin();
+            allow write: if isCompanyAdmin(companyId) || isSuperAdmin();
+        }
+      }
+
+      // STATS DAILY: Pre-aggregated performance data
+      match /stats_daily/{dateId} {
+        allow read: if isCompanyTeam(companyId) || isSuperAdmin();
+      }
+
+      // INTERNAL STATS: Server-maintained dashboard rollups (KPI tiles). Client read-only.
+      match /internal_stats/{docId} {
+        allow read: if isCompanyTeam(companyId) || isSuperAdmin();
+        allow write: if false;
+      }
+
+      // NOTIFICATIONS: Company activity notifications
+      match /notifications/{notificationId} {
+        allow read: if isCompanyTeam(companyId) || isSuperAdmin();
+        allow create: if isCompanyAdmin(companyId) || isSuperAdmin();
+        allow update: if isCompanyTeam(companyId) || isSuperAdmin();
+        allow delete: if isCompanyAdmin(companyId) || isSuperAdmin();
+      }
+
+      // FEATURE ALERTS: Tracking user interactions with scheduled deactivation warnings
+      match /feature_alerts/{alertId} {
+        allow read, write: if isSuperAdmin() || isCompanyTeam(companyId);
+      }
+
+      // SECURE SETTINGS: Email Config & System Keys
+      // Moved from public document to private subcollection
+      match /system_settings/email_config {
+        allow read, write: if isCompanyAdmin(companyId) || isSuperAdmin();
+      }
+
+      // Per-company settings docs (custom questions, ATS SMS templates, etc.)
+      match /settings/{settingDocId} {
+        allow read: if isCompanyTeam(companyId) || isSuperAdmin();
+        allow write: if isCompanyAdmin(companyId) || isSuperAdmin();
+      }
+
+      // SIGNING REQUESTS: Secure Envelopes for E-Signatures
+      match /signing_requests/{requestId} {
+         // BUG-2 FIX: accessToken has been moved to the secrets subcollection below.
+         // Team members can now safely read all signing request metadata.
+         allow read: if (isCompanyTeam(companyId)) ||
+                     (isSignedIn() && resource.data.recipientId == request.auth.uid) || 
+                     isSuperAdmin();
+         
+         // Create: Company Team only
+         allow create: if isCompanyTeam(companyId);
+         
+         // Update: Company Team OR Recipient (signing/viewing only)
+         allow update: if isCompanyTeam(companyId) || (
+                            isSignedIn() && 
+                            resource.data.recipientId == request.auth.uid && 
+                            // Only allow updating status fields
+                            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'viewedAt', 'declinedReason', 'clientMetadata', 'signedAt', 'signatureData']) &&
+                            // FIX: Validate signature integrity
+                            (request.resource.data.status == 'signed' ? request.resource.data.signatureData != null : true)
+                       );
+         allow delete: if isCompanyAdmin(companyId);
+
+         // BUG-2 FIX: Secrets subcollection — holds the accessToken.
+         // Company team can CREATE (needed for frontend batch writes).
+         // READ/UPDATE/DELETE blocked — only Cloud Functions (Admin SDK) can access after creation.
+         match /secrets/{secretId} {
+           allow create: if isCompanyTeam(companyId);
+           allow read, update, delete: if false;
+         }
+      }
+
+      // APPLICATIONS (The Core Record)
+      match /applications/{applicationId} {
+        // CREATE:
+        // 1. Auth User (Driver) -> Submitting their own app (MUST use deterministic ID)
+        // 2. Super Admin / Company Team (Manual Entry — bypasses ID check)
+        // NOTE (SEC-004): guests do NOT create applications directly. Public/guest
+        // submissions go through the submitGuestApplication callable (Admin SDK),
+        // so there is no unauthenticated create branch here.
+        allow create: if (isSignedIn() && isValidAuthenticatedApplication() && isDeterministicApplicationId(companyId, applicationId)) ||
+                         (isCompanyTeam(companyId) &&
+                          // Tenant binding (mirrors leads at line ~434): staff / super-admin
+                          // manual entry must stamp companyId matching the {companyId} path, so
+                          // an application can never be filed under one company's path while its
+                          // companyId claims another tenant. The driver branch above already
+                          // binds companyId via isDeterministicApplicationId.
+                          tenantCompanyIdMatches(companyId) &&
+                          (isSuperAdmin() || applicationCompanyTeamUpdateAllowed()));
+
+        // READ:
+        // 1. Company Team
+        // 2. The Driver (Owner)
+        // 3. Super Admin
+        allow read: if isCompanyTeam(companyId) || 
+                    (isSignedIn() && (resource.data.applicantId == request.auth.uid || resource.data.driverId == request.auth.uid || isEmailOwner(resource.data.email))) ||
+                    isSuperAdmin();
+        
+        // UPDATE:
+        // Company Team: operational updates; status must stay within ATS / legacy funnel enums.
+        // Driver owner: profile/offers/uploads/etc., but not reassignment or identity fields.
+        allow update: if tenantCompanyIdImmutable() &&
+                      (isSuperAdmin() ||
+                      (isCompanyTeam(companyId) && applicationCompanyTeamUpdateAllowed()) ||
+                      (isSignedIn() &&
+                       (resource.data.applicantId == request.auth.uid || resource.data.driverId == request.auth.uid) &&
+                       applicationDriverSelfUpdateAllowed() &&
+                       applicationDriverSelfStatusTransitionAllowed()));
+
+        allow delete: if isCompanyAdmin(companyId) || isSuperAdmin();
+
+        // Application Subcollections
+        match /dq_files/{fileId} { 
+          allow read: if isCompanyTeam(companyId) || isSuperAdmin() || canReadApplicationSubcollectionDoc(resource.data);
+          allow write: if isCompanyTeam(companyId) || isSuperAdmin(); 
+        }
+        match /general_documents/{fileId} { 
+          allow read: if isCompanyTeam(companyId) || isSuperAdmin() || canReadApplicationSubcollectionDoc(resource.data);
+          allow write: if isCompanyTeam(companyId) || isSuperAdmin(); 
+        }
+        match /internal_notes/{noteId} { allow read, write: if isCompanyTeam(companyId) || isSuperAdmin(); }
+        match /activity_logs/{activityId} { allow read, write: if isCompanyTeam(companyId) || isSuperAdmin(); }
+        match /activities/{activityId} { allow read, write: if isCompanyTeam(companyId) || isSuperAdmin(); }
+        // Company-proposed pending changes: team may READ (to show badges); all
+        // writes go through the proposeApplicationChanges / submitChangeResolution
+        // callables (Admin SDK), so client writes are denied.
+        match /pending_changes/{fieldKey} { allow read: if isCompanyTeam(companyId) || isSuperAdmin(); allow write: if false; }
+      }
+
+      // LEADS (Company Specific)
+      match /leads/{leadId} {
+        allow read: if isCompanyTeam(companyId) || isSuperAdmin();
+        allow create: if (isCompanyTeam(companyId) || isSuperAdmin()) &&
+                         tenantCompanyIdMatches(companyId) &&
+                         (isSuperAdmin() || leadCompanyTeamWriteAllowed());
+        allow update: if tenantCompanyIdImmutable() &&
+                         (isCompanyTeam(companyId) || isSuperAdmin()) &&
+                         (isSuperAdmin() || leadCompanyTeamWriteAllowed());
+        allow delete: if isCompanyTeam(companyId) || isSuperAdmin();
+        match /activity_logs/{logId} { allow read, write: if isCompanyTeam(companyId) || isSuperAdmin(); }
+        match /activities/{activityId} { allow read, write: if isCompanyTeam(companyId) || isSuperAdmin(); }
+        match /internal_notes/{noteId} { allow read, write: if isCompanyTeam(companyId) || isSuperAdmin(); }
+        match /dq_files/{fileId} { allow read, write: if isCompanyTeam(companyId) || isSuperAdmin(); }
+        match /general_documents/{fileId} { allow read, write: if isCompanyTeam(companyId) || isSuperAdmin(); }
+        match /pending_changes/{fieldKey} { allow read: if isCompanyTeam(companyId) || isSuperAdmin(); allow write: if false; }
+      }
+
+      // TEAM MEMBERS
+      match /team/{userId} {
+        allow read: if isCompanyTeam(companyId) || isSuperAdmin();
+        allow write: if isCompanyAdmin(companyId) || isSuperAdmin();
+      }
+
+      // INTEGRATIONS: Number inventory and provider config (Encrypted)
+      match /integrations/{integrationId} {
+        // Read: Admins need to see inventory/assignments
+        allow read: if isCompanyAdmin(companyId) || isSuperAdmin();
+        // Update: Company Admin can update assignments/defaultNumber
+        allow update: if isCompanyAdmin(companyId) || isSuperAdmin();
+        // Create/Delete: Restricted to Super Admin
+        allow create, delete: if isSuperAdmin();
+      }
+    }
+
+    // --- DRIVERS (User Profiles) ---
+    match /drivers/{driverId} {
+      // BUG-2 FIX: Removed isStaff() from list queries.
+      // Previously ANY dashboard user from ANY company could list ALL driver profiles (cross-tenant leak).
+      // Now: list (query) restricted to owner + super admin.
+      // SEC-002 FIX: get (single doc) is no longer allowed for ANY staff globally.
+      // A staff member may read a driver profile only when they share a company
+      // with that driver (server-maintained companyIds). Owner + super admin keep
+      // full access. Same-company application detail views read the company-scoped
+      // application doc, not this global profile, so they are unaffected.
+      allow get: if isOwner(driverId) || isSuperAdmin() || readerSharesCompany(resource.data.companyIds);
+      allow list: if isOwner(driverId) || isSuperAdmin();
+      allow create, update: if (isSignedIn() && request.auth.uid == driverId) || isSuperAdmin();
+      allow delete: if isSuperAdmin();
+      
+      // Subcollections (Drafts, Documents)
+      // NOTE: `saved_jobs` removed — the driver saved-jobs / job-board feature was
+      // deleted (commit 5a4c8dd); the path now relies on Firestore default-deny.
+      match /drafts/{draftId} { allow read, write: if isOwner(driverId) || isSuperAdmin(); }
+      match /documents/{docId} { allow read, write: if isOwner(driverId) || isSuperAdmin(); }
+    }
+
+    // --- USERS (HR/Admin Profiles) ---
+    match /users/{userId} {
+      // SEC-002 FIX: a staff user may read another user's profile ONLY when they
+      // share a company (server-maintained companyIds), not across all tenants.
+      // `get` (single doc) and `list` (queries) are both constrained; the shared-
+      // company `list` constraint still permits documentId-`in` teammate queries
+      // (all returned docs share the caller's company) while rejecting a full
+      // "dump every user" scan. Enumeration by non-key fields (e.g. a global
+      // username query) is no longer allowed for non-super-admins.
+      allow get: if isOwner(userId) || isSuperAdmin() || readerSharesCompany(resource.data.companyIds);
+      allow list: if isSuperAdmin() || readerSharesCompany(resource.data.companyIds);
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      // companyIds is server-maintained (onMembershipWrite) and must not be
+      // self-edited — otherwise a user could grant foreign companies read access
+      // to their profile (or hide from their own).
+      allow update: if isSuperAdmin() || (isOwner(userId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'globalRole', 'companyId', 'companyIds']));
+      allow delete: if isSuperAdmin();
+    }
+
+    // --- ACCESS CONTROL (Memberships) ---
+    match /memberships/{membershipId} {
+      allow read: if isSignedIn() && (
+          isSuperAdmin() || 
+          resource.data.userId == request.auth.uid || 
+          isCompanyAdmin(resource.data.companyId)
+      );
+      // Only Admins can manage memberships
+      allow create: if isSuperAdmin() || (isCompanyAdmin(request.resource.data.companyId) && request.resource.data.role != 'super_admin');
+      allow update: if isSuperAdmin() || (
+        isCompanyAdmin(resource.data.companyId) &&
+        isCompanyAdmin(request.resource.data.companyId) &&
+        request.resource.data.role != 'super_admin'
+      );
+      allow delete: if isSuperAdmin() || isCompanyAdmin(resource.data.companyId);
+    }
+
+    // --- NOTIFICATIONS ---
+    match /notifications/{notificationId} {
+      allow read, update, delete: if isSignedIn() && resource.data.recipientId == request.auth.uid;
+      allow create: if false; // Server-only: notifications created by Cloud Functions (Admin SDK bypasses rules)
+    }
+
+    // --- ANALYTICS ---
+    match /analytics/{docId} {
+      allow read: if isSuperAdmin();
+      allow write: if false; // Only updated by server-side functions
+    }
+
+    // --- SERVER-ONLY LEDGERS (A6 — defense-in-depth + self-documentation) ---
+    // These collections are written exclusively by the Admin SDK (which bypasses rules).
+    // Firestore already default-denies any collection without a match, so clients cannot
+    // reach them today; these explicit terminal rules make that intent auditable and
+    // guard against a future accidental wildcard rule opening them up.
+    match /integrations_index/{id} { allow read, write: if false; } // server-only (Admin SDK)
+    match /rate_limits/{id}        { allow read, write: if false; } // server-only (rate limiter)
+    match /processing_status/{id}  { allow read, write: if false; } // server-only (idempotency)
+    // Environment & Integrations vault audit trail. Deliberately closed to every
+    // client, including Super Admins: the page reads recent activity through the
+    // `listEnvironmentAndIntegrations` callable, so no browser needs (or gets) a
+    // direct read, and no browser can append a forged record.
+    match /environment_audit_log/{id} { allow read, write: if false; } // server-only (audit)
+
+    // --- SYSTEM SETTINGS ---
+    match /system_settings/{settingId} {
+      allow read: if isStaff() || isSuperAdmin();
+      allow write: if isSuperAdmin();
+    }
+    
+    // --- RECRUITER LINKS ---
+    match /recruiter_links/{code} {
+      allow read: if true; // Public access to resolve links (drivers applying via a recruiter link)
+      // SEC-003: a recruiter link belongs to ONE company. Previously ANY staff
+      // (from any company) could create or overwrite ANY link code. Now the
+      // creator must be a team member of the company stamped on the link, updates
+      // are restricted to that same company, and companyId is immutable.
+      allow create: if isSuperAdmin() ||
+                       (isSignedIn() && isCompanyTeam(request.resource.data.companyId));
+      allow update: if isSuperAdmin() ||
+                       (isSignedIn() &&
+                        isCompanyTeam(resource.data.companyId) &&
+                        request.resource.data.companyId == resource.data.companyId);
+      allow delete: if isSuperAdmin();
+    }
+
+    // --- JOB POSTS (REMOVED) ---
+    // The public Job Board feature was removed (commit 5a4c8dd). The former
+    // `job_posts` rules (public `read: if true` + company-team write) are deleted
+    // so this path relies on Firestore default-deny. No active code reads or
+    // writes this collection; any historical documents are simply left
+    // unreachable (not deleted). See firestore.rules.security.test.js for the
+    // default-deny regression test.
+
+    // --- COLLECTION GROUPS (Queries across all collections) ---
+    match /{path=**}/applications/{appId} {
+      allow read: if isSuperAdmin() || 
+                  (isSignedIn() && (resource.data.applicantId == request.auth.uid || resource.data.driverId == request.auth.uid || isEmailOwner(resource.data.email))) || 
+                  (isSignedIn() && isCompanyTeam(resource.data.companyId));
+    }
+    match /{path=**}/leads/{leadId} {
+      allow read: if isSuperAdmin() || 
+                  (isSignedIn() && isCompanyTeam(resource.data.companyId)) ||
+                  (isSignedIn() && resource.data.userId == request.auth.uid);
+    }
+    match /{path=**}/activity_logs/{activityId} {
+       // #20 FIX: Require companyId to be a string — prevents reads on logs missing the field
+       allow read: if isSuperAdmin() || (isSignedIn() && resource.data.companyId is string && isCompanyTeam(resource.data.companyId));
+    }
+    match /{path=**}/signing_requests/{requestId} {
+       allow read: if isSuperAdmin() || (isSignedIn() && resource.data.recipientId == request.auth.uid) || (isSignedIn() && isCompanyTeam(resource.data.companyId));
+    }
+  }
+}

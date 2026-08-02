@@ -1,0 +1,198 @@
+.ds-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.ds-form-field {
+  display: grid;
+  gap: var(--ds-space-2);
+  min-width: 0;
+}
+
+.ds-label {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--ds-space-1);
+  width: fit-content;
+  max-width: 100%;
+  color: var(--ds-color-content);
+  font-size: var(--ds-font-size-sm);
+  font-weight: var(--ds-font-weight-semibold);
+  line-height: var(--ds-line-height-body);
+  overflow-wrap: anywhere;
+}
+
+.ds-label__required-mark {
+  color: var(--ds-color-action-danger);
+}
+
+.ds-form-control {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid var(--ds-color-border);
+  border-radius: var(--ds-radius-md);
+  padding: var(--ds-space-2) var(--ds-space-3);
+  background: var(--ds-color-surface);
+  color: var(--ds-color-content);
+  font: inherit;
+  font-size: var(--ds-font-size-body);
+  line-height: var(--ds-line-height-body);
+  transition:
+    border-color var(--ds-duration-fast) var(--ds-ease-standard),
+    box-shadow var(--ds-duration-fast) var(--ds-ease-standard),
+    background-color var(--ds-duration-fast) var(--ds-ease-standard);
+}
+
+.ds-form-control::placeholder {
+  color: var(--ds-color-content-muted);
+  opacity: 1;
+}
+
+.ds-form-control:hover:not(:disabled):not(:read-only) {
+  border-color: var(--ds-color-content-muted);
+}
+
+.ds-form-control:focus-visible {
+  border-color: var(--ds-color-focus);
+  outline: none;
+  box-shadow: var(--ds-focus-ring);
+}
+
+.ds-form-control[aria-invalid='true'] {
+  border-color: var(--ds-color-action-danger);
+}
+
+.ds-form-control[aria-invalid='true']:focus-visible {
+  box-shadow: var(--ds-focus-ring);
+}
+
+.ds-form-control:read-only {
+  border-color: var(--ds-color-border-subtle);
+  background: var(--ds-color-surface-subtle);
+  color: var(--ds-color-content-secondary);
+  cursor: default;
+}
+
+.ds-form-control:disabled {
+  border-color: var(--ds-color-border-subtle);
+  background: var(--ds-color-surface-subtle);
+  color: var(--ds-color-content-muted);
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
+textarea.ds-form-control {
+  min-height: 112px;
+  resize: vertical;
+}
+
+select.ds-form-control {
+  padding-right: var(--ds-space-8);
+}
+
+.ds-field-message {
+  margin: 0;
+  max-width: 100%;
+  color: var(--ds-color-content-muted);
+  font-size: var(--ds-font-size-xs);
+  line-height: var(--ds-line-height-body);
+  overflow-wrap: anywhere;
+}
+
+.ds-field-message[data-tone='error'] {
+  color: var(--ds-color-status-danger-fg);
+}
+
+.ds-field-message[data-tone='success'] {
+  color: var(--ds-color-status-success-fg);
+}
+
+.ds-field-display {
+  display: grid;
+  min-width: 0;
+  gap: var(--ds-space-1);
+}
+
+.ds-field-display__label {
+  color: var(--ds-color-content-muted);
+  font-size: var(--ds-font-size-sm);
+  font-weight: var(--ds-font-weight-semibold);
+  line-height: var(--ds-line-height-body);
+  overflow-wrap: anywhere;
+}
+
+.ds-field-display__value {
+  min-width: 0;
+  margin: 0;
+  color: var(--ds-color-content);
+  font-size: var(--ds-font-size-body);
+  font-weight: var(--ds-font-weight-medium);
+  line-height: var(--ds-line-height-body);
+  overflow-wrap: anywhere;
+}
+
+.ds-field-display[data-emphasis='strong'] .ds-field-display__value {
+  font-size: var(--ds-font-size-heading-lg);
+  font-weight: var(--ds-font-weight-bold);
+  line-height: var(--ds-line-height-tight);
+}
+
+.ds-form-section {
+  display: grid;
+  gap: var(--ds-space-6);
+}
+
+.ds-form-section__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--ds-space-4);
+  padding-bottom: var(--ds-space-4);
+  border-bottom: 1px solid var(--ds-color-border-subtle);
+}
+
+.ds-form-section__header h2 {
+  margin: 0;
+  color: var(--ds-color-content);
+  font-size: var(--ds-font-size-heading-sm);
+  font-weight: var(--ds-font-weight-semibold);
+  line-height: var(--ds-line-height-tight);
+}
+
+.ds-form-section__header p {
+  margin: var(--ds-space-1) 0 0;
+  color: var(--ds-color-content-muted);
+  font-size: var(--ds-font-size-sm);
+  line-height: var(--ds-line-height-body);
+}
+
+.ds-form-section__actions {
+  flex: 0 0 auto;
+}
+
+.ds-form-section__body {
+  display: grid;
+  gap: var(--ds-space-5);
+  min-width: 0;
+}
+
+@media (max-width: 639px) {
+  .ds-form-section {
+    gap: var(--ds-space-5);
+  }
+
+  .ds-form-section__header {
+    flex-direction: column;
+  }
+
+  .ds-form-section__actions {
+    width: 100%;
+  }
+}

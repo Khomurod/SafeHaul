@@ -1,0 +1,127 @@
+/*
+ * Catalog chrome — scaffolding used only to lay out examples inside a story.
+ *
+ * These classes are deliberately plain CSS rather than Tailwind utilities or
+ * `@apply`, and they live outside `src/` on purpose:
+ *
+ * - `tailwind.config.js` scans `./src/**` for class names, so a Tailwind utility
+ *   written only in a story would still be compiled into the *application's*
+ *   production stylesheet. Story scaffolding must not grow the shipped CSS.
+ * - Keeping them out of `src/design-system` keeps the boundary honest: a story
+ *   grid is catalog furniture, not an approved design decision. Nothing in the
+ *   product may consume these classes.
+ *
+ * They use `--ds-*` tokens so the furniture never contradicts the system it is
+ * displaying.
+ */
+
+.sb-canvas {
+  padding: var(--ds-space-4);
+}
+
+/* Row of related examples — variants, sizes, tones. */
+.sb-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-3);
+}
+
+.sb-row[data-align='start'] {
+  align-items: flex-start;
+}
+
+/* Vertical example list. */
+.sb-column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-4);
+}
+
+/* Labelled example: a caption above one specimen. */
+.sb-specimen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-2);
+  min-width: 0;
+}
+
+.sb-specimen__label {
+  font-size: var(--ds-font-size-xs);
+  line-height: var(--ds-line-height-body);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ds-color-content-muted);
+}
+
+/* Grid of labelled specimens that reflows on narrow viewports. */
+.sb-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--ds-space-5);
+}
+
+/* Constrains a story to a realistic column so long text actually wraps. */
+.sb-measure {
+  max-width: 34rem;
+}
+
+/* A page-pattern story renders on the product's canvas, not on white. */
+.sb-page {
+  background: var(--ds-color-canvas);
+  padding: var(--ds-space-5);
+  min-height: 100%;
+}
+
+/* Dark inverse surface role (console/log panels). Not a dark theme. */
+.sb-inverse {
+  background: var(--ds-color-surface-inverse);
+  color: var(--ds-color-content-on-inverse);
+  padding: var(--ds-space-4);
+  border-radius: var(--ds-radius-md);
+}
+
+/*
+ * Two-column "navigation beside the region it controls" layout used by the
+ * section-navigation pattern story. It collapses to one column below the tablet
+ * breakpoint, matching the design system's own responsive behaviour.
+ */
+.pattern-section-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--ds-space-5);
+  align-items: start;
+}
+
+@media (min-width: 768px) {
+  .pattern-section-layout {
+    grid-template-columns: minmax(200px, 260px) 1fr;
+  }
+}
+
+/* Filter panel pattern: filters above, results below; side-by-side when wide. */
+.pattern-filter-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--ds-space-5);
+  align-items: start;
+}
+
+@media (min-width: 1024px) {
+  .pattern-filter-layout {
+    grid-template-columns: minmax(240px, 300px) 1fr;
+  }
+}
+
+/* Explanatory note inside a story, for guidance that belongs next to the pixels. */
+.sb-note {
+  margin: 0 0 var(--ds-space-4);
+  padding: var(--ds-space-3);
+  border-left: 3px solid var(--ds-color-status-info-border);
+  background: var(--ds-color-status-info-bg);
+  color: var(--ds-color-status-info-fg);
+  font-size: var(--ds-font-size-sm);
+  line-height: var(--ds-line-height-body);
+  border-radius: 0 var(--ds-radius-sm) var(--ds-radius-sm) 0;
+}

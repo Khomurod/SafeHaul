@@ -1,0 +1,97 @@
+import { Meta } from '@storybook/addon-docs/blocks';
+
+<Meta title="Introduction" />
+
+# The SafeHaul component catalog
+
+This is the catalog for SafeHaul's **design system** — the business-neutral
+visual contract that owns how reusable interface elements look and behave.
+
+It documents primitives and business-neutral page patterns. It deliberately does
+**not** document feature screens, and it does not know that SafeHaul has drivers,
+recruiters, carriers or signing requests. Fixtures here talk about *records*,
+*owners* and *references*; features supply the real domain words at the call
+site.
+
+## Before you change UI code
+
+Read these, in order:
+
+1. `docs/SAFEHAUL_DESIGN_SYSTEM_ROADMAP.md`
+2. `src/design-system/README.md`
+3. The component or pattern documentation in this catalog
+
+## Approval status
+
+Every page in this catalog states a status. **Not everything here is approved**,
+and the difference matters — an honest catalog is more useful than a flattering
+one.
+
+| Status | Meaning |
+| --- | --- |
+| **Approved** | The component is proven by real consumers, has behaviour and accessibility tests, and should be reused as-is. |
+| **Needs review** | Built from approved primitives, but something about it is unsettled — a missing primitive, an open roadmap item, or verification that has not been automated yet. Usable, but read the caveat before copying it. |
+| **Temporary** | A compatibility shim that exists only until a migration finishes. Do not add new consumers. |
+
+Where a page says *Needs review*, it says exactly what is unresolved. Those
+caveats are the roadmap's open items, not hedging.
+
+## Known gaps
+
+These primitives do **not** exist yet. Do not hand-roll them — record the need in
+the roadmap instead. Each one currently has at least one documented
+feature-owned exception in the product:
+
+- **Tabs** (a WAI-ARIA tablist). `SectionNavigation` is section navigation, not a
+  tab widget. The driver dossier's tablist is a recorded exception.
+- **Link / ButtonLink.** Back navigation and `tel:` / `mailto:` / download links
+  are styled `<a>` elements today.
+- **Combobox / Listbox.** The FMCSA employer picker is a recorded exception.
+- **File input.** Every upload control is currently feature-owned.
+- **Switch** (ARIA `switch`) and an **indeterminate checkbox** outside
+  `DataTable`'s own select-all.
+- **Segmented control / toggle group**, **filter chip**, **overflow menu**,
+  **collapsible/disclosure**, **split panel** and **sticky page footer**.
+
+## Appearance
+
+SafeHaul ships a **light appearance only**. There is no `prefers-color-scheme`
+rule, no `data-theme` attribute and no dark token set anywhere in the product, so
+this catalog does not offer a dark-mode toggle — a switch that rendered something
+the application cannot produce would be worse than none.
+
+The backgrounds toolbar does offer an **inverse surface**. That is a *role* for a
+specific kind of content — console and log output panels — not an appearance
+setting.
+
+## Viewports
+
+Three presets, matching the widths SafeHaul reviews at:
+
+- **Desktop — 1440**
+- **Tablet — 1024**, where table action columns first compete for space
+- **Mobile — 412**
+
+Pattern stories carry explicit stories at all three.
+
+## Safety guarantees
+
+The catalog is safe to build and host anywhere:
+
+- **No Firebase, Cloud Functions, Storage or any network call.** Nothing here
+  imports application context or domain services, and
+  `src/design-system/tests/architecture.test.js` fails the build if design-system
+  code ever does.
+- **No secrets.** The CI job that builds this catalog is given no credentials.
+- **No production data.** Every value comes from
+  `src/design-system/stories/fixtures.js`, which is entirely hand-written
+  literals — no `Math.random`, no `Date.now()`, no generated data. Stories render
+  identically on every run.
+
+## Running it
+
+```bash
+npm run storybook        # dev server on :6006
+npm run build-storybook  # static build, also run in CI
+npm run test:stories     # renders every story and runs axe over it
+```

@@ -1,0 +1,32 @@
+.ds-progress {
+  width: 100%;
+  height: 10px;
+  overflow: hidden;
+  border-radius: var(--ds-radius-full);
+  background: var(--ds-color-surface-subtle);
+}
+
+.ds-progress__fill {
+  height: 100%;
+  border-radius: var(--ds-radius-full);
+  background: var(--ds-color-action-primary);
+  transition: width var(--ds-duration-slow) var(--ds-ease-standard);
+}
+
+.ds-progress[data-tone='success'] .ds-progress__fill {
+  background: var(--ds-color-action-success);
+}
+
+.ds-progress[data-tone='warning'] .ds-progress__fill {
+  background: var(--ds-color-status-warning-fg);
+}
+
+.ds-progress[data-tone='danger'] .ds-progress__fill {
+  background: var(--ds-color-action-danger);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-progress__fill {
+    transition: none;
+  }
+}

@@ -1,0 +1,105 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // --- HELPERS ---
+    function isSignedIn() { return request.auth != null; }
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+    
+    // Super admin check (claims-only; no email-domain shortcuts).
+    function isSuperAdmin() {
+      return isSignedIn() && (
+         (request.auth.token.keys().hasAny(['globalRole']) && request.auth.token.globalRole == 'super_admin') ||
+         (request.auth.token.keys().hasAny(['roles']) && request.auth.token.roles.keys().hasAny(['globalRole']) && request.auth.token.roles.globalRole == 'super_admin')
+      );
+    }
+
+    function hasCompanyTeamId(companyId) {
+      return request.auth.token.keys().hasAny(['companyTeamIds']) &&
+             request.auth.token.companyTeamIds is list &&
+             request.auth.token.companyTeamIds.hasAny([companyId]);
+    }
+
+    // Fallback to the per-company role claim — the SAME trust signal Firestore
+    // rules use (roles[companyId]). The denormalized companyTeamIds claim can be
+    // missing or stale (it only refreshes when onMembershipWrite re-runs AND the
+    // client refreshes its token), which would let a legitimate team member use
+    // the dashboard via the roles claim yet be denied direct Storage writes (e.g.
+    // saving an E-Docs template). Accepting either claim keeps Storage and
+    // Firestore authorization consistent.
+    function hasCompanyRole(companyId) {
+      return request.auth.token.keys().hasAny(['roles']) &&
+             request.auth.token.roles.keys().hasAny([companyId]) &&
+             request.auth.token.roles[companyId] in ['company_admin', 'hr_user', 'recruiter'];
+    }
+
+    // Company team = company_admin/hr_user/recruiter/super_admin.
+    function isCompanyTeam(companyId) {
+      return isSignedIn() && (
+        isSuperAdmin() ||
+        hasCompanyTeamId(companyId) ||
+        hasCompanyRole(companyId)
+      );
+    }
+
+    // VALIDATION
+    function isValidFile() {
+      // Allow images and PDFs, max 20MB (increased for high-quality envelopes)
+      return request.resource.size < 20 * 1024 * 1024 &&
+             request.resource.contentType.matches('application/pdf|image/.*');
+    }
+
+    // --- RULES ---
+
+    // 1. Company Assets (Logos, Branding)
+    // Public Read, Team Write
+    match /company_assets/{companyId}/{allPaths=**} {
+      allow read: if true;
+      allow create, update: if isCompanyTeam(companyId) && isValidFile();
+      allow delete: if isCompanyTeam(companyId);
+    }
+
+    // 2. Driver Private Documents
+    match /drivers/{driverId}/{allPaths=**} {
+      allow read, write: if isOwner(driverId) || isSuperAdmin();
+    }
+
+    // 3. Application Attachments (Guest Uploads)
+    // Guests may upload only. Reads via getSignedGuestUploadUrl callable / company admin paths.
+    match /companies/{companyId}/{folder}/guest_uploads/{allPaths=**} {
+      allow read: if isCompanyTeam(companyId);
+      allow create: if (folder == 'applications' || folder == 'autofill') &&
+                       isValidFile();
+      // Staff can manage guest uploads after intake.
+      allow update: if isCompanyTeam(companyId) && isValidFile();
+      allow delete: if isCompanyTeam(companyId);
+    }
+
+    // Company team gets broad company-path access (tenant-isolated by companyId path).
+    match /companies/{companyId}/{allPaths=**} {
+      allow read, write: if isCompanyTeam(companyId);
+    }
+
+    // Driver-keyed application root: drivers can access only own path.
+    match /companies/{companyId}/applications/{driverId}/{allPaths=**} {
+      allow read: if isOwner(driverId) || isCompanyTeam(companyId);
+      allow create, update: if (isOwner(driverId) || isCompanyTeam(companyId)) && isValidFile();
+      allow delete: if isOwner(driverId) || isCompanyTeam(companyId);
+    }
+
+    // 4. Secure Documents (E-Signature Envelopes and Templates)
+    // Path: secure_documents/{companyId}/{folder}/{fileName}
+    match /secure_documents/{companyId}/{folder}/{allPaths=**} {
+       // Keep direct bucket access private; public recipients use signed/callable links.
+       allow read: if isCompanyTeam(companyId);
+       
+       allow create, update: if isCompanyTeam(companyId) && isValidFile();
+       allow delete: if isCompanyTeam(companyId);
+    }
+
+    // 6. System Health Tests
+    match /system_health_tests/{fileName} {
+      allow read, write: if isSuperAdmin();
+    }
+  }
+}

@@ -1,0 +1,110 @@
+.ds-choice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--ds-space-3);
+  min-width: 0;
+}
+
+/* The control keeps a 20px visual box but a 44px touch target via padding on
+   the label row, so pointer accuracy on phones does not depend on hitting the
+   box itself. */
+.ds-choice__control {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--ds-color-action-primary);
+  cursor: pointer;
+}
+
+.ds-choice__control:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.ds-choice__control:focus-visible {
+  outline: 2px solid var(--ds-color-focus);
+  outline-offset: 2px;
+}
+
+.ds-choice__text {
+  display: grid;
+  gap: var(--ds-space-1);
+  min-width: 0;
+}
+
+.ds-choice__label {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--ds-space-1);
+  min-height: 24px;
+  color: var(--ds-color-content);
+  font-size: var(--ds-font-size-sm);
+  font-weight: var(--ds-font-weight-medium);
+  line-height: var(--ds-line-height-body);
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.ds-choice__required-mark {
+  color: var(--ds-color-action-danger);
+}
+
+.ds-choice__description {
+  margin: 0;
+  color: var(--ds-color-content-secondary);
+  font-size: var(--ds-font-size-sm);
+  line-height: var(--ds-line-height-body);
+  overflow-wrap: anywhere;
+}
+
+.ds-choice[data-invalid] .ds-choice__control {
+  outline: 1px solid var(--ds-color-action-danger);
+  outline-offset: 2px;
+}
+
+.ds-choice-group {
+  display: grid;
+  gap: var(--ds-space-2);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.ds-choice-group__legend {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--ds-space-1);
+  padding: 0;
+  color: var(--ds-color-content);
+  font-size: var(--ds-font-size-sm);
+  font-weight: var(--ds-font-weight-semibold);
+  line-height: var(--ds-line-height-body);
+  overflow-wrap: anywhere;
+}
+
+.ds-choice-group__required-mark {
+  color: var(--ds-color-action-danger);
+}
+
+.ds-choice-group__description {
+  margin: 0;
+  color: var(--ds-color-content-secondary);
+  font-size: var(--ds-font-size-sm);
+  line-height: var(--ds-line-height-body);
+  overflow-wrap: anywhere;
+}
+
+.ds-choice-group__options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-3);
+  min-width: 0;
+}
+
+.ds-choice-group[data-orientation='horizontal'] .ds-choice-group__options {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: var(--ds-space-2) var(--ds-space-6);
+}

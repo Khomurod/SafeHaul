@@ -1,0 +1,85 @@
+@import url('https://rsms.me/inter/inter.css');
+@import './design-system/index.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* --- DRIVER APP STYLES --- */
+
+@layer components {
+
+  /*
+   * Scrolling agreement box for the public application's consent step.
+   * Migrated to semantic `--ds-*` tokens (2026-07-27). It is a keyboard-focusable
+   * scroll region so a keyboard user can actually read a disclosure taller than
+   * the box — previously only a mouse wheel could reach the bottom of legally
+   * required text.
+   */
+  .agreement-box {
+    @apply max-h-96 overflow-y-auto rounded-ds-md border border-ds-border-subtle bg-ds-surface p-ds-4;
+  }
+
+  .agreement-box:focus-visible {
+    @apply outline outline-2 outline-offset-2 outline-ds-focus;
+  }
+
+  /*
+   * Legal-text typography for agreement bodies. The only consumer is
+   * `AgreementBox`; the classes are applied there, not injected at runtime
+   * (`initializeFormBranding` only rewrites `.company-name-placeholder` text).
+   */
+  .legal-prose {
+    @apply text-ds-body leading-normal text-ds-content-secondary;
+  }
+
+  .legal-prose h4 {
+    @apply mb-ds-2 mt-ds-4 text-ds-body-lg font-semibold text-ds-content;
+  }
+
+  .legal-prose ul {
+    @apply mb-ds-4 list-disc pl-ds-6;
+  }
+
+  .legal-prose ul li {
+    @apply mb-ds-1;
+  }
+
+  .legal-prose p {
+    @apply mb-ds-4;
+  }
+
+  .legal-prose strong {
+    @apply font-semibold text-ds-content;
+  }
+
+}
+
+/* --- ANIMATIONS --- */
+@layer utilities {
+  @keyframes logo-float {
+
+    0%,
+    100% {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    50% {
+      transform: translateY(-4px);
+      opacity: 0.85;
+    }
+  }
+
+  .animate-s-float {
+    animation: logo-float 2.5s ease-in-out infinite;
+  }
+}

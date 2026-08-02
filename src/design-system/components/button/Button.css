@@ -1,0 +1,170 @@
+.ds-button {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ds-space-2);
+  border: 1px solid transparent;
+  border-radius: var(--ds-radius-md);
+  padding: 0 var(--ds-space-4);
+  font-family: inherit;
+  font-size: var(--ds-font-size-body);
+  font-weight: var(--ds-font-weight-semibold);
+  line-height: var(--ds-line-height-tight);
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color var(--ds-duration-fast) var(--ds-ease-standard),
+    border-color var(--ds-duration-fast) var(--ds-ease-standard),
+    color var(--ds-duration-fast) var(--ds-ease-standard),
+    box-shadow var(--ds-duration-fast) var(--ds-ease-standard);
+}
+
+.ds-button[data-size='sm'] {
+  min-height: var(--ds-control-height-sm);
+  padding-inline: var(--ds-space-3);
+  font-size: var(--ds-font-size-sm);
+}
+
+.ds-button[data-size='md'] {
+  min-height: var(--ds-control-height-md);
+}
+
+.ds-button[data-size='lg'] {
+  min-height: var(--ds-control-height-lg);
+  padding-inline: var(--ds-space-5);
+  font-size: var(--ds-font-size-body-lg);
+}
+
+.ds-button[data-variant='primary'] {
+  background: var(--ds-color-action-primary);
+  color: var(--ds-color-content-inverse);
+}
+
+.ds-button[data-variant='primary']:hover:not(:disabled) {
+  background: var(--ds-color-action-primary-hover);
+}
+
+.ds-button[data-variant='secondary'] {
+  border-color: var(--ds-color-border);
+  background: var(--ds-color-action-secondary);
+  color: var(--ds-color-content);
+}
+
+.ds-button[data-variant='secondary']:hover:not(:disabled),
+.ds-button[data-variant='ghost']:hover:not(:disabled) {
+  background: var(--ds-color-action-secondary-hover);
+}
+
+.ds-button[data-variant='ghost'] {
+  background: transparent;
+  color: var(--ds-color-content-secondary);
+}
+
+.ds-button[data-variant='danger'] {
+  background: var(--ds-color-action-danger);
+  color: var(--ds-color-content-inverse);
+}
+
+.ds-button[data-variant='danger']:hover:not(:disabled) {
+  background: var(--ds-color-action-danger-hover);
+}
+
+/*
+ * Tone overlays the variant's colours while the variant keeps owning shape,
+ * size, focus and loading. The `[data-variant]` attribute is matched as well as
+ * `[data-tone]` so these rules outrank `.ds-button[data-variant='primary']`;
+ * a single-class utility such as `bg-ds-status-success-fg` cannot, which is why
+ * feature-side background overrides on a Button were silently dead CSS.
+ */
+.ds-button[data-tone='success'][data-variant] {
+  border-color: transparent;
+  background: var(--ds-color-action-success);
+  color: var(--ds-color-content-inverse);
+}
+
+.ds-button[data-tone='success'][data-variant]:hover:not(:disabled) {
+  background: var(--ds-color-action-success-hover);
+}
+
+.ds-button[data-full-width='true'] {
+  width: 100%;
+}
+
+.ds-button[data-justify='start'] {
+  justify-content: flex-start;
+}
+
+.ds-button:focus-visible {
+  outline: 2px solid var(--ds-color-focus);
+  outline-offset: 2px;
+  box-shadow: var(--ds-focus-ring);
+}
+
+.ds-button:disabled,
+/**
+ * `aria-disabled` renders identically to `disabled` but keeps the control in the
+ * tab order, so its accessible name — which is where an unavailable action's
+ * *reason* belongs — can still be reached by a keyboard or screen-reader user. A
+ * truly `disabled` button is skipped by focus and its explanation is
+ * unreachable, which is why both states exist. Callers using `aria-disabled`
+ * must also refuse the activation themselves; the attribute alone does not.
+ */
+.ds-button[aria-disabled='true'] {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.ds-button[aria-disabled='true']:hover {
+  background: inherit;
+}
+
+.ds-button__content {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: inherit;
+  gap: inherit;
+}
+
+.ds-icon-button {
+  width: var(--ds-control-height-md);
+  flex: 0 0 var(--ds-control-height-md);
+  padding: 0;
+}
+
+.ds-icon-button[data-size='sm'] {
+  width: var(--ds-control-height-sm);
+  flex-basis: var(--ds-control-height-sm);
+  padding: 0;
+}
+
+.ds-icon-button[data-size='lg'] {
+  width: var(--ds-control-height-lg);
+  flex-basis: var(--ds-control-height-lg);
+  padding: 0;
+}
+
+.ds-button__spinner {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: var(--ds-radius-full);
+  animation: ds-button-spin 0.8s linear infinite;
+}
+
+@keyframes ds-button-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-button,
+  .ds-button__spinner {
+    transition: none;
+    animation: none;
+  }
+}

@@ -1,0 +1,26 @@
+# Local / CI secret scanning (gitleaks-action picks this up automatically).
+title = "SafeHaul"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Placeholder env templates only — never allow real .env files here."
+paths = [
+  '''\.env\.example$''',
+  '''functions/\.env\.example$''',
+]
+# One specific, known-fake literal — NOT a path or rule exemption.
+#
+# `src/lib/firebase/config.js` ships a hardcoded placeholder Firebase config so
+# local dev and E2E can boot without credentials. It points at the non-existent
+# project `safehaul-e2e`; the "key" has never been valid for anything. The
+# string is matched exactly, so a real `AIza...` key in the same file would
+# still be reported.
+#
+# It needs allowlisting because gitleaks scans the *diff*: the literal has been
+# on `main` since the placeholder branch was introduced, but any commit that
+# moves the line re-adds it and trips `generic-api-key` on entropy alone.
+regexes = [
+  '''AIzaSyE2EPlaceholderKey1234567890123''',
+]

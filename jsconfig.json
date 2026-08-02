@@ -1,0 +1,42 @@
+{
+  "compilerOptions": {
+    "checkJs": true,
+    "allowJs": true,
+    "noEmit": true,
+    "moduleResolution": "bundler",
+    "module": "esnext",
+    "target": "esnext",
+    "lib": ["esnext", "dom", "dom.iterable"],
+    "types": ["vite/client"],
+    "jsx": "react-jsx",
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "maxNodeModuleJsDepth": 0,
+    "strict": false,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "@app/*": ["src/app/*"],
+      "@features/*": ["src/features/*"],
+      "@shared/*": ["src/shared/*"],
+      "@design-system/*": ["src/design-system/*"],
+      "@lib/*": ["src/lib/*"]
+    }
+  },
+  "//": "D3: type-safety beachhead. checkJs is SCOPED to the highest-leverage modules first (lib, config, service layer) and ratcheted outward later — including all of src would flood editors with thousands of pre-existing errors. Runs as a NON-BLOCKING CI warning lane (see .github/workflows/main.yml typecheck job).",
+  "include": [
+    "src/lib/**/*.js",
+    "src/config/**/*.js",
+    "src/shared/services/**/*.js",
+    "src/features/driver-app/services/**/*.js"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "e2e",
+    "**/*.test.js",
+    "**/*.test.jsx",
+    "**/*.spec.js"
+  ]
+}

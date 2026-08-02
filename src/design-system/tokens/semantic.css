@@ -1,0 +1,98 @@
+:root {
+  /* Surfaces */
+  --ds-color-canvas: var(--ds-color-slate-50);
+  --ds-color-surface: var(--ds-color-white);
+  --ds-color-surface-subtle: var(--ds-color-slate-100);
+  --ds-color-surface-hover: var(--ds-color-slate-100);
+  --ds-color-surface-selected: var(--ds-color-blue-50);
+  --ds-color-overlay: rgb(15 23 42 / 0.6);
+
+  /* Inverse (dark) surface role.
+     Added 2026-07-28 for console/log output surfaces, which the product renders
+     as dark monospace panels. Previously every such panel picked its own raw
+     `bg-gray-900` / `text-gray-300` pairing, and one of them measured 2.2:1.
+     The design system owns the role; features decide what text goes in it.
+     Every pairing below is pinned in `tests/tokens.test.js`. */
+  --ds-color-surface-inverse: var(--ds-color-slate-900);
+  --ds-color-surface-inverse-subtle: var(--ds-color-slate-800);
+  --ds-color-border-inverse: var(--ds-color-slate-700);
+  --ds-color-content-on-inverse: var(--ds-color-slate-100);
+  --ds-color-content-on-inverse-muted: var(--ds-color-slate-400);
+  --ds-color-status-info-fg-on-inverse: var(--ds-color-blue-300);
+  --ds-color-status-success-fg-on-inverse: var(--ds-color-green-200);
+  --ds-color-status-warning-fg-on-inverse: var(--ds-color-amber-200);
+  --ds-color-status-danger-fg-on-inverse: var(--ds-color-red-200);
+
+  /* Content */
+  --ds-color-content: var(--ds-color-slate-800);
+  --ds-color-content-secondary: var(--ds-color-slate-600);
+  --ds-color-content-muted: var(--ds-color-slate-500);
+  --ds-color-content-inverse: var(--ds-color-white);
+  --ds-color-content-link: var(--ds-color-blue-700);
+  --ds-color-content-danger: var(--ds-color-red-700);
+
+  /* Borders and focus */
+  --ds-color-border-subtle: var(--ds-color-slate-200);
+  --ds-color-border: var(--ds-color-slate-300);
+  --ds-color-border-strong: var(--ds-color-slate-400);
+  --ds-color-focus: var(--ds-color-blue-600);
+  --ds-focus-ring: 0 0 0 3px rgb(37 99 235 / 0.35);
+
+  /* Actions. Blue 600 is the default so inverse text meets WCAG AA. */
+  --ds-color-action-primary: var(--ds-color-blue-600);
+  --ds-color-action-primary-hover: var(--ds-color-blue-700);
+  --ds-color-action-secondary: var(--ds-color-white);
+  --ds-color-action-secondary-hover: var(--ds-color-slate-100);
+  --ds-color-action-danger: var(--ds-color-red-600);
+  --ds-color-action-danger-hover: var(--ds-color-red-700);
+  /* Solid success action. Green 700 measures ~5.0:1 against inverse content,
+     so it is safe for the button label; the lighter status-success-fg pairing
+     is for text/borders on a tinted surface, not a solid fill. */
+  --ds-color-action-success: var(--ds-color-green-700);
+  --ds-color-action-success-hover: var(--ds-color-green-800);
+
+  /* Generic semantic states; features provide the domain label. */
+  --ds-color-status-info-bg: var(--ds-color-blue-100);
+  --ds-color-status-info-fg: var(--ds-color-blue-700);
+  --ds-color-status-info-border: var(--ds-color-blue-300);
+  --ds-color-status-accent-bg: var(--ds-color-purple-100);
+  --ds-color-status-accent-fg: var(--ds-color-purple-700);
+  --ds-color-status-accent-border: var(--ds-color-purple-200);
+  --ds-color-status-success-bg: var(--ds-color-green-100);
+  --ds-color-status-success-fg: var(--ds-color-green-800);
+  --ds-color-status-success-border: var(--ds-color-green-200);
+  --ds-color-status-warning-bg: var(--ds-color-amber-100);
+  --ds-color-status-warning-fg: var(--ds-color-amber-800);
+  --ds-color-status-warning-border: var(--ds-color-amber-200);
+  --ds-color-status-danger-bg: var(--ds-color-red-100);
+  --ds-color-status-danger-fg: var(--ds-color-red-800);
+  --ds-color-status-danger-border: var(--ds-color-red-200);
+  --ds-color-status-neutral-bg: var(--ds-color-slate-100);
+  --ds-color-status-neutral-fg: var(--ds-color-slate-700);
+  --ds-color-status-neutral-border: var(--ds-color-slate-300);
+
+  /* Data-presentation roles. Component APIs will own alignment and density. */
+  --ds-table-header-bg: var(--ds-color-surface-subtle);
+  --ds-table-header-fg: var(--ds-color-content-secondary);
+  --ds-table-row-bg: var(--ds-color-surface);
+  --ds-table-row-hover-bg: var(--ds-color-surface-hover);
+  --ds-table-row-selected-bg: var(--ds-color-surface-selected);
+  --ds-table-divider: var(--ds-color-border-subtle);
+  --ds-table-row-warning-bg: #fffbeb;
+  --ds-table-row-warning-accent: var(--ds-color-amber-700);
+  --ds-table-row-danger-bg: #fef2f2;
+  --ds-table-row-danger-accent: var(--ds-color-red-600);
+  --ds-table-header-height: 48px;
+  --ds-table-row-height-compact: 56px;
+  --ds-table-row-height-comfortable: 72px;
+  --ds-table-cell-padding-inline: var(--ds-space-5);
+  --ds-table-cell-padding-block-compact: var(--ds-space-2);
+  --ds-table-cell-padding-block-comfortable: var(--ds-space-3);
+  --ds-table-selection-width: 56px;
+  --ds-table-actions-width: 64px;
+
+  /* Responsive workspace geometry. Feature shells provide navigation content. */
+  --ds-workspace-navigation-width-collapsed: 64px;
+  --ds-workspace-navigation-width-expanded: 256px;
+  --ds-workspace-navigation-width-mobile: 288px;
+}

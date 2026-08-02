@@ -1,0 +1,158 @@
+.ds-card {
+  border: 1px solid var(--ds-color-border-subtle);
+  border-radius: var(--ds-radius-lg);
+  background: var(--ds-color-surface);
+  box-shadow: var(--ds-shadow-xs);
+  color: var(--ds-color-content);
+}
+
+.ds-card[data-padding='none'] {
+  padding: 0;
+}
+
+.ds-card[data-padding='sm'] {
+  padding: var(--ds-space-3);
+}
+
+.ds-card[data-padding='md'] {
+  padding: var(--ds-space-5);
+}
+
+.ds-card[data-padding='lg'] {
+  padding: var(--ds-space-6);
+}
+
+.ds-metric-card {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  min-height: 112px;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--ds-space-3);
+  border: 1px solid var(--ds-color-border-subtle);
+  border-radius: var(--ds-radius-lg);
+  padding: var(--ds-space-5);
+  background: var(--ds-color-surface);
+  box-shadow: var(--ds-shadow-xs);
+  color: var(--ds-color-content);
+  font-family: inherit;
+  text-align: left;
+  transition:
+    border-color var(--ds-duration-fast) var(--ds-ease-standard),
+    box-shadow var(--ds-duration-fast) var(--ds-ease-standard),
+    transform var(--ds-duration-fast) var(--ds-ease-standard);
+}
+
+.ds-metric-card[data-interactive='true'] {
+  cursor: pointer;
+}
+
+.ds-metric-card[data-interactive='true']:hover {
+  border-color: var(--ds-color-border);
+  box-shadow: var(--ds-shadow-md);
+  transform: translateY(-1px);
+}
+
+.ds-metric-card:focus-visible {
+  outline: 2px solid var(--ds-color-focus);
+  outline-offset: 2px;
+  box-shadow: var(--ds-focus-ring);
+}
+
+.ds-metric-card[data-active='true'] {
+  border-color: var(--ds-metric-tone-border);
+  box-shadow: inset 0 3px 0 var(--ds-metric-tone-fg), var(--ds-shadow-sm);
+}
+
+.ds-metric-card__content {
+  min-width: 0;
+}
+
+.ds-metric-card__label {
+  display: block;
+  overflow: hidden;
+  color: var(--ds-color-content-secondary);
+  font-size: var(--ds-font-size-xs);
+  font-weight: var(--ds-font-weight-bold);
+  letter-spacing: 0.04em;
+  line-height: var(--ds-line-height-tight);
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.ds-metric-card__value {
+  display: block;
+  margin-top: var(--ds-space-2);
+  overflow: hidden;
+  color: var(--ds-color-content);
+  font-size: var(--ds-font-size-heading-xl);
+  font-weight: var(--ds-font-weight-bold);
+  line-height: var(--ds-line-height-tight);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ds-metric-card__icon {
+  display: inline-flex;
+  width: var(--ds-control-height-md);
+  height: var(--ds-control-height-md);
+  flex: 0 0 var(--ds-control-height-md);
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-metric-tone-bg);
+  color: var(--ds-metric-tone-fg);
+}
+
+.ds-metric-card[data-tone='neutral'] {
+  --ds-metric-tone-bg: var(--ds-color-status-neutral-bg);
+  --ds-metric-tone-fg: var(--ds-color-status-neutral-fg);
+  --ds-metric-tone-border: var(--ds-color-status-neutral-border);
+}
+
+.ds-metric-card[data-tone='info'] {
+  --ds-metric-tone-bg: var(--ds-color-status-info-bg);
+  --ds-metric-tone-fg: var(--ds-color-status-info-fg);
+  --ds-metric-tone-border: var(--ds-color-status-info-border);
+}
+
+.ds-metric-card[data-tone='success'] {
+  --ds-metric-tone-bg: var(--ds-color-status-success-bg);
+  --ds-metric-tone-fg: var(--ds-color-status-success-fg);
+  --ds-metric-tone-border: var(--ds-color-status-success-border);
+}
+
+.ds-metric-card[data-tone='warning'] {
+  --ds-metric-tone-bg: var(--ds-color-status-warning-bg);
+  --ds-metric-tone-fg: var(--ds-color-status-warning-fg);
+  --ds-metric-tone-border: var(--ds-color-status-warning-border);
+}
+
+.ds-metric-card[data-tone='accent'] {
+  --ds-metric-tone-bg: var(--ds-color-status-accent-bg);
+  --ds-metric-tone-fg: var(--ds-color-status-accent-fg);
+  --ds-metric-tone-border: var(--ds-color-status-accent-border);
+}
+
+/* Added 2026-07-28 for the Super Admin dashboard, whose metrics have a real
+   failure state ("Error") that every other tone misrepresents. The status-danger
+   tokens already existed and `Card`/`StatusMedallion`/`Badge` already expose a
+   danger tone; `MetricCard` was the only primitive missing it. The tone is never
+   the sole signal — the value text still reads "Error". */
+.ds-metric-card[data-tone='danger'] {
+  --ds-metric-tone-bg: var(--ds-color-status-danger-bg);
+  --ds-metric-tone-fg: var(--ds-color-status-danger-fg);
+  --ds-metric-tone-border: var(--ds-color-status-danger-border);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-metric-card {
+    transition: none;
+  }
+
+  .ds-metric-card[data-interactive='true']:hover {
+    transform: none;
+  }
+}
