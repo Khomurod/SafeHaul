@@ -229,18 +229,27 @@ async function generateArticle({ theme, topic, sources, knowledge, recentTitles 
         temperature: 0.4,
         // Sized to the article and to the tier, both measured.
         //
-        // A 400-700 word article is roughly 550-1,000 tokens of prose, so 1,400
-        // covers it with room for a reasoning model's thinking.
+        // 2,400, using the headroom that removing the topic-selection call freed.
+        //
+        // A 350-600 word article is roughly 500-850 tokens of prose, but a
+        // reasoning model spends the budget on thinking first: at 1,400 the writer
+        // was left with so little that a ten-page rule yielded a 175-word draft.
+        // Measured drafts ran 311-417 words at 3,000.
         //
         // The binding constraint is Groq's per-minute ceiling, stated in its own
         // headers as `x-ratelimit-limit-tokens: 8000`, against which the *full*
         // `max_output_tokens` is charged whether used or not — and a run makes
-        // three calls, not one. At 3,000 plus headroom the three calls totalled
-        // roughly 10,500 and could not fit in any single minute. At 1,400 they fit.
+        // *two* calls now, not three. The arithmetic, from vendor headers:
         //
-        // This is the arithmetic that makes the free tier viable at all. Raise it
-        // together with MIN_WORD_COUNT if a provider tier is upgraded.
-        maxOutputTokens: 1400,
+        //   generate  ~2,025 in + (2,400 + 512) out = ~4,937
+        //   verify    ~2,000
+        //   total     ~6,937  of 8,000
+        //
+        // Three calls at 3,000 totalled roughly 10,500 and fit in no single minute.
+        // Two calls at 2,400 fit with margin. Raise this together with
+        // MIN_WORD_COUNT and MAX_DOCUMENT_TEXT_CHARS if a provider tier is
+        // upgraded — the three numbers move as a set.
+        maxOutputTokens: 2400,
         privacy: PRIVACY.PUBLIC,
         totalDeadlineMs: 180000,
     });
