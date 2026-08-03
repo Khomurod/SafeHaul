@@ -20,41 +20,55 @@ const { CAPABILITIES } = require('../registry/capabilities');
 const { TASK_TYPES, PRIVACY, defineTask } = require('./contract');
 const { runAiTask } = require('../router/router');
 
+/**
+ * The article contract.
+ *
+ * ## What this schema is for, and what it is not for
+ *
+ * It enforces only what the pipeline **cannot** repair: required fields, minimum
+ * lengths, a minimum number of blocks, and the permitted block types. Those are
+ * genuine failures — a missing field, a two-sentence article or a 20-character
+ * excerpt cannot be fixed after the fact, and failing over to another provider is
+ * the right response.
+ *
+ * Upper bounds are *not* editorial policy here. `sanitizeBlocks` and
+ * `validateDraft` already normalise every one of them: blocks are capped at 60,
+ * list items at 15 and 500 characters each, heading text at 200, the meta
+ * description at 165 and the excerpt at 320, unknown block types are dropped and
+ * `level` is coerced to 2 or 3.
+ *
+ * Duplicating those limits here — and enforcing them *fatally*, before the
+ * sanitizer ever runs — threw away good articles over values the pipeline was
+ * about to trim. Groq guarantees structure, not string lengths, so a sound draft
+ * with 13 solid sections was discarded for a 198-character meta description; a
+ * later draft was discarded again after being asked for four sections. That is a
+ * schema fighting its own pipeline.
+ *
+ * The maxima that remain are payload bounds — protection against a runaway
+ * response — deliberately set far above anything a real article reaches. Editorial
+ * limits live in `validateDraft`, once.
+ */
 const ARTICLE_SCHEMA = Object.freeze({
     type: 'object',
     properties: {
-        title: { type: 'string', minLength: 20, maxLength: 110 },
-        // `minLength` only. These two are presentation metadata that the
-        // pipeline already normalises: `validateDraft` truncates them to 165 and
-        // 320 characters and rejects them only for being too *short*, which is
-        // the failure truncation cannot fix.
-        //
-        // Enforcing the upper bound here as well made the router discard whole
-        // articles over something it was about to trim. Groq's structured output
-        // guarantees shape, not string lengths, so `openai/gpt-oss-20b` returned
-        // a 198-character meta description and a 633-character excerpt with 13
-        // perfectly good content blocks, and the article was thrown away:
-        //
-        //   $.metaDescription: longer than 165 characters
-        //   $.excerpt: longer than 320 characters
-        //
-        // The generous caps that remain exist to bound payload size, not to
-        // express editorial policy — that lives in `validateDraft`, once.
-        metaDescription: { type: 'string', minLength: 60, maxLength: 400 },
+        title: { type: 'string', minLength: 20, maxLength: 300 },
+        metaDescription: { type: 'string', minLength: 60, maxLength: 600 },
         excerpt: { type: 'string', minLength: 60, maxLength: 1200 },
-        imageQuery: { type: 'string', minLength: 3, maxLength: 80 },
-        imageAltText: { type: 'string', minLength: 10, maxLength: 200 },
+        imageQuery: { type: 'string', minLength: 3, maxLength: 300 },
+        imageAltText: { type: 'string', minLength: 10, maxLength: 600 },
         blocks: {
             type: 'array',
+            // A floor, because too few blocks is not repairable. The ceiling is
+            // the sanitizer's, so it cannot reject what the sanitizer accepts.
             minItems: 6,
-            maxItems: 40,
+            maxItems: 60,
             items: {
                 type: 'object',
                 properties: {
                     type: { type: 'string', enum: ['heading', 'paragraph', 'list', 'quote'] },
                     level: { type: 'integer', minimum: 2, maximum: 3 },
-                    text: { type: 'string', maxLength: 4000 },
-                    items: { type: 'array', maxItems: 15, items: { type: 'string', maxLength: 500 } },
+                    text: { type: 'string', maxLength: 8000 },
+                    items: { type: 'array', maxItems: 30, items: { type: 'string', maxLength: 2000 } },
                 },
                 required: ['type'],
                 additionalProperties: false,
@@ -118,7 +132,14 @@ const HOUSE_STYLE = [
         + ' explaining what the subject means in practice for a carrier: who it applies to,'
         + ' what to check, what to do next, and what remains unclear. Label interpretation as'
         + ' interpretation.',
-    'Use h2 headings to structure the article. Do not write a heading that repeats the title.',
+    // A structural floor rather than a word target. Asking for four distinct
+    // sections lengthens an article by making it cover more ground, which is the
+    // opposite of padding: each section has to earn its heading. Drafts sat just
+    // under the 450-word floor at 417 with the length stated only as a number.
+    'Structure the article with at least four h2 sections. Cover, at minimum: what changed'
+        + ' or happened; exactly who it applies to; what a carrier should check or do; and what'
+        + ' is still unclear or yet to be decided.',
+    'Do not write a heading that repeats the title. Do not write a section with only one sentence.',
     'The title must be specific and unique, under 110 characters, and must not be clickbait.',
 ].join('\n');
 
@@ -206,17 +227,21 @@ async function generateArticle({ theme, topic, sources, knowledge, recentTitles 
         // A little variation reads better than temperature 0 over hundreds of
         // articles, but not enough to loosen the model's grip on the facts.
         temperature: 0.4,
-        // 1200 words — the validator's upper bound — is roughly 1700 tokens, and
-        // a reasoning model spends part of any budget thinking before it writes.
-        // This was briefly cut to 2500 to fit Groq's per-organization request-size
-        // limit; that starved the writer instead, and Gemini returned a 241-word
-        // draft that `validateDraft` then rejected as too short.
+        // Sized from measurement, not habit. 1,200 words — the validator's upper
+        // bound — is roughly 1,700 tokens, so 3,000 is generous for the prose plus
+        // a reasoning model's thinking.
         //
-        // Sizing the article budget around one provider's account tier is the
-        // wrong trade. Groq's tier cannot serve this task, so it fails over with
-        // `rate_limited` and earns a cooldown — which is precisely what the
-        // fallback order is for. The budget stays sized for the article.
-        maxOutputTokens: 4096,
+        // The upper constraint is Groq's per-minute token ceiling, which its
+        // headers state as `x-ratelimit-limit-tokens: 8000` and which charges the
+        // full `max_output_tokens` whether used or not. With an enriched prompt at
+        // roughly 2,300 input tokens, a 4,096 request plus headroom totalled 8,120
+        // and was refused outright as `rate_limited`.
+        //
+        // An earlier attempt at 2,500 went the other way and starved the writer,
+        // but that draft was short because the source was a one-paragraph abstract,
+        // not because of the budget. With the document's own text supplied, 3,000
+        // is ample.
+        maxOutputTokens: 3000,
         privacy: PRIVACY.PUBLIC,
         totalDeadlineMs: 180000,
     });

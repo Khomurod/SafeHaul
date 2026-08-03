@@ -572,7 +572,15 @@ describe('lead document enrichment', () => {
         );
 
         expect(text).toHaveLength(MAX_DOCUMENT_TEXT_CHARS);
-        expect(MAX_DOCUMENT_TEXT_CHARS).toBeLessThanOrEqual(8000);
+        // The ceiling is Groq's per-minute token budget, which its headers state
+        // as `x-ratelimit-limit-tokens: 8000` and which charges input plus the
+        // full requested output. Roughly: 9,000 chars ~ 2,250 tokens, plus ~800
+        // for the house style and schema, plus a 3,000 article budget and a 512
+        // reasoning allowance = ~6,560, inside the ceiling with margin.
+        //
+        // 12,000 characters would not be: it pushes the total past 8,000 and the
+        // request is refused before the model writes anything.
+        expect(MAX_DOCUMENT_TEXT_CHARS).toBeLessThanOrEqual(10000);
     });
 
     it('refuses a URL that is not on federalregister.gov', async () => {

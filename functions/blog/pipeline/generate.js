@@ -300,7 +300,22 @@ async function runSlot(slot, context) {
     if (theme.requiresSources) {
         const { items } = await gatherSourceItems({
             sourceIds: undefined,
-            maxAgeDays: theme.id === 'industry-news' ? 7 : 21,
+            // 21 days for every theme, including regulatory news.
+            //
+            // A 7-day window looked like editorial rigour and was actually a
+            // guarantee of thin articles: FMCSA does not publish substantive
+            // rules weekly. Measured on 2026-08-03, the only primary documents
+            // inside 7 days were one-to-three page exemption notices, and an
+            // honest article from a three-page notice runs ~355 words against a
+            // 450-word floor. Widening to 21 days surfaced a ten-page rule —
+            // real regulatory substance to write about.
+            //
+            // Recency is not abandoned, it is ranked: `buildCandidates` sorts by
+            // tier, then document length, then date, and the 60-day duplicate
+            // window still prevents re-covering the same story. A considered piece
+            // on a rule from two weeks ago is better trade journalism than a
+            // padded paragraph about yesterday's exemption withdrawal.
+            maxAgeDays: 21,
             fetchImpl,
             now,
         });

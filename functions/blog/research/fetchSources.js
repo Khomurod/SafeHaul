@@ -114,19 +114,26 @@ function parseFederalRegister(payload) {
 /**
  * Upper bound on fetched document text, in characters.
  *
- * Roughly 1,500 tokens. Sized against real provider limits, not guessed: 14,000
- * characters made the prompt large enough that Groq answered
- * `provider_unavailable` and Gemini `provider_request_rejected` — the request
- * itself was over their per-request ceilings, so both refused before writing
- * anything. 6,000 leaves comfortable room for the house style, the schema and
- * corroborating sources while still giving the writer an actual document instead
- * of a one-paragraph abstract.
+ * Roughly 2,250 tokens. Sized against real provider limits, not guessed.
+ *
+ * At 14,000 the prompt was large enough that Groq answered
+ * `provider_unavailable` and Gemini `provider_request_rejected` — over their
+ * per-request ceilings, so neither wrote anything. The binding constraint is
+ * Groq's per-minute token budget, stated in its own headers as
+ * `x-ratelimit-limit-tokens: 8000`, which charges input plus the full requested
+ * output. With a 3,000-token article budget and a 512 reasoning allowance, the
+ * arithmetic is roughly 2,250 + 800 + 3,512 = 6,562 — inside the ceiling with
+ * margin.
+ *
+ * More material is the lever that actually lengthens an article honestly: drafts
+ * went 251 words on the abstract alone, to 352, to 417 as the document text was
+ * supplied and widened.
  *
  * Federal Register rules put their substance — what changes, who it applies to,
  * effective dates, the agency's reasoning — near the top, so a leading slice is
  * the useful slice.
  */
-const MAX_DOCUMENT_TEXT_CHARS = 6000;
+const MAX_DOCUMENT_TEXT_CHARS = 9000;
 
 /**
  * Fetches the full text of one document.
