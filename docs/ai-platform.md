@@ -141,9 +141,37 @@ in the console and in telemetry:
   instead of at us, which is exactly what happened while diagnosing the Gemini
   request-shape bugs below.
 
-**Stops immediately on** an invalid SafeHaul request, a rejected authorization,
-no capable provider, or the total deadline. Trying nine vendors would return the
-same answer nine times and burn nine quotas.
+**Stops immediately on** exactly four *task-fatal* categories: an invalid
+SafeHaul request, no capable provider, the total deadline, and
+`all_providers_failed`. Every vendor would answer the first two identically, and
+the last two mean there is no time or nothing left to try.
+
+### "Do not retry this provider" is not "do not try the others"
+
+`retryable: false` answers only the first question. The router originally treated
+it as answering both, and that was a real defect worth stating plainly:
+
+- **`unauthorized`** is *one vendor's* key being wrong, expired or revoked. Eight
+  other vendors with working keys are unaffected.
+- **`internal`** is the catch-all assigned to *any* exception an adapter raises
+  that is not an `AiError` — a `TypeError`, a bad property access, a parse slip.
+
+Because Groq is priority 1, either of those aborted the chain before Gemini was
+reached, and the platform behaved as though no provider were configured while
+reporting an error that blamed the request. A nine-provider fallback order that
+one bad key can switch off is not a fallback order.
+
+Both now end that provider's turn, are recorded against it, and the router
+continues down the order. The provider is *not* retried — hammering a vendor that
+just rejected the credential is pointless — it is simply skipped.
+
+`isTaskFatal()` in `router/errors.js` is the single place that distinction lives.
+`aiRouter.test.js` pins failover for `unauthorized` and for a raw `TypeError`,
+and pins that `invalid_request` still stops on the first provider.
+
+Measured impact: with a Groq `401` and a working Gemini, the blog pipeline went
+from `failed_generation (unauthorized)` and zero articles to publishing normally,
+against the same inputs.
 
 **Bounds.** A per-provider timeout from the registry, a total request deadline
 (120 s default), exactly one attempt per provider unless the registry marks a

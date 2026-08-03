@@ -290,12 +290,67 @@ describe('failure handling and fallback triggers', () => {
         expect(mockExecute).toHaveBeenCalledTimes(1);
     });
 
-    it('stops immediately when a provider rejects our credentials', async () => {
+    // These four replace an earlier test that asserted the router "stops
+    // immediately when a provider rejects our credentials". That was the wrong
+    // guarantee, and asserting it kept a real defect in place.
+    //
+    // `retryable: false` answers "retry this provider?" — not "try the other
+    // eight?". Treating the two as one meant a single revoked Groq key, or one
+    // unexpected exception in the Groq adapter, threw before Gemini was reached.
+    // Since Groq is priority 1, the platform then behaved as if no provider were
+    // configured, while reporting a message that blamed the request.
+
+    it('fails over when one provider rejects our credentials', async () => {
+        // One vendor's key being wrong, expired or revoked says nothing about
+        // the other eight.
+        mockExecute.mockImplementation(async (providerId) => {
+            if (providerId === 'groq') throw new AiError('unauthorized', '401', { providerId });
+            return { text: 'ok', model: 'g' };
+        });
+
+        const result = await runAiTask(textTask());
+
+        expect(result.providerId).toBe('gemini');
+        expect(result.fallbackCount).toBe(1);
+    });
+
+    it('fails over when one adapter throws an unexpected error', async () => {
+        // Not an AiError, so the router labels it `internal`. A bug in one
+        // adapter must not disable every AI feature.
+        mockExecute.mockImplementation(async (providerId) => {
+            if (providerId === 'groq') throw new TypeError('Cannot read properties of undefined');
+            return { text: 'ok', model: 'g' };
+        });
+
+        const result = await runAiTask(textTask());
+
+        expect(result.providerId).toBe('gemini');
+        expect(result.fallbackCount).toBe(1);
+    });
+
+    it('does not retry the same provider after a non-retryable failure', async () => {
+        // Failing over is right; hammering the provider that just rejected the
+        // credential is not.
         mockExecute.mockImplementation(async (providerId) => {
             throw new AiError('unauthorized', '401', { providerId });
         });
 
-        await expect(runAiTask(textTask())).rejects.toMatchObject({ category: 'unauthorized' });
+        await runAiTask(textTask()).catch(() => {});
+
+        const attempted = mockExecute.mock.calls.map((call) => call[0]);
+        expect(attempted.filter((id) => id === 'groq').length).toBe(1);
+        // Every eligible provider still got its turn.
+        expect(new Set(attempted).size).toBeGreaterThan(1);
+    });
+
+    it('still stops immediately on an unauthorized *task-fatal* category', async () => {
+        // `invalid_request` genuinely is task-fatal: our own request is
+        // malformed, so every vendor would reject it identically.
+        mockExecute.mockImplementation(async (providerId) => {
+            throw new AiError('invalid_request', 'bad shape', { providerId });
+        });
+
+        await expect(runAiTask(textTask())).rejects.toMatchObject({ category: 'invalid_request' });
         expect(mockExecute).toHaveBeenCalledTimes(1);
     });
 

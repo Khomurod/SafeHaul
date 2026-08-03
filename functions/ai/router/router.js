@@ -27,7 +27,7 @@
 const { PROVIDERS, supportsAllCapabilities, resolveModel, isRetired } = require('../registry/providers');
 const { CAPABILITIES, normalizeCapabilities } = require('../registry/capabilities');
 const { getAdapter } = require('../providers');
-const { AiError } = require('./errors');
+const { AiError, isTaskFatal } = require('./errors');
 const { validateAgainstSchema, extractJsonObject } = require('../validation/schema');
 const store = require('../credentials/store');
 const { recordAiTelemetry } = require('../telemetry/record');
@@ -243,14 +243,22 @@ async function runAiTask(task, deps = {}) {
                         ? error
                         : new AiError('internal', error?.message || 'Adapter failed.', { providerId: provider.id });
 
-                    // A terminal category means the request itself is wrong.
-                    // Neither a retry nor another vendor changes that.
-                    if (!providerError.retryable) {
+                    // Only a *task-fatal* category abandons the whole chain: a
+                    // malformed SafeHaul request, no capable provider, or the
+                    // deadline. Every vendor would answer those the same way.
+                    if (isTaskFatal(providerError.category)) {
                         await finishFailure(task, providerError, {
                             attempted, skipped, startedAt, primaryCapability,
                         });
                         throw providerError;
                     }
+
+                    // Anything else ends this provider's turn, not the task.
+                    // `unauthorized` is one vendor's key; `internal` is one
+                    // adapter misbehaving. Throwing here let a single bad key or
+                    // a single adapter bug disable all nine providers, which is
+                    // exactly what the fallback order exists to prevent.
+                    if (!providerError.retryable) break;
                 }
             }
 
