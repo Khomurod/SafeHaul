@@ -125,8 +125,21 @@ credential, missing a required non-secret setting, in cooldown, or has no
 resolvable model. The first response that passes schema validation wins.
 
 **Fails over on** timeout, network failure, provider outage, quota exhausted,
-rate limit, unavailable model, malformed response, failed structured-output
-validation, and not-configured.
+rate limit, unavailable model, malformed response, truncated output, a request
+this vendor rejected, failed structured-output validation, and not-configured.
+
+Two of those are deliberately distinct from `provider_unavailable` even though
+all three fail over identically, because the category is what an operator reads
+in the console and in telemetry:
+
+- `output_truncated` — the model stopped before finishing, almost always the
+  output budget. A known fix, not an outage.
+- `provider_request_rejected` — a 400/422: SafeHaul's request was wrong *for this
+  vendor*. Another vendor with a different shape may still succeed, so it stays
+  retryable, but it will fail here identically forever. Labelling it
+  "temporarily unavailable" points an operator at the vendor's status page
+  instead of at us, which is exactly what happened while diagnosing the Gemini
+  request-shape bugs below.
 
 **Stops immediately on** an invalid SafeHaul request, a rejected authorization,
 no capable provider, or the total deadline. Trying nine vendors would return the
@@ -157,6 +170,57 @@ shows "Retired by vendor" with the reason and offers no actions.
 
 If GitHub ever restores an inference API, clearing the `retired` field on the
 row re-enables it. Nothing else needs to change.
+
+## Gemini: the Interactions API shapes, and how they were got wrong
+
+Gemini's `/v1beta/interactions` surface does **not** follow the
+`:generateContent` conventions. The adapter originally used those conventions
+throughout, and as a result *every* Gemini call failed in production — text,
+structured JSON and vision alike — while the unit tests passed. The four
+mistakes, and what the API actually requires:
+
+| Field | Wrong (`:generateContent` style) | Correct | Failure it caused |
+| --- | --- | --- | --- |
+| response text | `payload.output[]` | **`payload.steps[]`** | `malformed_response` on a correct answer |
+| `system_instruction` | `{ parts: [{ text }] }` | **plain string** | `400 Expected string, unexpected character: '{'` |
+| `input` | `[{ role, parts: [...] }]` | **`[{ type: 'user_input', content: [...] }]`** | `400 Unknown parameter 'parts'` |
+| image part | `{ inline_data: { mime_type, data } }` | **`{ type: 'image', mime_type, data }`** | `400 Unknown parameter 'inline_data'` |
+
+`steps` mirrors the request's step list: an array of `{ type, content }`. A
+`thought` step carries the model's private reasoning — usually only an opaque
+`signature`, sometimes text — and **must never be concatenated into the
+answer**, or it corrupts an article and breaks JSON the router is about to parse.
+`extractText` skips it by type.
+
+### Thinking tokens consume the output budget
+
+Current Gemini models reason before answering, and those thought tokens are
+charged against `max_output_tokens` alongside the visible reply. Measured live on
+2026-08-03 with `gemini-3.6-flash`: a one-word answer used **83** thought tokens
+by default and **58** at `thinking_level: low`; a 16-token budget produced 13
+thought tokens, zero output tokens and `status: "incomplete"`.
+
+Every other provider treats `maxOutputTokens` as visible output, so the Gemini
+adapter adds `THINKING_HEADROOM_TOKENS` on top of the caller's number rather than
+making one adapter mean something different by the same parameter. It is a
+ceiling, not a spend.
+
+`status: "incomplete"` with no text now raises `output_truncated`, not
+`malformed_response` — the first names a budget problem with a known fix, the
+second describes a symptom and hides the cause.
+
+### Why the tests did not catch any of this
+
+The adapter's tests invented their fixtures from the adapter's own assumptions:
+they asserted an `output_text` field and the `parts`/`inline_data` request shape.
+The API returns neither. **A test that asserts the code's beliefs back to it
+cannot catch the code being wrong about the world.**
+
+Provider fixtures in `aiProviders.test.js` must therefore be *captured from a
+real response*, not written from reading the adapter. The Gemini fixtures are
+recorded verbatim (ids and timings trimmed) with the capture date. This does not
+weaken the rule that no test may contact a vendor — the capture is a manual,
+one-off act by a human or agent, and the recording is what CI runs against.
 
 ## Credential storage
 

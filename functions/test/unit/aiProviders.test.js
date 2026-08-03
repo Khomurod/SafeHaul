@@ -175,9 +175,43 @@ describe('Groq adapter', () => {
     });
 });
 
+/**
+ * Gemini fixtures **captured verbatim from the live API** on 2026-08-03 against
+ * `gemini-3.6-flash`, trimmed of ids and timings.
+ *
+ * This matters more than it looks. The original version of this group invented
+ * its fixtures from the adapter's own assumptions — it asserted an `output_text`
+ * field and a `parts`/`inline_data` request shape. The API returns neither. So
+ * the tests passed, the adapter shipped, and *every* Gemini call failed in
+ * production: text, structured JSON and vision alike. A test that asserts the
+ * code's beliefs back to it cannot catch the code being wrong about the world.
+ *
+ * Anything added here must come from a recorded real response, not from reading
+ * the adapter.
+ */
+const GEMINI_TEXT_RESPONSE = Object.freeze({
+    status: 'completed',
+    object: 'interaction',
+    model: 'gemini-3.6-flash',
+    usage: { total_output_tokens: 1, total_thought_tokens: 83 },
+    steps: [
+        // Private reasoning: no `content`, only an opaque signature.
+        { type: 'thought', signature: 'EooDCocDARFNMg/8eBgcqFu4y7IZjWfHObLKleRTxSyT' },
+        { type: 'model_output', content: [{ type: 'text', text: 'hello' }] },
+    ],
+});
+
+/** A reply that ran out of budget mid-turn: no text, and `status: incomplete`. */
+const GEMINI_TRUNCATED_RESPONSE = Object.freeze({
+    status: 'incomplete',
+    object: 'interaction',
+    model: 'gemini-3.6-flash',
+    usage: { total_output_tokens: 0, total_thought_tokens: 13 },
+});
+
 describe('Gemini adapter', () => {
     it('posts to the Interactions endpoint with the x-goog-api-key header', async () => {
-        const fetchImpl = fetchReturning({ output_text: 'hello' });
+        const fetchImpl = fetchReturning(GEMINI_TEXT_RESPONSE);
 
         const result = await getAdapter(getProvider('gemini'))
             .execute(contextFor('gemini', { fetchImpl }));
@@ -189,8 +223,80 @@ describe('Gemini adapter', () => {
         expect(result.text).toBe('hello');
     });
 
+    it('reads the assistant text out of `steps`, not `output`', async () => {
+        // The regression that broke every Gemini call. `output` does not exist
+        // on this API; reading it made a correct answer look unreadable.
+        const fetchImpl = fetchReturning(GEMINI_TEXT_RESPONSE);
+
+        const result = await getAdapter(getProvider('gemini'))
+            .execute(contextFor('gemini', { fetchImpl }));
+
+        expect(result.text).toBe('hello');
+    });
+
+    it('never folds a thought step into the answer', async () => {
+        // Thought text is the model's private reasoning. Concatenating it would
+        // corrupt an article and break JSON the router is about to parse.
+        const fetchImpl = fetchReturning({
+            status: 'completed',
+            steps: [
+                { type: 'thought', content: [{ type: 'text', text: 'SECRET REASONING' }] },
+                { type: 'model_output', content: [{ type: 'text', text: '{"answer":"42"}' }] },
+            ],
+        });
+
+        const result = await getAdapter(getProvider('gemini'))
+            .execute(contextFor('gemini', { fetchImpl }));
+
+        expect(result.text).toBe('{"answer":"42"}');
+        expect(result.text).not.toContain('SECRET REASONING');
+    });
+
+    it('sends system instructions as a plain string', async () => {
+        // `{ parts: [{ text }] }` is the :generateContent convention and is
+        // rejected here: 400 "Expected string, unexpected character: '{'".
+        const fetchImpl = fetchReturning(GEMINI_TEXT_RESPONSE);
+
+        await getAdapter(getProvider('gemini'))
+            .execute(contextFor('gemini', { fetchImpl, systemInstructions: 'Be terse.' }));
+
+        expect(fetchImpl.calls[0].body.system_instruction).toBe('Be terse.');
+    });
+
+    it('sends the input as a user_input step list', async () => {
+        // `role`+`parts` → 400 "Unknown parameter 'parts'".
+        // `role`+`content` → 400 "use step_list input format instead of turn_list".
+        const fetchImpl = fetchReturning(GEMINI_TEXT_RESPONSE);
+
+        await getAdapter(getProvider('gemini'))
+            .execute(contextFor('gemini', { fetchImpl }));
+
+        const input = fetchImpl.calls[0].body.input;
+        expect(input).toEqual([
+            { type: 'user_input', content: [{ type: 'text', text: 'What is the answer?' }] },
+        ]);
+        expect(JSON.stringify(input)).not.toContain('"parts"');
+        expect(JSON.stringify(input)).not.toContain('"role"');
+    });
+
+    it('grants output budget on top of the caller\'s, for thinking tokens', async () => {
+        // Thought tokens are charged against max_output_tokens. A 16-token
+        // budget produced 13 thought tokens and zero output. The caller's number
+        // must mean visible output, as it does for every other provider.
+        const fetchImpl = fetchReturning(GEMINI_TEXT_RESPONSE);
+
+        await getAdapter(getProvider('gemini'))
+            .execute(contextFor('gemini', { fetchImpl, maxOutputTokens: 128 }));
+
+        expect(fetchImpl.calls[0].body.generation_config.max_output_tokens)
+            .toBeGreaterThan(128);
+    });
+
     it('requests JSON through response_format', async () => {
-        const fetchImpl = fetchReturning({ output_text: '{"answer":"42"}' });
+        const fetchImpl = fetchReturning({
+            status: 'completed',
+            steps: [{ type: 'model_output', content: [{ type: 'text', text: '{"answer":"42"}' }] }],
+        });
 
         await getAdapter(getProvider('gemini'))
             .execute(contextFor('gemini', { fetchImpl, schema: SCHEMA }));
@@ -202,18 +308,36 @@ describe('Gemini adapter', () => {
         });
     });
 
-    it('strips the data URL prefix and sends inline base64', async () => {
-        const fetchImpl = fetchReturning({ output_text: 'ok' });
+    it('sends an image as a sibling-field image content entry', async () => {
+        const fetchImpl = fetchReturning(GEMINI_TEXT_RESPONSE);
 
         await getAdapter(getProvider('gemini')).execute(contextFor('gemini', {
             fetchImpl,
             images: [{ dataUrl: 'data:image/jpeg;base64,QUJD' }],
         }));
 
-        const parts = fetchImpl.calls[0].body.input[0].parts;
-        expect(parts[1]).toEqual({ inline_data: { mime_type: 'image/jpeg', data: 'QUJD' } });
+        const content = fetchImpl.calls[0].body.input[0].content;
+        // Not nested under `image`, not `inline_data` — both are rejected.
+        expect(content[1]).toEqual({ type: 'image', mime_type: 'image/jpeg', data: 'QUJD' });
         // Gemini rejects the `data:` prefix, so it must not survive.
-        expect(JSON.stringify(parts)).not.toContain('data:image');
+        expect(JSON.stringify(content)).not.toContain('data:image');
+        expect(JSON.stringify(content)).not.toContain('inline_data');
+    });
+
+    it('reports a truncated reply as truncated, not unreadable', async () => {
+        // `incomplete` with no text has a known fix — raise the budget. Calling
+        // it "unreadable" describes the symptom and hides the cause.
+        const fetchImpl = fetchReturning(GEMINI_TRUNCATED_RESPONSE);
+
+        await expect(getAdapter(getProvider('gemini')).execute(contextFor('gemini', { fetchImpl })))
+            .rejects.toMatchObject({ category: 'output_truncated' });
+    });
+
+    it('still reports a genuinely unreadable reply as malformed', async () => {
+        const fetchImpl = fetchReturning({ status: 'completed', steps: [] });
+
+        await expect(getAdapter(getProvider('gemini')).execute(contextFor('gemini', { fetchImpl })))
+            .rejects.toMatchObject({ category: 'malformed_response' });
     });
 
     it('reads the legacy candidates envelope as well as the new one', async () => {
@@ -228,7 +352,7 @@ describe('Gemini adapter', () => {
     });
 
     it('refuses an image that is not a base64 data URL', async () => {
-        const fetchImpl = fetchReturning({ output_text: 'ok' });
+        const fetchImpl = fetchReturning(GEMINI_TEXT_RESPONSE);
 
         await expect(getAdapter(getProvider('gemini')).execute(contextFor('gemini', {
             fetchImpl,

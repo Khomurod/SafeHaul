@@ -23,6 +23,8 @@ const RETRYABLE_CATEGORIES = Object.freeze([
     'rate_limited',
     'model_unavailable',
     'malformed_response',
+    'output_truncated',
+    'provider_request_rejected',
     'schema_validation_failed',
     'not_configured',
 ]);
@@ -52,6 +54,16 @@ const SAFE_MESSAGES = Object.freeze({
     rate_limited: 'The AI service is busy. Please try again shortly.',
     model_unavailable: 'The configured AI model is not available.',
     malformed_response: 'The AI service returned an unreadable response.',
+    // Distinct from malformed_response on purpose. A truncated reply is a
+    // budget problem with a known fix; reporting it as "unreadable" sent a real
+    // diagnosis down the wrong path once already.
+    output_truncated: 'The AI service ran out of room before it finished answering.',
+    // A 4xx here is SafeHaul's request being wrong for this vendor, not the
+    // vendor being down. Reporting it as `provider_unavailable` cost real
+    // debugging time: three genuine Gemini request-shape bugs all surfaced as
+    // "temporarily unavailable", which reads as "wait and retry" when the true
+    // answer was "this will fail identically forever."
+    provider_request_rejected: 'The AI service rejected the request SafeHaul sent.',
     schema_validation_failed: 'The AI service returned an unexpected result.',
     not_configured: 'No AI provider is configured for this task.',
     invalid_request: 'The request could not be processed.',
@@ -118,11 +130,15 @@ function categorizeHttpFailure(status, body, provider) {
     if (status === 401 || status === 403) return 'unauthorized';
     if (status === 404) return 'model_unavailable';
     if (status === 400 || status === 422) {
-        // A 400 usually means the request shape was wrong for this vendor.
-        // That is a SafeHaul-side problem for *this* adapter, but another
-        // vendor with a different shape may well succeed, so it stays
-        // retryable at the router level and is recorded against the provider.
-        return 'provider_unavailable';
+        // The request shape was wrong for this vendor. That is a SafeHaul-side
+        // problem for *this* adapter, but another vendor with a different shape
+        // may well succeed, so it stays **retryable** at the router level and is
+        // recorded against the provider — unchanged behaviour.
+        //
+        // It gets its own category purely so the console and telemetry name the
+        // real cause. "Temporarily unavailable" for a permanent request-shape
+        // bug points an operator at the vendor's status page instead of at us.
+        return 'provider_request_rejected';
     }
     if (status >= 500) return 'provider_unavailable';
     return 'provider_unavailable';
