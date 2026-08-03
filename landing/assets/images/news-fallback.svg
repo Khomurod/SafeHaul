@@ -1,0 +1,39 @@
+<!--
+  Approved local fallback for News & Insights articles.
+
+  Used when no media provider is configured, or when no provider returns an
+  image whose licence SafeHaul can verify. The pipeline never publishes an
+  unlicensed third-party image to satisfy the daily article count; it publishes
+  this instead. Owned by SafeHaul, so its provenance is unambiguous.
+
+  1200x630 is the Open Graph card ratio, so the same asset works as the social
+  preview image.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630" role="img" aria-label="SafeHaul News and Insights">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#004C68"/>
+      <stop offset="100%" stop-color="#013244"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bg)"/>
+
+  <!-- Horizon and road, suggesting freight without depicting anything specific. -->
+  <path d="M0 470 H1200 V630 H0 Z" fill="#012734" opacity="0.65"/>
+  <path d="M120 552 H360 M470 552 H710 M820 552 H1060" stroke="#0CE1A5" stroke-width="8" stroke-linecap="round" opacity="0.55"/>
+
+  <!-- Abstract trailer and tractor silhouette. -->
+  <rect x="300" y="300" width="380" height="130" rx="10" fill="#0CE1A5" opacity="0.92"/>
+  <path d="M690 340 h95 l55 60 v30 h-150 Z" fill="#0CE1A5" opacity="0.75"/>
+  <circle cx="390" cy="452" r="30" fill="#012734"/>
+  <circle cx="390" cy="452" r="13" fill="#0CE1A5"/>
+  <circle cx="620" cy="452" r="30" fill="#012734"/>
+  <circle cx="620" cy="452" r="13" fill="#0CE1A5"/>
+  <circle cx="800" cy="452" r="30" fill="#012734"/>
+  <circle cx="800" cy="452" r="13" fill="#0CE1A5"/>
+
+  <text x="100" y="150" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="34" font-weight="700" fill="#0CE1A5" letter-spacing="6">SAFEHAUL</text>
+  <text x="100" y="228" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="62" font-weight="800" fill="#ffffff">News &amp; Insights</text>
+  <text x="100" y="278" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="26" font-weight="500" fill="#cbd5e1">Trucking news, recruiting and compliance</text>
+</svg>

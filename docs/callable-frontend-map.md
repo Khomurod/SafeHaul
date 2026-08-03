@@ -44,7 +44,7 @@ Maps each **`httpsCallable`** export in [`functions/index.js`](../functions/inde
 | `initBulkSession` | [`LaunchPad.jsx`](../src/features/campaigns/components/LaunchPad.jsx) | Start bulk SMS/email session |
 | `listEnvironmentAndIntegrations` | [`environmentVault.js`](../src/features/super-admin/services/environmentVault.js) | Super Admin vault: full configuration inventory, every value masked |
 | `listSandboxTenantCompanies` | [`SandboxActionPanel.jsx`](../src/features/sandbox/SandboxActionPanel.jsx) | List sandbox tenants |
-| `parseCdlWithGroq` | [`PublicApplyHandler.jsx`](../src/features/driver-app/components/application/PublicApplyHandler.jsx) | CDL image OCR |
+| `parseCdlWithGroq` | [`useCdlAutoFill.js`](../src/features/driver-app/hooks/useCdlAutoFill.js) | CDL image OCR. Routed through the shared AI platform; the vendor name is a retained compatibility alias |
 | `pauseBulkSession` | [`CampaignDetails.jsx`](../src/features/campaigns/components/CampaignDetails.jsx) | Pause campaign |
 | `removePhoneLine` | [`LineManager.jsx`](../src/features/super-admin/components/integrations/LineManager.jsx) | Remove SMS line |
 | `resumeBulkSession` | [`CampaignDetails.jsx`](../src/features/campaigns/components/CampaignDetails.jsx) | Resume campaign |
@@ -138,6 +138,48 @@ record to `environment_audit_log`. See
 [`docs/environment-and-integrations-runbook.md`](environment-and-integrations-runbook.md).
 
 ---
+
+## Super Admin AI Integrations
+
+Eight narrow callables back Super Admin -> AI Integrations. They reuse the
+environment vault's guards and audit trail rather than a parallel security model,
+so exact `globalRole === "super_admin"`, 15-minute recent authentication for every
+reveal and mutation, fail-closed rate limits and value-free `environment_audit_log`
+records all apply. A provider id from the browser is resolved through the frozen
+registry in `functions/ai/registry/providers.js` before anything else happens, so
+no request can name an arbitrary Secret Manager resource.
+
+| Callable | Caller | Purpose |
+| --- | --- | --- |
+| `listAiProviders` | [`AiIntegrationsView.jsx`](../src/features/super-admin/views/AiIntegrationsView.jsx) | All nine providers, masked. No plaintext in the response. |
+| `revealAiCredential` | same | Exactly one credential per request, audited. |
+| `saveAiCredential` | same | Add or replace one credential. |
+| `deleteAiCredential` | same | Destroy every version; typed confirmation re-checked server-side. |
+| `setAiProviderEnabled` | same | Include or exclude a provider from routing. |
+| `updateAiProviderConfig` | same | Non-secret settings only; registry-validated. |
+| `testAiProvider` | same | Tiny constant-prompt connection test. |
+| `migrateGroqCredential` | same | Copies the legacy binding into Secret Manager server-side. The token is never returned. |
+
+## Super Admin Blog Posts and blog media
+
+| Callable | Caller | Purpose |
+| --- | --- | --- |
+| `listBlogPosts` | [`BlogPostsView.jsx`](../src/features/super-admin/views/BlogPostsView.jsx) | Article titles, dates and status. |
+| `deleteBlogPost` | same | Tombstones an article; it leaves every public surface immediately. |
+| `runBlogPublicationNow` | same | Runs the same idempotent pass the hourly schedule uses. |
+| `listMediaProviders` | [`AiIntegrationsView.jsx`](../src/features/super-admin/views/AiIntegrationsView.jsx) | Pexels / Unsplash / Openverse, masked. |
+| `saveMediaCredential` | same | Add or replace one media credential. |
+| `deleteMediaCredential` | same | Destroy every version. |
+
+See [`docs/ai-platform.md`](./ai-platform.md) and
+[`docs/news-and-insights.md`](./news-and-insights.md).
+
+## Not `httpsCallable` (added with News & Insights)
+
+- `serveBlogPublic` - public `onRequest`, reached through Firebase Hosting
+  rewrites for `/news`, `/news/**`, `/api/news/**`, `/sitemap.xml` and
+  `/robots.txt`. Read-only; non-GET methods get 405.
+- `publishScheduledBlogPosts` - hourly scheduled function, `America/Chicago`.
 
 ## Maintenance
 

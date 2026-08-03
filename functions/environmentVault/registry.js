@@ -25,6 +25,12 @@
  * can be inlined into the browser while its deployment source remains Google.
  */
 
+// AI provider credentials are inventoried here but owned by the AI platform.
+// Deriving the rows from its registry is what keeps the two consoles from
+// disagreeing about which credentials exist.
+const { PROVIDERS: AI_PROVIDERS } = require('../ai/registry/providers');
+const { buildSecretId: buildAiSecretId } = require('../ai/credentials/secretManager');
+
 /** Configuration categories, matching the operator-facing filter. */
 const CATEGORIES = Object.freeze({
     BROWSER_BUILD: 'browser-build',
@@ -269,37 +275,12 @@ const BROWSER_ENTRIES = [
 // ---------------------------------------------------------------------------
 
 const FUNCTIONS_ENTRIES = [
-    {
-        key: 'GROQ_VISION_MODEL',
-        displayName: 'Groq CDL vision model',
-        description: 'Model pin for the CDL parser. Falls back to meta-llama/llama-4-scout-17b-16e-instruct.',
-        category: CATEGORIES.FUNCTIONS_ENV,
-        integration: 'Groq (AI)',
-        sensitivity: SENSITIVITY.INTERNAL,
-        consumers: ['functions/cdlParser.js'],
-        ...DEPLOYMENT_MANAGED,
-    },
-    {
-        key: 'GROQ_DOCUMENT_VISION_MODEL',
-        displayName: 'Groq document vision model',
-        description: 'Model pin for document analysis. Deliberately separate from the CDL pin so one can move without the other.',
-        category: CATEGORIES.FUNCTIONS_ENV,
-        integration: 'Groq (AI)',
-        sensitivity: SENSITIVITY.INTERNAL,
-        consumers: ['functions/shared/documentVisionProvider.js'],
-        ...DEPLOYMENT_MANAGED,
-    },
-    {
-        key: 'DOCUMENT_VISION_PROVIDER',
-        displayName: 'Document vision provider',
-        description: 'Selects the document-vision backend. Defaults to "groq" when unset.',
-        category: CATEGORIES.FUNCTIONS_ENV,
-        integration: 'Groq (AI)',
-        sensitivity: SENSITIVITY.INTERNAL,
-        optional: true,
-        consumers: ['functions/shared/documentVisionProvider.js'],
-        ...DEPLOYMENT_MANAGED,
-    },
+    // GROQ_VISION_MODEL, GROQ_DOCUMENT_VISION_MODEL and DOCUMENT_VISION_PROVIDER
+    // were retired when AI routing moved into the shared platform. Model pins
+    // and provider selection are now declared in
+    // `functions/ai/registry/providers.js` and overridden per provider from
+    // Super Admin → AI Integrations, so there is no deploy-time variable left
+    // to register. The AI credentials themselves are listed further down.
     {
         key: 'BULK_SESSION_MAX_SENDS',
         displayName: 'Bulk session send ceiling',
@@ -385,12 +366,12 @@ const FUNCTIONS_ENTRIES = [
 const SECRET_MANAGER_ENTRIES = [
     {
         key: 'GROQ_API_KEY',
-        displayName: 'Groq API key',
-        description: 'Authenticates SafeHaul to Groq for CDL OCR and E-Doc field-placement analysis.',
+        displayName: 'Groq API key (legacy deploy binding)',
+        description: 'The original deploy-time Groq binding. Superseded by SAFEHAUL_AI_GROQ_APIKEY, which is managed from Super Admin → AI Integrations. This row is retained as the rollback path during the AI credential migration and is read only when the managed credential is absent.',
         category: CATEGORIES.GLOBAL_INTEGRATION,
         integration: 'Groq (AI)',
         sensitivity: SENSITIVITY.CRITICAL,
-        consumers: ['functions/cdlParser.js', 'functions/shared/documentVisionProvider.js'],
+        consumers: ['functions/cdlParser.js', 'functions/ai/credentials/store.js'],
     },
     {
         key: 'BULK_WORKER_SECRET',
@@ -942,6 +923,46 @@ const COMPANY_TEMPLATES = Object.freeze({
 });
 
 // ---------------------------------------------------------------------------
+// 8. AI provider credentials, managed from Super Admin → AI Integrations
+// ---------------------------------------------------------------------------
+
+/**
+ * The AI platform owns its own credentials, but they are still SafeHaul
+ * secrets and an operator auditing "what keys does this product hold" must see
+ * them here. Rather than transcribing the list — which would drift the first
+ * time a provider is added — these rows are derived from the same frozen AI
+ * provider registry the router uses, so the two cannot disagree.
+ *
+ * They are read-only in this console *on purpose*. Reveal, replace and delete
+ * all happen in AI Integrations, which enforces the identical super-admin,
+ * recent-authentication, one-value-per-request and value-free-audit rules.
+ * Pointing at one owner keeps a single source of truth instead of two consoles
+ * writing the same Secret Manager resource.
+ */
+const AI_CREDENTIAL_ENTRIES = AI_PROVIDERS.flatMap((provider) =>
+    provider.secretFields.map((field) => ({
+        key: buildAiSecretId(provider.id, field.name),
+        displayName: `${provider.displayName} ${field.label.toLowerCase()}`,
+        description: provider.retired
+            ? `${provider.displayName} was retired by its vendor on ${provider.retired.since}. The credential slot is listed for completeness and cannot be configured.`
+            : `${field.description} Managed from Super Admin → AI Integrations; stored in Google Secret Manager as ${buildAiSecretId(provider.id, field.name)}.`,
+        category: CATEGORIES.GLOBAL_INTEGRATION,
+        integration: `${provider.displayName} (AI)`,
+        sensitivity: SENSITIVITY.CRITICAL,
+        consumers: ['functions/ai/credentials/secretManager.js'],
+        scope: 'global',
+        source: SOURCES.SECRET_MANAGER,
+        // Read at runtime through the Secret Manager client rather than bound
+        // at deploy time, so a new or rotated credential takes effect within
+        // the platform's 60-second cache window without redeploying.
+        requiresDeployment: false,
+        availability: AVAILABILITY.NOT_RETRIEVABLE,
+        unavailableReason: 'Managed in Super Admin → AI Integrations, which reveals one credential at a time under its own audit.',
+        ...readOnly(REASONS.SOURCE_NO_EDIT),
+    })),
+);
+
+// ---------------------------------------------------------------------------
 // Assembly
 // ---------------------------------------------------------------------------
 
@@ -954,6 +975,7 @@ const GLOBAL_ENTRIES = Object.freeze(
         ...FIREBASE_ENTRIES,
         ...OPS_ENTRIES,
         ...REPO_ENTRIES,
+        ...AI_CREDENTIAL_ENTRIES,
     ].map((entry) => Object.freeze({ ...entry, id: `${entry.source}:${entry.key}` })),
 );
 
@@ -968,6 +990,15 @@ const GLOBAL_BY_ID = new Map(GLOBAL_ENTRIES.map((entry) => [entry.id, entry]));
 const UNREFERENCED_BY_DESIGN = Object.freeze({
     'firebase.default_project': 'Synthetic row describing .firebaserc, which is not an environment variable.',
     'signing.envelope_token_store': 'Synthetic row describing the per-envelope signing token store.',
+    // AI credential names are *derived* at runtime from the frozen AI provider
+    // registry rather than written anywhere as literals — that derivation is
+    // precisely what stops a browser naming an arbitrary Secret Manager
+    // resource. So no repository file contains the string
+    // `SAFEHAUL_AI_GROQ_APIKEY`, and the corpus scan cannot see them.
+    ...Object.fromEntries(AI_CREDENTIAL_ENTRIES.map((entry) => [
+        entry.key,
+        'AI provider credential. The Secret Manager name is derived from functions/ai/registry/providers.js at runtime, so it appears in no file as a literal.',
+    ])),
 });
 
 /**

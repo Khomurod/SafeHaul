@@ -26,6 +26,8 @@ const {
     VITE_BUILTINS,
     validateNewKeyName,
 } = require('../../environmentVault/registry');
+const { PROVIDERS: AI_PROVIDERS } = require('../../ai/registry/providers');
+const { buildSecretId: buildAiSecretId } = require('../../ai/credentials/secretManager');
 
 const REPO_ROOT = path.resolve(__dirname, '../../..');
 
@@ -187,12 +189,48 @@ describe('environment registry — coverage of each required area', () => {
             'FACEBOOK_APP_ID',
             'FACEBOOK_APP_SECRET',
             'FACEBOOK_VERIFY_TOKEN',
+            // Retained as the rollback path for the AI credential migration.
+            // The shared router reads it only when SAFEHAUL_AI_GROQ_APIKEY is
+            // absent; see docs/ai-platform.md.
             'GROQ_API_KEY',
             'LANDING_TELEGRAM_BOT_TOKEN',
             'LANDING_TELEGRAM_CHAT_ID',
             'PROCESS_BULK_BATCH_URL',
+            // One row per AI provider credential field. These are derived from
+            // functions/ai/registry/providers.js rather than transcribed, so
+            // adding a provider updates this list automatically — which is
+            // also why the assertion below is generated the same way.
+            ...AI_PROVIDERS.flatMap((provider) => provider.secretFields.map(
+                (field) => buildAiSecretId(provider.id, field.name),
+            )),
             'SMS_ENCRYPTION_KEY',
-        ]);
+        ].sort());
+    });
+
+    it('registers exactly one credential row per AI provider field', () => {
+        const registered = new Set(
+            GLOBAL_ENTRIES.map((entry) => entry.key).filter((key) => key.startsWith('SAFEHAUL_AI_')),
+        );
+        const expected = AI_PROVIDERS.flatMap((provider) => provider.secretFields.map(
+            (field) => buildAiSecretId(provider.id, field.name),
+        ));
+
+        expect([...registered].sort()).toEqual([...expected].sort());
+        // Nine supported providers, each with at least one credential field.
+        expect(AI_PROVIDERS).toHaveLength(9);
+    });
+
+    it('keeps AI credentials read-only in this console, since AI Integrations owns them', () => {
+        const aiRows = GLOBAL_ENTRIES.filter((entry) => entry.key.startsWith('SAFEHAUL_AI_'));
+        expect(aiRows.length).toBeGreaterThan(0);
+        for (const row of aiRows) {
+            expect(row.permissions.editable).toBe(false);
+            expect(row.permissions.addable).toBe(false);
+            expect(row.permissions.deletable).toBe(false);
+            // The vault must not attempt to read an AI credential itself:
+            // reveal belongs to AI Integrations, under its own audit.
+            expect(row.availability).toBe(AVAILABILITY.NOT_RETRIEVABLE);
+        }
     });
 
     it('lists every GitHub Actions secret the workflows reference', () => {

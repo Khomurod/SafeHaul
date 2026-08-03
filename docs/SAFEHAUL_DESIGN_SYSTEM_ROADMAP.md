@@ -8131,3 +8131,78 @@ terminal deny for the new `environment_audit_log` collection.
   - Status remains in progress until both Firebase default URLs are verified,
     `safehaul.io`/`www.safehaul.io` are certified and live, and Vercel no longer
     owns or auto-deploys the production landing domain.
+
+
+### Super Admin AI Integrations and Blog Posts completion log (GO) - 2026-08-03
+
+`[x]` Implemented and verified.
+
+**What changed.** Two new Super Admin views built entirely from approved
+primitives: `AiIntegrationsView` (provider table, masked credentials with the
+one-at-a-time reveal, status/cooldown treatments, Research & Media subsection,
+telemetry panel) and `BlogPostsView` (title list with Delete). Supporting
+feature components under `src/features/super-admin/components/ai/`.
+
+**Preserved exactly.** The Environment & Integrations vault is untouched. The new
+views reuse its `ReauthenticateModal` and its `requestReauth`/`runGuarded`
+orchestration rather than copying the logic, and share its guards, rate-limit
+buckets and audit trail on the server.
+
+**Design-system exceptions used.** None. No new primitive was required. Two
+business-neutral pattern stories were added to the catalogue — *Provider
+integration row* (six states) and *Title deletion list* — using generic service
+names and `sample-value-not-a-secret`, so no vendor name or product vocabulary
+enters the catalogue.
+
+**Deliberate non-use of `PageHeader`.** Both views start at `<h2>`; the Super
+Admin masthead owns the single `<h1>`. Asserted in both contract tests and in
+`e2e/super-admin-ai-and-blog.spec.cjs`.
+
+**Accessibility defects found and fixed during this work.**
+
+1. Row-level Delete controls shared the accessible name "Delete", which is
+   unusable with a screen reader in a table and was also genuinely ambiguous
+   about which credential a click removed. They now name their target, matching
+   how the vault names its reveal controls.
+2. `aria-label` on `ResponsiveGrid`'s `div` and on the masked-value `span` were
+   `aria-prohibited-attr` violations, because a generic role cannot carry an
+   accessible name. Named grids now use `role="group"`; the masked span drops the
+   redundant label, since the field name is already visible text beside the
+   value. axe caught the first in the browser; the second would have surfaced
+   only once rows rendered.
+
+   Note for a future pass: `EnvironmentIntegrationsView` and its
+   `EnvironmentValueCell` carry the same two patterns. They were left unchanged
+   here to keep this change scoped and because that view's contract suite pins
+   its current behaviour. Worth a dedicated follow-up.
+
+**Verification.**
+
+| Command | Result |
+| --- | --- |
+| `npx vitest run` (frontend) | 210 files, 3538 tests passing |
+| `functions && npx jest` | 67 files, 702 tests passing |
+| `npm run test:stories` | 357 tests passing, 0 serious/critical axe |
+| `npm run test:rules:emulators` | 50 tests passing |
+| `npm run lint` | 0 errors |
+| `npm run build` | succeeds |
+| `npm run build-storybook` | succeeds |
+| `npx playwright test --project=chromium e2e/super-admin-ai-and-blog.spec.cjs` | 24 passing, incl. axe and no horizontal overflow at 1440/1024/768/412 |
+| `scripts/check-callable-contract.mjs` | passing |
+| `scripts/check-ai-provider-boundary.mjs` | passing |
+| `validate-function-index-parse.mjs` | passing |
+| `git diff --check` | clean |
+
+**Honest limitations.**
+
+- No visual-regression baselines. The roadmap's screenshot-baseline item is still
+  open, so density and alignment were reviewed by eye at the four widths.
+- E2E covers the reachable page state only. Under `VITE_E2E_TEST_MODE=1`
+  Firestore is deliberately unreachable, so the list callables cannot succeed;
+  row-level behaviour (masking, reveal, the 30-second clear, typed delete,
+  re-authentication) is proven by the contract tests, which can supply rows
+  deterministically.
+- Mobile Chrome and the full E2E suite were not run in this environment; only the
+  chromium lane for the new spec was. CI runs the rest.
+- The two accessibility defects above existed in a shipped pattern before this
+  change and remain in the vault view, as noted.

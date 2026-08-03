@@ -128,7 +128,7 @@ Controls enforced in [`functions/edocFieldPlacement.js`](../functions/edocFieldP
 - **No signing tokens** — none are accepted as input or returned. `scanId` is an
   opaque client correlation id, capped at 64 characters.
 - **Server-side key only** — `GROQ_API_KEY` never reaches the browser; the model
-  pin is its own variable, `GROQ_DOCUMENT_VISION_MODEL`, so document analysis and
+  pin is resolved independently through the shared AI provider registry, so document analysis and
   CDL OCR can move independently.
 - **Output validation** — every suggestion is checked against the supported
   signer field types and prefill bindings, its page must be one that was
@@ -176,11 +176,45 @@ form still never preloads stored credentials, `__PRESERVE__` still means "keep
 what is stored", and line inventory, assignments and dedicated-line credentials
 are untouched. The vault is a separate, explicitly authorised reveal path.
 
+## Shared AI platform
+
+| Control | Implementation |
+| --- | --- |
+| No feature calls a vendor directly | `scripts/check-ai-provider-boundary.mjs` fails CI on any vendor endpoint or SDK outside `functions/ai/providers/` |
+| No generic prompt endpoint | Features import a named task from `functions/ai/tasks/`; there is no public AI callable and no passthrough |
+| Capability is a hard gate | A provider that does not declare `vision` can never receive a CDL photograph or a document page, by construction rather than by configuration |
+| Credentials never reach the browser | Stored in Secret Manager, read server-side, revealed only through the audited one-at-a-time path |
+| A browser cannot name a secret | Names are *derived* from the frozen registry; `assertSafehaulAiSecret` is an independent second check on the final string |
+| A browser cannot reshape a URL | Cloudflare's account id is pattern-validated before interpolation, and its model id rejects any `..` segment |
+| Provider errors are never echoed | Only an HTTP status is carried forward. Several vendors quote the submitted prompt back inside their error bodies |
+| Restricted content is never logged | On CDL and document paths only a failure category and provider id reach a log line — no prompt, response, excerpt or image |
+| Telemetry is an allowlist | Anything not explicitly named is dropped rather than trusted |
+| Exhaustion fails safe | When every capable provider fails, the caller gets a categorised error. Nothing is fabricated |
+| Credential management is super-admin only | Exact `globalRole`, recent authentication for reveal and mutation, fail-closed rate limits, value-free audit records, shared with the environment vault |
+
+The Groq migration is reversible by design: the legacy `GROQ_API_KEY` binding is
+retained as a rollback path and read only when the managed credential is absent.
+The cleanup procedure is in [`docs/ai-platform.md`](./ai-platform.md).
+
+## News & Insights (public blog)
+
+| Control | Implementation |
+| --- | --- |
+| Model output is never markup | The generator returns structured blocks; the renderer builds the HTML and escapes every value. No script, handler, `javascript:` link or embed survives |
+| Only published articles are served | Every public read path filters on `status`, so a deleted article is indistinguishable from one that never existed |
+| Slugs are validated, then only compared | An invalid slug gets the same 404 as an unknown one, so probing reveals nothing |
+| Removed articles are not indexed | 404 responses carry `noindex, follow` |
+| No internal metadata is public | Provider, model, generation record and source fingerprints never leave the server |
+| The public surface is read-only | Non-GET methods get 405; no administrative action is reachable |
+| Blog generation sees no private data | Public internet material plus the approved capability package only — never driver, applicant, employee or company data |
+| Images are licensed or ours | Every stored image carries full licence metadata; anything incomplete is refused in favour of a SafeHaul-owned fallback |
+| Unsupported claims are refused | A deterministic prohibited-claim check plus a separate AI verification step; if verification cannot run, nothing is published |
+
 ## Related files
 
 - [`functions/environmentVault/`](../functions/environmentVault/) — configuration registry, guards, retrieval and audit
 - [`functions/edocFieldPlacement.js`](../functions/edocFieldPlacement.js) — AI Field Assistant callable
-- [`functions/shared/documentVisionProvider.js`](../functions/shared/documentVisionProvider.js) — provider-neutral vision boundary
+- [`functions/ai/`](../functions/ai/) — the shared AI platform; provider adapters are the only code that knows a vendor wire format
 - [`functions/storageSecure.js`](../functions/storageSecure.js) — upload path reservation
 - [`functions/getSignedGuestUploadUrl.js`](../functions/getSignedGuestUploadUrl.js) — guest file preview URLs
 - [`functions/guestApplication.js`](../functions/guestApplication.js) — guest submit

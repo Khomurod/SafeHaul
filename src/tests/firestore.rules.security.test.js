@@ -333,6 +333,63 @@ describeFirestore('firestore.rules security regressions', () => {
     await assertFails(setDoc(doc(superDb, 'environment_audit_log', 'forged'), { action: 'reveal' }));
   });
 
+  it('blocks all client access to the shared AI platform collections', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const adminDb = context.firestore();
+      await setDoc(doc(adminDb, 'ai_provider_config', 'groq'), { enabled: true, health: 'healthy' });
+      await setDoc(doc(adminDb, 'ai_telemetry', 't1'), { providerId: 'groq', outcome: 'success' });
+    });
+
+    const superDb = testEnv.authenticatedContext('super-1', { globalRole: 'super_admin' }).firestore();
+    const adminDb = testEnv.authenticatedContext('admin-1', { roles: { co1: 'company_admin' } }).firestore();
+    const anonDb = testEnv.unauthenticatedContext().firestore();
+
+    for (const db of [superDb, adminDb, anonDb]) {
+      // Closed to Super Admins too: AI Integrations reads through a callable, so
+      // no browser needs a direct read of which providers a deployment uses or
+      // which of them are currently failing.
+      await assertFails(getDoc(doc(db, 'ai_provider_config', 'groq')));
+      await assertFails(getDoc(doc(db, 'ai_telemetry', 't1')));
+    }
+
+    await assertFails(setDoc(doc(superDb, 'ai_provider_config', 'groq'), { enabled: false }));
+    await assertFails(setDoc(doc(adminDb, 'ai_telemetry', 'forged'), { providerId: 'groq' }));
+  });
+
+  it('blocks all client access to blog posts, including published ones', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const adminDb = context.firestore();
+      await setDoc(doc(adminDb, 'blog_posts', '2026-08-02_industry-news'), {
+        title: 'A published article',
+        slug: 'a-published-article',
+        status: 'published',
+        publicationDate: '2026-08-02',
+        generation: { providerId: 'groq', model: 'llama-3.3-70b-versatile' },
+      });
+      await setDoc(doc(adminDb, 'blog_posts', '2026-08-01_recruitment'), {
+        title: 'A removed article',
+        slug: 'a-removed-article',
+        status: 'deleted',
+        publicationDate: '2026-08-01',
+      });
+    });
+
+    const superDb = testEnv.authenticatedContext('super-1', { globalRole: 'super_admin' }).firestore();
+    const anonDb = testEnv.unauthenticatedContext().firestore();
+
+    for (const db of [superDb, anonDb]) {
+      // The article content is public, but the *document* is not: it carries
+      // tombstones, source fingerprints and provider/model records. The public
+      // surface is the server-rendered /news routes, which filter and strip.
+      await assertFails(getDoc(doc(db, 'blog_posts', '2026-08-02_industry-news')));
+      await assertFails(getDoc(doc(db, 'blog_posts', '2026-08-01_recruitment')));
+    }
+
+    // Publishing and deletion are server-side only.
+    await assertFails(setDoc(doc(superDb, 'blog_posts', '2026-08-03_industry-news'), { title: 'Forged' }));
+    await assertFails(setDoc(doc(anonDb, 'blog_posts', '2026-08-04_industry-news'), { title: 'Forged' }));
+  });
+
   it('blocks lead update that changes companyId', async () => {
     await testEnv.withSecurityRulesDisabled(async (context) => {
       const adminDb = context.firestore();

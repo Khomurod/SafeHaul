@@ -43,6 +43,7 @@
                 <a href="#features" class="nav-link">Features</a>
                 <a href="#pricing" class="nav-link">Pricing</a>
                 <a href="#why-safehaul" class="nav-link">Why SafeHaul</a>
+                <a href="/news" class="nav-link">News &amp; Insights</a>
                 <a href="#faq" class="nav-link">FAQ</a>
                 <a href="#footer" class="nav-link">Contact</a>
             </div>
@@ -357,6 +358,32 @@
         </div>
     </section>
 
+    <!-- SafeHaul News & Insights -->
+    <!--
+      Cards are fetched at runtime from /api/news/latest, a same-origin Firebase
+      Hosting rewrite onto the serveBlogPublic function. They are not committed
+      here because articles are published after deployment, and the landing site
+      has no build step that could regenerate them.
+
+      The section renders a static placeholder first, so it is never empty and
+      never shifts layout; the fetch replaces the cards when it succeeds and
+      leaves the placeholder in place when it does not. No application code and
+      no React is pulled into this page.
+    -->
+    <section id="news" class="news-section">
+        <div class="section-title">
+            <h2>SafeHaul News &amp; Insights</h2>
+            <p>Trucking news and regulation, recruiting and retention guidance, and plain
+            explanations of the compliance problems carriers deal with. Published daily.</p>
+        </div>
+        <div class="news-grid" id="newsGrid" aria-live="polite" aria-busy="true">
+            <p class="news-loading" id="newsLoading">Loading the latest articles&hellip;</p>
+        </div>
+        <div class="news-cta">
+            <a href="/news" class="btn btn-secondary">View all articles</a>
+        </div>
+    </section>
+
     <!-- FAQ -->
     <section id="faq" class="faq-section">
         <div class="section-title">
@@ -418,6 +445,7 @@
             <div class="footer-contact">
                 <a href="mailto:info@safehaul.io">Contact Support</a>
                 <a href="javascript:void(0)" class="js-open-lead-modal">Contact Sales</a>
+                <a href="/news">News &amp; Insights</a>
                 <a href="/privacy.html">Privacy Policy</a>
             </div>
         </div>

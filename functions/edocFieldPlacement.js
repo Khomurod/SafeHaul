@@ -7,8 +7,8 @@
  *
  *  - the CDL callable is reachable by unauthenticated guests mid-application;
  *    this one requires a signed-in user with company access and E-Docs enabled;
- *  - the CDL callable has its own model pin (GROQ_VISION_MODEL) that must not
- *    move when document analysis changes (GROQ_DOCUMENT_VISION_MODEL);
+ *  - the two resolve their model independently through the shared AI provider
+ *    registry, so a change to the CDL vision model does not move this one;
  *  - the two have different payload ceilings and rate budgets.
  *
  * Security/privacy invariants enforced here:
@@ -31,10 +31,7 @@ const {
   SEMANTIC_FIELD_MAP,
   MANUAL_REVIEW_KINDS,
 } = require('./shared/edocFieldSemantics');
-const {
-  getDocumentVisionProvider,
-  DocumentVisionError,
-} = require('./shared/documentVisionProvider');
+const { analyzeDocumentPages } = require('./ai/tasks/edocFieldPlacement');
 
 /** Ceilings. Kept modest: page images are large and the model is the slow part. */
 const MAX_PAGES_PER_REQUEST = 5;
@@ -265,23 +262,30 @@ exports.analyzeEdocFieldPlacement = onCall(
       );
     }
 
-    const provider = getDocumentVisionProvider();
-
     let result;
     try {
-      result = await provider.analyzeDocumentPages({ pages: normalizedPages });
+      result = await analyzeDocumentPages({ pages: normalizedPages });
     } catch (err) {
-      if (err instanceof DocumentVisionError) {
-        if (err.kind === 'not-configured') {
-          throw new HttpsError('failed-precondition', err.message);
-        }
-        if (err.kind === 'unavailable') {
-          throw new HttpsError('unavailable', 'Could not reach the AI service. Please retry.');
-        }
-        throw new HttpsError('internal', 'The AI service could not analyze this document.');
+      // The shared router has already tried every configured provider that can
+      // handle images. These mappings reproduce the HttpsError codes and
+      // strings this callable returned before the migration, so the AI Field
+      // Assistant's client-side error handling is unchanged.
+      const category = err?.category;
+      if (category === 'not_configured' || category === 'capability_unavailable') {
+        throw new HttpsError(
+          'failed-precondition',
+          'Document analysis is not configured on the server.'
+        );
       }
-      // Message only — never the payload.
-      console.error('[analyzeEdocFieldPlacement] unexpected provider failure:', err?.message || 'unknown');
+      if (category === 'timeout' || category === 'network' || category === 'deadline_exceeded') {
+        throw new HttpsError('unavailable', 'Could not reach the AI service. Please retry.');
+      }
+      // Category and provider only — never the payload, and never the
+      // provider's own error text, which can quote document contents.
+      console.error(
+        `[analyzeEdocFieldPlacement] AI task failed category=${category || 'internal'} ` +
+          `provider=${err?.providerId || 'none'}`
+      );
       throw new HttpsError('internal', 'The AI service could not analyze this document.');
     }
 
@@ -313,8 +317,8 @@ exports.analyzeEdocFieldPlacement = onCall(
     return {
       success: true,
       scanId: safeScanId,
-      model: result.model || provider.model,
-      provider: provider.name,
+      model: result.model || null,
+      provider: result.providerId || null,
       pagesAnalyzed: normalizedPages.map((p) => p.pageNumber),
       suggestions,
       manualReview,

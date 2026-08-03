@@ -243,6 +243,41 @@ exports.addEnvironmentValue = environmentVault.addEnvironmentValue;
 exports.deleteEnvironmentValue = environmentVault.deleteEnvironmentValue;
 exports.testManagedIntegration = environmentVault.testManagedIntegration;
 
+// 21. AI Integrations (Super Admin)
+// Manages credentials and settings for the shared AI provider platform. Reuses
+// the environment vault's guards and audit trail, so the same exact-role,
+// recent-authentication, rate-limit and value-free-audit rules apply. Provider
+// ids are resolved through the frozen registry in functions/ai/registry, so a
+// browser can never name an arbitrary Secret Manager resource.
+const aiIntegrations = require('./ai/callables');
+exports.listAiProviders = aiIntegrations.listAiProviders;
+exports.revealAiCredential = aiIntegrations.revealAiCredential;
+exports.saveAiCredential = aiIntegrations.saveAiCredential;
+exports.deleteAiCredential = aiIntegrations.deleteAiCredential;
+exports.setAiProviderEnabled = aiIntegrations.setAiProviderEnabled;
+exports.updateAiProviderConfig = aiIntegrations.updateAiProviderConfig;
+exports.testAiProvider = aiIntegrations.testAiProvider;
+exports.migrateGroqCredential = aiIntegrations.migrateGroqCredential;
+
+// 22. SafeHaul News & Insights
+// Public rendering is one onRequest handler behind Hosting rewrites, so /news,
+// /news/{slug}, the feed, the sitemap and the landing card endpoint share a
+// single ordering-obvious rewrite block. The scheduler runs hourly and fills
+// whichever of the day's three themed slots are due and still empty.
+const blogPublic = require('./blog/publicApi');
+exports.serveBlogPublic = blogPublic.serveBlogPublic;
+
+const blogScheduler = require('./blog/scheduler');
+exports.publishScheduledBlogPosts = blogScheduler.publishScheduledBlogPosts;
+
+const blogAdmin = require('./blog/callables');
+exports.listBlogPosts = blogAdmin.listBlogPosts;
+exports.deleteBlogPost = blogAdmin.deleteBlogPost;
+exports.listMediaProviders = blogAdmin.listMediaProviders;
+exports.saveMediaCredential = blogAdmin.saveMediaCredential;
+exports.deleteMediaCredential = blogAdmin.deleteMediaCredential;
+exports.runBlogPublicationNow = blogAdmin.runBlogPublicationNow;
+
 // 19. Legacy Compatibility Callables (frontend contract preservation)
 exports.updateBulkSessionStatus = legacyCompat.updateBulkSessionStatus;
 exports.backfillEmployerFields = legacyCompat.backfillEmployerFields;
