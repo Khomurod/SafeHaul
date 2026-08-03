@@ -104,9 +104,14 @@ beforeEach(() => {
 
 describe('provider ordering', () => {
     it('publishes the required default fallback order', () => {
+        // Gemini leads and Groq is the fallback. The brief specified Groq first;
+        // the owner reversed it on 2026-08-03 after measurement — on the free
+        // tiers Groq's model writes 175-213 word articles against Gemini's
+        // 311-417, while Gemini's request cap makes it the less available of the
+        // two. Gemini for quality, Groq for availability.
         expect(DEFAULT_FALLBACK_ORDER).toEqual([
-            'groq',
             'gemini',
+            'groq',
             'cloudflare',
             'github-models',
             'mistral',
@@ -117,17 +122,17 @@ describe('provider ordering', () => {
         ]);
     });
 
-    it('tries Groq first when everything is configured', async () => {
+    it('tries Gemini first when everything is configured', async () => {
         const result = await runAiTask(textTask());
 
-        expect(result.providerId).toBe('groq');
+        expect(result.providerId).toBe('gemini');
         expect(result.fallbackCount).toBe(0);
         expect(mockExecute).toHaveBeenCalledTimes(1);
-        expect(mockExecute.mock.calls[0][0]).toBe('groq');
+        expect(mockExecute.mock.calls[0][0]).toBe('gemini');
     });
 
-    it('falls back to Gemini second, then the registry order after that', async () => {
-        // Groq, Gemini and Cloudflare all fail; the next *eligible* provider
+    it('falls back to Groq second, then the registry order after that', async () => {
+        // Gemini, Groq and Cloudflare all fail; the next *eligible* provider
         // must be Mistral, because GitHub Models is retired.
         mockExecute.mockImplementation(async (providerId) => {
             if (providerId === 'mistral') return { text: 'ok', model: 'm' };
@@ -137,7 +142,7 @@ describe('provider ordering', () => {
         const result = await runAiTask(textTask());
 
         expect(mockExecute.mock.calls.map((call) => call[0]))
-            .toEqual(['groq', 'gemini', 'cloudflare', 'mistral']);
+            .toEqual(['gemini', 'groq', 'cloudflare', 'mistral']);
         expect(result.providerId).toBe('mistral');
         expect(result.fallbackCount).toBe(3);
     });
@@ -156,24 +161,24 @@ describe('provider ordering', () => {
 
 describe('eligibility gating', () => {
     it('skips a disabled provider', async () => {
-        mockStore.readAllConfigs.mockResolvedValue(allConfigured({ groq: { enabled: false } }));
+        mockStore.readAllConfigs.mockResolvedValue(allConfigured({ gemini: { enabled: false } }));
 
         const result = await runAiTask(textTask());
 
-        expect(result.providerId).toBe('gemini');
-        expect(mockExecute.mock.calls.map((call) => call[0])).not.toContain('groq');
+        expect(result.providerId).toBe('groq');
+        expect(mockExecute.mock.calls.map((call) => call[0])).not.toContain('gemini');
     });
 
     it('skips a provider with no credentials', async () => {
         mockStore.resolveCredentials.mockImplementation(async (providerId) => (
-            providerId === 'groq'
+            providerId === 'gemini'
                 ? { complete: false, values: {}, missing: ['apiKey'], source: null }
                 : { complete: true, values: { apiKey: 'k' }, missing: [], source: 'secret-manager' }
         ));
 
         const result = await runAiTask(textTask());
 
-        expect(result.providerId).toBe('gemini');
+        expect(result.providerId).toBe('groq');
     });
 
     it('skips a provider missing a required non-secret setting', async () => {
@@ -191,22 +196,22 @@ describe('eligibility gating', () => {
 
     it('skips a provider in cooldown', async () => {
         mockStore.readAllConfigs.mockResolvedValue(allConfigured({
-            groq: { cooldownUntil: Date.now() + 60000, cooldownReason: 'quota' },
-        }));
-
-        const result = await runAiTask(textTask());
-
-        expect(result.providerId).toBe('gemini');
-    });
-
-    it('uses a provider again once its cooldown has expired', async () => {
-        mockStore.readAllConfigs.mockResolvedValue(allConfigured({
-            groq: { cooldownUntil: Date.now() - 1000, cooldownReason: 'quota' },
+            gemini: { cooldownUntil: Date.now() + 60000, cooldownReason: 'quota' },
         }));
 
         const result = await runAiTask(textTask());
 
         expect(result.providerId).toBe('groq');
+    });
+
+    it('uses a provider again once its cooldown has expired', async () => {
+        mockStore.readAllConfigs.mockResolvedValue(allConfigured({
+            gemini: { cooldownUntil: Date.now() - 1000, cooldownReason: 'quota' },
+        }));
+
+        const result = await runAiTask(textTask());
+
+        expect(result.providerId).toBe('gemini');
     });
 });
 
@@ -291,13 +296,13 @@ describe('failure handling and fallback triggers', () => {
 
     it.each(failureCases)('falls back on %s', async (_label, category) => {
         mockExecute.mockImplementation(async (providerId) => {
-            if (providerId === 'groq') throw new AiError(category, 'x', { providerId });
+            if (providerId === 'gemini') throw new AiError(category, 'x', { providerId });
             return { text: 'ok', model: 'g' };
         });
 
         const result = await runAiTask(textTask());
 
-        expect(result.providerId).toBe('gemini');
+        expect(result.providerId).toBe('groq');
         expect(result.fallbackCount).toBe(1);
     });
 
@@ -324,13 +329,13 @@ describe('failure handling and fallback triggers', () => {
         // One vendor's key being wrong, expired or revoked says nothing about
         // the other eight.
         mockExecute.mockImplementation(async (providerId) => {
-            if (providerId === 'groq') throw new AiError('unauthorized', '401', { providerId });
+            if (providerId === 'gemini') throw new AiError('unauthorized', '401', { providerId });
             return { text: 'ok', model: 'g' };
         });
 
         const result = await runAiTask(textTask());
 
-        expect(result.providerId).toBe('gemini');
+        expect(result.providerId).toBe('groq');
         expect(result.fallbackCount).toBe(1);
     });
 
@@ -338,13 +343,13 @@ describe('failure handling and fallback triggers', () => {
         // Not an AiError, so the router labels it `internal`. A bug in one
         // adapter must not disable every AI feature.
         mockExecute.mockImplementation(async (providerId) => {
-            if (providerId === 'groq') throw new TypeError('Cannot read properties of undefined');
+            if (providerId === 'gemini') throw new TypeError('Cannot read properties of undefined');
             return { text: 'ok', model: 'g' };
         });
 
         const result = await runAiTask(textTask());
 
-        expect(result.providerId).toBe('gemini');
+        expect(result.providerId).toBe('groq');
         expect(result.fallbackCount).toBe(1);
     });
 
@@ -358,7 +363,7 @@ describe('failure handling and fallback triggers', () => {
         await runAiTask(textTask()).catch(() => {});
 
         const attempted = mockExecute.mock.calls.map((call) => call[0]);
-        expect(attempted.filter((id) => id === 'groq').length).toBe(1);
+        expect(attempted.filter((id) => id === 'gemini').length).toBe(1);
         // Every eligible provider still got its turn.
         expect(new Set(attempted).size).toBeGreaterThan(1);
     });
@@ -381,7 +386,7 @@ describe('failure handling and fallback triggers', () => {
         // what made the blog unable to publish on a per-minute token budget.
         let groqCalls = 0;
         mockExecute.mockImplementation(async (providerId) => {
-            if (providerId !== 'groq') throw new AiError('provider_unavailable', 'down', { providerId });
+            if (providerId !== 'gemini') throw new AiError('provider_unavailable', 'down', { providerId });
             groqCalls += 1;
             if (groqCalls === 1) {
                 throw new AiError('rate_limited', '429', { providerId, retryAfterMs: 5 });
@@ -391,7 +396,7 @@ describe('failure handling and fallback triggers', () => {
 
         const result = await runAiTask(textTask());
 
-        expect(result.providerId).toBe('groq');
+        expect(result.providerId).toBe('gemini');
         expect(groqCalls).toBe(2);
         // No failover happened: the same provider answered on its second turn.
         expect(result.fallbackCount).toBe(0);
@@ -401,7 +406,7 @@ describe('failure handling and fallback triggers', () => {
         // A provider that keeps saying "come back later" must not hold the task.
         let groqCalls = 0;
         mockExecute.mockImplementation(async (providerId) => {
-            if (providerId === 'groq') {
+            if (providerId === 'gemini') {
                 groqCalls += 1;
                 throw new AiError('rate_limited', '429', { providerId, retryAfterMs: 5 });
             }
@@ -411,7 +416,7 @@ describe('failure handling and fallback triggers', () => {
         const result = await runAiTask(textTask());
 
         expect(groqCalls).toBe(2);
-        expect(result.providerId).toBe('gemini');
+        expect(result.providerId).toBe('groq');
     });
 
     it('does not wait when the vendor gave no hint', async () => {
@@ -419,7 +424,7 @@ describe('failure handling and fallback triggers', () => {
         // fall over immediately rather than inventing a delay.
         let groqCalls = 0;
         mockExecute.mockImplementation(async (providerId) => {
-            if (providerId === 'groq') {
+            if (providerId === 'gemini') {
                 groqCalls += 1;
                 throw new AiError('rate_limited', '429', { providerId });
             }
@@ -429,7 +434,7 @@ describe('failure handling and fallback triggers', () => {
         const result = await runAiTask(textTask());
 
         expect(groqCalls).toBe(1);
-        expect(result.providerId).toBe('gemini');
+        expect(result.providerId).toBe('groq');
     });
 
     it('returns a safe error, not a fabricated answer, when everything fails', async () => {
@@ -457,7 +462,7 @@ describe('failure handling and fallback triggers', () => {
         const attempted = mockExecute.mock.calls.map((call) => call[0]);
         // Hugging Face is the one provider whose registry row permits a single
         // documented safe retry; everything else is exactly one attempt.
-        const groqAttempts = attempted.filter((id) => id === 'groq').length;
+        const groqAttempts = attempted.filter((id) => id === 'gemini').length;
         expect(groqAttempts).toBe(1);
         expect(attempted.filter((id) => id === 'huggingface').length).toBeLessThanOrEqual(2);
         expect(attempted.length).toBeLessThanOrEqual(PROVIDERS.length + 1);
@@ -465,13 +470,13 @@ describe('failure handling and fallback triggers', () => {
 
     it('records a quota failure so the provider enters cooldown', async () => {
         mockExecute.mockImplementation(async (providerId) => {
-            if (providerId === 'groq') throw new AiError('quota_exceeded', '429', { providerId });
+            if (providerId === 'gemini') throw new AiError('quota_exceeded', '429', { providerId });
             return { text: 'ok', model: 'g' };
         });
 
         await runAiTask(textTask());
 
-        expect(mockStore.recordProviderOutcome).toHaveBeenCalledWith('groq', {
+        expect(mockStore.recordProviderOutcome).toHaveBeenCalledWith('gemini', {
             success: false,
             category: 'quota_exceeded',
         });
@@ -543,7 +548,8 @@ describe('telemetry and secrecy', () => {
 
         expect(mockRecordTelemetry).toHaveBeenCalledWith(expect.objectContaining({
             taskType: TASK_TYPES.ARTICLE_GENERATION,
-            providerId: 'groq',
+            // Gemini is priority 1, so an unforced success is Gemini's.
+            providerId: 'gemini',
             outcome: 'success',
             fallbackCount: 0,
         }));

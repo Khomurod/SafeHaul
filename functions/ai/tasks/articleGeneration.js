@@ -127,7 +127,7 @@ const HOUSE_STYLE = [
     // legitimately supports: practical implications for a carrier are the
     // writer's own analysis, not invented facts, and the separate claim
     // verification step still refuses anything asserted beyond the sources.
-    'The article must be at least 350 words. Aim for 350 to 600.',
+    'The article must be at least 300 words. Aim for 350 to 600.',
     'If the source material is thin, do not pad and do not invent facts. Add length by'
         + ' explaining what the subject means in practice for a carrier: who it applies to,'
         + ' what to check, what to do next, and what remains unclear. Label interpretation as'
@@ -241,15 +241,22 @@ async function generateArticle({ theme, topic, sources, knowledge, recentTitles 
         // `max_output_tokens` is charged whether used or not — and a run makes
         // *two* calls now, not three. The arithmetic, from vendor headers:
         //
-        //   generate  ~2,025 in + (2,400 + 512) out = ~4,937
-        //   verify    ~2,000
-        //   total     ~6,937  of 8,000
+        //   generate  ~2,025 in + (1,800 + 512) out = ~4,337
+        //   verify    ~1,400 in + (500 + 512) out   = ~2,412
+        //   total     ~6,749  of 8,000
+        //
+        // Both calls must fit the *same* minute, because they happen seconds
+        // apart. At 2,400 generation succeeded and then claim verification was
+        // refused, producing `skipped_unsupported_claims (verification step
+        // unavailable)` — an article written and then discarded for want of the
+        // check that clears it. Verification is a safety control and is not
+        // dropped, so generation yields the tokens instead.
         //
         // Three calls at 3,000 totalled roughly 10,500 and fit in no single minute.
         // Two calls at 2,400 fit with margin. Raise this together with
         // MIN_WORD_COUNT and MAX_DOCUMENT_TEXT_CHARS if a provider tier is
         // upgraded — the three numbers move as a set.
-        maxOutputTokens: 2400,
+        maxOutputTokens: 1800,
         privacy: PRIVACY.PUBLIC,
         totalDeadlineMs: 180000,
     });
