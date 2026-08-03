@@ -379,6 +379,37 @@ Custom Claims Structure:
 
 ---
 
+## Shared AI platform and News & Insights
+
+Every AI-powered feature routes through one server-side system, `functions/ai/`.
+Nine providers are supported behind a capability-aware router with automatic
+fallback, bounded timeouts and persisted cooldowns; credentials live in Google
+Secret Manager and are managed from **Super Admin -> AI Integrations**. No
+feature calls a vendor directly, and `scripts/check-ai-provider-boundary.mjs`
+fails CI if one tries.
+
+Fallback order: Groq, Google Gemini, Cloudflare Workers AI, GitHub Models
+*(retired by its vendor on 2026-07-30 and never selected)*, Mistral, Cerebras,
+SambaNova, OpenRouter, Hugging Face.
+
+**SafeHaul News & Insights** publishes three articles a day, one per theme, in
+America/Chicago. Articles are researched from official government feeds and
+reputable trade press, drafted and fact-checked through the shared router,
+checked against an approved capability package so no unsupported product claim
+ships, illustrated with a licensed or SafeHaul-owned image, and served as
+crawlable server-rendered HTML at `/news`. **Super Admin -> Blog Posts** lists
+titles and offers Delete.
+
+Neither system ships with a provider key: until one is configured, AI features
+return a "not configured" precondition error and the blog publishes nothing.
+
+- [`docs/ai-platform.md`](docs/ai-platform.md) - architecture, capability matrix,
+  credential storage, Groq migration, emergency disable, outage recovery, and the
+  manual IAM actions a project owner must perform.
+- [`docs/news-and-insights.md`](docs/news-and-insights.md) - themes, scheduling,
+  research policy, pipeline, duplicate prevention, image licensing, SEO routes,
+  Firestore model, deletion behaviour and stated limitations.
+
 ## Deployment
 
 The application and marketing landing page are deployed to **Firebase Hosting**.

@@ -178,6 +178,25 @@ Custom claims are set via `onMembershipWrite` and HR admin callables ([`function
 
 ---
 
+## Shared AI platform and News & Insights (server-only)
+
+All three are denied to every client, including Super Admins. The consoles read
+them through narrow callables, so no browser needs a direct read and none can
+forge a record.
+
+| Collection | Contents | Why closed |
+| --- | --- | --- |
+| `ai_provider_config/{providerId}` | enabled flag, non-secret settings (Cloudflare account id, model overrides), health, consecutive failures, cooldown, last-test result | Holds no credential value, but still reveals which vendors a deployment uses and which are failing |
+| `ai_telemetry/{id}` | task type, provider, model, outcome, latency, fallback count; `expiresAt` for a 30-day TTL | Diagnostic only; a client could otherwise forge entries or enumerate failures |
+| `blog_posts/{publicationDate}_{themeId}` | title, slug, excerpt, sanitized content blocks, theme, status, sources, image licence metadata, SEO, generation record, knowledge version, duplicate-prevention fingerprints, timestamps | The article *content* is public, but the document also carries tombstones, source fingerprints and provider/model records. The public surface is the server-rendered `/news` routes, which filter to published and strip metadata |
+
+`blog_posts` uses `${publicationDate}_${themeId}` as its id deliberately: that
+pair is the uniqueness constraint, so `create()` refusing a duplicate *is* the
+idempotency guarantee for the publication scheduler.
+
+No AI credential value is ever stored in Firestore. Credentials live in Google
+Secret Manager - see [`docs/ai-platform.md`](./ai-platform.md).
+
 ## Related files
 
 | File | Role |

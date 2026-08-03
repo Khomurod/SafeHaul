@@ -438,3 +438,42 @@ Cloud Functions service account's read permissions, then Retry.
   integration document do get a `missing` row.
 - **`listEnvironmentAndIntegrations` reads company names with a 1000-document
   cap.** Beyond that, rows fall back to showing the company ID.
+
+
+## 9. AI provider credentials (owned by AI Integrations)
+
+AI credentials appear in this inventory but are **managed elsewhere**. The rows
+are derived from the frozen AI provider registry in
+`functions/ai/registry/providers.js`, so the two consoles cannot disagree about
+which credentials exist.
+
+- **Names.** `SAFEHAUL_AI_<PROVIDER>_<FIELD>` for AI providers,
+  `SAFEHAUL_AI_MEDIA_<PROVIDER>_<FIELD>` for blog image providers. The name is
+  derived at runtime, which is why it appears in no file as a literal and is
+  listed in `UNREFERENCED_BY_DESIGN`.
+- **Read-only here.** This console shows them as `not-retrievable` and disables
+  edit, add and delete. Reveal, replace and delete all belong to
+  **Super Admin -> AI Integrations**, which enforces the identical exact-role,
+  recent-authentication, one-value-per-request and value-free-audit rules and
+  writes to the same `environment_audit_log`.
+- **Why one owner.** Two consoles writing the same Secret Manager resource is
+  how they drift. Pointing at a single owner keeps one source of truth.
+- **No deployment needed.** These are read at runtime through the Secret Manager
+  client, not bound at deploy time, so a new or rotated credential takes effect
+  within about a minute. That is also why adding a tenth provider cannot break
+  the functions deploy.
+- **`GROQ_API_KEY`** remains registered as the legacy deploy binding and the
+  rollback path for the AI credential migration. The shared router reads it only
+  when `SAFEHAUL_AI_GROQ_APIKEY` is absent. Cleanup steps are in
+  [`docs/ai-platform.md`](./ai-platform.md).
+- **Retired providers.** `SAFEHAUL_AI_GITHUB_MODELS_TOKEN` is listed for
+  completeness. GitHub retired GitHub Models on 2026-07-30, so the slot can never
+  be configured.
+
+### Retired keys
+
+`GROQ_VISION_MODEL`, `GROQ_DOCUMENT_VISION_MODEL` and `DOCUMENT_VISION_PROVIDER`
+were removed when AI routing moved into the shared platform. Model pins and
+provider selection are now declared in the provider registry and overridden per
+provider from AI Integrations, so there is no deploy-time variable left to
+register.

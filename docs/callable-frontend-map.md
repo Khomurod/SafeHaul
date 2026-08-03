@@ -22,7 +22,7 @@ Maps each **`httpsCallable`** export in [`functions/index.js`](../functions/inde
 | `checkImportPhones` | [`useCampaignTargeting.js`](../src/features/campaigns/hooks/useCampaignTargeting.js) | CSV import phone dedup check |
 | `connectFacebookPage` | [`IntegrationsTab.jsx`](../src/features/settings/components/IntegrationsTab.jsx) | Facebook Lead Ads OAuth |
 | `createPortalUser` | [`CreateView.jsx`](../src/features/super-admin/components/CreateView.jsx), [`TeamManagementTab.jsx`](../src/features/settings/components/TeamManagementTab.jsx), [`useSystemHealth.js`](../src/features/super-admin/hooks/useSystemHealth.js) | Provision HR/recruiter/company user |
-| `createPostApplicationSigningRequest` | [`PublicApplyHandler.jsx`](../src/features/driver-app/components/application/PublicApplyHandler.jsx) | Post-submit e-doc envelope |
+| `createPostApplicationSigningRequest` | [`useCdlAutoFill.js`](../src/features/driver-app/components/application/useCdlAutoFill.js) | Post-submit e-doc envelope |
 | `createChangeReview` | [`useApplicationChanges.js`](../src/features/applications/hooks/useApplicationChanges.js) | Mint a token link for the driver to review company edits |
 | `deleteApplication` | [`useApplicationDelete.js`](../src/features/applications/hooks/useApplicationDelete.js) | Company-admin hard delete of an application/lead (cascade + storage) |
 | `proposeApplicationChanges` | [`useApplicationChanges.js`](../src/features/applications/hooks/useApplicationChanges.js) | Company edits saved as pending driver-approval changes |
@@ -36,15 +36,15 @@ Maps each **`httpsCallable`** export in [`functions/index.js`](../functions/inde
 | `getChangeReview` | [`ReviewChangePortal.jsx`](../src/features/driver-changes/ReviewChangePortal.jsx) | Driver loads company-proposed changes (before/after) |
 | `getPublicEnvelope` | [`SigningRoom.jsx`](../src/features/signing/SigningRoom.jsx) | Public e-sign load |
 | `getSignedApplicationFileUrl` | [`useAppFetch.js`](../src/features/applications/hooks/useAppFetch.js) | Re-sign guest-uploaded application files (CDL etc.) for company dossier view |
-| `getSignedGuestUploadUrl` | [`PublicApplyHandler.jsx`](../src/features/driver-app/components/application/PublicApplyHandler.jsx) | Guest file read URL |
+| `getSignedGuestUploadUrl` | [`useCdlAutoFill.js`](../src/features/driver-app/components/application/useCdlAutoFill.js) | Guest file read URL |
 | `getSignedPevUrl` | [`PEVTab.jsx`](../src/features/company-admin/components/tabs/PEVTab.jsx) | Signed URL for PEV PDF |
-| `getSignedUploadUrl` | [`PublicApplyHandler.jsx`](../src/features/driver-app/components/application/PublicApplyHandler.jsx) | Auth/guest upload URL |
+| `getSignedUploadUrl` | [`useCdlAutoFill.js`](../src/features/driver-app/components/application/useCdlAutoFill.js) | Auth/guest upload URL |
 | `getSigningLink` | [`EnvelopeHistory.jsx`](../src/features/signing/components/EnvelopeHistory.jsx) | Resolve link with secret token |
 | `getVerificationRequest` | [`VerificationPortal.jsx`](../src/features/verification/VerificationPortal.jsx) | PEV portal load |
 | `initBulkSession` | [`LaunchPad.jsx`](../src/features/campaigns/components/LaunchPad.jsx) | Start bulk SMS/email session |
 | `listEnvironmentAndIntegrations` | [`environmentVault.js`](../src/features/super-admin/services/environmentVault.js) | Super Admin vault: full configuration inventory, every value masked |
 | `listSandboxTenantCompanies` | [`SandboxActionPanel.jsx`](../src/features/sandbox/SandboxActionPanel.jsx) | List sandbox tenants |
-| `parseCdlWithGroq` | [`PublicApplyHandler.jsx`](../src/features/driver-app/components/application/PublicApplyHandler.jsx) | CDL image OCR |
+| `parseCdlWithGroq` | [`useCdlAutoFill.js`](../src/features/driver-app/components/application/useCdlAutoFill.js) | CDL image OCR |
 | `pauseBulkSession` | [`CampaignDetails.jsx`](../src/features/campaigns/components/CampaignDetails.jsx) | Pause campaign |
 | `removePhoneLine` | [`LineManager.jsx`](../src/features/super-admin/components/integrations/LineManager.jsx) | Remove SMS line |
 | `resumeBulkSession` | [`CampaignDetails.jsx`](../src/features/campaigns/components/CampaignDetails.jsx) | Resume campaign |
@@ -59,7 +59,7 @@ Maps each **`httpsCallable`** export in [`functions/index.js`](../functions/inde
 | `sendTestSMS` | [`SMSDiagnosticModal.jsx`](../src/features/settings/components/SMSDiagnosticModal.jsx), [`IntegrationManager.jsx`](../src/features/super-admin/components/integrations/IntegrationManager.jsx) | SMS connectivity test |
 | `sendVerificationRequest` | [`PEVTab.jsx`](../src/features/company-admin/components/tabs/PEVTab.jsx) | Start PEV request |
 | `submitChangeResolution` | [`ReviewChangePortal.jsx`](../src/features/driver-changes/ReviewChangePortal.jsx) | Driver approve/reject/edit company changes |
-| `submitGuestApplication` | [`PublicApplyHandler.jsx`](../src/features/driver-app/components/application/PublicApplyHandler.jsx), [`useSubmissionQueue.js`](../src/hooks/useSubmissionQueue.js) | Guest/auth application submit |
+| `submitGuestApplication` | [`useCdlAutoFill.js`](../src/features/driver-app/components/application/useCdlAutoFill.js), [`useSubmissionQueue.js`](../src/hooks/useSubmissionQueue.js) | Guest/auth application submit |
 | `submitPublicEnvelope` | [`SigningRoom.jsx`](../src/features/signing/SigningRoom.jsx) | Complete public signature |
 | `submitVerificationResponse` | [`VerificationPortal.jsx`](../src/features/verification/VerificationPortal.jsx) | Employer PEV response |
 | `syncSystemStructure` | [`useSystemHealth.js`](../src/features/super-admin/hooks/useSystemHealth.js) | Repair system structure |
@@ -138,6 +138,48 @@ record to `environment_audit_log`. See
 [`docs/environment-and-integrations-runbook.md`](environment-and-integrations-runbook.md).
 
 ---
+
+## Super Admin AI Integrations
+
+Eight narrow callables back Super Admin -> AI Integrations. They reuse the
+environment vault's guards and audit trail rather than a parallel security model,
+so exact `globalRole === "super_admin"`, 15-minute recent authentication for every
+reveal and mutation, fail-closed rate limits and value-free `environment_audit_log`
+records all apply. A provider id from the browser is resolved through the frozen
+registry in `functions/ai/registry/providers.js` before anything else happens, so
+no request can name an arbitrary Secret Manager resource.
+
+| Callable | Caller | Purpose |
+| --- | --- | --- |
+| `listAiProviders` | [`AiIntegrationsView.jsx`](../src/features/super-admin/views/AiIntegrationsView.jsx) | All nine providers, masked. No plaintext in the response. |
+| `revealAiCredential` | same | Exactly one credential per request, audited. |
+| `saveAiCredential` | same | Add or replace one credential. |
+| `deleteAiCredential` | same | Destroy every version; typed confirmation re-checked server-side. |
+| `setAiProviderEnabled` | same | Include or exclude a provider from routing. |
+| `updateAiProviderConfig` | same | Non-secret settings only; registry-validated. |
+| `testAiProvider` | same | Tiny constant-prompt connection test. |
+| `migrateGroqCredential` | same | Copies the legacy binding into Secret Manager server-side. The token is never returned. |
+
+## Super Admin Blog Posts and blog media
+
+| Callable | Caller | Purpose |
+| --- | --- | --- |
+| `listBlogPosts` | [`BlogPostsView.jsx`](../src/features/super-admin/views/BlogPostsView.jsx) | Article titles, dates and status. |
+| `deleteBlogPost` | same | Tombstones an article; it leaves every public surface immediately. |
+| `runBlogPublicationNow` | same | Runs the same idempotent pass the hourly schedule uses. |
+| `listMediaProviders` | [`AiIntegrationsView.jsx`](../src/features/super-admin/views/AiIntegrationsView.jsx) | Pexels / Unsplash / Openverse, masked. |
+| `saveMediaCredential` | same | Add or replace one media credential. |
+| `deleteMediaCredential` | same | Destroy every version. |
+
+See [`docs/ai-platform.md`](./ai-platform.md) and
+[`docs/news-and-insights.md`](./news-and-insights.md).
+
+## Not `httpsCallable` (added with News & Insights)
+
+- `serveBlogPublic` - public `onRequest`, reached through Firebase Hosting
+  rewrites for `/news`, `/news/**`, `/api/news/**`, `/sitemap.xml` and
+  `/robots.txt`. Read-only; non-GET methods get 405.
+- `publishScheduledBlogPosts` - hourly scheduled function, `America/Chicago`.
 
 ## Maintenance
 

@@ -79,3 +79,40 @@ run, fix the failing test or deploy, and merge again. Firebase retains prior
 Hosting releases, so the last successful version remains available. The former
 Vercel project and separate `Landing-page` repository may be retained as
 inactive history, but they must not own `safehaul.io` or auto-deploy production.
+
+
+## News & Insights routes
+
+The landing targets now serve the automated blog as well as the marketing pages.
+Rewrites on **both** `landing-testing` and `landing-production`, in this order:
+
+1. `/api/landing-lead` -> `submitLandingLead`
+2. `/news` -> `serveBlogPublic`
+3. `/news/**` -> `serveBlogPublic`
+4. `/api/news/**` -> `serveBlogPublic`
+5. `/sitemap.xml` -> `serveBlogPublic`
+6. `/robots.txt` -> `serveBlogPublic`
+7. `**` -> `/index.html`
+
+**The order matters.** The `**` catch-all must stay last: placed above the
+specific rules it swallows them and returns the marketing homepage for every
+article URL, sitemap request and card fetch. The landing-lead rule stays first so
+it is unaffected.
+
+This also fixes a pre-existing soft-404: `safehaul.io/sitemap.xml` and
+`/robots.txt` previously returned the homepage with HTTP 200. They are now real
+responses generated from published articles.
+
+Nothing about the app targets (`testing`, `production`) changed, so
+`app.safehaul.io` is unaffected. No new subdomain is introduced, so **no Dynadot
+change is required** — `/news` is a path on the existing landing site.
+
+Verification after a production deploy:
+
+- `https://safehaul.io/news` returns an index page (or the empty-state copy
+  before the first article publishes).
+- `https://safehaul.io/sitemap.xml` and `/news/feed.xml` return XML, not HTML.
+- `https://safehaul.io/api/news/latest?limit=3` returns JSON.
+- `https://safehaul.io/` still renders, and the lead form still submits.
+- `https://www.safehaul.io/news` behaves identically.
+- `https://app.safehaul.io` is unchanged.
