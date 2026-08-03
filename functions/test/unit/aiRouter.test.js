@@ -374,6 +374,64 @@ describe('failure handling and fallback triggers', () => {
         expect(mockExecute).toHaveBeenCalledTimes(1);
     });
 
+    it('honours a vendor-stated wait and retries that provider once', async () => {
+        // Groq refuses a request over its per-minute token budget and states the
+        // reset in its headers ("x-ratelimit-reset-tokens: 7.222s"). Abandoning a
+        // working provider over seven seconds, against a two-minute deadline, is
+        // what made the blog unable to publish on a per-minute token budget.
+        let groqCalls = 0;
+        mockExecute.mockImplementation(async (providerId) => {
+            if (providerId !== 'groq') throw new AiError('provider_unavailable', 'down', { providerId });
+            groqCalls += 1;
+            if (groqCalls === 1) {
+                throw new AiError('rate_limited', '429', { providerId, retryAfterMs: 5 });
+            }
+            return { text: 'ok', model: 'g' };
+        });
+
+        const result = await runAiTask(textTask());
+
+        expect(result.providerId).toBe('groq');
+        expect(groqCalls).toBe(2);
+        // No failover happened: the same provider answered on its second turn.
+        expect(result.fallbackCount).toBe(0);
+    });
+
+    it('waits only once, then moves on', async () => {
+        // A provider that keeps saying "come back later" must not hold the task.
+        let groqCalls = 0;
+        mockExecute.mockImplementation(async (providerId) => {
+            if (providerId === 'groq') {
+                groqCalls += 1;
+                throw new AiError('rate_limited', '429', { providerId, retryAfterMs: 5 });
+            }
+            return { text: 'ok', model: 'g' };
+        });
+
+        const result = await runAiTask(textTask());
+
+        expect(groqCalls).toBe(2);
+        expect(result.providerId).toBe('gemini');
+    });
+
+    it('does not wait when the vendor gave no hint', async () => {
+        // Absent or over-long hints are dropped by http.js, so the router must
+        // fall over immediately rather than inventing a delay.
+        let groqCalls = 0;
+        mockExecute.mockImplementation(async (providerId) => {
+            if (providerId === 'groq') {
+                groqCalls += 1;
+                throw new AiError('rate_limited', '429', { providerId });
+            }
+            return { text: 'ok', model: 'g' };
+        });
+
+        const result = await runAiTask(textTask());
+
+        expect(groqCalls).toBe(1);
+        expect(result.providerId).toBe('gemini');
+    });
+
     it('returns a safe error, not a fabricated answer, when everything fails', async () => {
         mockExecute.mockImplementation(async (providerId) => {
             throw new AiError('provider_unavailable', 'down', { providerId });

@@ -128,6 +128,11 @@ class AiError extends Error {
         this.detail = typeof detail === 'string' ? detail.slice(0, 200) : '';
         this.providerId = options.providerId || null;
         this.status = Number.isInteger(options.status) ? options.status : null;
+        // The vendor's own "try again in" hint, in milliseconds, when it gave one
+        // and it was short enough to honour. Never surfaced to a caller.
+        this.retryAfterMs = Number.isFinite(options.retryAfterMs) && options.retryAfterMs > 0
+            ? options.retryAfterMs
+            : null;
     }
 
     get retryable() {

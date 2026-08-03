@@ -11,6 +11,51 @@
 
 const { AiError, categorizeHttpFailure } = require('../router/errors');
 
+/** Longest vendor-stated wait worth honouring in-request. */
+const MAX_RETRY_AFTER_MS = 30000;
+
+/**
+ * Reads the vendor's own "try again in" hint, in milliseconds.
+ *
+ * Providers state this and we were ignoring it. Groq answers a token-budget
+ * refusal with `x-ratelimit-reset-tokens: 7.222s` — a seven second wait, against
+ * a task deadline of two minutes and a function timeout of nine. Treating that as
+ * a dead provider is throwing away a working one over a rounding error, and on a
+ * per-minute token budget it is the difference between a blog that publishes and
+ * one that never does.
+ *
+ * Only short, explicit waits are honoured. Anything longer than
+ * `MAX_RETRY_AFTER_MS`, absent, or unparseable returns null and the failure is
+ * handled as before — the router moves on.
+ *
+ * @returns {number|null}
+ */
+function readRetryAfterMs(response) {
+    const get = (name) => {
+        try { return response?.headers?.get?.(name) ?? null; } catch { return null; }
+    };
+
+    // `Retry-After` is seconds (the HTTP-date form is not used by these vendors).
+    const retryAfter = Number.parseFloat(get('retry-after'));
+    if (Number.isFinite(retryAfter) && retryAfter > 0) {
+        const ms = retryAfter * 1000;
+        return ms <= MAX_RETRY_AFTER_MS ? Math.ceil(ms) : null;
+    }
+
+    // Groq's form: "7.222s", "1m2.5s", "500ms".
+    for (const name of ['x-ratelimit-reset-tokens', 'x-ratelimit-reset-requests']) {
+        const raw = get(name);
+        if (typeof raw !== 'string') continue;
+        const match = /^(?:(\d+(?:\.\d+)?)m)?(?:(\d+(?:\.\d+)?)s)?$|^(\d+(?:\.\d+)?)ms$/.exec(raw.trim());
+        if (!match) continue;
+        const ms = match[3] !== undefined
+            ? Number.parseFloat(match[3])
+            : (Number.parseFloat(match[1] || '0') * 60000) + (Number.parseFloat(match[2] || '0') * 1000);
+        if (Number.isFinite(ms) && ms > 0 && ms <= MAX_RETRY_AFTER_MS) return Math.ceil(ms);
+    }
+    return null;
+}
+
 /** Response bodies are read only to classify the failure, then discarded. */
 const MAX_ERROR_BODY_CHARS = 2000;
 
@@ -78,6 +123,11 @@ async function postJson({ url, headers, body, timeoutMs, provider, parentSignal,
         throw new AiError(category, `HTTP ${response.status}`, {
             providerId: provider?.id,
             status: response.status,
+            // How long the vendor says to wait, when it says so. Groq returns
+            // `x-ratelimit-reset-tokens: 7.222s`; the standard `Retry-After` is
+            // honoured too. The router uses this to wait rather than abandoning a
+            // provider over a few seconds — see `readRetryAfterMs`.
+            retryAfterMs: readRetryAfterMs(response),
         });
     }
 
@@ -91,4 +141,6 @@ async function postJson({ url, headers, body, timeoutMs, provider, parentSignal,
     }
 }
 
-module.exports = { postJson };
+module.exports = {
+    readRetryAfterMs,
+    MAX_RETRY_AFTER_MS, postJson };

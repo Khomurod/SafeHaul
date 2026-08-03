@@ -114,26 +114,30 @@ function parseFederalRegister(payload) {
 /**
  * Upper bound on fetched document text, in characters.
  *
- * Roughly 2,250 tokens. Sized against real provider limits, not guessed.
+ * Roughly 1,125 tokens. Sized against real provider limits, not guessed.
  *
- * At 14,000 the prompt was large enough that Groq answered
- * `provider_unavailable` and Gemini `provider_request_rejected` — over their
- * per-request ceilings, so neither wrote anything. The binding constraint is
- * Groq's per-minute token budget, stated in its own headers as
- * `x-ratelimit-limit-tokens: 8000`, which charges input plus the full requested
- * output. With a 3,000-token article budget and a 512 reasoning allowance, the
- * arithmetic is roughly 2,250 + 800 + 3,512 = 6,562 — inside the ceiling with
- * margin.
+ * At 14,000 the prompt alone was over both vendors' per-request ceilings — Groq
+ * answered `provider_unavailable`, Gemini `provider_request_rejected` — and
+ * neither wrote anything.
  *
- * More material is the lever that actually lengthens an article honestly: drafts
- * went 251 words on the abstract alone, to 352, to 417 as the document text was
- * supplied and widened.
+ * The binding constraint is Groq's per-minute token budget, stated in its own
+ * headers as `x-ratelimit-limit-tokens: 8000`, which charges input plus the
+ * *full* requested output, and which a run consumes three times over: topic
+ * selection, generation, claim verification. At 9,000 characters with a
+ * 3,000-token article budget those three calls totalled roughly 10,500 and could
+ * not fit in any single minute. At 4,500 with a 1,400-token budget they fit,
+ * which is what makes the free tier viable at all.
+ *
+ * More material is still the honest lever for length — drafts went 251 words on
+ * the abstract alone, to 352, to 417 as document text was supplied — so raise this
+ * along with `MIN_WORD_COUNT` and the article budget if a provider tier is
+ * upgraded. The three numbers move together.
  *
  * Federal Register rules put their substance — what changes, who it applies to,
  * effective dates, the agency's reasoning — near the top, so a leading slice is
  * the useful slice.
  */
-const MAX_DOCUMENT_TEXT_CHARS = 9000;
+const MAX_DOCUMENT_TEXT_CHARS = 4500;
 
 /**
  * Fetches the full text of one document.
