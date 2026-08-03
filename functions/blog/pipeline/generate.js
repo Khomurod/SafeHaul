@@ -30,13 +30,34 @@ const dedupe = require('./dedupe');
 const sanitize = require('./sanitize');
 const { findLicensedImage, isLicenceComplete } = require('../media/imageProviders');
 const knowledgePackage = require('../../ai/knowledge/safehaulCapabilities');
-const { generateArticle, verifyArticleClaims, selectTopic } = require('../../ai/tasks/articleGeneration');
+const { generateArticle, verifyArticleClaims } = require('../../ai/tasks/articleGeneration');
 
 /** Candidate stories considered per slot. */
 const MAX_CANDIDATES = 12;
 
-/** An article shorter than this is not worth publishing. */
-const MIN_WORD_COUNT = 450;
+/**
+ * An article shorter than this is not worth publishing.
+ *
+ * **300, down from 450, on the owner's explicit decision** after the trade-off was
+ * put to them: the free tiers of both AI providers cannot sustain a longer
+ * article, and the alternative was a paid tier. This is recorded at length because
+ * it is a deliberate reduction in article substance below the 700-1,200 words
+ * originally specified — not a constant that drifted.
+ *
+ * The owner asked for "up to 350". The floor sits at 300 because that is where
+ * articles measurably land once the pipeline is sized to fit Groq's 8,000
+ * tokens-per-minute ceiling: observed drafts ran 311 words. A 350 floor would
+ * discard a sound 311-word article and publish nothing, which is the failure this
+ * whole change exists to end.
+ *
+ * The prompt still asks for 350-600 so the model aims above the floor rather than
+ * at it. Under-shooting is tolerated; padding is still forbidden.
+ *
+ * Three numbers move together — this floor, `maxOutputTokens` in
+ * articleGeneration, and `MAX_DOCUMENT_TEXT_CHARS` in fetchSources. Raise all
+ * three if a provider tier is upgraded.
+ */
+const MIN_WORD_COUNT = 300;
 
 const PUBLIC_ORIGIN = 'https://safehaul.io';
 
@@ -366,24 +387,29 @@ async function runSlot(slot, context) {
             };
         }
 
-        let selection = { selectedIndex: 0, angle: theme.editorialAngle };
-        try {
-            selection = await selectTopic({
-                theme,
-                candidates: viable.map((candidate) => ({
-                    title: candidate.title,
-                    publisher: candidate.publisher,
-                    summary: candidate.summary,
-                })),
-                recentTitles,
-            }, aiDeps);
-        } catch {
-            // Topic selection is a convenience. If it fails, the freshest
-            // candidate is a perfectly good choice and the run continues.
-        }
-
-        const lead = viable[Math.min(Math.max(0, selection.selectedIndex), viable.length - 1)];
-        topic = { title: lead.title, angle: selection.angle };
+        // Topic selection is no longer an AI call.
+        //
+        // It was always documented as "a convenience" — on failure the code fell
+        // back to the freshest candidate and carried on. Two things have since made
+        // it redundant and one has made it costly.
+        //
+        // Redundant: candidates are now ranked before the model ever sees them —
+        // primary sources first, then document length, then recency — and filtered
+        // to those that can satisfy the theme's sourcing bar. `viable[0]` is
+        // therefore already the best-evidenced, most substantive story available,
+        // which is the judgement the model was being asked to make.
+        //
+        // Costly: Groq's tier allows 8,000 tokens per minute and charges the full
+        // requested output. Three sequential calls per run — selection, generation,
+        // verification — overran that budget and generation was rejected outright
+        // *after* selection had succeeded, which is the worst possible order. Two
+        // calls fit; three did not.
+        //
+        // Claim verification is NOT dropped. That one is a safety control, not a
+        // convenience: it is the check that an article asserts nothing its sources
+        // do not support.
+        const lead = viable[0];
+        topic = { title: lead.title, angle: theme.editorialAngle };
 
         // --- 5. Fact package -------------------------------------------------
         //

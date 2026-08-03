@@ -127,7 +127,7 @@ const HOUSE_STYLE = [
     // legitimately supports: practical implications for a carrier are the
     // writer's own analysis, not invented facts, and the separate claim
     // verification step still refuses anything asserted beyond the sources.
-    'The article must be at least 500 words. Aim for 700 to 1,200.',
+    'The article must be at least 350 words. Aim for 350 to 600.',
     'If the source material is thin, do not pad and do not invent facts. Add length by'
         + ' explaining what the subject means in practice for a carrier: who it applies to,'
         + ' what to check, what to do next, and what remains unclear. Label interpretation as'
@@ -227,21 +227,20 @@ async function generateArticle({ theme, topic, sources, knowledge, recentTitles 
         // A little variation reads better than temperature 0 over hundreds of
         // articles, but not enough to loosen the model's grip on the facts.
         temperature: 0.4,
-        // Sized from measurement, not habit. 1,200 words — the validator's upper
-        // bound — is roughly 1,700 tokens, so 3,000 is generous for the prose plus
-        // a reasoning model's thinking.
+        // Sized to the article and to the tier, both measured.
         //
-        // The upper constraint is Groq's per-minute token ceiling, which its
-        // headers state as `x-ratelimit-limit-tokens: 8000` and which charges the
-        // full `max_output_tokens` whether used or not. With an enriched prompt at
-        // roughly 2,300 input tokens, a 4,096 request plus headroom totalled 8,120
-        // and was refused outright as `rate_limited`.
+        // A 400-700 word article is roughly 550-1,000 tokens of prose, so 1,400
+        // covers it with room for a reasoning model's thinking.
         //
-        // An earlier attempt at 2,500 went the other way and starved the writer,
-        // but that draft was short because the source was a one-paragraph abstract,
-        // not because of the budget. With the document's own text supplied, 3,000
-        // is ample.
-        maxOutputTokens: 3000,
+        // The binding constraint is Groq's per-minute ceiling, stated in its own
+        // headers as `x-ratelimit-limit-tokens: 8000`, against which the *full*
+        // `max_output_tokens` is charged whether used or not — and a run makes
+        // three calls, not one. At 3,000 plus headroom the three calls totalled
+        // roughly 10,500 and could not fit in any single minute. At 1,400 they fit.
+        //
+        // This is the arithmetic that makes the free tier viable at all. Raise it
+        // together with MIN_WORD_COUNT if a provider tier is upgraded.
+        maxOutputTokens: 1400,
         privacy: PRIVACY.PUBLIC,
         totalDeadlineMs: 180000,
     });
