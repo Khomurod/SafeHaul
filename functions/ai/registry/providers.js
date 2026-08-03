@@ -88,7 +88,13 @@ const PROVIDER_LIST = [
     {
         id: 'groq',
         displayName: 'Groq',
-        priority: 1,
+        // Position 2, not 1. The brief specified Groq first, and the owner
+        // reversed it on 2026-08-03 after measurement: on the free tiers
+        // `openai/gpt-oss-20b` writes 175-213 word articles while Gemini writes
+        // 311-417 from the same or thinner sources. Groq stays as the fallback
+        // because it is the more *available* of the two — Gemini's free tier caps
+        // at 20 requests — so a short article beats no article.
+        priority: 2,
         docsUrl: 'https://console.groq.com/docs',
         apiBaseUrl: 'https://api.groq.com/openai/v1',
         adapter: 'groq',
@@ -146,7 +152,8 @@ const PROVIDER_LIST = [
     {
         id: 'gemini',
         displayName: 'Google Gemini',
-        priority: 2,
+        // Position 1 by owner decision — see the note on Groq's priority above.
+        priority: 1,
         docsUrl: 'https://ai.google.dev/gemini-api/docs',
         apiBaseUrl: 'https://generativelanguage.googleapis.com/v1beta',
         adapter: 'gemini',

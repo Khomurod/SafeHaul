@@ -38,17 +38,29 @@ const MAX_CANDIDATES = 12;
 /**
  * An article shorter than this is not worth publishing.
  *
- * **300, down from 450, on the owner's explicit decision** after the trade-off was
- * put to them: the free tiers of both AI providers cannot sustain a longer
+ * **150, down from 450 in three owner decisions** on 2026-08-03. The trade-off was
+ * put to them each time: the free tiers of both AI providers cannot sustain a longer
  * article, and the alternative was a paid tier. This is recorded at length because
  * it is a deliberate reduction in article substance below the 700-1,200 words
  * originally specified — not a constant that drifted.
  *
- * The owner asked for "up to 350". The floor sits at 300 because that is where
- * articles measurably land once the pipeline is sized to fit Groq's 8,000
- * tokens-per-minute ceiling: observed drafts ran 311 words. A 350 floor would
- * discard a sound 311-word article and publish nothing, which is the failure this
- * whole change exists to end.
+ * 350, then 200, then 150 — each step measured against what the providers actually
+ * produce rather than chosen. Groq's observed drafts were 165, 175 and 213 words,
+ * so a 200 floor discarded two of three sound articles and published nothing. 150
+ * is set below the measured floor of Groq's output so that a day never passes with
+ * nothing published.
+ *
+ * This is a thin article by any editorial standard, and it is a long way from the
+ * 700-1,200 words the brief asked for. It is here because the owner chose a
+ * published short article over an unpublished long one, on a free tier, twice.
+ * Raising a provider tier is what reverses it.
+ *
+ * The two free tiers fail in opposite directions: Gemini writes 311-417 words but caps at 20 requests, while
+ * Groq is reliably available and reliably terse at 175-213. Gemini now leads and
+ * will usually clear 300 comfortably; the floor sits at 200 so that when Gemini's
+ * quota is spent, Groq's shorter article still publishes rather than the day
+ * producing nothing. The owner's words: "even the 200 word article is okay, if
+ * Gemini fails".
  *
  * The prompt still asks for 350-600 so the model aims above the floor rather than
  * at it. Under-shooting is tolerated; padding is still forbidden.
@@ -57,7 +69,7 @@ const MAX_CANDIDATES = 12;
  * articleGeneration, and `MAX_DOCUMENT_TEXT_CHARS` in fetchSources. Raise all
  * three if a provider tier is upgraded.
  */
-const MIN_WORD_COUNT = 300;
+const MIN_WORD_COUNT = 150;
 
 const PUBLIC_ORIGIN = 'https://safehaul.io';
 

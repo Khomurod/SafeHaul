@@ -404,8 +404,10 @@ describe('Super Admin callables', () => {
 
     it('preserves the documented priority order in the list', async () => {
         const response = await callables.listAiProviders(requestOf({}));
+        // Gemini leads; see the priority note in the registry. The console must
+        // show the real routing order, not the order the brief first specified.
         expect(response.providers.map((row) => row.id)).toEqual([
-            'groq', 'gemini', 'cloudflare', 'github-models',
+            'gemini', 'groq', 'cloudflare', 'github-models',
             'mistral', 'cerebras', 'sambanova', 'openrouter', 'huggingface',
         ]);
     });
