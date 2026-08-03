@@ -12,10 +12,12 @@
  *     reach a text-only vendor by accident or by misconfiguration.
  *  2. **Try each compatible provider once**, in registry priority order, until
  *     one produces a response that passes schema validation.
- *  3. **Fail over on the vendor's failures, not on ours.** A timeout, an
- *     outage, an exhausted quota or malformed JSON moves to the next provider.
- *     An invalid SafeHaul request or a rejected authorization stops
- *     immediately — nine vendors would give the same answer nine times.
+ *  3. **One provider's failure is not the task's failure.** A timeout, an
+ *     outage, an exhausted quota, malformed JSON, a rejected credential or an
+ *     unexpected adapter exception all move to the next provider. Only a
+ *     genuinely task-fatal category stops the walk — a malformed SafeHaul
+ *     request, no capable provider, or the deadline — because those would get
+ *     the same answer from all nine. See `isTaskFatal` in ./errors.js.
  *  4. **Bounded everywhere.** Per-provider timeout, a total request deadline,
  *     one attempt per provider unless the registry marks a retry safe, and a
  *     persisted cooldown so an exhausted provider is skipped rather than
@@ -161,6 +163,9 @@ async function runAiTask(task, deps = {}) {
 
     const attempted = [];
     const skipped = [];
+    // Per-provider outcome, so a total failure can name each cause rather than
+    // only the last one. Categories only — never bodies, prompts or credentials.
+    const failures = [];
     let lastError = null;
 
     try {
@@ -264,6 +269,7 @@ async function runAiTask(task, deps = {}) {
 
             if (providerError) {
                 lastError = providerError;
+                failures.push({ providerId: provider.id, category: providerError.category });
                 await store.recordProviderOutcome(provider.id, {
                     success: false,
                     category: providerError.category,
@@ -275,7 +281,7 @@ async function runAiTask(task, deps = {}) {
     }
 
     // Nothing succeeded. Say so plainly rather than inventing an answer.
-    const failure = buildTerminalFailure({ attempted, skipped, lastError });
+    const failure = buildTerminalFailure({ attempted, skipped, lastError, failures });
     await finishFailure(task, failure, { attempted, skipped, startedAt, primaryCapability });
     throw failure;
 }
@@ -285,10 +291,21 @@ async function runAiTask(task, deps = {}) {
  * eligible", because those need different operator action: the first is an
  * outage, the second is a configuration gap.
  */
-function buildTerminalFailure({ attempted, skipped, lastError }) {
+function buildTerminalFailure({ attempted, skipped, lastError, failures = [] }) {
     if (attempted.length > 0) {
+        // Name every provider and the category it failed with, in order.
+        //
+        // `all_providers_failed` on its own is unactionable: a production run
+        // reported it for four hours and the only way to learn *why* each
+        // provider failed was to reconstruct the pipeline locally. Categories are
+        // safe to log — they carry no credential, no provider response body and
+        // no prompt, which is the whole reason the taxonomy exists.
+        const trail = failures.length
+            ? failures.map((entry) => `${entry.providerId}=${entry.category}`).join(', ')
+            : attempted.join(', ');
         return new AiError('all_providers_failed',
-            `${attempted.length} provider(s) attempted; last failure ${lastError?.category || 'unknown'}.`);
+            `${attempted.length} provider(s) attempted [${trail}];`
+            + ` last failure ${lastError?.category || 'unknown'}.`);
     }
     const onlyIncapable = skipped.length > 0
         && skipped.every((entry) => entry.reason === SKIP_REASONS.INCAPABLE || entry.reason === SKIP_REASONS.RETIRED);

@@ -54,6 +54,48 @@ const OUTCOME = Object.freeze({
 });
 
 /**
+ * Whether an item is actually about road freight.
+ *
+ * ## Why a feed's topics are not enough
+ *
+ * `gatherSourceItems` stamps every item with **its source's** declared topics,
+ * not topics derived from the item itself. `federal-register-dot` queries the
+ * whole Department of Transportation, so an FAA airspace notice, an FRA
+ * locomotive rule and a TVA environmental finding all arrive tagged
+ * `regulation, compliance, freight-market` and all pass a theme-topic filter.
+ *
+ * That is not a hypothetical. On 2026-08-03 the twelve top candidates for the
+ * industry-news slot were, in order: high-speed train noise standards, three VHF
+ * omnidirectional range amendments, Class D/E airspace over Morgantown WV, a TVA
+ * categorical exclusion, an unleaded aviation gasoline transition plan,
+ * locomotive engineer certification, and Jet Route J-24. Not one concerned
+ * trucking. A trucking publication that runs an article about jet routes is
+ * worse than one that runs nothing, so this gate is deliberately applied before
+ * anything reaches an editor or a model.
+ *
+ * A keyword gate is crude, and it is chosen over asking a model precisely
+ * because it is deterministic, free, and cannot be talked into approving an
+ * aviation notice. It is a floor on relevance, not a judgement of newsworthiness
+ * — that judgement stays with topic selection, further down.
+ *
+ * If this proves too narrow the fix is to add terms here, not to remove the
+ * gate: the failure it prevents is publishing off-topic content under
+ * SafeHaul's name.
+ */
+const ROAD_FREIGHT_PATTERN = new RegExp([
+    'truck', 'trucking', 'motor carrier', 'motor-carrier', 'commercial motor vehicle', '\\bcmv\\b',
+    'tractor[- ]trailer', 'semi[- ]trailer', '\\bfmcsa\\b', 'hours of service', '\\bhos\\b',
+    'commercial driver', '\\bcdl\\b', 'electronic logging', '\\beld\\b', 'drayage',
+    'freight broker', 'for-hire carrier', 'owner[- ]operator', 'fleet safety', 'roadside inspection',
+    'driver qualification', 'drug and alcohol clearinghouse', 'unified carrier registration',
+    'hazardous materials transport', 'interstate trucking', 'highway freight', 'driver shortage',
+].join('|'), 'i');
+
+function isRoadFreightRelevant(item) {
+    return ROAD_FREIGHT_PATTERN.test(`${item?.title || ''} ${item?.summary || ''}`);
+}
+
+/**
  * Builds the candidate list for a theme from gathered items.
  *
  * For a regulatory theme, candidates are ordered primary-source-first, because
@@ -61,7 +103,10 @@ const OUTCOME = Object.freeze({
  */
 function buildCandidates(items, theme) {
     const wanted = new Set(theme.topics);
-    const relevant = items.filter((item) => item.topics.some((topic) => wanted.has(topic)));
+    const relevant = items
+        .filter((item) => item.topics.some((topic) => wanted.has(topic)))
+        // Feed topics are coarse; the item must be about road freight itself.
+        .filter(isRoadFreightRelevant);
 
     const seen = new Set();
     const deduped = [];
@@ -265,11 +310,38 @@ async function runSlot(slot, context) {
             };
         }
 
+        // Only offer leads that can actually satisfy this theme's sourcing bar.
+        //
+        // Topic selection and the sourcing rule used to disagree: the model was
+        // shown every fresh candidate, sensibly picked the most newsworthy one,
+        // and the run was then thrown away because the resulting fact package
+        // held no primary source — a rule the model was never told about. In
+        // production that produced `skipped_no_sources (no primary or official
+        // source)` on four consecutive runs while perfectly publishable
+        // primary-sourced candidates sat in the same list.
+        //
+        // Refusing to publish when a well-sourced option is available is a bug,
+        // not caution. The sourcing bar itself is unchanged and still absolute:
+        // if no candidate can meet it, the slot is still refused.
+        const viable = fresh.filter(
+            (candidate) => sourcingIsSufficient(buildFactPackage(candidate, fresh, theme), theme).ok,
+        );
+
+        if (viable.length === 0) {
+            // Report the bar the whole set failed, not one arbitrary candidate's.
+            const reason = sourcingIsSufficient(buildFactPackage(fresh[0], fresh, theme), theme).reason;
+            return {
+                outcome: OUTCOME.SKIPPED_NO_SOURCES,
+                slot,
+                detail: `${reason} (none of ${fresh.length} candidates)`,
+            };
+        }
+
         let selection = { selectedIndex: 0, angle: theme.editorialAngle };
         try {
             selection = await selectTopic({
                 theme,
-                candidates: fresh.map((candidate) => ({
+                candidates: viable.map((candidate) => ({
                     title: candidate.title,
                     publisher: candidate.publisher,
                     summary: candidate.summary,
@@ -281,11 +353,14 @@ async function runSlot(slot, context) {
             // candidate is a perfectly good choice and the run continues.
         }
 
-        const lead = fresh[Math.min(Math.max(0, selection.selectedIndex), fresh.length - 1)];
+        const lead = viable[Math.min(Math.max(0, selection.selectedIndex), viable.length - 1)];
         topic = { title: lead.title, angle: selection.angle };
 
         // --- 5. Fact package -------------------------------------------------
         sources = buildFactPackage(lead, fresh, theme);
+        // Belt and braces: `viable` was computed with this exact call, so this
+        // cannot fire. It stays because publishing an under-sourced article is
+        // the one failure this pipeline must never have.
         const sufficiency = sourcingIsSufficient(sources, theme);
         if (!sufficiency.ok) {
             return { outcome: OUTCOME.SKIPPED_NO_SOURCES, slot, detail: sufficiency.reason };
@@ -462,6 +537,7 @@ module.exports = {
     PUBLIC_ORIGIN,
     runSlot,
     buildCandidates,
+    isRoadFreightRelevant,
     buildFactPackage,
     sourcingIsSufficient,
     validateDraft,
