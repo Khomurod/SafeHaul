@@ -272,8 +272,19 @@ Hosting rewrites:
 | `/news/{slug}` | Full article HTML with metadata and JSON-LD |
 | `/news/feed.xml` | Atom feed (latest 20) |
 | `/sitemap.xml` | Static pages plus every published article |
-| `/robots.txt` | Allow-all plus the sitemap pointer |
 | `/api/news/latest?limit=3` | JSON cards for the static landing page |
+
+`/robots.txt` is **not** in that table. Hosting resolves it before it consults
+rewrites, so a rewrite to the function was deployed and never fired — both
+landing sites returned an empty `404`. It is now the static file
+`landing/robots.txt`. The function keeps a `/robots.txt` branch as a backstop for
+a direct hit on its own URL; `src/tests/hostingConfig.test.js` pins the two to
+the same content and fails if the dead rewrite is reintroduced.
+
+Both landing targets deploy the same `landing/` directory and therefore the same
+permissive `robots.txt`, so `landing-testing` carries an
+`X-Robots-Tag: noindex, nofollow` response header. A per-site header is the only
+way to keep the test site from competing with production as duplicate content.
 
 Server-rendered rather than client-rendered, because articles are created after
 deployment and a crawler must receive complete HTML on the first request.
@@ -289,9 +300,40 @@ the product, and a plain statement that the article is not legal advice.
 ### Rewrite ordering
 
 On both landing targets, in order: `/api/landing-lead`, then `/news`,
-`/news/**`, `/api/news/**`, `/sitemap.xml`, `/robots.txt`, then the `**`
-catch-all. **The specific rules must stay before the catch-all** or it swallows
-them and returns the marketing homepage.
+`/news/**`, `/api/news/**`, `/sitemap.xml`, then the `**` catch-all. **The
+specific rules must stay before the catch-all** or it swallows them and returns
+the marketing homepage. Hosting's documented priority is reserved namespaces →
+redirects → exact-match static content → rewrites, and within `rewrites` the
+first matching source wins. `src/tests/hostingConfig.test.js` asserts the order.
+
+### Required Firestore indexes
+
+`blog_posts` needs two composite indexes, both declared in
+`firestore.indexes.json` and deployed by the production repository only:
+
+| Fields | Used by |
+| --- | --- |
+| `status` ASC, `publicationDate` DESC | `listPublished`, `listPublishedSlugs` |
+| `slug` ASC, `status` ASC | `findPublishedBySlug` |
+
+The first one is not optional and its absence is not a quiet degradation.
+Firestore rejects an equality filter combined with an `orderBy` on a different
+field with `FAILED_PRECONDITION` **even against an empty collection**, so
+without it `/news`, `/news/feed.xml`, `/sitemap.xml` and `/api/news/latest` all
+return `500` from the moment they are deployed. That is what happened on the
+first production rollout.
+
+Neither the unit suite nor the rules emulator can catch this: the unit tests stub
+the Firestore client, and the emulator creates composite indexes on demand and
+never raises `FAILED_PRECONDITION`. `functions/test/unit/blogFirestoreIndexes.test.js`
+closes the gap statically — it parses the query chains out of
+`functions/blog/store.js`, works out which need a composite index, and asserts
+each is declared. A new query with a new filter/order combination fails there
+rather than in production.
+
+`recentForDeduplication` filters and orders on `publicationDate` alone, so it
+needs no composite index; the guard asserts that too, so nobody adds dead
+configuration for it.
 
 ### Public security
 

@@ -75,6 +75,10 @@
             {
               "key": "Permissions-Policy",
               "value": "camera=(), microphone=(), geolocation=()"
+            },
+            {
+              "key": "X-Robots-Tag",
+              "value": "noindex, nofollow"
             }
           ]
         }
@@ -110,13 +114,6 @@
         },
         {
           "source": "/sitemap.xml",
-          "function": {
-            "functionId": "serveBlogPublic",
-            "region": "us-central1"
-          }
-        },
-        {
-          "source": "/robots.txt",
           "function": {
             "functionId": "serveBlogPublic",
             "region": "us-central1"
@@ -190,13 +187,6 @@
         },
         {
           "source": "/sitemap.xml",
-          "function": {
-            "functionId": "serveBlogPublic",
-            "region": "us-central1"
-          }
-        },
-        {
-          "source": "/robots.txt",
           "function": {
             "functionId": "serveBlogPublic",
             "region": "us-central1"

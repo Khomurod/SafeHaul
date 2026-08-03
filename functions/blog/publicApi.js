@@ -394,6 +394,12 @@ async function handlePublicBlogRequest(req, res) {
             return;
         }
 
+        // Not the live path. Firebase Hosting resolves `/robots.txt` before it
+        // consults `rewrites` — a rewrite to this function was deployed and
+        // never fired, returning an empty 404 on both landing sites. The served
+        // file is the static `landing/robots.txt`, and a test pins the two to
+        // the same bytes. This branch stays as the backstop for a direct hit on
+        // the function's own URL, where no static file exists.
         if (path === '/robots.txt') {
             applyCommonHeaders(res, { contentType: 'text/plain; charset=utf-8' });
             res.status(200).send([
