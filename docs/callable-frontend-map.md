@@ -22,7 +22,7 @@ Maps each **`httpsCallable`** export in [`functions/index.js`](../functions/inde
 | `checkImportPhones` | [`useCampaignTargeting.js`](../src/features/campaigns/hooks/useCampaignTargeting.js) | CSV import phone dedup check |
 | `connectFacebookPage` | [`IntegrationsTab.jsx`](../src/features/settings/components/IntegrationsTab.jsx) | Facebook Lead Ads OAuth |
 | `createPortalUser` | [`CreateView.jsx`](../src/features/super-admin/components/CreateView.jsx), [`TeamManagementTab.jsx`](../src/features/settings/components/TeamManagementTab.jsx), [`useSystemHealth.js`](../src/features/super-admin/hooks/useSystemHealth.js) | Provision HR/recruiter/company user |
-| `createPostApplicationSigningRequest` | [`useCdlAutoFill.js`](../src/features/driver-app/components/application/useCdlAutoFill.js) | Post-submit e-doc envelope |
+| `createPostApplicationSigningRequest` | [`PublicApplyHandler.jsx`](../src/features/driver-app/components/application/PublicApplyHandler.jsx) | Post-submit e-doc envelope |
 | `createChangeReview` | [`useApplicationChanges.js`](../src/features/applications/hooks/useApplicationChanges.js) | Mint a token link for the driver to review company edits |
 | `deleteApplication` | [`useApplicationDelete.js`](../src/features/applications/hooks/useApplicationDelete.js) | Company-admin hard delete of an application/lead (cascade + storage) |
 | `proposeApplicationChanges` | [`useApplicationChanges.js`](../src/features/applications/hooks/useApplicationChanges.js) | Company edits saved as pending driver-approval changes |
@@ -36,15 +36,15 @@ Maps each **`httpsCallable`** export in [`functions/index.js`](../functions/inde
 | `getChangeReview` | [`ReviewChangePortal.jsx`](../src/features/driver-changes/ReviewChangePortal.jsx) | Driver loads company-proposed changes (before/after) |
 | `getPublicEnvelope` | [`SigningRoom.jsx`](../src/features/signing/SigningRoom.jsx) | Public e-sign load |
 | `getSignedApplicationFileUrl` | [`useAppFetch.js`](../src/features/applications/hooks/useAppFetch.js) | Re-sign guest-uploaded application files (CDL etc.) for company dossier view |
-| `getSignedGuestUploadUrl` | [`useCdlAutoFill.js`](../src/features/driver-app/components/application/useCdlAutoFill.js) | Guest file read URL |
+| `getSignedGuestUploadUrl` | [`PublicApplyHandler.jsx`](../src/features/driver-app/components/application/PublicApplyHandler.jsx) | Guest file read URL |
 | `getSignedPevUrl` | [`PEVTab.jsx`](../src/features/company-admin/components/tabs/PEVTab.jsx) | Signed URL for PEV PDF |
-| `getSignedUploadUrl` | [`useCdlAutoFill.js`](../src/features/driver-app/components/application/useCdlAutoFill.js) | Auth/guest upload URL |
+| `getSignedUploadUrl` | [`PublicApplyHandler.jsx`](../src/features/driver-app/components/application/PublicApplyHandler.jsx) | Auth/guest upload URL |
 | `getSigningLink` | [`EnvelopeHistory.jsx`](../src/features/signing/components/EnvelopeHistory.jsx) | Resolve link with secret token |
 | `getVerificationRequest` | [`VerificationPortal.jsx`](../src/features/verification/VerificationPortal.jsx) | PEV portal load |
 | `initBulkSession` | [`LaunchPad.jsx`](../src/features/campaigns/components/LaunchPad.jsx) | Start bulk SMS/email session |
 | `listEnvironmentAndIntegrations` | [`environmentVault.js`](../src/features/super-admin/services/environmentVault.js) | Super Admin vault: full configuration inventory, every value masked |
 | `listSandboxTenantCompanies` | [`SandboxActionPanel.jsx`](../src/features/sandbox/SandboxActionPanel.jsx) | List sandbox tenants |
-| `parseCdlWithGroq` | [`useCdlAutoFill.js`](../src/features/driver-app/components/application/useCdlAutoFill.js) | CDL image OCR |
+| `parseCdlWithGroq` | [`useCdlAutoFill.js`](../src/features/driver-app/hooks/useCdlAutoFill.js) | CDL image OCR. Routed through the shared AI platform; the vendor name is a retained compatibility alias |
 | `pauseBulkSession` | [`CampaignDetails.jsx`](../src/features/campaigns/components/CampaignDetails.jsx) | Pause campaign |
 | `removePhoneLine` | [`LineManager.jsx`](../src/features/super-admin/components/integrations/LineManager.jsx) | Remove SMS line |
 | `resumeBulkSession` | [`CampaignDetails.jsx`](../src/features/campaigns/components/CampaignDetails.jsx) | Resume campaign |
@@ -59,7 +59,7 @@ Maps each **`httpsCallable`** export in [`functions/index.js`](../functions/inde
 | `sendTestSMS` | [`SMSDiagnosticModal.jsx`](../src/features/settings/components/SMSDiagnosticModal.jsx), [`IntegrationManager.jsx`](../src/features/super-admin/components/integrations/IntegrationManager.jsx) | SMS connectivity test |
 | `sendVerificationRequest` | [`PEVTab.jsx`](../src/features/company-admin/components/tabs/PEVTab.jsx) | Start PEV request |
 | `submitChangeResolution` | [`ReviewChangePortal.jsx`](../src/features/driver-changes/ReviewChangePortal.jsx) | Driver approve/reject/edit company changes |
-| `submitGuestApplication` | [`useCdlAutoFill.js`](../src/features/driver-app/components/application/useCdlAutoFill.js), [`useSubmissionQueue.js`](../src/hooks/useSubmissionQueue.js) | Guest/auth application submit |
+| `submitGuestApplication` | [`PublicApplyHandler.jsx`](../src/features/driver-app/components/application/PublicApplyHandler.jsx), [`useSubmissionQueue.js`](../src/hooks/useSubmissionQueue.js) | Guest/auth application submit |
 | `submitPublicEnvelope` | [`SigningRoom.jsx`](../src/features/signing/SigningRoom.jsx) | Complete public signature |
 | `submitVerificationResponse` | [`VerificationPortal.jsx`](../src/features/verification/VerificationPortal.jsx) | Employer PEV response |
 | `syncSystemStructure` | [`useSystemHealth.js`](../src/features/super-admin/hooks/useSystemHealth.js) | Repair system structure |
