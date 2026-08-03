@@ -42,6 +42,41 @@ const TERMINAL_CATEGORIES = Object.freeze([
 const ALL_CATEGORIES = Object.freeze([...RETRYABLE_CATEGORIES, ...TERMINAL_CATEGORIES]);
 
 /**
+ * Categories that abandon the whole task, as opposed to the current provider.
+ *
+ * `retryable: false` answers "should this provider be tried again?" — it does
+ * *not* answer "should the remaining providers be tried?" Conflating the two
+ * meant one provider could take down the entire fallback chain:
+ *
+ *  - `unauthorized` is one vendor's key being wrong, expired or revoked. Eight
+ *    other vendors with working keys are unaffected, but the router threw before
+ *    reaching any of them.
+ *  - `internal` is the catch-all the router assigns to *any* exception an adapter
+ *    raises that is not an `AiError` — a `TypeError`, a bad property access, a
+ *    parse slip. One unexpected bug in the highest-priority adapter therefore
+ *    disabled every AI feature, with a message blaming the request.
+ *
+ * Because Groq is priority 1, either of those made the platform behave as though
+ * no provider were configured. That is the opposite of what nine providers and a
+ * capability-aware router are for.
+ *
+ * These four genuinely are task-fatal: the first two mean every vendor would
+ * answer the same way, and the last two mean there is no time or nothing left to
+ * try.
+ */
+const TASK_FATAL_CATEGORIES = Object.freeze([
+    'invalid_request',
+    'capability_unavailable',
+    'deadline_exceeded',
+    'all_providers_failed',
+]);
+
+/** True when the failure ends the task rather than just this provider's turn. */
+function isTaskFatal(category) {
+    return TASK_FATAL_CATEGORIES.includes(category);
+}
+
+/**
  * Safe, user-facing text per category. Deliberately vague about vendors: an
  * operator learns which provider failed from the AI Integrations console and
  * the telemetry, not from an error shown to a driver mid-application.
@@ -149,6 +184,8 @@ module.exports = {
     ALL_CATEGORIES,
     RETRYABLE_CATEGORIES,
     TERMINAL_CATEGORIES,
+    TASK_FATAL_CATEGORIES,
+    isTaskFatal,
     SAFE_MESSAGES,
     categorizeHttpFailure,
 };
