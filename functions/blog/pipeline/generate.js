@@ -400,7 +400,12 @@ async function runSlot(slot, context) {
         return {
             outcome: OUTCOME.FAILED_GENERATION,
             slot,
-            detail: error?.category || 'generation failed',
+            // `detail` carries the router's per-provider trail when there is one
+            // — "groq=rate_limited, gemini=schema_validation_failed" — because
+            // the bare category `all_providers_failed` is unactionable and cost
+            // a full day of diagnosis. It is provider ids and categories only:
+            // no credential, no prompt, no provider response body.
+            detail: error?.detail || error?.category || 'generation failed',
         };
     }
 

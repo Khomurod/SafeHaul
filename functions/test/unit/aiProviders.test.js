@@ -209,6 +209,59 @@ const GEMINI_TRUNCATED_RESPONSE = Object.freeze({
     usage: { total_output_tokens: 0, total_thought_tokens: 13 },
 });
 
+describe('Groq model pins — verified against the live API', () => {
+    /**
+     * These are assertions about the *vendor*, not about our code, and they exist
+     * because getting them wrong silently broke every schema-using AI feature in
+     * production while the health check stayed green.
+     *
+     * Verified against the live Groq API on 2026-08-03 with a real key.
+     */
+    const groq = getProvider('groq');
+
+    it('pins only models that accept json_schema structured output', () => {
+        // Groq rejects the others outright:
+        //   400 "This model does not support response format `json_schema`."
+        // Confirmed for llama-3.3-70b-versatile, llama-3.1-8b-instant and
+        // qwen/qwen3.6-27b.
+        const SCHEMA_CAPABLE = ['openai/gpt-oss-20b', 'openai/gpt-oss-120b'];
+        for (const [capability, model] of Object.entries(groq.defaultModels)) {
+            expect(SCHEMA_CAPABLE).toContain(model);
+            expect(capability).toBeTruthy();
+        }
+    });
+
+    it('names no model Groq has withdrawn', () => {
+        // `GET /models` no longer lists these and requesting either returns
+        // `model_not_found`. The old registry pinned both for CDL and E-Doc.
+        const WITHDRAWN = [
+            'meta-llama/llama-4-scout-17b-16e-instruct',
+            'meta-llama/llama-4-maverick-17b-128e-instruct',
+            'llama-3.3-70b-versatile',
+            'llama-3.1-8b-instant',
+        ];
+        const pinned = Object.values(groq.defaultModels);
+        for (const dead of WITHDRAWN) expect(pinned).not.toContain(dead);
+    });
+
+    it('no longer claims vision, because it has no vision model', () => {
+        expect(groq.supportsVision).toBe(false);
+        expect(groq.capabilities).not.toContain(CAPABILITIES.VISION);
+        expect(groq.capabilities).not.toContain(CAPABILITIES.MULTI_IMAGE);
+        // Structured JSON is still Groq's job and is verified working.
+        expect(groq.capabilities).toContain(CAPABILITIES.STRUCTURED_JSON);
+    });
+
+    it('declares a model for every capability it claims', () => {
+        // A claimed capability with no model is the defect that made the router
+        // spend a request to discover the model was gone.
+        for (const capability of groq.capabilities) {
+            if (capability === CAPABILITIES.LONG_CONTEXT) continue; // not a model axis
+            expect(resolveModel(groq, capability, {})).toBeTruthy();
+        }
+    });
+});
+
 describe('Gemini adapter', () => {
     it('posts to the Interactions endpoint with the x-goog-api-key header', async () => {
         const fetchImpl = fetchReturning(GEMINI_TEXT_RESPONSE);
