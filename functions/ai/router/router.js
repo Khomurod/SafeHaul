@@ -189,9 +189,23 @@ async function runAiTask(task, deps = {}) {
             const attempts = Math.max(1, provider.retryPolicy?.attempts || 1);
 
             let providerError = null;
-            for (let attempt = 0; attempt < attempts; attempt += 1) {
+            // A vendor that tells us when to come back earns one attempt beyond
+            // the registry's policy, once. Groq refuses a request exceeding its
+            // per-minute token budget and states the reset in about seven seconds;
+            // against a two-minute task deadline, abandoning a working provider
+            // over that is a waste. Bounded three ways: `MAX_RETRY_AFTER_MS` in
+            // http.js caps the wait, `usedStatedWait` caps it to one occurrence,
+            // and the deadline signal ends it regardless.
+            let usedStatedWait = false;
+            let maxAttempts = attempts;
+
+            for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
                 if (attempt > 0) {
-                    const backoff = provider.retryPolicy?.backoffMs || 0;
+                    const stated = providerError?.retryAfterMs && !usedStatedWait
+                        ? providerError.retryAfterMs
+                        : 0;
+                    if (stated) usedStatedWait = true;
+                    const backoff = stated || provider.retryPolicy?.backoffMs || 0;
                     if (backoff > 0) await sleep(backoff, deadlineController.signal);
                     if (deadlineController.signal.aborted) break;
                 }
@@ -256,6 +270,16 @@ async function runAiTask(task, deps = {}) {
                             attempted, skipped, startedAt, primaryCapability,
                         });
                         throw providerError;
+                    }
+
+                    // Grant one extra attempt when the vendor stated a short
+                    // wait. The loop above performs the wait and re-executes, so
+                    // there is exactly one code path that calls the adapter.
+                    if (providerError.retryAfterMs && !usedStatedWait
+                        && attempt === maxAttempts - 1
+                        && !deadlineController.signal.aborted) {
+                        maxAttempts += 1;
+                        continue;
                     }
 
                     // Anything else ends this provider's turn, not the task.
