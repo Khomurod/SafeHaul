@@ -47,6 +47,12 @@ const SOURCES = Object.freeze([
         // The Federal Register's documented public API. No key required.
         url: 'https://www.federalregister.gov/api/v1/documents.json'
             + '?per_page=20&order=newest'
+            // Without an explicit field list the API returns title, abstract and
+            // little else, which is not enough material for an article. These add
+            // the docket, the CFR parts touched, the page length (used to prefer a
+            // substantive rule over a one-page notice) and `raw_text_url`, which
+            // is how the lead document's full text is fetched.
+            + '&fields[]=title&fields[]=abstract&fields[]=action&fields[]=html_url&fields[]=publication_date&fields[]=type&fields[]=docket_ids&fields[]=agency_names&fields[]=cfr_references&fields[]=page_length&fields[]=raw_text_url'
             + '&conditions[agencies][]=federal-motor-carrier-safety-administration',
         topics: ['regulation', 'compliance', 'safety'],
         licenceNote: 'US Government work; documents are in the public domain. SafeHaul links and summarises rather than republishing.',
@@ -59,6 +65,12 @@ const SOURCES = Object.freeze([
         kind: KIND.JSON_API,
         url: 'https://www.federalregister.gov/api/v1/documents.json'
             + '?per_page=20&order=newest'
+            // Without an explicit field list the API returns title, abstract and
+            // little else, which is not enough material for an article. These add
+            // the docket, the CFR parts touched, the page length (used to prefer a
+            // substantive rule over a one-page notice) and `raw_text_url`, which
+            // is how the lead document's full text is fetched.
+            + '&fields[]=title&fields[]=abstract&fields[]=action&fields[]=html_url&fields[]=publication_date&fields[]=type&fields[]=docket_ids&fields[]=agency_names&fields[]=cfr_references&fields[]=page_length&fields[]=raw_text_url'
             + '&conditions[agencies][]=transportation-department',
         topics: ['regulation', 'compliance', 'freight-market'],
         licenceNote: 'US Government work; public domain.',

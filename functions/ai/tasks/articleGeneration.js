@@ -128,8 +128,15 @@ function renderSources(sources) {
         `    Publisher: ${source.publisher}${source.tier === 'primary' ? ' (official/primary source)' : ''}`,
         `    Published: ${source.publishedAt || 'date not stated'}`,
         `    URL: ${source.url}`,
+        source.action ? `    Action: ${source.action}` : '',
+        source.docketIds?.length ? `    Docket: ${source.docketIds.join(', ')}` : '',
+        source.cfrReferences?.length ? `    Regulations touched: ${source.cfrReferences.join(', ')}` : '',
         `    Summary: ${source.summary || '(no summary provided)'}`,
-    ].join('\n')).join('\n\n');
+        // The lead document's own text, where it was retrievable. This is the
+        // material an article is actually built from; the abstract alone is a
+        // headline. Still bounded by the fetcher.
+        source.fullText ? `    Full document text follows.\n    ---\n${source.fullText}\n    ---` : '',
+    ].filter(Boolean).join('\n')).join('\n\n');
 }
 
 function renderKnowledge(knowledge) {

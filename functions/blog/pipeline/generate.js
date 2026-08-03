@@ -24,7 +24,7 @@
  */
 
 const { getTheme } = require('./themes');
-const { gatherSourceItems } = require('../research/fetchSources');
+const { gatherSourceItems, fetchDocumentText } = require('../research/fetchSources');
 const { isPrimary } = require('../research/sources');
 const dedupe = require('./dedupe');
 const sanitize = require('./sanitize');
@@ -119,6 +119,14 @@ function buildCandidates(items, theme) {
 
     deduped.sort((a, b) => {
         if (theme.requiresPrimarySource && a.tier !== b.tier) return a.tier === 'primary' ? -1 : 1;
+        // A ten-page rule supports an article; a one-page exemption withdrawal
+        // does not, however recent it is. Federal Register documents carry
+        // `pageLength`, so prefer substance before recency where it is known.
+        // Without this, the freshest candidate is routinely a one-paragraph
+        // notice and the resulting draft is honestly too short to publish.
+        const weightA = Number.isFinite(a.pageLength) ? a.pageLength : 0;
+        const weightB = Number.isFinite(b.pageLength) ? b.pageLength : 0;
+        if (theme.requiresPrimarySource && weightA !== weightB) return weightB - weightA;
         const dateA = a.publishedAt ? Date.parse(a.publishedAt) : 0;
         const dateB = b.publishedAt ? Date.parse(b.publishedAt) : 0;
         return dateB - dateA;
@@ -159,6 +167,12 @@ function buildFactPackage(lead, candidates, theme) {
         sourceId: source.sourceId,
         tier: source.tier,
         retrievedAt: source.retrievedAt,
+        // Regulatory context the model can legitimately explain to a carrier.
+        action: source.action || null,
+        docketIds: source.docketIds || [],
+        cfrReferences: source.cfrReferences || [],
+        // Populated for the lead only, by runSlot, after selection.
+        fullText: source.fullText || null,
     }));
 }
 
@@ -357,6 +371,17 @@ async function runSlot(slot, context) {
         topic = { title: lead.title, angle: selection.angle };
 
         // --- 5. Fact package -------------------------------------------------
+        //
+        // Fetch the lead document's full text before building the package. An
+        // article written from a one-paragraph abstract is a one-paragraph
+        // article: drafts came in at 251 words against a 450-word floor because
+        // the abstract was everything the model had. One extra request, for the
+        // chosen lead only, and a failure falls back to the abstract.
+        if (lead.rawTextUrl) {
+            const fullText = await fetchDocumentText(lead.rawTextUrl, { fetchImpl });
+            if (fullText) lead.fullText = fullText;
+        }
+
         sources = buildFactPackage(lead, fresh, theme);
         // Belt and braces: `viable` was computed with this exact call, so this
         // cannot fire. It stays because publishing an under-sourced article is
