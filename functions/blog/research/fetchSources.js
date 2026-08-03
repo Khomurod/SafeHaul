@@ -94,7 +94,83 @@ function parseFederalRegister(payload) {
         summary: String(entry.abstract || entry.action || '').slice(0, MAX_SUMMARY_CHARS),
         publishedAt: parseDate(entry.publication_date),
         documentType: entry.type || null,
+        // Regulatory context an article genuinely needs, and which an abstract
+        // alone does not carry.
+        action: String(entry.action || '').slice(0, 400) || null,
+        docketIds: Array.isArray(entry.docket_ids) ? entry.docket_ids.slice(0, 4) : [],
+        cfrReferences: Array.isArray(entry.cfr_references)
+            ? entry.cfr_references
+                .map((ref) => (ref && ref.title && ref.part ? `49 CFR ${ref.part}` : null))
+                .filter(Boolean)
+                .slice(0, 6)
+            : [],
+        // Used to prefer a substantive rule over a one-page exemption notice.
+        pageLength: Number.isFinite(entry.page_length) ? entry.page_length : null,
+        // Fetched on demand for the chosen lead only — see `fetchDocumentText`.
+        rawTextUrl: typeof entry.raw_text_url === 'string' ? entry.raw_text_url : null,
     })).filter((item) => item.title && /^https?:\/\//i.test(item.url));
+}
+
+/**
+ * Upper bound on fetched document text, in characters.
+ *
+ * Roughly 2,250 tokens. Sized against real provider limits, not guessed.
+ *
+ * At 14,000 the prompt was large enough that Groq answered
+ * `provider_unavailable` and Gemini `provider_request_rejected` — over their
+ * per-request ceilings, so neither wrote anything. The binding constraint is
+ * Groq's per-minute token budget, stated in its own headers as
+ * `x-ratelimit-limit-tokens: 8000`, which charges input plus the full requested
+ * output. With a 3,000-token article budget and a 512 reasoning allowance, the
+ * arithmetic is roughly 2,250 + 800 + 3,512 = 6,562 — inside the ceiling with
+ * margin.
+ *
+ * More material is the lever that actually lengthens an article honestly: drafts
+ * went 251 words on the abstract alone, to 352, to 417 as the document text was
+ * supplied and widened.
+ *
+ * Federal Register rules put their substance — what changes, who it applies to,
+ * effective dates, the agency's reasoning — near the top, so a leading slice is
+ * the useful slice.
+ */
+const MAX_DOCUMENT_TEXT_CHARS = 9000;
+
+/**
+ * Fetches the full text of one document.
+ *
+ * Called for the chosen lead only, so a run costs one extra request rather than
+ * one per candidate. The reason it exists: an article written from a
+ * one-paragraph abstract is a one-paragraph article. Drafts came in at 251 words
+ * against a 450-word floor because the abstract was all the model had, and the
+ * honest fix is more material, not a lower floor or permission to pad.
+ *
+ * Never throws. A document whose text cannot be fetched simply falls back to its
+ * abstract, exactly as before.
+ *
+ * @returns {Promise<string|null>}
+ */
+async function fetchDocumentText(rawTextUrl, { fetchImpl } = {}) {
+    const doFetch = fetchImpl || globalThis.fetch;
+    if (typeof doFetch !== 'function' || typeof rawTextUrl !== 'string') return null;
+    if (!/^https:\/\/www\.federalregister\.gov\//i.test(rawTextUrl)) return null;
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    try {
+        const response = await doFetch(rawTextUrl, {
+            headers: { 'User-Agent': USER_AGENT, Accept: 'text/plain' },
+            signal: controller.signal,
+            redirect: 'follow',
+        });
+        if (!response.ok) return null;
+        const text = await response.text();
+        if (typeof text !== 'string' || !text.trim()) return null;
+        return text.replace(/\s+/g, " ").trim().slice(0, MAX_DOCUMENT_TEXT_CHARS);
+    } catch {
+        return null;
+    } finally {
+        clearTimeout(timer);
+    }
 }
 
 /**
@@ -193,6 +269,8 @@ async function gatherSourceItems({ sourceIds, maxAgeDays = 10, fetchImpl, now = 
 }
 
 module.exports = {
+    fetchDocumentText,
+    MAX_DOCUMENT_TEXT_CHARS,
     gatherSourceItems,
     fetchSource,
     parseFeed,

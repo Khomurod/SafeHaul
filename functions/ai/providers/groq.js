@@ -35,12 +35,23 @@ const RESPONSES_PATH = '/responses';
  *   "Request too large for model `openai/gpt-oss-20b` in organization ...
  *    service tier"
  *
- * which the registry's quota detection classifies as `rate_limited`. Article
- * generation asks for 4096; a 2048 headroom on top of a real multi-source prompt
- * crossed that limit and every Groq attempt failed before answering. 1024 leaves
- * room for the reasoning actually observed while staying inside the tier.
+ * which the registry's quota detection classifies as `rate_limited`.
+ *
+ * The arithmetic matters, so it is written down. Groq's response headers give the
+ * ceiling explicitly:
+ *
+ *     x-ratelimit-limit-tokens: 8000     (per minute, this organization's tier)
+ *
+ * and `max_output_tokens` is charged against it *in full*, whether or not the
+ * model uses it. An enriched article prompt is roughly 2,300 input tokens, so the
+ * output request must stay near or below 5,000 for the call to be accepted at
+ * all. At 4096 requested plus a 1024 headroom the total reached 8,120 and every
+ * Groq attempt failed as `rate_limited` before writing a word.
+ *
+ * 512 is sized to the reasoning `openai/gpt-oss-20b` actually performs, which is
+ * brief, rather than to the much larger budgets a Gemini-style thinker needs.
  */
-const REASONING_HEADROOM_TOKENS = 1024;
+const REASONING_HEADROOM_TOKENS = 512;
 
 /**
  * Walks the Responses envelope for assistant text.

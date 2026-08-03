@@ -541,6 +541,89 @@ describe('topic selection only offers publishable leads', () => {
     });
 });
 
+describe('lead document enrichment', () => {
+    const { fetchDocumentText, MAX_DOCUMENT_TEXT_CHARS } = require('../../blog/research/fetchSources');
+
+    /**
+     * Why this exists: an article written from a one-paragraph abstract is a
+     * one-paragraph article. Drafts came in at 251 words against a 450-word floor
+     * because the abstract was all the model had, and the honest fix is more
+     * material — not a lower floor and not permission to pad.
+     */
+    it('fetches the document text for a Federal Register URL', async () => {
+        const fetchImpl = async () => ({ ok: true, status: 200, text: async () => 'Line one.\n\n  Line   two.' });
+
+        const text = await fetchDocumentText(
+            'https://www.federalregister.gov/documents/full_text/text/2026/07/30/x.txt',
+            { fetchImpl },
+        );
+
+        expect(text).toBe('Line one. Line two.');
+    });
+
+    it('bounds the text, because an unbounded prompt is refused outright', async () => {
+        // 14,000 characters made Groq answer `provider_unavailable` and Gemini
+        // `provider_request_rejected` — both over their per-request ceilings.
+        const fetchImpl = async () => ({ ok: true, status: 200, text: async () => 'x'.repeat(50000) });
+
+        const text = await fetchDocumentText(
+            'https://www.federalregister.gov/documents/full_text/text/2026/07/30/x.txt',
+            { fetchImpl },
+        );
+
+        expect(text).toHaveLength(MAX_DOCUMENT_TEXT_CHARS);
+        // The ceiling is Groq's per-minute token budget, which its headers state
+        // as `x-ratelimit-limit-tokens: 8000` and which charges input plus the
+        // full requested output. Roughly: 9,000 chars ~ 2,250 tokens, plus ~800
+        // for the house style and schema, plus a 3,000 article budget and a 512
+        // reasoning allowance = ~6,560, inside the ceiling with margin.
+        //
+        // 12,000 characters would not be: it pushes the total past 8,000 and the
+        // request is refused before the model writes anything.
+        expect(MAX_DOCUMENT_TEXT_CHARS).toBeLessThanOrEqual(10000);
+    });
+
+    it('refuses a URL that is not on federalregister.gov', async () => {
+        // The URL arrives from a feed payload, so it is not trusted to be
+        // anywhere in particular.
+        let called = false;
+        const fetchImpl = async () => { called = true; return { ok: true, status: 200, text: async () => 'x' }; };
+
+        expect(await fetchDocumentText('https://evil.example.com/x.txt', { fetchImpl })).toBeNull();
+        expect(await fetchDocumentText('http://www.federalregister.gov/x.txt', { fetchImpl })).toBeNull();
+        expect(called).toBe(false);
+    });
+
+    it('falls back to null rather than throwing when the fetch fails', async () => {
+        // A document whose text cannot be read must degrade to its abstract, not
+        // take down the run.
+        const failing = async () => { throw new Error('network'); };
+        expect(await fetchDocumentText('https://www.federalregister.gov/a.txt', { fetchImpl: failing })).toBeNull();
+
+        const notOk = async () => ({ ok: false, status: 404, text: async () => '' });
+        expect(await fetchDocumentText('https://www.federalregister.gov/a.txt', { fetchImpl: notOk })).toBeNull();
+    });
+
+    it('prefers a substantive rule over a fresher one-page notice', () => {
+        // The freshest Federal Register document is routinely a one-page
+        // exemption withdrawal, which cannot honestly support 450 words.
+        const base = {
+            summary: 'Motor carrier hours of service detail.',
+            topics: ['regulation', 'compliance', 'freight-market'],
+            sourceId: 'federal-register-fmcsa',
+            tier: 'primary',
+        };
+        const items = [
+            { ...base, title: 'FMCSA one-page trucking exemption withdrawal', url: 'https://x/a', publishedAt: '2026-08-03T00:00:00Z', pageLength: 1 },
+            { ...base, title: 'FMCSA hours of service final rule for motor carriers', url: 'https://x/b', publishedAt: '2026-08-01T00:00:00Z', pageLength: 24 },
+        ];
+
+        const candidates = generate.buildCandidates(items, themes.getTheme('industry-news'));
+
+        expect(candidates[0].title).toContain('final rule');
+    });
+});
+
 describe('item relevance — feed topics are not item topics', () => {
     /**
      * Titles taken verbatim from the live `federal-register-dot` feed on
