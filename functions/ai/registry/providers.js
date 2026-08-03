@@ -92,24 +92,51 @@ const PROVIDER_LIST = [
         docsUrl: 'https://console.groq.com/docs',
         apiBaseUrl: 'https://api.groq.com/openai/v1',
         adapter: 'groq',
-        capabilities: [...TEXT_SUITE, STRUCTURED_JSON, VISION, MULTI_IMAGE, LONG_CONTEXT],
+        // Vision is deliberately absent. Groq withdrew both llama-4 vision
+        // models; `GET /models` no longer lists them and requesting either
+        // returns `model_not_found` (verified against the live API on
+        // 2026-08-03). Claiming a capability whose only models are gone makes
+        // the router route CDL and E-Doc images to a provider guaranteed to 404,
+        // spending a request to learn nothing. Gemini is the vision provider.
+        capabilities: [...TEXT_SUITE, STRUCTURED_JSON, LONG_CONTEXT],
         structuredMode: STRUCTURED_MODE.GROQ_RESPONSES_SCHEMA,
-        supportsVision: true,
+        supportsVision: false,
         secretFields: [
             secretField('apiKey', 'API key', 'Groq API key from console.groq.com/keys.'),
         ],
         configFields: [],
+        /**
+         * Every entry verified against the live Groq API on 2026-08-03 for both
+         * plain text *and* `json_schema` structured output.
+         *
+         * The previous values were wrong, behind a comment claiming they were
+         * "pinned to the models the production CDL and E-Doc paths already use".
+         * That was true only of the two vision models, and both had since been
+         * withdrawn. The text models were never used in production by anything.
+         *
+         * `llama-3.3-70b-versatile` and `llama-3.1-8b-instant` are rejected
+         * outright for structured output:
+         *
+         *   400 "This model does not support response format `json_schema`."
+         *
+         * Groq's health check sends plain text with no schema, so it passed while
+         * every schema-using task — article generation, topic selection, CDL
+         * extraction, E-Doc placement — failed. That is what produced
+         * `failed_generation (all_providers_failed)` in production.
+         *
+         * `qwen/qwen3.6-27b` is rejected the same way. `openai/gpt-oss-120b`
+         * accepts schemas but burns so much reasoning budget that a small plain
+         * text request returns `status: incomplete` with only a `reasoning`
+         * item. `openai/gpt-oss-20b` answered both shapes correctly, so one
+         * model serves every capability rather than pinning a second that is
+         * only verified for one of them.
+         */
         defaultModels: {
-            // Pinned to the models the production CDL and E-Doc paths already
-            // use, so migrating to the shared router changes routing, not
-            // model behaviour.
-            [TEXT]: 'llama-3.3-70b-versatile',
-            [ARTICLE_WRITING]: 'llama-3.3-70b-versatile',
-            [SUMMARIZATION]: 'llama-3.3-70b-versatile',
-            [CLASSIFICATION]: 'llama-3.1-8b-instant',
-            [STRUCTURED_JSON]: 'llama-3.3-70b-versatile',
-            [VISION]: 'meta-llama/llama-4-scout-17b-16e-instruct',
-            [MULTI_IMAGE]: 'meta-llama/llama-4-maverick-17b-128e-instruct',
+            [TEXT]: 'openai/gpt-oss-20b',
+            [ARTICLE_WRITING]: 'openai/gpt-oss-20b',
+            [SUMMARIZATION]: 'openai/gpt-oss-20b',
+            [CLASSIFICATION]: 'openai/gpt-oss-20b',
+            [STRUCTURED_JSON]: 'openai/gpt-oss-20b',
         },
         timeoutMs: 45000,
         retryPolicy: SINGLE_ATTEMPT,

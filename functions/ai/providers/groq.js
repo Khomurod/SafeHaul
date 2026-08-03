@@ -14,11 +14,47 @@ const { AiError } = require('../router/errors');
 
 const RESPONSES_PATH = '/responses';
 
-/** Walks the Responses envelope for assistant text. */
+/**
+ * Extra `max_output_tokens` granted to cover a reasoning model's private
+ * thinking.
+ *
+ * Groq's catalogue is now reasoning-first: `openai/gpt-oss-*` think before
+ * answering and charge that thinking against `max_output_tokens`. Measured
+ * against the live API on 2026-08-03, `openai/gpt-oss-120b` asked for a
+ * one-word answer inside 32 tokens returned `status: "incomplete"`,
+ * `incomplete_details.reason: "max_output_tokens"`, and a single `reasoning`
+ * output item — no answer at all.
+ *
+ * A caller asking for 450 tokens of JSON is asking for 450 tokens *of JSON*.
+ * Same reasoning and rationale as the Gemini adapter: one adapter must not mean
+ * something different by a shared parameter. It is a ceiling, not a spend.
+ *
+ * Smaller than Gemini's for a concrete reason. Groq enforces a per-request size
+ * limit per organization tier, counting input *and* output:
+ *
+ *   "Request too large for model `openai/gpt-oss-20b` in organization ...
+ *    service tier"
+ *
+ * which the registry's quota detection classifies as `rate_limited`. Article
+ * generation asks for 4096; a 2048 headroom on top of a real multi-source prompt
+ * crossed that limit and every Groq attempt failed before answering. 1024 leaves
+ * room for the reasoning actually observed while staying inside the tier.
+ */
+const REASONING_HEADROOM_TOKENS = 1024;
+
+/**
+ * Walks the Responses envelope for assistant text.
+ *
+ * Only `output_text` parts count. A reasoning model also returns items of type
+ * `reasoning` carrying `reasoning_text`, which is the model's private thinking:
+ * folding it in would corrupt an article and break JSON the router is about to
+ * parse. Selecting by part type rather than taking every string keeps it out.
+ */
 function extractAssistantText(payload) {
     const output = Array.isArray(payload?.output) ? payload.output : [];
     const chunks = [];
     for (const item of output) {
+        if (item?.type === 'reasoning') continue;
         const content = Array.isArray(item?.content) ? item.content : [];
         for (const part of content) {
             if (part?.type === 'output_text' && typeof part.text === 'string') {
@@ -59,7 +95,9 @@ const groqAdapter = {
         const body = {
             model,
             temperature,
-            max_output_tokens: maxOutputTokens,
+            // See REASONING_HEADROOM_TOKENS: the caller's budget is for the
+            // visible answer, so reasoning gets its own allowance on top.
+            max_output_tokens: maxOutputTokens + REASONING_HEADROOM_TOKENS,
             input: buildInput({ systemInstructions, inputText, images }),
         };
 
@@ -79,6 +117,14 @@ const groqAdapter = {
 
         const text = extractAssistantText(payload);
         if (typeof text !== 'string' || !text.trim()) {
+            // `incomplete` means the model stopped before answering — almost
+            // always the output budget, consumed by reasoning. Naming that beats
+            // "unreadable response", which hides a cause with a known fix.
+            if (payload?.status === 'incomplete') {
+                throw new AiError('output_truncated', 'Response ended incomplete with no text.', {
+                    providerId: provider.id,
+                });
+            }
             throw new AiError('malformed_response', 'Response contained no assistant text.', {
                 providerId: provider.id,
             });

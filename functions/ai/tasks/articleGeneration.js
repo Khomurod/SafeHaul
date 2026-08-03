@@ -24,8 +24,24 @@ const ARTICLE_SCHEMA = Object.freeze({
     type: 'object',
     properties: {
         title: { type: 'string', minLength: 20, maxLength: 110 },
-        metaDescription: { type: 'string', minLength: 60, maxLength: 165 },
-        excerpt: { type: 'string', minLength: 60, maxLength: 320 },
+        // `minLength` only. These two are presentation metadata that the
+        // pipeline already normalises: `validateDraft` truncates them to 165 and
+        // 320 characters and rejects them only for being too *short*, which is
+        // the failure truncation cannot fix.
+        //
+        // Enforcing the upper bound here as well made the router discard whole
+        // articles over something it was about to trim. Groq's structured output
+        // guarantees shape, not string lengths, so `openai/gpt-oss-20b` returned
+        // a 198-character meta description and a 633-character excerpt with 13
+        // perfectly good content blocks, and the article was thrown away:
+        //
+        //   $.metaDescription: longer than 165 characters
+        //   $.excerpt: longer than 320 characters
+        //
+        // The generous caps that remain exist to bound payload size, not to
+        // express editorial policy — that lives in `validateDraft`, once.
+        metaDescription: { type: 'string', minLength: 60, maxLength: 400 },
+        excerpt: { type: 'string', minLength: 60, maxLength: 1200 },
         imageQuery: { type: 'string', minLength: 3, maxLength: 80 },
         imageAltText: { type: 'string', minLength: 10, maxLength: 200 },
         blocks: {
@@ -86,7 +102,22 @@ const HOUSE_STYLE = [
     'Never present regulatory information as legal advice. Where a rule is discussed, say that carriers should confirm how it applies to them.',
     'Do not copy sentences from the sources. Write original prose.',
     'Do not invent quotes or attribute statements to people.',
-    'Aim for roughly 700 to 1,200 words when the topic supports it. Do not pad to reach a length.',
+    // The floor is stated as a requirement because `validateDraft` enforces it
+    // as one. The previous wording — "aim for roughly 700 to 1,200 words when the
+    // topic supports it, do not pad" — invited exactly the outcome it got: given
+    // a single short Federal Register abstract the model correctly declined to
+    // pad, returned 251 words, and the validator then threw the article away for
+    // being under 450. The prompt and the validator contradicted each other.
+    //
+    // The way out is not to permit padding. It is to say what a short source
+    // legitimately supports: practical implications for a carrier are the
+    // writer's own analysis, not invented facts, and the separate claim
+    // verification step still refuses anything asserted beyond the sources.
+    'The article must be at least 500 words. Aim for 700 to 1,200.',
+    'If the source material is thin, do not pad and do not invent facts. Add length by'
+        + ' explaining what the subject means in practice for a carrier: who it applies to,'
+        + ' what to check, what to do next, and what remains unclear. Label interpretation as'
+        + ' interpretation.',
     'Use h2 headings to structure the article. Do not write a heading that repeats the title.',
     'The title must be specific and unique, under 110 characters, and must not be clickbait.',
 ].join('\n');
@@ -168,6 +199,16 @@ async function generateArticle({ theme, topic, sources, knowledge, recentTitles 
         // A little variation reads better than temperature 0 over hundreds of
         // articles, but not enough to loosen the model's grip on the facts.
         temperature: 0.4,
+        // 1200 words — the validator's upper bound — is roughly 1700 tokens, and
+        // a reasoning model spends part of any budget thinking before it writes.
+        // This was briefly cut to 2500 to fit Groq's per-organization request-size
+        // limit; that starved the writer instead, and Gemini returned a 241-word
+        // draft that `validateDraft` then rejected as too short.
+        //
+        // Sizing the article budget around one provider's account tier is the
+        // wrong trade. Groq's tier cannot serve this task, so it fails over with
+        // `rate_limited` and earns a cooldown — which is precisely what the
+        // fallback order is for. The budget stays sized for the article.
         maxOutputTokens: 4096,
         privacy: PRIVACY.PUBLIC,
         totalDeadlineMs: 180000,

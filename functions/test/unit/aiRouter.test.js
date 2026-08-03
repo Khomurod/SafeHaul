@@ -224,7 +224,27 @@ describe('capability gating', () => {
         expect(attempted).not.toContain('cloudflare');
         expect(attempted).not.toContain('cerebras');
         expect(attempted).not.toContain('sambanova');
-        expect(attempted).toEqual(['groq', 'gemini', 'mistral']);
+        // Groq is absent too: it declared vision until Groq withdrew both
+        // llama-4 vision models, and a capability with no surviving model is
+        // worse than no capability — the router would spend a request to learn
+        // the model is gone. Gemini leads on vision now.
+        expect(attempted).not.toContain('groq');
+        expect(attempted).toEqual(['gemini', 'mistral']);
+    });
+
+    it('routes CDL and E-Doc images to Gemini first, not Groq', async () => {
+        // The migration's whole point was that vision stops depending on one
+        // vendor. Groq removing its vision models is exactly the event that
+        // should be invisible to the feature.
+        mockExecute.mockImplementation(async (providerId) => {
+            if (providerId === 'gemini') return { text: '{"value":"x"}', model: 'g' };
+            throw new AiError('provider_unavailable', 'down', { providerId });
+        });
+
+        const result = await runAiTask(visionTask());
+
+        expect(result.providerId).toBe('gemini');
+        expect(result.fallbackCount).toBe(0);
     });
 
     it('refuses a task that carries images without declaring vision', async () => {
@@ -504,7 +524,10 @@ describe('describeRouting', () => {
         const rows = await describeRouting([CAPABILITIES.VISION]);
         const byId = Object.fromEntries(rows.map((row) => [row.providerId, row]));
 
-        expect(byId.groq.eligible).toBe(true);
+        // Groq is INCAPABLE for vision now, not eligible: its llama-4 vision
+        // models were withdrawn by the vendor, so the registry no longer claims
+        // the capability. The console must say so rather than offering it.
+        expect(byId.groq).toMatchObject({ eligible: false, reason: SKIP_REASONS.INCAPABLE });
         expect(byId.gemini).toMatchObject({ eligible: false, reason: SKIP_REASONS.DISABLED });
         expect(byId.cerebras).toMatchObject({ eligible: false, reason: SKIP_REASONS.INCAPABLE });
         expect(byId['github-models']).toMatchObject({ eligible: false, reason: SKIP_REASONS.RETIRED });
