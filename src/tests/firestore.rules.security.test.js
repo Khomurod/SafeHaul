@@ -477,6 +477,66 @@ describeFirestore('firestore.rules security regressions', () => {
     await assertFails(getDoc(doc(recruiterA, 'users', 'user-b')));
   });
 
+  // Why "Manage Team & Links" showed valid members as "Unknown / No Email": the
+  // browser resolved each row by reading users/{membership.userId} directly, and
+  // that read depends on TWO server-maintained things being present. When either is
+  // absent the read is denied, and the modal silently rendered a placeholder member.
+  //
+  // These cases are the denial itself, reproduced. The fix does not loosen any of
+  // them — `listCompanyTeam` resolves identity with the Admin SDK instead, so the
+  // roster no longer depends on this read succeeding from a browser.
+  it('SEC-002: a company admin is DENIED a teammate profile that has no companyIds', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const adminDb = context.firestore();
+      await setDoc(doc(adminDb, 'users', 'mate-ok'), {
+        name: 'Ann', email: 'ann@x.com', companyIds: ['company-a'],
+      });
+      // Profile predating SEC-002 / never rewritten since: no companyIds field.
+      await setDoc(doc(adminDb, 'users', 'mate-legacy'), { name: 'Old', email: 'old@x.com' });
+      // What onMembershipWrite used to write for a member holding a role outside
+      // its staff allowlist: an EMPTY companyIds, which intersects nothing.
+      await setDoc(doc(adminDb, 'users', 'mate-empty'), {
+        name: 'Empty', email: 'empty@x.com', companyIds: [],
+      });
+    });
+
+    const adminA = testEnv.authenticatedContext('admin-a', {
+      roles: { 'company-a': 'company_admin' },
+      companyTeamIds: ['company-a'],
+    }).firestore();
+
+    // Healthy record -> readable, which is why SOME rows always rendered correctly.
+    await assertSucceeds(getDoc(doc(adminA, 'users', 'mate-ok')));
+    // Missing companyIds -> denied. Rendered as "Unknown / No Email".
+    await assertFails(getDoc(doc(adminA, 'users', 'mate-legacy')));
+    // Empty companyIds -> denied for the same reason.
+    await assertFails(getDoc(doc(adminA, 'users', 'mate-empty')));
+  });
+
+  it('SEC-002: a reader whose token lacks companyTeamIds is DENIED every teammate', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'users', 'mate-ok'), {
+        name: 'Ann', email: 'ann@x.com', companyIds: ['company-a'],
+      });
+    });
+
+    // A company admin holding a token minted before the companyTeamIds claim
+    // existed (i.e. not refreshed since). The teammate's profile is perfectly
+    // healthy; the READER is what makes the read fail — so the whole roster
+    // collapsed to placeholders except the caller's own row.
+    const staleAdmin = testEnv.authenticatedContext('admin-stale', {
+      roles: { 'company-a': 'company_admin' },
+    }).firestore();
+
+    await assertFails(getDoc(doc(staleAdmin, 'users', 'mate-ok')));
+    // ...but their OWN profile is still readable via isOwner, which is exactly the
+    // "some users display correctly" symptom.
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await setDoc(doc(context.firestore(), 'users', 'admin-stale'), { name: 'Self', email: 'self@x.com' });
+    });
+    await assertSucceeds(getDoc(doc(staleAdmin, 'users', 'admin-stale')));
+  });
+
   it('SEC-002: user reads own profile but cannot self-edit companyIds', async () => {
     await testEnv.withSecurityRulesDisabled(async (context) => {
       const adminDb = context.firestore();
