@@ -57,6 +57,10 @@ exports.createPortalUser = hrAdmin.createPortalUser;
 exports.deletePortalUser = hrAdmin.deletePortalUser;
 exports.updatePortalUser = hrAdmin.updatePortalUser;
 exports.onMembershipWrite = hrAdmin.onMembershipWrite;
+// Authoritative team roster: resolves each membership to a real name/email using
+// the Admin SDK + Firebase Auth as fallback, and reports missing/stale/orphaned/
+// duplicate records explicitly instead of as unknown users.
+exports.listCompanyTeam = hrAdmin.listCompanyTeam;
 
 // 2b. User Onboarding (New)
 exports.onDriverProfileCreated = require('./userOnboarding').onDriverProfileCreated;

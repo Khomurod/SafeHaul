@@ -8206,3 +8206,129 @@ Admin masthead owns the single `<h1>`. Asserted in both contract tests and in
   chromium lane for the new spec was. CI runs the rest.
 - The two accessibility defects above existed in a shipped pattern before this
   change and remain in the vault view, as noted.
+
+## Manage Team & Links — team identity resolution defect (2026-08-06)
+
+Bug report: in both testing and production, many valid team members in
+"Manage Team & Links" rendered as **"Unknown / No Email"** while some rendered
+correctly.
+
+### Root cause
+
+Identity was resolved in the browser, one member at a time: query `memberships`
+for the company, then `getDoc(users/{membership.userId})` per row. Every failure
+of that per-row read was swallowed into a literal fake member,
+`{ name: 'Unknown', email: 'No Email' }` — so four unrelated causes produced
+identical, normal-looking rows, none of them distinguishable from a genuinely
+unknown person.
+
+1. **No profile document existed.** `createPortalUser` wrote `users/{uid}` only
+   inside its `auth/user-not-found` branch. Adding an email that *already* had a
+   Firebase Auth account — a driver, a former employee, someone already in
+   another company — created the membership and no profile at all. This is the
+   reported "users who already existed before being added to a company".
+   `onMembershipWrite` then merge-wrote `{ companyIds }` onto that absent
+   document, *creating* a profile carrying no name and no email.
+2. **The SEC-002 rule denied the read.** `users/{uid}` `get` requires
+   `readerSharesCompany(resource.data.companyIds)` — the target's
+   server-maintained `companyIds` must intersect the reader's `companyTeamIds`
+   claim. Profiles predating that field are denied, which is exactly what
+   `backfillUserCompanyIds` warns about; and a reader on a token minted before
+   the claim existed is denied *every* teammate while still reading their own
+   profile via `isOwner`. That is the "some users display correctly" half of the
+   report.
+3. **`companyIds` was derived from the wrong set.** `onMembershipWrite` built it
+   from the staff-role allowlist (`company_admin|hr_user|recruiter`), while
+   `backfillUserCompanyIds` maps *every* membership with a `companyId`. A member
+   holding any other role got `companyIds: []` and became permanently unreadable
+   to their own teammates — and the backfill's repair was reverted by that
+   member's next membership write.
+4. **The name field was read too narrowly.** The modal read only `.name`, while
+   profiles in this project are written with `fullName`, `displayName`, or
+   `firstName`/`lastName` by other paths (the sibling `useCompanyTeam` hook
+   already handled those; the modal did not).
+
+### What changed
+
+- **`functions/shared/userIdentity.js` (new).** One resolver for name/email
+  across every historical field, with Firebase Auth as the authoritative
+  fallback, reporting per-field provenance so callers can repair a profile
+  without ever overwriting a stored value.
+- **`listCompanyTeam` callable (new, in `hrAdmin.js`).** Authoritative roster
+  resolved with the Admin SDK, so causes 1–4 cannot express themselves. Returns a
+  typed `status` per row (`active`, `auth_missing`, `unreadable`,
+  `unidentified`), plus `profileMissing`, `repaired`,
+  `duplicateMembershipCount`, and a separate `invalidMemberships` list for
+  membership documents with no `userId`. Authorization mirrors the existing UI
+  gate and `memberships` rule exactly — company_admin of that company, or super
+  admin. **No permission was widened**; the callable answers a question the
+  caller could already ask, correctly.
+- **Lazy data repair.** When identity had to be recovered from Auth,
+  `listCompanyTeam` merges it back into `users/{uid}`, so the direct-read screens
+  (lead assignment, number assignment) resolve those members too. Best-effort.
+- **`createPortalUser`** now mirrors the Auth identity into `users/{uid}` for
+  pre-existing accounts, filling gaps only. Best-effort, so a profile write can
+  never block adding someone to a company.
+- **`onMembershipWrite`** derives `users/{uid}.companyIds` from every membership
+  with a `companyId`, matching the backfill. The `companyTeamIds` *capability*
+  claim keeps the staff-role allowlist and was deliberately not widened.
+- **`ManageTeamModal`** resolves through the callable, keeps the membership
+  snapshot purely as a live change signal, labels members
+  `name → email → "Unnamed member"`, and renders problem records with the
+  approved `Badge` (`danger`/`warning`) plus a plain-language explanation. A
+  roster that fails to load now shows an error, not a fabricated list.
+
+### Design-system compliance
+
+Reused `Badge`, `Button`, `IconButton`, `FieldMessage`, `Modal` and semantic
+`--ds-*` tokens only. No new primitive, colour, or font size; no 9/10px text.
+`FieldMessage` has no `warning` tone, so the data-integrity notice uses
+`Badge tone="warning"` with muted body text rather than adding an unsupported
+variant. No change to Firebase rules, data structures, routes, permissions, or
+business workflows.
+
+### Verification
+
+| Command | Result |
+| --- | --- |
+| `functions && npx jest` (after `npm ci`) | 71 suites, 803 tests passing (47 new) |
+| `npm run test:coverage` (frontend) | 211 files, 3579 passing / 52 skipped; baseline-ratchet gate passed |
+| `npx vitest run ManageTeamModal.test.jsx` | 31 tests passing (13 new), incl. axe |
+| `npm run lint` | 0 errors; changed files add 0 new warnings |
+| `scripts/check-callable-contract.mjs` | passing (78 callables) |
+| `npm run check:function-exports` | OK, mapped 126 |
+| `npm run check:deploy-script` | passing |
+| `npm run typecheck` | no errors in changed files |
+| `playwright e2e/company-settings-team.spec.cjs --project=chromium` | 5 passed, 1 skipped |
+| `playwright e2e/company-settings-team.spec.cjs --project=mobile-chrome` | 4 passed, 2 skipped |
+| `npm run test:rules:emulators` | **could not run here** — no Java 21 on PATH; runs in the CI `rules-emulator` job |
+
+Regression proof: each new backend suite was re-run against the pre-fix
+`hrAdmin.js` (via `git stash`) and failed there — 4 of 6 new `createPortalUser`
+cases, all 21 `listCompanyTeam` cases, and the 3 `companyIds` divergence cases.
+
+### Honest limitations
+
+- The two new `firestore.rules` cases (teammate denied when `companyIds` is
+  absent/empty; reader denied when the token lacks `companyTeamIds`) reproduce
+  the denial that caused this bug, but **could not be executed locally** — the
+  emulator needs Java 21, which is not installed in this environment. They must
+  be confirmed green in the CI `rules-emulator` lane.
+- No live-backend run. Under `VITE_E2E_TEST_MODE=1` Firestore is deliberately
+  unreachable, so E2E exercises the dialog shell and the load-failure path, not
+  real rows. Row behaviour is proven by the component and callable tests.
+- Mobile rendering of the new badge row was reviewed structurally (existing
+  `lg:flex-row` stacking, `flex-wrap`, `min-w-0`, `truncate`) and by the
+  automated DOM/axe tests, not by a screenshot with live data.
+- Sibling screens that still read `users/{uid}` directly (`useCompanyTeam`,
+  `LeadAssignmentModal`, `useCompanyLeadUpload`, `useLineAssignments`) keep their
+  own `'Unknown'` fallbacks. They benefit from the `companyIds` fix and the lazy
+  repair, but were deliberately left otherwise untouched to keep this change
+  scoped to the reported defect. Migrating them to the shared resolver is a
+  follow-up.
+- `onMembershipWrite` still writes a `companies/{cid}.teamMembers` cache with its
+  own `'Unknown'` fallback. Nothing reads that field anywhere in the codebase, so
+  it was left alone; it should probably be deleted in a follow-up.
+- Existing broken records are repaired lazily, when an admin opens the modal for
+  that company. No bulk repair job was added; `backfillUserCompanyIds` remains
+  the tool for `companyIds`.
