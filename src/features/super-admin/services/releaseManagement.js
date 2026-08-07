@@ -21,6 +21,18 @@ import { functions } from '@lib/firebase';
  * not in the payload, not in storage.
  */
 
+/**
+ * True when a failure means "re-enter your password", rather than a real
+ * refusal.
+ *
+ * Releasing is a privileged action, so the backend requires the caller to have
+ * authenticated within the last fifteen minutes — a silent token refresh does
+ * not satisfy it. Re-exported from the vault client rather than re-derived here:
+ * the sentinel it matches is one string produced by one guard, and two copies of
+ * that check would eventually disagree about what counts as a stale session.
+ */
+export { isReauthCancelled, isReauthRequired, reauthenticateWithPassword, ReauthCancelledError } from './environmentVault';
+
 /** User-facing text for a callable failure. */
 export function describeReleaseError(error, fallback = 'That release action could not be completed.') {
     if (!error) return fallback;

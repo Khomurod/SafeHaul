@@ -8473,7 +8473,7 @@ service. The design system knows none of it.
 | Check | Result |
 |---|---|
 | `npx vitest run` (frontend) | 225 suites, 3792 passing / 61 skipped |
-| `ReleaseManagementView.contract.test.jsx` | 16 passing — no version input exists, the button is gated on server-reported eligibility, the payload carries no credential, success copy never claims the release finished, and a failed poll does not freeze progress tracking |
+| `ReleaseManagementView.contract.test.jsx` | 18 passing — no version input exists, the button is gated on server-reported eligibility, the payload carries no credential, success copy never claims the release finished, and a failed poll does not freeze progress tracking |
 | `npx jest` (functions) | 87 suites, 1216 passing |
 | `releaseManagement.callables.test.js` | 42 passing — authorization, staleness, concurrency, dispatch failure, audit |
 | `releaseManagement.github.test.js` | 14 passing — RS256 signature verified against the public key, no credential echoed on failure |
@@ -8495,6 +8495,25 @@ The view was driven in a real browser against the local dev server under
   and the failure is announced through `role="alert"`;
 - the rollback action is absent when no previous release exists, rather than
   present and inert.
+
+### Follow-up: the missing re-authentication prompt (2026-08-07, same day)
+
+The first real Production release exposed a gap this slice shipped with.
+Releasing requires a sign-in within the last fifteen minutes — `assertRecentAuth`
+in the shared guards — and a long-open admin session does not have one. The
+backend correctly refused the first click (`stale-authentication` in the audit
+trail), but this screen, unlike Environment & Integrations, offered no way to
+re-authenticate: it showed "re-enter your password to continue" and dead-ended.
+The only recovery was to sign out and back in.
+
+The screen now reuses the existing `ReauthenticateModal` and the vault's
+promise-based `requestReauth` pattern — including its most important property,
+that a dismissed prompt rejects rather than resolves, so a cancelled release can
+never be announced as a started one. Two contract tests cover both paths.
+
+Worth recording how it was found: not by a test, but by reading the audit trail
+this feature writes. The denial was sitting in `environment_audit_log` with the
+reason `stale-authentication`, one row above the successful release.
 
 ### Honest limitations
 

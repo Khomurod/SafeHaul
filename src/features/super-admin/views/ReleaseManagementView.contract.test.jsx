@@ -33,8 +33,18 @@ const showSuccess = vi.fn();
 const showError = vi.fn();
 const showInfo = vi.fn();
 
+const reauthenticateWithCredential = vi.fn();
+
 vi.mock('firebase/functions', () => ({ httpsCallable: (...args) => httpsCallable(...args) }));
-vi.mock('@lib/firebase', () => ({ functions: { __functions: true }, auth: {}, db: {} }));
+vi.mock('@lib/firebase', () => ({
+    functions: { __functions: true },
+    auth: { currentUser: { email: 'ops@example.test', getIdToken: vi.fn().mockResolvedValue('token') } },
+    db: {},
+}));
+vi.mock('firebase/auth', () => ({
+    EmailAuthProvider: { credential: vi.fn(() => ({ __credential: true })) },
+    reauthenticateWithCredential: (...args) => reauthenticateWithCredential(...args),
+}));
 vi.mock('@shared/components/feedback', () => ({
     useToast: () => ({ showSuccess, showError, showInfo }),
 }));
@@ -257,6 +267,57 @@ describe('confirmation and dispatch', () => {
 
         expect(await screen.findByText(/tested release changed/i)).toBeTruthy();
         expect(screen.getByRole('dialog')).toBeTruthy();
+    });
+});
+
+describe('a stale session', () => {
+    // Regression guard. Releasing requires a sign-in within the last fifteen
+    // minutes, which a long-open admin session does not have. The first real
+    // release was refused as `stale-authentication`, and because this screen
+    // offered no prompt the only recovery was to sign out and back in.
+    const staleError = () => Object.assign(
+        new Error('failed-precondition: REAUTH_REQUIRED: re-enter your password to continue.'),
+        { code: 'functions/failed-precondition' },
+    );
+
+    it('asks for the password and retries, instead of dead-ending', async () => {
+        const user = userEvent.setup();
+        promoteTestingToProduction
+            .mockRejectedValueOnce(staleError())
+            .mockResolvedValue({ data: { status: 'dispatched', requestId: 'req-1', sha: SHA_TESTED } });
+        reauthenticateWithCredential.mockResolvedValue({});
+
+        render(<ReleaseManagementView />);
+        await screen.findByText(SHA_TESTED.slice(0, 7));
+        await user.click(releaseButton());
+        await screen.findByRole('dialog');
+        await user.click(screen.getByRole('button', { name: /Release to Production/i }));
+
+        const password = await screen.findByLabelText(/password/i);
+        await user.type(password, 'artificial-password');
+        await user.click(screen.getByRole('button', { name: /confirm|continue|verify/i }));
+
+        await waitFor(() => expect(promoteTestingToProduction).toHaveBeenCalledTimes(2));
+        await waitFor(() => expect(showSuccess).toHaveBeenCalled());
+    });
+
+    it('reports nothing when the operator dismisses the password prompt', async () => {
+        const user = userEvent.setup();
+        promoteTestingToProduction.mockRejectedValue(staleError());
+
+        render(<ReleaseManagementView />);
+        await screen.findByText(SHA_TESTED.slice(0, 7));
+        await user.click(releaseButton());
+        await screen.findByRole('dialog');
+        await user.click(screen.getByRole('button', { name: /Release to Production/i }));
+
+        await screen.findByLabelText(/password/i);
+        await user.click(screen.getAllByRole('button', { name: /^Cancel$/i })[0]);
+
+        // Nothing ran, so nothing may be announced — neither success nor failure.
+        await waitFor(() => expect(promoteTestingToProduction).toHaveBeenCalledTimes(1));
+        expect(showSuccess).not.toHaveBeenCalled();
+        expect(screen.queryByText(/re-enter your password/i)).toBeNull();
     });
 });
 
