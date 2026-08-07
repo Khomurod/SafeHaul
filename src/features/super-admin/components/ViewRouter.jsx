@@ -20,6 +20,7 @@ import { UnifiedDriverList } from '../views/UnifiedDriverList.jsx';
 import { EnvironmentIntegrationsView } from '../views/EnvironmentIntegrationsView.jsx';
 import { AiIntegrationsView } from '../views/AiIntegrationsView.jsx';
 import { BlogPostsView } from '../views/BlogPostsView.jsx';
+import { ReleaseManagementView } from '../views/ReleaseManagementView.jsx';
 
 // --- Form Builder (Super Admin) ---
 import { GlobalQuestionsManager } from './GlobalQuestionsManager';
@@ -171,6 +172,8 @@ export function ViewRouter({
             return <AiIntegrationsView />;
         case SUPER_ADMIN_VIEWS.BLOG_POSTS:
             return <BlogPostsView />;
+        case SUPER_ADMIN_VIEWS.RELEASES:
+            return <ReleaseManagementView />;
         case SUPER_ADMIN_VIEWS.STATS_BACKFILL:
             return <StatsBackfillPanel />;
         case SUPER_ADMIN_VIEWS.QUESTIONS:

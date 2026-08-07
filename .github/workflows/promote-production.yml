@@ -24,6 +24,17 @@ on:
         description: 'Why this release is being promoted (recorded in the audit trail)'
         required: false
         type: string
+      request_id:
+        description: 'Correlation id supplied by the Super Admin Release Management screen'
+        required: false
+        type: string
+
+# `workflow_dispatch` returns 204 with no body, so a caller cannot learn the id
+# of the run it just started. Putting the correlation id in the run name gives
+# the Super Admin screen a deterministic way to find its own run and report real
+# progress, instead of guessing "the newest run" and racing a second operator.
+run-name: >-
+  Promote ${{ inputs.sha }} to Production${{ inputs.request_id && format(' [{0}]', inputs.request_id) || '' }}
 
 jobs:
   promote:
@@ -44,6 +55,12 @@ jobs:
       contents: read
       id-token: write
       deployments: write
+      # An explicit permissions block sets every unlisted scope to `none`, and
+      # `resolve-testing-release.mjs` calls GET /commits/{sha}/check-runs, which
+      # requires Checks: read. Without this the resolver gets a 403 and NO
+      # promotion can ever reach the clone step — a failure whose first
+      # appearance would otherwise be the first real production release.
+      checks: read
     env:
       FIREBASE_PROJECT_ID: truckerapp-system
       APP_TESTING_SITE: truckerapp-system
@@ -98,10 +115,18 @@ jobs:
 
       # THE APPLICATION: promoted as bytes, not as source.
       #
-      # `@VERSION_ID` clones one specific immutable Hosting version, so this
+      # `SITE@VERSION_ID` clones one specific immutable Hosting version, so this
       # copies precisely what Testing served and verified. It is also why no
       # rebuild happens here — a rebuild could differ from the tested artifact
       # even from an identical commit.
+      #
+      # The `@` form is not interchangeable with the `:` form. firebase-tools
+      # parses `<site>:<something>` as a CHANNEL source and only falls through to
+      # the version parser when the colon split fails, so `site:@version` looks
+      # for a channel literally named `@version` and errors out. The pinned CLI's
+      # own message is explicit: `Must be in the form "<site>:<channel>" or
+      # "<site>@<version>"`. Verified against
+      # node_modules/firebase-tools/lib/commands/hosting-clone.js at 15.3.1.
       #
       # Safe to clone because the `testing` and `production` app targets have
       # byte-identical Hosting config, and the bundle is host-agnostic: apply
@@ -114,7 +139,7 @@ jobs:
           APP_VERSION_ID: ${{ steps.release.outputs.app_version_id }}
         run: |
           npx firebase hosting:clone \
-            "$APP_TESTING_SITE:@$APP_VERSION_ID" \
+            "$APP_TESTING_SITE@$APP_VERSION_ID" \
             "$APP_PRODUCTION_SITE:live" \
             --project "$FIREBASE_PROJECT_ID" --non-interactive
 
@@ -162,6 +187,7 @@ jobs:
           APP_VERSION_ID: ${{ steps.release.outputs.app_version_id }}
           APPROVED_BY: ${{ github.actor }}
           PROMOTION_REASON: ${{ inputs.reason }}
+          REQUEST_ID: ${{ inputs.request_id }}
           JOB_STATUS: ${{ job.status }}
         run: |
           {
@@ -171,6 +197,7 @@ jobs:
             echo "| --- | --- |"
             echo "| Candidate SHA | \`$CANDIDATE_SHA\` |"
             echo "| Hosting version | \`${APP_VERSION_ID:-not resolved}\` |"
+            echo "| Request id | \`${REQUEST_ID:-dispatched manually}\` |"
             echo "| Approved by | @$APPROVED_BY |"
             echo "| Reason | ${PROMOTION_REASON:-_not given_} |"
             echo "| Result | $JOB_STATUS |"

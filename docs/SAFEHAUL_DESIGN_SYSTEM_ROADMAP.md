@@ -8412,3 +8412,98 @@ removes one `<a>` from that exception rather than adding to it.
   (including accented characters) renders exactly; a non-Latin script degrades to
   `?` rather than aborting the document. Embedding a Unicode font is the upgrade
   path if that ever matters.
+
+---
+
+## Super Admin Release Management (2026-08-07)
+
+**Status: implemented.** Earlier revisions of the hosting runbook described the
+Super Admin release page as future work; it exists now and is the normal route to
+Production. That wording has been removed rather than softened.
+
+### What was added
+
+A new Super Admin view, **Releases** (`SUPER_ADMIN_VIEWS.RELEASES`, nav group
+`ops`, icon `Rocket`), at `src/features/super-admin/views/ReleaseManagementView.jsx`.
+
+It shows the version Testing is serving, when it was released, whether its checks
+passed, whether the shared backend rollout completed and whether the release is
+eligible for Production — plus the current and previous Production versions. Its
+primary action releases the tested version to Production; a secondary action rolls
+Production back to the previous release.
+
+Supporting feature code:
+
+- `hooks/useReleaseStatus.js` — owns loading, the derived phase, and polling that
+  runs **only while a release is in flight**.
+- `services/releaseManagement.js` — the three callables, plus the error describer.
+- `components/release/ReleaseConfirmDialog.jsx` — the confirmation, built on the
+  shared `ConfirmDialog`.
+
+### Design-system decisions this slice made
+
+- **Reused, not reinvented:** `Card`, `Badge`, `Button`, `Stack`, `Inline`,
+  `ResponsiveGrid`, and the shared accessible `ConfirmDialog`. No local button,
+  modal, table, status treatment or arbitrary colour was introduced.
+- **Semantic tokens only.** Status colours are `text-ds-status-{success,warning,danger}-fg`;
+  surfaces are `bg-ds-surface-subtle`; type is `text-ds-heading-lg` / `-md` /
+  `text-ds-sm` / `text-ds-xs`. No 9px or 10px body text, no palette values.
+- **No `PageHeader`.** The Super Admin masthead owns the single `<h1>`, so this
+  view uses the same `<h2>` + description composition as every other migrated
+  Super Admin view.
+- **Readiness is text, not colour.** Each readiness line pairs its icon with a
+  written label, and a blocked release lists its blockers in prose, so the state
+  survives greyscale and a screen reader.
+- **The running/failed banner is a live region** (`role="status"`,
+  `aria-live="polite"`), because the state it carries changes without user action.
+
+No new design-system capability gap was found; nothing was added to
+`src/design-system` by this slice.
+
+### Domain behaviour that stayed in the feature
+
+The channel vocabulary (Testing / Production), the eligibility wording, the
+plain-language blocker copy, the rollback caveat about shared backend and data,
+and the decision that a release is *started* rather than *finished* all live in
+the feature. Data, polling and the callable contracts live in the hook and
+service. The design system knows none of it.
+
+### Verification
+
+| Check | Result |
+|---|---|
+| `npx vitest run` (frontend) | 225 suites, 3792 passing / 61 skipped |
+| `ReleaseManagementView.contract.test.jsx` | 16 passing — no version input exists, the button is gated on server-reported eligibility, the payload carries no credential, success copy never claims the release finished, and a failed poll does not freeze progress tracking |
+| `npx jest` (functions) | 87 suites, 1216 passing |
+| `releaseManagement.callables.test.js` | 42 passing — authorization, staleness, concurrency, dispatch failure, audit |
+| `releaseManagement.github.test.js` | 14 passing — RS256 signature verified against the public key, no credential echoed on failure |
+| `npm run check:release-scripts` | 26 gate assertions passing |
+| `npm run lint` (both) | 0 errors |
+| `npm run build` | clean |
+| `scripts/check-callable-contract.mjs` | passing (83 callables) |
+| E2E | added to `e2e/super-admin-shell.spec.cjs` and `e2e/super-admin-views.spec.cjs`, which exercise the view at 1440 / 1024 / 412 px and on the mobile device lane with axe |
+
+### Visual review actually performed
+
+The view was driven in a real browser against the local dev server under
+`VITE_E2E_TEST_MODE=1` at 1440×900 and 412×915:
+
+- headings resolve to a single page `<h1>` (the Super Admin masthead) with this
+  view contributing `<h2>Releases</h2>` and two `<h3>` channel headings;
+- `document.scrollWidth === clientWidth` at both widths — no horizontal overflow;
+- with the release status unreadable, the Release button is genuinely `disabled`
+  and the failure is announced through `role="alert"`;
+- the rollback action is absent when no previous release exists, rather than
+  present and inert.
+
+### Honest limitations
+
+- **The browser review covered the unreadable-status state only.** The local dev
+  server cannot reach the release callable, so the populated states — eligible,
+  blocked, running, failed, already-live — were verified in jsdom by the contract
+  suite, not photographed in a browser. The same applies to the CI E2E lane,
+  which runs under the same offline mode.
+- **The confirmation dialog was not exercised in a browser.** It is unreachable
+  while the Release button is correctly disabled, which is the only state the
+  offline lane can reach. Its content and behaviour are asserted in the contract
+  suite.

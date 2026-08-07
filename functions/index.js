@@ -298,3 +298,15 @@ exports.runBlogPublicationNow = blogAdmin.runBlogPublicationNow;
 // 19. Legacy Compatibility Callables (frontend contract preservation)
 exports.updateBulkSessionStatus = legacyCompat.updateBulkSessionStatus;
 exports.backfillEmployerFields = legacyCompat.backfillEmployerFields;
+
+// 23. Super Admin Release Management
+// The only route by which a human changes what app.safehaul.io serves. A merge
+// to main still releases TESTING automatically and Production never
+// automatically; these callables are the deliberate step in between. They resolve
+// the release themselves from GitHub Deployment records — the browser never
+// names a commit — and dispatch the exact-version promotion workflow with a
+// GitHub App credential that never leaves the server.
+const releaseManagement = require('./releaseManagement');
+exports.getReleaseStatus = releaseManagement.getReleaseStatus;
+exports.promoteTestingToProduction = releaseManagement.promoteTestingToProduction;
+exports.rollbackProductionRelease = releaseManagement.rollbackProductionRelease;

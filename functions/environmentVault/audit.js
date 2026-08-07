@@ -26,6 +26,12 @@ const ACTIONS = Object.freeze({
     ADD: 'add',
     DELETE: 'delete',
     TEST: 'test',
+    // Release Management shares this trail rather than starting a second one,
+    // as AI Integrations already does. `promote` is the privileged one: it is
+    // the record of a human deciding that a tested release becomes what end
+    // users are served.
+    RELEASE_STATUS: 'release-status',
+    PROMOTE: 'promote',
 });
 
 const RESULTS = Object.freeze({
@@ -62,6 +68,16 @@ const ALLOWED_METADATA = Object.freeze([
     'capability',
     'enabled',
     'setting',
+    // Release Management. Every one of these is a public release identifier —
+    // commit ids, immutable Hosting version ids, a GitHub run id and this
+    // system's own request id. None of them is or contains a credential, and the
+    // deployment credential itself never reaches this module at all.
+    'releaseSha',
+    'previousSha',
+    'appVersionId',
+    'runId',
+    'requestId',
+    'channel',
 ]);
 
 /** Coerces a metadata value to a small, safe scalar. */

@@ -364,6 +364,41 @@ const FUNCTIONS_ENTRIES = [
 // ---------------------------------------------------------------------------
 
 const SECRET_MANAGER_ENTRIES = [
+    // --- Release Management -------------------------------------------------
+    //
+    // The GitHub App installation the Super Admin Release Management screen uses
+    // to start a production promotion. Between them these three are the most
+    // powerful non-Google credential SafeHaul holds: they decide what
+    // app.safehaul.io serves. They are inventoried here, like every other
+    // platform secret, so "what can change production, and where does it live"
+    // has one answer rather than being folklore.
+    {
+        key: 'RELEASE_GITHUB_APP_ID',
+        displayName: 'Release GitHub App ID',
+        description: 'Numeric identifier of the GitHub App that dispatches the production promotion workflow. Not secret on its own; useless without the private key.',
+        category: CATEGORIES.DEPLOYMENT_OPS,
+        integration: 'GitHub (release)',
+        sensitivity: SENSITIVITY.INTERNAL,
+        consumers: ['functions/releaseManagement/github.js'],
+    },
+    {
+        key: 'RELEASE_GITHUB_INSTALLATION_ID',
+        displayName: 'Release GitHub App installation ID',
+        description: 'Identifies the single installation of the release App on Khomurod/SafeHaul. Scoping the token exchange to one installation is what keeps the credential unable to reach any other repository.',
+        category: CATEGORIES.DEPLOYMENT_OPS,
+        integration: 'GitHub (release)',
+        sensitivity: SENSITIVITY.INTERNAL,
+        consumers: ['functions/releaseManagement/github.js'],
+    },
+    {
+        key: 'RELEASE_GITHUB_PRIVATE_KEY',
+        displayName: 'Release GitHub App private key',
+        description: 'RSA private key that signs the App JWT used to mint one-hour installation tokens. Grants Actions write, plus Contents/Deployments/Checks read, on Khomurod/SafeHaul only — it cannot push code, merge, change workflows or read repository secrets. Anything holding it can start a production release.',
+        category: CATEGORIES.DEPLOYMENT_OPS,
+        integration: 'GitHub (release)',
+        sensitivity: SENSITIVITY.CRITICAL,
+        consumers: ['functions/releaseManagement/github.js'],
+    },
     {
         key: 'GROQ_API_KEY',
         displayName: 'Groq API key (legacy deploy binding)',

@@ -30,6 +30,12 @@ const VIEWS = [
     nav: 'Environment & Integrations',
     expect: (page) => page.getByRole('heading', { name: 'Environment & Integrations', level: 2 }),
   },
+  // Release Management. Offline the release-status callable is unreachable, so
+  // this settles into the announced load failure with no release cards — which
+  // is the correct state for "the screen cannot read the release status", and
+  // the state in which the Release button must stay disabled. The populated
+  // states are covered by `ReleaseManagementView.contract.test.jsx`.
+  { nav: 'Releases', expect: (page) => page.getByRole('heading', { name: 'Releases', level: 2 }) },
   { nav: 'Stats Backfill', expect: (page) => page.getByRole('heading', { name: 'Performance Stats Backfill' }) },
   // Added 2026-07-28 with the final three views of the Super Admin row.
   { nav: 'System Health', expect: (page) => page.getByRole('heading', { name: 'System Health & Diagnostics' }) },
