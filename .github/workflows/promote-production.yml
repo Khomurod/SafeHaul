@@ -64,15 +64,24 @@ jobs:
 
       # Runs BEFORE any cloud authentication: an ineligible candidate must fail
       # without a Google credential ever being minted.
+      #
+      # Workflow inputs are passed through `env:` rather than interpolated into
+      # the shell. `${{ inputs.x }}` is substituted into the script *before* the
+      # shell runs, so a crafted value becomes shell source; going via the
+      # environment keeps it data. Only someone with write access can dispatch
+      # this, but this workflow releases production and should not rely on that.
       - name: Resolve and verify the tested release
         id: release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node scripts/resolve-testing-release.mjs "${{ inputs.sha }}"
+          CANDIDATE_SHA: ${{ inputs.sha }}
+        run: node scripts/resolve-testing-release.mjs "$CANDIDATE_SHA"
 
       - name: Skip — production already serves this release
         if: steps.release.outputs.already_live == 'true'
-        run: echo "Production is already live on ${{ inputs.sha }}. Nothing to do."
+        env:
+          CANDIDATE_SHA: ${{ inputs.sha }}
+        run: echo "Production is already live on $CANDIDATE_SHA. Nothing to do."
 
       - name: Authenticate to Google Cloud
         if: steps.release.outputs.already_live != 'true'
@@ -101,9 +110,11 @@ jobs:
       # on Testing.
       - name: Promote the application (exact Hosting version)
         if: steps.release.outputs.already_live != 'true'
+        env:
+          APP_VERSION_ID: ${{ steps.release.outputs.app_version_id }}
         run: |
           npx firebase hosting:clone \
-            "$APP_TESTING_SITE:@${{ steps.release.outputs.app_version_id }}" \
+            "$APP_TESTING_SITE:@$APP_VERSION_ID" \
             "$APP_PRODUCTION_SITE:live" \
             --project "$FIREBASE_PROJECT_ID" --non-interactive
 
@@ -126,7 +137,9 @@ jobs:
       # from a successful CLI exit code.
       - name: Verify the live production release
         if: steps.release.outputs.already_live != 'true'
-        run: node scripts/verify-live-release.mjs https://app.safehaul.io "${{ inputs.sha }}"
+        env:
+          CANDIDATE_SHA: ${{ inputs.sha }}
+        run: node scripts/verify-live-release.mjs https://app.safehaul.io "$CANDIDATE_SHA"
 
       - name: Record the production release
         if: steps.release.outputs.already_live != 'true'
@@ -140,17 +153,25 @@ jobs:
           RELEASE_SHA: ${{ inputs.sha }}
         run: node scripts/record-release.mjs
 
+      # `reason` is free text typed by a human, so it never reaches the shell as
+      # source. Everything here goes through the environment.
       - name: Summarise the promotion
         if: always()
+        env:
+          CANDIDATE_SHA: ${{ inputs.sha }}
+          APP_VERSION_ID: ${{ steps.release.outputs.app_version_id }}
+          APPROVED_BY: ${{ github.actor }}
+          PROMOTION_REASON: ${{ inputs.reason }}
+          JOB_STATUS: ${{ job.status }}
         run: |
           {
             echo "### Production promotion"
             echo ""
             echo "| Field | Value |"
             echo "| --- | --- |"
-            echo "| Candidate SHA | \`${{ inputs.sha }}\` |"
-            echo "| Hosting version | \`${{ steps.release.outputs.app_version_id }}\` |"
-            echo "| Approved by | @${{ github.actor }} |"
-            echo "| Reason | ${{ inputs.reason || '_not given_' }} |"
-            echo "| Result | ${{ job.status }} |"
+            echo "| Candidate SHA | \`$CANDIDATE_SHA\` |"
+            echo "| Hosting version | \`${APP_VERSION_ID:-not resolved}\` |"
+            echo "| Approved by | @$APPROVED_BY |"
+            echo "| Reason | ${PROMOTION_REASON:-_not given_} |"
+            echo "| Result | $JOB_STATUS |"
           } >> "$GITHUB_STEP_SUMMARY"
