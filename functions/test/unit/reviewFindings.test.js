@@ -14,6 +14,8 @@ const {
     submittableVersions,
 } = require('../../shared/legalAgreements');
 const { writeSubmissionSnapshot } = require('../../shared/writeSubmissionSnapshot');
+const { buildSubmissionSnapshot, signatureFingerprint } = require('../../shared/submissionSnapshot');
+const { buildApplicationDefinition } = require('../../shared/applicationDefinition');
 
 const company = { companyName: 'Northwind Freight Systems' };
 
@@ -177,5 +179,115 @@ describe('one submission attempt stays one record, even delivered concurrently',
         const db = makeDb();
         delete db.runTransaction;
         await expect(write(db, 'attempt-1')).rejects.toThrow(/transactions/i);
+    });
+});
+
+describe('a redelivery of a PRE-MARKER submission is still recognised', () => {
+    // Submissions recorded before claim markers existed carry their attempt id
+    // on the snapshot and have no marker. Their queued replay can arrive after
+    // the marker code deploys; stepping over the occupied sequence would write
+    // exactly the false resubmission the marker exists to prevent.
+    const makeDb = (seed = {}) => {
+        const docs = new Map(Object.entries(seed));
+        const refFor = (path) => ({
+            path,
+            async get() {
+                return docs.has(path)
+                    ? { exists: true, data: () => docs.get(path) }
+                    : { exists: false, data: () => undefined };
+            },
+            async create(data) {
+                if (docs.has(path)) {
+                    const e = new Error('6 ALREADY_EXISTS'); e.code = 6; throw e;
+                }
+                docs.set(path, data);
+            },
+        });
+        const at = (base) => ({
+            doc: (id) => ({ ...refFor(`${base}/${id}`), collection: (n) => at(`${base}/${id}/${n}`) }),
+        });
+        return {
+            docs,
+            collection: (name) => at(name),
+            runTransaction: async (fn) => {
+                const writes = [];
+                const result = await fn({
+                    get: (ref) => ref.get(),
+                    create: (ref, data) => writes.push([ref, data]),
+                });
+                for (const [ref, data] of writes) await ref.create(data);
+                return result;
+            },
+        };
+    };
+
+    const SNAPSHOT_PATH = 'companies/co-1/applications/app-1/submission/v1';
+
+    it('returns the existing record instead of writing a resubmission', async () => {
+        const db = makeDb({
+            [SNAPSHOT_PATH]: { sequence: 1, submissionAttemptId: 'attempt-1', sections: [] },
+        });
+
+        const result = await writeSubmissionSnapshot({
+            db,
+            companyId: 'co-1',
+            applicationId: 'app-1',
+            snapshot: { sections: [] },
+            submissionAttemptId: 'attempt-1',
+        });
+
+        expect(result).toMatchObject({ snapshotId: 'v1', sequence: 1, deduplicated: true });
+        expect([...db.docs.keys()].filter((k) => k.includes('/submission/'))).toHaveLength(1);
+    });
+
+    it('still lets a DIFFERENT attempt take the next sequence', async () => {
+        const db = makeDb({
+            [SNAPSHOT_PATH]: { sequence: 1, submissionAttemptId: 'attempt-1', sections: [] },
+        });
+
+        const result = await writeSubmissionSnapshot({
+            db,
+            companyId: 'co-1',
+            applicationId: 'app-1',
+            snapshot: { sections: [] },
+            submissionAttemptId: 'attempt-2',
+        });
+
+        expect(result).toMatchObject({ snapshotId: 'v2', sequence: 2, deduplicated: false });
+    });
+});
+
+describe('a preserved record can identify the signature it was signed with', () => {
+    const definition = buildApplicationDefinition({ company: { companyName: 'Northwind' } });
+
+    const snapshotWith = (image) => buildSubmissionSnapshot({
+        definition,
+        formData: { firstName: 'Marcus' },
+        acceptances: Object.fromEntries(definition.agreements.map((a) => [a.id, {
+            accepted: true, acceptedAt: '2026-08-01T10:00:00.000Z',
+        }])),
+        signature: { image, type: 'drawn', capturedAt: '2026-08-01T10:00:00.000Z' },
+        submittedAt: '2026-08-01T10:00:00.000Z',
+    });
+
+    it('fingerprints the signature without storing the image', () => {
+        const snapshot = snapshotWith('data:image/png;base64,ORIGINAL');
+
+        expect(snapshot.signature.sha256).toBe(signatureFingerprint('data:image/png;base64,ORIGINAL'));
+        expect(snapshot.signature.image).toBeUndefined();
+        expect(JSON.stringify(snapshot)).not.toContain('base64,ORIGINAL');
+    });
+
+    it('distinguishes a resubmission\'s signature from the original\'s', () => {
+        // This is what lets a later repair of the ORIGINAL refuse to stamp on a
+        // mark the original was never signed with.
+        const snapshot = snapshotWith('data:image/png;base64,ORIGINAL');
+        expect(signatureFingerprint('data:image/png;base64,RESUBMITTED'))
+            .not.toBe(snapshot.signature.sha256);
+    });
+
+    it('claims no fingerprint when there was no signature', () => {
+        expect(signatureFingerprint(null)).toBeNull();
+        expect(signatureFingerprint('')).toBeNull();
     });
 });

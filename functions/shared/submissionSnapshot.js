@@ -34,6 +34,8 @@
 //   5. Values are stored as truth; masking is a presentation decision made by
 //      the renderer, driven by the `sensitive` flag.
 
+const { createHash } = require('crypto');
+
 const { resolveAgreement } = require('./legalAgreements');
 const { STANDARD_SECTIONS, visibleFields } = require('./applicationDefinition');
 const { computeEmploymentCoverage } = require('./employmentCoverage');
@@ -298,6 +300,21 @@ function buildCustomAnswers(definition, customAnswers) {
  * @param {object} opts.acceptances `{ [agreementId]: { accepted, acceptedAt, ip, userAgent } }`
  * @param {object|null} opts.signature `{ image, type, capturedAt }`
  */
+/**
+ * Fingerprint of the signature bitmap.
+ *
+ * The snapshot deliberately does not store the image itself. But without some
+ * way to identify it, a LATER repair of a preserved PDF has no way to tell the
+ * original signature from one a resubmission has since written over the
+ * application document — and would stamp the wrong person's mark onto the
+ * original. The hash lets a repair prove the bitmap it holds is the one this
+ * record was signed with, and decline to draw it when it cannot.
+ */
+function signatureFingerprint(image) {
+    if (typeof image !== 'string' || !image) return null;
+    return createHash('sha256').update(image).digest('hex');
+}
+
 function buildAgreementRecords({ definition, acceptances = {}, signature = null }) {
     const companyName = definition?.company?.companyName || null;
     const declared = Array.isArray(definition?.agreements) ? definition.agreements : [];
@@ -349,6 +366,7 @@ function buildAgreementRecords({ definition, acceptances = {}, signature = null 
                     type: clean(signature.type) || 'drawn',
                     capturedAt: clean(signature.capturedAt),
                     present: Boolean(signature.image),
+                    sha256: signatureFingerprint(signature.image),
                 }
                 : null,
         };
@@ -413,6 +431,7 @@ function buildSubmissionSnapshot({
                 type: clean(signature.type) || 'drawn',
                 capturedAt: clean(signature.capturedAt),
                 present: Boolean(signature.image),
+                sha256: signatureFingerprint(signature.image),
             }
             : null,
         /**
@@ -429,6 +448,7 @@ function buildSubmissionSnapshot({
 }
 
 module.exports = {
+    signatureFingerprint,
     SNAPSHOT_SCHEMA_VERSION,
     buildAgreementRecords,
     buildCustomAnswers,
