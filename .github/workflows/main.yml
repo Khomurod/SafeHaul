@@ -473,7 +473,18 @@ jobs:
           GITHUB_PUSH_BEFORE: ${{ github.event.before }}
           GITHUB_SHA: ${{ github.sha }}
           DEPLOY_FUNCTIONS_SLEEP_SEC: '0'
-          DEPLOY_FUNCTIONS_ALWAYS_INCLUDE: parseCdlWithGroq,analyzeEdocFieldPlacement,initBulkSession,processBulkBatch
+          # The three release callables are always redeployed, for the same
+          # reason the others on this list are: a Functions deploy PINS each
+          # bound secret to the version that existed at deploy time
+          # (`secretKeyRef.key: '3'`, not `latest`). So rotating the GitHub App
+          # key in Secret Manager changes nothing at runtime until these
+          # functions are deployed again — and the incremental planner would not
+          # redeploy them, because rotating a credential touches no source file.
+          #
+          # Discovered the hard way: they first shipped bound to a placeholder
+          # version, and the Releases screen correctly reported "not connected"
+          # while the real credential sat unused one version above it.
+          DEPLOY_FUNCTIONS_ALWAYS_INCLUDE: parseCdlWithGroq,analyzeEdocFieldPlacement,initBulkSession,processBulkBatch,getReleaseStatus,promoteTestingToProduction,rollbackProductionRelease
         run: |
           max_attempts=3
           attempt=1
