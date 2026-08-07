@@ -256,20 +256,69 @@ describe('reconstructHistoricalApplications — what it does', () => {
         expect(result.reconstructed).toBe(1);
         expect(result.failed).toBe(1);
         expect(result.errors[0].applicationId).toBe('app-2');
+        // An unreadable application must be REPORTED, never quietly filed as
+        // "never submitted" — that would hide a broken record behind a benign
+        // count that no later run would surface again.
+        expect(result.unsubmitted).toBe(0);
     });
 
-    it('claims no acceptance for an application with no signature and no certification', async () => {
+    it('writes no record for an application that was never submitted', async () => {
+        // A draft, or an outreach lead record. There is no submission to
+        // preserve, and writing one would take sequence 1 — so if this person
+        // later applies for real, their genuine submission would land on `v2`
+        // and be recorded as a resubmission, permanently.
         seedCompany();
         seedApplication('app-1', { signature: null, 'final-certification': null });
 
         const result = await reconstructHistoricalApplications(superAdmin({ companyId: COMPANY_ID }));
 
-        const snapshot = store.snapshots[`${COMPANY_ID}/app-1/v1`];
-        for (const agreement of snapshot.agreements) {
-            expect(agreement.accepted).toBe(false);
-            expect(agreement.signature).toBeNull();
-        }
-        expect(result.unrecoverable.agreement_acceptance).toBe(1);
-        expect(result.unrecoverable.signature).toBe(1);
+        expect(store.snapshots[`${COMPANY_ID}/app-1/v1`]).toBeUndefined();
+        expect(result.reconstructed).toBe(0);
+        expect(result.unsubmitted).toBe(1);
+        expect(result.failed).toBe(0);
+    });
+
+    it('leaves sequence 1 free, so a later real submission is still the original', async () => {
+        seedCompany();
+        seedApplication('app-1', { signature: null, 'final-certification': null });
+
+        await reconstructHistoricalApplications(superAdmin({ companyId: COMPANY_ID }));
+
+        // The driver comes back and actually submits.
+        seedApplication('app-1', { signature: 'data:image/png;base64,AAAA', 'final-certification': 'agreed' });
+        const second = await reconstructHistoricalApplications(superAdmin({ companyId: COMPANY_ID }));
+
+        expect(second.reconstructed).toBe(1);
+        expect(store.snapshots[`${COMPANY_ID}/app-1/v1`]).toBeDefined();
+        expect(store.snapshots[`${COMPANY_ID}/app-1/v2`]).toBeUndefined();
+    });
+
+    it('counts an empty-string signature as no signature', async () => {
+        seedCompany();
+        seedApplication('app-1', { signature: '   ', 'final-certification': null });
+
+        const result = await reconstructHistoricalApplications(superAdmin({ companyId: COMPANY_ID }));
+
+        expect(result.unsubmitted).toBe(1);
+        expect(result.reconstructed).toBe(0);
+    });
+
+    it('still reconstructs a certified application that has no recorded date', async () => {
+        // A missing date is reported as unrecoverable — it must never be the
+        // reason an application is treated as unsubmitted.
+        seedCompany();
+        seedApplication('app-1', {
+            'final-certification': 'agreed',
+            signature: null,
+            signatureDate: null,
+            submittedAt: null,
+            createdAt: null,
+        });
+
+        const result = await reconstructHistoricalApplications(superAdmin({ companyId: COMPANY_ID }));
+
+        expect(result.reconstructed).toBe(1);
+        expect(result.unsubmitted).toBe(0);
+        expect(result.unrecoverable.submitted_at).toBe(1);
     });
 });

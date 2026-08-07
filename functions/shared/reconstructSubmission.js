@@ -99,13 +99,38 @@ function toIso(value) {
  * agreement.
  */
 function certifiedAt(application) {
-    const certified = application?.['final-certification'];
-    const hasCertification = certified === true || certified === 'yes' || certified === 'agreed';
-    const hasSignature = Boolean(application?.signature);
-    if (!hasCertification && !hasSignature) return null;
+    if (!hasSubmissionEvidence(application)) return null;
     return toIso(application?.signatureDate)
         || toIso(application?.submittedAt)
         || toIso(application?.createdAt);
+}
+
+/**
+ * Was this application ever actually SUBMITTED?
+ *
+ * The `applications` collection holds more than submissions. It also holds
+ * drafts a driver never finished, and lead records created by outreach
+ * campaigns that carry contact details and no application content at all.
+ * Neither has a submission to preserve.
+ *
+ * That distinction matters far more than it looks, because an application's
+ * document id is derived from the applicant's identity — so the driver behind a
+ * draft or a lead lands on the SAME document if they later apply for real. A
+ * preserved record written now would occupy sequence 1, and their genuine
+ * submission would be recorded as `v2`, `isOriginal: false`, permanently. For
+ * these records, reconstructing is worse than leaving them alone.
+ *
+ * Certification or a signature is the evidence that a submission happened.
+ * Deliberately independent of any date: a certified application with no
+ * recorded date is still a submission, and its missing date is reported as
+ * unrecoverable rather than used to disqualify it.
+ */
+function hasSubmissionEvidence(application) {
+    const certified = application?.['final-certification'];
+    const hasCertification = certified === true || certified === 'yes' || certified === 'agreed';
+    const signature = application?.signature;
+    const hasSignature = typeof signature === 'string' ? signature.trim() !== '' : Boolean(signature);
+    return hasCertification || hasSignature;
 }
 
 /**
@@ -257,6 +282,7 @@ module.exports = {
     NON_ANSWER_KEYS,
     answersFrom,
     certifiedAt,
+    hasSubmissionEvidence,
     reconstructSubmissionSnapshot,
     toIso,
 };

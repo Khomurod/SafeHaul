@@ -24,6 +24,8 @@ becomes a fact.
 | Idempotent | A second run over the same company reports `reconstructed: 0, skipped: N` and leaves the stored PDF bytes untouched. |
 | Resumable | Returns `truncated` and `lastApplicationId`; pass that back as `startAfterApplicationId`. |
 | Inspectable first | `dryRun: true` writes nothing and reports what it would do, including what it could not recover. |
+| Only preserves real submissions | An application with no certification and no signature was never submitted — a draft, or an outreach lead record. It is counted as `unsubmitted` and left alone. |
+| Repairs a missing PDF | An application whose record exists but whose PDF does not has the PDF rebuilt **from the stored snapshot**, never from a fresh read of the application. |
 
 ## Procedure
 
@@ -39,7 +41,7 @@ await fn({ companyId: '<company-id>', dryRun: true });
 Read the result before continuing:
 
 ```
-{ dryRun: true, scanned, reconstructed, skipped, failed, pdfs: 0,
+{ dryRun: true, scanned, reconstructed, skipped, unsubmitted, failed, pdfs: 0,
   truncated, lastApplicationId, unrecoverable: { ... }, errors: [ ... ] }
 ```
 
@@ -47,6 +49,8 @@ Read the result before continuing:
 * `skipped` — already preserved. Expected to grow to the full count on reruns.
 * `failed` / `errors` — applications that could not be read at all. Each is
   named. The job keeps going rather than aborting the company.
+* `unsubmitted` — applications that were never submitted, so there is nothing to
+  preserve. Information, not an error. See "What is in scope" below.
 * `unrecoverable` — a count per category of what the evidence does not support.
   This is information, not an error. See the table below.
 
@@ -80,6 +84,49 @@ equal to its application count.
 | `dryRun` | `false` | Report without writing. |
 | `maxApplications` | `200` | Ceiling for one invocation. |
 | `startAfterApplicationId` | `null` | Resume cursor. |
+
+## What is in scope
+
+The job reconstructs an application when it has **no `submission/v1`** and there
+is **evidence it was actually submitted** — a certification, or a signature.
+Dates are never used to decide: a recent application can lack a record, and an
+old one can have it.
+
+The `applications` collection holds more than submissions. It also holds drafts
+a driver never finished, and lead records created by outreach campaigns, which
+carry contact details and no application content at all. Those are counted as
+`unsubmitted` and left untouched.
+
+That is not tidiness — it prevents a permanent, unfixable harm. An application's
+document id is derived from the applicant's identity, so the person behind a
+draft or a lead lands on the **same document** if they later apply for real. A
+record written now would occupy sequence 1, and their genuine submission would be
+recorded as `v2`, `isOriginal: false`, forever, because records are immutable and
+create-only. Leaving those applications alone keeps sequence 1 free for the
+submission they may yet make.
+
+An application whose document cannot be READ is a different thing again: it is
+reported in `failed` with its id, never folded into `unsubmitted`, because it
+needs a person to look at it.
+
+## Preserved PDFs
+
+The job does not only write records. On every application it also ensures the
+official PDF exists:
+
+* a newly reconstructed record gets its PDF generated from the snapshot that was
+  just written;
+* an application that is **skipped** because its record already exists still has
+  its PDF checked, and rebuilt **from the stored snapshot** if it is missing.
+  This is how a submission whose record committed but whose PDF write failed
+  gets repaired — without it, every later run would skip it as "already done"
+  and the document would be missing permanently.
+
+An existing PDF is never regenerated or replaced. `preserveApplicationPdf`
+writes create-only; where the object already exists it is adopted as-is and only
+the Documents entry is reconciled. A repair that cannot prove which signature the
+record was signed with omits the signature image rather than drawing a mark the
+original never carried.
 
 ## What "unrecoverable" means
 
