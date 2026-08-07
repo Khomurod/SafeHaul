@@ -368,6 +368,7 @@ jobs:
           LANDING_VERSION_ID: ${{ steps.versions.outputs.landing_version_id }}
           RELEASE_CHANNEL: testing
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_SHA: ${{ github.sha }}
         run: node scripts/record-release.mjs
 
       # Rules, Storage and indexes are SHARED backend policy: Testing and

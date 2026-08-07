@@ -586,6 +586,7 @@ const OPS_ENTRIES = [
     // it is a live credential for the run's lifetime — unlike the rest of this
     // group, which are plain settings.
     ['GOOGLE_ACCESS_TOKEN', 'Google deploy access token', 'Short-lived OAuth access token minted by Workload Identity Federation during the deploy workflow, used to read the deployed Firebase Hosting version ID. Never stored or retrievable.', ['scripts/read-hosting-release.mjs', '.github/workflows/main.yml'], { sensitivity: SENSITIVITY.SENSITIVE }],
+    ['RELEASE_SHA', 'Release commit SHA', 'Commit a release is being recorded for. Passed explicitly because a production promotion is dispatched from main but releases the candidate commit, so GITHUB_SHA would name the wrong thing.', ['scripts/record-release.mjs', '.github/workflows/main.yml', '.github/workflows/promote-production.yml']],
 ].map(([key, displayName, description, consumers, overrides = {}]) => ({
     key,
     displayName,

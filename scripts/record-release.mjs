@@ -28,11 +28,20 @@ const {
     LANDING_VERSION_ID: landingVersionId,
     GITHUB_TOKEN: token,
     GITHUB_REPOSITORY: repository,
-    GITHUB_SHA: sha,
     GITHUB_RUN_ID: runId,
     GITHUB_SERVER_URL: serverUrl = 'https://github.com',
     RELEASE_CHANNEL: channel = 'testing',
 } = process.env;
+
+// RELEASE_SHA, not GITHUB_SHA, is the release identity.
+//
+// A promotion checks out the candidate commit but is dispatched from `main`, so
+// GITHUB_SHA still names the workflow's own ref — recording it would file the
+// production release under the wrong commit. Overriding a reserved default
+// variable in a step's `env:` is exactly the sort of thing that quietly stops
+// working, so the SHA is passed under its own name and GITHUB_SHA is only a
+// fallback for the Testing deploy, where the two genuinely are the same commit.
+const sha = process.env.RELEASE_SHA || process.env.GITHUB_SHA;
 
 const missing = Object.entries({ appVersionId, landingVersionId, token, repository, sha })
     .filter(([, value]) => !value)
@@ -40,6 +49,13 @@ const missing = Object.entries({ appVersionId, landingVersionId, token, reposito
 
 if (missing.length > 0) {
     console.error(`Cannot record a release, missing: ${missing.join(', ')}`);
+    process.exit(1);
+}
+
+// A release recorded against a short SHA or a branch name would be unresolvable
+// later, and the promotion gate requires a full commit id.
+if (!/^[0-9a-f]{40}$/.test(sha)) {
+    console.error(`Refusing to record a release for "${sha}": expected a full 40-character commit SHA.`);
     process.exit(1);
 }
 

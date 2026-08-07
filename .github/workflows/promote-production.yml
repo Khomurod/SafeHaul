@@ -135,7 +135,9 @@ jobs:
           LANDING_VERSION_ID: ${{ steps.release.outputs.landing_version_id }}
           RELEASE_CHANNEL: production
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_SHA: ${{ inputs.sha }}
+          # The promotion is dispatched from main but releases the candidate, so
+          # the release identity is passed explicitly rather than inherited.
+          RELEASE_SHA: ${{ inputs.sha }}
         run: node scripts/record-release.mjs
 
       - name: Summarise the promotion
