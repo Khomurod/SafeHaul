@@ -31,17 +31,30 @@
 // driver never made, and putting a second "original" in the record.
 //
 // So each submission attempt carries a client-generated `submissionAttemptId`
-// that is stable across every retry and replay of that one press of Submit.
-// Before claiming a sequence, this module looks for a snapshot already carrying
-// that id and returns it instead. Firestore queries are strongly consistent, and
-// the browser's retries are sequential with backoff, so a redelivery reliably
-// sees the earlier write.
+// that is stable across every retry and replay of that one press of Submit, and
+// the attempt is claimed inside a TRANSACTION that both reads the claim marker
+// and writes the snapshot.
+//
+// A read followed by an independent create would not be enough. Two deliveries
+// of one attempt — a browser retry racing the offline queue's replay, or two
+// tabs — can both observe "no snapshot yet" before either has written. One then
+// takes v1 and the other takes v2, and the retry is permanently recorded as a
+// resubmission the driver never made: a second "original" in the evidence. The
+// transaction serialises on the claim marker, so the second delivery sees the
+// first one's claim and returns it instead of inventing a submission.
 //
 // An attempt with no id is treated as its own submission, which is the old
 // behaviour — a client too old to send one is not made worse.
 
 /** Hard ceiling on sequence probing, so a pathological loop cannot spin. */
 const MAX_SNAPSHOT_SEQUENCE = 50;
+
+/**
+ * Where an attempt's claim marker lives. Server-written only: no Firestore rule
+ * grants any client access, and nothing presents it to a user. It exists purely
+ * so a redelivery can resolve to the record the first delivery created.
+ */
+const ATTEMPT_COLLECTION = 'submission_attempts';
 
 /** Firestore ALREADY_EXISTS, by gRPC code or message. */
 function isAlreadyExists(error) {
@@ -83,37 +96,15 @@ async function writeSubmissionSnapshot({
         throw new Error('writeSubmissionSnapshot requires a snapshot');
     }
 
-    const collection = db
+    const applicationRef = db
         .collection('companies').doc(companyId)
-        .collection('applications').doc(applicationId)
-        .collection('submission');
+        .collection('applications').doc(applicationId);
+    const collection = applicationRef.collection('submission');
 
     const attemptId = typeof submissionAttemptId === 'string' && submissionAttemptId.trim()
         ? submissionAttemptId.trim()
         : null;
 
-    // A redelivery of an attempt already recorded returns that record rather
-    // than manufacturing a resubmission the driver never made.
-    if (attemptId) {
-        const existing = await collection
-            .where('submissionAttemptId', '==', attemptId)
-            .limit(1)
-            .get();
-        if (!existing.empty) {
-            const doc = existing.docs[0];
-            const sequence = doc.data().sequence;
-            console.log(
-                `[${logLabel}] Submission attempt ${attemptId} was already recorded as `
-                + `${doc.id} for application ${applicationId} (company ${companyId}); not writing again`
-            );
-            return {
-                snapshotId: doc.id,
-                sequence,
-                isOriginal: sequence === 1,
-                deduplicated: true,
-            };
-        }
-    }
 
     const payload = {
         ...snapshot,
@@ -126,6 +117,63 @@ async function writeSubmissionSnapshot({
         submissionAttemptId: attemptId,
     };
 
+    // ---- Idempotent path: the attempt is claimed atomically. ----
+    if (attemptId) {
+        if (typeof db.runTransaction !== 'function') {
+            // Falling back to the non-transactional claim would silently drop
+            // idempotency — the one property the attempt id exists to provide.
+            throw new Error('writeSubmissionSnapshot requires a Firestore that supports transactions');
+        }
+        const claimRef = applicationRef.collection(ATTEMPT_COLLECTION).doc(attemptId);
+
+        const result = await db.runTransaction(async (tx) => {
+            const claim = await tx.get(claimRef);
+            if (claim.exists) {
+                const claimed = claim.data() || {};
+                return {
+                    snapshotId: claimed.snapshotId,
+                    sequence: claimed.sequence,
+                    isOriginal: claimed.sequence === 1,
+                    deduplicated: true,
+                };
+            }
+
+            // All reads must precede all writes, so probe for the first free
+            // sequence before writing anything.
+            let sequence = null;
+            for (let candidate = 1; candidate <= MAX_SNAPSHOT_SEQUENCE; candidate += 1) {
+                // eslint-disable-next-line no-await-in-loop
+                const existing = await tx.get(collection.doc(`v${candidate}`));
+                if (!existing.exists) { sequence = candidate; break; }
+            }
+            if (sequence === null) {
+                throw new Error(
+                    `Could not claim a submission snapshot sequence for ${applicationId} `
+                    + `after ${MAX_SNAPSHOT_SEQUENCE} attempts`
+                );
+            }
+
+            const snapshotId = `v${sequence}`;
+            tx.create(collection.doc(snapshotId), { ...payload, sequence });
+            // The claim records where the attempt landed, so a redelivery that
+            // arrives later resolves to the same record without a query.
+            tx.create(claimRef, { snapshotId, sequence, submissionAttemptId: attemptId });
+            return { snapshotId, sequence, isOriginal: sequence === 1, deduplicated: false };
+        });
+
+        console.log(
+            result.deduplicated
+                ? `[${logLabel}] Submission attempt ${attemptId} was already recorded as `
+                    + `${result.snapshotId} for application ${applicationId} (company ${companyId}); not writing again`
+                : `[${logLabel}] Wrote submission snapshot ${result.snapshotId} for application ${applicationId} (company ${companyId})`
+        );
+        return result;
+    }
+
+    // ---- No attempt id (or no transaction support): claim by create(). ----
+    // Still safe against concurrent submissions — `create()` cannot overwrite —
+    // but it cannot recognise a redelivery, which is the pre-attempt-id
+    // behaviour and no worse than it.
     let lastError = null;
     for (let sequence = 1; sequence <= MAX_SNAPSHOT_SEQUENCE; sequence += 1) {
         const snapshotId = `v${sequence}`;
@@ -164,6 +212,7 @@ async function readOriginalSubmissionSnapshot({ db, companyId, applicationId }) 
 }
 
 module.exports = {
+    ATTEMPT_COLLECTION,
     MAX_SNAPSHOT_SEQUENCE,
     isAlreadyExists,
     readOriginalSubmissionSnapshot,

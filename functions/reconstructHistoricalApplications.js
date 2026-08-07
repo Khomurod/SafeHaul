@@ -30,7 +30,7 @@ const { logger } = require('firebase-functions');
 const { admin, db, storage } = require('./firebaseAdmin');
 const { reconstructSubmissionSnapshot } = require('./shared/reconstructSubmission');
 const { writeSubmissionSnapshot } = require('./shared/writeSubmissionSnapshot');
-const { preserveApplicationPdf } = require('./shared/preserveApplicationPdf');
+const { preserveApplicationPdf, originalPdfPath } = require('./shared/preserveApplicationPdf');
 const { RECORD_STATUS, stampSubmissionRecordStatus } = require('./shared/submissionRecordStatus');
 
 /** Applications examined per company page. */
@@ -45,6 +45,54 @@ const DEFAULT_MAX_APPLICATIONS = 200;
  * @returns {Promise<{scanned, reconstructed, skipped, failed, pdfs, truncated,
  *   lastApplicationId, unrecoverable, errors}>}
  */
+/**
+ * Preserve the PDF for an application whose record exists but whose document
+ * does not. Returns true when it wrote one.
+ *
+ * Safe to call on every skipped application: `preserveApplicationPdf` writes
+ * create-only, so an existing object is left exactly as it is.
+ */
+async function repairMissingPdf({ doc, companyId, snapshot }) {
+    if (!snapshot) return false;
+
+    const file = storage.bucket().file(originalPdfPath({
+        companyId, applicationId: doc.id, snapshotId: 'v1',
+    }));
+    const [exists] = await file.exists();
+    if (exists) return false;
+
+    try {
+        await preserveApplicationPdf({
+            db,
+            storage,
+            serverTimestamp: admin.firestore.FieldValue.serverTimestamp(),
+            companyId,
+            applicationId: doc.id,
+            snapshot,
+            snapshotId: 'v1',
+            sequence: 1,
+            signatureImage: doc.data()?.signature || null,
+            ownerIds: {
+                applicantId: doc.data()?.applicantId || doc.id,
+                driverId: doc.data()?.driverId || doc.id,
+            },
+            logLabel: 'reconstructHistoricalApplications:repair',
+        });
+        logger.info(
+            `[reconstructHistoricalApplications] Repaired the missing preserved PDF for ${doc.id}`,
+        );
+        return true;
+    } catch (error) {
+        // A repair failure must not abort the company: the record itself is
+        // intact, and the next run will try again.
+        logger.warn(
+            `[reconstructHistoricalApplications] Could not repair the PDF for ${doc.id}: `
+            + `${error?.message || error}`,
+        );
+        return false;
+    }
+}
+
 async function reconstructForCompany({
     companyId,
     company,
@@ -93,6 +141,22 @@ async function reconstructForCompany({
                 const existing = await doc.ref.collection('submission').doc('v1').get();
                 if (existing.exists) {
                     result.skipped += 1;
+
+                    // The record is preserved, but its PDF may not be. A
+                    // submission whose snapshot committed and whose PDF write
+                    // then failed returns `pdfPreserved: false` and nothing else
+                    // ever retries it — so without this, its official document
+                    // would be missing permanently while every later run
+                    // skipped it as "already done".
+                    //
+                    // Repairing from the STORED snapshot, never a fresh rebuild,
+                    // keeps the document faithful to the preserved record.
+                    if (!dryRun) {
+                        const repaired = await repairMissingPdf({
+                            doc, companyId, snapshot: existing.data(),
+                        });
+                        if (repaired) result.pdfs += 1;
+                    }
                     continue;
                 }
 

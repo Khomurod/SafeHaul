@@ -17,10 +17,17 @@
 //      No note is written unless it is true of THIS application.
 //   3. Agreements are attributed to `legacy-1` — the frozen forensic copy of the
 //      wording the old generator actually displayed — never to current wording.
-//      Where the applicant certified, acceptance is recorded with scope
-//      `combined`, because one signature over a combined acknowledgement is what
-//      the old flow captured. Calling that an individual acceptance would
+//      Acceptance comes from the per-agreement checkbox the applicant actually
+//      ticked (`agree-electronic`, `agree-background-check`, `agree-psp`), which
+//      does survive on the application document. Only where those are absent
+//      entirely does it fall back to the final certification, recorded with
+//      scope `combined`: one signature over a combined acknowledgement is what
+//      that older flow captured. Calling that an individual acceptance would
 //      overclaim; calling it a refusal would be false.
+//
+//      The FMCSA Clearinghouse consent has no `legacy-1` wording at all,
+//      because the old consent screen never asked for it. It therefore cannot
+//      appear in a reconstructed set, and no historical record can claim it.
 //
 // It never invents an answer, a date, a question or an acceptance.
 
@@ -29,6 +36,21 @@ const { buildSubmissionSnapshot } = require('./submissionSnapshot');
 
 /** The frozen copy of the wording pre-rebuild applications actually displayed. */
 const LEGACY_AGREEMENT_VERSION = 'legacy-1';
+
+/**
+ * The per-agreement checkbox each acknowledgement was stored under before
+ * `agreementAcceptances` existed. Mirrors `LEGACY_ACCEPTANCE_KEYS` in
+ * `Step9_Consent.jsx`, which still writes these keys today.
+ *
+ * There is deliberately no entry for `clearinghouseConsent`: that agreement was
+ * not on the old consent screen, so no historical application can carry an
+ * acknowledgement of it.
+ */
+const LEGACY_ACCEPTANCE_KEYS = Object.freeze({
+    electronicSignature: 'agree-electronic',
+    fcraDisclosure: 'agree-background-check',
+    pspDisclosure: 'agree-psp',
+});
 
 /** Fields on the application document that are metadata, not answers. */
 const NON_ANSWER_KEYS = new Set([
@@ -145,7 +167,23 @@ function reconstructSubmissionSnapshot({ application, company } = {}) {
     const certified = certifiedAt(application);
     let acceptances = {};
 
-    if (certified) {
+    // The per-agreement checkbox the applicant ticked. This is the best evidence
+    // that survives, and it is genuinely per-agreement — an applicant who ticked
+    // two of three left exactly that record.
+    const ticked = Object.fromEntries(
+        Object.entries(LEGACY_ACCEPTANCE_KEYS)
+            .map(([agreementId, key]) => [agreementId, application?.[key] === 'agreed'])
+            .filter(([, accepted]) => accepted),
+    );
+    const anyTicked = Object.keys(ticked).length > 0;
+
+    if (certified && anyTicked) {
+        notes.push(
+            'Acceptance of each agreement was recovered from the individual acknowledgement '
+            + 'the applicant recorded at the time. An agreement not listed as accepted was '
+            + 'not acknowledged, and no acceptance of it is claimed.',
+        );
+    } else if (certified) {
         notes.push(
             'The applicant certified the agreements as a set with one signature, which is '
             + 'what the application captured at the time. Individual acceptance of each '
@@ -170,12 +208,29 @@ function reconstructSubmissionSnapshot({ application, company } = {}) {
     });
 
     if (certified) {
-        acceptances = Object.fromEntries(definition.agreements.map((agreement) => [agreement.id, {
-            accepted: true,
-            acceptedAt: certified,
-            // The whole point: certified as a set, not individually.
-            scope: 'combined',
-        }]));
+        // Only agreements the applicant actually acknowledged. Where individual
+        // acknowledgements survive they are authoritative — an agreement absent
+        // from them was not accepted, and inventing an acceptance for it is the
+        // precise failure this rebuild exists to avoid. Only when NO individual
+        // record survives does the blanket certification stand in, and it is
+        // labelled `combined` so it can never be read as an individual one.
+        acceptances = Object.fromEntries(
+            definition.agreements
+                .filter((agreement) => (anyTicked ? ticked[agreement.id] === true : true))
+                .map((agreement) => [agreement.id, {
+                    accepted: true,
+                    acceptedAt: certified,
+                    scope: anyTicked ? 'individual' : 'combined',
+                }]),
+        );
+
+        const unaccepted = definition.agreements.filter((a) => !acceptances[a.id]);
+        if (unaccepted.length > 0) {
+            notes.push(
+                `${unaccepted.length} agreement${unaccepted.length === 1 ? ' was' : 's were'} `
+                + 'presented but not acknowledged by the applicant.',
+            );
+        }
     }
 
     const snapshot = buildSubmissionSnapshot({
@@ -197,6 +252,7 @@ function reconstructSubmissionSnapshot({ application, company } = {}) {
 }
 
 module.exports = {
+    LEGACY_ACCEPTANCE_KEYS,
     LEGACY_AGREEMENT_VERSION,
     NON_ANSWER_KEYS,
     answersFrom,

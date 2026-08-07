@@ -77,6 +77,11 @@ describe('deleteApplication', () => {
     expect(mockAssertCompanyAdminStrict).toHaveBeenCalledWith('admin1', 'co1');
     expect(mockFileDelete).toHaveBeenCalledTimes(1); // the cdl-front storagePath
     expect(mockDeleteFiles).toHaveBeenCalledWith({ prefix: 'companies/co1/applications/app1/' });
+    // The preserved originals live OUTSIDE the companies/ tree, so that no
+    // Storage rule can grant direct access to a document that may carry a full
+    // SSN. That also puts them outside the sweep above: without this second
+    // prefix they would survive the delete as unreachable sensitive files.
+    expect(mockDeleteFiles).toHaveBeenCalledWith({ prefix: 'application_originals/co1/app1/' });
     expect(mockRecursiveDelete).toHaveBeenCalledWith(mockRef);
   });
 

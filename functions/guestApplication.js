@@ -9,6 +9,10 @@ const { assertCompanyAcceptingIntake } = require('./shared/companyTenant');
 const { assertRequiredUploads, buildApplicationDoc } = require('./shared/buildApplicationDoc');
 const { upsertApplicationDoc } = require('./shared/upsertApplicationDoc');
 const { buildApplicationDefinition } = require('./shared/applicationDefinition');
+const { CURRENT_AGREEMENT_VERSION, submittableVersions } = require('./shared/legalAgreements');
+
+/** Versions a fresh submission may claim. Never a retired `legacy-*` one. */
+const KNOWN_SUBMITTABLE_VERSIONS = submittableVersions();
 const { buildSubmissionSnapshot } = require('./shared/submissionSnapshot');
 const { writeSubmissionSnapshot } = require('./shared/writeSubmissionSnapshot');
 const {
@@ -17,6 +21,38 @@ const {
     stampSubmissionRecordStatus,
 } = require('./shared/submissionRecordStatus');
 const { preserveApplicationPdf } = require('./shared/preserveApplicationPdf');
+
+/**
+ * The agreement version the applicant was actually shown.
+ *
+ * The consent step records the version alongside every acceptance. Rebuilding
+ * the definition at the server's CURRENT version instead would bind the
+ * applicant's signature to whatever wording happens to be deployed at the
+ * moment the submission lands — which, if the legal text were advanced while
+ * their consent page sat open, is text they never read.
+ *
+ * Only a single version agreed across every acceptance is trusted. A mixed or
+ * unrecognised set is not evidence of anything specific, so it falls back to the
+ * current version rather than guessing which of them to honour.
+ */
+function agreementVersionFromAcceptances(acceptances) {
+    if (!acceptances || typeof acceptances !== 'object') return CURRENT_AGREEMENT_VERSION;
+
+    const reported = new Set(
+        Object.values(acceptances)
+            .filter((evidence) => evidence && typeof evidence === 'object')
+            .map((evidence) => evidence.version)
+            .filter((version) => typeof version === 'string' && version),
+    );
+
+    if (reported.size !== 1) return CURRENT_AGREEMENT_VERSION;
+
+    const [version] = reported;
+    // Never take a version id from the client on trust: an unknown one would
+    // throw deep inside the registry, and a `legacy-*` one would let a caller
+    // attribute a brand-new submission to retired wording.
+    return KNOWN_SUBMITTABLE_VERSIONS.has(version) ? version : CURRENT_AGREEMENT_VERSION;
+}
 
 /**
  * Stamp the observed request IP onto each agreement acceptance.
@@ -158,6 +194,10 @@ exports.submitGuestApplication = functions
                         applicationConfig,
                         customQuestions,
                     },
+                    // The wording they actually saw, not whatever is current now.
+                    agreementVersion: agreementVersionFromAcceptances(
+                        normalizedFormData.agreementAcceptances,
+                    ),
                 });
 
                 const snapshot = buildSubmissionSnapshot({

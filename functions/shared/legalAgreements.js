@@ -94,11 +94,11 @@ I hereby authorize Prospective Employer to access the FMCSA Pre-Employment Scree
 I understand that I am authorizing the release of safety performance information including crash data from the previous five (5) years and inspection history from the previous three (3) years.
 I understand that I have the right to review the information provided by the PSP system and to contest the accuracy of that information by submitting a request to the FMCSA DataQs system.`;
 
-const LEGACY_CLEARINGHOUSE_CONSENT = `GENERAL CONSENT FOR FULL QUERY OF THE FMCSA DRUG AND ALCOHOL CLEARINGHOUSE
-
-I hereby provide consent to Company ("Prospective Employer") to conduct a full query of the FMCSA Commercial Driver's License Drug and Alcohol Clearinghouse (Clearinghouse) to determine whether drug or alcohol violation information about me exists in the Clearinghouse, and to release that information to Prospective Employer.
-I understand that if the full query conducted by Prospective Employer indicates that drug or alcohol violation information about me exists in the Clearinghouse, FMCSA will disclose that information to Prospective Employer.
-I further understand that if I refuse to provide consent for Prospective Employer to conduct a full query of the Clearinghouse, Prospective Employer must prohibit me from performing safety-sensitive functions, including driving a commercial motor vehicle, as required by FMCSA's drug and alcohol program regulations.`;
+// There is deliberately NO `LEGACY_CLEARINGHOUSE_CONSENT`. The old consent
+// screen presented three agreements; Clearinghouse consent was never among
+// them, even though the old PDF printed a Clearinghouse page and signed it.
+// Keeping frozen wording here would invite a reconstruction to attribute that
+// page to a driver who was never asked.
 
 /**
  * The old generator's substitution, preserved bug-for-bug so a reconstructed
@@ -213,8 +213,16 @@ const AGREEMENTS = Object.freeze({
         required: true,
         requiresSignature: true,
         title: 'FMCSA CLEARINGHOUSE FULL QUERY CONSENT',
+        // DELIBERATELY NO `legacy-1`. The pre-modernization consent screen
+        // presented exactly three agreements — electronic signature, FCRA and
+        // PSP. It never asked for Clearinghouse consent, even though the old
+        // browser PDF printed a Clearinghouse page and stamped the same
+        // signature onto it. That page was an assertion the driver never made.
+        //
+        // Giving this agreement a `legacy-1` body would let a reconstruction
+        // resurrect exactly that false claim. Its absence here is what makes a
+        // historical record say, truthfully, that consent was never obtained.
         versions: {
-            'legacy-1': { body: LEGACY_CLEARINGHOUSE_CONSENT, legacy: true },
             v1: { body: V1_CLEARINGHOUSE_CONSENT },
         },
     },
@@ -222,6 +230,24 @@ const AGREEMENTS = Object.freeze({
 
 /** Version every NEW submission presents. Historical records keep their own. */
 const CURRENT_AGREEMENT_VERSION = 'v1';
+
+/**
+ * Versions a NEW submission may legitimately claim to have displayed.
+ *
+ * Derived from the registry rather than hardcoded, and deliberately excludes
+ * every `legacy: true` version: those are the frozen record of wording that is
+ * no longer shown to anyone, so a fresh submission claiming one would be
+ * attributing a signature to retired text.
+ */
+function submittableVersions() {
+    const versions = new Set();
+    for (const agreement of Object.values(AGREEMENTS)) {
+        for (const [version, entry] of Object.entries(agreement.versions)) {
+            if (!entry.legacy) versions.add(version);
+        }
+    }
+    return versions;
+}
 
 /** Agreement ids that must always be presented, in presentation order. */
 function requiredAgreementIds() {
@@ -267,7 +293,13 @@ function resolveAgreement(agreementId, version, { companyName } = {}) {
  * @param {string} [opts.version]   Defaults to CURRENT_AGREEMENT_VERSION.
  */
 function resolveAgreementSet({ companyName, version = CURRENT_AGREEMENT_VERSION } = {}) {
-    return requiredAgreementIds().map((id) => resolveAgreement(id, version, { companyName }));
+    // Only agreements that EXIST at this version. An agreement introduced after
+    // a historical submission was made was not part of that submission's set,
+    // and including it would invite a record that claims consent for wording
+    // nobody was ever shown.
+    return requiredAgreementIds()
+        .filter((id) => Boolean(AGREEMENTS[id].versions[version]))
+        .map((id) => resolveAgreement(id, version, { companyName }));
 }
 
 module.exports = {
@@ -276,6 +308,7 @@ module.exports = {
     legacySubstitution,
     renderAgreementBody,
     requiredAgreementIds,
+    submittableVersions,
     resolveAgreement,
     resolveAgreementSet,
 };

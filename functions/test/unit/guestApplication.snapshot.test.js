@@ -21,6 +21,8 @@ const mockState = {
   storedPdfs: {},     // storage path -> { buffer, options }
   publicProfile: null,
   createShouldFail: null,
+  attempts: {},
+  txLock: null,
 };
 
 function mockApplicationDoc(companyId, applicationId) {
@@ -48,6 +50,22 @@ function mockApplicationDoc(companyId, applicationId) {
       }),
       doc: (seq) => {
         const path = `${appPath}/${name}/${seq}`;
+        if (name === 'submission_attempts') {
+          return {
+            path,
+            async create(data) {
+              if (path in mockState.attempts) {
+                const err = new Error('6 ALREADY_EXISTS'); err.code = 6; throw err;
+              }
+              mockState.attempts[path] = data;
+            },
+            async get() {
+              return path in mockState.attempts
+                ? { exists: true, data: () => mockState.attempts[path] }
+                : { exists: false, data: () => undefined };
+            },
+          };
+        }
         if (name === 'dq_files') {
           return {
             async set(data, options) {
@@ -57,6 +75,7 @@ function mockApplicationDoc(companyId, applicationId) {
           };
         }
         return {
+          path,
           async create(data) {
             if (mockState.createShouldFail) throw mockState.createShouldFail;
             if (path in mockState.snapshots) {
@@ -92,6 +111,27 @@ jest.mock('../../firebaseAdmin', () => ({
     }),
   },
   db: {
+    // Serialised like Firestore's: the whole callback runs to completion before
+    // another transaction starts, and its writes land atomically at the end.
+    // That is what makes the attempt claim safe against a concurrent redelivery.
+    runTransaction: async (fn) => {
+      while (mockState.txLock) await mockState.txLock;
+      let release;
+      mockState.txLock = new Promise((resolve) => { release = resolve; });
+      try {
+        const writes = [];
+        const tx = {
+          get: (ref) => ref.get(),
+          create: (ref, data) => { writes.push([ref, data]); },
+        };
+        const result = await fn(tx);
+        for (const [ref, data] of writes) await ref.create(data);
+        return result;
+      } finally {
+        mockState.txLock = null;
+        release();
+      }
+    },
     collection: (col) => {
       if (col === 'public_profiles') {
         return { doc: () => ({ get: async () => (mockState.publicProfile
@@ -154,6 +194,8 @@ beforeEach(() => {
   mockState.storedPdfs = {};
   mockState.publicProfile = null;
   mockState.createShouldFail = null;
+  mockState.attempts = {};
+  mockState.txLock = null;
 });
 
 describe('submission freezes a snapshot', () => {

@@ -11,6 +11,13 @@ const {
 // Artificial carrier names only.
 const CO = { companyName: 'Artificial Freight Co' };
 
+/**
+ * The agreements the pre-modernization consent screen actually presented, in
+ * order. The Clearinghouse consent is deliberately absent: it was added by the
+ * preservation work, so no historical submission can have accepted it.
+ */
+const LEGACY_PRESENTED_IDS = ['electronicSignature', 'fcraDisclosure', 'pspDisclosure'];
+
 describe('agreement set completeness — no required agreement may go missing', () => {
   it('always presents all four agreements in a fixed order', () => {
     expect(requiredAgreementIds()).toEqual([
@@ -83,10 +90,27 @@ describe('legacy-1 is a frozen forensic record of what old applications displaye
     expect(resolveAgreement('fcraDisclosure', 'v1', CO).legacy).toBe(false);
   });
 
-  it('offers legacy-1 for every agreement, so any historical record can be attributed', () => {
-    for (const id of requiredAgreementIds()) {
+  it('offers legacy-1 for every agreement the old consent screen presented', () => {
+    for (const id of LEGACY_PRESENTED_IDS) {
       expect(() => resolveAgreement(id, 'legacy-1', CO)).not.toThrow();
     }
+  });
+
+  it('has NO legacy-1 for the Clearinghouse consent, which was never presented', () => {
+    // The pre-modernization consent screen showed three agreements. The old
+    // browser PDF nevertheless printed a Clearinghouse page and stamped the
+    // driver's signature on it — an assertion they never made.
+    //
+    // Refusing to resolve `clearinghouseConsent` at legacy-1 is what stops a
+    // reconstruction from reviving that false claim. If someone adds a
+    // legacy-1 body here, this test fails and says why.
+    expect(() => resolveAgreement('clearinghouseConsent', 'legacy-1', CO)).toThrow(/Unknown version/);
+  });
+
+  it('leaves the Clearinghouse consent out of the legacy set entirely', () => {
+    const legacyIds = resolveAgreementSet({ ...CO, version: 'legacy-1' }).map((a) => a.id);
+    expect(legacyIds).toEqual(LEGACY_PRESENTED_IDS);
+    expect(legacyIds).not.toContain('clearinghouseConsent');
   });
 });
 
@@ -111,7 +135,7 @@ describe('legal substance is identical between legacy-1 and v1', () => {
   const collapseDefinitionsClause = (text) =>
     text.replace('refer to «CO», the motor carrier', 'refer to the motor carrier');
 
-  it.each(requiredAgreementIds())('%s carries the same terms in both versions', (id) => {
+  it.each(LEGACY_PRESENTED_IDS)('%s carries the same terms in both versions', (id) => {
     const legacy = normalise(resolveAgreement(id, 'legacy-1', CO).body);
     const current = collapseDefinitionsClause(normalise(resolveAgreement(id, 'v1', CO).body));
     expect(current).toBe(legacy);

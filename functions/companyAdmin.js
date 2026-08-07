@@ -8,6 +8,7 @@ const { deleteCompanySchema, sendEmailSchema } = require("./shared/schema");
 const { assertCompanyAdminStrict } = require('./shared/companyAccess');
 const { buildPublicProfileDto } = require('./shared/publicProfileDto');
 const { reconcilePublicProfilesToCompletion } = require('./shared/publicProfileSync');
+const { ORIGINAL_PDF_PREFIX } = require('./shared/preserveApplicationPdf');
 
 /**
  * Where the reconciler records how far it got.
@@ -64,7 +65,12 @@ exports.deleteCompany = onCall({
         const prefixes = [
             `secure_documents/${companyId}/`,
             `company_assets/${companyId}/`,
-            `companies/${companyId}/`
+            `companies/${companyId}/`,
+            // Preserved original application PDFs. They sit outside `companies/`
+            // so that no Storage rule can grant direct access to a document that
+            // may contain a full SSN — which also puts them outside the sweep
+            // above. Deleting the company must not leave them orphaned.
+            `${ORIGINAL_PDF_PREFIX}/${companyId}/`
         ];
 
         for (const prefix of prefixes) {
