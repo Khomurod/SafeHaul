@@ -60,6 +60,13 @@ export function useReleaseStatus() {
     const [status, setStatus] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    // Every completed read, successful or not. The polling effect keys off this
+    // rather than off `status`, because a FAILED read leaves `status` byte-for-
+    // byte identical — so the effect would not re-run, the next timer would
+    // never be scheduled, and a single transient network blip would leave the
+    // screen frozen on "Releasing…" until someone pressed Refresh. Which is the
+    // worst possible moment for a status page to quietly stop updating.
+    const [tick, setTick] = useState(0);
     const mounted = useRef(true);
     const timer = useRef(null);
 
@@ -86,7 +93,10 @@ export function useReleaseStatus() {
             setError(describeReleaseError(err, 'The release status could not be loaded.'));
             return null;
         } finally {
-            if (mounted.current && !quiet) setLoading(false);
+            if (mounted.current) {
+                if (!quiet) setLoading(false);
+                setTick((previous) => previous + 1);
+            }
         }
     }, []);
 
@@ -98,9 +108,9 @@ export function useReleaseStatus() {
         if (!IN_FLIGHT.has(phase)) return undefined;
         timer.current = setTimeout(() => { load({ quiet: true }); }, ACTIVE_POLL_MS);
         return () => { if (timer.current) clearTimeout(timer.current); };
-        // `status` is in the dependency list on purpose: each completed poll
-        // schedules the next one.
-    }, [phase, status, load]);
+        // `tick` is in the dependency list on purpose: every completed read —
+        // including a failed one — schedules the next.
+    }, [phase, tick, load]);
 
     return { status, phase, loading, error, reload: load };
 }

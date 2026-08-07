@@ -276,6 +276,39 @@ describe('progress and outcome', () => {
         expect(releaseButton()).toBeDisabled();
     });
 
+    it('keeps following a running release after a poll fails', async () => {
+        // A transient failure must not freeze the screen on "Releasing…". This is
+        // a regression guard: the polling effect originally keyed off the status
+        // object, which a failed read leaves unchanged — so no further poll was
+        // ever scheduled and progress tracking stopped silently.
+        const running = {
+            ...eligibleStatus(),
+            activePromotion: { runId: '55', status: 'in_progress' },
+            latestPromotion: { requestId: 'req-1', sha: SHA_TESTED, status: 'in_progress' },
+        };
+        const finished = {
+            ...eligibleStatus(),
+            production: { ...eligibleStatus().production, sha: SHA_TESTED },
+            activePromotion: null,
+            latestPromotion: {
+                requestId: 'req-1', sha: SHA_TESTED, status: 'completed', conclusion: 'success',
+            },
+        };
+
+        getReleaseStatus
+            .mockResolvedValueOnce({ data: running })
+            .mockRejectedValueOnce(Object.assign(new Error('network'), { code: 'functions/unavailable' }))
+            .mockResolvedValue({ data: finished });
+
+        render(<ReleaseManagementView />);
+        expect(await screen.findByText(/Releasing to Production/i)).toBeTruthy();
+
+        // Poll 2 fails, poll 3 succeeds — reachable only if a failed read still
+        // schedules the next one.
+        expect(await screen.findByText(/Last release succeeded/i, {}, { timeout: 20000 })).toBeTruthy();
+        expect(getReleaseStatus.mock.calls.length).toBeGreaterThanOrEqual(3);
+    }, 25000);
+
     it('says Production was not changed after a failed release', async () => {
         getReleaseStatus.mockResolvedValue({
             data: {
