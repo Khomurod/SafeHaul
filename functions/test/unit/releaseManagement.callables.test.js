@@ -411,6 +411,44 @@ describe('audit', () => {
         expect(serialised).not.toMatch(/ghs_|ghp_|github_pat_/);
     });
 
+    it('records a finished release once, however many times the screen polls', async () => {
+        const { requestId, sha } = await releaseManagement.promoteTestingToProduction(request(superAdmin()));
+
+        // The run has finished. The Release Management screen keeps polling.
+        github.selectPromotionRun.mockReturnValue({
+            runId: '77', status: 'completed', conclusion: 'success', htmlUrl: 'https://example.test/run/77',
+        });
+
+        await releaseManagement.getReleaseStatus(request(superAdmin()));
+        await releaseManagement.getReleaseStatus(request(superAdmin()));
+        await releaseManagement.getReleaseStatus(request(superAdmin()));
+
+        const outcomes = auditRecords().filter((record) => record.reason === 'promotion-success');
+        expect(outcomes).toHaveLength(1);
+        expect(outcomes[0]).toMatchObject({ requestId, releaseSha: sha, runId: '77' });
+
+        // Scope of this assertion: it proves the `outcomeRecorded` claim flag
+        // works across REPEATED reads, which is the case that actually happens
+        // (a screen polling every few seconds after a release finishes). It does
+        // NOT prove behaviour under genuinely simultaneous reads — the Firestore
+        // double here runs transaction bodies without isolation or retry, so it
+        // cannot model that. Simultaneity is handled by real Firestore
+        // transaction semantics, which is why the claim is taken inside
+        // `runTransaction` rather than by a read followed by a write.
+    });
+
+    it('releases the lock as soon as a release finishes, so a retry is not blocked', async () => {
+        await releaseManagement.promoteTestingToProduction(request(superAdmin()));
+        expect(mock.docs.has('release_promotion_locks/current')).toBe(true);
+
+        github.selectPromotionRun.mockReturnValue({
+            runId: '78', status: 'completed', conclusion: 'failure', htmlUrl: 'https://example.test/run/78',
+        });
+        await releaseManagement.getReleaseStatus(request(superAdmin()));
+
+        expect(mock.docs.has('release_promotion_locks/current')).toBe(false);
+    });
+
     it('records the previous production release alongside the new one', async () => {
         githubState.deployments.production = [
             { id: 900, sha: SHA_LIVE, created_at: '2026-08-06T10:00:00Z', payload: { appVersionId: 'ver-app-900' } },

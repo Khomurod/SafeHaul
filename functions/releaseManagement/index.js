@@ -167,17 +167,37 @@ async function refreshPromotion(promotion, runs) {
         await db.collection(LOCK_COLLECTION).doc('current').delete().catch(() => {});
     }
 
+    // Claiming the outcome and persisting the update happen together, in one
+    // transaction, because the Release Management screen POLLS this: two open
+    // tabs — or two Super Admins — can observe the same completed run within
+    // milliseconds of each other. Deciding "has anyone recorded this yet?" by
+    // reading a value that was fetched before the write is exactly the read
+    // -then-act race that produces two audit rows for one release. The claim
+    // flag is set only if it is not already set, so precisely one caller wins.
+    let claimedOutcome = false;
+    const promotionRef = db.collection(PROMOTIONS_COLLECTION).doc(promotion.requestId);
+
     try {
-        await db.collection(PROMOTIONS_COLLECTION).doc(promotion.requestId).set(update, { merge: true });
+        await db.runTransaction(async (tx) => {
+            const snapshot = await tx.get(promotionRef);
+            const stored = snapshot.exists ? snapshot.data() : {};
+            claimedOutcome = run.status === 'completed' && !stored.outcomeRecorded;
+            tx.set(
+                promotionRef,
+                claimedOutcome ? { ...update, outcomeRecorded: true } : update,
+                { merge: true },
+            );
+        });
     } catch (error) {
+        claimedOutcome = false;
         console.warn('[releaseManagement] could not persist a promotion update', {
             requestId: promotion.requestId,
             message: error?.message || 'unknown',
         });
     }
 
-    // Record the OUTCOME once, the first time it is observed.
-    if (run.status === 'completed' && promotion.status !== 'completed') {
+    // Record the OUTCOME once, by whoever claimed it above.
+    if (claimedOutcome) {
         await recordAuditEvent({
             auth: null,
             action: ACTIONS.PROMOTE,
