@@ -244,6 +244,12 @@ describe('reveal', () => {
             entryId: 'secret-manager:ARTIFICIAL_MASTER_KEY',
         });
 
+        // The call having been MADE is not the call having RESOLVED. Asserting
+        // the render here without waiting for the value to land passes on a
+        // fast machine and fails on a loaded CI runner, which is exactly what
+        // it did. Every other positive assertion in this file already awaits.
+        await screen.findByText(SECRET_PLAINTEXT);
+
         const revealedRow = rowFor('ARTIFICIAL_MASTER_KEY');
         expect(within(revealedRow).getByText(SECRET_PLAINTEXT)).toBeInTheDocument();
         expect(within(rowFor('VITE_FIREBASE_PROJECT_ID')).getByText('********')).toBeInTheDocument();
