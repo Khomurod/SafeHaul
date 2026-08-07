@@ -200,6 +200,11 @@ jobs:
       - name: Verify frontend/backend callable contract
         run: node scripts/check-callable-contract.mjs
 
+      # The promotion gate decides what may reach app.safehaul.io, so its refusal
+      # paths are a required check rather than a nicety.
+      - name: Verify the production-promotion gate
+        run: npm run check:release-scripts
+
   rules-emulator:
     runs-on: ubuntu-latest
     steps:
@@ -245,8 +250,8 @@ jobs:
             storage-debug.log
             ui-debug.log
 
-  deploy-hosting:
-    name: Deploy Firebase Hosting and Production Rules
+  deploy-testing:
+    name: Deploy the Testing release
     runs-on: ubuntu-latest
     needs:
       - secret-scan
@@ -256,17 +261,35 @@ jobs:
       - storybook-build
       - callable-contract
       - rules-emulator
-    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
+    # SafeHaul has exactly one active source repository. The deploy jobs used to
+    # pick their Hosting target from `github.repository`, because the same files
+    # lived in two repositories and each deployed its own pair of sites. That is
+    # retired: `Khomurod/SafeHaul` is now the only repository that may deploy,
+    # and a merge to its `main` only ever updates the TESTING channel.
+    #
+    # The repository guard is deliberately an `if:` on the job rather than a note
+    # in a runbook. `SafeHaul-for-Gemini-Antigravity` keeps this workflow file in
+    # its history, so without the guard someone could still open that archived
+    # repository and press "Run workflow" to deploy from stale source. With it,
+    # those jobs skip immediately and no Google credential is ever requested.
+    if: >-
+      github.repository == 'Khomurod/SafeHaul' &&
+      ((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch')
     concurrency:
-      group: firebase-hosting-live
+      # Serialised against itself, but NOT against a production promotion — the
+      # two touch different Hosting sites and must not cancel one another.
+      group: firebase-hosting-testing
       cancel-in-progress: true
     permissions:
       contents: read
       id-token: write
+      # Records the release (and its pinned Hosting version IDs) that a later
+      # production promotion is allowed to copy.
+      deployments: write
     env:
       FIREBASE_PROJECT_ID: truckerapp-system
-      FIREBASE_HOSTING_TARGET: ${{ github.repository == 'Khomurod/SafeHaul' && 'production' || 'testing' }}
-      FIREBASE_LANDING_TARGET: ${{ github.repository == 'Khomurod/SafeHaul' && 'landing-production' || 'landing-testing' }}
+      FIREBASE_HOSTING_TARGET: testing
+      FIREBASE_LANDING_TARGET: landing-testing
 
     steps:
       - uses: actions/checkout@v5
@@ -278,11 +301,15 @@ jobs:
           cache: 'npm'
 
       - name: Authenticate to Google Cloud
+        id: auth
         uses: google-github-actions/auth@v3
         with:
           workload_identity_provider: projects/725898258453/locations/global/workloadIdentityPools/safehaul-github/providers/safehaul-github-provider
           service_account: safehaul-github-deployer@truckerapp-system.iam.gserviceaccount.com
           project_id: ${{ env.FIREBASE_PROJECT_ID }}
+          # Needed to read back the Hosting version ID that this deploy created.
+          # Keyless: minted from the same WIF exchange, no service-account JSON.
+          token_format: access_token
 
       - name: Load browser settings from Google Secret Manager
         id: browser-settings
@@ -309,19 +336,52 @@ jobs:
       - name: Strip sourcemaps from deploy artifact
         run: find dist -name '*.map' -delete
 
+      # A promotion has to prove *which source* produced the bytes it is about to
+      # copy to production. `VITE_RELEASE_SHA` is compiled into the bundle, which
+      # is not readable without parsing hashed chunks, so the same value is also
+      # written as a plain static file. It is served by the deployed site itself,
+      # which makes the currently-live SHA independently checkable by anyone —
+      # the promotion workflow, the runbook, or a human with curl.
+      - name: Stamp the release manifest
+        run: node scripts/write-release-manifest.mjs dist "$GITHUB_SHA"
+
       - name: Deploy app and landing-page Hosting sites
         run: npx firebase deploy --only "hosting:$FIREBASE_HOSTING_TARGET,hosting:$FIREBASE_LANDING_TARGET" --project "$FIREBASE_PROJECT_ID" --non-interactive
 
-      # Rules + Storage first so an indexes IAM issue does not block rule rollouts.
+      # Capture the immutable Hosting version IDs this deploy just created.
       #
-      # Production alone owns the shared rules and indexes. The test repository
-      # deploys only its Hosting target and can never alter backend access policy.
+      # This is what makes "promote the exact tested build" true rather than
+      # aspirational. Firebase Hosting versions are immutable, so pinning the ID
+      # here means a promotion later clones *these* bytes even if `main` has moved
+      # on and Testing has been redeployed several times in between.
+      - name: Record the deployed Testing version IDs
+        id: versions
+        env:
+          GOOGLE_ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
+        run: |
+          node scripts/read-hosting-release.mjs truckerapp-system app >> "$GITHUB_OUTPUT"
+          node scripts/read-hosting-release.mjs safehaul-landing-testing landing >> "$GITHUB_OUTPUT"
+
+      - name: Publish the release record
+        env:
+          APP_VERSION_ID: ${{ steps.versions.outputs.app_version_id }}
+          LANDING_VERSION_ID: ${{ steps.versions.outputs.landing_version_id }}
+          RELEASE_CHANNEL: testing
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_SHA: ${{ github.sha }}
+        run: node scripts/record-release.mjs
+
+      # Rules, Storage and indexes are SHARED backend policy: Testing and
+      # Production run against the same Firebase project, so these roll out with
+      # the Testing frontend and must stay backward compatible with whatever
+      # frontend is currently live on production. See the expand/contract rules in
+      # docs/FIREBASE_HOSTING_RUNBOOK.md before changing them.
+      #
+      # Rules + Storage first so an indexes IAM issue does not block rule rollouts.
       - name: Deploy Firestore rules and Storage rules
-        if: github.repository == 'Khomurod/SafeHaul'
         run: npx firebase deploy --only firestore:rules,storage --project "$FIREBASE_PROJECT_ID" --non-interactive
 
       - name: Deploy Firestore indexes
-        if: github.repository == 'Khomurod/SafeHaul'
         run: npx firebase deploy --only firestore:indexes --project "$FIREBASE_PROJECT_ID" --non-interactive
 
   deploy-functions:
@@ -335,7 +395,13 @@ jobs:
       - storybook-build
       - callable-contract
       - rules-emulator
-    if: github.repository == 'Khomurod/SafeHaul' && ((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch')
+    # Cloud Functions are shared backend, not a frontend channel: there is one
+    # deployment of them serving both Testing and Production. They therefore roll
+    # out with the Testing frontend and must remain backward compatible with the
+    # frontend currently live on production — a promotion never redeploys them.
+    if: >-
+      github.repository == 'Khomurod/SafeHaul' &&
+      ((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch')
     concurrency:
       group: firebase-functions-live
       cancel-in-progress: true

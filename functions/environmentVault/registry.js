@@ -579,7 +579,15 @@ const OPS_ENTRIES = [
     ['PW_CHROMIUM_EXECUTABLE', 'Playwright Chromium path', 'Absolute path to a system Chromium for the Playwright chromium lanes.', ['playwright.config.cjs']],
     ['CI', 'CI flag', 'Set by GitHub Actions. Switches Playwright to one worker with retries and forbids test.only.', ['playwright.config.cjs']],
     ['npm_execpath', 'npm executable path', 'Path npm exposes to the running script; the rules stress runner uses it to re-invoke npm.', ['scripts/run-rules-stress.mjs']],
-].map(([key, displayName, description, consumers]) => ({
+    // Not stored anywhere. Workload Identity Federation mints this inside the
+    // deploy job so the release step can read back the Hosting version it just
+    // published; it expires with the run. Listed because the vault's inventory
+    // guard is only meaningful if it is complete, and marked SENSITIVE because
+    // it is a live credential for the run's lifetime — unlike the rest of this
+    // group, which are plain settings.
+    ['GOOGLE_ACCESS_TOKEN', 'Google deploy access token', 'Short-lived OAuth access token minted by Workload Identity Federation during the deploy workflow, used to read the deployed Firebase Hosting version ID. Never stored or retrievable.', ['scripts/read-hosting-release.mjs', '.github/workflows/main.yml'], { sensitivity: SENSITIVITY.SENSITIVE }],
+    ['RELEASE_SHA', 'Release commit SHA', 'Commit a release is being recorded for. Passed explicitly because a production promotion is dispatched from main but releases the candidate commit, so GITHUB_SHA would name the wrong thing.', ['scripts/record-release.mjs', '.github/workflows/main.yml', '.github/workflows/promote-production.yml']],
+].map(([key, displayName, description, consumers, overrides = {}]) => ({
     key,
     displayName,
     description,
@@ -593,6 +601,7 @@ const OPS_ENTRIES = [
     optional: true,
     requiresDeployment: false,
     ...readOnly(REASONS.SOURCE_NO_EDIT),
+    ...overrides,
 }));
 
 // ---------------------------------------------------------------------------

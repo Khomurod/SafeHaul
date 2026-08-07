@@ -238,8 +238,8 @@ SafeHaul/
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/Khomurod/SafeHaul-for-Gemini-Antigravity.git
-cd SafeHaul-for-Gemini-Antigravity
+git clone https://github.com/Khomurod/SafeHaul.git
+cd SafeHaul
 
 # 2. Install frontend dependencies
 npm install
@@ -435,20 +435,23 @@ firebase deploy --only storage
 The workflow uses keyless Google Workload Identity Federation. No Google JSON
 key or application setting is stored in GitHub.
 
-- `Khomurod/SafeHaul-for-Gemini-Antigravity` deploys Hosting to
-  `truckerapp-system.web.app` and `safehaul-landing-testing.web.app`.
-- `Khomurod/SafeHaul` deploys Hosting to `app.safehaul.io`, `safehaul.io`, and
-  `www.safehaul.io`, and owns shared Functions, Firestore rules, Storage rules,
-  and indexes.
-- The workflow decides the destination from `github.repository`, so the same
-  repository files can be copied between test and production safely.
+`Khomurod/SafeHaul` is the only active repository. It has two frontend release
+channels sharing one Firebase backend:
 
-Push or merge changes into `main`; successful checks trigger the appropriate
-deployment automatically.
+- **Testing** — merging to `main` deploys `truckerapp-system.web.app` and
+  `safehaul-landing-testing.web.app` automatically, and rolls out the shared
+  Functions, Firestore rules, Storage rules and indexes.
+- **Production** — `app.safehaul.io`, `safehaul.io` and `www.safehaul.io` are
+  **never** released automatically. They update only when someone runs the
+  *Promote a tested release to Production* workflow for a specific tested SHA,
+  which copies that exact Hosting version rather than rebuilding `main`.
+
+`Khomurod/SafeHaul-for-Gemini-Antigravity` is archived. Its deploy jobs are
+guarded off by repository name and it cannot deploy anything.
 
 See [docs/FIREBASE_HOSTING_RUNBOOK.md](docs/FIREBASE_HOSTING_RUNBOOK.md) for the
-simple test-to-production copy process, DNS rules, landing-form security, and
-recovery steps.
+promotion and rollback process, the shared-backend compatibility rules, DNS
+rules, landing-form security, and recovery steps.
 
 > **Important**: When deploying Cloud Functions, deploy them **one at a time** if you have limited CPU to avoid OOM issues during build.
 
