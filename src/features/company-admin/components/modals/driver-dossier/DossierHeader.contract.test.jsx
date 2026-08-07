@@ -10,9 +10,12 @@ import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 
-const generateApplicationPDFSpy = vi.fn();
-vi.mock('@shared/utils/pdfGenerator', () => ({
-  generateApplicationPDF: (...args) => generateApplicationPDFSpy(...args),
+// Download fetches the PRESERVED original; it no longer regenerates the
+// document in the browser from live application data.
+const downloadPreservedSpy = vi.fn().mockResolvedValue({ url: 'https://signed.test/x.pdf' });
+vi.mock('@features/applications/services/applicationPdfService', () => ({
+  NoPreservedPdfError: class NoPreservedPdfError extends Error {},
+  downloadPreservedApplicationPdf: (...args) => downloadPreservedSpy(...args),
 }));
 
 import { ATS_STATUS_DROPDOWN_OPTIONS } from '@shared/constants/atsStatus';
@@ -162,22 +165,30 @@ describe('DossierHeader permission gating', () => {
 });
 
 describe('DossierHeader actions', () => {
-  beforeEach(() => generateApplicationPDFSpy.mockClear());
+  beforeEach(() => downloadPreservedSpy.mockClear());
 
-  it('generates the PDF with the frozen payload shape', () => {
-    renderHeader();
+  it('asks for the preserved original by company and application', () => {
+    renderHeader({ appData: { id: 'app12345678', companyId: 'company-abc' } });
     fireEvent.click(screen.getByRole('button', { name: /download/i }));
-    expect(generateApplicationPDFSpy).toHaveBeenCalledWith({
-      applicant: { id: 'app12345678' },
-      company: { companyName: 'Acme' },
-      agreements: [],
+    expect(downloadPreservedSpy).toHaveBeenCalledWith({
+      companyId: 'company-abc',
+      applicationId: 'app12345678',
     });
   });
 
-  it('does not attempt a PDF when there is no application data', () => {
+  it('falls back to the company profile for records that predate companyId stamping', () => {
+    renderHeader({ appData: { id: 'app12345678' }, companyProfile: { id: 'company-xyz', companyName: 'Acme' } });
+    fireEvent.click(screen.getByRole('button', { name: /download/i }));
+    expect(downloadPreservedSpy).toHaveBeenCalledWith({
+      companyId: 'company-xyz',
+      applicationId: 'app12345678',
+    });
+  });
+
+  it('does not attempt a download when there is no application data', () => {
     renderHeader({ appData: null });
     fireEvent.click(screen.getByRole('button', { name: /download/i }));
-    expect(generateApplicationPDFSpy).not.toHaveBeenCalled();
+    expect(downloadPreservedSpy).not.toHaveBeenCalled();
   });
 
   it('closes the dossier from a named close control', () => {

@@ -41,6 +41,7 @@ const storageMocks = vi.hoisted(() => ({
 }));
 const logActivity = vi.hoisted(() => vi.fn());
 const getPortalUser = vi.hoisted(() => vi.fn());
+const downloadPreserved = vi.hoisted(() => vi.fn());
 
 vi.mock('@lib/firebase', () => ({ db: {}, storage: {}, auth: { currentUser: { uid: 'user-1' } } }));
 vi.mock('firebase/firestore', () => ({
@@ -68,6 +69,10 @@ vi.mock('firebase/storage', () => ({
     deleteObject: (...a) => storageMocks.deleteObject(...a),
 }));
 vi.mock('@shared/utils/activityLogger', () => ({ logActivity: (...a) => logActivity(...a) }));
+vi.mock('@features/applications/services/applicationPdfService', () => ({
+    NoPreservedPdfError: class NoPreservedPdfError extends Error {},
+    downloadPreservedApplicationPdf: (...a) => downloadPreserved(...a),
+}));
 vi.mock('@features/auth/services/userService', () => ({ getPortalUser: (...a) => getPortalUser(...a) }));
 
 import { DQFileTab } from './DQFileTab';
@@ -89,6 +94,7 @@ beforeEach(() => {
     storageMocks.deleteObject.mockResolvedValue(undefined);
     logActivity.mockResolvedValue(undefined);
     getPortalUser.mockResolvedValue({ name: 'Test Recruiter' });
+    downloadPreserved.mockResolvedValue({ url: 'https://signed.test/original.pdf' });
     vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 
@@ -142,6 +148,62 @@ describe('DQFileTab — file listing and expiration status', () => {
         expect(download).toHaveAttribute('href', DQ_FILE.url);
         expect(download).not.toHaveAttribute('title');
         expect(screen.getByRole('button', { name: 'Delete Medical Card: medcard.pdf' })).toBeInTheDocument();
+    });
+});
+
+describe('DQFileTab — the preserved application original', () => {
+    const PRESERVED = {
+        fileType: 'Application for Employment',
+        fileName: 'Driver-Application-Marcus-Delgado-2026-07-14.pdf',
+        // No durable link, on purpose.
+        url: null,
+        storagePath: 'application_originals/co-1/app-1/v1.pdf',
+        requiresAuditedAccess: true,
+        snapshotId: 'v1',
+    };
+
+    it('fetches it through the audited callable rather than a bucket link', async () => {
+        fs.getDocs.mockResolvedValue(snap([['preserved-1', PRESERVED]]));
+        renderDq();
+
+        const download = await screen.findByRole('button', {
+            name: /Download Application for Employment/i,
+        });
+        // A button, not an anchor: there is no URL to put in an href.
+        expect(download.tagName).toBe('BUTTON');
+
+        fireEvent.click(download);
+        await waitFor(() => expect(downloadPreserved).toHaveBeenCalledWith({
+            companyId: 'co-1',
+            applicationId: 'app-1',
+            snapshotId: 'v1',
+        }));
+    });
+
+    it('offers no delete control for the evidentiary record', async () => {
+        fs.getDocs.mockResolvedValue(snap([['preserved-1', PRESERVED]]));
+        renderDq();
+
+        await screen.findByRole('button', { name: /Download Application for Employment/i });
+        expect(screen.queryByRole('button', { name: /Delete Application for Employment/i })).toBeNull();
+    });
+
+    it('keeps the ordinary link-and-delete controls for every other DQ file', async () => {
+        fs.getDocs.mockResolvedValue(snap([['dq-1', DQ_FILE]]));
+        renderDq();
+
+        const link = await screen.findByRole('link', { name: /Download Medical Card/i });
+        expect(link.getAttribute('href')).toBe(DQ_FILE.url);
+        expect(screen.getByRole('button', { name: /Delete Medical Card/i })).toBeTruthy();
+    });
+
+    it('announces a failure instead of pretending the document was produced', async () => {
+        fs.getDocs.mockResolvedValue(snap([['preserved-1', PRESERVED]]));
+        downloadPreserved.mockRejectedValue(new Error('You do not have permission to open this application document.'));
+        renderDq();
+
+        fireEvent.click(await screen.findByRole('button', { name: /Download Application for Employment/i }));
+        expect(await screen.findByText(/do not have permission/i)).toBeTruthy();
     });
 });
 

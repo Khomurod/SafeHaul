@@ -10,6 +10,7 @@ import { YES_NO_OPTIONS, LICENSE_CLASS_OPTIONS, ENDORSEMENT_OPTIONS } from '@/co
 import { Checkbox, ChoiceGroup, FormField, FormSection, Select } from '@/design-system/components';
 import { StepNavigation } from './components/StepNavigation';
 import { StateSelectField } from './components/StateSelectField';
+import { resolveApplicationGate } from '@/config/applicationGates';
 
 /**
  * Presentation migrated to the approved `FormSection` / `FormField` / `Select` /
@@ -37,17 +38,14 @@ const Step3_License = ({ formData, updateFormData, handleFileUpload, onNavigate,
     const currentCompany = currentCompanyProfile;
 
     // --- Configuration ---
-    const getConfig = (fieldId, defaultReq = true) => {
-        const config = currentCompany?.applicationConfig?.[fieldId];
-        return {
-            hidden: config?.hidden || false,
-            required: config !== undefined ? config.required : defaultReq
-        };
-    };
+    // One resolver for every surface (see src/config/applicationGates.js):
+    // canonical gate ids, legacy aliases and shared defaults, so this step, the
+    // submission validator and the immutable snapshot always agree.
+    const getConfig = (fieldId) => resolveApplicationGate(currentCompany?.applicationConfig, fieldId);
 
-    const cdlUploadConfig = getConfig('cdlUpload', true);
-    // Keep default in sync with applicationSchema where medical card upload is required.
-    const medCardConfig = getConfig('medCardUpload', true);
+    const cdlUploadConfig = getConfig('cdlUpload');
+    const medCardConfig = getConfig('medCardUpload');
+    const mvrConsentConfig = getConfig('mvrConsent');
     const [validationError, setValidationError] = useState('');
     const validationErrorRef = useRef(null);
 
@@ -99,6 +97,9 @@ const Step3_License = ({ formData, updateFormData, handleFileUpload, onNavigate,
         }
         if (!medCardConfig.hidden && medCardConfig.required && !hasUploadedFile(formData['medical-card-upload'])) {
             missingUploads.push('Medical Card');
+        }
+        if (!mvrConsentConfig.hidden && mvrConsentConfig.required && !hasUploadedFile(formData['mvr-consent-upload'])) {
+            missingUploads.push('MVR Consent Form');
         }
         if (missingUploads.length > 0) {
             setValidationError(`Please upload required documents: ${missingUploads.join(', ')}.`);
@@ -291,6 +292,26 @@ const Step3_License = ({ formData, updateFormData, handleFileUpload, onNavigate,
                             minYear={expMinYear}
                             maxYear={expMaxYear}
                             helpText="Month / Day / Year (optional if not shown on card)."
+                        />
+                    </div>
+                )}
+
+                {/*
+                  MVR CONSENT FORM
+                  Configurable in Settings → Questions since that screen existed,
+                  but nothing ever rendered or enforced it, so the setting did
+                  nothing. It is hidden unless the company asks for it, and
+                  required only when the company marks it Required.
+                */}
+                {!mvrConsentConfig.hidden && (
+                    <div className="space-y-ds-4 border-t border-ds-border-subtle pt-ds-4">
+                        <UploadField
+                            label="Upload MVR Consent Form"
+                            name="mvr-consent-upload"
+                            value={formData['mvr-consent-upload']}
+                            onUpload={handleFileUpload}
+                            onChange={updateUploadedFile}
+                            required={mvrConsentConfig.required && !formData['mvr-consent-upload']}
                         />
                     </div>
                 )}

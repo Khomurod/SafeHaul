@@ -3,6 +3,7 @@
 const {
   buildPublicProfileDto,
   PUBLIC_APPLICATION_CONFIG_KEYS,
+  PUBLIC_PROFILE_DTO_VERSION,
 } = require('../../shared/publicProfileDto');
 
 const TS = { __ts: true };
@@ -75,16 +76,66 @@ describe('public profile DTO (A4 projection)', () => {
 
     // The projection is an allowlist: only these keys may ever appear.
     expect(Object.keys(dto).sort()).toEqual(
-      ['appSlug', 'applicationConfig', 'brandColor', 'companyName', 'customQuestions', 'logoUrl', 'postApplicationTemplates', 'updatedAt'].sort(),
+      ['appSlug', 'applicationConfig', 'brandColor', 'companyName', 'customQuestions', 'dtoVersion', 'logoUrl', 'postApplicationTemplates', 'updatedAt'].sort(),
     );
     expect(JSON.stringify(dto)).not.toMatch(/123-45-6789|00012345|do not share|secret|owner@acme.com/);
+  });
+
+  it('stamps the projection version, which is what the reconciler compares', () => {
+    const dto = buildPublicProfileDto({ companyName: 'Acme' }, TS);
+    expect(dto.dtoVersion).toBe(PUBLIC_PROFILE_DTO_VERSION);
+  });
+
+  describe('delete sentinel', () => {
+    const SENTINEL = { __delete: true };
+
+    it('emits a delete for every allowlisted gate the company does not set', () => {
+      // Profiles are written with { merge: true }, and a merge leaves a nested
+      // key that is merely absent in place. Without this, a gate the company
+      // un-set in Settings would stay in force on the public apply page.
+      const dto = buildPublicProfileDto(
+        { companyName: 'Acme', applicationConfig: { ssn: { required: true } } },
+        TS,
+        { deleteSentinel: SENTINEL },
+      );
+
+      expect(dto.applicationConfig.ssn).toEqual({ required: true });
+      for (const key of PUBLIC_APPLICATION_CONFIG_KEYS.filter((k) => k !== 'ssn')) {
+        expect(dto.applicationConfig[key]).toBe(SENTINEL);
+      }
+    });
+
+    it('omits absent gates when no sentinel is supplied (unchanged default)', () => {
+      const dto = buildPublicProfileDto(
+        { companyName: 'Acme', applicationConfig: { ssn: { required: true } } },
+        TS,
+      );
+      expect(Object.keys(dto.applicationConfig)).toEqual(['ssn']);
+    });
+
+    it('never emits a sentinel for a key outside the allowlist', () => {
+      const dto = buildPublicProfileDto(
+        { companyName: 'Acme', applicationConfig: { internalOnly: { hidden: true } } },
+        TS,
+        { deleteSentinel: SENTINEL },
+      );
+      expect(dto.applicationConfig.internalOnly).toBeUndefined();
+      expect(Object.keys(dto.applicationConfig).sort()).toEqual([...PUBLIC_APPLICATION_CONFIG_KEYS].sort());
+    });
   });
 
   it('locks the public applicationConfig allowlist to a known set', () => {
     // If this set changes, a reviewer must confirm the new key is non-PII.
     expect(PUBLIC_APPLICATION_CONFIG_KEYS).toEqual([
-      'cdlUpload', 'medCardUpload', 'showEmergencyContacts',
-      'ssn', 'dob', 'previousAddresses', 'employers', 'violations', 'accidents',
+      // Canonical gate ids the settings UI writes. All of them must be here:
+      // a gate that does not cross this boundary has no effect on a public
+      // apply page, which is exactly the defect this list used to have.
+      'ssn', 'dob', 'addressHistory', 'employmentHistory',
+      'cdlUpload', 'medCardUpload', 'mvrConsent', 'referralSource',
+      'emergencyContacts',
+      // Legacy spellings, read only when the canonical key is absent.
+      'showEmergencyContacts', 'previousAddresses', 'employers',
+      'violations', 'accidents',
     ]);
   });
 

@@ -1,55 +1,71 @@
 import React, { useState, useEffect, useRef } from 'react';
-import AgreementBox from '@shared/components/form/AgreementBox';
 import { useData } from '@/context/DataContext';
-import { FileSignature, CheckCircle, Save, Eraser } from 'lucide-react';
+import { FileSignature, CheckCircle, Save, Eraser, Loader2, AlertCircle } from 'lucide-react';
 import { getSignatureDataUrl, clearCanvas, initializeSignatureCanvas } from '@/lib/signature';
 import { isE2ETestMode } from '@lib/runtime/e2eMode';
 import { Button, Checkbox, FieldMessage } from '@/design-system/components';
 import { StepNavigation } from './components/StepNavigation';
+import { useApplicationAgreements } from '@features/driver-app/hooks/useApplicationAgreements';
 
 const E2E_SIGNATURE_DATA_URL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAHgAAAAUCAYAAABwR4+JAAAAAXNSR0IArs4c6QAAAO5JREFUaEPt1zEOgjAURdEtjPEEXoCLcAuuYfQAroJzMJ5BG8kpXAxwsf96YfNQfGrJ1zR56Qvwf6MQQxgkNC+CP+zr79WD4QxR2jEfSxO93Jt0NdRnM6xQ81YeJX1FW/EMubQIq4B15xTCg+0haEoQO4jYl3mRr6z4nQ18fpwevUJj2wkfjmaB2YRQ4c2tw+Zx0AMmN7cN6wEJxS3R+lAk4lHCAZ5QULvXLiP9hCV2dAW8hJw8YZSUdBBQ+J0F6sN2W3/8c2kP4aK8e5zQ3VCfN8bYQ9xH+Hh2BV9AE2Lh5ws6gN95AAAAAElFTkSuQmCC';
 
 /**
- * Agreements & signature step. Presentation migrated to the approved `Button` /
- * `Checkbox` primitives and `--ds-*` tokens (2026-07-27).
+ * Agreements & signature step.
  *
- * Nothing legal or behavioural changed. Frozen: all three `AgreementBox`
- * disclosures with their exact `contentId`s, labels, descriptions and required
- * flags; the full CERTIFICATION OF APPLICANT text including the 49 CFR 391.23
- * rights list; the `final-certification` `'agreed'` / `''` values; the drawn vs
- * typed `signatureType`; the `signatureDate` ISO stamp; the
- * `dataUrl.length < 100` blank-canvas guard and its exact message text — which as
- * of 2026-07-28 is an announced inline error rather than a blocking `alert()`; the
- * `isE2ETestMode`-only "Use Test Signature" control; the "Signature Saved &
- * Locked" confirmation; and the
- * `!isFinalCertified || !isSigned || isSubmitting || isUploading` submit gate
- * that provides duplicate-submit protection alongside the container's
- * `isSubmittingRef` guard.
+ * WHAT CHANGED AND WHY
+ * --------------------
+ * This step used to render three hand-written one-line summaries — "a consumer
+ * report may be requested about you" standing in for the whole FCRA disclosure —
+ * and omitted the FMCSA Clearinghouse consent entirely. Drivers signed a
+ * certification against text they had never been shown.
  *
- * DEFECTS FIXED (2026-07-27):
- * - The component injected a `<style>@import` for Google's "Dancing Script" font
- *   on every render of this step. Nothing in the app used that family, so it was
- *   a third-party request on the public application's most sensitive page for no
- *   visual effect. Removed.
- * - The signature canvas had no accessible name and no announcement, so a
- *   screen-reader user got no confirmation that their signature was captured.
- *   "Signature Saved & Locked" is now a `role="status"` live region and the
- *   canvas carries a label.
- * - The submit button was `type="submit"` inside `#driver-form`, so pressing
- *   Enter anywhere on the step could trigger it. It is now an explicit action
- *   button; `onFinalSubmit` is unchanged.
+ * It also recorded acceptance as three loose `agree-*` flags, which is not the
+ * shape `buildSubmissionSnapshot` reads. Every snapshot therefore recorded
+ * `accepted: false` for all agreements and, under the snapshot's rule that a
+ * signature is never attached to unaccepted wording, preserved no signature
+ * against any agreement at all.
+ *
+ * Now: all four required agreements are fetched in full from the server registry
+ * that also freezes them into the snapshot, each is acknowledged separately, and
+ * acceptance is recorded per agreement with its version and timestamp.
+ *
+ * PRESERVED DELIBERATELY: the full CERTIFICATION OF APPLICANT text including the
+ * 49 CFR 391.23 rights list; the `final-certification` `'agreed'` / `''` values;
+ * drawn vs typed `signatureType`; the `signatureDate` ISO stamp; the
+ * `dataUrl.length < 100` blank-canvas guard and its exact message; the
+ * `isE2ETestMode`-only test-signature control; the "Signature Saved & Locked"
+ * confirmation; and the legacy `agree-*` keys, which the recruiter dossier still
+ * reads to display authorization status.
  */
+
+/**
+ * Legacy per-agreement flags, still written so the recruiter dossier keeps
+ * showing authorization status for records created after this change.
+ * `agreementAcceptances` is the authoritative evidence; these are a mirror.
+ */
+const LEGACY_ACCEPTANCE_KEYS = {
+    electronicSignature: 'agree-electronic',
+    fcraDisclosure: 'agree-background-check',
+    pspDisclosure: 'agree-psp',
+    clearinghouseConsent: 'agree-clearinghouse',
+};
+
 const Step9_Consent = ({ formData, updateFormData, onNavigate, onFinalSubmit, isSubmitting, isUploading }) => {
     const { currentCompanyProfile } = useData();
-    const currentCompany = currentCompanyProfile;
     const canvasRef = useRef(null);
 
+    const companyId = currentCompanyProfile?.id || formData?.companyId || null;
+    const { agreements, loading: agreementsLoading, error: agreementsError, retry } =
+        useApplicationAgreements(companyId);
+
     const [isSigned, setIsSigned] = useState(!!formData.signature);
-    // Replaces the blocking `alert()` on the blank-canvas guard.
     const [signatureError, setSignatureError] = useState('');
     const isFinalCertified = formData['final-certification'] === 'agreed';
 
-    // Initialize canvas on mount
+    const acceptances = formData.agreementAcceptances || {};
+    const allAgreementsAccepted =
+        agreements.length > 0 && agreements.every((a) => acceptances[a.id]?.accepted === true);
+
     useEffect(() => {
         initializeSignatureCanvas();
     }, []);
@@ -58,16 +74,40 @@ const Step9_Consent = ({ formData, updateFormData, onNavigate, onFinalSubmit, is
         updateFormData('final-certification', e.target.checked ? 'agreed' : '');
     };
 
+    /**
+     * Record acceptance of one agreement.
+     *
+     * The version is stored alongside the timestamp so the evidence identifies
+     * WHICH wording was accepted. Recording a bare "yes" against wording that can
+     * later be revised is not evidence of anything.
+     */
+    const handleAgreementChange = (agreement, checked) => {
+        const next = { ...(formData.agreementAcceptances || {}) };
+        if (checked) {
+            next[agreement.id] = {
+                accepted: true,
+                acceptedAt: new Date().toISOString(),
+                version: agreement.version,
+                // The client's own user agent is legitimate to self-report. The IP
+                // is deliberately NOT sent from here: a client-supplied address is
+                // trivially forged, so the server stamps it at submission instead.
+                userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : null,
+            };
+        } else {
+            // Withdrawing acknowledgement removes the evidence rather than marking
+            // it false, so a stale acceptedAt cannot survive a change of mind.
+            delete next[agreement.id];
+        }
+        updateFormData('agreementAcceptances', next);
+
+        const legacyKey = LEGACY_ACCEPTANCE_KEYS[agreement.id];
+        if (legacyKey) updateFormData(legacyKey, checked ? 'agreed' : '');
+    };
+
     const handleSaveSignature = () => {
         const dataUrl = getSignatureDataUrl();
 
-        // Validation: Ensure the signature is not empty (dataURLs for blank canvases are very short)
         if (!dataUrl || dataUrl.length < 100) {
-            // Was a blocking `alert()`. The wording is preserved verbatim and is now
-            // an announced inline error next to the canvas, matching how every other
-            // validation message on this wizard behaves. A native alert on the
-            // public application's most mobile-heavy step also could not be styled
-            // or reliably dismissed.
             setSignatureError("Please draw your signature first.");
             return;
         }
@@ -75,19 +115,17 @@ const Step9_Consent = ({ formData, updateFormData, onNavigate, onFinalSubmit, is
         setSignatureError('');
         updateFormData('signature', dataUrl);
         updateFormData('signatureType', 'drawn');
-        updateFormData('signatureDate', new Date().toISOString()); // Save the signing date
+        updateFormData('signatureDate', new Date().toISOString());
         setIsSigned(true);
     };
 
     const handleClearSignature = () => {
-        // Clear via context as requested
         const canvas = canvasRef.current || document.getElementById('signature-canvas');
         if (canvas) {
             const ctx = canvas.getContext('2d');
             ctx.clearRect(0, 0, canvas.width, canvas.height);
         }
 
-        // Also call utility for state consistency
         clearCanvas();
         updateFormData('signature', '');
         setIsSigned(false);
@@ -104,46 +142,71 @@ const Step9_Consent = ({ formData, updateFormData, onNavigate, onFinalSubmit, is
         <div id="page-9" className="form-step space-y-ds-6">
             <h2 className="text-ds-heading-sm font-semibold text-ds-content">Agreements &amp; Signature</h2>
 
-            {/* Agreements Section (Kept for context) */}
+            <p className="text-ds-sm text-ds-content-secondary">
+                Please read each agreement in full and acknowledge them separately. Your signature below
+                applies to all of them.
+            </p>
+
+            {agreementsLoading && (
+                <div role="status" className="flex items-center gap-ds-2 py-ds-8 text-ds-content-muted">
+                    <Loader2 className="animate-spin" size={20} aria-hidden="true" />
+                    Loading the required agreements…
+                </div>
+            )}
+
+            {/* There is nothing legitimate to sign if the agreements did not load,
+                so this blocks submission rather than degrading quietly. */}
+            {agreementsError && !agreementsLoading && (
+                <div
+                    role="alert"
+                    className="flex items-start gap-ds-3 rounded-ds-lg border border-ds-status-danger-border bg-ds-status-danger-bg p-ds-4 text-ds-sm text-ds-status-danger-fg"
+                >
+                    <AlertCircle size={18} className="mt-px shrink-0" aria-hidden="true" />
+                    <div className="space-y-ds-3">
+                        <p>{agreementsError} You cannot submit until they load, because you must be able to read what you are signing.</p>
+                        <Button variant="secondary" size="sm" onClick={retry}>Try again</Button>
+                    </div>
+                </div>
+            )}
+
             <div className="space-y-ds-4">
-                <AgreementBox
-                    contentId="Agreement to Conduct Transaction Electronically"
-                    companyData={currentCompany}
-                    formData={formData}
-                    updateFormData={updateFormData}
-                    checkboxName="agree-electronic"
-                    checkboxLabel="I Agree"
-                    checkboxDescription="I have read, understood, and agree to the terms of transacting electronically."
-                    required={true}
-                >
-                    <p>This electronic transaction service is provided on behalf of <strong className="company-name-placeholder">{currentCompany?.companyName || 'The Company'}</strong>. You are agreeing to receive notices electronically and provide electronic signatures.</p>
-                </AgreementBox>
-
-                <AgreementBox
-                    contentId="Background Check Disclosure"
-                    companyData={currentCompany}
-                    formData={formData}
-                    updateFormData={updateFormData}
-                    checkboxName="agree-background-check"
-                    checkboxLabel="I Acknowledge and Authorize"
-                    checkboxDescription="I have read, understood, and agree to the Background Check Disclosure."
-                    required={true}
-                >
-                    <p>In connection with your application for employment, a consumer report may be requested about you.</p>
-                </AgreementBox>
-
-                <AgreementBox
-                    contentId="FMCSA PSP Authorization"
-                    companyData={currentCompany}
-                    formData={formData}
-                    updateFormData={updateFormData}
-                    checkboxName="agree-psp"
-                    checkboxLabel="I Authorize PSP Check"
-                    checkboxDescription="I have read, understood, and agree to the PSP Disclosure and Authorization."
-                    required={true}
-                >
-                    <p>I authorize access to the FMCSA Pre-Employment Screening Program (PSP) system.</p>
-                </AgreementBox>
+                {agreements.map((agreement) => {
+                    const checkboxId = `agreement-${agreement.id}`;
+                    const accepted = acceptances[agreement.id]?.accepted === true;
+                    return (
+                        <fieldset
+                            key={agreement.id}
+                            className="space-y-ds-4 rounded-ds-lg border border-ds-border bg-ds-surface p-ds-4"
+                        >
+                            <legend className="px-ds-2 text-ds-body-lg font-semibold text-ds-content">
+                                {agreement.title}
+                            </legend>
+                            {/* Focusable scroll region: a disclosure taller than the box
+                                must be readable with the keyboard alone. */}
+                            <div
+                                tabIndex={0}
+                                role="group"
+                                aria-label={`${agreement.title} full text`}
+                                className="max-h-72 overflow-y-auto rounded-ds-md border border-ds-border-subtle bg-ds-surface-subtle p-ds-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ds-focus"
+                            >
+                                <p className="whitespace-pre-wrap text-ds-sm leading-relaxed text-ds-content-secondary">
+                                    {agreement.body}
+                                </p>
+                            </div>
+                            <div className="rounded-ds-md bg-ds-surface-subtle p-ds-4">
+                                <Checkbox
+                                    id={checkboxId}
+                                    name={checkboxId}
+                                    label="I have read and agree"
+                                    description={`I have read, understood, and agree to the ${agreement.title.toLowerCase()}.`}
+                                    required
+                                    checked={accepted}
+                                    onChange={(e) => handleAgreementChange(agreement, e.target.checked)}
+                                />
+                            </div>
+                        </fieldset>
+                    );
+                })}
             </div>
 
             {/* 5. Final Certification & E-Signature */}
@@ -241,6 +304,14 @@ const Step9_Consent = ({ formData, updateFormData, onNavigate, onFinalSubmit, is
                             onChange={handleFinalCertificationChange}
                         />
                     </div>
+
+                    {/* Names what is still outstanding. The disabled submit button
+                        alone leaves an applicant guessing which box they missed. */}
+                    {!allAgreementsAccepted && agreements.length > 0 && (
+                        <p role="status" className="mt-ds-3 text-ds-sm text-ds-content-secondary">
+                            Please acknowledge all {agreements.length} agreements above before submitting.
+                        </p>
+                    )}
                 </div>
             </fieldset>
 
@@ -251,7 +322,7 @@ const Step9_Consent = ({ formData, updateFormData, onNavigate, onFinalSubmit, is
                 continueIcon={isSubmitting ? null : <CheckCircle size={20} aria-hidden="true" />}
                 continueTone="success"
                 continueLoading={isSubmitting}
-                continueDisabled={!isFinalCertified || !isSigned || isUploading}
+                continueDisabled={!isFinalCertified || !isSigned || !allAgreementsAccepted || isUploading}
             />
         </div>
     );

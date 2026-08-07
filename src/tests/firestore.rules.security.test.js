@@ -588,6 +588,97 @@ describeFirestore('firestore.rules security regressions', () => {
   });
 
   // ===================================================================
+  // SUBMISSION SNAPSHOT — immutability and tenant separation
+  //
+  // The snapshot is the frozen record of what the driver saw, answered, accepted
+  // and signed. Its immutability is enforced here, not merely intended: if any
+  // client could write it, a later edit to questions, company details or legal
+  // wording could rewrite a signed record.
+  // ===================================================================
+
+  async function seedSnapshot(companyId = 'company-a', ownerId = 'driver-a') {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const adminDb = context.firestore();
+      await setDoc(doc(adminDb, 'companies', companyId, 'applications', 'app1'), {
+        companyId, applicantId: ownerId, driverId: ownerId, firstName: 'Ann',
+      });
+      await setDoc(doc(adminDb, 'companies', companyId, 'applications', 'app1', 'submission', 'v1'), {
+        // Owner ids are stamped by the writer so the owner-read helper can match.
+        applicantId: ownerId, driverId: ownerId,
+        frozen: true, definitionVersion: 'abc123', agreementVersion: 'v1',
+        company: { companyName: 'Artificial Freight Co' },
+      });
+    });
+  }
+
+  const snapshotRef = (db, companyId = 'company-a') =>
+    doc(db, 'companies', companyId, 'applications', 'app1', 'submission', 'v1');
+
+  const staffOf = (companyId, role = 'recruiter') => testEnv.authenticatedContext(`staff-${companyId}`, {
+    roles: { [companyId]: role },
+    companyTeamIds: [companyId],
+  }).firestore();
+
+  it('SNAPSHOT: same-company staff can read the submission snapshot', async () => {
+    await seedSnapshot();
+    await assertSucceeds(getDoc(snapshotRef(staffOf('company-a'))));
+  });
+
+  it('SNAPSHOT: the owning driver can read their own snapshot', async () => {
+    await seedSnapshot();
+    const owner = testEnv.authenticatedContext('driver-a').firestore();
+    await assertSucceeds(getDoc(snapshotRef(owner)));
+  });
+
+  it('SNAPSHOT: a different driver cannot read someone else\'s snapshot', async () => {
+    await seedSnapshot();
+    const other = testEnv.authenticatedContext('driver-b').firestore();
+    await assertFails(getDoc(snapshotRef(other)));
+  });
+
+  it('SNAPSHOT: staff of another company cannot read it (tenant separation)', async () => {
+    await seedSnapshot();
+    await assertFails(getDoc(snapshotRef(staffOf('company-b'), 'company-a')));
+  });
+
+  it('SNAPSHOT: a super admin can read it', async () => {
+    await seedSnapshot();
+    const superDb = testEnv.authenticatedContext('super-1', { globalRole: 'super_admin' }).firestore();
+    await assertSucceeds(getDoc(snapshotRef(superDb)));
+  });
+
+  it('SNAPSHOT: nobody can create, update or delete it from a client', async () => {
+    await seedSnapshot();
+
+    // A company admin — the most privileged tenant role — still cannot write.
+    const admin = staffOf('company-a', 'company_admin');
+    await assertFails(setDoc(snapshotRef(admin), { frozen: true, tampered: true }));
+    await assertFails(updateDoc(snapshotRef(admin), { agreementVersion: 'v2' }));
+    await assertFails(deleteDoc(snapshotRef(admin)));
+
+    // The owning driver cannot rewrite what they signed either.
+    const owner = testEnv.authenticatedContext('driver-a').firestore();
+    await assertFails(updateDoc(snapshotRef(owner), { 'company.companyName': 'Renamed Co' }));
+    await assertFails(deleteDoc(snapshotRef(owner)));
+  });
+
+  it('SNAPSHOT: not even a super admin can edit a signed record from a client', async () => {
+    await seedSnapshot();
+    const superDb = testEnv.authenticatedContext('super-1', { globalRole: 'super_admin' }).firestore();
+    await assertFails(updateDoc(snapshotRef(superDb), { agreementVersion: 'v2' }));
+    await assertFails(deleteDoc(snapshotRef(superDb)));
+  });
+
+  it('SNAPSHOT: a new version cannot be forged alongside the original', async () => {
+    await seedSnapshot();
+    const admin = staffOf('company-a', 'company_admin');
+    await assertFails(setDoc(
+      doc(admin, 'companies', 'company-a', 'applications', 'app1', 'submission', 'v2'),
+      { frozen: true, definitionVersion: 'forged' },
+    ));
+  });
+
+  // ===================================================================
   // FUNC-005: logged-in driver re-submit / edit of their own application
   // ===================================================================
 

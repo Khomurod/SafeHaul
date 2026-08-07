@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { axe } from 'vitest-axe';
 import { describe, expect, it, vi } from 'vitest';
 import { StandardQuestionsConfig, STANDARD_FIELDS } from './StandardQuestionsConfig';
+import { resolveApplicationGate } from '@/config/applicationGates';
 
 // Controlled harness so exclusivity transitions can be observed across clicks.
 function Harness({ initialConfig = {}, onChangeSpy }) {
@@ -19,28 +20,48 @@ function Harness({ initialConfig = {}, onChangeSpy }) {
 }
 
 describe('StandardQuestionsConfig', () => {
-    it('exposes the exact standard field ids, labels and default-required values', () => {
+    it('exposes the exact standard field ids and labels', () => {
+        // Defaults deliberately live in `applicationGates`, not here, so this
+        // screen cannot describe a configuration the application does not apply.
         expect(STANDARD_FIELDS).toEqual([
-            { id: 'ssn', label: 'Social Security Number', defaultReq: true },
-            { id: 'dob', label: 'Date of Birth', defaultReq: true },
-            { id: 'addressHistory', label: '3 Years Address History', defaultReq: true },
-            { id: 'employmentHistory', label: 'Employment History (3-10 Yrs)', defaultReq: true },
-            { id: 'cdlUpload', label: 'CDL Document Upload', defaultReq: true },
-            { id: 'medCardUpload', label: 'Medical Card Upload', defaultReq: false },
-            { id: 'mvrConsent', label: 'MVR Consent Form', defaultReq: true },
-            { id: 'referralSource', label: 'Referral Source', defaultReq: false },
+            { id: 'ssn', label: 'Social Security Number' },
+            { id: 'dob', label: 'Date of Birth' },
+            { id: 'addressHistory', label: '3 Years Address History' },
+            { id: 'employmentHistory', label: 'Employment History (3-10 Yrs)' },
+            { id: 'cdlUpload', label: 'CDL Document Upload' },
+            { id: 'medCardUpload', label: 'Medical Card Upload' },
+            { id: 'mvrConsent', label: 'MVR Consent Form' },
+            { id: 'referralSource', label: 'Referral Source' },
+            { id: 'emergencyContacts', label: 'Emergency Contacts' },
         ]);
     });
 
-    it('renders default-required state from defaults when no config is stored', () => {
+    it('renders the same defaults the application actually enforces', () => {
         render(<StandardQuestionsConfig config={{}} onChange={vi.fn()} />);
-        // ssn defaults required=true, hidden=false
-        expect(screen.getByRole('switch', { name: 'Require Social Security Number' }))
-            .toHaveAttribute('aria-checked', 'true');
-        expect(screen.getByRole('switch', { name: 'Hide Social Security Number' }))
-            .toHaveAttribute('aria-checked', 'false');
-        // medCardUpload defaults required=false
+        for (const field of STANDARD_FIELDS) {
+            const gate = resolveApplicationGate({}, field.id);
+            expect(
+                screen.getByRole('switch', { name: `Require ${field.label}` }),
+                `Require ${field.label}`,
+            ).toHaveAttribute('aria-checked', String(gate.required));
+            expect(
+                screen.getByRole('switch', { name: `Hide ${field.label}` }),
+                `Hide ${field.label}`,
+            ).toHaveAttribute('aria-checked', String(gate.hidden));
+        }
+        // Spot-check the two the screen used to get backwards.
         expect(screen.getByRole('switch', { name: 'Require Medical Card Upload' }))
+            .toHaveAttribute('aria-checked', 'true');
+        expect(screen.getByRole('switch', { name: 'Require MVR Consent Form' }))
+            .toHaveAttribute('aria-checked', 'false');
+        // Emergency contacts stay opt-in.
+        expect(screen.getByRole('switch', { name: 'Hide Emergency Contacts' }))
+            .toHaveAttribute('aria-checked', 'true');
+    });
+
+    it('reads a legacy showEmergencyContacts boolean as the emergency-contacts gate', () => {
+        render(<StandardQuestionsConfig config={{ showEmergencyContacts: true }} onChange={vi.fn()} />);
+        expect(screen.getByRole('switch', { name: 'Hide Emergency Contacts' }))
             .toHaveAttribute('aria-checked', 'false');
     });
 

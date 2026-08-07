@@ -6,6 +6,7 @@ import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@lib/firebase';
 import Stepper from '@shared/components/layout/Stepper';
 import { IntakeChooser } from './IntakeChooser';
+import { newSubmissionAttemptId } from '@shared/utils/submissionAttemptId';
 import {
   getFieldConfig,
   hasUploadedFile,
@@ -114,8 +115,9 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
   const postApplicationTemplates = normalizePostApplicationTemplates(company?.postApplicationTemplates);
   // #8 FIX: Dynamic consent step index based on whether custom questions exist
   const consentStepIndex = customQuestions.length > 0 ? 9 : 8;
-  const cdlUploadConfig = getFieldConfig(company?.applicationConfig, 'cdlUpload', true);
-  const medCardConfig = getFieldConfig(company?.applicationConfig, 'medCardUpload', true);
+  const cdlUploadConfig = getFieldConfig(company?.applicationConfig, 'cdlUpload');
+  const medCardConfig = getFieldConfig(company?.applicationConfig, 'medCardUpload');
+  const mvrConsentConfig = getFieldConfig(company?.applicationConfig, 'mvrConsent');
 
   /**
    * Restore a recent submission (and its document checklist) after the driver
@@ -310,6 +312,9 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     if (!medCardConfig.hidden && medCardConfig.required && !hasUploadedFile(formData['medical-card-upload'])) {
       requiredUploadErrors.push('Medical Card');
     }
+    if (!mvrConsentConfig.hidden && mvrConsentConfig.required && !hasUploadedFile(formData['mvr-consent-upload'])) {
+      requiredUploadErrors.push('MVR Consent Form');
+    }
     if (requiredUploadErrors.length > 0) {
       showError(`Please upload required documents before submitting: ${requiredUploadErrors.join(', ')}.`);
       setCurrentStep(2);
@@ -336,6 +341,13 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     if (isSubmittingRef.current || submissionStatus === 'submitting') return;
     isSubmittingRef.current = true;
     setSubmissionStatus('submitting');
+
+    // One id for this press of Submit, reused by all three retries below AND by
+    // any later replay out of the offline queue. The server keys the preserved
+    // submission record on it, so a call that timed out after the write
+    // committed comes back as the SAME submission instead of a resubmission the
+    // driver never made.
+    const submissionAttemptId = newSubmissionAttemptId();
 
     if (isE2ETestMode && !sandbox) {
       // Deterministic offline-queue path for E2E: "all direct submits failed but
@@ -418,6 +430,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
       const applicationData = {
         applicantId: applicationId,
         applicationId: applicationId,
+        submissionAttemptId,
         confirmationNumber: confirmationNumber,
         ...formData,
         // Ensure these top-level keys always exist (overrides from formData if present)

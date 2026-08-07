@@ -3,7 +3,21 @@
  * Extracted verbatim from PublicApplyHandler.jsx — behavior unchanged.
  */
 
+import { GATE_DEFAULT_REQUIRED, resolveApplicationGate } from '@/config/applicationGates';
+
+/**
+ * Resolve a company application gate.
+ *
+ * Delegates to the single gate resolver so every wizard step, this handler and
+ * the server-side validator apply the same defaults and the same legacy-key
+ * aliases. `defaultRequired` is honoured only for keys that are not declared
+ * gates, which keeps ad-hoc callers working.
+ */
 export const getFieldConfig = (applicationConfig, fieldId, defaultRequired = true) => {
+  if (Object.prototype.hasOwnProperty.call(GATE_DEFAULT_REQUIRED, fieldId)) {
+    const gate = resolveApplicationGate(applicationConfig, fieldId);
+    return { hidden: gate.hidden, required: gate.required };
+  }
   const config = applicationConfig?.[fieldId];
   return {
     hidden: Boolean(config?.hidden),

@@ -10,6 +10,7 @@ const {
     fillStep3RequiredFields,
     uploadStandardDocuments,
     continueToStep,
+  continueAnywayPastEmploymentCoverage,
     chooseRadio,
     completeRemainingSteps,
     applySignature,
@@ -90,7 +91,7 @@ test.describe('@a11y mobile-critical journeys (no serious/critical violations)',
         expect(await seriousViolations(page)).toEqual([]);
         await page.getByRole('button', { name: 'Remove Employer #1' }).click();
 
-        await continueToStep(page, 'General Questions');
+        await continueAnywayPastEmploymentCoverage(page);
         await chooseRadio(page, 'has-felony-yes');
         expect(await seriousViolations(page)).toEqual([]);
 

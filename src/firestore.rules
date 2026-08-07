@@ -432,6 +432,25 @@ service cloud.firestore {
         // writes go through the proposeApplicationChanges / submitChangeResolution
         // callables (Admin SDK), so client writes are denied.
         match /pending_changes/{fieldKey} { allow read: if isCompanyTeam(companyId) || isSuperAdmin(); allow write: if false; }
+
+        // SUBMISSION SNAPSHOT — the frozen record of exactly what the driver saw,
+        // answered, accepted and signed.
+        //
+        // Every client write is denied. That denial is what makes the snapshot
+        // immutable rather than merely intended to be: it is written only by the
+        // Admin SDK at submission (and by the historical reconstruction job), so
+        // no company edit to questions, company details or legal wording — and no
+        // driver self-update — can reach a submitted record.
+        //
+        // Readable by company staff, the owning driver and super admins, because
+        // the driver's own review screen and the recruiter views must render from
+        // this same record. The writer stamps applicantId/driverId so
+        // canReadApplicationSubcollectionDoc can identify the owner, exactly as
+        // dq_files and general_documents already do.
+        match /submission/{submissionVersion} {
+          allow read: if isCompanyTeam(companyId) || isSuperAdmin() || canReadApplicationSubcollectionDoc(resource.data);
+          allow write: if false; // server-only (Admin SDK); snapshots are never edited
+        }
       }
 
       // LEADS (Company Specific)

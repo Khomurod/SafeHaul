@@ -8332,3 +8332,83 @@ cases, all 21 `listCompanyTeam` cases, and the 3 `companyIds` divergence cases.
 - Existing broken records are repaired lazily, when an admin opens the modal for
   that company. No bulk repair job was added; `backfillUserCompanyIds` remains
   the tool for `companyIds`.
+
+---
+
+## 2026-08-07 — The preserved record becomes the source of truth
+
+Programme step: the application document is rendered from the frozen submission
+record and stored; the screens that claim to show "what was submitted" render
+from that record; applications that predate preservation get a record built only
+from surviving evidence.
+
+### UI changes, and where they sit
+
+| Surface | Change | Ownership |
+|---|---|---|
+| `PreservedApplicationView` (new, `features/applications`) | Renders a preserved record — sections, repeating rows, supplemental questions, agreements, coverage | Feature-owned content; composed from approved `Card`, `Badge`, `FieldDisplay` |
+| Dossier → Application tab | Three named records (**As Submitted** / Summary / Full Application); each states which record it is | Feature-owned; existing toggle-group exception unchanged |
+| Driver Review & Confirm | Rebuilt to render from the resolved definition rather than a hand-written field list | Feature-owned; approved `Card`, `Button`, `FieldDisplay` |
+| DQ Files tab | Preserved originals fetch through the audited callable (`IconButton`, not an `<a href>`) and carry no delete control | Feature-owned |
+
+**No new visual primitive was introduced.** Every component composes approved
+design-system primitives and semantic `--ds-*` tokens. No arbitrary colour, no
+9px/10px text, no local button/modal/table. The existing recorded exceptions
+(the dossier's segmented toggle group; the styled `<a>` navigations in DQ Files)
+are unchanged — the audited-download control is an approved `IconButton`, which
+removes one `<a>` from that exception rather than adding to it.
+
+### Accessibility
+
+- Every view-mode control carries `aria-pressed`; selection is never signalled by
+  background colour alone.
+- Each provenance statement is a `role="status"` live region, so switching views
+  announces which record is on screen.
+- The audited download is a real `<button>` with a name that says *which* file it
+  acts on; the preserved original has no delete control at all, so no unnamed
+  destructive control was added.
+- Heading levels: `PreservedApplicationView` emits `<h4>`/`<h5>` beneath the
+  dossier's `<h3>`; Review & Confirm keeps `<h2>` sections beneath the wizard's
+  `<h1>` and adds no `<h1>` of its own — asserted by test.
+- Repeating records are `<ul>`/`<li>`; supplemental questions are a `<dl>`.
+
+### Evidence
+
+| Check | Result |
+|---|---|
+| `npx jest` (functions) | 84 suites, 1140 passing |
+| `npx vitest run` (frontend) | 224 suites, 3772 passing / 61 skipped |
+| `npm run test:rules:emulators` | 61 passing, incl. a new case proving no client of any role can read `application_originals/**` |
+| `npm run lint` (both) | 0 errors |
+| `npm run build` | clean |
+| `scripts/check-callable-contract.mjs` | passing (80 callables) |
+| `npm run check:function-exports` | OK, mapped 130 |
+| PDF visual review | `scripts/preview-application-pdf.mjs` → 11 pages rasterised and inspected |
+
+### Honest limitations
+
+- **Desktop-width visual review only** for the new dossier view and the rebuilt
+  Review & Confirm. Both are built from the same responsive grid primitives the
+  surrounding screens use (`grid-cols-1 md:grid-cols-2`, `min-w-0`,
+  `[overflow-wrap:anywhere]`) and pass the jsdom axe suites, but neither was
+  photographed at a phone width with live data.
+- **No live-backend E2E** for the audited PDF download. Under
+  `VITE_E2E_TEST_MODE=1` Firestore and callables are deliberately unreachable, so
+  the browser path is proven by component and service tests plus the callable's
+  own authorization/audit suite, not by an end-to-end click.
+- **The testing repository does not deploy Cloud Functions, Firestore rules or
+  Storage rules** — its CI deploys only its Hosting target
+  (`.github/workflows/main.yml`, `deploy-functions` and the rules steps are gated
+  on `github.repository == 'Khomurod/SafeHaul'`). The testing site therefore runs
+  against production's backend. Everything server-side here — the PDF renderer,
+  the audited callable, the reconciler, the reconstruction job — becomes live
+  only when the production port merges. That is a property of the deployment
+  topology, not of this change, and it is why the server behaviour is proven by
+  unit and emulator tests rather than by exercising the testing environment.
+- **Historical reconstruction has not been run against real data.** It is
+  `dryRun`-first, super-admin only, one company at a time, and additive only, but
+  the first real run is an operator action that has not happened.
+- The PDF embeds the 14 standard fonts, which encode WinAnsi. Latin text
+  (including accented characters) renders exactly; a non-Latin script degrades to
+  `?` rather than aborting the document. Embedding a Unicode font is the upgrade
+  path if that ever matters.

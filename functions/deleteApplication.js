@@ -17,6 +17,7 @@ const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { db, storage } = require("./firebaseAdmin");
 const { logger } = require("firebase-functions");
 const { assertCompanyAdminStrict } = require("./shared/companyAccess");
+const { ORIGINAL_PDF_PREFIX } = require("./shared/preserveApplicationPdf");
 
 const ALLOWED_COLLECTIONS = new Set(['applications', 'leads']);
 
@@ -64,6 +65,13 @@ exports.deleteApplication = onCall({ cors: true }, async (request) => {
         await Promise.allSettled([
             ...filePaths.map((p) => bucket.file(p).delete()),
             bucket.deleteFiles({ prefix: `companies/${companyId}/${collectionName}/${applicationId}/` }),
+            // The preserved original application PDFs. These live outside the
+            // `companies/` tree precisely so no Storage rule can reach them,
+            // which also means the sweep above cannot. They may carry a full
+            // Social Security Number, so leaving them behind after the owning
+            // record is gone would strand unreachable sensitive documents in
+            // the bucket forever — nothing could even locate them afterwards.
+            bucket.deleteFiles({ prefix: `${ORIGINAL_PDF_PREFIX}/${companyId}/${applicationId}/` }),
         ]);
     } catch (err) {
         logger.warn(`[deleteApplication] Storage cleanup partial failure for ${applicationId}: ${err?.message || err}`);

@@ -20,9 +20,30 @@ describe('applicationEditableFields', () => {
     expect(Object.isFrozen(EDITABLE_FIELD_KEYS)).toBe(true);
   });
 
-  it('labels known fields and falls back to the key', () => {
+  it('takes its wording from the shared section table, not a second copy', () => {
+    // These three used to disagree with the definition — this file said SSN /
+    // Address / CDL Number where the record said Social Security Number /
+    // Current Street Address / License Number, so the change-review portal and
+    // the preserved record named the same field differently.
     expect(fieldLabel('firstName')).toBe('First Name');
-    expect(fieldLabel('totallyUnknown')).toBe('totallyUnknown');
+    expect(fieldLabel('ssn')).toBe('Social Security Number');
+    expect(fieldLabel('street')).toBe('Current Street Address');
+    expect(fieldLabel('cdlNumber')).toBe('License Number');
+  });
+
+  it('describes an unrecognised field instead of printing its key to the driver', () => {
+    // The old fallback was `|| key`, which put an internal field id in front of
+    // an applicant on the change-review portal.
+    expect(fieldLabel('totallyUnknown')).toBe('A field on your application');
+    expect(fieldLabel('totallyUnknown')).not.toMatch(/totallyUnknown/);
+  });
+
+  it('has recorded wording for every editable key', () => {
+    // A key with no entry in the section table would fall through to the
+    // generic description, which reads as a bug on the change-review portal.
+    for (const key of EDITABLE_FIELD_KEYS) {
+      expect(fieldLabel(key)).not.toBe('A field on your application');
+    }
   });
 
   it('valuesEqual treats undefined and null as equal, and compares arrays/objects structurally', () => {

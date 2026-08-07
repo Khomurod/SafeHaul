@@ -21,6 +21,11 @@ vi.mock('@shared/components/schema/SchemaRenderer', () => ({
   SchemaSection: ({ sectionId }) => <div data-testid={`schema-${sectionId}`} />,
 }));
 
+let submissionRecordState = { record: null, loading: false, error: null };
+vi.mock('@features/applications/hooks/useSubmissionRecord', () => ({
+  useSubmissionRecord: () => submissionRecordState,
+}));
+
 import { ApplicationTab } from './ApplicationTab';
 
 afterEach(cleanup);
@@ -51,8 +56,80 @@ const APP = {
   cdlClass: 'A',
 };
 
+/** A preserved record as `presentSubmission` returns one. */
+const PRESERVED = {
+  isPreserved: true,
+  isReconstructed: false,
+  notice: null,
+  reconstructionNotes: [],
+  submittedAt: '2026-07-14T15:22:41.000Z',
+  company: { companyName: 'Northwind Freight Systems' },
+  sections: [
+    {
+      id: 'personal',
+      title: 'Personal Information',
+      answers: [
+        { key: 'firstName', label: 'First Name', value: 'Maria', isMissing: false, sensitive: false, repeating: false, rows: [] },
+        { key: 'ssn', label: 'Social Security Number', value: '555-66-7777', isMissing: false, sensitive: true, repeating: false, rows: [] },
+        { key: 'middleName', label: 'Middle Name', value: 'Not provided', isMissing: true, sensitive: false, repeating: false, rows: [] },
+      ],
+    },
+    {
+      id: 'employment',
+      title: 'Employment History',
+      answers: [
+        {
+          key: 'employers',
+          label: 'Previous Employers',
+          value: 'Not provided',
+          isMissing: false,
+          sensitive: false,
+          repeating: true,
+          rows: [[
+            { label: 'Employer', displayValue: 'Lone Star Logistics' },
+            { label: 'Position', displayValue: 'OTR Driver' },
+          ]],
+        },
+        {
+          key: 'unemployment',
+          label: 'Employment Gaps',
+          value: 'Not provided',
+          isMissing: true,
+          sensitive: false,
+          repeating: true,
+          rows: [],
+        },
+      ],
+    },
+  ],
+  customAnswers: [
+    { key: 'q1', label: 'Willing to run a dedicated lane?', labelUnavailable: false, unmatched: false, value: 'Yes', isMissing: false },
+    { key: 'q2', label: 'Question wording not recorded', labelUnavailable: true, unmatched: true, value: 'Some answer', isMissing: false },
+  ],
+  agreements: [
+    { key: 'a1', title: 'BACKGROUND CHECK DISCLOSURE', version: 'v1', status: 'accepted', summary: 'Accepted and signed by the applicant', acceptedAt: '2026-07-14T15:22:41.000Z', hasSignature: true, signatureType: 'drawn', legacyWording: false },
+    { key: 'a2', title: 'FMCSA PSP DISCLOSURE', version: 'v1', status: 'unrecorded', summary: 'No acceptance was recorded for this agreement', acceptedAt: null, hasSignature: false, signatureType: null, legacyWording: false },
+  ],
+  coverage: { isComplete: false, coveredMonths: 35, requiredMonths: 36, missingMonths: 1, gaps: [{ fromMonth: '2026-07', toMonth: '2026-07', months: 1 }], summary: 'Accounts for 35 of 36 months; 1 unaccounted for.' },
+};
+
+const NOT_PRESERVED = {
+  isPreserved: false,
+  isReconstructed: false,
+  notice: 'No preserved submission record exists for this application.',
+  sections: [],
+  customAnswers: [],
+  agreements: [],
+  coverage: null,
+  company: null,
+  submittedAt: null,
+};
+
 const renderTab = (appData = APP, props = {}) => {
   resetChanges();
+  submissionRecordState = props.submissionRecord !== undefined
+    ? props.submissionRecord
+    : { record: NOT_PRESERVED, loading: false, error: null };
   if (props.changes) Object.assign(changesState, props.changes);
   render(
     <ApplicationTab
@@ -300,5 +377,85 @@ describe('ApplicationTab pending changes', () => {
     cleanup();
     renderTab(APP, { canEdit: true });
     expect(screen.getByRole('button', { name: /edit application/i })).toBeInTheDocument();
+  });
+});
+
+
+describe('ApplicationTab — which record it shows', () => {
+  // The defect this replaces: the provenance banner said "preserved original"
+  // while every view below it rendered the live, editable application document.
+  const withPreserved = (appData = APP) => renderTab(appData, {
+    submissionRecord: { record: PRESERVED, loading: false, error: null },
+  });
+
+  it('opens on the preserved original when one exists', () => {
+    withPreserved();
+    expect(screen.getByRole('button', { name: /As Submitted/i })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText(/Preserved original submission/i)).toBeInTheDocument();
+  });
+
+  it('renders the preserved answers, not the live application document', () => {
+    // The live record says Maria Elena Garcia with SSN ...6789; the frozen one
+    // says Maria with SSN ...7777. The submitted view must show the frozen one.
+    withPreserved();
+    expect(screen.getByText('***-**-7777')).toBeInTheDocument();
+    expect(screen.queryByText('***-**-6789')).toBeNull();
+    expect(screen.queryByText('Maria Elena Garcia')).toBeNull();
+  });
+
+  it('never shows a full Social Security Number on screen, even from the record', () => {
+    withPreserved();
+    expect(screen.queryByText('555-66-7777')).toBeNull();
+  });
+
+  it('lays out repeating groups as labelled rows, never as raw objects', () => {
+    withPreserved();
+    expect(screen.getByText('Lone Star Logistics')).toBeInTheDocument();
+    expect(screen.getByText('OTR Driver')).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/\[object Object\]/);
+  });
+
+  it('says a repeating group is empty rather than leaving a blank', () => {
+    withPreserved();
+    expect(screen.getByText('None recorded.')).toBeInTheDocument();
+  });
+
+  it('shows each agreement with its OWN evidence', () => {
+    withPreserved();
+    expect(screen.getByText('Accepted and signed by the applicant')).toBeInTheDocument();
+    expect(screen.getByText('No acceptance was recorded for this agreement')).toBeInTheDocument();
+  });
+
+  it('labels the live views as the current record', () => {
+    withPreserved();
+    fireEvent.click(screen.getByRole('button', { name: /Summary View/i }));
+    expect(screen.getByText(/current record, which company edits/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Preserved original submission/i)).toBeNull();
+    // And it IS the live document now.
+    expect(screen.getByText('Maria Elena Garcia')).toBeInTheDocument();
+  });
+
+  it('opens on the summary when nothing was preserved, and says so', () => {
+    renderTab();
+    expect(screen.getByRole('button', { name: /Summary View/i })).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(screen.getByRole('button', { name: /As Submitted/i }));
+    expect(screen.getByText(/Nothing was preserved for this submission/i)).toBeInTheDocument();
+  });
+
+  it('never substitutes live data when the record is missing', () => {
+    renderTab();
+    fireEvent.click(screen.getByRole('button', { name: /As Submitted/i }));
+    expect(screen.queryByText('Maria Elena Garcia')).toBeNull();
+    expect(screen.queryByText('***-**-6789')).toBeNull();
+  });
+
+  it('waits for the record rather than opening on live data and swapping', () => {
+    // Defaulting to the summary during the read would show the live document
+    // and then replace it with the frozen one — the one transition that must
+    // not happen quietly on this screen.
+    renderTab(APP, { submissionRecord: { record: null, loading: true, error: null } });
+    expect(screen.getByRole('button', { name: /As Submitted/i })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText(/Loading the preserved record/i)).toBeInTheDocument();
+    expect(screen.queryByText('Maria Elena Garcia')).toBeNull();
   });
 });

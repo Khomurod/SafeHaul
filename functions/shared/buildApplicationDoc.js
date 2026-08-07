@@ -43,7 +43,20 @@ function sanitizeData(data) {
     return data;
 }
 
+/**
+ * Resolve a company gate.
+ *
+ * Delegates to `applicationDefinition.resolveGate` so the submission validator,
+ * the immutable snapshot and the driver's screen apply one set of defaults and
+ * one set of legacy-key aliases. The `defaultRequired` argument is retained for
+ * callers asking about a key that is not a declared gate.
+ */
 function getFieldConfig(applicationConfig, fieldId, defaultRequired = true) {
+    const { GATE_DEFAULT_REQUIRED, resolveGate } = require('./applicationDefinition');
+    if (Object.prototype.hasOwnProperty.call(GATE_DEFAULT_REQUIRED, fieldId)) {
+        const gate = resolveGate(applicationConfig, fieldId);
+        return { hidden: gate.hidden, required: gate.required };
+    }
     const config = applicationConfig?.[fieldId];
     return {
         hidden: Boolean(config?.hidden),
@@ -72,6 +85,15 @@ function getMissingRequiredUploads(applicationConfig, formData) {
 
     if (!medCardConfig.hidden && medCardConfig.required && !hasUploadedFile(formData['medical-card-upload'])) {
         missingRequiredUploads.push('Medical Card');
+    }
+
+    // MVR consent is configurable in Settings but was never enforced anywhere,
+    // so a company that marked it Required still received applications without
+    // it. It defaults to not-required (see GATE_DEFAULT_REQUIRED), so this
+    // cannot start rejecting submissions at companies that never asked for it.
+    const mvrConsentConfig = getFieldConfig(applicationConfig, 'mvrConsent', false);
+    if (!mvrConsentConfig.hidden && mvrConsentConfig.required && !hasUploadedFile(formData['mvr-consent-upload'])) {
+        missingRequiredUploads.push('MVR Consent Form');
     }
 
     return missingRequiredUploads;

@@ -14,6 +14,7 @@ import { useToast } from '@shared/components/feedback';
 import { Checkbox, FormSection } from '@/design-system/components';
 import { StepNavigation } from './components/StepNavigation';
 import { StateSelectField } from './components/StateSelectField';
+import { resolveApplicationGate } from '@/config/applicationGates';
 
 // Map validator field names to their input element ids (for focus-on-error).
 const FIELD_ID_BY_NAME = {
@@ -48,22 +49,18 @@ const Step1_Contact = ({ formData, updateFormData, onNavigate, onPartialSubmit }
     const currentCompany = currentCompanyProfile;
 
     // --- Configuration Helper ---
-    const getConfig = (fieldId, defaultReq = true) => {
-        const config = currentCompany?.applicationConfig?.[fieldId];
-        return {
-            hidden: config?.hidden || false,
-            required: config !== undefined ? config.required : defaultReq
-        };
-    };
+    // One resolver for every surface (see src/config/applicationGates.js):
+    // canonical gate ids, legacy aliases and shared defaults, so this step, the
+    // submission validator and the immutable snapshot always agree.
+    const getConfig = (fieldId) => resolveApplicationGate(currentCompany?.applicationConfig, fieldId);
 
-    const ssnConfig = getConfig('ssn', true);
-    const dobConfig = getConfig('dob', true);
-    const historyConfig = getConfig('addressHistory', true);
-    const referralConfig = getConfig('referralSource', false);
+    const ssnConfig = getConfig('ssn');
+    const dobConfig = getConfig('dob');
+    const historyConfig = getConfig('addressHistory');
+    const referralConfig = getConfig('referralSource');
 
     // --- Logic ---
     const residenceThreeYears = formData['residence-3-years'];
-    // Only show previous address if user said "No" AND history is not hidden globally
     const knownByOtherName = formData['known-by-other-name'] === 'yes';
 
     useEffect(() => {
@@ -334,78 +331,93 @@ const Step1_Contact = ({ formData, updateFormData, onNavigate, onPartialSubmit }
                 )}
             </FormSection>
 
-            {/* --- Previous Address History (Past 3 Years) --- */}
-            <DynamicRow
-                listKey="previousAddresses"
-                title="Previous Addresses (Past 3 Years)"
-                formData={formData}
-                updateFormData={updateFormData}
-                initialItemState={{ street: '', city: '', state: '', zip: '', startDate: '', endDate: '' }}
-                addButtonLabel="Add Previous Address"
-                renderRow={(index, item, handleRowChange) => (
-                    <div className="space-y-ds-4">
-                        <InputField
-                            label="Address"
-                            id={`prev-street-${index}`}
-                            name="street"
-                            value={item.street}
-                            onChange={(n, v) => handleRowChange('street', v)}
-                            placeholder="123 Old St"
-                            required={true}
-                        />
-                        <div className="grid grid-cols-1 gap-ds-6 sm:grid-cols-3">
+            {/*
+              --- Previous Address History (Past 3 Years) ---
+
+              Gated by the SAME `addressHistory` setting as the three-year
+              question above. Hiding only the question left the editor — its
+              heading, its Add button and its six required fields per row —
+              on screen at a company that had turned address history off, so
+              "Hidden" hid half a section. Hidden means the whole section.
+
+              Row fields stay required regardless of the gate's requiredness:
+              that is per-row completeness, not per-section. A driver who chose
+              to add a previous address is asked to finish it; a driver at a
+              company where the section is optional simply adds no rows.
+            */}
+            {!historyConfig.hidden && (
+                <DynamicRow
+                    listKey="previousAddresses"
+                    title="Previous Addresses (Past 3 Years)"
+                    formData={formData}
+                    updateFormData={updateFormData}
+                    initialItemState={{ street: '', city: '', state: '', zip: '', startDate: '', endDate: '' }}
+                    addButtonLabel="Add Previous Address"
+                    renderRow={(index, item, handleRowChange) => (
+                        <div className="space-y-ds-4">
                             <InputField
-                                label="City"
-                                id={`prev-city-${index}`}
-                                name="city"
-                                value={item.city}
-                                onChange={(n, v) => handleRowChange('city', v)}
-                                placeholder="City"
+                                label="Address"
+                                id={`prev-street-${index}`}
+                                name="street"
+                                value={item.street}
+                                onChange={(n, v) => handleRowChange('street', v)}
+                                placeholder="123 Old St"
                                 required={true}
                             />
-                            <StateSelectField
-                                id={`prev-state-${index}`}
-                                name="state"
-                                states={states}
-                                value={item.state}
-                                onChange={(e) => handleRowChange('state', e.target.value)}
-                            />
-                            <InputField
-                                label="ZIP Code"
-                                id={`prev-zip-${index}`}
-                                name="zip"
-                                value={item.zip}
-                                onChange={(n, v) => handleRowChange('zip', v)}
-                                placeholder="Zip"
-                                required={true}
-                            />
+                            <div className="grid grid-cols-1 gap-ds-6 sm:grid-cols-3">
+                                <InputField
+                                    label="City"
+                                    id={`prev-city-${index}`}
+                                    name="city"
+                                    value={item.city}
+                                    onChange={(n, v) => handleRowChange('city', v)}
+                                    placeholder="City"
+                                    required={true}
+                                />
+                                <StateSelectField
+                                    id={`prev-state-${index}`}
+                                    name="state"
+                                    states={states}
+                                    value={item.state}
+                                    onChange={(e) => handleRowChange('state', e.target.value)}
+                                />
+                                <InputField
+                                    label="ZIP Code"
+                                    id={`prev-zip-${index}`}
+                                    name="zip"
+                                    value={item.zip}
+                                    onChange={(n, v) => handleRowChange('zip', v)}
+                                    placeholder="Zip"
+                                    required={true}
+                                />
+                            </div>
+                            <div className="grid grid-cols-1 gap-ds-6 sm:grid-cols-2">
+                                <MonthYearField
+                                    label="From (month / year)"
+                                    idPrefix={`prev-start-${index}`}
+                                    name="startDate"
+                                    value={item.startDate}
+                                    onChange={(n, v) => handleRowChange('startDate', v)}
+                                    required={true}
+                                    maxToday={true}
+                                    minYear={ty - 80}
+                                    helpText="Same easy dropdowns as employment gaps — no calendar picker."
+                                />
+                                <MonthYearField
+                                    label="To (month / year)"
+                                    idPrefix={`prev-end-${index}`}
+                                    name="endDate"
+                                    value={item.endDate}
+                                    onChange={(n, v) => handleRowChange('endDate', v)}
+                                    required={true}
+                                    maxToday={true}
+                                    minYear={ty - 80}
+                                />
+                            </div>
                         </div>
-                        <div className="grid grid-cols-1 gap-ds-6 sm:grid-cols-2">
-                            <MonthYearField
-                                label="From (month / year)"
-                                idPrefix={`prev-start-${index}`}
-                                name="startDate"
-                                value={item.startDate}
-                                onChange={(n, v) => handleRowChange('startDate', v)}
-                                required={true}
-                                maxToday={true}
-                                minYear={ty - 80}
-                                helpText="Same easy dropdowns as employment gaps — no calendar picker."
-                            />
-                            <MonthYearField
-                                label="To (month / year)"
-                                idPrefix={`prev-end-${index}`}
-                                name="endDate"
-                                value={item.endDate}
-                                onChange={(n, v) => handleRowChange('endDate', v)}
-                                required={true}
-                                maxToday={true}
-                                minYear={ty - 80}
-                            />
-                        </div>
-                    </div>
-                )}
-            />
+                    )}
+                />
+            )}
 
             {/* --- Buttons --- */}
             <StepNavigation
