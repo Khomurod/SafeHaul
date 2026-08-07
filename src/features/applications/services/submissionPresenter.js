@@ -21,7 +21,7 @@
 // Pure and framework-free so it can be unit tested and reused by any renderer.
 
 import STANDARD_SECTIONS from '../../../../functions/shared/applicationSections.json';
-import { buildRepeatingRows } from '@/config/applicationDefinition';
+import { buildRepeatingRows, decodeRepeatingRows } from '@/config/applicationDefinition';
 
 /** Shown when a field was presented but left empty. */
 export const NOT_PROVIDED = 'Not provided';
@@ -49,7 +49,10 @@ const CURRENT_COLUMNS = new Map(
  */
 function resolveRows(answer) {
     if (Array.isArray(answer?.rows) && answer.rows.length > 0) {
-        return { rows: answer.rows, usedCurrentColumns: false };
+        // Snapshots arrive straight from Firestore, where each row is stored
+        // wrapped as `{ cells: [...] }` because an array cannot hold an array.
+        // Unwrapped here so no view has to know that.
+        return { rows: decodeRepeatingRows(answer.rows), usedCurrentColumns: false };
     }
     if (!Array.isArray(answer?.value) || answer.value.length === 0) {
         return { rows: [], usedCurrentColumns: false };

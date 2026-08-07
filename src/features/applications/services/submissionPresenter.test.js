@@ -312,3 +312,49 @@ describe('a snapshot written before columns existed', () => {
         expect(row.usedCurrentColumns).toBe(false);
     });
 });
+
+describe('rows as Firestore stores them', () => {
+    // This client reads preserved snapshots straight from Firestore, where each
+    // repeating row is wrapped as `{ cells: [...] }` — Firestore refuses to store
+    // an array inside an array. Rendering the wrapped shape directly would put
+    // `[object Object]` on a legal record, so the presenter unwraps it.
+    const cell = (label, displayValue) => ({ label, displayValue });
+
+    const storedAnswer = {
+        fieldId: 'employers',
+        label: 'Previous Employers',
+        presented: true,
+        repeating: true,
+        rows: [
+            { cells: [cell('Employer', 'Cascade Haulage'), cell('Position', 'Driver')] },
+            { cells: [cell('Employer', 'Rimrock Transport')] },
+        ],
+    };
+
+    it('unwraps stored rows into arrays of cells', () => {
+        const row = toDisplayAnswer(storedAnswer);
+        expect(row.rows).toHaveLength(2);
+        expect(row.rows[0]).toContainEqual(cell('Employer', 'Cascade Haulage'));
+        expect(row.rows[1]).toContainEqual(cell('Employer', 'Rimrock Transport'));
+    });
+
+    it('does not fall back to current columns — the record has its own rows', () => {
+        expect(toDisplayAnswer(storedAnswer).usedCurrentColumns).toBe(false);
+    });
+
+    it('never leaves a row map where a renderer expects cells', () => {
+        for (const row of toDisplayAnswer(storedAnswer).rows) {
+            expect(Array.isArray(row)).toBe(true);
+        }
+    });
+
+    // The 33 records reconstructed before the encoding existed hold rows that are
+    // already arrays. Both shapes must render identically.
+    it('renders pre-encoding rows unchanged', () => {
+        const row = toDisplayAnswer({
+            ...storedAnswer,
+            rows: [[cell('Employer', 'Cascade Haulage')]],
+        });
+        expect(row.rows).toEqual([[cell('Employer', 'Cascade Haulage')]]);
+    });
+});

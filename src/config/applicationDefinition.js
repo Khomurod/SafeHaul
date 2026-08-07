@@ -117,6 +117,29 @@ export function buildRepeatingRows(value, columns) {
 }
 
 /**
+ * Rows out of the representation Firestore stores them in.
+ *
+ * A repeating answer is rows of cells — an array of arrays — and Firestore
+ * refuses to store an array inside an array, so each row is wrapped as
+ * `{ cells: [...] }` on the way in. This client reads preserved snapshots
+ * straight from Firestore, so it has to unwrap them itself.
+ *
+ * Mirrors `decodeRepeatingRows` in `functions/shared/submissionSnapshotStorage.js`,
+ * which is canonical; keep the two in step. Accepts either representation, so a
+ * record written before the encoding existed renders unchanged. A row that is
+ * neither shape is passed through rather than coerced — a malformed record must
+ * stay visibly malformed.
+ */
+export function decodeRepeatingRows(rows) {
+    if (!Array.isArray(rows)) return rows;
+    return rows.map((row) => (
+        row && typeof row === 'object' && !Array.isArray(row) && Array.isArray(row.cells)
+            ? row.cells
+            : row
+    ));
+}
+
+/**
  * Resolve the whole application into display sections.
  *
  * Hidden fields are absent — not blank rows. Conditional fields the driver never

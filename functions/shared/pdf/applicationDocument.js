@@ -39,6 +39,7 @@ const {
     TYPE,
 } = require('./documentBuilder');
 const { currentRepeatingColumns, resolveRepeatingRows } = require('../submissionSnapshot');
+const { decodeRepeatingRows } = require('../submissionSnapshotStorage');
 
 /** Printed where a presented question was left blank. */
 const NOT_PROVIDED = 'Not provided';
@@ -264,7 +265,12 @@ function drawSection(doc, section, { includeFullSsn, columnsById }) {
     // A section that opens with a repeating group reserves room for its first
     // record, not the two rows a scalar grid needs — otherwise "EDUCATION &
     // MILITARY" lands alone at the foot of a page with its schools overleaf.
-    const firstRows = groups[0] && Array.isArray(groups[0].rows) ? groups[0].rows : null;
+    // Decoded like every other row read: `measureRecordBlock` needs an array of
+    // cells, and a stored row map would measure as a single opaque object and
+    // reserve the wrong height.
+    const firstRows = groups[0] && Array.isArray(groups[0].rows)
+        ? decodeRepeatingRows(groups[0].rows)
+        : null;
     doc.sectionHeading(section.title, {
         keepWith: scalars.length > 0
             ? 62

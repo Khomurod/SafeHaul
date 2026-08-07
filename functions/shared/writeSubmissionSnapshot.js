@@ -46,6 +46,8 @@
 // An attempt with no id is treated as its own submission, which is the old
 // behaviour — a client too old to send one is not made worse.
 
+const { decodeStoredSnapshot, encodeSnapshotForStorage } = require('./submissionSnapshotStorage');
+
 /** Hard ceiling on sequence probing, so a pathological loop cannot spin. */
 const MAX_SNAPSHOT_SEQUENCE = 50;
 
@@ -107,7 +109,12 @@ async function writeSubmissionSnapshot({
 
 
     const payload = {
-        ...snapshot,
+        // Encoded here and nowhere else. A repeating answer's rows are an array
+        // of arrays, which Firestore refuses outright; the storage layer wraps
+        // each row so the record can be persisted at all. Nothing the record
+        // asserts changes, and `readOriginalSubmissionSnapshot` decodes it back
+        // before any consumer sees it. See submissionSnapshotStorage.js.
+        ...encodeSnapshotForStorage(snapshot),
         // Tenant binding, mirroring the application document itself.
         companyId,
         applicationId,
@@ -223,7 +230,8 @@ async function readOriginalSubmissionSnapshot({ db, companyId, applicationId }) 
         .collection('applications').doc(applicationId)
         .collection('submission').doc('v1');
     const snap = await ref.get();
-    return snap.exists ? snap.data() : null;
+    // Decoded on the way out, so callers only ever handle the rendering shape.
+    return snap.exists ? decodeStoredSnapshot(snap.data()) : null;
 }
 
 module.exports = {

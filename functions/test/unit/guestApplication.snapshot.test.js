@@ -14,6 +14,9 @@ jest.mock('firebase-admin/firestore', () => ({
 
 // In-memory Firestore covering the full path the writer walks:
 // companies/{id}/applications/{id}/submission/{seq}
+const { assertStorableValue } = require('../helpers/firestoreValueRules');
+const { decodeStoredSnapshot, findNestedArrayPaths } = require('../../shared/submissionSnapshotStorage');
+
 const mockState = {
   applications: {},   // path -> data
   snapshots: {},      // path -> data
@@ -78,6 +81,10 @@ function mockApplicationDoc(companyId, applicationId) {
           path,
           async create(data) {
             if (mockState.createShouldFail) throw mockState.createShouldFail;
+            // Real Firestore refuses an array nested in an array. Without this
+            // the double accepted records production could never store, and a
+            // driver's employment history silently cost them their record.
+            assertStorableValue(data, path);
             if (path in mockState.snapshots) {
               const err = new Error('6 ALREADY_EXISTS'); err.code = 6; throw err;
             }
@@ -565,5 +572,63 @@ describe('preserving the application PDF at submission', () => {
     expect(applicationDoc().submissionRecord.pdfPreserved).toBe(false);
     spy.mockRestore();
     expect(typeof bucket).toBe('function');
+  });
+});
+
+// A driver who lists an employer or a previous address is the normal case, not an
+// edge case — a DOT application asks for both. Their answers are rows of cells,
+// an array of arrays, and Firestore refuses to store an array inside an array.
+//
+// Every such submission therefore saved the application, failed to write the
+// immutable record, failed to preserve the official PDF, and reported success to
+// the driver, because guestApplication catches a snapshot failure by design so a
+// storage problem cannot cost someone their application. The result was a silent,
+// permanent evidentiary gap. No test caught it: none had ever filled in a
+// repeating section.
+describe('a driver who fills in a repeating section still gets a record and a PDF', () => {
+  const WITH_HISTORY = {
+    employers: [
+      { companyName: 'Cascade Haulage', position: 'Driver', startDate: '2019-04', endDate: '2021-06' },
+      { companyName: 'Rimrock Transport', position: 'Driver', startDate: '2021-07', endDate: '2023-02' },
+    ],
+    previousAddresses: [{ street: '1 Depot Road', city: 'Boise', state: 'ID', zip: '83702' }],
+    accidents: [{ date: '2020-08-14', city: 'Ogden', state: 'UT', commercial: 'Yes' }],
+  };
+
+  it('writes the immutable record instead of failing the snapshot', async () => {
+    const res = await submitGuestApplication(payload(WITH_HISTORY), ctx);
+
+    expect(res.success).toBe(true);
+    // A null snapshotId is precisely the silent failure this covers.
+    expect(res.snapshotId).toBe('v1');
+    expect(storedSnapshots()).toHaveLength(1);
+  });
+
+  it('stores a record Firestore will accept', async () => {
+    await submitGuestApplication(payload(WITH_HISTORY), ctx);
+    expect(findNestedArrayPaths(onlySnapshot())).toEqual([]);
+  });
+
+  it('preserves the official PDF', async () => {
+    await submitGuestApplication(payload(WITH_HISTORY), ctx);
+    expect(Object.keys(mockState.storedPdfs)).toHaveLength(1);
+  });
+
+  it('records the answers the driver actually gave, in order', async () => {
+    await submitGuestApplication(payload(WITH_HISTORY), ctx);
+
+    const employers = decodeStoredSnapshot(onlySnapshot())
+      .sections.flatMap((section) => section.answers)
+      .find((answer) => answer.fieldId === 'employers');
+
+    expect(employers.rows).toHaveLength(2);
+    expect(employers.rows.map((row) => row.find((cell) => cell.label === 'Employer').displayValue))
+      .toEqual(['Cascade Haulage', 'Rimrock Transport']);
+  });
+
+  it('does not stamp a failed record status', async () => {
+    await submitGuestApplication(payload(WITH_HISTORY), ctx);
+    const app = Object.values(mockState.applications)[0];
+    expect(app.submissionRecord.status).not.toBe('failed');
   });
 });

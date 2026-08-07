@@ -153,6 +153,32 @@ A reconstructed record is visibly distinct everywhere it surfaces: the PDF and
 every application view label it as reconstructed and carry its provenance notes.
 Nobody downstream can mistake it for a live submission.
 
+## How rows are stored (and why a run once failed on most of the estate)
+
+A repeating answer — previous addresses, employers, violations, accidents,
+schools, military service — is rows of cells: an array of arrays. Firestore's
+rule is that **an array cannot contain another array**, so every snapshot for a
+driver who filled in even one repeating row was rejected with
+`INVALID_ARGUMENT: Property array contains an invalid nested entity`.
+
+On the first production run this failed 56 of 88 in-scope applications. It
+affected the live submission path identically, because both build the record with
+the same builder — and there the failure was caught, marked `failed` and hidden,
+so applications saved while their record and PDF silently did not exist.
+
+`submissionSnapshotStorage.js` now wraps each row as `{ cells: [...] }` on the
+way into Firestore and unwraps it on the way out. This is a **storage
+representation only**: the same cells, in the same order, in the same rows. No
+consumer changed, and no preserved PDF differs because of it. Records written
+before the encoding hold `rows: []` or `rows: null` and are byte-identical under
+both, so nothing already preserved was affected.
+
+A dry run cannot detect this class of failure: it builds the record in memory and
+returns before persisting, so any constraint the datastore enforces is invisible
+to it. The test doubles now reject a nested array exactly as Firestore does, which
+is what makes the regression tests meaningful — before that, 1219 unit tests
+passed against a payload production would never accept.
+
 ## Limitations
 
 * The job reconstructs from the application document. Information that was never

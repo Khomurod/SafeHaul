@@ -15,6 +15,7 @@ const { CURRENT_AGREEMENT_VERSION, submittableVersions } = require('./shared/leg
 const KNOWN_SUBMITTABLE_VERSIONS = submittableVersions();
 const { buildSubmissionSnapshot } = require('./shared/submissionSnapshot');
 const { writeSubmissionSnapshot } = require('./shared/writeSubmissionSnapshot');
+const { decodeStoredSnapshot } = require('./shared/submissionSnapshotStorage');
 const {
     buildFailedStatus,
     buildRecordedStatus,
@@ -245,7 +246,9 @@ exports.submitGuestApplication = functions
                         .collection('applications').doc(result.applicationId)
                         .collection('submission').doc(submissionSnapshot.snapshotId)
                         .get();
-                    if (storedSnap.exists) sourceSnapshot = storedSnap.data();
+                    // Decoded out of its storage representation: the PDF renderer
+                    // reads rows as arrays of cells, not as stored row maps.
+                    if (storedSnap.exists) sourceSnapshot = decodeStoredSnapshot(storedSnap.data());
                 }
 
                 // Separately best-effort: a storage hiccup must not cost the
