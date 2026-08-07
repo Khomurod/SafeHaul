@@ -1,0 +1,154 @@
+name: Promote a tested release to Production
+
+# Production is never released automatically. A merge to `main` updates the
+# TESTING channel only (see main.yml); this workflow is the single, deliberate
+# path by which a frontend reaches app.safehaul.io and safehaul.io.
+#
+# It promotes an EXACT tested release. The candidate SHA is resolved against the
+# Testing deployment record, and the application is copied as the immutable
+# Hosting version that Testing already served — not rebuilt from whatever `main`
+# points at now. A commit merged five minutes ago therefore cannot ride along
+# with a promotion approved an hour ago.
+#
+# Rollback uses this same workflow: promoting a previously released SHA restores
+# that frontend, because its Hosting version is still recorded and still exists.
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: 'Full 40-character commit SHA of the tested release to promote'
+        required: true
+        type: string
+      reason:
+        description: 'Why this release is being promoted (recorded in the audit trail)'
+        required: false
+        type: string
+
+jobs:
+  promote:
+    name: Promote ${{ inputs.sha }} to Production
+    runs-on: ubuntu-latest
+    # Only the active repository may release. The archived
+    # SafeHaul-for-Gemini-Antigravity repository retains this file in its
+    # history, so this guard — not a README notice — is what stops a manual run
+    # there from touching production.
+    if: github.repository == 'Khomurod/SafeHaul'
+    concurrency:
+      # cancel-in-progress is deliberately FALSE. Cancelling a half-finished
+      # production release is far worse than making a second click wait: it could
+      # leave the application promoted and the landing page not. Queue instead.
+      group: firebase-hosting-production
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+      deployments: write
+    env:
+      FIREBASE_PROJECT_ID: truckerapp-system
+      APP_TESTING_SITE: truckerapp-system
+      APP_PRODUCTION_SITE: safehaul-app-production
+
+    steps:
+      # Checked out at the CANDIDATE SHA, not at main. The landing page is
+      # deployed from this tree, so the checkout is part of the release contract.
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.sha }}
+
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20.x
+          cache: 'npm'
+
+      # Runs BEFORE any cloud authentication: an ineligible candidate must fail
+      # without a Google credential ever being minted.
+      - name: Resolve and verify the tested release
+        id: release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/resolve-testing-release.mjs "${{ inputs.sha }}"
+
+      - name: Skip — production already serves this release
+        if: steps.release.outputs.already_live == 'true'
+        run: echo "Production is already live on ${{ inputs.sha }}. Nothing to do."
+
+      - name: Authenticate to Google Cloud
+        if: steps.release.outputs.already_live != 'true'
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: projects/725898258453/locations/global/workloadIdentityPools/safehaul-github/providers/safehaul-github-provider
+          service_account: safehaul-github-deployer@truckerapp-system.iam.gserviceaccount.com
+          project_id: ${{ env.FIREBASE_PROJECT_ID }}
+
+      # Root lockfile pins firebase-tools; without this npx fetches a random CLI.
+      - name: Install repo dependencies (Firebase CLI from package-lock)
+        if: steps.release.outputs.already_live != 'true'
+        run: npm ci
+
+      # THE APPLICATION: promoted as bytes, not as source.
+      #
+      # `@VERSION_ID` clones one specific immutable Hosting version, so this
+      # copies precisely what Testing served and verified. It is also why no
+      # rebuild happens here — a rebuild could differ from the tested artifact
+      # even from an identical commit.
+      #
+      # Safe to clone because the `testing` and `production` app targets have
+      # byte-identical Hosting config, and the bundle is host-agnostic: apply
+      # links derive from window.location.origin, so the same artifact emits
+      # app.safehaul.io links on production and truckerapp-system.web.app links
+      # on Testing.
+      - name: Promote the application (exact Hosting version)
+        if: steps.release.outputs.already_live != 'true'
+        run: |
+          npx firebase hosting:clone \
+            "$APP_TESTING_SITE:@${{ steps.release.outputs.app_version_id }}" \
+            "$APP_PRODUCTION_SITE:live" \
+            --project "$FIREBASE_PROJECT_ID" --non-interactive
+
+      # THE LANDING PAGE: deployed from the same SHA, NOT cloned.
+      #
+      # The two landing targets have deliberately different Hosting config: the
+      # testing site sends `X-Robots-Tag: noindex, nofollow` so it stays out of
+      # search results. Cloning it onto safehaul.io would carry that header over
+      # and de-index the marketing site. So the landing page is deployed from the
+      # approved commit using the production target's own config. It is static
+      # content under `landing/`, so the result is fully determined by the SHA.
+      - name: Promote the landing page (from the approved SHA)
+        if: steps.release.outputs.already_live != 'true'
+        run: |
+          npx firebase deploy --only hosting:landing-production \
+            --project "$FIREBASE_PROJECT_ID" --non-interactive
+
+      # Independent confirmation that the bytes now on app.safehaul.io really are
+      # the approved release, read back from the live site rather than assumed
+      # from a successful CLI exit code.
+      - name: Verify the live production release
+        if: steps.release.outputs.already_live != 'true'
+        run: node scripts/verify-live-release.mjs https://app.safehaul.io "${{ inputs.sha }}"
+
+      - name: Record the production release
+        if: steps.release.outputs.already_live != 'true'
+        env:
+          APP_VERSION_ID: ${{ steps.release.outputs.app_version_id }}
+          LANDING_VERSION_ID: ${{ steps.release.outputs.landing_version_id }}
+          RELEASE_CHANNEL: production
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_SHA: ${{ inputs.sha }}
+        run: node scripts/record-release.mjs
+
+      - name: Summarise the promotion
+        if: always()
+        run: |
+          {
+            echo "### Production promotion"
+            echo ""
+            echo "| Field | Value |"
+            echo "| --- | --- |"
+            echo "| Candidate SHA | \`${{ inputs.sha }}\` |"
+            echo "| Hosting version | \`${{ steps.release.outputs.app_version_id }}\` |"
+            echo "| Approved by | @${{ github.actor }} |"
+            echo "| Reason | ${{ inputs.reason || '_not given_' }} |"
+            echo "| Result | ${{ job.status }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
