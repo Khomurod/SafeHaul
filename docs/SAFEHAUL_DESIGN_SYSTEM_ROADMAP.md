@@ -8472,10 +8472,10 @@ service. The design system knows none of it.
 
 | Check | Result |
 |---|---|
-| `npx vitest run` (frontend) | 225 suites, 3791 passing / 61 skipped |
-| `ReleaseManagementView.contract.test.jsx` | 15 passing — no version input exists, the button is gated on server-reported eligibility, the payload carries no credential, success copy never claims the release finished |
-| `npx jest` (functions) | 89 suites, 1268 passing |
-| `releaseManagement.callables.test.js` | 40 passing — authorization, staleness, concurrency, dispatch failure, audit |
+| `npx vitest run` (frontend) | 225 suites, 3792 passing / 61 skipped |
+| `ReleaseManagementView.contract.test.jsx` | 16 passing — no version input exists, the button is gated on server-reported eligibility, the payload carries no credential, success copy never claims the release finished, and a failed poll does not freeze progress tracking |
+| `npx jest` (functions) | 87 suites, 1216 passing |
+| `releaseManagement.callables.test.js` | 42 passing — authorization, staleness, concurrency, dispatch failure, audit |
 | `releaseManagement.github.test.js` | 14 passing — RS256 signature verified against the public key, no credential echoed on failure |
 | `npm run check:release-scripts` | 26 gate assertions passing |
 | `npm run lint` (both) | 0 errors |
@@ -8483,13 +8483,27 @@ service. The design system knows none of it.
 | `scripts/check-callable-contract.mjs` | passing (83 callables) |
 | E2E | added to `e2e/super-admin-shell.spec.cjs` and `e2e/super-admin-views.spec.cjs`, which exercise the view at 1440 / 1024 / 412 px and on the mobile device lane with axe |
 
+### Visual review actually performed
+
+The view was driven in a real browser against the local dev server under
+`VITE_E2E_TEST_MODE=1` at 1440×900 and 412×915:
+
+- headings resolve to a single page `<h1>` (the Super Admin masthead) with this
+  view contributing `<h2>Releases</h2>` and two `<h3>` channel headings;
+- `document.scrollWidth === clientWidth` at both widths — no horizontal overflow;
+- with the release status unreadable, the Release button is genuinely `disabled`
+  and the failure is announced through `role="alert"`;
+- the rollback action is absent when no previous release exists, rather than
+  present and inert.
+
 ### Honest limitations
 
-- **The offline E2E lane reaches only the settled failure state.** Under
-  `VITE_E2E_TEST_MODE=1` the release-status callable is unreachable, so the
-  responsive and axe passes cover the empty/error rendering, not a populated
-  release card. The populated states — eligible, blocked, running, failed,
-  already-live — are covered by the contract suite in jsdom, not by a browser.
-- **No photographed mobile review with live data.** The layout is built from
-  `ResponsiveGrid` and `Stack`, and the E2E lane asserts no horizontal overflow at
-  412 px, but the populated screen has not been captured on a phone.
+- **The browser review covered the unreadable-status state only.** The local dev
+  server cannot reach the release callable, so the populated states — eligible,
+  blocked, running, failed, already-live — were verified in jsdom by the contract
+  suite, not photographed in a browser. The same applies to the CI E2E lane,
+  which runs under the same offline mode.
+- **The confirmation dialog was not exercised in a browser.** It is unreachable
+  while the Release button is correctly disabled, which is the only state the
+  offline lane can reach. Its content and behaviour are asserted in the contract
+  suite.
