@@ -17,7 +17,9 @@
  *      commit on main" case, and the one that must never succeed.
  *   5. A FAILED Testing deployment is not promotable.
  *   6. A Testing deployment with no pinned Hosting version is not promotable.
- *   7. A commit whose checks later went red is not promotable.
+ *   7. A commit whose checks later went red is not promotable — including a
+ *      SKIPPED required check, which is not a passed check, and a red individual
+ *      test lane even though lanes are no longer in the required set.
  *   8. A repeat promotion of the live release reports already_live (idempotent,
  *      so a double-clicked button does not redeploy).
  *   9. Promoting an OLDER release while a newer one is live is allowed — that is
@@ -33,7 +35,8 @@
  *      repository has a long tail of Vercel-created ones) are ignored rather
  *      than mistaken for the live SafeHaul release.
  *  15. The required-check list matches the job names in main.yml, so a renamed
- *      job is caught in CI rather than at release time.
+ *      job is caught in CI rather than at release time, and the check that
+ *      vouches for the skippable lanes reports unconditionally.
  *  16. `readReleaseStatus` reports blockers instead of throwing, and never marks
  *      an unfinished release eligible.
  */
@@ -50,6 +53,13 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const { readReleaseStatus } = require('../functions/releaseManagement/eligibility.js');
+
+/**
+ * The one required check that vouches for every test lane. Individual test jobs
+ * are skippable when a pull request already validated the identical source tree,
+ * so this is what must be present and green instead of each of them.
+ */
+const GATE_CHECK = 'Verify the release is fully validated';
 
 const SHA_TESTED = 'a'.repeat(40);
 const SHA_NEWER = 'b'.repeat(40);
@@ -166,8 +176,8 @@ await refuses('7. refuses a commit whose checks are now red', {
         deployments: { testing: [goodTestingDeployment], production: [] },
         statuses: { 101: ['success'] },
         checkRuns: [
-            ...allRequiredGreen.filter((run) => run.name !== 'frontend-quality'),
-            { name: 'frontend-quality', status: 'completed', conclusion: 'failure' },
+            ...allRequiredGreen.filter((run) => run.name !== GATE_CHECK),
+            { name: GATE_CHECK, status: 'completed', conclusion: 'failure' },
         ],
     }),
 });
@@ -187,6 +197,102 @@ await refuses('7. refuses a commit whose checks are now red', {
         }),
     });
     assert('7b. tolerates skipped/neutral non-blocking checks', result.appVersionId === 'ver-app-101');
+}
+
+// 7c — A SKIPPED REQUIRED CHECK IS NOT A PASSED CHECK.
+//
+// This is the property that had to hold before `main.yml` was allowed to skip
+// anything. `skipped` used to be an accepted conclusion for required checks,
+// which was harmless while every required job ran unconditionally — and would
+// have become a hole the moment jobs started skipping. Each required check is
+// tested individually so that adding one to the list without thinking about its
+// skip behaviour cannot quietly widen the gate.
+for (const requiredCheck of REQUIRED_RELEASE_CHECKS) {
+    await refuses(`7c. refuses when required check "${requiredCheck}" was SKIPPED`, {
+        candidateSha: SHA_TESTED,
+        api: fakeApi({
+            deployments: { testing: [goodTestingDeployment], production: [] },
+            statuses: { 101: ['success'] },
+            checkRuns: [
+                ...allRequiredGreen.filter((run) => run.name !== requiredCheck),
+                { name: requiredCheck, status: 'completed', conclusion: 'skipped' },
+            ],
+        }),
+    });
+}
+
+// 7d — and the explanation says so, rather than reporting a failure it did not have
+{
+    const status = await readReleaseStatus({
+        api: fakeApi({
+            deployments: { testing: [goodTestingDeployment], production: [] },
+            statuses: { 101: ['success'] },
+            checkRuns: [
+                ...allRequiredGreen.filter((run) => run.name !== GATE_CHECK),
+                { name: GATE_CHECK, status: 'completed', conclusion: 'skipped' },
+            ],
+        }),
+    });
+    assert('7d. a skipped required check is reported as "did not run", not as a failure',
+        status.testing?.eligible === false
+            && status.testing.blockers.some((b) => b.includes('Did not run for this release')),
+        JSON.stringify(status.testing?.blockers));
+}
+
+// 7e — a required check with an odd conclusion is refused too. `neutral` is the
+// interesting one: it is acceptable for a non-blocking baseline and must NOT be
+// acceptable for a required check.
+for (const conclusion of ['neutral', 'cancelled', 'timed_out', 'action_required', 'stale', null]) {
+    await refuses(`7e. refuses a required check that concluded "${conclusion}"`, {
+        candidateSha: SHA_TESTED,
+        api: fakeApi({
+            deployments: { testing: [goodTestingDeployment], production: [] },
+            statuses: { 101: ['success'] },
+            checkRuns: [
+                ...allRequiredGreen.filter((run) => run.name !== GATE_CHECK),
+                { name: GATE_CHECK, status: 'completed', conclusion },
+            ],
+        }),
+    });
+}
+
+// 7f — an individual test lane is no longer in the required set, but a RED one
+// must still stop a promotion. This is the sweep over non-required checks, and it
+// is what catches a re-run of one E2E shard going red after deployment.
+for (const lane of ['frontend-quality', 'E2E shard 3 of 4 (Chromium)', 'rules-emulator', 'test-functions']) {
+    await refuses(`7f. refuses when non-required lane "${lane}" is red`, {
+        candidateSha: SHA_TESTED,
+        api: fakeApi({
+            deployments: { testing: [goodTestingDeployment], production: [] },
+            statuses: { 101: ['success'] },
+            checkRuns: [...allRequiredGreen, { name: lane, status: 'completed', conclusion: 'failure' }],
+        }),
+    });
+}
+
+// 7g — a test lane SKIPPED because a pull request already validated this exact
+// source tree must not block. That is the whole optimisation, and if this
+// refused, every optimised release would be un-promotable.
+{
+    const result = await resolveTestingRelease({
+        candidateSha: SHA_TESTED,
+        api: fakeApi({
+            deployments: { testing: [goodTestingDeployment], production: [] },
+            statuses: { 101: ['success'] },
+            checkRuns: [
+                ...allRequiredGreen,
+                { name: 'frontend-quality', status: 'completed', conclusion: 'skipped' },
+                { name: 'E2E shard 1 of 4 (Chromium)', status: 'completed', conclusion: 'skipped' },
+                { name: 'rules-emulator', status: 'completed', conclusion: 'skipped' },
+                { name: 'test-functions', status: 'completed', conclusion: 'skipped' },
+                { name: 'frontend-build', status: 'completed', conclusion: 'skipped' },
+                { name: 'Build the design-system catalog', status: 'completed', conclusion: 'skipped' },
+            ],
+        }),
+    });
+    assert('7g. a provably-covered release with skipped test lanes stays promotable',
+        result.appVersionId === 'ver-app-101',
+        'the required gate check vouches for the lanes; they need not each be green here');
 }
 
 // 8 — double-click safety
@@ -289,13 +395,27 @@ for (const [label, status] of [['queued', 'queued'], ['in progress', 'in_progres
     });
 }
 
-// 13 — a required check that never appeared at all
-await refuses('13. refuses when a required check is missing entirely', {
+// 13 — a required check that never appeared at all. Tested for every required
+// check, because "the job was deleted from the workflow" and "the job was renamed"
+// both look exactly like this from the gate's side.
+for (const requiredCheck of REQUIRED_RELEASE_CHECKS) {
+    await refuses(`13. refuses when required check "${requiredCheck}" is missing entirely`, {
+        candidateSha: SHA_TESTED,
+        api: fakeApi({
+            deployments: { testing: [goodTestingDeployment], production: [] },
+            statuses: { 101: ['success'] },
+            checkRuns: allRequiredGreen.filter((run) => run.name !== requiredCheck),
+        }),
+    });
+}
+
+// 13b — an empty check list is a refusal, not a vacuous pass
+await refuses('13b. refuses a commit with no checks at all', {
     candidateSha: SHA_TESTED,
     api: fakeApi({
         deployments: { testing: [goodTestingDeployment], production: [] },
         statuses: { 101: ['success'] },
-        checkRuns: allRequiredGreen.filter((run) => run.name !== 'rules-emulator'),
+        checkRuns: [],
     }),
 });
 
@@ -338,6 +458,35 @@ await refuses('13. refuses when a required check is missing entirely', {
     assert('15. every required check names a real job in main.yml',
         missing.length === 0,
         `not found in main.yml: ${missing.join(', ')}`);
+
+    // 15b — A REQUIRED CHECK MUST NOT BE SKIPPABLE BY THE CI PLAN.
+    //
+    // `main.yml` skips test lanes it can prove were already validated, using
+    // `if: needs.plan.outputs.run_<lane> == 'true'`. A required check wired to one
+    // of those conditions would be skippable — and while `evaluateRequiredChecks`
+    // now refuses a skipped required check, that would mean every optimised
+    // release was un-promotable. Either way it is wrong, so the two sets are kept
+    // disjoint here rather than by memory.
+    const jobs = [...workflow.matchAll(/^ {2}([a-z][a-z0-9-]*):$/gm)].map((match, index, all) => {
+        const start = match.index;
+        const end = index + 1 < all.length ? all[index + 1].index : workflow.length;
+        const block = workflow.slice(start, end);
+        const stepsAt = block.indexOf('\n    steps:');
+        return {
+            id: match[1],
+            header: stepsAt === -1 ? block : block.slice(0, stepsAt),
+        };
+    });
+
+    const planGated = REQUIRED_RELEASE_CHECKS.filter((check) => {
+        const job = jobs.find(({ id, header }) => id === check
+            || new RegExp(`^ {4}name:\\s*['"]?${check.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}['"]?\\s*$`, 'm').test(header));
+        return job ? /needs\.plan\.outputs\.(run|lane|attested)_/.test(job.header) : false;
+    });
+
+    assert('15b. no required check can be skipped by the CI plan',
+        planGated.length === 0,
+        `these required checks are gated on the plan: ${planGated.join(', ')}`);
 }
 
 // 17 — a merge to main must NEVER be able to update the Production frontend.

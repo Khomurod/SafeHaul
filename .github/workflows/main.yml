@@ -1,5 +1,23 @@
 name: CI/CD Pipeline
 
+# ## Shape of this pipeline
+#
+# A pull request is the comprehensive quality gate: it runs every lane its change
+# can possibly affect, against the exact merge result GitHub will land.
+#
+# A merge to `main` does NOT repeat that suite when it can prove it would be
+# running the same tests over the same bytes. The proof is a git tree hash — see
+# `scripts/ci-plan.mjs` — and where the proof is absent, the lane runs. Then
+# `release-validation` independently confirms that every lane either executed
+# here or is provably covered, and that job is what the production promotion gate
+# requires by name. Nothing downstream of it — the Testing deploy, the shared
+# backend rollout, the release record, the promotion gate — can start until it
+# has said yes.
+#
+# The failure direction is deliberate throughout: an unreadable diff, an
+# unclassified path, a missing attestation, a cancelled run or a planner that
+# crashed all produce MORE testing, never less.
+
 on:
   push:
     branches: [ "main" ]
@@ -7,9 +25,79 @@ on:
     branches: [ "main" ]
   workflow_dispatch:
 
+# Superseded pull-request runs are cancelled — pushing a fixup should not leave a
+# stale 10-minute suite occupying runners.
+#
+# Pushes to `main` are deliberately NOT grouped together: `github.run_id` is
+# unique per run, so a main run is always alone in its group and can never be
+# cancelled by the next merge. Cancelling a main run mid-deploy could leave the
+# Testing frontend and the shared backend at different versions.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
 jobs:
+  # ---------------------------------------------------------------------------
+  # What this run has to do
+  # ---------------------------------------------------------------------------
+  plan:
+    name: Plan this run
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Reads the attestation artifacts that prove a lane already passed against
+      # this exact source tree. Read-only: this job never writes one.
+      actions: read
+    outputs:
+      tree_sha: ${{ steps.plan.outputs.tree_sha }}
+      full_suite: ${{ steps.plan.outputs.full_suite }}
+      selection_reason: ${{ steps.plan.outputs.selection_reason }}
+
+      # THE authoritative decision, as one json document. `release-validation`
+      # reads this and nothing else. It is deliberately not split per lane: a plan
+      # reassembled from a dozen separate outputs fails open, because one missing
+      # output reads as "that lane was not relevant". See `scripts/ci-plan.mjs`.
+      lane_plan: ${{ steps.plan.outputs.lane_plan }}
+
+      # Scheduling hints for the `if:` conditions below, which cannot parse json.
+      # Advisory only: a missing one just means the lane does not run, and the
+      # lane plan still reports it as required, so the gate refuses.
+      run_frontend_build: ${{ steps.plan.outputs.run_frontend_build }}
+      run_frontend_unit: ${{ steps.plan.outputs.run_frontend_unit }}
+      run_frontend_e2e: ${{ steps.plan.outputs.run_frontend_e2e }}
+      run_storybook: ${{ steps.plan.outputs.run_storybook }}
+      run_functions: ${{ steps.plan.outputs.run_functions }}
+      run_rules: ${{ steps.plan.outputs.run_rules }}
+    steps:
+      # Full history: the planner diffs against the pull request's base or the
+      # push's previous head, and a shallow clone has neither. A planner that
+      # cannot read the diff falls back to the full suite, so a shallow clone
+      # here would silently cost ~20 minutes per run rather than break anything.
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20.x
+
+      # No `npm ci`: the planner uses only Node builtins, deliberately, so the
+      # first job of every run does not wait on an install.
+      - name: Decide which lanes must run
+        id: plan
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/ci-plan.mjs
+
+  # ---------------------------------------------------------------------------
+  # Always run — cheap, or not determined by the source tree
+  # ---------------------------------------------------------------------------
   secret-scan:
     runs-on: ubuntu-latest
+    # NEVER skippable, and never provable by a tree hash: Gitleaks scans commit
+    # HISTORY, and two commits with an identical tree can have entirely different
+    # history. A merge introduces new commits, so it needs a new scan.
     permissions:
       contents: read
       pull-requests: read
@@ -23,8 +111,39 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  callable-contract:
+    runs-on: ubuntu-latest
+    # Always runs. It is ~20 seconds and it is the self-test for the release
+    # system itself — the promotion gate, and the CI planner and validation gate
+    # that decide what may be skipped. Making the checks that guard the
+    # optimisation skippable by the optimisation would be circular.
+    steps:
+      - uses: actions/checkout@v5
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20.x
+      - name: Verify frontend/backend callable contract
+        run: node scripts/check-callable-contract.mjs
+
+      # The promotion gate decides what may reach app.safehaul.io, so its refusal
+      # paths are a required check rather than a nicety.
+      - name: Verify the production-promotion gate
+        run: npm run check:release-scripts
+
+      # And the same for the machinery that decides what CI is allowed to skip:
+      # path selection, the conservative fallbacks, provenance, and the
+      # fail-closed verdict.
+      - name: Verify the CI plan and release-validation gate
+        run: npm run check:ci-plan
+
+  # ---------------------------------------------------------------------------
+  # Lanes — each runs when relevant and not already proven for this exact tree
+  # ---------------------------------------------------------------------------
   test-functions:
     runs-on: ubuntu-latest
+    needs: plan
+    if: needs.plan.outputs.run_functions == 'true'
     defaults:
       run:
         working-directory: ./functions
@@ -50,6 +169,8 @@ jobs:
 
   frontend-build:
     runs-on: ubuntu-latest
+    needs: plan
+    if: needs.plan.outputs.run_frontend_build == 'true'
     steps:
       - uses: actions/checkout@v5
 
@@ -63,7 +184,16 @@ jobs:
       - run: npm run build
 
   frontend-quality:
+    # Frontend lint plus unit tests and the coverage baseline-ratchet gate.
+    #
+    # The browser suite used to run in this same job, one step after these, which
+    # made a single ~23-minute serial job the critical path of every pull request
+    # AND every merge. It now runs in `frontend-e2e`, sharded across runners. No
+    # test was removed in the split; measured 2026-08-07, this job's own work is
+    # 6–8.5 minutes of it.
     runs-on: ubuntu-latest
+    needs: plan
+    if: needs.plan.outputs.run_frontend_unit == 'true'
     steps:
       - uses: actions/checkout@v5
 
@@ -82,16 +212,69 @@ jobs:
       - name: Frontend Unit Tests + Coverage (baseline-ratchet gate)
         run: npm run test:coverage
 
+  frontend-e2e:
+    name: E2E shard ${{ matrix.shard }} of 4 (Chromium)
+    runs-on: ubuntu-latest
+    needs: plan
+    if: needs.plan.outputs.run_frontend_e2e == 'true'
+    strategy:
+      # Every shard reports. A red shard fails the lane either way, and knowing
+      # whether one spec broke or forty is the difference between a five-minute
+      # diagnosis and a re-run.
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20.x
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      # Chromium is ~150MB and `playwright install` downloads it over the public
+      # internet. Measured on 2026-08-07 that step took 24 seconds on one run and
+      # 10 minutes 32 seconds on another — an unbounded cost on the critical path,
+      # for a binary pinned by the lockfile. Caching it makes the cost bounded.
+      #
+      # Browsers only. No credential, token or build output is cached here.
+      - name: Cache the Playwright browser
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+
       - name: Install Playwright Browser
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps chromium
 
+      # The cache holds the browser, not the system libraries it links against,
+      # so those are still installed on a cache hit.
+      - name: Install Playwright OS dependencies
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+
+      # Sharding splits the suite ACROSS runners; it does not raise `workers`
+      # within one. Each shard gets its own machine, its own dev server and its
+      # own port 5000, so the shared-dev-server hazard documented in CLAUDE.md
+      # ("CI Playwright concurrency: workers: 1 is deliberate") does not apply —
+      # that hazard is two suites contending for one server on one machine.
+      # `workers: 1` and `retries: 2` are untouched.
+      #
+      # Excludes the @a11y axe lane here; it runs in the non-blocking e2e-a11y job.
       - name: Frontend E2E Tests (Chromium)
-        # Exclude the @a11y axe lane here; it runs in the non-blocking e2e-a11y job.
-        run: npm run test:e2e -- --project=chromium --grep-invert "@a11y"
+        run: npm run test:e2e -- --project=chromium --grep-invert "@a11y" --shard=${{ matrix.shard }}/4
 
   storybook-build:
     name: Build the design-system catalog
     runs-on: ubuntu-latest
+    needs: plan
+    if: needs.plan.outputs.run_storybook == 'true'
     # The Storybook catalog documents the design system and business-neutral page
     # patterns only. It imports no Firebase, no application context and no domain
     # services, and every value it renders comes from hand-written local fixtures.
@@ -147,66 +330,14 @@ jobs:
           retention-days: 14
           if-no-files-found: error
 
-  e2e-a11y:
-    runs-on: ubuntu-latest
-    # E3: automated accessibility gate (@axe-core/playwright) on the mobile-critical
-    # journeys. Initially NON-BLOCKING (continue-on-error) and intentionally absent
-    # from the deploy jobs' needs:, because it could not be verified in the dev
-    # sandbox (browser download blocked). Once confirmed green in CI, fold these
-    # tests back into the blocking Frontend E2E step (drop the --grep-invert) and
-    # remove this job.
-    steps:
-      - uses: actions/checkout@v5
-      - name: Use Node.js 20.x
-        uses: actions/setup-node@v5
-        with:
-          node-version: 20.x
-          cache: 'npm'
-      - name: Install Dependencies
-        run: npm ci
-      - name: Install Playwright Browser
-        run: npx playwright install --with-deps chromium
-      - name: E2E accessibility (axe) — non-blocking baseline
-        run: npm run test:e2e -- --project=chromium --grep "@a11y"
-        continue-on-error: true
-
-  typecheck:
-    runs-on: ubuntu-latest
-    # D3: non-blocking type-safety baseline (checkJs on scoped high-leverage
-    # modules via jsconfig.json). Surfaces latent type issues to ratchet over
-    # time; intentionally NOT listed in the deploy jobs' `needs:` so it never
-    # blocks a release.
-    steps:
-      - uses: actions/checkout@v5
-      - name: Use Node.js 20.x
-        uses: actions/setup-node@v5
-        with:
-          node-version: 20.x
-          cache: 'npm'
-      - name: Install Dependencies
-        run: npm ci
-      - name: Typecheck (non-blocking baseline)
-        run: npm run typecheck
-        continue-on-error: true
-
-  callable-contract:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - name: Use Node.js 20.x
-        uses: actions/setup-node@v5
-        with:
-          node-version: 20.x
-      - name: Verify frontend/backend callable contract
-        run: node scripts/check-callable-contract.mjs
-
-      # The promotion gate decides what may reach app.safehaul.io, so its refusal
-      # paths are a required check rather than a nicety.
-      - name: Verify the production-promotion gate
-        run: npm run check:release-scripts
-
   rules-emulator:
     runs-on: ubuntu-latest
+    needs: plan
+    # Security rules live in `src/firestore.rules` / `src/storage.rules`, and both
+    # are classified cross-cutting by the planner, so any change to them runs the
+    # whole suite including this lane. This `if:` only skips the lane for changes
+    # that cannot touch rules at all.
+    if: needs.plan.outputs.run_rules == 'true'
     steps:
       - uses: actions/checkout@v5
 
@@ -250,17 +381,208 @@ jobs:
             storage-debug.log
             ui-debug.log
 
+  # ---------------------------------------------------------------------------
+  # Non-blocking baselines — advisory, never in the required set
+  # ---------------------------------------------------------------------------
+  e2e-a11y:
+    runs-on: ubuntu-latest
+    needs: plan
+    if: needs.plan.outputs.run_frontend_e2e == 'true'
+    # E3: automated accessibility gate (@axe-core/playwright) on the mobile-critical
+    # journeys. Initially NON-BLOCKING (continue-on-error) and intentionally absent
+    # from the release-validation lane set, because it could not be verified in the
+    # dev sandbox (browser download blocked). Once confirmed green in CI, fold these
+    # tests back into the blocking frontend-e2e lane (drop the --grep-invert) and
+    # remove this job.
+    steps:
+      - uses: actions/checkout@v5
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20.x
+          cache: 'npm'
+      - name: Install Dependencies
+        run: npm ci
+      - name: Cache the Playwright browser
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+      - name: Install Playwright Browser
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+      - name: Install Playwright OS dependencies
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+      - name: E2E accessibility (axe) — non-blocking baseline
+        run: npm run test:e2e -- --project=chromium --grep "@a11y"
+        continue-on-error: true
+
+  typecheck:
+    runs-on: ubuntu-latest
+    needs: plan
+    if: needs.plan.outputs.run_frontend_unit == 'true'
+    # D3: non-blocking type-safety baseline (checkJs on scoped high-leverage
+    # modules via jsconfig.json). Surfaces latent type issues to ratchet over
+    # time; intentionally NOT part of the release-validation lane set so it never
+    # blocks a release.
+    steps:
+      - uses: actions/checkout@v5
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20.x
+          cache: 'npm'
+      - name: Install Dependencies
+        run: npm ci
+      - name: Typecheck (non-blocking baseline)
+        run: npm run typecheck
+        continue-on-error: true
+
+  # ---------------------------------------------------------------------------
+  # THE gate
+  # ---------------------------------------------------------------------------
+  release-validation:
+    name: Verify the release is fully validated
+    runs-on: ubuntu-latest
+    # `always()` is load-bearing. This job has to produce a verdict when an
+    # upstream lane FAILED or the run was cancelled — those are exactly the cases
+    # a promotion must refuse, and a verdict that never appears would leave the
+    # promotion gate reading "no failure recorded". It is required by name in
+    # `functions/releaseManagement/eligibility.js`, so a missing verdict refuses
+    # every promotion.
+    if: always()
+    needs:
+      - plan
+      - secret-scan
+      - callable-contract
+      - test-functions
+      - frontend-build
+      - frontend-quality
+      - frontend-e2e
+      - storybook-build
+      - rules-emulator
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20.x
+
+      # Each lane must be accounted for: it ran green here, or it was skipped
+      # with a reason this job can verify. Anything else fails.
+      #
+      # `LANE_PLAN` is passed through verbatim as the single json value the planner
+      # produced. If the plan job failed it is empty, the script cannot parse it,
+      # and the release is refused — the planner's own result is checked too.
+      - name: Verify every lane ran or is provably covered
+        env:
+          PLAN_RESULT: ${{ needs.plan.result }}
+          LANE_PLAN: ${{ needs.plan.outputs.lane_plan }}
+          JOB_RESULTS: >-
+            {
+              "secret-scan": "${{ needs.secret-scan.result }}",
+              "callable-contract": "${{ needs.callable-contract.result }}",
+              "test-functions": "${{ needs.test-functions.result }}",
+              "frontend-build": "${{ needs.frontend-build.result }}",
+              "frontend-quality": "${{ needs.frontend-quality.result }}",
+              "frontend-e2e": "${{ needs.frontend-e2e.result }}",
+              "storybook-build": "${{ needs.storybook-build.result }}",
+              "rules-emulator": "${{ needs.rules-emulator.result }}"
+            }
+        run: node scripts/verify-release-validation.mjs
+
+      # ----------------------------------------------------------------------
+      # Attestations
+      # ----------------------------------------------------------------------
+      # Published only from a pull request, and only past the verification step
+      # above — a failing gate never attests anything.
+      #
+      # The PROOF is the artifact's name and the run that produced it, both of
+      # which only GitHub can set. The file below is a human-readable receipt for
+      # whoever is reading a release later; `scripts/ci-plan.mjs` never parses it,
+      # so its contents cannot influence what a later run decides to skip.
+      - name: Write the validation receipt
+        if: github.event_name == 'pull_request'
+        env:
+          TREE_SHA: ${{ needs.plan.outputs.tree_sha }}
+        run: |
+          cat > validation-receipt.json <<JSON
+          {
+            "tree": "$TREE_SHA",
+            "validatedSha": "$GITHUB_SHA",
+            "runId": "$GITHUB_RUN_ID",
+            "repository": "$GITHUB_REPOSITORY",
+            "pullRequest": "${{ github.event.pull_request.number }}"
+          }
+          JSON
+
+      - name: Attest frontend_build
+        if: github.event_name == 'pull_request' && needs.frontend-build.result == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: validated-${{ needs.plan.outputs.tree_sha }}-frontend_build
+          path: validation-receipt.json
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Attest frontend_unit
+        if: github.event_name == 'pull_request' && needs.frontend-quality.result == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: validated-${{ needs.plan.outputs.tree_sha }}-frontend_unit
+          path: validation-receipt.json
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Attest frontend_e2e
+        if: github.event_name == 'pull_request' && needs.frontend-e2e.result == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: validated-${{ needs.plan.outputs.tree_sha }}-frontend_e2e
+          path: validation-receipt.json
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Attest storybook
+        if: github.event_name == 'pull_request' && needs.storybook-build.result == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: validated-${{ needs.plan.outputs.tree_sha }}-storybook
+          path: validation-receipt.json
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Attest functions
+        if: github.event_name == 'pull_request' && needs.test-functions.result == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: validated-${{ needs.plan.outputs.tree_sha }}-functions
+          path: validation-receipt.json
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Attest rules
+        if: github.event_name == 'pull_request' && needs.rules-emulator.result == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: validated-${{ needs.plan.outputs.tree_sha }}-rules
+          path: validation-receipt.json
+          retention-days: 14
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------------
+  # Release
+  # ---------------------------------------------------------------------------
   deploy-testing:
     name: Deploy the Testing release
     runs-on: ubuntu-latest
     needs:
-      - secret-scan
-      - test-functions
-      - frontend-build
-      - frontend-quality
-      - storybook-build
-      - callable-contract
-      - rules-emulator
+      - release-validation
     # SafeHaul has exactly one active source repository. The deploy jobs used to
     # pick their Hosting target from `github.repository`, because the same files
     # lived in two repositories and each deployed its own pair of sites. That is
@@ -272,8 +594,14 @@ jobs:
     # its history, so without the guard someone could still open that archived
     # repository and press "Run workflow" to deploy from stale source. With it,
     # those jobs skip immediately and no Google credential is ever requested.
+    #
+    # The `release-validation` clause is redundant with `needs:` today — a failed
+    # need already skips this job — but it is stated because the guarantee is too
+    # important to rest on an implicit rule that a future `always()` or
+    # `!cancelled()` here would quietly switch off.
     if: >-
       github.repository == 'Khomurod/SafeHaul' &&
+      needs.release-validation.result == 'success' &&
       ((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch')
     concurrency:
       # Serialised against itself, but NOT against a production promotion — the
@@ -402,19 +730,17 @@ jobs:
     name: Deploy Cloud Functions
     runs-on: ubuntu-latest
     needs:
-      - secret-scan
-      - test-functions
-      - frontend-build
-      - frontend-quality
-      - storybook-build
-      - callable-contract
-      - rules-emulator
+      - release-validation
     # Cloud Functions are shared backend, not a frontend channel: there is one
     # deployment of them serving both Testing and Production. They therefore roll
     # out with the Testing frontend and must remain backward compatible with the
     # frontend currently live on production — a promotion never redeploys them.
+    #
+    # See `deploy-testing` for why the `release-validation` clause is spelled out
+    # even though `needs:` already implies it.
     if: >-
       github.repository == 'Khomurod/SafeHaul' &&
+      needs.release-validation.result == 'success' &&
       ((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch')
     concurrency:
       group: firebase-functions-live
@@ -518,7 +844,9 @@ jobs:
     # frontend AND the shared backend — Cloud Functions, Firestore rules, Storage
     # rules, indexes, post-deploy smoke — have all succeeded. Testing and
     # Production share that backend, so a frontend whose Function or rule never
-    # shipped must never become promotable.
+    # shipped must never become promotable. And because both deploy jobs sit
+    # behind `release-validation`, neither can have run unless every test lane
+    # was executed or provably covered for this exact source tree.
     #
     # Every failure mode leaves the release un-promotable: a failed deploy skips
     # this job, a cancelled run never reaches it, and a missing deployment id

@@ -78,11 +78,45 @@ So the Testing deployment record is written `in_progress` and is only promoted t
 `success` by `release-ready`, after every deploy job has succeeded. The gate in
 `functions/releaseManagement/eligibility.js` requires that `success`, and
 separately requires every check in `REQUIRED_RELEASE_CHECKS` to be **present and
-completed green** — queued, in-progress and entirely absent all count as refusals,
-because "has not failed yet" is not the same as "passed".
+concluded `success`** — queued, in-progress, skipped and entirely absent all count
+as refusals, because "has not failed yet" is not the same as "passed".
 
 The same module is imported by both the promotion workflow and the Super Admin
 callables, so the two cannot drift apart.
+
+### Why the required-check list is short
+
+`main.yml` does not re-run a test on `main` when it can prove the identical source
+tree already passed that test during the pull request. The proof is a git tree
+hash, and the mechanism is described in `scripts/ci-plan.mjs`. So individual test
+jobs — `frontend-quality`, the `frontend-e2e` shards, `rules-emulator`,
+`test-functions`, `frontend-build`, the Storybook catalog — are routinely
+**skipped** on a merge.
+
+That is why they are not in `REQUIRED_RELEASE_CHECKS`. Listing them would force a
+choice between blocking every optimised release and accepting `skipped` as a pass,
+and accepting `skipped` for a required check means accepting a test that did not
+happen.
+
+Instead one required check vouches for all of them:
+
+> **`Verify the release is fully validated`**
+
+It is a separate job (`scripts/verify-release-validation.mjs`) that re-derives,
+per lane, whether the lane ran green in this run, or was skipped with proof it
+passed on this exact tree, or was skipped because nothing in the change can affect
+it. Anything else fails it. It is declared `if: always()` so it reports even when
+a lane failed or the run was cancelled, and both deploy jobs sit behind it — so a
+release that cannot satisfy it never gets a Testing deployment record at all.
+
+A red test lane still blocks a promotion even though lanes are not required: the
+gate also sweeps every other check on the commit and refuses any that concluded
+badly.
+
+These properties are covered by `npm run check:release-scripts` and
+`npm run check:ci-plan`, both of which run on every pull request and every merge
+in the `callable-contract` job — which is itself never skippable, because the
+checks that guard the optimisation must not be skippable by the optimisation.
 
 ## Releasing from Super Admin
 
@@ -195,9 +229,9 @@ firebase hosting:clone truckerapp-system@VERSION_ID safehaul-app-production:live
 So a commit merged after approval cannot ride along, and Production receives the
 same bytes that were tested — not a fresh build that merely came from the same
 commit. A candidate with no successful Testing release record, with an unfinished
-backend rollout, or with any required check red, queued, running or missing is
-refused before any Google credential is minted. Those refusals are covered by
-`npm run check:release-scripts`.
+backend rollout, or with any required check red, queued, running, skipped or
+missing is refused before any Google credential is minted. Those refusals are
+covered by `npm run check:release-scripts`.
 
 The `@` in the source is not interchangeable with a colon. The pinned Firebase
 CLI parses `<site>:<something>` as a *channel* source and only tries the version

@@ -103,8 +103,8 @@ running: the dev server hot-reloads and the in-flight tests can fail spuriously.
 ### CI Playwright concurrency: `workers: 1` is deliberate — do not raise it casually
 
 `playwright.config.cjs` pins `workers: process.env.CI ? 1 : undefined` with
-`retries: 2`. That is the main reason the `frontend-quality` lane takes ~9
-minutes, and raising it to 2 is a tempting way to halve that. It was evaluated on
+`retries: 2`. The browser suite measured 11m43s–13m24s in CI on 2026-08-07, and
+raising `workers` to 2 is a tempting way to halve that. It was evaluated on
 2026-07-25 and **skipped**, because the available evidence points the other way:
 
 - Two Playwright suites sharing the port-5000 dev server produced **14 spurious
@@ -120,4 +120,24 @@ needs repeated full ~27-minute runs demonstrating no shared-server, ordering or
 flake problems, plus a check of the runner's actual CPU allocation. Until someone
 does that work, the slower-but-trustworthy setting stands. **A green single run
 is not sufficient evidence** — the failure mode is intermittent by nature.
+
+**Sharding across runners is the sanctioned way to speed this up, and is what
+`main.yml` now does.** The `frontend-e2e` job runs a 4-way matrix with
+`--shard=N/4`. That is a different mechanism from raising `workers`, and it does
+not reintroduce either failure mode above:
+
+- each shard is its own GitHub runner, with its own dev server on its own
+  port 5000, so nothing is shared and `reuseExistingServer` never applies;
+- `workers: 1` and `retries: 2` are untouched, so there is no additional
+  contention *within* a machine — which is what caused the
+  `guest-post-application-edoc` timeout.
+
+Both rules at the top of this section still hold locally: one suite at a time,
+and never a broad `pkill`. Sharding is a CI arrangement, not a licence to run
+concurrent suites on one machine.
+
+If you change the shard count, change it in `main.yml` in both the `matrix.shard`
+list and the `--shard=N/<total>` argument — they are two halves of one number.
+Coverage is unaffected either way: sharding partitions the same test set, it does
+not subset it.
 <!-- /safehaul-design-system -->
