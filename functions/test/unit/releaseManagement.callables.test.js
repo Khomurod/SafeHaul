@@ -281,8 +281,8 @@ describe('eligibility', () => {
 
     it('refuses when a required check failed', async () => {
         githubState.checkRuns = [
-            ...allRequiredGreen.filter((run) => run.name !== 'frontend-quality'),
-            { name: 'frontend-quality', status: 'completed', conclusion: 'failure' },
+            ...allRequiredGreen.filter((run) => run.name !== 'Verify the release is fully validated'),
+            { name: 'Verify the release is fully validated', status: 'completed', conclusion: 'failure' },
         ];
 
         await expect(releaseManagement.promoteTestingToProduction(request(superAdmin())))

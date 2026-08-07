@@ -22,6 +22,7 @@
     "check:function-exports": "node scripts/validate-function-index-parse.mjs",
     "check:deploy-script": "node scripts/test-deploy-incremental.mjs",
     "check:release-scripts": "node scripts/test-release-promotion.mjs",
+    "check:ci-plan": "node scripts/test-ci-plan.mjs",
     "deploy:functions:plan": "node scripts/deploy-functions-incremental.mjs --dry-run",
     "storage:set-cors": "node scripts/set-storage-cors.mjs",
     "typecheck": "tsc -p jsconfig.json --noEmit",

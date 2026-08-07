@@ -26,14 +26,30 @@
  *      `main.yml`, is only posted after the SHARED BACKEND rollout (Cloud
  *      Functions, Firestore rules, Storage rules, indexes, post-deploy smoke)
  *      has also finished successfully.
- *   4. Every required check on the commit has COMPLETED with a good conclusion.
- *      Queued, in-progress and entirely absent required checks are refusals, not
- *      "not yet failed".
+ *   4. Every required check on the commit has COMPLETED and concluded `success`.
+ *      Queued, in-progress, SKIPPED and entirely absent required checks are
+ *      refusals, not "not yet failed".
  *
- * Rule 4 is the one that is easy to get subtly wrong. Filtering for "completed
- * checks whose conclusion is bad" accepts a commit whose deployment jobs have
- * not started yet, because a check that has not run has no bad conclusion. The
- * gate has to be built from a required-set that must be PRESENT and GREEN.
+ * Rule 4 is the one that is easy to get subtly wrong, in two different ways.
+ *
+ * Filtering for "completed checks whose conclusion is bad" accepts a commit whose
+ * deployment jobs have not started yet, because a check that has not run has no
+ * bad conclusion. So the gate is built from a required-set that must be PRESENT.
+ *
+ * And accepting `skipped` for a REQUIRED check accepts a job that did not happen.
+ * That was tolerable while every required job ran unconditionally on every push.
+ * It is not tolerable now: `main.yml` skips test lanes it can prove were already
+ * validated against the identical source tree, so `skipped` is a routine outcome
+ * for individual test jobs. The required set therefore names only checks that run
+ * on every release, and each of them must conclude `success` — never `skipped`,
+ * never `neutral`.
+ *
+ * The completeness of the test lanes themselves is asserted by ONE required
+ * check, `Verify the release is fully validated`, which is a separate job that
+ * re-derives whether every lane ran or was provably covered
+ * (`scripts/verify-release-validation.mjs`). It is declared `if: always()`, so it
+ * reports a verdict even when a lane failed or the run was cancelled. Deleting
+ * it, renaming it or letting it be skipped makes every promotion refuse.
  */
 
 /** Thrown for "this candidate may not be promoted" — always a clean refusal. */
@@ -50,18 +66,29 @@ class IneligibleReleaseError extends Error {}
  * against the workflow file itself so the mismatch surfaces in CI rather than
  * at the moment somebody needs to release.
  *
- * `typecheck` and `e2e-a11y` are deliberately absent: both are declared
+ * Every entry here runs on EVERY release, so every entry must conclude
+ * `success`. That is what lets this list reject `skipped`.
+ *
+ * The individual test jobs — `frontend-quality`, `frontend-e2e`,
+ * `rules-emulator`, `test-functions`, `frontend-build`, the Storybook catalog —
+ * are deliberately NOT listed. They are skipped on a merge whose exact source
+ * tree a pull request already validated, so naming them here would either block
+ * every optimised release or, far worse, require accepting `skipped` for a
+ * required check. Their completeness is asserted instead by
+ * `Verify the release is fully validated`, which cannot be satisfied by a lane
+ * that neither ran nor has proof it passed on this code.
+ *
+ * `typecheck` and `e2e-a11y` are absent for a different reason: both are declared
  * non-blocking baselines in `main.yml` and run with `continue-on-error`, so
  * requiring them here would contradict the workflow.
  */
 const REQUIRED_RELEASE_CHECKS = Object.freeze([
+    // Scans commit HISTORY, so it can never be satisfied by a tree-hash proof
+    // and runs on every release.
     'secret-scan',
-    'test-functions',
-    'frontend-build',
-    'frontend-quality',
-    'Build the design-system catalog',
-    'callable-contract',
-    'rules-emulator',
+    // THE completeness check: every test lane either ran in this release's run
+    // or is provably covered for its exact source tree.
+    'Verify the release is fully validated',
     // The two halves of the release itself. The Testing frontend and the SHARED
     // backend are separate jobs, and Production runs against the same backend,
     // so a frontend that depends on a Function or a rule which never shipped
@@ -70,8 +97,25 @@ const REQUIRED_RELEASE_CHECKS = Object.freeze([
     'Deploy Cloud Functions',
 ]);
 
-/** Conclusions that count as "this check did not fail". */
-const ACCEPTABLE_CONCLUSIONS = Object.freeze(['success', 'skipped', 'neutral']);
+/**
+ * The only conclusion that satisfies a REQUIRED check.
+ *
+ * `skipped` is excluded on purpose. A skipped required check is a check that did
+ * not happen, and every name in `REQUIRED_RELEASE_CHECKS` is a job that runs
+ * unconditionally on a release — so a skip there means something is wrong with
+ * the workflow, not that the check was unnecessary. `neutral` is excluded for
+ * the same reason: no job in the required set can produce it.
+ */
+const REQUIRED_CHECK_CONCLUSIONS = Object.freeze(['success']);
+
+/**
+ * Conclusions that count as "this non-required check did not fail".
+ *
+ * A test lane skipped because a pull request already validated this exact tree
+ * lands here, and must not block. A lane that went RED still blocks, which is
+ * the point of the sweep in `evaluateRequiredChecks`.
+ */
+const NON_BLOCKING_CONCLUSIONS = Object.freeze(['success', 'skipped', 'neutral']);
 
 const FULL_SHA = /^[0-9a-f]{40}$/;
 
@@ -102,7 +146,7 @@ function isSafeHaulRelease(deployment) {
  * Classifies the required checks for a commit.
  *
  * @param {Array<{name: string, status: string, conclusion: string|null}>} checkRuns
- * @returns {{failed: string[], pending: string[], missing: string[], ok: boolean}}
+ * @returns {{failed: string[], pending: string[], missing: string[], skipped: string[], ok: boolean}}
  */
 function evaluateRequiredChecks(checkRuns) {
     const runs = Array.isArray(checkRuns) ? checkRuns : [];
@@ -114,6 +158,7 @@ function evaluateRequiredChecks(checkRuns) {
     const failed = [];
     const pending = [];
     const missing = [];
+    const skipped = [];
 
     for (const name of REQUIRED_RELEASE_CHECKS) {
         const run = byName.get(name);
@@ -125,18 +170,26 @@ function evaluateRequiredChecks(checkRuns) {
             pending.push(name);
             continue;
         }
-        if (!ACCEPTABLE_CONCLUSIONS.includes(run.conclusion)) {
+        // Reported separately from `failed` because the operator-facing reason is
+        // different: a skipped required check did not fail, it did not happen.
+        if (run.conclusion === 'skipped') {
+            skipped.push(name);
+            continue;
+        }
+        if (!REQUIRED_CHECK_CONCLUSIONS.includes(run.conclusion)) {
             failed.push(`${name}=${run.conclusion}`);
         }
     }
 
     // Anything else on the commit that ran and failed still blocks, so a re-run
-    // that goes red is caught even if it is not on the required list.
+    // that goes red is caught even if it is not on the required list. This is
+    // what catches an individual test lane going red: the lanes are no longer in
+    // the required set, but a failing one must still stop a promotion.
     for (const run of runs) {
         if (!run || typeof run.name !== 'string') continue;
         if (REQUIRED_RELEASE_CHECKS.includes(run.name)) continue;
         if (run.status !== 'completed') continue;
-        if (ACCEPTABLE_CONCLUSIONS.includes(run.conclusion)) continue;
+        if (NON_BLOCKING_CONCLUSIONS.includes(run.conclusion)) continue;
         // Non-blocking lanes declare themselves by concluding `success` even when
         // a step failed (`continue-on-error`), so anything red here genuinely is.
         failed.push(`${run.name}=${run.conclusion}`);
@@ -146,12 +199,14 @@ function evaluateRequiredChecks(checkRuns) {
         failed,
         pending,
         missing,
-        ok: failed.length === 0 && pending.length === 0 && missing.length === 0,
+        skipped,
+        ok: failed.length === 0 && pending.length === 0 && missing.length === 0
+            && skipped.length === 0,
     };
 }
 
 /** Human-readable, non-technical explanation of why a candidate is blocked. */
-function describeCheckBlockers({ failed, pending, missing }) {
+function describeCheckBlockers({ failed, pending, missing, skipped = [] }) {
     const blockers = [];
     if (failed.length > 0) {
         blockers.push(`Checks failed for this release: ${failed.join(', ')}.`);
@@ -161,6 +216,12 @@ function describeCheckBlockers({ failed, pending, missing }) {
     }
     if (missing.length > 0) {
         blockers.push(`Has not started: ${missing.join(', ')}.`);
+    }
+    if (skipped.length > 0) {
+        blockers.push(
+            `Did not run for this release: ${skipped.join(', ')}. A required check that was ` +
+            'skipped is not a passed check.',
+        );
     }
     return blockers;
 }
@@ -357,7 +418,7 @@ async function readReleaseStatus({ api }) {
             );
         }
 
-        let checks = { failed: [], pending: [], missing: [], ok: true };
+        let checks = { failed: [], pending: [], missing: [], skipped: [], ok: true };
         try {
             const { check_runs: checkRuns = [] } = await api(
                 `/commits/${testing.sha}/check-runs?per_page=100&filter=latest`,
@@ -369,7 +430,9 @@ async function readReleaseStatus({ api }) {
             // this same evaluation server-side before anything is dispatched, and
             // again on the release runner, so a display that could not read them
             // cannot widen what is allowed.
-            checks = { failed: [], pending: [], missing: ['(could not read checks)'], ok: false };
+            checks = {
+                failed: [], pending: [], missing: ['(could not read checks)'], skipped: [], ok: false,
+            };
         }
 
         blockers.push(...describeCheckBlockers(checks));
@@ -407,7 +470,8 @@ const createGithubApi = ({ token, repository, fetchImpl = fetch }) => async (pat
 };
 
 module.exports = {
-    ACCEPTABLE_CONCLUSIONS,
+    NON_BLOCKING_CONCLUSIONS,
+    REQUIRED_CHECK_CONCLUSIONS,
     IneligibleReleaseError,
     REQUIRED_RELEASE_CHECKS,
     createGithubApi,
