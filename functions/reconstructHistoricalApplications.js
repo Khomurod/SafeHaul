@@ -28,7 +28,7 @@
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { logger } = require('firebase-functions');
 const { admin, db, storage } = require('./firebaseAdmin');
-const { reconstructSubmissionSnapshot } = require('./shared/reconstructSubmission');
+const { hasSubmissionEvidence, reconstructSubmissionSnapshot } = require('./shared/reconstructSubmission');
 const { signatureFingerprint } = require('./shared/submissionSnapshot');
 const { writeSubmissionSnapshot } = require('./shared/writeSubmissionSnapshot');
 const { preserveApplicationPdf } = require('./shared/preserveApplicationPdf');
@@ -128,6 +128,10 @@ async function reconstructForCompany({
         scanned: 0,
         reconstructed: 0,
         skipped: 0,
+        // Counted apart from `skipped`, which means "already preserved". These
+        // were never submitted, so there is nothing to preserve — a different
+        // fact, and one an operator reading the report needs to see.
+        unsubmitted: 0,
         failed: 0,
         pdfs: 0,
         truncated: false,
@@ -176,6 +180,31 @@ async function reconstructForCompany({
                         });
                         if (repaired) result.pdfs += 1;
                     }
+                    continue;
+                }
+
+                // Only applications that were actually SUBMITTED have a
+                // submission to preserve. The collection also holds unfinished
+                // drafts and outreach lead records, and writing a record for
+                // those does active harm: an application's document id comes
+                // from the applicant's identity, so the same person applying
+                // for real later lands on this document, finds sequence 1
+                // taken, and has their genuine submission recorded as `v2`,
+                // `isOriginal: false` — permanently, because records are
+                // immutable. Leaving them alone keeps sequence 1 free for the
+                // submission they may yet make.
+                // "Unreadable" and "never submitted" must not collapse into each
+                // other. An application whose data cannot be read is a FAILURE
+                // that needs a person to look at it; quietly filing it as
+                // "never submitted" would hide a broken record behind a benign
+                // count, and no later run would ever surface it again.
+                const data = doc.data();
+                if (!data || typeof data !== 'object') {
+                    throw new Error('The application document could not be read.');
+                }
+
+                if (!hasSubmissionEvidence(data)) {
+                    result.unsubmitted += 1;
                     continue;
                 }
 
@@ -321,7 +350,8 @@ exports.reconstructHistoricalApplications = onCall({
 
     logger.info(
         `[reconstructHistoricalApplications] company ${companyId}: scanned ${result.scanned}, `
-        + `reconstructed ${result.reconstructed}, skipped ${result.skipped}, failed ${result.failed}`
+        + `reconstructed ${result.reconstructed}, skipped ${result.skipped}, `
+        + `never submitted ${result.unsubmitted}, failed ${result.failed}`
         + (result.truncated ? `, more remain after ${result.lastApplicationId}` : '')
         + (dryRun ? ' (dry run — nothing was written)' : ''),
     );
