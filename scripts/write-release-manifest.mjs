@@ -12,20 +12,22 @@
  *
  *     curl https://truckerapp-system.web.app/release.json
  *
- * Usage: node scripts/write-release-manifest.mjs <distDir> <channel> <sha>
+ * The manifest deliberately records NO channel. A production promotion clones the
+ * Testing artifact byte for byte, so a channel baked in at build time would then
+ * be a lie on production — and the bundle genuinely is channel-agnostic: apply
+ * links come from window.location.origin, so the site serving the bytes is what
+ * decides the channel. Which channel a SHA is on is a property of the Hosting
+ * site, and is answered by the release records, not by the artifact.
+ *
+ * Usage: node scripts/write-release-manifest.mjs <distDir> <sha>
  */
 import { writeFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-const [, , distDir, channel, sha] = process.argv;
+const [, , distDir, sha] = process.argv;
 
-if (!distDir || !channel || !sha) {
-    console.error('Usage: write-release-manifest.mjs <distDir> <channel> <sha>');
-    process.exit(1);
-}
-
-if (!['testing', 'production'].includes(channel)) {
-    console.error(`Refusing to stamp an unknown channel: ${channel}`);
+if (!distDir || !sha) {
+    console.error('Usage: write-release-manifest.mjs <distDir> <sha>');
     process.exit(1);
 }
 
@@ -44,11 +46,10 @@ if (!existsSync(outDir)) {
 
 const manifest = {
     sha,
-    channel,
     builtAt: new Date().toISOString(),
 };
 
 const target = resolve(outDir, 'release.json');
 writeFileSync(target, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
 
-console.log(`Stamped ${target}: ${channel} @ ${sha}`);
+console.log(`Stamped ${target}: ${sha}`);

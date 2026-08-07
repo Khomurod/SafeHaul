@@ -343,7 +343,7 @@ jobs:
       # which makes the currently-live SHA independently checkable by anyone —
       # the promotion workflow, the runbook, or a human with curl.
       - name: Stamp the release manifest
-        run: node scripts/write-release-manifest.mjs dist testing "$GITHUB_SHA"
+        run: node scripts/write-release-manifest.mjs dist "$GITHUB_SHA"
 
       - name: Deploy app and landing-page Hosting sites
         run: npx firebase deploy --only "hosting:$FIREBASE_HOSTING_TARGET,hosting:$FIREBASE_LANDING_TARGET" --project "$FIREBASE_PROJECT_ID" --non-interactive
