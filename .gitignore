@@ -155,3 +155,4 @@ cloud_functions.txt
 # .serena/cache holds generated LSP symbol indexes (binary); project.yml is local config.
 .serena/
 
+.pdf-preview/

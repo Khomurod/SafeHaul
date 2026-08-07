@@ -8,19 +8,32 @@ import BusinessInfoSection from './components/BusinessInfoSection';
 import VehicleExperienceSection from './components/VehicleExperienceSection';
 import EmergencyContactsSection from './components/EmergencyContactsSection';
 import { StepNavigation } from './components/StepNavigation';
+import { resolveApplicationGate } from '@/config/applicationGates';
 
 /**
  * Presentation migrated to the approved `FormSection` / `FormField` / `Textarea`
  * primitives (2026-07-27).
  *
  * Unchanged: the `positionType` owner/lease-operator gate on the business
- * section, the `applicationConfig.showEmergencyContacts` gate, the `has-felony`
- * key and its conditional explanation, and the `form.checkValidity()` gate.
+ * section, the `has-felony` key and its conditional explanation, and the
+ * `form.checkValidity()` gate.
+ *
+ * The emergency-contacts gate now supplies BOTH halves of its setting. It used
+ * to supply only visibility, and the section hard-coded Contact #1 as required —
+ * so "visible but optional" was unreachable and blocked the applicant.
  */
 const Step7_General = ({ formData, updateFormData, onNavigate }) => {
     const { states } = useUtils();
     const { currentCompanyProfile } = useData();
     const currentCompany = currentCompanyProfile;
+
+    // Resolved through the shared gate resolver so the canonical
+    // `emergencyContacts` setting works alongside the legacy
+    // `showEmergencyContacts` boolean. Default stays hidden, as before.
+    const emergencyContactsConfig = resolveApplicationGate(
+        currentCompany?.applicationConfig,
+        'emergencyContacts',
+    );
 
     const yesNoOptions = YES_NO_OPTIONS;
     const milesOptions = MILES_DRIVEN_OPTIONS;
@@ -55,10 +68,11 @@ const Step7_General = ({ formData, updateFormData, onNavigate }) => {
                 expOptions={expOptions}
             />
 
-            {currentCompany?.applicationConfig?.showEmergencyContacts && (
+            {!emergencyContactsConfig.hidden && (
                 <EmergencyContactsSection
                     formData={formData}
                     updateFormData={updateFormData}
+                    required={emergencyContactsConfig.required}
                 />
             )}
 

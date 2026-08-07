@@ -108,12 +108,19 @@ exports.onLeadAtsContactSms = atsContactSms.onLeadAtsContactSms;
 
 // 4b. Guest Application Submission (Admin SDK — bypasses rules)
 exports.submitGuestApplication = require('./guestApplication').submitGuestApplication;
+// Serves the legal agreements the apply page displays, from the same registry
+// that freezes them into the submission snapshot, so displayed and preserved
+// wording cannot diverge.
+exports.getApplicationAgreements = require('./applicationAgreements').getApplicationAgreements;
 exports.parseCdlWithGroq = require('./cdlParser').parseCdlWithGroq;
 exports.createPostApplicationSigningRequest = require('./postApplicationEdocs').createPostApplicationSigningRequest;
 // AI Field Assistant: authenticated, company-scoped PDF field-placement suggestions.
 // Deliberately separate from parseCdlWithGroq (public guest path, different model pin).
 exports.analyzeEdocFieldPlacement = require('./edocFieldPlacement').analyzeEdocFieldPlacement;
 exports.backfillApplicationSearchFields = require('./searchFieldsBackfill').backfillApplicationSearchFields;
+// Gives applications submitted before preservation a preserved record and PDF,
+// built only from evidence that survives, and marked as reconstructed.
+exports.reconstructHistoricalApplications = require('./reconstructHistoricalApplications').reconstructHistoricalApplications;
 
 // 4d. Sandbox applications (Super Admin maintenance)
 const sandboxApplication = require('./sandboxApplication');
@@ -147,6 +154,9 @@ exports.migrateEmailSettings = require('./migrateEmailSettings').migrateEmailSet
 // 7. Data Migration
 exports.runMigration = companyAdmin.runMigration;
 exports.backfillPublicProfiles = companyAdmin.backfillPublicProfiles;
+// Hourly reconciler: rewrites public profiles left behind by a change to the
+// projection itself, which the onWrite trigger alone can never reach.
+exports.reconcilePublicProfilesSchedule = companyAdmin.reconcilePublicProfilesSchedule;
 
 
 
@@ -225,6 +235,9 @@ exports.getSignedDocumentUrl = require('./getSignedDocumentUrl').getSignedDocume
 // Signed download URLs for driver-uploaded application files (guest_uploads): re-signs
 // at view time so company users can open CDLs/medical cards (the persisted URL expires).
 exports.getSignedApplicationFileUrl = require('./getSignedApplicationFileUrl').getSignedApplicationFileUrl;
+// The ONLY way to read a preserved original application PDF. Authorizes the
+// caller and writes an audit record before issuing a short-lived signed URL.
+exports.getApplicationOriginalPdfUrl = require('./applicationOriginalPdf').getApplicationOriginalPdfUrl;
 
 // Public marketing-site lead form. Hosting rewrites /api/landing-lead here;
 // Telegram credentials remain server-side in Google Secret Manager.

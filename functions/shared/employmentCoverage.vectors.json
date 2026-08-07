@@ -1,0 +1,233 @@
+{
+  "//": "Shared behavioral test vectors for the two employmentCoverage copies (functions CJS + src ESM). Both unit suites run every vector; a change to one copy fails the other suite until it matches. All dates are artificial.",
+  "parseMonthIndex": [
+    { "input": null, "expected": null },
+    { "input": "", "expected": null },
+    { "input": "   ", "expected": null },
+    { "input": "not a date", "expected": null },
+    { "input": "2024-13", "expected": null },
+    { "input": "2024-00", "expected": null },
+    { "input": "2024-01", "expected": 24288 },
+    { "input": "2024-1", "expected": 24288 },
+    { "input": "2024-12", "expected": 24299 },
+    { "input": "2024-03-17", "expected": 24290 },
+    { "input": "2024-3-7", "expected": 24290 }
+  ],
+  "formatMonthIndex": [
+    { "input": 24288, "expected": "2024-01" },
+    { "input": 24299, "expected": "2024-12" },
+    { "input": null, "expected": null },
+    { "input": "2024-01", "expected": null }
+  ],
+  "isOngoing": [
+    { "input": null, "expected": true },
+    { "input": "", "expected": true },
+    { "input": "  ", "expected": true },
+    { "input": "Present", "expected": true },
+    { "input": "current", "expected": true },
+    { "input": "ONGOING", "expected": true },
+    { "input": "to date", "expected": true },
+    { "input": "2024-01", "expected": false }
+  ],
+  "computeEmploymentCoverage": [
+    {
+      "//": "Nothing supplied: the whole window is one gap.",
+      "input": [{}, { "referenceDate": "2026-06-15T00:00:00Z" }],
+      "expected": {
+        "requiredMonths": 36,
+        "coveredMonths": 0,
+        "missingMonths": 36,
+        "isComplete": false,
+        "windowStart": "2023-07",
+        "windowEnd": "2026-06",
+        "gaps": [{ "fromMonth": "2023-07", "toMonth": "2026-06", "months": 36 }],
+        "accountedKinds": [],
+        "unparseableRecords": 0
+      }
+    },
+    {
+      "//": "One ongoing job started before the window covers everything.",
+      "input": [
+        { "employers": [{ "startDate": "2020-01-01", "endDate": "" }] },
+        { "referenceDate": "2026-06-15T00:00:00Z" }
+      ],
+      "expected": {
+        "requiredMonths": 36,
+        "coveredMonths": 36,
+        "missingMonths": 0,
+        "isComplete": true,
+        "windowStart": "2023-07",
+        "windowEnd": "2026-06",
+        "gaps": [],
+        "accountedKinds": ["employment"],
+        "unparseableRecords": 0
+      }
+    },
+    {
+      "//": "A gap in the middle is reported with its exact months.",
+      "input": [
+        {
+          "employers": [
+            { "startDate": "2023-01-01", "endDate": "2024-06-30" },
+            { "startDate": "2025-01-01", "endDate": "2026-06-30" }
+          ]
+        },
+        { "referenceDate": "2026-06-15T00:00:00Z" }
+      ],
+      "expected": {
+        "requiredMonths": 36,
+        "coveredMonths": 30,
+        "missingMonths": 6,
+        "isComplete": false,
+        "windowStart": "2023-07",
+        "windowEnd": "2026-06",
+        "gaps": [{ "fromMonth": "2024-07", "toMonth": "2024-12", "months": 6 }],
+        "accountedKinds": ["employment"],
+        "unparseableRecords": 0
+      }
+    },
+    {
+      "//": "An explained gap under the wizard's `unemployment` key closes it. Reading only `unemploymentPeriods` made this record count for nothing.",
+      "input": [
+        {
+          "employers": [
+            { "startDate": "2023-01-01", "endDate": "2024-06-30" },
+            { "startDate": "2025-01-01", "endDate": "2026-06-30" }
+          ],
+          "unemployment": [{ "startDate": "2024-07-01", "endDate": "2024-12-31" }]
+        },
+        { "referenceDate": "2026-06-15T00:00:00Z" }
+      ],
+      "expected": {
+        "requiredMonths": 36,
+        "coveredMonths": 36,
+        "missingMonths": 0,
+        "isComplete": true,
+        "windowStart": "2023-07",
+        "windowEnd": "2026-06",
+        "gaps": [],
+        "accountedKinds": ["employment", "unemployment"],
+        "unparseableRecords": 0
+      }
+    },
+    {
+      "//": "The legacy `unemploymentPeriods` key still works.",
+      "input": [
+        {
+          "employers": [{ "startDate": "2025-01-01", "endDate": "2026-06-30" }],
+          "unemploymentPeriods": [{ "startDate": "2023-07-01", "endDate": "2024-12-31" }]
+        },
+        { "referenceDate": "2026-06-15T00:00:00Z" }
+      ],
+      "expected": {
+        "requiredMonths": 36,
+        "coveredMonths": 36,
+        "missingMonths": 0,
+        "isComplete": true,
+        "windowStart": "2023-07",
+        "windowEnd": "2026-06",
+        "gaps": [],
+        "accountedKinds": ["employment", "unemployment"],
+        "unparseableRecords": 0
+      }
+    },
+    {
+      "//": "Schooling and military count toward the window too; military uses start/end.",
+      "input": [
+        {
+          "schools": [{ "startDate": "2023-07-01", "endDate": "2024-06-30" }],
+          "military": [{ "start": "2024-07", "end": "2026-06" }]
+        },
+        { "referenceDate": "2026-06-15T00:00:00Z" }
+      ],
+      "expected": {
+        "requiredMonths": 36,
+        "coveredMonths": 36,
+        "missingMonths": 0,
+        "isComplete": true,
+        "windowStart": "2023-07",
+        "windowEnd": "2026-06",
+        "gaps": [],
+        "accountedKinds": ["military", "schooling"],
+        "unparseableRecords": 0
+      }
+    },
+    {
+      "//": "An unreadable period is counted as unparseable, never as covered time.",
+      "input": [
+        { "employers": [{ "startDate": "sometime in 2024", "endDate": "later" }] },
+        { "referenceDate": "2026-06-15T00:00:00Z" }
+      ],
+      "expected": {
+        "requiredMonths": 36,
+        "coveredMonths": 0,
+        "missingMonths": 36,
+        "isComplete": false,
+        "windowStart": "2023-07",
+        "windowEnd": "2026-06",
+        "gaps": [{ "fromMonth": "2023-07", "toMonth": "2026-06", "months": 36 }],
+        "accountedKinds": [],
+        "unparseableRecords": 1
+      }
+    },
+    {
+      "//": "History entirely older than the window contributes nothing.",
+      "input": [
+        { "employers": [{ "startDate": "2010-01-01", "endDate": "2012-12-31" }] },
+        { "referenceDate": "2026-06-15T00:00:00Z" }
+      ],
+      "expected": {
+        "requiredMonths": 36,
+        "coveredMonths": 0,
+        "missingMonths": 36,
+        "isComplete": false,
+        "windowStart": "2023-07",
+        "windowEnd": "2026-06",
+        "gaps": [{ "fromMonth": "2023-07", "toMonth": "2026-06", "months": 36 }],
+        "accountedKinds": [],
+        "unparseableRecords": 0
+      }
+    },
+    {
+      "//": "Adjacent spans merge; a trailing gap up to the current month is reported last.",
+      "input": [
+        {
+          "employers": [
+            { "startDate": "2023-07-01", "endDate": "2024-03-31" },
+            { "startDate": "2024-04-01", "endDate": "2025-12-31" }
+          ]
+        },
+        { "referenceDate": "2026-06-15T00:00:00Z" }
+      ],
+      "expected": {
+        "requiredMonths": 36,
+        "coveredMonths": 30,
+        "missingMonths": 6,
+        "isComplete": false,
+        "windowStart": "2023-07",
+        "windowEnd": "2026-06",
+        "gaps": [{ "fromMonth": "2026-01", "toMonth": "2026-06", "months": 6 }],
+        "accountedKinds": ["employment"],
+        "unparseableRecords": 0
+      }
+    },
+    {
+      "//": "A reversed date pair is tolerated rather than discarded.",
+      "input": [
+        { "employers": [{ "startDate": "2026-06-30", "endDate": "2023-07-01" }] },
+        { "referenceDate": "2026-06-15T00:00:00Z" }
+      ],
+      "expected": {
+        "requiredMonths": 36,
+        "coveredMonths": 36,
+        "missingMonths": 0,
+        "isComplete": true,
+        "windowStart": "2023-07",
+        "windowEnd": "2026-06",
+        "gaps": [],
+        "accountedKinds": ["employment"],
+        "unparseableRecords": 0
+      }
+    }
+  ]
+}

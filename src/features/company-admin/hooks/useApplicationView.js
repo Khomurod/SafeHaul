@@ -1,15 +1,17 @@
 import { useState, useEffect, useMemo } from 'react';
 import { db } from '@lib/firebase';
 import { collection, doc, getDocs, query, orderBy } from 'firebase/firestore';
-import { generateApplicationPDF } from '@shared/utils/pdfGenerator.js';
+import {
+    NoPreservedPdfError,
+    downloadPreservedApplicationPdf,
+} from '@features/applications/services/applicationPdfService';
 import { getFieldValue } from '@shared/utils/helpers.js';
 import { useData } from '@/context/DataContext';
 import { useApplicationDetails } from '@features/applications/hooks/useApplicationDetails';
-import { logActivity } from '@shared/utils/activityLogger';
 import { useToast } from '@shared/components/feedback';
 
 export function useApplicationView(companyId, applicationId, onStatusUpdate, onClosePanel, onPhoneClick) {
-    const { currentUserClaims, currentUser } = useData();
+    const { currentUserClaims } = useData();
     const { showError } = useToast();
     const details = useApplicationDetails(companyId, applicationId, onStatusUpdate);
 
@@ -77,30 +79,32 @@ export function useApplicationView(companyId, applicationId, onStatusUpdate, onC
     const driverId = appData?.driverId || appData?.userId;
 
     // --- Handlers ---
+    /**
+     * Download the PRESERVED original application document.
+     *
+     * It is fetched, never generated. The old handler called a browser-side
+     * jsPDF generator over live application data, which meant "the original"
+     * was recomputed from whatever the record said that afternoon; two
+     * downloads a month apart could legitimately differ. The server now renders
+     * it once from the frozen submission record and stores it, and this asks
+     * for those bytes.
+     *
+     * The audit record is written server-side, before the link is issued, so
+     * an access that could not be recorded does not happen — a client-side
+     * `logActivity` after the fact could always be skipped by a failure or a
+     * closed tab.
+     */
     const handleDownloadPdf = async () => {
-        if (!appData || !companyProfile) return;
+        if (!companyId || !applicationId) return;
         try {
-            generateApplicationPDF({ applicant: appData, agreements: [], company: companyProfile });
-            // PDF-2 FIX: Audit every PDF download per FCRA § 604 and 49 CFR Part 391.
-            // Log who downloaded what and when so the DQ file access trail is complete.
-            try {
-                const userName = currentUser?.displayName || currentUser?.email || 'Unknown';
-                await logActivity(
-                    companyId,
-                    collectionName || 'applications',
-                    applicationId,
-                    'PDF Downloaded',
-                    `Application PDF downloaded by ${userName}`
-                );
-            } catch (logErr) {
-                console.warn('[useApplicationView] Failed to log PDF download activity:', logErr);
-            }
+            await downloadPreservedApplicationPdf({ companyId, applicationId });
         } catch (e) {
-            console.error('PDF Generation failed:', e);
-            // Was a blocking `alert()`. The toast is a `role="alert"` live region, so
-            // the failure is still announced — without freezing the tab. Wording
-            // preserved verbatim.
-            showError("PDF Generation failed. Please try again.");
+            if (e instanceof NoPreservedPdfError) {
+                showError(e.message);
+                return;
+            }
+            console.error('Preserved application PDF unavailable:', e);
+            showError(e.message || 'Could not open the application document. Please try again.');
         }
     };
 

@@ -37,7 +37,11 @@ test.describe('Company Settings application-questions compatibility slice', () =
     await page.setViewportSize({ width: 1440, height: 900 });
     await openQuestions(page);
 
-    const requireMed = page.getByRole('switch', { name: 'Require Medical Card Upload' });
+    // MVR Consent is the gate this repo defaults to NOT required (it has never
+    // been collected), which makes it the switch that starts off and can be
+    // driven on from the keyboard. Medical Card Upload defaults on, because
+    // that is what the application actually enforces.
+    const requireMed = page.getByRole('switch', { name: 'Require MVR Consent Form' });
     // Land focus via the keyboard (a round-trip) so :focus-visible applies —
     // programmatic .focus() does not trigger focus-visible on a button.
     await requireMed.focus();

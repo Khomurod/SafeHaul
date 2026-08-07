@@ -1,6 +1,9 @@
 import React, { useId, useMemo } from 'react';
 import { X, Download, Trash2 } from 'lucide-react';
-import { generateApplicationPDF } from '@shared/utils/pdfGenerator';
+import {
+    NoPreservedPdfError,
+    downloadPreservedApplicationPdf,
+} from '@features/applications/services/applicationPdfService';
 import { ATS_STATUS_DROPDOWN_OPTIONS } from '@shared/constants/atsStatus';
 import { Badge, IconButton, Select } from '@/design-system/components';
 
@@ -17,8 +20,13 @@ import { Badge, IconButton, Select } from '@/design-system/components';
  * `'New'` fallback, the `onStatusUpdate(value)` and `onAssignChange(value)`
  * single-argument callbacks, the `name || displayName || email || id` assignee
  * label chain, the empty string for "Unassigned", the
- * `generateApplicationPDF({ applicant, company, agreements: [] })` payload, and
  * the `canEdit` / `canDelete` visibility rules.
+ *
+ * CHANGED (preserved-record programme): Download no longer regenerates the
+ * application with the browser-side jsPDF generator over live data. It fetches
+ * the PRESERVED original, rendered once on the server from the frozen submission
+ * record and stored — so the document a recruiter downloads today is the same
+ * document they would have downloaded the day it was submitted.
  *
  * DEFECTS FIXED (2026-07-27):
  * - **The close button had no accessible name at all** — an icon-only `<button>`
@@ -68,13 +76,30 @@ export function DossierHeader({
         }
     };
 
-    const handleDownload = () => {
-        if (appData) {
-            generateApplicationPDF({
-                applicant: appData,
-                company: companyProfile,
-                agreements: []
-            });
+    const handleDownload = async () => {
+        // `companyId` is stamped on every application document; the profile is a
+        // fallback for the manual-entry records that predate that stamping.
+        //
+        // `applicationId` before `id`: useAppFetch assigns `docSnap.data()`
+        // without adding the Firestore document id, so `appData.id` is usually
+        // undefined on a guest application — relying on it made Download do
+        // nothing at all, silently. `buildApplicationDoc` writes `applicationId`
+        // into the document itself, so that is the identifier that is really there.
+        const companyId = appData?.companyId || companyProfile?.id;
+        const applicationId = appData?.applicationId || appData?.id || appData?.applicantId;
+        if (!companyId || !applicationId) return;
+        try {
+            await downloadPreservedApplicationPdf({ companyId, applicationId });
+        } catch (error) {
+            // A dossier header has no toast of its own; the same download is
+            // available from the application view, which reports failures. What
+            // matters here is not silently pretending a file was produced.
+            console.error(
+                error instanceof NoPreservedPdfError
+                    ? `No preserved application PDF: ${error.message}`
+                    : 'Preserved application PDF unavailable:',
+                error,
+            );
         }
     };
 

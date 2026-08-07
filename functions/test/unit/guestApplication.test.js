@@ -14,6 +14,19 @@ jest.mock('firebase-admin/firestore', () => ({
 }));
 
 const mockSet = jest.fn().mockResolvedValue(undefined);
+
+/**
+ * Writes of the APPLICATION DOCUMENT itself.
+ *
+ * The submission path also stamps a small `submissionRecord` status field on the
+ * same document (see shared/submissionRecordStatus.js) so a snapshot that failed
+ * can be found again later. That stamp is a separate `set(..., {merge:true})`
+ * call and is not one of the application writes these assertions are about.
+ */
+const applicationWrites = () => mockSet.mock.calls.filter(
+  ([data]) => !(data && typeof data === 'object' && Object.keys(data).length === 1 && 'submissionRecord' in data)
+);
+
 const mockGet = jest.fn().mockResolvedValue({ exists: false, data: () => null });
 
 jest.mock('../../firebaseAdmin', () => ({
@@ -110,9 +123,9 @@ describe('submitGuestApplication', () => {
     expect(res.applicationId).toMatch(/^[a-z0-9]{20}$/);
     expect(res.confirmationNumber).toMatch(/^SAF-/);
     expect(res.deduplicated).toBe(false);
-    expect(mockSet).toHaveBeenCalledTimes(1);
+    expect(applicationWrites()).toHaveLength(1);
     // set called with { merge: true }
-    expect(mockSet.mock.calls[0][1]).toEqual({ merge: true });
+    expect(applicationWrites()[0][1]).toEqual({ merge: true });
   });
 
   it('upserts (deduplicates) when the same identity submits twice', async () => {
@@ -143,8 +156,8 @@ describe('submitGuestApplication', () => {
     expect(second.confirmationNumber).toBe('SAF-2026-ORIG01');
     expect(second.deduplicated).toBe(true);
     // Both writes use set+merge (never .create())
-    expect(mockSet).toHaveBeenCalledTimes(2);
-    for (const call of mockSet.mock.calls) {
+    expect(applicationWrites()).toHaveLength(2);
+    for (const call of applicationWrites()) {
       expect(call[1]).toEqual({ merge: true });
     }
   });
@@ -188,7 +201,8 @@ describe('submitGuestApplication', () => {
       .mockResolvedValueOnce({ exists: true, data: progressed });
 
     await submitGuestApplication(validPayload, ctxBase);
-    const writtenDoc = mockSet.mock.calls[mockSet.mock.calls.length - 1][0];
+    const writes = applicationWrites();
+    const writtenDoc = writes[writes.length - 1][0];
     expect(writtenDoc.status).toBeUndefined();
   });
 });

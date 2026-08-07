@@ -9,6 +9,10 @@ import {
 } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { Modal } from '@shared/components/modals/Modal';
+import {
+  NoPreservedPdfError,
+  downloadPreservedApplicationPdf,
+} from '@features/applications/services/applicationPdfService';
 
 /**
  * Driver Qualification file management for one application or lead.
@@ -90,6 +94,29 @@ export function DQFileTab({ companyId, applicationId, collectionName = 'applicat
   const [selectedFileType, setSelectedFileType] = useState(DQ_FILE_TYPES[0]);
   // Replaces the blocking `window.confirm` on delete.
   const [pendingDelete, setPendingDelete] = useState(null);
+
+  /**
+   * Fetch a preserved application original through the audited callable.
+   *
+   * Never an `<a href>`: this document may carry the applicant's full Social
+   * Security Number, and the callable authorizes the caller and writes the audit
+   * record BEFORE it issues a link. A direct bucket URL would be an access
+   * nobody could account for afterwards.
+   */
+  const handleAuditedDownload = async (file) => {
+    setError('');
+    try {
+      await downloadPreservedApplicationPdf({
+        companyId,
+        applicationId,
+        snapshotId: file.snapshotId,
+      });
+    } catch (err) {
+      setError(err instanceof NoPreservedPdfError
+        ? err.message
+        : (err.message || 'Could not open the application document. Please try again.'));
+    }
+  };
 
   const fileTypeFieldId = useId();
   const fileInputId = useId();
@@ -412,29 +439,54 @@ export function DQFileTab({ companyId, applicationId, collectionName = 'applicat
                   </div>
                 </div>
                 <div className="flex shrink-0 gap-ds-2">
+                  {file.requiresAuditedAccess ? (
+                    /*
+                      The preserved application original. It has no durable link
+                      on purpose: it may carry the applicant's full Social
+                      Security Number, so it is fetched through a callable that
+                      authorizes the caller and writes an audit record first. An
+                      `<a href>` here would be an unaudited way in.
+                    */
+                    <IconButton
+                      label={`Download ${file.fileType}: ${file.fileName}`}
+                      variant="ghost"
+                      onClick={() => handleAuditedDownload(file)}
+                    >
+                      <Download size={18} aria-hidden="true" className="text-ds-status-info-fg" />
+                    </IconButton>
+                  ) : (
+                    /*
+                      Feature-owned exception: a real navigation to a signed Storage
+                      URL, so it must stay an `<a>`. The design system has no
+                      Link/ButtonLink primitive yet — the same exception already
+                      recorded for the dossier's four styled `<a>` navigations.
+                      It previously had `title` as its only name.
+                    */
+                    <a
+                      href={file.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`Download ${file.fileType}: ${file.fileName}`}
+                      className="flex h-9 w-9 items-center justify-center rounded-ds-md bg-ds-status-info-bg text-ds-status-info-fg transition-colors hover:bg-ds-surface-subtle focus-visible:outline-none focus-visible:shadow-ds-focus"
+                    >
+                      <Download size={18} aria-hidden="true" />
+                    </a>
+                  )}
                   {/*
-                    Feature-owned exception: a real navigation to a signed Storage
-                    URL, so it must stay an `<a>`. The design system has no
-                    Link/ButtonLink primitive yet — the same exception already
-                    recorded for the dossier's four styled `<a>` navigations.
-                    It previously had `title` as its only name.
+                    The preserved original carries no delete control. It is the
+                    evidentiary record of what the applicant submitted, kept for
+                    the three years 49 CFR 391.51 requires; deleting the
+                    application removes it, and nothing else may.
                   */}
-                  <a
-                    href={file.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={`Download ${file.fileType}: ${file.fileName}`}
-                    className="flex h-9 w-9 items-center justify-center rounded-ds-md bg-ds-status-info-bg text-ds-status-info-fg transition-colors hover:bg-ds-surface-subtle focus-visible:outline-none focus-visible:shadow-ds-focus"
-                  >
-                    <Download size={18} aria-hidden="true" />
-                  </a>
-                  <IconButton
-                    label={`Delete ${file.fileType}: ${file.fileName}`}
-                    variant="ghost"
-                    onClick={() => setPendingDelete(file)}
-                  >
-                    <Trash2 size={18} aria-hidden="true" className="text-ds-status-danger-fg" />
-                  </IconButton>
+                  {!file.requiresAuditedAccess && (
+                    <IconButton
+                      label={`Delete ${file.fileType}: ${file.fileName}`}
+                      variant="ghost"
+                      onClick={() => setPendingDelete(file)}
+                    >
+                      <Trash2 size={18} aria-hidden="true" className="text-ds-status-danger-fg" />
+                    </IconButton>
+                  )}
                 </div>
               </div>
             );

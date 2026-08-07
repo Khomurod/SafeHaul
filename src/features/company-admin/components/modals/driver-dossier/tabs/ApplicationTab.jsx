@@ -8,6 +8,7 @@ import {
     Truck,
     AlertTriangle,
     CheckCircle,
+    ShieldCheck,
     Eye,
     EyeOff,
     FileText,
@@ -20,6 +21,9 @@ import { formatIsoDateUs, formatMonthYearUs } from '@shared/utils/dateFormHelper
 import { APPLICATION_SCHEMA } from '@/config/applicationSchema';
 import { SchemaSection } from '@shared/components/schema/SchemaRenderer';
 import { useApplicationChanges } from '@features/applications/hooks/useApplicationChanges';
+import { useSubmissionRecord } from '@features/applications/hooks/useSubmissionRecord';
+import { SubmissionRecordNotice } from '@features/applications/components/SubmissionRecordNotice';
+import { PreservedApplicationView } from '@features/applications/components/PreservedApplicationView';
 import { Badge, Button, Card, IconButton } from '@/design-system/components';
 
 /**
@@ -85,13 +89,50 @@ function toDateOrNull(val) {
     return isNaN(d.getTime()) ? null : d;
 }
 
+/**
+ * The three records this tab can show, in the order a recruiter wants them:
+ * what was submitted first, then what the record says now.
+ */
+const VIEW_MODES = [
+    { id: 'submitted', label: 'As Submitted', Icon: ShieldCheck },
+    { id: 'summary', label: 'Summary View', Icon: null },
+    { id: 'full', label: 'Full Application', Icon: FileText },
+];
+
 export function ApplicationTab({ appData, fileUrls = {}, canEdit = false, companyId, applicationId, collectionName = 'applications' }) {
-    const [viewMode, setViewMode] = useState('summary'); // 'summary' | 'full'
+    /**
+     * Which record this tab is showing.
+     *
+     *   submitted — the PRESERVED original, frozen at submission.
+     *   summary   — the current record, at a glance.
+     *   full      — the current record in full, and the only editable one.
+     *
+     * The default is set below, once the preserved record has resolved: a
+     * recruiter opening an application should land on what the applicant
+     * actually submitted, not on data a company edit may have changed since.
+     */
+    const [viewMode, setViewMode] = useState(null);
     const [editing, setEditing] = useState(false);
     const [editedData, setEditedData] = useState({});
 
     const { pendingChanges, proposing, linking, proposeChanges, createReviewLink } =
         useApplicationChanges(companyId, applicationId, collectionName);
+
+    // Provenance of what this tab is showing. Resolved before the `!appData`
+    // early return so the hook order stays stable across renders.
+    const { record: submissionRecord, loading: recordLoading } = useSubmissionRecord(companyId, applicationId);
+
+    const hasPreservedRecord = Boolean(submissionRecord?.isPreserved);
+    /**
+     * An explicit choice always wins, so a reader who has switched views is never
+     * moved. With no choice yet, the default assumes a preserved record WHILE THE
+     * READ IS STILL IN FLIGHT — otherwise the tab would open on live data and
+     * then swap to the frozen record a moment later, which is the one transition
+     * that must not happen quietly on this screen. It settles on the summary only
+     * once we know there is nothing preserved to show.
+     */
+    const resolvedViewMode = viewMode
+        ?? ((recordLoading || hasPreservedRecord) ? 'submitted' : 'summary');
 
     // DEFECT FIX: this used to `return null`, so an application that resolved to
     // nothing left the dossier's tab panel completely blank — no explanation and
@@ -112,6 +153,7 @@ export function ApplicationTab({ appData, fileUrls = {}, canEdit = false, compan
     const startEdit = () => {
         setEditedData({ ...appData });
         setEditing(true);
+        // Edits operate on the current record; the preserved one is frozen.
         setViewMode('full');
     };
 
@@ -200,35 +242,54 @@ export function ApplicationTab({ appData, fileUrls = {}, canEdit = false, compan
             <div
                 role="group"
                 aria-label="Application view"
-                className="flex w-fit items-center gap-ds-1 rounded-ds-md border border-ds-border-subtle bg-ds-surface-subtle p-ds-1"
+                className="flex w-fit flex-wrap items-center gap-ds-1 rounded-ds-md border border-ds-border-subtle bg-ds-surface-subtle p-ds-1"
             >
-                <button
-                    type="button"
-                    aria-pressed={viewMode === 'summary'}
-                    onClick={() => setViewMode('summary')}
-                    className={`flex min-h-11 items-center gap-ds-2 rounded-ds-sm px-ds-4 text-ds-sm font-medium transition-colors focus-visible:outline-none focus-visible:shadow-ds-focus ${viewMode === 'summary'
-                        ? 'border border-ds-border-subtle bg-ds-surface text-ds-content-link shadow-ds-xs'
-                        : 'border border-transparent text-ds-content-secondary hover:text-ds-content'
-                        }`}
-                >
-                    Summary View
-                </button>
-                <button
-                    type="button"
-                    aria-pressed={viewMode === 'full'}
-                    onClick={() => setViewMode('full')}
-                    className={`flex min-h-11 items-center gap-ds-2 rounded-ds-sm px-ds-4 text-ds-sm font-medium transition-colors focus-visible:outline-none focus-visible:shadow-ds-focus ${viewMode === 'full'
-                        ? 'border border-ds-border-subtle bg-ds-surface text-ds-content-link shadow-ds-xs'
-                        : 'border border-transparent text-ds-content-secondary hover:text-ds-content'
-                        }`}
-                >
-                    <FileText size={14} aria-hidden="true" />
-                    Full Application
-                </button>
+                {VIEW_MODES.map((mode) => (
+                    <button
+                        key={mode.id}
+                        type="button"
+                        aria-pressed={resolvedViewMode === mode.id}
+                        onClick={() => setViewMode(mode.id)}
+                        className={`flex min-h-11 items-center gap-ds-2 rounded-ds-sm px-ds-4 text-ds-sm font-medium transition-colors focus-visible:outline-none focus-visible:shadow-ds-focus ${resolvedViewMode === mode.id
+                            ? 'border border-ds-border-subtle bg-ds-surface text-ds-content-link shadow-ds-xs'
+                            : 'border border-transparent text-ds-content-secondary hover:text-ds-content'
+                            }`}
+                    >
+                        {mode.Icon ? <mode.Icon size={14} aria-hidden="true" /> : null}
+                        {mode.label}
+                    </button>
+                ))}
             </div>
 
-            {viewMode === 'summary' ? (
-                /* Summary View (Cards) */
+            {/*
+              Each view says which record it is. The provenance notice used to sit
+              above every view, including the live ones, which told a recruiter the
+              record was frozen while showing them data a company edit can change.
+            */}
+            {resolvedViewMode === 'submitted' ? (
+                <SubmissionRecordNotice record={submissionRecord} />
+            ) : (
+                <p role="status" className="flex items-center gap-ds-2 text-ds-sm text-ds-content-secondary">
+                    <AlertTriangle size={14} aria-hidden="true" className="shrink-0" />
+                    <span>
+                        This is the current record, which company edits and driver updates can change.
+                        {hasPreservedRecord ? ' Choose “As Submitted” for the frozen original.' : ''}
+                    </span>
+                </p>
+            )}
+
+            {resolvedViewMode === 'submitted' ? (
+                /*
+                  The preserved original, rendered from the frozen record and
+                  nothing else. There is no fall-back to `appData` here on
+                  purpose: a surface that silently substitutes live data when the
+                  record is missing is exactly the defect this replaces.
+                */
+                recordLoading
+                    ? <p role="status" className="py-ds-8 text-center text-ds-content-secondary">Loading the preserved record…</p>
+                    : <PreservedApplicationView record={submissionRecord} />
+            ) : resolvedViewMode === 'summary' ? (
+                /* Summary View (Cards) — the CURRENT record, at a glance */
                 <div className="grid grid-cols-1 gap-ds-6 md:grid-cols-12 animate-in fade-in duration-300">
 
                     {/* 1. Identity Card (Col Span 6) */}
@@ -257,7 +318,9 @@ export function ApplicationTab({ appData, fileUrls = {}, canEdit = false, compan
                     </div>
                 </div>
             ) : (
-                /* Full Application View (Schema Renderer) */
+                /* Full Application View (Schema Renderer) — the CURRENT record,
+                   and the only editable one. Editing a frozen record is not a
+                   thing that can happen, so edits necessarily operate here. */
                 <Card padding="lg" className="animate-in fade-in duration-300">
                     <div className="mx-auto max-w-4xl space-y-ds-8">
                         {APPLICATION_SCHEMA.sections.map(section => (
@@ -629,6 +692,10 @@ function ConsentCard({ appData }) {
         { key: 'agree-electronic', label: 'Electronic Transaction Consent' },
         { key: 'agree-background-check', label: 'Background Check Authorization' },
         { key: 'agree-psp', label: 'FMCSA PSP Authorization' },
+        // Applications submitted before the Clearinghouse consent was added to the
+        // consent step legitimately have no value here, and correctly show as not
+        // recorded rather than as refused.
+        { key: 'agree-clearinghouse', label: 'FMCSA Clearinghouse Query Consent' },
         { key: 'final-certification', label: 'Final Certification' },
     ];
 

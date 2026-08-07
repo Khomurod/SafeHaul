@@ -1,0 +1,692 @@
+[
+    {
+        "id": "personal",
+        "title": "Personal Information",
+        "fields": [
+            {
+                "id": "firstName",
+                "label": "First Name"
+            },
+            {
+                "id": "middleName",
+                "label": "Middle Name"
+            },
+            {
+                "id": "lastName",
+                "label": "Last Name"
+            },
+            {
+                "id": "suffix",
+                "label": "Suffix"
+            },
+            {
+                "id": "known-by-other-name",
+                "label": "Known by Other Name"
+            },
+            {
+                "id": "otherName",
+                "label": "Other Name(s)",
+                "dependsOn": {
+                    "field": "known-by-other-name",
+                    "equals": "yes"
+                }
+            },
+            {
+                "id": "ssn",
+                "label": "Social Security Number",
+                "gate": "ssn",
+                "sensitive": true
+            },
+            {
+                "id": "dob",
+                "label": "Date of Birth",
+                "gate": "dob",
+                "type": "date"
+            },
+            {
+                "id": "email",
+                "label": "Email Address"
+            },
+            {
+                "id": "phone",
+                "label": "Phone Number"
+            },
+            {
+                "id": "sms-consent",
+                "label": "Consent to SMS Messages"
+            }
+        ]
+    },
+    {
+        "id": "addressHistory",
+        "title": "Address History",
+        "fields": [
+            {
+                "id": "street",
+                "label": "Current Street Address"
+            },
+            {
+                "id": "city",
+                "label": "Current City"
+            },
+            {
+                "id": "state",
+                "label": "Current State"
+            },
+            {
+                "id": "zip",
+                "label": "Current ZIP Code"
+            },
+            {
+                "id": "residence-3-years",
+                "label": "At Current Address 3+ Years",
+                "gate": "addressHistory"
+            },
+            {
+                "id": "previousAddresses",
+                "label": "Previous Addresses",
+                "gate": "addressHistory",
+                "repeating": true,
+                "columns": [
+                    {
+                        "id": "street",
+                        "label": "Street"
+                    },
+                    {
+                        "id": "city",
+                        "label": "City"
+                    },
+                    {
+                        "id": "state",
+                        "label": "State"
+                    },
+                    {
+                        "id": "zip",
+                        "label": "ZIP"
+                    },
+                    {
+                        "id": "startDate",
+                        "label": "From",
+                        "type": "date"
+                    },
+                    {
+                        "id": "endDate",
+                        "label": "To",
+                        "type": "date"
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "id": "qualifications",
+        "title": "General Qualifications",
+        "fields": [
+            {
+                "id": "positionApplyingTo",
+                "label": "Position Applied For",
+                "presentWhenAnswered": true
+            },
+            {
+                "id": "legal-work",
+                "label": "Legal to Work in U.S."
+            },
+            {
+                "id": "english-fluency",
+                "label": "English Fluency"
+            },
+            {
+                "id": "experience-years",
+                "label": "Years of CDL Experience"
+            },
+            {
+                "id": "drug-test-positive",
+                "label": "Positive Drug or Alcohol Test / Refusal"
+            },
+            {
+                "id": "drug-test-explanation",
+                "label": "Drug or Alcohol Test Explanation",
+                "dependsOn": {
+                    "field": "drug-test-positive",
+                    "equals": "yes"
+                }
+            },
+            {
+                "id": "dot-return-to-duty",
+                "label": "Can Document DOT Return-to-Duty"
+            },
+            {
+                "id": "referralSource",
+                "label": "Referral Source",
+                "gate": "referralSource"
+            }
+        ]
+    },
+    {
+        "id": "license",
+        "title": "License & Credentials",
+        "fields": [
+            {
+                "id": "cdlNumber",
+                "label": "License Number"
+            },
+            {
+                "id": "cdlState",
+                "label": "License State"
+            },
+            {
+                "id": "cdlClass",
+                "label": "License Class"
+            },
+            {
+                "id": "cdlExpiration",
+                "label": "Expiration Date",
+                "type": "date"
+            },
+            {
+                "id": "endorsements",
+                "label": "Endorsements"
+            },
+            {
+                "id": "medCardExpiration",
+                "label": "Medical Card Expiration",
+                "type": "date"
+            },
+            {
+                "id": "has-other-licenses",
+                "label": "Held Other Licences in the Past 3 Years"
+            },
+            {
+                "id": "additionalLicenses",
+                "label": "Additional Licences",
+                "repeating": true,
+                "dependsOn": {
+                    "field": "has-other-licenses",
+                    "equals": "yes"
+                },
+                "columns": [
+                    {
+                        "id": "number",
+                        "label": "Licence Number"
+                    },
+                    {
+                        "id": "state",
+                        "label": "State"
+                    },
+                    {
+                        "id": "class",
+                        "label": "Class"
+                    },
+                    {
+                        "id": "expiration",
+                        "label": "Expires",
+                        "type": "date"
+                    }
+                ]
+            },
+            {
+                "id": "has-twic",
+                "label": "Has TWIC Card"
+            },
+            {
+                "id": "twicExpiration",
+                "label": "TWIC Expiration",
+                "type": "date",
+                "dependsOn": {
+                    "field": "has-twic",
+                    "equals": "yes"
+                }
+            }
+        ]
+    },
+    {
+        "id": "drivingRecord",
+        "title": "Driving Record",
+        "fields": [
+            {
+                "id": "consent-mvr",
+                "label": "Consent to Obtain Motor Vehicle Record"
+            },
+            {
+                "id": "revoked-licenses",
+                "label": "Licence Ever Suspended, Revoked or Denied"
+            },
+            {
+                "id": "revocationExplanation",
+                "label": "Suspension / Revocation Explanation",
+                "dependsOn": {
+                    "field": "revoked-licenses",
+                    "equals": "yes"
+                }
+            },
+            {
+                "id": "driving-convictions",
+                "label": "Convicted of a Moving Violation"
+            },
+            {
+                "id": "convictionExplanation",
+                "label": "Moving Violation Explanation",
+                "dependsOn": {
+                    "field": "driving-convictions",
+                    "equals": "yes"
+                }
+            },
+            {
+                "id": "drug-alcohol-convictions",
+                "label": "Convicted of a Drug or Alcohol Offence"
+            },
+            {
+                "id": "drugConvictionExplanation",
+                "label": "Drug or Alcohol Offence Explanation",
+                "dependsOn": {
+                    "field": "drug-alcohol-convictions",
+                    "equals": "yes"
+                }
+            },
+            {
+                "id": "violations",
+                "label": "Traffic Violations",
+                "repeating": true,
+                "columns": [
+                    {
+                        "id": "date",
+                        "label": "Date",
+                        "type": "date"
+                    },
+                    {
+                        "id": "charge",
+                        "label": "Charge"
+                    },
+                    {
+                        "id": "location",
+                        "label": "Location"
+                    },
+                    {
+                        "id": "penalty",
+                        "label": "Penalty"
+                    }
+                ]
+            },
+            {
+                "id": "accidents",
+                "label": "Accidents",
+                "repeating": true,
+                "columns": [
+                    {
+                        "id": "date",
+                        "label": "Date",
+                        "type": "date"
+                    },
+                    {
+                        "id": "city",
+                        "label": "City"
+                    },
+                    {
+                        "id": "state",
+                        "label": "State"
+                    },
+                    {
+                        "id": "commercial",
+                        "label": "Commercial Vehicle"
+                    },
+                    {
+                        "id": "preventable",
+                        "label": "Preventable"
+                    },
+                    {
+                        "id": "details",
+                        "label": "Details"
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "id": "experience",
+        "title": "Vehicle Experience",
+        "fields": [
+            {
+                "id": "expStraightTruckMiles",
+                "label": "Straight Truck — Miles Driven"
+            },
+            {
+                "id": "expStraightTruckExp",
+                "label": "Straight Truck — Experience"
+            },
+            {
+                "id": "expSemiTrailerMiles",
+                "label": "Tractor + Semi Trailer — Miles Driven"
+            },
+            {
+                "id": "expSemiTrailerExp",
+                "label": "Tractor + Semi Trailer — Experience"
+            },
+            {
+                "id": "expTwoTrailersMiles",
+                "label": "Tractor + Two Trailers — Miles Driven"
+            },
+            {
+                "id": "expTwoTrailersExp",
+                "label": "Tractor + Two Trailers — Experience"
+            }
+        ]
+    },
+    {
+        "id": "employment",
+        "title": "Employment History",
+        "fields": [
+            {
+                "id": "employers",
+                "label": "Previous Employers",
+                "gate": "employmentHistory",
+                "repeating": true,
+                "columns": [
+                    {
+                        "id": "companyName",
+                        "label": "Employer"
+                    },
+                    {
+                        "id": "position",
+                        "label": "Position"
+                    },
+                    {
+                        "id": "startDate",
+                        "label": "From",
+                        "type": "date"
+                    },
+                    {
+                        "id": "endDate",
+                        "label": "To",
+                        "type": "date"
+                    },
+                    {
+                        "id": "address",
+                        "label": "Address"
+                    },
+                    {
+                        "id": "city",
+                        "label": "City"
+                    },
+                    {
+                        "id": "state",
+                        "label": "State"
+                    },
+                    {
+                        "id": "phone",
+                        "label": "Company Phone"
+                    },
+                    {
+                        "id": "companyEmail",
+                        "label": "Company Email"
+                    },
+                    {
+                        "id": "dotNumber",
+                        "label": "DOT Number"
+                    },
+                    {
+                        "id": "supervisorName",
+                        "label": "Supervisor"
+                    },
+                    {
+                        "id": "supervisorPhone",
+                        "label": "Supervisor Phone"
+                    },
+                    {
+                        "id": "supervisorEmail",
+                        "label": "Supervisor Email"
+                    },
+                    {
+                        "id": "mayContact",
+                        "label": "May We Contact"
+                    },
+                    {
+                        "id": "reasonForLeaving",
+                        "label": "Reason for Leaving"
+                    }
+                ]
+            },
+            {
+                "id": "unemployment",
+                "label": "Employment Gaps",
+                "repeating": true,
+                "columns": [
+                    {
+                        "id": "startDate",
+                        "label": "From",
+                        "type": "date"
+                    },
+                    {
+                        "id": "endDate",
+                        "label": "To",
+                        "type": "date"
+                    },
+                    {
+                        "id": "details",
+                        "label": "Explanation"
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "id": "educationMilitary",
+        "title": "Education & Military",
+        "fields": [
+            {
+                "id": "schools",
+                "label": "Driving Schools",
+                "repeating": true,
+                "columns": [
+                    {
+                        "id": "name",
+                        "label": "School"
+                    },
+                    {
+                        "id": "location",
+                        "label": "Location"
+                    },
+                    {
+                        "id": "startDate",
+                        "label": "From",
+                        "type": "date"
+                    },
+                    {
+                        "id": "endDate",
+                        "label": "To",
+                        "type": "date"
+                    }
+                ]
+            },
+            {
+                "id": "military",
+                "label": "Military Service",
+                "repeating": true,
+                "columns": [
+                    {
+                        "id": "branch",
+                        "label": "Branch"
+                    },
+                    {
+                        "id": "rank",
+                        "label": "Rank"
+                    },
+                    {
+                        "id": "start",
+                        "label": "From",
+                        "type": "date"
+                    },
+                    {
+                        "id": "end",
+                        "label": "To",
+                        "type": "date"
+                    },
+                    {
+                        "id": "heavyEq",
+                        "label": "Heavy Equipment Experience"
+                    },
+                    {
+                        "id": "honorable",
+                        "label": "Honourable Discharge"
+                    },
+                    {
+                        "id": "explanation",
+                        "label": "Explanation"
+                    }
+                ]
+            }
+        ]
+    },
+    {
+        "id": "businessInfo",
+        "title": "Business Information",
+        "fields": [
+            {
+                "id": "businessName",
+                "label": "Business Name",
+                "presentWhenAnswered": true
+            },
+            {
+                "id": "ein",
+                "label": "EIN / Business Number",
+                "presentWhenAnswered": true
+            },
+            {
+                "id": "businessStreet",
+                "label": "Business Street Address",
+                "presentWhenAnswered": true
+            },
+            {
+                "id": "businessCity",
+                "label": "Business City",
+                "presentWhenAnswered": true
+            },
+            {
+                "id": "businessState",
+                "label": "Business State",
+                "presentWhenAnswered": true
+            },
+            {
+                "id": "businessZip",
+                "label": "Business ZIP Code",
+                "presentWhenAnswered": true
+            }
+        ]
+    },
+    {
+        "id": "emergencyAndDisclosures",
+        "title": "Emergency Contacts & Disclosures",
+        "fields": [
+            {
+                "id": "ec1Name",
+                "label": "Emergency Contact #1 Name",
+                "gate": "emergencyContacts"
+            },
+            {
+                "id": "ec1Relationship",
+                "label": "Emergency Contact #1 Relationship",
+                "gate": "emergencyContacts"
+            },
+            {
+                "id": "ec1Phone",
+                "label": "Emergency Contact #1 Phone",
+                "gate": "emergencyContacts"
+            },
+            {
+                "id": "ec1Address",
+                "label": "Emergency Contact #1 Address",
+                "gate": "emergencyContacts"
+            },
+            {
+                "id": "ec2Name",
+                "label": "Emergency Contact #2 Name",
+                "gate": "emergencyContacts"
+            },
+            {
+                "id": "ec2Relationship",
+                "label": "Emergency Contact #2 Relationship",
+                "gate": "emergencyContacts"
+            },
+            {
+                "id": "ec2Phone",
+                "label": "Emergency Contact #2 Phone",
+                "gate": "emergencyContacts"
+            },
+            {
+                "id": "ec2Address",
+                "label": "Emergency Contact #2 Address",
+                "gate": "emergencyContacts"
+            },
+            {
+                "id": "has-felony",
+                "label": "Felony Conviction"
+            },
+            {
+                "id": "felonyExplanation",
+                "label": "Felony Explanation",
+                "dependsOn": {
+                    "field": "has-felony",
+                    "equals": "yes"
+                }
+            },
+            {
+                "id": "driverInitials",
+                "label": "Driver Initials"
+            }
+        ]
+    },
+    {
+        "id": "documents",
+        "title": "Uploaded Documents",
+        "fields": [
+            {
+                "id": "cdl-front",
+                "label": "CDL (Front)",
+                "gate": "cdlUpload",
+                "type": "file"
+            },
+            {
+                "id": "cdl-back",
+                "label": "CDL (Back)",
+                "gate": "cdlUpload",
+                "type": "file"
+            },
+            {
+                "id": "medical-card-upload",
+                "label": "Medical Card",
+                "gate": "medCardUpload",
+                "type": "file"
+            },
+            {
+                "id": "mvr-consent-upload",
+                "label": "MVR Consent Form",
+                "gate": "mvrConsent",
+                "type": "file"
+            },
+            {
+                "id": "twic-card-upload",
+                "label": "TWIC Card",
+                "type": "file",
+                "presentWhenAnswered": true
+            },
+            {
+                "id": "mvr-upload",
+                "label": "MVR Report",
+                "type": "file",
+                "presentWhenAnswered": true
+            },
+            {
+                "id": "drug-test-consent-upload",
+                "label": "Drug Test Consent",
+                "type": "file",
+                "presentWhenAnswered": true
+            },
+            {
+                "id": "ssc-upload",
+                "label": "Social Security Card",
+                "type": "file",
+                "sensitive": true,
+                "presentWhenAnswered": true
+            }
+        ]
+    }
+]

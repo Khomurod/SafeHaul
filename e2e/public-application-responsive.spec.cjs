@@ -5,6 +5,7 @@ const {
   fillStep3RequiredFields,
   uploadStandardDocuments,
   continueToStep,
+  continueAnywayPastEmploymentCoverage,
   chooseRadio,
   completeRemainingSteps,
   applySignature,
@@ -156,7 +157,7 @@ test.describe('public driver application responsive presentation', () => {
       await checkpoint('step 6 (employer row open)');
       await page.getByRole('button', { name: 'Remove Employer #1' }).click();
 
-      await continueToStep(page, 'General Questions');
+      await continueAnywayPastEmploymentCoverage(page);
       await chooseRadio(page, 'has-felony-no');
       await checkpoint('step 7');
 
@@ -216,7 +217,11 @@ test.describe('public driver application responsive presentation', () => {
 
     // Previously the disclosure body was a mouse-wheel-only scroll box, so a
     // keyboard user could not read past the fold of text they must agree to.
-    const disclosure = page.locator('.agreement-box').first();
+    // Selected by its accessible role and name rather than a class: the class
+    // (`.agreement-box`) disappeared when the consent step was rewritten to
+    // present all four agreements, and this test then silently waited forever
+    // for an element that no longer existed.
+    const disclosure = page.getByRole('group', { name: /full text/ }).first();
     await disclosure.focus();
     await expect(disclosure).toBeFocused();
     await expect(disclosure).toHaveAttribute('tabindex', '0');

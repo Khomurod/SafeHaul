@@ -50,6 +50,23 @@ async function continueToStep(page, nextTitleFragment) {
 }
 
 /**
+ * Advance past Employment History.
+ *
+ * This fixture supplies no employment history, so the three-year coverage
+ * prompt interrupts the first Continue. That is by design — it is encouragement,
+ * not a block — so the flow takes the deliberately quieter "Continue anyway".
+ * Exercising it here is the point: if a change ever turned the prompt into a
+ * hard block, this helper is where it would surface.
+ */
+async function continueAnywayPastEmploymentCoverage(page) {
+  await page.getByRole('button', { name: 'Continue' }).click();
+  const continueAnyway = page.getByRole('button', { name: 'Continue anyway' });
+  await expect(continueAnyway).toBeVisible({ timeout: 15_000 });
+  await continueAnyway.click();
+  await expectStep(page, 'General Questions');
+}
+
+/**
  * Click a radio's label and confirm the input really took the value. Guards
  * against a click landing during a re-render.
  */
@@ -139,7 +156,7 @@ async function completeRemainingSteps(page) {
   await continueToStep(page, 'Accident History');
 
   await continueToStep(page, 'Employment History');
-  await continueToStep(page, 'General Questions');
+  await continueAnywayPastEmploymentCoverage(page);
 
   await chooseRadio(page, 'has-felony-no');
   await continueToStep(page, 'Review Information');
@@ -149,12 +166,18 @@ async function completeRemainingSteps(page) {
 }
 
 async function applySignature(page) {
-  for (const id of ['agree-electronic', 'agree-background-check']) {
-    const box = page.locator(`#${id}`);
-    if ((await box.count()) > 0) {
-      await box.check();
-      await expect(box).toBeChecked();
-    }
+  // Every presented agreement must be individually accepted before Submit
+  // enables. The ids are derived from the agreement registry (`agreement-<id>`),
+  // so this discovers whatever the step actually rendered rather than naming a
+  // fixed pair — naming a fixed pair is exactly how this helper silently stopped
+  // accepting anything when the step grew from two agreements to four.
+  const boxes = page.locator('input[type="checkbox"][id^="agreement-"]');
+  const count = await boxes.count();
+  expect(count, 'the consent step presented no agreements to accept').toBeGreaterThan(0);
+  for (let i = 0; i < count; i += 1) {
+    const box = boxes.nth(i);
+    await box.check();
+    await expect(box).toBeChecked();
   }
   await page.getByRole('button', { name: 'Use Test Signature' }).click();
   await expect(page.getByText('Signature Saved & Locked')).toBeVisible();
@@ -172,6 +195,7 @@ module.exports = {
   pdfFile,
   expectStep,
   continueToStep,
+  continueAnywayPastEmploymentCoverage,
   chooseRadio,
   waitForUploads,
   uploadStandardDocuments,

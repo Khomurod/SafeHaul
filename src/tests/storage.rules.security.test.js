@@ -65,6 +65,9 @@ function buildSeedPaths(runId) {
     co1GuestSeed: testPath(runId, 'companies/co1/autofill/guest_uploads/seed.jpg'),
     co2DriverCLicense: testPath(runId, 'companies/co2/applications/driverC/cdl-front/license.pdf'),
     co1SecureTemplate: testPath(runId, 'secure_documents/co1/templates/seed.pdf'),
+    // The preserved application original. It sits under a prefix no rule
+    // matches, so Firebase default-denies every client — see the test below.
+    co1ApplicationOriginal: testPath(runId, 'application_originals/co1/app123/v1.pdf'),
   };
 }
 
@@ -122,6 +125,12 @@ async function seedStorageData(seedPaths) {
     );
     await uploadString(
       ref(adminStorage, seedPaths.co1SecureTemplate),
+      'seed-pdf',
+      'raw',
+      { contentType: 'application/pdf' },
+    );
+    await uploadString(
+      ref(adminStorage, seedPaths.co1ApplicationOriginal),
       'seed-pdf',
       'raw',
       { contentType: 'application/pdf' },
@@ -324,6 +333,29 @@ describeStorage('storage.rules security matrix (tenant isolation + permissive te
       ),
     );
     await assertSucceeds(getMetadata(ref(co1Admin, secureWrite)));
+  });
+
+  it('denies EVERY client direct access to a preserved application original', async () => {
+    // This document may carry the applicant's full Social Security Number, so
+    // the only way to it is getApplicationOriginalPdfUrl, which authorizes the
+    // caller and writes an audit record first. A Storage rule granting company
+    // staff a direct read would be authorized but unauditable — which is exactly
+    // what `application_originals/**` having no rule at all prevents.
+    const path = paths.co1ApplicationOriginal;
+
+    const guest = guestStorage();
+    await assertFails(getMetadata(ref(guest, path)));
+
+    const owner = authedStorage('driverB');
+    await assertFails(getMetadata(ref(owner, path)));
+
+    const teamMember = authedStorage(nextUid('admin'), teamClaims('co1'));
+    await assertFails(getMetadata(ref(teamMember, path)));
+    await assertFails(uploadString(ref(teamMember, path), 'tampered', 'raw', { contentType: 'application/pdf' }));
+    await assertFails(deleteObject(ref(teamMember, path)));
+
+    const superAdmin = authedStorage(nextUid('super'), superAdminClaims());
+    await assertFails(getMetadata(ref(superAdmin, path)));
   });
 
   it('allows super_admin cross-tenant reads for operational support', async () => {

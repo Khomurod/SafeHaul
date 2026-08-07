@@ -2,16 +2,28 @@ import React, { useId } from 'react';
 import { Settings } from 'lucide-react';
 import { Card, FieldMessage } from '@/design-system/components';
 import { ToggleSwitch } from './ToggleSwitch';
+import { resolveApplicationGate } from '@/config/applicationGates';
 
+/**
+ * The standard DOT questions a company can configure.
+ *
+ * Defaults are no longer duplicated here: every toggle resolves through
+ * `src/config/applicationGates.js`, which is what the wizard, the submission
+ * validator and the immutable snapshot resolve against too. They used to
+ * differ — this screen showed Medical Card Upload as optional and MVR Consent
+ * as required while the application enforced the exact opposite — so the
+ * toggles described a configuration that was not the one in force.
+ */
 export const STANDARD_FIELDS = [
-    { id: 'ssn', label: 'Social Security Number', defaultReq: true },
-    { id: 'dob', label: 'Date of Birth', defaultReq: true },
-    { id: 'addressHistory', label: '3 Years Address History', defaultReq: true },
-    { id: 'employmentHistory', label: 'Employment History (3-10 Yrs)', defaultReq: true },
-    { id: 'cdlUpload', label: 'CDL Document Upload', defaultReq: true },
-    { id: 'medCardUpload', label: 'Medical Card Upload', defaultReq: false },
-    { id: 'mvrConsent', label: 'MVR Consent Form', defaultReq: true },
-    { id: 'referralSource', label: 'Referral Source', defaultReq: false }
+    { id: 'ssn', label: 'Social Security Number' },
+    { id: 'dob', label: 'Date of Birth' },
+    { id: 'addressHistory', label: '3 Years Address History' },
+    { id: 'employmentHistory', label: 'Employment History (3-10 Yrs)' },
+    { id: 'cdlUpload', label: 'CDL Document Upload' },
+    { id: 'medCardUpload', label: 'Medical Card Upload' },
+    { id: 'mvrConsent', label: 'MVR Consent Form' },
+    { id: 'referralSource', label: 'Referral Source' },
+    { id: 'emergencyContacts', label: 'Emergency Contacts' },
 ];
 
 export function StandardQuestionsConfig({ config, onChange }) {
@@ -22,12 +34,12 @@ export function StandardQuestionsConfig({ config, onChange }) {
     const toggleField = (fieldId, type) => {
         // type: 'required' | 'hidden'
 
-        const currentSetting = safeConfig[fieldId] || {
-            required: STANDARD_FIELDS.find(f => f.id === fieldId)?.defaultReq || false,
-            hidden: false
-        };
+        // Start from the resolved state (canonical key, then legacy alias, then
+        // the shared default) so the first toggle does not silently reset the
+        // other half of a gate the company already configured elsewhere.
+        const currentSetting = resolveApplicationGate(safeConfig, fieldId);
 
-        let newSetting = { ...currentSetting };
+        let newSetting = { required: currentSetting.required, hidden: currentSetting.hidden };
 
         if (type === 'required') {
             newSetting.required = !newSetting.required;
@@ -63,7 +75,7 @@ export function StandardQuestionsConfig({ config, onChange }) {
 
             <ul className="divide-y divide-ds-border-subtle">
                 {STANDARD_FIELDS.map(field => {
-                    const setting = safeConfig[field.id] || { required: field.defaultReq, hidden: false };
+                    const setting = resolveApplicationGate(safeConfig, field.id);
 
                     return (
                         <li
