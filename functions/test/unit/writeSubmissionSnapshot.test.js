@@ -5,15 +5,19 @@ const {
   writeSubmissionSnapshot,
 } = require('../../shared/writeSubmissionSnapshot');
 
+const { assertStorableValue } = require('../helpers/firestoreValueRules');
+
 // Minimal in-memory Firestore standing in for the Admin SDK. `create` rejects
 // with ALREADY_EXISTS when the document is taken, which is the behaviour the
-// sequence claim relies on.
+// sequence claim relies on — and rejects a nested array, which is the behaviour
+// that would have caught the snapshot persistence defect before production.
 function makeDb(existing = {}) {
   const store = { ...existing };
   const calls = [];
   const docRef = (path) => ({
     async create(data) {
       calls.push({ path, data });
+      assertStorableValue(data, path);
       if (path in store) {
         const err = new Error(`6 ALREADY_EXISTS: Document already exists: ${path}`);
         err.code = 6;

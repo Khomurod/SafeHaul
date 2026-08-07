@@ -33,6 +33,7 @@ const { signatureFingerprint } = require('./shared/submissionSnapshot');
 const { writeSubmissionSnapshot } = require('./shared/writeSubmissionSnapshot');
 const { preserveApplicationPdf } = require('./shared/preserveApplicationPdf');
 const { RECORD_STATUS, stampSubmissionRecordStatus } = require('./shared/submissionRecordStatus');
+const { decodeStoredSnapshot } = require('./shared/submissionSnapshotStorage');
 
 /** Applications examined per company page. */
 const PAGE_SIZE = 50;
@@ -176,7 +177,10 @@ async function reconstructForCompany({
                     // keeps the document faithful to the preserved record.
                     if (!dryRun) {
                         const repaired = await repairMissingPdf({
-                            doc, companyId, snapshot: existing.data(),
+                            // Decoded out of its storage representation: a repair
+                            // renders from the STORED record, so its rows have to
+                            // reach the renderer in the shape it reads.
+                            doc, companyId, snapshot: decodeStoredSnapshot(existing.data()),
                         });
                         if (repaired) result.pdfs += 1;
                     }

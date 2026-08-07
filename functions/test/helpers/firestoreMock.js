@@ -10,6 +10,8 @@
  * than passing against a fiction.
  */
 
+const { assertStorableValue } = require('./firestoreValueRules');
+
 const DELETE_SENTINEL = { __delete: true };
 
 function clone(value) {
@@ -70,11 +72,15 @@ function createFirestoreMock(seed = {}) {
             // earlier read of a nested object (`config`) observe a later write,
             // which real Firestore snapshots never do.
             set: async (data, options) => {
+                // Real Firestore rejects a nested array. A double that accepted
+                // one let exactly that defect ship.
+                assertStorableValue(data, path);
                 const next = options && options.merge ? clone(docs.get(path) || {}) : {};
                 for (const [key, value] of Object.entries(data)) setPath(next, key, value);
                 docs.set(path, next);
             },
             update: async (data) => {
+                assertStorableValue(data, path);
                 if (!docs.has(path)) {
                     const error = new Error(`No document to update: ${path}`);
                     error.code = 5;
@@ -119,6 +125,7 @@ function createFirestoreMock(seed = {}) {
             path,
             doc: (id) => makeDocRef(`${path}/${id ?? `auto_${(autoId += 1)}`}`),
             add: async (data) => {
+                assertStorableValue(data, path);
                 const id = `auto_${(autoId += 1)}`;
                 docs.set(`${path}/${id}`, clone(data));
                 return makeDocRef(`${path}/${id}`);

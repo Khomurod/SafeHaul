@@ -15,6 +15,9 @@ jest.mock('firebase-functions', () => ({
     logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
 
+const { assertStorableValue } = require('../helpers/firestoreValueRules');
+const { decodeStoredSnapshot, findNestedArrayPaths } = require('../../shared/submissionSnapshotStorage');
+
 const store = {
     companies: {},
     applications: {},   // `${companyId}/${applicationId}` -> data
@@ -44,6 +47,9 @@ const applicationRef = (companyId, applicationId) => ({
             },
             async create(data) {
                 const key = `${companyId}/${applicationId}/${id}`;
+                // Real Firestore refuses a nested array. Without this the double
+                // accepted snapshots production could not store.
+                assertStorableValue(data, key);
                 if (key in store.snapshots) {
                     const error = new Error('6 ALREADY_EXISTS'); error.code = 6; throw error;
                 }
@@ -51,6 +57,7 @@ const applicationRef = (companyId, applicationId) => ({
             },
             async set(data, options) {
                 const key = `${companyId}/${applicationId}/${name}/${id}`;
+                assertStorableValue(data, key);
                 store.dqFiles[key] = options?.merge ? { ...store.dqFiles[key], ...data } : data;
             },
         }),
@@ -320,5 +327,84 @@ describe('reconstructHistoricalApplications — what it does', () => {
         expect(result.reconstructed).toBe(1);
         expect(result.unsubmitted).toBe(0);
         expect(result.unrecoverable.submitted_at).toBe(1);
+    });
+});
+
+// The defect that stopped the production migration dead: 56 of 88 in-scope
+// applications could not be written at all.
+//
+// A repeating answer is rows of cells — an array of arrays — and Firestore's rule
+// is that an array cannot contain another array. So any driver who listed a
+// previous address, an employer, a violation or an accident produced a snapshot
+// the database refused, with `INVALID_ARGUMENT: Property array contains an
+// invalid nested entity`. Nothing caught it: the whole suite passed, because no
+// test had ever seeded a repeating field.
+describe('applications whose driver filled in a repeating section', () => {
+    const withEmployers = (over = {}) => ({
+        employers: [
+            { companyName: 'Cascade Haulage', position: 'Driver', startDate: '2019-04', endDate: '2021-06' },
+            { companyName: 'Rimrock Transport', position: 'Driver', startDate: '2021-07', endDate: '2023-02' },
+        ],
+        previousAddresses: [
+            { street: '1 Depot Road', city: 'Boise', state: 'ID', zip: '83702' },
+        ],
+        ...over,
+    });
+
+    it('reconstructs one, rather than failing on the write', async () => {
+        seedCompany();
+        seedApplication('app-1', withEmployers());
+
+        const result = await reconstructHistoricalApplications(superAdmin({ companyId: COMPANY_ID }));
+
+        expect(result.errors).toEqual([]);
+        expect(result.failed).toBe(0);
+        expect(result.reconstructed).toBe(1);
+        expect(result.pdfs).toBe(1);
+    });
+
+    it('keeps the rows intact and readable after the round trip', async () => {
+        seedCompany();
+        seedApplication('app-1', withEmployers());
+        await reconstructHistoricalApplications(superAdmin({ companyId: COMPANY_ID }));
+
+        const stored = store.snapshots[`${COMPANY_ID}/app-1/v1`];
+
+        // The property that actually matters is not the shape, it is that
+        // Firestore would accept it.
+        expect(findNestedArrayPaths(stored)).toEqual([]);
+
+        // Stored rows are wrapped; that representation must not be what a
+        // renderer sees.
+        const storedEmployers = stored.sections
+            .flatMap((section) => section.answers)
+            .find((answer) => answer.fieldId === 'employers');
+        expect(Array.isArray(storedEmployers.rows[0].cells)).toBe(true);
+
+        const employers = decodeStoredSnapshot(stored)
+            .sections.flatMap((section) => section.answers)
+            .find((answer) => answer.fieldId === 'employers');
+
+        // Two employers, each a list of labelled cells — exactly what the driver
+        // submitted and what every renderer reads.
+        expect(employers.rows).toHaveLength(2);
+        expect(employers.rows[0].map((cell) => cell.label)).toContain('Employer');
+        expect(employers.rows[0].every((cell) => typeof cell.displayValue === 'string')).toBe(true);
+        expect(employers.rows.map((row) => row.find((cell) => cell.label === 'Employer').displayValue))
+            .toEqual(['Cascade Haulage', 'Rimrock Transport']);
+    });
+
+    it('is still idempotent: a second run adds nothing and rewrites no PDF', async () => {
+        seedCompany();
+        seedApplication('app-1', withEmployers());
+        await reconstructHistoricalApplications(superAdmin({ companyId: COMPANY_ID }));
+        const firstPdf = Object.keys(store.pdfs)[0];
+
+        const again = await reconstructHistoricalApplications(superAdmin({ companyId: COMPANY_ID }));
+
+        expect(again.reconstructed).toBe(0);
+        expect(again.skipped).toBe(1);
+        expect(again.failed).toBe(0);
+        expect(Object.keys(store.pdfs)).toEqual([firstPdf]);
     });
 });

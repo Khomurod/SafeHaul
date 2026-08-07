@@ -39,6 +39,7 @@ const { createHash } = require('crypto');
 const { resolveAgreement } = require('./legalAgreements');
 const { STANDARD_SECTIONS, visibleFields } = require('./applicationDefinition');
 const { computeEmploymentCoverage } = require('./employmentCoverage');
+const { decodeRepeatingRows } = require('./submissionSnapshotStorage');
 
 const SNAPSHOT_SCHEMA_VERSION = 1;
 
@@ -154,7 +155,12 @@ function buildRepeatingRows(value, columns) {
  */
 function resolveRepeatingRows(answer, currentColumnsById = null) {
     if (Array.isArray(answer?.rows) && answer.rows.length > 0) {
-        return { rows: answer.rows, usedCurrentColumns: false };
+        // Tolerant of the storage representation as well as the in-memory one.
+        // Reads are decoded at the Firestore boundary, so this should already be
+        // the rendering shape — but a row map reaching a renderer would print as
+        // `[object Object]` on a legal document, and that is not a failure mode
+        // worth leaving to one call site being correct.
+        return { rows: decodeRepeatingRows(answer.rows), usedCurrentColumns: false };
     }
     if (!Array.isArray(answer?.value) || answer.value.length === 0) {
         return { rows: [], usedCurrentColumns: false };
