@@ -148,8 +148,27 @@ gcloud secrets versions add RELEASE_GITHUB_INSTALLATION_ID --project truckerapp-
 gcloud secrets versions add RELEASE_GITHUB_PRIVATE_KEY --project truckerapp-system --data-file=<the .pem>
 ```
 
-— and the release callables must then be redeployed (re-run the CI/CD Pipeline
-workflow on `main`) so their instances resolve `latest` to the new versions.
+**Rotating the credential requires a deploy, not just a new secret version.** A
+Functions deploy pins each bound secret to the version that existed *at deploy
+time* — the Cloud Run service ends up with `secretKeyRef.key: '3'`, not `latest`.
+Adding a new version therefore changes nothing at runtime on its own, and the
+incremental deploy planner would not redeploy these functions either, because
+rotating a credential touches no source file.
+
+So the three release callables are listed in `DEPLOY_FUNCTIONS_ALWAYS_INCLUDE` in
+`main.yml` and are redeployed on every push to `main`. To rotate: add the new
+secret versions, then re-run the **CI/CD Pipeline** workflow on `main` and
+confirm the new binding:
+
+```
+gcloud run services describe getreleasestatus --project truckerapp-system \
+  --region us-central1 --format=yaml | grep -A2 RELEASE_GITHUB_PRIVATE_KEY
+```
+
+The `key:` in that output is the secret version actually in use. If it is not the
+one you just added, the deploy did not happen and the old credential is still
+live. `scripts/test-release-promotion.mjs` asserts the always-include list still
+contains all three, so this cannot silently regress.
 
 ### Audit trail
 

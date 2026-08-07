@@ -370,6 +370,22 @@ await refuses('13. refuses when a required check is missing entirely', {
     assert('17b. the promotion workflow is dispatch-only',
         triggers.includes('workflow_dispatch') && !/\n\s{2}(push|schedule|pull_request):/.test(triggers),
         `promote-production.yml triggers: ${triggers.replace(/\s+/g, ' ').slice(0, 200)}`);
+
+    // 18 — a rotated release credential must actually reach runtime.
+    //
+    // A Functions deploy pins each bound secret to the version that existed at
+    // deploy time, and the incremental planner only redeploys functions whose
+    // source changed — which rotating a credential never does. Without these
+    // three on the always-include list, a rotated GitHub App key would sit in
+    // Secret Manager doing nothing, and the only symptom would be the Releases
+    // screen quietly reporting that it is not connected.
+    const alwaysInclude = mainWorkflow.match(/DEPLOY_FUNCTIONS_ALWAYS_INCLUDE:\s*(\S+)/)?.[1] || '';
+    const releaseCallables = ['getReleaseStatus', 'promoteTestingToProduction', 'rollbackProductionRelease'];
+    const notForced = releaseCallables.filter((name) => !alwaysInclude.split(',').includes(name));
+
+    assert('18. the release callables redeploy on every main push',
+        notForced.length === 0,
+        `missing from DEPLOY_FUNCTIONS_ALWAYS_INCLUDE: ${notForced.join(', ')}`);
 }
 
 // 16 — the status view explains itself instead of throwing
