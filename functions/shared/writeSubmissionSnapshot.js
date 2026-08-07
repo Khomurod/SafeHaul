@@ -145,6 +145,21 @@ async function writeSubmissionSnapshot({
                 // eslint-disable-next-line no-await-in-loop
                 const existing = await tx.get(collection.doc(`v${candidate}`));
                 if (!existing.exists) { sequence = candidate; break; }
+
+                // A submission recorded BEFORE claim markers existed carries its
+                // attempt id on the snapshot and has no marker. Its queued replay
+                // could arrive after this deploys; without this check the loop
+                // would step over the occupied sequence and write a resubmission
+                // the driver never made — the very defect the marker prevents.
+                const recorded = existing.data() || {};
+                if (attemptId && recorded.submissionAttemptId === attemptId) {
+                    return {
+                        snapshotId: `v${candidate}`,
+                        sequence: recorded.sequence,
+                        isOriginal: recorded.sequence === 1,
+                        deduplicated: true,
+                    };
+                }
             }
             if (sequence === null) {
                 throw new Error(
