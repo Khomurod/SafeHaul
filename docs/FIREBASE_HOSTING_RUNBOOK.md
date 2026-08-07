@@ -133,6 +133,24 @@ browser's entire vocabulary is "release the version you consider ready".
 If the credential is not configured, the screen says so and every release action
 is refused — it never falls back to a weaker path.
 
+**Why the secrets carry a placeholder.** A Functions deploy binds each name in
+`secrets: [...]` to `versions/latest`, so a secret with no version at all would
+fail the deploy of every release callable — and, because they ship together, the
+`deploy-functions` job with them. Each of the three therefore holds the literal
+value `not-configured` as version 1. That is deliberately **not** a working
+credential: `RELEASE_GITHUB_PRIVATE_KEY` fails the PEM check, so
+`isCredentialConfigured()` returns false and the screen correctly reports that it
+is not connected. Adding the real value as a new version supersedes it —
+
+```
+gcloud secrets versions add RELEASE_GITHUB_APP_ID --project truckerapp-system --data-file=-
+gcloud secrets versions add RELEASE_GITHUB_INSTALLATION_ID --project truckerapp-system --data-file=-
+gcloud secrets versions add RELEASE_GITHUB_PRIVATE_KEY --project truckerapp-system --data-file=<the .pem>
+```
+
+— and the release callables must then be redeployed (re-run the CI/CD Pipeline
+workflow on `main`) so their instances resolve `latest` to the new versions.
+
 ### Audit trail
 
 Every promotion and rollback writes to `environment_audit_log`, the same
