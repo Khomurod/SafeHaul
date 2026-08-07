@@ -2,6 +2,7 @@ import React from 'react';
 import { Building, Users, FileText } from 'lucide-react';
 import { MetricCard } from '@/design-system/components';
 import { ResponsiveGrid, Stack } from '@/design-system/layouts';
+import { HistoricalMigrationPanel } from './HistoricalMigrationPanel';
 
 /**
  * Super Admin landing view: the three platform-wide counts.
@@ -64,6 +65,13 @@ export function DashboardView({ stats, statsLoading, statsError }) {
           );
         })}
       </ResponsiveGrid>
+
+      {/*
+        TEMPORARY. Renders nothing once the historical reconstruction is verified
+        complete, so it retires itself without anyone editing this file. The
+        underlying callables stay deployed either way.
+      */}
+      <HistoricalMigrationPanel />
     </Stack>
   );
 }

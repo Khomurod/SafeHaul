@@ -7,7 +7,16 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { axe } from 'vitest-axe';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+// The temporary historical-migration panel is a separate unit with its own
+// contract test, calls Firebase on mount, and carries its own live region. Stubbed
+// here so this suite keeps testing exactly what it always tested — the three
+// metrics and the dashboard's own announcements — rather than two components at
+// once.
+vi.mock('./HistoricalMigrationPanel', () => ({
+    HistoricalMigrationPanel: () => <div data-testid="historical-migration-panel" />,
+}));
 
 import { DashboardView } from './DashboardView';
 
@@ -75,5 +84,15 @@ describe('DashboardView — failure is announced, not colour-only (defect)', () 
     it('has no accessibility violations in the error state', async () => {
         const { container } = renderView({ statsError: { companies: true, users: true, apps: true } });
         expect((await axe(container)).violations).toEqual([]);
+    });
+});
+
+describe('DashboardView — temporary historical-migration action', () => {
+    // The panel decides for itself whether to appear; the view's only job is to
+    // give it a place. If this mount is ever dropped, the migration becomes
+    // unreachable from the UI.
+    it('gives the temporary migration panel a place below the metrics', () => {
+        renderView();
+        expect(screen.getByTestId('historical-migration-panel')).toBeInTheDocument();
     });
 });

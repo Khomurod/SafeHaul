@@ -121,6 +121,11 @@ exports.backfillApplicationSearchFields = require('./searchFieldsBackfill').back
 // Gives applications submitted before preservation a preserved record and PDF,
 // built only from evidence that survives, and marked as reconstructed.
 exports.reconstructHistoricalApplications = require('./reconstructHistoricalApplications').reconstructHistoricalApplications;
+// Read-only: counts how much historical reconstruction is actually outstanding,
+// independently of the migration that writes it. The temporary Super Admin action
+// reads its count from here rather than carrying a hard-coded total, and retires
+// itself when this reports the work verified complete.
+exports.surveyHistoricalReconstruction = require('./historicalReconstructionSurvey').surveyHistoricalReconstruction;
 
 // 4d. Sandbox applications (Super Admin maintenance)
 const sandboxApplication = require('./sandboxApplication');

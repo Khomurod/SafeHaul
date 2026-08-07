@@ -8526,3 +8526,95 @@ reason `stale-authentication`, one row above the successful release.
   while the Release button is correctly disabled, which is the only state the
   offline lane can reach. Its content and behaviour are asserted in the contract
   suite.
+
+## Temporary Super Admin action: finish the historical application reconstruction (2026-08-07)
+
+A one-off operator surface added to the Super Admin dashboard, below the three
+platform metrics: `HistoricalMigrationPanel`. It exists to finish the historical
+application reconstruction and is designed to remove itself when that is done.
+
+**This is an addition to a screen the inventory records as Complete, not a
+migration of one.** The Super Admin row above stays accurate; this panel is new
+work built on the approved system from the start.
+
+### What it consumes
+
+`Card`, `Button`, `Badge`, `ProgressBar`, `StatusMedallion` and `Stack` from the
+design system, plus the shared accessible `Modal` for its confirmation — the same
+set and the same shape as `StatsBackfillPanel`, which is the established
+precedent for a super-admin maintenance action that writes. No local button,
+dialog, table or status treatment was introduced, no arbitrary colour, and no
+font size below the supported range. Every value is a `--ds-*` token.
+
+`ProgressBar` and `Badge` are consumed as-is. No design-system capability gap was
+found, so nothing is recorded as missing here.
+
+### Why it counts instead of being told
+
+The outstanding total is read from `surveyHistoricalReconstruction` on mount and
+again after every run. No count is hard-coded anywhere in the panel. A fixed
+figure would be a claim about production that starts rotting the moment anyone
+submits an application, and an operator reading a stale number cannot tell — so
+the button's own label is whatever the records currently say, even when that
+disagrees with what anyone expected.
+
+### Why it removes itself, and what stays
+
+It renders `null` once the server reports the work verified complete: nothing
+still eligible, no preserved record without its official PDF, nothing unreadable,
+no company left unscanned. That verdict comes from the survey, which implements
+the scope rule independently of the migration that writes the records — a verifier
+sharing its subject's code could not contradict it.
+
+Disappearing is a **UI decision only**. `reconstructHistoricalApplications` and
+`surveyHistoricalReconstruction` both remain exported and deployed, so the
+capability to migrate and to audit does not leave with the button.
+
+On failure the panel deliberately stays, reports what remains per company, and
+can be run again — the callable is create-only and idempotent.
+
+### Verification
+
+- **Implementation:** `HistoricalMigrationPanel.jsx`, plus the read-only
+  `functions/historicalReconstructionSurvey.js` (super-admin gated server-side).
+- **Tests:** 20 contract/safety cases in
+  `HistoricalMigrationPanel.contract.test.jsx` covering the read count, the
+  count disagreeing with expectations, frozen callable names/timeouts/payloads,
+  company-by-company iteration, cursor resume, progress announcement, partial
+  failure, a throwing company not abandoning the rest, unreadable applications,
+  and both self-destruct paths — including the trap that `remaining: 0` with a
+  missing PDF is **not** completion. 17 server cases in
+  `historicalReconstructionSurvey.test.js` covering authorization, the
+  draft/submitted distinction, unreadable handling, PDF presence, the
+  fail-closed storage error, and a privacy assertion that no applicant field is
+  ever returned. `vitest run src/features/super-admin` — **481 passed**;
+  `functions` — **1260 passed**.
+- **Accessibility:** jsdom axe over the idle state and over the open
+  confirmation, zero violations. Progress and verification are announced in a
+  live region rather than shown only as a spinner; failure is announced via
+  `role="alert"`; tone is never the only signal — every status also carries text.
+  The panel uses `<h3>`, because the Super Admin masthead owns the page `<h1>`
+  and `DashboardView` owns the `<h2>`.
+- **Documentation:** this section, plus the storage-representation section added
+  to `docs/application-record-reconstruction-runbook.md`.
+- **Existing behaviour preserved:** `DashboardView`'s own contract suite is
+  unchanged in what it asserts. The panel is stubbed there, because it is a
+  separate unit with its own contract test, calls Firebase on mount, and carries
+  its own live region — which would otherwise make the view's existing
+  `getByRole('status')` assertions ambiguous. One test was added asserting the
+  view still gives the panel a place, so the mount cannot be silently dropped.
+
+### Honest limitations
+
+- **No browser/mobile visual review was performed on the populated states.** The
+  panel's states are driven entirely by a super-admin callable that the local dev
+  server cannot reach, so the count, progress, failure and repair states were
+  verified in jsdom by the contract suite rather than photographed at 1440/1024/412
+  px. This is the same limitation recorded for the Release Management slice above,
+  for the same reason.
+- **The self-destruct was observed in tests, and in production only in its
+  terminal state.** By design there is no way to see the panel disappear twice.
+- **Applicant identifiers are truncated to an eight-character prefix wherever the
+  panel names a failed or unreadable application.** An application id is derived
+  from applicant identity, so the full value is deliberately never rendered. This
+  makes the ids less convenient to act on, which is the intended trade.
