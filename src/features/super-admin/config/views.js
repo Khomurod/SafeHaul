@@ -13,6 +13,7 @@ export const SUPER_ADMIN_VIEWS = Object.freeze({
   QUESTIONS: 'questions',
   SYSTEM_HEALTH: 'system-health',
   STATS_BACKFILL: 'stats-backfill',
+  RELEASES: 'releases',
   CREATE: 'create',
 });
 
@@ -37,6 +38,10 @@ export const SUPER_ADMIN_NAV_ITEMS = Object.freeze([
   { id: SUPER_ADMIN_VIEWS.BLOG_POSTS, label: 'Blog Posts', icon: 'Newspaper', group: 'ops' },
   { id: SUPER_ADMIN_VIEWS.QUESTIONS, label: 'Form Builder', icon: 'FileText', group: 'ops' },
   { id: SUPER_ADMIN_VIEWS.SYSTEM_HEALTH, label: 'System Health', icon: 'Activity', group: 'ops' },
+  // The one deliberate step between "merged and running on Testing" and "what
+  // every end user is served". A merge to main never reaches Production on its
+  // own; it reaches it from here.
+  { id: SUPER_ADMIN_VIEWS.RELEASES, label: 'Releases', icon: 'Rocket', group: 'ops' },
   { id: SUPER_ADMIN_VIEWS.STATS_BACKFILL, label: 'Stats Backfill', icon: 'RefreshCw', group: 'ops' },
 
   { id: SUPER_ADMIN_VIEWS.CREATE, label: 'Create New', icon: 'Plus', group: 'create' },

@@ -286,6 +286,10 @@ jobs:
       # Records the release (and its pinned Hosting version IDs) that a later
       # production promotion is allowed to copy.
       deployments: write
+    outputs:
+      # Handed to `release-ready`, which is the only job allowed to mark this
+      # record promotable.
+      deployment_id: ${{ steps.record.outputs.deployment_id }}
     env:
       FIREBASE_PROJECT_ID: truckerapp-system
       FIREBASE_HOSTING_TARGET: testing
@@ -362,11 +366,21 @@ jobs:
           node scripts/read-hosting-release.mjs truckerapp-system app >> "$GITHUB_OUTPUT"
           node scripts/read-hosting-release.mjs safehaul-landing-testing landing >> "$GITHUB_OUTPUT"
 
+      # Recorded as `in_progress`, NOT `success`.
+      #
+      # The promotion gate treats a successful Testing deployment record as "this
+      # entire release shipped", and at this point it has not: the rules, index
+      # and Cloud Functions rollouts below and in `deploy-functions` are shared
+      # backend that Production runs against too. The `release-ready` job marks
+      # this record `success` once all of that has passed. Until then the release
+      # exists and is visible, but nothing can promote it.
       - name: Publish the release record
+        id: record
         env:
           APP_VERSION_ID: ${{ steps.versions.outputs.app_version_id }}
           LANDING_VERSION_ID: ${{ steps.versions.outputs.landing_version_id }}
           RELEASE_CHANNEL: testing
+          RELEASE_STATE: in_progress
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_SHA: ${{ github.sha }}
         run: node scripts/record-release.mjs
@@ -479,3 +493,46 @@ jobs:
 
       - name: Post-deploy smoke check
         run: node scripts/smoke-functions-deploy.mjs
+
+  release-ready:
+    name: Confirm the release is ready
+    runs-on: ubuntu-latest
+    # THE eligibility point for the entire release system.
+    #
+    # `deploy-testing` records the release as `in_progress`; only this job marks
+    # it `success`, and only `success` lets `promote-production.yml` (or the
+    # Super Admin Promote button) touch app.safehaul.io.
+    #
+    # Both deploy jobs are in `needs:`, so this cannot start until the Testing
+    # frontend AND the shared backend — Cloud Functions, Firestore rules, Storage
+    # rules, indexes, post-deploy smoke — have all succeeded. Testing and
+    # Production share that backend, so a frontend whose Function or rule never
+    # shipped must never become promotable.
+    #
+    # Every failure mode leaves the release un-promotable: a failed deploy skips
+    # this job, a cancelled run never reaches it, and a missing deployment id
+    # fails it. It is closed by default and opened only by success.
+    needs:
+      - deploy-testing
+      - deploy-functions
+    if: >-
+      github.repository == 'Khomurod/SafeHaul' &&
+      ((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch')
+    permissions:
+      contents: read
+      deployments: write
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20.x
+
+      - name: Mark the Testing release promotable
+        env:
+          DEPLOYMENT_ID: ${{ needs.deploy-testing.outputs.deployment_id }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_SHA: ${{ github.sha }}
+        run: node scripts/mark-release-ready.mjs

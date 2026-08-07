@@ -196,6 +196,12 @@ describe('environment registry — coverage of each required area', () => {
             'LANDING_TELEGRAM_BOT_TOKEN',
             'LANDING_TELEGRAM_CHAT_ID',
             'PROCESS_BULK_BATCH_URL',
+            // The GitHub App the Super Admin Release Management screen uses to
+            // start a production promotion. Inventoried like every other
+            // platform secret so "what can change production" has one answer.
+            'RELEASE_GITHUB_APP_ID',
+            'RELEASE_GITHUB_INSTALLATION_ID',
+            'RELEASE_GITHUB_PRIVATE_KEY',
             // One row per AI provider credential field. These are derived from
             // functions/ai/registry/providers.js rather than transcribed, so
             // adding a provider updates this list automatically — which is

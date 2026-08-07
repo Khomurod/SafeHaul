@@ -30,29 +30,120 @@ channels is which frontend build is being served.
 
 ```
 feature branch → PR → full CI → merge to main
-      → Testing deploys automatically  (truckerapp-system.web.app)
+      → Testing deploys automatically   (truckerapp-system.web.app)
+      → shared backend rolls out
+      → release marked ready            ← the eligibility point
       → real-world testing
-      → Super Admin promotes that exact release
-      → Production                     (app.safehaul.io)
+      → Super Admin → Releases → Release to Production
+      → exact tested Hosting version cloned
+      → Production                      (app.safehaul.io)
+      → live verification
 ```
 
 1. Open a PR into `main`. Required CI must be green.
 2. Merge. `deploy-testing` in `.github/workflows/main.yml` builds the commit,
    deploys the Testing application and Testing landing site, and records a
    GitHub Deployment for environment `testing` that pins the immutable Firebase
-   Hosting version IDs it just created.
-3. Verify Testing. The live commit is always readable without credentials:
+   Hosting version IDs it just created. **That record is created as
+   `in_progress`, not `success`** — see the eligibility point below.
+3. The shared backend rolls out in the same run: Firestore rules, Storage rules,
+   Firestore indexes, Cloud Functions and the post-deploy smoke check.
+4. `release-ready` runs last. It lists every deploy job in `needs:`, so it cannot
+   start until all of them have passed, and its only job is to mark the Testing
+   deployment `success`. **A release becomes promotable at that moment and not
+   before.**
+5. Verify Testing. The live commit is always readable without credentials:
 
    ```
    curl https://truckerapp-system.web.app/release.json
    ```
 
-4. Promote. Run the **Promote a tested release to Production** workflow with the
-   full 40-character SHA you verified. Nothing else reaches production.
+6. Release. In the app: **Super Admin → Releases → Release Testing version to
+   Production**, confirm the dialog, and watch the screen follow the release to
+   completion. Nothing else reaches production.
 
 A merge to `main` never updates the Production frontend. No Vercel setting, no
 downloaded Google key, and no manual `firebase deploy` is part of a normal
 release.
+
+### The eligibility point, and why it exists
+
+Testing and Production run against **one** Firebase backend. If a release became
+promotable the moment its frontend was on Testing, a frontend that depends on a
+new Cloud Function, rule or index could be promoted to Production while that
+backend change was still deploying — or after it had failed. Production would
+then be serving a frontend whose backend never shipped.
+
+So the Testing deployment record is written `in_progress` and is only promoted to
+`success` by `release-ready`, after every deploy job has succeeded. The gate in
+`functions/releaseManagement/eligibility.js` requires that `success`, and
+separately requires every check in `REQUIRED_RELEASE_CHECKS` to be **present and
+completed green** — queued, in-progress and entirely absent all count as refusals,
+because "has not failed yet" is not the same as "passed".
+
+The same module is imported by both the promotion workflow and the Super Admin
+callables, so the two cannot drift apart.
+
+## Releasing from Super Admin
+
+**Super Admin → Releases** is the normal route to Production.
+
+The screen shows the Testing version, when it was released, whether its checks
+passed, whether the shared backend rollout completed, and whether it is eligible —
+plus the current Production version and the previous one. When a release is not
+eligible it says why in plain language rather than simply being unavailable.
+
+There is deliberately **no field for typing a version**. The system already knows
+which version Testing is serving; the server resolves it from the GitHub
+Deployment records and re-verifies eligibility immediately before dispatching
+anything. A version sent by a browser is never what gets released — the client's
+`expectedSha` is compared against the server's own answer purely so that a
+confirmation dialog which went stale (a newer Testing release landed while it was
+open) is refused instead of silently releasing something nobody approved.
+
+Both callables (`promoteTestingToProduction`, `rollbackProductionRelease`) require
+an authenticated caller with exactly `globalRole === 'super_admin'` on the
+verified ID token, plus a recent sign-in, plus a fail-closed rate limit. A role
+claimed in the request payload means nothing.
+
+Concurrency is handled twice: GitHub is asked whether a promotion run is already
+active, and a Firestore lock covers the seconds before a dispatched run exists.
+The workflow's own `concurrency` group queues rather than cancels, because
+cancelling a half-finished production release is worse than making a second click
+wait.
+
+### How the backend authenticates to GitHub
+
+A **GitHub App** installed on `Khomurod/SafeHaul` only, with Actions: write and
+Contents / Deployments / Checks / Metadata: read. It cannot push code, merge,
+change workflows, read repository secrets or touch any other repository.
+
+Its App id, installation id and private key live in Google Secret Manager as
+`RELEASE_GITHUB_APP_ID`, `RELEASE_GITHUB_INSTALLATION_ID` and
+`RELEASE_GITHUB_PRIVATE_KEY`, are bound to the release callables with
+`secrets: [...]`, and are inventoried in Super Admin → Environment &
+Integrations like every other platform secret. The private key never leaves the
+Cloud Functions runtime; what travels is a one-hour installation token minted on
+demand and cached in memory only.
+
+**No GitHub or Google deployment credential exists in the browser bundle**, in a
+`VITE_*` variable, in Firestore, in localStorage or in any request payload. The
+browser's entire vocabulary is "release the version you consider ready".
+
+If the credential is not configured, the screen says so and every release action
+is refused — it never falls back to a weaker path.
+
+### Audit trail
+
+Every promotion and rollback writes to `environment_audit_log`, the same
+Admin-SDK-only collection the Environment & Integrations vault uses: who acted,
+the released SHA, the previous Production SHA, the pinned Hosting version, the
+request id and the outcome once the run finishes. Denials are recorded too.
+Values, tokens and key material are never recorded — the audit writer accepts an
+explicit field allowlist and drops everything else.
+
+GitHub Deployments remain the authoritative record of *what is released*; the
+audit log records *the human administrative action*.
 
 ### Why promotion copies a version, not a branch
 
@@ -61,14 +152,22 @@ against its recorded Testing deployment and clones that exact immutable Hosting
 version:
 
 ```
-firebase hosting:clone truckerapp-system:@VERSION_ID safehaul-app-production:live
+firebase hosting:clone truckerapp-system@VERSION_ID safehaul-app-production:live
 ```
 
 So a commit merged after approval cannot ride along, and Production receives the
 same bytes that were tested — not a fresh build that merely came from the same
-commit. A candidate with no successful Testing deployment, or with red checks, is
+commit. A candidate with no successful Testing release record, with an unfinished
+backend rollout, or with any required check red, queued, running or missing is
 refused before any Google credential is minted. Those refusals are covered by
 `npm run check:release-scripts`.
+
+The `@` in the source is not interchangeable with a colon. The pinned Firebase
+CLI parses `<site>:<something>` as a *channel* source and only tries the version
+parser when that split fails, so `site:@version` looks for a channel literally
+named `@version` and errors out. `firebase hosting:clone --help` and the CLI's own
+error message both give the two accepted forms: `<site>:<channel>` or
+`<site>@<version>`.
 
 The **landing page is deployed from the approved SHA rather than cloned**, on
 purpose. The two landing targets have deliberately different Hosting config: the
@@ -79,14 +178,21 @@ commit is still exactly reproducible.
 
 ## Rolling back Production
 
-Rollback is the same workflow with an older SHA. Firebase keeps prior Hosting
+Rollback restores an exact previous release. Firebase keeps prior Hosting
 versions, and each past release's version IDs stay recorded on its GitHub
-Deployment, so promoting a previously released SHA restores that frontend
+Deployment, so releasing a previously released SHA restores that frontend
 exactly. It rewrites no Git history and mutates no business data.
 
-1. Find the previous good release under the repository's **Deployments →
-   production**, or `curl https://app.safehaul.io/release.json` for the current one.
-2. Run **Promote a tested release to Production** with that older SHA.
+**Normal route.** Super Admin → Releases → **Roll back to previous release**. The
+server chooses the target itself — the previous *successful* Production release on
+record — so this action carries no version from the browser either. It goes
+through the same eligibility gate as a forward release and is audited the same
+way. The button is only offered when a previous release actually exists.
+
+**Manual route**, if the app itself is what is broken: run the **Promote a tested
+release to Production** workflow with that older 40-character SHA. Find it under
+the repository's **Deployments → production**, or
+`curl https://app.safehaul.io/release.json` for the current one.
 
 **What rollback does not undo.** Testing and Production share one backend, so
 rolling the frontend back does not roll back Cloud Functions, Firestore rules,
@@ -149,6 +255,9 @@ not enough unless the token itself is newly generated.
 
 - GitHub owns source history and starts deployments.
 - Google Workload Identity Federation authenticates GitHub without a JSON key.
+- A narrowly scoped GitHub App authenticates SafeHaul's backend *to* GitHub, so
+  the Super Admin Releases screen can start a release without any credential
+  reaching the browser.
 - Google Secret Manager owns runtime secrets.
 - Firebase Hosting serves the four sites and certificates.
 - Dynadot owns only domain registration and DNS.
@@ -162,9 +271,17 @@ never a DNS problem.
 **A Testing deploy failed.** The previous Testing release stays live; Firebase
 only swaps a site to a new version after a successful upload. Fix the failing
 test or deploy and merge again. The failed commit has no successful Testing
-deployment record, so it is not promotable in the meantime.
+release record, so it is not promotable in the meantime.
 
-**A promotion failed.** Check which step failed:
+**The backend rollout failed but the Testing frontend deployed.** This is the case
+the eligibility point exists for. The Testing site is serving the new frontend,
+but its release record is still `in_progress`, so the Releases screen shows the
+version as *not ready* and names the unfinished work. Fix the backend failure and
+merge again; the next successful run produces a promotable release. Do not force a
+release past this state — Production shares that backend.
+
+**A release failed.** The Releases screen says so and states that Production was
+not changed. Check which step failed in the workflow run:
 
 - Failed at *Resolve and verify the tested release*: nothing was deployed and no
   Google credential was minted. The message states why the candidate was
@@ -174,8 +291,15 @@ deployment record, so it is not promotable in the meantime.
   with `curl https://app.safehaul.io/release.json`, then either re-run the
   promotion or promote the previous known-good SHA.
 
-Promotion is idempotent: re-running it for the SHA already live is a no-op, so a
-double-click or a retry is safe.
+Releasing is idempotent: asking for the SHA already live is a no-op, so a
+double-click or a retry is safe. A second release while one is running is refused
+rather than queued behind an unknown state.
+
+**The Releases screen says it is not connected to the deployment pipeline.** The
+GitHub App credential is missing from Secret Manager or from the deployed
+functions' `secrets:` binding. Nothing is broken and nothing is at risk; the
+release path is simply closed until the credential is configured. Use the manual
+workflow route meanwhile.
 
 **Emergency: Production is broken and CI is unavailable.** Promote the previous
 good SHA (rollback, above) — it needs only the promotion workflow. If GitHub
@@ -183,7 +307,7 @@ Actions itself is down, a holder of the `safehaul-github-deployer` identity can
 run the same clone by hand:
 
 ```
-firebase hosting:clone truckerapp-system:@VERSION_ID safehaul-app-production:live \
+firebase hosting:clone truckerapp-system@VERSION_ID safehaul-app-production:live \
   --project truckerapp-system
 ```
 

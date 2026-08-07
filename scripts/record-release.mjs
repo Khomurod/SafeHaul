@@ -19,9 +19,21 @@
  * payload is the promotion contract: `promote-production.yml` clones those exact
  * version IDs and never resolves "whatever is live on Testing right now".
  *
- * Reads APP_VERSION_ID, LANDING_VERSION_ID and the standard GitHub Actions
- * environment.
+ * ## Why a Testing release is NOT recorded as `success` here
+ *
+ * The promotion gate treats "latest deployment status is success" as "this whole
+ * release shipped". For Testing that is only true once the SHARED backend has
+ * also rolled out: Testing and Production run against the same Cloud Functions,
+ * Firestore rules, Storage rules and indexes, so a frontend that depends on a
+ * Function which never deployed must not become promotable. This script is
+ * therefore called with `RELEASE_STATE=in_progress` from the Testing frontend
+ * deploy, and `scripts/mark-release-ready.mjs` posts `success` from the
+ * `release-ready` job — which cannot start until every deploy job has passed.
+ *
+ * Reads APP_VERSION_ID, LANDING_VERSION_ID, RELEASE_STATE and the standard
+ * GitHub Actions environment.
  */
+import { appendFileSync } from 'node:fs';
 
 const {
     APP_VERSION_ID: appVersionId,
@@ -31,6 +43,8 @@ const {
     GITHUB_RUN_ID: runId,
     GITHUB_SERVER_URL: serverUrl = 'https://github.com',
     RELEASE_CHANNEL: channel = 'testing',
+    RELEASE_STATE: releaseState = 'success',
+    GITHUB_OUTPUT: outputFile,
 } = process.env;
 
 // RELEASE_SHA, not GITHUB_SHA, is the release identity.
@@ -100,18 +114,47 @@ const deployment = await api('/deployments', {
     }),
 });
 
-await api(`/deployments/${deployment.id}/statuses`, {
-    method: 'POST',
-    body: JSON.stringify({
-        state: 'success',
-        description: `Hosting versions app=${appVersionId} landing=${landingVersionId}`,
-        log_url: runId ? `${serverUrl}/${repository}/actions/runs/${runId}` : undefined,
-        environment_url:
-            channel === 'production' ? 'https://app.safehaul.io' : 'https://truckerapp-system.web.app',
-    }),
-});
+// The deployment id is what `release-ready` needs in order to promote this
+// record to `success` later, so it is exported before the status is attempted.
+if (outputFile) {
+    appendFileSync(outputFile, `deployment_id=${deployment.id}\n`, 'utf8');
+}
+
+const statusBody = {
+    state: releaseState,
+    description: `Hosting versions app=${appVersionId} landing=${landingVersionId}`,
+    log_url: runId ? `${serverUrl}/${repository}/actions/runs/${runId}` : undefined,
+    environment_url:
+        channel === 'production' ? 'https://app.safehaul.io' : 'https://truckerapp-system.web.app',
+};
+
+if (releaseState === 'success') {
+    await api(`/deployments/${deployment.id}/statuses`, {
+        method: 'POST',
+        body: JSON.stringify(statusBody),
+    });
+} else {
+    // `in_progress` is an interstitial marker for humans reading the GitHub UI.
+    // It carries no authority: the gate asks for `success`, and a deployment
+    // that never receives one is refused whether its latest status says
+    // `in_progress` or nothing at all. So a rejected non-success state is a
+    // warning, not a failed release — failing the deploy job here would be
+    // strictly worse than a slightly less readable deployments page.
+    try {
+        await api(`/deployments/${deployment.id}/statuses`, {
+            method: 'POST',
+            headers: { Accept: 'application/vnd.github.flash-preview+json' },
+            body: JSON.stringify(statusBody),
+        });
+    } catch (error) {
+        console.warn(
+            `Could not mark deployment #${deployment.id} as ${releaseState} ` +
+            `(${error.message.slice(0, 200)}). It stays un-promotable until release-ready runs.`,
+        );
+    }
+}
 
 console.log(
-    `Recorded ${channel} deployment #${deployment.id} for ${sha} ` +
+    `Recorded ${channel} deployment #${deployment.id} for ${sha} as "${releaseState}" ` +
     `(app version ${appVersionId}, landing version ${landingVersionId}).`,
 );

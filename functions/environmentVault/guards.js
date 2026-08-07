@@ -34,6 +34,11 @@ const RATE_LIMITS = Object.freeze({
     reveal: { limit: 30, windowSeconds: 300 },
     mutate: { limit: 10, windowSeconds: 300 },
     test: { limit: 10, windowSeconds: 300 },
+    // Release Management reuses these guards. Reading the release status is a
+    // polled view, so it is generous; promoting changes what end users are
+    // served, so it is the tightest limit in the file.
+    releaseStatus: { limit: 120, windowSeconds: 300 },
+    promote: { limit: 6, windowSeconds: 900 },
 });
 
 /**
@@ -106,13 +111,15 @@ async function assertRecentAuth(request, action, metadata = {}) {
  * Applies the per-operation, per-caller rate limit. Fails closed.
  *
  * @param {object} request Callable request.
- * @param {'list'|'reveal'|'mutate'|'test'} operation
+ * @param {'list'|'reveal'|'mutate'|'test'|'releaseStatus'|'promote'} operation
  * @param {string} action Audit action, used when recording the denial.
  * @param {object} [metadata] Value-free metadata for the denial record.
+ * @param {string} [keyPrefix] Namespace for the limiter key. Release Management
+ *   passes its own so its budget is not shared with the vault's.
  */
-async function assertWithinRateLimit(request, operation, action, metadata = {}) {
+async function assertWithinRateLimit(request, operation, action, metadata = {}, keyPrefix = 'envvault') {
     const config = RATE_LIMITS[operation];
-    const key = `envvault_${operation}_${request.auth.uid}`;
+    const key = `${keyPrefix}_${operation}_${request.auth.uid}`;
     const allowed = await checkRateLimit(key, config.limit, config.windowSeconds, 'closed');
     if (!allowed) {
         await recordAuditEvent({
@@ -130,10 +137,10 @@ async function assertWithinRateLimit(request, operation, action, metadata = {}) 
  * limit — in that order, so a non-Super-Admin never learns anything about the
  * limiter's state.
  */
-async function guardPrivileged(request, operation, action, metadata = {}) {
+async function guardPrivileged(request, operation, action, metadata = {}, keyPrefix = 'envvault') {
     await assertSuperAdmin(request, action, metadata);
     await assertRecentAuth(request, action, metadata);
-    await assertWithinRateLimit(request, operation, action, metadata);
+    await assertWithinRateLimit(request, operation, action, metadata, keyPrefix);
 }
 
 module.exports = {

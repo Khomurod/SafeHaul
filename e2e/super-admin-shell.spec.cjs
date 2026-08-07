@@ -58,7 +58,7 @@ test.describe('Super Admin shell', () => {
     for (const label of [
       'Dashboard', 'Analytics', 'Companies', 'Users', 'Unified Driver DB',
       'Global Features', 'SMS Integrations', 'Environment & Integrations',
-      'Form Builder', 'System Health', 'Stats Backfill', 'Create New',
+      'Form Builder', 'System Health', 'Releases', 'Stats Backfill', 'Create New',
     ]) {
       await nav.getByRole('button', { name: label }).click();
       await expect(nav.getByRole('button', { name: label })).toHaveAttribute('aria-current', 'page');
