@@ -118,6 +118,29 @@ These properties are covered by `npm run check:release-scripts` and
 in the `callable-contract` job — which is itself never skippable, because the
 checks that guard the optimisation must not be skippable by the optimisation.
 
+### Branch protection: require the gate, not the lanes
+
+Set the repository's required status checks to:
+
+- `Verify the release is fully validated`
+- `secret-scan`
+
+and **not** to individual lanes. A lane can legitimately be skipped — a
+documentation-only pull request runs no test lane at all — and GitHub treats a
+required status check that never reports as permanently pending, so a rule naming
+`frontend-quality` or `E2E shard 1 of 4 (Chromium)` would block that pull request
+forever with nothing to fix.
+
+The gate is the right thing to require because it is the thing that cannot be
+skipped: it is declared `if: always()`, and it fails unless every lane ran or is
+provably covered. Requiring it is equivalent to requiring all the lanes, without
+the pending-forever trap.
+
+One cosmetic note: a skipped matrix job is listed by GitHub under its unexpanded
+name, so on a run where the browser lane is skipped you will see a check called
+`E2E shard ${{ matrix.shard }} of 4 (Chromium)`. That is GitHub rendering an
+un-expanded matrix, not a broken workflow. It is not required by anything.
+
 ## Releasing from Super Admin
 
 **Super Admin → Releases** is the normal route to Production.
