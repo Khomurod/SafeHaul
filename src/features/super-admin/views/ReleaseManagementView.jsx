@@ -15,11 +15,15 @@ import { Inline, ResponsiveGrid, Stack } from '@/design-system/layouts';
 import { useToast } from '@shared/components/feedback';
 import { RELEASE_PHASES, useReleaseStatus } from '../hooks/useReleaseStatus';
 import {
+    ReauthCancelledError,
     describeReleaseError,
+    isReauthCancelled,
+    isReauthRequired,
     promoteTestingToProduction,
     rollbackProductionRelease,
 } from '../services/releaseManagement';
 import { ReleaseConfirmDialog } from '../components/release/ReleaseConfirmDialog';
+import { ReauthenticateModal } from '../components/environment/ReauthenticateModal';
 
 /**
  * Super Admin "Releases" — the single, deliberate step by which a tested version
@@ -112,6 +116,7 @@ export function ReleaseManagementView() {
     const [dialog, setDialog] = useState(null);
     const [submitting, setSubmitting] = useState(false);
     const [dialogError, setDialogError] = useState(null);
+    const [reauth, setReauth] = useState(null);
 
     const testing = status?.testing || null;
     const production = status?.production || null;
@@ -122,13 +127,39 @@ export function ReleaseManagementView() {
     const canRelease = Boolean(status?.configured && testing?.eligible && !alreadyLive && !busy);
     const canRollBack = Boolean(status?.configured && previousProduction?.sha && !busy);
 
+    /**
+     * Opens the re-authentication prompt and resolves once the operator has
+     * proved who they are — or rejects with `ReauthCancelledError` if they back
+     * out. Returning a promise rather than a boolean is the point: nothing
+     * downstream may continue until this settles, or a cancelled prompt would be
+     * reported as a started release.
+     */
+    const requestReauth = useCallback(() => new Promise((resolve, reject) => {
+        setReauth({ resolve, reject });
+    }), []);
+
     const runAction = useCallback(async (kind) => {
         setSubmitting(true);
         setDialogError(null);
         try {
             const call = kind === 'rollback' ? rollbackProductionRelease : promoteTestingToProduction;
             const expectedSha = kind === 'rollback' ? previousProduction?.sha : testing?.sha;
-            const result = await call({ expectedSha });
+
+            // Releasing requires a recent sign-in, which a long-open admin
+            // session will not have. Without this the operator saw "re-enter
+            // your password to continue" and had no way to do so from here —
+            // observed in the first real release, where the first click was
+            // refused as `stale-authentication` and the only recovery was to
+            // sign out and back in.
+            let result;
+            try {
+                result = await call({ expectedSha });
+            } catch (error) {
+                if (!isReauthRequired(error)) throw error;
+                await requestReauth();
+                // One retry. A second stale-session failure is a real failure.
+                result = await call({ expectedSha });
+            }
 
             setDialog(null);
 
@@ -141,11 +172,14 @@ export function ReleaseManagementView() {
             }
             await reload({ quiet: true });
         } catch (err) {
-            setDialogError(describeReleaseError(err));
+            // A dismissed re-authentication prompt means the release never
+            // started. That is not a failure to report — announcing one would
+            // tell the operator something went wrong when nothing ran at all.
+            if (!isReauthCancelled(err)) setDialogError(describeReleaseError(err));
         } finally {
             setSubmitting(false);
         }
-    }, [previousProduction, testing, reload, showSuccess]);
+    }, [previousProduction, testing, reload, showSuccess, requestReauth]);
 
     const openDialog = (kind) => { setDialogError(null); setDialog(kind); };
 
@@ -363,6 +397,21 @@ export function ReleaseManagementView() {
                     error={dialogError}
                     onConfirm={() => runAction(dialog)}
                     onCancel={() => { if (!submitting) { setDialog(null); setDialogError(null); } }}
+                />
+            )}
+
+            {reauth && (
+                <ReauthenticateModal
+                    onSuccess={() => {
+                        const { resolve } = reauth;
+                        setReauth(null);
+                        resolve();
+                    }}
+                    onCancel={() => {
+                        const { reject } = reauth;
+                        setReauth(null);
+                        reject(new ReauthCancelledError());
+                    }}
                 />
             )}
         </Stack>
