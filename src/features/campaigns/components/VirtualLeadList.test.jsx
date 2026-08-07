@@ -291,8 +291,12 @@ describe('VirtualLeadList — states', () => {
 
     it('announces an accessible empty state', async () => {
         render(<VirtualLeadList companyId="co-1" filters={{}} />);
-        const status = await screen.findByRole('status');
-        expect(status).toHaveTextContent('No leads match these filters.');
+        // The loading and empty states are BOTH role="status", so waiting on the
+        // role alone is a race: `findByRole` resolves on whichever rendered
+        // first, and on a slow machine that is "Scanning Database...". Wait for
+        // the empty state's own wording, then assert it is the live region.
+        const empty = await screen.findByText('No leads match these filters.');
+        expect(empty.closest('[role="status"]')).not.toBeNull();
         expect(screen.getByText('Try adjusting your criteria.')).toBeInTheDocument();
     });
 
