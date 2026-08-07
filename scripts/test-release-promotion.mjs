@@ -340,6 +340,38 @@ await refuses('13. refuses when a required check is missing entirely', {
         `not found in main.yml: ${missing.join(', ')}`);
 }
 
+// 17 — a merge to main must NEVER be able to update the Production frontend.
+//
+// This is the load-bearing property of the whole two-channel architecture, and
+// it is currently true only because nothing in main.yml names a production
+// Hosting target. That is one careless copy-paste away from being false, and the
+// failure would be silent: the pipeline would go green while every merge shipped
+// straight to app.safehaul.io. So it is asserted rather than assumed.
+{
+    const here = dirname(fileURLToPath(import.meta.url));
+    const mainWorkflow = readFileSync(resolvePath(here, '../.github/workflows/main.yml'), 'utf8');
+
+    const forbidden = [
+        'hosting:production',
+        'safehaul-app-production',
+        'landing-production',
+        'safehaul-landing-production',
+    ].filter((needle) => mainWorkflow.includes(needle));
+
+    assert('17. main.yml cannot deploy the Production frontend',
+        forbidden.length === 0,
+        `main.yml references production Hosting: ${forbidden.join(', ')}`);
+
+    // And the promotion workflow must stay manual-only — a `push:` trigger there
+    // would reintroduce automatic production releases by the other door.
+    const promoteWorkflow = readFileSync(resolvePath(here, '../.github/workflows/promote-production.yml'), 'utf8');
+    const triggers = promoteWorkflow.slice(promoteWorkflow.indexOf('\non:'), promoteWorkflow.indexOf('\njobs:'));
+
+    assert('17b. the promotion workflow is dispatch-only',
+        triggers.includes('workflow_dispatch') && !/\n\s{2}(push|schedule|pull_request):/.test(triggers),
+        `promote-production.yml triggers: ${triggers.replace(/\s+/g, ' ').slice(0, 200)}`);
+}
+
 // 16 — the status view explains itself instead of throwing
 {
     const status = await readReleaseStatus({
