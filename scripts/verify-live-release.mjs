@@ -31,15 +31,22 @@ for (let attempt = 1; attempt <= ATTEMPTS; attempt += 1) {
             headers: { 'Cache-Control': 'no-cache' },
         });
 
-        if (response.ok) {
+        if (!response.ok) {
+            lastSeen = `HTTP ${response.status}`;
+        } else if (!(response.headers.get('content-type') || '').includes('json')) {
+            // The app targets rewrite `**` to /index.html, and Hosting only serves
+            // a static file when one exists. So an HTML 200 here does not mean the
+            // site is broken — it means this release has no release.json and the
+            // SPA catch-all answered instead. Name that, rather than surfacing it
+            // as an opaque JSON parse error at 2am.
+            lastSeen = 'HTML from the SPA rewrite (no release.json in this build)';
+        } else {
             const manifest = await response.json();
             lastSeen = manifest?.sha ?? '(no sha field)';
             if (lastSeen === expectedSha) {
                 console.log(`${origin} is serving ${expectedSha} (verified on attempt ${attempt}).`);
                 process.exit(0);
             }
-        } else {
-            lastSeen = `HTTP ${response.status}`;
         }
     } catch (error) {
         lastSeen = `request failed: ${error.message}`;
