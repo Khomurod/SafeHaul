@@ -329,17 +329,21 @@ Rewrites on **both** `landing-testing` and `landing-production`, in this order:
 3. `/news/**` -> `serveBlogPublic`
 4. `/api/news/**` -> `serveBlogPublic`
 5. `/sitemap.xml` -> `serveBlogPublic`
-6. `/robots.txt` -> `serveBlogPublic`
-7. `**` -> `/index.html`
+6. `**` -> `/index.html`
+
+`/robots.txt` is **not** a rewrite — it is the static `landing/robots.txt`, and
+Hosting serves a real file in preference to any rewrite. (An earlier revision of
+this list claimed a `serveBlogPublic` rewrite for it; `firebase.json` has never
+had one. The behaviour was always correct; the documentation was not.)
 
 **The order matters.** The `**` catch-all must stay last: placed above the
 specific rules it swallows them and returns the marketing homepage for every
 article URL, sitemap request and card fetch. The landing-lead rule stays first so
 it is unaffected.
 
-This also fixes a pre-existing soft-404: `safehaul.io/sitemap.xml` and
-`/robots.txt` previously returned the homepage with HTTP 200. They are now real
-responses generated from published articles.
+This also fixes a pre-existing soft-404: `safehaul.io/sitemap.xml` previously
+returned the homepage with HTTP 200. It is now a real response generated from
+published articles. `/robots.txt` was already a real static file.
 
 Nothing about the app targets (`testing`, `production`) changed, so
 `app.safehaul.io` is unaffected. No new subdomain is introduced, so **no Dynadot
