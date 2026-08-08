@@ -748,6 +748,9 @@ jobs:
     permissions:
       contents: read
       id-token: write
+      # Reads the Testing release records to find the last commit whose deploy
+      # was confirmed successful. See "Resolve the incremental deploy base".
+      deployments: read
     env:
       FIREBASE_PROJECT_ID: truckerapp-system
 
@@ -792,6 +795,29 @@ jobs:
       - name: Validate incremental deploy planner behavior
         run: npm run check:deploy-script
 
+      # WHICH COMMIT "CHANGED" IS MEASURED FROM.
+      #
+      # This used to be `github.event.before` — the previous push — and that is
+      # only correct while every push deploys. When one does not, its window is
+      # never revisited: the next push measures from the commit that failed, so
+      # the functions it changed are never deployed. CI stays green and the
+      # callable simply does not exist.
+      #
+      # It happened: `surveyHistoricalReconstruction` shipped in dc0dd23, that
+      # merge's deploy died in a runner outage, and the function was still
+      # missing from Cloud two merges later — a 404 the Super Admin panel
+      # surfaced as "internal".
+      #
+      # So the base is now the last commit whose Testing release was CONFIRMED
+      # successful, which only `release-ready` can record and only after both
+      # deploy jobs pass. A failed deploy widens the next window instead of
+      # dropping it. Falls back to the previous push if that cannot be read.
+      - name: Resolve the incremental deploy base
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_PUSH_BEFORE: ${{ github.event.before }}
+        run: node scripts/resolve-deploy-base.mjs
+
       # Incremental strict mode: deploy only changed/mapped runtime functions.
       # Never auto-full-deploy; explicit full deploy requires DEPLOY_FUNCTIONS_FORCE_FULL=1.
       - name: Deploy Cloud Functions (incremental or full)
@@ -810,7 +836,16 @@ jobs:
           # Discovered the hard way: they first shipped bound to a placeholder
           # version, and the Releases screen correctly reported "not connected"
           # while the real credential sat unused one version above it.
-          DEPLOY_FUNCTIONS_ALWAYS_INCLUDE: parseCdlWithGroq,analyzeEdocFieldPlacement,initBulkSession,processBulkBatch,getReleaseStatus,promoteTestingToProduction,rollbackProductionRelease
+          #
+          # `surveyHistoricalReconstruction` is here for a different reason, and
+          # is RECOVERY rather than policy. It was added in dc0dd23, whose
+          # deploy failed, so it was orphaned by the narrow-window bug that the
+          # "Resolve the incremental deploy base" step above now fixes. That fix
+          # cannot rescue it retroactively — a52b9ba is already recorded as a
+          # successful deploy, so the new base sits *after* the orphaned commit.
+          # Forcing it here is what actually gets it to Cloud. Remove this entry
+          # when the temporary Historical Records panel is retired.
+          DEPLOY_FUNCTIONS_ALWAYS_INCLUDE: parseCdlWithGroq,analyzeEdocFieldPlacement,initBulkSession,processBulkBatch,getReleaseStatus,promoteTestingToProduction,rollbackProductionRelease,surveyHistoricalReconstruction
         run: |
           max_attempts=3
           attempt=1
