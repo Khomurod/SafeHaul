@@ -9,7 +9,8 @@
 // the absence of horizontal overflow at four widths.
 //
 // Row-level behaviour (masking, one-at-a-time reveal, the 30-second auto-hide,
-// typed-confirmation delete, re-authentication, provider ordering, the retired
+// typed-confirmation delete, re-authentication, reordering the routing order by
+// drag and by keyboard, the retired
 // provider's missing actions, blog deletion and focus restoration) is proven by
 // `AiIntegrationsView.contract.test.jsx` and `BlogPostsView.contract.test.jsx`,
 // which can supply rows deterministically. Asserting it here would require a
@@ -90,6 +91,20 @@ test.describe('Super Admin AI Integrations', () => {
     await retry.first().click();
     // Retrying must not blank the page or throw.
     await expect(page.getByRole('heading', { name: 'AI Integrations', level: 2 })).toBeVisible();
+  });
+
+  test('offers no routing-order control when the provider list could not load', async ({ page }) => {
+    await openAi(page);
+    await expect(page.getByRole('button', { name: /Try again/i }).first())
+      .toBeVisible({ timeout: 60_000 });
+
+    // The reorder control is the one thing on this page that writes routing
+    // configuration. With no rows there is nothing to order, and an empty list
+    // with a live "Save routing order" button would let an operator store an
+    // order they were never shown. It must be absent, not empty.
+    await expect(page.getByRole('list', { name: 'AI provider routing order' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /Save routing order/i })).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'Routing order' })).toHaveCount(0);
   });
 
   test('never renders anything resembling a credential', async ({ page }) => {

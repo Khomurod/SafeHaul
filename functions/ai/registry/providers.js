@@ -13,6 +13,12 @@
  *  3. `capabilities` is a hard gate in the router, not a hint. A provider that
  *     does not declare `vision` can never be handed a CDL photograph.
  *
+ * `priority` is the **default** attempt order, not necessarily the effective
+ * one: an operator can reorder providers from Super Admin → AI Integrations,
+ * and `../router/order.js` applies that override on top of these rows. Every
+ * gate above still applies afterwards, so a reorder can never route a task to a
+ * provider that could not have served it before.
+ *
  * Adding a provider means adding a row here plus an adapter in `../providers/`.
  * Nothing else in the application should need to change.
  */
@@ -440,8 +446,17 @@ const PROVIDERS = Object.freeze(
 const PROVIDERS_BY_ID = new Map(PROVIDERS.map((provider) => [provider.id, provider]));
 
 /**
- * The documented default fallback order. Derived from `priority` rather than
- * written out twice, so the table above stays the only place the order lives.
+ * The **default** fallback order, and since 2026-08-08 only the default.
+ *
+ * A Super Admin can store an override in `ai_routing_config/order`, which
+ * `functions/ai/router/order.js` applies on top of these rows; the router
+ * degrades to this order whenever no usable override exists. So `priority`
+ * above is what SafeHaul ships with and falls back to, not necessarily what a
+ * given deployment is running — read `listAiProviders().routing.order` for
+ * that.
+ *
+ * Derived from `priority` rather than written out twice, so the table above
+ * stays the only place the default order lives.
  */
 const DEFAULT_FALLBACK_ORDER = Object.freeze(PROVIDERS.map((provider) => provider.id));
 

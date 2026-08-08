@@ -81,6 +81,21 @@ export async function setAiProviderEnabled(providerId, enabled) {
     return result.data;
 }
 
+/**
+ * Replaces the global order the router tries providers in.
+ *
+ * The server validates every id against the frozen registry and rejects the
+ * whole list if one is unknown or repeated, so a partial write cannot silently
+ * shrink the order. It returns the *effective* order — providers the list did
+ * not name are appended in registry order — which is what the screen should
+ * then show.
+ */
+export async function setAiProviderPriority(providerIds) {
+    const call = httpsCallable(functions, 'setAiProviderPriority');
+    const result = await call({ providerIds });
+    return result.data;
+}
+
 export async function updateAiProviderConfig(providerId, settings) {
     const call = httpsCallable(functions, 'updateAiProviderConfig');
     const result = await call({ providerId, settings });

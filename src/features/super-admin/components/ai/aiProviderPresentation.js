@@ -73,3 +73,34 @@ export function describeProviderState(provider) {
 
     return { tone: 'info', label: 'Ready', detail: 'Configured and enabled; not yet used.' };
 }
+
+/**
+ * Why the router passed a provider over for one kind of task.
+ *
+ * The reasons come from the router's own `SKIP_REASONS`; this only turns them
+ * into a sentence an operator can act on. `incapable` is the one that most
+ * needs saying out loud: a provider can be configured, enabled, healthy and
+ * ranked first and still never serve a CDL photograph, because it has no vision
+ * models. A rank on its own cannot explain that.
+ *
+ * @param {string|null} reason a router skip reason, or null when eligible
+ * @returns {string}
+ */
+export function describeSkipReason(reason) {
+    switch (reason) {
+        case 'retired':
+            return 'Retired by the vendor.';
+        case 'incapable':
+            return 'Does not support what this kind of task needs.';
+        case 'disabled':
+            return 'Disabled by an operator.';
+        case 'unconfigured':
+            return 'Missing a credential or a required setting.';
+        case 'cooldown':
+            return 'In cooldown after a recent failure or exhausted quota.';
+        case 'no_model':
+            return 'No model is configured for this capability.';
+        default:
+            return 'Skipped by the router.';
+    }
+}

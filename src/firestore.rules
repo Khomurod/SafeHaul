@@ -580,6 +580,13 @@ service cloud.firestore {
     // through `listAiProviders`.
     match /ai_provider_config/{providerId} { allow read, write: if false; } // server-only (AI Integrations)
 
+    // The operator-chosen order the router tries providers in. Server-only for
+    // the same reasons as the settings above, and for one more: a client that
+    // could write it would control which vendor every AI request in the
+    // platform reaches. It is changed through `setAiProviderPriority`, which
+    // requires exact Super Admin, recent authentication and a rate-limit budget.
+    match /ai_routing_config/{docId} { allow read, write: if false; } // server-only (AI routing order)
+
     // AI operational telemetry: task type, provider, model, outcome, latency.
     // Diagnostic only, and closed to clients so no browser can forge a record or
     // enumerate which providers are failing.

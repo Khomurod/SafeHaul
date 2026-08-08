@@ -28,12 +28,15 @@ import {
     saveAiCredential,
     saveMediaCredential,
     setAiProviderEnabled,
+    setAiProviderPriority,
     testAiProvider,
     updateAiProviderConfig,
 } from '../services/aiIntegrations';
 import { useRevealedCredential } from '../hooks/useRevealedCredential';
 import { AiCredentialCell } from '../components/ai/AiCredentialCell';
 import { AiProviderStatus } from '../components/ai/AiProviderStatus';
+import { AiRoutingEligibility } from '../components/ai/AiRoutingEligibility';
+import { AiRoutingOrderCard } from '../components/ai/AiRoutingOrderCard';
 import { AiCredentialModal } from '../components/ai/AiCredentialModal';
 import { AiCredentialDeleteDialog } from '../components/ai/AiCredentialDeleteDialog';
 import { ReauthenticateModal } from '../components/environment/ReauthenticateModal';
@@ -59,6 +62,7 @@ export function AiIntegrationsView() {
     const { showSuccess, showError, showInfo } = useToast();
 
     const [providers, setProviders] = useState([]);
+    const [routing, setRouting] = useState(null);
     const [mediaProviders, setMediaProviders] = useState([]);
     const [telemetry, setTelemetry] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -71,6 +75,7 @@ export function AiIntegrationsView() {
     const [deleteError, setDeleteError] = useState(null);
     const [testingId, setTestingId] = useState(null);
     const [busyId, setBusyId] = useState(null);
+    const [savingOrder, setSavingOrder] = useState(false);
     const [configDrafts, setConfigDrafts] = useState({});
 
     const load = useCallback(async () => {
@@ -84,6 +89,7 @@ export function AiIntegrationsView() {
                 listMediaProviders().catch(() => ({ providers: [] })),
             ]);
             setProviders(ai.providers || []);
+            setRouting(ai.routing || null);
             setTelemetry(ai.telemetry || []);
             setMediaProviders(media.providers || []);
         } catch (error) {
@@ -170,6 +176,20 @@ export function AiIntegrationsView() {
         }
     }, [load, runGuarded, showError, showSuccess]);
 
+    const handleSaveOrder = useCallback(async (providerIds) => {
+        setSavingOrder(true);
+        try {
+            await runGuarded(() => setAiProviderPriority(providerIds));
+            showSuccess('Routing order saved. It applies to the next AI request.');
+            await load();
+        } catch (error) {
+            if (isReauthCancelled(error)) return;
+            showError(describeAiError(error, 'The routing order could not be saved.'));
+        } finally {
+            setSavingOrder(false);
+        }
+    }, [load, runGuarded, showError, showSuccess]);
+
     const handleSaveCredential = useCallback(async (value) => {
         const { provider, field, mode, kind } = credentialModal;
         await runGuarded(() => (kind === 'media'
@@ -246,8 +266,16 @@ export function AiIntegrationsView() {
                 <div className="flex flex-col gap-ds-1">
                     <span className="font-semibold text-ds-content">{provider.displayName}</span>
                     <span className="text-ds-xs text-ds-content-secondary">
-                        Fallback position {provider.priority}
+                        Fallback position {provider.rank ?? provider.priority}
                     </span>
+                    {typeof provider.rank === 'number' && provider.rank !== provider.priority && (
+                        // The registry default is worth naming once an operator
+                        // has moved away from it, so "why is this not where the
+                        // documentation says" has an answer on the row itself.
+                        <span className="text-ds-xs text-ds-content-secondary">
+                            Default position {provider.priority}
+                        </span>
+                    )}
                 </div>
             ),
         },
@@ -502,6 +530,15 @@ export function AiIntegrationsView() {
                     </div>
                 </Card>
             )}
+
+            <AiRoutingOrderCard
+                providers={providers}
+                usingDefaultOrder={routing?.usingDefaultOrder !== false}
+                saving={savingOrder}
+                onSave={handleSaveOrder}
+            />
+
+            <AiRoutingEligibility lanes={routing?.lanes} providers={providers} />
 
             <DataTable
                 ariaLabel="AI provider configuration"

@@ -1,7 +1,13 @@
 # Spec: operator-controlled AI provider priority
 
-**Status:** ready to implement · **Audience:** the engineer or agent implementing this,
-starting cold · **Written:** 2026-08-08
+**Status:** implemented 2026-08-08 · **Audience:** the engineer or agent
+implementing this, starting cold · **Written:** 2026-08-08
+
+> **Implemented.** Kept as the record of what was asked for and why. The built
+> result is described in `docs/ai-platform.md` → "An operator can change the
+> order", and the design-system and verification record is the
+> 2026-08-08 entry in `docs/SAFEHAUL_DESIGN_SYSTEM_ROADMAP.md`. Two deliberate
+> departures from the text below are noted at §5.5 and §7.
 
 Read this whole file before writing code. It is deliberately self-contained: you
 should not need to reverse-engineer the AI platform to do this work. Every path and
@@ -246,6 +252,14 @@ Drag to reorder — `react-draggable` is already a dependency, so no new package
 **Ship keyboard-accessible move-up/move-down controls alongside it**: the
 accessibility policy in `AGENTS.md` is binding and drag-only would fail it.
 
+> **Departure, 2026-08-08.** The move controls shipped as specified. Drag uses
+> the platform's own drag events rather than `react-draggable`, which also adds
+> no package. `react-draggable` translates a single element with a CSS transform
+> and reports pixel offsets, so a *list reorder* built on it has to infer a
+> target index from coordinates and maintain a visual model alongside the list.
+> Native `dragover`/`drop` hand back the target row directly, so the list stays
+> the single source of truth and both input methods call one `moveTo`.
+
 Design-system components and semantic `--ds-*` tokens only. Reuse `DataTable`,
 `Card`, `MetricCard` from `@/design-system/components` and `Stack`/`ResponsiveGrid`
 from `@/design-system/layouts`, as the view already does. Reuse
@@ -339,6 +353,20 @@ them undiscovered a third time.
    `callable-contract` job costs approximately zero seconds and is the
    highest-value adjacent fix available. Recommended, and if you decline it, say so
    explicitly rather than silently.
+
+> **Both fixed, 2026-08-08.** `docs/ai-platform.md` now records Gemini as
+> priority 1 and Groq as having no vision capability, with the reason stated so
+> the correction is not silently reversible; the historical narrative about the
+> `unauthorized` defect now says Groq *was* priority 1 at the time rather than
+> that it is. `npm run check:ai-boundary` exists in `package.json` and runs as a
+> step in the never-skipped `callable-contract` job. It passes.
+>
+> **Departure.** The audit allowlist gained one field, `providerOrder`, rather
+> than only a new action constant. `ACTIONS.UPDATE` already fitted, but without a
+> field for the list itself the trail could record that *someone changed the
+> order* and not *to what* — which is most of the value of auditing this
+> particular action. Every id in it is registry-resolved before the write, so it
+> carries public vendor names and cannot hold a credential.
 
 ---
 

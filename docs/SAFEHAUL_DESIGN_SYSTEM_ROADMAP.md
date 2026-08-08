@@ -8618,3 +8618,111 @@ can be run again — the callable is create-only and idempotent.
   panel names a failed or unreadable application.** An application id is derived
   from applicant identity, so the full value is deliberately never rendered. This
   makes the ids less convenient to act on, which is the intended trade.
+
+## Operator-controlled AI provider priority (2026-08-08)
+
+**Status: implemented.** Implements `docs/AI_PROVIDER_PRIORITY_SPEC.md`. Until
+now the order the shared AI router tried providers in was fixed at deploy time by
+the `priority` field on the deep-frozen registry rows. A Super Admin can now
+reorder them from **AI Integrations**, and the screen explains why an enabled
+provider is being skipped rather than only showing a rank.
+
+### UI changes, and where they sit
+
+Two new components under `src/features/super-admin/components/ai/`:
+
+- `AiRoutingOrderCard.jsx` — the reorderable list. Pointer drag *and* a pair of
+  move controls on every row, plus a draft/save/discard cycle so nothing routes
+  differently until the operator says so.
+- `AiRoutingEligibility.jsx` — per kind of task, which providers would actually
+  be reached and why the rest would not.
+
+`aiProviderPresentation.js` gained `describeSkipReason()`, joining the existing
+`describeProviderState()`. The state machines stay out of the component files so
+those keep exporting components only, which is what Fast Refresh needs to swap
+one without remounting the page and discarding a revealed credential's countdown.
+
+### Design-system decisions this slice made
+
+- **Reused, not reinvented:** `Card`, `Badge`, `Button`, `IconButton`, `Stack`,
+  `ResponsiveGrid`. No local button, list, modal, table, status treatment or
+  arbitrary colour was introduced, and **no new design-system capability gap was
+  found** — nothing was added to `src/design-system` by this slice.
+- **Semantic tokens only.** `text-ds-content` / `-secondary`, `bg-ds-surface`,
+  `border-ds-border`, `border-ds-action-primary` for the drag-source row,
+  `text-ds-sm` / `text-ds-xs` and `gap-ds-*` / `px-ds-*` spacing. No palette
+  values and no 9px or 10px text.
+- **Status text is reused, not rewritten.** Each row's badge comes from
+  `describeProviderState()`, so a provider cannot describe itself one way in the
+  table and another way in the order list.
+- **No `PageHeader`.** The view already starts at `<h2>`; these are `<h3>`/`<h4>`
+  inside it.
+
+### Accessibility
+
+Drag-and-drop is unusable without a pointer and reports nothing to assistive
+technology, so it is deliberately **not** the only way to reorder:
+
+- every row carries "Move *provider* up" and "Move *provider* down"
+  `IconButton`s, named for the provider so a list of nine identical "Move up"
+  controls never exists;
+- the control that was pressed keeps focus after its row moves, so a multi-step
+  promotion does not return the operator to the top of the document each time;
+- the first row's "up" and the last row's "down" are genuinely `disabled`, not
+  inert;
+- each move is announced through a `role="status"` live region, including that it
+  is not saved yet, because a changed list index is otherwise silent.
+
+### Domain behaviour that stayed out of the design system
+
+Provider vocabulary, the two task lanes (text versus document images), the
+skip-reason wording and the draft-then-save policy live in the feature. The
+ordering rules, the fail-safe degradation and the eligibility verdicts live in
+`functions/ai/router/`. The design system knows none of it.
+
+### Verification
+
+| Check | Result |
+|---|---|
+| `npx vitest run` (frontend) | 226 files, 3841 passing / 61 skipped |
+| `AiIntegrationsView.contract.test.jsx` | 71 passing, incl. 20 new — keyboard reorder in both directions, focus retention, the live-region announcement, draft/discard, the exact payload sent, re-auth retry, and a cancelled re-auth never reporting success |
+| `functions && npm test` | 91 suites, 1317 passing |
+| `aiRoutingOrder.test.js` | 27 passing — every degradation case, and a sweep proving a non-empty registry can never order to an empty list |
+| `aiProviderPriority.callable.test.js` | 22 passing — authorization, staleness, rate limit, unknown/duplicate id rejection, audit row, routing summary |
+| `npm run test:rules:emulators` | 61 passing, incl. `ai_routing_config` closed to Super Admins in the browser too |
+| `npm run lint` | 0 errors, no new warnings (112 pre-existing, unchanged) |
+| `npm run build` | succeeds |
+| `npm run check:ci-plan` / `check:function-exports` / `check:ai-boundary` | passing |
+| `npx playwright test --project=chromium e2e/super-admin-ai-and-blog.spec.cjs` | 25 passing, incl. axe and no horizontal overflow at 1440/1024/768/412 |
+
+### Visual review actually performed
+
+The E2E lane cannot reach the populated state — under `VITE_E2E_TEST_MODE=1` the
+backend is deliberately unreachable, so the provider list is empty and the
+routing card correctly renders nothing. It was therefore driven in a real
+Chromium against the local dev server with the `listAiProviders` response stubbed
+at the network layer, at 1440 / 1024 / 768 / 412 px:
+
+- `document.scrollWidth === clientWidth` at all four widths;
+- zero serious or critical axe violations at all four widths;
+- the list rendered in the stored order (Mistral first) rather than registry
+  order, at every width;
+- pressing Enter on "Move Groq up" promoted Groq to position 2, focus remained on
+  that control, the live region read *"Groq moved to position 2 of 9. Not saved
+  yet."*, and the save control appeared only then;
+- at 412 px the rows wrap the provider name rather than overflowing, and the move
+  controls stay on the row.
+
+### Honest limitations
+
+- **No visual-regression baselines.** The roadmap's screenshot-baseline item is
+  still open, so density and alignment were reviewed by eye at the four widths.
+- **Pointer drag was not exercised by an automated test.** HTML5 drag-and-drop is
+  not synthesizable through Playwright's input APIs in a way that reflects real
+  pointer behaviour, and jsdom does not implement it at all. The keyboard path is
+  fully covered and is the accessible-equivalent control; the drag handlers are
+  thin wrappers over the same `moveTo` the move controls use, which *is* covered.
+  This is a real gap, not a claim of coverage.
+- **The four end-to-end checks in the spec's §8 were not run.** They need live
+  provider credentials and a deployed backend, which this environment does not
+  have. They are listed unrun in the pull request.
