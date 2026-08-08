@@ -1,16 +1,22 @@
 /**
  * The capability-aware AI router.
  *
- * Every AI request in SafeHaul goes through `runAiTask`. It walks the frozen
- * provider order, skipping providers that cannot or should not serve this
- * request, and returns the first response that survives validation.
+ * Every AI request in SafeHaul goes through `runAiTask`. It walks the provider
+ * order, skipping providers that cannot or should not serve this request, and
+ * returns the first response that survives validation.
+ *
+ * The order is the registry's `priority` unless a Super Admin has stored an
+ * override in `ai_routing_config/order`; see ./order.js, which degrades to the
+ * registry order rather than disabling AI if that document is absent or
+ * corrupt. Ordering is applied *before* eligibility, so nothing below changes:
+ * promoting a provider cannot make it serve a task it is not capable of.
  *
  * The rules it enforces, in the order it enforces them:
  *
  *  1. **Capability is a gate, not a preference.** A provider that has not
  *     declared `vision` never receives an image, so a CDL photograph cannot
  *     reach a text-only vendor by accident or by misconfiguration.
- *  2. **Try each compatible provider once**, in registry priority order, until
+ *  2. **Try each compatible provider once**, in the effective order, until
  *     one produces a response that passes schema validation.
  *  3. **One provider's failure is not the task's failure.** A timeout, an
  *     outage, an exhausted quota, malformed JSON, a rejected credential or an
@@ -30,6 +36,7 @@ const { PROVIDERS, supportsAllCapabilities, resolveModel, isRetired } = require(
 const { CAPABILITIES, normalizeCapabilities } = require('../registry/capabilities');
 const { getAdapter } = require('../providers');
 const { AiError, isTaskFatal } = require('./errors');
+const { orderProviders, readProviderOrder } = require('./order');
 const { validateAgainstSchema, extractJsonObject } = require('../validation/schema');
 const store = require('../credentials/store');
 const { recordAiTelemetry } = require('../telemetry/record');
@@ -128,10 +135,27 @@ function normalizeOutput({ text, schema, providerId }) {
 }
 
 /**
+ * The order the router will actually walk: the operator's stored order applied
+ * to the registry rows, or the registry order when there is no usable override.
+ *
+ * `deps.providerOrder` is the injection seam that lets ordering be asserted
+ * without a Firestore double, the same way `deps.providers` does for the
+ * registry itself.
+ */
+async function resolveProviderOrder(deps) {
+    const registryProviders = deps.providers || PROVIDERS;
+    const stored = deps.providerOrder !== undefined
+        ? deps.providerOrder
+        : await readProviderOrder();
+    return orderProviders(registryProviders, stored);
+}
+
+/**
  * Runs one AI task through the router.
  *
  * @param {object} task normalized task contract (see ../tasks/contract.js)
- * @param {object} [deps] injection seam: `{ client, fetchImpl, now, providers }`
+ * @param {object} [deps] injection seam:
+ *   `{ client, fetchImpl, now, providers, providerOrder }`
  * @returns {Promise<{ output: *, providerId: string, model: string, latencyMs: number,
  *   fallbackCount: number, credentialSource: string }>}
  */
@@ -157,7 +181,7 @@ async function runAiTask(task, deps = {}) {
     const deadlineController = new AbortController();
     const deadlineTimer = setTimeout(() => deadlineController.abort(), totalDeadlineMs);
 
-    const providers = deps.providers || PROVIDERS;
+    const providers = await resolveProviderOrder(deps);
     const configs = await store.readAllConfigs();
     const now = typeof deps.now === 'number' ? deps.now : Date.now();
 
@@ -361,17 +385,30 @@ function sleep(ms, signal) {
 }
 
 /**
- * Which providers could serve a capability set right now, and why the others
- * could not. Powers the Super Admin console's readiness summary.
+ * Which providers could serve a capability set right now, in the order they
+ * would actually be tried, and why the others could not.
+ *
+ * This is what lets the Super Admin console answer the question a bare ranking
+ * cannot: *"Cerebras is enabled and configured — why is it never used for CDL
+ * photographs?"* The answer is `incapable`, and it comes from the same
+ * `evaluateProvider` the router itself uses rather than a second copy of the
+ * rules that could drift from it.
+ *
+ * @param {string[]} capabilities the task's capability set
+ * @param {object} [deps] injection seam. `configs` lets a caller that has
+ *   already read `ai_provider_config` pass the map in rather than re-reading
+ *   the collection once per capability set; `providerOrder` mirrors
+ *   `runAiTask`'s seam.
  */
 async function describeRouting(capabilities, deps = {}) {
     const normalized = normalizeCapabilities(capabilities);
     const primaryCapability = pickPrimaryCapability(normalized);
-    const configs = await store.readAllConfigs();
+    const configs = deps.configs || await store.readAllConfigs();
     const now = typeof deps.now === 'number' ? deps.now : Date.now();
+    const providers = await resolveProviderOrder(deps);
     const rows = [];
 
-    for (const provider of PROVIDERS) {
+    for (const provider of providers) {
         const evaluation = await evaluateProvider(provider, {
             capabilities: normalized, primaryCapability, configs, now, deps,
         });
@@ -390,5 +427,6 @@ module.exports = {
     describeRouting,
     SKIP_REASONS,
     DEFAULT_TOTAL_DEADLINE_MS,
+    resolveProviderOrder,
     __test: { evaluateProvider, pickPrimaryCapability, normalizeOutput, buildTerminalFailure },
 };

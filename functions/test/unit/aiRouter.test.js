@@ -159,6 +159,121 @@ describe('provider ordering', () => {
     });
 });
 
+describe('the operator-chosen routing order', () => {
+    it('changes which provider is asked first', async () => {
+        const result = await runAiTask(textTask(), { providerOrder: ['mistral', 'gemini'] });
+
+        expect(result.providerId).toBe('mistral');
+        expect(mockExecute.mock.calls[0][0]).toBe('mistral');
+    });
+
+    it('changes the whole fallback sequence, not just the head', async () => {
+        mockExecute.mockImplementation(async (providerId) => {
+            if (providerId === 'cerebras') return { text: 'ok', model: 'c' };
+            throw new AiError('provider_unavailable', 'down', { providerId });
+        });
+
+        await runAiTask(textTask(), { providerOrder: ['mistral', 'openrouter', 'cerebras'] });
+
+        expect(mockExecute.mock.calls.map((call) => call[0]))
+            .toEqual(['mistral', 'openrouter', 'cerebras']);
+    });
+
+    it('leaves unranked providers behind the ranked ones, in registry order', async () => {
+        mockExecute.mockImplementation(async () => {
+            throw new AiError('provider_unavailable', 'down');
+        });
+
+        // Every provider fails, so the walk is exhaustive and the attempt trail
+        // is the whole effective order.
+        await expect(runAiTask(textTask(), { providerOrder: ['huggingface'] }))
+            .rejects.toMatchObject({ category: 'all_providers_failed' });
+
+        // Collapsed to the walk rather than the raw call list: Hugging Face
+        // carries `ONE_SAFE_RETRY` in the registry, so it is called twice in a
+        // row. That is its retry policy, which ordering does not change, and
+        // asserting it here would make this test fail for the wrong reason.
+        const walk = mockExecute.mock.calls
+            .map((call) => call[0])
+            .filter((id, index, all) => id !== all[index - 1]);
+
+        // Hugging Face first, then the registry order minus Hugging Face and
+        // minus the retired row, which is skipped rather than attempted.
+        expect(walk).toEqual([
+            'huggingface', 'gemini', 'groq', 'cloudflare',
+            'mistral', 'cerebras', 'sambanova', 'openrouter',
+        ]);
+    });
+
+    it('falls back to the registry order when the stored order is unusable', async () => {
+        // Each of these is a real degradation case: no document, an emptied
+        // list, a corrupted field, and a list naming only providers that no
+        // longer exist. None of them may stop AI working.
+        for (const stored of [[], null, 'gemini,groq', ['gone', 'also-gone']]) {
+            mockExecute.mockClear();
+            const result = await runAiTask(textTask(), { providerOrder: stored });
+            expect(result.providerId).toBe('gemini');
+        }
+    });
+
+    it('cannot promote a provider past a capability gate', async () => {
+        // Cerebras declares no vision models. Ranking it first must not send it
+        // a CDL photograph — ordering decides who is asked first, not who is
+        // eligible, and that is the whole safety argument for this feature.
+        mockExecute.mockImplementation(async (providerId) => {
+            if (providerId === 'gemini') return { text: '{"value":"x"}', model: 'g' };
+            throw new AiError('provider_unavailable', 'down', { providerId });
+        });
+
+        const result = await runAiTask(visionTask(), {
+            providerOrder: ['cerebras', 'groq', 'cloudflare', 'gemini'],
+        });
+
+        const attempted = mockExecute.mock.calls.map((call) => call[0]);
+        expect(attempted).not.toContain('cerebras');
+        expect(attempted).not.toContain('groq');
+        expect(attempted).not.toContain('cloudflare');
+        expect(result.providerId).toBe('gemini');
+    });
+
+    it('cannot promote a disabled provider into the walk', async () => {
+        mockStore.readAllConfigs.mockResolvedValue(allConfigured({ mistral: { enabled: false } }));
+
+        const result = await runAiTask(textTask(), { providerOrder: ['mistral', 'gemini'] });
+
+        expect(result.providerId).toBe('gemini');
+        expect(mockExecute.mock.calls.map((call) => call[0])).not.toContain('mistral');
+    });
+
+    it('cannot promote a provider out of its cooldown', async () => {
+        mockStore.readAllConfigs.mockResolvedValue(allConfigured({
+            mistral: { cooldownUntil: Date.now() + 60000, cooldownReason: 'quota' },
+        }));
+
+        const result = await runAiTask(textTask(), { providerOrder: ['mistral', 'gemini'] });
+
+        expect(result.providerId).toBe('gemini');
+    });
+
+    it('still reports fallbacks and attempts truthfully under a custom order', async () => {
+        mockExecute.mockImplementation(async (providerId) => {
+            if (providerId === 'cerebras') return { text: 'ok', model: 'c' };
+            throw new AiError('provider_unavailable', 'down', { providerId });
+        });
+
+        const result = await runAiTask(textTask(), {
+            providerOrder: ['sambanova', 'openrouter', 'cerebras'],
+        });
+
+        expect(result.fallbackCount).toBe(2);
+        expect(mockRecordTelemetry).toHaveBeenCalledWith(expect.objectContaining({
+            providerId: 'cerebras',
+            fallbackCount: 2,
+            attemptedProviders: ['sambanova', 'openrouter', 'cerebras'],
+        }));
+    });
+});
+
 describe('eligibility gating', () => {
     it('skips a disabled provider', async () => {
         mockStore.readAllConfigs.mockResolvedValue(allConfigured({ gemini: { enabled: false } }));

@@ -277,6 +277,7 @@ exports.revealAiCredential = aiIntegrations.revealAiCredential;
 exports.saveAiCredential = aiIntegrations.saveAiCredential;
 exports.deleteAiCredential = aiIntegrations.deleteAiCredential;
 exports.setAiProviderEnabled = aiIntegrations.setAiProviderEnabled;
+exports.setAiProviderPriority = aiIntegrations.setAiProviderPriority;
 exports.updateAiProviderConfig = aiIntegrations.updateAiProviderConfig;
 exports.testAiProvider = aiIntegrations.testAiProvider;
 exports.migrateGroqCredential = aiIntegrations.migrateGroqCredential;

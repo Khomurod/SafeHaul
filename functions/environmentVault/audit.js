@@ -68,6 +68,12 @@ const ALLOWED_METADATA = Object.freeze([
     'capability',
     'enabled',
     'setting',
+    // The AI routing order, as a comma-separated list of registry provider ids.
+    // Every id in it was resolved through the frozen registry before the write,
+    // so it is a list of public vendor names and cannot carry a credential —
+    // and recording it is what makes "who changed the order, and to what"
+    // answerable from the trail alone.
+    'providerOrder',
     // Release Management. Every one of these is a public release identifier —
     // commit ids, immutable Hosting version ids, a GitHub run id and this
     // system's own request id. None of them is or contains a credential, and the

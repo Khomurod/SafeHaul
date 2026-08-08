@@ -85,7 +85,7 @@ Three properties make it load-bearing rather than decorative:
 
 | Provider | Text | Structured JSON | Vision | Multi-image | Long context | Structured mode |
 | --- | :-: | :-: | :-: | :-: | :-: | --- |
-| Groq | ✅ | ✅ | ✅ | ✅ | ✅ | Responses `json_schema` |
+| Groq | ✅ | ✅ | — | — | ✅ | Responses `json_schema` |
 | Google Gemini | ✅ | ✅ | ✅ | ✅ | ✅ | Interactions `response_format` |
 | Cloudflare Workers AI | ✅ | ✅ | — | — | — | prompt-carried |
 | GitHub Models | ✅ | ✅ | — | — | — | *retired — never selected* |
@@ -101,16 +101,23 @@ server-side, so the schema is restated in the prompt — and in **every** mode t
 router validates the parsed result, because "the vendor promised JSON" is not
 evidence that it sent JSON.
 
-Consequence worth stating: a CDL or E-Doc image task is eligible only for Groq,
-Gemini, Mistral, OpenRouter and Hugging Face. Cloudflare, Cerebras and SambaNova
-are skipped for image work by construction, not by configuration.
+Groq's vision entry says "—" deliberately. It declared vision until the vendor
+withdrew both llama-4 vision models on 2026-08-03; `GET /models` no longer lists
+them and requesting either returns `model_not_found`. A capability whose only
+models are gone is worse than no capability, because the router would spend a
+request to discover it.
+
+Consequence worth stating: a CDL or E-Doc image task is eligible only for
+Gemini, Mistral, OpenRouter and Hugging Face. Groq, Cloudflare, Cerebras and
+SambaNova are skipped for image work by construction, not by configuration — and
+no amount of reordering changes that.
 
 ## Fallback order and behaviour
 
-The documented default order, derived from `priority` so it lives in one place:
+The **default** order, derived from `priority` so it lives in one place:
 
-1. Groq
-2. Google Gemini
+1. Google Gemini
+2. Groq
 3. Cloudflare Workers AI
 4. GitHub Models *(retired — always skipped)*
 5. Mistral
@@ -119,10 +126,53 @@ The documented default order, derived from `priority` so it lives in one place:
 8. OpenRouter
 9. Hugging Face
 
+Gemini leads and Groq is the fallback. The original brief specified Groq first;
+the owner reversed it on 2026-08-03 after measurement — on the free tiers Groq's
+model writes 175–213 word articles against Gemini's 311–417, while Gemini's
+20-request cap makes it the less *available* of the two. Gemini for quality,
+Groq for availability.
+
+### An operator can change the order
+
+Since 2026-08-08 that list is the default rather than necessarily the effective
+order. A Super Admin can reorder providers from **Super Admin → AI
+Integrations**, and the chosen order is stored in the server-only Firestore
+document `ai_routing_config/order` as a single `providerIds` array — one
+document, so a reorder is one atomic write rather than nine.
+
+`functions/ai/router/order.js` applies it, and its contract is what makes it
+safe to put in front of every AI request:
+
+- providers named in the stored order come first, in that order;
+- providers the list does not name follow, in registry `priority` order, so a
+  partial list is a valid list and a newly added provider needs no re-save;
+- ids not in the registry are ignored and a repeated id keeps its first place;
+- **a missing, empty, unreadable or malformed document yields the registry
+  order.** `orderProviders` cannot return an empty list from a non-empty
+  registry and `readProviderOrder` cannot throw. Deleting the document restores
+  the default; it does not switch AI off.
+
+Ordering is applied *before* eligibility, so everything below still applies
+afterwards. Promoting a provider cannot make it serve a task it is incapable of,
+re-enable a disabled one, or lift a cooldown.
+
+Changing it goes through the `setAiProviderPriority` callable, which reuses the
+vault's guards — exact `globalRole === 'super_admin'`, 15-minute recent
+authentication, the fail-closed mutate budget — validates every submitted id
+against the frozen registry, and writes a value-free row to
+`environment_audit_log` recording who set which order. An unknown or repeated id
+rejects the whole write rather than being dropped, because silently discarding
+one would shrink the routing order without telling the operator.
+
+`listAiProviders` returns the effective order alongside the rows (`rank` per
+provider, plus a `routing.lanes` summary from the router's own
+`describeRouting`), so the console can say *why* an enabled provider is being
+skipped for a given kind of task rather than only showing a number.
+
 For each request the router determines the required capability, then walks the
-order, skipping any provider that is retired, incapable, disabled, missing a
-credential, missing a required non-secret setting, in cooldown, or has no
-resolvable model. The first response that passes schema validation wins.
+effective order, skipping any provider that is retired, incapable, disabled,
+missing a credential, missing a required non-secret setting, in cooldown, or has
+no resolvable model. The first response that passes schema validation wins.
 
 **Fails over on** timeout, network failure, provider outage, quota exhausted,
 rate limit, unavailable model, malformed response, truncated output, a request
@@ -156,7 +206,8 @@ it as answering both, and that was a real defect worth stating plainly:
 - **`internal`** is the catch-all assigned to *any* exception an adapter raises
   that is not an `AiError` — a `TypeError`, a bad property access, a parse slip.
 
-Because Groq is priority 1, either of those aborted the chain before Gemini was
+Because Groq was priority 1 at the time, either of those aborted the chain
+before Gemini was
 reached, and the platform behaved as though no provider were configured while
 reporting an error that blamed the request. A nine-provider fallback order that
 one bad key can switch off is not a fallback order.

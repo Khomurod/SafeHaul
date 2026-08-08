@@ -338,6 +338,7 @@ describeFirestore('firestore.rules security regressions', () => {
       const adminDb = context.firestore();
       await setDoc(doc(adminDb, 'ai_provider_config', 'groq'), { enabled: true, health: 'healthy' });
       await setDoc(doc(adminDb, 'ai_telemetry', 't1'), { providerId: 'groq', outcome: 'success' });
+      await setDoc(doc(adminDb, 'ai_routing_config', 'order'), { providerIds: ['gemini', 'groq'] });
     });
 
     const superDb = testEnv.authenticatedContext('super-1', { globalRole: 'super_admin' }).firestore();
@@ -350,10 +351,18 @@ describeFirestore('firestore.rules security regressions', () => {
       // which of them are currently failing.
       await assertFails(getDoc(doc(db, 'ai_provider_config', 'groq')));
       await assertFails(getDoc(doc(db, 'ai_telemetry', 't1')));
+      await assertFails(getDoc(doc(db, 'ai_routing_config', 'order')));
     }
 
     await assertFails(setDoc(doc(superDb, 'ai_provider_config', 'groq'), { enabled: false }));
     await assertFails(setDoc(doc(adminDb, 'ai_telemetry', 'forged'), { providerId: 'groq' }));
+
+    // The routing order decides which vendor every AI request in the platform
+    // reaches first. A client that could write it would control that directly,
+    // bypassing `setAiProviderPriority` and its super-admin, recent-auth and
+    // rate-limit guards — so this is closed to Super Admins in the browser too.
+    await assertFails(setDoc(doc(superDb, 'ai_routing_config', 'order'), { providerIds: ['groq'] }));
+    await assertFails(setDoc(doc(anonDb, 'ai_routing_config', 'order'), { providerIds: ['groq'] }));
   });
 
   it('blocks all client access to blog posts, including published ones', async () => {

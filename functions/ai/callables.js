@@ -28,7 +28,9 @@ const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { guardPrivileged, assertSuperAdmin, assertWithinRateLimit } = require('../environmentVault/guards');
 const { ACTIONS, RESULTS, recordAuditEvent } = require('../environmentVault/audit');
 const { PROVIDERS, getProvider, isRetired, resolveModel } = require('./registry/providers');
-const { CAPABILITY_LABELS } = require('./registry/capabilities');
+const { CAPABILITIES, CAPABILITY_LABELS } = require('./registry/capabilities');
+const { describeRouting } = require('./router/router');
+const routingOrder = require('./router/order');
 const { buildSecretId } = require('./credentials/secretManager');
 const store = require('./credentials/store');
 const { testProviderConnection } = require('./tasks/healthCheck');
@@ -85,7 +87,7 @@ function requireCredentialField(provider, fieldName) {
  * length, not a prefix, not a hash. `configured` is a boolean derived
  * server-side.
  */
-async function buildProviderRow(provider, configs) {
+async function buildProviderRow(provider, configs, rank) {
     const config = configs.get(provider.id) || { enabled: true };
     const credentials = await store.readCredentials(provider.id).catch(() => ({
         complete: false, values: {}, missing: provider.secretFields.map((f) => f.name),
@@ -108,7 +110,12 @@ async function buildProviderRow(provider, configs) {
     return {
         id: provider.id,
         displayName: provider.displayName,
+        // `priority` is the registry default; `rank` is where this deployment
+        // actually tries the provider. They differ as soon as an operator
+        // reorders, and the screen shows `rank` because that is the one that
+        // describes what will happen to the next request.
         priority: provider.priority,
+        rank: typeof rank === 'number' ? rank : provider.priority,
         docsUrl: provider.docsUrl,
         retired: provider.retired || null,
         capabilities: provider.capabilities.map((capability) => ({
@@ -160,15 +167,76 @@ async function buildProviderRow(provider, configs) {
     };
 }
 
+/**
+ * The two capability sets worth showing an operator, because they route
+ * differently and the difference is the thing people get wrong.
+ *
+ * Every SafeHaul AI task is one of these two shapes. Text tasks can reach all
+ * nine providers; document-image tasks can only reach the four that declare
+ * vision, whatever order they are put in. Showing both lanes is what makes
+ * "I promoted Cerebras to first and CDL parsing did not change" explainable on
+ * the screen instead of in a support conversation.
+ */
+const ROUTING_LANES = Object.freeze([
+    Object.freeze({
+        id: 'text',
+        label: 'Text and structured output',
+        description: 'Article generation, topic selection, summarisation and classification.',
+        capabilities: Object.freeze([CAPABILITIES.TEXT, CAPABILITIES.STRUCTURED_JSON]),
+    }),
+    Object.freeze({
+        id: 'vision',
+        label: 'Document images',
+        description: 'CDL auto-fill and e-document field placement.',
+        capabilities: Object.freeze([CAPABILITIES.VISION, CAPABILITIES.STRUCTURED_JSON]),
+    }),
+]);
+
+/**
+ * The effective routing order plus, per lane, which providers are eligible and
+ * why the rest are not.
+ *
+ * `describeRouting` is the router's own function, given the configs already
+ * read here so the collection is not re-read once per lane. Nothing in this
+ * file re-implements an eligibility rule.
+ */
+async function buildRoutingSummary(configs, storedOrder) {
+    const order = routingOrder.orderProviders(PROVIDERS, storedOrder).map((provider) => provider.id);
+    const lanes = [];
+
+    for (const lane of ROUTING_LANES) {
+        lanes.push({
+            id: lane.id,
+            label: lane.label,
+            description: lane.description,
+            providers: await describeRouting(lane.capabilities, { configs, providerOrder: storedOrder }),
+        });
+    }
+
+    return {
+        order,
+        // True when the deployment is running exactly what it ships with, which
+        // is worth stating plainly rather than leaving an operator to compare
+        // two lists by eye.
+        usingDefaultOrder: storedOrder.length === 0,
+        lanes,
+    };
+}
+
 exports.listAiProviders = onCall(callableOptions, async (request) => {
     await assertSuperAdmin(request, ACTIONS.LIST);
     await assertWithinRateLimit(request, 'list', ACTIONS.LIST);
 
     try {
         const configs = await store.readAllConfigs();
+        // Reads as `[]` when the document is absent or unreadable, which is
+        // what makes the console show the registry order rather than an error.
+        const storedOrder = await routingOrder.readProviderOrder();
+        const ordered = routingOrder.orderProviders(PROVIDERS, storedOrder);
+
         const providers = [];
-        for (const provider of PROVIDERS) {
-            providers.push(await buildProviderRow(provider, configs));
+        for (let index = 0; index < ordered.length; index += 1) {
+            providers.push(await buildProviderRow(ordered[index], configs, index + 1));
         }
 
         await recordAuditEvent({
@@ -180,6 +248,7 @@ exports.listAiProviders = onCall(callableOptions, async (request) => {
 
         return {
             providers,
+            routing: await buildRoutingSummary(configs, storedOrder),
             telemetry: await readRecentTelemetry(25),
             generatedAt: new Date().toISOString(),
         };
@@ -356,6 +425,73 @@ exports.setAiProviderEnabled = onCall(callableOptions, async (request) => {
         return { providerId: provider.id, enabled };
     } catch (error) {
         return safeFailure(error, 'setAiProviderEnabled');
+    }
+});
+
+/**
+ * Replaces the global provider order.
+ *
+ * The whole submitted list is validated before anything is written, and an
+ * unknown id is a rejection rather than a silent drop: quietly discarding an id
+ * would let a stale or malformed client shrink the routing order without the
+ * operator being told, and a shorter order is a real change in behaviour.
+ *
+ * A partial list is legitimate — providers the operator did not rank keep their
+ * registry positions behind the ones they did — so the only length constraint
+ * is that it cannot exceed the registry.
+ */
+exports.setAiProviderPriority = onCall(callableOptions, async (request) => {
+    const submitted = request.data?.providerIds;
+
+    await guardPrivileged(request, 'mutate', ACTIONS.UPDATE, { setting: 'routing-order' });
+
+    try {
+        if (!Array.isArray(submitted)) {
+            throw new HttpsError('invalid-argument', 'A provider order must be a list of provider ids.');
+        }
+        if (submitted.length > PROVIDERS.length) {
+            throw new HttpsError('invalid-argument', 'That order names more providers than exist.');
+        }
+
+        const providerIds = [];
+        const seen = new Set();
+        for (const candidate of submitted) {
+            // `read` rather than the default action: the retired GitHub Models
+            // row keeps its place in the order so the list stays complete and
+            // legible. Ordering it changes nothing — the router skips it as
+            // `retired` regardless — whereas refusing the whole write because
+            // the list contains it would make the screen impossible to save.
+            const provider = requireRegisteredProvider(String(candidate || ''), 'read');
+            if (seen.has(provider.id)) {
+                throw new HttpsError('invalid-argument', 'That order lists the same provider twice.');
+            }
+            seen.add(provider.id);
+            providerIds.push(provider.id);
+        }
+
+        const stored = await routingOrder.writeProviderOrder(providerIds, request.auth?.uid || null);
+
+        await recordAuditEvent({
+            auth: request.auth,
+            action: ACTIONS.UPDATE,
+            result: RESULTS.SUCCESS,
+            metadata: {
+                integration: 'AI providers',
+                setting: 'routing-order',
+                entryCount: stored.length,
+                providerOrder: stored.join(','),
+            },
+        });
+
+        // The effective order, not the submitted one: unranked providers are
+        // appended in registry order, and returning what the router will
+        // actually do is what stops the screen and the router disagreeing.
+        return {
+            order: routingOrder.orderProviders(PROVIDERS, stored).map((provider) => provider.id),
+            saved: true,
+        };
+    } catch (error) {
+        return safeFailure(error, 'setAiProviderPriority');
     }
 });
 
