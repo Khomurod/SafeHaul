@@ -32,7 +32,25 @@
   flex: 1 1 auto;
   overflow: auto;
   outline: none;
-  scrollbar-gutter: stable;
+  /*
+   * No `scrollbar-gutter: stable` here, deliberately.
+   *
+   * It reserved a 15px gutter at the inline-end edge of every table for a
+   * vertical scrollbar. The `<table>` cannot paint into a gutter, so the header
+   * background, the row backgrounds and the row dividers all stopped 15px short
+   * of the card's right edge and the card's surface showed through as a pale
+   * vertical strip — on every table in the application, at every width.
+   *
+   * `stable` buys freedom from a 15px reflow when a vertical scrollbar first
+   * appears. Measured across all 84 table renders in the catalog on 2026-08-08,
+   * not one scroll region scrolled vertically: these tables grow with their
+   * content rather than being height-constrained, so it was paying a permanent
+   * visible cost for a reflow that never happens. If a height-constrained table
+   * is introduced later, the space that appears at that edge will be an actual
+   * scrollbar, which is the correct thing to show there.
+   *
+   * `scripts/check-table-layout.mjs` fails the build if the strip comes back.
+   */
 }
 
 .ds-data-table__scroll-region:focus-visible {

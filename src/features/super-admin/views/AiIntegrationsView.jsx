@@ -289,7 +289,12 @@ export function AiIntegrationsView() {
             key: 'capabilities',
             header: 'Capabilities',
             priority: 'tertiary',
-            width: 'md',
+            // `xl`, not `md`. Badges are `white-space: nowrap`, so a column
+            // holding them must be at least as wide as the widest one —
+            // "Structured JSON output" needs 171px, and at 144px it spilled over
+            // the credentials column. `lg` clears it by 5px, which is one font
+            // change away from breaking; `xl` clears it by 49px.
+            width: 'xl',
             render: (provider) => (
                 <div className="flex flex-wrap gap-ds-1">
                     {provider.capabilities.map((capability) => (

@@ -279,7 +279,10 @@ export function EnvironmentIntegrationsView() {
         {
             key: 'status',
             header: 'Status',
-            width: 'sm',
+            // `lg`, not `sm`: a configured entry that also needs a deployment
+            // stacks two badges, which need 157px together. At 120px they spilled
+            // over the next column on mobile.
+            width: 'lg',
             render: (row) => {
                 const presentation = STATUS_PRESENTATION[row.status] || STATUS_PRESENTATION.unknown;
                 return (

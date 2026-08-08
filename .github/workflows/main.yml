@@ -332,6 +332,34 @@ jobs:
       - name: Build Storybook
         run: npm run build-storybook
 
+      # Layout defects need a layout engine. jsdom has none — `scrollWidth` and
+      # `offsetWidth` are always 0 there — so the step above and every unit test
+      # in the repository are structurally unable to see a cell overflowing its
+      # column or a table unable to paint to its own edge. This measures the
+      # built catalog in a real browser instead. It found both defects it was
+      # written for on the tree that shipped them.
+      #
+      # It reuses the same browser the E2E lane caches, so the download is the
+      # one already pinned by the lockfile rather than a second copy.
+      - name: Cache the Playwright browser
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Playwright Browser
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+
+      # The cache holds the browser, not the system libraries it links against.
+      - name: Install Playwright OS dependencies
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+
+      - name: Table layout check
+        run: npm run check:table-layout
+
       - name: Upload the static catalog
         uses: actions/upload-artifact@v4
         with:

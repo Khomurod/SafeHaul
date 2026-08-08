@@ -89,7 +89,19 @@
   --ds-table-cell-padding-block-compact: var(--ds-space-2);
   --ds-table-cell-padding-block-comfortable: var(--ds-space-3);
   --ds-table-selection-width: 56px;
-  --ds-table-actions-width: 64px;
+  /*
+   * 88px, not 64px. At 64px an actions column could not fit its own header: the
+   * mobile cell padding is 2x --ds-space-4, leaving 32px of content box for the
+   * word "ACTIONS", which needs 41px at --ds-font-size-xs uppercase. Every table
+   * with a visible actions header overflowed its last column by exactly 9px,
+   * spilling content past the edge the table paints to. 88px clears the label at
+   * both the mobile and desktop paddings.
+   *
+   * This is the width of the *column*, not a budget for what a feature may put
+   * in it. A cell holding several stacked buttons needs a wider bucket declared
+   * at the call site; `scripts/check-table-layout.mjs` reports it if it does not.
+   */
+  --ds-table-actions-width: 88px;
 
   /* Responsive workspace geometry. Feature shells provide navigation content. */
   --ds-workspace-navigation-width-collapsed: 64px;

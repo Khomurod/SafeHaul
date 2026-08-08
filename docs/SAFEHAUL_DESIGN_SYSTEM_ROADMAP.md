@@ -8726,3 +8726,115 @@ at the network layer, at 1440 / 1024 / 768 / 412 px:
 - **The four end-to-end checks in the spec's §8 were not run.** They need live
   provider credentials and a deployed backend, which this environment does not
   have. They are listed unrun in the pull request.
+
+## Table cells that could not contain their content (2026-08-08)
+
+**Status: fixed, and now guarded.** Reported from a phone screenshot of Super
+Admin → AI Integrations: a pale vertical strip down the right edge of the table,
+and a Delete button rendering as "Dele". Two independent design-system defects,
+neither of which any existing check was capable of seeing.
+
+### What was wrong
+
+**1. A 15px gutter no table could paint into.** `.ds-data-table__scroll-region`
+carried `scrollbar-gutter: stable`, reserving space at the inline-end edge for a
+vertical scrollbar. A `<table>` cannot paint into a gutter, so the header
+background, the row backgrounds and the dividers all stopped 15px short of the
+card edge and the surface behind showed through.
+
+Measured across the whole catalog: present on **84 of 84** table renders, and
+**not one** of those scroll regions scrolled vertically. These tables grow with
+their content rather than being height-constrained, so `stable` was paying a
+permanent visible cost to avoid a reflow that never happens.
+
+**2. An actions column that could not fit its own header.**
+`--ds-table-actions-width` was 64px. Mobile cell padding is 2×`--ds-space-4`,
+leaving 32px of content box for the header word "ACTIONS", which needs 41px.
+Every table with a visible actions header overflowed its last column by exactly
+9px.
+
+Two feature columns were also too small for content that cannot shrink, because
+`Badge` is `white-space: nowrap` and therefore sets a hard floor on the column
+holding it:
+
+- **Environment & Integrations** — status: a configured entry that also needs a
+  deployment stacks two badges needing 157px, in a `sm` (120px) column. `sm` → `lg`.
+- **AI Integrations** — capabilities: "Structured JSON output" needs 171px, in an
+  `md` (144px) column. `md` → `xl`. `lg` clears it by 5px, which is one font
+  change from breaking; `xl` clears it by 49px.
+
+The `ManagedValueInventory` pattern moved with the view it documents.
+
+### Why nothing caught it
+
+This is the part worth remembering. **jsdom has no layout engine** — `scrollWidth`
+and `offsetWidth` are always `0` there — so the contract tests and
+`npm run test:stories` are *structurally* incapable of detecting a cell
+overflowing its column, however many are written. And the E2E overflow assertion
+measures `document.documentElement`, so a gap *inside* a card never reaches it.
+
+Every check was green while the defect was on screen.
+
+### The guard
+
+`scripts/check-table-layout.mjs` (`npm run check:table-layout`) measures the
+built catalog in a real browser at 412px and 1440px and enforces two invariants:
+
+1. **a cell contains its content** — `scrollWidth > clientWidth` means content is
+   spilling over a neighbour or past the edge the table paints to. A column
+   declaring `truncate` is exempt; that attribute is an explicit opt-in to clipping.
+2. **no dead gutter** — space reserved at the edge of a region that is not
+   scrolling is space the table can never paint.
+
+It runs in the existing `storybook-build` job, reusing the browser the E2E lane
+already caches. Verified to **fail (exit 1, 45 violations)** on the tree that
+shipped the bug and **pass (exit 0, 110 table renders)** after the fix — a guard
+that cannot fail on the broken input is not a guard.
+
+One honest note on the guard's own construction: its first revision waited a flat
+80ms after navigation and reported a **clean run against a tree with 37px of real
+overflow in it**, because the stories had not finished rendering when it measured.
+It now waits on observable state — `document.fonts.ready` plus two painted frames
+— and fails if it measures zero tables across the whole catalog, because that is a
+broken check rather than a clean result.
+
+### Verification
+
+| Check | Result |
+|---|---|
+| `npm run check:table-layout` | 110 table renders, 178 stories × 2 widths, clean; **exit 1 with 45 violations** on the pre-fix tree |
+| `npx vitest run` | 226 files, 3841 passing / 61 skipped |
+| `npm run test:stories` | 357 passing |
+| `npx playwright test --project=chromium` | full suite, see PR |
+| `npm run lint` | 0 errors, warning count unchanged from `main` (112, all pre-existing) |
+| `npm run build` / `build-storybook` | succeed |
+| `npm run check:ci-plan` | passing |
+
+Measured on the reported screen (AI Integrations, 412px, table scrolled fully
+right), before → after: reserved gutter **15px → 0**, actions header overflow
+**9px → 0**, table overflowing its own box **9px → 0**, capabilities cell
+overflow **27px → 0**.
+
+### Honest limitations
+
+- **The guard covers the catalog, not the application.** Feature screens are
+  covered only to the extent that a catalog pattern represents them, and catalog
+  fixtures are deliberately generic — "Service alpha" is shorter than a real
+  provider name. The AI capabilities overflow is precisely this blind spot: the
+  `ProviderIntegrationRow` pattern uses the same `md` column and passed, because
+  its fixture labels are shorter than the production ones. It was found by
+  measuring the real screen. When a feature changes what a column holds, measure
+  the screen.
+- **`--ds-table-actions-width` is the width of the column, not a budget for what
+  a feature may put in it.** AI Integrations stacks five buttons in that column;
+  88px fits the header, not the buttons. Whether that cell should hold five
+  always-visible buttons at all is a feature question this change does not answer.
+- **Removing `scrollbar-gutter: stable` reintroduces a 15px reflow** at the moment
+  a vertical scrollbar first appears on a height-constrained table. No table in
+  the system is height-constrained today, and when one is, the space appearing at
+  that edge will be an actual scrollbar.
+- Other narrow columns were reviewed by reading (`BlogPostsView`,
+  `CompanyCandidatesListPage`, `EnvelopeHistory`, `InlineLeaderboard`) and hold
+  short content — dates, a rank, a short status pill. They were **not** measured
+  with production data, because these screens need a backend this environment does
+  not have.

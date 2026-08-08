@@ -21,6 +21,7 @@
     "deploy:functions:incremental": "node scripts/deploy-functions-incremental.mjs",
     "check:function-exports": "node scripts/validate-function-index-parse.mjs",
     "check:ai-boundary": "node scripts/check-ai-provider-boundary.mjs",
+    "check:table-layout": "node scripts/check-table-layout.mjs",
     "check:deploy-script": "node scripts/test-deploy-incremental.mjs",
     "check:release-scripts": "node scripts/test-release-promotion.mjs",
     "check:ci-plan": "node scripts/test-ci-plan.mjs",
