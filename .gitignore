@@ -156,3 +156,6 @@ cloud_functions.txt
 .serena/
 
 .pdf-preview/
+
+# Written by the daily release health check for the issue reporter.
+release-health-report.md

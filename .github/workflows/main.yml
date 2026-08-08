@@ -881,6 +881,53 @@ jobs:
       - name: Post-deploy smoke check
         run: node scripts/smoke-functions-deploy.mjs
 
+  verify-shipped:
+    name: Confirm the release actually shipped
+    runs-on: ubuntu-latest
+    needs:
+      - deploy-testing
+      - deploy-functions
+    # THE ONE JOB BELOW THE GATE THAT MUST RUN WHEN ITS DEPENDENCIES DID NOT.
+    #
+    # Every other job here is written to stay out of the way unless the things it
+    # depends on succeeded. This one is the opposite: a deploy that was skipped or
+    # failed is exactly what it exists to report. So it makes no demand of its
+    # `needs` here — the demand lives in `scripts/verify-shipped.mjs`, in code that
+    # is unit-tested, instead of in a YAML condition that can quietly evaluate to
+    # "don't bother". `scripts/test-ci-plan.mjs` asserts that split deliberately.
+    #
+    # It answers the question a green run never used to answer: did anything
+    # actually reach users? On a60c6dc the answer was no, for four hours, while
+    # every check was green.
+    if: >-
+      !cancelled() &&
+      github.repository == 'Khomurod/SafeHaul' &&
+      ((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch')
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20.x
+
+      # 1. Did the deploy jobs run at all?
+      - name: Confirm both deploys ran
+        env:
+          DEPLOY_TESTING_RESULT: ${{ needs.deploy-testing.result }}
+          DEPLOY_FUNCTIONS_RESULT: ${{ needs.deploy-functions.result }}
+        run: node scripts/verify-shipped.mjs
+
+      # 2. Is the site really serving this commit? A successful `firebase` exit
+      # code says the CLI accepted the work, not that the CDN is handing the new
+      # bundle to users. This reads `release.json` back off the live origin — the
+      # same file anyone can curl — and already retries past propagation.
+      - name: Confirm Testing is serving this commit
+        run: node scripts/verify-live-release.mjs https://truckerapp-system.web.app "$GITHUB_SHA"
+
   release-ready:
     name: Confirm the release is ready
     runs-on: ubuntu-latest
@@ -904,6 +951,7 @@ jobs:
     needs:
       - deploy-testing
       - deploy-functions
+      - verify-shipped
     # Same pairing as the deploy jobs, and for the same reason: the skip that
     # starts at a proven lane keeps propagating down the chain even past jobs
     # that opted out of it, so without `!cancelled()` this job is skipped and the
@@ -912,15 +960,19 @@ jobs:
     #
     # `!cancelled()` also switches off the implicit "all needs succeeded" rule,
     # and THIS job is the one where that rule was doing the real work: it is what
-    # stopped a release being declared promotable when a deploy failed. So both
-    # deploy results are now demanded explicitly. Marking a release ready when
-    # the shared backend did not ship is the single worst thing this workflow
-    # could do, so it is stated rather than inherited.
+    # stopped a release being declared promotable when a deploy failed. So every
+    # dependency is demanded explicitly. Marking a release ready when the shared
+    # backend did not ship is the single worst thing this workflow could do, so
+    # it is stated rather than inherited.
+    #
+    # `verify-shipped` is in that list because "deployed" and "actually live" are
+    # different claims, and only the second one is worth promoting.
     if: >-
       !cancelled() &&
       github.repository == 'Khomurod/SafeHaul' &&
       needs.deploy-testing.result == 'success' &&
       needs.deploy-functions.result == 'success' &&
+      needs.verify-shipped.result == 'success' &&
       ((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch')
     permissions:
       contents: read

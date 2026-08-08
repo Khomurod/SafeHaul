@@ -25,7 +25,7 @@
  *      window, not silently drop the functions it changed.
  */
 
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve as resolvePath } from 'node:path';
 import { createRequire } from 'node:module';
@@ -42,6 +42,10 @@ import {
 } from './ci-plan.mjs';
 import { evaluateValidation } from './verify-release-validation.mjs';
 import { chooseDeployBase, readLastDeployedSha } from './resolve-deploy-base.mjs';
+import { REQUIRED_DEPLOY_JOBS, evaluateDeployResults } from './verify-shipped.mjs';
+import {
+    SHIP_GRACE_MS, judgeCallables, judgeChannel, judgeMainShipped,
+} from './check-release-health.mjs';
 
 const require = createRequire(import.meta.url);
 const { REQUIRED_RELEASE_CHECKS } = require('../functions/releaseManagement/eligibility.js');
@@ -474,7 +478,22 @@ assert('E5. the release-validation job exists and always reports',
 // broken, and fixing both left `release-ready` broken one level further down.
 // The taint keeps propagating past jobs that opted out, so every job below the
 // gate needs the same pair.
+//
+// TWO CATEGORIES, and they need opposite rules:
+//
+//   GATED jobs must not run unless their dependencies succeeded. They do the
+//   irreversible work — deploying, and declaring a release promotable.
+//
+//   REPORTER jobs must run EVEN WHEN their dependencies failed, because reporting
+//   on that failure is their entire purpose. `verify-shipped` exists to say "the
+//   deploy did not run"; a condition demanding a successful deploy would silence
+//   it in exactly the case it was written for. Their checks live in their scripts,
+//   where they are unit-tested, and are asserted separately below.
+//
+// Applying the gated rule to a reporter would silence the alarm; applying the
+// reporter rule to a gated job would deploy after a failure. Hence two lists.
 const RELEASE_CHAIN = ['deploy-testing', 'deploy-functions', 'release-ready'];
+const REPORTER_JOBS = ['release-validation', 'verify-shipped'];
 
 for (const jobId of RELEASE_CHAIN) {
     const block = workflow.slice(workflow.indexOf(`\n  ${jobId}:`));
@@ -499,6 +518,40 @@ for (const jobId of RELEASE_CHAIN) {
     assert(`E6c. ${jobId} checks every dependency explicitly`,
         unchecked.length === 0,
         `!cancelled() turns off the implicit success check, so these are unguarded: ${unchecked.join(', ')}`);
+}
+
+// Reporter jobs: the opposite rule. They must be able to run when their
+// dependencies did not.
+for (const jobId of REPORTER_JOBS) {
+    const block = workflow.slice(workflow.indexOf(`\n  ${jobId}:`));
+    const header = block.slice(0, block.indexOf('\n    steps:'));
+
+    assert(`E6d. ${jobId} can still run when its dependencies failed`,
+        /!\s*cancelled\(\)/.test(header) || /if:\s*always\(\)/.test(header),
+        'a reporter that inherits the skip cannot report the thing it exists to report');
+
+    assert(`E6e. ${jobId} does not gate itself on its dependencies succeeding`,
+        !/needs\.(deploy-testing|deploy-functions|frontend-quality)\.result == 'success'/.test(header),
+        'demanding a successful dependency would silence this job in exactly the case '
+        + 'it was written for; the check belongs in its script, where it is unit-tested');
+}
+
+// `verify-shipped` is what turns "CI is green" into "it is actually live", so the
+// promotion gate has to require it by name.
+assert('E7a. the promotion gate requires proof the release shipped',
+    REQUIRED_RELEASE_CHECKS.includes('Confirm the release actually shipped'),
+    `REQUIRED_RELEASE_CHECKS = ${JSON.stringify(REQUIRED_RELEASE_CHECKS)}`);
+
+// And it has to read the live site, not just trust the deploy job's exit code.
+{
+    const block = workflow.slice(workflow.indexOf('\n  verify-shipped:'));
+    const job = block.slice(0, block.indexOf('\n  release-ready:'));
+    assert('E7b. verify-shipped reads the deployed release back off the live site',
+        job.includes('scripts/verify-live-release.mjs')
+            && job.includes('https://truckerapp-system.web.app'),
+        'a successful firebase exit code is not evidence the CDN is serving the new bundle');
+    assert('E7c. verify-shipped checks that the deploy jobs actually ran',
+        job.includes('scripts/verify-shipped.mjs'));
 }
 
 assert('E7. every required release check names a real job',
@@ -650,6 +703,183 @@ const deploymentApi = (deployments, statuses) => async (path) => {
     assert('F11. deploy-functions may read the deployment records',
         /deployments:\s*read/.test(deploy.slice(0, deploy.indexOf('\n    steps:'))),
         'without deployments: read the base resolver silently falls back');
+}
+
+/* ========================================================================== */
+console.log('\nG. Proof that a release actually shipped');
+/* ========================================================================== */
+
+// Replays a60c6dc: every lane proven, gate green, and all three deploy jobs
+// silently skipped. The run reported success and nothing reached users.
+{
+    const verdict = evaluateDeployResults({
+        'deploy-testing': 'skipped',
+        'deploy-functions': 'skipped',
+    });
+    assert('G1. deploys that were SKIPPED are not a shipped release',
+        verdict.ok === false && verdict.problems.length === 2,
+        JSON.stringify(verdict.problems));
+    assert('G1b. and it says so in words an operator can act on',
+        verdict.problems.every((p) => /never deployed|did not deploy/.test(p)),
+        JSON.stringify(verdict.problems));
+}
+
+assert('G2. both deploys succeeding is a shipped release',
+    evaluateDeployResults({
+        'deploy-testing': 'success', 'deploy-functions': 'success',
+    }).ok === true);
+
+for (const bad of ['failure', 'cancelled', undefined, '', 'something-new']) {
+    for (const job of Object.keys(REQUIRED_DEPLOY_JOBS)) {
+        const verdict = evaluateDeployResults({
+            'deploy-testing': 'success', 'deploy-functions': 'success', [job]: bad,
+        });
+        assert(`G3. ${job} = ${JSON.stringify(bad)} is not a shipped release`,
+            verdict.ok === false);
+    }
+}
+
+assert('G4. a missing results object is a refusal, not a pass',
+    evaluateDeployResults(undefined).ok === false
+        && evaluateDeployResults(null).ok === false
+        && evaluateDeployResults({}).ok === false,
+    'absent evidence must never read as evidence of shipping');
+
+/* ========================================================================== */
+console.log('\nH. Release health monitoring');
+/* ========================================================================== */
+
+// Replays the surveyHistoricalReconstruction incident: a callable the app calls
+// that simply is not in Cloud. It survived several green runs.
+{
+    const { problems, missing } = judgeCallables([
+        { name: 'getReleaseStatus', status: 204 },
+        { name: 'surveyHistoricalReconstruction', status: 404 },
+    ]);
+    assert('H1. a callable the app calls that returns 404 is reported',
+        problems.length === 1 && missing.includes('surveyHistoricalReconstruction'),
+        JSON.stringify({ problems, missing }));
+}
+
+assert('H2. callables that exist raise nothing',
+    judgeCallables([{ name: 'a', status: 204 }, { name: 'b', status: 204 }]).problems.length === 0);
+
+// A monitor that cries wolf gets muted, and a muted monitor protects nothing.
+{
+    const { problems, unchecked } = judgeCallables([
+        { name: 'a', status: 204 }, { name: 'b', status: null },
+    ]);
+    assert('H3. an unreachable callable is reported but does NOT raise an alarm',
+        problems.length === 0 && unchecked.includes('b'),
+        'a timeout is not evidence a function is missing');
+}
+
+assert('H4. a channel serving something other than its recorded release is reported',
+    judgeChannel('Testing', 'a'.repeat(40), 'b'.repeat(40)).problems.length === 1);
+
+assert('H5. a channel serving exactly its recorded release is fine',
+    judgeChannel('Testing', 'a'.repeat(40), 'a'.repeat(40)).problems.length === 0);
+
+assert('H6. a channel that cannot say what it serves is reported',
+    judgeChannel('Testing', 'a'.repeat(40), null).problems.length === 1);
+
+assert('H7. a channel with no recorded release yet raises nothing',
+    judgeChannel('Production', null, null).problems.length === 0,
+    'a brand new channel is not a fault');
+
+// "main merged but never deployed" — with a grace period so a merge in progress
+// never trips it.
+{
+    const head = { sha: 'c'.repeat(40), committedAtMs: 1_000_000_000_000 };
+    const long = head.committedAtMs + SHIP_GRACE_MS + 60_000;
+    const short = head.committedAtMs + 60_000;
+
+    assert('H8. a commit that has sat unreleased for hours is reported',
+        judgeMainShipped(head, [], long).problems.length === 1);
+    assert('H9. a commit merged moments ago is not',
+        judgeMainShipped(head, [], short).problems.length === 0,
+        'a deploy still in flight must not raise an alarm');
+    assert('H10. a commit with a confirmed release is fine at any age',
+        judgeMainShipped(head, [head.sha], long).problems.length === 0);
+}
+
+/* ========================================================================== */
+console.log('\nI. Workflow wiring');
+/* ========================================================================== */
+
+// Cheap structural checks over EVERY workflow file, not just main.yml. These are
+// the mistakes that produce a condition which quietly evaluates to nothing rather
+// than an error: a dependency that does not exist, or a job referenced in a
+// condition that was never declared as a dependency.
+//
+// Text-parsed on purpose: a yaml parser is only present here transitively, so
+// depending on one would be one lockfile change away from breaking.
+{
+    /**
+     * Job blocks from one workflow file.
+     *
+     * Scoped to the `jobs:` section, because the keys under `on:` sit at the same
+     * indent and would otherwise be read as jobs named `push` and `schedule` —
+     * which this check reported the first time it ran.
+     */
+    const parseJobs = (text) => {
+        const jobsAt = text.search(/^jobs:$/m);
+        if (jobsAt === -1) return [];
+        const section = text.slice(jobsAt);
+        const matches = [...section.matchAll(/^ {2}([a-z][a-z0-9-]*):$/gm)];
+
+        return matches.map((match, index) => {
+            const end = index + 1 < matches.length ? matches[index + 1].index : section.length;
+            const block = section.slice(match.index, end);
+            const stepsAt = block.indexOf('\n    steps:');
+            const header = stepsAt === -1 ? block : block.slice(0, stepsAt);
+
+            // All three forms YAML allows: a block list, an inline list, and a
+            // bare scalar. The lane jobs use the scalar form (`needs: plan`),
+            // which this check missed on its first run.
+            const needs = [...header.matchAll(/^ {6}- ([a-z][a-z0-9-]*)$/gm)].map((m) => m[1]);
+            const inline = header.match(/^ {4}needs:\s*\[([^\]]*)\]/m);
+            if (inline) needs.push(...inline[1].split(',').map((s) => s.trim()).filter(Boolean));
+            const scalar = header.match(/^ {4}needs:\s*([a-z][a-z0-9-]*)\s*$/m);
+            if (scalar) needs.push(scalar[1]);
+
+            return { id: match[1], block, header, needs };
+        });
+    };
+
+    const workflowDir = resolvePath(here, '../.github/workflows');
+    const files = readdirSync(workflowDir).filter((name) => /\.ya?ml$/.test(name));
+
+    assert('I0. there are workflow files to check', files.length >= 3, `found ${files.length}`);
+
+    for (const file of files) {
+        const jobs = parseJobs(readFileSync(resolvePath(workflowDir, file), 'utf8'));
+        const jobIds = jobs.map((job) => job.id);
+
+        assert(`I1. ${file}: parsed at least one job`, jobs.length > 0);
+
+        assert(`I1b. ${file}: job ids are unique`,
+            new Set(jobIds).size === jobIds.length,
+            `duplicates: ${jobIds.filter((id, i) => jobIds.indexOf(id) !== i).join(', ')}`);
+
+        for (const { id, block, header, needs } of jobs) {
+            const unknown = needs.filter((need) => !jobIds.includes(need));
+            assert(`I2. ${file}/${id}: every dependency names a real job`,
+                unknown.length === 0, `unknown: ${unknown.join(', ')}`);
+
+            // THE one that matters: a job referenced in a condition but never
+            // depended on always reads as empty, so the condition silently
+            // evaluates to false and the job never runs — no error, no warning.
+            const referenced = [...block.matchAll(/needs\.([a-z][a-z0-9-]*)\./g)].map((m) => m[1]);
+            const undeclared = [...new Set(referenced)].filter((ref) => !needs.includes(ref));
+            assert(`I3. ${file}/${id}: every job it references is one it depends on`,
+                undeclared.length === 0,
+                `referenced but not in needs: ${undeclared.join(', ')} — these always read as empty`);
+
+            assert(`I4. ${file}/${id}: declares where it runs`,
+                /^ {4}runs-on:/m.test(header), 'missing runs-on');
+        }
+    }
 }
 
 console.log(failures === 0 ? '\nAll CI plan and gate checks passed.' : `\n${failures} check(s) failed.`);

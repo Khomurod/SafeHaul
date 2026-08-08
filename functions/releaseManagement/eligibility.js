@@ -95,6 +95,12 @@ const REQUIRED_RELEASE_CHECKS = Object.freeze([
     // must not be promotable.
     'Deploy the Testing release',
     'Deploy Cloud Functions',
+    // "The deploy job succeeded" and "the release is actually live" are different
+    // claims, and only the second is worth promoting. This one reads the deployed
+    // SHA back off the live site, and separately refuses a run where a deploy job
+    // never executed — the failure that let a60c6dc report success while shipping
+    // nothing at all.
+    'Confirm the release actually shipped',
 ]);
 
 /**
