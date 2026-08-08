@@ -469,20 +469,36 @@ assert('E5. the release-validation job exists and always reports',
 //
 // Dropping the first silently stops deployments; dropping the second silently
 // permits an unvalidated one. Both are asserted.
-for (const deployJob of ['deploy-testing', 'deploy-functions']) {
-    const block = workflow.slice(workflow.indexOf(`\n  ${deployJob}:`));
+// Applied to the WHOLE release chain rather than job by job, because this bug
+// recurred three times: fixing `deploy-testing` alone left `deploy-functions`
+// broken, and fixing both left `release-ready` broken one level further down.
+// The taint keeps propagating past jobs that opted out, so every job below the
+// gate needs the same pair.
+const RELEASE_CHAIN = ['deploy-testing', 'deploy-functions', 'release-ready'];
+
+for (const jobId of RELEASE_CHAIN) {
+    const block = workflow.slice(workflow.indexOf(`\n  ${jobId}:`));
     const header = block.slice(0, block.indexOf('\n    steps:'));
-    const condition = header.slice(header.indexOf('\n    if:'), header.indexOf('\n    concurrency:') + 1
-        || undefined);
+    // `needs:` entries are the `      - name` lines before the first key at
+    // four-space indent that follows them.
+    const needsBlock = header.slice(header.indexOf('\n    needs:'));
+    const needs = [...needsBlock.matchAll(/^ {6}- ([a-z][a-z0-9-]*)$/gm)].map((m) => m[1]);
 
-    assert(`E6. ${deployJob} cannot start unless the gate passed`,
-        header.includes('- release-validation')
-            && condition.includes("needs.release-validation.result == 'success'"),
-        'deployment must depend on the validation verdict, explicitly');
+    assert(`E6. ${jobId} declares what it depends on`,
+        needs.length > 0, 'expected a needs: list');
 
-    assert(`E6b. ${deployJob} opts out of the inherited skip`,
-        /!\s*cancelled\(\)/.test(condition),
-        'without !cancelled() a run whose lanes were all proven deploys nothing');
+    assert(`E6b. ${jobId} opts out of the inherited skip`,
+        /!\s*cancelled\(\)/.test(header),
+        'without !cancelled() a run whose lanes were all proven skips this job, '
+        + 'and main silently stops releasing');
+
+    // `!cancelled()` disables the implicit "all needs succeeded" rule, so every
+    // dependency has to be checked by hand. Missing one lets this job run after
+    // that dependency FAILED.
+    const unchecked = needs.filter((need) => !header.includes(`needs.${need}.result == 'success'`));
+    assert(`E6c. ${jobId} checks every dependency explicitly`,
+        unchecked.length === 0,
+        `!cancelled() turns off the implicit success check, so these are unguarded: ${unchecked.join(', ')}`);
 }
 
 assert('E7. every required release check names a real job',
