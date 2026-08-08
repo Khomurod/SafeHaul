@@ -226,7 +226,10 @@ function inventoryColumns({ revealedId, revealState, onToggle }) {
         {
             key: 'status',
             header: 'Status',
-            width: 'sm',
+            // `lg`, not `sm`: this cell stacks two badges and the pair needs
+            // 157px. A 120px column made them spill over the neighbouring
+            // column on mobile. See scripts/check-table-layout.mjs.
+            width: 'lg',
             render: (row) => (
                 <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 'var(--ds-space-1)' }}>
                     <Badge tone={STATUS[row.status].tone} icon={STATUS[row.status].icon}>

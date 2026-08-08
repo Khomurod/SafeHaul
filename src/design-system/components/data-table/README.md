@@ -65,6 +65,27 @@ The feature toolbar remains outside `DataTable`. This prevents the design
 system from learning feature-specific filters, bulk operations, permissions,
 or domain vocabulary.
 
+### A column must be able to contain what you put in it
+
+Widths are fixed buckets and the table is `table-layout: fixed`, so a column
+does **not** grow to fit. Content too wide for its bucket silently spills over
+the next column, or past the edge the table paints to.
+
+`Badge` is `white-space: nowrap`, so a column holding badges cannot be narrower
+than the widest badge — that is a hard floor, not a preference. The same applies
+to buttons with text labels.
+
+Pick the bucket from the widest thing the column will ever hold, not from the
+common case, and leave real margin rather than a few pixels. If clipping is what
+you actually want, declare `truncate` — that is the supported opt-in, and the
+guard below exempts it.
+
+`npm run check:table-layout` measures the built catalog in a real browser and
+fails on a cell whose content is wider than its column. It cannot be a unit test:
+jsdom has no layout engine, so `scrollWidth` is always `0` there. It covers
+catalog patterns, so a feature whose real strings are longer than the pattern's
+fixtures still needs measuring on its own screen.
+
 ## Async and feedback states
 
 - Loading keeps column structure visible and exposes a polite status.
