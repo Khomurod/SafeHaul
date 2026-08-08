@@ -23,6 +23,7 @@
     "check:deploy-script": "node scripts/test-deploy-incremental.mjs",
     "check:release-scripts": "node scripts/test-release-promotion.mjs",
     "check:ci-plan": "node scripts/test-ci-plan.mjs",
+    "check:release-health": "node scripts/check-release-health.mjs",
     "deploy:functions:plan": "node scripts/deploy-functions-incremental.mjs --dry-run",
     "storage:set-cors": "node scripts/set-storage-cors.mjs",
     "typecheck": "tsc -p jsconfig.json --noEmit",

@@ -140,4 +140,51 @@ If you change the shard count, change it in `main.yml` in both the `matrix.shard
 list and the `--shard=N/<total>` argument — they are two halves of one number.
 Coverage is unaffected either way: sharding partitions the same test set, it does
 not subset it.
+
+### Changing the release pipeline
+
+Three rules, each written the day it was learned the expensive way (2026-08-08).
+
+**1. A skipped job's skip travels down the WHOLE chain, and `always()` does not
+stop it.** `always()` un-skips only the job that declares it, never that job's
+dependents. Because this pipeline deliberately skips test lanes it can prove were
+already run, the skip reached the deploy jobs and main shipped nothing — three
+times, in three separate jobs, each fix revealing the next.
+
+So every job below `release-validation` carries **two clauses that are a pair**:
+
+```yaml
+if: >-
+  !cancelled() &&                                   # opt out of the inherited skip
+  needs.<each-dependency>.result == 'success' &&    # ...and re-check by hand
+```
+
+`!cancelled()` also switches off GitHub's implicit "all dependencies succeeded"
+rule, which is why the second clause is load-bearing rather than decorative.
+Dropping the first silently stops deployments; dropping the second silently
+deploys after a failure. `scripts/test-ci-plan.mjs` (E6b/E6c) asserts both, on
+every job in the chain, so neither can be tidied away.
+
+**Reporter jobs are the deliberate exception.** `release-validation` and
+`verify-shipped` must run *when their dependencies failed*, because saying so is
+their purpose; they check results in their scripts instead, and E6d/E6e assert
+that opposite rule. Do not apply one category's rule to the other: it either
+silences the alarm or deploys after a failure.
+
+**2. Fix the family, not the instance.** When you find a CI bug, list every job
+with the same shape *before* fixing one, and write the test over the set. The
+three rounds above were one root cause; patching the job in front of me each time
+is what turned it into three.
+
+**3. A green run is not evidence that anything shipped.** Every failure that day
+was found by a human opening a screen. `verify-shipped` now reads the deployed SHA
+back off the live site and refuses a run whose deploy jobs never executed, and
+`release-ready` depends on it, so a release nobody can see live never becomes
+promotable. `.github/workflows/health-check.yml` asks the same question daily and
+opens an issue when the answer changes. Neither is advisory — do not make them so.
+
+Before merging a pipeline change: run `npm run check:ci-plan`, and afterwards
+**watch the real main run to completion**, because a pull request never deploys and
+therefore cannot exercise the path you just changed. That asymmetry is why these
+bugs reached `main` green.
 <!-- /safehaul-design-system -->

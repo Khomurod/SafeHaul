@@ -1,0 +1,81 @@
+name: Release health
+
+# Is what is RUNNING still what we think we released?
+#
+# The pipeline proves a release went live at the moment it shipped
+# (`verify-shipped` in main.yml). This asks the same question later, on a
+# schedule, because two kinds of problem are invisible to any single run:
+#
+#   - something breaks AFTER a green run — a function deleted in the console, a
+#     Hosting rollback, a release record left half-written;
+#   - something a green run never noticed. On 2026-08-07 a new Cloud Function was
+#     never deployed, stayed missing across several green runs, and was found
+#     twelve hours later only because a human opened a screen and saw an error.
+#
+# Everything it reads is public or read-only: the live `release.json` files, an
+# OPTIONS preflight per callable (answered by the Functions framework, never
+# reaching the function body), and the repository's own release records.
+#
+# It is deliberately quiet. Only a definitive 404 counts as a missing function; a
+# timeout or a 5xx is reported and ignored, because a monitor that cries wolf gets
+# muted, and a muted monitor protects nothing.
+
+on:
+  schedule:
+    # Daily. Deliberately not on the hour — GitHub queues scheduled workflows
+    # heavily at :00 and they can be delayed by many minutes.
+    - cron: '17 7 * * *'
+  workflow_dispatch:
+
+# Never two at once; a queued duplicate would just re-report the same finding.
+concurrency:
+  group: release-health
+  cancel-in-progress: false
+
+jobs:
+  health:
+    name: Check what is actually live
+    runs-on: ubuntu-latest
+    # Only the active repository has these sites to check.
+    if: github.repository == 'Khomurod/SafeHaul'
+    permissions:
+      contents: read
+      # Reads the Testing and Production release records.
+      deployments: read
+      # Files the finding where it will be seen, and closes it again when healthy.
+      issues: write
+
+    steps:
+      # Full history so the "did main's newest commit ship?" check can read the
+      # commit date of HEAD.
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20.x
+
+      # No `npm ci`: the checks use Node builtins only, so this stays a job that
+      # finishes in well under a minute.
+      - name: Check what is actually live
+        id: health
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run check:release-health
+
+      # Failing the run is what sends the email. The issue is what says WHAT is
+      # wrong, in a place with a history, and it is reused rather than duplicated.
+      - name: Open or update the health issue
+        if: failure()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: node scripts/report-release-health.mjs open
+
+      - name: Close the health issue
+        if: success()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/report-release-health.mjs close
