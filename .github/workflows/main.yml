@@ -904,8 +904,23 @@ jobs:
     needs:
       - deploy-testing
       - deploy-functions
+    # Same pairing as the deploy jobs, and for the same reason: the skip that
+    # starts at a proven lane keeps propagating down the chain even past jobs
+    # that opted out of it, so without `!cancelled()` this job is skipped and the
+    # release is never marked promotable — which is what e0d1b0f did, with both
+    # deploys green above it.
+    #
+    # `!cancelled()` also switches off the implicit "all needs succeeded" rule,
+    # and THIS job is the one where that rule was doing the real work: it is what
+    # stopped a release being declared promotable when a deploy failed. So both
+    # deploy results are now demanded explicitly. Marking a release ready when
+    # the shared backend did not ship is the single worst thing this workflow
+    # could do, so it is stated rather than inherited.
     if: >-
+      !cancelled() &&
       github.repository == 'Khomurod/SafeHaul' &&
+      needs.deploy-testing.result == 'success' &&
+      needs.deploy-functions.result == 'success' &&
       ((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch')
     permissions:
       contents: read
