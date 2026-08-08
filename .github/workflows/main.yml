@@ -595,11 +595,25 @@ jobs:
     # repository and press "Run workflow" to deploy from stale source. With it,
     # those jobs skip immediately and no Google credential is ever requested.
     #
-    # The `release-validation` clause is redundant with `needs:` today — a failed
-    # need already skips this job — but it is stated because the guarantee is too
-    # important to rest on an implicit rule that a future `always()` or
-    # `!cancelled()` here would quietly switch off.
+    # `!cancelled()` and the `release-validation` clause are a PAIR. Removing
+    # either one breaks this job, in opposite directions.
+    #
+    # A skip propagates down the WHOLE dependency chain, not just one level.
+    # `release-validation` declares `if: always()`, so it runs even when every
+    # lane was skipped — but `always()` only un-skips the job that declares it.
+    # It does not clear the skip for anything downstream. So when provenance
+    # proved every lane and they all skipped, this job was skipped too, before
+    # its condition was ever considered: main deployed nothing, and the release
+    # was correctly left un-promotable. That is what a60c6dc did.
+    #
+    # `!cancelled()` opts out of that inherited skip. It also disables the
+    # implicit "all needs succeeded" check, which is exactly why the explicit
+    # `needs.release-validation.result == 'success'` below is load-bearing
+    # rather than belt-and-braces: it is now the only thing standing between a
+    # failed gate and a deploy. `scripts/test-ci-plan.mjs` asserts both are
+    # present, together, for that reason.
     if: >-
+      !cancelled() &&
       github.repository == 'Khomurod/SafeHaul' &&
       needs.release-validation.result == 'success' &&
       ((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch')
@@ -736,9 +750,10 @@ jobs:
     # out with the Testing frontend and must remain backward compatible with the
     # frontend currently live on production — a promotion never redeploys them.
     #
-    # See `deploy-testing` for why the `release-validation` clause is spelled out
-    # even though `needs:` already implies it.
+    # See `deploy-testing` for why `!cancelled()` and the `release-validation`
+    # clause have to appear together, and what happens when they do not.
     if: >-
+      !cancelled() &&
       github.repository == 'Khomurod/SafeHaul' &&
       needs.release-validation.result == 'success' &&
       ((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch')

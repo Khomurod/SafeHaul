@@ -455,13 +455,34 @@ assert('E5. the release-validation job exists and always reports',
 
 // Both deploy jobs, and therefore the release record and everything downstream
 // of it, must sit behind the gate.
+//
+// The two clauses are a PAIR and neither may be dropped:
+//
+//   `!cancelled()` — a skip propagates down the WHOLE chain, and `always()` on
+//   `release-validation` only un-skips that job, not its dependents. Without
+//   this, a run where provenance proved every lane skips the deploy entirely
+//   and main ships nothing. That happened on a60c6dc.
+//
+//   the explicit success check — `!cancelled()` also switches OFF the implicit
+//   "all needs succeeded" rule, so this clause becomes the only thing stopping
+//   a deploy after a FAILED gate.
+//
+// Dropping the first silently stops deployments; dropping the second silently
+// permits an unvalidated one. Both are asserted.
 for (const deployJob of ['deploy-testing', 'deploy-functions']) {
     const block = workflow.slice(workflow.indexOf(`\n  ${deployJob}:`));
     const header = block.slice(0, block.indexOf('\n    steps:'));
+    const condition = header.slice(header.indexOf('\n    if:'), header.indexOf('\n    concurrency:') + 1
+        || undefined);
+
     assert(`E6. ${deployJob} cannot start unless the gate passed`,
         header.includes('- release-validation')
-            && header.includes("needs.release-validation.result == 'success'"),
+            && condition.includes("needs.release-validation.result == 'success'"),
         'deployment must depend on the validation verdict, explicitly');
+
+    assert(`E6b. ${deployJob} opts out of the inherited skip`,
+        /!\s*cancelled\(\)/.test(condition),
+        'without !cancelled() a run whose lanes were all proven deploys nothing');
 }
 
 assert('E7. every required release check names a real job',
