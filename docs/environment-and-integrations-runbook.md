@@ -130,6 +130,33 @@ Value availability values:
 | `PROCESS_BULK_BATCH_URL` | SafeHaul platform | internal | `server-runtime` | reveal / — / — | Yes |
 | `SMS_ENCRYPTION_KEY` | SafeHaul platform | critical | `server-runtime` | reveal / — / — | Yes |
 
+### 3b. Operator-managed landing credentials (`source: firestore-encrypted`)
+
+| Key | Integration | Sensitivity | Value availability | Reveal / Edit / Delete | Deploy needed |
+| --- | --- | --- | --- | --- | --- |
+| `landing.telegram_bot_token` | Telegram (landing leads) | critical | `not-retrievable` | reveal / — / — | No |
+| `landing.telegram_chat_id` | Telegram (landing leads) | sensitive | `not-retrievable` | reveal / — / — | No |
+
+These supersede the two `LANDING_TELEGRAM_*` Secret Manager rows above, which
+remain as the deploy-time fallback. They are encrypted with `SMS_ENCRYPTION_KEY`
+into `platform_settings/landing_page` and changed from **Super Admin → Landing
+Page Settings** without a deploy.
+
+They are `not-retrievable` **by design**, and this is the one place in the vault
+where that is a decision rather than a limitation of the source. Every other
+Firestore-backed credential here can be revealed; a Telegram bot token cannot,
+because a token that can be read back adds an exfiltration route and buys
+nothing — an operator who has lost it generates a fresh one from BotFather in
+seconds. The settings screen shows a SHA-256 fingerprint, the bot's public
+username and the last four characters of the chat id instead: enough to confirm
+which credentials are live, not enough to reconstruct them.
+
+`functions/test/unit/landingSettings.test.js` asserts that no callable returns
+the token, that the stored form is not the plaintext, and — with a source-level
+scan of `functions/landing/` — that no log line can carry it. That last check
+exists because Telegram puts the token in the *request URL*, so
+`console.error(error)` on a failed `fetch` is a credential leak.
+
 ### 4. GitHub automatic workflow token (`source: github-actions-secret`)
 
 | Key | Integration | Sensitivity | Value availability | Reveal / Edit / Delete | Deploy needed |
@@ -170,6 +197,7 @@ Value availability values:
 | `DEPLOY_GIT_HEAD` | SafeHaul platform | public | `not-retrievable` | reveal / — / — | No |
 | `FIREBASE_STORAGE_EMULATOR_HOST` | SafeHaul platform | public | `not-retrievable` | reveal / — / — | No |
 | `FIRESTORE_EMULATOR_HOST` | SafeHaul platform | public | `not-retrievable` | reveal / — / — | No |
+| `LANDING_A11Y_PORT` | SafeHaul platform | public | `not-retrievable` | reveal / — / — | No |
 | `GITHUB_PUSH_BEFORE` | SafeHaul platform | public | `not-retrievable` | reveal / — / — | No |
 | `GITHUB_SHA` | SafeHaul platform | public | `not-retrievable` | reveal / — / — | No |
 | `npm_execpath` | SafeHaul platform | public | `not-retrievable` | reveal / — / — | No |

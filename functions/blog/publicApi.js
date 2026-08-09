@@ -157,33 +157,39 @@ ${ogImage ? `<meta property="og:image" content="${escapeHtml(ogImage)}">` : ''}
 <meta name="twitter:description" content="${escapeHtml(description)}">
 ${ogImage ? `<meta name="twitter:image" content="${escapeHtml(ogImage)}">` : ''}
 <link rel="alternate" type="application/atom+xml" title="${escapeHtml(SECTION_NAME)}" href="${ORIGIN}/news/feed.xml">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/assets/css/styles.css?v=5">
+<meta name="theme-color" content="#004C68">
+<link rel="icon" type="image/svg+xml" href="/assets/images/logo.svg">
+<link rel="preload" href="/assets/fonts/inter-variable.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/assets/css/styles.css?v=6">
 ${extraHead}
 </head>
 <body>
-<nav id="navbar">
+<a class="skip-link" href="#main">Skip to main content</a>
+<nav id="navbar" class="navbar">
   <div class="nav-container">
-    <a href="/" class="nav-logo"><img src="/assets/images/logo.svg" alt="SafeHaul" height="32"></a>
+    <a href="/" class="logo-link" aria-label="SafeHaul home">
+      <img src="/assets/images/logo.svg" alt="" class="logo" width="32" height="32">
+      <span class="logo-text">SafeHaul</span>
+    </a>
     <div class="nav-links">
-      <a href="/#features">Features</a>
-      <a href="/#pricing">Pricing</a>
-      <a href="/news" aria-current="page">News &amp; Insights</a>
-      <a href="/#faq">FAQ</a>
+      <a href="/#features" class="nav-link">Platform</a>
+      <a href="/#pricing" class="nav-link">Pricing</a>
+      <a href="/news" class="nav-link" aria-current="page">News &amp; Insights</a>
+      <a href="/#faq" class="nav-link">FAQ</a>
     </div>
     <div class="nav-cta">
-      <a href="https://app.safehaul.io" target="_blank" rel="noopener" class="btn btn-ghost">Login</a>
+      <a href="https://app.safehaul.io" rel="noopener" class="btn btn-ghost">Log in</a>
+      <a href="/#get-started" class="btn btn-primary">Get started</a>
     </div>
   </div>
 </nav>
 <main id="main">
 ${bodyHtml}
 </main>
-<footer id="footer">
-  <div class="footer-container">
-    <p>&copy; 2026 SafeHaul. <a href="/privacy.html">Privacy Policy</a> · <a href="/news">News &amp; Insights</a> · <a href="/news/feed.xml">Feed</a></p>
+<footer id="footer" class="footer-section">
+  <div class="footer-bottom">
+    <p>&copy; 2026 SafeHaul. All rights reserved.</p>
+    <p><a href="/privacy.html">Privacy Policy</a> · <a href="/news">News &amp; Insights</a> · <a href="/news/feed.xml">Feed</a></p>
   </div>
 </footer>
 </body>

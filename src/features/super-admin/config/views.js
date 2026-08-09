@@ -10,6 +10,7 @@ export const SUPER_ADMIN_VIEWS = Object.freeze({
   ENVIRONMENT: 'environment-integrations',
   AI_INTEGRATIONS: 'ai-integrations',
   BLOG_POSTS: 'blog-posts',
+  LANDING_PAGE: 'landing-page',
   QUESTIONS: 'questions',
   SYSTEM_HEALTH: 'system-health',
   STATS_BACKFILL: 'stats-backfill',
@@ -36,6 +37,10 @@ export const SUPER_ADMIN_NAV_ITEMS = Object.freeze([
   { id: SUPER_ADMIN_VIEWS.AI_INTEGRATIONS, label: 'AI Integrations', icon: 'Sparkles', group: 'ops' },
   // Titles and Delete for the automatically published News & Insights blog.
   { id: SUPER_ADMIN_VIEWS.BLOG_POSTS, label: 'Blog Posts', icon: 'Newspaper', group: 'ops' },
+  // Where marketing-site leads are delivered, and what became of each one.
+  // Separate from "Environment & Integrations", which inventories the Telegram
+  // credentials read-only and points here to change them.
+  { id: SUPER_ADMIN_VIEWS.LANDING_PAGE, label: 'Landing Page', icon: 'Globe', group: 'ops' },
   { id: SUPER_ADMIN_VIEWS.QUESTIONS, label: 'Form Builder', icon: 'FileText', group: 'ops' },
   { id: SUPER_ADMIN_VIEWS.SYSTEM_HEALTH, label: 'System Health', icon: 'Activity', group: 'ops' },
   // The one deliberate step between "merged and running on Testing" and "what

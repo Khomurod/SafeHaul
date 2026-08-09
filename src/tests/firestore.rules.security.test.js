@@ -399,6 +399,63 @@ describeFirestore('firestore.rules security regressions', () => {
     await assertFails(setDoc(doc(anonDb, 'blog_posts', '2026-08-04_industry-news'), { title: 'Forged' }));
   });
 
+  it('blocks all client access to the landing-page settings, including Super Admins', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const adminDb = context.firestore();
+      await setDoc(doc(adminDb, 'platform_settings', 'landing_page'), {
+        telegram: {
+          enabled: true,
+          // Ciphertext, but the point stands: a credential a browser can fetch
+          // is a credential that can leave the browser.
+          botTokenCipher: 'aabbcc:ddeeff',
+          chatIdCipher: '112233:445566',
+          // Deliberately zero-entropy. It still matches the /^[a-f0-9]{12}$/
+          // shape a real fingerprint has, but a fixture with real-looking
+          // entropy next to a `botToken…` key is what the secret scanner is
+          // built to flag — and it is right to, so the fixture gives it
+          // nothing to find.
+          botTokenFingerprint: 'ffffffffffff',
+        },
+      });
+    });
+
+    const superDb = testEnv.authenticatedContext('super-1', { globalRole: 'super_admin' }).firestore();
+    const anonDb = testEnv.unauthenticatedContext().firestore();
+
+    for (const db of [superDb, anonDb]) {
+      // Super Admin is deliberately included. The screen reads a masked
+      // projection through `getLandingPageSettings`, which cannot return the
+      // token; a direct read would hand over the ciphertext.
+      await assertFails(getDoc(doc(db, 'platform_settings', 'landing_page')));
+      await assertFails(setDoc(doc(db, 'platform_settings', 'landing_page'), { telegram: { enabled: false } }));
+    }
+  });
+
+  it('blocks all client access to captured landing leads', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const adminDb = context.firestore();
+      await setDoc(doc(adminDb, 'landing_leads', 'lead-a'), {
+        fullName: 'Dana Whitfield',
+        workEmail: 'dana@example.test',
+        stage: 'contact',
+        // The completion secret is stored as a digest; a client that could read
+        // this document could replay it against the public endpoint.
+        completionTokenHash: 'f'.repeat(64),
+        delivery: { status: 'pending', attempts: 0 },
+      });
+    });
+
+    const superDb = testEnv.authenticatedContext('super-1', { globalRole: 'super_admin' }).firestore();
+    const companyDb = testEnv.authenticatedContext('user-1', { roles: { 'company-a': 'company_admin' } }).firestore();
+    const anonDb = testEnv.unauthenticatedContext().firestore();
+
+    for (const db of [superDb, companyDb, anonDb]) {
+      await assertFails(getDoc(doc(db, 'landing_leads', 'lead-a')));
+      // A forged lead would put an arbitrary message in front of the sales team.
+      await assertFails(setDoc(doc(db, 'landing_leads', 'forged'), { fullName: 'Forged' }));
+    }
+  });
+
   it('blocks lead update that changes companyId', async () => {
     await testEnv.withSecurityRulesDisabled(async (context) => {
       const adminDb = context.firestore();

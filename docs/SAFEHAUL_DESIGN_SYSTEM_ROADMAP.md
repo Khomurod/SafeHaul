@@ -8838,3 +8838,114 @@ overflow **27px → 0**.
   short content — dates, a rank, a short status pill. They were **not** measured
   with production data, because these screens need a backend this environment does
   not have.
+
+---
+
+## 2026-08-08 marketing-site redesign, lead capture and Landing Page Settings
+
+- [x] Redesign the public marketing site, fix the claims it made that the
+  product's own capability package prohibits, make lead capture survive an
+  outage, and add a Super Admin surface for landing-page settings.
+  - Files: `landing/**`, `functions/landing/**`, `functions/landingLead.js`,
+    `functions/blog/publicApi.js`, `functions/environmentVault/registry.js`,
+    `functions/index.js`, `src/firestore.rules`,
+    `src/features/super-admin/views/LandingPageSettingsView.jsx` (+ service,
+    contract test, view registration), `src/lib/runtime/e2eMode.js`,
+    `src/context/DataContext.jsx`, `scripts/check-landing-claims.mjs`,
+    `scripts/check-landing-a11y.mjs`,
+    `scripts/capture-landing-screenshots.mjs`, `src/tests/landingPage.test.js`,
+    `src/tests/firestore.rules.security.test.js`.
+  - Architecture: the landing site stays a deliberately isolated static site
+    with no build step and no framework. The `[~]` item above is unchanged by
+    this work; `src/tests/landingNewsSection.test.js` still passes unmodified,
+    which is the evidence that the isolation held through a full rewrite.
+
+### What was actually wrong
+
+Four defects, none of which a visual review would have found:
+
+1. **The page contradicted the verified capability package.**
+   `functions/ai/knowledge/safehaulCapabilities.js` carries the remark "several
+   of these are on the public landing page today" above `PROHIBITED_CLAIMS`.
+   They were: "free forever" beside the page's own $199/$299 pricing, a Job
+   Board feature card for a feature that does not exist, document-expiry
+   monitoring and renewal reminders that were never built, GDPR data export, and
+   App Check — which had been deliberately removed with the residual risk
+   formally accepted. Running the package's own `checkClaims()` against the old
+   HTML returns four violations.
+2. **The shipped screenshots carried personal data.** `hero-dashboard.png`
+   showed real driver names and phone numbers on a public page.
+   `feature-leads.png` showed "SafeHaul Network Leads", the lead-distribution
+   engine that was removed from the product. Both are deleted, along with
+   ~537 KB of orphaned images that appeared in the deploy artifact and on no page.
+3. **A lead could be destroyed by someone else's outage.** `submitLandingLead`
+   forwarded to Telegram and stored nothing; a Telegram failure returned 502 and
+   the lead was gone.
+4. **Two accessibility defects and two rendering defects.** The FAQ accordion was
+   a `div` with a click handler, so no keyboard user could open a single answer.
+   The lead dialog was `aria-modal` with no focus trap and never moved focus into
+   itself. `.btn-secondary` was used but never defined. The server-rendered
+   `/news` pages emitted `.nav-logo` and `.footer-container`, which do not exist
+   in the stylesheet, so every article page had an unstyled header and footer.
+
+### Decisions worth recording
+
+- **Mint is an accent, never text.** `#0be2a4` on white is about 1.6:1. Primary
+  buttons are navy so they reach AA; mint draws rules, glyphs and focus rings on
+  dark surfaces. `landingPage.test.js` fails on any `color: var(--primary)`.
+- **`[hidden] { display: none !important }` is load-bearing.** `.form-step` and
+  `.modal-success` set their own display, which outranks the browser default —
+  so `element.hidden = true` silently did nothing and the two-step form rendered
+  both steps at once.
+- **The dialog's `visibility` transitions on close only.** Transitioning it on
+  open leaves the overlay hidden for a frame, and an element that is still
+  hidden cannot take focus. That one line was the difference between a real
+  dialog and one keyboard users tabbed straight past.
+- **No Tabs primitive was hand-rolled.** The design system deliberately has none,
+  so Landing Page Settings stacks its two sections instead — which also suits an
+  operator diagnosing a failed delivery with the configuration on the same screen.
+- **The bot token is write-only from the browser.** No callable returns it. The
+  screen identifies credentials by SHA-256 fingerprint, bot username and the last
+  four characters of the chat id. A reveal control would add an exfiltration
+  route and buy nothing.
+
+### Verification
+
+- `npm run lint` — passed, including the new `check:landing-claims` gate.
+- `npx vitest run` — **3891 passed**, 61 skipped, 0 failed (228 files). Includes
+  34 new `landingPage.test.js` tests and 16 new contract tests for the settings
+  view, one of which is an axe pass.
+- `functions` Jest — **1358 passed** across 92 suites, including 23 rewritten
+  `landingLead` tests and 24 new `landingSettings` tests.
+- `npm run test:rules:emulators` — **46 passed** against a real Firestore
+  emulator, including two new cases proving `platform_settings` and
+  `landing_leads` are closed to every client including Super Admins.
+- `npm run check:landing-a11y` — axe clean on `/` and `/privacy.html` at 390,
+  768 and 1440, plus keyboard proofs that the FAQ opens and the dialog traps
+  focus. One real violation was found and fixed this way: the comparison table
+  scrolls horizontally and was not keyboard-reachable.
+- Two-step lead flow driven end to end in a browser against a stubbed endpoint:
+  step one posts name and email and receives a reference, step two posts the
+  qualification with that reference, UTM parameters are captured from the URL.
+- Zero horizontal overflow at 320px and 390px.
+
+### Honest limitations
+
+- **`npm run typecheck` still fails**, with 20 pre-existing errors in
+  `src/config/applicationDefinition.js`. Verified identical on the base branch
+  with the working tree stashed; that file is untouched here and fixing it is
+  out of scope.
+- **No visual-regression baselines** for the marketing site or the article pages.
+  Layout was reviewed by eye at five widths and recorded, but a future change can
+  still move something without failing a test. This is the same open item the
+  News & Insights work recorded and it remains open.
+- **The screenshots are captured against fixtures, not production.** That is the
+  point — it is what removes the PII risk — but it means the E-Docs shot shows
+  zero counts, and the fixture dataset is small. A richer marketing fixture set
+  would make the product look more alive without weakening the guarantee.
+- **`getLandingPageSettings` hides the configuration card when it fails.** The
+  operator sees the load error and the retry, which matches `BlogPostsView`, but
+  it means a transient callable failure hides the form as well as the status.
+- **Telegram delivery has not been exercised against the real Telegram API.**
+  Every path is proven against an injected transport; the first live send is a
+  production step, the same limitation the blog's first publication carries.

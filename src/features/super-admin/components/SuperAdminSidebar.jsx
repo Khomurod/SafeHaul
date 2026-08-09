@@ -12,6 +12,7 @@ import {
   RefreshCw,
   KeyRound,
   Sparkles,
+  Globe,
   Newspaper,
   Rocket,
 } from "lucide-react";
@@ -32,6 +33,7 @@ const ICONS = {
   KeyRound,
   Sparkles,
   Newspaper,
+  Globe,
   Rocket,
 };
 

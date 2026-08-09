@@ -1,40 +1,114 @@
-# SafeHaul Landing Page
+# SafeHaul marketing site
 
-A sales-focused, enterprise-grade static landing page for SafeHaul.
+The public site at `safehaul.io`. Hand-written HTML, CSS and vanilla JavaScript
+with **no build step and no framework**, deployed to the `landing-production` and
+`landing-testing` Firebase Hosting targets.
 
-## Technologies Used
-- **HTML5:** Semantic architecture for layout, SEO, and accessibility.
-- **CSS3:** Custom CSS with CSS variables, Flexbox/Grid layouts, without heavy frameworks to ensure optimal performance. Includes minimal scroll animations and hover effects.
-- **Vanilla JavaScript:** Handles the sticky navigation, mobile menu toggle, FAQ accordions, and Short-Form Modal logic. No heavy dependencies.
+It is deliberately isolated from the React application in `src/`.
+`src/tests/landingNewsSection.test.js` asserts that no application or
+design-system code is pulled in here — do not import from `src/`.
 
-## Key Features & Files
-- `index.html`: The main markup file containing the sections: Hero, Features, Compare, Pricing, Testimonials, FAQ, Footer, and Modal.
-- `assets/css/styles.css`: The global styles. All branding colors are set as CSS root variables (`:root`) for easy theming.
-- `assets/js/main.js`: Interaction script.
+## Files
 
-## Handoff & Maintenance Instructions
+| Path | What it is |
+| --- | --- |
+| `index.html` | The homepage. All copy is here. |
+| `privacy.html` | Privacy policy. Shares the stylesheet and script. |
+| `assets/css/styles.css` | Every style, in 21 numbered sections. Brand tokens in `:root`. |
+| `assets/js/main.js` | Navigation, FAQ accordion, the lead dialog, the news strip. |
+| `assets/fonts/inter-variable.woff2` | Self-hosted Inter (latin subset, ~48 KB). |
+| `assets/images/screenshots/` | Product screenshots. **Generated — see below.** |
+| `assets/images/og-card.png` | 1200×630 social card. |
+| `robots.txt` | Static. Hosting resolves it before rewrites, so it cannot be a function. |
 
-### 1. Updating Text & Content
-All text (headlines, FAQs, features) is hardcoded in `index.html`. Open the file and search for the specific text. Update paragraphs directly within the `<p>` and `<h3>`/`<h2>` tags.
+## The rule that matters most: claims must be true
 
-### 2. Updating App Screenshots
-The landing page relies on screenshots from the real platform (located in `assets/images/`).
-To replace them:
-1. Export your latest app screenshot.
-2. Name it identically (e.g., `hero-dashboard.png` or `feature-tracking.png`).
-3. Overwrite the file in the `assets/images/` folder.
-*Alternatively, you can add new images to the folder and update the `<img src="...">` paths in `index.html`.*
+Every product claim on this site must trace to an `available` or `partial` entry
+in [`functions/ai/knowledge/safehaulCapabilities.js`](../functions/ai/knowledge/safehaulCapabilities.js).
+That file is the verified description of what SafeHaul actually does, and its
+`PROHIBITED_CLAIMS` list exists partly because this page used to contradict it —
+it promised "free forever" beside its own $199 and $299 plans, advertised a job
+board that has never existed, and described document-expiry monitoring that was
+never built.
 
-### 3. Plans & Pricing Adjustments
-In `index.html`, locate the `<section id="pricing">`.
-Prices and tier features can be adjusted simply by modifying the HTML content inside the `.price-card` divs.
+`npm run check:landing-claims` runs the same deterministic checker the automated
+blog runs on every draft, against the shipped HTML. It is part of `npm run lint`,
+so a prohibited claim fails the build.
 
-### 4. Lead Generation Form
-The site uses a unified completely custom Short-Form modal linked to every "Get Started" and "Schedule Demo" button (via the `.js-open-lead-modal` class).
-- Browser logic is managed inside `assets/js/main.js`.
-- The form posts to the same-origin Firebase Hosting rewrite at `/api/landing-lead`.
-- `functions/landingLead.js` validates and rate-limits requests, then contacts Telegram server-side.
-- Telegram credentials belong only in Google Secret Manager. Never place them in this folder, browser JavaScript, GitHub, or GitHub Actions.
+**If the product genuinely gains a capability, update the knowledge package
+first.** It is the source of truth, and the blog is generated from it.
 
-### 5. Deployment
-The site is deployed by the SafeHaul GitHub workflow to its repository-specific Firebase Hosting target. See `docs/FIREBASE_HOSTING_RUNBOOK.md` in the repository root. Do not deploy this folder separately or reconnect it to Vercel.
+## Updating copy
+
+All text is in `index.html`. Search for the sentence and edit it. Then:
+
+```bash
+npm run check:landing-claims
+npx vitest run src/tests/landingPage.test.js src/tests/landingNewsSection.test.js
+```
+
+## Updating screenshots
+
+Do **not** screenshot production. The images that shipped here before this was
+automated contained real driver names and phone numbers on a public page, and one
+showed a feature that had been removed from the product.
+
+Captures run against the fixture tenant instead, which has no route to real data:
+
+```bash
+VITE_E2E_TEST_MODE=1 npm run dev          # terminal 1
+npm run capture:landing-screenshots       # terminal 2
+```
+
+`VITE_E2E_TEST_MODE=1` points Firestore at a closed port and serves in-memory
+fixtures; `?demo=marketing` renames the tenant to the fictional "Ridgeline
+Carriers". Add or change a shot in `scripts/capture-landing-screenshots.mjs`,
+where each entry names the section it supports.
+
+## The lead form
+
+A two-step dialog. Step one asks only for a name and a work email and **saves the
+lead immediately**; step two adds qualification. Someone who abandons at the
+qualification questions is still a captured, contactable lead — the previous
+single form lost them entirely.
+
+- Any element with `.js-open-lead-modal` opens it. `/#get-started` opens it on load,
+  which is how `privacy.html` reaches it without duplicating the markup.
+- Both steps post to `/api/landing-lead`, a same-origin Hosting rewrite onto
+  `submitLandingLead`.
+- The lead is written to Firestore **before** Telegram delivery is attempted, so
+  an outage delays a notification instead of destroying a customer.
+- **Telegram credentials never appear in this folder, in browser JavaScript, in
+  GitHub or in GitHub Actions.** They are managed in Super Admin → Landing Page
+  Settings, encrypted at rest, with Google Secret Manager as the deploy-time
+  fallback. See [`docs/environment-and-integrations-runbook.md`](../docs/environment-and-integrations-runbook.md).
+
+## Accessibility
+
+`npm run check:landing-a11y` serves this folder and runs axe at 390, 768 and
+1440, then checks the two things axe cannot see: that the FAQ opens from the
+keyboard, and that focus is trapped in the dialog. Both were broken before the
+redesign. It needs a Chromium; set `PW_CHROMIUM_EXECUTABLE` if Playwright's
+bundled browser is unavailable.
+
+Two rules worth keeping in mind when editing styles:
+
+- **Mint (`--primary`) never carries text.** On white it measures about 1.6:1.
+  It may draw a rule, a glyph, or a focus ring on a dark surface.
+- **`[hidden]` is forced to `display: none !important`** near the top of the
+  stylesheet, because several components set their own display value and would
+  otherwise silently defeat `element.hidden`.
+
+## News & Insights
+
+`/news`, `/news/{slug}`, `/news/feed.xml` and `/sitemap.xml` are server-rendered
+by the `serveBlogPublic` function and share **this stylesheet** — see section 15
+of `styles.css`. The homepage strip fetches `/api/news/latest` at runtime and
+degrades to a link when that fails. Full documentation:
+[`docs/news-and-insights.md`](../docs/news-and-insights.md).
+
+## Deployment
+
+Deployed by the SafeHaul GitHub workflow to its repository-specific Hosting
+target. See [`docs/FIREBASE_HOSTING_RUNBOOK.md`](../docs/FIREBASE_HOSTING_RUNBOOK.md).
+Do not deploy this folder separately and do not reconnect it to Vercel.

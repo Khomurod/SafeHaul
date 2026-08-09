@@ -502,6 +502,50 @@ const SECRET_MANAGER_ENTRIES = [
 }));
 
 // ---------------------------------------------------------------------------
+// 3b. Operator-managed landing-page credentials (Firestore, encrypted)
+//
+// The Telegram credentials above are the deploy-time fallback. These two rows
+// are the operator-managed copy that supersedes them: encrypted with
+// SMS_ENCRYPTION_KEY into `platform_settings/landing_page`, and changed from
+// Super Admin → Landing Page Settings without a deploy.
+//
+// They are listed as `not-retrievable` on purpose. Every other Firestore-backed
+// credential in this vault can be revealed, but a bot token that can be read
+// back is an exfiltration route that buys nothing: an operator who needs the
+// token gets a fresh one from BotFather. The settings screen shows a SHA-256
+// fingerprint and the bot's public username instead, which is enough to confirm
+// which credentials are live.
+// ---------------------------------------------------------------------------
+
+const LANDING_SETTINGS_ENTRIES = [
+    {
+        key: 'landing.telegram_bot_token',
+        displayName: 'Landing-page Telegram bot token (managed)',
+        description: 'Operator-managed Telegram bot token for safehaul.io lead delivery. Encrypted at rest in platform_settings/landing_page and never returned to a browser.',
+        integration: 'Telegram (landing leads)',
+        sensitivity: SENSITIVITY.CRITICAL,
+        consumers: ['functions/landing/config.js', 'functions/landingLead.js'],
+    },
+    {
+        key: 'landing.telegram_chat_id',
+        displayName: 'Landing-page Telegram chat ID (managed)',
+        description: 'Operator-managed destination chat for validated sales leads. Encrypted at rest alongside the bot token.',
+        integration: 'Telegram (landing leads)',
+        sensitivity: SENSITIVITY.SENSITIVE,
+        consumers: ['functions/landing/config.js', 'functions/landingLead.js'],
+    },
+].map((entry) => ({
+    ...entry,
+    category: CATEGORIES.GLOBAL_INTEGRATION,
+    scope: 'global',
+    source: SOURCES.FIRESTORE_ENCRYPTED,
+    availability: AVAILABILITY.NOT_RETRIEVABLE,
+    unavailableReason: 'Managed in Super Admin → Landing Page Settings, which shows a fingerprint rather than the value.',
+    requiresDeployment: false,
+    ...readOnly(REASONS.SOURCE_NO_EDIT),
+}));
+
+// ---------------------------------------------------------------------------
 // 4. GitHub's automatic per-run token
 //
 // SafeHaul stores no application or deployment secrets in GitHub. GITHUB_TOKEN
@@ -611,7 +655,8 @@ const OPS_ENTRIES = [
     ['RULES_STRESS_LOOPS', 'Rules stress loop count', 'Number of times the Firestore/Storage rules suite repeats in the emulator flake guard.', ['scripts/run-rules-stress.mjs', '.github/workflows/main.yml']],
     ['FIRESTORE_EMULATOR_HOST', 'Firestore emulator host', 'Host:port the rules suite points the Firestore SDK at.', ['scripts/run-rules-stress.mjs', 'src/tests/firestore.rules.security.test.js']],
     ['FIREBASE_STORAGE_EMULATOR_HOST', 'Storage emulator host', 'Host:port the rules suite points the Storage SDK at.', ['scripts/run-rules-stress.mjs', 'src/tests/storage.rules.security.test.js']],
-    ['PW_CHROMIUM_EXECUTABLE', 'Playwright Chromium path', 'Absolute path to a system Chromium for the Playwright chromium lanes.', ['playwright.config.cjs']],
+    ['LANDING_A11Y_PORT', 'Landing a11y audit port', 'Port the marketing-site accessibility audit serves landing/ on. Overridable so the audit cannot collide with another server already holding the default.', ['scripts/check-landing-a11y.mjs']],
+    ['PW_CHROMIUM_EXECUTABLE', 'Playwright Chromium path', 'Absolute path to a system Chromium for the Playwright chromium lanes.', ['playwright.config.cjs', 'scripts/check-landing-a11y.mjs', 'scripts/capture-landing-screenshots.mjs']],
     ['CI', 'CI flag', 'Set by GitHub Actions. Switches Playwright to one worker with retries and forbids test.only.', ['playwright.config.cjs']],
     ['npm_execpath', 'npm executable path', 'Path npm exposes to the running script; the rules stress runner uses it to re-invoke npm.', ['scripts/run-rules-stress.mjs']],
     // Not stored anywhere. Workload Identity Federation mints this inside the
@@ -1015,6 +1060,7 @@ const GLOBAL_ENTRIES = Object.freeze(
         ...BROWSER_ENTRIES,
         ...FUNCTIONS_ENTRIES,
         ...SECRET_MANAGER_ENTRIES,
+        ...LANDING_SETTINGS_ENTRIES,
         ...GITHUB_ENTRIES,
         ...FIREBASE_ENTRIES,
         ...OPS_ENTRIES,
@@ -1042,6 +1088,10 @@ const UNREFERENCED_BY_DESIGN = Object.freeze({
     ...Object.fromEntries(AI_CREDENTIAL_ENTRIES.map((entry) => [
         entry.key,
         'AI provider credential. The Secret Manager name is derived from functions/ai/registry/providers.js at runtime, so it appears in no file as a literal.',
+    ])),
+    ...Object.fromEntries(LANDING_SETTINGS_ENTRIES.map((entry) => [
+        entry.key,
+        'Encrypted field on platform_settings/landing_page, not an environment variable, so the corpus scan for process.env and defineSecret cannot see it. Read through functions/landing/config.js.',
     ])),
 });
 

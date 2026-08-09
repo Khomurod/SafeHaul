@@ -244,9 +244,22 @@ exports.getSignedApplicationFileUrl = require('./getSignedApplicationFileUrl').g
 // caller and writes an audit record before issuing a short-lived signed URL.
 exports.getApplicationOriginalPdfUrl = require('./applicationOriginalPdf').getApplicationOriginalPdfUrl;
 
-// Public marketing-site lead form. Hosting rewrites /api/landing-lead here;
-// Telegram credentials remain server-side in Google Secret Manager.
+// Public marketing-site lead form. Hosting rewrites /api/landing-lead here.
+// The lead is written to Firestore before delivery is attempted, so a Telegram
+// outage no longer destroys it. Credentials stay server-side: the encrypted
+// Firestore configuration first, Secret Manager as the deploy-time fallback.
 exports.submitLandingLead = require('./landingLead').submitLandingLead;
+
+// Super Admin → Landing Page Settings. Manages Telegram lead delivery and lists
+// captured leads. No callable here can return the bot token; see
+// functions/landing/callables.js for the reasoning.
+const landingAdmin = require('./landing/callables');
+exports.getLandingPageSettings = landingAdmin.getLandingPageSettings;
+exports.updateLandingTelegramConfig = landingAdmin.updateLandingTelegramConfig;
+exports.setLandingTelegramEnabled = landingAdmin.setLandingTelegramEnabled;
+exports.sendLandingTelegramTest = landingAdmin.sendLandingTelegramTest;
+exports.listLandingLeads = landingAdmin.listLandingLeads;
+exports.retryLandingLeadDelivery = landingAdmin.retryLandingLeadDelivery;
 
 // 18. Feature Scheduler
 const featureScheduler = require('./featureScheduler');

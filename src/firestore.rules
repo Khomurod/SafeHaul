@@ -600,6 +600,24 @@ service cloud.firestore {
     // scheduler's alone; deletion goes through `deleteBlogPost`.
     match /blog_posts/{postId} { allow read, write: if false; } // server-only (News & Insights)
 
+    // --- LANDING PAGE (server-only) ---
+    // Platform-level settings for the marketing site, including the encrypted
+    // Telegram bot token and destination chat used for lead delivery. Closed to
+    // every client including Super Admins, by the same reasoning as the
+    // environment vault: a credential a browser can fetch is a credential that
+    // can leave the browser. Super Admin → Landing Page Settings reads a masked
+    // projection through `getLandingPageSettings` and writes through
+    // `updateLandingTelegramConfig`, both of which require exact super_admin,
+    // recent authentication and a rate-limit budget, and neither of which can
+    // return the token.
+    match /platform_settings/{settingId} { allow read, write: if false; } // server-only (landing settings)
+
+    // Captured marketing leads. Written by `submitLandingLead` before delivery
+    // is attempted, so an outage cannot destroy one. Client-closed because the
+    // documents hold third-party contact details plus a completion token hash;
+    // the settings screen lists them through `listLandingLeads`.
+    match /landing_leads/{leadId} { allow read, write: if false; } // server-only (landing leads)
+
     // --- SYSTEM SETTINGS ---
     match /system_settings/{settingId} {
       allow read: if isStaff() || isSuperAdmin();
