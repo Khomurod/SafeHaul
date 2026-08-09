@@ -1,39 +1,89 @@
-<!--
-  Approved local fallback for News & Insights articles.
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630" role="img"
+    aria-label="SafeHaul News and Insights">
+    <!--
+      The fallback illustration for an article with no image of its own, and the
+      Open Graph card the blog pipeline falls back to.
 
-  Used when no media provider is configured, or when no provider returns an
-  image whose licence SafeHaul can verify. The pipeline never publishes an
-  unlicensed third-party image to satisfy the daily article count; it publishes
-  this instead. Owned by SafeHaul, so its provenance is unambiguous.
+      Deliberately wordless. This file is consumed as an <img> src, where a
+      web font never loads, so any lettering here would render in whatever the
+      platform substitutes — a system display face wearing the design's clothes.
+      The accessible name is carried by role/aria-label above and by the alt text
+      the card script sets from the article title.
 
-  1200x630 is the Open Graph card ratio, so the same asset works as the social
-  preview image.
--->
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630" role="img" aria-label="SafeHaul News and Insights">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#004C68"/>
-      <stop offset="100%" stop-color="#013244"/>
-    </linearGradient>
-  </defs>
+      Nothing external is referenced: no embedded raster, no linked href, no
+      remote url. `src/tests/landingNewsSection.test.js` enforces that with a
+      literal text search, because a public page must not leak a request to draw
+      a placeholder — so do not name the forbidden attributes here either, even
+      to say they are absent.
+    -->
+    <defs>
+        <linearGradient id="lit" x1="0.75" y1="0" x2="0.2" y2="1">
+            <stop offset="0" stop-color="#ffffff" stop-opacity="0.24" />
+            <stop offset="0.62" stop-color="#ffffff" stop-opacity="0" />
+        </linearGradient>
+        <linearGradient id="prong" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#d9d3c6" />
+            <stop offset="0.55" stop-color="#8e887c" />
+            <stop offset="1" stop-color="#b6b0a4" />
+        </linearGradient>
+    </defs>
 
-  <rect width="1200" height="630" fill="url(#bg)"/>
+    <!-- Folder stock -->
+    <rect width="1200" height="630" fill="#e2a72e" />
+    <rect width="1200" height="630" fill="url(#lit)" />
 
-  <!-- Horizon and road, suggesting freight without depicting anything specific. -->
-  <path d="M0 470 H1200 V630 H0 Z" fill="#012734" opacity="0.65"/>
-  <path d="M120 552 H360 M470 552 H710 M820 552 H1060" stroke="#0CE1A5" stroke-width="8" stroke-linecap="round" opacity="0.55"/>
+    <!-- The index tabs, and the rail they stand on -->
+    <g>
+        <path d="M96 34h150a10 10 0 0 1 10 10v58H86V44a10 10 0 0 1 10-10z" fill="#d59a22" />
+        <path d="M96 34h150a10 10 0 0 1 10 10v10H86V44a10 10 0 0 1 10-10z" fill="#a8760f" />
+        <path d="M276 34h150a10 10 0 0 1 10 10v58H266V44a10 10 0 0 1 10-10z" fill="#faf7f0" />
+        <path d="M276 34h150a10 10 0 0 1 10 10v10H266V44a10 10 0 0 1 10-10z" fill="#b03a24" />
+        <path d="M456 34h150a10 10 0 0 1 10 10v58H446V44a10 10 0 0 1 10-10z" fill="#d59a22" />
+        <path d="M456 34h150a10 10 0 0 1 10 10v10H446V44a10 10 0 0 1 10-10z" fill="#a8760f" />
+        <rect x="0" y="100" width="1200" height="5" fill="#17130e" />
+    </g>
 
-  <!-- Abstract trailer and tractor silhouette. -->
-  <rect x="300" y="300" width="380" height="130" rx="10" fill="#0CE1A5" opacity="0.92"/>
-  <path d="M690 340 h95 l55 60 v30 h-150 Z" fill="#0CE1A5" opacity="0.75"/>
-  <circle cx="390" cy="452" r="30" fill="#012734"/>
-  <circle cx="390" cy="452" r="13" fill="#0CE1A5"/>
-  <circle cx="620" cy="452" r="30" fill="#012734"/>
-  <circle cx="620" cy="452" r="13" fill="#0CE1A5"/>
-  <circle cx="800" cy="452" r="30" fill="#012734"/>
-  <circle cx="800" cy="452" r="13" fill="#0CE1A5"/>
+    <!-- A punched sheet on the prong, ruled and margin-lined -->
+    <g transform="translate(0 6) rotate(-1.1 600 380)">
+        <rect x="292" y="188" width="616" height="374" fill="#efe9da" transform="rotate(1.6 600 375)" />
+        <rect x="286" y="180" width="628" height="382" fill="#faf7f0" stroke="#c9bda3" stroke-width="2" />
 
-  <text x="100" y="150" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="34" font-weight="700" fill="#0CE1A5" letter-spacing="6">SAFEHAUL</text>
-  <text x="100" y="228" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="62" font-weight="800" fill="#ffffff">News &amp; Insights</text>
-  <text x="100" y="278" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="26" font-weight="500" fill="#cbd5e1">Trucking news, recruiting and compliance</text>
+        <!-- Red margin rule -->
+        <rect x="360" y="180" width="2" height="382" fill="#b03a24" opacity="0.4" />
+
+        <!-- Ruled lines: the first two long, the rest tapering, as a page of text -->
+        <g fill="#ddd2bb">
+            <rect x="392" y="246" width="486" height="9" />
+            <rect x="392" y="286" width="486" height="9" />
+            <rect x="392" y="326" width="404" height="9" />
+            <rect x="392" y="380" width="300" height="9" />
+            <rect x="392" y="420" width="486" height="9" />
+            <rect x="392" y="460" width="352" height="9" />
+        </g>
+
+        <!-- A verified mark against the first entry -->
+        <circle cx="366" cy="207" r="0" fill="none" />
+        <g transform="translate(392 496)">
+            <circle cx="14" cy="14" r="14" fill="#1d5b41" />
+            <path d="M7 14.5 12 19.5 21.5 9" fill="none" stroke="#faf7f0" stroke-width="3.4" stroke-linecap="square" />
+        </g>
+        <rect x="436" y="504" width="180" height="9" fill="#ddd2bb" />
+
+        <!-- Punch holes and the prong that runs through them -->
+        <g>
+            <rect x="452" y="150" width="19" height="42" rx="3" fill="url(#prong)" />
+            <rect x="729" y="150" width="19" height="42" rx="3" fill="url(#prong)" />
+            <circle cx="461" cy="180" r="10" fill="#e2a72e" />
+            <circle cx="738" cy="180" r="10" fill="#e2a72e" />
+        </g>
+    </g>
+
+    <!-- The stamp, landed at the angle a hand would -->
+    <g transform="rotate(-7 962 512)">
+        <rect x="872" y="478" width="180" height="66" fill="none" stroke="#b03a24" stroke-width="5" rx="3" />
+        <g fill="#b03a24">
+            <rect x="898" y="500" width="128" height="7" />
+            <rect x="898" y="518" width="86" height="7" />
+        </g>
+    </g>
 </svg>

@@ -1,0 +1,171 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-09T22:40:00Z",
+  "title": "Design System: SafeHaul Marketing Site",
+  "extensions": {
+    "colorMeta": {
+      "folder": {
+        "role": "primary",
+        "displayName": "Goldenrod Folder Stock",
+        "canonical": "#e2a72e",
+        "tonalRamp": ["#3a2a08", "#5c430e", "#7e5c13", "#a8760f", "#c98d24", "#e2a72e", "#f0c14f", "#f8dc9a"]
+      },
+      "rope": {
+        "role": "primary",
+        "displayName": "Rope Red",
+        "canonical": "#b03a24",
+        "tonalRamp": ["#2c0d06", "#4a170c", "#6b2113", "#8a2b18", "#b03a24", "#c85a44", "#e08c7b", "#f2c4ba"]
+      },
+      "kraft": {
+        "role": "secondary",
+        "displayName": "Kraft Board",
+        "canonical": "#2b1d0e",
+        "tonalRamp": ["#150e06", "#2b1d0e", "#3f2d16", "#57411f", "#71572c", "#8d7040", "#b09364", "#d4bd9a"]
+      },
+      "sheet": {
+        "role": "neutral",
+        "displayName": "Form Paper",
+        "canonical": "#faf7f0",
+        "tonalRamp": ["#3b372e", "#5c564a", "#7d7566", "#a29886", "#c9bda3", "#ddd2bb", "#f3eee2", "#faf7f0"]
+      },
+      "stamp": {
+        "role": "tertiary",
+        "displayName": "Stamp Violet",
+        "canonical": "#45348c",
+        "tonalRamp": ["#150f2b", "#241b4a", "#332769", "#45348c", "#5c49ad", "#7c6bc9", "#a99cf0", "#d3cbf8"]
+      },
+      "verified": {
+        "role": "tertiary",
+        "displayName": "Ledger Green",
+        "canonical": "#1d5b41",
+        "tonalRamp": ["#082016", "#0f3527", "#164836", "#1d5b41", "#2b7d5a", "#3fa176", "#6fd3a4", "#b0e9cf"]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#17130e",
+        "tonalRamp": ["#17130e", "#2b241b", "#3f352a", "#574b3c", "#7d6f5c", "#a2947f", "#c9bda3", "#f4ecdd"]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Drawer Plate", "purpose": "The h1 only. Semi-condensed at 88 width, weight 800, left-aligned at roughly half measure." },
+      "label": { "displayName": "Typed", "purpose": "Tabs, stamps, sheet heads, table headers, form labels, log timestamps, captions. Never prose." }
+    },
+    "shadows": [
+      { "name": "lift-1", "value": "0 1px 2px rgba(43,29,14,0.16)", "purpose": "A stamp resting on a sheet." },
+      { "name": "lift-2", "value": "0 6px 14px -6px rgba(43,29,14,0.34), 0 2px 4px rgba(43,29,14,0.12)", "purpose": "Small mounted objects: the compare table, the signature block, primary buttons at rest." },
+      { "name": "lift-3", "value": "0 18px 34px -14px rgba(43,29,14,0.44), 0 4px 10px -4px rgba(43,29,14,0.2)", "purpose": "Loose documents, price forms, mounted screenshots." },
+      { "name": "lift-4", "value": "0 34px 60px -22px rgba(43,29,14,0.5), 0 10px 20px -10px rgba(43,29,14,0.26)", "purpose": "The top sheet of the stack: the hero exhibit and the lead dialog." }
+    ],
+    "motion": [
+      { "name": "ease-place", "value": "cubic-bezier(0.16, 0.84, 0.3, 1)", "purpose": "Paper being placed. The only easing curve in the system." },
+      { "name": "t-fast", "value": "0.14s", "purpose": "Hover, cap and colour changes." },
+      { "name": "t-normal", "value": "0.26s", "purpose": "Sheets appearing, the dialog, the FAQ answer." }
+    ],
+    "breakpoints": [
+      { "name": "stack", "value": "1100px" },
+      { "name": "grid", "value": "1024px" },
+      { "name": "rail", "value": "968px" },
+      { "name": "column", "value": "768px" },
+      { "name": "phone", "value": "480px" }
+    ],
+    "materials": [
+      { "name": "grain-fine", "value": "tiled feTurbulence fractalNoise, baseFrequency 0.9, 4 octaves, 160px tile, multiply @ 0.14", "purpose": "Paper tooth on goldenrod folder grounds." },
+      { "name": "grain-coarse", "value": "tiled feTurbulence fractalNoise, baseFrequency 0.42, 5 octaves, 200px tile, overlay @ 0.30", "purpose": "Open board fiber on kraft grounds." }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The action. Rope red, square-cut, pressed 1px on active.",
+      "html": "<button class=\"ds-btn-primary\">Get started</button>",
+      "css": ".ds-btn-primary{min-height:44px;display:inline-flex;align-items:center;justify-content:center;padding:12px 26px;font-family:Archivo,system-ui,sans-serif;font-size:.9375rem;font-variation-settings:'wdth' 100,'wght' 680;background:#b03a24;color:#fff;border:2px solid #b03a24;border-radius:2px;cursor:pointer;box-shadow:0 6px 14px -6px rgba(43,29,14,.34),0 2px 4px rgba(43,29,14,.12);transition:transform .14s cubic-bezier(.16,.84,.3,1),background-color .14s ease,box-shadow .14s ease}.ds-btn-primary:hover{background:#8a2b18;border-color:#8a2b18;box-shadow:0 18px 34px -14px rgba(43,29,14,.44),0 4px 10px -4px rgba(43,29,14,.2)}.ds-btn-primary:active{transform:translateY(1px)}.ds-btn-primary:focus-visible{outline:3px solid #b03a24;outline-offset:2px}"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "The secondary route through the page. Inverts to ink on hover.",
+      "html": "<button class=\"ds-btn-outline\">See how it works</button>",
+      "css": ".ds-btn-outline{min-height:44px;display:inline-flex;align-items:center;justify-content:center;padding:12px 26px;font-family:Archivo,system-ui,sans-serif;font-size:.9375rem;font-variation-settings:'wdth' 100,'wght' 680;background:transparent;color:#17130e;border:2px solid #17130e;border-radius:2px;cursor:pointer;transition:background-color .14s ease,color .14s ease}.ds-btn-outline:hover{background:#17130e;color:#f0c14f}.ds-btn-outline:focus-visible{outline:3px solid #b03a24;outline-offset:2px}"
+    },
+    {
+      "name": "Index Tab (navigation)",
+      "kind": "nav",
+      "refersTo": "nav-tab",
+      "description": "The signature component. The navigation is the folder's tabs; the tab for the section being read stands proud of the rail and caps in rope.",
+      "html": "<nav class=\"ds-rail\"><a class=\"ds-tab\" href=\"#a\">Platform</a><a class=\"ds-tab\" href=\"#b\" aria-current=\"true\">Pricing</a><a class=\"ds-tab\" href=\"#c\">FAQ</a></nav>",
+      "css": ".ds-rail{display:flex;align-items:flex-end;gap:3px;background:#e2a72e;border-bottom:2px solid #17130e;padding:14px 16px 0}.ds-tab{display:flex;align-items:center;min-height:44px;padding:10px 15px;font-family:'Courier Prime',monospace;font-size:.75rem;letter-spacing:.11em;text-transform:uppercase;color:#17130e;text-decoration:none;background:#d59a22;border:1px solid #a8760f;border-bottom:none;border-radius:10px 10px 0 0;box-shadow:inset 0 3px 0 #a8760f;transition:background-color .14s ease,box-shadow .14s ease,transform .14s cubic-bezier(.16,.84,.3,1)}.ds-tab:hover{background:#f0c14f;box-shadow:inset 0 3px 0 #b03a24}.ds-tab[aria-current=\"true\"]{background:#faf7f0;border-color:#17130e;box-shadow:inset 0 3px 0 #b03a24;transform:translateY(-3px);margin-bottom:3px}.ds-tab:focus-visible{outline:3px solid #b03a24;outline-offset:2px}"
+    },
+    {
+      "name": "Sheet",
+      "kind": "card",
+      "refersTo": "card-sheet",
+      "description": "Not a card: a piece of paper. Square-cut, 1px paper edge, physical offset shadow, and a fractional rotation where it should read as loose.",
+      "html": "<article class=\"ds-sheet\"><h3>Documents, per driver</h3><p>Qualification paperwork stored against the driver it belongs to.</p></article>",
+      "css": ".ds-sheet{position:relative;background:#faf7f0;border:1px solid #c9bda3;border-radius:3px;padding:30px 26px;box-shadow:0 18px 34px -14px rgba(43,29,14,.44),0 4px 10px -4px rgba(43,29,14,.2);transform:rotate(-.6deg);transition:transform .26s cubic-bezier(.16,.84,.3,1),box-shadow .26s ease}.ds-sheet:hover{transform:rotate(0) translateY(-4px);box-shadow:0 34px 60px -22px rgba(43,29,14,.5),0 10px 20px -10px rgba(43,29,14,.26)}.ds-sheet h3{margin:0 0 10px;font-family:Archivo,system-ui,sans-serif;font-size:1.2rem;font-variation-settings:'wdth' 96,'wght' 700;letter-spacing:-.015em;color:#17130e}.ds-sheet p{margin:0;font-family:Archivo,system-ui,sans-serif;font-size:1rem;line-height:1.62;color:#574b3c}"
+    },
+    {
+      "name": "Stamp",
+      "kind": "chip",
+      "refersTo": "badge",
+      "description": "A mark struck onto a document. Courier caps in an outlined box, rotated as a hand would leave it. Never a pill, never filled.",
+      "html": "<span class=\"ds-stamp\">Most popular</span>",
+      "css": ".ds-stamp{display:inline-block;padding:6px 14px;font-family:'Courier Prime',monospace;font-size:.6875rem;letter-spacing:.16em;text-transform:uppercase;color:#b03a24;background:#faf7f0;border:2px solid #b03a24;border-radius:2px;transform:rotate(-6deg);box-shadow:0 1px 2px rgba(43,29,14,.16)}"
+    },
+    {
+      "name": "Form Field",
+      "kind": "input",
+      "refersTo": "input-field",
+      "description": "A field on a form. Typed uppercase label, white fill, ink border; focus and invalid both draw a rope underline rather than a glow.",
+      "html": "<div class=\"ds-field\"><label for=\"ds-email\">Work email</label><input id=\"ds-email\" type=\"email\" placeholder=\"jane@yourcarrier.com\"></div>",
+      "css": ".ds-field{display:grid;gap:6px}.ds-field label{font-family:'Courier Prime',monospace;font-size:.6875rem;letter-spacing:.12em;text-transform:uppercase;color:#17130e}.ds-field input{width:100%;min-height:46px;padding:11px 13px;font-family:Archivo,system-ui,sans-serif;font-size:1rem;color:#17130e;background:#fff;border:1px solid #17130e;border-radius:2px;transition:border-color .14s ease,box-shadow .14s ease}.ds-field input::placeholder{color:#7d6f5c}.ds-field input:focus{outline:none;border-color:#b03a24;box-shadow:inset 0 -3px 0 #b03a24}.ds-field input[aria-invalid=\"true\"]{border-color:#b03a24;box-shadow:inset 0 -3px 0 #b03a24}"
+    },
+    {
+      "name": "Activity Record",
+      "kind": "custom",
+      "refersTo": "logbook",
+      "description": "Used where the claim is that a trail exists: appended timestamped lines on kraft, dates in stamp violet, footer naming the data as an illustration.",
+      "html": "<div class=\"ds-log\"><p class=\"ds-log-head\">Activity — previous-employment verification</p><ol class=\"ds-log-lines\"><li><span class=\"t\">12 May 09:14</span><span class=\"e\">Request sent</span></li><li><span class=\"t\">21 May 14:32</span><span class=\"e v\">Response received</span></li></ol><p class=\"ds-log-foot\">Illustration. Not a real driver record.</p></div>",
+      "css": ".ds-log{background:#2b1d0e;border:1px solid #57411f;padding:18px 20px 16px;box-shadow:0 18px 34px -14px rgba(43,29,14,.44);font-family:'Courier Prime',monospace}.ds-log-head{margin:0 0 10px;padding-bottom:10px;border-bottom:1px solid #57411f;font-size:.6875rem;letter-spacing:.14em;text-transform:uppercase;color:#cbb897}.ds-log-lines{list-style:none;margin:0;padding:0;display:grid;gap:7px;font-size:.8125rem;font-variant-numeric:tabular-nums}.ds-log-lines li{display:grid;grid-template-columns:96px minmax(0,1fr);gap:4px 14px;color:#f4ecdd}.ds-log-lines .t{color:#a99cf0}.ds-log-lines .v{color:#6fd3a4}.ds-log-foot{margin:12px 0 0;padding-top:10px;border-top:1px solid #57411f;font-size:.6875rem;letter-spacing:.12em;text-transform:uppercase;color:#cbb897}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Driver File",
+    "overview": "Every SafeHaul feature exists to produce one thing: a driver qualification file that holds together months later, when someone asks to see it. So the marketing site is not a page about that object — it is that object. Goldenrod folder stock is the ground. Index tabs along the top edge are the navigation. Form-paper sheets sit on the stock, punched and held on a metal prong. Kraft board backs the sections that have to feel closed and serious. Marks land as rubber stamps at the angle a hand would leave them.\n\nThe register is a working safety office under fluorescent light at mid-morning: lit, saturated, unglamorous, legible at speed. It is deliberately not the beige nostalgia this world falls into — a real file folder is a saturated object, and rendering it politely turns the system into a costume. Nor is it the category default this replaced: a centered hero, a mint-to-white gradient wash, a floating screenshot and a bento of equal cards, all of which could belong to any product in any category.\n\nDensity varies on purpose. Folder grounds carry big type and air; sheets carry ruled, tight, form-like information; kraft carries short declarative statements with generous separation. Depth is physical throughout — paper lies on paper and throws a real offset shadow.",
+    "keyCharacteristics": [
+      "Saturated goldenrod as a committed ground, not an accent",
+      "Two faces only: a wide institutional grotesque and a true typewriter",
+      "Every screenshot is a print in a mount, never a rectangle floating on a background",
+      "Colour carries fixed meaning; no component invents a new one",
+      "Square-cut corners and printed rules; almost nothing is soft"
+    ],
+    "rules": [
+      { "name": "The Ground Rule", "body": "--folder and --folder-deep never carry text, anywhere. They fill, they rule, they cap a tab. --folder-lit is the only goldenrod permitted as ink, and only on kraft, where it measures over 7:1. Enforced by src/tests/landingPage.test.js.", "section": "colors" },
+      { "name": "The Darker-On-Gold Rule", "body": "Secondary ink is redefined on folder grounds (--ink-soft #42372b, --ink-faint #4a3e31). The paper values measure 3.97:1 on goldenrod, which is a fail, not a rounding error.", "section": "colors" },
+      { "name": "The Meaning Rule", "body": "Red means act or attend. Violet means a date or an audit mark. Green means verified. A component never invents a fourth meaning, and never borrows one of these three for decoration.", "section": "colors" },
+      { "name": "The Typed-Things Rule", "body": "Courier Prime is for what the file world would actually have typed, stamped or logged. It is never used for prose. Monospace as a costume for 'technical' is the failure mode this rule exists to prevent.", "section": "typography" },
+      { "name": "The Eleven-Pixel Floor", "body": "No text below 11px anywhere, including captions and stamps. Enforced over the shared stylesheet by src/tests/landingNewsSection.test.js.", "section": "typography" },
+      { "name": "The Material Rule", "body": "Folder stock and kraft board carry a real grain — tiled fractal-noise turbulence as a data URI. A flat fill is a swatch of a colour, not a sheet of anything. A grain so faint it cannot be seen in a screenshot is a compliance token; if you cannot see it, raise it or remove it.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do ground each section in one material and let it run edge to edge.",
+      "Do mount every screenshot in a sheet frame with mix-blend-mode: multiply and saturate(0.88), so the interface belongs to the paper it sits on.",
+      "Do reach for a printed rule before a box. 2px ink opens a section; 1px --sheet-rule separates rows inside one.",
+      "Do draw icons: one sprite, one 2.4px stroke, square caps and mitre joins.",
+      "Do theme the browser's own surfaces — selection, caret, accent-color, scrollbars, focus rings — from this palette.",
+      "Do label demonstration data as an illustration wherever a visitor could mistake it for a real driver record."
+    ],
+    "donts": [
+      "Don't set text in --folder or --folder-deep, on any surface.",
+      "Don't soften the goldenrod toward cream, parchment or beige. The saturation is the design; the muted version is the costume.",
+      "Don't use Courier Prime for prose, or for 'technical' atmosphere.",
+      "Don't add a radius beyond 2px / 3px / the tab shape.",
+      "Don't let a stamp or seal overlap text it would strike through.",
+      "Don't introduce a fourth meaning colour, or reuse red, violet or green for decoration.",
+      "Don't put a kicker or eyebrow above a heading."
+    ]
+  }
+}

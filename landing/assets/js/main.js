@@ -38,6 +38,65 @@ document.addEventListener('DOMContentLoaded', function () {
         window.addEventListener('scroll', applyScrollState, { passive: true });
     }
 
+    /*
+     * The tab rail.
+     *
+     * The navigation is the file's index tabs, so the tab for the section you
+     * are reading has to be the one standing forward — otherwise it is a row of
+     * tabs that never does what a tab does. `aria-current` carries it, which
+     * means the state is announced rather than merely drawn.
+     *
+     * Guarded on both sides: the server-rendered blog emits this same navbar
+     * with off-page links and no sections to observe, and older browsers
+     * without IntersectionObserver simply keep the rail static.
+     */
+    if (navLinks && 'IntersectionObserver' in window) {
+        var tabs = [];
+        Array.prototype.forEach.call(navLinks.querySelectorAll('.nav-link'), function (link) {
+            var href = link.getAttribute('href') || '';
+            if (href.charAt(0) !== '#' || href.length < 2) return;
+            var section = document.getElementById(href.slice(1));
+            if (section) tabs.push({ link: link, section: section });
+        });
+
+        if (tabs.length > 0) {
+            var visible = [];
+
+            var paintActiveTab = function () {
+                var current = null;
+                // The topmost section still in view wins, so scrolling past the
+                // end of one section hands the tab to the next rather than to
+                // whichever observer happened to fire last.
+                visible.forEach(function (entry) {
+                    if (!current || entry.section.offsetTop < current.section.offsetTop) current = entry;
+                });
+                tabs.forEach(function (entry) {
+                    if (current && entry === current) {
+                        entry.link.setAttribute('aria-current', 'true');
+                    } else {
+                        entry.link.removeAttribute('aria-current');
+                    }
+                });
+            };
+
+            var tabObserver = new IntersectionObserver(function (entries) {
+                entries.forEach(function (entry) {
+                    var match = null;
+                    tabs.forEach(function (candidate) {
+                        if (candidate.section === entry.target) match = candidate;
+                    });
+                    if (!match) return;
+                    var index = visible.indexOf(match);
+                    if (entry.isIntersecting && index === -1) visible.push(match);
+                    if (!entry.isIntersecting && index !== -1) visible.splice(index, 1);
+                });
+                paintActiveTab();
+            }, { rootMargin: '-124px 0px -55% 0px', threshold: 0 });
+
+            tabs.forEach(function (entry) { tabObserver.observe(entry.section); });
+        }
+    }
+
     if (mobileToggle && navLinks) {
         var setMenuOpen = function (open) {
             navLinks.classList.toggle('active', open);
@@ -90,6 +149,48 @@ document.addEventListener('DOMContentLoaded', function () {
             if (answer) answer.hidden = expanded;
         });
     });
+
+    /* ====================================================================== */
+    /* The nine steps                                                         */
+    /*                                                                        */
+    /* The page's one authored moment. The claim beside it is that work in     */
+    /* progress survives a dropped connection, so the steps complete one after */
+    /* another and every completed one stays marked — which is the difference  */
+    /* between a form that queues and a form that resets.                      */
+    /* ====================================================================== */
+
+    var stepsList = document.getElementById('applicationSteps');
+
+    if (stepsList) {
+        var stepItems = stepsList.querySelectorAll('li');
+        var reduceMotion = window.matchMedia
+            && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+        var markAllSteps = function () {
+            Array.prototype.forEach.call(stepItems, function (item) {
+                item.setAttribute('data-done', 'true');
+            });
+        };
+
+        if (reduceMotion || !('IntersectionObserver' in window)) {
+            markAllSteps();
+        } else {
+            var stepsRun = false;
+            var stepsObserver = new IntersectionObserver(function (entries) {
+                entries.forEach(function (entry) {
+                    if (!entry.isIntersecting || stepsRun) return;
+                    stepsRun = true;
+                    stepsObserver.disconnect();
+                    Array.prototype.forEach.call(stepItems, function (item, index) {
+                        window.setTimeout(function () {
+                            item.setAttribute('data-done', 'true');
+                        }, 90 * index);
+                    });
+                });
+            }, { threshold: 0.4 });
+            stepsObserver.observe(stepsList);
+        }
+    }
 
     /* ====================================================================== */
     /* Lead modal                                                             */

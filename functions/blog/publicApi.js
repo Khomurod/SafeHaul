@@ -157,10 +157,15 @@ ${ogImage ? `<meta property="og:image" content="${escapeHtml(ogImage)}">` : ''}
 <meta name="twitter:description" content="${escapeHtml(description)}">
 ${ogImage ? `<meta name="twitter:image" content="${escapeHtml(ogImage)}">` : ''}
 <link rel="alternate" type="application/atom+xml" title="${escapeHtml(SECTION_NAME)}" href="${ORIGIN}/news/feed.xml">
-<meta name="theme-color" content="#004C68">
+<meta name="theme-color" content="#2B1D0E">
 <link rel="icon" type="image/svg+xml" href="/assets/images/logo.svg">
-<link rel="preload" href="/assets/fonts/inter-variable.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/assets/css/styles.css?v=6">
+<!-- Both faces are self-hosted; see landing/index.html for why. These pages share
+     landing/assets/css/styles.css, so they must preload what that stylesheet declares
+     and must carry the same cache-buster as the static pages — a stale one here means a
+     returning visitor gets the previous stylesheet on /news and the current one on /. -->
+<link rel="preload" href="/assets/fonts/archivo-variable.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/assets/fonts/courier-prime.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/assets/css/styles.css?v=7">
 ${extraHead}
 </head>
 <body>

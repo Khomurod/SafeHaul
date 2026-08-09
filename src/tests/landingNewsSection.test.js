@@ -123,8 +123,8 @@ describe('landing page — News & Insights styling', () => {
         expect(css).toContain('.news-card');
         // Reuses the page's own custom properties rather than new hard-coded
         // colours.
-        expect(css).toMatch(/\.news-eyebrow\s*\{[^}]*var\(--deep-blue\)/);
-        expect(css).toMatch(/\.news-card\s*\{[^}]*var\(--gray-200\)/);
+        expect(css).toMatch(/\.news-eyebrow\s*\{[^}]*var\(--rope-deep\)/);
+        expect(css).toMatch(/\.news-card\s*\{[^}]*var\(--sheet-rule\)/);
     });
 
     it('collapses the grid at the tablet and mobile breakpoints', () => {

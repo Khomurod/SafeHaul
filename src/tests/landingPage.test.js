@@ -134,12 +134,16 @@ describe('landing page — accessibility', () => {
         expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\)[\s\S]{0,400}animation-duration:\s*0\.001ms/);
     });
 
-    it('never uses the mint accent as a text colour, which fails contrast on white', () => {
-        // #0be2a4 on white is about 1.6:1. It may draw a rule, a glyph or a
-        // focus ring on a dark surface; it may not carry a word.
+    it('never uses the folder ground as a text colour', () => {
+        // Same rule the mint accent used to be held to, pointed at the colour
+        // that now carries the risk. `--folder` (#e2a72e) and `--folder-deep`
+        // are grounds and rules: goldenrod on this page's own surfaces is
+        // illegible or close to it. They may fill a band, draw a rule or cap a
+        // tab; they may not carry a word. `--folder-lit` is the one permitted
+        // for text, and only on kraft, where it measures over 7:1.
         // The lookbehind excludes `background-color`, `border-color` and
         // `outline-color`, none of which set text.
-        const textColour = css.match(/(?<![a-z-])color:\s*var\(--primary\)[^;]*/g) || [];
+        const textColour = css.match(/(?<![a-z-])color:\s*var\(--folder(-deep)?\)[^;]*/g) || [];
         expect(textColour).toEqual([]);
     });
 });
@@ -225,8 +229,12 @@ describe('landing page — SEO', () => {
 });
 
 describe('landing page — performance', () => {
-    it('self-hosts Inter rather than blocking render on a third party', () => {
-        expect(existsSync(resolve(root, 'landing/assets/fonts/inter-variable.woff2'))).toBe(true);
+    it('self-hosts both faces rather than blocking render on a third party', () => {
+        // Archivo carries structure and display; Courier Prime carries anything
+        // the file world would have typed or stamped. Both are served from this
+        // folder, so the page never opens a connection to a font CDN.
+        expect(existsSync(resolve(root, 'landing/assets/fonts/archivo-variable.woff2'))).toBe(true);
+        expect(existsSync(resolve(root, 'landing/assets/fonts/courier-prime.woff2'))).toBe(true);
         expect(css).toMatch(/@font-face\s*\{[\s\S]{0,300}font-display:\s*swap/);
         // Comments are stripped first: the head comment explains why the
         // Google Fonts request was removed, and matching that would fail the

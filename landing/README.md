@@ -14,9 +14,10 @@ design-system code is pulled in here — do not import from `src/`.
 | --- | --- |
 | `index.html` | The homepage. All copy is here. |
 | `privacy.html` | Privacy policy. Shares the stylesheet and script. |
-| `assets/css/styles.css` | Every style, in 21 numbered sections. Brand tokens in `:root`. |
-| `assets/js/main.js` | Navigation, FAQ accordion, the lead dialog, the news strip. |
-| `assets/fonts/inter-variable.woff2` | Self-hosted Inter (latin subset, ~48 KB). |
+| `assets/css/styles.css` | Every style, in numbered sections. Brand tokens in `:root`. Also dresses `privacy.html` and the server-rendered blog. |
+| `assets/js/main.js` | Navigation and the tab rail, the FAQ accordion, the nine-step reveal, the lead dialog, the news strip. |
+| `assets/fonts/archivo-variable.woff2` | Self-hosted Archivo (latin, variable `wght`+`wdth`, ~90 KB). Structure and display. |
+| `assets/fonts/courier-prime*.woff2` | Self-hosted Courier Prime (latin, ~19 KB each). Anything the file world would have typed, stamped or logged. |
 | `assets/images/screenshots/` | Product screenshots. **Generated — see below.** |
 | `assets/images/og-card.png` | 1200×630 social card. |
 | `robots.txt` | Static. Hosting resolves it before rewrites, so it cannot be a function. |
@@ -91,10 +92,17 @@ keyboard, and that focus is trapped in the dialog. Both were broken before the
 redesign. It needs a Chromium; set `PW_CHROMIUM_EXECUTABLE` if Playwright's
 bundled browser is unavailable.
 
-Two rules worth keeping in mind when editing styles:
+Three rules worth keeping in mind when editing styles:
 
-- **Mint (`--primary`) never carries text.** On white it measures about 1.6:1.
-  It may draw a rule, a glyph, or a focus ring on a dark surface.
+- **`--folder` and `--folder-deep` never carry text.** They are grounds and
+  rules. Goldenrod ink on this page's own surfaces is illegible or close to it,
+  and `src/tests/landingPage.test.js` fails the build if a `color:` uses either.
+  `--folder-lit` is the one permitted for text, and only on kraft.
+- **Secondary ink is darker on folder grounds.** `--ink-soft` clears 4.5:1 on
+  paper and measures 3.97:1 on goldenrod. The five folder-ground sections
+  redefine `--ink-soft` and `--ink-faint` for everything inside them rather than
+  hand-picking a colour per call site. Adding a sixth folder section means
+  adding it to that list, or axe will catch you.
 - **`[hidden]` is forced to `display: none !important`** near the top of the
   stylesheet, because several components set their own display value and would
   otherwise silently defeat `element.hidden`.
@@ -102,9 +110,13 @@ Two rules worth keeping in mind when editing styles:
 ## News & Insights
 
 `/news`, `/news/{slug}`, `/news/feed.xml` and `/sitemap.xml` are server-rendered
-by the `serveBlogPublic` function and share **this stylesheet** — see section 15
-of `styles.css`. The homepage strip fetches `/api/news/latest` at runtime and
-degrades to a link when that fails. Full documentation:
+by the `serveBlogPublic` function and share **this stylesheet** — see section 16
+of `styles.css`, and note that the navbar and footer it emits are styled by
+sections 6 and 18. Nothing in those sections may assume the homepage's markup
+exists: the blog header has no mobile-menu toggle, which is why section 20 uses
+`:has()` to keep its tabs reachable on a phone. The homepage strip fetches
+`/api/news/latest` at runtime and degrades to a link when that fails. Full
+documentation:
 [`docs/news-and-insights.md`](../docs/news-and-insights.md).
 
 ## Deployment

@@ -26,18 +26,21 @@
         content="One structured record per driver, from application to signed paperwork to verified employment history.">
     <meta name="twitter:image" content="https://safehaul.io/assets/images/og-card.png">
 
-    <meta name="theme-color" content="#004C68">
+    <meta name="theme-color" content="#2B1D0E">
     <link rel="icon" type="image/svg+xml" href="/assets/images/logo.svg">
     <link rel="alternate" type="application/atom+xml" title="SafeHaul News &amp; Insights" href="/news/feed.xml">
 
     <!--
-      Inter is self-hosted. It used to come from fonts.googleapis.com, which put
-      a render-blocking stylesheet and two extra connections in front of the
-      largest contentful paint on every visit, for a font we already ship.
+      Both faces are self-hosted. They used to come from fonts.googleapis.com,
+      which put a render-blocking stylesheet and two extra connections in front
+      of the largest contentful paint on every visit, for fonts we already ship.
+      Archivo carries structure and display; Courier Prime carries anything the
+      file world would have typed or stamped — labels, dates, log lines.
     -->
-    <link rel="preload" href="/assets/fonts/inter-variable.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="/assets/fonts/archivo-variable.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="/assets/fonts/courier-prime.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" as="image" href="/assets/images/screenshots/pipeline.png" fetchpriority="high">
-    <link rel="stylesheet" href="/assets/css/styles.css?v=6">
+    <link rel="stylesheet" href="/assets/css/styles.css?v=7">
 
     <script type="application/ld+json">
     {
@@ -81,9 +84,52 @@
 </head>
 
 <body>
+    <!--
+      THESIS: The page is the driver qualification file itself — tabbed, punched,
+      stamped. It refuses the centered-hero-plus-bento arrangement this category
+      ships, because the file is the deliverable SafeHaul actually sells.
+      OWN-WORLD: Goldenrod folder stock and kraft board; form-paper sheets on
+      ACCO prongs; Archivo for structure, Courier Prime for anything typed or
+      stamped; rope red for action, stamp violet for dates, ledger green for
+      verified, by palette law.
+      STORY: A carrier owner sees a record that will hold up. A recruiter sees it
+      filling itself. Both arrive at the same signature line.
+      FIRST VIEWPORT: Full-bleed folder stock. Index tabs are the navigation
+      along the top edge. Headline left at half measure; the pipeline sits right
+      as the top punched sheet on the prong. The red action sits on a signature
+      rule beneath the headline.
+      FORM: The Driver File, candidate 1 of 7, seed 077ca279.
+      FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md
+    -->
+
     <a class="skip-link" href="#main">Skip to main content</a>
 
-    <!-- NAVIGATION -->
+    <!-- Drawn icon set. One stroke weight, one join, referenced with <use>. -->
+    <svg class="icon-sprite" aria-hidden="true" focusable="false" width="0" height="0">
+        <symbol id="i-check" viewBox="0 0 24 24">
+            <path d="M4.5 12.5 10 18 19.5 6.5" fill="none" stroke="currentColor" stroke-width="2.4"
+                stroke-linecap="square" stroke-linejoin="miter" />
+        </symbol>
+        <symbol id="i-rule" viewBox="0 0 24 24">
+            <path d="M3 12h18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="square" />
+        </symbol>
+        <symbol id="i-seal" viewBox="0 0 24 24">
+            <path d="M12 2.5 14.6 6l4.2.6-2.6 3.3.9 4.2L12 12.4 6.9 14.1l.9-4.2L5.2 6.6 9.4 6z" fill="none"
+                stroke="currentColor" stroke-width="1.8" stroke-linejoin="miter" />
+            <path d="M12 12.4v9M8.6 18.4 12 21.5l3.4-3.1" fill="none" stroke="currentColor" stroke-width="1.8"
+                stroke-linecap="square" stroke-linejoin="miter" />
+        </symbol>
+        <symbol id="i-arrow" viewBox="0 0 24 24">
+            <path d="M4 12h15m-5.5-5.5L19 12l-5.5 5.5" fill="none" stroke="currentColor" stroke-width="2.2"
+                stroke-linecap="square" stroke-linejoin="miter" />
+        </symbol>
+        <symbol id="i-clip" viewBox="0 0 24 24">
+            <path d="M17 8.5v8a5 5 0 0 1-10 0v-9a3.2 3.2 0 0 1 6.4 0v8.6a1.5 1.5 0 0 1-3 0V8.5" fill="none"
+                stroke="currentColor" stroke-width="1.8" stroke-linecap="square" stroke-linejoin="miter" />
+        </symbol>
+    </svg>
+
+    <!-- NAVIGATION — the folder's index tabs -->
     <nav id="navbar" class="navbar">
         <div class="nav-container">
             <a href="/" class="logo-link" aria-label="SafeHaul home">
@@ -113,47 +159,62 @@
     </nav>
 
     <main id="main">
-        <!-- HERO -->
+        <!-- HERO — the folder, opened -->
         <header class="hero">
-            <div class="hero-content">
-                <p class="eyebrow">Built for US trucking carriers</p>
-                <h1>Hire drivers without losing the paperwork.</h1>
-                <p class="hero-subtitle">
-                    SafeHaul turns driver hiring into one structured record per driver — a DOT-ready
-                    application, qualification documents held per driver, paperwork signed and sealed
-                    in the browser, and previous employment verified and tracked in the same place.
-                </p>
-                <div class="hero-buttons">
-                    <button type="button" class="btn btn-primary btn-lg js-open-lead-modal">Get started</button>
-                    <a href="#features" class="btn btn-outline btn-lg">See how it works</a>
+            <div class="hero-inner">
+                <div class="hero-content">
+                    <h1>Hire drivers without losing the paperwork.</h1>
+                    <p class="hero-subtitle">
+                        SafeHaul turns driver hiring into one structured record per driver — a DOT-ready
+                        application, qualification documents held per driver, paperwork signed and sealed
+                        in the browser, and previous employment verified and tracked in the same place.
+                    </p>
+                    <div class="hero-action">
+                        <div class="hero-buttons">
+                            <button type="button" class="btn btn-primary btn-lg js-open-lead-modal">Get started</button>
+                            <a href="#features" class="btn btn-outline btn-lg">See how it works</a>
+                        </div>
+                        <p class="hero-note">Built for US trucking carriers. Two flat monthly plans, no
+                            per-signature fees.</p>
+                    </div>
                 </div>
-                <p class="hero-note">Two flat monthly plans. No per-signature fees.</p>
-            </div>
 
-            <figure class="hero-visual">
-                <img src="/assets/images/screenshots/pipeline.png"
-                    alt="The SafeHaul recruiter pipeline listing driver applicants with their status, licence state, equipment type and application date."
-                    class="screenshot" width="1440" height="900" fetchpriority="high" decoding="async">
-            </figure>
+                <figure class="hero-visual">
+                    <div class="prong" aria-hidden="true"><span></span><span></span></div>
+                    <div class="sheet sheet--exhibit">
+                        <div class="sheet-head">
+                            <span class="sheet-head-title">Recruiter pipeline</span>
+                            <span class="sheet-head-no">Sheet 1</span>
+                        </div>
+                        <img src="/assets/images/screenshots/pipeline.png"
+                            alt="The SafeHaul recruiter pipeline listing driver applicants with their status, licence state, equipment type and application date."
+                            class="screenshot" width="1440" height="900" fetchpriority="high" decoding="async">
+                    </div>
+                </figure>
+            </div>
         </header>
 
-        <!-- SOCIAL PROOF -->
+        <!-- SOCIAL PROOF — the distribution strip across the folder -->
         <section class="logos-section" aria-label="Carriers hiring on SafeHaul">
             <p class="logos-title">Carriers hiring on SafeHaul</p>
             <ul class="company-logos-row">
-                <!-- Source marks are square; the intrinsic size is declared so
-                     the row cannot shift as they load. -->
+                <!-- The source files were square exports padded with a lot of
+                     empty canvas, which forced `object-fit: contain` to scale
+                     each mark to the padding rather than to the artwork. They
+                     are cropped to their content, so the intrinsic sizes below
+                     differ per mark — and are declared, so the row cannot shift
+                     as they load. -->
                 <li class="company-logo-item">
-                    <img src="/assets/images/company_logos/stl-truckers.png" alt="STL Truckers" width="64" height="64"
+                    <img src="/assets/images/company_logos/stl-truckers.png" alt="STL Truckers" width="829" height="363"
                         loading="lazy" decoding="async">
                 </li>
                 <li class="company-logo-item">
-                    <img src="/assets/images/company_logos/true-nation.png" alt="True Nation" width="64" height="64"
+                    <img src="/assets/images/company_logos/true-nation.png" alt="True Nation" width="267" height="56"
                         loading="lazy" decoding="async">
                 </li>
                 <li class="company-logo-item">
-                    <img src="/assets/images/company_logos/is-truckers.jpg" alt="I&amp;S Transportation" width="64"
-                        height="64" loading="lazy" decoding="async">
+                    <img src="/assets/images/company_logos/is-truckers.png" alt="I&amp;S Transportation" width="200"
+                        height="83" loading="lazy" decoding="async">
                 </li>
                 <li class="company-logo-item company-logo-wordmark">
                     <span class="wordmark">TopHire</span>
@@ -162,7 +223,7 @@
             </ul>
         </section>
 
-        <!-- PROBLEM -->
+        <!-- PROBLEM — three loose documents that never made it into a file -->
         <section class="problem-section">
             <div class="section-title">
                 <h2>Hiring a driver means assembling a file, not filling a vacancy.</h2>
@@ -170,6 +231,7 @@
             </div>
             <div class="problem-grid">
                 <article class="problem-card">
+                    <p class="scrap-tag">Loose</p>
                     <h3>The application arrives in pieces</h3>
                     <p>
                         A phone call, a photo of a licence, a form half-filled at a truck stop with two
@@ -177,6 +239,7 @@
                     </p>
                 </article>
                 <article class="problem-card">
+                    <p class="scrap-tag">Unsigned</p>
                     <h3>Paperwork stalls on a signature</h3>
                     <p>
                         Policies, releases and offer letters wait on someone to print, sign and scan —
@@ -184,6 +247,7 @@
                     </p>
                 </article>
                 <article class="problem-card">
+                    <p class="scrap-tag">Unverified</p>
                     <h3>Employment history is a phone tree</h3>
                     <p>
                         Verifying three years of previous employers means chasing people who have no
@@ -193,78 +257,103 @@
             </div>
         </section>
 
-        <!-- PLATFORM -->
+        <!-- PLATFORM — the file's contents page -->
         <section id="features" class="features-section">
             <div class="section-title">
                 <h2>One platform, from first contact to a complete driver file</h2>
                 <p>Every capability below is in the product today.</p>
             </div>
 
-            <div class="bento-grid">
-                <article class="bento-card bento-card--wide">
-                    <div class="bento-body">
+            <div class="manifest">
+                <div class="manifest-rule" aria-hidden="true"></div>
+
+                <article class="manifest-row manifest-row--lead">
+                    <div class="manifest-key">
                         <h3>Driver applicant tracking</h3>
+                    </div>
+                    <div class="manifest-value">
                         <p>
                             A nine-step application covering contact details, qualifications, licence,
                             violations, accidents, employment history, general information, review and
                             consent — with a recruiter pipeline that moves candidates through your
                             hiring stages.
                         </p>
+                        <figure class="exhibit">
+                            <img src="/assets/images/screenshots/dashboard.png"
+                                alt="The SafeHaul dashboard summarising driver applications, leads and recent recruiting activity."
+                                width="1440" height="900" loading="lazy" decoding="async">
+                            <figcaption>Fixture data. Not a real carrier's drivers.</figcaption>
+                        </figure>
                     </div>
-                    <div class="bento-visual">
-                        <img src="/assets/images/screenshots/pipeline.png"
-                            alt="Driver applications listed with status badges for new, hired, approved and terminated candidates."
-                            width="1440" height="900" loading="lazy" decoding="async">
+                </article>
+
+                <article class="manifest-row">
+                    <div class="manifest-key">
+                        <h3>Documents, per driver</h3>
+                    </div>
+                    <div class="manifest-value">
+                        <p>
+                            Qualification paperwork stored against the driver it belongs to, reachable only
+                            through server-issued links that check company membership first.
+                        </p>
                     </div>
                 </article>
 
-                <article class="bento-card">
-                    <h3>Documents, per driver</h3>
-                    <p>
-                        Qualification paperwork stored against the driver it belongs to, reachable only
-                        through server-issued links that check company membership first.
-                    </p>
+                <article class="manifest-row">
+                    <div class="manifest-key">
+                        <h3>Electronic signature, included</h3>
+                    </div>
+                    <div class="manifest-value">
+                        <p>
+                            Send a document, have it signed in a browser without an account, and get a sealed
+                            copy back. No separate e-signature subscription, no per-envelope charge.
+                        </p>
+                    </div>
                 </article>
 
-                <article class="bento-card">
-                    <h3>Electronic signature, included</h3>
-                    <p>
-                        Send a document, have it signed in a browser without an account, and get a sealed
-                        copy back. No separate e-signature subscription, no per-envelope charge.
-                    </p>
+                <article class="manifest-row">
+                    <div class="manifest-key">
+                        <h3>Previous-employment verification</h3>
+                    </div>
+                    <div class="manifest-value">
+                        <p>
+                            Requests go to past employers with tracked responses, and the results stay behind
+                            a link checked against your company.
+                        </p>
+                    </div>
                 </article>
 
-                <article class="bento-card">
-                    <h3>Previous-employment verification</h3>
-                    <p>
-                        Requests go to past employers with tracked responses, and the results stay behind
-                        a link checked against your company.
-                    </p>
+                <article class="manifest-row">
+                    <div class="manifest-key">
+                        <h3>Start from a licence photo</h3>
+                    </div>
+                    <div class="manifest-value">
+                        <p>
+                            A driver photographs their CDL and the application fills itself in. Every extracted
+                            value is shown to them to check before anything is submitted.
+                        </p>
+                    </div>
                 </article>
 
-                <article class="bento-card">
-                    <h3>Start from a licence photo</h3>
-                    <p>
-                        A driver photographs their CDL and the application fills itself in. Every extracted
-                        value is shown to them to check before anything is submitted.
-                    </p>
-                </article>
-
-                <article class="bento-card">
-                    <h3>Reporting on your pipeline</h3>
-                    <p>
-                        Where candidates enter and where they drop out, built from counters maintained as
-                        activity happens rather than recomputed on demand.
-                    </p>
+                <article class="manifest-row">
+                    <div class="manifest-key">
+                        <h3>Reporting on your pipeline</h3>
+                    </div>
+                    <div class="manifest-value">
+                        <p>
+                            Where candidates enter and where they drop out, built from counters maintained as
+                            activity happens rather than recomputed on demand.
+                        </p>
+                    </div>
                 </article>
             </div>
         </section>
 
         <!-- STORY 1 — HIRE -->
-        <section class="story-section">
+        <section class="story-section" id="story-hire">
+            <p class="story-tab">Hire</p>
             <div class="story">
                 <div class="story-text">
-                    <p class="eyebrow">Hire</p>
                     <h2>The application survives a bad signal</h2>
                     <p>
                         Applications are queued in the browser and retried automatically when the
@@ -272,10 +361,27 @@
                         email and phone, so a retry cannot create a second copy of the same driver.
                     </p>
                     <ul class="story-list">
-                        <li>Invited drivers or a public application link for your company</li>
-                        <li>Custom questions per company, on top of the standard steps</li>
-                        <li>Work in progress is never lost to a dropped connection</li>
+                        <li><svg class="i" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>Invited
+                            drivers or a public application link for your company</li>
+                        <li><svg class="i" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>Custom
+                            questions per company, on top of the standard steps</li>
+                        <li><svg class="i" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>Work in
+                            progress is never lost to a dropped connection</li>
                     </ul>
+
+                    <!-- The nine steps, shown rather than asserted: completed steps
+                         stay visible, which is the whole point of a queued form. -->
+                    <ol class="steps" id="applicationSteps">
+                        <li>Contact details</li>
+                        <li>Qualifications</li>
+                        <li>Licence</li>
+                        <li>Violations</li>
+                        <li>Accidents</li>
+                        <li>Employment history</li>
+                        <li>General information</li>
+                        <li>Review</li>
+                        <li>Consent</li>
+                    </ol>
                 </div>
                 <figure class="story-visual">
                     <img src="/assets/images/screenshots/driver-application-mobile.png"
@@ -286,10 +392,10 @@
         </section>
 
         <!-- STORY 2 — SIGN -->
-        <section class="story-section story-section--alt">
+        <section class="story-section story-section--alt" id="story-sign">
+            <p class="story-tab">Sign</p>
             <div class="story story--reverse">
                 <div class="story-text">
-                    <p class="eyebrow">Sign</p>
                     <h2>Paperwork signed and sealed, with no envelope bill</h2>
                     <p>
                         Build a document from a template, place the signer fields, and send it. The driver
@@ -297,10 +403,26 @@
                         sealed so a later alteration is detectable.
                     </p>
                     <ul class="story-list">
-                        <li>Draw or type a signature; a signing link cannot be submitted twice</li>
-                        <li>SafeHaul can suggest where signer fields belong on an uploaded form, for a person to review</li>
-                        <li>Unlimited documents on both plans</li>
+                        <li><svg class="i" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>Draw or type
+                            a signature; a signing link cannot be submitted twice</li>
+                        <li><svg class="i" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>SafeHaul can
+                            suggest where signer fields belong on an uploaded form, for a person to review</li>
+                        <li><svg class="i" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>Unlimited
+                            documents on both plans</li>
                     </ul>
+
+                    <div class="signature-block">
+                        <svg class="signature-mark" viewBox="0 0 260 60" aria-hidden="true" focusable="false">
+                            <path d="M6 44c14-6 20-30 28-30s4 30 12 30 14-34 24-34 6 34 16 34 12-22 20-22 6 16 14 16 16-8 26-14"
+                                fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+                            <path d="M158 44c12-2 22-6 30-12" fill="none" stroke="currentColor" stroke-width="3"
+                                stroke-linecap="round" />
+                        </svg>
+                        <p class="signature-rule">Signature of driver</p>
+                        <p class="signature-seal">
+                            <svg class="i" aria-hidden="true" focusable="false"><use href="#i-seal" /></svg>Sealed
+                        </p>
+                    </div>
                 </div>
                 <figure class="story-visual">
                     <img src="/assets/images/screenshots/edocs.png"
@@ -311,10 +433,10 @@
         </section>
 
         <!-- STORY 3 — VERIFY -->
-        <section class="story-section">
+        <section class="story-section" id="story-verify">
+            <p class="story-tab">Verify</p>
             <div class="story">
                 <div class="story-text">
-                    <p class="eyebrow">Verify</p>
                     <h2>A record of what was asked, and what came back</h2>
                     <p>
                         Previous-employment verification requests are sent from SafeHaul and their
@@ -322,9 +444,12 @@
                         limiting on the portal past employers use.
                     </p>
                     <ul class="story-list">
-                        <li>Result files released only through a server-issued link checked against your company</li>
-                        <li>Activity records for actions taken on a driver record</li>
-                        <li>Credential access is audited without ever recording the credential</li>
+                        <li><svg class="i" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>Result files
+                            released only through a server-issued link checked against your company</li>
+                        <li><svg class="i" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>Activity
+                            records for actions taken on a driver record</li>
+                        <li><svg class="i" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>Credential
+                            access is audited without ever recording the credential</li>
                     </ul>
                     <p class="story-caveat">
                         SafeHaul stores and organises qualification documents. It does not track their
@@ -332,15 +457,36 @@
                         a safety net that is not there.
                     </p>
                 </div>
-                <figure class="story-visual">
-                    <img src="/assets/images/screenshots/signing-consent.png"
-                        alt="The electronic signature consent screen a signer sees, listing their rights under the ESIGN Act before signing."
-                        class="screenshot" width="1200" height="860" loading="lazy" decoding="async">
-                </figure>
+
+                <div class="story-visual story-visual--log">
+                    <!-- An activity record reads as what it is: appended lines with
+                         times, not four cards claiming a trail exists. -->
+                    <div class="logbook">
+                        <p class="logbook-head">Activity — previous-employment verification</p>
+                        <ol class="logbook-lines">
+                            <li><span class="t">12 May 09:14</span><span class="e">Request sent</span><span
+                                    class="d">Midwest Freight Lines</span></li>
+                            <li><span class="t">12 May 09:14</span><span class="e">Delivered</span><span
+                                    class="d">rec@midwestfreight.example</span></li>
+                            <li><span class="t">19 May 09:00</span><span class="e">Reminder sent</span><span
+                                    class="d">1 of 3</span></li>
+                            <li><span class="t">21 May 14:32</span><span class="e" data-state="verified">Response
+                                    received</span><span class="d">3 years confirmed</span></li>
+                            <li><span class="t">21 May 14:32</span><span class="e">Result stored</span><span
+                                    class="d">link issued per request</span></li>
+                        </ol>
+                        <p class="logbook-foot">Illustration. Not a real driver record.</p>
+                    </div>
+                    <figure class="story-figure">
+                        <img src="/assets/images/screenshots/signing-consent.png"
+                            alt="The electronic signature consent screen a signer sees, listing their rights under the ESIGN Act before signing."
+                            class="screenshot" width="1200" height="860" loading="lazy" decoding="async">
+                    </figure>
+                </div>
             </div>
         </section>
 
-        <!-- TRUST BAND -->
+        <!-- TRUST BAND — the kraft board -->
         <section class="trust-section">
             <div class="section-title section-title--inverse">
                 <h2>Built to be looked at closely</h2>
@@ -438,7 +584,7 @@
             </div>
         </section>
 
-        <!-- PRICING -->
+        <!-- PRICING — two filled-in forms -->
         <section id="pricing" class="pricing-section">
             <div class="section-title">
                 <h2>Two plans, priced flat</h2>
@@ -446,37 +592,56 @@
             </div>
             <div class="pricing-cards">
                 <article class="price-card">
-                    <h3>Hiring &amp; Compliance</h3>
-                    <p class="price">
-                        <span class="currency">$</span><span class="amount">199</span><span class="period">/month</span>
-                    </p>
+                    <div class="price-head">
+                        <h3>Hiring &amp; Compliance</h3>
+                        <p class="price">
+                            <span class="currency">$</span><span class="amount">199</span><span
+                                class="period">/month</span>
+                        </p>
+                    </div>
                     <p class="plan-desc">Everything needed to take a driver from application to a complete file.</p>
                     <ul class="plan-features">
-                        <li>Unlimited users and driver records</li>
-                        <li>Nine-step driver application and recruiter pipeline</li>
-                        <li>Unlimited documents and signatures</li>
-                        <li>Per-driver qualification document storage</li>
-                        <li>Previous-employment verification</li>
-                        <li>CDL photo auto-fill</li>
-                        <li>Pipeline reporting</li>
-                        <li>Multiple companies under one account</li>
+                        <li><svg class="i" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>Unlimited
+                            users and driver records</li>
+                        <li><svg class="i" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>Nine-step
+                            driver application and recruiter pipeline</li>
+                        <li><svg class="i" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>Unlimited
+                            documents and signatures</li>
+                        <li><svg class="i" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>Per-driver
+                            qualification document storage</li>
+                        <li><svg class="i" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>Previous-employment
+                            verification</li>
+                        <li><svg class="i" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>CDL photo
+                            auto-fill</li>
+                        <li><svg class="i" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>Pipeline
+                            reporting</li>
+                        <li><svg class="i" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>Multiple
+                            companies under one account</li>
                     </ul>
                     <button type="button" class="btn btn-primary btn-block js-open-lead-modal">Get started</button>
                 </article>
 
                 <article class="price-card price-card--premium">
                     <p class="badge">Most popular</p>
-                    <h3>Hiring &amp; Compliance + Messaging</h3>
-                    <p class="price">
-                        <span class="currency">$</span><span class="amount">299</span><span class="period">/month</span>
-                    </p>
+                    <div class="price-head">
+                        <h3>Hiring &amp; Compliance + Messaging</h3>
+                        <p class="price">
+                            <span class="currency">$</span><span class="amount">299</span><span
+                                class="period">/month</span>
+                        </p>
+                    </div>
                     <p class="plan-desc">Adds bulk SMS and email to a filtered candidate list.</p>
                     <ul class="plan-features">
-                        <li>Everything in Hiring &amp; Compliance</li>
-                        <li>Bulk SMS and email to candidate segments</li>
-                        <li>Per-recruiter sending lines with fallback routing</li>
-                        <li>Duplicate suppression and cancel-safe batches</li>
-                        <li>Opt-out handling</li>
+                        <li><svg class="i" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>Everything
+                            in Hiring &amp; Compliance</li>
+                        <li><svg class="i" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>Bulk SMS and
+                            email to candidate segments</li>
+                        <li><svg class="i" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>Per-recruiter
+                            sending lines with fallback routing</li>
+                        <li><svg class="i" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>Duplicate
+                            suppression and cancel-safe batches</li>
+                        <li><svg class="i" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>Opt-out
+                            handling</li>
                     </ul>
                     <button type="button" class="btn btn-primary btn-block js-open-lead-modal">Get started</button>
                 </article>
@@ -517,7 +682,7 @@
             </div>
         </section>
 
-        <!-- FAQ -->
+        <!-- FAQ — the drawer -->
         <section id="faq" class="faq-section">
             <div class="section-title">
                 <h2>Questions carriers ask first</h2>
@@ -633,7 +798,7 @@
             </div>
         </section>
 
-        <!-- CLOSING CTA -->
+        <!-- CLOSING CTA — the signature line at the foot of the form -->
         <section class="cta-section">
             <div class="cta-inner">
                 <h2>See it with your own hiring process</h2>
@@ -642,11 +807,12 @@
                     Two fields to start.
                 </p>
                 <button type="button" class="btn btn-primary btn-lg js-open-lead-modal">Get started</button>
+                <p class="cta-rule" aria-hidden="true"></p>
             </div>
         </section>
     </main>
 
-    <!-- FOOTER -->
+    <!-- FOOTER — the back cover -->
     <footer id="footer" class="footer-section">
         <div class="footer-grid">
             <div class="footer-brand">
@@ -772,7 +938,9 @@
             </form>
 
             <div id="successMessage" class="modal-success" hidden>
-                <p class="success-icon" aria-hidden="true">&check;</p>
+                <p class="success-icon" aria-hidden="true">
+                    <svg class="i" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>
+                </p>
                 <h2>Thanks &mdash; we have what we need.</h2>
                 <p>Someone from SafeHaul will email you to arrange a walkthrough.</p>
                 <a class="btn btn-outline btn-block" href="/news">Read News &amp; Insights while you wait</a>
