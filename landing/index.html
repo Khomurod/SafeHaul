@@ -4,522 +4,783 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SafeHaul - Fleet-Ready Applicant Tracking, Compliance & HR</title>
+    <title>SafeHaul — Driver hiring and DOT compliance for trucking carriers</title>
     <meta name="description"
-        content="SafeHaul is a next-generation ATS and trucking HR/compliance suite. Digitize onboarding, automate audits, manage DQ files, and enjoy e-signatures—free forever.">
+        content="SafeHaul runs driver hiring end to end: a DOT-ready application, qualification documents in one place per driver, built-in e-signature with no per-envelope fee, and tracked previous-employment verification.">
+    <link rel="canonical" href="https://safehaul.io/">
 
-    <!-- Open Graph / Meta Tags for Social Sharing -->
-    <meta property="og:title" content="SafeHaul - Fleet-Ready Applicant Tracking, Compliance & HR">
+    <meta property="og:site_name" content="SafeHaul">
+    <meta property="og:title" content="SafeHaul — Driver hiring and DOT compliance for trucking carriers">
     <meta property="og:description"
-        content="Next-generation ATS and trucking HR/compliance suite. Digitize onboarding, automate audits, and manage DQ files securely.">
+        content="One structured record per driver, from application to signed paperwork to verified employment history.">
     <meta property="og:type" content="website">
-    <meta property="og:url" content="https://safehaul.io">
-    <meta property="og:image" content="https://safehaul.io/assets/images/logo.svg">
-    <!-- Ideally an absolute path to a prominent og-image, but logo works as fallback -->
+    <meta property="og:url" content="https://safehaul.io/">
+    <meta property="og:image" content="https://safehaul.io/assets/images/og-card.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="SafeHaul — driver hiring and DOT compliance for trucking carriers">
 
-    <!-- Favicon -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="SafeHaul — Driver hiring and DOT compliance for trucking carriers">
+    <meta name="twitter:description"
+        content="One structured record per driver, from application to signed paperwork to verified employment history.">
+    <meta name="twitter:image" content="https://safehaul.io/assets/images/og-card.png">
+
+    <meta name="theme-color" content="#004C68">
     <link rel="icon" type="image/svg+xml" href="/assets/images/logo.svg">
+    <link rel="alternate" type="application/atom+xml" title="SafeHaul News &amp; Insights" href="/news/feed.xml">
 
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!--
+      Inter is self-hosted. It used to come from fonts.googleapis.com, which put
+      a render-blocking stylesheet and two extra connections in front of the
+      largest contentful paint on every visit, for a font we already ship.
+    -->
+    <link rel="preload" href="/assets/fonts/inter-variable.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" as="image" href="/assets/images/screenshots/pipeline.png" fetchpriority="high">
+    <link rel="stylesheet" href="/assets/css/styles.css?v=6">
 
-    <!-- Stylesheet -->
-    <link rel="stylesheet" href="/assets/css/styles.css?v=5">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://safehaul.io/#organization",
+          "name": "SafeHaul",
+          "url": "https://safehaul.io/",
+          "logo": "https://safehaul.io/assets/images/logo.svg",
+          "email": "info@safehaul.io",
+          "description": "Driver hiring and DOT compliance software for US trucking carriers."
+        },
+        {
+          "@type": "SoftwareApplication",
+          "name": "SafeHaul",
+          "applicationCategory": "BusinessApplication",
+          "operatingSystem": "Web",
+          "publisher": { "@id": "https://safehaul.io/#organization" },
+          "offers": [
+            {
+              "@type": "Offer",
+              "name": "Hiring & Compliance",
+              "price": "199",
+              "priceCurrency": "USD",
+              "category": "Monthly subscription"
+            },
+            {
+              "@type": "Offer",
+              "name": "Hiring & Compliance + Bulk Messaging",
+              "price": "299",
+              "priceCurrency": "USD",
+              "category": "Monthly subscription"
+            }
+          ]
+        }
+      ]
+    }
+    </script>
 </head>
 
 <body>
+    <a class="skip-link" href="#main">Skip to main content</a>
 
     <!-- NAVIGATION -->
     <nav id="navbar" class="navbar">
         <div class="nav-container">
-            <a href="#" class="logo-link">
-                <img src="/assets/images/logo.svg" alt="SafeHaul Logo" class="logo" width="32" height="32">
+            <a href="/" class="logo-link" aria-label="SafeHaul home">
+                <img src="/assets/images/logo.svg" alt="" class="logo" width="32" height="32">
                 <span class="logo-text">SafeHaul</span>
             </a>
 
             <div class="nav-links" id="navLinks">
-                <a href="#features" class="nav-link">Features</a>
-                <a href="#pricing" class="nav-link">Pricing</a>
+                <a href="#features" class="nav-link">Platform</a>
                 <a href="#why-safehaul" class="nav-link">Why SafeHaul</a>
+                <a href="#pricing" class="nav-link">Pricing</a>
                 <a href="/news" class="nav-link">News &amp; Insights</a>
                 <a href="#faq" class="nav-link">FAQ</a>
                 <a href="#footer" class="nav-link">Contact</a>
             </div>
 
             <div class="nav-cta">
-                <a href="https://app.safehaul.io" class="btn btn-ghost" target="_blank" rel="noopener">Login</a>
-                <button class="btn btn-primary js-open-lead-modal">Get Started</button>
+                <a href="https://app.safehaul.io" class="btn btn-ghost" rel="noopener">Log in</a>
+                <button type="button" class="btn btn-primary js-open-lead-modal">Get started</button>
             </div>
 
-            <button class="mobile-menu-toggle" aria-label="Toggle menu" id="mobileMenuToggle">
+            <button type="button" class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Open menu"
+                aria-expanded="false" aria-controls="navLinks">
                 <span></span><span></span><span></span>
             </button>
         </div>
     </nav>
 
-    <!-- HERO SECTION -->
-    <header class="hero">
-        <div class="hero-bg"></div>
-        <div class="hero-content">
-            <h1>Fleet-Ready Applicant Tracking, Compliance & HR — All in One Platform.</h1>
-            <p class="hero-subtitle">
-                Track every driver, document and compliance milestone. Digitize onboarding. Automate audits and Previous
-                Employment Verifications. Enjoy e-signatures—free forever.
+    <main id="main">
+        <!-- HERO -->
+        <header class="hero">
+            <div class="hero-content">
+                <p class="eyebrow">Built for US trucking carriers</p>
+                <h1>Hire drivers without losing the paperwork.</h1>
+                <p class="hero-subtitle">
+                    SafeHaul turns driver hiring into one structured record per driver — a DOT-ready
+                    application, qualification documents held per driver, paperwork signed and sealed
+                    in the browser, and previous employment verified and tracked in the same place.
+                </p>
+                <div class="hero-buttons">
+                    <button type="button" class="btn btn-primary btn-lg js-open-lead-modal">Get started</button>
+                    <a href="#features" class="btn btn-outline btn-lg">See how it works</a>
+                </div>
+                <p class="hero-note">Two flat monthly plans. No per-signature fees.</p>
+            </div>
+
+            <figure class="hero-visual">
+                <img src="/assets/images/screenshots/pipeline.png"
+                    alt="The SafeHaul recruiter pipeline listing driver applicants with their status, licence state, equipment type and application date."
+                    class="screenshot" width="1440" height="900" fetchpriority="high" decoding="async">
+            </figure>
+        </header>
+
+        <!-- SOCIAL PROOF -->
+        <section class="logos-section" aria-label="Carriers hiring on SafeHaul">
+            <p class="logos-title">Carriers hiring on SafeHaul</p>
+            <ul class="company-logos-row">
+                <!-- Source marks are square; the intrinsic size is declared so
+                     the row cannot shift as they load. -->
+                <li class="company-logo-item">
+                    <img src="/assets/images/company_logos/stl-truckers.png" alt="STL Truckers" width="64" height="64"
+                        loading="lazy" decoding="async">
+                </li>
+                <li class="company-logo-item">
+                    <img src="/assets/images/company_logos/true-nation.png" alt="True Nation" width="64" height="64"
+                        loading="lazy" decoding="async">
+                </li>
+                <li class="company-logo-item">
+                    <img src="/assets/images/company_logos/is-truckers.jpg" alt="I&amp;S Transportation" width="64"
+                        height="64" loading="lazy" decoding="async">
+                </li>
+                <li class="company-logo-item company-logo-wordmark">
+                    <span class="wordmark">TopHire</span>
+                    <span class="wordmark-sub">Recruiting Agency</span>
+                </li>
+            </ul>
+        </section>
+
+        <!-- PROBLEM -->
+        <section class="problem-section">
+            <div class="section-title">
+                <h2>Hiring a driver means assembling a file, not filling a vacancy.</h2>
+                <p>The record has to hold together months later, when someone asks to see it.</p>
+            </div>
+            <div class="problem-grid">
+                <article class="problem-card">
+                    <h3>The application arrives in pieces</h3>
+                    <p>
+                        A phone call, a photo of a licence, a form half-filled at a truck stop with two
+                        bars of signal. What should be one record ends up spread across inboxes.
+                    </p>
+                </article>
+                <article class="problem-card">
+                    <h3>Paperwork stalls on a signature</h3>
+                    <p>
+                        Policies, releases and offer letters wait on someone to print, sign and scan —
+                        or on a per-envelope e-signature bill nobody budgeted for.
+                    </p>
+                </article>
+                <article class="problem-card">
+                    <h3>Employment history is a phone tree</h3>
+                    <p>
+                        Verifying three years of previous employers means chasing people who have no
+                        reason to call back, and no record of who was asked what.
+                    </p>
+                </article>
+            </div>
+        </section>
+
+        <!-- PLATFORM -->
+        <section id="features" class="features-section">
+            <div class="section-title">
+                <h2>One platform, from first contact to a complete driver file</h2>
+                <p>Every capability below is in the product today.</p>
+            </div>
+
+            <div class="bento-grid">
+                <article class="bento-card bento-card--wide">
+                    <div class="bento-body">
+                        <h3>Driver applicant tracking</h3>
+                        <p>
+                            A nine-step application covering contact details, qualifications, licence,
+                            violations, accidents, employment history, general information, review and
+                            consent — with a recruiter pipeline that moves candidates through your
+                            hiring stages.
+                        </p>
+                    </div>
+                    <div class="bento-visual">
+                        <img src="/assets/images/screenshots/pipeline.png"
+                            alt="Driver applications listed with status badges for new, hired, approved and terminated candidates."
+                            width="1440" height="900" loading="lazy" decoding="async">
+                    </div>
+                </article>
+
+                <article class="bento-card">
+                    <h3>Documents, per driver</h3>
+                    <p>
+                        Qualification paperwork stored against the driver it belongs to, reachable only
+                        through server-issued links that check company membership first.
+                    </p>
+                </article>
+
+                <article class="bento-card">
+                    <h3>Electronic signature, included</h3>
+                    <p>
+                        Send a document, have it signed in a browser without an account, and get a sealed
+                        copy back. No separate e-signature subscription, no per-envelope charge.
+                    </p>
+                </article>
+
+                <article class="bento-card">
+                    <h3>Previous-employment verification</h3>
+                    <p>
+                        Requests go to past employers with tracked responses, and the results stay behind
+                        a link checked against your company.
+                    </p>
+                </article>
+
+                <article class="bento-card">
+                    <h3>Start from a licence photo</h3>
+                    <p>
+                        A driver photographs their CDL and the application fills itself in. Every extracted
+                        value is shown to them to check before anything is submitted.
+                    </p>
+                </article>
+
+                <article class="bento-card">
+                    <h3>Reporting on your pipeline</h3>
+                    <p>
+                        Where candidates enter and where they drop out, built from counters maintained as
+                        activity happens rather than recomputed on demand.
+                    </p>
+                </article>
+            </div>
+        </section>
+
+        <!-- STORY 1 — HIRE -->
+        <section class="story-section">
+            <div class="story">
+                <div class="story-text">
+                    <p class="eyebrow">Hire</p>
+                    <h2>The application survives a bad signal</h2>
+                    <p>
+                        Applications are queued in the browser and retried automatically when the
+                        connection comes back. Each one carries an identifier derived from the company,
+                        email and phone, so a retry cannot create a second copy of the same driver.
+                    </p>
+                    <ul class="story-list">
+                        <li>Invited drivers or a public application link for your company</li>
+                        <li>Custom questions per company, on top of the standard steps</li>
+                        <li>Work in progress is never lost to a dropped connection</li>
+                    </ul>
+                </div>
+                <figure class="story-visual">
+                    <img src="/assets/images/screenshots/driver-application-mobile.png"
+                        alt="Step one of nine of the SafeHaul driver application on a phone, collecting personal information."
+                        class="screenshot screenshot--phone" width="390" height="844" loading="lazy" decoding="async">
+                </figure>
+            </div>
+        </section>
+
+        <!-- STORY 2 — SIGN -->
+        <section class="story-section story-section--alt">
+            <div class="story story--reverse">
+                <div class="story-text">
+                    <p class="eyebrow">Sign</p>
+                    <h2>Paperwork signed and sealed, with no envelope bill</h2>
+                    <p>
+                        Build a document from a template, place the signer fields, and send it. The driver
+                        signs in a browser without creating an account, and the finished document is
+                        sealed so a later alteration is detectable.
+                    </p>
+                    <ul class="story-list">
+                        <li>Draw or type a signature; a signing link cannot be submitted twice</li>
+                        <li>SafeHaul can suggest where signer fields belong on an uploaded form, for a person to review</li>
+                        <li>Unlimited documents on both plans</li>
+                    </ul>
+                </div>
+                <figure class="story-visual">
+                    <img src="/assets/images/screenshots/edocs.png"
+                        alt="The SafeHaul documents workspace showing counts for documents awaiting signature, completed, needing attention and active templates."
+                        class="screenshot" width="1440" height="900" loading="lazy" decoding="async">
+                </figure>
+            </div>
+        </section>
+
+        <!-- STORY 3 — VERIFY -->
+        <section class="story-section">
+            <div class="story">
+                <div class="story-text">
+                    <p class="eyebrow">Verify</p>
+                    <h2>A record of what was asked, and what came back</h2>
+                    <p>
+                        Previous-employment verification requests are sent from SafeHaul and their
+                        responses recorded against the driver, with a built-in reminder cycle and rate
+                        limiting on the portal past employers use.
+                    </p>
+                    <ul class="story-list">
+                        <li>Result files released only through a server-issued link checked against your company</li>
+                        <li>Activity records for actions taken on a driver record</li>
+                        <li>Credential access is audited without ever recording the credential</li>
+                    </ul>
+                    <p class="story-caveat">
+                        SafeHaul stores and organises qualification documents. It does not track their
+                        dates for you — that stays your process, and we would rather say so than imply
+                        a safety net that is not there.
+                    </p>
+                </div>
+                <figure class="story-visual">
+                    <img src="/assets/images/screenshots/signing-consent.png"
+                        alt="The electronic signature consent screen a signer sees, listing their rights under the ESIGN Act before signing."
+                        class="screenshot" width="1200" height="860" loading="lazy" decoding="async">
+                </figure>
+            </div>
+        </section>
+
+        <!-- TRUST BAND -->
+        <section class="trust-section">
+            <div class="section-title section-title--inverse">
+                <h2>Built to be looked at closely</h2>
+                <p>The things that matter when the record has to hold up.</p>
+            </div>
+            <div class="trust-grid">
+                <article class="trust-card">
+                    <h3>Companies are separated by the database</h3>
+                    <p>
+                        Cross-company access is denied by database access rules, not only by what the
+                        interface chooses to show.
+                    </p>
+                </article>
+                <article class="trust-card">
+                    <h3>Signed documents are tamper-evident</h3>
+                    <p>
+                        A completed document is sealed, so later alteration can be detected rather than
+                        argued about.
+                    </p>
+                </article>
+                <article class="trust-card">
+                    <h3>Files are never public URLs</h3>
+                    <p>
+                        Every document link is issued by the server for one request and checked against
+                        company membership before release.
+                    </p>
+                </article>
+                <article class="trust-card">
+                    <h3>Actions leave a trail</h3>
+                    <p>
+                        Activity records on applications and leads, and audited credential access that
+                        records who looked without storing what they saw.
+                    </p>
+                </article>
+            </div>
+        </section>
+
+        <!-- COMPARISON -->
+        <section id="why-safehaul" class="compare-section">
+            <div class="section-title">
+                <h2>Why not a general ATS and a separate signing tool?</h2>
+                <p>Because the driver file is the deliverable, and it ends up split across both.</p>
+            </div>
+            <!-- Focusable on purpose: the table scrolls sideways on a narrow
+                 screen, and a scroll region a keyboard cannot reach is a
+                 region a keyboard user cannot read. -->
+            <div class="compare-table-wrapper" tabindex="0" role="region"
+                aria-label="SafeHaul compared with a general applicant tracking system and a standalone e-signature tool">
+                <table class="compare-table">
+                    <caption class="visually-hidden">
+                        SafeHaul compared with a general applicant tracking system and a standalone
+                        e-signature tool
+                    </caption>
+                    <thead>
+                        <tr>
+                            <th scope="col">Capability</th>
+                            <th scope="col">General ATS</th>
+                            <th scope="col">Standalone e-sign</th>
+                            <th scope="col" class="highlight-col">SafeHaul</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <th scope="row">Driver application built around DOT hiring</th>
+                            <td>Generic forms</td>
+                            <td>Not applicable</td>
+                            <td class="highlight-col">Nine structured steps</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Signature cost</th>
+                            <td>Usually an add-on</td>
+                            <td>Per envelope</td>
+                            <td class="highlight-col">Included, unlimited</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Previous-employment verification</th>
+                            <td>Manual, off-system</td>
+                            <td>A blank form to send</td>
+                            <td class="highlight-col">Sent and tracked in-app</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Works on a phone with poor signal</th>
+                            <td>Usually loses the form</td>
+                            <td>Not applicable</td>
+                            <td class="highlight-col">Queued and retried</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Pricing</th>
+                            <td>Per seat</td>
+                            <td>Per envelope</td>
+                            <td class="highlight-col">Flat monthly</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- PRICING -->
+        <section id="pricing" class="pricing-section">
+            <div class="section-title">
+                <h2>Two plans, priced flat</h2>
+                <p>Unlimited users and unlimited documents on both.</p>
+            </div>
+            <div class="pricing-cards">
+                <article class="price-card">
+                    <h3>Hiring &amp; Compliance</h3>
+                    <p class="price">
+                        <span class="currency">$</span><span class="amount">199</span><span class="period">/month</span>
+                    </p>
+                    <p class="plan-desc">Everything needed to take a driver from application to a complete file.</p>
+                    <ul class="plan-features">
+                        <li>Unlimited users and driver records</li>
+                        <li>Nine-step driver application and recruiter pipeline</li>
+                        <li>Unlimited documents and signatures</li>
+                        <li>Per-driver qualification document storage</li>
+                        <li>Previous-employment verification</li>
+                        <li>CDL photo auto-fill</li>
+                        <li>Pipeline reporting</li>
+                        <li>Multiple companies under one account</li>
+                    </ul>
+                    <button type="button" class="btn btn-primary btn-block js-open-lead-modal">Get started</button>
+                </article>
+
+                <article class="price-card price-card--premium">
+                    <p class="badge">Most popular</p>
+                    <h3>Hiring &amp; Compliance + Messaging</h3>
+                    <p class="price">
+                        <span class="currency">$</span><span class="amount">299</span><span class="period">/month</span>
+                    </p>
+                    <p class="plan-desc">Adds bulk SMS and email to a filtered candidate list.</p>
+                    <ul class="plan-features">
+                        <li>Everything in Hiring &amp; Compliance</li>
+                        <li>Bulk SMS and email to candidate segments</li>
+                        <li>Per-recruiter sending lines with fallback routing</li>
+                        <li>Duplicate suppression and cancel-safe batches</li>
+                        <li>Opt-out handling</li>
+                    </ul>
+                    <button type="button" class="btn btn-primary btn-block js-open-lead-modal">Get started</button>
+                </article>
+            </div>
+            <p class="pricing-footnote">
+                Bulk messaging requires your own messaging provider account; the provider bills your
+                message charges directly. Two-way message threads and automated multi-step sequences
+                are not part of the product today.
             </p>
-            <div class="hero-buttons">
-                <button class="btn btn-primary btn-lg js-open-lead-modal">Get Started</button>
-                <a href="#features" class="btn btn-outline btn-lg">See How It Works</a>
-            </div>
+        </section>
 
-            <div class="hero-visual">
-                <div class="glass-overlay"></div>
-                <img src="/assets/images/hero-dashboard.png" alt="SafeHaul Dashboard UI Screenshot"
-                    class="screenshot shadow-lg" />
-            </div>
-        </div>
-    </header>
+        <!-- SafeHaul News & Insights -->
+        <!--
+          Cards are fetched at runtime from /api/news/latest, a same-origin Firebase
+          Hosting rewrite onto the serveBlogPublic function. They are not committed
+          here because articles are published after deployment, and the landing site
+          has no build step that could regenerate them.
 
-    <!-- FEATURES SHOWCASE -->
-    <section id="features" class="features-section">
-        <div class="section-title">
-            <h2>The Complete Compliance & HR Engine</h2>
-            <p>Everything you need from hire to retire, purpose-built for trucking logistics.</p>
-        </div>
-
-        <div class="features-grid">
-            <!-- ATS -->
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path
-                            d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z">
-                        </path>
-                    </svg>
-                </div>
-                <h3>ATS Pipeline & Application Tracking</h3>
-                <p>Full Kanban and pipeline view with customizable stages (In Process, On Hold, Hired, Rejected).
-                    Centralizes every applicant and employment record—never lose track, never miss a milestone.</p>
-            </div>
-
-            <!-- DQ File -->
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                        <polyline points="14 2 14 8 20 8"></polyline>
-                        <polyline points="16 13 8 13"></polyline>
-                        <polyline points="16 17 8 17"></polyline>
-                        <polyline points="10 9 9 9"></polyline>
-                    </svg>
-                </div>
-                <h3>DQ File Management & Compliance</h3>
-                <p>Secure upload, audit/e-sign, and dashboard for all DQ docs—CDL, med card, MVR, road test, violation
-                    records, clearinghouse. Expiration monitoring, status visibility, and automated reminders to
-                    fleet/company.</p>
-            </div>
-
-            <!-- E-Doc -->
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M12 20h9"></path>
-                        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-                    </svg>
-                </div>
-                <h3>E-Doc Services (DocuSign Alternative)</h3>
-                <p>Integrated, unlimited e-signature for company documents, release forms, policies, contracts—NO
-                    per-envelope fee. Tamper-proof digital sealing and downloadable certificates of completion. Audit
-                    trails on every doc; compliant and accepted across logistics.</p>
-            </div>
-
-            <!-- PEV -->
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                    </svg>
-                </div>
-                <h3>PEV (Previous Employment Verification)</h3>
-                <p>Direct, in-app PEV requests—send, track, and manage past employer verifications. Automated PDF
-                    generation with SafeHaul branding/certificate. Complete employer, driver, and admin portal flows.
+          The section renders a static placeholder first, so it is never empty and
+          never shifts layout; the fetch replaces the cards when it succeeds and
+          leaves the placeholder in place when it does not. No application code and
+          no React is pulled into this page.
+        -->
+        <section id="news" class="news-section">
+            <div class="section-title">
+                <h2>SafeHaul News &amp; Insights</h2>
+                <p>
+                    Trucking news and regulation, recruiting and retention guidance, and plain
+                    explanations of the compliance problems carriers deal with. Published daily,
+                    every factual claim traced to a named source.
                 </p>
             </div>
+            <div class="news-grid" id="newsGrid" aria-live="polite" aria-busy="true">
+                <p class="news-loading" id="newsLoading">Loading the latest articles&hellip;</p>
+            </div>
+            <div class="news-cta">
+                <a href="/news" class="btn btn-secondary">View all articles</a>
+            </div>
+        </section>
 
-            <!-- Analytics -->
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="18" y1="20" x2="18" y2="10"></line>
-                        <line x1="12" y1="20" x2="12" y2="4"></line>
-                        <line x1="6" y1="20" x2="6" y2="14"></line>
-                    </svg>
+        <!-- FAQ -->
+        <section id="faq" class="faq-section">
+            <div class="section-title">
+                <h2>Questions carriers ask first</h2>
+            </div>
+            <div class="faq-accordion" id="faqAccordion">
+                <div class="faq-row">
+                    <h3 class="faq-heading">
+                        <button type="button" class="faq-question" aria-expanded="false" id="faq-q1"
+                            aria-controls="faq-a1">
+                            <span>Does SafeHaul make my company DOT compliant?</span>
+                            <span class="indicator" aria-hidden="true"></span>
+                        </button>
+                    </h3>
+                    <div class="faq-answer" id="faq-a1" role="region" aria-labelledby="faq-q1" hidden>
+                        <p>
+                            No software can do that, and anyone who says otherwise is selling you
+                            something. SafeHaul supports your own compliance process: it structures the
+                            driver application around what DOT hiring asks for, keeps qualification
+                            documents in one place per driver, and records what was done and when. The
+                            decisions, and the responsibility, stay with you.
+                        </p>
+                    </div>
                 </div>
-                <h3>Driver/Fleet Analytics</h3>
-                <p>Real-time dashboard with stats aggregation: pipeline metrics, time to hire, conversion rates,
-                    active/inactive, company benchmarks. Exportable data, visual charts, performance logs per employee.
+
+                <div class="faq-row">
+                    <h3 class="faq-heading">
+                        <button type="button" class="faq-question" aria-expanded="false" id="faq-q2"
+                            aria-controls="faq-a2">
+                            <span>Are the signatures legally binding?</span>
+                            <span class="indicator" aria-hidden="true"></span>
+                        </button>
+                    </h3>
+                    <div class="faq-answer" id="faq-a2" role="region" aria-labelledby="faq-q2" hidden>
+                        <p>
+                            Signers are shown an electronic records and signature disclosure before they
+                            sign, covering the ESIGN Act and UETA, and must agree to it. The completed
+                            document is sealed so a later change is detectable, and the signing link
+                            cannot be submitted a second time.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="faq-row">
+                    <h3 class="faq-heading">
+                        <button type="button" class="faq-question" aria-expanded="false" id="faq-q3"
+                            aria-controls="faq-a3">
+                            <span>Does SafeHaul watch my document dates for me?</span>
+                            <span class="indicator" aria-hidden="true"></span>
+                        </button>
+                    </h3>
+                    <div class="faq-answer" id="faq-a3" role="region" aria-labelledby="faq-q3" hidden>
+                        <p>
+                            Not today. SafeHaul stores and organises qualification documents per driver,
+                            but it does not monitor their dates or send you notices about them. That is
+                            on the roadmap rather than in the product, and we would rather be plain about
+                            it than let you assume a safety net exists.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="faq-row">
+                    <h3 class="faq-heading">
+                        <button type="button" class="faq-question" aria-expanded="false" id="faq-q4"
+                            aria-controls="faq-a4">
+                            <span>Can SafeHaul run background screening for me?</span>
+                            <span class="indicator" aria-hidden="true"></span>
+                        </button>
+                    </h3>
+                    <div class="faq-answer" id="faq-a4" role="region" aria-labelledby="faq-q4" hidden>
+                        <p>
+                            No. SafeHaul does not order or receive driving records or screening results
+                            from third-party providers. What it does do is collect the driver's own
+                            history in the application and verify previous employment directly with past
+                            employers.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="faq-row">
+                    <h3 class="faq-heading">
+                        <button type="button" class="faq-question" aria-expanded="false" id="faq-q5"
+                            aria-controls="faq-a5">
+                            <span>What does bulk messaging actually cost?</span>
+                            <span class="indicator" aria-hidden="true"></span>
+                        </button>
+                    </h3>
+                    <div class="faq-answer" id="faq-a5" role="region" aria-labelledby="faq-q5" hidden>
+                        <p>
+                            The feature is included in the $299 plan, but you connect your own messaging
+                            provider account and that provider bills you for the messages directly.
+                            Your credentials are stored encrypted, per company. Two-way conversation
+                            threads and automated multi-step sequences are not available.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="faq-row">
+                    <h3 class="faq-heading">
+                        <button type="button" class="faq-question" aria-expanded="false" id="faq-q6"
+                            aria-controls="faq-a6">
+                            <span>Can we run more than one carrier on one account?</span>
+                            <span class="indicator" aria-hidden="true"></span>
+                        </button>
+                    </h3>
+                    <div class="faq-answer" id="faq-a6" role="region" aria-labelledby="faq-q6" hidden>
+                        <p>
+                            Yes. Each company gets its own team, roles, public application link and custom
+                            questions, and records stay separated by database access rules rather than by
+                            interface filtering.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- CLOSING CTA -->
+        <section class="cta-section">
+            <div class="cta-inner">
+                <h2>See it with your own hiring process</h2>
+                <p>
+                    Tell us how you hire today and we will show you the parts that would change.
+                    Two fields to start.
                 </p>
+                <button type="button" class="btn btn-primary btn-lg js-open-lead-modal">Get started</button>
             </div>
-
-            <!-- SMS -->
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                    </svg>
-                </div>
-                <h3>Bulk SMS Messaging</h3>
-                <p>Send unlimited personalized SMS to your own leads/pipeline via built-in SMS gateway(s), track
-                    campaign success, ensure compliance (carrier fees may apply). Role-based sender assignment,
-                    automatic fallback routing.</p>
-            </div>
-
-            <!-- Job Board -->
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
-                        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
-                    </svg>
-                </div>
-                <h3>Job Board Management</h3>
-                <p>Internal job board UI; manage postings, status, applications. Quick-add, Excel/CSV import for mass
-                    recruiting.</p>
-            </div>
-
-            <!-- Offer Workflow -->
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path
-                            d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3">
-                        </path>
-                    </svg>
-                </div>
-                <h3>Offer Workflow</h3>
-                <p>Fully-digital job offer pipeline with status tracking—offer initiated, sent, received—built into the
-                    application lifecycle.</p>
-            </div>
-
-            <!-- Multi-Tenant -->
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                        <circle cx="9" cy="7" r="4"></circle>
-                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                    </svg>
-                </div>
-                <h3>Multi-Tenant Company Management</h3>
-                <p>Manage multiple fleets/companies in one admin instance—role-based access, sub-company settings,
-                    team/invite management, onboarding tour for new users.</p>
-            </div>
-
-            <!-- Security -->
-            <div class="feature-card">
-                <div class="feature-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-                    </svg>
-                </div>
-                <h3>Advanced Security & Integrity</h3>
-                <p>Role-based permissions, cryptographically verifiable audit logs, App Check/recaptcha, data export
-                    (GDPR/Clean compliance), session management.</p>
-            </div>
-        </div>
-    </section>
-
-    <!-- WHY SAFEHAUL (COMPARE) -->
-    <section id="why-safehaul" class="compare-section">
-        <div class="section-title">
-            <h2>Why SafeHaul vs. The Rest?</h2>
-            <p>Generic HRIS systems or expensive e-signature tools don't understand trucking compliance.</p>
-        </div>
-        <div class="compare-table-wrapper">
-            <table class="compare-table">
-                <thead>
-                    <tr>
-                        <th>Capability</th>
-                        <th>Generic ATS / Spreadsheets</th>
-                        <th>Standard E-Sign Tool</th>
-                        <th class="highlight-col">SafeHaul</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>Industry Compliance Built-In</td>
-                        <td>❌ Minimal</td>
-                        <td>❌ None</td>
-                        <td class="highlight-col">✅ Full FMCSA DQ Automation</td>
-                    </tr>
-                    <tr>
-                        <td>E-Signature Cost</td>
-                        <td>Often Extra ($$$)</td>
-                        <td>Per-Envelope Fee ($$$)</td>
-                        <td class="highlight-col">✅ Unlimited (Built-in)</td>
-                    </tr>
-                    <tr>
-                        <td>Direct PEV Workflows</td>
-                        <td>❌ Manual Paperwork</td>
-                        <td>❌ Blank Forms</td>
-                        <td class="highlight-col">✅ Digital, Tracked & Certified</td>
-                    </tr>
-                    <tr>
-                        <td>Cost Transparency</td>
-                        <td>Hidden Fees / Modules</td>
-                        <td>Usage Tiers</td>
-                        <td class="highlight-col">✅ Clear, Flat Monthly Rate</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-        <div class="compare-event-demo">
-            <div class="event-badge">
-                <span class="dot green"></span> DQ Audit Passed — Driver: John D.
-            </div>
-            <div class="event-badge">
-                <span class="dot blue"></span> PEV Verified — Employer: Swift Trans.
-            </div>
-            <div class="event-badge">
-                <span class="dot purple"></span> Completed Offer — Signed via E-Doc
-            </div>
-        </div>
-    </section>
-
-    <!-- PLANS & PRICING -->
-    <section id="pricing" class="pricing-section bg-light">
-        <div class="section-title">
-            <h2>Transparent Plans & Pricing</h2>
-            <p>Scalable software for growing fleets. No hidden per-user or per-document fees.</p>
-        </div>
-        <div class="pricing-cards">
-            <!-- Plan 1 -->
-            <div class="price-card">
-                <h3>ATS & Compliance</h3>
-                <div class="price">
-                    <span class="currency">$</span><span class="amount">199</span><span class="period">/mo</span>
-                </div>
-                <p class="plan-desc">Complete toolkit for your recruiting and compliance needs.</p>
-                <ul class="plan-features">
-                    <li>✅ Unlimited Records & Users</li>
-                    <li>✅ Unlimited E-Docs & Signatures</li>
-                    <li>✅ Full ATS Pipeline & Offer Flows</li>
-                    <li>✅ DQ File Management & PEV</li>
-                    <li>✅ Real-Time Analytics & Reporting</li>
-                    <li>✅ Multi-Tenant / Fleet Support</li>
-                </ul>
-                <button class="btn btn-primary btn-block js-open-lead-modal">Get Started</button>
-            </div>
-
-            <!-- Plan 2 -->
-            <div class="price-card premium">
-                <div class="badge">Most Popular</div>
-                <h3>ATS + Bulk SMS</h3>
-                <div class="price">
-                    <span class="currency">$</span><span class="amount">299</span><span class="period">/mo</span>
-                </div>
-                <p class="plan-desc">Advanced communication toolkit for larger hiring operations.</p>
-                <ul class="plan-features">
-                    <li>✅ <strong>All ATS & Compliance Features</strong></li>
-                    <li>✅ Unlimited SMS Campaigns</li>
-                    <li>✅ Mass Messaging to Pipeline</li>
-                    <li>✅ Role-based SMS Senders</li>
-                    <li>✅ Automated Fallback Routing</li>
-                </ul>
-                <button class="btn btn-primary btn-block js-open-lead-modal">Get Started</button>
-            </div>
-        </div>
-        <p class="pricing-footnote">* SMS campaign delivery subject to carrier fees; ask sales for details. Pricing
-            includes free white-label PEV and all SafeHaul compliance modules.</p>
-    </section>
-
-    <!-- TESTIMONIALS -->
-    <section class="testimonials-section">
-        <div class="section-title">
-            <h2>Trusted by Top Trucking Fleets</h2>
-        </div>
-        <div class="company-logos-row">
-            <div class="company-logo-item">
-                <img src="/assets/images/company_logos/STL Truckers.png" alt="STL Truckers">
-            </div>
-            <div class="company-logo-item">
-                <img src="/assets/images/company_logos/True Nation.png" alt="True Nation Inc.">
-            </div>
-            <div class="company-logo-item">
-                <img src="/assets/images/company_logos/I&S Truckers.jfif" alt="I&S Transportation">
-            </div>
-            <div class="company-logo-item tophire-logo">
-                <span class="tophire-text">TopHire</span><br>
-                <span class="tophire-sub">Recruiting Agency</span>
-            </div>
-        </div>
-    </section>
-
-    <!-- SafeHaul News & Insights -->
-    <!--
-      Cards are fetched at runtime from /api/news/latest, a same-origin Firebase
-      Hosting rewrite onto the serveBlogPublic function. They are not committed
-      here because articles are published after deployment, and the landing site
-      has no build step that could regenerate them.
-
-      The section renders a static placeholder first, so it is never empty and
-      never shifts layout; the fetch replaces the cards when it succeeds and
-      leaves the placeholder in place when it does not. No application code and
-      no React is pulled into this page.
-    -->
-    <section id="news" class="news-section">
-        <div class="section-title">
-            <h2>SafeHaul News &amp; Insights</h2>
-            <p>Trucking news and regulation, recruiting and retention guidance, and plain
-            explanations of the compliance problems carriers deal with. Published daily.</p>
-        </div>
-        <div class="news-grid" id="newsGrid" aria-live="polite" aria-busy="true">
-            <p class="news-loading" id="newsLoading">Loading the latest articles&hellip;</p>
-        </div>
-        <div class="news-cta">
-            <a href="/news" class="btn btn-secondary">View all articles</a>
-        </div>
-    </section>
-
-    <!-- FAQ -->
-    <section id="faq" class="faq-section">
-        <div class="section-title">
-            <h2>Frequently Asked Questions</h2>
-        </div>
-        <div class="faq-accordion">
-            <div class="faq-row">
-                <div class="faq-question">Is SafeHaul compliant with FMCSA/DOT DQ requirements? <span
-                        class="indicator">+</span></div>
-                <div class="faq-answer">Yes, our DQ module is built specifically to track and maintain compliance with
-                    FMCSA and DOT regulations, complete with audit logs and auto-reminders.</div>
-            </div>
-            <div class="faq-row">
-                <div class="faq-question">Can I export all my data at any time? <span class="indicator">+</span></div>
-                <div class="faq-answer">Absolutely. You own your data. Our platform allows complete data export to
-                    remain GDPR and Clean compliance ready.</div>
-            </div>
-            <div class="faq-row">
-                <div class="faq-question">Are e-signatures legally binding? <span class="indicator">+</span></div>
-                <div class="faq-answer">Yes. SafeHaul’s e-doc module produces tamper-proof, digitally sealed documents
-                    with completion certificates that meet E-SIGN Act requirements.</div>
-            </div>
-            <div class="faq-row">
-                <div class="faq-question">How does bulk SMS compliance work? Are there additional charges? <span
-                        class="indicator">+</span></div>
-                <div class="faq-answer">Our SMS gateway handles opt-out management and sender registration. While
-                    unlimited sends are included in the $299 plan, standard carrier pass-through fees (fraction of a
-                    cent per message) may apply.</div>
-            </div>
-            <div class="faq-row">
-                <div class="faq-question">What support is available for onboarding? <span class="indicator">+</span>
-                </div>
-                <div class="faq-answer">We offer guided onboarding tours directly in the app, plus comprehensive email
-                    and priority support to ensure your team is set up for success immediately.</div>
-            </div>
-            <div class="faq-row">
-                <div class="faq-question">Is there a contract or setup fee? <span class="indicator">+</span></div>
-                <div class="faq-answer">No. We believe in transparent, flat monthly pricing with no hidden setup fees
-                    and no long-term lock-in contracts.</div>
-            </div>
-        </div>
-    </section>
+        </section>
+    </main>
 
     <!-- FOOTER -->
     <footer id="footer" class="footer-section">
         <div class="footer-grid">
             <div class="footer-brand">
-                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 1rem;">
-                    <img src="/assets/images/logo.svg" alt="SafeHaul Logo" class="footer-logo" width="32" height="32">
-                    <span class="logo-text" style="margin-bottom: 0;">SafeHaul</span>
-                </div>
-                <p>Next-generation Applicant Tracking, Compliance & HR software for modern trucking fleets.</p>
+                <a href="/" class="logo-link" aria-label="SafeHaul home">
+                    <img src="/assets/images/logo.svg" alt="" class="footer-logo" width="32" height="32">
+                    <span class="logo-text">SafeHaul</span>
+                </a>
+                <p>Driver hiring and DOT compliance software for trucking carriers.</p>
             </div>
-            <div class="footer-links">
-                <a href="#features">Features</a>
+            <nav class="footer-links" aria-label="Product">
+                <h2 class="footer-heading">Product</h2>
+                <a href="#features">Platform</a>
                 <a href="#pricing">Pricing</a>
-                <a href="https://app.safehaul.io" target="_blank">Partner Login</a>
-            </div>
-            <div class="footer-contact">
-                <a href="mailto:info@safehaul.io">Contact Support</a>
-                <a href="javascript:void(0)" class="js-open-lead-modal">Contact Sales</a>
+                <a href="#why-safehaul">Why SafeHaul</a>
+                <a href="https://app.safehaul.io" rel="noopener">Log in</a>
+            </nav>
+            <nav class="footer-links" aria-label="Resources">
+                <h2 class="footer-heading">Resources</h2>
                 <a href="/news">News &amp; Insights</a>
+                <a href="/news/feed.xml">Article feed</a>
                 <a href="/privacy.html">Privacy Policy</a>
+            </nav>
+            <div class="footer-contact">
+                <h2 class="footer-heading">Contact</h2>
+                <a href="mailto:info@safehaul.io">info@safehaul.io</a>
+                <button type="button" class="link-button js-open-lead-modal">Talk to us</button>
             </div>
         </div>
         <div class="footer-bottom">
             <p>&copy; 2026 SafeHaul. All rights reserved.</p>
+            <p class="footer-disclaimer">
+                SafeHaul supports your compliance process. It is not a law firm and nothing here is
+                advice about your regulatory obligations.
+            </p>
         </div>
     </footer>
 
-    <!-- SHORT-FORM MODAL -->
-    <div id="leadModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="leadModalTitle" aria-hidden="true">
+    <!-- LEAD MODAL (two steps; step one is captured on its own) -->
+    <div id="leadModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="leadModalTitle"
+        aria-hidden="true">
         <div class="modal-container">
-            <button class="modal-close" id="closeModal" aria-label="Close modal">&times;</button>
+            <button type="button" class="modal-close" id="closeModal" aria-label="Close dialog">&times;</button>
+
             <div class="modal-header">
-                <h3 id="leadModalTitle">Get Started with SafeHaul</h3>
-                <p>Fill out the form below and our sales team will be in touch.</p>
+                <p class="modal-step" id="modalStep">Step 1 of 2</p>
+                <h2 id="leadModalTitle">Get started with SafeHaul</h2>
+                <p id="modalSubtitle">Two fields now. The rest only helps us prepare.</p>
             </div>
-            <form id="leadForm" class="modal-form">
-                <div class="form-group">
-                    <label for="fullName">Full Name</label>
-                    <input type="text" id="fullName" name="fullName" placeholder="Jane Doe" required>
-                </div>
-                <div class="form-group">
-                    <label for="workEmail">Work Email</label>
-                    <input type="email" id="workEmail" name="workEmail" placeholder="jane@company.com" required>
-                </div>
-                <div class="form-row">
+
+            <form id="leadForm" class="modal-form" novalidate>
+                <!-- Step one: the only fields required to reach a person. -->
+                <fieldset class="form-step" id="stepOne">
+                    <legend class="visually-hidden">Your details</legend>
                     <div class="form-group">
-                        <label for="companyName">Company Name</label>
-                        <input type="text" id="companyName" name="companyName" placeholder="Logistics Inc." required>
+                        <label for="fullName">Full name</label>
+                        <input type="text" id="fullName" name="fullName" autocomplete="name" placeholder="Jane Doe"
+                            required>
+                        <p class="field-error" id="fullNameError" hidden></p>
                     </div>
                     <div class="form-group">
-                        <label for="companySize">Company Size</label>
-                        <select id="companySize" name="companySize" required>
-                            <option value="" disabled selected>Select size</option>
-                            <option value="1-10">1-10 drivers</option>
-                            <option value="11-50">11-50 drivers</option>
-                            <option value="51-200">51-200 drivers</option>
-                            <option value="201+">201+ drivers</option>
+                        <label for="workEmail">Work email</label>
+                        <input type="email" id="workEmail" name="workEmail" autocomplete="email"
+                            placeholder="jane@yourcarrier.com" required>
+                        <p class="field-error" id="workEmailError" hidden></p>
+                    </div>
+
+                    <!-- Honeypot. Hidden from people, irresistible to scripts. -->
+                    <div class="honeypot-field" aria-hidden="true">
+                        <label for="website">Website</label>
+                        <input type="text" id="website" name="website" tabindex="-1" autocomplete="off">
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-block btn-lg" id="stepOneSubmit">Continue</button>
+                    <p class="modal-fineprint">We reply by email. No newsletter, no reselling your details.</p>
+                </fieldset>
+
+                <!-- Step two: qualification. Skippable, because step one is already saved. -->
+                <fieldset class="form-step" id="stepTwo" hidden>
+                    <legend class="visually-hidden">About your operation</legend>
+                    <div class="form-group">
+                        <label for="companyName">Company name</label>
+                        <input type="text" id="companyName" name="companyName" autocomplete="organization"
+                            placeholder="Ridgeline Carriers" required>
+                        <p class="field-error" id="companyNameError" hidden></p>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="companySize">Fleet size</label>
+                            <select id="companySize" name="companySize" required>
+                                <option value="" disabled selected>Select size</option>
+                                <option value="1-10">1&ndash;10 drivers</option>
+                                <option value="11-50">11&ndash;50 drivers</option>
+                                <option value="51-200">51&ndash;200 drivers</option>
+                                <option value="201+">201+ drivers</option>
+                            </select>
+                            <p class="field-error" id="companySizeError" hidden></p>
+                        </div>
+                        <div class="form-group">
+                            <label for="phone">Phone <span class="optional">(optional)</span></label>
+                            <input type="tel" id="phone" name="phone" autocomplete="tel"
+                                placeholder="+1 (555) 000-0000">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="primaryGoal">What matters most right now?</label>
+                        <select id="primaryGoal" name="primaryGoal" required>
+                            <option value="" disabled selected>Choose one</option>
+                            <option value="ATS">Driver applications and pipeline</option>
+                            <option value="Compliance">Qualification documents</option>
+                            <option value="E-Docs">Signing paperwork</option>
+                            <option value="PEV">Previous-employment verification</option>
+                            <option value="Other">Something else</option>
                         </select>
+                        <p class="field-error" id="primaryGoalError" hidden></p>
                     </div>
-                </div>
-                <div class="form-group">
-                    <label for="phone">Phone Number (Optional)</label>
-                    <input type="tel" id="phone" name="phone" placeholder="+1 (555) 000-0000">
-                </div>
-                <div class="form-group">
-                    <label for="primaryGoal">Primary Goal</label>
-                    <select id="primaryGoal" name="primaryGoal" required>
-                        <option value="" disabled selected>What are you looking for?</option>
-                        <option value="ATS">ATS & Application Management</option>
-                        <option value="Compliance">DQ Compliance & Auditing</option>
-                        <option value="E-Docs">E-Signature / DocuSign Alternative</option>
-                        <option value="PEV">PEV Tracking</option>
-                        <option value="Other">Other</option>
-                    </select>
-                </div>
-                <div class="honeypot-field" aria-hidden="true">
-                    <label for="website">Website</label>
-                    <input type="text" id="website" name="website" tabindex="-1" autocomplete="off">
-                </div>
-                <button type="submit" class="btn btn-primary btn-block btn-lg">Request Access</button>
-                <div id="formStatus" class="form-status"></div>
+
+                    <button type="submit" class="btn btn-primary btn-block btn-lg" id="stepTwoSubmit">Finish</button>
+                    <button type="button" class="btn btn-ghost btn-block" id="skipStepTwo">Skip &mdash; we have your
+                        details</button>
+                </fieldset>
+
+                <p id="formStatus" class="form-status" role="status" aria-live="polite"></p>
             </form>
 
-            <div id="successMessage" class="modal-success" style="display: none;">
-                <div class="success-icon">✅</div>
-                <h3>Request Sent!</h3>
-                <p>Thank you. Our sales team will reach out to schedule a platform walkthrough.</p>
-                <button type="button" class="btn btn-outline btn-block" id="successClose">Close Window</button>
+            <div id="successMessage" class="modal-success" hidden>
+                <p class="success-icon" aria-hidden="true">&check;</p>
+                <h2>Thanks &mdash; we have what we need.</h2>
+                <p>Someone from SafeHaul will email you to arrange a walkthrough.</p>
+                <a class="btn btn-outline btn-block" href="/news">Read News &amp; Insights while you wait</a>
+                <button type="button" class="btn btn-ghost btn-block" id="successClose">Close</button>
             </div>
         </div>
     </div>
 
-    <!-- JS -->
     <script src="/assets/js/main.js"></script>
 </body>
 

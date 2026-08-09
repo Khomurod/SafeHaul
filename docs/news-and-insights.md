@@ -346,9 +346,39 @@ at its old URL. Non-GET methods get 405. No generation metadata, provider name o
 model is ever exposed. Responses set an explicit content type, a short cache
 policy and the same hardening headers as the landing site.
 
+## Presentation
+
+The pipeline above is unchanged by the 2026-08 marketing redesign. What changed
+is how the articles look, and one defect that had been shipping since the section
+launched.
+
+**The chrome was unstyled.** `renderPage` emitted `<nav id="navbar">`,
+`.nav-logo` and `.footer-container`. The stylesheet contains no ID selectors and
+defines neither of those classes, so every article page rendered with an
+unstyled header and footer while the article body itself was fully styled. The
+renderer now emits the same `.navbar` / `.nav-link` / `.footer-section` classes
+the homepage uses, plus a skip link and the self-hosted font.
+
+**`.btn-secondary` did not exist.** The landing strip's "View all articles"
+button asked for a class the stylesheet never defined, so it rendered as a bare
+`.btn`. It is now a real variant.
+
+**The index and article pages are designed rather than merely styled.** Section
+15 of `landing/assets/css/styles.css` covers both: a centred index header with a
+card grid, and an article column set to a ~68-character measure with heading
+rhythm, blockquote treatment, a licensed hero image with visible attribution,
+and a **Sources** block styled as a deliberate part of the page. That last one is
+the section's credibility — every factual claim traces to a named source — and it
+had been rendering as an afterthought.
+
+Card titles are styled at both `h2` and `h3`, because the server-rendered index
+uses `h2` (under the page's own `h1`) while the landing strip uses `h3`. Without
+the `h2` rule the index inherited the global display scale and the cards became
+billboards.
+
 ## Landing page section
 
-`landing/index.html` gains a **SafeHaul News & Insights** section, a navigation
+`landing/index.html` carries a **SafeHaul News & Insights** section, a navigation
 link and a footer link. The landing site keeps its isolated static architecture:
 no application code, no React, no design-system import. The section reuses the
 page's own `:root` brand tokens and the same card idiom as the features section.

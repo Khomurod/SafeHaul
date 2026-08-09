@@ -1,14 +1,53 @@
-/* 
- * SafeHaul Enterprise Landing Page Styles 
- * minimalist-yet-premium, sales-focused 
+/*
+ * SafeHaul marketing site.
+ *
+ * Hand-written CSS with no build step and no framework, deliberately isolated
+ * from the application's design system — the landing site and the app are
+ * separate deployments, and `src/tests/landingNewsSection.test.js` asserts that
+ * no application code is pulled in here.
+ *
+ * Two rules govern the palette:
+ *   1. Navy carries structure and text. It is the colour with contrast.
+ *   2. Mint is an accent only. On white it measures about 1.6:1, so it never
+ *      carries text and is never the sole indicator of a state.
+ *
+ * Contents
+ *   1.  Tokens
+ *   2.  Reset and base
+ *   3.  Typography
+ *   4.  Utilities
+ *   5.  Buttons
+ *   6.  Navigation
+ *   7.  Hero
+ *   8.  Logo strip
+ *   9.  Problem
+ *   10. Platform bento
+ *   11. Story blocks
+ *   12. Trust band
+ *   13. Comparison
+ *   14. Pricing
+ *   15. SafeHaul News & Insights
+ *   16. FAQ
+ *   17. Closing CTA
+ *   18. Footer
+ *   19. Lead modal
+ *   20. Responsive
+ *   21. Reduced motion and print
  */
 
+/* ========================================================================= */
+/* 1. TOKENS                                                                 */
+/* ========================================================================= */
+
 :root {
-    /* Brand Colors */
-    --primary: #0CE1A5;
+    /* Brand. Values match the application's --ds-color-safehaul-* tokens so the
+       site and the product cannot drift apart. */
+    --primary: #0be2a4;
     --primary-hover: #0ad39b;
-    --deep-blue: #004C68;
-    --deep-blue-light: #005a7acc;
+    --primary-soft: rgba(11, 226, 164, 0.12);
+    --deep-blue: #004c68;
+    --deep-blue-hover: #013b51;
+    --deep-blue-soft: rgba(0, 76, 104, 0.08);
 
     /* Neutrals */
     --white: #ffffff;
@@ -18,632 +57,520 @@
     --gray-300: #cbd5e1;
     --gray-400: #94a3b8;
     --gray-500: #64748b;
+    --gray-600: #475569;
+    --gray-700: #334155;
     --gray-800: #1e293b;
     --black: #0f172a;
 
     /* Typography */
-    --font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    --font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
     --font-size-base: 16px;
 
-    /* Layout & Shadows */
+    /* Layout */
     --max-width: 1200px;
+    --gutter: 24px;
+    --section-padding: 112px;
     --border-radius: 12px;
-    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    --border-radius-lg: 20px;
 
-    /* Transitions */
-    --transition-fast: 0.2s ease;
-    --transition-normal: 0.3s ease;
+    /* Elevation. Layered rather than single-blur, so a screenshot reads as an
+       object sitting on the page rather than a rectangle with a smudge. */
+    --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+    --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.08), 0 2px 4px -2px rgba(15, 23, 42, 0.06);
+    --shadow-lg: 0 12px 24px -8px rgba(15, 23, 42, 0.14), 0 4px 8px -4px rgba(15, 23, 42, 0.08);
+    --shadow-xl: 0 32px 64px -16px rgba(15, 23, 42, 0.22), 0 12px 24px -12px rgba(15, 23, 42, 0.12);
+
+    --transition-fast: 0.15s ease;
+    --transition-normal: 0.24s ease;
 }
 
-/* ========================================= */
-/* RESET & BASE                              */
-/* ========================================= */
-* {
+/* ========================================================================= */
+/* 2. RESET AND BASE                                                         */
+/* ========================================================================= */
+
+*,
+*::before,
+*::after {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
 }
 
+@font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 400 800;
+    /* `swap` because a marketing page that renders nothing while a font loads
+       has already lost the visitor it was measuring. */
+    font-display: swap;
+    src: url('/assets/fonts/inter-variable.woff2') format('woff2');
+}
+
 html {
     font-size: var(--font-size-base);
     scroll-behavior: smooth;
+    /* Anchored sections must clear the sticky header. */
+    scroll-padding-top: 96px;
+    -webkit-text-size-adjust: 100%;
 }
 
 body {
     font-family: var(--font-family);
-    color: var(--gray-800);
-    background-color: var(--gray-50);
+    color: var(--gray-700);
+    background-color: var(--white);
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* Stops a wide table or screenshot turning the whole page into a
+       side-scroller on a narrow phone. */
+    overflow-x: hidden;
 }
 
-a {
-    text-decoration: none;
-    color: inherit;
-    transition: color var(--transition-fast);
+/*
+ * `hidden` must win over a component's own display value.
+ *
+ * The browser default is only `[hidden] { display: none }`, which any later
+ * rule with a display outranks — and several below set `display: grid` or
+ * `display: flex` on elements this page toggles with the `hidden` attribute.
+ * Without this, `element.hidden = true` silently does nothing: the two-step
+ * form showed both steps at once and the success panel sat underneath them.
+ */
+[hidden] {
+    display: none !important;
+}
+
+img,
+svg {
+    display: block;
+    max-width: 100%;
+    height: auto;
 }
 
 ul {
     list-style: none;
 }
 
-/* ========================================= */
-/* TYPOGRAPHY                                */
-/* ========================================= */
+a {
+    color: inherit;
+    text-decoration: none;
+    transition: color var(--transition-fast);
+}
+
+button {
+    font: inherit;
+    color: inherit;
+    background: none;
+    border: none;
+    cursor: pointer;
+}
+
+/* One visible focus treatment for everything interactive. */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+    outline: 3px solid var(--deep-blue);
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+/* ========================================================================= */
+/* 3. TYPOGRAPHY                                                             */
+/* ========================================================================= */
+
 h1,
 h2,
 h3,
-h4,
-h5 {
-    font-weight: 700;
-    line-height: 1.2;
+h4 {
     color: var(--black);
-    margin-bottom: 1rem;
-}
-
-h1 {
-    font-size: clamp(2.5rem, 5vw, 4rem);
+    font-weight: 700;
+    line-height: 1.15;
     letter-spacing: -0.02em;
 }
 
+h1 {
+    font-size: clamp(2.25rem, 1.4rem + 3.4vw, 3.85rem);
+    letter-spacing: -0.035em;
+    line-height: 1.05;
+}
+
 h2 {
-    font-size: clamp(2rem, 4vw, 3rem);
-    letter-spacing: -0.01em;
+    font-size: clamp(1.75rem, 1.2rem + 2.1vw, 2.65rem);
+    letter-spacing: -0.028em;
 }
 
 h3 {
-    font-size: 1.5rem;
+    font-size: clamp(1.125rem, 1rem + 0.4vw, 1.3rem);
+    letter-spacing: -0.015em;
 }
 
 p {
-    margin-bottom: 1rem;
-    color: var(--gray-500);
+    font-size: 1rem;
 }
 
-/* ========================================= */
-/* UTILITIES & COMPONENTS                    */
-/* ========================================= */
-.container {
-    width: 100%;
-    max-width: var(--max-width);
-    margin: 0 auto;
-    padding: 0 5%;
+.eyebrow {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--deep-blue);
+    margin-bottom: 12px;
 }
 
 .section-title {
+    max-width: 760px;
+    margin: 0 auto 56px;
     text-align: center;
-    margin-bottom: 4rem;
-    max-width: 800px;
+}
+
+.section-title p {
+    margin-top: 16px;
+    font-size: 1.0625rem;
+    color: var(--gray-500);
+}
+
+.section-title--inverse h2 {
+    color: var(--white);
+}
+
+.section-title--inverse p {
+    color: rgba(255, 255, 255, 0.72);
+}
+
+/* ========================================================================= */
+/* 4. UTILITIES                                                              */
+/* ========================================================================= */
+
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+}
+
+.skip-link {
+    position: absolute;
+    top: -100px;
+    left: 16px;
+    z-index: 200;
+    padding: 12px 20px;
+    background: var(--deep-blue);
+    color: var(--white);
+    font-weight: 600;
+    border-radius: 0 0 8px 8px;
+    transition: top var(--transition-fast);
+}
+
+.skip-link:focus {
+    top: 0;
+}
+
+section {
+    padding: var(--section-padding) var(--gutter);
+}
+
+section > .section-title,
+.problem-grid,
+.bento-grid,
+.story,
+.trust-grid,
+.compare-table-wrapper,
+.pricing-cards,
+.news-grid,
+.faq-accordion,
+.logos-section > *,
+.pricing-footnote,
+.news-cta {
+    max-width: var(--max-width);
     margin-left: auto;
     margin-right: auto;
-    padding: 0 20px;
 }
 
-.section-title h2 {
-    color: var(--deep-blue);
-}
+/* ========================================================================= */
+/* 5. BUTTONS                                                                */
+/* ========================================================================= */
 
-.bg-light {
-    background-color: var(--gray-100);
-}
-
-/* Buttons */
 .btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 0.75rem 1.5rem;
+    gap: 8px;
+    /* 44px minimum target on every button, per WCAG 2.2 target size. */
+    min-height: 44px;
+    padding: 11px 20px;
+    font-size: 0.9375rem;
     font-weight: 600;
-    font-size: 1rem;
-    border-radius: 8px;
+    border-radius: 10px;
+    border: 1px solid transparent;
     cursor: pointer;
-    border: none;
-    transition: all var(--transition-fast);
+    white-space: nowrap;
+    transition: background-color var(--transition-fast), border-color var(--transition-fast),
+        color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .btn-primary {
-    background-color: var(--primary);
-    color: var(--black);
+    /* Navy, not mint. Mint on white does not reach 4.5:1, and a call to action
+       that fails contrast is a call to action nobody reads. */
+    background-color: var(--deep-blue);
+    color: var(--white);
+    box-shadow: var(--shadow-sm);
 }
 
 .btn-primary:hover {
-    background-color: var(--primary-hover);
-    transform: translateY(-2px);
+    background-color: var(--deep-blue-hover);
     box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+}
+
+.btn-secondary {
+    background-color: var(--white);
+    color: var(--deep-blue);
+    border-color: var(--gray-300);
+    box-shadow: var(--shadow-sm);
+}
+
+.btn-secondary:hover {
+    border-color: var(--deep-blue);
+    background-color: var(--deep-blue-soft);
 }
 
 .btn-outline {
     background-color: transparent;
     color: var(--deep-blue);
-    border: 2px solid var(--gray-300);
+    border-color: var(--gray-300);
 }
 
 .btn-outline:hover {
     border-color: var(--deep-blue);
-    color: var(--deep-blue);
+    background-color: var(--deep-blue-soft);
 }
 
 .btn-ghost {
     background-color: transparent;
-    color: var(--gray-500);
+    color: var(--gray-600);
 }
 
 .btn-ghost:hover {
-    color: var(--primary);
+    color: var(--black);
+    background-color: var(--gray-100);
 }
 
 .btn-lg {
-    padding: 1rem 2rem;
-    font-size: 1.125rem;
+    min-height: 52px;
+    padding: 15px 30px;
+    font-size: 1rem;
 }
 
 .btn-block {
-    width: 100%;
     display: flex;
+    width: 100%;
 }
 
-/* ========================================= */
-/* NAVIGATION                                */
-/* ========================================= */
+.btn[disabled],
+.btn[aria-disabled='true'] {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.link-button {
+    color: inherit;
+    text-align: left;
+    padding: 0;
+    font-size: 0.9375rem;
+}
+
+.link-button:hover {
+    color: var(--white);
+}
+
+/* ========================================================================= */
+/* 6. NAVIGATION                                                             */
+/* ========================================================================= */
+
 .navbar {
-    position: fixed;
+    position: sticky;
     top: 0;
-    left: 0;
-    width: 100%;
-    background: rgba(255, 255, 255, 0.9);
-    backdrop-filter: blur(10px);
-    z-index: 1000;
-    border-bottom: 1px solid var(--gray-200);
-    transition: all var(--transition-normal);
+    z-index: 100;
+    background-color: rgba(255, 255, 255, 0.85);
+    backdrop-filter: saturate(180%) blur(12px);
+    -webkit-backdrop-filter: saturate(180%) blur(12px);
+    border-bottom: 1px solid transparent;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.navbar[data-scrolled='true'] {
+    border-bottom-color: var(--gray-200);
+    box-shadow: var(--shadow-sm);
 }
 
 .nav-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
     max-width: var(--max-width);
     margin: 0 auto;
-    padding: 1rem 5%;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    padding: 14px var(--gutter);
 }
 
 .logo-link {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: 0.5rem;
-    color: var(--deep-blue);
+    gap: 10px;
 }
 
 .logo-text {
-    font-size: 1.5rem;
-    font-weight: 800;
+    font-size: 1.1875rem;
+    font-weight: 700;
     letter-spacing: -0.02em;
+    color: var(--black);
 }
 
 .nav-links {
     display: flex;
-    gap: 2rem;
     align-items: center;
+    gap: 4px;
 }
 
 .nav-link {
+    padding: 8px 12px;
+    font-size: 0.9375rem;
     font-weight: 500;
-    color: var(--gray-500);
+    color: var(--gray-600);
+    border-radius: 8px;
 }
 
 .nav-link:hover {
-    color: var(--deep-blue);
+    color: var(--black);
+    background-color: var(--gray-100);
 }
 
 .nav-cta {
     display: flex;
-    gap: 1rem;
     align-items: center;
+    gap: 8px;
 }
 
 .mobile-menu-toggle {
     display: none;
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 0.5rem;
+    flex-direction: column;
+    justify-content: center;
+    gap: 5px;
+    width: 44px;
+    height: 44px;
+    padding: 10px;
 }
 
 .mobile-menu-toggle span {
     display: block;
-    width: 24px;
     height: 2px;
+    width: 100%;
     background-color: var(--black);
-    margin: 5px 0;
-    transition: 0.3s;
+    border-radius: 2px;
+    transition: transform var(--transition-fast), opacity var(--transition-fast);
 }
 
-.mobile-menu-toggle.active span:nth-child(1) {
-    transform: rotate(-45deg) translate(-5px, 5px);
+.mobile-menu-toggle[aria-expanded='true'] span:nth-child(1) {
+    transform: translateY(7px) rotate(45deg);
 }
 
-.mobile-menu-toggle.active span:nth-child(2) {
+.mobile-menu-toggle[aria-expanded='true'] span:nth-child(2) {
     opacity: 0;
 }
 
-.mobile-menu-toggle.active span:nth-child(3) {
-    transform: rotate(45deg) translate(-5px, -5px);
+.mobile-menu-toggle[aria-expanded='true'] span:nth-child(3) {
+    transform: translateY(-7px) rotate(-45deg);
 }
 
-/* Mobile Nav Styles */
-@media (max-width: 768px) {
-    .nav-links {
-        position: absolute;
-        top: 100%;
-        left: 0;
-        width: 100%;
-        background: var(--white);
-        flex-direction: column;
-        padding: 0;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        max-height: 0;
-        overflow: hidden;
-        transition: max-height var(--transition-normal), padding var(--transition-normal);
-        gap: 0;
-    }
+/* ========================================================================= */
+/* 7. HERO                                                                   */
+/* ========================================================================= */
 
-    .nav-links.active {
-        max-height: 400px;
-        padding: 1rem 0;
-    }
-
-    .nav-link {
-        padding: 1rem 5%;
-        width: 100%;
-        display: block;
-        border-bottom: 1px solid var(--gray-100);
-    }
-
-    .nav-link:last-child {
-        border-bottom: none;
-    }
-
-    .mobile-menu-toggle {
-        display: block;
-    }
-
-    .nav-cta {
-        display: none;
-        /* Can decide to show/hide generic nav CTA on mobile later, standard practice is hide */
-    }
-}
-
-/* ========================================= */
-/* HERO SECTION                              */
-/* ========================================= */
 .hero {
-    padding: 10rem 5% 5rem;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    text-align: center;
     position: relative;
+    padding: 88px var(--gutter) 0;
+    text-align: center;
+    background:
+        radial-gradient(60% 55% at 50% 0%, var(--primary-soft) 0%, rgba(255, 255, 255, 0) 70%),
+        linear-gradient(180deg, var(--white) 0%, var(--gray-50) 100%);
     overflow: hidden;
-    background: linear-gradient(135deg, var(--gray-50) 0%, var(--gray-100) 100%);
-}
-
-.hero-bg {
-    position: absolute;
-    top: -50%;
-    left: -10%;
-    width: 120%;
-    height: 100%;
-    background: radial-gradient(circle at center, rgba(12, 225, 165, 0.1) 0%, transparent 60%);
-    z-index: 0;
 }
 
 .hero-content {
-    position: relative;
-    z-index: 1;
-    max-width: 900px;
+    max-width: 860px;
     margin: 0 auto;
 }
 
 .hero-subtitle {
-    font-size: 1.25rem;
-    color: var(--gray-500);
-    margin-bottom: 2.5rem;
-    max-width: 700px;
-    margin-left: auto;
-    margin-right: auto;
+    max-width: 660px;
+    margin: 22px auto 0;
+    font-size: 1.125rem;
+    color: var(--gray-600);
 }
 
 .hero-buttons {
     display: flex;
     justify-content: center;
-    gap: 1rem;
-    margin-bottom: 4rem;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 36px;
+}
+
+.hero-note {
+    margin-top: 18px;
+    font-size: 0.875rem;
+    color: var(--gray-500);
 }
 
 .hero-visual {
-    position: relative;
-    max-width: 100%;
-    margin: 0 auto;
-    border-radius: 12px;
-    overflow: hidden;
-    box-shadow: var(--shadow-lg);
-    display: flex;
-}
-
-.glass-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(to bottom, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0) 100%);
-    pointer-events: none;
-    z-index: 2;
+    max-width: 1080px;
+    margin: 64px auto 0;
+    /* The screenshot bleeds into the next section so the page reads as
+       continuous rather than as stacked bands. */
+    margin-bottom: -80px;
 }
 
 .screenshot {
     width: 100%;
-    display: block;
-    border-radius: 8px;
-}
-
-/* ========================================= */
-/* FEATURES SECTION                          */
-/* ========================================= */
-.features-section {
-    padding: 6rem 5%;
-    background: var(--white);
-}
-
-.features-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-    gap: 2rem;
-    max-width: var(--max-width);
-    margin: 0 auto;
-}
-
-.feature-card {
-    padding: 2.5rem;
-    background: var(--gray-50);
-    border-radius: var(--border-radius);
-    border: 1px solid var(--gray-100);
-    transition: transform var(--transition-normal), box-shadow var(--transition-normal);
-    display: flex;
-    flex-direction: column;
-}
-
-.feature-card:hover {
-    transform: translateY(-5px);
-    box-shadow: var(--shadow-md);
-}
-
-.feature-icon {
-    width: 48px;
-    height: 48px;
-    background-color: rgba(12, 225, 165, 0.1);
-    color: var(--primary);
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 1.5rem;
-    font-size: 1.5rem;
-}
-
-.feature-card h3 {
-    font-size: 1.25rem;
-    color: var(--deep-blue);
-    margin-bottom: 1rem;
-}
-
-.feature-img {
-    margin-top: auto;
-    width: 100%;
-    border-radius: 6px;
     border: 1px solid var(--gray-200);
-    box-shadow: var(--shadow-sm);
-    max-height: 180px;
-    object-fit: cover;
-    object-position: top;
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--shadow-xl);
+    background-color: var(--white);
 }
 
-/* ========================================= */
-/* COMPARE / WHY SAFEHAUL                    */
-/* ========================================= */
-.compare-section {
-    padding: 6rem 5%;
+.screenshot--phone {
+    max-width: 300px;
+    margin: 0 auto;
+    border-radius: 28px;
+}
+
+/* ========================================================================= */
+/* 8. LOGO STRIP                                                             */
+/* ========================================================================= */
+
+.logos-section {
+    padding-top: 128px;
+    padding-bottom: 72px;
     background-color: var(--gray-50);
 }
 
-.compare-table-wrapper {
-    max-width: 900px;
-    margin: 0 auto 3rem;
-    overflow-x: auto;
-    background: var(--white);
-    border-radius: var(--border-radius);
-    box-shadow: var(--shadow-sm);
-    border: 1px solid var(--gray-200);
-}
-
-.compare-table {
-    width: 100%;
-    border-collapse: collapse;
-    text-align: left;
-}
-
-.compare-table th,
-.compare-table td {
-    padding: 1.5rem;
-    border-bottom: 1px solid var(--gray-200);
-}
-
-.compare-table th {
-    background-color: var(--gray-100);
-    color: var(--black);
-    font-weight: 600;
-}
-
-.highlight-col {
-    background-color: rgba(12, 225, 165, 0.05);
-    font-weight: 600;
-    color: var(--deep-blue);
-}
-
-.compare-event-demo {
-    max-width: 900px;
-    margin: 0 auto;
-    display: flex;
-    justify-content: center;
-    flex-wrap: wrap;
-    gap: 1rem;
-}
-
-.event-badge {
-    background: var(--white);
-    padding: 0.75rem 1.5rem;
-    border-radius: 50px;
-    box-shadow: var(--shadow-sm);
-    font-size: 0.875rem;
-    font-weight: 500;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    border: 1px solid var(--gray-200);
-}
-
-.dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    display: inline-block;
-}
-
-.dot.green {
-    background: #10b981;
-}
-
-.dot.blue {
-    background: #3b82f6;
-}
-
-.dot.purple {
-    background: #8b5cf6;
-}
-
-/* ========================================= */
-/* PRICING                                   */
-/* ========================================= */
-.pricing-section {
-    padding: 6rem 5%;
-}
-
-.pricing-cards {
-    display: flex;
-    gap: 2rem;
-    justify-content: center;
-    max-width: var(--max-width);
-    margin: 0 auto 2rem;
-    flex-wrap: wrap;
-}
-
-.price-card {
-    background: var(--white);
-    border-radius: var(--border-radius);
-    padding: 3rem 2.5rem;
-    flex: 1;
-    max-width: 450px;
-    border: 1px solid var(--gray-200);
-    box-shadow: var(--shadow-sm);
-    display: flex;
-    flex-direction: column;
-    position: relative;
-}
-
-.price-card.premium {
-    border-color: var(--primary);
-    box-shadow: 0 0 0 2px rgba(12, 225, 165, 0.2), var(--shadow-md);
-    transform: translateY(-10px);
-}
-
-.badge {
-    position: absolute;
-    top: -12px;
-    left: 50%;
-    transform: translateX(-50%);
-    background-color: var(--primary);
-    color: var(--black);
-    padding: 4px 12px;
-    border-radius: 20px;
-    font-size: 0.75rem;
-    font-weight: 700;
-    text-transform: uppercase;
-}
-
-.price {
-    margin: 1.5rem 0;
-    display: flex;
-    align-items: baseline;
-}
-
-.currency {
-    font-size: 1.5rem;
-    font-weight: 600;
-}
-
-.amount {
-    font-size: 3rem;
-    font-weight: 800;
-    color: var(--black);
-    line-height: 1;
-}
-
-.period {
-    color: var(--gray-500);
-    margin-left: 0.25rem;
-}
-
-.plan-desc {
-    font-size: 0.95rem;
-    margin-bottom: 2rem;
-    min-height: 48px;
-}
-
-.plan-features {
-    margin-bottom: 2.5rem;
-    flex: 1;
-}
-
-.plan-features li {
-    margin-bottom: 1rem;
-    display: flex;
-    align-items: flex-start;
-    gap: 0.5rem;
-    color: var(--gray-800);
-}
-
-.pricing-footnote {
+.logos-title {
     text-align: center;
-    font-size: 0.85rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
     color: var(--gray-500);
-    max-width: 800px;
-    margin: 0 auto;
-}
-
-/* ========================================= */
-/* TESTIMONIALS                              */
-/* ========================================= */
-.testimonials-section {
-    padding: 6rem 5%;
-    background: var(--deep-blue);
-    color: var(--white);
-}
-
-.testimonials-section .section-title h2 {
-    color: var(--white);
+    margin-bottom: 32px;
 }
 
 .company-logos-row {
@@ -651,205 +578,1054 @@ p {
     flex-wrap: wrap;
     align-items: center;
     justify-content: center;
-    gap: 3rem;
-    max-width: var(--max-width);
-    margin: 0 auto;
-}
-
-.company-logo-item {
-    background: rgba(255, 255, 255, 1);
-    padding: 1rem 2rem;
-    border-radius: var(--border-radius);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100px;
-    min-width: 200px;
-    transition: transform var(--transition-normal);
-}
-
-.company-logo-item:hover {
-    transform: translateY(-5px);
+    gap: 56px;
 }
 
 .company-logo-item img {
-    max-height: 60px;
-    max-width: 160px;
+    width: 56px;
+    height: 56px;
     object-fit: contain;
+    border-radius: 10px;
+    /* Desaturated so four marks of different ages and quality read as one row;
+       colour returns on hover. */
+    filter: grayscale(1);
+    opacity: 0.7;
+    transition: filter var(--transition-normal), opacity var(--transition-normal);
 }
 
-.tophire-logo {
-    flex-direction: column;
-    color: var(--deep-blue);
+.company-logo-item:hover img {
+    filter: grayscale(0);
+    opacity: 1;
+}
+
+.company-logo-wordmark {
     text-align: center;
-}
-
-.tophire-text {
-    font-family: 'Times New Roman', Times, serif;
-    font-weight: 800;
-    font-size: 1.5rem;
-    line-height: 1;
-}
-
-.tophire-sub {
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 1px;
     color: var(--gray-500);
 }
 
-/* ========================================= */
-/* FAQ                                       */
-/* ========================================= */
-.faq-section {
-    padding: 6rem 5%;
-    background: var(--white);
+.wordmark {
+    display: block;
+    font-size: 1.1875rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--gray-600);
 }
 
-.faq-accordion {
-    max-width: 800px;
-    margin: 0 auto;
+.wordmark-sub {
+    display: block;
+    font-size: 0.75rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
 }
 
-.faq-row {
+/* ========================================================================= */
+/* 9. PROBLEM                                                                */
+/* ========================================================================= */
+
+.problem-section {
+    background-color: var(--white);
+}
+
+.problem-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 28px;
+}
+
+.problem-card {
+    padding: 28px;
+    border-left: 3px solid var(--primary);
+    background-color: var(--gray-50);
+    border-radius: 0 var(--border-radius) var(--border-radius) 0;
+}
+
+.problem-card h3 {
+    margin-bottom: 10px;
+}
+
+.problem-card p {
+    color: var(--gray-600);
+    font-size: 0.9375rem;
+}
+
+/* ========================================================================= */
+/* 10. PLATFORM BENTO                                                        */
+/* ========================================================================= */
+
+.features-section {
+    background-color: var(--gray-50);
+}
+
+.bento-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+}
+
+.bento-card {
+    display: flex;
+    flex-direction: column;
+    padding: 32px;
+    background-color: var(--white);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow var(--transition-normal), transform var(--transition-normal),
+        border-color var(--transition-normal);
+}
+
+.bento-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--gray-300);
+}
+
+.bento-card h3 {
+    margin-bottom: 12px;
+}
+
+.bento-card p {
+    color: var(--gray-600);
+    font-size: 0.9375rem;
+}
+
+/* The lead tile spans the row and carries the product shot. */
+.bento-card--wide {
+    grid-column: span 3;
+    flex-direction: row;
+    align-items: center;
+    gap: 48px;
+    padding: 48px;
+    background:
+        linear-gradient(135deg, var(--white) 0%, var(--gray-50) 100%);
+}
+
+.bento-card--wide .bento-body {
+    flex: 1 1 380px;
+}
+
+.bento-card--wide .bento-visual {
+    flex: 1 1 520px;
+    min-width: 0;
+}
+
+.bento-card--wide .bento-visual img {
+    width: 100%;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-lg);
+}
+
+.bento-card--wide h3 {
+    font-size: clamp(1.375rem, 1.1rem + 1vw, 1.75rem);
+}
+
+.bento-card--wide p {
+    font-size: 1rem;
+}
+
+/* ========================================================================= */
+/* 11. STORY BLOCKS                                                          */
+/* ========================================================================= */
+
+.story-section {
+    background-color: var(--white);
+}
+
+.story-section--alt {
+    background-color: var(--gray-50);
+}
+
+.story {
+    display: grid;
+    grid-template-columns: 1fr 1.15fr;
+    align-items: center;
+    gap: 72px;
+}
+
+.story--reverse .story-text {
+    order: 2;
+}
+
+.story--reverse .story-visual {
+    order: 1;
+}
+
+.story-text h2 {
+    margin-bottom: 18px;
+}
+
+.story-text > p {
+    color: var(--gray-600);
+    font-size: 1.0625rem;
+}
+
+.story-list {
+    margin-top: 26px;
+    display: grid;
+    gap: 12px;
+}
+
+.story-list li {
+    position: relative;
+    padding-left: 30px;
+    font-size: 0.9375rem;
+    color: var(--gray-700);
+}
+
+/* A drawn check rather than an emoji: it inherits colour, scales with the
+   text, and is not announced as "white heavy check mark" by a screen reader. */
+.story-list li::before {
+    content: '';
+    position: absolute;
+    left: 4px;
+    top: 7px;
+    width: 12px;
+    height: 7px;
+    border-left: 2.5px solid var(--deep-blue);
+    border-bottom: 2.5px solid var(--deep-blue);
+    transform: rotate(-45deg);
+}
+
+.story-caveat {
+    margin-top: 26px;
+    padding: 16px 20px;
+    font-size: 0.875rem;
+    color: var(--gray-600);
+    background-color: var(--gray-100);
+    border-radius: var(--border-radius);
+    border-left: 3px solid var(--gray-400);
+}
+
+.story-section--alt .story-caveat {
+    background-color: var(--white);
+}
+
+.story-visual {
+    min-width: 0;
+}
+
+/* ========================================================================= */
+/* 12. TRUST BAND                                                            */
+/* ========================================================================= */
+
+.trust-section {
+    background-color: var(--deep-blue);
+    background-image: radial-gradient(70% 60% at 50% 0%, rgba(11, 226, 164, 0.14) 0%, rgba(0, 76, 104, 0) 70%);
+}
+
+.trust-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 24px;
+}
+
+.trust-card {
+    padding: 28px;
+    background-color: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: var(--border-radius);
+}
+
+.trust-card h3 {
+    color: var(--white);
+    font-size: 1.0625rem;
+    margin-bottom: 10px;
+}
+
+.trust-card p {
+    font-size: 0.9375rem;
+    color: rgba(255, 255, 255, 0.78);
+}
+
+/* ========================================================================= */
+/* 13. COMPARISON                                                            */
+/* ========================================================================= */
+
+.compare-section {
+    background-color: var(--white);
+}
+
+.compare-table-wrapper {
+    overflow-x: auto;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--shadow-sm);
+}
+
+/* The wrapper carries tabindex so a keyboard can scroll it; that focus has to
+   be visible, or the ring lands on something the user cannot see. */
+.compare-table-wrapper:focus-visible {
+    outline: 3px solid var(--deep-blue);
+    outline-offset: 3px;
+}
+
+.compare-table {
+    width: 100%;
+    min-width: 720px;
+    border-collapse: collapse;
+    background-color: var(--white);
+}
+
+.compare-table th,
+.compare-table td {
+    padding: 18px 20px;
+    text-align: left;
+    font-size: 0.9375rem;
     border-bottom: 1px solid var(--gray-200);
 }
 
-.faq-row:last-child {
-    border-bottom: none;
+.compare-table thead th {
+    font-size: 0.8125rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--gray-500);
+    background-color: var(--gray-50);
 }
 
-.faq-question {
-    padding: 1.5rem 0;
-    font-size: 1.125rem;
+.compare-table tbody th {
     font-weight: 600;
     color: var(--black);
-    cursor: pointer;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
 }
 
-.faq-question:hover {
-    color: var(--primary-hover);
-}
-
-.faq-answer {
-    max-height: 0;
-    overflow: hidden;
-    transition: max-height 0.3s ease-out;
+.compare-table td {
     color: var(--gray-500);
 }
 
-.faq-answer p {
-    padding-bottom: 1.5rem;
+.compare-table tbody tr:last-child th,
+.compare-table tbody tr:last-child td {
+    border-bottom: none;
 }
 
-.faq-row.active .faq-answer {
-    max-height: 500px;
-    /* arbitrary max height */
+.compare-table .highlight-col {
+    background-color: var(--deep-blue-soft);
+    color: var(--deep-blue);
+    font-weight: 600;
 }
 
-/* ========================================= */
-/* FOOTER                                    */
-/* ========================================= */
-.footer-section {
-    background: var(--gray-800);
+.compare-table thead .highlight-col {
+    color: var(--deep-blue);
+    background-color: rgba(0, 76, 104, 0.12);
+}
+
+/* ========================================================================= */
+/* 14. PRICING                                                               */
+/* ========================================================================= */
+
+.pricing-section {
+    background-color: var(--gray-50);
+}
+
+.pricing-cards {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 28px;
+    /* Stretch, not start: the two plans list a different number of features, and
+       cards of different heights put the two calls to action on different
+       lines, which reads as one plan being unfinished. */
+    align-items: stretch;
+}
+
+.price-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    padding: 40px;
+    background-color: var(--white);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--shadow-sm);
+}
+
+/* Pushes the button to the bottom of whichever card is shorter. */
+.price-card .btn-block {
+    margin-top: auto;
+}
+
+.price-card--premium {
+    border-color: var(--deep-blue);
+    box-shadow: var(--shadow-lg);
+}
+
+.price-card .badge {
+    position: absolute;
+    top: -13px;
+    left: 40px;
+    padding: 5px 14px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
     color: var(--white);
-    padding: 5rem 5% 2rem;
+    background-color: var(--deep-blue);
+    border-radius: 999px;
+}
+
+.price {
+    display: flex;
+    align-items: baseline;
+    gap: 2px;
+    margin: 20px 0 8px;
+    color: var(--black);
+}
+
+.price .currency {
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.price .amount {
+    font-size: 3.25rem;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    line-height: 1;
+}
+
+.price .period {
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--gray-500);
+}
+
+.plan-desc {
+    font-size: 0.9375rem;
+    color: var(--gray-500);
+    margin-bottom: 26px;
+}
+
+.plan-features {
+    display: grid;
+    gap: 12px;
+    margin-bottom: 30px;
+}
+
+.plan-features li {
+    position: relative;
+    padding-left: 30px;
+    font-size: 0.9375rem;
+    color: var(--gray-700);
+}
+
+.plan-features li::before {
+    content: '';
+    position: absolute;
+    left: 4px;
+    top: 7px;
+    width: 12px;
+    height: 7px;
+    border-left: 2.5px solid var(--deep-blue);
+    border-bottom: 2.5px solid var(--deep-blue);
+    transform: rotate(-45deg);
+}
+
+.pricing-footnote {
+    max-width: 720px;
+    margin-top: 36px;
+    text-align: center;
+    font-size: 0.875rem;
+    color: var(--gray-500);
+}
+
+/* ========================================================================= */
+/* 15. SafeHaul News & Insights                                              */
+/*                                                                           */
+/* Cards are rendered at runtime from /api/news/latest. Everything below is   */
+/* styled from the page's own tokens rather than new hard-coded colours, and  */
+/* nothing here drops below 12px — the design standard's floor for body text. */
+/* ========================================================================= */
+
+.news-section {
+    background-color: var(--white);
+}
+
+.news-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 28px;
+    /* Holds height while the fetch is in flight so the section cannot shift
+       the page as cards arrive. */
+    min-height: 320px;
+}
+
+.news-loading,
+.news-empty {
+    grid-column: 1 / -1;
+    align-self: center;
+    text-align: center;
+    font-size: 0.9375rem;
+    color: var(--gray-500);
+}
+
+.news-card {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background-color: var(--white);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow var(--transition-normal), transform var(--transition-normal),
+        border-color var(--transition-normal);
+}
+
+.news-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--gray-300);
+}
+
+.news-card-image {
+    display: block;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    background-color: var(--gray-100);
+}
+
+.news-card-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform var(--transition-normal);
+}
+
+.news-card:hover .news-card-image img {
+    transform: scale(1.03);
+}
+
+.news-card-body {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    gap: 10px;
+    padding: 24px;
+}
+
+.news-eyebrow {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--deep-blue);
+}
+
+/* The landing strip renders card titles as h3; the server-rendered /news index
+   uses h2, because there the cards sit under the page's own h1. Both are the
+   same object visually, so both are styled here — otherwise the index inherits
+   the global h2 display size and the cards become billboards. */
+.news-card h2,
+.news-card h3 {
+    font-size: 1.0625rem;
+    line-height: 1.35;
+    letter-spacing: -0.015em;
+}
+
+.news-card h2 a:hover,
+.news-card h3 a:hover {
+    color: var(--deep-blue);
+}
+
+.news-card-excerpt {
+    font-size: 0.9375rem;
+    color: var(--gray-600);
+}
+
+.news-meta {
+    font-size: 0.8125rem;
+    color: var(--gray-500);
+}
+
+.news-read-more {
+    margin-top: auto;
+    padding-top: 6px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--deep-blue);
+}
+
+.news-read-more:hover {
+    text-decoration: underline;
+}
+
+.news-card a:focus-visible {
+    outline: 3px solid var(--deep-blue);
+    outline-offset: 3px;
+    border-radius: 4px;
+}
+
+.news-cta {
+    margin-top: 44px;
+    text-align: center;
+}
+
+/* ------------------------------------------------------------------------- */
+/* News index and article pages                                              */
+/*                                                                           */
+/* These are server-rendered by functions/blog/publicApi.js and share this    */
+/* stylesheet. They previously emitted selectors that did not exist here      */
+/* (.nav-logo, .footer-container), so every article shipped with an unstyled  */
+/* header and footer.                                                        */
+/* ------------------------------------------------------------------------- */
+
+.news-index {
+    max-width: var(--max-width);
+    margin: 0 auto;
+    padding: 72px var(--gutter) var(--section-padding);
+}
+
+.news-index-header {
+    max-width: 720px;
+    margin: 0 auto 56px;
+    text-align: center;
+}
+
+.news-index-header h1 {
+    font-size: clamp(2rem, 1.4rem + 2.4vw, 3rem);
+}
+
+.news-index-header p {
+    margin-top: 16px;
+    font-size: 1.0625rem;
+    color: var(--gray-500);
+}
+
+/* The article column. Around 68 characters is the measure long-form prose is
+   comfortable at; wider and the eye loses the line it is returning to. */
+.news-article {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 56px var(--gutter) var(--section-padding);
+}
+
+.news-article-header {
+    margin-bottom: 36px;
+}
+
+.news-article-header h1 {
+    margin-top: 12px;
+    font-size: clamp(1.875rem, 1.3rem + 2.4vw, 2.75rem);
+}
+
+.news-article-header .news-meta {
+    margin-top: 16px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--gray-200);
+}
+
+.news-figure {
+    margin: 0 0 36px;
+}
+
+.news-figure img {
+    width: 100%;
+    border-radius: var(--border-radius);
+    border: 1px solid var(--gray-200);
+}
+
+/* Attribution renders whenever a licence requires it — and whenever we have
+   it, because crediting a photographer who did not demand it costs nothing. */
+.news-credit {
+    margin-top: 10px;
+    font-size: 0.75rem;
+    color: var(--gray-500);
+}
+
+.news-credit a {
+    color: var(--gray-600);
+    text-decoration: underline;
+}
+
+.news-body {
+    font-size: 1.0625rem;
+    line-height: 1.75;
+    color: var(--gray-700);
+}
+
+.news-body > * + * {
+    margin-top: 22px;
+}
+
+.news-body h2 {
+    margin-top: 44px;
+    font-size: 1.5rem;
+}
+
+.news-body h3 {
+    margin-top: 34px;
+    font-size: 1.1875rem;
+}
+
+.news-body ul,
+.news-body ol {
+    padding-left: 24px;
+    list-style: disc;
+}
+
+.news-body ol {
+    list-style: decimal;
+}
+
+.news-body li + li {
+    margin-top: 8px;
+}
+
+.news-body blockquote {
+    padding: 6px 0 6px 24px;
+    border-left: 3px solid var(--primary);
+    font-size: 1.125rem;
+    color: var(--gray-600);
+}
+
+.news-body a {
+    color: var(--deep-blue);
+    text-decoration: underline;
+}
+
+/* The sources block is the credibility of the whole section: every factual
+   claim in an article traces to one of these. It is styled as a deliberate
+   part of the page rather than a footnote. */
+.news-sources {
+    margin-top: 56px;
+    padding: 28px;
+    background-color: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--border-radius);
+}
+
+.news-sources h2 {
+    font-size: 0.8125rem;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--gray-500);
+    margin-bottom: 16px;
+}
+
+.news-sources li + li {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--gray-200);
+}
+
+.news-sources li {
+    font-size: 0.875rem;
+    color: var(--gray-500);
+}
+
+/* Long citation URLs must wrap rather than force a narrow screen sideways. */
+.news-sources a {
+    word-break: break-word;
+    color: var(--deep-blue);
+    text-decoration: underline;
+    font-weight: 600;
+}
+
+.news-about {
+    margin-top: 36px;
+    padding: 28px;
+    border-radius: var(--border-radius);
+    background-color: var(--deep-blue-soft);
+    border: 1px solid rgba(0, 76, 104, 0.16);
+}
+
+.news-about h2 {
+    font-size: 1.0625rem;
+    margin-bottom: 10px;
+}
+
+.news-about p {
+    font-size: 0.9375rem;
+    color: var(--gray-600);
+}
+
+.news-about a {
+    color: var(--deep-blue);
+    font-weight: 600;
+    text-decoration: underline;
+}
+
+.news-disclaimer {
+    margin-top: 28px;
+    font-size: 0.875rem;
+    color: var(--gray-500);
+}
+
+.news-back {
+    margin-top: 36px;
+    padding-top: 28px;
+    border-top: 1px solid var(--gray-200);
+    font-size: 0.9375rem;
+    font-weight: 600;
+}
+
+.news-back a {
+    color: var(--deep-blue);
+}
+
+.news-back a:hover {
+    text-decoration: underline;
+}
+
+/* ========================================================================= */
+/* 16. FAQ                                                                   */
+/* ========================================================================= */
+
+.faq-section {
+    background-color: var(--gray-50);
+}
+
+.faq-accordion {
+    max-width: 820px;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--border-radius-lg);
+    background-color: var(--white);
+    overflow: hidden;
+}
+
+.faq-row + .faq-row {
+    border-top: 1px solid var(--gray-200);
+}
+
+.faq-heading {
+    margin: 0;
+    font-size: 1rem;
+}
+
+/* A real button, so it is reachable by keyboard and announces its state.
+   This was previously a div with a click handler, which meant a keyboard user
+   could not open any answer on the page. */
+.faq-question {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    width: 100%;
+    min-height: 44px;
+    padding: 22px 26px;
+    text-align: left;
+    font-size: 1.0625rem;
+    font-weight: 600;
+    color: var(--black);
+    transition: background-color var(--transition-fast);
+}
+
+.faq-question:hover {
+    background-color: var(--gray-50);
+}
+
+.faq-question .indicator {
+    position: relative;
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+}
+
+.faq-question .indicator::before,
+.faq-question .indicator::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    background-color: var(--deep-blue);
+    transform: translate(-50%, -50%);
+    transition: transform var(--transition-normal), opacity var(--transition-normal);
+}
+
+.faq-question .indicator::before {
+    width: 14px;
+    height: 2px;
+}
+
+.faq-question .indicator::after {
+    width: 2px;
+    height: 14px;
+}
+
+.faq-question[aria-expanded='true'] .indicator::after {
+    transform: translate(-50%, -50%) rotate(90deg);
+    opacity: 0;
+}
+
+.faq-answer {
+    padding: 0 26px 24px;
+}
+
+.faq-answer p {
+    font-size: 0.9375rem;
+    color: var(--gray-600);
+    max-width: 68ch;
+}
+
+/* ========================================================================= */
+/* 17. CLOSING CTA                                                           */
+/* ========================================================================= */
+
+.cta-section {
+    background-color: var(--white);
+}
+
+.cta-inner {
+    max-width: var(--max-width);
+    margin: 0 auto;
+    padding: 72px 40px;
+    text-align: center;
+    border-radius: var(--border-radius-lg);
+    background:
+        radial-gradient(70% 120% at 50% 0%, rgba(11, 226, 164, 0.16) 0%, rgba(0, 76, 104, 0) 70%),
+        var(--deep-blue);
+}
+
+.cta-inner h2 {
+    color: var(--white);
+}
+
+.cta-inner p {
+    max-width: 520px;
+    margin: 16px auto 32px;
+    font-size: 1.0625rem;
+    color: rgba(255, 255, 255, 0.78);
+}
+
+/* On the dark panel the primary button inverts, because navy on navy is not a
+   button. */
+.cta-inner .btn-primary {
+    background-color: var(--white);
+    color: var(--deep-blue);
+}
+
+.cta-inner .btn-primary:hover {
+    background-color: var(--gray-100);
+}
+
+.cta-inner .btn-primary:focus-visible {
+    outline-color: var(--white);
+}
+
+/* ========================================================================= */
+/* 18. FOOTER                                                                */
+/* ========================================================================= */
+
+.footer-section {
+    padding: 72px var(--gutter) 36px;
+    background-color: var(--black);
+    color: rgba(255, 255, 255, 0.66);
 }
 
 .footer-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr;
+    gap: 48px;
     max-width: var(--max-width);
     margin: 0 auto;
-    display: grid;
-    grid-template-columns: 2fr 1fr 1fr;
-    gap: 3rem;
-    margin-bottom: 4rem;
+    padding-bottom: 48px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .footer-brand .logo-text {
     color: var(--white);
-    margin-bottom: 1rem;
-    display: inline-block;
 }
 
 .footer-brand p {
-    color: var(--gray-400);
-    max-width: 300px;
+    margin-top: 16px;
+    max-width: 320px;
+    font-size: 0.9375rem;
+}
+
+.footer-heading {
+    margin-bottom: 16px;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--white);
+}
+
+.footer-links,
+.footer-contact {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
 }
 
 .footer-links a,
 .footer-contact a {
-    display: block;
-    color: var(--gray-300);
-    margin-bottom: 0.75rem;
+    font-size: 0.9375rem;
 }
 
 .footer-links a:hover,
 .footer-contact a:hover {
-    color: var(--primary);
+    color: var(--white);
+}
+
+.footer-section a:focus-visible,
+.footer-section button:focus-visible {
+    outline-color: var(--primary);
 }
 
 .footer-bottom {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 16px;
     max-width: var(--max-width);
     margin: 0 auto;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-    padding-top: 2rem;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    gap: 1rem;
+    padding-top: 28px;
 }
 
 .footer-bottom p {
-    color: var(--gray-500);
-    font-size: 0.875rem;
-    margin: 0;
+    font-size: 0.8125rem;
 }
 
-.legal-disclaimer {
-    font-size: 0.75rem !important;
+.footer-disclaimer {
+    max-width: 620px;
+    text-align: right;
+    color: rgba(255, 255, 255, 0.5);
 }
 
-/* ========================================= */
-/* MODAL OVERLAY                             */
-/* ========================================= */
+/* ========================================================================= */
+/* 19. LEAD MODAL                                                            */
+/* ========================================================================= */
+
 .modal-overlay {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(15, 23, 42, 0.8);
-    backdrop-filter: blur(4px);
-    z-index: 2000;
+    inset: 0;
+    z-index: 150;
     display: flex;
     align-items: center;
     justify-content: center;
+    padding: 24px;
+    background-color: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
     opacity: 0;
-    pointer-events: none;
-    transition: opacity var(--transition-normal);
+    visibility: hidden;
+    /* Visibility is delayed on the way out and instant on the way in. If it
+       transitions on open, the overlay is still `hidden` for a frame or two and
+       nothing inside it can take focus — which silently turned this dialog into
+       an `aria-modal` that keyboard users tabbed straight past. */
+    transition: opacity var(--transition-normal), visibility 0s linear var(--transition-normal);
+    overflow-y: auto;
 }
 
 .modal-overlay.active {
     opacity: 1;
-    pointer-events: auto;
+    visibility: visible;
+    transition: opacity var(--transition-normal), visibility 0s;
 }
 
 .modal-container {
-    background: var(--white);
-    width: 100%;
-    max-width: 500px;
-    border-radius: var(--border-radius);
-    padding: 2.5rem;
     position: relative;
-    transform: translateY(20px);
-    transition: transform var(--transition-normal);
-    max-height: 90vh;
+    width: 100%;
+    max-width: 480px;
+    max-height: calc(100vh - 48px);
     overflow-y: auto;
+    padding: 36px;
+    background-color: var(--white);
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--shadow-xl);
+    transform: translateY(12px);
+    transition: transform var(--transition-normal);
 }
 
 .modal-overlay.active .modal-container {
@@ -858,506 +1634,399 @@ p {
 
 .modal-close {
     position: absolute;
-    top: 1.5rem;
-    right: 1.5rem;
-    background: none;
-    border: none;
-    font-size: 1.5rem;
+    top: 12px;
+    right: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    font-size: 1.75rem;
+    line-height: 1;
     color: var(--gray-500);
-    cursor: pointer;
+    border-radius: 8px;
 }
 
-/* ========================================= */
-/* PRIVACY POLICY PAGE                       */
-/* ========================================= */
-.privacy-hero {
-    padding: 10rem 5% 4rem;
-    background-color: var(--gray-50);
-    text-align: center;
-    border-bottom: 1px solid var(--gray-200);
-}
-
-.privacy-hero h1 {
-    color: var(--deep-blue);
-    margin-bottom: 0.5rem;
-}
-
-.privacy-hero p {
-    color: var(--gray-500);
-}
-
-.policy-section {
-    background-color: var(--gray-50);
-}
-
-.policy-content {
-    max-width: 900px;
-    margin: 4rem auto 6rem;
-    background: var(--white);
-    padding: 4rem 5rem;
-    border-radius: var(--border-radius);
-    box-shadow: var(--shadow-sm);
-    border: 1px solid var(--gray-200);
-}
-
-.policy-content h2 {
-    font-size: 1.5rem;
-    color: var(--deep-blue);
-    margin-top: 3.5rem;
-    margin-bottom: 1.5rem;
-    padding-bottom: 0.75rem;
-    border-bottom: 1px solid var(--gray-100);
-}
-
-.policy-content section:first-of-type h2 {
-    margin-top: 0;
-}
-
-.policy-content h3 {
-    font-size: 1.25rem;
+.modal-close:hover {
     color: var(--black);
-    margin-top: 2.5rem;
-    margin-bottom: 1rem;
+    background-color: var(--gray-100);
 }
 
-.policy-content p {
-    margin-bottom: 1.5rem;
-    color: var(--gray-800);
-    line-height: 1.8;
+.modal-step {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--deep-blue);
+    margin-bottom: 8px;
 }
 
-.policy-content ul {
-    margin-bottom: 2rem;
-    padding-left: 1.5rem;
-}
-
-.policy-content li {
-    margin-bottom: 0.75rem;
-    color: var(--gray-800);
-    list-style-type: disc;
-    line-height: 1.6;
-}
-
-.policy-content a {
-    color: var(--primary);
-    font-weight: 500;
-}
-
-.policy-content a:hover {
-    color: var(--primary-hover);
-    text-decoration: underline;
-}
-
-@media (max-width: 768px) {
-    .policy-content {
-        padding: 2.5rem 2rem;
-        margin: 2rem 5% 4rem;
-        width: auto;
-    }
+.modal-header h2 {
+    font-size: 1.5rem;
 }
 
 .modal-header p {
-    font-size: 0.875rem;
-    margin-bottom: 2rem;
+    margin-top: 8px;
+    font-size: 0.9375rem;
+    color: var(--gray-500);
 }
 
-.form-group {
-    margin-bottom: 1.25rem;
+.modal-form {
+    margin-top: 26px;
+}
+
+.form-step {
+    border: none;
+    display: grid;
+    gap: 18px;
 }
 
 .form-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 1rem;
+    gap: 14px;
 }
 
-label {
-    display: block;
+.form-group {
+    display: grid;
+    gap: 7px;
+}
+
+.form-group label {
     font-size: 0.875rem;
-    font-weight: 500;
-    margin-bottom: 0.5rem;
-    color: var(--gray-800);
+    font-weight: 600;
+    color: var(--gray-700);
 }
 
-input,
-select {
+.optional {
+    font-weight: 400;
+    color: var(--gray-400);
+}
+
+.form-group input,
+.form-group select {
     width: 100%;
-    padding: 0.75rem;
-    border: 1px solid var(--gray-300);
-    border-radius: 6px;
+    min-height: 46px;
+    padding: 11px 14px;
     font-family: inherit;
-    font-size: 0.95rem;
-    transition: border-color var(--transition-fast);
+    font-size: 1rem;
+    color: var(--black);
+    background-color: var(--white);
+    border: 1px solid var(--gray-300);
+    border-radius: 10px;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
-input:focus,
-select:focus {
+.form-group input:focus,
+.form-group select:focus {
     outline: none;
-    border-color: var(--primary);
-    box-shadow: 0 0 0 2px rgba(12, 225, 165, 0.1);
+    border-color: var(--deep-blue);
+    box-shadow: 0 0 0 3px rgba(0, 76, 104, 0.16);
 }
 
-/* ========================================= */
-/* MEDIA QUERIES                             */
-/* ========================================= */
-@media (max-width: 768px) {
+.form-group input[aria-invalid='true'],
+.form-group select[aria-invalid='true'] {
+    border-color: #b91c1c;
+}
 
-    .nav-links,
-    .nav-cta {
+.field-error {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: #b91c1c;
+}
+
+.form-status {
+    margin-top: 14px;
+    min-height: 20px;
+    font-size: 0.875rem;
+    text-align: center;
+    color: var(--gray-500);
+}
+
+.form-status[data-tone='error'] {
+    color: #b91c1c;
+}
+
+.modal-fineprint {
+    font-size: 0.8125rem;
+    text-align: center;
+    color: var(--gray-400);
+}
+
+/* Off-screen rather than display:none, because some bots skip anything that is
+   not rendered — and a real person never reaches it: it is aria-hidden and
+   removed from the tab order. */
+.honeypot-field {
+    position: absolute;
+    left: -9999px;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+}
+
+.modal-success {
+    display: grid;
+    gap: 14px;
+    text-align: center;
+    padding: 16px 0;
+}
+
+.success-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    margin: 0 auto 6px;
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--deep-blue);
+    background-color: var(--primary-soft);
+    border-radius: 50%;
+}
+
+.modal-success h2 {
+    font-size: 1.375rem;
+}
+
+.modal-success > p {
+    font-size: 0.9375rem;
+    color: var(--gray-500);
+    margin-bottom: 8px;
+}
+
+/* ========================================================================= */
+/* 20. RESPONSIVE                                                            */
+/* ========================================================================= */
+
+@media (max-width: 1024px) {
+    :root {
+        --section-padding: 88px;
+    }
+
+    .news-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .bento-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .bento-card--wide {
+        grid-column: span 2;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 32px;
+        padding: 36px;
+    }
+
+    .trust-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .story {
+        gap: 48px;
+    }
+
+    .footer-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 40px;
+    }
+
+    .footer-disclaimer {
+        text-align: left;
+    }
+}
+
+@media (max-width: 768px) {
+    :root {
+        --section-padding: 72px;
+        --gutter: 20px;
+    }
+
+    .news-grid {
+        grid-template-columns: 1fr;
+        min-height: 0;
+    }
+
+    .bento-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .bento-card--wide {
+        grid-column: span 1;
+    }
+
+    .problem-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .trust-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .pricing-cards {
+        grid-template-columns: 1fr;
+    }
+
+    /* The story blocks stop alternating on a phone: a reversed pair reads as
+       image-then-text in the DOM, which is the wrong order to hear. */
+    .story {
+        grid-template-columns: 1fr;
+        gap: 36px;
+    }
+
+    .story--reverse .story-text {
+        order: 1;
+    }
+
+    .story--reverse .story-visual {
+        order: 2;
+    }
+
+    /* Mobile navigation: the links become a panel under the bar. */
+    .nav-links {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0;
+        padding: 8px 12px 16px;
+        background-color: var(--white);
+        border-bottom: 1px solid var(--gray-200);
+        box-shadow: var(--shadow-lg);
+        display: none;
+    }
+
+    .nav-links.active {
+        display: flex;
+    }
+
+    .nav-link {
+        padding: 14px 12px;
+        font-size: 1rem;
+    }
+
+    .nav-cta .btn-ghost {
         display: none;
     }
 
     .mobile-menu-toggle {
-        display: block;
+        display: flex;
     }
 
     .hero {
-        padding: 8rem 5% 4rem;
+        padding-top: 56px;
     }
 
-    .hero-buttons {
+    .hero-visual {
+        margin-top: 44px;
+        margin-bottom: -48px;
+    }
+
+    .logos-section {
+        padding-top: 92px;
+    }
+
+    .company-logos-row {
+        gap: 36px;
+    }
+
+    .cta-inner {
+        padding: 56px 24px;
+    }
+
+    .footer-bottom {
         flex-direction: column;
-    }
-
-    .footer-grid {
-        grid-template-columns: 1fr;
-        gap: 2rem;
-    }
-
-    .pricing-cards {
-        flex-direction: column;
-    }
-
-    .price-card.premium {
-        transform: translateY(0);
-    }
-}
-
-/* Spam trap: real visitors and assistive technology never encounter this. */
-.honeypot-field {
-    position: absolute !important;
-    width: 1px !important;
-    height: 1px !important;
-    overflow: hidden !important;
-    clip: rect(0 0 0 0) !important;
-    white-space: nowrap !important;
-}
-
-/* ==========================================================================
-   SafeHaul News & Insights
-   --------------------------------------------------------------------------
-   Uses the existing :root brand tokens and the same card/section idiom as the
-   features and pricing sections, so the blog reads as part of this site rather
-   than as an embedded application view. Nothing here depends on the React
-   design system.
-   ========================================================================== */
-
-.news-section {
-    max-width: var(--max-width);
-    margin: 0 auto;
-    padding: 5rem 1.5rem;
-}
-
-.news-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 2rem;
-    margin-top: 3rem;
-}
-
-.news-loading,
-.news-empty {
-    grid-column: 1 / -1;
-    text-align: center;
-    color: var(--gray-500);
-    padding: 2rem 0;
-    margin: 0;
-}
-
-.news-card {
-    display: flex;
-    flex-direction: column;
-    background: var(--white);
-    border: 1px solid var(--gray-200);
-    border-radius: var(--border-radius);
-    overflow: hidden;
-    box-shadow: var(--shadow-sm);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.news-card:hover,
-.news-card:focus-within {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-lg);
-}
-
-.news-card-image {
-    display: block;
-    aspect-ratio: 16 / 9;
-    background: var(--gray-100);
-    overflow: hidden;
-}
-
-.news-card-image img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-}
-
-.news-card-body {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    padding: 1.5rem;
-}
-
-.news-eyebrow {
-    font-size: 0.75rem;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--deep-blue);
-    margin: 0 0 0.5rem;
-}
-
-.news-card-body h2,
-.news-card-body h3 {
-    font-size: 1.125rem;
-    line-height: 1.4;
-    margin: 0 0 0.75rem;
-}
-
-.news-card-body h2 a,
-.news-card-body h3 a {
-    color: var(--black);
-    text-decoration: none;
-}
-
-.news-card-body h2 a:hover,
-.news-card-body h3 a:hover {
-    color: var(--deep-blue);
-    text-decoration: underline;
-}
-
-.news-card-excerpt {
-    color: var(--gray-500);
-    font-size: 0.9375rem;
-    line-height: 1.6;
-    margin: 0 0 1rem;
-    flex: 1;
-}
-
-.news-meta {
-    font-size: 0.8125rem;
-    color: var(--gray-400);
-    margin: 0 0 1rem;
-}
-
-.news-read-more {
-    align-self: flex-start;
-    font-weight: 600;
-    font-size: 0.9375rem;
-    color: var(--deep-blue);
-    text-decoration: none;
-}
-
-.news-read-more::after {
-    content: " \2192";
-}
-
-.news-read-more:hover {
-    text-decoration: underline;
-}
-
-.news-cta {
-    text-align: center;
-    margin-top: 3rem;
-}
-
-/* Focus must stay clearly visible for keyboard users on both the card links
-   and the "view all" button. */
-.news-card a:focus-visible,
-.news-cta a:focus-visible {
-    outline: 3px solid var(--deep-blue);
-    outline-offset: 2px;
-    border-radius: 4px;
-}
-
-/* --- Article and index pages rendered by serveBlogPublic ----------------- */
-
-.news-article,
-.news-index {
-    max-width: 760px;
-    margin: 0 auto;
-    padding: 7rem 1.5rem 4rem;
-}
-
-.news-index {
-    max-width: var(--max-width);
-}
-
-.news-index-header,
-.news-article-header {
-    margin-bottom: 2rem;
-}
-
-.news-article-header h1,
-.news-index-header h1 {
-    font-size: 2.25rem;
-    line-height: 1.2;
-    margin: 0.5rem 0 1rem;
-}
-
-.news-figure {
-    margin: 0 0 2rem;
-}
-
-.news-figure img {
-    width: 100%;
-    height: auto;
-    border-radius: var(--border-radius);
-    display: block;
-}
-
-.news-credit {
-    font-size: 0.8125rem;
-    color: var(--gray-400);
-    margin-top: 0.5rem;
-}
-
-.news-credit a {
-    color: var(--gray-500);
-}
-
-.news-body {
-    font-size: 1.0625rem;
-    line-height: 1.75;
-    color: var(--gray-800);
-}
-
-.news-body h2 {
-    font-size: 1.5rem;
-    margin: 2.5rem 0 1rem;
-}
-
-.news-body h3 {
-    font-size: 1.25rem;
-    margin: 2rem 0 0.75rem;
-}
-
-.news-body p,
-.news-body ul {
-    margin: 0 0 1.25rem;
-}
-
-.news-body ul {
-    padding-left: 1.5rem;
-}
-
-.news-body li {
-    margin-bottom: 0.5rem;
-}
-
-.news-body blockquote {
-    border-left: 4px solid var(--primary);
-    margin: 0 0 1.25rem;
-    padding: 0.5rem 0 0.5rem 1.25rem;
-    color: var(--gray-500);
-}
-
-.news-sources,
-.news-about {
-    margin-top: 3rem;
-    padding: 1.5rem;
-    background: var(--gray-50);
-    border-radius: var(--border-radius);
-}
-
-.news-sources h2,
-.news-about h2 {
-    font-size: 1.125rem;
-    margin: 0 0 0.75rem;
-}
-
-.news-sources ul {
-    margin: 0;
-    padding-left: 1.25rem;
-    font-size: 0.9375rem;
-}
-
-.news-sources li {
-    margin-bottom: 0.5rem;
-}
-
-.news-disclaimer {
-    margin-top: 2rem;
-    font-size: 0.875rem;
-    color: var(--gray-500);
-}
-
-.news-back {
-    margin-top: 2rem;
-}
-
-.news-back a {
-    color: var(--deep-blue);
-    font-weight: 600;
-    text-decoration: none;
-}
-
-/* --- Responsive: 1024, 768 and 412 ------------------------------------- */
-
-@media (max-width: 1024px) {
-    .news-grid {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 1.5rem;
-    }
-}
-
-@media (max-width: 768px) {
-    .news-section {
-        padding: 3.5rem 1.25rem;
-    }
-
-    .news-grid {
-        grid-template-columns: 1fr;
-        margin-top: 2rem;
-    }
-
-    .news-article,
-    .news-index {
-        padding: 6rem 1.25rem 3rem;
-    }
-
-    .news-article-header h1,
-    .news-index-header h1 {
-        font-size: 1.75rem;
     }
 }
 
 @media (max-width: 480px) {
-    .news-section {
-        padding: 3rem 1rem;
+    :root {
+        --section-padding: 56px;
+        --gutter: 16px;
+    }
+
+    .hero-buttons .btn {
+        width: 100%;
+    }
+
+    .price-card,
+    .modal-container {
+        padding: 24px;
+    }
+
+    .price-card .badge {
+        left: 24px;
+    }
+
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+
+    .faq-question {
+        padding: 18px;
+        font-size: 1rem;
+    }
+
+    .faq-answer {
+        padding: 0 18px 20px;
     }
 
     .news-card-body {
-        padding: 1.25rem;
+        padding: 20px;
     }
 
-    .news-article,
-    .news-index {
-        padding: 5.5rem 1rem 2.5rem;
+    .footer-grid {
+        grid-template-columns: 1fr;
+        gap: 32px;
     }
 
-    .news-article-header h1,
-    .news-index-header h1 {
-        font-size: 1.5rem;
+    .company-logo-item img {
+        width: 44px;
+        height: 44px;
+    }
+}
+
+/* ========================================================================= */
+/* 21. REDUCED MOTION AND PRINT                                              */
+/* ========================================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+    html {
+        scroll-behavior: auto;
     }
 
-    /* Long source URLs are the one thing likely to force a horizontal
-       scrollbar at 412px, so they are allowed to wrap mid-word. */
-    .news-sources a {
-        word-break: break-word;
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+        scroll-behavior: auto !important;
+    }
+
+    /* Movement is removed, but the hover feedback itself is not: the
+       transform is what conveys "this is interactive". */
+    .bento-card:hover,
+    .news-card:hover,
+    .btn-primary:hover {
+        transform: none;
+    }
+}
+
+@media print {
+    .navbar,
+    .modal-overlay,
+    .hero-buttons,
+    .news-cta,
+    .cta-section {
+        display: none;
+    }
+
+    body {
+        color: #000;
     }
 }

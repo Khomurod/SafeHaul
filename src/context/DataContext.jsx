@@ -7,7 +7,7 @@ import { SafeHaulLoader } from '@shared/components/SafeHaulLoader';
 import { CompanyChooserModal } from '@shared/components/modals';
 import { SESSION_KEYS } from './dataContext/sessionKeys';
 import { extractRoleContext, getPrimaryCompanyRole } from './dataContext/claims';
-import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
+import { DEMO_COMPANY_NAME, getE2EQueryParam, isE2ETestMode, isMarketingDemo } from '@lib/runtime/e2eMode';
 
 // D2: split the former mega-context by change-cadence into three memoized
 // contexts so consumers re-render only when their slice changes. A single
@@ -105,9 +105,13 @@ export function DataProvider({ children }) {
   useEffect(() => {
     if (isE2ETestMode) {
       const e2eAuthMode = getE2EQueryParam('e2eAuth', 'none');
+      // `?demo=marketing` renames the fixture tenant so landing-page
+      // screenshots carry a plausible carrier rather than "E2E Logistics".
+      // Nothing else about the session changes: same fixtures, same closed
+      // Firestore port, same mock claims.
       const mockCompany = {
         id: 'e2e-company',
-        companyName: 'E2E Logistics',
+        companyName: isMarketingDemo() ? DEMO_COMPANY_NAME : 'E2E Logistics',
         appSlug: 'e2e-company',
         applicationConfig: {},
       };

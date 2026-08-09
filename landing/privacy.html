@@ -16,16 +16,13 @@
     <meta property="og:url" content="https://safehaul.io/privacy.html">
     <meta property="og:image" content="https://safehaul.io/assets/images/logo.svg">
 
-    <!-- Favicon -->
+    <link rel="canonical" href="https://safehaul.io/privacy.html">
+    <meta name="theme-color" content="#004C68">
     <link rel="icon" type="image/svg+xml" href="/assets/images/logo.svg">
 
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-
-    <!-- Stylesheet -->
-    <link rel="stylesheet" href="/assets/css/styles.css?v=5">
+    <!-- Inter is self-hosted; see index.html for why. -->
+    <link rel="preload" href="/assets/fonts/inter-variable.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="/assets/css/styles.css?v=6">
 </head>
 
 <body>
@@ -33,25 +30,27 @@
     <!-- NAVIGATION -->
     <nav id="navbar" class="navbar">
         <div class="nav-container">
-            <a href="/" class="logo-link">
-                <img src="/assets/images/logo.svg" alt="SafeHaul Logo" class="logo" width="32" height="32">
+            <a href="/" class="logo-link" aria-label="SafeHaul home">
+                <img src="/assets/images/logo.svg" alt="" class="logo" width="32" height="32">
                 <span class="logo-text">SafeHaul</span>
             </a>
 
             <div class="nav-links" id="navLinks">
-                <a href="/#features" class="nav-link">Features</a>
-                <a href="/#pricing" class="nav-link">Pricing</a>
+                <a href="/#features" class="nav-link">Platform</a>
                 <a href="/#why-safehaul" class="nav-link">Why SafeHaul</a>
+                <a href="/#pricing" class="nav-link">Pricing</a>
+                <a href="/news" class="nav-link">News &amp; Insights</a>
                 <a href="/#faq" class="nav-link">FAQ</a>
                 <a href="#footer" class="nav-link">Contact</a>
             </div>
 
             <div class="nav-cta">
-                <a href="https://app.safehaul.io" class="btn btn-ghost" target="_blank" rel="noopener">Login</a>
-                <button class="btn btn-primary js-open-lead-modal">Get Started</button>
+                <a href="https://app.safehaul.io" class="btn btn-ghost" rel="noopener">Log in</a>
+                <a href="/#get-started" class="btn btn-primary">Get started</a>
             </div>
 
-            <button class="mobile-menu-toggle" aria-label="Toggle menu" id="mobileMenuToggle">
+            <button type="button" class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Open menu"
+                aria-expanded="false" aria-controls="navLinks">
                 <span></span><span></span><span></span>
             </button>
         </div>
@@ -197,88 +196,30 @@
                     <img src="/assets/images/logo.svg" alt="SafeHaul Logo" class="footer-logo" width="32" height="32">
                     <span class="logo-text" style="margin-bottom: 0;">SafeHaul</span>
                 </div>
-                <p>Next-generation Applicant Tracking, Compliance & HR software for modern trucking fleets.</p>
+                <p>Driver hiring and DOT compliance software for trucking carriers.</p>
             </div>
-            <div class="footer-links">
-                <a href="/#features">Features</a>
+            <nav class="footer-links" aria-label="Product">
+                <h2 class="footer-heading">Product</h2>
+                <a href="/#features">Platform</a>
                 <a href="/#pricing">Pricing</a>
-                <a href="https://app.safehaul.io" target="_blank">Partner Login</a>
-            </div>
+                <a href="https://app.safehaul.io" rel="noopener">Log in</a>
+            </nav>
+            <nav class="footer-links" aria-label="Resources">
+                <h2 class="footer-heading">Resources</h2>
+                <a href="/news">News &amp; Insights</a>
+                <a href="/news/feed.xml">Article feed</a>
+                <a href="/privacy.html">Privacy Policy</a>
+            </nav>
             <div class="footer-contact">
-                <a href="mailto:info@safehaul.io">Contact Support</a>
-                <a href="javascript:void(0)" class="js-open-lead-modal">Contact Sales</a>
-                <a href="#">Privacy Policy</a>
+                <h2 class="footer-heading">Contact</h2>
+                <a href="mailto:info@safehaul.io">info@safehaul.io</a>
+                <a href="/#get-started">Talk to us</a>
             </div>
         </div>
         <div class="footer-bottom">
             <p>&copy; 2026 SafeHaul. All rights reserved.</p>
         </div>
     </footer>
-
-    <!-- SHORT-FORM MODAL -->
-    <div id="leadModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="leadModalTitle" aria-hidden="true">
-        <div class="modal-container">
-            <button class="modal-close" id="closeModal" aria-label="Close modal">&times;</button>
-            <div class="modal-header">
-                <h3 id="leadModalTitle">Get Started with SafeHaul</h3>
-                <p>Fill out the form below and our sales team will be in touch.</p>
-            </div>
-            <form id="leadForm" class="modal-form">
-                <div class="form-group">
-                    <label for="fullName">Full Name</label>
-                    <input type="text" id="fullName" name="fullName" placeholder="Jane Doe" required>
-                </div>
-                <div class="form-group">
-                    <label for="workEmail">Work Email</label>
-                    <input type="email" id="workEmail" name="workEmail" placeholder="jane@company.com" required>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="companyName">Company Name</label>
-                        <input type="text" id="companyName" name="companyName" placeholder="Logistics Inc." required>
-                    </div>
-                    <div class="form-group">
-                        <label for="companySize">Company Size</label>
-                        <select id="companySize" name="companySize" required>
-                            <option value="" disabled selected>Select size</option>
-                            <option value="1-10">1-10 drivers</option>
-                            <option value="11-50">11-50 drivers</option>
-                            <option value="51-200">51-200 drivers</option>
-                            <option value="201+">201+ drivers</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label for="phone">Phone Number (Optional)</label>
-                    <input type="tel" id="phone" name="phone" placeholder="+1 (555) 000-0000">
-                </div>
-                <div class="form-group">
-                    <label for="primaryGoal">Primary Goal</label>
-                    <select id="primaryGoal" name="primaryGoal" required>
-                        <option value="" disabled selected>What are you looking for?</option>
-                        <option value="ATS">ATS & Application Management</option>
-                        <option value="Compliance">DQ Compliance & Auditing</option>
-                        <option value="E-Docs">E-Signature / DocuSign Alternative</option>
-                        <option value="PEV">PEV Tracking</option>
-                        <option value="Other">Other</option>
-                    </select>
-                </div>
-                <div class="honeypot-field" aria-hidden="true">
-                    <label for="website">Website</label>
-                    <input type="text" id="website" name="website" tabindex="-1" autocomplete="off">
-                </div>
-                <button type="submit" class="btn btn-primary btn-block btn-lg">Request Access</button>
-                <div id="formStatus" class="form-status"></div>
-            </form>
-
-            <div id="successMessage" class="modal-success" style="display: none;">
-                <div class="success-icon">✅</div>
-                <h3>Request Sent!</h3>
-                <p>Thank you. Our sales team will reach out to schedule a platform walkthrough.</p>
-                <button type="button" class="btn btn-outline btn-block" id="successClose">Close Window</button>
-            </div>
-        </div>
-    </div>
 
     <!-- JS -->
     <script src="/assets/js/main.js"></script>
