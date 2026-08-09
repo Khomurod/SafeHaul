@@ -27,7 +27,7 @@
  * `/news`, `/news/{slug}` and `/news/feed.xml` are server-rendered by the
  * `serveBlogPublic` function and SHARE THIS STYLESHEET — section 16 dresses
  * those pages too, and the navbar and footer here are the ones that function
- * emits. Nothing in sections 6 or 19 may assume the homepage's markup exists.
+ * emits. Nothing in sections 6 or 18 may assume the homepage's markup exists.
  *
  * Contents
  *   1.  Tokens
@@ -46,6 +46,7 @@
  *   14. Pricing
  *   15. FAQ
  *   16. SafeHaul News & Insights (shared with the blog)
+ *   16b. Privacy policy (privacy.html only)
  *   17. Closing CTA
  *   18. Footer
  *   19. Lead modal
@@ -68,7 +69,6 @@
 
     /* Kraft board — the redweld backing. */
     --kraft: #2b1d0e;
-    --kraft-lit: #3f2d16;
     --kraft-rule: #57411f;
 
     /* Form paper. */
@@ -222,7 +222,7 @@ body {
     background: var(--folder-deep);
     border: 3px solid transparent;
     background-clip: content-box;
-    border-radius: 99px;
+    border-radius: 2px;
 }
 
 *::-webkit-scrollbar-thumb:hover {
@@ -296,18 +296,16 @@ textarea:focus-visible,
  * the content, multiplied so it reads as tooth in the stock rather than as
  * dirt on the screen.
  */
-.grain-folder,
 .hero,
 .logos-section,
 .problem-section,
 .pricing-section,
-.cta-section,
-.navbar,
-.story-tab {
+.cta-section {
     position: relative;
 }
 
 .hero::after,
+.logos-section::after,
 .problem-section::before,
 .pricing-section::before,
 .cta-section::after {
@@ -337,6 +335,7 @@ textarea:focus-visible,
 
 /* Content sits above its own material. */
 .hero-inner,
+.logos-section > *,
 .problem-section > *,
 .pricing-section > *,
 .cta-inner,
@@ -407,7 +406,6 @@ p {
 
 /* The typed voice: labels, dates, references, log lines. Used for data and
    measurement, never as a costume for prose. */
-.typed,
 .logos-title,
 .scrap-tag,
 .sheet-head,
@@ -422,8 +420,7 @@ p {
 .footer-heading,
 .steps li,
 .news-eyebrow,
-.news-meta,
-.news-index-header .news-meta {
+.news-meta {
     font-family: var(--font-typed);
     font-weight: 400;
     letter-spacing: 0.1em;
@@ -499,7 +496,7 @@ p {
     text-transform: uppercase;
     letter-spacing: 0.1em;
     font-size: 0.8125rem;
-    border-radius: 0 0 4px 4px;
+    border-radius: 0 0 2px 2px;
     transition: top var(--t-fast) ease;
 }
 
@@ -534,16 +531,6 @@ p {
 .news-section,
 .faq-section {
     padding-inline: max(var(--gutter), calc((100% - var(--max-width)) / 2));
-}
-
-/* The printed rule that runs down the left margin of ruled stock. */
-.margin-rule {
-    position: absolute;
-    inset-block: 0;
-    left: 64px;
-    width: 1px;
-    background: var(--rope);
-    opacity: 0.32;
 }
 
 /* ========================================================================= */
@@ -972,7 +959,7 @@ p {
     width: 100%;
     height: auto;
     border: 1px solid var(--sheet-rule);
-    border-radius: 1px;
+    border-radius: 2px;
     /* Printed, not projected: the interface belongs to the paper it sits on
        rather than floating above it as a foreign rectangle. */
     filter: saturate(0.88) contrast(1.02);
@@ -982,7 +969,7 @@ p {
 .screenshot--phone {
     max-width: 300px;
     margin-inline: auto;
-    border-radius: 10px;
+    border-radius: 3px;
 }
 
 /* ========================================================================= */
@@ -1263,6 +1250,21 @@ p {
     color: var(--ink-faint);
 }
 
+/* Demonstration data is labelled as such wherever a visitor could mistake it
+   for a real driver record. The hero caption inherits the darkened folder-ground
+   ink; the story captions sit on paper. Typed voice, at the 11px floor. */
+.hero-visual figcaption,
+.story-visual figcaption,
+.story-figure figcaption {
+    padding-top: 8px;
+    font-family: var(--font-typed);
+    font-weight: 400;
+    text-transform: uppercase;
+    font-size: 0.6875rem;
+    letter-spacing: 0.12em;
+    color: var(--ink-faint);
+}
+
 /* ========================================================================= */
 /* 11. STORY BLOCKS                                                          */
 /* ========================================================================= */
@@ -1279,6 +1281,7 @@ p {
 /* The section's own index tab, standing on the edge of the sheet. Same
    vocabulary as the navigation, because it is the same object. */
 .story-tab {
+    position: relative;
     display: inline-flex;
     align-items: center;
     min-height: 40px;
@@ -2465,6 +2468,12 @@ p {
 .footer-logo {
     width: 28px;
     height: 28px;
+    /* The mark is ink + rope, drawn to read on goldenrod. On the kraft footer
+       both fills go dark-on-dark, so lift the whole mark to one warm off-white
+       silhouette that matches the ink-on-kraft wordmark beside it: brightness(0)
+       flattens both fills to black, invert(1) takes them to white, and the light
+       sepia warms that white toward --ink-on-kraft (#f4ecdd). */
+    filter: brightness(0) invert(1) sepia(0.14) saturate(1.15);
 }
 
 .footer-links,
@@ -2649,11 +2658,14 @@ p {
     color: var(--ink-faint);
 }
 
-.form-group input:focus,
-.form-group select:focus {
-    outline: none;
+/* Focus keeps the page's rope outline ring (the global :focus-visible rule),
+   deliberately distinct from the invalid underline below. The old rule set
+   `outline: none` and the same inset underline as invalid, so a focused field
+   looked identical to a failed one — and a keyboard user focusing an
+   already-invalid field got no new signal at all. */
+.form-group input:focus-visible,
+.form-group select:focus-visible {
     border-color: var(--rope);
-    box-shadow: inset 0 -3px 0 var(--rope);
 }
 
 .form-group input[aria-invalid="true"],

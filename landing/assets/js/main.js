@@ -52,11 +52,23 @@ document.addEventListener('DOMContentLoaded', function () {
      */
     if (navLinks && 'IntersectionObserver' in window) {
         var tabs = [];
+        var linkByHash = {};
         Array.prototype.forEach.call(navLinks.querySelectorAll('.nav-link'), function (link) {
             var href = link.getAttribute('href') || '';
             if (href.charAt(0) !== '#' || href.length < 2) return;
-            var section = document.getElementById(href.slice(1));
+            var id = href.slice(1);
+            linkByHash[id] = link;
+            var section = document.getElementById(id);
             if (section) tabs.push({ link: link, section: section });
+        });
+
+        // Sections that belong to a tab without being its anchor: the Hire / Sign
+        // / Verify story blocks carry `data-tab="features"`, so the Platform tab
+        // keeps standing while they are read instead of the rail going inert
+        // across the middle of the page. No-op on the blog, which emits neither.
+        Array.prototype.forEach.call(document.querySelectorAll('[data-tab]'), function (section) {
+            var link = linkByHash[section.getAttribute('data-tab')];
+            if (link) tabs.push({ link: link, section: section });
         });
 
         if (tabs.length > 0) {
@@ -70,8 +82,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 visible.forEach(function (entry) {
                     if (!current || entry.section.offsetTop < current.section.offsetTop) current = entry;
                 });
+                // Key on the link, not the entry: several sections can map to one
+                // tab, and all of them must resolve to the same lit tab rather
+                // than the last one processed winning.
+                var activeLink = current ? current.link : null;
                 tabs.forEach(function (entry) {
-                    if (current && entry === current) {
+                    if (entry.link === activeLink) {
                         entry.link.setAttribute('aria-current', 'true');
                     } else {
                         entry.link.removeAttribute('aria-current');

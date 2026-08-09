@@ -380,8 +380,16 @@ const PROHIBITED_PATTERNS = Object.freeze([
     { pattern: /\b(mvr|psp)\b.{0,40}\b(check|screening|integration)/i, claim: 'SafeHaul runs MVR or PSP checks' },
     { pattern: /clearinghouse\s+(query|check|automation|integration)/i, claim: 'SafeHaul runs Clearinghouse queries' },
     { pattern: /(automat\w*|smart)\s+(dq|document|qualification)\s+(file\s+)?(expir\w*|monitor\w*|reminder|alert)/i, claim: 'SafeHaul automates DQ expiry monitoring' },
+    // Same claim, opposite word order — "automating expiration tracking (DQ files)".
+    // The pattern above keys on document→expiry; this one on automate→expiry→tracking,
+    // which is how the pre-redesign privacy policy phrased it and slipped through.
+    { pattern: /(automat\w*|smart)\s+(expir\w*|renewal)\s+(track\w*|monitor\w*|manag\w*)/i, claim: 'SafeHaul automates DQ expiry monitoring' },
     { pattern: /(expir\w*|renewal)\s+(reminder|alert)s?\b/i, claim: 'SafeHaul sends expiry reminders' },
     { pattern: /\bjob\s*board\b/i, claim: 'SafeHaul provides a job board' },
+    // Catches "assist in organizational GDPR compliance" and any GDPR export/portability
+    // promise, while leaving a bare regulatory reference ("laws such as GDPR or CCPA")
+    // untouched — the trigger word must sit within a clause of "gdpr".
+    { pattern: /\bgdpr\b[^.]{0,25}\b(export|data\s+portability|compliance)\b/i, claim: 'SafeHaul offers complete GDPR data export' },
     { pattern: /drip\s+(campaign|sequence)/i, claim: 'SafeHaul runs drip campaigns' },
     { pattern: /speed[-\s]to[-\s]lead/i, claim: 'SafeHaul provides speed-to-lead automation' },
     { pattern: /(guarantee\w*)\s+(your\s+)?(fmcsa|dot)\s+compliance/i, claim: 'SafeHaul guarantees compliance' },

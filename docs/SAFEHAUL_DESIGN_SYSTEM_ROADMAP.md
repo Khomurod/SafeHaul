@@ -8949,3 +8949,104 @@ Four defects, none of which a visual review would have found:
 - **Telegram delivery has not been exercised against the real Telegram API.**
   Every path is proven against an injected transport; the first live send is a
   production step, the same limitation the blog's first publication carries.
+
+## 2026-08-10 finish the "Driver File" redesign — privacy page, blog shell, claims guard, a11y and design-contract gaps
+
+- [x] Carry the new "Driver File" system across the site's remaining surfaces,
+  turn the claims checker into a guard that actually catches what it documents,
+  run the accessibility gate that had never run, redraw the mark in the new
+  palette, and close the design-contract gaps the redesign audit recorded.
+  - Files: `landing/privacy.html`, `landing/index.html`,
+    `landing/assets/css/styles.css`, `landing/assets/js/main.js`,
+    `landing/assets/images/logo.svg`,
+    `functions/ai/knowledge/safehaulCapabilities.js`,
+    `src/tests/landingNewsSection.test.js`, `PRODUCT.md`, `.claude/launch.json`.
+  - Architecture: the marketing site **runs its own design system**, declared in
+    `DESIGN.md` and deliberately separate from the app's `--ds-*` tokens — a
+    four-material folder/kraft/paper/ink palette, Archivo + Courier Prime, no
+    build step and no framework. That separation is intentional and accepted
+    (PRODUCT.md, Brand Commitments): the site may visibly diverge from
+    `app.safehaul.io` until the app follows. `src/tests/landingNewsSection.test.js`
+    still passes unmodified, which is the standing evidence the isolation held.
+
+### What was still wrong after the 2026-08-08 redesign
+
+- **`privacy.html` had only had a font swap.** It still asserted capabilities
+  PRODUCT.md forbids — automated DQ-expiry tracking, "compliance dashboards",
+  "automated certificates", and GDPR compliance assistance — which directly
+  contradicted the homepage FAQ. It also carried the old navy `theme-color`, an
+  SVG `og:image` no social platform renders, the old hyped voice ("trust is
+  absolute", "next-generation ATS"), a stale date, footer inline styles, and a
+  `support@` address the rest of the site had dropped.
+- **The claims checker reported the page clean when it was not**, and — worse —
+  once the previous agent added an honest "SafeHaul does **not** order MVRs / PSP
+  / background checks" disclaimer, the checker flagged *that* as a violation. The
+  regex could not tell "we do X" from "we do not do X".
+- **The accessibility gate had never run** — Playwright's Chromium was not
+  installed — so no contrast decision in the new palette had been machine-checked.
+- **The mark was still navy `#004C68` + mint `#0BE2A4`**, clashing on goldenrod
+  and kraft.
+- A set of design-contract gaps from the audit: grain on 4 of 8 position-relative
+  surfaces, focus and invalid byte-identical on modal inputs, the tab rail going
+  inert across the story sections, four unlabelled demo visuals, orphaned
+  selectors/tokens/sprite symbols, and radius outliers.
+
+### Decisions worth recording
+
+- **The claims checker stays action-oriented, and now strips nothing.** Rather
+  than broaden the MVR/PSP/Clearinghouse patterns to bare nouns — which would make
+  an honest "we do not do this" disclaimer impossible to write — the disclaimer is
+  worded to state the negative without pairing a capability noun with an action
+  verb ("criminal-history reports", not "background checks"; "does not monitor …
+  or send notices", not "renewal reminders", mirroring the homepage). Two genuine
+  positive-claim escapes were closed instead: the reversed-word-order DQ-expiry
+  claim ("automating expiration tracking (DQ files)") and a narrow GDPR
+  export/assist pattern that leaves a bare regulatory reference ("laws such as
+  GDPR or CCPA") untouched. `functions/test/unit/blogPipeline.test.js` (103) still
+  passes, so the blog pipeline that shares `checkClaims` is unaffected.
+- **The mark was recoloured, not redrawn.** Same geometry, now ink `#17130e` with
+  one rope `#b03a24` accent plane — the two colours DESIGN.md names for marks. It
+  reads on goldenrod and as a favicon. On the kraft footer both fills would go
+  dark-on-dark, so `.footer-logo` lifts the whole mark to a single warm off-white
+  silhouette matching the ink-on-kraft wordmark beside it.
+- **`campaigns.png` and `super-admin.png` were kept, not deleted.** They are
+  unreferenced by any page today but are part of the seven-screenshot evidence set
+  PRODUCT.md records and `capture:landing-screenshots` regenerates. Deleting them
+  would fight PRODUCT.md and be undone by the next capture run; they are retained
+  for future sections instead.
+- **`courier-prime-bold.woff2` is not orphaned.** The audit suspected nothing
+  requested weight 700; the running page requests it (confirmed over the network),
+  so the face stays.
+
+### Verification
+
+- `npm run check:landing-claims` — clear on `/` and `/privacy.html`.
+- `npx vitest run src/tests/landingPage.test.js src/tests/landingNewsSection.test.js`
+  — **58 passed**, including the Eleven-Pixel Floor test now anchored to the real
+  section divider (`/* 16. … */`) instead of the table-of-contents line, and a
+  whole-of-stylesheet floor of 11px confirmed (minimum is exactly `0.6875rem`).
+- `functions` Jest `blogPipeline.test.js` — **103 passed**, proving the shared
+  `checkClaims` change did not disturb the article pipeline.
+- `npm run check:landing-a11y` — axe **clean** on both pages at 390 / 768 / 1440,
+  re-run after the grain, figcaption and recoloured-logo changes, plus the
+  keyboard proofs (FAQ opens, dialog traps focus). This is the first machine check
+  of the new palette's contrast, including the Darker-On-Gold Rule.
+- **Tab rail proven in a composited headless browser (not the non-compositing
+  preview pane).** A/B against `HEAD:main.js`: the story sections that went inert
+  in the original (`story-sign`, `story-verify` → no active tab) now keep the
+  Platform tab lit, with no change to the behaviour of the five real nav targets.
+
+### Honest limitations
+
+- **No screenshot of the redesigned surfaces was taken this session.** The in-app
+  Browser pane was not being composited, so `computer{screenshot}` and every
+  IntersectionObserver-dependent check inside it returned false negatives; all
+  functional verification was done in a real headless Chromium instead. Visual
+  review by eye at the three axe widths is therefore *not* recorded for this pass
+  — the no-visual-regression-baseline limitation from the redesign entry still
+  stands and is the reason a screenshot would have been worth having.
+- **The footer-logo colour is produced by a CSS `filter` chain, not a second
+  asset.** `brightness(0) invert(1) sepia(.14) saturate(1.15)` is reasoned to land
+  near `--ink-on-kraft`, not eyedropped against a rendered frame.
+- **The blog `<head>` (`publicApi.js`) was verified by reading its emitted markup
+  and by loading `/`'s shared assets, not by running the functions emulator.**

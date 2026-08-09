@@ -110,22 +110,11 @@
             <path d="M4.5 12.5 10 18 19.5 6.5" fill="none" stroke="currentColor" stroke-width="2.4"
                 stroke-linecap="square" stroke-linejoin="miter" />
         </symbol>
-        <symbol id="i-rule" viewBox="0 0 24 24">
-            <path d="M3 12h18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="square" />
-        </symbol>
         <symbol id="i-seal" viewBox="0 0 24 24">
             <path d="M12 2.5 14.6 6l4.2.6-2.6 3.3.9 4.2L12 12.4 6.9 14.1l.9-4.2L5.2 6.6 9.4 6z" fill="none"
                 stroke="currentColor" stroke-width="1.8" stroke-linejoin="miter" />
             <path d="M12 12.4v9M8.6 18.4 12 21.5l3.4-3.1" fill="none" stroke="currentColor" stroke-width="1.8"
                 stroke-linecap="square" stroke-linejoin="miter" />
-        </symbol>
-        <symbol id="i-arrow" viewBox="0 0 24 24">
-            <path d="M4 12h15m-5.5-5.5L19 12l-5.5 5.5" fill="none" stroke="currentColor" stroke-width="2.2"
-                stroke-linecap="square" stroke-linejoin="miter" />
-        </symbol>
-        <symbol id="i-clip" viewBox="0 0 24 24">
-            <path d="M17 8.5v8a5 5 0 0 1-10 0v-9a3.2 3.2 0 0 1 6.4 0v8.6a1.5 1.5 0 0 1-3 0V8.5" fill="none"
-                stroke="currentColor" stroke-width="1.8" stroke-linecap="square" stroke-linejoin="miter" />
         </symbol>
     </svg>
 
@@ -189,6 +178,7 @@
                         <img src="/assets/images/screenshots/pipeline.png"
                             alt="The SafeHaul recruiter pipeline listing driver applicants with their status, licence state, equipment type and application date."
                             class="screenshot" width="1440" height="900" fetchpriority="high" decoding="async">
+                        <figcaption>Fixture data. Not a real carrier's drivers.</figcaption>
                     </div>
                 </figure>
             </div>
@@ -350,7 +340,7 @@
         </section>
 
         <!-- STORY 1 — HIRE -->
-        <section class="story-section" id="story-hire">
+        <section class="story-section" id="story-hire" data-tab="features">
             <p class="story-tab">Hire</p>
             <div class="story">
                 <div class="story-text">
@@ -387,12 +377,13 @@
                     <img src="/assets/images/screenshots/driver-application-mobile.png"
                         alt="Step one of nine of the SafeHaul driver application on a phone, collecting personal information."
                         class="screenshot screenshot--phone" width="390" height="844" loading="lazy" decoding="async">
+                    <figcaption>Illustration. Not a real driver's application.</figcaption>
                 </figure>
             </div>
         </section>
 
         <!-- STORY 2 — SIGN -->
-        <section class="story-section story-section--alt" id="story-sign">
+        <section class="story-section story-section--alt" id="story-sign" data-tab="features">
             <p class="story-tab">Sign</p>
             <div class="story story--reverse">
                 <div class="story-text">
@@ -428,12 +419,13 @@
                     <img src="/assets/images/screenshots/edocs.png"
                         alt="The SafeHaul documents workspace showing counts for documents awaiting signature, completed, needing attention and active templates."
                         class="screenshot" width="1440" height="900" loading="lazy" decoding="async">
+                    <figcaption>Fixture data. Not a real carrier's documents.</figcaption>
                 </figure>
             </div>
         </section>
 
         <!-- STORY 3 — VERIFY -->
-        <section class="story-section" id="story-verify">
+        <section class="story-section" id="story-verify" data-tab="features">
             <p class="story-tab">Verify</p>
             <div class="story">
                 <div class="story-text">
@@ -481,6 +473,7 @@
                         <img src="/assets/images/screenshots/signing-consent.png"
                             alt="The electronic signature consent screen a signer sees, listing their rights under the ESIGN Act before signing."
                             class="screenshot" width="1200" height="860" loading="lazy" decoding="async">
+                        <figcaption>Illustration of the signer's consent screen.</figcaption>
                     </figure>
                 </div>
             </div>
@@ -862,7 +855,7 @@
                 <p id="modalSubtitle">Two fields now. The rest only helps us prepare.</p>
             </div>
 
-            <form id="leadForm" class="modal-form" novalidate>
+            <form id="leadForm" novalidate>
                 <!-- Step one: the only fields required to reach a person. -->
                 <fieldset class="form-step" id="stepOne">
                     <legend class="visually-hidden">Your details</legend>

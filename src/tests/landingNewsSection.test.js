@@ -143,7 +143,15 @@ describe('landing page — News & Insights styling', () => {
 
     it('does not introduce body text below 11px', () => {
         // The design standard forbids 9px and 10px body text.
-        const newsBlock = css.slice(css.indexOf('SafeHaul News & Insights'));
+        //
+        // Anchor to the real section *divider* (`/* 16. … */`), not the bare
+        // string — whose first occurrence is the table-of-contents entry near
+        // the top of the file. Slicing from the TOC line scanned almost the
+        // whole stylesheet by accident, so reordering one comment could have
+        // silently shrunk this check's coverage without failing it.
+        const marker = css.search(/\/\*\s*16\.\s*SafeHaul News & Insights/);
+        expect(marker).toBeGreaterThan(-1);
+        const newsBlock = css.slice(marker);
         const sizes = [...newsBlock.matchAll(/font-size:\s*([\d.]+)(px|rem)/g)].map((match) => {
             const value = Number(match[1]);
             return match[2] === 'rem' ? value * 16 : value;

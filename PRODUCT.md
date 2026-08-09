@@ -94,7 +94,7 @@ Firebase Hosting targets separately from the React app in `src/`.
 `src/tests/landingNewsSection.test.js` asserts no application or design-system
 code is imported into it. `/news`, `/news/{slug}` and `/news/feed.xml` are
 server-rendered by `serveBlogPublic` and **share `landing/assets/css/styles.css`**
-(section 15) — so the stylesheet cannot be rewritten without carrying the blog's
+(section 16) — so the stylesheet cannot be rewritten without carrying the blog's
 styles with it. The homepage news strip fetches `/api/news/latest` at runtime and
 must degrade to a static placeholder without shifting layout.
 
