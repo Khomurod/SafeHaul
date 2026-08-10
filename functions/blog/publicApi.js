@@ -23,8 +23,8 @@
 const { onRequest } = require('firebase-functions/v2/https');
 
 const store = require('./store');
-const { escapeHtml, renderBlocksToHtml, isValidSlug, safeUrl } = require('./pipeline/sanitize');
-const { getTheme } = require('./pipeline/themes');
+const { escapeHtml, renderBlocksToHtml, isValidSlug, safeUrl, wordCount } = require('./pipeline/sanitize');
+const { getTheme, THEMES } = require('./pipeline/themes');
 
 const ORIGIN = 'https://safehaul.io';
 const SITE_NAME = 'SafeHaul';
@@ -70,6 +70,40 @@ function isoDate(post) {
 }
 
 /**
+ * Reading time, in whole minutes, from the article's own blocks.
+ *
+ * Derived at render time rather than stored, so it can never disagree with the
+ * body a reader is looking at. 220 words per minute is the usual estimate for
+ * prose read on a screen; a floor of one minute keeps a short explainer from
+ * claiming "0 min read".
+ */
+function readingMinutes(post) {
+    return Math.max(1, Math.round(wordCount(post.contentBlocks) / 220));
+}
+
+/**
+ * A usable image `src`, or null.
+ *
+ * `safeUrl` builds a `URL` with no base, so it rejects every root-relative path —
+ * including `/assets/images/news-fallback.svg`, which is what
+ * `functions/blog/media/imageProviders.js` stores as FALLBACK_IMAGE. `renderCard`
+ * therefore dropped the illustration from every post that fell back, leaving the
+ * index a ragged mix of entries with and without a figure. `renderFigure` papered
+ * over the same problem by falling back to the raw stored value, which would
+ * happily emit a `javascript:` src.
+ *
+ * One helper for both: an absolute http(s) URL, or one of our own root-relative
+ * asset paths. The `(?!\/)` matters — without it `//evil.example/x` is a
+ * protocol-relative URL that passes as a path.
+ */
+function safeImageSrc(value) {
+    const absolute = safeUrl(value);
+    if (absolute) return absolute;
+    const raw = typeof value === 'string' ? value.trim() : '';
+    return /^\/(?!\/)[A-Za-z0-9._~\-/]*$/.test(raw) ? raw : null;
+}
+
+/**
  * The image element plus its required attribution.
  *
  * Attribution is rendered whenever the provider requires it *or* whenever we
@@ -78,7 +112,7 @@ function isoDate(post) {
  */
 function renderFigure(image) {
     if (!image) return '';
-    const src = safeUrl(image.imageUrl) || image.imageUrl;
+    const src = safeImageSrc(image.imageUrl);
     if (!src) return '';
 
     const credit = image.attributionText
@@ -104,7 +138,9 @@ function renderSourceList(sources) {
             + ` — ${escapeHtml(source.publisher)}${source.publishedAt ? `, ${escapeHtml(String(source.publishedAt).slice(0, 10))}` : ''}</li>`;
     }).filter(Boolean).join('');
 
-    return items ? `<section class="news-sources"><h2>Sources</h2><ul>${items}</ul></section>` : '';
+    // An ordered list, because the styling numbers them: sources are a numbered
+    // apparatus in a specification, not a bulleted aside.
+    return items ? `<section class="news-sources"><h2>Sources</h2><ol>${items}</ol></section>` : '';
 }
 
 /** BlogPosting JSON-LD. Built from a plain object and serialized, so no injection. */
@@ -157,30 +193,44 @@ ${ogImage ? `<meta property="og:image" content="${escapeHtml(ogImage)}">` : ''}
 <meta name="twitter:description" content="${escapeHtml(description)}">
 ${ogImage ? `<meta name="twitter:image" content="${escapeHtml(ogImage)}">` : ''}
 <link rel="alternate" type="application/atom+xml" title="${escapeHtml(SECTION_NAME)}" href="${ORIGIN}/news/feed.xml">
-<meta name="theme-color" content="#2B1D0E">
+<meta name="theme-color" content="#14161A">
 <link rel="icon" type="image/svg+xml" href="/assets/images/logo.svg">
 <!-- Both faces are self-hosted; see landing/index.html for why. These pages share
      landing/assets/css/styles.css, so they must preload what that stylesheet declares
      and must carry the same cache-buster as the static pages — a stale one here means a
      returning visitor gets the previous stylesheet on /news and the current one on /. -->
 <link rel="preload" href="/assets/fonts/archivo-variable.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="/assets/fonts/courier-prime.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/assets/css/styles.css?v=7">
+<link rel="preload" href="/assets/fonts/geist-mono-variable.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/assets/css/styles.css?v=8">
 ${extraHead}
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to main content</a>
+<!--
+  Same navbar markup and the same six links as the homepage, so the two surfaces
+  are one navigation rather than two that resemble each other.
+
+  DELIBERATELY WITHOUT A MOBILE TOGGLE. These pages ship no JavaScript of their
+  own, and a toggle button with nothing wired to it is a control that does not
+  work. Stylesheet section 20 keeps this navigation reachable below 900px with a
+  :not(:has(.mobile-menu-toggle)) rule on .navbar, which lays the links out as a
+  horizontally scrolling row instead of a hidden panel. That rule and this
+  omission are one decision: change either and the blog loses its navigation on
+  a phone.
+-->
 <nav id="navbar" class="navbar">
   <div class="nav-container">
     <a href="/" class="logo-link" aria-label="SafeHaul home">
-      <img src="/assets/images/logo.svg" alt="" class="logo" width="32" height="32">
+      <img src="/assets/images/logo.svg" alt="" class="logo" width="152" height="132">
       <span class="logo-text">SafeHaul</span>
     </a>
     <div class="nav-links">
       <a href="/#features" class="nav-link">Platform</a>
+      <a href="/#why-safehaul" class="nav-link">Why SafeHaul</a>
       <a href="/#pricing" class="nav-link">Pricing</a>
       <a href="/news" class="nav-link" aria-current="page">News &amp; Insights</a>
       <a href="/#faq" class="nav-link">FAQ</a>
+      <a href="#footer" class="nav-link">Contact</a>
     </div>
     <div class="nav-cta">
       <a href="https://app.safehaul.io" rel="noopener" class="btn btn-ghost">Log in</a>
@@ -192,9 +242,37 @@ ${extraHead}
 ${bodyHtml}
 </main>
 <footer id="footer" class="footer-section">
+  <div class="footer-grid">
+    <div class="footer-brand">
+      <a href="/" class="logo-link" aria-label="SafeHaul home">
+        <img src="/assets/images/logo-mono.svg" alt="" class="footer-logo" width="152" height="132">
+        <span class="logo-text">SafeHaul</span>
+      </a>
+      <p>Driver hiring and DOT compliance software for trucking carriers.</p>
+    </div>
+    <nav class="footer-links" aria-label="Product">
+      <h2 class="footer-heading">Product</h2>
+      <a href="/#features">Platform</a>
+      <a href="/#pricing">Pricing</a>
+      <a href="/#why-safehaul">Why SafeHaul</a>
+      <a href="https://app.safehaul.io" rel="noopener">Log in</a>
+    </nav>
+    <nav class="footer-links" aria-label="Resources">
+      <h2 class="footer-heading">Resources</h2>
+      <a href="/news">News &amp; Insights</a>
+      <a href="/news/feed.xml">Article feed</a>
+      <a href="/privacy.html">Privacy Policy</a>
+    </nav>
+    <div class="footer-contact">
+      <h2 class="footer-heading">Contact</h2>
+      <a href="mailto:info@safehaul.io">info@safehaul.io</a>
+      <a href="/#get-started">Talk to us</a>
+    </div>
+  </div>
   <div class="footer-bottom">
     <p>&copy; 2026 SafeHaul. All rights reserved.</p>
-    <p><a href="/privacy.html">Privacy Policy</a> · <a href="/news">News &amp; Insights</a> · <a href="/news/feed.xml">Feed</a></p>
+    <p class="footer-disclaimer">SafeHaul supports your compliance process. It is not a law firm and nothing
+    here is advice about your regulatory obligations.</p>
   </div>
 </footer>
 </body>
@@ -205,15 +283,33 @@ function renderArticlePage(post) {
     const description = post.seo?.metaDescription || post.excerpt;
     const theme = getTheme(post.theme);
 
+    const minutes = readingMinutes(post);
+    const themeName = theme?.name || SECTION_NAME;
+
+    // The revision block. A specification carries its metadata in the sheet
+    // margin, and at 1200px and up stylesheet section 16 moves this there; below
+    // that it is `display: none`, because the same three facts are already in the
+    // header above and repeating them in the body would be noise, not fallback.
+    const revisionBlock = `<aside class="news-article-meta" aria-hidden="true">
+    <dl>
+      <dt>Section</dt><dd>${escapeHtml(themeName)}</dd>
+      <dt>Published</dt><dd>${escapeHtml(formatDisplayDate(post.publicationDate))}</dd>
+      <dt>Author</dt><dd>${escapeHtml(AUTHOR)}</dd>
+      <dt>Reading time</dt><dd>${minutes} min</dd>
+    </dl>
+  </aside>`;
+
     const body = `<article class="news-article">
+  <p class="news-back"><a href="/news">&larr; All News &amp; Insights</a></p>
   <header class="news-article-header">
-    <p class="news-eyebrow">${escapeHtml(theme?.name || SECTION_NAME)}</p>
+    <p class="news-eyebrow">${escapeHtml(themeName)}</p>
     <h1>${escapeHtml(post.title)}</h1>
     <p class="news-meta">
       <time datetime="${escapeHtml(isoDate(post))}">${escapeHtml(formatDisplayDate(post.publicationDate))}</time>
-      · ${escapeHtml(AUTHOR)}
+      · ${escapeHtml(AUTHOR)} · ${minutes} min read
     </p>
   </header>
+  ${revisionBlock}
   ${renderFigure(post.image)}
   <div class="news-body">
 ${renderBlocksToHtml(post.contentBlocks)}
@@ -227,7 +323,6 @@ ${renderBlocksToHtml(post.contentBlocks)}
   </aside>
   <p class="news-disclaimer"><em>This article is general information, not legal advice.
   Confirm how any regulation applies to your operation.</em></p>
-  <p class="news-back"><a href="/news">&larr; All News &amp; Insights</a></p>
 </article>`;
 
     return renderPage({
@@ -246,10 +341,19 @@ ${renderBlocksToHtml(post.contentBlocks)}
     });
 }
 
+/**
+ * One article as a ruled entry rather than a boxed card.
+ *
+ * The class names are shared with the homepage strip that `landing/assets/js/main.js`
+ * builds by hand, and several of them are test-enforced, so they are fixed even
+ * where the styling changed underneath them. Intrinsic dimensions are declared
+ * because every pipeline image is 1200×630 and a card that resizes as its image
+ * arrives moves the entry below it.
+ */
 function renderCard(post) {
-    const image = post.image?.imageUrl ? safeUrl(post.image.imageUrl) : null;
+    const image = safeImageSrc(post.image?.imageUrl);
     return `<article class="news-card">
-  ${image ? `<a href="/news/${escapeHtml(post.slug)}" class="news-card-image"><img src="${escapeHtml(image)}" alt="${escapeHtml(post.image.altText || '')}" loading="lazy"></a>` : ''}
+  ${image ? `<a href="/news/${escapeHtml(post.slug)}" class="news-card-image" tabindex="-1" aria-hidden="true"><img src="${escapeHtml(image)}" alt="${escapeHtml(post.image.altText || '')}" width="1200" height="630" loading="lazy" decoding="async"></a>` : ''}
   <div class="news-card-body">
     <p class="news-eyebrow">${escapeHtml(getTheme(post.theme)?.name || SECTION_NAME)}</p>
     <h2><a href="/news/${escapeHtml(post.slug)}">${escapeHtml(post.title)}</a></h2>
@@ -260,16 +364,37 @@ function renderCard(post) {
 </article>`;
 }
 
+/**
+ * The index.
+ *
+ * A sticky rail on the left carrying the three sections the pipeline publishes
+ * into, and the ruled entries on the right with the first given a larger figure.
+ *
+ * The rail is a SIBLING of `.news-grid`, not a replacement for it: a test asserts
+ * `.news-grid` still collapses to two columns at 1024px and one at 768px, so its
+ * own column behaviour has to survive. The asymmetry lives in the wrapper.
+ */
 function renderIndexPage(posts) {
+    const rail = `<nav class="news-rail" aria-label="What we publish">
+    <h2>Sections</h2>
+    <ul>${THEMES.map((theme, index) => (
+        `<li><span class="n">${String(index + 1).padStart(2, '0')}</span><span>${escapeHtml(theme.name)}</span></li>`
+    )).join('')}</ul>
+  </nav>`;
+
     const body = `<section class="news-index">
   <header class="news-index-header">
     <h1>${escapeHtml(SECTION_NAME)}</h1>
     <p>Trucking news and regulation, recruiting and retention guidance, and practical
-    explanations of the compliance problems carriers deal with. Published daily.</p>
+    explanations of the compliance problems carriers deal with. Published daily,
+    every factual claim traced to a named source.</p>
   </header>
-  ${posts.length
+  <div class="news-index-layout">
+    ${rail}
+    ${posts.length
         ? `<div class="news-grid">${posts.map(renderCard).join('\n')}</div>`
         : '<p class="news-empty">The first articles are on their way. Please check back shortly.</p>'}
+  </div>
 </section>`;
 
     return renderPage({

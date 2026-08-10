@@ -122,9 +122,14 @@ describe('landing page — News & Insights styling', () => {
         expect(css).toContain('.news-section');
         expect(css).toContain('.news-card');
         // Reuses the page's own custom properties rather than new hard-coded
-        // colours.
-        expect(css).toMatch(/\.news-eyebrow\s*\{[^}]*var\(--rope-deep\)/);
-        expect(css).toMatch(/\.news-card\s*\{[^}]*var\(--sheet-rule\)/);
+        // colours. Both tokens were re-pointed by the "Specification" redesign,
+        // which deleted the goldenrod palette: `--rope-deep` (the old action red)
+        // became `--attend`, and `--sheet-rule` (the old paper hairline) became
+        // `--rule`. Only the token names changed — the rule being enforced, that
+        // the news styling draws from the page's palette instead of inventing
+        // its own hexes, is the same one.
+        expect(css).toMatch(/\.news-eyebrow\s*\{[^}]*var\(--attend\)/);
+        expect(css).toMatch(/\.news-card\s*\{[^}]*var\(--rule\)/);
     });
 
     it('collapses the grid at the tablet and mobile breakpoints', () => {

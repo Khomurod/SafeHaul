@@ -9050,3 +9050,148 @@ Four defects, none of which a visual review would have found:
   near `--ink-on-kraft`, not eyedropped against a rendered frame.
 - **The blog `<head>` (`publicApi.js`) was verified by reading its emitted markup
   and by loading `/`'s shared assets, not by running the functions emulator.**
+
+## 2026-08-10 marketing-site redesign — direction A, "Specification"
+
+- [x] Rebuild the public marketing site in the approved "Specification"
+  direction: paper and graphite technical documentation, Archivo re-voiced
+  alongside Geist Mono, colour reserved entirely for meaning, and a near-black
+  primary action instead of a brand colour.
+  - Plan followed: `docs/LANDING_REDESIGN_IMPLEMENTATION_PLAN.md` (approved,
+    direction A of three; §0 decisions were not re-litigated).
+  - Files: `landing/index.html` (full rewrite), `landing/privacy.html` (full
+    rewrite), `landing/assets/css/styles.css` (full rewrite, 21 numbered sections
+    preserved), `landing/assets/js/main.js` (targeted edits),
+    `functions/blog/publicApi.js` (render layer only),
+    `landing/assets/images/logo.svg`, `landing/assets/images/logo-mono.svg`
+    (new), `landing/assets/images/news-fallback.svg`,
+    `landing/assets/images/og-card.png`, `scripts/capture-landing-screenshots.mjs`,
+    `src/tests/landingPage.test.js`, `src/tests/landingNewsSection.test.js`,
+    `DESIGN.md`, `.impeccable/design.json`, `landing/README.md`.
+  - Deleted: `landing/assets/fonts/courier-prime.woff2`,
+    `courier-prime-bold.woff2`, and four screenshots with no home on the page
+    (`campaigns.png`, `super-admin.png`, `dashboard.png`, `signing-consent.png`)
+    together with their entries in the capture script. Net font weight −14,860
+    bytes; the two orphans the plan named were joined by two the redesign
+    orphaned when authored figures replaced them.
+  - Architecture: unchanged. The landing site stays a deliberately isolated
+    static folder with no build step, no framework and no npm dependency; motion
+    is CSS plus IntersectionObserver. `functions/landingLead.js`,
+    `functions/landing/*`, the blog generation pipeline, Super Admin, Firestore
+    rules and indexes, `firebase.json` and `robots.txt` were not touched.
+  - `?v=7` → `?v=8` in all three places (`index.html`, `privacy.html`,
+    `publicApi.js`).
+
+### Verification
+
+- `npm run check:landing-claims` — **clear** on `/` and `/privacy.html`,
+  including the text nodes inside the six authored SVG figures, which the checker
+  reads as page copy.
+- `npx vitest run src/tests/landingPage.test.js src/tests/landingNewsSection.test.js src/tests/hostingConfig.test.js`
+  — **77 passed**. Five assertions changed, each with a written reason in the test
+  file: the ground-as-text-colour grep re-pointed from the deleted `--folder`
+  tokens to the new rule and ground tokens; the self-hosted-face path from Courier
+  Prime to Geist Mono; the hero-image preload replaced by a no-lazy-hero plus
+  both-fonts-preloaded pair; and two news tokens re-pointed (`--rope-deep` →
+  `--attend`, `--sheet-rule` → `--rule`). Nothing else was relaxed. The four
+  `indexOf` anchors §8.5 warns about were checked by hand to return `> -1` rather
+  than passing vacuously.
+- `functions` Jest, full `test/unit/` — **1347 passed**, including
+  `blogPipeline.test.js` (103) against the rewritten render layer.
+- `npm run check:landing-a11y` — axe **clean** on both pages at 390 / 768 / 1440,
+  plus the two keyboard proofs (FAQ opens from the keyboard, focus enters *and*
+  stays inside the dialog).
+- Keyboard pass, scripted in a real headless Chromium: 40 tab stops walked, **every
+  one with a visible focus treatment**, order matching reading order, dialog trap
+  and Escape confirmed.
+- Horizontal-overflow check across `/`, `/privacy.html` and both `/news` fixture
+  renders at 1440 / 1024 / 768 / 390: **no page-level overflow anywhere**, with the
+  blog's toggle-less navigation confirmed to scroll internally at 390 (the
+  `:has()` fallback in stylesheet section 20 works).
+- Visual review at 1440 / 1024 / 768 / 390 by per-section crops at legible scale,
+  not full-page thumbnails, including the lead dialog. Full-page captures were
+  written to `.impeccable/review/` as `desktop.png`, `mobile.png`,
+  `news-index-desktop.png` and `news-article-desktop.png` — **note that
+  `.gitignore:164` excludes that directory**, so those files are local to the
+  session that produced them and are not in the repository. Anyone re-reviewing has
+  to regenerate them.
+
+### Defects found and fixed during the visual pass
+
+These were found by looking at rendered output, and each would have shipped:
+
+- **Figure 2 rendered at `opacity: 0`.** Nesting `data-reveal` inside
+  `data-reveal` is not equivalent to one observer: a section taller than the
+  viewport takes the immediate-reveal path, while its nested figure waits forever
+  for an intersection of its own. Reveals now stagger a section's direct children
+  from a single observer.
+- **The hero figure rendered at 309px inside its own 540px column.** A grid item
+  with `margin-inline: auto` loses `justify-self: stretch` and sizes to
+  fit-content, and an SVG with no width attribute has no content width to fit.
+- **The footer mark was a broken-image icon.** A standalone `.svg` is XML, and the
+  comment I wrote named a CSS custom property — a double hyphen, which is illegal
+  in an XML comment. The browser reports nothing.
+- **Figures 2–5 rendered their labels at about 8px on a phone**, under the
+  eleven-pixel floor. They now hold their scale and scroll sideways inside a
+  keyboard-reachable region with a visible hint.
+- **Figure 2 then overflowed its collapsed grid track** and was clipped into
+  unreachability by `overflow-x: hidden`, because a bare `1fr` never shrinks below
+  min-content. Every track a figure can occupy is now `minmax(0, 1fr)`.
+- **`--ink-3` failed contrast on `--paper-2`** (4.19:1) on the activity board's
+  header row — caught by `check:landing-a11y`, fixed to `--ink-2`, and recorded as
+  a palette rule.
+- **The article page's source list wrapped one word per line.** Making the `li` a
+  two-column grid auto-placed the bare text node after the anchor into the 2.25rem
+  number column. It is a hanging indent now.
+- **The mobile comparison list was `aria-hidden="true"`** while the table was
+  `display: none` at the same widths, leaving a phone screen reader with neither.
+- **Interior collisions in Figures 4 and 5**: a label struck through the seal, a
+  caption sat on the detail circle's circumference and was clipped, a sequence
+  label struck through a lifeline, and a `--clear` arrow ended in a graphite
+  arrowhead.
+- **A popularity claim on the pricing panel.** "Most chosen" is a statistic about
+  customer behaviour with no number behind it; the tag now reads "Plan B" and the
+  emphasis is carried by the drawn leading rule alone.
+- **A pre-existing bug in `renderCard`, unrelated to the redesign but exposed by
+  it:** `safeUrl()` builds a `URL` with no base, so it rejects every root-relative
+  path — including `/assets/images/news-fallback.svg`, which is exactly what the
+  pipeline stores as `FALLBACK_IMAGE`. Every article that fell back to the house
+  illustration therefore rendered a card with **no image at all**. A shared
+  `safeImageSrc()` now accepts an absolute http(s) URL or one of our own
+  root-relative asset paths, and `renderFigure` uses it too — which also closes
+  that function's previous `|| image.imageUrl` fallback, a path that would have
+  emitted a `javascript:` src unchecked.
+
+### Honest limitations
+
+- **The review captures are not committed** (see `.gitignore:164`), so the visual
+  evidence above cannot be re-read from the repository — only reproduced.
+- **The `impeccable` detector was not run.** The plan names it at a Windows path
+  (`C:/Users/Kholmurod/.claude/skills/impeccable/scripts/detect.mjs`); the skill is
+  not installed in this environment, so `landing/index.html` and `styles.css` have
+  not been through it. The definition-of-done item that depends on it is
+  **unverified**, not passed.
+- **There are still no visual-regression baselines for the marketing site**, and
+  this work does not create any. The four captures in `.impeccable/review/` are
+  review artifacts, not a baseline; nothing will fail if the page changes.
+- **`/news` and an article were reviewed as fixture renders, not through the
+  functions emulator.** The real render functions were imported and run against
+  fixture posts, written into `landing/` so the real stylesheet dressed them, and
+  the temporary files deleted afterwards. Routing, caching headers and Firestore
+  reads were exercised only by the existing Jest suite, not by a live request.
+- **Reading time is derived, not measured against a real corpus.** 220 words per
+  minute with a one-minute floor is a convention; no article's actual reading time
+  was checked.
+- **The `.spec-row:hover` contrast fix is reasoned, not measured.** axe never sees
+  a hover state. `--ink-2` on `--paper-2` computes to 6.9:1 by the WCAG formula;
+  that number was calculated, not sampled from a rendered frame.
+- **`DESIGN.md` and `.impeccable/design.json` transcribe the shipped rules by
+  hand.** Their component CSS snippets are faithful extracts written from the
+  built stylesheet, not generated from it, so they can drift. The stylesheet is
+  authoritative.
+- **`npm run typecheck` still fails** with the 20 pre-existing errors in
+  `src/config/applicationDefinition.js`. Unrelated to this work, unchanged by it,
+  and not a regression.
+- **No production deploy was made and no live surface was checked.** Because
+  `publicApi.js` changed, the hosting and functions deploys must ship together —
+  a hosting-only deploy would serve the new stylesheet against old blog markup.

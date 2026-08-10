@@ -134,16 +134,22 @@ describe('landing page — accessibility', () => {
         expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\)[\s\S]{0,400}animation-duration:\s*0\.001ms/);
     });
 
-    it('never uses the folder ground as a text colour', () => {
-        // Same rule the mint accent used to be held to, pointed at the colour
-        // that now carries the risk. `--folder` (#e2a72e) and `--folder-deep`
-        // are grounds and rules: goldenrod on this page's own surfaces is
-        // illegible or close to it. They may fill a band, draw a rule or cap a
-        // tab; they may not carry a word. `--folder-lit` is the one permitted
-        // for text, and only on kraft, where it measures over 7:1.
+    it('never uses a rule or ground token as a text colour', () => {
+        // REPLACES the outgoing `never uses the folder ground as a text colour`.
+        // That assertion named `--folder`/`--folder-deep`, the goldenrod ground
+        // of the world this redesign left; neither token exists any more, so the
+        // old grep could only ever pass vacuously. The rule it protected is real
+        // and still worth enforcing, so it is re-pointed at the tokens that now
+        // carry the same risk: the three grounds and the two rule weights. They
+        // may fill a band or draw a hairline; they may not carry a word.
+        // `--rule-strong` (#C3C7C3) measures 1.9:1 on `--paper` and `--paper-2`
+        // is a 1.04:1 non-colour — text in either is text nobody can read.
+        //
         // The lookbehind excludes `background-color`, `border-color` and
         // `outline-color`, none of which set text.
-        const textColour = css.match(/(?<![a-z-])color:\s*var\(--folder(-deep)?\)[^;]*/g) || [];
+        const textColour = css.match(
+            /(?<![a-z-])color:\s*var\(--(rule|rule-strong|paper-2|paper-3)\)[^;]*/g,
+        ) || [];
         expect(textColour).toEqual([]);
     });
 });
@@ -230,11 +236,17 @@ describe('landing page — SEO', () => {
 
 describe('landing page — performance', () => {
     it('self-hosts both faces rather than blocking render on a third party', () => {
-        // Archivo carries structure and display; Courier Prime carries anything
-        // the file world would have typed or stamped. Both are served from this
-        // folder, so the page never opens a connection to a font CDN.
+        // Archivo carries structure and display; Geist Mono carries anything a
+        // technical document types or numbers. Both are served from this folder,
+        // so the page never opens a connection to a font CDN.
+        //
+        // The second path was `courier-prime.woff2` until the "Specification"
+        // redesign replaced that face with Geist Mono and deleted both Courier
+        // Prime files. Only the path changed: the CDN prohibitions and the
+        // `font-display: swap` requirement below are the point of this test and
+        // are untouched.
         expect(existsSync(resolve(root, 'landing/assets/fonts/archivo-variable.woff2'))).toBe(true);
-        expect(existsSync(resolve(root, 'landing/assets/fonts/courier-prime.woff2'))).toBe(true);
+        expect(existsSync(resolve(root, 'landing/assets/fonts/geist-mono-variable.woff2'))).toBe(true);
         expect(css).toMatch(/@font-face\s*\{[\s\S]{0,300}font-display:\s*swap/);
         // Comments are stripped first: the head comment explains why the
         // Google Fonts request was removed, and matching that would fail the
@@ -245,8 +257,26 @@ describe('landing page — performance', () => {
         expect(markup(html)).not.toContain('fonts.gstatic.com');
     });
 
-    it('preloads the hero image and marks it high priority', () => {
-        expect(html).toMatch(/rel="preload" as="image"[^>]*pipeline\.png[^>]*fetchpriority="high"/);
+    it('needs no hero image request, and preloads both faces it does need', () => {
+        // REPLACES `preloads the hero image and marks it high priority`, which
+        // asserted a `rel="preload" as="image"` for pipeline.png. The
+        // "Specification" redesign removed the hero screenshot: the first
+        // viewport's figure is authored inline SVG, so it arrives inside the
+        // document and there is nothing left to preload — the old assertion
+        // described a request that would now be a regression to add.
+        //
+        // What still matters is kept, in two parts. First, the hero must not be
+        // lazy: whatever it contains is above the fold by definition.
+        const hero = html.slice(html.indexOf('class="hero-visual'), html.indexOf('logos-section'));
+        expect(hero.length).toBeGreaterThan(1);
+        expect(hero).not.toContain('loading="lazy"');
+        // Second, the two self-hosted faces ARE render-critical, so both are
+        // preloaded with the crossorigin a font fetch requires.
+        for (const face of ['archivo-variable', 'geist-mono-variable']) {
+            expect(html).toMatch(
+                new RegExp(`rel="preload" href="/assets/fonts/${face}\\.woff2" as="font"[^>]*crossorigin`),
+            );
+        }
     });
 
     it('declares intrinsic dimensions on every image, so nothing shifts', () => {
