@@ -14,10 +14,12 @@ design-system code is pulled in here — do not import from `src/`.
 | --- | --- |
 | `index.html` | The homepage. All copy is here. |
 | `privacy.html` | Privacy policy. Shares the stylesheet and script. |
-| `assets/css/styles.css` | Every style, in numbered sections. Brand tokens in `:root`. Also dresses `privacy.html` and the server-rendered blog. |
-| `assets/js/main.js` | Navigation and the tab rail, the FAQ accordion, the nine-step reveal, the lead dialog, the news strip. |
+| `assets/css/styles.css` | Every style, in 21 numbered sections. Tokens in `:root`. Also dresses `privacy.html` and the server-rendered blog. |
+| `assets/js/main.js` | Navigation and the current-section rule, the reveals, the FAQ accordion, the nine-step reveal, the lead dialog, the inline closing-CTA form, the news strip. |
 | `assets/fonts/archivo-variable.woff2` | Self-hosted Archivo (latin, variable `wght`+`wdth`, ~90 KB). Structure and display. |
-| `assets/fonts/courier-prime*.woff2` | Self-hosted Courier Prime (latin, ~19 KB each). Anything the file world would have typed, stamped or logged. |
+| `assets/fonts/geist-mono-variable.woff2` | Self-hosted Geist Mono (latin, variable `wght`, ~23 KB, OFL). Anything a technical document types or numbers. Replaced the two Courier Prime files, for a net −14,860 bytes. |
+| `assets/images/logo.svg` | The mark, in graphite + attend red. **Also the favicon and the blog's JSON-LD publisher logo** — a recolour lands on three surfaces. |
+| `assets/images/logo-mono.svg` | The reversed single-colour mark, for the graphite footer. A second file rather than `currentColor` because an `<img>` cannot inherit it. |
 | `assets/images/screenshots/` | Product screenshots. **Generated — see below.** |
 | `assets/images/og-card.png` | 1200×630 social card. |
 | `robots.txt` | Static. Hosting resolves it before rewrites, so it cannot be a function. |
@@ -92,20 +94,41 @@ keyboard, and that focus is trapped in the dialog. Both were broken before the
 redesign. It needs a Chromium; set `PW_CHROMIUM_EXECUTABLE` if Playwright's
 bundled browser is unavailable.
 
+Two things carry a tab stop on purpose, because a scroll region a keyboard cannot
+reach is a region a keyboard user cannot read: the comparison table's wrapper, and
+the wide figures. The figures ship `tabindex="0"` **in the markup** so it holds
+with JavaScript off; `main.js` then *removes* the stop wherever the figure does
+not actually overflow. The enhancement only ever removes a tab stop, never adds
+one — the safe direction for it to fail in.
+
 Three rules worth keeping in mind when editing styles:
 
-- **`--folder` and `--folder-deep` never carry text.** They are grounds and
-  rules. Goldenrod ink on this page's own surfaces is illegible or close to it,
-  and `src/tests/landingPage.test.js` fails the build if a `color:` uses either.
-  `--folder-lit` is the one permitted for text, and only on kraft.
-- **Secondary ink is darker on folder grounds.** `--ink-soft` clears 4.5:1 on
-  paper and measures 3.97:1 on goldenrod. The five folder-ground sections
-  redefine `--ink-soft` and `--ink-faint` for everything inside them rather than
-  hand-picking a colour per call site. Adding a sixth folder section means
-  adding it to that list, or axe will catch you.
+- **`--ink-3` is the contrast floor, and only on `--paper`.** It measures 4.55:1
+  against `#F7F7F5` and only **4.19:1** against the recessed `--paper-2`, so
+  anything quiet sitting on `--paper-2` or `--paper-3` uses `--ink-2` instead
+  (6.9:1 there). `npm run check:landing-a11y` catches this on a real ground; it
+  cannot see a hover state, so `.spec-row:hover` darkens its own index by hand.
+  `src/tests/landingPage.test.js` fails the build if a `color:` uses a rule or
+  recessed-ground token at all. Do not lighten `--ink-3` — the earlier candidate
+  `#7A8087` measures 3.7:1 and fails outright.
+- **A grid track a figure can sit in must be `minmax(0, 1fr)`, never `1fr`.** A
+  bare `1fr` is `minmax(auto, 1fr)` and never shrinks below its content's
+  min-content width. Figure 2 carries `min-width: 520px` — it scrolls rather than
+  shrinking under the eleven-pixel floor — which forced its collapsed track to
+  520px at 390 and pushed the figure off the page, where `overflow-x: hidden` on
+  the body clipped it into unreachability. The one deliberate exception is
+  `.news-grid` at 768px, where a test greps for the literal `1fr` and nothing
+  inside a card carries a min-width.
 - **`[hidden]` is forced to `display: none !important`** near the top of the
   stylesheet, because several components set their own display value and would
-  otherwise silently defeat `element.hidden`.
+  otherwise silently defeat `element.hidden`. This is also why the FAQ animates
+  with a keyframe rather than `grid-template-rows: 0fr → 1fr`: `display: none`
+  cannot be transitioned, and the two approaches cannot coexist.
+
+And one that is not about styles: **a standalone `.svg` is parsed as XML, so its
+comments may not contain a double hyphen.** Naming a CSS custom property in one
+silently breaks the whole file — the browser shows a broken-image icon and reports
+nothing. Both authored SVGs say so in their own comments.
 
 ## News & Insights
 
@@ -113,11 +136,39 @@ Three rules worth keeping in mind when editing styles:
 by the `serveBlogPublic` function and share **this stylesheet** — see section 16
 of `styles.css`, and note that the navbar and footer it emits are styled by
 sections 6 and 18. Nothing in those sections may assume the homepage's markup
-exists: the blog header has no mobile-menu toggle, which is why section 20 uses
-`:has()` to keep its tabs reachable on a phone. The homepage strip fetches
-`/api/news/latest` at runtime and degrades to a link when that fails. Full
-documentation:
+exists.
+
+**The blog ships no JavaScript of its own, and therefore no mobile-menu toggle** —
+a toggle button with nothing wired to it is a control that does not work. Section
+20 keeps its navigation reachable below 900px with a
+`:not(:has(.mobile-menu-toggle))` rule that lays the links out as a horizontally
+scrolling row instead of a hidden panel. That rule and that omission are **one
+decision**: change either and the blog loses its navigation on a phone.
+
+`.news-grid` must stay a multi-column grid, and its `grid-template-columns: 1fr`
+must stay literal *and* within 400 characters of the 768px breakpoint — a test
+greps for exactly that, and a verbose comment in front of it fails a test that is
+actually satisfied.
+
+**The two deploys ship together.** A hosting-only deploy serves the new stylesheet
+against old blog markup.
+
+The homepage strip fetches `/api/news/latest` at runtime and degrades to a link
+when that fails. Full documentation:
 [`docs/news-and-insights.md`](../docs/news-and-insights.md).
+
+`/news` cannot be served from the static dev server. To review it, render fixtures
+with the real functions into `landing/` so the real stylesheet dresses them, then
+delete the temporary files:
+
+```js
+const { __test } = require('../functions/blog/publicApi.js');
+// __test.renderIndexPage(posts) and __test.renderArticlePage(post)
+```
+
+Note that `safeUrl()` rejects relative paths, so a fixture image must use either an
+absolute URL or one of our own root-relative asset paths — `safeImageSrc()` in
+`publicApi.js` accepts both.
 
 ## Deployment
 

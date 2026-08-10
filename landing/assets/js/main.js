@@ -2,12 +2,19 @@
  * SafeHaul landing page interactions.
  *
  * Plain ES5-compatible browser JavaScript: no framework, no build step, no
- * dependency. Four responsibilities:
+ * dependency. Six responsibilities:
  *
- *   1. navigation (sticky state, mobile panel)
- *   2. the FAQ accordion
- *   3. the two-step lead modal
- *   4. the News & Insights card strip
+ *   1. navigation (sticky state, mobile panel, the current-section rule)
+ *   2. reveals — sections, the hero assembly, the activity board
+ *   3. the FAQ accordion
+ *   4. the two-step lead modal
+ *   5. the inline closing-CTA form, which shares the modal's step-one path
+ *   6. the News & Insights card strip
+ *
+ * Every reveal is decoration over content that is already in the document, and
+ * every one is skipped under `prefers-reduced-motion` or when
+ * IntersectionObserver is missing. Nothing on this page needs a script to be
+ * readable.
  *
  * Two rules run through all of it:
  *
@@ -39,12 +46,11 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     /*
-     * The tab rail.
+     * The current-section rule.
      *
-     * The navigation is the file's index tabs, so the tab for the section you
-     * are reading has to be the one standing forward — otherwise it is a row of
-     * tabs that never does what a tab does. `aria-current` carries it, which
-     * means the state is announced rather than merely drawn.
+     * The link for the section being read carries a drawn 2px underline, so the
+     * navigation says where in the specification you are. `aria-current` carries
+     * it, which means the state is announced rather than merely drawn.
      *
      * Guarded on both sides: the server-rendered blog emits this same navbar
      * with off-page links and no sections to observe, and older browsers
@@ -62,10 +68,11 @@ document.addEventListener('DOMContentLoaded', function () {
             if (section) tabs.push({ link: link, section: section });
         });
 
-        // Sections that belong to a tab without being its anchor: the Hire / Sign
-        // / Verify story blocks carry `data-tab="features"`, so the Platform tab
-        // keeps standing while they are read instead of the rail going inert
-        // across the middle of the page. No-op on the blog, which emits neither.
+        // Sections that belong to a link without being its anchor: the Apply /
+        // Sign / Verify story blocks carry `data-tab="features"`, so the Platform
+        // link stays underlined while they are read instead of the rule going
+        // inert across the middle of the page. No-op on the blog, which emits
+        // neither.
         Array.prototype.forEach.call(document.querySelectorAll('[data-tab]'), function (section) {
             var link = linkByHash[section.getAttribute('data-tab')];
             if (link) tabs.push({ link: link, section: section });
@@ -107,7 +114,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     if (!entry.isIntersecting && index !== -1) visible.splice(index, 1);
                 });
                 paintActiveTab();
-            }, { rootMargin: '-124px 0px -55% 0px', threshold: 0 });
+            }, { rootMargin: '-96px 0px -55% 0px', threshold: 0 });
 
             tabs.forEach(function (entry) { tabObserver.observe(entry.section); });
         }
@@ -135,6 +142,148 @@ document.addEventListener('DOMContentLoaded', function () {
                 mobileToggle.focus();
             }
         });
+    }
+
+    /* ====================================================================== */
+    /* Reveals — "parts seat into position"                                    */
+    /*                                                                        */
+    /* One motion grammar for the whole site. Everything below is additive:    */
+    /* the CSS only hides a `[data-reveal]` element inside a                   */
+    /* `prefers-reduced-motion: no-preference` block, so with motion reduced,  */
+    /* with JavaScript off, or on a browser without IntersectionObserver, the  */
+    /* page is simply the finished page.                                       */
+    /* ====================================================================== */
+
+    var prefersReducedMotion = function () {
+        return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    };
+    var canObserve = 'IntersectionObserver' in window && !prefersReducedMotion();
+
+    /**
+     * Marks each `[data-reveal]` once and then stops watching it.
+     *
+     * Fires once by design: an element that re-animates every time it scrolls
+     * back into view is an element that draws attention to the animation rather
+     * than to what it says.
+     */
+    var revealTargets = document.querySelectorAll('[data-reveal]');
+
+    if (revealTargets.length > 0) {
+        if (!canObserve) {
+            Array.prototype.forEach.call(revealTargets, function (element) {
+                element.setAttribute('data-revealed', 'true');
+            });
+        } else {
+            var revealObserver = new IntersectionObserver(function (entries, observer) {
+                entries.forEach(function (entry) {
+                    if (!entry.isIntersecting) return;
+                    entry.target.setAttribute('data-revealed', 'true');
+                    observer.unobserve(entry.target);
+                });
+            }, { threshold: 0.2 });
+
+            Array.prototype.forEach.call(revealTargets, function (element) {
+                // A section taller than the viewport can never reach a 0.2 ratio,
+                // so it would sit invisible forever. Those reveal immediately.
+                if (element.getBoundingClientRect().height > window.innerHeight * 0.8) {
+                    element.setAttribute('data-revealed', 'true');
+                    return;
+                }
+                revealObserver.observe(element);
+            });
+        }
+    }
+
+    /*
+     * The hero assembly.
+     *
+     * Runs once on load, not on scroll: it is the first viewport, so there is
+     * nothing to wait for. The plates seat into their exploded positions — they
+     * do not collapse into the base plate, because the exploded arrangement is
+     * the figure. Under reduced motion the seated state is applied immediately.
+     */
+    var heroFigure = document.getElementById('figureOne');
+
+    if (heroFigure) {
+        if (!canObserve) {
+            heroFigure.classList.add('f1-seated');
+        } else {
+            // One frame, so the browser has painted the unseated state and has
+            // something to transition from.
+            window.requestAnimationFrame(function () {
+                window.requestAnimationFrame(function () {
+                    heroFigure.classList.add('f1-seated');
+                });
+            });
+        }
+    }
+
+    /*
+     * The activity board.
+     *
+     * Cells appear left to right at 24ms, so the record reads as something that
+     * accumulated rather than something that was drawn all at once. The delay is
+     * set per cell rather than with nth-child, because the number of columns
+     * changes at 768px.
+     */
+    var activityBoard = document.getElementById('activityBoard');
+
+    if (activityBoard) {
+        var boardCells = activityBoard.querySelectorAll('.board-row > span');
+
+        var cascadeBoard = function () {
+            Array.prototype.forEach.call(boardCells, function (cell, index) {
+                cell.style.transitionDelay = (index * 24) + 'ms';
+            });
+            activityBoard.setAttribute('data-cascaded', 'true');
+        };
+
+        if (!canObserve) {
+            activityBoard.setAttribute('data-cascaded', 'true');
+        } else {
+            var boardObserver = new IntersectionObserver(function (entries, observer) {
+                entries.forEach(function (entry) {
+                    if (!entry.isIntersecting) return;
+                    observer.disconnect();
+                    cascadeBoard();
+                });
+            }, { threshold: 0.3 });
+            boardObserver.observe(activityBoard);
+        }
+    }
+
+    /*
+     * Scrollable figures: keep the tab stop only where it does something.
+     *
+     * The wide drawings ship `tabindex="0"` in the markup, because a scroll region
+     * a keyboard cannot reach is a region a keyboard user cannot read — and that
+     * has to hold with JavaScript off. Above the width where they overflow,
+     * though, the stop leads nowhere: four dead stops in the middle of the page.
+     * So the enhancement only ever REMOVES a stop, never adds one, which is the
+     * safe direction for this to fail in.
+     */
+    var scrollFigures = document.querySelectorAll('.figure-scroll');
+
+    if (scrollFigures.length > 0) {
+        var syncFigureTabStops = function () {
+            Array.prototype.forEach.call(scrollFigures, function (figure) {
+                // 2px of slack: sub-pixel layout can leave scrollWidth a hair
+                // over clientWidth on a figure that is not really clipped.
+                if (figure.scrollWidth - figure.clientWidth > 2) {
+                    figure.setAttribute('tabindex', '0');
+                } else {
+                    figure.removeAttribute('tabindex');
+                }
+            });
+        };
+
+        syncFigureTabStops();
+
+        var figureResizeTimer = null;
+        window.addEventListener('resize', function () {
+            window.clearTimeout(figureResizeTimer);
+            figureResizeTimer = window.setTimeout(syncFigureTabStops, 150);
+        }, { passive: true });
     }
 
     /* ====================================================================== */
@@ -209,6 +358,102 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     /* ====================================================================== */
+    /* Shared lead-form plumbing                                              */
+    /*                                                                        */
+    /* Two surfaces capture the same step-one lead: the dialog and the inline  */
+    /* form in the closing band. They share this validation, this payload and  */
+    /* this endpoint rather than each growing its own copy — two lead paths    */
+    /* that drift apart is two lead paths where one quietly stops working.     */
+    /* ====================================================================== */
+
+    var clearFieldError = function (input) {
+        var error = document.getElementById(input.id + 'Error');
+        input.removeAttribute('aria-invalid');
+        if (error) {
+            error.textContent = '';
+            error.hidden = true;
+        }
+    };
+
+    var setFieldError = function (input, message) {
+        var error = document.getElementById(input.id + 'Error');
+        input.setAttribute('aria-invalid', 'true');
+        if (error) {
+            error.textContent = message;
+            error.hidden = false;
+        }
+    };
+
+    /** Validates one step or form, focusing the first field that failed. */
+    var validateStep = function (fieldset) {
+        var inputs = fieldset.querySelectorAll('input[required], select[required]');
+        var firstInvalid = null;
+
+        Array.prototype.forEach.call(inputs, function (input) {
+            clearFieldError(input);
+            var value = String(input.value || '').trim();
+
+            if (!value) {
+                setFieldError(input, 'This field is required.');
+                if (!firstInvalid) firstInvalid = input;
+                return;
+            }
+
+            if (input.type === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+                setFieldError(input, 'Enter a valid email address.');
+                if (!firstInvalid) firstInvalid = input;
+            }
+        });
+
+        if (firstInvalid) {
+            firstInvalid.focus();
+            return false;
+        }
+        return true;
+    };
+
+    /** Attribution, read from the URL rather than stored in a cookie. */
+    var attribution = function () {
+        var params = new URLSearchParams(window.location.search);
+        return {
+            sourcePage: window.location.pathname,
+            referrer: document.referrer || '',
+            utmSource: params.get('utm_source') || '',
+            utmMedium: params.get('utm_medium') || '',
+            utmCampaign: params.get('utm_campaign') || ''
+        };
+    };
+
+    var postLead = function (payload) {
+        return fetch('/api/landing-lead', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        }).then(function (response) {
+            if (!response.ok) throw new Error('Request failed');
+            return response.json();
+        });
+    };
+
+    var withPendingButton = function (button, label, work) {
+        var original = button.textContent;
+        button.textContent = label;
+        button.disabled = true;
+        return work().then(
+            function (value) {
+                button.textContent = original;
+                button.disabled = false;
+                return value;
+            },
+            function (error) {
+                button.textContent = original;
+                button.disabled = false;
+                throw error;
+            }
+        );
+    };
+
+    /* ====================================================================== */
     /* Lead modal                                                             */
     /* ====================================================================== */
 
@@ -275,52 +520,6 @@ document.addEventListener('DOMContentLoaded', function () {
             } else {
                 formStatus.removeAttribute('data-tone');
             }
-        };
-
-        var clearFieldError = function (input) {
-            var error = document.getElementById(input.id + 'Error');
-            input.removeAttribute('aria-invalid');
-            if (error) {
-                error.textContent = '';
-                error.hidden = true;
-            }
-        };
-
-        var setFieldError = function (input, message) {
-            var error = document.getElementById(input.id + 'Error');
-            input.setAttribute('aria-invalid', 'true');
-            if (error) {
-                error.textContent = message;
-                error.hidden = false;
-            }
-        };
-
-        /** Validates one step, focusing the first field that failed. */
-        var validateStep = function (fieldset) {
-            var inputs = fieldset.querySelectorAll('input[required], select[required]');
-            var firstInvalid = null;
-
-            Array.prototype.forEach.call(inputs, function (input) {
-                clearFieldError(input);
-                var value = String(input.value || '').trim();
-
-                if (!value) {
-                    setFieldError(input, 'This field is required.');
-                    if (!firstInvalid) firstInvalid = input;
-                    return;
-                }
-
-                if (input.type === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
-                    setFieldError(input, 'Enter a valid email address.');
-                    if (!firstInvalid) firstInvalid = input;
-                }
-            });
-
-            if (firstInvalid) {
-                firstInvalid.focus();
-                return false;
-            }
-            return true;
         };
 
         var showStepTwo = function () {
@@ -418,47 +617,6 @@ document.addEventListener('DOMContentLoaded', function () {
         checkHash();
         window.addEventListener('hashchange', checkHash);
 
-        /** Attribution, read from the URL rather than stored in a cookie. */
-        var attribution = function () {
-            var params = new URLSearchParams(window.location.search);
-            return {
-                sourcePage: window.location.pathname,
-                referrer: document.referrer || '',
-                utmSource: params.get('utm_source') || '',
-                utmMedium: params.get('utm_medium') || '',
-                utmCampaign: params.get('utm_campaign') || ''
-            };
-        };
-
-        var postLead = function (payload) {
-            return fetch('/api/landing-lead', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            }).then(function (response) {
-                if (!response.ok) throw new Error('Request failed');
-                return response.json();
-            });
-        };
-
-        var withPendingButton = function (button, label, work) {
-            var original = button.textContent;
-            button.textContent = label;
-            button.disabled = true;
-            return work().then(
-                function (value) {
-                    button.textContent = original;
-                    button.disabled = false;
-                    return value;
-                },
-                function (error) {
-                    button.textContent = original;
-                    button.disabled = false;
-                    throw error;
-                }
-            );
-        };
-
         leadForm.addEventListener('submit', function (event) {
             event.preventDefault();
             var context = attribution();
@@ -514,6 +672,58 @@ document.addEventListener('DOMContentLoaded', function () {
                 showSuccess();
             });
         }
+    }
+
+    /* ====================================================================== */
+    /* The inline closing-CTA form                                            */
+    /*                                                                        */
+    /* The same step-one payload the dialog posts, on the page rather than     */
+    /* behind a click. On success the form is replaced in place by a short     */
+    /* confirmation: no dialog opens, nothing scrolls, and the visitor is left */
+    /* where they were. Errors are reported inline — never through `alert`.    */
+    /* ====================================================================== */
+
+    var ctaForm = document.getElementById('ctaForm');
+    var ctaDone = document.getElementById('ctaDone');
+
+    if (ctaForm && ctaDone) {
+        var ctaStatus = document.getElementById('ctaStatus');
+        var ctaSubmit = document.getElementById('ctaSubmit');
+
+        ctaForm.addEventListener('submit', function (event) {
+            event.preventDefault();
+            if (!validateStep(ctaForm)) return;
+            if (ctaStatus) ctaStatus.textContent = '';
+
+            var context = attribution();
+
+            withPendingButton(ctaSubmit, 'Sending…', function () {
+                return postLead({
+                    step: 1,
+                    fullName: document.getElementById('ctaFullName').value,
+                    workEmail: document.getElementById('ctaWorkEmail').value,
+                    website: document.getElementById('ctaWebsite').value,
+                    sourcePage: context.sourcePage,
+                    referrer: context.referrer,
+                    utmSource: context.utmSource,
+                    utmMedium: context.utmMedium,
+                    utmCampaign: context.utmCampaign
+                });
+            }).then(function () {
+                ctaForm.hidden = true;
+                ctaDone.hidden = false;
+                // The confirmation replaces a form the keyboard was inside, so
+                // focus has to follow it or it lands back at the top of the page.
+                ctaDone.setAttribute('tabindex', '-1');
+                ctaDone.focus();
+            }).catch(function () {
+                if (ctaStatus) {
+                    ctaStatus.textContent =
+                        'We could not send that. Email info@safehaul.io and we will pick it up.';
+                    ctaStatus.setAttribute('data-tone', 'error');
+                }
+            });
+        });
     }
 
     /* ======================================================================

@@ -44,56 +44,35 @@ const DEMO = 'demo=marketing';
 /**
  * Each capture names the story it supports on the landing page, so a future
  * change to the page can tell which shots still have a home.
+ *
+ * The "Specification" redesign replaced four of these with authored SVG figures,
+ * which do not go stale, cannot leak a real driver's name, and cost no request.
+ * `dashboard`, `campaigns`, `signing-consent` and `super-admin` were removed
+ * from this list and from `landing/assets/images/screenshots/` at the same time:
+ * a shot with no home on the page is weight in the deploy artifact and a private
+ * screen nobody is checking.
  */
 const SHOTS = [
     {
         name: 'pipeline',
-        story: 'Hero + "Hire" story block',
+        story: 'Platform row 01 — the recruiter pipeline exhibit',
         url: `/company/drivers/applications?e2eAuth=company_admin&${DEMO}`,
         waitFor: 'Driver Applications',
         viewport: { width: 1440, height: 900 },
     },
     {
-        name: 'dashboard',
-        story: 'Analytics bento tile',
-        url: `/company/dashboard?e2eAuth=company_admin&${DEMO}`,
-        waitFor: null,
-        viewport: { width: 1440, height: 900 },
-    },
-    {
-        name: 'campaigns',
-        story: 'Bulk messaging bento tile',
-        url: `/company/campaigns?e2eAuth=company_admin&e2eCampaign=mock&${DEMO}`,
-        waitFor: 'Campaigns',
-        viewport: { width: 1440, height: 900 },
-    },
-    {
         name: 'edocs',
-        story: '"Sign" story block',
+        story: 'Sign — the documents workspace exhibit',
         url: `/company/e-docs?e2eAuth=company_admin&e2eEdoc=mock&${DEMO}`,
         waitFor: null,
         viewport: { width: 1440, height: 900 },
     },
     {
-        name: 'signing-consent',
-        story: '"Sign" story block, signer side',
-        url: `/sign/e2e-company/e2e-request?token=e2e-token&e2eSign=mock&${DEMO}`,
-        waitFor: 'Electronic Signature Consent',
-        viewport: { width: 1200, height: 860 },
-    },
-    {
         name: 'driver-application-mobile',
-        story: 'Driver experience block',
+        story: 'Apply — step one of nine on a phone',
         url: `/apply/e2e-company?${DEMO}`,
         waitFor: 'Personal Information',
         viewport: { width: 390, height: 844 },
-    },
-    {
-        name: 'super-admin',
-        story: 'Multi-company management',
-        url: `/super-admin?e2eAuth=super_admin&${DEMO}`,
-        waitFor: 'Super Admin',
-        viewport: { width: 1440, height: 900 },
     },
 ];
 

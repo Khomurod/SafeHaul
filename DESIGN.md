@@ -1,342 +1,325 @@
 ---
 name: SafeHaul Marketing Site
-description: The driver qualification file, made into a page — goldenrod folder stock, kraft board, and form paper.
+description: Engineering documentation for a record that has to be inspected — paper ground, graphite ink, colour reserved for meaning, and every figure drawn rather than photographed.
 colors:
-  folder: "#e2a72e"
-  folder-lit: "#f0c14f"
-  folder-tab: "#d59a22"
-  folder-deep: "#a8760f"
-  kraft: "#2b1d0e"
-  kraft-lit: "#3f2d16"
-  kraft-rule: "#57411f"
-  sheet: "#faf7f0"
-  sheet-alt: "#f3eee2"
-  sheet-rule: "#ddd2bb"
-  sheet-edge: "#c9bda3"
-  ink: "#17130e"
-  ink-soft: "#574b3c"
-  ink-faint: "#7d6f5c"
-  ink-on-kraft: "#f4ecdd"
-  ink-on-kraft-soft: "#cbb897"
-  rope: "#b03a24"
-  rope-deep: "#8a2b18"
-  stamp: "#45348c"
-  stamp-lit: "#a99cf0"
-  verified: "#1d5b41"
+  paper: "#F7F7F5"
+  paper-2: "#EDEEEC"
+  paper-3: "#E4E6E3"
+  graphite: "#14161A"
+  graphite-2: "#1E2126"
+  graphite-3: "#2A2E34"
+  ink: "#14161A"
+  ink-2: "#4B5157"
+  ink-3: "#6B7278"
+  ink-on-dark: "#F1F3F2"
+  ink-on-dark-2: "#A8B0B6"
+  ink-on-dark-3: "#838C93"
+  rule: "#DADCD9"
+  rule-strong: "#C3C7C3"
+  rule-on-dark: "#333940"
+  draft: "#2C4A9A"
+  clear: "#0F5F4C"
+  attend: "#A93226"
 typography:
   display:
     fontFamily: "Archivo, system-ui, -apple-system, 'Segoe UI', sans-serif"
-    fontSize: "clamp(2.6rem, 5.6vw, 4.6rem)"
-    lineHeight: 0.97
-    letterSpacing: "-0.033em"
-    fontVariation: "'wdth' 88, 'wght' 800"
+    fontSize: "clamp(2.75rem, 4.6vw, 4.25rem)"
+    lineHeight: 1.05
+    letterSpacing: "-0.02em"
+    fontVariation: "'wdth' 100, 'wght' 620"
   headline:
     fontFamily: "Archivo, system-ui, -apple-system, 'Segoe UI', sans-serif"
-    fontSize: "clamp(1.85rem, 3.1vw, 2.75rem)"
-    lineHeight: 1.04
-    letterSpacing: "-0.028em"
-    fontVariation: "'wdth' 92, 'wght' 750"
+    fontSize: "clamp(1.75rem, 2.6vw, 2.5rem)"
+    lineHeight: 1.12
+    letterSpacing: "-0.016em"
+    fontVariation: "'wdth' 100, 'wght' 600"
   title:
     fontFamily: "Archivo, system-ui, -apple-system, 'Segoe UI', sans-serif"
-    fontSize: "1.2rem"
-    lineHeight: 1.24
-    letterSpacing: "-0.015em"
-    fontVariation: "'wdth' 96, 'wght' 700"
+    fontSize: "1.1875rem"
+    lineHeight: 1.3
+    letterSpacing: "-0.008em"
+    fontVariation: "'wdth' 100, 'wght' 600"
   body:
     fontFamily: "Archivo, system-ui, -apple-system, 'Segoe UI', sans-serif"
     fontSize: "1.0625rem"
     fontWeight: 400
-    lineHeight: 1.62
+    lineHeight: 1.6
+    measure: "68ch"
   label:
-    fontFamily: "'Courier Prime', ui-monospace, 'Courier New', monospace"
+    fontFamily: "'Geist Mono', ui-monospace, 'Cascadia Mono', monospace"
     fontSize: "0.75rem"
-    fontWeight: 400
-    letterSpacing: "0.1em"
+    fontWeight: 500
+    letterSpacing: "0.06em"
+    textTransform: "uppercase"
 rounded:
   control: "2px"
-  sheet: "3px"
-  tab: "10px 10px 0 0"
+  panel: "3px"
 spacing:
   gutter: "24px"
-  section-tight: "84px"
-  section: "116px"
-components:
-  button-primary:
-    backgroundColor: "{colors.rope}"
-    textColor: "#ffffff"
-    rounded: "{rounded.control}"
-    padding: "12px 26px"
-    height: "44px"
-  button-primary-hover:
-    backgroundColor: "{colors.rope-deep}"
-  button-outline:
-    backgroundColor: "transparent"
-    textColor: "{colors.ink}"
-    rounded: "{rounded.control}"
-    padding: "12px 26px"
-  button-outline-hover:
-    backgroundColor: "{colors.ink}"
-    textColor: "{colors.folder-lit}"
-  button-secondary:
-    backgroundColor: "transparent"
-    textColor: "{colors.rope}"
-    rounded: "{rounded.control}"
-    padding: "12px 26px"
-  button-ghost:
-    backgroundColor: "transparent"
-    textColor: "{colors.ink}"
-    padding: "12px 14px"
-  nav-tab:
-    backgroundColor: "{colors.folder-tab}"
-    textColor: "{colors.ink}"
-    typography: "{typography.label}"
-    rounded: "{rounded.tab}"
-    padding: "10px 15px"
-    height: "44px"
-  nav-tab-active:
-    backgroundColor: "{colors.sheet}"
-    textColor: "{colors.ink}"
-  card-sheet:
-    backgroundColor: "{colors.sheet}"
-    textColor: "{colors.ink-soft}"
-    rounded: "{rounded.sheet}"
-    padding: "30px 26px"
-  input-field:
-    backgroundColor: "#ffffff"
-    textColor: "{colors.ink}"
-    rounded: "{rounded.control}"
-    padding: "11px 13px"
-    height: "46px"
+  measure: "1180px"
+  section: "112px"
+  sectionTight: "76px"
 ---
 
-# Design System: SafeHaul Marketing Site
+# SafeHaul marketing site — "Specification"
 
-## Overview
+> The site is set as engineering documentation for a system that has to be
+> inspected.
 
-**Creative North Star: "The Driver File"**
+The product's whole mechanism is four scattered artifacts becoming one
+inspectable assembly. That is literally what an exploded parts diagram depicts,
+so the site is drawn the way technical documentation is drawn: ruled title
+blocks, section numbers, callout balloons on leader lines, dimension ticks,
+figure numbers, sources as a numbered apparatus.
 
-Every SafeHaul feature exists to produce one thing: a driver qualification file
-that holds together months later, when someone asks to see it. So the marketing
-site is not a page about that object — it is that object. Goldenrod folder stock
-is the ground. Index tabs along the top edge are the navigation. Form-paper
-sheets sit on the stock, punched and held on a metal prong. Kraft board backs the
-sections that have to feel closed and serious. Marks land as rubber stamps at the
-angle a hand would leave them.
+Not a blueprint (no cyanotype, no white-on-blue), not paperwork, not nostalgia.
+Modern documentation, on paper, in graphite.
 
-The register is a working safety office under fluorescent light at mid-morning:
-lit, saturated, unglamorous, legible at speed. It is deliberately *not* the beige
-nostalgia this world falls into — a real file folder is a saturated object, and
-rendering it politely turns the system into a costume. Nor is it the category
-default this replaced: a centered hero, a mint-to-white gradient wash, a floating
-screenshot and a bento of equal cards, all of which could belong to any product
-in any category.
+Implemented in `landing/assets/css/styles.css` in 21 numbered sections. That
+file is also the blog's stylesheet — see "Two surfaces, one stylesheet" below.
 
-Density varies on purpose. Folder grounds carry big type and air; sheets carry
-ruled, tight, form-like information; kraft carries short declarative statements
-with generous separation. Depth is physical throughout — paper lies on paper and
-throws a real offset shadow.
+## The five rules
 
-**Key Characteristics:**
-- Saturated goldenrod as a committed ground, not an accent
-- Two faces only: a wide institutional grotesque and a true typewriter
-- Every screenshot is a print in a mount, never a rectangle floating on a background
-- Colour carries fixed meaning; no component invents a new one
-- Square-cut corners and printed rules; almost nothing is soft
+**1. The Drawn-Line Rule.** Structure is drawn in `--graphite` and `--rule`.
+`--draft` is a *line* colour: leaders, callout balloons, focus rings, inline
+links. It never fills a region behind text.
 
-## Colors
+**2. The Meaning Rule.** `--clear` means verified or complete. `--attend` means
+attention or required. `--draft` means the drawn line and the link. There is no
+fourth meaning, and none of the three is ever decorative. The one soft fill on
+the site — `--clear-soft` behind a completed application step — is state, not
+decoration.
 
-A four-material palette — folder stock, kraft board, form paper, ink — with three
-meaning colours used by law and never for decoration.
+**3. The Black-Action Rule.** The primary action is `--graphite`, not a brand
+colour. **There is no brand colour on this site.** On a graphite ground the
+action inverts to a `--paper` fill with `--graphite` text.
 
-### Primary
-- **Goldenrod Folder Stock** (`#e2a72e`): the ground of the hero, the logo strip,
-  the problem section, pricing and the closing call to action. Roughly a third of
-  the page. It is a surface, never a mark.
-- **Rope Red** (`#b03a24`): the action colour. Primary buttons, the tab cap on
-  the section you are reading, stamp outlines, links inside body copy, the
-  focus ring. On folder stock use **Rope Deep** (`#8a2b18`), because `#b03a24`
-  measures 4.04:1 there.
+**4. The Typed-Things Rule.** Geist Mono sets what a technical document types or
+numbers: figure numbers, section numbers, dimensions, table headers, timestamps,
+prices, plan tags, captions. **Never prose.** Two deliberate relaxations: figure
+captions and screenshot captions keep the mono voice but drop the uppercasing and
+heavy tracking, because a sentence set in tracked-out caps becomes something to
+decode rather than read.
 
-### Secondary
-- **Kraft Board** (`#2b1d0e`): the redweld backing. The trust band and the
-  footer. Used where the page should feel closed rather than open.
-- **Form Paper** (`#faf7f0`) and **Second Ply** (`#f3eee2`): the sheets. Every
-  section that carries structured information sits on one of these.
+**5. The Eleven-Pixel Floor.** No text below 11px anywhere, in CSS *or* inside a
+figure. This is the rule that forced the scrolling-figure decision below.
 
-### Tertiary
-- **Stamp Violet** (`#45348c`, lit `#a99cf0`): dates and audit marks only. The
-  lit value is what appears on kraft, where the base measures 1.66:1.
-- **Ledger Green** (`#1d5b41`): confirmed, verified, complete. Checkmarks,
-  completed steps, the seal.
+And one prohibition, which is what keeps this off the AI-default path: **no
+ambient decoration.** No gradients, no glow, no glassmorphism, no noise overlay,
+no coloured card shadows, no pills, no radius above 4px, no icon-in-a-circle.
+Elevation is flat by default; the three shadow tokens exist for the two things
+that genuinely float (the dialog) and one that lifts on scroll (the bar).
 
-### Neutral
-- **Ink** (`#17130e`): all headings, all labels, printed rules, the 2px section
-  rules that structure the page.
-- **Soft Ink** (`#574b3c`) and **Faint Ink** (`#7d6f5c`): body copy and captions
-  on paper.
-- **Sheet Rule** (`#ddd2bb`) and **Sheet Edge** (`#c9bda3`): printed rules and
-  paper edges.
+## Contrast, and where the tokens run out
 
-### Named Rules
+Every ink was measured against the ground it sits on, and one of them has almost
+no headroom:
 
-**The Ground Rule.** `--folder` and `--folder-deep` never carry text, anywhere.
-They fill, they rule, they cap a tab. `--folder-lit` is the only goldenrod
-permitted as ink, and only on kraft, where it measures over 7:1. This is
-enforced: `src/tests/landingPage.test.js` fails the build on `color: var(--folder)`.
+| Ink | On | Ratio |
+|---|---|---|
+| `--ink` #14161A | `--paper` | 17.0:1 |
+| `--ink-2` #4B5157 | `--paper` | 7.4:1 |
+| `--ink-3` #6B7278 | `--paper` | **4.55:1** |
+| `--ink-3` #6B7278 | `--paper-2` | **4.19:1 — fails** |
+| `--ink-2` #4B5157 | `--paper-2` | 6.9:1 |
+| `--draft` #2C4A9A | `--paper` | 7.7:1 |
+| `--clear` #0F5F4C | `--paper` | 7.1:1 |
+| `--attend` #A93226 | `--paper` | 6.2:1 |
+| `--ink-on-dark-3` #838C93 | `--graphite` | 5.4:1 |
 
-**The Darker-On-Gold Rule.** Secondary ink is redefined on folder grounds
-(`--ink-soft: #42372b`, `--ink-faint: #4a3e31`). The paper values measure 3.97:1
-on goldenrod, which is a fail, not a rounding error. A new folder-ground section
-joins that selector list or axe will catch it.
+**`--ink-3` is the floor, and only on `--paper`.** The recessed grounds spend its
+0.05 of headroom, so anything quiet sitting on `--paper-2` or `--paper-3` uses
+`--ink-2` instead. `npm run check:landing-a11y` caught this on the activity
+board's header row. It cannot catch it on a hover state, so the `.spec-row:hover`
+rule darkens its own index by hand — that one is reasoned, not measured by the
+gate.
 
-**The Meaning Rule.** Red means act or attend. Violet means a date or an audit
-mark. Green means verified. A component never invents a fourth meaning, and never
-borrows one of these three for decoration.
+Do not lighten `--ink-3`. The earlier candidate #7A8087 measures 3.7:1 on
+`--paper` and fails outright.
 
-## Typography
+## The signature device: the margin rule
 
-**Display Font:** Archivo (variable, `wght` 400–800, `wdth` 75–125), self-hosted
-**Body Font:** Archivo at 400
-**Label/Mono Font:** Courier Prime, self-hosted
+A technical drawing has a ruled margin carrying the sheet number.
 
-**Character:** A wide American institutional grotesque against a true typewriter.
-Archivo set semi-condensed and heavy reads like a filing-drawer plate; Courier
-Prime is the machine that filled the form in. The width axis is doing real work —
-headlines compress to 88, tab labels and table headers ride at normal width.
+- Every major section opens with a **2px `--graphite` rule** across the full
+  measure, and immediately under it a title-block row: mono section number
+  (`01`–`10`) and a mono section label, with the `h2` at measure below.
+- At `≥1300px` the section number hangs **outside** the measure, in the sheet's
+  left margin. Below that it sits inline in the title block row.
+- The hero's title block runs the **full measure**, not just the text column —
+  the ruled margin belongs to the sheet, not to one column of it.
+- This is a ruled block. It is not an eyebrow chip, and there is no pill anywhere
+  on the site.
 
-### Hierarchy
-- **Display** (`wdth` 88 / `wght` 800, `clamp(2.6rem, 5.6vw, 4.6rem)`, 0.97):
-  the h1 only. Left-aligned at roughly half measure, never centered.
-- **Headline** (`wdth` 92 / `wght` 750, `clamp(1.85rem, 3.1vw, 2.75rem)`, 1.04):
-  section titles.
-- **Title** (`wdth` 96 / `wght` 700, `1.2rem`, 1.24): card and row headings.
-- **Body** (400, `1.0625rem`, 1.62): all prose, capped at 68ch.
-- **Label** (Courier Prime 400, `0.75rem`, `0.1em`, uppercase): tabs, stamps,
-  sheet heads, table headers, form labels, log timestamps, captions.
+## Motion: "parts seat into position"
 
-### Named Rules
+One grammar, everywhere.
 
-**The Typed-Things Rule.** Courier Prime is for what the file world would
-actually have typed, stamped or logged: labels, dates, references, table headers,
-log lines, captions. It is never used for prose. Monospace as a costume for
-"technical" is the failure mode this rule exists to prevent.
+| Case | Spec |
+|---|---|
+| Section reveal | The section's **direct children** move `translateY(10px)` → 0 with opacity, 320ms `--ease-out`, staggered 60ms. One IntersectionObserver per section, fired once, then unobserved. |
+| Hero assembly | Four plates enter from above their own exploded positions and seat there — 280ms each, 60ms apart, bottom-up. 520ms total. Runs once on load. |
+| Leader draw | `stroke-dashoffset` → 0 over 480ms `--ease-seat`, then the dash-dot pattern is restored by a zero-duration keyframe. |
+| Activity board | Cells fade left-to-right at 24ms per cell, once, on reveal. |
+| FAQ open | A 320ms `opacity` + `translateY(-4px)` keyframe. See "Why the FAQ is not a grid animation". |
+| Modal | Overlay opacity + `visibility 0s`; container `scale(0.98)` → 1. Never `scale(0)`. |
+| Hover | 140ms, gated behind `@media (hover: hover) and (pointer: fine)`. |
 
-**The Eleven-Pixel Floor.** No text below 11px (`0.6875rem`) anywhere, including
-captions and stamps. Enforced over the shared stylesheet by
-`src/tests/landingNewsSection.test.js`.
+Banned: parallax, scroll-hijacking, counting-up numbers, infinite loops,
+`transition: all`, `ease-in` on any UI element, animating layout properties.
 
-## Layout
+`prefers-reduced-motion: reduce` keeps opacity and removes every transform.
 
-One measure of 1220px, gutters of 24px. Section grounds run edge to edge and
-constrain their own contents with `padding-inline: max(gutter, (100% - 1220px)/2)`
-— giving a section a max-width instead leaves kraft and sheet bands floating as
-panels with cut vertical edges, which is a rectangle on a background rather than
-a material.
+**The plates seat into their exploded positions; they do not collapse into the
+base plate.** The exploded arrangement *is* the figure.
 
-Vertical rhythm alternates deliberately: 116px on full sections, 84px on tight
-ones, and the story blocks open with their own tab and a 2px ink rule. Grounds
-alternate folder → sheet → kraft → sheet → folder so no material runs long enough
-to flatten.
+**Reveals stagger a section's children, not nested observers.** Nesting
+`data-reveal` inside `data-reveal` looked equivalent and was not: a section
+taller than the viewport takes the immediate-reveal path in `main.js`, its nested
+figure kept waiting for an intersection of its own, and Figure 2 shipped at
+`opacity: 0` on a real page. One observer per section cannot produce that state.
 
-Breakpoints: 1100 (hero and stories go single column), 1024 (news to two columns,
-problem and manifest stack), 968 (tab rail collapses to a drawer), 768 (pricing
-and news to one column), 480 (hero rhythm tightens so the punched sheet still
-reaches the first viewport).
+## The six figures
 
-## Elevation & Depth
+All inline SVG, all authored. **No photography anywhere, by decision** — a stock
+truck photograph would be the one thing on the page that is not a description of
+the product.
 
-Physical, not ambient. Every shadow carries both an offset and a blur, because
-what is being modelled is paper lying on paper. Nothing glows and nothing uses a
-zero-offset halo.
+One grammar: **1.25px hairlines, 1.75px emphasis, square caps, mitre joins**,
+fills only in `--graphite` / `--clear` / `--attend`, 21px callout balloons with
+mono numerals, leader lines that break at right angles rather than curving.
 
-### Shadow Vocabulary
-- **lift-1** (`0 1px 2px rgba(43,29,14,.16)`): a stamp resting on a sheet.
-- **lift-2** (`0 6px 14px -6px rgba(43,29,14,.34), 0 2px 4px rgba(43,29,14,.12)`):
-  small mounted objects, the compare table, the signature block.
-- **lift-3** (`0 18px 34px -14px rgba(43,29,14,.44), 0 4px 10px -4px rgba(43,29,14,.2)`):
-  loose documents, price forms, mounted screenshots.
-- **lift-4** (`0 34px 60px -22px rgba(43,29,14,.5), 0 10px 20px -10px rgba(43,29,14,.26)`):
-  the hero exhibit and the dialog — the top sheet of the stack.
+| Figure | Where | What it draws |
+|---|---|---|
+| **1 — Exploded assembly** | Hero | Four labelled plates on a dash-dot assembly axis above one assembled record plate, with `04 PARTS` / `01 RECORD` dimensions. The record plate is divided into the four sections that seated into it. |
+| **2 — Section view** | Inspection frame | Four hatched enclosures, one artifact each, with the row dimensioned `FOUR PLACES TO LOOK` and dash-dot system boundaries between them. |
+| **3 — Queue / retry** | Apply | A time axis; the dropout drawn as an absence, two attempts as ticks, and the deterministic identifier as both attempts resolving into one record. |
+| **4 — Seal detail** | Sign | The drafting detail convention: a ring on the document, two tangents, an enlarged view carrying the seal. |
+| **5 — Round trip** | Verify | A five-step sequence across three lifelines, with the rate-limited portal drawn as a real throttled channel rather than described. |
+| **6 — Pipeline shape** | Platform row 06 | A schematic funnel carrying **no numbers**, labelled an illustration. Any figure on it would be invented. |
 
-### Named Rules
+### Text inside a figure is page copy
 
-**The Material Rule.** Folder stock and kraft board carry a real grain — tiled
-fractal-noise turbulence as a data URI, multiplied at 0.14 on folder and overlaid
-at 0.30 on kraft. A flat fill is a swatch of a colour, not a sheet of anything. A
-grain so faint it cannot be seen in a screenshot is a compliance token; if you
-cannot see it, raise it or remove it.
+`scripts/check-landing-claims.mjs` strips tags and keeps text nodes, so every
+`<text>` and `<title>` in a figure is checked against the capability allowlist.
+Keep figure lettering factual.
 
-## Shapes
+### Two figure-scale decisions worth keeping
 
-Square-cut. Controls and inputs take 2px, sheets 3px, and that is the whole
-radius vocabulary — except tabs, which take `10px 10px 0 0` because that is the
-shape of the object the navigation is made of. Structure is drawn with rules
-rather than boxes: 2px ink rules open every section and underline every header
-row; 1px `--sheet-rule` separates items within one. Loose paper is rotated by
-fractions of a degree (0.35°–1.4°); stamps land at −6° or −7°.
+**A drawing holds its scale; it does not stretch.** Given the full 1180 measure,
+Figures 3–5 rendered at about 1.45×, which blew their 12px labels past every mono
+size on the page — the figure started shouting in a voice the rest of the site
+does not have. They are capped near 1:1 at 560px, with the caption as a title
+block beside them.
 
-## Components
+**Below its natural width a drawing scrolls rather than shrinking.** In a 342px
+phone column a 520-unit drawing renders at 0.66×, putting its labels at about 8px
+— under the Eleven-Pixel Floor and genuinely unreadable. Figures 2–5 therefore
+keep their scale and scroll sideways inside a `role="region"` wrapper, with a
+visible hint below them. Two consequences that are easy to undo by accident:
 
-### Buttons
-- **Shape:** square-cut (2px), 44px minimum height, 54px at `btn-lg`.
-- **Primary:** rope red fill, white text, `lift-2` rising to `lift-3` on hover,
-  1px downward press on `:active` — paper being pressed.
-- **Outline:** 2px ink border on transparent; inverts to ink fill with
-  `--folder-lit` text on hover.
-- **Secondary:** rope-outlined, filling on hover. Deliberately lighter than
-  primary: a filled slab here competes with the page's real action.
-- **Ghost:** no border, 9%-ink wash on hover.
+- The wrappers carry `tabindex="0"` **in the markup**, because a scroll region a
+  keyboard cannot reach is a region a keyboard user cannot read, and that has to
+  hold with JavaScript off. `main.js` then *removes* the stop where the figure
+  does not actually overflow. The enhancement only ever removes a tab stop, never
+  adds one — the safe direction for it to fail in.
+- Every grid track that a figure can sit in must be `minmax(0, 1fr)`, not `1fr`.
+  A bare `1fr` is `minmax(auto, 1fr)` and never shrinks below min-content, so
+  Figure 2's `min-width: 520px` forced its collapsed track to 520px at 390 and
+  pushed the figure off the page, where `overflow-x: hidden` on the body clipped
+  it into unreachability.
 
-### Navigation — the index tabs (signature component)
-The nav is the folder's tabs. Each link is a tab standing on the rail: folder-tab
-fill, 1px `--folder-deep` border with no bottom edge, `10px 10px 0 0`, and a 3px
-inset cap. The tab for the section being read fills with `--sheet`, caps in rope,
-and lifts 3px so it stands proud of the rail. State is carried by `aria-current`
-set from an IntersectionObserver scroll-spy, so it is announced as well as drawn.
-Below 968px the tab lies on its side — the cap moves to the leading edge and the
-stack reads as a drawer of files.
+**Figure 1 is the exception: it ships a second composition drawn for the phone**
+(340 units, no dimension apparatus), because squashing a 540-unit drawing to 340
+loses the drawing.
 
-### Cards / Containers
-Sheets, not cards. `--sheet` or `--sheet-alt` fill, 1px `--sheet-edge`, 3px
-radius, `lift-3`, and a fractional rotation where the object is meant to read as
-loose. Screenshots are always mounted: a padded sheet frame with its own border
-and shadow, the image itself multiplied and slightly desaturated so it reads as
-printed rather than projected. Nested cards do not occur.
+## Why the FAQ is not a grid animation
 
-### Inputs / Fields
-White fill, 1px ink border, 2px radius, 46px tall, Courier Prime uppercase label
-above. Focus and invalid both draw a 3px rope underline via `inset box-shadow` —
-a form field being marked, not a glow.
+`display: none` cannot be transitioned, and the answers keep the `hidden`
+attribute — that is the accessibility hardening this page was fixed to have, and
+`[hidden] { display: none !important }` near the top of the stylesheet is what
+makes `element.hidden` actually win over a component's own display value.
 
-### The activity record (signature component)
-Kraft panel, Courier Prime, tabular numerals, timestamps in `--stamp-lit`,
-appended lines with a footer that names the data as an illustration. It is used
-where the product's claim is that a trail exists — showing the trail rather than
-asserting it in a card.
+So the reveal is a **keyframe on becoming visible**, not a
+`grid-template-rows: 0fr → 1fr` animation. The two cannot coexist. This is
+recorded so it is not "fixed" later by someone who does not know why.
 
-## Do's and Don'ts
+## The lockup
 
-### Do:
-- **Do** ground each section in one material and let it run edge to edge.
-- **Do** mount every screenshot in a sheet frame with `mix-blend-mode: multiply`
-  and `saturate(0.88)`, so the interface belongs to the paper it sits on.
-- **Do** reach for a printed rule before a box. 2px ink opens a section; 1px
-  `--sheet-rule` separates rows inside one.
-- **Do** draw icons: one sprite, one 2.4px stroke, square caps and mitre joins.
-- **Do** theme the browser's own surfaces — selection, caret, `accent-color`,
-  scrollbars, focus rings — from this palette.
-- **Do** label demonstration data as an illustration wherever a visitor could
-  mistake it for a real driver record.
+`landing/assets/images/logo.svg` — the four original shapes, geometry untouched,
+recoloured from #17130e / #b03a24 to `--graphite` #14161A and `--attend` #A93226.
+The viewBox carries 2 units of padding so the optical gap beside the wordmark is
+part of the file rather than something every call site has to remember.
 
-### Don't:
-- **Don't** set text in `--folder` or `--folder-deep`, on any surface.
-- **Don't** soften the goldenrod toward cream, parchment or beige. The saturation
-  is the design; the muted version is the costume.
-- **Don't** use Courier Prime for prose, or for "technical" atmosphere.
-- **Don't** add a radius beyond 2px / 3px / the tab shape.
-- **Don't** let a stamp or seal overlap text it would strike through.
-- **Don't** introduce a fourth meaning colour, or reuse red, violet or green for
-  decoration.
-- **Don't** put a kicker or eyebrow above a heading. The HIRE / SIGN / VERIFY
-  marks are index tabs on a section edge — an object in the world, not a label
-  floating above an h2.
+- **Clear space:** 0.5 × mark height on all four sides. Nothing enters it,
+  including the wordmark.
+- **Sized by height, not width.** The mark is 152 × 132; the outgoing site put it
+  in a 28 × 28 box, which scaled it to 28 wide and left it towering over the
+  wordmark's 14px cap height. `.logo` sets `height: 22px; width: auto`.
+- **Small-size variant:** the same file at `height: 18px`; below that the mark's
+  four counters close up and the wordmark should stand alone.
+- **Reversed variant:** `logo-mono.svg`, one colour (#F1F3F2), for graphite
+  grounds. A second file rather than `currentColor` because an `<img>` is an
+  independent document and cannot inherit it. The print stylesheet inverts it,
+  because the footer prints on white.
+
+**The mark is also the favicon and the blog's JSON-LD publisher logo.** A
+recolour lands on three surfaces.
+
+**A standalone `.svg` is parsed as XML, so its comments may not contain a double
+hyphen.** Naming a CSS custom property in one silently breaks the whole file —
+the browser shows a broken-image icon and reports nothing. This cost a debugging
+round; both authored SVGs now say so in their own comments.
+
+## Screenshots are exhibits
+
+True colour, in a plain 1px `--rule-strong` frame, with a typed caption and a
+figure number. The outgoing site multiplied and desaturated them into the ground,
+which is a treatment a screenshot cannot survive.
+
+The phone exhibit is **cropped to the top of the screen**, and its caption says
+so. A 390 × 844 capture shown whole ran 650px tall and left its story's other
+column 300px short; shrunk to fit, its own interface became unreadable.
+
+Never screenshot production. `npm run capture:landing-screenshots` runs against
+the fixture tenant. Production screenshots once leaked real driver names and
+phone numbers onto a public page.
+
+## Two surfaces, one stylesheet
+
+`/news`, `/news/{slug}` and `/news/feed.xml` are server-rendered by
+`functions/blog/publicApi.js` and **share this stylesheet**. Section 16 dresses
+them; sections 6 and 18 dress the navbar and footer that function emits. Nothing
+in 6, 16 or 18 may assume the homepage's markup exists.
+
+The blog ships **no JavaScript of its own and therefore no mobile-menu toggle** —
+a toggle button with nothing wired to it is a control that does not work.
+Stylesheet section 20 keeps its navigation reachable below 900px with a
+`:not(:has(.mobile-menu-toggle))` rule that lays the links out as a horizontally
+scrolling row. That rule and that omission are **one decision**: change either
+and the blog loses its navigation on a phone.
+
+`.news-grid` must stay a multi-column grid, and its `grid-template-columns: 1fr`
+must stay literal and stay within 400 characters of the 768px breakpoint — a test
+greps for exactly that.
+
+**The two deploys ship together.** Hosting alone serves the new stylesheet
+against old blog markup.
+
+## What this world refuses
+
+The category default — and the default an AI design tool returns for "enterprise
+B2B SaaS" — is an indigo-to-violet gradient CTA, pill buttons, coloured card
+shadows, a centred hero over a bento grid, and `back.out` stagger. Every one of
+those is banned above. If the build starts drifting toward any of them, the
+direction has been lost.
+
+Also refused: photography, testimonials, customer counts, time-saved statistics,
+ROI figures, review ratings, uptime numbers, security certifications, and any
+claim that a named carrier endorses SafeHaul. None of those exist. The pricing
+panel says "Plan B" rather than "Most popular" for exactly this reason — a
+popularity claim is a statistic, and there is no number behind it.
+
+The candour is a brand asset. The FAQ answer beginning *"No software can do that,
+and anyone who says otherwise is selling you something"* is worth more than any
+testimonial, and it is test-enforced.

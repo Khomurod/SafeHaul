@@ -1,5 +1,5 @@
 /*
- * SafeHaul marketing site — "The Driver File".
+ * SafeHaul marketing site — "Specification".
  *
  * Hand-written CSS with no build step and no framework, deliberately isolated
  * from the application's design system — the landing site and the app are
@@ -8,47 +8,64 @@
  *
  * THE WORLD
  * ---------
- * The page is the object the customer is trying to produce: a driver
- * qualification file. Goldenrod folder stock is the ground; form-paper sheets
- * sit on it, punched and held on an ACCO prong; kraft board backs the sections
- * that have to feel closed and serious.
+ * The site is set as engineering documentation for a system that has to be
+ * inspected. Not a blueprint and not paperwork: modern technical documentation —
+ * exploded assembly views, callout balloons on leader lines, dimension ticks,
+ * section marks, figure numbers, ruled title blocks. The mechanism SafeHaul
+ * sells is four scattered artifacts becoming one inspectable assembly, which is
+ * literally what an exploded parts diagram depicts.
  *
- * Three rules govern the palette:
- *   1. `--folder` and `--folder-deep` are GROUNDS AND RULES. They never carry
- *      text — anywhere. Goldenrod ink on any surface this page owns is either
- *      illegible or nearly so, and a rule you can state is a rule a test can
- *      hold you to.
- *   2. `--rope` is the action. On `--sheet` it clears 4.5:1; on `--folder` only
- *      `--rope-deep` does, so that is what is used there.
- *   3. State is palette law, not per-component invention: `--verified` means
- *      confirmed, `--stamp` means a date or an audit mark, `--rope` means
- *      attention or action. A component never invents a fourth meaning.
+ * Ground is paper (`--paper`), ink and structure are graphite (`--graphite`),
+ * and the whole site has NO brand colour. Four rules govern the palette:
+ *
+ *   1. THE DRAWN-LINE RULE. Structure is drawn in `--graphite` and `--rule`.
+ *      `--draft` is a *line* colour — leaders, callout balloons, dimension
+ *      apparatus, focus rings, inline links. It never fills a region behind
+ *      text.
+ *   2. THE MEANING RULE. `--clear` means verified or complete. `--attend` means
+ *      attention or required. `--draft` means the drawn line and the link.
+ *      There is no fourth meaning, and none of the three is ever decorative.
+ *   3. THE BLACK-ACTION RULE. The primary action is `--graphite`, not a brand
+ *      colour. On a graphite ground it inverts to a `--paper` fill with
+ *      `--graphite` text.
+ *   4. THE TYPED-THINGS RULE. Geist Mono sets what a technical document types
+ *      or numbers — figure numbers, section numbers, dimensions, table headers,
+ *      timestamps, prices, captions. Never prose.
+ *
+ * And one prohibition: no ambient decoration. No gradients, no glow, no
+ * glassmorphism, no noise overlay, no coloured card shadows, no pills, no
+ * radius above 4px, no icon-in-a-circle.
  *
  * `/news`, `/news/{slug}` and `/news/feed.xml` are server-rendered by the
  * `serveBlogPublic` function and SHARE THIS STYLESHEET — section 16 dresses
  * those pages too, and the navbar and footer here are the ones that function
- * emits. Nothing in sections 6 or 18 may assume the homepage's markup exists.
+ * emits. Nothing in sections 6, 16 or 18 may assume the homepage's markup
+ * exists.
+ *
+ * Every product claim the type here carries must trace to
+ * `functions/ai/knowledge/safehaulCapabilities.js`. `npm run check:landing-claims`
+ * enforces it against the shipped HTML.
  *
  * Contents
  *   1.  Tokens
  *   2.  Reset, base and browser surfaces
  *   3.  Typography
- *   4.  Utilities
+ *   4.  Utilities — including the margin rule and title block
  *   5.  Buttons
- *   6.  Navigation — the index tabs
- *   7.  Hero — the folder, opened
- *   8.  Logo strip — the distribution band
- *   9.  Problem — loose documents
- *   10. Platform — the manifest
+ *   6.  Navigation (shared with the blog)
+ *   7.  Hero
+ *   8.  Logo strip
+ *   9.  Inspection frame
+ *   10. Platform — specification rows
  *   11. Story blocks
- *   12. Trust band — kraft board
+ *   12. Trust band
  *   13. Comparison
  *   14. Pricing
  *   15. FAQ
  *   16. SafeHaul News & Insights (shared with the blog)
  *   16b. Privacy policy (privacy.html only)
  *   17. Closing CTA
- *   18. Footer
+ *   18. Footer (shared with the blog)
  *   19. Lead modal
  *   20. Responsive
  *   21. Reduced motion and print
@@ -59,78 +76,90 @@
 /* ========================================================================= */
 
 :root {
-    /* Folder stock — the ground, at printed saturation. Not a cream wash: a
-       goldenrod file folder is a saturated object, and rendering it politely is
-       how this world turns into beige nostalgia. */
-    --folder: #e2a72e;
-    --folder-lit: #f0c14f;
-    --folder-tab: #d59a22;
-    --folder-deep: #a8760f;
+    /* Grounds. Cool-neutral, about 2% warm. Not cream, not parchment. */
+    --paper: #F7F7F5;
+    --paper-2: #EDEEEC;
+    --paper-3: #E4E6E3;
 
-    /* Kraft board — the redweld backing. */
-    --kraft: #2b1d0e;
-    --kraft-rule: #57411f;
+    /* Graphite — ink, primary action, inverted grounds. */
+    --graphite: #14161A;
+    --graphite-2: #1E2126;
+    --graphite-3: #2A2E34;
 
-    /* Form paper. */
-    --sheet: #faf7f0;
-    --sheet-alt: #f3eee2;
-    --sheet-rule: #ddd2bb;
-    --sheet-edge: #c9bda3;
-
-    /* Ink. */
-    --ink: #17130e;
-    --ink-soft: #574b3c;
-    --ink-faint: #7d6f5c;
-    --ink-on-kraft: #f4ecdd;
-    --ink-on-kraft-soft: #cbb897;
-
-    /* Meaning. Fixed by law across the whole page. */
-    --rope: #b03a24;
-    /* action, attention */
-    --rope-deep: #8a2b18;
-    /* the same, where the ground is folder stock */
-    --rope-soft: rgba(176, 58, 36, 0.12);
-    --stamp: #45348c;
-    /* dates, audit marks */
-    --stamp-lit: #a99cf0;
-    /* the same ink on kraft, where #45348c measures 1.66:1 */
-    --verified: #1d5b41;
-    /* confirmed, complete */
-
+    /* Ink on paper. Ratios measured against --paper. */
+    --ink: #14161A;
+    /* headings                                                       17.0:1 */
+    --ink-2: #4B5157;
+    /* body copy                                                        7.4:1 */
+    --ink-3: #6B7278;
+    /* captions, metadata                                               4.55:1 */
     /*
-     * Paper tooth and board fiber, generated rather than shipped: a tiled
-     * fractal-noise turbulence, which is a real material layer with no binary
-     * asset, no build step and no extra request. Goldenrod stock takes a fine
-     * tooth; kraft board takes a coarser, more open fiber.
+     * `--ink-3` IS THE FLOOR, AND ONLY ON `--paper`.
+     *
+     * 4.55:1 against #F7F7F5 leaves 0.05 of headroom, which the recessed grounds
+     * spend: on `--paper-2` the same ink measures 4.19:1 and fails. Anything
+     * quiet that sits on `--paper-2` or `--paper-3` uses `--ink-2` (6.9:1 there)
+     * instead. `check:landing-a11y` caught this on the activity board's header
+     * row; it cannot catch it on a hover state, so the hover rules below darken
+     * their own text by hand.
      */
-    --grain-fine: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23g)'/%3E%3C/svg%3E");
-    --grain-coarse: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.42' numOctaves='5' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23g)'/%3E%3C/svg%3E");
 
-    /* Typography. Archivo carries structure; Courier Prime carries anything the
-       file world would have typed, stamped or logged. */
+    /* Ink on graphite. */
+    --ink-on-dark: #F1F3F2;
+    /* headings                                                         ~16:1 */
+    --ink-on-dark-2: #A8B0B6;
+    /* body                                                             8.3:1 */
+    --ink-on-dark-3: #838C93;
+    /* captions                                                         5.4:1 */
+
+    /* Rules. */
+    --rule: #DADCD9;
+    --rule-strong: #C3C7C3;
+    --rule-on-dark: #333940;
+
+    /* The drawn line and the three meanings. Colour NEVER decorates. */
+    --draft: #2C4A9A;
+    /* drawn lines, leaders, links, focus ring                           7.7:1 */
+    --draft-soft: rgba(44, 74, 154, 0.10);
+    --clear: #0F5F4C;
+    /* verified, complete                                                7.1:1 */
+    --clear-soft: rgba(15, 95, 76, 0.10);
+    --attend: #A93226;
+    /* attention, required                                               6.2:1 */
+    --attend-soft: rgba(169, 50, 38, 0.10);
+
+    /* Type. Archivo carries structure; Geist Mono carries anything typed. */
     --font-display: 'Archivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
     --font-body: 'Archivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
-    --font-typed: 'Courier Prime', ui-monospace, 'Cascadia Mono', 'Courier New', monospace;
+    --font-mono: 'Geist Mono', ui-monospace, 'Cascadia Mono', 'SFMono-Regular', monospace;
     --font-size-base: 16px;
 
     /* Layout. */
-    --max-width: 1220px;
+    --measure: 1180px;
     --gutter: 24px;
-    --section-padding: 116px;
-    --section-padding-tight: 84px;
-    --radius-tab: 10px 10px 0 0;
-    --radius-sheet: 3px;
+    --section: 112px;
+    --section-tight: 76px;
+    --radius-control: 2px;
+    --radius-panel: 3px;
 
-    /* Elevation. A sheet lying on a folder throws a real, offset shadow. */
-    --lift-1: 0 1px 2px rgba(43, 29, 14, 0.16);
-    --lift-2: 0 6px 14px -6px rgba(43, 29, 14, 0.34), 0 2px 4px rgba(43, 29, 14, 0.12);
-    --lift-3: 0 18px 34px -14px rgba(43, 29, 14, 0.44), 0 4px 10px -4px rgba(43, 29, 14, 0.2);
-    --lift-4: 0 34px 60px -22px rgba(43, 29, 14, 0.5), 0 10px 20px -10px rgba(43, 29, 14, 0.26);
+    /* Elevation. Flat by default; shadows only for genuinely floating things. */
+    --shade-1: 0 1px 2px rgba(20, 22, 26, 0.06);
+    --shade-2: 0 8px 24px -12px rgba(20, 22, 26, 0.24), 0 2px 6px -2px rgba(20, 22, 26, 0.08);
+    --shade-3: 0 32px 64px -24px rgba(20, 22, 26, 0.34), 0 8px 20px -12px rgba(20, 22, 26, 0.18);
 
-    /* Motion. One grammar: paper is placed, tabs lift, stamps land. */
-    --ease-place: cubic-bezier(0.16, 0.84, 0.3, 1);
+    /* Motion. One grammar: parts seat into position. */
+    --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+    --ease-seat: cubic-bezier(0.16, 0.84, 0.30, 1);
     --t-fast: 0.14s;
-    --t-normal: 0.26s;
+    --t-base: 0.22s;
+    --t-slow: 0.32s;
+
+    /* Figure interior surfaces. Named here so a figure never hard-codes a hex:
+       the plate faces of an axonometric need three values off one ground. */
+    --fig-face: #FDFDFC;
+    --fig-face-lit: #FFFFFF;
+    --fig-side-a: var(--paper-2);
+    --fig-side-b: var(--paper-3);
 }
 
 /* ========================================================================= */
@@ -157,55 +186,45 @@
 }
 
 @font-face {
-    font-family: 'Courier Prime';
+    font-family: 'Geist Mono';
     font-style: normal;
-    font-weight: 400;
+    font-weight: 100 900;
     font-display: swap;
-    src: url('/assets/fonts/courier-prime.woff2') format('woff2');
-}
-
-@font-face {
-    font-family: 'Courier Prime';
-    font-style: normal;
-    font-weight: 700;
-    font-display: swap;
-    src: url('/assets/fonts/courier-prime-bold.woff2') format('woff2');
+    src: url('/assets/fonts/geist-mono-variable.woff2') format('woff2-variations');
 }
 
 html {
     font-size: var(--font-size-base);
     scroll-behavior: smooth;
-    /* Anchored sections must clear the sticky tab rail. */
-    scroll-padding-top: 118px;
+    /* Anchored sections must clear the sticky bar. */
+    scroll-padding-top: 96px;
     -webkit-text-size-adjust: 100%;
     color-scheme: light;
-    accent-color: var(--rope);
-    caret-color: var(--rope);
+    accent-color: var(--graphite);
+    caret-color: var(--graphite);
 }
 
 body {
     font-family: var(--font-body);
     font-variation-settings: 'wdth' 100, 'wght' 400;
-    color: var(--ink-soft);
-    background-color: var(--folder);
-    line-height: 1.62;
+    color: var(--ink-2);
+    background: var(--paper);
+    line-height: 1.6;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    /* Stops a wide table or screenshot turning the whole page into a
-       side-scroller on a narrow phone. */
+    /* Stops a wide table or figure turning the whole page into a side-scroller
+       on a narrow phone. */
     overflow-x: hidden;
 }
 
-/*
- * The parts nobody draws still belong to the design.
- */
+/* The parts nobody draws still belong to the design. */
 ::selection {
-    background: var(--rope);
-    color: #fff;
+    background: var(--graphite);
+    color: var(--paper);
 }
 
 * {
-    scrollbar-color: var(--folder-deep) rgba(43, 29, 14, 0.14);
+    scrollbar-color: var(--rule-strong) var(--paper-2);
     scrollbar-width: thin;
 }
 
@@ -215,29 +234,29 @@ body {
 }
 
 *::-webkit-scrollbar-track {
-    background: rgba(43, 29, 14, 0.12);
+    background: var(--paper-2);
 }
 
 *::-webkit-scrollbar-thumb {
-    background: var(--folder-deep);
+    background: var(--rule-strong);
     border: 3px solid transparent;
     background-clip: content-box;
     border-radius: 2px;
 }
 
 *::-webkit-scrollbar-thumb:hover {
-    background: var(--rope);
+    background: var(--ink-3);
     background-clip: content-box;
 }
 
 /*
  * `hidden` must win over a component's own display value.
  *
- * The browser default is only `[hidden] { display: none }`, which any later
- * rule with a display outranks — and several below set `display: grid` or
+ * The browser default is only `[hidden] { display: none }`, which any later rule
+ * with a display outranks — and several below set `display: grid` or
  * `display: flex` on elements this page toggles with the `hidden` attribute.
- * Without this, `element.hidden = true` silently does nothing: the two-step
- * form showed both steps at once and the success panel sat underneath them.
+ * Without this, `element.hidden = true` silently does nothing: the two-step form
+ * showed both steps at once and the success panel sat underneath them.
  */
 [hidden] {
     display: none !important;
@@ -259,7 +278,8 @@ a {
     text-decoration: none;
     text-underline-offset: 0.18em;
     text-decoration-thickness: 1px;
-    transition: color var(--t-fast) ease, background-color var(--t-fast) ease;
+    transition: color var(--t-fast) ease, background-color var(--t-fast) ease,
+        border-color var(--t-fast) ease;
 }
 
 button {
@@ -270,84 +290,31 @@ button {
     cursor: pointer;
 }
 
-/* One visible focus treatment for everything interactive, on both grounds. */
+/* One visible focus treatment for everything interactive, on both grounds.
+   `--draft` is the drawn line, and a focus ring is the most literal drawn line
+   on the page. */
 a:focus-visible,
 button:focus-visible,
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible,
+summary:focus-visible,
 [tabindex]:focus-visible {
-    outline: 3px solid var(--rope);
+    outline: 2px solid var(--draft);
     outline-offset: 2px;
-    border-radius: 2px;
+    border-radius: var(--radius-control);
 }
 
+/* On graphite, `--draft` measures 2.2:1 against the ground. The ring inverts to
+   paper rather than being drawn in a colour nobody can see. */
 .trust-section a:focus-visible,
 .trust-section button:focus-visible,
+.cta-section a:focus-visible,
+.cta-section button:focus-visible,
+.cta-section input:focus-visible,
 .footer-section a:focus-visible,
 .footer-section button:focus-visible {
-    outline-color: var(--folder-lit);
-}
-
-/*
- * Material, not a compliance token. Folder stock and kraft board are the two
- * materials this page is made of, and a flat fill is a swatch of a colour
- * rather than a sheet of anything. The grain sits over the ground and under
- * the content, multiplied so it reads as tooth in the stock rather than as
- * dirt on the screen.
- */
-.hero,
-.logos-section,
-.problem-section,
-.pricing-section,
-.cta-section {
-    position: relative;
-}
-
-.hero::after,
-.logos-section::after,
-.problem-section::before,
-.pricing-section::before,
-.cta-section::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background-image: var(--grain-fine);
-    background-size: 160px 160px;
-    mix-blend-mode: multiply;
-    opacity: 0.14;
-    pointer-events: none;
-    z-index: 0;
-}
-
-.trust-section::after,
-.footer-section::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background-image: var(--grain-coarse);
-    background-size: 200px 200px;
-    mix-blend-mode: overlay;
-    opacity: 0.3;
-    pointer-events: none;
-    z-index: 0;
-}
-
-/* Content sits above its own material. */
-.hero-inner,
-.logos-section > *,
-.problem-section > *,
-.pricing-section > *,
-.cta-inner,
-.trust-section > *,
-.footer-grid,
-.footer-bottom {
-    position: relative;
-    z-index: 1;
-}
-
-.footer-section {
-    position: relative;
+    outline-color: var(--ink-on-dark);
 }
 
 .icon-sprite {
@@ -366,6 +333,10 @@ textarea:focus-visible,
 
 /* ========================================================================= */
 /* 3. TYPOGRAPHY                                                             */
+/*                                                                           */
+/* Archivo is re-voiced from the outgoing site: the display register was      */
+/* `wdth 88 / wght 800`, which reads as a filing-drawer plate. Documentation  */
+/* sets its display at normal width and a working weight.                    */
 /* ========================================================================= */
 
 h1,
@@ -374,98 +345,147 @@ h3,
 h4 {
     font-family: var(--font-display);
     color: var(--ink);
-    line-height: 1.04;
-    letter-spacing: -0.022em;
     text-wrap: balance;
 }
 
 h1 {
-    /* Semi-condensed and heavy: a drawer plate, not a hero headline. */
-    font-size: clamp(2.6rem, 5.6vw, 4.6rem);
-    font-variation-settings: 'wdth' 88, 'wght' 800;
-    letter-spacing: -0.033em;
-    line-height: 0.97;
+    font-size: clamp(2.75rem, 4.6vw, 4.25rem);
+    font-variation-settings: 'wdth' 100, 'wght' 620;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
 }
 
 h2 {
-    font-size: clamp(1.85rem, 3.1vw, 2.75rem);
-    font-variation-settings: 'wdth' 92, 'wght' 750;
-    letter-spacing: -0.028em;
+    font-size: clamp(1.75rem, 2.6vw, 2.5rem);
+    font-variation-settings: 'wdth' 100, 'wght' 600;
+    line-height: 1.12;
+    letter-spacing: -0.016em;
 }
 
 h3 {
-    font-size: 1.2rem;
-    font-variation-settings: 'wdth' 96, 'wght' 700;
-    letter-spacing: -0.015em;
-    line-height: 1.24;
+    font-size: 1.1875rem;
+    font-variation-settings: 'wdth' 100, 'wght' 600;
+    line-height: 1.3;
+    letter-spacing: -0.008em;
 }
 
 p {
     max-width: 68ch;
 }
 
-/* The typed voice: labels, dates, references, log lines. Used for data and
-   measurement, never as a costume for prose. */
+/*
+ * The engineered label: what a technical document types or numbers.
+ *
+ * One declaration for every such role on the site, so the typed voice cannot
+ * drift per component. Prose is never in this list.
+ */
+.mono,
+.section-index,
+.section-label,
 .logos-title,
-.scrap-tag,
-.sheet-head,
-.story-tab,
-.nav-link,
-.badge,
-.modal-step,
-.exhibit figcaption,
-.logbook,
-.signature-rule,
-.signature-seal,
-.footer-heading,
+.spec-index,
+.figure-caption,
+.frame-list-key,
+.board-head,
+.board-foot,
+.board-row,
 .steps li,
+.price-tag,
+.period,
+.modal-step,
+.form-group label,
+.footer-heading,
+.compare-table thead th,
 .news-eyebrow,
-.news-meta {
-    font-family: var(--font-typed);
-    font-weight: 400;
-    letter-spacing: 0.1em;
+.news-meta,
+.news-credit,
+.news-back,
+.privacy-hero p {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 0.75rem;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
 }
 
-/*
- * Secondary ink is darkened on folder grounds.
- *
- * `--ink-soft` clears 4.5:1 comfortably on paper and measures 3.97:1 on
- * goldenrod, which is a fail, not a rounding error. Rather than hand-picking a
- * colour at every call site, the folder sections redefine the two secondary
- * inks for everything inside them — including the sheets that sit on top,
- * where a darker ink is only ever an improvement.
- */
-.hero,
-.logos-section,
-.problem-section,
-.pricing-section,
-.cta-section {
-    --ink-soft: #42372b;
-    --ink-faint: #4a3e31;
+/* Numbers are set, not written: tabular so a column of them lines up. */
+.section-index,
+.spec-index,
+.board-row,
+.price,
+.compare-table td,
+.news-meta {
+    font-variant-numeric: tabular-nums;
 }
 
+/*
+ * The section-opening title block.
+ *
+ * A technical drawing has a ruled margin carrying the sheet number. Every major
+ * section opens with a 2px graphite rule across the measure, and immediately
+ * under it a row carrying the mono section number and label, with the h2 at
+ * measure below. This is a ruled block, not a floating pill eyebrow.
+ */
 .section-title {
-    max-width: 44rem;
-    margin-bottom: 56px;
+    position: relative;
+    border-top: 2px solid var(--graphite);
+    padding-top: 14px;
+    margin-bottom: 52px;
+}
+
+.section-head {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    margin-bottom: 22px;
+}
+
+.section-index {
+    color: var(--ink-3);
+}
+
+.section-label {
+    color: var(--ink-3);
 }
 
 .section-title h2 {
+    max-width: 30ch;
     margin-bottom: 14px;
 }
 
-.section-title p {
-    font-size: 1.125rem;
-    color: var(--ink-soft);
-    max-width: 60ch;
+.section-title > p {
+    font-size: 1.0625rem;
+    color: var(--ink-2);
+    max-width: 62ch;
+}
+
+/* At full measure the sheet number hangs outside the text block, in the drawing
+   sheet's own left margin. Below that it sits inline in the title block row. */
+@media (min-width: 1300px) {
+    .section-index {
+        position: absolute;
+        top: 14px;
+        left: -56px;
+        width: 44px;
+        text-align: right;
+    }
+}
+
+.section-title--inverse {
+    border-top-color: var(--ink-on-dark);
 }
 
 .section-title--inverse h2 {
-    color: var(--ink-on-kraft);
+    color: var(--ink-on-dark);
 }
 
-.section-title--inverse p {
-    color: var(--ink-on-kraft-soft);
+.section-title--inverse > p {
+    color: var(--ink-on-dark-2);
+}
+
+.section-title--inverse .section-index,
+.section-title--inverse .section-label {
+    color: var(--ink-on-dark-3);
 }
 
 /* ========================================================================= */
@@ -490,13 +510,14 @@ p {
     left: 12px;
     z-index: 2000;
     padding: 12px 20px;
-    background: var(--kraft);
-    color: var(--ink-on-kraft);
-    font-family: var(--font-typed);
+    background: var(--graphite);
+    color: var(--ink-on-dark);
+    font-family: var(--font-mono);
+    font-weight: 500;
     text-transform: uppercase;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.06em;
     font-size: 0.8125rem;
-    border-radius: 0 0 2px 2px;
+    border-radius: 0 0 var(--radius-control) var(--radius-control);
     transition: top var(--t-fast) ease;
 }
 
@@ -504,33 +525,265 @@ p {
     top: 0;
 }
 
-/* Inner blocks share one measure. */
-.hero-inner,
-.cta-inner,
-.footer-grid,
-.footer-bottom {
-    width: 100%;
-    max-width: var(--max-width);
-    margin-inline: auto;
-    padding-inline: var(--gutter);
-}
-
 /*
- * Section grounds run edge to edge and constrain their own contents. Giving the
- * section a max-width instead leaves the kraft and sheet bands floating as
- * panels with cut vertical edges, which is a rectangle on a background, not a
- * material.
+ * Section grounds run edge to edge and hold their own measure. Giving the
+ * section a max-width instead leaves the graphite bands floating as panels with
+ * cut vertical edges, which is a rectangle on a background rather than a ground.
  */
+.section-shell,
 .logos-section,
-.problem-section,
+.frame-section,
 .features-section,
 .story-section,
 .trust-section,
 .compare-section,
 .pricing-section,
 .news-section,
-.faq-section {
-    padding-inline: max(var(--gutter), calc((100% - var(--max-width)) / 2));
+.faq-section,
+.cta-section,
+.privacy-hero,
+.policy-section {
+    padding-inline: max(var(--gutter), calc((100% - var(--measure)) / 2));
+}
+
+.measure {
+    width: 100%;
+    max-width: var(--measure);
+    margin-inline: auto;
+    padding-inline: var(--gutter);
+}
+
+.rule {
+    height: 0;
+    border: 0;
+    border-top: 1px solid var(--rule);
+}
+
+.rule--strong {
+    border-top-width: 2px;
+    border-top-color: var(--graphite);
+}
+
+/*
+ * The reveal.
+ *
+ * `data-reveal` goes on a SECTION; `main.js` sets `data-revealed="true"` on it
+ * once and then stops observing. What animates is the section's direct children,
+ * staggered 60ms apart — the title block, then the content under it.
+ *
+ * Staggering children of one observed parent rather than observing each element
+ * is deliberate. Nesting `data-reveal` inside `data-reveal` looked equivalent and
+ * was not: a section taller than the viewport takes the immediate-reveal path in
+ * `main.js`, its nested figure kept waiting for an intersection of its own, and
+ * Figure 2 rendered at `opacity: 0` on a real page. One observer per section
+ * cannot produce that state.
+ *
+ * Everything is visible with JavaScript off, because a marketing page that hides
+ * its own copy behind a script has no copy.
+ */
+@media (prefers-reduced-motion: no-preference) {
+    [data-reveal]:not([data-revealed="true"]) > * {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    [data-reveal] > * {
+        transition: opacity var(--t-slow) var(--ease-out), transform var(--t-slow) var(--ease-out);
+    }
+
+    [data-reveal] > *:nth-child(2) {
+        transition-delay: 60ms;
+    }
+
+    [data-reveal] > *:nth-child(3) {
+        transition-delay: 120ms;
+    }
+
+    [data-reveal] > *:nth-child(n+4) {
+        transition-delay: 180ms;
+    }
+
+    [data-revealed="true"] > * {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+/* --- Figures ------------------------------------------------------------- */
+
+/*
+ * Every figure on this site is authored line art. No photography anywhere, by
+ * decision: a stock truck photograph would be the one thing on the page that is
+ * not a description of the product.
+ */
+.figure {
+    margin: 0;
+    /* A scrolling figure must not be able to widen its own container. */
+    min-width: 0;
+}
+
+.figure svg {
+    width: 100%;
+    height: auto;
+    overflow: visible;
+}
+
+/*
+ * A drawing scrolls rather than shrinking below legibility.
+ *
+ * Figures 2 to 5 are 520-unit drawings. In a 342px phone column they rendered at
+ * 0.66 scale, which put their 12px labels at about 8px — under the eleven-pixel
+ * floor and genuinely unreadable. Shrinking a technical drawing until its
+ * lettering fails is not a responsive layout, it is a drawing nobody can use, so
+ * below its natural width the figure keeps its scale and scrolls sideways, the
+ * way an engineering sheet does.
+ *
+ * Focusable on purpose, and for the same reason as the comparison table: a
+ * scroll region a keyboard cannot reach is a region a keyboard user cannot read.
+ * Figure 1 is exempt because it ships a second composition drawn for the phone;
+ * Figure 6 is exempt because it is 300 units wide and already fits.
+ */
+.figure-scroll {
+    overflow-x: auto;
+}
+
+.figure-scroll > svg {
+    min-width: 520px;
+}
+
+.figure-scroll:focus-visible {
+    outline: 2px solid var(--draft);
+    outline-offset: 4px;
+}
+
+/*
+ * The affordance, shown only where the drawing actually overflows.
+ *
+ * Real markup rather than a CSS `content` string: this is a sentence a visitor
+ * reads, and copy that lives in a stylesheet cannot be found, translated or
+ * claim-checked. A clipped drawing with no hint reads as a broken figure.
+ */
+.figure-hint {
+    display: none;
+}
+
+@media (max-width: 720px) {
+    .figure-hint {
+        display: block;
+        margin-top: 10px;
+        font-family: var(--font-mono);
+        font-weight: 500;
+        font-size: 0.75rem;
+        letter-spacing: 0.02em;
+        color: var(--ink-3);
+        max-width: none;
+    }
+}
+
+.figure-caption {
+    margin-top: 14px;
+    padding-top: 10px;
+    border-top: 1px solid var(--rule);
+    color: var(--ink-3);
+    /*
+     * A caption keeps the typed voice, because a figure number is a typed thing.
+     * But it is a sentence, not a two-word tag: uppercase and heavy tracking
+     * turn a sentence into something to be decoded, so both are relaxed here.
+     */
+    font-size: 0.8125rem;
+    letter-spacing: 0.01em;
+    text-transform: none;
+    max-width: 56ch;
+}
+
+/* One line weight family across every figure on the site: 1.25px hairline,
+   1.75px emphasis, square caps, mitre joins. */
+.fig-label {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    fill: var(--ink);
+    text-transform: uppercase;
+}
+
+.fig-label--strong {
+    font-weight: 600;
+    fill: var(--graphite);
+}
+
+.fig-label--muted {
+    fill: var(--ink-3);
+    font-weight: 500;
+}
+
+.fig-num {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    fill: var(--draft);
+    font-variant-numeric: tabular-nums;
+}
+
+.fig-dim {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    fill: var(--ink-3);
+    font-variant-numeric: tabular-nums;
+}
+
+/* The phone variant of Figure 1 is drawn at 340 units rather than 540, so its
+   labels are set one step down to keep the same rendered size. */
+.f1--mobile .fig-label {
+    font-size: 11px;
+}
+
+/* Screenshots are exhibits: true colour, in a plain frame, with a typed
+   caption. The outgoing site multiplied and desaturated them into the ground,
+   which is a treatment a screenshot cannot survive. */
+.exhibit {
+    margin: 0;
+}
+
+.exhibit img {
+    width: 100%;
+    border: 1px solid var(--rule-strong);
+    border-radius: var(--radius-panel);
+    background: var(--fig-face-lit);
+}
+
+/* Same voice as `.figure-caption`: typed, but a sentence rather than a tag, so
+   it is not uppercased or tracked out into something to be decoded. */
+.exhibit figcaption {
+    margin-top: 12px;
+    padding-top: 9px;
+    border-top: 1px solid var(--rule);
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 0.8125rem;
+    letter-spacing: 0.01em;
+    color: var(--ink-3);
+    max-width: 56ch;
+}
+
+/*
+ * The phone exhibit is cropped to the top of the screen on purpose.
+ *
+ * A 390 × 844 capture is a 1:2.16 object. Shown whole it ran 650px tall and left
+ * its story's other column 300px short; shrunk to fit, its own interface became
+ * unreadable. Cropping keeps the scale legible and shows the part that carries
+ * the point — the step counter and the first fields. The caption says it is the
+ * top of the screen.
+ */
+.exhibit--phone img {
+    max-width: 288px;
+    height: 470px;
+    object-fit: cover;
+    object-position: top center;
+    margin-inline: auto;
+    display: block;
 }
 
 /* ========================================================================= */
@@ -543,29 +796,27 @@ p {
     align-items: center;
     justify-content: center;
     gap: 10px;
-    padding: 12px 26px;
+    padding: 11px 24px;
     font-family: var(--font-display);
     font-size: 0.9375rem;
-    font-variation-settings: 'wdth' 100, 'wght' 680;
-    letter-spacing: 0.005em;
-    border: 2px solid transparent;
-    border-radius: 2px;
+    font-variation-settings: 'wdth' 100, 'wght' 620;
+    letter-spacing: -0.004em;
+    border: 1px solid transparent;
+    border-radius: var(--radius-control);
     cursor: pointer;
     text-align: center;
-    transition: transform var(--t-fast) var(--ease-place),
-        background-color var(--t-fast) ease,
-        border-color var(--t-fast) ease,
-        box-shadow var(--t-fast) ease;
+    transition: background-color var(--t-fast) ease, border-color var(--t-fast) ease,
+        color var(--t-fast) ease, transform 0.12s var(--ease-seat);
 }
 
 .btn:active {
-    transform: translateY(1px);
+    transform: scale(0.98);
 }
 
 .btn-lg {
-    min-height: 54px;
-    padding: 15px 34px;
-    font-size: 1.0625rem;
+    min-height: 52px;
+    padding: 14px 30px;
+    font-size: 1rem;
 }
 
 .btn-block {
@@ -573,54 +824,81 @@ p {
     width: 100%;
 }
 
-/* Primary: the rope-red action, the one colour that means "do this". */
+/* The Black-Action Rule: the primary action is near-black, not a brand colour.
+   There is no brand colour on this site. */
 .btn-primary {
-    background: var(--rope);
-    border-color: var(--rope);
-    color: #fff;
-    box-shadow: var(--lift-2);
+    background: var(--graphite);
+    border-color: var(--graphite);
+    color: var(--paper);
 }
 
-.btn-primary:hover {
-    background: var(--rope-deep);
-    border-color: var(--rope-deep);
-    box-shadow: var(--lift-3);
+.btn-secondary {
+    background: transparent;
+    border-color: var(--graphite);
+    color: var(--graphite);
 }
 
 .btn-outline {
     background: transparent;
-    border-color: var(--ink);
+    border-color: var(--rule-strong);
     color: var(--ink);
-}
-
-.btn-outline:hover {
-    background: var(--ink);
-    color: var(--folder-lit);
-}
-
-/* Secondary is rope-outlined, not a filled slab. A kraft-filled button was the
-   heaviest control on the page, spent on the least important action. */
-.btn-secondary {
-    background: transparent;
-    border-color: var(--rope);
-    color: var(--rope);
-}
-
-.btn-secondary:hover {
-    background: var(--rope);
-    border-color: var(--rope);
-    color: #fff;
 }
 
 .btn-ghost {
     background: transparent;
     border-color: transparent;
     color: var(--ink);
-    padding-inline: 14px;
+    padding-inline: 12px;
 }
 
-.btn-ghost:hover {
-    background: rgba(23, 19, 14, 0.09);
+@media (hover: hover) and (pointer: fine) {
+    .btn-primary:hover {
+        background: var(--graphite-3);
+        border-color: var(--graphite-3);
+    }
+
+    .btn-secondary:hover,
+    .btn-outline:hover {
+        background: var(--graphite);
+        border-color: var(--graphite);
+        color: var(--paper);
+    }
+
+    .btn-ghost:hover {
+        background: var(--paper-3);
+    }
+}
+
+/* On a graphite ground the action inverts rather than losing its edge. */
+.trust-section .btn-primary,
+.cta-section .btn-primary,
+.footer-section .btn-primary {
+    background: var(--paper);
+    border-color: var(--paper);
+    color: var(--graphite);
+}
+
+.cta-section .btn-secondary,
+.trust-section .btn-secondary {
+    border-color: var(--ink-on-dark-3);
+    color: var(--ink-on-dark);
+}
+
+@media (hover: hover) and (pointer: fine) {
+
+    .trust-section .btn-primary:hover,
+    .cta-section .btn-primary:hover,
+    .footer-section .btn-primary:hover {
+        background: var(--ink-on-dark-2);
+        border-color: var(--ink-on-dark-2);
+    }
+
+    .cta-section .btn-secondary:hover,
+    .trust-section .btn-secondary:hover {
+        background: var(--paper);
+        border-color: var(--paper);
+        color: var(--graphite);
+    }
 }
 
 .link-button {
@@ -632,109 +910,119 @@ p {
 }
 
 /* ========================================================================= */
-/* 6. NAVIGATION — THE INDEX TABS                                            */
+/* 6. NAVIGATION                                                             */
 /*                                                                           */
-/* Shared with every server-rendered blog page, which emits the same navbar   */
-/* markup minus the mobile toggle. Nothing here may require the toggle.       */
+/* SHARED WITH THE BLOG, which emits this same navbar markup minus the mobile */
+/* toggle. Nothing here may require the toggle to exist.                     */
 /* ========================================================================= */
 
 .navbar {
     position: sticky;
     top: 0;
     z-index: 900;
-    background: var(--folder);
-    border-bottom: 2px solid var(--ink);
-    transition: box-shadow var(--t-normal) ease;
+    background: var(--paper);
+    border-bottom: 1px solid var(--rule);
+    transition: border-color var(--t-base) ease, box-shadow var(--t-base) ease;
 }
 
+/* Scrolled, the bar becomes a drawn edge: 2px graphite, the same weight every
+   section rule uses. */
 .navbar[data-scrolled="true"] {
-    box-shadow: var(--lift-3);
+    border-bottom: 2px solid var(--graphite);
+    box-shadow: var(--shade-1);
 }
 
 .nav-container {
-    max-width: var(--max-width);
+    max-width: var(--measure);
     margin-inline: auto;
     padding: 0 var(--gutter);
     display: flex;
-    align-items: flex-end;
+    align-items: center;
     gap: 24px;
-    min-height: 76px;
+    min-height: 68px;
 }
 
 .logo-link {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 9px;
     margin-right: auto;
-    padding-block: 16px;
-    align-self: center;
 }
 
+/*
+ * Sized by HEIGHT, not width.
+ *
+ * The mark is 152 × 132, and the outgoing site put it in a 28 × 28 box, where
+ * `contain` scaled it to 28 wide and left it towering over the wordmark's 14px
+ * cap height. Setting the height relates the two optically; the width follows
+ * the artwork's own ratio.
+ */
 .logo {
-    width: 30px;
-    height: 30px;
+    height: 22px;
+    width: auto;
 }
 
 .logo-text {
     font-family: var(--font-display);
-    font-size: 1.3rem;
-    font-variation-settings: 'wdth' 84, 'wght' 800;
+    font-size: 1.1875rem;
+    font-variation-settings: 'wdth' 100, 'wght' 640;
     letter-spacing: -0.02em;
     color: var(--ink);
 }
 
 .nav-links {
     display: flex;
-    align-items: flex-end;
-    gap: 3px;
+    align-items: center;
+    gap: 2px;
 }
 
-/* Each link is a file tab standing on the rail. */
+/* No pills. A link is a word with a drawn underline when it is the current one. */
 .nav-link {
     position: relative;
     display: flex;
     align-items: center;
     min-height: 44px;
-    padding: 10px 15px;
-    font-size: 0.75rem;
-    letter-spacing: 0.11em;
-    color: var(--ink);
-    background: var(--folder-tab);
-    border: 1px solid var(--folder-deep);
-    border-bottom: none;
-    border-radius: var(--radius-tab);
-    box-shadow: inset 0 3px 0 var(--folder-deep);
-    transition: background-color var(--t-fast) ease, box-shadow var(--t-fast) ease,
-        transform var(--t-fast) var(--ease-place);
+    padding: 10px 12px;
+    font-family: var(--font-display);
+    font-size: 0.875rem;
+    font-variation-settings: 'wdth' 100, 'wght' 500;
+    letter-spacing: -0.004em;
+    color: var(--ink-2);
 }
 
-.nav-link:hover {
-    background: var(--folder-lit);
-    box-shadow: inset 0 3px 0 var(--rope);
+.nav-link::after {
+    content: '';
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    height: 2px;
+    background: var(--graphite);
+    transform: scaleX(0);
+    transform-origin: left center;
+    transition: transform var(--t-fast) var(--ease-out);
 }
 
-/* The pulled-forward tab joins the page: it sits proud of the rail and its
-   cap turns to the action colour. */
+@media (hover: hover) and (pointer: fine) {
+    .nav-link:hover {
+        color: var(--ink);
+    }
+}
+
 .nav-link[aria-current="true"],
 .nav-link[aria-current="page"] {
-    background: var(--sheet);
     color: var(--ink);
-    border-color: var(--ink);
-    box-shadow: inset 0 3px 0 var(--rope);
-    transform: translateY(-3px);
-    margin-bottom: 3px;
+}
+
+.nav-link[aria-current="true"]::after,
+.nav-link[aria-current="page"]::after {
+    transform: scaleX(1);
 }
 
 .nav-cta {
     display: flex;
     align-items: center;
     gap: 6px;
-    align-self: center;
-    padding-block: 14px;
-}
-
-.nav-cta .btn-ghost {
-    color: var(--ink);
 }
 
 .mobile-menu-toggle {
@@ -745,22 +1033,21 @@ p {
     justify-content: center;
     align-items: center;
     gap: 5px;
-    align-self: center;
-    border: 1px solid var(--ink);
-    border-radius: 2px;
-    background: var(--folder-tab);
+    border: 1px solid var(--rule-strong);
+    border-radius: var(--radius-control);
+    background: transparent;
 }
 
 .mobile-menu-toggle span {
     display: block;
-    width: 20px;
-    height: 2px;
-    background: var(--ink);
+    width: 18px;
+    height: 1.75px;
+    background: var(--graphite);
     transition: transform var(--t-fast) ease, opacity var(--t-fast) ease;
 }
 
 .mobile-menu-toggle[aria-expanded="true"] span:nth-child(1) {
-    transform: translateY(7px) rotate(45deg);
+    transform: translateY(6.75px) rotate(45deg);
 }
 
 .mobile-menu-toggle[aria-expanded="true"] span:nth-child(2) {
@@ -768,248 +1055,179 @@ p {
 }
 
 .mobile-menu-toggle[aria-expanded="true"] span:nth-child(3) {
-    transform: translateY(-7px) rotate(-45deg);
+    transform: translateY(-6.75px) rotate(-45deg);
 }
 
 /* ========================================================================= */
-/* 7. HERO — THE FOLDER, OPENED                                              */
+/* 7. HERO                                                                   */
 /* ========================================================================= */
 
 .hero {
-    position: relative;
-    background: var(--folder);
-    padding-block: clamp(56px, 7vw, 96px) clamp(56px, 7vw, 92px);
-    overflow: hidden;
-}
-
-/* The folder's own creases. Two long, near-invisible folds that stop the
-   goldenrod field reading as a flat swatch. */
-.hero::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background:
-        linear-gradient(180deg, rgba(43, 29, 14, 0.1), transparent 20%),
-        radial-gradient(120% 82% at 76% 4%, rgba(255, 255, 255, 0.22), transparent 58%);
-    pointer-events: none;
+    padding-block: clamp(52px, 6vw, 84px) clamp(52px, 6vw, 80px);
 }
 
 .hero-inner {
-    position: relative;
     display: grid;
-    grid-template-columns: minmax(0, 0.94fr) minmax(0, 1.06fr);
-    gap: clamp(32px, 5vw, 76px);
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+    gap: clamp(40px, 5vw, 72px);
     align-items: center;
 }
 
+/* The sheet's title block, across the full measure. */
+.hero-slug {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    padding-bottom: 12px;
+    margin-bottom: clamp(28px, 3vw, 44px);
+    border-bottom: 2px solid var(--graphite);
+    color: var(--ink-3);
+}
+
+.hero-slug-no {
+    margin-left: auto;
+}
+
 .hero-content h1 {
-    margin-bottom: 22px;
+    margin-bottom: 20px;
+    max-width: 19ch;
 }
 
 .hero-subtitle {
     font-size: 1.125rem;
-    color: var(--ink-soft);
-    max-width: 44ch;
-    margin-bottom: 34px;
-}
-
-/* The action sits on a signature rule, because that is where an action sits
-   on a form. */
-.hero-action {
-    position: relative;
-    padding-top: 26px;
-    border-top: 2px solid var(--ink);
-    max-width: 44ch;
-}
-
-.hero-action::before {
-    content: '';
-    position: absolute;
-    top: -2px;
-    left: 0;
-    width: 92px;
-    height: 6px;
-    background: var(--rope);
+    color: var(--ink-2);
+    max-width: 48ch;
+    margin-bottom: 30px;
 }
 
 .hero-buttons {
     display: flex;
     flex-wrap: wrap;
-    gap: 12px;
-    margin-bottom: 16px;
+    gap: 10px;
+    margin-bottom: 18px;
 }
 
-/* Not red: by this page's own law red means action or attention, and a note
-   about pricing is neither. */
 .hero-note {
     font-size: 0.9375rem;
-    color: var(--ink-soft);
-    max-width: 42ch;
+    color: var(--ink-3);
+    max-width: 44ch;
 }
 
-/* --- The exhibit: the top sheet, punched and held on the prong ----------- */
+/* --- The hero figure and its assembly motion ---------------------------- */
 
+/*
+ * `width: 100%` is load-bearing, not belt-and-braces.
+ *
+ * A grid item with `margin-inline: auto` loses `justify-self: stretch` and sizes
+ * to fit-content instead — which collapsed this figure to 309px inside its own
+ * 540px column, because an SVG with no width attribute has no content width to
+ * fit. The explicit width restores the column; the auto margins then only do
+ * something once the hero is a single column and the cap applies.
+ */
 .hero-visual {
-    position: relative;
-    padding-top: 26px;
+    margin: 0;
+    width: 100%;
+    max-width: 560px;
+    margin-inline: auto;
 }
 
-.prong {
-    position: absolute;
-    top: 0;
-    left: 12%;
-    right: 12%;
-    height: 26px;
-    display: flex;
-    justify-content: space-between;
-    z-index: 3;
-    pointer-events: none;
+.hero-visual svg {
+    width: 100%;
+    height: auto;
+}
+
+.f1--mobile {
+    display: none;
 }
 
 /*
- * The tine and the hole it passes through are drawn on the SAME element, so
- * they cannot drift apart. They used to be positioned separately — the tine
- * against `.hero-visual`, the hole against `.sheet-head` inside the sheet's own
- * 14px padding — which put them 22px apart at 1440, with the fastener missing
- * the paper in the one place the world is stated literally.
+ * "Parts seat into position."
+ *
+ * Each plate enters from above its own exploded resting place and seats there —
+ * it does NOT collapse into the base plate, because the exploded arrangement is
+ * the figure. Bottom-up, 60ms apart, so the assembly reads as building.
  */
-.prong span {
-    position: relative;
-    width: 15px;
-    height: 26px;
-    border-radius: 2px 2px 0 0;
-    /* Across the tine, not down it: a cylinder catches its highlight on one
-       side, which is what makes it read as metal rather than as a grey box. */
-    background: linear-gradient(90deg, #6c675e, #cfc9bd 24%, #f4f0e8 40%, #9a948a 66%, #67625a);
-    box-shadow: 0 2px 3px rgba(43, 29, 14, 0.4);
+@media (prefers-reduced-motion: no-preference) {
+    .f1-plate {
+        opacity: 0;
+        transform: translateY(-22px);
+    }
+
+    .f1-seated .f1-plate {
+        opacity: 1;
+        transform: none;
+        transition: opacity 0.28s var(--ease-seat), transform 0.28s var(--ease-seat);
+        transition-delay: calc(var(--f1-i, 0) * 60ms);
+    }
+
+    .f1-axis,
+    .f1-leader {
+        stroke-dasharray: 480;
+        stroke-dashoffset: 480;
+    }
+
+    .f1-seated .f1-axis,
+    .f1-seated .f1-leader {
+        stroke-dashoffset: 0;
+        transition: stroke-dashoffset 0.48s var(--ease-seat);
+        transition-delay: 0.12s;
+    }
+
+    /* The dash-dot centre line's own pattern must come back once it is drawn,
+       or the axis ends up a solid rule. */
+    .f1-seated .f1-axis {
+        animation: f1-axis-dash 0s linear 0.6s forwards;
+    }
+
+    .f1-seal,
+    .f1-dim {
+        opacity: 0;
+    }
+
+    .f1-seated .f1-seal,
+    .f1-seated .f1-dim {
+        opacity: 1;
+        transition: opacity var(--t-slow) var(--ease-out);
+        transition-delay: 0.56s;
+    }
 }
 
-.prong span::after {
-    content: '';
-    position: absolute;
-    top: 19px;
-    left: 50%;
-    width: 15px;
-    height: 15px;
-    transform: translateX(-50%);
-    border-radius: 50%;
-    background: var(--folder);
-    box-shadow: inset 0 2px 3px rgba(43, 29, 14, 0.5), 0 1px 0 rgba(255, 255, 255, 0.5);
-}
-
-/* Two more plies fanned beneath the top sheet: this is a file, not one page. */
-.sheet--exhibit::before,
-.sheet--exhibit::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: var(--sheet-alt);
-    border: 1px solid var(--sheet-edge);
-    border-radius: var(--radius-sheet);
-    z-index: -1;
-}
-
-.sheet--exhibit::before {
-    transform: rotate(-1.15deg) translate(-10px, 8px);
-    box-shadow: var(--lift-2);
-}
-
-.sheet--exhibit::after {
-    transform: rotate(1.4deg) translate(12px, 14px);
-    background: #efe9da;
-    box-shadow: var(--lift-2);
-}
-
-.sheet {
-    position: relative;
-    background: var(--sheet);
-    border: 1px solid var(--sheet-edge);
-    border-radius: var(--radius-sheet);
-    box-shadow: var(--lift-4);
-    isolation: isolate;
-}
-
-.sheet--exhibit {
-    padding: 14px 14px 16px;
-}
-
-.sheet-head {
-    position: relative;
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    gap: 16px;
-    padding: 4px 8px 10px;
-    margin-bottom: 12px;
-    border-bottom: 1px solid var(--sheet-rule);
-    font-size: 0.6875rem;
-    letter-spacing: 0.14em;
-    color: var(--ink-faint);
-}
-
-.sheet-head-title {
-    color: var(--ink);
-}
-
-.sheet-head-no {
-    font-variant-numeric: tabular-nums;
-}
-
-.screenshot {
-    width: 100%;
-    height: auto;
-    border: 1px solid var(--sheet-rule);
-    border-radius: 2px;
-    /* Printed, not projected: the interface belongs to the paper it sits on
-       rather than floating above it as a foreign rectangle. */
-    filter: saturate(0.88) contrast(1.02);
-    mix-blend-mode: multiply;
-}
-
-.screenshot--phone {
-    max-width: 300px;
-    margin-inline: auto;
-    border-radius: 3px;
+@keyframes f1-axis-dash {
+    to {
+        stroke-dasharray: 16 4 2.5 4;
+        stroke-dashoffset: 0;
+    }
 }
 
 /* ========================================================================= */
-/* 8. LOGO STRIP — THE DISTRIBUTION BAND                                     */
+/* 8. LOGO STRIP                                                             */
 /* ========================================================================= */
 
 .logos-section {
-    background: var(--folder);
-    padding-block: 0 clamp(40px, 5vw, 64px);
+    padding-block: 0 clamp(44px, 5vw, 68px);
 }
 
 .logos-title {
-    font-size: 0.75rem;
-    letter-spacing: 0.16em;
-    /* Rope red measures 4.04:1 on folder stock. Labels print in ink. */
-    color: var(--ink);
+    color: var(--ink-3);
     padding-bottom: 12px;
-    border-bottom: 2px solid var(--ink);
-    margin-bottom: 0;
+    border-bottom: 1px solid var(--rule);
     max-width: none;
 }
 
-/* Solid stock, not a 50% wash: a translucent cell over goldenrod was tinting
-   the marks into it. */
 .company-logos-row {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    border: 2px solid var(--ink);
-    border-top: none;
-    background: var(--sheet);
+    border-bottom: 1px solid var(--rule);
 }
 
 .company-logo-item {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 10px;
-    padding: 18px 16px;
-    min-height: 108px;
-    border-right: 1px solid var(--sheet-rule);
+    gap: 8px;
+    padding: 22px 20px;
+    min-height: 96px;
+    border-right: 1px solid var(--rule);
 }
 
 .company-logo-item:last-child {
@@ -1017,252 +1235,155 @@ p {
 }
 
 /*
- * Proof nobody can read is worse than no proof.
- *
- * These are wide lockups that were shipped as square exports padded with empty
- * canvas — True Nation's artwork occupied 56 of its 300 rows. `object-fit:
- * contain` therefore scaled each mark to its padding, leaving about 20px of
- * actual logo in a 320px cell. The files are now cropped to their content and
- * the box is wide, so they use the horizontal room they were drawn for.
- *
- * `multiply` is safe here and was not on the old translucent cell: on solid
- * paper it only darkens, which knocks out the white plate baked into the I&S
- * artwork without touching the dark marks.
+ * The marks are normalised to one optical height and desaturated at rest, so a
+ * row of four unrelated logos reads as one band rather than four competing
+ * brands. Full colour on hover, because a customer's mark deserves to be seen
+ * properly when someone looks at it.
  */
 .company-logo-item img {
     width: 100%;
-    max-width: 210px;
-    height: 64px;
+    max-width: 190px;
+    height: 44px;
     object-fit: contain;
-    filter: contrast(1.04);
-    mix-blend-mode: multiply;
+    filter: grayscale(1);
+    opacity: 0.72;
+    transition: filter var(--t-base) ease, opacity var(--t-base) ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .company-logo-item:hover img {
+        filter: none;
+        opacity: 1;
+    }
 }
 
 .company-logo-wordmark {
     flex-direction: column;
-    gap: 2px;
+    gap: 3px;
 }
 
 .wordmark {
     font-family: var(--font-display);
-    font-size: 1.35rem;
-    font-variation-settings: 'wdth' 82, 'wght' 800;
+    font-size: 1.25rem;
+    font-variation-settings: 'wdth' 100, 'wght' 640;
     letter-spacing: -0.02em;
-    color: var(--ink);
+    color: var(--ink-2);
     line-height: 1;
 }
 
 .wordmark-sub {
-    font-family: var(--font-typed);
+    font-family: var(--font-mono);
+    font-weight: 500;
     font-size: 0.6875rem;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: var(--ink-soft);
+    color: var(--ink-3);
 }
 
 /* ========================================================================= */
-/* 9. PROBLEM — LOOSE DOCUMENTS                                              */
+/* 9. INSPECTION FRAME                                                       */
 /* ========================================================================= */
 
-.problem-section {
-    position: relative;
-    background: var(--folder);
-    padding-block: var(--section-padding-tight) calc(var(--section-padding) + 30px);
+.frame-section {
+    padding-block: var(--section);
 }
 
-/* The fold at the bottom of the folder: below this line, the file is open. */
-.problem-section::after {
-    content: '';
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    height: 34px;
-    background: linear-gradient(180deg, rgba(43, 29, 14, 0), rgba(43, 29, 14, 0.22));
-    pointer-events: none;
-}
-
-.problem-grid {
+.frame-spread {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 26px;
+    grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+    gap: clamp(36px, 5vw, 64px);
     align-items: start;
 }
 
-/* Loose paper, not three identical cards: different plies, different angles,
-   each one sitting where it fell. */
-.problem-card {
-    position: relative;
-    background: var(--sheet);
-    border: 1px solid var(--sheet-edge);
-    /* Room at the foot for the stamp, which lands where a stamp lands. */
-    padding: 30px 26px 66px;
-    box-shadow: var(--lift-3);
-    transition: transform var(--t-normal) var(--ease-place), box-shadow var(--t-normal) ease;
+.frame-list {
+    border-top: 2px solid var(--graphite);
 }
 
-.problem-card:nth-child(1) {
-    transform: rotate(-0.9deg);
-    margin-top: 14px;
+.frame-list-row {
+    display: grid;
+    grid-template-columns: 3rem minmax(0, 1fr);
+    gap: 16px;
+    padding: 20px 0;
+    border-bottom: 1px solid var(--rule);
 }
 
-.problem-card:nth-child(2) {
-    background: var(--sheet-alt);
-    transform: rotate(0.5deg);
+.frame-list-key {
+    color: var(--ink-3);
+    padding-top: 3px;
 }
 
-.problem-card:nth-child(3) {
-    background: #f6f1e4;
-    transform: rotate(-0.35deg);
-    margin-top: 22px;
+.frame-list-row h3 {
+    margin-bottom: 6px;
 }
 
-.problem-card:hover {
-    transform: rotate(0deg) translateY(-4px);
-    box-shadow: var(--lift-4);
-}
-
-.problem-card h3 {
-    margin-bottom: 10px;
-}
-
-.problem-card p {
+.frame-list-row p {
     font-size: 1rem;
-}
-
-/* The stamp lands in the corner of the scrap, at the angle a hand would —
-   below the text, never across it. */
-.scrap-tag {
-    position: absolute;
-    bottom: 20px;
-    right: 22px;
-    padding: 4px 10px;
-    font-size: 0.6875rem;
-    letter-spacing: 0.16em;
-    color: var(--rope);
-    border: 2px solid var(--rope);
-    border-radius: 2px;
-    transform: rotate(-7deg);
-    opacity: 0.85;
-    background: rgba(250, 247, 240, 0.7);
-    max-width: none;
+    color: var(--ink-2);
 }
 
 /* ========================================================================= */
-/* 10. PLATFORM — THE MANIFEST                                               */
+/* 10. PLATFORM — SPECIFICATION ROWS                                         */
 /* ========================================================================= */
 
 .features-section {
-    background: var(--sheet);
-    padding-block: var(--section-padding);
+    padding-block: var(--section);
 }
 
-.features-section,
-.story-section,
-.compare-section,
-.news-section,
-.faq-section {
-    position: relative;
+.spec-list {
+    border-top: 2px solid var(--graphite);
 }
 
-.manifest {
-    position: relative;
-    border-top: 2px solid var(--ink);
-}
-
-/* The red margin rule of ruled stock, running the height of the manifest. */
-.manifest-rule {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    left: clamp(12px, 3.5vw, 46px);
-    width: 1px;
-    background: var(--rope);
-    opacity: 0.34;
-}
-
-.manifest-row {
+.spec-row {
     display: grid;
-    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.5fr);
-    gap: clamp(20px, 4vw, 56px);
-    padding: 30px 0 30px clamp(28px, 6vw, 82px);
-    border-bottom: 1px solid var(--sheet-rule);
+    grid-template-columns: 3.5rem minmax(0, 14rem) minmax(0, 1fr);
+    gap: clamp(16px, 3vw, 36px);
+    padding: 26px 0;
+    border-bottom: 1px solid var(--rule);
     transition: background-color var(--t-fast) ease;
 }
 
-.manifest-row:hover {
-    background: rgba(226, 167, 46, 0.09);
+@media (hover: hover) and (pointer: fine) {
+    .spec-row:hover {
+        background: var(--paper-2);
+    }
+
+    /* `--ink-3` fails on `--paper-2`; axe never sees a hover state, so this is
+       reasoned rather than measured by the gate. See the token note in §1. */
+    .spec-row:hover .spec-index {
+        color: var(--ink-2);
+    }
 }
 
-.manifest-row--lead {
-    padding-block: 40px 44px;
+.spec-index {
+    color: var(--ink-3);
+    padding-top: 5px;
 }
 
-/* The exhibit belongs to the whole row, not to the narrow value column, which
-   left the key column standing empty beside a squeezed screenshot. */
-.manifest-row--lead .manifest-value {
-    display: contents;
+.spec-key h3 {
+    font-size: 1.1875rem;
 }
 
-.manifest-row--lead .manifest-value p {
-    grid-column: 2;
-}
-
-.manifest-row--lead .exhibit {
-    grid-column: 1 / -1;
-}
-
-.manifest-key h3 {
-    font-size: clamp(1.2rem, 1.9vw, 1.6rem);
-    font-variation-settings: 'wdth' 90, 'wght' 750;
-}
-
-.manifest-value p {
+.spec-value p {
     font-size: 1.0625rem;
+    color: var(--ink-2);
 }
 
-.manifest-row--lead .manifest-value p {
-    font-size: 1.125rem;
+/* The row that carries an exhibit gives it the full width under the three
+   columns rather than squeezing it into the value column. */
+.spec-row--exhibit .spec-value {
+    display: grid;
+    gap: 24px;
 }
 
-/* The exhibit attached to the lead row. */
-.exhibit {
-    margin-top: 24px;
-    position: relative;
-    background: var(--sheet);
-    border: 1px solid var(--sheet-edge);
-    padding: 10px 10px 6px;
-    box-shadow: var(--lift-3);
-    transform: rotate(-0.5deg);
+.spec-row--exhibit .exhibit {
+    max-width: 720px;
 }
 
-.exhibit img {
-    width: 100%;
-    border: 1px solid var(--sheet-rule);
-    filter: saturate(0.88) contrast(1.02);
-    mix-blend-mode: multiply;
-}
-
-.exhibit figcaption {
-    padding-top: 8px;
-    font-size: 0.6875rem;
-    letter-spacing: 0.12em;
-    color: var(--ink-faint);
-}
-
-/* Demonstration data is labelled as such wherever a visitor could mistake it
-   for a real driver record. The hero caption inherits the darkened folder-ground
-   ink; the story captions sit on paper. Typed voice, at the 11px floor. */
-.hero-visual figcaption,
-.story-visual figcaption,
-.story-figure figcaption {
-    padding-top: 8px;
-    font-family: var(--font-typed);
-    font-weight: 400;
-    text-transform: uppercase;
-    font-size: 0.6875rem;
-    letter-spacing: 0.12em;
-    color: var(--ink-faint);
+.spec-row--figure .spec-value {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 300px);
+    gap: clamp(20px, 3vw, 40px);
+    align-items: start;
 }
 
 /* ========================================================================= */
@@ -1270,121 +1391,120 @@ p {
 /* ========================================================================= */
 
 .story-section {
-    background: var(--sheet);
-    padding-block: clamp(48px, 6vw, 82px) var(--section-padding);
-}
-
-.story-section--alt {
-    background: var(--sheet-alt);
-}
-
-/* The section's own index tab, standing on the edge of the sheet. Same
-   vocabulary as the navigation, because it is the same object. */
-.story-tab {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    min-height: 40px;
-    padding: 8px 22px;
-    margin-bottom: -1px;
-    font-size: 0.75rem;
-    letter-spacing: 0.16em;
-    color: var(--ink);
-    background: var(--folder);
-    border: 1px solid var(--folder-deep);
-    border-bottom: none;
-    border-radius: var(--radius-tab);
-    box-shadow: inset 0 3px 0 var(--rope);
-    max-width: none;
+    padding-block: var(--section-tight) var(--section);
 }
 
 .story {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: clamp(30px, 5vw, 70px);
-    align-items: center;
-    padding-top: clamp(40px, 5vw, 64px);
-    border-top: 2px solid var(--ink);
+    gap: clamp(32px, 5vw, 64px);
+    align-items: start;
 }
 
 .story--reverse .story-text {
     order: 2;
 }
 
-.story-text h2 {
-    margin-bottom: 16px;
-}
-
 .story-text > p {
     font-size: 1.0625rem;
-    margin-bottom: 24px;
+    color: var(--ink-2);
+    margin-bottom: 22px;
 }
 
 .story-list {
     display: grid;
-    gap: 12px;
-    margin-bottom: 28px;
+    gap: 11px;
+    margin-bottom: 26px;
 }
 
 .story-list li {
     display: grid;
-    grid-template-columns: 20px 1fr;
+    grid-template-columns: 18px 1fr;
     gap: 12px;
     align-items: start;
     font-size: 1rem;
-    color: var(--ink-soft);
+    color: var(--ink-2);
 }
 
 .story-list .i {
-    width: 18px;
-    height: 18px;
-    margin-top: 4px;
-    color: var(--verified);
+    width: 16px;
+    height: 16px;
+    margin-top: 5px;
+    color: var(--clear);
 }
 
+/*
+ * The candour block. Held by a drawn `--attend` rule rather than a tinted
+ * panel, because `--attend` means attention and a wash of it behind text would
+ * be decoration.
+ */
 .story-caveat {
-    padding: 18px 20px;
-    background: rgba(69, 52, 140, 0.07);
-    border-left: 1px solid var(--stamp);
+    padding: 4px 0 4px 18px;
+    border-left: 2px solid var(--attend);
     font-size: 0.9375rem;
-    color: var(--ink-soft);
+    color: var(--ink-2);
 }
 
 .story-visual {
-    position: relative;
+    display: grid;
+    gap: 32px;
+    min-width: 0;
 }
 
-/* Every screenshot on this page is a print in a mount, never a rectangle
-   floating on the ground. */
-.story-section .story-visual:not(.story-visual--log),
+/*
+ * The authored figure gets the sheet, not a column.
+ *
+ * Figures 3, 4 and 5 are wide drawings — a time axis, a detail callout, a
+ * sequence. Inside a half-measure column each was squeezed to about 520px and
+ * made its story's two columns differ by 300–400px in height. On the full
+ * measure the drawing is legible and its caption becomes a title block beside
+ * it, which is where a technical drawing keeps its caption anyway.
+ */
 .story-figure {
-    width: fit-content;
-    max-width: 100%;
-    margin-inline: auto;
-    padding: 12px 12px 14px;
-    background: var(--sheet);
-    border: 1px solid var(--sheet-edge);
-    box-shadow: var(--lift-3);
-    transform: rotate(-0.45deg);
+    margin-top: clamp(40px, 4.5vw, 68px);
 }
 
-.story--reverse .story-visual {
-    transform: rotate(0.55deg);
+/*
+ * A drawing holds its scale.
+ *
+ * Stretched to the full 1180 measure these figures rendered at about 1.45x, which
+ * blew their 11-12px labels up past every mono size on the page — the figure
+ * started shouting in a voice the rest of the site does not have. Capped near
+ * 1:1 with the caption as a title block beside it, the drawing and the page speak
+ * at the same size.
+ */
+.story-figure .figure-scroll,
+.story-figure > svg {
+    max-width: 560px;
 }
 
-.story-figure {
-    transform: rotate(0.4deg);
+@media (min-width: 1024px) {
+    .story-figure {
+        display: grid;
+        grid-template-columns: minmax(0, 560px) minmax(0, 1fr);
+        gap: clamp(28px, 3vw, 56px);
+        align-items: start;
+    }
+
+    .story-figure > .figure-caption {
+        margin-top: 0;
+        padding-top: 12px;
+        border-top: 2px solid var(--graphite);
+        max-width: 34ch;
+    }
 }
 
-/* --- The nine steps, completed ones still visible ------------------------ */
+/* --- The nine steps ----------------------------------------------------- */
 
 .steps {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 1px;
-    background: var(--sheet-rule);
-    border: 1px solid var(--sheet-rule);
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    border-top: 2px solid var(--graphite);
     counter-reset: step;
+    margin-bottom: 26px;
 }
 
 .steps li {
@@ -1392,222 +1512,170 @@ p {
     display: flex;
     align-items: center;
     gap: 8px;
-    min-height: 48px;
-    padding: 11px 12px;
-    background: var(--sheet);
+    min-height: 46px;
+    padding: 10px 11px;
+    background: var(--paper);
     font-size: 0.6875rem;
-    letter-spacing: 0.06em;
-    color: var(--ink-faint);
+    letter-spacing: 0.03em;
     text-transform: none;
-    transition: background-color 0.4s ease, color 0.4s ease;
+    color: var(--ink-3);
+    transition: color 0.4s ease, background-color 0.4s ease;
 }
 
+/* `--ink-3`, not `--rule-strong`: a step number is a number someone reads, and
+   #C3C7C3 measures 1.9:1 on paper. A rule token never carries a word. */
 .steps li::before {
-    content: counter(step);
-    display: grid;
-    place-items: center;
-    width: 20px;
-    height: 20px;
+    content: counter(step, decimal-leading-zero);
     flex: none;
-    border: 1px solid var(--sheet-edge);
-    border-radius: 50%;
-    font-size: 0.6875rem;
+    color: var(--ink-3);
     font-variant-numeric: tabular-nums;
-    color: var(--ink-faint);
-    transition: background-color 0.4s ease, border-color 0.4s ease, color 0.4s ease;
+    transition: color 0.4s ease;
 }
 
 .steps li[data-done="true"] {
     color: var(--ink);
-    background: rgba(29, 91, 65, 0.07);
+    background: var(--clear-soft);
 }
 
 .steps li[data-done="true"]::before {
-    content: '';
-    background: var(--verified) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4.5 12.5 10 18 19.5 6.5' fill='none' stroke='%23ffffff' stroke-width='3' stroke-linecap='square'/%3E%3C/svg%3E") center/13px no-repeat;
-    border-color: var(--verified);
+    color: var(--clear);
 }
 
-/* --- The signature block ------------------------------------------------ */
+/* --- The row board (previous-employment activity) ------------------------ */
 
-/* The right inset is the seal's berth. Without it the signature rule runs the
-   full width and strikes the word SEALED through, so the page's own seal reads
-   cancelled. */
-.signature-block {
-    position: relative;
-    padding: 26px 196px 22px 24px;
-    background: var(--sheet);
-    border: 1px solid var(--sheet-edge);
-    box-shadow: var(--lift-2);
+/*
+ * An activity record reads as what it is: fixed columns of timestamped rows,
+ * mono, tabular. Not four cards claiming a trail exists.
+ */
+.board {
+    border: 1px solid var(--rule);
+    border-top: 2px solid var(--graphite);
+    background: var(--fig-face-lit);
+    min-width: 0;
 }
 
-.signature-mark {
-    width: 190px;
-    height: 44px;
-    color: var(--stamp);
-    margin-bottom: 4px;
-}
-
-.signature-rule {
-    padding-top: 8px;
-    border-top: 1px solid var(--ink);
-    font-size: 0.6875rem;
-    letter-spacing: 0.14em;
-    color: var(--ink-faint);
-    max-width: none;
-}
-
-.signature-seal {
-    position: absolute;
-    right: 20px;
-    bottom: 26px;
+.board-head {
     display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 14px;
-    font-size: 0.75rem;
-    letter-spacing: 0.16em;
-    color: var(--verified);
-    border: 2px solid var(--verified);
-    border-radius: 2px;
-    transform: rotate(-6deg);
+    justify-content: space-between;
+    gap: 12px;
+    padding: 11px 14px;
+    background: var(--paper-2);
+    border-bottom: 1px solid var(--rule);
+    /* `--ink-2`, not `--ink-3`: this row is a recessed ground. See §1. */
+    color: var(--ink-2);
     max-width: none;
 }
 
-.signature-seal .i {
-    width: 16px;
-    height: 16px;
-}
-
-/* --- The activity record ------------------------------------------------ */
-
-.story-visual--log {
+.board-rows {
     display: grid;
-    gap: 22px;
 }
 
-.logbook {
-    background: var(--kraft);
-    border: 1px solid var(--kraft-rule);
-    padding: 18px 20px 16px;
-    box-shadow: var(--lift-3);
+.board-row {
+    display: grid;
+    grid-template-columns: 6.5rem minmax(0, 1fr) minmax(0, 9rem);
+    gap: 12px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--rule);
+    font-size: 0.6875rem;
+    letter-spacing: 0.02em;
     text-transform: none;
-    letter-spacing: 0;
+    color: var(--ink-2);
 }
 
-.logbook-head {
-    font-size: 0.6875rem;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--ink-on-kraft-soft);
-    padding-bottom: 10px;
-    margin-bottom: 10px;
-    border-bottom: 1px solid var(--kraft-rule);
+.board-row > span {
+    /* Each cell fades in on its own beat, left to right, so the record reads as
+       something that accumulated rather than something that was drawn. */
+    opacity: 1;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .board:not([data-cascaded="true"]) .board-row > span {
+        opacity: 0;
+    }
+
+    .board[data-cascaded="true"] .board-row > span {
+        opacity: 1;
+        transition: opacity var(--t-base) var(--ease-out);
+    }
+}
+
+.board-row .t {
+    color: var(--ink-3);
+}
+
+.board-row .e {
+    color: var(--ink);
+}
+
+.board-row .e[data-state="verified"] {
+    color: var(--clear);
+}
+
+.board-row .d {
+    color: var(--ink-3);
+    text-align: right;
+}
+
+.board-foot {
+    padding: 10px 14px;
+    color: var(--ink-3);
     max-width: none;
-}
-
-.logbook-lines {
-    display: grid;
-    gap: 7px;
-    font-size: 0.8125rem;
-    font-variant-numeric: tabular-nums;
-}
-
-.logbook-lines li {
-    display: grid;
-    grid-template-columns: 96px minmax(0, 1fr);
-    gap: 4px 14px;
-    color: var(--ink-on-kraft);
-}
-
-/* Dates are violet. These are the only audit dates on the page, so this is
-   where the law has to hold — in the lit value, because #45348c on kraft
-   measures 1.66:1. */
-.logbook-lines .t {
-    color: var(--stamp-lit);
-}
-
-.logbook-lines .e {
-    color: var(--ink-on-kraft);
-}
-
-.logbook-lines .e[data-state="verified"] {
-    color: #6fd3a4;
-}
-
-.logbook-lines .d {
-    grid-column: 2;
-    color: var(--ink-on-kraft-soft);
-    font-size: 0.75rem;
-}
-
-.logbook-foot {
-    margin-top: 12px;
-    padding-top: 10px;
-    border-top: 1px solid var(--kraft-rule);
     font-size: 0.6875rem;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--ink-on-kraft-soft);
-    max-width: none;
-}
-
-.story-figure {
-    position: relative;
+    letter-spacing: 0.05em;
 }
 
 /* ========================================================================= */
-/* 12. TRUST BAND — KRAFT BOARD                                              */
+/* 12. TRUST BAND                                                            */
 /* ========================================================================= */
 
 .trust-section {
-    position: relative;
-    background: var(--kraft);
-    padding-block: var(--section-padding);
-    color: var(--ink-on-kraft-soft);
-}
-
-.trust-section::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background:
-        repeating-linear-gradient(103deg, rgba(255, 255, 255, 0.022) 0 2px, transparent 2px 7px),
-        radial-gradient(90% 60% at 20% 0%, rgba(240, 193, 79, 0.09), transparent 62%);
-    pointer-events: none;
+    background: var(--graphite);
+    color: var(--ink-on-dark-2);
+    padding-block: var(--section);
 }
 
 .trust-grid {
-    position: relative;
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 0;
-    border-top: 1px solid var(--kraft-rule);
+    border-top: 1px solid var(--rule-on-dark);
 }
 
 .trust-card {
-    padding: 34px 40px 34px 0;
-    border-bottom: 1px solid var(--kraft-rule);
+    display: grid;
+    grid-template-columns: 3rem minmax(0, 1fr);
+    gap: 16px;
+    padding: 28px 40px 28px 0;
+    border-bottom: 1px solid var(--rule-on-dark);
 }
 
 .trust-card:nth-child(odd) {
-    border-right: 1px solid var(--kraft-rule);
-    padding-right: 48px;
+    border-right: 1px solid var(--rule-on-dark);
+    padding-right: 44px;
 }
 
 .trust-card:nth-child(even) {
-    padding-left: 48px;
+    padding-left: 44px;
     padding-right: 0;
 }
 
+.trust-index {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 0.75rem;
+    letter-spacing: 0.06em;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink-on-dark-3);
+    padding-top: 4px;
+}
+
 .trust-card h3 {
-    color: var(--ink-on-kraft);
-    margin-bottom: 10px;
+    color: var(--ink-on-dark);
+    margin-bottom: 8px;
 }
 
 .trust-card p {
     font-size: 1rem;
-    color: var(--ink-on-kraft-soft);
+    color: var(--ink-on-dark-2);
 }
 
 /* ========================================================================= */
@@ -1615,74 +1683,66 @@ p {
 /* ========================================================================= */
 
 .compare-section {
-    background: var(--sheet);
-    padding-block: var(--section-padding);
+    padding-block: var(--section);
 }
 
 .compare-table-wrapper {
     overflow-x: auto;
-    border: 2px solid var(--ink);
-    background: var(--sheet);
-    box-shadow: var(--lift-2);
 }
 
 .compare-table {
     width: 100%;
-    min-width: 700px;
+    min-width: 680px;
     border-collapse: collapse;
     font-size: 0.9375rem;
 }
 
 .compare-table th,
 .compare-table td {
-    padding: 15px 20px;
+    padding: 15px 18px;
     text-align: left;
-    border-bottom: 1px solid var(--sheet-rule);
-    border-right: 1px solid var(--sheet-rule);
-}
-
-.compare-table th:last-child,
-.compare-table td:last-child {
-    border-right: none;
-}
-
-.compare-table tbody tr:last-child th,
-.compare-table tbody tr:last-child td {
-    border-bottom: none;
+    border-bottom: 1px solid var(--rule-strong);
 }
 
 .compare-table thead th {
-    font-family: var(--font-typed);
-    font-size: 0.6875rem;
-    letter-spacing: 0.13em;
-    text-transform: uppercase;
     color: var(--ink);
-    background: var(--sheet-alt);
-    border-bottom: 2px solid var(--ink);
+    background: var(--paper-2);
+    border-top: 2px solid var(--graphite);
+    border-bottom: 1px solid var(--rule-strong);
     vertical-align: bottom;
 }
 
 .compare-table tbody th {
     font-family: var(--font-display);
-    font-variation-settings: 'wdth' 96, 'wght' 660;
+    font-variation-settings: 'wdth' 100, 'wght' 560;
     color: var(--ink);
     width: 30%;
 }
 
 .compare-table td {
-    color: var(--ink-faint);
+    color: var(--ink-3);
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    letter-spacing: 0.01em;
 }
 
-/* The column that matters is the one printed on folder stock. */
+/* The column that matters is marked by a drawn rule, not a colour fill. */
 .compare-table .highlight-col {
-    background: rgba(226, 167, 46, 0.2);
+    border-left: 2px solid var(--graphite);
+    border-right: 2px solid var(--graphite);
     color: var(--ink);
-    font-variation-settings: 'wdth' 100, 'wght' 640;
+    font-weight: 500;
 }
 
-.compare-table thead .highlight-col {
-    background: var(--folder);
-    color: var(--ink);
+.compare-table tbody tr:last-child .highlight-col {
+    border-bottom: 2px solid var(--graphite);
+}
+
+/* Stacked below 768: a table that scrolls sideways is a table nobody on a phone
+   reads, so each capability becomes its own small ruled block. The scrollable
+   wrapper stays in the markup as the fallback. */
+.compare-stack {
+    display: none;
 }
 
 /* ========================================================================= */
@@ -1690,131 +1750,119 @@ p {
 /* ========================================================================= */
 
 .pricing-section {
-    background: var(--folder);
-    padding-block: var(--section-padding);
+    padding-block: var(--section);
 }
 
 .pricing-cards {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 28px;
-    /* Equal height, so the two actions land on the same line. */
+    gap: clamp(24px, 3vw, 40px);
     align-items: stretch;
 }
 
-/* Each plan is a filled-in form, not a card with a shadow. */
+/* Each plan is a specification table, not a card with a shadow. */
 .price-card {
     position: relative;
     display: flex;
     flex-direction: column;
-    background: var(--sheet);
-    border: 2px solid var(--ink);
-    padding: 34px 30px 30px;
-    box-shadow: var(--lift-3);
+    border-top: 2px solid var(--graphite);
+    padding-top: 22px;
 }
 
+/* The recommended plan is marked by a drawn leading rule and a typed tag flush
+   to it. No floating badge pill. */
 .price-card--premium {
-    background: var(--sheet);
-    box-shadow: var(--lift-4);
+    padding-left: 22px;
+    border-left: 2px solid var(--graphite);
+}
+
+.price-tag {
+    color: var(--ink-3);
+    margin-bottom: 12px;
+    max-width: none;
 }
 
 .price-head {
     padding-bottom: 20px;
     margin-bottom: 20px;
-    border-bottom: 2px solid var(--ink);
+    border-bottom: 1px solid var(--rule);
 }
 
 .price-head h3 {
-    font-size: 1.3rem;
+    font-size: 1.1875rem;
     margin-bottom: 14px;
 }
 
 .price {
     display: flex;
     align-items: baseline;
-    gap: 2px;
+    gap: 1px;
     color: var(--ink);
-    font-variant-numeric: tabular-nums;
     max-width: none;
 }
 
 .currency {
     font-family: var(--font-display);
-    font-size: 1.5rem;
-    font-variation-settings: 'wdth' 90, 'wght' 700;
+    font-size: 1.375rem;
+    font-variation-settings: 'wdth' 100, 'wght' 560;
     align-self: flex-start;
-    padding-top: 6px;
+    padding-top: 8px;
 }
 
 .amount {
-    font-family: var(--font-display);
-    font-size: clamp(3.2rem, 6vw, 4.4rem);
-    font-variation-settings: 'wdth' 82, 'wght' 800;
-    letter-spacing: -0.045em;
-    line-height: 0.9;
+    font-family: var(--font-mono);
+    font-size: clamp(2.75rem, 5vw, 3.75rem);
+    font-weight: 500;
+    letter-spacing: -0.03em;
+    line-height: 0.95;
 }
 
 .period {
-    font-family: var(--font-typed);
-    font-size: 0.8125rem;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--ink-faint);
+    color: var(--ink-3);
     margin-left: 8px;
+    max-width: none;
 }
 
 .plan-desc {
     font-size: 1rem;
+    color: var(--ink-2);
     margin-bottom: 22px;
 }
 
+/* `align-content: start` so the shorter plan's rows keep their own rhythm
+   instead of being stretched apart to fill the taller card. `flex: 1` still
+   collects the slack at the bottom, so both actions land on one line. */
 .plan-features {
     display: grid;
-    gap: 11px;
-    margin-bottom: 30px;
+    align-content: start;
+    gap: 10px;
+    margin-bottom: 28px;
     flex: 1;
 }
 
 .plan-features li {
     display: grid;
-    grid-template-columns: 18px 1fr;
+    grid-template-columns: 16px 1fr;
     gap: 11px;
     align-items: start;
     font-size: 0.9375rem;
-    color: var(--ink-soft);
+    color: var(--ink-2);
 }
 
 .plan-features .i {
-    width: 16px;
-    height: 16px;
-    margin-top: 4px;
-    color: var(--verified);
-}
-
-/* Stamped on, at the angle a hand would. */
-.badge {
-    position: absolute;
-    top: 18px;
-    right: -6px;
-    padding: 6px 14px;
-    font-size: 0.6875rem;
-    letter-spacing: 0.16em;
-    color: var(--rope);
-    background: var(--sheet);
-    border: 2px solid var(--rope);
-    border-radius: 2px;
-    transform: rotate(-6deg);
-    box-shadow: var(--lift-1);
-    max-width: none;
+    width: 14px;
+    height: 14px;
+    margin-top: 5px;
+    color: var(--clear);
 }
 
 .pricing-footnote {
-    margin-top: 30px;
-    padding-top: 20px;
-    border-top: 1px solid var(--folder-deep);
+    margin-top: 32px;
+    padding-top: 18px;
+    border-top: 1px solid var(--rule);
     font-size: 0.9375rem;
-    color: var(--ink-soft);
-    max-width: 74ch;
+    color: var(--ink-3);
+    max-width: 76ch;
 }
 
 /* ========================================================================= */
@@ -1822,16 +1870,15 @@ p {
 /* ========================================================================= */
 
 .faq-section {
-    background: var(--sheet-alt);
-    padding-block: var(--section-padding);
+    padding-block: var(--section);
 }
 
 .faq-accordion {
-    border-top: 2px solid var(--ink);
+    border-top: 2px solid var(--graphite);
 }
 
 .faq-row {
-    border-bottom: 1px solid var(--sheet-rule);
+    border-bottom: 1px solid var(--rule);
 }
 
 .faq-heading {
@@ -1845,30 +1892,22 @@ p {
     align-items: center;
     justify-content: space-between;
     gap: 22px;
-    padding: 24px 4px;
+    padding: 22px 2px;
     text-align: left;
     font-family: var(--font-display);
-    font-size: clamp(1.0625rem, 1.6vw, 1.25rem);
-    font-variation-settings: 'wdth' 96, 'wght' 700;
-    letter-spacing: -0.015em;
+    font-size: clamp(1.0625rem, 1.5vw, 1.1875rem);
+    font-variation-settings: 'wdth' 100, 'wght' 560;
+    letter-spacing: -0.01em;
     color: var(--ink);
     transition: color var(--t-fast) ease;
 }
 
-.faq-question:hover {
-    color: var(--rope);
-}
-
-/* A drawer pull, not a chevron: it opens like the thing it belongs to. */
+/* A drawn plus that becomes a minus. Two hairlines, no chevron, no circle. */
 .indicator {
     position: relative;
     flex: none;
-    width: 34px;
-    height: 34px;
-    border: 1px solid var(--ink);
-    border-radius: 2px;
-    background: var(--sheet);
-    transition: background-color var(--t-fast) ease;
+    width: 24px;
+    height: 24px;
 }
 
 .indicator::before,
@@ -1878,24 +1917,20 @@ p {
     top: 50%;
     left: 50%;
     width: 14px;
-    height: 2px;
-    background: var(--ink);
+    height: 1.75px;
+    background: var(--ink-3);
     transform: translate(-50%, -50%);
-    transition: transform var(--t-normal) var(--ease-place), opacity var(--t-fast) ease;
+    transition: transform var(--t-base) var(--ease-out), opacity var(--t-fast) ease,
+        background-color var(--t-fast) ease;
 }
 
 .indicator::after {
     transform: translate(-50%, -50%) rotate(90deg);
 }
 
-.faq-question[aria-expanded="true"] .indicator {
-    background: var(--rope);
-    border-color: var(--rope);
-}
-
 .faq-question[aria-expanded="true"] .indicator::before,
 .faq-question[aria-expanded="true"] .indicator::after {
-    background: #fff;
+    background: var(--graphite);
 }
 
 .faq-question[aria-expanded="true"] .indicator::after {
@@ -1903,22 +1938,31 @@ p {
     opacity: 0;
 }
 
+/*
+ * The answer keeps the `hidden` attribute — that is the accessibility hardening
+ * this page was fixed to have, and `[hidden] { display: none !important }` above
+ * makes it actually win. `display: none` cannot be transitioned, so the reveal
+ * is a keyframe applied when the answer becomes visible, NOT a
+ * `grid-template-rows: 0fr → 1fr` animation, which cannot coexist with `hidden`.
+ * Recorded here so it is not "fixed" later by someone who does not know why.
+ */
 .faq-answer {
-    padding: 0 4px 26px;
-    animation: sheet-out 0.28s var(--ease-place);
+    padding: 0 2px 24px;
+    animation: seat-in var(--t-slow) var(--ease-out);
 }
 
 .faq-answer p {
     font-size: 1.0625rem;
+    color: var(--ink-2);
     max-width: 72ch;
     padding-left: 18px;
-    border-left: 1px solid var(--rope);
+    border-left: 1px solid var(--rule-strong);
 }
 
-@keyframes sheet-out {
+@keyframes seat-in {
     from {
         opacity: 0;
-        transform: translateY(-8px);
+        transform: translateY(-4px);
     }
 
     to {
@@ -1932,42 +1976,41 @@ p {
 /*                                                                           */
 /* SHARED WITH THE SERVER-RENDERED BLOG. `/news` and `/news/{slug}` link this */
 /* stylesheet and use every `.news-*` selector below. Removing one here       */
-/* silently unstyles a published article.                                     */
+/* silently unstyles a published article. Nothing in this section may assume  */
+/* the homepage's markup exists.                                             */
 /* ========================================================================= */
 
 .news-section {
-    background: var(--sheet);
-    padding-block: var(--section-padding);
+    padding-block: var(--section);
 }
 
 .news-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 24px;
+    gap: 32px;
     align-items: start;
+    border-top: 2px solid var(--graphite);
+    padding-top: 32px;
 }
 
 /*
- * The waiting and failed states are composed, not left as a line of text across
- * a dead band. They are a slip filed in place of the clippings: same stock,
- * same rule, so the section keeps its shape whether three articles arrive or
- * none do.
+ * The waiting and failed states hold the section's shape. A line of text across
+ * a dead band is what a marketing page does when nobody thought about the
+ * failure case.
  */
 .news-loading,
 .news-empty {
     grid-column: 1 / -1;
     display: grid;
     justify-items: start;
-    gap: 10px;
-    padding: 30px 28px 32px;
-    background: var(--sheet-alt);
-    border: 1px solid var(--sheet-rule);
-    border-top: 3px solid var(--ink);
-    font-family: var(--font-typed);
+    gap: 8px;
+    padding: 26px 0 4px;
+    font-family: var(--font-mono);
+    font-weight: 500;
     font-size: 0.8125rem;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.05em;
     text-transform: uppercase;
-    color: var(--ink-soft);
+    color: var(--ink-3);
     max-width: none;
 }
 
@@ -1975,188 +2018,276 @@ p {
     display: none;
 }
 
-/* Inside the slip the link is a link, not a second button competing with the
-   section's own call to action. */
 .news-empty .news-read-more {
     margin-top: 0;
     padding-top: 0;
     text-decoration: underline;
 }
 
-/* A clipping, filed. */
+/* A ruled entry, not a boxed card. */
 .news-card {
     display: flex;
     flex-direction: column;
-    background: var(--sheet);
-    border: 1px solid var(--sheet-rule);
-    border-top: 3px solid var(--ink);
-    box-shadow: var(--lift-2);
-    overflow: hidden;
-    transition: transform var(--t-normal) var(--ease-place), box-shadow var(--t-normal) ease;
-}
-
-.news-card:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--lift-3);
+    gap: 12px;
+    padding-bottom: 4px;
+    border-top: 1px solid var(--rule);
+    padding-top: 18px;
 }
 
 .news-card-image {
     display: block;
     aspect-ratio: 16 / 9;
     overflow: hidden;
-    background: var(--sheet-alt);
-    border-bottom: 1px solid var(--sheet-rule);
+    background: var(--paper-2);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-panel);
 }
 
 .news-card-image img {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    filter: saturate(0.82) contrast(1.03);
-    transition: transform 0.5s var(--ease-place);
-}
-
-.news-card:hover .news-card-image img {
-    transform: scale(1.03);
 }
 
 .news-card-body {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    padding: 22px 20px 24px;
+    gap: 9px;
     flex: 1;
 }
 
 .news-eyebrow {
     font-size: 0.6875rem;
-    letter-spacing: 0.14em;
-    color: var(--rope-deep);
+    letter-spacing: 0.06em;
+    color: var(--attend);
     max-width: none;
 }
 
 .news-card h2,
 .news-card h3 {
     font-size: 1.125rem;
-    line-height: 1.22;
+    line-height: 1.25;
+    font-variation-settings: 'wdth' 100, 'wght' 580;
+    letter-spacing: -0.01em;
 }
 
-.news-card h2 a:hover,
-.news-card h3 a:hover {
-    color: var(--rope);
+@media (hover: hover) and (pointer: fine) {
+
+    .news-card h2 a:hover,
+    .news-card h3 a:hover {
+        text-decoration: underline;
+    }
 }
 
 .news-card-excerpt {
     font-size: 0.9375rem;
-    color: var(--ink-soft);
+    color: var(--ink-2);
 }
 
 .news-meta {
     font-size: 0.6875rem;
-    letter-spacing: 0.1em;
-    color: var(--ink-faint);
-    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.05em;
+    color: var(--ink-3);
     max-width: none;
 }
 
 .news-read-more {
     margin-top: auto;
-    padding-top: 8px;
+    padding-top: 6px;
     font-family: var(--font-display);
     font-size: 0.875rem;
-    font-variation-settings: 'wdth' 100, 'wght' 680;
-    color: var(--rope);
+    font-variation-settings: 'wdth' 100, 'wght' 600;
+    color: var(--draft);
 }
 
-.news-read-more:hover {
-    color: var(--rope-deep);
-    text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+    .news-read-more:hover {
+        text-decoration: underline;
+    }
 }
 
 .news-card a:focus-visible {
-    outline: 3px solid var(--rope);
+    outline: 2px solid var(--draft);
     outline-offset: 2px;
 }
 
 .news-cta {
-    margin-top: 36px;
+    margin-top: 40px;
 }
 
-/* --- Article index and article pages ------------------------------------ */
+/* --- Article index ------------------------------------------------------ */
+
+/* The blog pages have no inner wrapper of their own — `serveBlogPublic` emits
+   the section straight into <main> — so each holds its own measure. */
+.news-index,
+.news-article {
+    padding-inline: max(var(--gutter), calc((100% - var(--measure)) / 2));
+}
 
 .news-index {
-    padding-block: 64px var(--section-padding);
+    padding-block: 56px var(--section);
 }
 
 .news-index-header {
-    padding-bottom: 28px;
+    padding-bottom: 26px;
     margin-bottom: 40px;
-    border-bottom: 2px solid var(--ink);
+    border-bottom: 2px solid var(--graphite);
 }
 
 .news-index-header h1 {
+    font-size: clamp(2.25rem, 4vw, 3.25rem);
     margin-bottom: 12px;
+    max-width: 24ch;
 }
 
 .news-index-header p {
-    font-size: 1.125rem;
-    color: var(--ink-soft);
+    font-size: 1.0625rem;
+    color: var(--ink-2);
 }
 
-/* The blog pages have no inner wrapper of their own — `serveBlogPublic` emits
-   the section straight into <main> — so the ground runs edge to edge and the
-   measure is held by the section's own padding. Anything else leaves a sheet
-   floating on goldenrod with cut vertical edges. */
-.news-index,
-.news-article {
-    background: var(--sheet);
+/*
+ * The asymmetric index layout is built AROUND `.news-grid`, not instead of it:
+ * a test asserts `.news-grid` still collapses to two columns at 1024 and one at
+ * 768, so its column behaviour must survive. The rail is a sibling.
+ */
+.news-index-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 200px) minmax(0, 1fr);
+    gap: clamp(28px, 4vw, 56px);
+    align-items: start;
 }
 
-.news-index {
-    padding-inline: max(var(--gutter), calc((100% - var(--max-width)) / 2));
+.news-rail {
+    position: sticky;
+    top: 92px;
+    border-top: 2px solid var(--graphite);
+    padding-top: 14px;
 }
 
-.news-article {
-    padding-block: 56px var(--section-padding);
-    padding-inline: max(var(--gutter), calc((100% - 760px) / 2));
-}
-
-.news-article-header {
-    padding-bottom: 26px;
-    margin-bottom: 32px;
-    border-bottom: 2px solid var(--ink);
-}
-
-.news-article-header h1 {
-    font-size: clamp(2.1rem, 4.4vw, 3.2rem);
+.news-rail h2 {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 0.75rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-3);
     margin-bottom: 14px;
 }
 
+.news-rail ul {
+    display: grid;
+    gap: 9px;
+}
+
+.news-rail li {
+    display: grid;
+    grid-template-columns: 2rem minmax(0, 1fr);
+    gap: 8px;
+    font-size: 0.875rem;
+    color: var(--ink-2);
+}
+
+.news-rail .n {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 0.6875rem;
+    letter-spacing: 0.06em;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink-3);
+    padding-top: 3px;
+}
+
+/* The index's own grid starts without the homepage strip's ruled top, because
+   the header rule above it already does that job. */
+.news-index .news-grid {
+    border-top: none;
+    padding-top: 0;
+}
+
+/* The first entry on the index gets the larger figure. */
+.news-index .news-grid > .news-card:first-child {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    gap: clamp(20px, 3vw, 40px);
+    align-items: start;
+    border-top: 2px solid var(--graphite);
+    padding-bottom: 26px;
+    margin-bottom: 6px;
+}
+
+.news-index .news-grid > .news-card:first-child .news-card-image {
+    order: 2;
+}
+
+.news-index .news-grid > .news-card:first-child h2 {
+    font-size: clamp(1.375rem, 2.2vw, 1.75rem);
+    line-height: 1.18;
+}
+
+/* --- Article page ------------------------------------------------------- */
+
+.news-article {
+    padding-block: 48px var(--section);
+    /* At full width a metadata column sits in the right margin, the way a
+       specification carries its revision block. */
+    display: grid;
+    grid-template-columns: minmax(0, 68ch);
+    justify-content: start;
+    row-gap: 0;
+    column-gap: clamp(32px, 4vw, 64px);
+}
+
+.news-back {
+    margin-bottom: 24px;
+    color: var(--ink-3);
+}
+
+.news-back a {
+    color: var(--draft);
+}
+
+.news-back a:hover {
+    text-decoration: underline;
+}
+
+.news-article-header {
+    padding-bottom: 24px;
+    margin-bottom: 30px;
+    border-bottom: 2px solid var(--graphite);
+}
+
+.news-article-header h1 {
+    font-size: clamp(2rem, 3.6vw, 3rem);
+    margin-bottom: 16px;
+}
+
 .news-article-header .news-meta {
-    color: var(--ink-faint);
+    color: var(--ink-3);
     font-size: 0.75rem;
 }
 
+.news-article-meta {
+    display: none;
+}
+
 .news-figure {
-    margin: 34px 0;
-    border: 1px solid var(--sheet-edge);
-    padding: 10px;
-    background: var(--sheet);
-    box-shadow: var(--lift-2);
+    margin: 32px 0;
+    /* Figures are allowed to break the measure — a drawing is not prose. */
+    width: 100%;
 }
 
 .news-figure img {
     width: 100%;
-    border: 1px solid var(--sheet-rule);
+    border: 1px solid var(--rule-strong);
+    border-radius: var(--radius-panel);
 }
 
 .news-credit {
-    padding-top: 10px;
-    font-family: var(--font-typed);
+    padding-top: 9px;
+    color: var(--ink-3);
     font-size: 0.6875rem;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--ink-faint);
+    letter-spacing: 0.05em;
 }
 
 .news-credit a {
@@ -2165,7 +2296,7 @@ p {
 
 .news-body {
     font-size: 1.0625rem;
-    color: var(--ink-soft);
+    color: var(--ink-2);
 }
 
 .news-body > * + * {
@@ -2173,13 +2304,15 @@ p {
 }
 
 .news-body h2 {
-    font-size: 1.65rem;
-    margin-top: 42px;
+    font-size: 1.625rem;
+    margin-top: 44px;
+    padding-top: 20px;
+    border-top: 1px solid var(--rule);
 }
 
 .news-body h3 {
-    font-size: 1.2rem;
-    margin-top: 32px;
+    font-size: 1.1875rem;
+    margin-top: 30px;
 }
 
 .news-body ul,
@@ -2200,55 +2333,88 @@ p {
 }
 
 .news-body blockquote {
-    padding: 4px 0 4px 22px;
-    border-left: 2px solid var(--rope);
+    padding: 2px 0 2px 20px;
+    border-left: 2px solid var(--graphite);
     font-size: 1.125rem;
     color: var(--ink);
 }
 
 .news-body a {
-    color: var(--rope);
+    color: var(--draft);
     text-decoration: underline;
 }
 
+/* Sources are a numbered mono apparatus, the way a specification cites. */
 .news-sources {
     margin-top: 48px;
-    padding-top: 26px;
-    border-top: 2px solid var(--ink);
+    padding-top: 22px;
+    border-top: 2px solid var(--graphite);
 }
 
 .news-sources h2 {
-    font-family: var(--font-typed);
+    font-family: var(--font-mono);
+    font-weight: 500;
     font-size: 0.75rem;
-    letter-spacing: 0.14em;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: var(--ink);
+    color: var(--ink-3);
     margin-bottom: 14px;
 }
 
-.news-sources li + li {
-    margin-top: 8px;
+.news-sources ol,
+.news-sources ul {
+    list-style: none;
+    counter-reset: source;
+    display: grid;
+    gap: 10px;
 }
 
+/*
+ * A hanging indent, NOT a grid.
+ *
+ * `renderSourceList` emits `<li><a>title</a> — publisher, date</li>`. Making the
+ * li a two-column grid put the anchor in column two and then auto-placed the bare
+ * text node that follows it into column one — a 2.25rem-wide cell — so every
+ * publisher name wrapped one word per line. The number has to stay in the same
+ * text flow as the citation it numbers.
+ */
 .news-sources li {
-    font-size: 0.9375rem;
+    counter-increment: source;
+    font-size: 0.875rem;
+    color: var(--ink-3);
+    padding-bottom: 10px;
+    padding-left: 2.5rem;
+    text-indent: -2.5rem;
+    border-bottom: 1px solid var(--rule);
+}
+
+.news-sources li::before {
+    content: counter(source, decimal-leading-zero);
+    display: inline-block;
+    width: 2.5rem;
+    text-indent: 0;
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 0.6875rem;
+    letter-spacing: 0.06em;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink-3);
 }
 
 .news-sources a {
     word-break: break-word;
-    color: var(--rope);
+    color: var(--draft);
     text-decoration: underline;
 }
 
 .news-about {
     margin-top: 40px;
-    padding: 24px 26px;
-    background: var(--sheet-alt);
-    border: 1px solid var(--sheet-rule);
+    padding-top: 22px;
+    border-top: 1px solid var(--rule);
 }
 
 .news-about h2 {
-    font-size: 1.15rem;
+    font-size: 1.125rem;
     margin-bottom: 8px;
 }
 
@@ -2257,93 +2423,66 @@ p {
 }
 
 .news-about a {
-    color: var(--rope);
+    color: var(--draft);
     text-decoration: underline;
 }
 
 .news-disclaimer {
-    margin-top: 26px;
+    margin-top: 22px;
     font-size: 0.875rem;
-    color: var(--ink-faint);
-}
-
-.news-back {
-    margin-bottom: 26px;
-    font-family: var(--font-typed);
-    font-size: 0.75rem;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-}
-
-.news-back a {
-    color: var(--rope);
-}
-
-.news-back a:hover {
-    text-decoration: underline;
+    color: var(--ink-3);
 }
 
 /* ========================================================================= */
 /* 16b. PRIVACY POLICY                                                       */
 /*                                                                           */
 /* `privacy.html` shares this stylesheet and uses its own four class names.   */
-/* It is the same object as an article: a sheet in the file.                  */
+/* It is the same object as an article: one sheet of the specification.       */
 /* ========================================================================= */
 
 .privacy-hero {
-    background: var(--folder);
-    --ink-soft: #42372b;
-    padding-block: 64px 48px;
-    border-bottom: 2px solid var(--ink);
+    padding-block: 52px 32px;
 }
 
 .privacy-hero h1 {
-    font-size: clamp(2.2rem, 4.6vw, 3.4rem);
-    margin-bottom: 12px;
+    font-size: clamp(2.25rem, 4vw, 3.25rem);
+    margin-bottom: 14px;
 }
 
 .privacy-hero p {
-    font-family: var(--font-typed);
-    font-size: 0.75rem;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--ink-soft);
+    color: var(--ink-3);
+    padding-top: 12px;
+    border-top: 2px solid var(--graphite);
+    max-width: none;
 }
 
 .policy-section {
-    background: var(--sheet);
-    padding-block: 56px var(--section-padding);
-}
-
-.container {
-    width: 100%;
-    max-width: var(--max-width);
-    margin-inline: auto;
-    padding-inline: var(--gutter);
+    padding-block: 40px var(--section);
 }
 
 .policy-content {
-    max-width: 760px;
-    color: var(--ink-soft);
+    max-width: 72ch;
+    color: var(--ink-2);
 }
 
 .policy-content section + section {
-    margin-top: 44px;
-    padding-top: 36px;
-    border-top: 1px solid var(--sheet-rule);
+    margin-top: 40px;
+    padding-top: 32px;
+    border-top: 1px solid var(--rule);
 }
 
 .policy-content h2 {
-    font-size: 1.55rem;
+    font-size: 1.5rem;
     margin-bottom: 14px;
 }
 
 .policy-content h3 {
-    font-size: 1.1rem;
-    margin: 28px 0 10px;
+    font-size: 1.0625rem;
+    margin: 26px 0 10px;
 }
 
-.policy-content p {
+.policy-content p,
+.policy-content li {
     font-size: 1.0625rem;
 }
 
@@ -2366,17 +2505,9 @@ p {
     margin-top: 8px;
 }
 
-.policy-content li {
-    font-size: 1.0625rem;
-}
-
 .policy-content a {
-    color: var(--rope);
+    color: var(--draft);
     text-decoration: underline;
-}
-
-.policy-content a:hover {
-    color: var(--rope-deep);
 }
 
 /* ========================================================================= */
@@ -2384,124 +2515,178 @@ p {
 /* ========================================================================= */
 
 .cta-section {
-    position: relative;
-    background: var(--folder);
-    padding-block: clamp(80px, 9vw, 128px);
-    overflow: hidden;
-}
-
-.cta-section::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(90% 120% at 50% 0%, rgba(255, 255, 255, 0.22), transparent 62%);
-    pointer-events: none;
+    background: var(--graphite);
+    color: var(--ink-on-dark-2);
+    padding-block: clamp(72px, 8vw, 104px);
 }
 
 .cta-inner {
-    position: relative;
-    text-align: center;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: clamp(36px, 5vw, 72px);
+    align-items: start;
+    border-top: 2px solid var(--ink-on-dark);
+    padding-top: 24px;
 }
 
 .cta-inner h2 {
-    font-size: clamp(2.1rem, 4.6vw, 3.4rem);
-    margin-bottom: 16px;
+    color: var(--ink-on-dark);
+    max-width: 22ch;
+    margin-bottom: 14px;
 }
 
-.cta-inner p {
-    font-size: 1.125rem;
-    color: var(--ink-soft);
-    margin: 0 auto 32px;
+.cta-inner > div > p {
+    font-size: 1.0625rem;
+    color: var(--ink-on-dark-2);
     max-width: 46ch;
 }
 
-/* Outranks `.cta-inner p`, which was zeroing the top margin and pulling the
-   rule up through the button. */
-.cta-inner .cta-rule {
-    width: min(420px, 80%);
-    height: 0;
-    margin: 54px auto 0;
-    border-top: 2px solid var(--ink);
-    position: relative;
+.cta-slug {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 0.75rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-on-dark-3);
+    margin-bottom: 18px;
 }
 
-.cta-rule::after {
-    content: 'Authorized signature';
-    position: absolute;
-    top: 10px;
-    left: 0;
-    font-family: var(--font-typed);
-    font-size: 0.6875rem;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--rope-deep);
+.cta-form {
+    display: grid;
+    gap: 14px;
+}
+
+.cta-form .form-group label {
+    color: var(--ink-on-dark-3);
+}
+
+.cta-form .form-group input {
+    background: var(--graphite-2);
+    border-color: var(--rule-on-dark);
+    color: var(--ink-on-dark);
+}
+
+.cta-form .form-group input::placeholder {
+    color: var(--ink-on-dark-3);
+}
+
+.cta-form .form-group input:focus-visible {
+    border-color: var(--ink-on-dark);
+}
+
+.cta-form .form-group input[aria-invalid="true"] {
+    border-color: var(--attend);
+}
+
+.cta-form .field-error {
+    color: #F3A79E;
+}
+
+.cta-form .form-status {
+    color: var(--ink-on-dark-2);
+}
+
+.cta-form .form-status[data-tone="error"] {
+    color: #F3A79E;
+}
+
+.cta-fineprint {
+    font-size: 0.8125rem;
+    color: var(--ink-on-dark-3);
+}
+
+.cta-done {
+    display: grid;
+    gap: 10px;
+    padding-top: 4px;
+}
+
+.cta-done h3 {
+    color: var(--ink-on-dark);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.cta-done .i {
+    width: 20px;
+    height: 20px;
+    color: var(--ink-on-dark);
+}
+
+.cta-done p {
+    font-size: 0.9375rem;
+    color: var(--ink-on-dark-2);
 }
 
 /* ========================================================================= */
-/* 18. FOOTER — THE BACK COVER                                               */
+/* 18. FOOTER                                                                */
+/*                                                                           */
+/* SHARED WITH THE BLOG. Nothing here may assume the homepage's markup.       */
 /* ========================================================================= */
 
 .footer-section {
-    background: var(--kraft);
-    color: var(--ink-on-kraft-soft);
-    padding-block: 72px 0;
+    background: var(--graphite);
+    color: var(--ink-on-dark-2);
+    padding-block: 64px 0;
+    padding-inline: max(var(--gutter), calc((100% - var(--measure)) / 2));
+    border-top: 1px solid var(--rule-on-dark);
 }
 
 .footer-grid {
     display: grid;
-    grid-template-columns: 1.6fr repeat(3, 1fr);
+    grid-template-columns: 1.5fr repeat(3, 1fr);
     gap: 40px;
-    padding-bottom: 52px;
+    padding-bottom: 48px;
 }
 
 .footer-brand p {
     margin-top: 14px;
     font-size: 0.9375rem;
     max-width: 34ch;
-    color: var(--ink-on-kraft-soft);
+    color: var(--ink-on-dark-2);
 }
 
 .footer-section .logo-text {
-    color: var(--ink-on-kraft);
+    color: var(--ink-on-dark);
 }
 
+/* The reversed mark, same optical sizing as the navbar's. */
 .footer-logo {
-    width: 28px;
-    height: 28px;
-    /* The mark is ink + rope, drawn to read on goldenrod. On the kraft footer
-       both fills go dark-on-dark, so lift the whole mark to one warm off-white
-       silhouette that matches the ink-on-kraft wordmark beside it: brightness(0)
-       flattens both fills to black, invert(1) takes them to white, and the light
-       sepia warms that white toward --ink-on-kraft (#f4ecdd). */
-    filter: brightness(0) invert(1) sepia(0.14) saturate(1.15);
+    height: 22px;
+    width: auto;
 }
 
 .footer-links,
 .footer-contact {
     display: flex;
     flex-direction: column;
-    gap: 11px;
+    gap: 10px;
     align-items: flex-start;
 }
 
 .footer-heading {
-    font-size: 0.6875rem;
-    letter-spacing: 0.16em;
-    color: var(--folder-lit);
-    margin-bottom: 3px;
+    color: var(--ink-on-dark-3);
+    padding-bottom: 10px;
+    margin-bottom: 4px;
+    border-bottom: 1px solid var(--rule-on-dark);
+    align-self: stretch;
 }
 
 .footer-links a,
 .footer-contact a,
 .footer-contact .link-button {
     font-size: 0.9375rem;
-    color: var(--ink-on-kraft-soft);
+    color: var(--ink-on-dark-2);
 }
 
-.footer-links a:hover,
-.footer-contact a:hover,
-.footer-contact .link-button:hover {
-    color: var(--folder-lit);
+@media (hover: hover) and (pointer: fine) {
+
+    .footer-links a:hover,
+    .footer-contact a:hover,
+    .footer-contact .link-button:hover {
+        color: var(--ink-on-dark);
+    }
 }
 
 .footer-bottom {
@@ -2509,8 +2694,8 @@ p {
     flex-wrap: wrap;
     justify-content: space-between;
     gap: 14px;
-    padding-block: 24px 30px;
-    border-top: 1px solid var(--kraft-rule);
+    padding-block: 20px 28px;
+    border-top: 1px solid var(--rule-on-dark);
     font-size: 0.875rem;
 }
 
@@ -2519,14 +2704,14 @@ p {
 }
 
 .footer-bottom a:hover {
-    color: var(--folder-lit);
+    color: var(--ink-on-dark);
 }
 
-/* Quieter than the rest of the footer, but on kraft `--ink-faint` measures
-   3.35:1. Secondary is not an excuse to be unreadable. */
+/* Quieter than the rest of the footer, and still 5.4:1 on graphite. Secondary
+   is not an excuse to be unreadable. */
 .footer-disclaimer {
     max-width: 58ch;
-    color: #a9987c;
+    color: var(--ink-on-dark-3);
 }
 
 /* ========================================================================= */
@@ -2540,75 +2725,83 @@ p {
     display: grid;
     place-items: center;
     padding: 20px;
-    background: rgba(43, 29, 14, 0.72);
+    background: rgba(20, 22, 26, 0.66);
     opacity: 0;
     visibility: hidden;
     overflow-y: auto;
-    transition: opacity var(--t-normal) ease, visibility 0s var(--t-normal);
+    transition: opacity var(--t-base) ease, visibility 0s var(--t-base);
 }
 
 .modal-overlay.active {
     opacity: 1;
     visibility: visible;
-    transition: opacity var(--t-normal) ease, visibility 0s;
+    transition: opacity var(--t-base) ease, visibility 0s;
 }
 
 .modal-container {
     position: relative;
     width: 100%;
-    max-width: 500px;
-    background: var(--sheet);
-    border: 2px solid var(--ink);
-    box-shadow: var(--lift-4);
-    padding: 36px 32px 32px;
-    transform: translateY(12px);
-    transition: transform var(--t-normal) var(--ease-place);
+    max-width: 480px;
+    background: var(--paper);
+    border: 1px solid var(--graphite);
+    border-top: 2px solid var(--graphite);
+    border-radius: var(--radius-panel);
+    box-shadow: var(--shade-3);
+    padding: 32px 30px 28px;
+    /* Never scale(0): a dialog that grows from nothing is a dialog that reads
+       as a notification. Modals are exempt from origin-awareness. */
+    transform: scale(0.98);
+    transform-origin: center;
+    opacity: 0;
+    transition: transform var(--t-base) var(--ease-out), opacity var(--t-base) var(--ease-out);
 }
 
 .modal-overlay.active .modal-container {
     transform: none;
+    opacity: 1;
 }
 
 .modal-close {
     position: absolute;
-    top: 8px;
-    right: 8px;
+    top: 6px;
+    right: 6px;
     width: 44px;
     height: 44px;
     display: grid;
     place-items: center;
-    font-size: 1.75rem;
+    font-size: 1.5rem;
     line-height: 1;
-    color: var(--ink-faint);
-    border-radius: 2px;
+    color: var(--ink-3);
+    border-radius: var(--radius-control);
 }
 
-.modal-close:hover {
-    color: var(--rope);
-    background: var(--rope-soft);
+@media (hover: hover) and (pointer: fine) {
+    .modal-close:hover {
+        color: var(--ink);
+        background: var(--paper-3);
+    }
 }
 
 .modal-header {
-    margin-bottom: 24px;
-    padding-bottom: 18px;
-    border-bottom: 2px solid var(--ink);
+    margin-bottom: 22px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--rule);
 }
 
 .modal-step {
-    font-size: 0.6875rem;
-    letter-spacing: 0.16em;
-    color: var(--rope);
+    color: var(--ink-3);
     margin-bottom: 10px;
     max-width: none;
 }
 
 .modal-header h2 {
-    font-size: 1.6rem;
+    font-size: 1.5rem;
     margin-bottom: 8px;
 }
 
 .modal-header p {
     font-size: 0.9375rem;
+    color: var(--ink-2);
 }
 
 .form-step {
@@ -2629,15 +2822,11 @@ p {
 }
 
 .form-group label {
-    font-family: var(--font-typed);
-    font-size: 0.6875rem;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--ink);
+    color: var(--ink-2);
 }
 
 .optional {
-    color: var(--ink-faint);
+    color: var(--ink-3);
 }
 
 .form-group input,
@@ -2648,47 +2837,47 @@ p {
     font-family: var(--font-body);
     font-size: 1rem;
     color: var(--ink);
-    background: #fff;
-    border: 1px solid var(--ink);
-    border-radius: 2px;
-    transition: border-color var(--t-fast) ease, box-shadow var(--t-fast) ease;
+    background: var(--fig-face-lit);
+    border: 1px solid var(--rule-strong);
+    border-radius: var(--radius-control);
+    transition: border-color var(--t-fast) ease;
 }
 
 .form-group input::placeholder {
-    color: var(--ink-faint);
+    color: var(--ink-3);
 }
 
-/* Focus keeps the page's rope outline ring (the global :focus-visible rule),
-   deliberately distinct from the invalid underline below. The old rule set
-   `outline: none` and the same inset underline as invalid, so a focused field
-   looked identical to a failed one — and a keyboard user focusing an
-   already-invalid field got no new signal at all. */
+/* Focus keeps the page's drawn outline ring (the global :focus-visible rule),
+   deliberately distinct from the invalid border below. The outgoing rule set
+   `outline: none` and reused the invalid treatment, so a focused field looked
+   identical to a failed one. */
 .form-group input:focus-visible,
 .form-group select:focus-visible {
-    border-color: var(--rope);
+    border-color: var(--graphite);
 }
 
 .form-group input[aria-invalid="true"],
 .form-group select[aria-invalid="true"] {
-    border-color: var(--rope);
-    box-shadow: inset 0 -3px 0 var(--rope);
+    border-color: var(--attend);
+    border-left-width: 2px;
 }
 
 .field-error {
     font-size: 0.8125rem;
-    color: var(--rope-deep);
+    color: var(--attend);
 }
 
 .form-status {
     margin-top: 12px;
     font-size: 0.875rem;
-    color: var(--ink-soft);
+    color: var(--ink-2);
 }
 
 .form-status[data-tone="error"] {
-    color: var(--rope-deep);
+    color: var(--attend);
 }
 
+/* Positioned off-screen rather than display:none, which some bots skip. */
 .honeypot-field {
     position: absolute;
     left: -9999px;
@@ -2699,68 +2888,87 @@ p {
 
 .modal-fineprint {
     font-size: 0.8125rem;
-    color: var(--ink-faint);
+    color: var(--ink-3);
     text-align: center;
 }
 
 .modal-success {
     display: grid;
     gap: 14px;
-    text-align: center;
 }
 
-.success-icon {
-    display: grid;
-    place-items: center;
-    width: 56px;
-    height: 56px;
-    margin: 0 auto 4px;
-    border: 2px solid var(--verified);
-    border-radius: 50%;
-    color: var(--verified);
+.success-mark {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--clear);
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 0.75rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--rule);
     max-width: none;
 }
 
-.success-icon .i {
-    width: 30px;
-    height: 30px;
+.success-mark .i {
+    width: 18px;
+    height: 18px;
 }
 
 .modal-success h2 {
-    font-size: 1.5rem;
+    font-size: 1.375rem;
 }
 
 .modal-success p {
     max-width: none;
+    font-size: 0.9375rem;
+    color: var(--ink-2);
 }
 
 /* ========================================================================= */
 /* 20. RESPONSIVE                                                            */
 /* ========================================================================= */
 
-@media (max-width: 1100px) {
+@media (max-width: 1180px) {
     .hero-inner {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1fr);
         gap: 44px;
     }
 
     .hero-content h1 {
-        max-width: 14ch;
+        max-width: 22ch;
     }
 
-    .hero-subtitle,
-    .hero-action {
-        max-width: 56ch;
-    }
-
+    /*
+     * `minmax(0, 1fr)`, not `1fr`.
+     *
+     * A bare `1fr` is `minmax(auto, 1fr)`, so the track never shrinks below its
+     * content's min-content width. Figure 2 carries `min-width: 520px` (it scrolls
+     * rather than shrinking below legibility), which forced its collapsed track to
+     * 520px at 390 — pushing the figure off the page, where `overflow-x: hidden`
+     * on the body clipped it into unreachability. Every collapse below has to be
+     * able to reach zero.
+     */
+    .frame-spread,
     .story,
-    .story--reverse .story-text {
-        grid-template-columns: 1fr;
+    .story--reverse .story-text,
+    .cta-inner {
+        grid-template-columns: minmax(0, 1fr);
         order: 0;
     }
 
-    .footer-grid {
-        grid-template-columns: 1fr 1fr;
+    .spec-row--figure .spec-value {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .news-index-layout {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .news-rail {
+        position: static;
     }
 }
 
@@ -2769,30 +2977,32 @@ p {
         grid-template-columns: repeat(2, 1fr);
     }
 
-    .problem-grid {
-        grid-template-columns: 1fr;
-        gap: 18px;
+    .news-index .news-grid > .news-card:first-child .news-card-image {
+        order: 0;
     }
 
-    .problem-card,
-    .problem-card:nth-child(1),
-    .problem-card:nth-child(2),
-    .problem-card:nth-child(3) {
-        transform: none;
-        margin-top: 0;
+    .spec-row {
+        grid-template-columns: 3.5rem minmax(0, 1fr);
     }
 
-    .manifest-row {
-        grid-template-columns: 1fr;
-        gap: 10px;
+    .news-index .news-grid > .news-card:first-child {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .spec-row .spec-value {
+        grid-column: 2;
+    }
+
+    .footer-grid {
+        grid-template-columns: 1fr 1fr;
     }
 }
 
-@media (max-width: 968px) {
+@media (max-width: 900px) {
     .nav-container {
         position: relative;
-        align-items: center;
-        min-height: 68px;
+        gap: 10px;
+        min-height: 62px;
     }
 
     .mobile-menu-toggle {
@@ -2802,46 +3012,48 @@ p {
     .nav-links {
         display: none;
         position: absolute;
-        top: calc(100% + 2px);
+        top: calc(100% + 1px);
         left: 0;
         right: 0;
         flex-direction: column;
         align-items: stretch;
         gap: 0;
-        padding: 10px var(--gutter) 16px;
-        background: var(--folder);
-        border-bottom: 2px solid var(--ink);
-        box-shadow: var(--lift-3);
+        padding: 6px var(--gutter) 14px;
+        background: var(--paper);
+        border-bottom: 2px solid var(--graphite);
+        box-shadow: var(--shade-2);
     }
 
     .nav-links.active {
         display: flex;
     }
 
-    /* On a narrow screen the tab lies on its side: the cap moves to the
-       leading edge and the stack reads as a drawer of files. */
     .nav-links .nav-link {
-        border-radius: 0;
-        border: none;
-        border-bottom: 1px solid var(--folder-deep);
-        background: transparent;
-        box-shadow: inset 3px 0 0 var(--folder-deep);
-        padding-left: 16px;
-        transform: none;
-        margin-bottom: 0;
+        padding-inline: 4px;
+        border-bottom: 1px solid var(--rule);
+        font-size: 1rem;
     }
 
-    .nav-links .nav-link[aria-current="true"],
-    .nav-links .nav-link[aria-current="page"] {
-        background: var(--sheet);
-        box-shadow: inset 3px 0 0 var(--rope);
-        transform: none;
-        margin-bottom: 0;
+    /* Lying on its side, the current-page rule moves to the leading edge. */
+    .nav-links .nav-link::after {
+        left: -6px;
+        right: auto;
+        top: 12px;
+        bottom: 12px;
+        width: 2px;
+        height: auto;
+        transform: scaleY(0);
+        transform-origin: top center;
+    }
+
+    .nav-links .nav-link[aria-current="true"]::after,
+    .nav-links .nav-link[aria-current="page"]::after {
+        transform: scaleY(1);
     }
 
     /*
-     * The blog header emits the same navbar without a toggle. Without this it
-     * would have no navigation at all below 968px. `:has()` is the only way to
+     * The blog header emits this same navbar WITHOUT a toggle. Without this it
+     * would have no navigation at all below 900px. `:has()` is the only way to
      * tell the two headers apart in a stylesheet they share; where it is
      * unsupported the panel simply stays hidden, exactly as before.
      */
@@ -2849,7 +3061,7 @@ p {
         display: flex;
         position: static;
         flex-direction: row;
-        padding: 0 0 0 8px;
+        padding: 0;
         background: none;
         border: none;
         box-shadow: none;
@@ -2859,119 +3071,181 @@ p {
 
     .navbar:not(:has(.mobile-menu-toggle)) .nav-links .nav-link {
         border-bottom: none;
-        box-shadow: inset 0 3px 0 var(--folder-deep);
         white-space: nowrap;
+        font-size: 0.875rem;
+    }
+
+    .navbar:not(:has(.mobile-menu-toggle)) .nav-links .nav-link::after {
+        left: 12px;
+        right: 12px;
+        top: auto;
+        bottom: 10px;
+        width: auto;
+        height: 2px;
+        transform: scaleX(0);
+        transform-origin: left center;
+    }
+
+    .navbar:not(:has(.mobile-menu-toggle)) .nav-links .nav-link[aria-current="page"]::after,
+    .navbar:not(:has(.mobile-menu-toggle)) .nav-links .nav-link[aria-current="true"]::after {
+        transform: scaleX(1);
     }
 
     .nav-cta .btn-ghost {
         display: none;
     }
 
-    /* The action has to survive a 390px header without wrapping into a
-       two-line block the size of the logo. */
-    .nav-container {
-        gap: 10px;
-    }
-
-    .logo-text {
-        font-size: 1.15rem;
-    }
-
     .nav-cta .btn-primary {
         white-space: nowrap;
         padding-inline: 15px;
-        font-size: 0.8125rem;
+        font-size: 0.875rem;
     }
 
     .trust-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1fr);
     }
 
     .trust-card,
     .trust-card:nth-child(odd),
     .trust-card:nth-child(even) {
-        padding: 26px 0;
+        padding: 24px 0;
         border-right: none;
-        padding-left: 0;
-        padding-right: 0;
-    }
-
-    .steps {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 
-@media (max-width: 768px) {
-    :root {
-        --section-padding: 76px;
-        --section-padding-tight: 60px;
+/* Below 720 the hero figure switches to the variant drawn for that width. The
+   desktop figure is not squashed into a phone: a 540-unit drawing at 340 units
+   loses its own labels. */
+@media (max-width: 720px) {
+    .f1--desktop {
+        display: none;
     }
 
+    .f1--mobile {
+        display: block;
+    }
+}
+
+/*
+ * `.news-grid` comes FIRST in the block below, and is a literal `1fr`.
+ *
+ * `landingNewsSection.test.js` greps for `grid-template-columns: 1fr` within 400
+ * characters of this breakpoint, so anything verbose in front of it — including a
+ * comment like this one — silently moves the declaration out of range and fails a
+ * test that is actually satisfied. It stays `1fr` rather than `minmax(0, 1fr)`
+ * because nothing inside a news card carries a min-width; the collapse fix
+ * belongs where a figure can force a track wider, not here.
+ */
+@media (max-width: 768px) {
     .news-grid {
         grid-template-columns: 1fr;
     }
 
+    :root {
+        --section: 76px;
+        --section-tight: 56px;
+    }
+
     .pricing-cards {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .price-card--premium {
+        padding-left: 18px;
     }
 
     .company-logos-row {
         grid-template-columns: repeat(2, 1fr);
     }
 
-    .company-logo-item:nth-child(2) {
+    .company-logo-item:nth-child(2n) {
         border-right: none;
     }
 
     .company-logo-item:nth-child(1),
     .company-logo-item:nth-child(2) {
-        border-bottom: 1px solid var(--folder-deep);
-    }
-
-    .company-logo-item:nth-child(3) {
-        border-right: 1px solid var(--folder-deep);
+        border-bottom: 1px solid var(--rule);
     }
 
     .footer-grid {
-        grid-template-columns: 1fr;
-        gap: 30px;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 28px;
     }
 
-    .signature-seal {
-        position: static;
-        transform: none;
-        margin-top: 14px;
-        align-self: flex-start;
-        display: inline-flex;
+    /* A table that scrolls sideways is a table nobody on a phone reads. */
+    .compare-table-wrapper {
+        display: none;
     }
 
-    .signature-block {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        padding-right: 24px;
+    .compare-stack {
+        display: grid;
+        border-top: 2px solid var(--graphite);
+    }
+
+    .compare-stack-row {
+        padding: 18px 0;
+        border-bottom: 1px solid var(--rule);
+    }
+
+    .compare-stack-row h3 {
+        margin-bottom: 12px;
+    }
+
+    .compare-stack-row dl {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 6px 14px;
+    }
+
+    .compare-stack-row dt {
+        font-family: var(--font-mono);
+        font-weight: 500;
+        font-size: 0.6875rem;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--ink-3);
+    }
+
+    .compare-stack-row dd {
+        font-family: var(--font-mono);
+        font-size: 0.75rem;
+        color: var(--ink-2);
+    }
+
+    .compare-stack-row dt.is-safehaul {
+        color: var(--ink);
+    }
+
+    .compare-stack-row dd.is-safehaul {
+        color: var(--ink);
+        font-weight: 500;
+        border-left: 2px solid var(--graphite);
+        padding-left: 10px;
+        margin-left: -12px;
+    }
+
+    .steps {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .board-row {
+        grid-template-columns: 5.5rem minmax(0, 1fr);
+    }
+
+    .board-row .d {
+        grid-column: 2;
+        text-align: left;
     }
 }
 
 @media (max-width: 480px) {
-    /*
-     * The punched sheet is the FIRST VIEWPORT's proof, and at 390 it was
-     * landing entirely below the fold — the promise held on desktop only.
-     * Tightening the vertical rhythm (not the copy) brings the exhibit back
-     * above it.
-     */
     .hero {
-        padding-block: 38px 44px;
+        padding-block: 34px 40px;
     }
 
     .hero-subtitle {
-        font-size: 1rem;
-        line-height: 1.55;
-        margin-bottom: 26px;
-    }
-
-    .hero-action {
-        padding-top: 20px;
+        font-size: 1.0625rem;
+        margin-bottom: 24px;
     }
 
     .hero-buttons {
@@ -2984,6 +3258,35 @@ p {
         width: 100%;
     }
 
+    .section-index {
+        position: static;
+    }
+
+    /* The sheet number wrapped onto its own line at 390 for no benefit. The
+       descriptive half of the title block is the half worth keeping. */
+    .hero-slug-no {
+        display: none;
+    }
+
+    .spec-row {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 8px;
+    }
+
+    .spec-row .spec-value {
+        grid-column: 1;
+    }
+
+    .frame-list-row {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 6px;
+    }
+
+    .trust-card {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 8px;
+    }
+
     .steps {
         grid-template-columns: 1fr;
     }
@@ -2993,20 +3296,61 @@ p {
     }
 
     .modal-container {
-        padding: 30px 20px 24px;
+        padding: 28px 20px 22px;
     }
 
-    .scrap-tag,
-    .badge {
-        right: 10px;
-    }
-
-    .logbook-lines li {
+    .compare-stack-row dl {
         grid-template-columns: 1fr;
     }
 
-    .logbook-lines .d {
+    .compare-stack-row dd {
+        margin-bottom: 6px;
+    }
+
+    .compare-stack-row dd.is-safehaul {
+        margin-left: 0;
+    }
+}
+
+/* At full measure an article carries its revision block in the right margin. */
+@media (min-width: 1200px) {
+    .news-article {
+        grid-template-columns: minmax(0, 68ch) minmax(0, 200px);
+    }
+
+    .news-article > * {
         grid-column: 1;
+    }
+
+    .news-article-meta {
+        display: block;
+        grid-column: 2;
+        grid-row: 2 / span 20;
+        position: sticky;
+        top: 92px;
+        align-self: start;
+        border-top: 2px solid var(--graphite);
+        padding-top: 14px;
+    }
+
+    .news-article-meta dl {
+        display: grid;
+        gap: 12px;
+    }
+
+    .news-article-meta dt {
+        font-family: var(--font-mono);
+        font-weight: 500;
+        font-size: 0.6875rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--ink-3);
+    }
+
+    .news-article-meta dd {
+        font-size: 0.875rem;
+        color: var(--ink-2);
+        margin-top: 2px;
     }
 }
 
@@ -3028,6 +3372,25 @@ p {
     html {
         scroll-behavior: auto;
     }
+
+    /* Opacity transitions may stay; every transform is removed. Nothing on the
+       page depends on a transform to be legible. */
+    [data-reveal] > *,
+    .f1-plate,
+    .btn:active {
+        transform: none !important;
+        opacity: 1 !important;
+    }
+
+    .f1-axis,
+    .f1-leader {
+        stroke-dasharray: 16 4 2.5 4;
+        stroke-dashoffset: 0;
+    }
+
+    .f1-leader {
+        stroke-dasharray: none;
+    }
 }
 
 @media print {
@@ -3035,7 +3398,8 @@ p {
     .navbar,
     .modal-overlay,
     .news-cta,
-    .cta-section {
+    .cta-section,
+    .skip-link {
         display: none !important;
     }
 
@@ -3044,10 +3408,40 @@ p {
         color: #000;
     }
 
-    .screenshot,
+    .trust-section,
+    .footer-section {
+        background: #fff;
+        color: #000;
+        border-top: 1px solid #000;
+    }
+
+    .trust-card h3,
+    .trust-card p,
+    .footer-section .logo-text,
+    .footer-links a,
+    .footer-contact a {
+        color: #000;
+    }
+
+    .section-title,
+    .spec-list,
+    .faq-accordion,
+    .frame-list,
+    .steps,
+    .board {
+        border-top-color: #000;
+    }
+
     .exhibit img,
+    .news-figure img,
     .company-logo-item img {
-        mix-blend-mode: normal;
         filter: none;
+        opacity: 1;
+    }
+
+    /* logo-mono.svg is drawn in --ink-on-dark for the graphite footer. On paper
+       that is invisible, so the reversed mark is reversed back. */
+    .footer-logo {
+        filter: invert(1);
     }
 }

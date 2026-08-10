@@ -4,11 +4,21 @@
       The fallback illustration for an article with no image of its own, and the
       Open Graph card the blog pipeline falls back to.
 
-      Deliberately wordless. This file is consumed as an <img> src, where a
-      web font never loads, so any lettering here would render in whatever the
-      platform substitutes — a system display face wearing the design's clothes.
-      The accessible name is carried by role/aria-label above and by the alt text
-      the card script sets from the article title.
+      Deliberately wordless. This file is consumed as an <img> src, where a web
+      font never loads, so any lettering here would render in whatever the
+      platform substitutes — a system face wearing the design's clothes. The
+      accessible name is carried by role/aria-label above and by the alt text the
+      card script sets from the article title.
+
+      Redrawn for "Specification": paper ground, graphite line art, one section
+      view of a ruled sheet with a dimension apparatus and a verified mark. The
+      values are literal hex rather than design tokens, because a standalone
+      <img> document cannot see the embedding page's custom properties.
+
+      Note for anyone editing: a standalone .svg is parsed as XML, not HTML, so a
+      comment here may not contain a double hyphen. Naming a CSS custom property
+      in one silently breaks the whole file — the browser just shows a
+      broken-image icon and reports nothing.
 
       Nothing external is referenced: no embedded raster, no linked href, no
       remote url. `src/tests/landingNewsSection.test.js` enforces that with a
@@ -16,74 +26,86 @@
       a placeholder — so do not name the forbidden attributes here either, even
       to say they are absent.
     -->
-    <defs>
-        <linearGradient id="lit" x1="0.75" y1="0" x2="0.2" y2="1">
-            <stop offset="0" stop-color="#ffffff" stop-opacity="0.24" />
-            <stop offset="0.62" stop-color="#ffffff" stop-opacity="0" />
-        </linearGradient>
-        <linearGradient id="prong" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stop-color="#d9d3c6" />
-            <stop offset="0.55" stop-color="#8e887c" />
-            <stop offset="1" stop-color="#b6b0a4" />
-        </linearGradient>
-    </defs>
 
-    <!-- Folder stock -->
-    <rect width="1200" height="630" fill="#e2a72e" />
-    <rect width="1200" height="630" fill="url(#lit)" />
+    <!-- paper ground -->
+    <rect width="1200" height="630" fill="#F7F7F5" />
 
-    <!-- The index tabs, and the rail they stand on -->
+    <!-- the drawing sheet's own border and title-block rule -->
+    <rect x="40" y="40" width="1120" height="550" fill="none" stroke="#DADCD9" stroke-width="2" />
+    <path d="M40 508H1160" fill="none" stroke="#14161A" stroke-width="3" />
+
+    <!-- title block: three ruled compartments, the way a drawing sheet carries
+         its own metadata. Wordless by design; the compartments read as fields. -->
+    <g fill="none" stroke="#C3C7C3" stroke-width="2">
+        <path d="M420 508V590" />
+        <path d="M800 508V590" />
+    </g>
+    <g fill="#C3C7C3">
+        <rect x="76" y="536" width="228" height="10" />
+        <rect x="76" y="562" width="150" height="10" />
+        <rect x="456" y="536" width="196" height="10" />
+        <rect x="456" y="562" width="118" height="10" />
+        <rect x="836" y="536" width="164" height="10" />
+    </g>
+    <rect x="836" y="562" width="96" height="10" fill="#14161A" />
+
+    <!-- the subject: a ruled sheet in section, with the assembled block below -->
     <g>
-        <path d="M96 34h150a10 10 0 0 1 10 10v58H86V44a10 10 0 0 1 10-10z" fill="#d59a22" />
-        <path d="M96 34h150a10 10 0 0 1 10 10v10H86V44a10 10 0 0 1 10-10z" fill="#a8760f" />
-        <path d="M276 34h150a10 10 0 0 1 10 10v58H266V44a10 10 0 0 1 10-10z" fill="#faf7f0" />
-        <path d="M276 34h150a10 10 0 0 1 10 10v10H266V44a10 10 0 0 1 10-10z" fill="#b03a24" />
-        <path d="M456 34h150a10 10 0 0 1 10 10v58H446V44a10 10 0 0 1 10-10z" fill="#d59a22" />
-        <path d="M456 34h150a10 10 0 0 1 10 10v10H446V44a10 10 0 0 1 10-10z" fill="#a8760f" />
-        <rect x="0" y="100" width="1200" height="5" fill="#17130e" />
-    </g>
-
-    <!-- A punched sheet on the prong, ruled and margin-lined -->
-    <g transform="translate(0 6) rotate(-1.1 600 380)">
-        <rect x="292" y="188" width="616" height="374" fill="#efe9da" transform="rotate(1.6 600 375)" />
-        <rect x="286" y="180" width="628" height="382" fill="#faf7f0" stroke="#c9bda3" stroke-width="2" />
-
-        <!-- Red margin rule -->
-        <rect x="360" y="180" width="2" height="382" fill="#b03a24" opacity="0.4" />
-
-        <!-- Ruled lines: the first two long, the rest tapering, as a page of text -->
-        <g fill="#ddd2bb">
-            <rect x="392" y="246" width="486" height="9" />
-            <rect x="392" y="286" width="486" height="9" />
-            <rect x="392" y="326" width="404" height="9" />
-            <rect x="392" y="380" width="300" height="9" />
-            <rect x="392" y="420" width="486" height="9" />
-            <rect x="392" y="460" width="352" height="9" />
+        <!-- the exploded part -->
+        <rect x="196" y="118" width="470" height="150" fill="#FDFDFC" stroke="#14161A" stroke-width="2" />
+        <rect x="228" y="118" width="2" height="150" fill="#C3C7C3" />
+        <g fill="#DADCD9">
+            <rect x="256" y="150" width="378" height="11" />
+            <rect x="256" y="184" width="378" height="11" />
+            <rect x="256" y="218" width="252" height="11" />
         </g>
 
-        <!-- A verified mark against the first entry -->
-        <circle cx="366" cy="207" r="0" fill="none" />
-        <g transform="translate(392 496)">
-            <circle cx="14" cy="14" r="14" fill="#1d5b41" />
-            <path d="M7 14.5 12 19.5 21.5 9" fill="none" stroke="#faf7f0" stroke-width="3.4" stroke-linecap="square" />
+        <!-- the assembly it seats into -->
+        <rect x="196" y="326" width="470" height="150" fill="#FFFFFF" stroke="#14161A" stroke-width="3" />
+        <g fill="none" stroke="#C3C7C3" stroke-width="2">
+            <path d="M196 364H666" />
+            <path d="M196 401H666" />
+            <path d="M196 438H666" />
         </g>
-        <rect x="436" y="504" width="180" height="9" fill="#ddd2bb" />
-
-        <!-- Punch holes and the prong that runs through them -->
-        <g>
-            <rect x="452" y="150" width="19" height="42" rx="3" fill="url(#prong)" />
-            <rect x="729" y="150" width="19" height="42" rx="3" fill="url(#prong)" />
-            <circle cx="461" cy="180" r="10" fill="#e2a72e" />
-            <circle cx="738" cy="180" r="10" fill="#e2a72e" />
+        <g fill="#14161A">
+            <rect x="216" y="341" width="26" height="6" />
+            <rect x="216" y="378" width="26" height="6" />
+            <rect x="216" y="415" width="26" height="6" />
+            <rect x="216" y="452" width="26" height="6" />
         </g>
-    </g>
 
-    <!-- The stamp, landed at the angle a hand would -->
-    <g transform="rotate(-7 962 512)">
-        <rect x="872" y="478" width="180" height="66" fill="none" stroke="#b03a24" stroke-width="5" rx="3" />
-        <g fill="#b03a24">
-            <rect x="898" y="500" width="128" height="7" />
-            <rect x="898" y="518" width="86" height="7" />
+        <!-- the assembly axis: a dash-dot centre line, the drafting convention -->
+        <path d="M431 82V512" fill="none" stroke="#2C4A9A" stroke-width="2" stroke-dasharray="26 7 4 7"
+            opacity="0.55" />
+
+        <!-- the dimension between part and assembly -->
+        <g fill="none" stroke="#DADCD9" stroke-width="2">
+            <path d="M188 268H112" />
+            <path d="M188 326H112" />
+        </g>
+        <path d="M132 268V326" fill="none" stroke="#C3C7C3" stroke-width="2" />
+        <g fill="none" stroke="#C3C7C3" stroke-width="2">
+            <path d="M125 275 139 261" />
+            <path d="M125 333 139 319" />
+        </g>
+
+        <!-- the leader and the verified mark -->
+        <path d="M666 401H770" fill="none" stroke="#2C4A9A" stroke-width="2" />
+        <path d="M666 393V409" fill="none" stroke="#2C4A9A" stroke-width="3" />
+        <circle cx="806" cy="401" r="34" fill="#F7F7F5" stroke="#0F5F4C" stroke-width="3" />
+        <path d="M791 402 800 411 822 386" fill="none" stroke="#0F5F4C" stroke-width="4" stroke-linecap="square"
+            stroke-linejoin="miter" />
+
+        <!-- callout balloons on the part -->
+        <path d="M666 193H770" fill="none" stroke="#2C4A9A" stroke-width="2" />
+        <path d="M666 185V201" fill="none" stroke="#2C4A9A" stroke-width="3" />
+        <circle cx="806" cy="193" r="26" fill="#F7F7F5" stroke="#2C4A9A" stroke-width="2" />
+        <circle cx="806" cy="193" r="8" fill="#2C4A9A" />
+
+        <!-- registration ticks in the drawing area's corners -->
+        <g fill="none" stroke="#C3C7C3" stroke-width="2">
+            <path d="M96 82H72V106" />
+            <path d="M1104 82H1128V106" />
         </g>
     </g>
 </svg>
