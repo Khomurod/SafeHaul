@@ -163,3 +163,6 @@ release-health-report.md
 # Impeccable review captures are local build artifacts, not source.
 .impeccable/review/
 .impeccable/mocks/
+
+# Throwaway marketing landing-page prototypes (delete the folder to remove)
+landing-prototypes/

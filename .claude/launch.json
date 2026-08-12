@@ -12,6 +12,27 @@
       "runtimeExecutable": "npx",
       "runtimeArgs": ["vite", "landing", "--port", "4173", "--strictPort"],
       "port": 4173
+    },
+    {
+      "name": "proto-a-throughline",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["vite", "--config", "landing-prototypes/vite.config.js", "--port", "4181", "--strictPort"],
+      "port": 4181,
+      "url": "http://localhost:4181"
+    },
+    {
+      "name": "proto-b-quiet-authority",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["vite", "--config", "landing-prototypes/vite.config.js", "--port", "4182", "--strictPort"],
+      "port": 4182,
+      "url": "http://localhost:4182"
+    },
+    {
+      "name": "proto-c-continuum",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["vite", "--config", "landing-prototypes/vite.config.js", "--port", "4183", "--strictPort"],
+      "port": 4183,
+      "url": "http://localhost:4183"
     }
   ]
 }
