@@ -17,9 +17,10 @@
  *  - `KNOWLEDGE_VERSION` is stamped onto every published article, so a claim
  *    can always be traced back to the package that authorised it.
  *
- * Maintenance: `test/unit/blogKnowledge.test.js` fails if an entry loses its
- * evidence, if a prohibited claim also appears as an approved one, or if the
- * version is not bumped alongside a content change.
+ * Maintenance: `test/unit/blogPipeline.test.js` exercises this package against
+ * the generator — that a prohibited claim skips publication, that the approved
+ * claims survive into a briefing, and that `KNOWLEDGE_VERSION` is stamped onto
+ * every published post.
  */
 
 /**
@@ -52,7 +53,7 @@ const FEATURES = Object.freeze([
         businessBenefit: 'Replaces paper and spreadsheet applications with one structured record per driver, so nothing needed for a hiring decision is scattered across email.',
         limitations: ['Pipeline stages are fixed rather than per-company configurable.'],
         sourceFiles: ['src/features/driver-app/', 'functions/guestApplication.js', 'src/config/applicationSchema.js'],
-        documentation: ['README.md', 'docs/FULL_APPLICATION_AUDIT_REPORT.md'],
+        documentation: ['docs/APP_BRIEF.md'],
         approvedClaims: [
             'SafeHaul collects a complete driver application in one structured record.',
             'Applications can be submitted by an invited driver or through a public company link.',
@@ -100,7 +101,7 @@ const FEATURES = Object.freeze([
         businessBenefit: 'Hiring paperwork is signed remotely and sealed, without a separate e-signature subscription.',
         limitations: [],
         sourceFiles: ['src/features/signing/', 'functions/digitalSealing.js', 'functions/publicSigning.js'],
-        documentation: ['README.md', 'docs/FULL_APPLICATION_AUDIT_REPORT.md'],
+        documentation: ['docs/APP_BRIEF.md'],
         approvedClaims: [
             'Documents can be sent for signature and signed in a browser without an account.',
             'A completed document is sealed so later alteration is detectable.',
@@ -152,7 +153,7 @@ const FEATURES = Object.freeze([
             'Requests are initiated from SafeHaul. Automated scheduled follow-up beyond the built-in reminder cycle is not available.',
         ],
         sourceFiles: ['functions/employmentVerification/', 'functions/getSignedPevUrl.js'],
-        documentation: ['docs/FULL_APPLICATION_AUDIT_REPORT.md'],
+        documentation: ['docs/APP_BRIEF.md'],
         approvedClaims: [
             'SafeHaul sends previous-employment verification requests and records the responses.',
             'Verification result files are only reachable through a server-issued link checked against company membership.',
@@ -246,7 +247,7 @@ const FEATURES = Object.freeze([
         businessBenefit: '',
         limitations: ['On the roadmap. Not built. SafeHaul does not currently monitor expiry dates or send renewal reminders.'],
         sourceFiles: [],
-        documentation: ['README.md — Scaling Roadmap, Phase 1'],
+        documentation: ['docs/APP_BRIEF.md — §12 known limitations'],
         approvedClaims: [],
     },
     {
@@ -258,7 +259,7 @@ const FEATURES = Object.freeze([
         businessBenefit: '',
         limitations: ['On the roadmap. Not built. SafeHaul does not order or receive background checks.'],
         sourceFiles: [],
-        documentation: ['README.md — Scaling Roadmap, Phase 3'],
+        documentation: ['docs/APP_BRIEF.md — §12 known limitations'],
         approvedClaims: [],
     },
     {
@@ -270,7 +271,7 @@ const FEATURES = Object.freeze([
         businessBenefit: '',
         limitations: ['On the roadmap. Not built.'],
         sourceFiles: [],
-        documentation: ['README.md — Scaling Roadmap, Phase 2'],
+        documentation: ['docs/APP_BRIEF.md — §12 known limitations'],
         approvedClaims: [],
     },
     {
@@ -282,7 +283,7 @@ const FEATURES = Object.freeze([
         businessBenefit: '',
         limitations: ['Deliberately removed. The residual risk is documented and accepted, with rate limits and path validation as the compensating controls.'],
         sourceFiles: [],
-        documentation: ['docs/PRODUCTION_AUDIT_REPORT.md — R1'],
+        documentation: ['docs/security-posture.md', 'docs/APP_BRIEF.md — §10 preserved decisions'],
         approvedClaims: [],
     },
     {
@@ -294,7 +295,7 @@ const FEATURES = Object.freeze([
         businessBenefit: '',
         limitations: ['Removed from the product.'],
         sourceFiles: [],
-        documentation: ['docs/FULL_APPLICATION_AUDIT_REPORT.md — superseded notice'],
+        documentation: ['docs/APP_BRIEF.md — §12 retired features'],
         approvedClaims: [],
     },
 ]);
@@ -370,8 +371,8 @@ function buildKnowledgeBriefing() {
  * Checks generated text against the prohibited-claim list.
  *
  * Substring matching over a curated phrase list is intentionally simple: it is
- * a deterministic backstop, not a language model. `blogKnowledge.test.js` pins
- * the phrases it must catch.
+ * a deterministic backstop, not a language model.
+ * `test/unit/blogPipeline.test.js` pins the phrases it must catch.
  */
 const PROHIBITED_PATTERNS = Object.freeze([
     { pattern: /free\s+forever/i, claim: 'SafeHaul is free forever' },

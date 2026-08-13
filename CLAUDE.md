@@ -18,12 +18,11 @@ Context7 usage guidance and the MCP tool-responsibility policy apply here too:
 
 The mandatory UI/design-system policy is in `AGENTS.md` under "SafeHaul UI and
 design-system work." Before UI changes, read
-`docs/SAFEHAUL_DESIGN_SYSTEM_ROADMAP.md`,
-`docs/SAFEHAUL_UI_DESIGN_STANDARD.md` when present, and
-`src/design-system/README.md`. Reuse approved components/tokens, keep domain
-behavior in features/hooks/services, update the roadmap with evidence, and
-never mark migration work complete without the required functional, visual,
-mobile, accessibility, documentation, and diff checks.
+`docs/SAFEHAUL_DESIGN_SYSTEM_ROADMAP.md` and `src/design-system/README.md`.
+Reuse approved components/tokens, keep domain behavior in
+features/hooks/services, update the roadmap with evidence, and never mark
+migration work complete without the required functional, visual, mobile,
+accessibility, documentation, and diff checks.
 
 Quick reference for the MCP servers wired to this machine:
 

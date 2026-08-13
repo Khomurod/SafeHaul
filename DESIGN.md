@@ -66,6 +66,15 @@ spacing:
 > The site is set as engineering documentation for a system that has to be
 > inspected.
 
+**Scope, verified 2026-08-13.** This is the design contract for
+`landing/assets/css/styles.css`, which currently dresses **`landing/privacy.html`
+and the server-rendered blog** (`/news`, `/news/{slug}`, `/news/feed.xml`). The
+**homepage does not follow it** — `landing/index.html` was later replaced with a
+separate build on its own `landing/assets/css/landing.css`. Every rule below
+binds the `styles.css` surfaces and any future work that returns the homepage to
+this system; none of it describes what `index.html` renders today. See
+[`landing/README.md`](landing/README.md) for the split and its consequences.
+
 The product's whole mechanism is four scattered artifacts becoming one
 inspectable assembly. That is literally what an exploded parts diagram depicts,
 so the site is drawn the way technical documentation is drawn: ruled title
@@ -322,4 +331,5 @@ popularity claim is a statistic, and there is no number behind it.
 
 The candour is a brand asset. The FAQ answer beginning *"No software can do that,
 and anyone who says otherwise is selling you something"* is worth more than any
-testimonial, and it is test-enforced.
+testimonial. It went with the homepage replacement and **no test enforces it
+today** — restore it deliberately, and pin it if you do.

@@ -8,14 +8,51 @@ It is deliberately isolated from the React application in `src/`.
 `src/tests/landingNewsSection.test.js` asserts that no application or
 design-system code is pulled in here — do not import from `src/`.
 
+## ⚠️ Current state: the homepage and the rest of the site are two different builds
+
+**Verified against the tree on 2026-08-13.** The homepage was replaced after the
+"Specification" redesign shipped, and the replacement was not carried through to
+the other surfaces or to the checks. Know which surface you are editing:
+
+| Surface | Markup | Stylesheet | Script |
+| --- | --- | --- | --- |
+| Homepage | `index.html` | `assets/css/landing.css` | inline `<script>` at the bottom of `index.html` |
+| Privacy policy | `privacy.html` | `assets/css/styles.css` | `assets/js/main.js` |
+| Blog (`/news`, `/news/{slug}`, `/news/feed.xml`) | emitted by `functions/blog/publicApi.js` | `assets/css/styles.css` | none |
+
+Everything below about `styles.css`, `main.js`, the lead dialog, the contrast
+tokens, the figures and the blog describes the **`styles.css` surfaces**, which
+are still live and still governed by [`../DESIGN.md`](../DESIGN.md). The
+homepage currently follows none of it.
+
+Three consequences that are real today, not hypothetical:
+
+- **`npm run check:landing-claims` fails on `index.html`** — it reports
+  "SafeHaul runs MVR or PSP checks". Because that check is part of
+  `npm run lint`, lint is red on `main` for this reason alone. Fixing it means
+  changing published marketing copy, which is a product decision, not a
+  documentation one.
+- **The homepage's "Request Demo" form captures nothing.** `handleModalSubmit`
+  in the inline script calls `alert()` and closes the dialog. It does not post
+  to `/api/landing-lead`, so no lead reaches Firestore or Telegram. The
+  lead-capture pipeline described under "The lead form" below is wired up in
+  `main.js` and reachable from `privacy.html`, not from the homepage.
+- **The homepage has no News & Insights strip**, so `/api/news/latest` is not
+  called from it.
+
+Resolving the split — either finishing the homepage in the Specification system
+or retiring `styles.css` from the blog and privacy page — is an open product
+decision. Do not paper over it by editing this file.
+
 ## Files
 
 | Path | What it is |
 | --- | --- |
-| `index.html` | The homepage. All copy is here. |
-| `privacy.html` | Privacy policy. Shares the stylesheet and script. |
-| `assets/css/styles.css` | Every style, in 21 numbered sections. Tokens in `:root`. Also dresses `privacy.html` and the server-rendered blog. |
-| `assets/js/main.js` | Navigation and the current-section rule, the reveals, the FAQ accordion, the nine-step reveal, the lead dialog, the inline closing-CTA form, the news strip. |
+| `index.html` | The homepage. All copy is here. Currently the `landing.css` build — see the note above. |
+| `privacy.html` | Privacy policy. Uses `styles.css` and `main.js`. |
+| `assets/css/styles.css` | The "Specification" system, in 21 numbered sections. Tokens in `:root`. Dresses `privacy.html` and the server-rendered blog. |
+| `assets/css/landing.css` | The homepage's own stylesheet. Not part of the Specification system and not covered by `DESIGN.md`. |
+| `assets/js/main.js` | Navigation and the current-section rule, the reveals, the FAQ accordion, the nine-step reveal, the lead dialog, the inline closing-CTA form, the news strip. Loaded by `privacy.html`; **not** by the current homepage. |
 | `assets/fonts/archivo-variable.woff2` | Self-hosted Archivo (latin, variable `wght`+`wdth`, ~90 KB). Structure and display. |
 | `assets/fonts/geist-mono-variable.woff2` | Self-hosted Geist Mono (latin, variable `wght`, ~23 KB, OFL). Anything a technical document types or numbers. Replaced the two Courier Prime files, for a net −14,860 bytes. |
 | `assets/images/logo.svg` | The mark, in graphite + attend red. **Also the favicon and the blog's JSON-LD publisher logo** — a recolour lands on three surfaces. |
@@ -69,6 +106,9 @@ Carriers". Add or change a shot in `scripts/capture-landing-screenshots.mjs`,
 where each entry names the section it supports.
 
 ## The lead form
+
+Implemented in `main.js`, so it is live on `privacy.html` and **not** on the
+current homepage — see the current-state note at the top.
 
 A two-step dialog. Step one asks only for a name and a work email and **saves the
 lead immediately**; step two adds qualification. Someone who abandons at the

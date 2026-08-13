@@ -92,7 +92,7 @@ Single Firebase project **`truckerapp-system`**, region **`us-central1`**.
 | Cloud Functions | `functions/` | Node 20, **mixed v1 and v2** (both production-stable; full v2 migration planned, not urgent) |
 | Firestore rules | `src/firestore.rules` | Deployed from here, not the repo root |
 | Storage rules | `src/storage.rules` | |
-| Marketing site | `landing/` | Hand-written HTML/CSS/vanilla JS, **no build step, no framework** |
+| Marketing site | `landing/` | Hand-written HTML/CSS/vanilla JS, **no build step, no framework**. The homepage and the other surfaces are currently two different builds — see §12 |
 | Design system | `src/design-system/` | Business-neutral visual contract; see §11 |
 
 **Three communication patterns**, used deliberately:
@@ -408,10 +408,11 @@ A global `blacklist` collection holds SMS opt-outs.
 - **Callable names are a contract.** `scripts/check-callable-contract.mjs` fails
   CI if the SPA calls a name `functions/index.js` does not export. See
   [`docs/callable-frontend-map.md`](./callable-frontend-map.md).
-- **Landing page shares a stylesheet with the server-rendered blog.**
+- **The privacy page shares a stylesheet with the server-rendered blog.**
   `/news`, `/news/{slug}` and `/news/feed.xml` are rendered by `serveBlogPublic`
-  and use `landing/assets/css/styles.css` (section 16), so that file cannot be
-  rewritten without carrying the blog's styles along.
+  and use `landing/assets/css/styles.css` (section 16), as does
+  `landing/privacy.html`, so that file cannot be rewritten without carrying the
+  blog's styles along. The homepage is on a different stylesheet — see §12.
 
 ---
 
@@ -443,7 +444,8 @@ A global `blacklist` collection holds SMS opt-outs.
   approved.
 - **The landing site stays dependency-free.** No framework, no build step, and no
   application or design-system imports — asserted by
-  `src/tests/landingNewsSection.test.js`.
+  `src/tests/landingNewsSection.test.js`. This holds for the homepage too, and is
+  not affected by the two-build split in §12.
 - **Marketing claims must trace to the capability registry.**
   `functions/ai/knowledge/safehaulCapabilities.js` is the source of truth, and
   `npm run check:landing-claims` enforces it as part of `npm run lint`. Never
@@ -456,9 +458,9 @@ A global `blacklist` collection holds SMS opt-outs.
 
 Mandatory reading before any UI, styling, responsive or accessibility change:
 [`docs/SAFEHAUL_DESIGN_SYSTEM_ROADMAP.md`](./SAFEHAUL_DESIGN_SYSTEM_ROADMAP.md)
-and [`src/design-system/README.md`](../src/design-system/README.md).
-(`AGENTS.md` also references `docs/SAFEHAUL_UI_DESIGN_STANDARD.md` "when
-present" — **it does not currently exist**.)
+and [`src/design-system/README.md`](../src/design-system/README.md). The roadmap
+is authoritative for the design-system rules, the approved exceptions and the
+open decisions; this section is only a summary of it.
 
 Layering: the design system owns reusable appearance and interaction and must
 never know what a driver, lead or campaign is; feature folders own content,
@@ -489,11 +491,22 @@ actually having run.
 - **GitHub Models** as an AI provider.
 - **`Khomurod/SafeHaul-for-Gemini-Antigravity`** — archived; never develop or
   deploy from it. Deploy jobs are guarded by repository name.
-- `Prototype/` is historical landing-page exploration, referenced by nothing and
-  never built or deployed.
 
 **Current limitations:**
 
+- **The marketing site is two builds, and `npm run lint` is red because of it.**
+  Verified 2026-08-13. `landing/index.html` was replaced after the
+  "Specification" redesign shipped and now carries its own
+  `landing/assets/css/landing.css` and an inline script. `landing/privacy.html`
+  and the server-rendered blog still use `styles.css` and `main.js`. Three
+  consequences: `npm run check:landing-claims` **fails** on the homepage
+  ("SafeHaul runs MVR or PSP checks"), and because it is part of
+  `npm run lint`, lint is red on `main`; the homepage's "Request Demo" form
+  calls `alert()` and **captures no lead** — it never posts to
+  `/api/landing-lead`, so nothing reaches Firestore or Telegram; and the
+  homepage has no News & Insights strip. `DESIGN.md` and `PRODUCT.md` describe
+  the `styles.css` system, not the homepage. Resolving the split is a product
+  decision — see [`landing/README.md`](../landing/README.md).
 - **No payment processing.** `companies/{id}.planType` is a manual super-admin
   `free` / `paid` flag that only changes a badge ("Free Plan" / "Pro Plan").
   Marketing prices ($199 / $299 per month) are **not** enforced anywhere in the
@@ -533,27 +546,21 @@ CI also runs `check:callable-contract`, `check:ai-boundary`, `check:ci-plan`,
 `check:release-scripts`, `check:deploy-script`, `check:table-layout`, and a
 Gitleaks secret scan.
 
-Roughly 230 frontend unit test files, ~90 Cloud Functions test files, and 59
-Playwright specs. CI runs Playwright as a 4-way shard matrix with `workers: 1`
-and `retries: 2` per shard.
+CI runs Playwright as a 4-way shard matrix with `workers: 1` and `retries: 2`
+per shard.
 
-**Local test-runner safety — each rule was learned the expensive way:**
+> **`npm run lint` is currently red on `main`** because `check:landing-claims`
+> fails on the marketing homepage — see §12. That is a pre-existing content
+> issue, not a broken toolchain; do not treat a green lint as your baseline
+> until it is resolved.
 
-1. **Run only one Playwright suite at a time.** The config serves the app on port
-   5000 with `reuseExistingServer`; a second run attaches to the first run's
-   server and then collapses when that run tears it down, producing a cascade of
-   failures that are not real. Check the port is free first.
-2. **Never use broad process-killing patterns.** `pkill -f vite` matches the
-   invoking shell's own command line and kills it. Capture the dev server's PID
-   and terminate that, or use a narrow pattern like `pkill -f 'node.*vite'`.
-3. **Long suites need a persistent process, redirected logs, and the real exit
-   status.** A tool timeout or an externally delivered `SIGTERM` (exit 143) is
-   **not** a test failure — inspect the log before reporting one.
-4. **Never fabricate commits to work around a failing PR API.** If `POST /pulls`
-   returns 500, first check whether the PR was created anyway.
-
-Also: **do not edit files in the module graph while a Playwright suite is
-running** — hot reload makes in-flight tests fail spuriously.
+**Local test-runner safety.** Four rules — run one Playwright suite at a time,
+never use a broad `pkill`, collect a long suite's real exit status before
+calling it a failure, and never fabricate a commit around a failing PR API —
+each learned the expensive way. Also: do not edit files in the module graph
+while a Playwright suite is running. [`AGENTS.md`](../AGENTS.md#local-test-runner-process-safety)
+is authoritative and explains why each exists; follow it exactly rather than
+this summary.
 
 **Operationally:** a green CI run is *not* evidence that anything shipped.
 `verify-shipped` reads the deployed SHA back off the live site, and the live
@@ -579,11 +586,16 @@ completion** — a PR never deploys, so it cannot exercise the path you changed.
 | Automated blog | [`docs/news-and-insights.md`](./news-and-insights.md) |
 | Hosting, releases, promotion | [`docs/FIREBASE_HOSTING_RUNBOOK.md`](./FIREBASE_HOSTING_RUNBOOK.md) |
 | Credentials and integrations inventory | [`docs/environment-and-integrations-runbook.md`](./environment-and-integrations-runbook.md) |
-| Design-system migration | [`docs/SAFEHAUL_DESIGN_SYSTEM_ROADMAP.md`](./SAFEHAUL_DESIGN_SYSTEM_ROADMAP.md) |
+| Operations, alerting, retention | [`docs/production-readiness-runbook.md`](./production-readiness-runbook.md) |
+| Historical record reconstruction | [`docs/application-record-reconstruction-runbook.md`](./application-record-reconstruction-runbook.md) |
+| Design-system standard and open decisions | [`docs/SAFEHAUL_DESIGN_SYSTEM_ROADMAP.md`](./SAFEHAUL_DESIGN_SYSTEM_ROADMAP.md) |
+| Marketing-site visual specification | [`DESIGN.md`](../DESIGN.md) / [`landing/README.md`](../landing/README.md) |
+| Manual signing-room device QA | [`docs/qa/edoc-mobile-document-first-qa.md`](./qa/edoc-mobile-document-first-qa.md) |
 
-**Note on `README.md`:** it carries stale details (dependencies the project does
-not use, an out-of-date "live app" URL, and campaign internals that no longer
-match the code). Where it disagrees with this brief or the code, it is wrong.
+**Note on `README.md`:** it is the getting-started guide and documentation map —
+setup, environment variables, commands, deployment. It defers to this brief for
+what the application is and how it behaves. Where the two ever disagree, this
+brief and the code win.
 
 ---
 

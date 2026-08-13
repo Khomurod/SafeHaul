@@ -55,9 +55,10 @@ Guidance: use codebase-memory to understand *where and why*, Serena to act on *e
 Before any UI, UX, styling, responsive, accessibility, or visual-component
 change:
 
-1. Read `docs/SAFEHAUL_DESIGN_SYSTEM_ROADMAP.md`.
-2. Read `docs/SAFEHAUL_UI_DESIGN_STANDARD.md` when that file exists.
-3. Read `src/design-system/README.md` and the relevant component/pattern docs.
+1. Read `docs/SAFEHAUL_DESIGN_SYSTEM_ROADMAP.md` — the design-system standard,
+   its approved exceptions, its automated guardrails and the decisions that are
+   still open.
+2. Read `src/design-system/README.md` and the relevant component/pattern docs.
 
 The central design system owns reusable visual appearance and interaction.
 Feature folders own feature content, available actions, domain vocabulary, and
