@@ -7,12 +7,26 @@
     DOT-Compliant Driver Applications · Bulk SMS Campaigns · E-Signatures · Real-Time Analytics
   </p>
   <p align="center">
-    <a href="https://truckerapp-system.web.app/">Live App</a> ·
+    <a href="docs/APP_BRIEF.md">App Brief</a> ·
+    <a href="https://app.safehaul.io/">Live App</a> ·
     <a href="#architecture">Architecture</a> ·
     <a href="#getting-started">Getting Started</a> ·
     <a href="#deployment">Deployment</a>
   </p>
 </p>
+
+---
+
+> **Start here: [`docs/APP_BRIEF.md`](docs/APP_BRIEF.md)** — the central,
+> maintained orientation document for this application (purpose, users,
+> workflows, business rules, permissions, background jobs, preserved decisions
+> and known limitations). Every contributor and AI coding agent should read the
+> relevant parts before making changes and update it in the same task when their
+> work changes what it describes.
+>
+> Production is `app.safehaul.io`; `truckerapp-system.web.app` is the **Testing**
+> channel, which runs against the same real backend. Details of this README may
+> lag the code — where they disagree, the App Brief and the code win.
 
 ---
 

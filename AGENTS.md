@@ -19,6 +19,24 @@ Run Context7 CLI requests outside Codex's default sandbox. If a Context7 CLI com
 <!-- context7 -->
 
 <!-- tool-responsibilities -->
+## The App Brief is required reading
+
+[`docs/APP_BRIEF.md`](docs/APP_BRIEF.md) is the central orientation document for
+this application — purpose, users, main workflows, business rules, permissions,
+integrations, background jobs, cross-feature ripple risks, preserved decisions,
+retired features and known limitations.
+
+- **Before changing anything**, read the parts of the brief that touch your task
+  and verify them against the current code. The code is the source of truth; if
+  the brief has drifted, correct it as part of your task.
+- **After any meaningful change** — feature, fix, removal, behavioral change,
+  integration change, workflow change, permission or schedule change — review the
+  brief again and update, add, or remove whatever your work made inaccurate, in
+  the same commit.
+- **A task is not complete while the brief and the application disagree.**
+
+Keep it concise: it exists to prevent misunderstandings, not to mirror the code.
+
 ## MCP tool responsibilities
 
 This repo is wired to three complementary assistants plus native tooling. Use each for what it is best at; do not fan the same question out to all of them.

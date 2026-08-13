@@ -1,5 +1,14 @@
 # Claude Code — project instructions
 
+## Read the App Brief first
+
+`docs/APP_BRIEF.md` is the central orientation document for this application:
+purpose, users, workflows, business rules, permissions, background jobs,
+preserved decisions, and known limitations. **Read the relevant parts before
+making changes, and update it in the same task whenever your work makes any
+part of it untrue.** The maintenance rule is stated at the top of that file and
+is permanent.
+
 Shared agent instructions for this repo live in `AGENTS.md`. Import them so the
 Context7 usage guidance and the MCP tool-responsibility policy apply here too:
 
