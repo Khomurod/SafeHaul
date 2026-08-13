@@ -62,8 +62,9 @@ itself**. `npm run check:landing-claims` enforces it as part of `npm run lint`.
 Notably absent, and never to be claimed as shipped: document-expiry monitoring
 or renewal reminders · MVR, PSP or FMCSA Clearinghouse **checks** (the
 applicant-facing disclosures exist; the queries do not) · a job board · drip
-campaigns or two-way message threads · payment processing · any named carrier
-endorsement.
+campaigns or two-way message threads · **opt-out capture** (the blacklist is
+enforced on every send, but nothing feeds it from a recipient's reply — see App
+Brief §12) · payment processing · any named carrier endorsement.
 
 ---
 
