@@ -92,7 +92,7 @@ Single Firebase project **`truckerapp-system`**, region **`us-central1`**.
 | Cloud Functions | `functions/` | Node 20, **mixed v1 and v2** (both production-stable; full v2 migration planned, not urgent) |
 | Firestore rules | `src/firestore.rules` | Deployed from here, not the repo root |
 | Storage rules | `src/storage.rules` | |
-| Marketing site | `landing/` | Hand-written HTML/CSS/vanilla JS, **no build step, no framework**. The homepage and the other surfaces are currently two different builds — see §12 |
+| Marketing site | `landing/` | Hand-written HTML/CSS/vanilla JS, **no build step, no framework**. Homepage, privacy page and the server-rendered blog all share `assets/css/styles.css`; see [`DESIGN.md`](../DESIGN.md) |
 | Design system | `src/design-system/` | Business-neutral visual contract; see §11 |
 
 **Three communication patterns**, used deliberately:
@@ -379,7 +379,9 @@ A recursive worker processes **50 recipients per batch** to stay inside function
 timeouts, re-checking session state each batch so a cancelled campaign stops
 immediately rather than leaving a zombie worker running. Recently-contacted
 numbers are excluded using a configurable window that **defaults to 7 days**.
-A global `blacklist` collection holds SMS opt-outs.
+Company and global `blacklist` collections hold SMS opt-outs and are checked
+before **every** send, failing closed on an unparseable number — but nothing
+currently populates them from a recipient's reply; see §12.
 
 ---
 
@@ -410,9 +412,11 @@ A global `blacklist` collection holds SMS opt-outs.
   [`docs/callable-frontend-map.md`](./callable-frontend-map.md).
 - **The privacy page shares a stylesheet with the server-rendered blog.**
   `/news`, `/news/{slug}` and `/news/feed.xml` are rendered by `serveBlogPublic`
-  and use `landing/assets/css/styles.css` (section 16), as does
-  `landing/privacy.html`, so that file cannot be rewritten without carrying the
-  blog's styles along. The homepage is on a different stylesheet — see §12.
+  and use `landing/assets/css/styles.css` (section 16), as do
+  `landing/privacy.html` and `landing/index.html`, so that file cannot be
+  rewritten without carrying the blog's styles along. Sections 6, 16 and 18 dress
+  the navbar, cards and footer the blog function emits, so nothing in them may
+  assume the homepage's markup exists.
 
 ---
 
@@ -444,13 +448,20 @@ A global `blacklist` collection holds SMS opt-outs.
   approved.
 - **The landing site stays dependency-free.** No framework, no build step, and no
   application or design-system imports — asserted by
-  `src/tests/landingNewsSection.test.js`. This holds for the homepage too, and is
-  not affected by the two-build split in §12.
+  `src/tests/landingNewsSection.test.js`. This holds for every surface, homepage
+  included.
 - **Marketing claims must trace to the capability registry.**
   `functions/ai/knowledge/safehaulCapabilities.js` is the source of truth, and
   `npm run check:landing-claims` enforces it as part of `npm run lint`. Never
   claim DOT/FMCSA compliance, MVR/PSP/Clearinghouse checks, document-expiry
   monitoring, a job board, or any named carrier endorsement.
+- **A `landing/` change runs the `frontend_unit` CI lane.** The marketing site has
+  no build step, so "static content is not tested" is an easy assumption — and
+  `scripts/ci-plan.mjs` used to encode it, mapping `landing/` to no lane at all.
+  A landing-only commit therefore passed CI green while shipping a homepage that
+  claimed MVR checks, captured no lead, and failed `npm run lint`. The two
+  landing suites live in `src/tests/` and run in that lane; `A5`/`A5b` in
+  `scripts/test-ci-plan.mjs` pin it.
 
 ---
 
@@ -494,32 +505,23 @@ actually having run.
 
 **Current limitations:**
 
-- **The marketing site is two builds, and both `npm run lint` and CI are red
-  because of it.** Verified 2026-08-13. `landing/index.html` was replaced after
-  the "Specification" redesign shipped and now carries its own
-  `landing/assets/css/landing.css` and an inline script. `landing/privacy.html`
-  and the server-rendered blog still use `styles.css` and `main.js`. Four
-  consequences, each confirmed:
-  - `npm run check:landing-claims` **fails** on the homepage ("SafeHaul runs MVR
-    or PSP checks"), and because it is part of `npm run lint`, lint is red.
-  - `src/tests/landingPage.test.js` **fails** — it asserts on the Specification
-    homepage's markup, which the replacement does not have. This is the
-    `frontend-quality` CI job, and it is red on `main`.
-  - **No lead capture reaches the backend from anywhere.** The homepage's
-    "Request Demo" form calls `alert()`; the real `/api/landing-lead` handlers
-    in `main.js` are guarded on `#leadModal` / `#leadForm` / `#ctaForm` markup
-    that **no page in the repository contains**. `submitLandingLead` and its
-    Telegram delivery are intact and simply receive nothing.
-  - The homepage has no News & Insights strip.
-
-  `DESIGN.md` and `PRODUCT.md` describe the `styles.css` system, not the
-  homepage. Resolving the split is a product decision — see
-  [`landing/README.md`](../landing/README.md).
 - **No payment processing.** `companies/{id}.planType` is a manual super-admin
   `free` / `paid` flag that only changes a badge ("Free Plan" / "Pro Plan").
   Marketing prices ($199 / $299 per month) are **not** enforced anywhere in the
   app.
 - **Campaigns are one-way.** No inbound threads, no automated drip sequences.
+- **Opt-out enforcement works; opt-out *capture* does not.** `batchWorker.js`
+  calls `isBlacklisted()` before every send, checks both the company and global
+  `blacklist` collections, and fails closed on an unparseable number — that half
+  is real. But `handleOptOut` (`functions/blacklist.js`) is a Firestore trigger on
+  `companies/{companyId}/inbound_messages/{msgId}`, and **nothing in the
+  repository writes that collection**: there is no inbound SMS webhook, and the
+  function's own comment says a real deployment would need one. A recipient's STOP
+  reply therefore reaches the company's own provider, not SafeHaul, and a number
+  arrives on the blacklist only when something writes it there directly. There is
+  no admin interface for that either. The marketing site sold this as "opt-out
+  handling" until 2026-08-13; the claims gate is a phrase list and cannot see a
+  claim that is merely too generous.
 - **Frontend coverage thresholds are a low ratchet** (statements 16 %, lines
   16 %, branches 13 %, functions 13 %) — deliberately set just under the current
   baseline to block regressions, not to describe good coverage. Raise them as
@@ -557,11 +559,17 @@ Gitleaks secret scan.
 CI runs Playwright as a 4-way shard matrix with `workers: 1` and `retries: 2`
 per shard.
 
-> **`npm run lint` and the `frontend-quality` CI job are currently red on
-> `main`**, both because of the marketing-homepage replacement — see §12.
-> Pre-existing content issues, not a broken toolchain. Do not treat a green
-> lint or a green `frontend-quality` as your baseline until they are resolved,
-> and do not assume a red one is yours.
+`npm run typecheck` is a **non-blocking** baseline (`continue-on-error` in the
+workflow) and currently reports pre-existing errors in
+`src/config/applicationDefinition.js`. A red typecheck is not a broken build;
+do not assume a pre-existing one is yours.
+
+**The marketing site has three of its own gates**, and only the middle one runs
+in CI: `npm run check:landing-claims` (part of `npm run lint`),
+`src/tests/landingPage.test.js` + `src/tests/landingNewsSection.test.js` (the
+`frontend_unit` lane, which a `landing/` change now selects), and
+`npm run check:landing-a11y`, which needs a real Chromium and is run by hand.
+Run all three before pushing a change to `landing/`.
 
 **Local test-runner safety.** Four rules — run one Playwright suite at a time,
 never use a broad `pkill`, collect a long suite's real exit status before

@@ -8,58 +8,63 @@ It is deliberately isolated from the React application in `src/`.
 `src/tests/landingNewsSection.test.js` asserts that no application or
 design-system code is pulled in here — do not import from `src/`.
 
-## ⚠️ Current state: the homepage and the rest of the site are two different builds
+## Three surfaces, one system
 
-**Verified against the tree on 2026-08-13.** The homepage was replaced after the
-"Specification" redesign shipped, and the replacement was not carried through to
-the other surfaces or to the checks. Know which surface you are editing:
+**Verified against the tree on 2026-08-13.**
 
 | Surface | Markup | Stylesheet | Script |
 | --- | --- | --- | --- |
-| Homepage | `index.html` | `assets/css/landing.css` | inline `<script>` at the bottom of `index.html` |
+| Homepage | `index.html` | `assets/css/styles.css` | `assets/js/main.js` |
 | Privacy policy | `privacy.html` | `assets/css/styles.css` | `assets/js/main.js` |
 | Blog (`/news`, `/news/{slug}`, `/news/feed.xml`) | emitted by `functions/blog/publicApi.js` | `assets/css/styles.css` | none |
 
-Everything below about `styles.css`, `main.js`, the lead dialog, the contrast
-tokens, the figures and the blog describes the **`styles.css` surfaces**, which
-are still live and still governed by [`../DESIGN.md`](../DESIGN.md). The
-homepage currently follows none of it.
+All three are governed by [`../DESIGN.md`](../DESIGN.md).
 
-Three consequences that are real today, not hypothetical:
+### The homepage was once a fourth build, and it cost real damage
 
-- **`npm run check:landing-claims` fails on `index.html`** — it reports
-  "SafeHaul runs MVR or PSP checks". Because that check is part of
-  `npm run lint`, lint is red on `main` for this reason alone. Fixing it means
-  changing published marketing copy, which is a product decision, not a
-  documentation one.
-- **Nothing on the site captures a lead any more.** The homepage's "Request
-  Demo" form calls `alert()` in its inline script and closes the dialog; it
-  never posts to `/api/landing-lead`. The real pipeline still exists in
-  `main.js`, but its handlers are guarded on `#leadModal` / `#leadForm` /
-  `#ctaForm`, and **no page in the repository contains that markup** — the
-  homepage replaced it, `privacy.html` never had it, and the blog loads no
-  JavaScript at all. `submitLandingLead` and its Telegram delivery are intact
-  server-side and simply receive nothing.
-- **The homepage has no News & Insights strip**, so `/api/news/latest` is not
-  called from it.
-- **`src/tests/landingPage.test.js` fails** for the same reason — it asserts on
-  the Specification homepage's markup (`hero-visual`, `logos-section`,
-  `id="leadModal"`, intrinsic image dimensions, referenced screenshots), none
-  of which the replacement has. That is the `frontend-quality` CI job.
+Between the "Specification" redesign and its restoration, `index.html` was
+replaced by a separate build on its own `assets/css/landing.css` with an inline
+script. The replacement was never carried through to the other surfaces or to any
+of the checks, and while it was live:
 
-Resolving the split — either finishing the homepage in the Specification system
-or retiring `styles.css` from the blog and privacy page — is an open product
-decision. Do not paper over it by editing this file.
+- `npm run check:landing-claims` **failed** on it — "SafeHaul runs MVR or PSP
+  checks" — and because that check is part of `npm run lint`, lint was red on
+  `main`. It also advertised continuous MVR monitoring, automated DQ/MVR audits,
+  named ELD integrations, a `$499/mo` tier and a "100% Audit Readiness
+  Guarantee". None of those exist.
+- **Nothing on the site captured a lead.** The "Request Demo" form called
+  `alert()` and closed. `submitLandingLead` and its Telegram delivery were intact
+  server-side and simply received nothing.
+- There was **no News & Insights strip**, no skip link, no accessible FAQ, no
+  structured data, no feed link, and every footer link was `href="#"`.
+- It `@import`ed Google Fonts, putting a render-blocking third-party stylesheet
+  and two extra connections in front of every visit — for faces this folder
+  already ships — and carried three unoptimised photographs totalling **2.2 MB**
+  with no `width`, `height` or `loading` attributes.
+- `src/tests/landingPage.test.js` **failed**, which is the `frontend-quality` CI
+  job.
+
+`landing.css` and those three photographs were removed with the restoration; they
+are recoverable from history if a photographic direction is ever chosen
+deliberately.
+
+Three things stop that recurring, and none of them should be softened:
+
+1. `scripts/ci-plan.mjs` maps `landing/` to the `frontend_unit` lane. It used to
+   map it to *no lane*, which is why a landing-only commit could ship all of the
+   above with a green CI run.
+2. The claims gate reads the shipped HTML, not a copy of the copy.
+3. `DESIGN.md` refuses photography, ROI figures, time-saved statistics, gradients,
+   glassmorphism and pills **by name**. The replacement carried every one of them.
 
 ## Files
 
 | Path | What it is |
 | --- | --- |
-| `index.html` | The homepage. All copy is here. Currently the `landing.css` build — see the note above. |
+| `index.html` | The homepage. All copy is here. |
 | `privacy.html` | Privacy policy. Uses `styles.css` and `main.js`. |
-| `assets/css/styles.css` | The "Specification" system, in 21 numbered sections. Tokens in `:root`. Dresses `privacy.html` and the server-rendered blog. |
-| `assets/css/landing.css` | The homepage's own stylesheet. Not part of the Specification system and not covered by `DESIGN.md`. |
-| `assets/js/main.js` | Navigation and the current-section rule, the reveals, the FAQ accordion, the nine-step reveal, the lead dialog, the inline closing-CTA form, the news strip. Loaded by `privacy.html`; **not** by the current homepage. |
+| `assets/css/styles.css` | The "Specification" system, in 21 numbered sections. Tokens in `:root`. Dresses all three surfaces. |
+| `assets/js/main.js` | Navigation and the current-section rule, the reveals, the FAQ accordion, the nine-step reveal, the lead dialog, the inline closing-CTA form, the news strip. Loaded by `index.html` and `privacy.html`; the blog ships no script. |
 | `assets/fonts/archivo-variable.woff2` | Self-hosted Archivo (latin, variable `wght`+`wdth`, ~90 KB). Structure and display. |
 | `assets/fonts/geist-mono-variable.woff2` | Self-hosted Geist Mono (latin, variable `wght`, ~23 KB, OFL). Anything a technical document types or numbers. Replaced the two Courier Prime files, for a net −14,860 bytes. |
 | `assets/images/logo.svg` | The mark, in graphite + attend red. **Also the favicon and the blog's JSON-LD publisher logo** — a recolour lands on three surfaces. |
@@ -113,11 +118,6 @@ Carriers". Add or change a shot in `scripts/capture-landing-screenshots.mjs`,
 where each entry names the section it supports.
 
 ## The lead form
-
-**Currently unreachable.** The implementation below is intact in `main.js` and
-the backend still works, but no page carries the `#leadModal` / `#leadForm` /
-`#ctaForm` markup its handlers are guarded on — see the current-state note at
-the top. This describes the design to restore, not what runs today.
 
 A two-step dialog. Step one asks only for a name and a work email and **saves the
 lead immediately**; step two adds qualification. Someone who abandons at the

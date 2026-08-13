@@ -67,13 +67,19 @@ spacing:
 > inspected.
 
 **Scope, verified 2026-08-13.** This is the design contract for
-`landing/assets/css/styles.css`, which currently dresses **`landing/privacy.html`
-and the server-rendered blog** (`/news`, `/news/{slug}`, `/news/feed.xml`). The
-**homepage does not follow it** — `landing/index.html` was later replaced with a
-separate build on its own `landing/assets/css/landing.css`. Every rule below
-binds the `styles.css` surfaces and any future work that returns the homepage to
-this system; none of it describes what `index.html` renders today. See
-[`landing/README.md`](landing/README.md) for the split and its consequences.
+`landing/assets/css/styles.css`, which dresses **all three public surfaces** —
+`landing/index.html`, `landing/privacy.html`, and the server-rendered blog
+(`/news`, `/news/{slug}`, `/news/feed.xml`). Every rule below binds all three.
+
+The homepage briefly did not follow it: `index.html` was replaced with a separate
+build on its own `landing/assets/css/landing.css`, which broke the claims gate,
+the lead capture, the News strip and the accessibility hardening before being
+restored to this system. Measured against "What this world refuses" below, that
+stylesheet carried gradients, five `backdrop-filter` glass panels, radii up to
+550px, seven coloured shadows, stock photography, an ROI calculator with invented
+savings figures — and an `@import` of Google Fonts, undoing the self-hosting these
+two faces exist for. [`landing/README.md`](landing/README.md) records what that
+cost and what now prevents it.
 
 The product's whole mechanism is four scattered artifacts becoming one
 inspectable assembly. That is literally what an exploded parts diagram depicts,
@@ -331,5 +337,7 @@ popularity claim is a statistic, and there is no number behind it.
 
 The candour is a brand asset. The FAQ answer beginning *"No software can do that,
 and anyone who says otherwise is selling you something"* is worth more than any
-testimonial. It went with the homepage replacement and **no test enforces it
-today** — restore it deliberately, and pin it if you do.
+testimonial, and it is test-enforced: `src/tests/landingPage.test.js` requires the
+phrase *no software can do that* in the page's visible text, so deleting the
+answer fails the build. It went with the homepage replacement and came back with
+it.

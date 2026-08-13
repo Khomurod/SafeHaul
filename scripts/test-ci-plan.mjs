@@ -94,9 +94,20 @@ assert('A4. a documentation-only change runs no test lane',
     chosen(['docs/RUNBOOK.md', 'README.md', 'CLAUDE.md', '.claude/settings.json']).length === 0,
     JSON.stringify(chosen(['docs/RUNBOOK.md', 'README.md'])));
 
-assert('A5. the static marketing site needs no test lane',
-    chosen(['landing/index.html']).length === 0,
+// The marketing site has no build step, so "static content is not tested" is an
+// easy assumption to make — and this assertion used to encode it. It let a
+// landing-only commit select no lanes at all: CI was green while `main` served a
+// homepage claiming MVR checks the product does not run, capturing no lead, and
+// failing `npm run lint`. The two landing suites in `src/tests/` run in the
+// `frontend_unit` lane, so that is the lane a landing change needs.
+assert('A5. a marketing-site change runs the lane that holds the landing tests',
+    JSON.stringify(chosen(['landing/index.html'])) === JSON.stringify(['frontend_unit']),
     JSON.stringify(chosen(['landing/index.html'])));
+
+assert('A5b. a marketing-site change still skips the backend, rules and browser lanes',
+    ['functions', 'rules', 'frontend_e2e', 'frontend_build', 'storybook']
+        .every((lane) => !chosen(['landing/assets/css/styles.css']).includes(lane)),
+    JSON.stringify(chosen(['landing/assets/css/styles.css'])));
 
 assert('A6. a mixed frontend + backend change runs both sides',
     JSON.stringify(chosen(['src/features/auth/Login.jsx', 'functions/auth/claims.js']))

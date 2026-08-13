@@ -95,14 +95,15 @@ Firebase Hosting targets separately from the React app in `src/`.
 code is imported into it. `/news`, `/news/{slug}` and `/news/feed.xml` are
 server-rendered by `serveBlogPublic` and **share `landing/assets/css/styles.css`**
 (section 16) — so the stylesheet cannot be rewritten without carrying the blog's
-styles with it.
+styles with it. The homepage news strip fetches `/api/news/latest` at runtime and
+must degrade to a static placeholder without shifting layout.
 
-**The homepage is currently a separate build** on its own
-`landing/assets/css/landing.css`, and does not use `styles.css`, `main.js`, the
-news strip or the `/api/landing-lead` capture path — see
-[`landing/README.md`](landing/README.md). It also currently **fails**
-`npm run check:landing-claims` on an MVR/PSP claim. Bringing it back under the
-capability discipline described here is an open product decision.
+The homepage was briefly a separate build on its own
+`landing/assets/css/landing.css` that used none of that — no `main.js`, no news
+strip, no `/api/landing-lead` capture, and a **failing**
+`npm run check:landing-claims` on an MVR/PSP claim. It is back on `styles.css`
+and under the capability discipline described here;
+[`landing/README.md`](landing/README.md) records what that episode cost.
 
 ## Brand Commitments
 
@@ -111,20 +112,19 @@ existing navy `#004C68` / mint `#0be2a4` palette, the Inter typeface and the
 current mark are all open to replacement on the marketing site. The user accepts
 that the site may visibly diverge from `app.safehaul.io` until the app follows.
 
-Voice, as established by the Specification-era copy and worth preserving: plain,
-specific, unhyped, and willing to say what the product does *not* do — the
-model being a FAQ answer that began "No software can do that, and anyone who
-says otherwise is selling you something." That candour is an asset, not a
-liability. **It is not on the site today** — the current homepage dropped that
-FAQ — and nothing enforces it, so restoring it is a deliberate act.
+Voice, as established by the current copy and worth preserving: plain, specific,
+unhyped, and willing to say what the product does *not* do — including a FAQ
+answer that begins "No software can do that, and anyone who says otherwise is
+selling you something." That candour is an asset, not a liability, and
+`src/tests/landingPage.test.js` requires that sentence to stay on the page.
 
 ## Evidence on Hand
 
-- Three real customer logos are on hand in
-  `landing/assets/images/company_logos/`: STL Truckers, True Nation, I&S
-  Transportation. They may be shown as carriers hiring on SafeHaul. They may
-  **not** be presented as endorsing it. (No file exists for TopHire Recruiting
-  Agency, and the current homepage displays no logo strip at all.)
+- Three real customer logo files in `landing/assets/images/company_logos/`: STL
+  Truckers, True Nation, I&S Transportation. They may be shown as carriers hiring
+  on SafeHaul. They may **not** be presented as endorsing it. A fourth carrier,
+  TopHire Recruiting Agency, has no logo file, so the homepage's strip sets its
+  name as a wordmark beside the three images rather than inventing a mark.
 - Three real product screenshots captured from a fixture tenant ("Ridgeline
   Carriers"), in `landing/assets/images/screenshots/`: pipeline, edocs,
   driver-application-mobile — one per entry in

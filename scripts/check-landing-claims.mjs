@@ -5,10 +5,9 @@
  * ## Why this exists
  *
  * `functions/ai/knowledge/safehaulCapabilities.js` is the single approved
- * description of what SafeHaul does. Its `PROHIBITED_CLAIMS` list carries a
- * remark that is the whole reason for this script:
- *
- *   > Several of these are on the public landing page today.
+ * description of what SafeHaul does. Its `PROHIBITED_CLAIMS` list was written
+ * with a remark that is the whole reason for this script: that several of the
+ * claims on it were on the public landing page at the time.
  *
  * They were. The page promised "free forever" beside its own $199 and $299
  * plans, advertised a job board that does not exist in the codebase, described

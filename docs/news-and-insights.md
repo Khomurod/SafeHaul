@@ -117,9 +117,11 @@ officially supported. It never replaces saved source evidence.
 ## SafeHaul knowledge package
 
 `functions/ai/knowledge/safehaulCapabilities.js` is the **only** thing the
-generator may know about SafeHaul. It was verified against source files and the
-project's audit reports — deliberately *not* against the landing page, which
-currently makes several claims the code does not support.
+generator may know about SafeHaul. It was verified against source files —
+deliberately *not* against the landing page, which at the time made several claims
+the code did not support. `npm run check:landing-claims` now runs the same
+checker over the shipped marketing HTML, so the page follows the package rather
+than the other way round.
 
 Each entry records name, status, verified description, intended users, business
 benefit, limitations, supporting source files, documentation, approved claims,
@@ -128,7 +130,7 @@ features reach the generator; `planned` and `retired` entries appear solely in a
 "do not claim" list, so there is nothing for a model to write from.
 
 `PROHIBITED_CLAIMS` records claims that must never be made, with reasons —
-including several the landing page makes today: "free forever" (contradicted by
+including several the landing page once made: "free forever" (contradicted by
 the published pricing), Firebase App Check (deliberately removed, risk formally
 accepted), automated DQ expiry monitoring (roadmap), MVR/PSP/Clearinghouse checks
 (roadmap), a job board (does not exist), GDPR data export (not implemented),
