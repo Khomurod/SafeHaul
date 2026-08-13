@@ -520,8 +520,13 @@ actually having run.
   reply therefore reaches the company's own provider, not SafeHaul, and a number
   arrives on the blacklist only when something writes it there directly. There is
   no admin interface for that either. The marketing site sold this as "opt-out
-  handling" until 2026-08-13; the claims gate is a phrase list and cannot see a
-  claim that is merely too generous.
+  handling"; the claims gate is a phrase list and cannot see a claim that is
+  merely too generous, so `src/tests/landingPage.test.js` pins it instead.
+  **The corrected copy is on `main` and the Testing target, and not yet on
+  `safehaul.io`** — verified 2026-08-13, the live production page is still the
+  pre-correction build and still carries the bullet. Production never deploys
+  automatically (§10), so publishing the correction needs an explicit promotion
+  through Super Admin → Releases.
 - **Frontend coverage thresholds are a low ratchet** (statements 16 %, lines
   16 %, branches 13 %, functions 13 %) — deliberately set just under the current
   baseline to block regressions, not to describe good coverage. Raise them as

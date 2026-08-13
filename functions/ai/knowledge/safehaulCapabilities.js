@@ -182,8 +182,10 @@ const FEATURES = Object.freeze([
             // there is no inbound SMS webhook. Its own comment says as much.
             // So the list is honoured but not populated by a reply.
             // Recorded here because the marketing site sold this as "opt-out
-            // handling" until 2026-08-13 and the phrase-list gate cannot see a
-            // claim that is merely too generous.
+            // handling" and the phrase-list gate cannot see a claim that is
+            // merely too generous. The corrected copy is on `main` and the
+            // Testing target; `safehaul.io` still carries the bullet until a
+            // release is promoted. See the App Brief's §12 limitations.
             'Opt-out replies are not captured. A blacklist is enforced on every send, but no inbound message path feeds it, so a recipient\'s STOP reply reaches the company\'s own provider rather than SafeHaul.',
         ],
         sourceFiles: ['functions/bulkActions/', 'functions/integrations/', 'functions/emailService.js'],
