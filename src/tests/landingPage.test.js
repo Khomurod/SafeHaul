@@ -75,6 +75,27 @@ describe('landing page — claims match the verified capability package', () => 
         expect(visibleText).toMatch(/your own messaging provider/i);
         expect(visibleText).toMatch(/two-way (message|conversation) threads.{0,60}not/i);
     });
+
+    it('does not sell opt-out handling, and says which half of it is missing', () => {
+        // The pricing panel listed a bare "Opt-out handling" feature bullet, and
+        // the claims gate could not see it: `checkClaims()` is a blacklist of
+        // phrases, so it catches a claim it was told about, never a claim that is
+        // merely too generous.
+        //
+        // Half of it is genuinely built. `batchWorker.js` calls `isBlacklisted()`
+        // before every send, against the company and global `blacklist`
+        // collections, and fails closed on an unparseable number. But
+        // `handleOptOut` triggers on `companies/{id}/inbound_messages/{msgId}`,
+        // and nothing in the repository writes that collection — there is no
+        // inbound SMS webhook, as the function's own comment says. A recipient's
+        // STOP reply reaches the carrier's provider, not SafeHaul.
+        //
+        // So the bullet may not come back, and the page has to say what a reader
+        // would otherwise assume. Both halves are asserted, because dropping
+        // either one restores the misleading impression.
+        expect(visibleText).not.toMatch(/opt[-\s]?out\s+handling/i);
+        expect(visibleText).toMatch(/opt[-\s]?out\s+reply\s+is\s+not\s+captured/i);
+    });
 });
 
 describe('landing page — accessibility', () => {
@@ -187,6 +208,26 @@ describe('landing page — conversion flow', () => {
         expect(js).not.toMatch(/\balert\s*\(/);
         expect(html).toContain('class="field-error"');
         expect(html).toMatch(/id="formStatus"[^>]*role="status"/);
+    });
+
+    it('keeps its behaviour in main.js, where the assertions above can see it', () => {
+        // This assertion exists because the one above was not enough. The
+        // homepage was once replaced by a build whose lead form called `alert()`
+        // and captured nothing — and it did so from an inline `<script>` in this
+        // file, so a grep of `main.js` reported a clean page. The same is true of
+        // `src/tests/noBlockingBrowserDialogs.test.js`, which walks `src/` only.
+        //
+        // So: no `alert(` in the markup either, no inline event-handler
+        // attributes, and the only inline script permitted is the JSON-LD block
+        // the SEO tests require.
+        for (const page of [html, privacy]) {
+            expect(page).not.toMatch(/\balert\s*\(/);
+            expect(page).not.toMatch(/\son(submit|click|change|input|load)\s*=/i);
+            const scripts = page.match(/<script[^>]*>/g) || [];
+            for (const tag of scripts) {
+                expect(tag).toMatch(/type="application\/ld\+json"|src="\/assets\/js\/main\.js"/);
+            }
+        }
     });
 
     it('captures attribution without asking the visitor for it', () => {

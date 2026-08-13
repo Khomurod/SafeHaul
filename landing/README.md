@@ -8,14 +8,63 @@ It is deliberately isolated from the React application in `src/`.
 `src/tests/landingNewsSection.test.js` asserts that no application or
 design-system code is pulled in here — do not import from `src/`.
 
+## Three surfaces, one system
+
+**Verified against the tree on 2026-08-13.**
+
+| Surface | Markup | Stylesheet | Script |
+| --- | --- | --- | --- |
+| Homepage | `index.html` | `assets/css/styles.css` | `assets/js/main.js` |
+| Privacy policy | `privacy.html` | `assets/css/styles.css` | `assets/js/main.js` |
+| Blog (`/news`, `/news/{slug}`, `/news/feed.xml`) | emitted by `functions/blog/publicApi.js` | `assets/css/styles.css` | none |
+
+All three are governed by [`../DESIGN.md`](../DESIGN.md).
+
+### The homepage was once a fourth build, and it cost real damage
+
+Between the "Specification" redesign and its restoration, `index.html` was
+replaced by a separate build on its own `assets/css/landing.css` with an inline
+script. The replacement was never carried through to the other surfaces or to any
+of the checks, and while it was live:
+
+- `npm run check:landing-claims` **failed** on it — "SafeHaul runs MVR or PSP
+  checks" — and because that check is part of `npm run lint`, lint was red on
+  `main`. It also advertised continuous MVR monitoring, automated DQ/MVR audits,
+  named ELD integrations, a `$499/mo` tier and a "100% Audit Readiness
+  Guarantee". None of those exist.
+- **Nothing on the site captured a lead.** The "Request Demo" form called
+  `alert()` and closed. `submitLandingLead` and its Telegram delivery were intact
+  server-side and simply received nothing.
+- There was **no News & Insights strip**, no skip link, no accessible FAQ, no
+  structured data, no feed link, and every footer link was `href="#"`.
+- It `@import`ed Google Fonts, putting a render-blocking third-party stylesheet
+  and two extra connections in front of every visit — for faces this folder
+  already ships — and carried three unoptimised photographs totalling **2.2 MB**
+  with no `width`, `height` or `loading` attributes.
+- `src/tests/landingPage.test.js` **failed**, which is the `frontend-quality` CI
+  job.
+
+`landing.css` and those three photographs were removed with the restoration; they
+are recoverable from history if a photographic direction is ever chosen
+deliberately.
+
+Three things stop that recurring, and none of them should be softened:
+
+1. `scripts/ci-plan.mjs` maps `landing/` to the `frontend_unit` lane. It used to
+   map it to *no lane*, which is why a landing-only commit could ship all of the
+   above with a green CI run.
+2. The claims gate reads the shipped HTML, not a copy of the copy.
+3. `DESIGN.md` refuses photography, ROI figures, time-saved statistics, gradients,
+   glassmorphism and pills **by name**. The replacement carried every one of them.
+
 ## Files
 
 | Path | What it is |
 | --- | --- |
 | `index.html` | The homepage. All copy is here. |
-| `privacy.html` | Privacy policy. Shares the stylesheet and script. |
-| `assets/css/styles.css` | Every style, in 21 numbered sections. Tokens in `:root`. Also dresses `privacy.html` and the server-rendered blog. |
-| `assets/js/main.js` | Navigation and the current-section rule, the reveals, the FAQ accordion, the nine-step reveal, the lead dialog, the inline closing-CTA form, the news strip. |
+| `privacy.html` | Privacy policy. Uses `styles.css` and `main.js`. |
+| `assets/css/styles.css` | The "Specification" system, in 21 numbered sections. Tokens in `:root`. Dresses all three surfaces. |
+| `assets/js/main.js` | Navigation and the current-section rule, the reveals, the FAQ accordion, the nine-step reveal, the lead dialog, the inline closing-CTA form, the news strip. Loaded by `index.html` and `privacy.html`; the blog ships no script. |
 | `assets/fonts/archivo-variable.woff2` | Self-hosted Archivo (latin, variable `wght`+`wdth`, ~90 KB). Structure and display. |
 | `assets/fonts/geist-mono-variable.woff2` | Self-hosted Geist Mono (latin, variable `wght`, ~23 KB, OFL). Anything a technical document types or numbers. Replaced the two Courier Prime files, for a net −14,860 bytes. |
 | `assets/images/logo.svg` | The mark, in graphite + attend red. **Also the favicon and the blog's JSON-LD publisher logo** — a recolour lands on three surfaces. |

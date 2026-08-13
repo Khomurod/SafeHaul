@@ -92,7 +92,7 @@ Single Firebase project **`truckerapp-system`**, region **`us-central1`**.
 | Cloud Functions | `functions/` | Node 20, **mixed v1 and v2** (both production-stable; full v2 migration planned, not urgent) |
 | Firestore rules | `src/firestore.rules` | Deployed from here, not the repo root |
 | Storage rules | `src/storage.rules` | |
-| Marketing site | `landing/` | Hand-written HTML/CSS/vanilla JS, **no build step, no framework** |
+| Marketing site | `landing/` | Hand-written HTML/CSS/vanilla JS, **no build step, no framework**. Homepage, privacy page and the server-rendered blog all share `assets/css/styles.css`; see [`DESIGN.md`](../DESIGN.md) |
 | Design system | `src/design-system/` | Business-neutral visual contract; see §11 |
 
 **Three communication patterns**, used deliberately:
@@ -379,7 +379,9 @@ A recursive worker processes **50 recipients per batch** to stay inside function
 timeouts, re-checking session state each batch so a cancelled campaign stops
 immediately rather than leaving a zombie worker running. Recently-contacted
 numbers are excluded using a configurable window that **defaults to 7 days**.
-A global `blacklist` collection holds SMS opt-outs.
+Company and global `blacklist` collections hold SMS opt-outs and are checked
+before **every** send, failing closed on an unparseable number — but nothing
+currently populates them from a recipient's reply; see §12.
 
 ---
 
@@ -408,10 +410,13 @@ A global `blacklist` collection holds SMS opt-outs.
 - **Callable names are a contract.** `scripts/check-callable-contract.mjs` fails
   CI if the SPA calls a name `functions/index.js` does not export. See
   [`docs/callable-frontend-map.md`](./callable-frontend-map.md).
-- **Landing page shares a stylesheet with the server-rendered blog.**
+- **The privacy page shares a stylesheet with the server-rendered blog.**
   `/news`, `/news/{slug}` and `/news/feed.xml` are rendered by `serveBlogPublic`
-  and use `landing/assets/css/styles.css` (section 16), so that file cannot be
-  rewritten without carrying the blog's styles along.
+  and use `landing/assets/css/styles.css` (section 16), as do
+  `landing/privacy.html` and `landing/index.html`, so that file cannot be
+  rewritten without carrying the blog's styles along. Sections 6, 16 and 18 dress
+  the navbar, cards and footer the blog function emits, so nothing in them may
+  assume the homepage's markup exists.
 
 ---
 
@@ -443,12 +448,20 @@ A global `blacklist` collection holds SMS opt-outs.
   approved.
 - **The landing site stays dependency-free.** No framework, no build step, and no
   application or design-system imports — asserted by
-  `src/tests/landingNewsSection.test.js`.
+  `src/tests/landingNewsSection.test.js`. This holds for every surface, homepage
+  included.
 - **Marketing claims must trace to the capability registry.**
   `functions/ai/knowledge/safehaulCapabilities.js` is the source of truth, and
   `npm run check:landing-claims` enforces it as part of `npm run lint`. Never
   claim DOT/FMCSA compliance, MVR/PSP/Clearinghouse checks, document-expiry
   monitoring, a job board, or any named carrier endorsement.
+- **A `landing/` change runs the `frontend_unit` CI lane.** The marketing site has
+  no build step, so "static content is not tested" is an easy assumption — and
+  `scripts/ci-plan.mjs` used to encode it, mapping `landing/` to no lane at all.
+  A landing-only commit therefore passed CI green while shipping a homepage that
+  claimed MVR checks, captured no lead, and failed `npm run lint`. The two
+  landing suites live in `src/tests/` and run in that lane; `A5`/`A5b` in
+  `scripts/test-ci-plan.mjs` pin it.
 
 ---
 
@@ -456,9 +469,9 @@ A global `blacklist` collection holds SMS opt-outs.
 
 Mandatory reading before any UI, styling, responsive or accessibility change:
 [`docs/SAFEHAUL_DESIGN_SYSTEM_ROADMAP.md`](./SAFEHAUL_DESIGN_SYSTEM_ROADMAP.md)
-and [`src/design-system/README.md`](../src/design-system/README.md).
-(`AGENTS.md` also references `docs/SAFEHAUL_UI_DESIGN_STANDARD.md` "when
-present" — **it does not currently exist**.)
+and [`src/design-system/README.md`](../src/design-system/README.md). The roadmap
+is authoritative for the design-system rules, the approved exceptions and the
+open decisions; this section is only a summary of it.
 
 Layering: the design system owns reusable appearance and interaction and must
 never know what a driver, lead or campaign is; feature folders own content,
@@ -489,8 +502,6 @@ actually having run.
 - **GitHub Models** as an AI provider.
 - **`Khomurod/SafeHaul-for-Gemini-Antigravity`** — archived; never develop or
   deploy from it. Deploy jobs are guarded by repository name.
-- `Prototype/` is historical landing-page exploration, referenced by nothing and
-  never built or deployed.
 
 **Current limitations:**
 
@@ -499,6 +510,18 @@ actually having run.
   Marketing prices ($199 / $299 per month) are **not** enforced anywhere in the
   app.
 - **Campaigns are one-way.** No inbound threads, no automated drip sequences.
+- **Opt-out enforcement works; opt-out *capture* does not.** `batchWorker.js`
+  calls `isBlacklisted()` before every send, checks both the company and global
+  `blacklist` collections, and fails closed on an unparseable number — that half
+  is real. But `handleOptOut` (`functions/blacklist.js`) is a Firestore trigger on
+  `companies/{companyId}/inbound_messages/{msgId}`, and **nothing in the
+  repository writes that collection**: there is no inbound SMS webhook, and the
+  function's own comment says a real deployment would need one. A recipient's STOP
+  reply therefore reaches the company's own provider, not SafeHaul, and a number
+  arrives on the blacklist only when something writes it there directly. There is
+  no admin interface for that either. The marketing site sold this as "opt-out
+  handling" until 2026-08-13; the claims gate is a phrase list and cannot see a
+  claim that is merely too generous.
 - **Frontend coverage thresholds are a low ratchet** (statements 16 %, lines
   16 %, branches 13 %, functions 13 %) — deliberately set just under the current
   baseline to block regressions, not to describe good coverage. Raise them as
@@ -533,27 +556,28 @@ CI also runs `check:callable-contract`, `check:ai-boundary`, `check:ci-plan`,
 `check:release-scripts`, `check:deploy-script`, `check:table-layout`, and a
 Gitleaks secret scan.
 
-Roughly 230 frontend unit test files, ~90 Cloud Functions test files, and 59
-Playwright specs. CI runs Playwright as a 4-way shard matrix with `workers: 1`
-and `retries: 2` per shard.
+CI runs Playwright as a 4-way shard matrix with `workers: 1` and `retries: 2`
+per shard.
 
-**Local test-runner safety — each rule was learned the expensive way:**
+`npm run typecheck` is a **non-blocking** baseline (`continue-on-error` in the
+workflow) and currently reports pre-existing errors in
+`src/config/applicationDefinition.js`. A red typecheck is not a broken build;
+do not assume a pre-existing one is yours.
 
-1. **Run only one Playwright suite at a time.** The config serves the app on port
-   5000 with `reuseExistingServer`; a second run attaches to the first run's
-   server and then collapses when that run tears it down, producing a cascade of
-   failures that are not real. Check the port is free first.
-2. **Never use broad process-killing patterns.** `pkill -f vite` matches the
-   invoking shell's own command line and kills it. Capture the dev server's PID
-   and terminate that, or use a narrow pattern like `pkill -f 'node.*vite'`.
-3. **Long suites need a persistent process, redirected logs, and the real exit
-   status.** A tool timeout or an externally delivered `SIGTERM` (exit 143) is
-   **not** a test failure — inspect the log before reporting one.
-4. **Never fabricate commits to work around a failing PR API.** If `POST /pulls`
-   returns 500, first check whether the PR was created anyway.
+**The marketing site has three of its own gates**, and only the middle one runs
+in CI: `npm run check:landing-claims` (part of `npm run lint`),
+`src/tests/landingPage.test.js` + `src/tests/landingNewsSection.test.js` (the
+`frontend_unit` lane, which a `landing/` change now selects), and
+`npm run check:landing-a11y`, which needs a real Chromium and is run by hand.
+Run all three before pushing a change to `landing/`.
 
-Also: **do not edit files in the module graph while a Playwright suite is
-running** — hot reload makes in-flight tests fail spuriously.
+**Local test-runner safety.** Four rules — run one Playwright suite at a time,
+never use a broad `pkill`, collect a long suite's real exit status before
+calling it a failure, and never fabricate a commit around a failing PR API —
+each learned the expensive way. Also: do not edit files in the module graph
+while a Playwright suite is running. [`AGENTS.md`](../AGENTS.md#local-test-runner-process-safety)
+is authoritative and explains why each exists; follow it exactly rather than
+this summary.
 
 **Operationally:** a green CI run is *not* evidence that anything shipped.
 `verify-shipped` reads the deployed SHA back off the live site, and the live
@@ -579,11 +603,16 @@ completion** — a PR never deploys, so it cannot exercise the path you changed.
 | Automated blog | [`docs/news-and-insights.md`](./news-and-insights.md) |
 | Hosting, releases, promotion | [`docs/FIREBASE_HOSTING_RUNBOOK.md`](./FIREBASE_HOSTING_RUNBOOK.md) |
 | Credentials and integrations inventory | [`docs/environment-and-integrations-runbook.md`](./environment-and-integrations-runbook.md) |
-| Design-system migration | [`docs/SAFEHAUL_DESIGN_SYSTEM_ROADMAP.md`](./SAFEHAUL_DESIGN_SYSTEM_ROADMAP.md) |
+| Operations, alerting, retention | [`docs/production-readiness-runbook.md`](./production-readiness-runbook.md) |
+| Historical record reconstruction | [`docs/application-record-reconstruction-runbook.md`](./application-record-reconstruction-runbook.md) |
+| Design-system standard and open decisions | [`docs/SAFEHAUL_DESIGN_SYSTEM_ROADMAP.md`](./SAFEHAUL_DESIGN_SYSTEM_ROADMAP.md) |
+| Marketing-site visual specification | [`DESIGN.md`](../DESIGN.md) / [`landing/README.md`](../landing/README.md) |
+| Manual signing-room device QA | [`docs/qa/edoc-mobile-document-first-qa.md`](./qa/edoc-mobile-document-first-qa.md) |
 
-**Note on `README.md`:** it carries stale details (dependencies the project does
-not use, an out-of-date "live app" URL, and campaign internals that no longer
-match the code). Where it disagrees with this brief or the code, it is wrong.
+**Note on `README.md`:** it is the getting-started guide and documentation map —
+setup, environment variables, commands, deployment. It defers to this brief for
+what the application is and how it behaves. Where the two ever disagree, this
+brief and the code win.
 
 ---
 

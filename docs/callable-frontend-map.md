@@ -16,7 +16,7 @@ Maps each **`httpsCallable`** export in [`functions/index.js`](../functions/inde
 | `backfillAllSmsSentPhones` | [`useSystemHealth.js`](../src/features/super-admin/hooks/useSystemHealth.js) | Admin: backfill SMS sent phones (all companies) |
 | `backfillAllStats` | [`StatsBackfillPanel.jsx`](../src/features/super-admin/components/StatsBackfillPanel.jsx) | Admin: stats backfill all tenants |
 | `backfillCompanyStats` | [`StatsBackfillPanel.jsx`](../src/features/super-admin/components/StatsBackfillPanel.jsx) | Admin: stats backfill one company |
-| `backfillEmployerFields` | [`BackfillEmployersButton.jsx`](../src/features/super-admin/components/BackfillEmployersButton.jsx), [`SuperAdminDashboard.jsx`](../src/features/super-admin/components/SuperAdminDashboard.jsx) | Migrate employer fields on applications |
+| `backfillEmployerFields` | [`SuperAdminDashboard.jsx`](../src/features/super-admin/components/SuperAdminDashboard.jsx) (triggered from [`DashboardHeader.jsx`](../src/features/super-admin/components/DashboardHeader.jsx), confirmed through [`BackfillEmployersDialogs.jsx`](../src/features/super-admin/components/BackfillEmployersDialogs.jsx)) | Migrate employer fields on applications |
 | `backfillPublicProfiles` | [`useSystemHealth.js`](../src/features/super-admin/hooks/useSystemHealth.js) | Sync all companies → `public_profiles` |
 | `cancelBulkSession` | [`CampaignDetails.jsx`](../src/features/campaigns/components/CampaignDetails.jsx) | Stop bulk campaign |
 | `checkImportPhones` | [`useCampaignTargeting.js`](../src/features/campaigns/hooks/useCampaignTargeting.js) | CSV import phone dedup check |

@@ -160,9 +160,18 @@ export function lanesForPath(path) {
     // End-to-end specs and their helpers only change what the browser lane runs.
     if (path.startsWith('e2e/')) return ['frontend_e2e'];
 
-    // The marketing site is static content on its own Hosting target. It is
-    // deployed, not built or tested, by this pipeline.
-    if (path.startsWith('landing/')) return [];
+    // The marketing site has no build step, but it IS tested:
+    // `src/tests/landingPage.test.js` and `src/tests/landingNewsSection.test.js`
+    // read the shipped files directly and hold them to the capability registry,
+    // the accessibility hardening and the lead-capture contract. Both run in the
+    // `frontend_unit` lane.
+    //
+    // This used to return `[]`, on the reasoning that static content is deployed
+    // rather than tested. It cost a broken homepage: a landing-only commit
+    // selected no lanes, CI went green, and `main` shipped a page that claimed
+    // MVR checks the product does not run, captured no lead, and failed
+    // `npm run lint`. Nothing in the pipeline was asked the question.
+    if (path.startsWith('landing/')) return ['frontend_unit'];
 
     if (path.startsWith('src/')) {
         // Feature code is frontend-only. Everything else under `src/` — the app

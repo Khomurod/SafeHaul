@@ -1,330 +1,1682 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SafeHaul — The intelligent flow of trucking compliance</title>
-<meta name="description" content="From recruiting to dispatch, SafeHaul organizes your entire safety workflow into one seamless, automated ecosystem.">
-<link rel="canonical" href="https://safehaul.io/">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SafeHaul — Driver hiring and DOT compliance for trucking carriers</title>
+    <meta name="description"
+        content="SafeHaul runs driver hiring end to end: a DOT-ready application, qualification documents in one place per driver, built-in e-signature with no per-envelope fee, and tracked previous-employment verification.">
+    <link rel="canonical" href="https://safehaul.io/">
 
-<meta property="og:site_name" content="SafeHaul">
-<meta property="og:title" content="SafeHaul — The intelligent flow of trucking compliance">
-<meta property="og:description" content="From recruiting to dispatch, SafeHaul organizes your entire safety workflow into one seamless, automated ecosystem.">
-<meta property="og:type" content="website">
-<meta property="og:url" content="https://safehaul.io/">
-<meta property="og:image" content="https://safehaul.io/assets/images/og-card.png">
+    <meta property="og:site_name" content="SafeHaul">
+    <meta property="og:title" content="SafeHaul — Driver hiring and DOT compliance for trucking carriers">
+    <meta property="og:description"
+        content="One structured record per driver, from application to signed paperwork to verified employment history.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://safehaul.io/">
+    <meta property="og:image" content="https://safehaul.io/assets/images/og-card.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="SafeHaul — driver hiring and DOT compliance for trucking carriers">
 
-<meta name="theme-color" content="#030712">
-<link rel="icon" type="image/svg+xml" href="./assets/images/logo.svg">
-<link rel="stylesheet" href="./assets/css/landing.css">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="SafeHaul — Driver hiring and DOT compliance for trucking carriers">
+    <meta name="twitter:description"
+        content="One structured record per driver, from application to signed paperwork to verified employment history.">
+    <meta name="twitter:image" content="https://safehaul.io/assets/images/og-card.png">
+
+    <meta name="theme-color" content="#14161A">
+    <link rel="icon" type="image/svg+xml" href="/assets/images/logo.svg">
+    <link rel="alternate" type="application/atom+xml" title="SafeHaul News &amp; Insights" href="/news/feed.xml">
+
+    <!--
+      Both faces are self-hosted. They used to come from fonts.googleapis.com,
+      which put a render-blocking stylesheet and two extra connections in front
+      of the largest contentful paint on every visit, for fonts we already ship.
+      Archivo carries structure and display; Geist Mono carries anything a
+      technical document types or numbers — figure numbers, dimensions, section
+      numbers, table headers, timestamps, prices.
+
+      There is no hero image to preload any more: the first viewport's figure is
+      inline SVG, so it arrives with the document and needs no second request.
+    -->
+    <link rel="preload" href="/assets/fonts/archivo-variable.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="/assets/fonts/geist-mono-variable.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="/assets/css/styles.css?v=8">
+
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "Organization",
+          "@id": "https://safehaul.io/#organization",
+          "name": "SafeHaul",
+          "url": "https://safehaul.io/",
+          "logo": "https://safehaul.io/assets/images/logo.svg",
+          "email": "info@safehaul.io",
+          "description": "Driver hiring and DOT compliance software for US trucking carriers."
+        },
+        {
+          "@type": "SoftwareApplication",
+          "name": "SafeHaul",
+          "applicationCategory": "BusinessApplication",
+          "operatingSystem": "Web",
+          "publisher": { "@id": "https://safehaul.io/#organization" },
+          "offers": [
+            {
+              "@type": "Offer",
+              "name": "Hiring & Compliance",
+              "price": "199",
+              "priceCurrency": "USD",
+              "category": "Monthly subscription"
+            },
+            {
+              "@type": "Offer",
+              "name": "Hiring & Compliance + Bulk Messaging",
+              "price": "299",
+              "priceCurrency": "USD",
+              "category": "Monthly subscription"
+            }
+          ]
+        }
+      ]
+    }
+    </script>
 </head>
+
 <body>
-<!-- FLUID MORPHING SEMI-CIRCLE BALL BACKGROUND -->
-<div class="morph-semi-ball"></div>
+    <!--
+      THESIS: The page is the specification for a record that has to survive
+      inspection, and it refuses the centred-hero-plus-bento arrangement this
+      category ships, because a specification is read in ruled order.
+      OWN-WORLD: paper and graphite technical documentation; Archivo + Geist Mono;
+                 colour only ever carries meaning; the action is near-black.
+      STORY: A carrier owner understands the file will hold up. A recruiter sees
+      it assemble itself. Both arrive at the same two-field form.
+      FIRST VIEWPORT: Paper ground. Ruled title block, then the headline left at
+      half measure with the near-black action beneath it; right, FIG. 1 — four
+      labelled plates seating onto one driver record on drawn leader lines.
+      FORM: Specification, candidate 1 of 7, seed 766c53d6.
+      FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md
+    -->
 
-<header>
-  <div class="logo-lockup">
-    <svg width="40" height="34" viewBox="0 0 150 128" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M84.5048 0H38.3646C35.6441 0 33.1101 1.38249 31.6377 3.67003L10.0621 37.1892C7.65527 40.9284 8.00677 45.8078 10.9247 49.1634L34.5051 76.2809C35.4547 77.373 36.831 78 38.2782 78H84.5043C85.3578 78 85.819 76.9996 85.2647 76.3506L60.1709 46.969C57.4395 43.7709 57.2872 39.1074 59.8042 35.7379L85.306 1.59845C85.7986 0.938977 85.328 0 84.5048 0Z" fill="url(#paint0_linear_logo)"></path>
-      <path d="M76.26 51.5H115.994C118.229 51.5 120.362 52.4346 121.876 54.0776L143.684 77.7336C146.805 81.1193 147.211 86.1988 144.667 90.037L120.983 125.763C120.057 127.16 118.492 128 116.816 128H68.9479C68.5459 128 68.3082 127.549 68.5353 127.218L96.563 86.2541C98.8806 82.8668 98.613 78.3405 95.9123 75.2499L75.8835 52.329C75.6009 52.0056 75.8306 51.5 76.26 51.5Z" fill="#004C68"></path>
-      <path d="M145.426 0.0370348L97.1296 0.476095C95.4834 0.49106 93.9501 1.31535 93.0296 2.68018L67.603 40.3817C66.7071 41.7101 67.6589 43.5 69.2612 43.5H111.534C114.663 43.5 117.611 42.0361 119.501 39.5439L147.038 3.24572C148.042 1.92198 147.088 0.0219304 145.426 0.0370348Z" fill="#0BE2A4"></path>
-      <path d="M83.603 85.5H34.9709C33.4135 85.5 31.9451 86.2257 30.9991 87.4627L2.45845 124.785C1.45208 126.101 2.39046 128 4.04717 128H51.8679C55.0895 128 58.1139 126.448 59.9923 123.83L85.2279 88.6661C86.1775 87.3428 85.2318 85.5 83.603 85.5Z" fill="#004C68"></path>
-      <defs>
-        <linearGradient id="paint0_linear_logo" x1="42.5" y1="55" x2="83" y2="75.5" gradientUnits="userSpaceOnUse">
-          <stop offset="0.283654" stop-color="#0CE1A5"></stop>
-          <stop offset="0.913462" stop-color="#077B5A"></stop>
-        </linearGradient>
-      </defs>
+    <a class="skip-link" href="#main">Skip to main content</a>
+
+    <!--
+      Drawn icon set and the one hatch pattern the section views use. Icon stroke
+      weights are set in 24-unit viewBox space so they RENDER at the figures' own
+      1.75px emphasis weight once scaled down — one visual stroke weight across
+      the whole site, not one numeric one.
+    -->
+    <svg class="icon-sprite" aria-hidden="true" focusable="false" width="0" height="0">
+        <defs>
+            <pattern id="hatch-45" width="6" height="6" patternUnits="userSpaceOnUse"
+                patternTransform="rotate(45)">
+                <path d="M0 0V6" fill="none" stroke="var(--rule-strong)" stroke-width="1" />
+            </pattern>
+            <marker id="arrow-graphite" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7"
+                orient="auto-start-reverse">
+                <path d="M0 1 9 5 0 9Z" fill="var(--graphite)" />
+            </marker>
+            <marker id="arrow-clear" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7"
+                orient="auto-start-reverse">
+                <path d="M0 1 9 5 0 9Z" fill="var(--clear)" />
+            </marker>
+        </defs>
+        <symbol id="i-check" viewBox="0 0 24 24">
+            <path d="M4 12.4 9.6 18 20 6.8" fill="none" stroke="currentColor" stroke-width="2.6"
+                stroke-linecap="square" stroke-linejoin="miter" />
+        </symbol>
+        <symbol id="i-seal" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="9.2" fill="none" stroke="currentColor" stroke-width="2.2" />
+            <path d="M7.4 12.2 10.6 15.4 16.8 8.8" fill="none" stroke="currentColor" stroke-width="2.2"
+                stroke-linecap="square" stroke-linejoin="miter" />
+        </symbol>
     </svg>
-    <span class="logo-word">SafeHaul</span>
-  </div>
-  <nav>
-    <a href="#platform" class="nav-a">Platform</a>
-    <a href="#calculator" class="nav-a">Calculator</a>
-    <a href="#pricing" class="nav-a">Pricing</a>
-    
-    <!-- THEME MODE SELECTOR (Dark | Light | System) -->
-    <div class="theme-selector" id="themeSelector">
-      <button class="theme-btn" data-mode="dark" onclick="setThemeMode('dark')">🌙 Dark</button>
-      <button class="theme-btn" data-mode="light" onclick="setThemeMode('light')">☀️ Light</button>
-      <button class="theme-btn" data-mode="system" onclick="setThemeMode('system')">💻 System</button>
+
+    <!-- NAVIGATION -->
+    <nav id="navbar" class="navbar">
+        <div class="nav-container">
+            <a href="/" class="logo-link" aria-label="SafeHaul home">
+                <img src="/assets/images/logo.svg" alt="" class="logo" width="152" height="132">
+                <span class="logo-text">SafeHaul</span>
+            </a>
+
+            <div class="nav-links" id="navLinks">
+                <a href="#features" class="nav-link">Platform</a>
+                <a href="#why-safehaul" class="nav-link">Why SafeHaul</a>
+                <a href="#pricing" class="nav-link">Pricing</a>
+                <a href="/news" class="nav-link">News &amp; Insights</a>
+                <a href="#faq" class="nav-link">FAQ</a>
+                <a href="#footer" class="nav-link">Contact</a>
+            </div>
+
+            <div class="nav-cta">
+                <a href="https://app.safehaul.io" class="btn btn-ghost" rel="noopener">Log in</a>
+                <button type="button" class="btn btn-primary js-open-lead-modal">Get started</button>
+            </div>
+
+            <button type="button" class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Open menu"
+                aria-expanded="false" aria-controls="navLinks">
+                <span></span><span></span><span></span>
+            </button>
+        </div>
+    </nav>
+
+    <main id="main">
+        <!-- HERO — the specification's first sheet -->
+        <header class="hero section-shell">
+            <!-- The sheet's title block. It runs the full measure, because a
+                 drawing's ruled margin belongs to the sheet, not to one column
+                 of it. -->
+            <div class="hero-slug">
+                <p class="mono">Driver hiring · one record per driver</p>
+                <p class="mono hero-slug-no">Sheet 01</p>
+            </div>
+            <div class="hero-inner">
+                <div class="hero-content">
+                    <h1>Hire drivers without losing the paperwork.</h1>
+                    <p class="hero-subtitle">
+                        SafeHaul turns driver hiring into one structured record per driver — a DOT-ready
+                        application, qualification documents held per driver, paperwork signed and sealed
+                        in the browser, and previous employment verified and tracked in the same place.
+                    </p>
+                    <div class="hero-buttons">
+                        <button type="button" class="btn btn-primary btn-lg js-open-lead-modal">Get started</button>
+                        <a href="#features" class="btn btn-outline btn-lg">See how it works</a>
+                    </div>
+                    <p class="hero-note">Built for US trucking carriers. Two flat monthly plans, no
+                        per-signature fees.</p>
+                </div>
+
+                <!--
+                  FIGURE 1 — the exploded assembly.
+                  Two variants, each drawn for its own width. The desktop drawing
+                  at 540 units carries a dimension apparatus and 12px labels that
+                  a 340-unit phone column cannot hold, so the phone gets its own
+                  composition rather than a squashed copy of this one. The plates
+                  seat into their exploded positions on load; they do not collapse
+                  into the base, because the exploded arrangement IS the figure.
+                -->
+                <figure class="hero-visual figure" id="figureOne">
+                    <svg class="f1--desktop" viewBox="0 0 540 560" role="img" focusable="false">
+                        <title>Exploded assembly: a driver application, qualification documents, a signature and
+                            employment history seating into one driver record.</title>
+                        <!-- assembly axis -->
+            <path class="f1-axis" d="M 187 6 V 536" fill="none" stroke="var(--draft)" stroke-width="1" stroke-dasharray="16 4 2.5 4" opacity="0.55"/>
+      <g class="f1-dim">
+        <g fill="none" stroke="var(--rule)" stroke-width="1"><path d="M 46 49 H 17" /><path d="M 46 325 H 17" /></g>
+        <path d="M 24 49 V 325" fill="none" stroke="var(--rule-strong)" stroke-width="1.25"/>
+        <path d="M 20 53 L 28 45" fill="none" stroke="var(--rule-strong)" stroke-width="1.25"/><path d="M 20 329 L 28 321" fill="none" stroke="var(--rule-strong)" stroke-width="1.25"/>
+        <text class="fig-dim" x="15" y="187" transform="rotate(-90 15 187)" text-anchor="middle">04 PARTS</text>
+      </g>
+      <g class="f1-dim">
+        <g fill="none" stroke="var(--rule)" stroke-width="1"><path d="M 46 430 H 17" /><path d="M 46 518 H 17" /></g>
+        <path d="M 24 430 V 518" fill="none" stroke="var(--rule-strong)" stroke-width="1.25"/>
+        <path d="M 20 434 L 28 426" fill="none" stroke="var(--rule-strong)" stroke-width="1.25"/><path d="M 20 522 L 28 514" fill="none" stroke="var(--rule-strong)" stroke-width="1.25"/>
+        <text class="fig-dim" x="15" y="474" transform="rotate(-90 15 474)" text-anchor="middle">01 RECORD</text>
+      </g>
+      <!-- application -->
+            <g class="f1-plate" style="--f1-i: 4">
+        <path d="M 52 49 L 242 99 L 242 106 L 52 56 Z" fill="var(--fig-side-a)"/>
+        <path d="M 322 72 L 242 99 L 242 106 L 322 79 Z" fill="var(--fig-side-b)"/>
+        <path d="M 132 22 L 322 72 L 242 99 L 52 49 Z" fill="#FDFDFC"/>
+        <path d="M 134 35 L 267 70" fill="none" stroke="var(--rule-strong)" stroke-width="1.25" stroke-linecap="square"/><path d="M 114.8 41.5 L 247.8 76.5" fill="none" stroke="var(--rule-strong)" stroke-width="1.25" stroke-linecap="square"/><path d="M 95.6 48 L 167.8 67" fill="none" stroke="var(--rule-strong)" stroke-width="1.25" stroke-linecap="square"/>
+        <path d="M 132 22 L 322 72 L 242 99 L 52 49 Z" fill="none" stroke="var(--graphite)" stroke-width="1.25" stroke-linejoin="miter"/>
+        <g fill="none" stroke="var(--graphite)" stroke-width="1.25" stroke-linejoin="miter"><path d="M 52 49 L 52 56" /><path d="M 242 99 L 242 106" /><path d="M 322 72 L 322 79" /><path d="M 52 56 L 242 106 L 322 79" fill="none"/></g>
+        <path class="f1-leader" d="M 275.2 74.1 H 335.5" fill="none" stroke="var(--draft)" stroke-width="1.25"/>
+        <path d="M 275.2 70.6 V 77.6" fill="none" stroke="var(--draft)" stroke-width="1.75"/>
+        <circle cx="348" cy="74.1" r="10.5" fill="var(--paper)" stroke="var(--draft)" stroke-width="1.25"/>
+        <text class="fig-num" x="348" y="74.6" text-anchor="middle" dominant-baseline="central">01</text>
+        <text class="fig-label" y="78.4"><tspan x="368" dy="0">APPLICATION</tspan></text>
+      </g>
+      <!-- documents -->
+            <g class="f1-plate" style="--f1-i: 3">
+        <path d="M 52 141 L 242 191 L 242 198 L 52 148 Z" fill="var(--fig-side-a)"/>
+        <path d="M 322 164 L 242 191 L 242 198 L 322 171 Z" fill="var(--fig-side-b)"/>
+        <path d="M 132 114 L 322 164 L 242 191 L 52 141 Z" fill="#FDFDFC"/>
+        <path d="M 140.4 124.9 L 186 136.9 L 136.4 153.6 L 90.8 141.6 Z" fill="none" stroke="var(--rule-strong)" stroke-width="1.25" stroke-linejoin="miter"/><path d="M 197.4 139.9 L 243 151.9 L 193.4 168.6 L 147.8 156.6 Z" fill="none" stroke="var(--rule-strong)" stroke-width="1.25" stroke-linejoin="miter"/><path d="M 254.4 154.9 L 288.6 163.9 L 239 180.6 L 204.8 171.6 Z" fill="none" stroke="var(--rule-strong)" stroke-width="1.25" stroke-linejoin="miter"/>
+        <path d="M 132 114 L 322 164 L 242 191 L 52 141 Z" fill="none" stroke="var(--graphite)" stroke-width="1.25" stroke-linejoin="miter"/>
+        <g fill="none" stroke="var(--graphite)" stroke-width="1.25" stroke-linejoin="miter"><path d="M 52 141 L 52 148" /><path d="M 242 191 L 242 198" /><path d="M 322 164 L 322 171" /><path d="M 52 148 L 242 198 L 322 171" fill="none"/></g>
+        <path class="f1-leader" d="M 275.2 166.1 H 335.5" fill="none" stroke="var(--draft)" stroke-width="1.25"/>
+        <path d="M 275.2 162.6 V 169.6" fill="none" stroke="var(--draft)" stroke-width="1.75"/>
+        <circle cx="348" cy="166.1" r="10.5" fill="var(--paper)" stroke="var(--draft)" stroke-width="1.25"/>
+        <text class="fig-num" x="348" y="166.6" text-anchor="middle" dominant-baseline="central">02</text>
+        <text class="fig-label" y="170.4"><tspan x="368" dy="0">DOCUMENTS</tspan></text>
+      </g>
+      <!-- signature -->
+            <g class="f1-plate" style="--f1-i: 2">
+        <path d="M 52 233 L 242 283 L 242 290 L 52 240 Z" fill="var(--fig-side-a)"/>
+        <path d="M 322 256 L 242 283 L 242 290 L 322 263 Z" fill="var(--fig-side-b)"/>
+        <path d="M 132 206 L 322 256 L 242 283 L 52 233 Z" fill="#FDFDFC"/>
+        <path d="M 130.8 220.1 L 191.6 236.1" fill="none" stroke="var(--rule-strong)" stroke-width="1.25" stroke-linecap="square"/><path d="M 95.6 232 L 228.6 267" fill="none" stroke="var(--graphite)" stroke-width="1.75" stroke-linecap="square"/>
+        <path d="M 132 206 L 322 256 L 242 283 L 52 233 Z" fill="none" stroke="var(--graphite)" stroke-width="1.25" stroke-linejoin="miter"/>
+        <g fill="none" stroke="var(--graphite)" stroke-width="1.25" stroke-linejoin="miter"><path d="M 52 233 L 52 240" /><path d="M 242 283 L 242 290" /><path d="M 322 256 L 322 263" /><path d="M 52 240 L 242 290 L 322 263" fill="none"/></g>
+        <path class="f1-leader" d="M 275.2 258.1 H 335.5" fill="none" stroke="var(--draft)" stroke-width="1.25"/>
+        <path d="M 275.2 254.6 V 261.6" fill="none" stroke="var(--draft)" stroke-width="1.75"/>
+        <circle cx="348" cy="258.1" r="10.5" fill="var(--paper)" stroke="var(--draft)" stroke-width="1.25"/>
+        <text class="fig-num" x="348" y="258.6" text-anchor="middle" dominant-baseline="central">03</text>
+        <text class="fig-label" y="262.4"><tspan x="368" dy="0">SIGNATURE</tspan></text>
+      </g>
+      <!-- employment -->
+            <g class="f1-plate" style="--f1-i: 1">
+        <path d="M 52 325 L 242 375 L 242 382 L 52 332 Z" fill="var(--fig-side-a)"/>
+        <path d="M 322 348 L 242 375 L 242 382 L 322 355 Z" fill="var(--fig-side-b)"/>
+        <path d="M 132 298 L 322 348 L 242 375 L 52 325 Z" fill="#FDFDFC"/>
+        <path d="M 134 311 L 194.8 327" fill="none" stroke="var(--rule-strong)" stroke-width="1.25" stroke-linecap="square"/><path d="M 213.8 332 L 267 346" fill="none" stroke="var(--rule-strong)" stroke-width="1.25" stroke-linecap="square"/><path d="M 113.2 318 L 174 334" fill="none" stroke="var(--rule-strong)" stroke-width="1.25" stroke-linecap="square"/><path d="M 193 339 L 246.2 353" fill="none" stroke="var(--rule-strong)" stroke-width="1.25" stroke-linecap="square"/><path d="M 92.4 325.1 L 153.2 341.1" fill="none" stroke="var(--rule-strong)" stroke-width="1.25" stroke-linecap="square"/><path d="M 172.2 346.1 L 225.4 360.1" fill="none" stroke="var(--rule-strong)" stroke-width="1.25" stroke-linecap="square"/>
+        <path d="M 132 298 L 322 348 L 242 375 L 52 325 Z" fill="none" stroke="var(--graphite)" stroke-width="1.25" stroke-linejoin="miter"/>
+        <g fill="none" stroke="var(--graphite)" stroke-width="1.25" stroke-linejoin="miter"><path d="M 52 325 L 52 332" /><path d="M 242 375 L 242 382" /><path d="M 322 348 L 322 355" /><path d="M 52 332 L 242 382 L 322 355" fill="none"/></g>
+        <path class="f1-leader" d="M 275.2 350.1 H 335.5" fill="none" stroke="var(--draft)" stroke-width="1.25"/>
+        <path d="M 275.2 346.6 V 353.6" fill="none" stroke="var(--draft)" stroke-width="1.75"/>
+        <circle cx="348" cy="350.1" r="10.5" fill="var(--paper)" stroke="var(--draft)" stroke-width="1.25"/>
+        <text class="fig-num" x="348" y="350.6" text-anchor="middle" dominant-baseline="central">04</text>
+        <text class="fig-label" y="354.4"><tspan x="368" dy="0">EMPLOYMENT HISTORY</tspan></text>
+      </g>
+      <!-- record -->
+            <g class="f1-plate f1-plate--record" style="--f1-i: 0">
+        <path d="M 52 457 L 242 507 L 242 518 L 52 468 Z" fill="var(--fig-side-a)"/>
+        <path d="M 322 480 L 242 507 L 242 518 L 322 491 Z" fill="var(--fig-side-b)"/>
+        <path d="M 132 430 L 322 480 L 242 507 L 52 457 Z" fill="#FFFFFF"/>
+        <path d="M 121.5 439.3 L 292.5 484.3" fill="none" stroke="var(--rule-strong)" stroke-width="1.25" stroke-linecap="square"/><path d="M 101.5 446 L 272.5 491" fill="none" stroke="var(--rule-strong)" stroke-width="1.25" stroke-linecap="square"/><path d="M 81.5 452.8 L 252.5 497.8" fill="none" stroke="var(--rule-strong)" stroke-width="1.25" stroke-linecap="square"/><path d="M 139.4 438.9 L 152.7 442.4" fill="none" stroke="var(--graphite)" stroke-width="1.75" stroke-linecap="square"/><path d="M 119.4 445.7 L 132.7 449.2" fill="none" stroke="var(--graphite)" stroke-width="1.75" stroke-linecap="square"/><path d="M 99.4 452.4 L 112.7 455.9" fill="none" stroke="var(--graphite)" stroke-width="1.75" stroke-linecap="square"/><path d="M 79.4 459.2 L 92.7 462.7" fill="none" stroke="var(--graphite)" stroke-width="1.75" stroke-linecap="square"/><path d="M 164.1 445.4 L 283.8 476.9" fill="none" stroke="var(--rule-strong)" stroke-width="1.25" stroke-linecap="square"/><path d="M 144.1 452.2 L 263.8 483.7" fill="none" stroke="var(--rule-strong)" stroke-width="1.25" stroke-linecap="square"/><path d="M 124.1 458.9 L 243.8 490.4" fill="none" stroke="var(--rule-strong)" stroke-width="1.25" stroke-linecap="square"/><path d="M 104.1 465.7 L 223.8 497.2" fill="none" stroke="var(--rule-strong)" stroke-width="1.25" stroke-linecap="square"/>
+        <path d="M 132 430 L 322 480 L 242 507 L 52 457 Z" fill="none" stroke="var(--graphite)" stroke-width="1.75" stroke-linejoin="miter"/>
+        <g fill="none" stroke="var(--graphite)" stroke-width="1.75" stroke-linejoin="miter"><path d="M 52 457 L 52 468" /><path d="M 242 507 L 242 518" /><path d="M 322 480 L 322 491" /><path d="M 52 468 L 242 518 L 322 491" fill="none"/></g>
+        <path class="f1-leader" d="M 275.2 482.1 H 335.5" fill="none" stroke="var(--draft)" stroke-width="1.25"/>
+        <path d="M 275.2 478.6 V 485.6" fill="none" stroke="var(--draft)" stroke-width="1.75"/>
+        <g class="f1-seal">
+          <circle cx="348" cy="482.1" r="10.5" fill="var(--paper)" stroke="var(--clear)" stroke-width="1.75"/>
+          <path d="M 343.2 482.3 L 346.8 486 L 353.3 477.7" fill="none" stroke="var(--clear)" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"/>
+        </g>
+        <text class="fig-label fig-label--strong" y="486.4"><tspan x="368" dy="0">ONE DRIVER RECORD</tspan></text>
+      </g>
+                    </svg>
+                    <svg class="f1--mobile" viewBox="0 0 340 300" role="img" focusable="false">
+                        <title>Exploded assembly: a driver application, qualification documents, a signature and
+                            employment history seating into one driver record.</title>
+                        <!-- assembly axis -->
+            <path class="f1-axis" d="M 84 -2 V 286" fill="none" stroke="var(--draft)" stroke-width="1" stroke-dasharray="16 4 2.5 4" opacity="0.55"/>
+      <!-- application -->
+            <g class="f1-plate" style="--f1-i: 4">
+        <path d="M 16 28 L 112 54 L 112 59 L 16 33 Z" fill="var(--fig-side-a)"/>
+        <path d="M 152 40 L 112 54 L 112 59 L 152 45 Z" fill="var(--fig-side-b)"/>
+        <path d="M 56 14 L 152 40 L 112 54 L 16 28 Z" fill="#FDFDFC"/>
+        <path d="M 57.1 20.8 L 124.3 39" fill="none" stroke="var(--rule-strong)" stroke-width="1.25" stroke-linecap="square"/><path d="M 47.5 24.1 L 114.7 42.3" fill="none" stroke="var(--rule-strong)" stroke-width="1.25" stroke-linecap="square"/><path d="M 37.9 27.5 L 74.4 37.4" fill="none" stroke="var(--rule-strong)" stroke-width="1.25" stroke-linecap="square"/>
+        <path d="M 56 14 L 152 40 L 112 54 L 16 28 Z" fill="none" stroke="var(--graphite)" stroke-width="1.25" stroke-linejoin="miter"/>
+        <g fill="none" stroke="var(--graphite)" stroke-width="1.25" stroke-linejoin="miter"><path d="M 16 28 L 16 33" /><path d="M 112 54 L 112 59" /><path d="M 152 40 L 152 45" /><path d="M 16 33 L 112 59 L 152 45" fill="none"/></g>
+        <path class="f1-leader" d="M 128.5 41.1 H 163" fill="none" stroke="var(--draft)" stroke-width="1.25"/>
+        <path d="M 128.5 37.6 V 44.6" fill="none" stroke="var(--draft)" stroke-width="1.75"/>
+        <circle cx="174" cy="41.1" r="9" fill="var(--paper)" stroke="var(--draft)" stroke-width="1.25"/>
+        <text class="fig-num" x="174" y="41.6" text-anchor="middle" dominant-baseline="central">01</text>
+        <text class="fig-label" y="45.1"><tspan x="190" dy="0">APPLICATION</tspan></text>
+      </g>
+      <!-- documents -->
+            <g class="f1-plate" style="--f1-i: 3">
+        <path d="M 16 74 L 112 100 L 112 105 L 16 79 Z" fill="var(--fig-side-a)"/>
+        <path d="M 152 86 L 112 100 L 112 105 L 152 91 Z" fill="var(--fig-side-b)"/>
+        <path d="M 56 60 L 152 86 L 112 100 L 16 74 Z" fill="#FDFDFC"/>
+        <path d="M 60.3 65.6 L 83.4 71.9 L 58.6 80.6 L 35.5 74.3 Z" fill="none" stroke="var(--rule-strong)" stroke-width="1.25" stroke-linejoin="miter"/><path d="M 89.1 73.4 L 112.2 79.7 L 87.4 88.4 L 64.3 82.1 Z" fill="none" stroke="var(--rule-strong)" stroke-width="1.25" stroke-linejoin="miter"/><path d="M 117.9 81.2 L 135.2 85.9 L 110.4 94.6 L 93.1 89.9 Z" fill="none" stroke="var(--rule-strong)" stroke-width="1.25" stroke-linejoin="miter"/>
+        <path d="M 56 60 L 152 86 L 112 100 L 16 74 Z" fill="none" stroke="var(--graphite)" stroke-width="1.25" stroke-linejoin="miter"/>
+        <g fill="none" stroke="var(--graphite)" stroke-width="1.25" stroke-linejoin="miter"><path d="M 16 74 L 16 79" /><path d="M 112 100 L 112 105" /><path d="M 152 86 L 152 91" /><path d="M 16 79 L 112 105 L 152 91" fill="none"/></g>
+        <path class="f1-leader" d="M 128.5 87.1 H 163" fill="none" stroke="var(--draft)" stroke-width="1.25"/>
+        <path d="M 128.5 83.6 V 90.6" fill="none" stroke="var(--draft)" stroke-width="1.75"/>
+        <circle cx="174" cy="87.1" r="9" fill="var(--paper)" stroke="var(--draft)" stroke-width="1.25"/>
+        <text class="fig-num" x="174" y="87.6" text-anchor="middle" dominant-baseline="central">02</text>
+        <text class="fig-label" y="91.1"><tspan x="190" dy="0">DOCUMENTS</tspan></text>
+      </g>
+      <!-- signature -->
+            <g class="f1-plate" style="--f1-i: 2">
+        <path d="M 16 120 L 112 146 L 112 151 L 16 125 Z" fill="var(--fig-side-a)"/>
+        <path d="M 152 132 L 112 146 L 112 151 L 152 137 Z" fill="var(--fig-side-b)"/>
+        <path d="M 56 106 L 152 132 L 112 146 L 16 120 Z" fill="#FDFDFC"/>
+        <path d="M 55.5 113.3 L 86.2 121.6" fill="none" stroke="var(--rule-strong)" stroke-width="1.25" stroke-linecap="square"/><path d="M 37.9 119.5 L 105.1 137.7" fill="none" stroke="var(--graphite)" stroke-width="1.75" stroke-linecap="square"/>
+        <path d="M 56 106 L 152 132 L 112 146 L 16 120 Z" fill="none" stroke="var(--graphite)" stroke-width="1.25" stroke-linejoin="miter"/>
+        <g fill="none" stroke="var(--graphite)" stroke-width="1.25" stroke-linejoin="miter"><path d="M 16 120 L 16 125" /><path d="M 112 146 L 112 151" /><path d="M 152 132 L 152 137" /><path d="M 16 125 L 112 151 L 152 137" fill="none"/></g>
+        <path class="f1-leader" d="M 128.5 133.1 H 163" fill="none" stroke="var(--draft)" stroke-width="1.25"/>
+        <path d="M 128.5 129.6 V 136.6" fill="none" stroke="var(--draft)" stroke-width="1.75"/>
+        <circle cx="174" cy="133.1" r="9" fill="var(--paper)" stroke="var(--draft)" stroke-width="1.25"/>
+        <text class="fig-num" x="174" y="133.6" text-anchor="middle" dominant-baseline="central">03</text>
+        <text class="fig-label" y="137.1"><tspan x="190" dy="0">SIGNATURE</tspan></text>
+      </g>
+      <!-- employment -->
+            <g class="f1-plate" style="--f1-i: 1">
+        <path d="M 16 166 L 112 192 L 112 197 L 16 171 Z" fill="var(--fig-side-a)"/>
+        <path d="M 152 178 L 112 192 L 112 197 L 152 183 Z" fill="var(--fig-side-b)"/>
+        <path d="M 56 152 L 152 178 L 112 192 L 16 166 Z" fill="#FDFDFC"/>
+        <path d="M 57.1 158.8 L 87.8 167.1" fill="none" stroke="var(--rule-strong)" stroke-width="1.25" stroke-linecap="square"/><path d="M 97.4 169.7 L 124.3 177" fill="none" stroke="var(--rule-strong)" stroke-width="1.25" stroke-linecap="square"/><path d="M 46.7 162.4 L 77.4 170.7" fill="none" stroke="var(--rule-strong)" stroke-width="1.25" stroke-linecap="square"/><path d="M 87 173.3 L 113.9 180.6" fill="none" stroke="var(--rule-strong)" stroke-width="1.25" stroke-linecap="square"/><path d="M 36.3 166 L 67 174.4" fill="none" stroke="var(--rule-strong)" stroke-width="1.25" stroke-linecap="square"/><path d="M 76.6 177 L 103.5 184.2" fill="none" stroke="var(--rule-strong)" stroke-width="1.25" stroke-linecap="square"/>
+        <path d="M 56 152 L 152 178 L 112 192 L 16 166 Z" fill="none" stroke="var(--graphite)" stroke-width="1.25" stroke-linejoin="miter"/>
+        <g fill="none" stroke="var(--graphite)" stroke-width="1.25" stroke-linejoin="miter"><path d="M 16 166 L 16 171" /><path d="M 112 192 L 112 197" /><path d="M 152 178 L 152 183" /><path d="M 16 171 L 112 197 L 152 183" fill="none"/></g>
+        <path class="f1-leader" d="M 128.5 179.1 H 163" fill="none" stroke="var(--draft)" stroke-width="1.25"/>
+        <path d="M 128.5 175.6 V 182.6" fill="none" stroke="var(--draft)" stroke-width="1.75"/>
+        <circle cx="174" cy="179.1" r="9" fill="var(--paper)" stroke="var(--draft)" stroke-width="1.25"/>
+        <text class="fig-num" x="174" y="179.6" text-anchor="middle" dominant-baseline="central">04</text>
+        <text class="fig-label" y="183.1"><tspan x="190" dy="0">EMPLOYMENT HISTORY</tspan></text>
+      </g>
+      <!-- record -->
+            <g class="f1-plate f1-plate--record" style="--f1-i: 0">
+        <path d="M 16 234 L 112 260 L 112 268 L 16 242 Z" fill="var(--fig-side-a)"/>
+        <path d="M 152 246 L 112 260 L 112 268 L 152 254 Z" fill="var(--fig-side-b)"/>
+        <path d="M 56 220 L 152 246 L 112 260 L 16 234 Z" fill="#FFFFFF"/>
+        <path d="M 50.8 224.8 L 137.2 248.2" fill="none" stroke="var(--rule-strong)" stroke-width="1.25" stroke-linecap="square"/><path d="M 40.8 228.3 L 127.2 251.7" fill="none" stroke="var(--rule-strong)" stroke-width="1.25" stroke-linecap="square"/><path d="M 30.8 231.8 L 117.2 255.2" fill="none" stroke="var(--rule-strong)" stroke-width="1.25" stroke-linecap="square"/><path d="M 59.8 224.6 L 66.5 226.4" fill="none" stroke="var(--graphite)" stroke-width="1.75" stroke-linecap="square"/><path d="M 49.8 228.1 L 56.5 229.9" fill="none" stroke="var(--graphite)" stroke-width="1.75" stroke-linecap="square"/><path d="M 39.8 231.6 L 46.5 233.4" fill="none" stroke="var(--graphite)" stroke-width="1.75" stroke-linecap="square"/><path d="M 29.8 235.1 L 36.5 236.9" fill="none" stroke="var(--graphite)" stroke-width="1.75" stroke-linecap="square"/><path d="M 72.3 228 L 132.8 244.4" fill="none" stroke="var(--rule-strong)" stroke-width="1.25" stroke-linecap="square"/><path d="M 62.3 231.5 L 122.8 247.9" fill="none" stroke="var(--rule-strong)" stroke-width="1.25" stroke-linecap="square"/><path d="M 52.3 235 L 112.8 251.4" fill="none" stroke="var(--rule-strong)" stroke-width="1.25" stroke-linecap="square"/><path d="M 42.3 238.5 L 102.8 254.9" fill="none" stroke="var(--rule-strong)" stroke-width="1.25" stroke-linecap="square"/>
+        <path d="M 56 220 L 152 246 L 112 260 L 16 234 Z" fill="none" stroke="var(--graphite)" stroke-width="1.75" stroke-linejoin="miter"/>
+        <g fill="none" stroke="var(--graphite)" stroke-width="1.75" stroke-linejoin="miter"><path d="M 16 234 L 16 242" /><path d="M 112 260 L 112 268" /><path d="M 152 246 L 152 254" /><path d="M 16 242 L 112 268 L 152 254" fill="none"/></g>
+        <path class="f1-leader" d="M 128.5 247.1 H 163" fill="none" stroke="var(--draft)" stroke-width="1.25"/>
+        <path d="M 128.5 243.6 V 250.6" fill="none" stroke="var(--draft)" stroke-width="1.75"/>
+        <g class="f1-seal">
+          <circle cx="174" cy="247.1" r="9" fill="var(--paper)" stroke="var(--clear)" stroke-width="1.75"/>
+          <path d="M 169.9 247.3 L 173 250.4 L 178.5 243.3" fill="none" stroke="var(--clear)" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"/>
+        </g>
+        <text class="fig-label fig-label--strong" y="251.1"><tspan x="190" dy="0">ONE DRIVER RECORD</tspan></text>
+      </g>
+                    </svg>
+                    <figcaption class="figure-caption">Fig. 1 — Four parts, one driver record.</figcaption>
+                </figure>
+            </div>
+        </header>
+
+        <!-- PROOF STRIP -->
+        <section class="logos-section" aria-label="Carriers hiring on SafeHaul">
+            <p class="logos-title">Carriers hiring on SafeHaul</p>
+            <ul class="company-logos-row">
+                <!-- The source files were square exports padded with a lot of
+                     empty canvas, which forced `object-fit: contain` to scale
+                     each mark to the padding rather than to the artwork. They
+                     are cropped to their content, so the intrinsic sizes below
+                     differ per mark — and are declared, so the row cannot shift
+                     as they load. -->
+                <li class="company-logo-item">
+                    <img src="/assets/images/company_logos/stl-truckers.png" alt="STL Truckers" width="829"
+                        height="363" loading="lazy" decoding="async">
+                </li>
+                <li class="company-logo-item">
+                    <img src="/assets/images/company_logos/true-nation.png" alt="True Nation" width="267" height="56"
+                        loading="lazy" decoding="async">
+                </li>
+                <li class="company-logo-item">
+                    <img src="/assets/images/company_logos/is-truckers.png" alt="I&amp;S Transportation" width="200"
+                        height="83" loading="lazy" decoding="async">
+                </li>
+                <li class="company-logo-item company-logo-wordmark">
+                    <span class="wordmark">TopHire</span>
+                    <span class="wordmark-sub">Recruiting Agency</span>
+                </li>
+            </ul>
+        </section>
+
+        <!-- 01 — THE INSPECTION FRAME -->
+        <section class="frame-section" data-reveal>
+            <div class="section-title">
+                <div class="section-head">
+                    <p class="section-index">01</p>
+                    <p class="section-label">Inspection</p>
+                </div>
+                <h2>Someone will ask to see the file.</h2>
+                <p>
+                    When they do, four things have to be in one place and agree with each other. The
+                    usual arrangement keeps each of them somewhere else.
+                </p>
+            </div>
+
+            <div class="frame-spread">
+                <div class="frame-list">
+                    <div class="frame-list-row">
+                        <p class="frame-list-key">01</p>
+                        <div>
+                            <h3>The application, complete</h3>
+                            <p>Contact details, qualifications, licence, violations, accidents, employment
+                                history, general information, review and consent.</p>
+                        </div>
+                    </div>
+                    <div class="frame-list-row">
+                        <p class="frame-list-key">02</p>
+                        <div>
+                            <h3>The qualification documents</h3>
+                            <p>Held against the driver they belong to, not in a shared drive named after
+                                whoever set it up.</p>
+                        </div>
+                    </div>
+                    <div class="frame-list-row">
+                        <p class="frame-list-key">03</p>
+                        <div>
+                            <h3>What was signed, and by whom</h3>
+                            <p>The completed document, sealed, with the record of who signed it and when.</p>
+                        </div>
+                    </div>
+                    <div class="frame-list-row">
+                        <p class="frame-list-key">04</p>
+                        <div>
+                            <h3>What past employers answered</h3>
+                            <p>The requests that went out and the responses that came back, rather than a
+                                memory of a phone call.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!--
+                  FIGURE 2 — section view. Four enclosures, hatched as a cut wall
+                  is hatched, each holding one artifact, with the dimension across
+                  the top counting the places someone has to look. The dash-dot
+                  break lines are the system boundaries.
+                -->
+                <figure class="figure">
+                    <div class="figure-scroll" tabindex="0" role="region" aria-label="Figure 2 — section view, scrollable">
+                        <svg viewBox="0 0 520 300" role="img" focusable="false">
+                            <title>Section view: the same four artifacts held in four separate systems, with the
+                                distance between them dimensioned.</title>
+
+                            <!-- overall dimension: the number of places to look -->
+                            <text class="fig-dim" x="260" y="52" text-anchor="middle">FOUR PLACES TO LOOK</text>
+                            <g fill="none" stroke="var(--rule)" stroke-width="1">
+                                <path d="M16 92V60" />
+                                <path d="M504 92V60" />
+                            </g>
+                            <path d="M16 68H504" fill="none" stroke="var(--rule-strong)" stroke-width="1.25" />
+                            <g fill="none" stroke="var(--rule-strong)" stroke-width="1.25">
+                                <path d="M12 72 20 64" />
+                                <path d="M500 72 508 64" />
+                                <path d="M132 62V74" />
+                                <path d="M260 62V74" />
+                                <path d="M388 62V74" />
+                            </g>
+
+                            <!-- system boundaries -->
+                            <g fill="none" stroke="var(--draft)" stroke-width="1" stroke-dasharray="14 4 2.5 4"
+                                opacity="0.55">
+                                <path d="M132 116V236" />
+                                <path d="M260 116V236" />
+                                <path d="M388 116V236" />
+                            </g>
+
+                            <!-- 01 · the application -->
+                            <circle cx="68" cy="104" r="10.5" fill="var(--paper)" stroke="var(--draft)"
+                                stroke-width="1.25" />
+                            <text class="fig-num" x="68" y="104" text-anchor="middle"
+                                dominant-baseline="central">01</text>
+                            <path
+                                d="M16 124V224H120V124H113V217H23V124Z"
+                                fill="url(#hatch-45)" stroke="var(--graphite)" stroke-width="1.25"
+                                stroke-linejoin="miter" />
+                            <rect x="35" y="156" width="66" height="52" fill="var(--fig-face)"
+                                stroke="var(--graphite)" stroke-width="1.25" />
+                            <g fill="none" stroke="var(--rule-strong)" stroke-width="1.25" stroke-linecap="square">
+                                <path d="M44 168H92" />
+                                <path d="M44 180H92" />
+                                <path d="M44 192H70" />
+                            </g>
+                            <text class="fig-label--muted fig-label" x="68" y="248"
+                                text-anchor="middle">APPLICATION</text>
+
+                            <!-- 02 · the documents -->
+                            <circle cx="196" cy="104" r="10.5" fill="var(--paper)" stroke="var(--draft)"
+                                stroke-width="1.25" />
+                            <text class="fig-num" x="196" y="104" text-anchor="middle"
+                                dominant-baseline="central">02</text>
+                            <path
+                                d="M144 124V224H248V124H241V217H151V124Z"
+                                fill="url(#hatch-45)" stroke="var(--graphite)" stroke-width="1.25"
+                                stroke-linejoin="miter" />
+                            <rect x="163" y="156" width="66" height="52" fill="var(--fig-face)"
+                                stroke="var(--graphite)" stroke-width="1.25" />
+                            <g fill="none" stroke="var(--rule-strong)" stroke-width="1.25" stroke-linejoin="miter">
+                                <rect x="171" y="164" width="22" height="36" />
+                                <rect x="199" y="164" width="22" height="36" />
+                            </g>
+                            <text class="fig-label--muted fig-label" x="196" y="248"
+                                text-anchor="middle">DOCUMENTS</text>
+
+                            <!-- 03 · the signed paperwork -->
+                            <circle cx="324" cy="104" r="10.5" fill="var(--paper)" stroke="var(--draft)"
+                                stroke-width="1.25" />
+                            <text class="fig-num" x="324" y="104" text-anchor="middle"
+                                dominant-baseline="central">03</text>
+                            <path
+                                d="M272 124V224H376V124H369V217H279V124Z"
+                                fill="url(#hatch-45)" stroke="var(--graphite)" stroke-width="1.25"
+                                stroke-linejoin="miter" />
+                            <rect x="291" y="156" width="66" height="52" fill="var(--fig-face)"
+                                stroke="var(--graphite)" stroke-width="1.25" />
+                            <g fill="none" stroke="var(--rule-strong)" stroke-width="1.25" stroke-linecap="square">
+                                <path d="M300 168H348" />
+                                <path d="M300 178H330" />
+                            </g>
+                            <path d="M300 196H340" fill="none" stroke="var(--graphite)" stroke-width="1.75"
+                                stroke-linecap="square" />
+                            <text class="fig-label--muted fig-label" x="324" y="248" text-anchor="middle">SIGNED</text>
+                            <text class="fig-label--muted fig-label" x="324" y="263"
+                                text-anchor="middle">PAPERWORK</text>
+
+                            <!-- 04 · the employment history -->
+                            <circle cx="452" cy="104" r="10.5" fill="var(--paper)" stroke="var(--draft)"
+                                stroke-width="1.25" />
+                            <text class="fig-num" x="452" y="104" text-anchor="middle"
+                                dominant-baseline="central">04</text>
+                            <path
+                                d="M400 124V224H504V124H497V217H407V124Z"
+                                fill="url(#hatch-45)" stroke="var(--graphite)" stroke-width="1.25"
+                                stroke-linejoin="miter" />
+                            <rect x="419" y="156" width="66" height="52" fill="var(--fig-face)"
+                                stroke="var(--graphite)" stroke-width="1.25" />
+                            <g fill="none" stroke="var(--rule-strong)" stroke-width="1.25" stroke-linecap="square">
+                                <path d="M427 168H450" />
+                                <path d="M458 168H477" />
+                                <path d="M427 180H450" />
+                                <path d="M458 180H477" />
+                                <path d="M427 192H450" />
+                                <path d="M458 192H477" />
+                            </g>
+                            <text class="fig-label--muted fig-label" x="452" y="248"
+                                text-anchor="middle">EMPLOYMENT</text>
+                            <text class="fig-label--muted fig-label" x="452" y="263"
+                                text-anchor="middle">HISTORY</text>
+                        </svg>
+                    </div>
+                    <p class="figure-hint">Scroll sideways to see the whole drawing.</p>
+                    <figcaption class="figure-caption">Fig. 2 — Section view. The same four artifacts, held in four
+                        separate systems.</figcaption>
+                </figure>
+            </div>
+        </section>
+
+        <!-- 02 — PLATFORM -->
+        <section id="features" class="features-section" data-reveal>
+            <div class="section-title">
+                <div class="section-head">
+                    <p class="section-index">02</p>
+                    <p class="section-label">Platform</p>
+                </div>
+                <h2>One platform, from first contact to a complete driver file.</h2>
+                <p>Every capability below is in the product today.</p>
+            </div>
+
+            <div class="spec-list">
+                <article class="spec-row spec-row--exhibit">
+                    <p class="spec-index">01</p>
+                    <div class="spec-key">
+                        <h3>Driver applicant tracking</h3>
+                    </div>
+                    <div class="spec-value">
+                        <p>
+                            A nine-step application covering contact details, qualifications, licence,
+                            violations, accidents, employment history, general information, review and
+                            consent — with a recruiter pipeline that moves candidates through your
+                            hiring stages.
+                        </p>
+                        <figure class="exhibit">
+                            <img src="/assets/images/screenshots/pipeline.png"
+                                alt="The SafeHaul recruiter pipeline listing driver applicants with their status, licence state, equipment type and application date."
+                                width="1440" height="900" loading="lazy" decoding="async">
+                            <figcaption>Fig. 01 — Recruiter pipeline. Fixture data, not a real carrier's drivers.
+                            </figcaption>
+                        </figure>
+                    </div>
+                </article>
+
+                <article class="spec-row">
+                    <p class="spec-index">02</p>
+                    <div class="spec-key">
+                        <h3>Documents, per driver</h3>
+                    </div>
+                    <div class="spec-value">
+                        <p>
+                            Qualification paperwork stored against the driver it belongs to, reachable only
+                            through server-issued links that check company membership first.
+                        </p>
+                    </div>
+                </article>
+
+                <article class="spec-row">
+                    <p class="spec-index">03</p>
+                    <div class="spec-key">
+                        <h3>Electronic signature, included</h3>
+                    </div>
+                    <div class="spec-value">
+                        <p>
+                            Send a document, have it signed in a browser without an account, and get a sealed
+                            copy back. No separate e-signature subscription, no per-envelope charge.
+                        </p>
+                    </div>
+                </article>
+
+                <article class="spec-row">
+                    <p class="spec-index">04</p>
+                    <div class="spec-key">
+                        <h3>Previous-employment verification</h3>
+                    </div>
+                    <div class="spec-value">
+                        <p>
+                            Requests go to past employers with tracked responses, and the results stay behind
+                            a link checked against your company.
+                        </p>
+                    </div>
+                </article>
+
+                <article class="spec-row">
+                    <p class="spec-index">05</p>
+                    <div class="spec-key">
+                        <h3>Start from a licence photo</h3>
+                    </div>
+                    <div class="spec-value">
+                        <p>
+                            A driver photographs their CDL and the application fills itself in. Every extracted
+                            value is shown to them to check before anything is submitted.
+                        </p>
+                    </div>
+                </article>
+
+                <article class="spec-row spec-row--figure">
+                    <p class="spec-index">06</p>
+                    <div class="spec-key">
+                        <h3>Reporting on your pipeline</h3>
+                    </div>
+                    <div class="spec-value">
+                        <p>
+                            Where candidates enter and where they drop out, built from counters maintained as
+                            activity happens rather than recomputed on demand.
+                        </p>
+                        <!--
+                          FIGURE 6 — a schematic of the shape a pipeline report
+                          describes. Deliberately carries NO numbers: any figure
+                          here would be invented, and the Illustration Rule says
+                          demonstration data is labelled as such.
+                        -->
+                        <figure class="figure">
+                            <svg viewBox="0 0 300 200" role="img" focusable="false">
+                                <title>Schematic of a hiring pipeline narrowing across five stages. An
+                                    illustration, carrying no data.</title>
+                                <path d="M88 12V178" fill="none" stroke="var(--graphite)" stroke-width="1.75" />
+                                <g>
+                                    <text class="fig-dim" x="80" y="27" text-anchor="end">STAGE 01</text>
+                                    <rect x="88" y="18" width="196" height="10" fill="var(--graphite)" />
+                                </g>
+                                <g>
+                                    <text class="fig-dim" x="80" y="61" text-anchor="end">STAGE 02</text>
+                                    <rect x="88" y="52" width="158" height="10" fill="var(--graphite)" />
+                                </g>
+                                <g>
+                                    <text class="fig-dim" x="80" y="95" text-anchor="end">STAGE 03</text>
+                                    <rect x="88" y="86" width="114" height="10" fill="var(--graphite)" />
+                                </g>
+                                <g>
+                                    <text class="fig-dim" x="80" y="129" text-anchor="end">STAGE 04</text>
+                                    <rect x="88" y="120" width="74" height="10" fill="var(--graphite)" />
+                                </g>
+                                <g>
+                                    <text class="fig-dim" x="80" y="163" text-anchor="end">STAGE 05</text>
+                                    <rect x="88" y="154" width="42" height="10" fill="var(--graphite)" />
+                                </g>
+                                <path d="M88 190H284" fill="none" stroke="var(--rule)" stroke-width="1" />
+                            </svg>
+                            <figcaption class="figure-caption">Fig. 6 — Illustration of pipeline shape. Carries no
+                                data.</figcaption>
+                        </figure>
+                    </div>
+                </article>
+            </div>
+        </section>
+
+        <!-- 03 — APPLY -->
+        <section class="story-section" id="story-hire" data-tab="features" data-reveal>
+            <div class="section-title">
+                <div class="section-head">
+                    <p class="section-index">03</p>
+                    <p class="section-label">Apply</p>
+                </div>
+                <h2>The application survives a bad signal.</h2>
+            </div>
+            <div class="story">
+                <div class="story-text">
+                    <p>
+                        Applications are queued in the browser and retried automatically when the
+                        connection comes back. Each one carries an identifier derived from the company,
+                        email and phone, so a retry cannot create a second copy of the same driver.
+                    </p>
+                    <ul class="story-list">
+                        <li><svg class="i" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>Invited
+                            drivers or a public application link for your company</li>
+                        <li><svg class="i" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>Custom
+                            questions per company, on top of the standard steps</li>
+                        <li><svg class="i" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>Work in
+                            progress is never lost to a dropped connection</li>
+                    </ul>
+
+                    <!-- The nine steps, shown rather than asserted: completed steps
+                         stay marked, which is the whole point of a queued form. -->
+                    <ol class="steps" id="applicationSteps">
+                        <li>Contact details</li>
+                        <li>Qualifications</li>
+                        <li>Licence</li>
+                        <li>Violations</li>
+                        <li>Accidents</li>
+                        <li>Employment history</li>
+                        <li>General information</li>
+                        <li>Review</li>
+                        <li>Consent</li>
+                    </ol>
+                </div>
+
+                <div class="story-visual">
+                    <figure class="exhibit exhibit--phone">
+                        <img src="/assets/images/screenshots/driver-application-mobile.png"
+                            alt="Step one of nine of the SafeHaul driver application on a phone, collecting personal information."
+                            width="390" height="844" loading="lazy" decoding="async">
+                        <figcaption>Fig. 02 — Step one of nine, top of screen. Illustration, not a real driver's
+                            application.</figcaption>
+                    </figure>
+                </div>
+            </div>
+                <!--
+                  FIGURE 3 — queue and retry, on a time axis. The dropout is
+                  drawn as an absence, the two attempts as ticks, and the
+                  deterministic identifier as two attempts resolving to one
+                  record.
+                -->
+                <figure class="figure story-figure">
+                    <div class="figure-scroll" tabindex="0" role="region" aria-label="Figure 3 — queue and retry timing, scrollable">
+                        <svg viewBox="0 0 520 268" role="img" focusable="false">
+                            <title>Timing diagram: a submission attempted during a dropped connection is queued and
+                                retried when the connection returns, resolving to one record.</title>
+
+                            <!-- the connection band -->
+                            <text class="fig-dim" x="82" y="61" text-anchor="end">CONNECTION</text>
+                            <rect x="96" y="50" width="94" height="8" fill="var(--graphite)" />
+                            <rect x="262" y="50" width="242" height="8" fill="var(--graphite)" />
+                            <path d="M190 54H262" fill="none" stroke="var(--attend)" stroke-width="1.25"
+                                stroke-dasharray="5 4" />
+                            <text class="fig-dim" x="226" y="38" text-anchor="middle"
+                                style="fill:var(--attend)">DROPPED</text>
+
+                            <!-- queued span -->
+                            <g fill="none" stroke="var(--attend)" stroke-width="1.25">
+                                <path d="M216 156V172" />
+                                <path d="M300 156V172" />
+                                <path d="M216 164H300" />
+                            </g>
+                            <text class="fig-dim" x="258" y="152" text-anchor="middle"
+                                style="fill:var(--attend)">QUEUED</text>
+
+                            <!-- attempts -->
+                            <g fill="none" stroke="var(--graphite)" stroke-width="1.75">
+                                <path d="M216 100V196" />
+                                <path d="M300 100V196" />
+                            </g>
+                            <circle cx="216" cy="88" r="10.5" fill="var(--paper)" stroke="var(--draft)"
+                                stroke-width="1.25" />
+                            <text class="fig-num" x="216" y="88" text-anchor="middle"
+                                dominant-baseline="central">01</text>
+                            <circle cx="300" cy="88" r="10.5" fill="var(--paper)" stroke="var(--draft)"
+                                stroke-width="1.25" />
+                            <text class="fig-num" x="300" y="88" text-anchor="middle"
+                                dominant-baseline="central">02</text>
+                            <text class="fig-label fig-label--muted" x="216" y="74"
+                                text-anchor="middle">SUBMIT</text>
+                            <text class="fig-label fig-label--muted" x="300" y="74"
+                                text-anchor="middle">RETRY</text>
+
+                            <!-- time axis -->
+                            <path d="M96 196H504" fill="none" stroke="var(--graphite)" stroke-width="1.25"
+                                marker-end="url(#arrow-graphite)" />
+                            <text class="fig-dim" x="82" y="200" text-anchor="end">TIME</text>
+
+                            <!-- both attempts resolve to one record -->
+                            <g fill="none" stroke="var(--clear)" stroke-width="1.25">
+                                <path d="M216 196V228H352" />
+                                <path d="M300 196V228H352" />
+                            </g>
+                            <rect x="352" y="212" width="152" height="32" fill="var(--paper)"
+                                stroke="var(--clear)" stroke-width="1.75" />
+                            <text class="fig-label" x="428" y="228" text-anchor="middle"
+                                dominant-baseline="central" style="fill:var(--clear)">ONE RECORD</text>
+                            <text class="fig-dim" x="96" y="262">SAME IDENTIFIER · NO DUPLICATE</text>
+                        </svg>
+                    </div>
+                    <p class="figure-hint">Scroll sideways to see the whole drawing.</p>
+                    <figcaption class="figure-caption">Fig. 3 — A retry cannot create a second copy of the same
+                        driver.</figcaption>
+                </figure>
+        </section>
+
+        <!-- 04 — SIGN -->
+        <section class="story-section" id="story-sign" data-tab="features" data-reveal>
+            <div class="section-title">
+                <div class="section-head">
+                    <p class="section-index">04</p>
+                    <p class="section-label">Sign</p>
+                </div>
+                <h2>Paperwork signed and sealed, with no envelope bill.</h2>
+            </div>
+            <div class="story story--reverse">
+                <div class="story-text">
+                    <p>
+                        Build a document from a template, place the signer fields, and send it. The driver
+                        signs in a browser without creating an account, and the finished document is
+                        sealed so a later alteration is detectable.
+                    </p>
+                    <ul class="story-list">
+                        <li><svg class="i" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>Draw or type
+                            a signature; a signing link cannot be submitted twice</li>
+                        <li><svg class="i" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>SafeHaul can
+                            suggest where signer fields belong on an uploaded form, for a person to review</li>
+                        <li><svg class="i" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>Unlimited
+                            documents on both plans</li>
+                    </ul>
+                </div>
+
+                <div class="story-visual">
+                    <figure class="exhibit">
+                        <img src="/assets/images/screenshots/edocs.png"
+                            alt="The SafeHaul documents workspace showing counts for documents awaiting signature, completed, needing attention and active templates."
+                            width="1440" height="900" loading="lazy" decoding="async">
+                        <figcaption>Fig. 03 — Documents workspace. Fixture data, not a real carrier's documents.
+                        </figcaption>
+                    </figure>
+                </div>
+            </div>
+                <!--
+                  FIGURE 4 — a detail callout, the drawing convention for
+                  "look closer at this". Replaces the handwriting scribble the
+                  outgoing page used, which asserted nothing.
+                -->
+                <figure class="figure story-figure">
+                    <div class="figure-scroll" tabindex="0" role="region" aria-label="Figure 4 — seal detail, scrollable">
+                        <svg viewBox="0 0 520 292" role="img" focusable="false">
+                            <title>Detail callout: an enlarged view of the seal on a completed document.</title>
+
+                            <!-- the document, at scale -->
+                            <rect x="24" y="52" width="124" height="170" fill="var(--fig-face)"
+                                stroke="var(--graphite)" stroke-width="1.25" />
+                            <g fill="none" stroke="var(--rule-strong)" stroke-width="1.25" stroke-linecap="square">
+                                <path d="M40 78H132" />
+                                <path d="M40 94H132" />
+                                <path d="M40 110H132" />
+                                <path d="M40 126H108" />
+                                <path d="M40 152H132" />
+                                <path d="M40 168H116" />
+                            </g>
+                            <path d="M40 196H100" fill="none" stroke="var(--graphite)" stroke-width="1.75"
+                                stroke-linecap="square" />
+                            <text class="fig-dim" x="24" y="240">COMPLETED DOCUMENT</text>
+
+                            <!-- the detail ring and its two tangents -->
+                            <circle cx="120" cy="196" r="24" fill="none" stroke="var(--graphite)"
+                                stroke-width="1.25" />
+                            <g fill="none" stroke="var(--rule-strong)" stroke-width="1">
+                                <path d="M115.6 172.4 350.9 57.6" />
+                                <path d="M124.4 219.6 385.1 242.4" />
+                            </g>
+
+                            <!--
+                              The enlarged detail. Everything inside has to clear the
+                              94-unit ring: the label that used to sit under the
+                              signature rule collided with the seal, and the seal's
+                              own caption sat exactly on the circumference and was
+                              clipped by it. The signature label is gone — the heavy
+                              rule reads as a signature line without being told — and
+                              the seal's caption moved inboard, to its left.
+                            -->
+                            <circle cx="368" cy="150" r="94" fill="var(--fig-face-lit)" stroke="var(--graphite)"
+                                stroke-width="1.75" />
+                            <rect x="306" y="92" width="98" height="76" fill="none" stroke="var(--graphite)"
+                                stroke-width="1.25" />
+                            <g fill="none" stroke="var(--rule-strong)" stroke-width="1.25" stroke-linecap="square">
+                                <path d="M316 108H394" />
+                                <path d="M316 122H394" />
+                                <path d="M316 136H366" />
+                            </g>
+                            <path d="M316 152H374" fill="none" stroke="var(--graphite)" stroke-width="1.75"
+                                stroke-linecap="square" />
+
+                            <!-- the seal itself -->
+                            <circle cx="390" cy="192" r="20" fill="var(--paper)" stroke="var(--clear)"
+                                stroke-width="1.75" />
+                            <circle cx="390" cy="192" r="13.5" fill="none" stroke="var(--clear)" stroke-width="1" />
+                            <path d="M383.5 192.5 388 197 398 186" fill="none" stroke="var(--clear)"
+                                stroke-width="1.75" stroke-linecap="square" stroke-linejoin="miter" />
+                            <text class="fig-label" x="362" y="196" text-anchor="end"
+                                style="fill:var(--clear)">SEALED</text>
+                            <text class="fig-dim" x="368" y="268" text-anchor="middle">DETAIL A · ENLARGED</text>
+                        </svg>
+                    </div>
+                    <p class="figure-hint">Scroll sideways to see the whole drawing.</p>
+                    <figcaption class="figure-caption">Fig. 4 — A completed document is sealed, so a later
+                        alteration is detectable.</figcaption>
+                </figure>
+        </section>
+
+        <!-- 05 — VERIFY -->
+        <section class="story-section" id="story-verify" data-tab="features" data-reveal>
+            <div class="section-title">
+                <div class="section-head">
+                    <p class="section-index">05</p>
+                    <p class="section-label">Verify</p>
+                </div>
+                <h2>A record of what was asked, and what came back.</h2>
+            </div>
+            <div class="story">
+                <div class="story-text">
+                    <p>
+                        Previous-employment verification requests are sent from SafeHaul and their
+                        responses recorded against the driver, with a built-in reminder cycle and rate
+                        limiting on the portal past employers use.
+                    </p>
+                    <ul class="story-list">
+                        <li><svg class="i" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>Result files
+                            released only through a server-issued link checked against your company</li>
+                        <li><svg class="i" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>Activity
+                            records for actions taken on a driver record</li>
+                        <li><svg class="i" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>Credential
+                            access is audited without ever recording the credential</li>
+                    </ul>
+                    <p class="story-caveat">
+                        SafeHaul stores and organises qualification documents. It does not track their
+                        dates for you — that stays your process, and we would rather say so than imply
+                        a safety net that is not there.
+                    </p>
+                </div>
+
+                <div class="story-visual">
+                    <!--
+                      The row board. An activity record reads as what it is:
+                      fixed columns of timestamped rows, mono and tabular. Cells
+                      cascade left to right once, on reveal.
+                    -->
+                    <div class="board" id="activityBoard">
+                        <div class="board-head">
+                            <span>Activity — previous-employment verification</span>
+                            <span>Rev. A</span>
+                        </div>
+                        <div class="board-rows">
+                            <div class="board-row"><span class="t">12 May 09:14</span><span class="e">Request
+                                    sent</span><span class="d">Midwest Freight Lines</span></div>
+                            <div class="board-row"><span class="t">12 May 09:14</span><span
+                                    class="e">Delivered</span><span class="d">rec@midwestfreight.example</span></div>
+                            <div class="board-row"><span class="t">19 May 09:00</span><span class="e">Reminder
+                                    sent</span><span class="d">1 of 3</span></div>
+                            <div class="board-row"><span class="t">21 May 14:32</span><span class="e"
+                                    data-state="verified">Response received</span><span class="d">3 years
+                                    confirmed</span></div>
+                            <div class="board-row"><span class="t">21 May 14:32</span><span class="e">Result
+                                    stored</span><span class="d">Link issued per request</span></div>
+                        </div>
+                        <p class="board-foot">Illustration. Not a real driver record.</p>
+                    </div>
+                </div>
+            </div>
+                <!--
+                  FIGURE 5 — the round trip. The rate-limited portal is drawn
+                  as a real element rather than described, because it is the
+                  part of this workflow a carrier has no control over.
+                -->
+                <figure class="figure story-figure">
+                    <div class="figure-scroll" tabindex="0" role="region" aria-label="Figure 5 — verification round trip, scrollable">
+                        <svg viewBox="0 0 520 316" role="img" focusable="false">
+                            <title>Sequence: a verification request sent through a rate-limited portal to a past
+                                employer, a reminder cycle, the response, and the stored result.</title>
+
+                            <!-- the three participants -->
+                            <rect x="16" y="16" width="108" height="42" fill="var(--paper-2)"
+                                stroke="var(--graphite)" stroke-width="1.25" />
+                            <text class="fig-label" x="70" y="37" text-anchor="middle"
+                                dominant-baseline="central">SAFEHAUL</text>
+                            <rect x="196" y="16" width="128" height="42" fill="var(--paper-2)"
+                                stroke="var(--graphite)" stroke-width="1.25" />
+                            <text class="fig-label" x="260" y="30" text-anchor="middle"
+                                dominant-baseline="central">RATE-LIMITED</text>
+                            <text class="fig-label" x="260" y="45" text-anchor="middle"
+                                dominant-baseline="central">PORTAL</text>
+                            <rect x="396" y="16" width="108" height="42" fill="var(--paper-2)"
+                                stroke="var(--graphite)" stroke-width="1.25" />
+                            <text class="fig-label" x="450" y="30" text-anchor="middle"
+                                dominant-baseline="central">PAST</text>
+                            <text class="fig-label" x="450" y="45" text-anchor="middle"
+                                dominant-baseline="central">EMPLOYER</text>
+
+                            <!-- lifelines -->
+                            <g fill="none" stroke="var(--draft)" stroke-width="1" stroke-dasharray="14 4 2.5 4"
+                                opacity="0.55">
+                                <path d="M70 58V300" />
+                                <path d="M260 58V300" />
+                                <path d="M450 58V300" />
+                            </g>
+
+                            <!-- the throttled channel: messages pass through a narrowed gate -->
+                            <rect x="252" y="76" width="16" height="164" fill="var(--paper)"
+                                stroke="var(--rule-strong)" stroke-width="1" />
+
+                            <!-- 01 request -->
+                            <text class="fig-dim" x="82" y="88">01 REQUEST SENT</text>
+                            <path d="M70 100H450" fill="none" stroke="var(--graphite)" stroke-width="1.25"
+                                marker-end="url(#arrow-graphite)" />
+
+                            <!-- 02 delivered -->
+                            <text class="fig-dim" x="82" y="126">02 DELIVERED</text>
+                            <path d="M450 138H70" fill="none" stroke="var(--graphite)" stroke-width="1.25"
+                                stroke-dasharray="6 4" marker-end="url(#arrow-graphite)" />
+
+                            <!--
+                              03: label ABOVE a shortened loop. Set beside the loop it
+                              ran to x=261 and struck through the portal lifeline —
+                              every label in this figure has to end before x=252,
+                              where the throttled channel begins.
+                            -->
+                            <text class="fig-dim" x="82" y="164">03 REMINDER CYCLE</text>
+                            <path d="M70 176H118V200H70" fill="none" stroke="var(--graphite)" stroke-width="1.25"
+                                stroke-linejoin="miter" marker-end="url(#arrow-graphite)" />
+
+                            <!-- 04 response -->
+                            <text class="fig-dim" x="82" y="222">04 RESPONSE RECEIVED</text>
+                            <path d="M450 234H70" fill="none" stroke="var(--clear)" stroke-width="1.75"
+                                marker-end="url(#arrow-clear)" />
+
+                            <!-- 05 the stored result -->
+                            <rect x="40" y="258" width="62" height="30" fill="var(--paper)"
+                                stroke="var(--clear)" stroke-width="1.75" />
+                            <text class="fig-label" x="71" y="273" text-anchor="middle"
+                                dominant-baseline="central" style="fill:var(--clear)">STORED</text>
+                            <text class="fig-dim" x="114" y="277">05 RESULT STORED</text>
+                        </svg>
+                    </div>
+                    <p class="figure-hint">Scroll sideways to see the whole drawing.</p>
+                    <figcaption class="figure-caption">Fig. 5 — The round trip, including the part a carrier does
+                        not control.</figcaption>
+                </figure>
+        </section>
+
+        <!-- 06 — TRUST BAND -->
+        <section class="trust-section" data-reveal>
+            <div class="section-title section-title--inverse">
+                <div class="section-head">
+                    <p class="section-index">06</p>
+                    <p class="section-label">Mechanism</p>
+                </div>
+                <h2>What holds up under inspection.</h2>
+                <p>Four mechanisms, not four adjectives.</p>
+            </div>
+            <div class="trust-grid">
+                <article class="trust-card">
+                    <p class="trust-index">01</p>
+                    <div>
+                        <h3>Companies are separated by the database</h3>
+                        <p>
+                            Cross-company access is denied by database access rules, not only by what the
+                            interface chooses to show.
+                        </p>
+                    </div>
+                </article>
+                <article class="trust-card">
+                    <p class="trust-index">02</p>
+                    <div>
+                        <h3>Signed documents are tamper-evident</h3>
+                        <p>
+                            A completed document is sealed, so later alteration can be detected rather than
+                            argued about.
+                        </p>
+                    </div>
+                </article>
+                <article class="trust-card">
+                    <p class="trust-index">03</p>
+                    <div>
+                        <h3>Files are never public URLs</h3>
+                        <p>
+                            Every document link is issued by the server for one request and checked against
+                            company membership before release.
+                        </p>
+                    </div>
+                </article>
+                <article class="trust-card">
+                    <p class="trust-index">04</p>
+                    <div>
+                        <h3>Actions leave a trail</h3>
+                        <p>
+                            Activity records on applications and leads, and audited credential access that
+                            records who looked without storing what they saw.
+                        </p>
+                    </div>
+                </article>
+            </div>
+        </section>
+
+        <!-- 07 — COMPARISON -->
+        <section id="why-safehaul" class="compare-section" data-reveal>
+            <div class="section-title">
+                <div class="section-head">
+                    <p class="section-index">07</p>
+                    <p class="section-label">Comparison</p>
+                </div>
+                <h2>Why not a general ATS and a separate signing tool?</h2>
+                <p>Because the driver file is the deliverable, and it ends up split across both.</p>
+            </div>
+            <!-- Focusable on purpose: the table scrolls sideways on a narrow
+                 screen, and a scroll region a keyboard cannot reach is a region a
+                 keyboard user cannot read. Below 768px the stacked list below
+                 takes over and this wrapper is hidden. -->
+            <div class="compare-table-wrapper" tabindex="0" role="region"
+                aria-label="SafeHaul compared with a general applicant tracking system and a standalone e-signature tool">
+                <table class="compare-table">
+                    <caption class="visually-hidden">
+                        SafeHaul compared with a general applicant tracking system and a standalone
+                        e-signature tool
+                    </caption>
+                    <thead>
+                        <tr>
+                            <th scope="col">Capability</th>
+                            <th scope="col">General ATS</th>
+                            <th scope="col">Standalone e-sign</th>
+                            <th scope="col" class="highlight-col">SafeHaul</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <th scope="row">Driver application built around DOT hiring</th>
+                            <td>Generic forms</td>
+                            <td>Not applicable</td>
+                            <td class="highlight-col">Nine structured steps</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Signature cost</th>
+                            <td>Usually an add-on</td>
+                            <td>Per envelope</td>
+                            <td class="highlight-col">Included, unlimited</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Previous-employment verification</th>
+                            <td>Manual, off-system</td>
+                            <td>A blank form to send</td>
+                            <td class="highlight-col">Sent and tracked in-app</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Works on a phone with poor signal</th>
+                            <td>Usually loses the form</td>
+                            <td>Not applicable</td>
+                            <td class="highlight-col">Queued and retried</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Pricing</th>
+                            <td>Per seat</td>
+                            <td>Per envelope</td>
+                            <td class="highlight-col">Flat monthly</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- The same five capabilities, one ruled block each, for widths where
+                 a five-column table would have to scroll.
+
+                 NOT aria-hidden. Exactly one of these two is ever in the
+                 accessibility tree, because the other is `display: none` at every
+                 width — hiding this one as well left a screen reader on a phone
+                 with neither the table nor the list. -->
+            <div class="compare-stack">
+                <div class="compare-stack-row">
+                    <h3>Driver application built around DOT hiring</h3>
+                    <dl>
+                        <dt>General ATS</dt>
+                        <dd>Generic forms</dd>
+                        <dt>Standalone e-sign</dt>
+                        <dd>Not applicable</dd>
+                        <dt class="is-safehaul">SafeHaul</dt>
+                        <dd class="is-safehaul">Nine structured steps</dd>
+                    </dl>
+                </div>
+                <div class="compare-stack-row">
+                    <h3>Signature cost</h3>
+                    <dl>
+                        <dt>General ATS</dt>
+                        <dd>Usually an add-on</dd>
+                        <dt>Standalone e-sign</dt>
+                        <dd>Per envelope</dd>
+                        <dt class="is-safehaul">SafeHaul</dt>
+                        <dd class="is-safehaul">Included, unlimited</dd>
+                    </dl>
+                </div>
+                <div class="compare-stack-row">
+                    <h3>Previous-employment verification</h3>
+                    <dl>
+                        <dt>General ATS</dt>
+                        <dd>Manual, off-system</dd>
+                        <dt>Standalone e-sign</dt>
+                        <dd>A blank form to send</dd>
+                        <dt class="is-safehaul">SafeHaul</dt>
+                        <dd class="is-safehaul">Sent and tracked in-app</dd>
+                    </dl>
+                </div>
+                <div class="compare-stack-row">
+                    <h3>Works on a phone with poor signal</h3>
+                    <dl>
+                        <dt>General ATS</dt>
+                        <dd>Usually loses the form</dd>
+                        <dt>Standalone e-sign</dt>
+                        <dd>Not applicable</dd>
+                        <dt class="is-safehaul">SafeHaul</dt>
+                        <dd class="is-safehaul">Queued and retried</dd>
+                    </dl>
+                </div>
+                <div class="compare-stack-row">
+                    <h3>Pricing</h3>
+                    <dl>
+                        <dt>General ATS</dt>
+                        <dd>Per seat</dd>
+                        <dt>Standalone e-sign</dt>
+                        <dd>Per envelope</dd>
+                        <dt class="is-safehaul">SafeHaul</dt>
+                        <dd class="is-safehaul">Flat monthly</dd>
+                    </dl>
+                </div>
+            </div>
+        </section>
+
+        <!-- 08 — PRICING -->
+        <section id="pricing" class="pricing-section" data-reveal>
+            <div class="section-title">
+                <div class="section-head">
+                    <p class="section-index">08</p>
+                    <p class="section-label">Pricing</p>
+                </div>
+                <h2>Two plans, priced flat.</h2>
+                <p>Unlimited users and unlimited documents on both.</p>
+            </div>
+            <div class="pricing-cards">
+                <article class="price-card">
+                    <p class="price-tag">Plan A</p>
+                    <div class="price-head">
+                        <h3>Hiring &amp; Compliance</h3>
+                        <p class="price">
+                            <span class="currency">$</span><span class="amount">199</span><span
+                                class="period">/month</span>
+                        </p>
+                    </div>
+                    <p class="plan-desc">Everything needed to take a driver from application to a complete file.</p>
+                    <ul class="plan-features">
+                        <li><svg class="i" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>Unlimited
+                            users and driver records</li>
+                        <li><svg class="i" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>Nine-step
+                            driver application and recruiter pipeline</li>
+                        <li><svg class="i" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>Unlimited
+                            documents and signatures</li>
+                        <li><svg class="i" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>Per-driver
+                            qualification document storage</li>
+                        <li><svg class="i" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>Previous-employment
+                            verification</li>
+                        <li><svg class="i" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>CDL photo
+                            auto-fill</li>
+                        <li><svg class="i" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>Pipeline
+                            reporting</li>
+                        <li><svg class="i" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>Multiple
+                            companies under one account</li>
+                    </ul>
+                    <button type="button" class="btn btn-primary btn-block js-open-lead-modal">Get started</button>
+                </article>
+
+                <article class="price-card price-card--premium">
+                    <p class="price-tag">Plan B</p>
+                    <div class="price-head">
+                        <h3>Hiring &amp; Compliance + Messaging</h3>
+                        <p class="price">
+                            <span class="currency">$</span><span class="amount">299</span><span
+                                class="period">/month</span>
+                        </p>
+                    </div>
+                    <p class="plan-desc">Adds bulk SMS and email to a filtered candidate list.</p>
+                    <ul class="plan-features">
+                        <li><svg class="i" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>Everything
+                            in Hiring &amp; Compliance</li>
+                        <li><svg class="i" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>Bulk SMS and
+                            email to candidate segments</li>
+                        <li><svg class="i" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>Per-recruiter
+                            sending lines with fallback routing</li>
+                        <li><svg class="i" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>Duplicate
+                            suppression and cancel-safe batches</li>
+                        <li><svg class="i" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>Your own
+                            provider credentials, stored encrypted per company</li>
+                    </ul>
+                    <button type="button" class="btn btn-primary btn-block js-open-lead-modal">Get started</button>
+                </article>
+            </div>
+            <p class="pricing-footnote">
+                Bulk messaging requires your own messaging provider account; the provider bills your
+                message charges directly. Two-way message threads are not part of the product today,
+                and neither are automated multi-step sequences. Replies arrive at your provider
+                rather than at SafeHaul, so an opt-out reply is not captured for you.
+            </p>
+        </section>
+
+        <!-- 09 — SafeHaul News & Insights -->
+        <!--
+          Cards are fetched at runtime from /api/news/latest, a same-origin Firebase
+          Hosting rewrite onto the serveBlogPublic function. They are not committed
+          here because articles are published after deployment, and the landing site
+          has no build step that could regenerate them.
+
+          The section renders a static placeholder first, so it is never empty and
+          never shifts layout; the fetch replaces the cards when it succeeds and
+          leaves the placeholder in place when it does not. No application code is
+          pulled into this page.
+        -->
+        <section id="news" class="news-section" data-reveal>
+            <div class="section-title">
+                <div class="section-head">
+                    <p class="section-index">09</p>
+                    <p class="section-label">Published daily</p>
+                </div>
+                <h2>SafeHaul News &amp; Insights</h2>
+                <p>
+                    Trucking news and regulation, recruiting and retention guidance, and plain
+                    explanations of the compliance problems carriers deal with. Published daily,
+                    every factual claim traced to a named source.
+                </p>
+            </div>
+            <div class="news-grid" id="newsGrid" aria-live="polite" aria-busy="true">
+                <p class="news-loading" id="newsLoading">Loading the latest articles&hellip;</p>
+            </div>
+            <div class="news-cta">
+                <a href="/news" class="btn btn-secondary">View all articles</a>
+            </div>
+        </section>
+
+        <!-- 10 — FAQ -->
+        <section id="faq" class="faq-section" data-reveal>
+            <div class="section-title">
+                <div class="section-head">
+                    <p class="section-index">10</p>
+                    <p class="section-label">Questions</p>
+                </div>
+                <h2>Questions carriers ask first.</h2>
+            </div>
+            <div class="faq-accordion" id="faqAccordion">
+                <div class="faq-row">
+                    <h3 class="faq-heading">
+                        <button type="button" class="faq-question" aria-expanded="false" id="faq-q1"
+                            aria-controls="faq-a1">
+                            <span>Does SafeHaul make my company DOT compliant?</span>
+                            <span class="indicator" aria-hidden="true"></span>
+                        </button>
+                    </h3>
+                    <div class="faq-answer" id="faq-a1" role="region" aria-labelledby="faq-q1" hidden>
+                        <p>
+                            No software can do that, and anyone who says otherwise is selling you
+                            something. SafeHaul supports your own compliance process: it structures the
+                            driver application around what DOT hiring asks for, keeps qualification
+                            documents in one place per driver, and records what was done and when. The
+                            decisions, and the responsibility, stay with you.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="faq-row">
+                    <h3 class="faq-heading">
+                        <button type="button" class="faq-question" aria-expanded="false" id="faq-q2"
+                            aria-controls="faq-a2">
+                            <span>Are the signatures legally binding?</span>
+                            <span class="indicator" aria-hidden="true"></span>
+                        </button>
+                    </h3>
+                    <div class="faq-answer" id="faq-a2" role="region" aria-labelledby="faq-q2" hidden>
+                        <p>
+                            Signers are shown an electronic records and signature disclosure before they
+                            sign, covering the ESIGN Act and UETA, and must agree to it. The completed
+                            document is sealed so a later change is detectable, and the signing link
+                            cannot be submitted a second time.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="faq-row">
+                    <h3 class="faq-heading">
+                        <button type="button" class="faq-question" aria-expanded="false" id="faq-q3"
+                            aria-controls="faq-a3">
+                            <span>Does SafeHaul watch my document dates for me?</span>
+                            <span class="indicator" aria-hidden="true"></span>
+                        </button>
+                    </h3>
+                    <div class="faq-answer" id="faq-a3" role="region" aria-labelledby="faq-q3" hidden>
+                        <p>
+                            Not today. SafeHaul stores and organises qualification documents per driver,
+                            but it does not monitor their dates or send you notices about them. That is
+                            on the roadmap rather than in the product, and we would rather be plain about
+                            it than let you assume a safety net exists.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="faq-row">
+                    <h3 class="faq-heading">
+                        <button type="button" class="faq-question" aria-expanded="false" id="faq-q4"
+                            aria-controls="faq-a4">
+                            <span>Can SafeHaul run background screening for me?</span>
+                            <span class="indicator" aria-hidden="true"></span>
+                        </button>
+                    </h3>
+                    <div class="faq-answer" id="faq-a4" role="region" aria-labelledby="faq-q4" hidden>
+                        <p>
+                            No. SafeHaul does not order or receive driving records or screening results
+                            from third-party providers. What it does do is collect the driver's own
+                            history in the application and verify previous employment directly with past
+                            employers.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="faq-row">
+                    <h3 class="faq-heading">
+                        <button type="button" class="faq-question" aria-expanded="false" id="faq-q5"
+                            aria-controls="faq-a5">
+                            <span>What does bulk messaging actually cost?</span>
+                            <span class="indicator" aria-hidden="true"></span>
+                        </button>
+                    </h3>
+                    <div class="faq-answer" id="faq-a5" role="region" aria-labelledby="faq-q5" hidden>
+                        <p>
+                            The feature is included in the $299 plan, but you connect your own messaging
+                            provider account and that provider bills you for the messages directly.
+                            Your credentials are stored encrypted, per company. Two-way conversation
+                            threads and automated multi-step sequences are not available.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="faq-row">
+                    <h3 class="faq-heading">
+                        <button type="button" class="faq-question" aria-expanded="false" id="faq-q6"
+                            aria-controls="faq-a6">
+                            <span>Can we run more than one carrier on one account?</span>
+                            <span class="indicator" aria-hidden="true"></span>
+                        </button>
+                    </h3>
+                    <div class="faq-answer" id="faq-a6" role="region" aria-labelledby="faq-q6" hidden>
+                        <p>
+                            Yes. Each company gets its own team, roles, public application link and custom
+                            questions, and records stay separated by database access rules rather than by
+                            interface filtering.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- CLOSING CTA — the form is here, not behind a second click -->
+        <section class="cta-section" id="get-started-band">
+            <div class="cta-inner">
+                <div>
+                    <p class="cta-slug">Sheet 02 · Next step</p>
+                    <h2>See it with your own hiring process.</h2>
+                    <p>
+                        Tell us how you hire today and we will show you the parts that would change.
+                        Two fields to start — the rest only helps us prepare.
+                    </p>
+                </div>
+
+                <form class="cta-form" id="ctaForm" novalidate>
+                    <div class="form-group">
+                        <label for="ctaFullName">Full name</label>
+                        <input type="text" id="ctaFullName" name="fullName" autocomplete="name" placeholder="Jane Doe"
+                            required>
+                        <p class="field-error" id="ctaFullNameError" hidden></p>
+                    </div>
+                    <div class="form-group">
+                        <label for="ctaWorkEmail">Work email</label>
+                        <input type="email" id="ctaWorkEmail" name="workEmail" autocomplete="email"
+                            placeholder="jane@yourcarrier.com" required>
+                        <p class="field-error" id="ctaWorkEmailError" hidden></p>
+                    </div>
+
+                    <!-- Honeypot. Hidden from people, irresistible to scripts. -->
+                    <div class="honeypot-field" aria-hidden="true">
+                        <label for="ctaWebsite">Website</label>
+                        <input type="text" id="ctaWebsite" name="website" tabindex="-1" autocomplete="off">
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-lg btn-block" id="ctaSubmit">Get started</button>
+                    <p class="cta-fineprint">We reply by email. No newsletter, no reselling your details.</p>
+                    <p id="ctaStatus" class="form-status" role="status" aria-live="polite"></p>
+                </form>
+
+                <div class="cta-done" id="ctaDone" hidden>
+                    <h3><svg class="i" aria-hidden="true" focusable="false"><use href="#i-check" /></svg>Thanks — we
+                        have what we need.</h3>
+                    <p>Someone from SafeHaul will email you to arrange a walkthrough.</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- FOOTER -->
+    <footer id="footer" class="footer-section">
+        <div class="footer-grid">
+            <div class="footer-brand">
+                <a href="/" class="logo-link" aria-label="SafeHaul home">
+                    <img src="/assets/images/logo-mono.svg" alt="" class="footer-logo" width="152" height="132">
+                    <span class="logo-text">SafeHaul</span>
+                </a>
+                <p>Driver hiring and DOT compliance software for trucking carriers.</p>
+            </div>
+            <nav class="footer-links" aria-label="Product">
+                <h2 class="footer-heading">Product</h2>
+                <a href="#features">Platform</a>
+                <a href="#pricing">Pricing</a>
+                <a href="#why-safehaul">Why SafeHaul</a>
+                <a href="https://app.safehaul.io" rel="noopener">Log in</a>
+            </nav>
+            <nav class="footer-links" aria-label="Resources">
+                <h2 class="footer-heading">Resources</h2>
+                <a href="/news">News &amp; Insights</a>
+                <a href="/news/feed.xml">Article feed</a>
+                <a href="/privacy.html">Privacy Policy</a>
+            </nav>
+            <div class="footer-contact">
+                <h2 class="footer-heading">Contact</h2>
+                <a href="mailto:info@safehaul.io">info@safehaul.io</a>
+                <button type="button" class="link-button js-open-lead-modal">Talk to us</button>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2026 SafeHaul. All rights reserved.</p>
+            <p class="footer-disclaimer">
+                SafeHaul supports your compliance process. It is not a law firm and nothing here is
+                advice about your regulatory obligations.
+            </p>
+        </div>
+    </footer>
+
+    <!-- LEAD MODAL (two steps; step one is captured on its own) -->
+    <div id="leadModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="leadModalTitle"
+        aria-hidden="true">
+        <div class="modal-container">
+            <button type="button" class="modal-close" id="closeModal" aria-label="Close dialog">&times;</button>
+
+            <div class="modal-header">
+                <p class="modal-step" id="modalStep">Step 1 of 2</p>
+                <h2 id="leadModalTitle">Get started with SafeHaul</h2>
+                <p id="modalSubtitle">Two fields now. The rest only helps us prepare.</p>
+            </div>
+
+            <form id="leadForm" novalidate>
+                <!-- Step one: the only fields required to reach a person. -->
+                <fieldset class="form-step" id="stepOne">
+                    <legend class="visually-hidden">Your details</legend>
+                    <div class="form-group">
+                        <label for="fullName">Full name</label>
+                        <input type="text" id="fullName" name="fullName" autocomplete="name" placeholder="Jane Doe"
+                            required>
+                        <p class="field-error" id="fullNameError" hidden></p>
+                    </div>
+                    <div class="form-group">
+                        <label for="workEmail">Work email</label>
+                        <input type="email" id="workEmail" name="workEmail" autocomplete="email"
+                            placeholder="jane@yourcarrier.com" required>
+                        <p class="field-error" id="workEmailError" hidden></p>
+                    </div>
+
+                    <!-- Honeypot. Hidden from people, irresistible to scripts. -->
+                    <div class="honeypot-field" aria-hidden="true">
+                        <label for="website">Website</label>
+                        <input type="text" id="website" name="website" tabindex="-1" autocomplete="off">
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-block btn-lg" id="stepOneSubmit">Continue</button>
+                    <p class="modal-fineprint">We reply by email. No newsletter, no reselling your details.</p>
+                </fieldset>
+
+                <!-- Step two: qualification. Skippable, because step one is already saved. -->
+                <fieldset class="form-step" id="stepTwo" hidden>
+                    <legend class="visually-hidden">About your operation</legend>
+                    <div class="form-group">
+                        <label for="companyName">Company name</label>
+                        <input type="text" id="companyName" name="companyName" autocomplete="organization"
+                            placeholder="Ridgeline Carriers" required>
+                        <p class="field-error" id="companyNameError" hidden></p>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="companySize">Fleet size</label>
+                            <select id="companySize" name="companySize" required>
+                                <option value="" disabled selected>Select size</option>
+                                <option value="1-10">1&ndash;10 drivers</option>
+                                <option value="11-50">11&ndash;50 drivers</option>
+                                <option value="51-200">51&ndash;200 drivers</option>
+                                <option value="201+">201+ drivers</option>
+                            </select>
+                            <p class="field-error" id="companySizeError" hidden></p>
+                        </div>
+                        <div class="form-group">
+                            <label for="phone">Phone <span class="optional">(optional)</span></label>
+                            <input type="tel" id="phone" name="phone" autocomplete="tel"
+                                placeholder="+1 (555) 000-0000">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="primaryGoal">What matters most right now?</label>
+                        <select id="primaryGoal" name="primaryGoal" required>
+                            <option value="" disabled selected>Choose one</option>
+                            <option value="ATS">Driver applications and pipeline</option>
+                            <option value="Compliance">Qualification documents</option>
+                            <option value="E-Docs">Signing paperwork</option>
+                            <option value="PEV">Previous-employment verification</option>
+                            <option value="Other">Something else</option>
+                        </select>
+                        <p class="field-error" id="primaryGoalError" hidden></p>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-block btn-lg" id="stepTwoSubmit">Finish</button>
+                    <button type="button" class="btn btn-ghost btn-block" id="skipStepTwo">Skip &mdash; we have your
+                        details</button>
+                </fieldset>
+
+                <p id="formStatus" class="form-status" role="status" aria-live="polite"></p>
+            </form>
+
+            <div id="successMessage" class="modal-success" hidden>
+                <p class="success-mark">
+                    <svg class="i" aria-hidden="true" focusable="false"><use href="#i-seal" /></svg>Received
+                </p>
+                <h2>Thanks &mdash; we have what we need.</h2>
+                <p>Someone from SafeHaul will email you to arrange a walkthrough.</p>
+                <a class="btn btn-outline btn-block" href="/news">Read News &amp; Insights while you wait</a>
+                <button type="button" class="btn btn-ghost btn-block" id="successClose">Close</button>
+            </div>
+        </div>
     </div>
-  </nav>
-</header>
 
-<!-- HERO (Strict 100vh view) -->
-<section class="hero">
-  <h1 class="reveal">The intelligent flow of<br>trucking compliance.</h1>
-  <p class="hero-sub reveal" style="transition-delay:0.08s">
-    From recruiting to dispatch, SafeHaul organizes your entire safety workflow into one seamless, automated ecosystem.
-  </p>
-  <div class="reveal" style="transition-delay:0.15s">
-    <button class="btn-explore" onclick="openModal()">Explore SafeHaul</button>
-  </div>
-</section>
-
-<!-- B1: OPERATIONAL EXCELLENCE — BUILT FOR THE MODERN CARRIER FLEET -->
-<section class="section" id="platform">
-  <div class="reveal" style="text-align: center; margin-bottom: 24px;">
-    <div class="section-label">Operational Excellence</div>
-    <h2>Built for the Modern Carrier Fleet</h2>
-  </div>
-
-  <div class="parallax-grid">
-    <div class="card-parallax w7 reveal">
-      <div class="img-frame">
-        <img src="./assets/images/truck_driver_mobile_app.jpg" alt="Driver Mobile Application">
-      </div>
-      <div class="card-content">
-        <div class="tag">01 / Driver Experience</div>
-        <h3>Mobile Driver Onboarding</h3>
-        <p>Allow CDL drivers to complete DOT qualification files from their smartphone in minutes before dispatched runs.</p>
-      </div>
-    </div>
-
-    <div class="card-parallax w5 reveal">
-      <div class="img-frame">
-        <img src="./assets/images/fleet_manager_office.jpg" alt="Fleet Manager Intelligence">
-      </div>
-      <div class="card-content">
-        <div class="tag">02 / Safety Command</div>
-        <h3>Automated DQ & MVR Audits</h3>
-        <p>Continuous monitoring alerts fleet safety managers instantly before violations occur.</p>
-      </div>
-    </div>
-
-    <div class="card-parallax w12 reveal">
-      <div class="card-content" style="padding: 48px;">
-        <div class="tag">03 / Highway Scale</div>
-        <h2>Connected Infrastructure</h2>
-        <p style="margin: 18px 0 28px;">Native integrations with Samsara, Motive, and Geotab ensure your operations stay synced across millions of miles.</p>
-        <button class="btn-explore" style="padding: 16px 36px; font-size: 1rem;" onclick="openModal()">Explore Integrations</button>
-      </div>
-      <div class="img-frame" style="height: 100%; min-height: 380px;">
-        <img src="./assets/images/trucking_fleet_dusk.jpg" alt="Highway Fleet Operations">
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- B7: INTERACTIVE FLEET ROI CALCULATOR -->
-<section class="section" id="calculator">
-  <div class="reveal" style="text-align: center;">
-    <div class="section-label">Interactive Fleet Efficiency</div>
-    <h2>Calculate Your Fleet's Annual Efficiency Gain</h2>
-  </div>
-
-  <div class="roi-card reveal">
-    <div class="roi-controls">
-      <label>Active Fleet Size (Trucks / Drivers)</label>
-      <div class="roi-slider-val" id="fleetVal">45 Trucks</div>
-      <input type="range" min="10" max="500" value="45" class="roi-slider" id="fleetSlider" oninput="updateROI(this.value)">
-    </div>
-    <div class="roi-metrics">
-      <div class="roi-box">
-        <div class="res-num" id="hoursSaved">135 hrs</div>
-        <div class="res-lbl">Monthly Admin Hours Saved</div>
-      </div>
-      <div class="roi-box">
-        <div class="res-num" id="dollarsSaved">$5,400</div>
-        <div class="res-lbl">Est. Monthly Compliance Savings</div>
-      </div>
-      <div class="roi-box">
-        <div class="res-num">100%</div>
-        <div class="res-lbl">Audit Readiness Guarantee</div>
-      </div>
-      <div class="roi-box">
-        <div class="res-num">48 hrs</div>
-        <div class="res-lbl">Fastest Implementation</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- CINEMATIC PHOTO BAND -->
-  <div class="cinematic-band reveal">
-    <img src="./assets/images/trucking_fleet_dusk.jpg" alt="Highway Fleet Dusk">
-    <div class="cinematic-overlay">
-      <h3>Built for Fleets Operating at Highway Scale</h3>
-      <p>Automating driver qualification files, continuous MVR tracking, and ELD sync across North America.</p>
-    </div>
-  </div>
-</section>
-
-<!-- PRICING -->
-<section class="section" id="pricing">
-  <div class="reveal" style="text-align: center; margin-bottom: 40px;">
-    <div class="section-label">Pricing</div>
-    <h2>Transparent Plans for Growing Fleets</h2>
-  </div>
-  <div class="pricing-grid">
-    <div class="pc reveal">
-      <h3>Starter</h3>
-      <div class="price-num">$199<span>/mo</span></div>
-      <ul class="pc-features">
-        <li>Digital Driver Applications</li>
-        <li>DQ File Management</li>
-        <li>Basic MVR Checks</li>
-      </ul>
-      <button class="btn-explore" style="padding: 14px 28px; font-size: 14px; width: 100%; border-radius: 16px;" onclick="openModal()">Get Started</button>
-    </div>
-    <div class="pc featured reveal">
-      <h3>Growth</h3>
-      <div class="price-num">$499<span>/mo</span></div>
-      <ul class="pc-features">
-        <li>Everything in Starter</li>
-        <li>Continuous MVR Monitoring</li>
-        <li>ELD & TMS Integrations</li>
-      </ul>
-      <button class="btn-explore" style="padding: 14px 28px; font-size: 14px; width: 100%; border-radius: 16px;" onclick="openModal()">Get Started</button>
-    </div>
-    <div class="pc reveal">
-      <h3>Enterprise</h3>
-      <div class="price-num">Custom</div>
-      <ul class="pc-features">
-        <li>Everything in Growth</li>
-        <li>Custom Integrations</li>
-        <li>Dedicated Support</li>
-      </ul>
-      <button class="btn-explore" style="padding: 14px 28px; font-size: 14px; width: 100%; border-radius: 16px;" onclick="openModal()">Contact Sales</button>
-    </div>
-  </div>
-</section>
-
-<!-- FAQ -->
-<section class="section">
-  <div class="reveal" style="text-align: center;">
-    <div class="section-label">FAQ</div>
-    <h2>Frequently Asked Questions</h2>
-  </div>
-  <div class="faq-container">
-    <details class="reveal">
-      <summary>How long does implementation take?</summary>
-      <p>Most fleets are fully onboarded and running their first digital applications within 48 hours.</p>
-    </details>
-    <details class="reveal">
-      <summary>Does SafeHaul integrate with our ELD?</summary>
-      <p>Yes, we integrate with Samsara, Motive, and Geotab out of the box.</p>
-    </details>
-  </div>
-</section>
-
-<!-- FOOTER -->
-<footer>
-  <div class="footer-grid">
-    <div>
-      <div class="logo-lockup" style="margin-bottom: 20px;">
-        <svg width="28" height="24" viewBox="0 0 150 128" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M84.5048 0H38.3646C35.6441 0 33.1101 1.38249 31.6377 3.67003L10.0621 37.1892C7.65527 40.9284 8.00677 45.8078 10.9247 49.1634L34.5051 76.2809C35.4547 77.373 36.831 78 38.2782 78H84.5043C85.3578 78 85.819 76.9996 85.2647 76.3506L60.1709 46.969C57.4395 43.7709 57.2872 39.1074 59.8042 35.7379L85.306 1.59845C85.7986 0.938977 85.328 0 84.5048 0Z" fill="url(#paint0_linear_logo_footer)"></path>
-          <path d="M76.26 51.5H115.994C118.229 51.5 120.362 52.4346 121.876 54.0776L143.684 77.7336C146.805 81.1193 147.211 86.1988 144.667 90.037L120.983 125.763C120.057 127.16 118.492 128 116.816 128H68.9479C68.5459 128 68.3082 127.549 68.5353 127.218L96.563 86.2541C98.8806 82.8668 98.613 78.3405 95.9123 75.2499L75.8835 52.329C75.6009 52.0056 75.8306 51.5 76.26 51.5Z" fill="#004C68"></path>
-          <path d="M145.426 0.0370348L97.1296 0.476095C95.4834 0.49106 93.9501 1.31535 93.0296 2.68018L67.603 40.3817C66.7071 41.7101 67.6589 43.5 69.2612 43.5H111.534C114.663 43.5 117.611 42.0361 119.501 39.5439L147.038 3.24572C148.042 1.92198 147.088 0.0219304 145.426 0.0370348Z" fill="#0BE2A4"></path>
-          <path d="M83.603 85.5H34.9709C33.4135 85.5 31.9451 86.2257 30.9991 87.4627L2.45845 124.785C1.45208 126.101 2.39046 128 4.04717 128H51.8679C55.0895 128 58.1139 126.448 59.9923 123.83L85.2279 88.6661C86.1775 87.3428 85.2318 85.5 83.603 85.5Z" fill="#004C68"></path>
-          <defs>
-            <linearGradient id="paint0_linear_logo_footer" x1="42.5" y1="55" x2="83" y2="75.5" gradientUnits="userSpaceOnUse">
-              <stop offset="0.283654" stop-color="#0CE1A5"></stop>
-              <stop offset="0.913462" stop-color="#077B5A"></stop>
-            </linearGradient>
-          </defs>
-        </svg>
-        <span class="logo-word" style="font-size: 18px;">SafeHaul</span>
-      </div>
-      <p style="color: var(--text-muted); font-size: 14px;">The intelligent flow of trucking compliance.</p>
-    </div>
-    <div class="footer-col">
-      <h4>Platform</h4>
-      <ul>
-        <li><a href="#">Recruiting</a></li>
-        <li><a href="#">Safety</a></li>
-      </ul>
-    </div>
-    <div class="footer-col">
-      <h4>Company</h4>
-      <ul>
-        <li><a href="#">About Us</a></li>
-        <li><a href="#">Careers</a></li>
-      </ul>
-    </div>
-    <div class="footer-col">
-      <h4>Legal</h4>
-      <ul>
-        <li><a href="#">Privacy</a></li>
-        <li><a href="#">Terms</a></li>
-      </ul>
-    </div>
-  </div>
-  <div class="footer-bottom">
-    &copy; 2026 SafeHaul Technologies, Inc. All rights reserved.
-  </div>
-</footer>
-
-<!-- MODAL -->
-<div id="demoModal" class="modal-backdrop" onclick="closeModal(event)">
-  <div class="modal-card" onclick="event.stopPropagation()">
-    <button class="modal-close" onclick="closeModal()">&times;</button>
-    <h3 style="font-size: 1.4rem; font-weight: 600; margin-bottom: 8px; color: var(--text);">Explore SafeHaul</h3>
-    <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 24px;">Get early access & see how SafeHaul automates compliance for your fleet.</p>
-    <form onsubmit="handleModalSubmit(event)">
-      <div class="form-group">
-        <label>Work Email</label>
-        <input type="email" required placeholder="you@company.com" class="form-input">
-      </div>
-      <div class="form-group">
-        <label>Fleet Size</label>
-        <select class="form-input">
-          <option>1 - 25 drivers</option>
-          <option>26 - 100 drivers</option>
-          <option>100+ drivers</option>
-        </select>
-      </div>
-      <button type="submit" style="background: var(--accent); color: #000; border: none; padding: 16px; border-radius: 14px; font-family: 'Outfit', sans-serif; font-size: 1rem; font-weight: 600; width: 100%; cursor: pointer; margin-top: 8px;">Request Demo</button>
-    </form>
-  </div>
-</div>
-
-<script>
-  function updateROI(val) {
-    document.getElementById('fleetVal').innerText = val + ' Trucks';
-    const hrs = val * 3;
-    const dollars = val * 120;
-    document.getElementById('hoursSaved').innerText = hrs + ' hrs';
-    document.getElementById('dollarsSaved').innerText = '$' + dollars.toLocaleString();
-  }
-
-  /* Theme Switcher Logic (Dark / Light / System) */
-  function setThemeMode(mode) {
-    localStorage.setItem('safehaul-theme-pref', mode);
-    applyThemeMode(mode);
-  }
-
-  function applyThemeMode(mode) {
-    const html = document.documentElement;
-    if (mode === 'system') {
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      html.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
-    } else {
-      html.setAttribute('data-theme', mode);
-    }
-    document.querySelectorAll('.theme-btn').forEach(btn => {
-      btn.classList.toggle('active', btn.getAttribute('data-mode') === mode);
-    });
-  }
-
-  const initialMode = localStorage.getItem('safehaul-theme-pref') || 'system';
-  applyThemeMode(initialMode);
-
-  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-    const currentMode = localStorage.getItem('safehaul-theme-pref') || 'system';
-    if (currentMode === 'system') {
-      document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
-    }
-  });
-
-  function openModal() { document.getElementById('demoModal').classList.add('open'); }
-  function closeModal(e) { if(!e || e.target.id === 'demoModal' || e.target.classList.contains('modal-close')) document.getElementById('demoModal').classList.remove('open'); }
-  function handleModalSubmit(e) { e.preventDefault(); alert('Thank you! Our team will reach out shortly.'); closeModal(); }
-  const ob = new IntersectionObserver(entries => {
-    entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('active'); });
-  }, { threshold: 0.12 });
-  document.querySelectorAll('.reveal').forEach(el => ob.observe(el));
-</script>
+    <script src="/assets/js/main.js"></script>
 </body>
+
 </html>
