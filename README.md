@@ -7,12 +7,26 @@
     DOT-Compliant Driver Applications · Bulk SMS Campaigns · E-Signatures · Real-Time Analytics
   </p>
   <p align="center">
-    <a href="https://truckerapp-system.web.app/">Live App</a> ·
+    <a href="docs/APP_BRIEF.md">App Brief</a> ·
+    <a href="https://app.safehaul.io/">Live App</a> ·
     <a href="#architecture">Architecture</a> ·
     <a href="#getting-started">Getting Started</a> ·
     <a href="#deployment">Deployment</a>
   </p>
 </p>
+
+---
+
+> **Start here: [`docs/APP_BRIEF.md`](docs/APP_BRIEF.md)** — the central,
+> maintained orientation document for this application (purpose, users,
+> workflows, business rules, permissions, background jobs, preserved decisions
+> and known limitations). Every contributor and AI coding agent should read the
+> relevant parts before making changes and update it in the same task when their
+> work changes what it describes.
+>
+> Production is `app.safehaul.io`; `truckerapp-system.web.app` is the **Testing**
+> channel, which runs against the same real backend. Details of this README may
+> lag the code — where they disagree, the App Brief and the code win.
 
 ---
 
@@ -40,13 +54,17 @@
 
 ## Overview
 
-SafeHaul is a **multi-tenant SaaS platform** built for trucking companies to manage the entire driver hiring lifecycle — from lead acquisition, through DOT-compliant applications, to e-signatures and onboarding. The platform serves three distinct user personas through role-based portals:
+SafeHaul is a **multi-tenant SaaS platform** built for trucking companies to manage the entire driver hiring lifecycle — from lead acquisition, through DOT-compliant applications, to e-signatures and onboarding. The goal is **one structured, defensible record per driver**, so the file still holds together months later when someone asks to see it.
 
 | Portal | Users | Purpose |
 |--------|-------|---------|
-| **Super Admin** (Mission Control) | Platform operators | Company provisioning, analytics, system health |
-| **Company Admin / HR** | Recruiters, HR managers | Application review, pipeline tracking, campaigns, team management |
-| **Driver App** | CDL drivers | Public application submission, document uploads, e-signing |
+| **Super Admin** (Mission Control) | Platform operators | Company provisioning, analytics, credentials, releases, system health |
+| **Company Admin / HR** | Recruiters, HR managers | Application review, pipeline tracking, campaigns, e-docs, team management |
+| **Driver App** | CDL drivers | Public application submission, document uploads, e-signing (usually unauthenticated) |
+| **Verification Portal** | Past employers | Answer a previous-employment verification via a token link (unauthenticated) |
+
+> SafeHaul deliberately makes **no claim to deliver DOT or FMCSA compliance**. It
+> supports the carrier's own compliance process.
 
 ---
 
@@ -60,11 +78,13 @@ SafeHaul is a **multi-tenant SaaS platform** built for trucking companies to man
 - **49 CFR 391.21 compliant** PDF generation with full legal agreements
 
 ### 📨 Bulk SMS/Email Campaigns
-- **Recursive worker pattern** — processes in small batches (20 at a time) to avoid timeouts
+- **Recursive worker pattern** — processes in small batches (50 at a time) to avoid timeouts
 - **Zombie worker prevention** — double-check strategy ensures cancelled campaigns stop immediately
 - **Multi-provider SMS** — RingCentral + 8x8 integration with per-recruiter number routing
 - **Automatic fallback** — if a recruiter's direct line fails, retries with the company main number
-- **7-day deduplication** — prevents re-messaging recently contacted leads
+- **Recent-contact deduplication** — excludes recently messaged leads using a configurable window (`excludeRecentDays`, default 7 days)
+
+> One-way only: no inbound message threads and no automated multi-step drip sequences.
 
 ### ✍️ E-Signatures & Document Management
 - **Draw or type** signatures via canvas or text input
@@ -74,7 +94,7 @@ SafeHaul is a **multi-tenant SaaS platform** built for trucking companies to man
 
 ### 📊 Analytics & Pipeline
 - **Real-time dashboard** with daily stats aggregation
-- **Hiring pipeline** with customizable stages (In Process, On Hold, Hired, Rejected)
+- **Hiring pipeline** — canonical ATS funnel of New → Contact Attempt 1/2/3 → In Process → Hired / Terminated / Declined, plus an `Interested` bucket and legacy status aliases kept selectable so older records stay editable (`src/shared/constants/atsStatus.js`)
 - **Activity logging** on all driver and lead interactions
 - **Performance charting** via Recharts
 
@@ -95,17 +115,22 @@ SafeHaul is a **multi-tenant SaaS platform** built for trucking companies to man
 | Vite | 7 | Build tool & dev server |
 | React Router | 7 | Client-side routing |
 | TailwindCSS | 3.4 | Utility-first styling |
-| Framer Motion | 12 | Animations & transitions |
 | Recharts | 3.6 | Data visualization |
 | Lucide React | 0.552 | Icon library |
 | jsPDF | 4.0 | Client-side PDF generation |
+| pdfjs-dist / react-pdf | 5.4 / 10.2 | PDF rendering (E-Docs editor, signing room) |
 | ExcelJS | 4.4 | Spreadsheet parsing for bulk imports |
+| Papa Parse | 5.5 | CSV parsing for lead imports |
 | React Signature Canvas | 1.1 | Signature capture |
-| TipTap | 3.17 | Rich text editor |
 | React Virtuoso | 4.18 | Virtualized lists |
-| Sentry | 10.32 | Error monitoring |
+| DOMPurify | 3.4 | HTML sanitization |
+| Sentry | 10.32 | Error monitoring (browser) |
 
 ### Backend (Firebase)
+| Technology | Version | Purpose |
+|-----------|---------|---------|
+Cloud Functions run on **Node 20**.
+
 | Technology | Version | Purpose |
 |-----------|---------|---------|
 | Firebase Admin SDK | 13.6 | Server-side Firestore, Auth, Storage |
@@ -114,10 +139,16 @@ SafeHaul is a **multi-tenant SaaS platform** built for trucking companies to man
 | Firebase Auth | — | Authentication with custom claims (RBAC) |
 | Firebase Storage | — | File uploads (CDL, medical cards, etc.) |
 | Firebase Hosting | — | Static site hosting |
-| Nodemailer | 7.0 | Email delivery |
-| Sentry Node | 10.32 | Server-side error tracking |
-| Joi | 18.0 | Request validation |
+| Nodemailer | 9.0 | Email delivery (per-company SMTP) |
+| Joi | 18.1 | Request validation |
 | pdf-lib | 1.17 | Server-side PDF manipulation |
+| @ringcentral/sdk | 5.0 | RingCentral SMS adapter |
+| @google-cloud/secret-manager | 6.1 | AI and integration credentials |
+| @google-cloud/tasks | 6.2 | Bulk campaign worker queue |
+
+> There is **no server-side Sentry**. Only the browser DSN (`VITE_SENTRY_DSN`)
+> and the deploy-time sourcemap-upload secrets are consumed — see the
+> Environment Variables note below.
 
 ### Testing
 | Technology | Purpose |
@@ -181,42 +212,53 @@ SafeHaul/
 │   │   ├── hooks/                # Shared hooks (useBulkImport, etc.)
 │   │   ├── utils/                # Helpers, validation, PDF generation
 │   │   └── workers/              # Web Workers (import.worker.js)
+│   ├── app/                      # Routing, guards, route manifests, roles
+│   ├── design-system/            # Business-neutral visual contract (see its README)
 │   ├── features/                 # Feature modules (domain-driven)
 │   │   ├── analytics/            # Charts & performance dashboards
 │   │   ├── applications/         # Application list & management
-│   │   ├── auth/                 # Login, registration
+│   │   ├── auth/                 # Login
 │   │   ├── campaigns/            # Bulk SMS/Email campaign builder
-│   │   ├── companies/            # Company profiles & settings
-│   │   ├── company-admin/        # HR portal (leads, uploads, pipeline)
+│   │   ├── companies/            # Company profiles
+│   │   ├── company-admin/        # HR portal (leads, uploads, e-docs, imports)
 │   │   ├── driver-app/           # Public driver application wizard
-│   │   ├── drivers/              # Driver profiles & management
-│   │   ├── onboarding/           # New user onboarding flow
+│   │   ├── driver-changes/       # Driver review portal for company-proposed edits
+│   │   ├── onboarding/           # New user onboarding tour
+│   │   ├── sandbox/              # Sandbox tenant application + transfer
 │   │   ├── settings/             # User & company settings
 │   │   ├── signing/              # E-signature system
-│   │   └── super-admin/          # Platform-wide admin tools
-│   ├── firestore.rules           # Firestore security rules
-│   ├── storage.rules             # Storage security rules
+│   │   ├── super-admin/          # Platform-wide admin tools
+│   │   └── verification/         # Previous-employment verification portal
+│   ├── firestore.rules           # Firestore security rules (deployed from here)
+│   ├── storage.rules             # Storage security rules (deployed from here)
 │   └── tests/                    # Frontend tests
-├── functions/                    # Firebase Cloud Functions
+├── functions/                    # Firebase Cloud Functions (Node 20)
 │   ├── index.js                  # Function exports registry
 │   ├── firebaseAdmin.js          # Admin SDK singleton
-│   ├── driverSync.js             # Application → Profile trigger
+│   ├── driverSync.js             # Application/lead → master driver profile
 │   ├── guestApplication.js       # Guest submission handler
-│   ├── leadDistribution.js       # Scheduled lead dealing
-│   ├── leadLogic.js              # Distribution algorithms
+│   ├── applicationChanges.js     # Company edits → driver-approved changes
 │   ├── bulkActions/              # Bulk messaging worker system
-│   ├── integrations/             # SMS adapters (RingCentral, 8x8)
-│   ├── emailService.js           # Email delivery (Nodemailer)
-│   ├── statsAggregator.js        # Daily stats computation
+│   ├── employmentVerification/   # PEV requests, portal, reminders
+│   ├── integrations/             # SMS adapters (RingCentral, 8x8), Facebook
+│   ├── ai/                       # Shared AI platform (router, providers, tasks)
+│   ├── blog/                     # News & Insights pipeline + public rendering
+│   ├── environmentVault/         # Super Admin credential inventory
+│   ├── releaseManagement/        # Production promotion / rollback callables
+│   ├── emailService.js           # Email delivery (per-company SMTP)
+│   ├── statsAggregator.js        # Stats computation
 │   ├── companyAdmin.js           # Company management functions
-│   ├── hrAdmin.js                # HR admin operations
+│   ├── hrAdmin.js                # Portal user + membership operations
 │   ├── digitalSealing.js         # Document sealing
 │   ├── publicSigning.js          # Public e-signature handler
-│   └── shared/                   # Shared constants & utilities
+│   └── shared/                   # Shared constants, snapshot + PDF preservation
+├── landing/                      # Marketing site (no build step, no framework)
+├── docs/                         # App Brief + runbooks
+├── e2e/                          # Playwright specs
 ├── firebase.json                 # Firebase project config
 ├── firestore.indexes.json        # Composite index definitions
-├── .env                          # Environment variables (frontend)
-├── functions/.env                # Environment variables (backend)
+├── .env                          # Environment variables (frontend, local only)
+├── functions/.env                # Environment variables (backend, emulator only)
 ├── ARCHITECTURE.md               # Detailed architecture docs
 └── package.json                  # Frontend dependencies
 ```
@@ -302,7 +344,10 @@ These production values are bound directly from Google Secret Manager. A local
 
 > **Bulk campaigns:** See [docs/production-readiness-runbook.md](docs/production-readiness-runbook.md#bulk-sms--email-campaigns) for Cloud Tasks queue setup and verification.
 
-> **Note**: Firebase Cloud Functions also use runtime configuration for service-specific keys. See `firebase functions:config:get` for current values.
+> **Note**: The legacy `functions.config()` runtime configuration is **disabled**
+> for this project (`disallowLegacyRuntimeConfig: true` in `firebase.json`).
+> Do not use `firebase functions:config:get` — secrets are bound from Google
+> Secret Manager, and the inventory is the Environment & Integrations vault.
 
 ### Running Locally
 
@@ -310,8 +355,12 @@ These production values are bound directly from Google Secret Manager. A local
 # Start the Vite development server
 npm run dev
 
-# The app will be available at http://localhost:5173
+# The app will be available at http://localhost:5000
 ```
+
+> The dev server is pinned to port **5000** with `strictPort: true` — it fails
+> rather than silently moving to another port, because the Playwright config
+> and its `reuseExistingServer` behaviour depend on that exact port.
 
 For a full Firebase emulator setup:
 
@@ -324,27 +373,44 @@ firebase emulators:start
 
 ## Cloud Functions
 
-SafeHaul uses **40+ Cloud Functions** organized by domain. Key function groups:
+SafeHaul exports **140+ Cloud Functions** from
+[`functions/index.js`](functions/index.js), which is the authoritative registry.
+Representative examples by domain:
 
-| Group | Functions | Trigger |
-|-------|-----------|---------|
-| **Driver Sync** | `onApplicationCreated` | Firestore trigger (v2) |
-| **Guest Application** | `submitGuestApplication` | Callable (v1) |
-| **Bulk Actions** | `startBulkSession`, `processBulkBatch` | Callable (v2) |
-| **SMS Integration** | `sendDirectSms` | Callable (v2) |
-| **Email Service** | `sendCustomEmail` | Callable |
-| **Stats** | `aggregateStats`, `rebuildLeadStats` | Trigger + Scheduled |
-| **E-Signatures** | `generateSigningRequest`, `processSignedDocument` | Callable + Trigger |
-| **Admin** | `setUserRole`, `addTeamMember`, `createCompany` | Callable |
+| Group | Examples | Trigger |
+|-------|----------|---------|
+| **Driver Sync** | `onApplicationSubmitted`, `onApplicationUpdated`, `onCompanyLeadSubmitted` | Firestore trigger (v2) |
+| **Guest Application** | `submitGuestApplication`, `getApplicationAgreements` | Callable (v1/v2) |
+| **Bulk Actions** | `initBulkSession`, `processBulkBatch`, `cancelBulkSession` | Callable |
+| **SMS Integration** | `sendSMS`, `sendTestSMS`, `saveIntegrationConfig` | Callable |
+| **Automated SMS** | `onApplicationAtsContactSms`, `onLeadAtsContactSms` | Firestore trigger (v2) |
+| **Email** | `sendAutomatedEmail`, `saveEmailSettings`, `getEmailSettingsMeta` | Callable |
+| **Stats** | `onActivityLogCreated` (trigger), `backfillCompanyStats` (callable) | Trigger + Callable |
+| **E-Signatures** | `notifySigner` (callable), `sealDocument` (trigger), `getPublicEnvelope` | Callable + Trigger |
+| **PEV** | `sendVerificationRequest`, `submitVerificationResponse`, `processVerificationReminders` | Callable + Scheduled |
+| **Admin** | `createPortalUser`, `updatePortalUser`, `deleteCompany`, `listCompanyTeam` | Callable |
+| **Releases** | `getReleaseStatus`, `promoteTestingToProduction`, `rollbackProductionRelease` | Callable |
+
+Scheduled jobs: `enforceFeatureSchedules` (15 min) ·
+`reconcilePublicProfilesSchedule` (60 min) · `publishScheduledBlogPosts`
+(hourly at :15, America/Chicago) · `processVerificationReminders` (24 h) ·
+`cleanupOrphanedSignatures` (24 h).
+
+`scripts/check-callable-contract.mjs` fails CI if the SPA calls a callable that
+`functions/index.js` does not export. The full mapping is in
+[docs/callable-frontend-map.md](docs/callable-frontend-map.md).
 
 ### Deploying Individual Functions
 
 ```bash
-# Deploy a single function (recommended for limited resources)
-firebase deploy --only functions:functionName
+# Plan an incremental deploy (deploys only changed/mapped functions)
+npm run deploy:functions:plan
 
-# Deploy all functions
-firebase deploy --only functions
+# Incremental deploy — the normal path
+npm run deploy:functions:incremental
+
+# Deploy a single function
+firebase deploy --only functions:functionName
 
 # Deploy hosting only
 firebase deploy --only hosting
@@ -369,13 +435,30 @@ Custom Claims Structure:
 
 | Role | Scope | Permissions |
 |------|-------|-------------|
-| `super_admin` | Global | Full read/write to all collections |
-| `company_admin` | Company | Manage team, settings, templates, applications |
+| `super_admin` | Global | Broad access **granted per collection** — there is no global wildcard |
+| `company_admin` | Company | Manage team, settings, integrations, templates, applications |
 | `hr_user` / `recruiter` | Company | Read/write leads, applications, campaigns |
-| `driver` | Self | Own profile, own applications |
+| `driver` | Self | Own profile, own applications (whitelisted fields only) |
 | Guest (unauthenticated) | Limited | Submit via callables; see [docs/security-posture.md](docs/security-posture.md) |
 
-> Security rules are defined in [`src/firestore.rules`](src/firestore.rules). Guest security model: [docs/security-posture.md](docs/security-posture.md).
+Three things are easy to get wrong and are enforced by the rules:
+
+- **The super-admin global wildcard was deliberately removed.** Super admin is
+  granted collection by collection, and `environment_audit_log` is unreadable
+  even by super admins so it cannot be read around or forged.
+- **Cross-tenant profile reads are closed.** Staff may read a `drivers/{id}` or
+  `users/{id}` profile only when they share a company with it, via the
+  server-maintained `companyIds` field. Listing driver profiles is owner /
+  super-admin only.
+- **Several collections are server-only by default-deny** — no client rule at
+  all — including `rate_limits`, `processing_status`, `environment_audit_log`,
+  `ai_*`, `blog_posts`, `landing_leads`, and the `application_originals`
+  Storage prefix.
+
+> Security rules are defined in [`src/firestore.rules`](src/firestore.rules) and
+> [`src/storage.rules`](src/storage.rules), and are deployed from those paths.
+> Guest security model: [docs/security-posture.md](docs/security-posture.md).
+> Collection-by-collection access: [docs/firestore-data-model.md](docs/firestore-data-model.md).
 
 ---
 
@@ -414,7 +497,9 @@ return a "not configured" precondition error and the blog publishes nothing.
 
 The application and marketing landing page are deployed to **Firebase Hosting**.
 
-Pushes to `main` now deploy Hosting automatically from GitHub Actions after the existing Functions checks and frontend build pass.
+Pushes to `main` deploy the **Testing** channel automatically from GitHub Actions
+once CI passes. **Production never deploys automatically** — it updates only by
+explicit promotion of an already-tested Hosting version.
 
 ```bash
 # Full deployment (frontend + functions + rules)
@@ -453,7 +538,14 @@ See [docs/FIREBASE_HOSTING_RUNBOOK.md](docs/FIREBASE_HOSTING_RUNBOOK.md) for the
 promotion and rollback process, the shared-backend compatibility rules, DNS
 rules, landing-form security, and recovery steps.
 
-> **Important**: When deploying Cloud Functions, deploy them **one at a time** if you have limited CPU to avoid OOM issues during build.
+> **Important**: Testing is **not a sandbox**. It runs against the same real
+> Firestore, Auth, Storage, Functions and integrations as Production — a driver
+> who opens a Testing application link is filing a real application. The only
+> difference between the channels is which frontend build is served.
+
+> On a machine with limited CPU, prefer `npm run deploy:functions:incremental`
+> (or `npm run deploy:functions:sequential`) over a full parallel deploy to
+> avoid OOM during build.
 
 ---
 
@@ -463,15 +555,32 @@ rules, landing-form security, and recovery steps.
 # Frontend unit tests (Vitest)
 npm test
 
+# Frontend coverage (enforces a ratchet gate — raise it, never lower it)
+npm run test:coverage
+
 # Cloud Functions tests (Jest)
 cd functions && npm test
+
+# Security-rules tests
+npm run test:rules
 
 # End-to-end tests (Playwright)
 npm run test:e2e
 
-# Linting (Frontend + Backend)
+# Design-system catalog: render every story + axe
+npm run test:stories
+
+# Linting (frontend + backend + landing claims)
 npm run lint
 ```
+
+> **Run only one Playwright suite at a time.** The config serves the app on port
+> 5000 with `reuseExistingServer`, so a second concurrent run attaches to the
+> first run's dev server and then collapses when that run tears it down —
+> producing a cascade of failures that are not real. **Never use broad
+> process-killing patterns** such as `pkill -f vite`: that matches the invoking
+> shell's own command line and kills it. Capture the dev server's PID instead.
+> Full rules, and why each exists, are in [AGENTS.md](AGENTS.md#local-test-runner-process-safety).
 
 ---
 
@@ -482,18 +591,27 @@ npm run lint
 | **Firebase** | Auth, Database, Storage, Hosting, Functions | `.env` + Firebase Console |
 | **RingCentral** | SMS sending (primary) | Encrypted in Firestore (`companies/{id}/integrations/sms_provider`) |
 | **8x8** | SMS sending (alternate) | Encrypted in Firestore |
-| **Sentry** | Error monitoring (frontend + backend) | `VITE_SENTRY_DSN` / `SENTRY_DSN` |
+| **Sentry** | Error monitoring (browser only) | `VITE_SENTRY_DSN` |
 | **Facebook Lead Ads** | Lead ingestion | `VITE_FACEBOOK_APP_ID` |
-| **Nodemailer** | Email delivery | Company-specific SMTP settings |
+| **Nodemailer** | Email delivery | Company-specific SMTP; no platform-wide fallback sender |
+| **AI providers** (9, behind one router) | CDL auto-fill, e-doc field placement, blog | Google Secret Manager — see [docs/ai-platform.md](docs/ai-platform.md) |
+| **Telegram** | Marketing-site lead delivery | Encrypted Firestore config, Secret Manager fallback |
+| **GitHub API** | Release promotion from Super Admin | GitHub App credential, server-side only |
 
 ---
 
 ## Known Issues & Audit Findings
 
 > **Last Audited:** March 4, 2026  
-> **Status:** ✅ All identified issues have been resolved.
+> **Status:** All issues identified by *those* audits have been resolved.
 
-All critical, high, medium, and low issues from previous audits have been addressed. See git history for details on each fix.
+This refers only to the numbered findings from the March 2026 audit rounds
+listed below. It is **not** a statement that the system has no open gaps —
+current limitations and deliberately accepted risks (most notably the removal of
+Firebase App Check, and the direct-Storage-upload gap) are documented in
+[docs/APP_BRIEF.md](docs/APP_BRIEF.md#12-known-limitations-retired-features-and-intentional-exceptions)
+and [docs/security-posture.md](docs/security-posture.md). Those are accepted
+tradeoffs with compensating controls, not regressions to "fix".
 
 ### Resolved Issues Summary
 
@@ -508,26 +626,46 @@ All critical, high, medium, and low issues from previous audits have been addres
 
 Strategic path from ATS to a full-scale **Compliance & Automation Platform**.
 
-### 🚨 Phase 1 — Compliance Engine
+> ⚠️ **Nothing below is a current capability.** Anything on the marketing site
+> must trace to an `available` or `partial` entry in
+> `functions/ai/knowledge/safehaulCapabilities.js`, enforced by
+> `npm run check:landing-claims` as part of `npm run lint`.
+
+### ✅ Already shipped (previously on this roadmap)
+
+- **Previous-employment verification (PEV).** `sendVerificationRequest`, the
+  token portal at `/verify/:token`, tracked responses, a 5/15/20-day reminder
+  cycle and a 30-day `no_response` close-out are all live.
+- **Clearinghouse and PSP *disclosures*** are collected from the applicant as
+  versioned legal agreements. The *queries themselves* are not implemented — see
+  Phase 3.
+
+### 🚨 Phase 1 — Compliance Engine (not built)
 
 | Feature | Tasks |
 |---------|-------|
-| **Automated VOE** | `sendVOERequest` Cloud Function (pre-filled PDF + digital signature) · External Verification Portal for past employers |
 | **Smart DQ File Management** | Schema standardization (`expirationDate` as Timestamp, `medCardExpirationDate`) · Daily expiry monitor (30/60/90-day scan) · Auto-email alerts to drivers + dashboard alerts for recruiters · Red/Yellow row highlighting in driver lists |
 
-### 🤖 Phase 2 — Marketing Automation
+> Document-expiry monitoring and renewal reminders **do not exist today** and
+> must never be claimed as a current feature.
 
-| Feature | Tasks |
-|---------|-------|
-| **"Speed to Lead" Auto-SMS** | Twilio integration · Triggered SMS on lead assignment · 2-way chat interface in Recruiter Workspace |
-| **Drip Campaigns** | Automated 4-week nurture workflow for "No Answer" / "Not Interested" leads · Re-engagement trigger on email click |
+### 🤖 Phase 2 — Marketing Automation (partly built)
 
-### 🔗 Phase 3 — Integrations
+| Feature | Status / Tasks |
+|---------|----------------|
+| **"Speed to Lead" Auto-SMS** | *Partly built:* automated SMS fires on transition into `Contact Attempt 1/2/3`, using RingCentral/8x8 and per-company templates — **not** Twilio, and not on lead assignment. Still missing: a two-way chat interface in the Recruiter Workspace |
+| **Drip Campaigns** | *Not built.* Automated multi-step nurture workflows and re-engagement triggers. Campaigns today are one-way, single-send |
+
+### 🔗 Phase 3 — Integrations (not built)
 
 | Feature | Tasks |
 |---------|-------|
 | **Background Checks (MVR & PSP)** | Provider integration (SambaSafety / Asurint) · "Order MVR" button in DriverProfile · Auto-save report to DocumentsManager |
-| **FMCSA Clearinghouse** | Clearinghouse Limited Query Consent step · Query automation (MVP: formatted text; Scale: direct API) |
+| **FMCSA Clearinghouse** | Query automation (MVP: formatted text; Scale: direct API). The applicant-facing consent step already exists; the query does not |
+
+> MVR, PSP and FMCSA Clearinghouse **checks** are not implemented. SafeHaul also
+> makes no claim to deliver DOT or FMCSA compliance — it supports the carrier's
+> own compliance process.
 
 ---
 
