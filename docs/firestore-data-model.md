@@ -63,8 +63,8 @@ erDiagram
 | `verification_requests/{token}/responses` | `responseId` | same as parent | PEV responses |
 | `analytics` | `docId` | **read:** super · **write:** denied | Platform analytics |
 | `system_settings` | `settingId` | **read:** staff or super · **write:** super | Global settings |
-| `recruiter_links` | `code` | **read:** public · **write:** staff/super | Recruiter attribution URLs |
-| `job_posts` | `postId` | **read:** public · **write:** company team for own `companyId` | Legacy (unused; internal job board removed) |
+| `recruiter_links` | `code` | **read:** public · **create/update:** super, or team **of the company stamped on the link** (`companyId` immutable) · **delete:** super | Recruiter attribution URLs. SEC-003: any staff from any company could previously create or overwrite any link code |
+| `job_posts` | `postId` | **server** (no rule → default deny) | **Retired.** The public job board was removed (commit `5a4c8dd`) and the former public-read / company-team-write rules were **deleted**. Historical documents are left unreachable rather than deleted. `firestore.rules.security.test.js` has a default-deny regression test |
 
 ### Server-only top-level (no rules → client denied)
 
@@ -117,9 +117,9 @@ Used by Cloud Functions with Admin SDK:
 
 | Operation | Who |
 |-----------|-----|
-| **create** | Driver/guest with deterministic ID (`applicationId == applicantId`); or company team (manual entry) |
+| **create** | **Signed-in** driver with deterministic ID (`applicationId == applicantId` and `companyId` matching the path); or company team / super (manual entry, also tenant-bound). **Guests have no create branch at all** (SEC-004) |
 | **read** | Team, applicant/owner driver, email-verified owner, super |
-| **update** | Team (ATS status in allowlist); driver self-update on **allowlisted fields** only; super |
+| **update** | Team (ATS status in allowlist); driver self-update on **allowlisted fields** only, with allowed status transitions; super. `companyId` is immutable for everyone |
 | **delete** | Admin or super |
 
 **Subcollections**
@@ -128,8 +128,10 @@ Used by Cloud Functions with Admin SDK:
 |---------------|--------|
 | `dq_files`, `general_documents` | read: team, super, or owner fields on doc · write: team, super |
 | `internal_notes`, `activity_logs`, `activities` | read/write: team, super |
+| `pending_changes/{fieldKey}` | read: team, super · **write: denied**. Company-proposed edits awaiting driver approval; written only by the `proposeApplicationChanges` / `submitChangeResolution` callables |
+| `submission/{version}` | read: team, super, owner · **write: denied**. The frozen snapshot of exactly what the driver saw, answered and accepted. Server-only (Admin SDK) — this denial is what makes it immutable rather than merely intended to be |
 
-**Deterministic IDs:** Client sets doc ID = truncated hash of `companyId:email:phone` (see [`src/lib/applicationId.js`](../src/lib/applicationId.js)). Primary guest path uses `submitGuestApplication` (Admin SDK).
+**Deterministic IDs:** doc ID = truncated SHA-256 of `companyId:email:phone` (see [`src/lib/applicationId.js`](../src/lib/applicationId.js)), which makes offline-queue retries idempotent upserts instead of duplicates. **Guest submissions go exclusively through the `submitGuestApplication` callable** (Admin SDK, which bypasses these rules); there is no unauthenticated client-write fallback.
 
 ---
 
@@ -148,7 +150,8 @@ Same activity/DQ/note subcollections as applications (team/super).
 
 | Subcollection | Access |
 |---------------|--------|
-| `drafts`, `saved_jobs` (legacy/unused), `documents` | owner or super |
+| `drafts`, `documents` | owner or super |
+| `saved_jobs` | **Retired.** The driver saved-jobs / job-board feature was deleted (commit `5a4c8dd`) and its rule was removed, so the path is now default-deny |
 
 ---
 
