@@ -75,6 +75,27 @@ describe('landing page — claims match the verified capability package', () => 
         expect(visibleText).toMatch(/your own messaging provider/i);
         expect(visibleText).toMatch(/two-way (message|conversation) threads.{0,60}not/i);
     });
+
+    it('does not sell opt-out handling, and says which half of it is missing', () => {
+        // The pricing panel listed a bare "Opt-out handling" feature bullet, and
+        // the claims gate could not see it: `checkClaims()` is a blacklist of
+        // phrases, so it catches a claim it was told about, never a claim that is
+        // merely too generous.
+        //
+        // Half of it is genuinely built. `batchWorker.js` calls `isBlacklisted()`
+        // before every send, against the company and global `blacklist`
+        // collections, and fails closed on an unparseable number. But
+        // `handleOptOut` triggers on `companies/{id}/inbound_messages/{msgId}`,
+        // and nothing in the repository writes that collection — there is no
+        // inbound SMS webhook, as the function's own comment says. A recipient's
+        // STOP reply reaches the carrier's provider, not SafeHaul.
+        //
+        // So the bullet may not come back, and the page has to say what a reader
+        // would otherwise assume. Both halves are asserted, because dropping
+        // either one restores the misleading impression.
+        expect(visibleText).not.toMatch(/opt[-\s]?out\s+handling/i);
+        expect(visibleText).toMatch(/opt[-\s]?out\s+reply\s+is\s+not\s+captured/i);
+    });
 });
 
 describe('landing page — accessibility', () => {
