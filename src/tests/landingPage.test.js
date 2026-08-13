@@ -210,6 +210,26 @@ describe('landing page — conversion flow', () => {
         expect(html).toMatch(/id="formStatus"[^>]*role="status"/);
     });
 
+    it('keeps its behaviour in main.js, where the assertions above can see it', () => {
+        // This assertion exists because the one above was not enough. The
+        // homepage was once replaced by a build whose lead form called `alert()`
+        // and captured nothing — and it did so from an inline `<script>` in this
+        // file, so a grep of `main.js` reported a clean page. The same is true of
+        // `src/tests/noBlockingBrowserDialogs.test.js`, which walks `src/` only.
+        //
+        // So: no `alert(` in the markup either, no inline event-handler
+        // attributes, and the only inline script permitted is the JSON-LD block
+        // the SEO tests require.
+        for (const page of [html, privacy]) {
+            expect(page).not.toMatch(/\balert\s*\(/);
+            expect(page).not.toMatch(/\son(submit|click|change|input|load)\s*=/i);
+            const scripts = page.match(/<script[^>]*>/g) || [];
+            for (const tag of scripts) {
+                expect(tag).toMatch(/type="application\/ld\+json"|src="\/assets\/js\/main\.js"/);
+            }
+        }
+    });
+
     it('captures attribution without asking the visitor for it', () => {
         expect(js).toMatch(/utm_source/);
         expect(js).toMatch(/sourcePage/);
