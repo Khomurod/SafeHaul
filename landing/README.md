@@ -32,13 +32,20 @@ Three consequences that are real today, not hypothetical:
   `npm run lint`, lint is red on `main` for this reason alone. Fixing it means
   changing published marketing copy, which is a product decision, not a
   documentation one.
-- **The homepage's "Request Demo" form captures nothing.** `handleModalSubmit`
-  in the inline script calls `alert()` and closes the dialog. It does not post
-  to `/api/landing-lead`, so no lead reaches Firestore or Telegram. The
-  lead-capture pipeline described under "The lead form" below is wired up in
-  `main.js` and reachable from `privacy.html`, not from the homepage.
+- **Nothing on the site captures a lead any more.** The homepage's "Request
+  Demo" form calls `alert()` in its inline script and closes the dialog; it
+  never posts to `/api/landing-lead`. The real pipeline still exists in
+  `main.js`, but its handlers are guarded on `#leadModal` / `#leadForm` /
+  `#ctaForm`, and **no page in the repository contains that markup** — the
+  homepage replaced it, `privacy.html` never had it, and the blog loads no
+  JavaScript at all. `submitLandingLead` and its Telegram delivery are intact
+  server-side and simply receive nothing.
 - **The homepage has no News & Insights strip**, so `/api/news/latest` is not
   called from it.
+- **`src/tests/landingPage.test.js` fails** for the same reason — it asserts on
+  the Specification homepage's markup (`hero-visual`, `logos-section`,
+  `id="leadModal"`, intrinsic image dimensions, referenced screenshots), none
+  of which the replacement has. That is the `frontend-quality` CI job.
 
 Resolving the split — either finishing the homepage in the Specification system
 or retiring `styles.css` from the blog and privacy page — is an open product
@@ -107,8 +114,10 @@ where each entry names the section it supports.
 
 ## The lead form
 
-Implemented in `main.js`, so it is live on `privacy.html` and **not** on the
-current homepage — see the current-state note at the top.
+**Currently unreachable.** The implementation below is intact in `main.js` and
+the backend still works, but no page carries the `#leadModal` / `#leadForm` /
+`#ctaForm` markup its handlers are guarded on — see the current-state note at
+the top. This describes the design to restore, not what runs today.
 
 A two-step dialog. Step one asks only for a name and a work email and **saves the
 lead immediately**; step two adds qualification. Someone who abandons at the

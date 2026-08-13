@@ -190,6 +190,21 @@ component itself as well.
 - **`DeviceMockup`'s phone status-bar time keeps `text-[10px]`** — it is a
   decorative illustration of a real device, not interface text.
 
+### Missing primitives that live code is waiting on
+
+These are the gaps that source comments say are "tracked in the roadmap". Each
+one keeps a feature-owned control in the tree with a documented exception, and
+each exception retires when the primitive lands. **Do not delete an entry here
+while its call site still cites it.**
+
+| Missing primitive | Cited by | What stays feature-owned meanwhile |
+|---|---|---|
+| **Tabs** | `EnvelopeSidebar.jsx`, `DocumentsManager.jsx` | `DocumentsManager`'s WAI-ARIA tab interface; `EnvelopeSidebar` uses collapsible sections instead, which also lets more than one stay open — something a tab strip cannot do |
+| **Toned `Button` variant** | `EnvelopeSidebar.jsx` | The eight field-palette buttons. The approved `Button` exposes only primary/secondary/ghost/danger and has no semantic status tone; the tone is load-bearing because `ResizableDraggableField` colour-codes each placed overlay by field type, so these buttons are the legend for what appears on the PDF. They already use `--ds-*` status tokens, a 44px activation height, a focus ring and unique names |
+| **Menu / overflow menu** | `TemplateLibraryPanel.jsx` | Every template action is a visible button rather than an overflow menu |
+| **Disclosure / Accordion** | `EnvelopeSidebar.jsx` | `RailSection`'s header is a raw `<button>` — it must fill the rail edge-to-edge, carry a rotating affordance and sit inside a heading, which the approved `Button`'s padding and inline layout cannot express |
+| **Segmented control** | `EnvelopeSidebar.jsx` | The delivery-method toggle group (same gap as `CallOutcomeModalUI` above) |
+
 ---
 
 ## 6. Open decisions and blockers

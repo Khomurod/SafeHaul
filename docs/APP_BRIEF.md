@@ -494,19 +494,27 @@ actually having run.
 
 **Current limitations:**
 
-- **The marketing site is two builds, and `npm run lint` is red because of it.**
-  Verified 2026-08-13. `landing/index.html` was replaced after the
-  "Specification" redesign shipped and now carries its own
+- **The marketing site is two builds, and both `npm run lint` and CI are red
+  because of it.** Verified 2026-08-13. `landing/index.html` was replaced after
+  the "Specification" redesign shipped and now carries its own
   `landing/assets/css/landing.css` and an inline script. `landing/privacy.html`
-  and the server-rendered blog still use `styles.css` and `main.js`. Three
-  consequences: `npm run check:landing-claims` **fails** on the homepage
-  ("SafeHaul runs MVR or PSP checks"), and because it is part of
-  `npm run lint`, lint is red on `main`; the homepage's "Request Demo" form
-  calls `alert()` and **captures no lead** — it never posts to
-  `/api/landing-lead`, so nothing reaches Firestore or Telegram; and the
-  homepage has no News & Insights strip. `DESIGN.md` and `PRODUCT.md` describe
-  the `styles.css` system, not the homepage. Resolving the split is a product
-  decision — see [`landing/README.md`](../landing/README.md).
+  and the server-rendered blog still use `styles.css` and `main.js`. Four
+  consequences, each confirmed:
+  - `npm run check:landing-claims` **fails** on the homepage ("SafeHaul runs MVR
+    or PSP checks"), and because it is part of `npm run lint`, lint is red.
+  - `src/tests/landingPage.test.js` **fails** — it asserts on the Specification
+    homepage's markup, which the replacement does not have. This is the
+    `frontend-quality` CI job, and it is red on `main`.
+  - **No lead capture reaches the backend from anywhere.** The homepage's
+    "Request Demo" form calls `alert()`; the real `/api/landing-lead` handlers
+    in `main.js` are guarded on `#leadModal` / `#leadForm` / `#ctaForm` markup
+    that **no page in the repository contains**. `submitLandingLead` and its
+    Telegram delivery are intact and simply receive nothing.
+  - The homepage has no News & Insights strip.
+
+  `DESIGN.md` and `PRODUCT.md` describe the `styles.css` system, not the
+  homepage. Resolving the split is a product decision — see
+  [`landing/README.md`](../landing/README.md).
 - **No payment processing.** `companies/{id}.planType` is a manual super-admin
   `free` / `paid` flag that only changes a badge ("Free Plan" / "Pro Plan").
   Marketing prices ($199 / $299 per month) are **not** enforced anywhere in the
@@ -549,10 +557,11 @@ Gitleaks secret scan.
 CI runs Playwright as a 4-way shard matrix with `workers: 1` and `retries: 2`
 per shard.
 
-> **`npm run lint` is currently red on `main`** because `check:landing-claims`
-> fails on the marketing homepage — see §12. That is a pre-existing content
-> issue, not a broken toolchain; do not treat a green lint as your baseline
-> until it is resolved.
+> **`npm run lint` and the `frontend-quality` CI job are currently red on
+> `main`**, both because of the marketing-homepage replacement — see §12.
+> Pre-existing content issues, not a broken toolchain. Do not treat a green
+> lint or a green `frontend-quality` as your baseline until they are resolved,
+> and do not assume a red one is yours.
 
 **Local test-runner safety.** Four rules — run one Playwright suite at a time,
 never use a broad `pkill`, collect a long suite's real exit status before
