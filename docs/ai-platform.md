@@ -251,11 +251,23 @@ explanation for "AI stopped working entirely", and it is the first thing to
 suspect if that recurs.
 
 Now: `safeEvaluateProvider` records the fault as a `credential_error` skip
-against that provider and the walk continues. Provider config and the stored
-routing order likewise degrade to registry defaults rather than throwing —
-enabled/disabled is a preference, not something worth an outage. Anything else
-escaping the walk is wrapped into a categorised `AiError` with telemetry, so an
-uncategorised exception can never reach a callable.
+against that provider and the walk continues. Anything else escaping the walk is
+wrapped into a categorised `AiError` with telemetry, so an uncategorised
+exception can never reach a callable.
+
+The stored routing *order* degrades to the registry order — an unreadable
+preference must never stop AI working, and the registry order is always valid.
+
+Provider **config** is treated differently, and the distinction is the point.
+An empty config map is not neutral: absent config reads as `{ enabled: true }`,
+so falling back to one would silently **re-enable every provider an operator had
+disabled**, on paths carrying `restricted` CDL and document images.
+`setAiProviderEnabled` promises the opposite. So `resolveConfigs` reuses the last
+configuration the instance actually read, and a cold instance with nothing cached
+skips every provider with `config_unavailable` rather than guessing. Failing
+closed there is not a regression — the previous behaviour was to throw — but the
+caller now gets a categorised error and a telemetry row instead of an uncaught
+exception.
 
 A deadline is also now reported as `deadline_exceeded` rather than being
 overwritten with `not_configured`, which used to send operators to check
@@ -655,6 +667,12 @@ structured JSON, single-image vision, multi-image vision, and the article
 generation and verification shapes — and reports a provider healthy only when
 everything it *claims* works. Probes are gated on the capability, so a text-only
 provider reports vision as *skipped*, not failed.
+
+The probes run serially and the whole test is bounded by
+`HEALTH_TOTAL_BUDGET_MS` (150s), inside `testAiProvider`'s 180s function
+timeout — the same "deadline below the function it runs in" rule the task
+deadlines follow. A probe the budget did not reach is reported as `not_run`, and
+a test that did not finish is **not** a pass.
 
 They are written to fail correctly, which is the harder half. The multi-image
 probe asks about the **second** image, so a provider that accepts two and reads
