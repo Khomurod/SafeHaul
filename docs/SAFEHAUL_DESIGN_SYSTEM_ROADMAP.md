@@ -199,10 +199,10 @@ while its call site still cites it.**
 
 | Missing primitive | Cited by | What stays feature-owned meanwhile |
 |---|---|---|
-| **Tabs** | `EnvelopeSidebar.jsx`, `DocumentsManager.jsx` | `DocumentsManager`'s WAI-ARIA tab interface; `EnvelopeSidebar` uses collapsible sections instead, which also lets more than one stay open — something a tab strip cannot do |
+| **Tabs** | `EnvelopeSidebar.jsx`, `DocumentsManager.jsx`, `AnalyticsView.jsx`, `CreateView.jsx`, `AiIntegrationsView.jsx` | `DocumentsManager`'s WAI-ARIA tab interface; `EnvelopeSidebar` uses collapsible sections instead, which also lets more than one stay open — something a tab strip cannot do |
 | **Toned `Button` variant** | `EnvelopeSidebar.jsx` | The eight field-palette buttons. The approved `Button` exposes only primary/secondary/ghost/danger and has no semantic status tone; the tone is load-bearing because `ResizableDraggableField` colour-codes each placed overlay by field type, so these buttons are the legend for what appears on the PDF. They already use `--ds-*` status tokens, a 44px activation height, a focus ring and unique names |
 | **Menu / overflow menu** | `TemplateLibraryPanel.jsx` | Every template action is a visible button rather than an overflow menu |
-| **Disclosure / Accordion** | `EnvelopeSidebar.jsx` | `RailSection`'s header is a raw `<button>` — it must fill the rail edge-to-edge, carry a rotating affordance and sit inside a heading, which the approved `Button`'s padding and inline layout cannot express |
+| **Disclosure / Accordion** | `EnvelopeSidebar.jsx`, `AiLogsPanel.jsx` | `RailSection`'s header is a raw `<button>` — it must fill the rail edge-to-edge, carry a rotating affordance and sit inside a heading, which the approved `Button`'s padding and inline layout cannot express. `AiLogsPanel` sidesteps the gap entirely: a log row's detail opens in the approved shared `Modal` via `DataTable`'s `onRowActivate`, so no inline expander is hand-rolled and focus handling is the one already proven here |
 | **Segmented control** | `EnvelopeSidebar.jsx` | The delivery-method toggle group (same gap as `CallOutcomeModalUI` above) |
 
 ---
@@ -285,6 +285,16 @@ enforcement permanently blocking.
   There is no safe universal conversion. The candidate list settled on a dense
   native table with labelled horizontal overflow so no field or action
   disappears; other tables still need individual decisions.
+  - **Decided 2026-08-17 — AI Integrations → Logs (`AiLogsPanel.jsx`):**
+    `DataTable` at `density="compact"`, `minWidth="wide"`, with the default
+    labelled horizontal scroll on mobile. Chosen over stacked cards because the
+    columns are read *comparatively* — an operator scans a run of rows for the
+    one that failed, and stacking destroys that. Nothing is hidden at any width:
+    the full provider-by-provider detail lives in a dialog reached by activating
+    the row, so the table itself carries only what fits. The status column is
+    `xl` rather than `md` because it holds a `Badge` (which does not wrap) plus
+    trailing detail text; `DataTable.stories.jsx` covers that arrangement so
+    `check:table-layout` measures it in a real browser.
 - `[!]` **Select visual-baseline hosting and review ownership.** The catalog
   tool is decided — Storybook (see §7). What remains open is who hosts the built
   catalog, who approves a baseline change, and which service stores baselines.

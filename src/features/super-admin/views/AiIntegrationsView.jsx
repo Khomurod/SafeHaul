@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, PlugZap, RefreshCw, Trash2 } from 'lucide-react';
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { ListChecks, RefreshCw, ScrollText, Trash2 } from 'lucide-react';
 
 import {
     Badge,
@@ -21,6 +21,7 @@ import {
     isReauthCancelled,
     ReauthCancelledError,
     isReauthRequired,
+    diagnoseAiModelPins,
     listAiProviders,
     listMediaProviders,
     migrateGroqCredential,
@@ -39,6 +40,8 @@ import { AiRoutingEligibility } from '../components/ai/AiRoutingEligibility';
 import { AiRoutingOrderCard } from '../components/ai/AiRoutingOrderCard';
 import { AiCredentialModal } from '../components/ai/AiCredentialModal';
 import { AiCredentialDeleteDialog } from '../components/ai/AiCredentialDeleteDialog';
+import { AiLogsPanel } from '../components/ai/AiLogsPanel';
+import { describePinStatus, describeProbe } from '../components/ai/aiTelemetryPresentation';
 import { ReauthenticateModal } from '../components/environment/ReauthenticateModal';
 
 /**
@@ -58,6 +61,20 @@ import { ReauthenticateModal } from '../components/environment/ReauthenticateMod
  * This view does not render a `PageHeader`: the Super Admin masthead owns the
  * single `<h1>`, so the page starts at `<h2>`.
  */
+/**
+ * The two halves of this screen.
+ *
+ * The design system has no Tabs primitive — the roadmap records the gap — so
+ * this is a feature-owned WAI-ARIA tab interface, copied from the shipped one in
+ * `AnalyticsView.jsx` rather than invented: same roving focus, same ids, same
+ * tokens. Copying a working implementation is the sanctioned interim, and the
+ * roadmap now cites this screen alongside the others waiting on the primitive.
+ */
+const TABS = Object.freeze([
+    { id: 'providers', label: 'Providers', icon: ListChecks },
+    { id: 'logs', label: 'Logs', icon: ScrollText },
+]);
+
 export function AiIntegrationsView() {
     const { showSuccess, showError, showInfo } = useToast();
 
@@ -77,6 +94,12 @@ export function AiIntegrationsView() {
     const [busyId, setBusyId] = useState(null);
     const [savingOrder, setSavingOrder] = useState(false);
     const [configDrafts, setConfigDrafts] = useState({});
+    const [activeTab, setActiveTab] = useState('providers');
+    const [testResults, setTestResults] = useState({});
+    const [pinDiagnosis, setPinDiagnosis] = useState(null);
+    const [diagnosingPins, setDiagnosingPins] = useState(false);
+    const tabRefs = useRef({});
+    const tabsId = useId();
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -152,6 +175,10 @@ export function AiIntegrationsView() {
         showInfo(`Testing ${provider.displayName}…`);
         try {
             const result = await testAiProvider(provider.id);
+            // Kept per provider so the row can show *which* capabilities
+            // passed. A single pass/fail hid the failure mode that mattered:
+            // text working while structured JSON was rejected on every request.
+            setTestResults((current) => ({ ...current, [provider.id]: result.capabilities || [] }));
             if (result.success) showSuccess(result.message);
             else showError(result.message);
             await load();
@@ -254,6 +281,45 @@ export function AiIntegrationsView() {
             setBusyId(null);
         }
     }, [load, runGuarded, showError, showSuccess]);
+
+    // Roving focus: a tablist must answer Arrow/Home/End, not only clicks.
+    const onTabKeyDown = (event) => {
+        const index = TABS.findIndex((tab) => tab.id === activeTab);
+        let next = null;
+        if (event.key === 'ArrowRight') next = TABS[(index + 1) % TABS.length];
+        if (event.key === 'ArrowLeft') next = TABS[(index - 1 + TABS.length) % TABS.length];
+        if (event.key === 'Home') next = TABS[0];
+        if (event.key === 'End') next = TABS[TABS.length - 1];
+        if (!next) return;
+        event.preventDefault();
+        setActiveTab(next.id);
+        tabRefs.current[next.id]?.focus();
+    };
+
+    /**
+     * Asks each vendor whether the models the registry pins still exist.
+     *
+     * The check no fixture can perform: a pin is only a string until a request
+     * is made with it, so a vendor retiring a model is invisible to CI. Six pins
+     * had rotted this way before anyone noticed.
+     */
+    const handleDiagnosePins = useCallback(async () => {
+        setDiagnosingPins(true);
+        showInfo('Checking model pins against each vendor…');
+        try {
+            const result = await diagnoseAiModelPins();
+            setPinDiagnosis(result);
+            if (result.stalePins > 0) {
+                showError(`${result.stalePins} pinned model(s) are no longer offered by their vendor.`);
+            } else {
+                showSuccess('Every pinned model is still offered by its vendor.');
+            }
+        } catch (error) {
+            showError(describeAiError(error, 'Could not check model pins.'));
+        } finally {
+            setDiagnosingPins(false);
+        }
+    }, [showError, showInfo, showSuccess]);
 
     const columns = useMemo(() => [
         {
@@ -379,6 +445,7 @@ export function AiIntegrationsView() {
                 if (!provider.lastTest) {
                     return <span className="text-ds-xs text-ds-content-secondary">Never tested</span>;
                 }
+                const probes = testResults[provider.id] || [];
                 return (
                     <div className="flex flex-col gap-ds-1">
                         <Badge tone={provider.lastTest.success ? 'success' : 'danger'}>
@@ -387,6 +454,19 @@ export function AiIntegrationsView() {
                         <span className="text-ds-xs text-ds-content-secondary">
                             {provider.lastTest.at ? new Date(provider.lastTest.at).toLocaleString() : ''}
                         </span>
+                        {/* Per-capability results from the most recent test in
+                            this session. A provider that answers text but not
+                            structured JSON now says so on the row rather than
+                            reporting a single misleading verdict. */}
+                        {probes.filter((probe) => probe.status !== 'skipped').map((probe) => {
+                            const state = describeProbe(probe);
+                            return (
+                                <span key={probe.id} className="flex items-center gap-ds-1 text-ds-xs">
+                                    <Badge tone={state.tone}>{state.label}</Badge>
+                                    <span className="text-ds-content-secondary">{probe.label}</span>
+                                </span>
+                            );
+                        })}
                     </div>
                 );
             },
@@ -499,6 +579,50 @@ export function AiIntegrationsView() {
                 </p>
             </div>
 
+            <div
+                role="tablist"
+                aria-label="AI Integrations sections"
+                onKeyDown={onTabKeyDown}
+                className="flex overflow-x-auto border-b border-ds-border-subtle"
+            >
+                {TABS.map((tab) => {
+                    const selected = activeTab === tab.id;
+                    const Icon = tab.icon;
+                    return (
+                        <button
+                            key={tab.id}
+                            type="button"
+                            role="tab"
+                            id={`${tabsId}-tab-${tab.id}`}
+                            aria-selected={selected}
+                            aria-controls={`${tabsId}-panel-${tab.id}`}
+                            tabIndex={selected ? 0 : -1}
+                            ref={(node) => { tabRefs.current[tab.id] = node; }}
+                            onClick={() => setActiveTab(tab.id)}
+                            className={`flex items-center gap-ds-2 whitespace-nowrap border-b-2 px-ds-4 py-ds-3 text-ds-sm font-bold transition-colors focus-visible:outline-none focus-visible:shadow-ds-focus ${
+                                selected
+                                    ? 'border-ds-action-primary text-ds-content-link'
+                                    : 'border-transparent text-ds-content-secondary hover:text-ds-content'
+                            }`}
+                        >
+                            <Icon size={16} aria-hidden="true" />
+                            {tab.label}
+                        </button>
+                    );
+                })}
+            </div>
+
+            <div
+                role="tabpanel"
+                id={`${tabsId}-panel-${activeTab}`}
+                aria-labelledby={`${tabsId}-tab-${activeTab}`}
+                tabIndex={0}
+                className="focus-visible:outline-none focus-visible:shadow-ds-focus"
+            >
+            {activeTab === 'logs' && <AiLogsPanel providers={providers} />}
+
+            {activeTab === 'providers' && (
+            <Stack gap="lg">
             <Card padding="sm">
                 <h3 className="text-ds-sm font-semibold text-ds-content">How credentials are handled</h3>
                 <ul className="mt-1 list-disc pl-ds-4 text-ds-sm text-ds-content-secondary">
@@ -631,33 +755,71 @@ export function AiIntegrationsView() {
                 ))}
             </ResponsiveGrid>
 
-            {/* Recent AI activity — safe operational facts only. */}
+            {/* Model pins, reconciled against each vendor's live catalogue.
+                A pin is only a string until a request is made with it, so this
+                is the one check that can catch a vendor retiring a model. */}
             <Card padding="md">
-                <h3 className="text-ds-sm font-semibold text-ds-content">Recent AI activity</h3>
-                {telemetry.length === 0 ? (
-                    <p className="mt-1 text-ds-sm text-ds-content-secondary">
-                        No AI requests have been recorded yet.
-                    </p>
-                ) : (
-                    <ul className="mt-ds-2 space-y-ds-1 text-ds-sm text-ds-content-secondary">
-                        {telemetry.map((entry) => (
-                            <li key={entry.id} className="flex flex-wrap items-center gap-ds-2">
-                                {entry.outcome === 'success'
-                                    ? <CheckCircle2 size={14} aria-hidden="true" />
-                                    : <PlugZap size={14} aria-hidden="true" />}
-                                <span>{entry.taskType}</span>
-                                <span>·</span>
-                                <span>{entry.providerId || 'no provider'}</span>
-                                {entry.category && <><span>·</span><span>{entry.category}</span></>}
-                                {typeof entry.latencyMs === 'number' && <><span>·</span><span>{entry.latencyMs}ms</span></>}
-                                {entry.fallbackCount > 0 && <><span>·</span><span>{entry.fallbackCount} fallback(s)</span></>}
-                                <span>·</span>
-                                <span>{entry.timestamp ? new Date(entry.timestamp).toLocaleString() : ''}</span>
-                            </li>
-                        ))}
+                <div className="flex flex-wrap items-center justify-between gap-ds-2">
+                    <div>
+                        <h3 className="text-ds-sm font-semibold text-ds-content">Model pins</h3>
+                        <p className="mt-1 text-ds-sm text-ds-content-secondary">
+                            Asks each configured vendor whether the models SafeHaul pins still exist.
+                            Six pins had been naming retired models before this check existed.
+                        </p>
+                    </div>
+                    <Button variant="secondary" size="sm" loading={diagnosingPins} onClick={handleDiagnosePins}>
+                        Verify model pins
+                    </Button>
+                </div>
+
+                {pinDiagnosis && (
+                    <ul className="mt-ds-3 space-y-ds-2">
+                        {pinDiagnosis.providers.map((entry) => {
+                            const state = describePinStatus(entry);
+                            return (
+                                <li key={entry.providerId} className="flex flex-wrap items-center gap-ds-2 text-ds-sm">
+                                    <span className="font-semibold text-ds-content">{entry.displayName}</span>
+                                    <Badge tone={state.tone}>{state.label}</Badge>
+                                    {entry.pins.filter((pin) => !pin.present).map((pin) => (
+                                        <span key={pin.model} className="text-ds-xs text-ds-content-secondary">
+                                            {pin.model} ({pin.capabilities.join(', ')})
+                                        </span>
+                                    ))}
+                                </li>
+                            );
+                        })}
                     </ul>
                 )}
             </Card>
+
+            {/* Recent activity lives in the Logs tab now: one transaction per
+                row, expandable into the provider timeline. A second, shallower
+                list here would be a competing answer to the same question. */}
+            <Card padding="md">
+                <div className="flex flex-wrap items-center justify-between gap-ds-2">
+                    <div>
+                        <h3 className="text-ds-sm font-semibold text-ds-content">Recent AI activity</h3>
+                        <p className="mt-1 text-ds-sm text-ds-content-secondary">
+                            {telemetry.length > 0
+                                ? `${telemetry.length} recent transaction${telemetry.length === 1 ? '' : 's'} recorded.`
+                                : 'No AI requests have been recorded yet.'}
+                        </p>
+                    </div>
+                    <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => {
+                            setActiveTab('logs');
+                            tabRefs.current.logs?.focus();
+                        }}
+                    >
+                        <ScrollText size={14} aria-hidden="true" /> Open logs
+                    </Button>
+                </div>
+            </Card>
+            </Stack>
+            )}
+            </div>
 
             {credentialModal && (
                 <AiCredentialModal
