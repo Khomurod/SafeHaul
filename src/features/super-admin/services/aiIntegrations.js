@@ -55,6 +55,25 @@ export async function listAiProviders() {
     return result.data;
 }
 
+/**
+ * AI transactions for the Logs tab.
+ *
+ * `ai_telemetry` is server-only in the security rules, so there is no
+ * `onSnapshot` alternative here — this callable is the only way to read it.
+ *
+ * The response carries `truncated` alongside the entries: provider and
+ * free-text filtering happen server-side but *in memory*, over the page
+ * Firestore returned, so matches can exist beyond that window. The UI says so
+ * rather than presenting a partial list as a complete one.
+ *
+ * @param {object} [filters] `{ taskType, outcome, providerId, search, from, to, limit }`
+ */
+export async function listAiTelemetry(filters = {}) {
+    const call = httpsCallable(functions, 'listAiTelemetry');
+    const result = await call(filters);
+    return result.data;
+}
+
 /** Reveals exactly one credential field of one provider. */
 export async function revealAiCredential(providerId, field) {
     const call = httpsCallable(functions, 'revealAiCredential');

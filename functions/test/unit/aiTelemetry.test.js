@@ -231,6 +231,43 @@ describe('what must never be recorded', () => {
     });
 });
 
+describe('listAiTelemetry filter validation', () => {
+    const { normalizeLogFilters } = require('../../ai/callables').__test;
+
+    it('drops a task type that is not one of SafeHaul own', () => {
+        // A value from a browser must never reach a Firestore query unchecked,
+        // for the same reason a provider id is only ever *looked up* in the
+        // frozen registry.
+        expect(normalizeLogFilters({ taskType: 'cdl_extraction' }).taskType).toBe('cdl_extraction');
+        expect(normalizeLogFilters({ taskType: '../../etc/passwd' }).taskType).toBeNull();
+        expect(normalizeLogFilters({ taskType: { $ne: null } }).taskType).toBeNull();
+    });
+
+    it('drops a provider id that is not in the frozen registry', () => {
+        expect(normalizeLogFilters({ providerId: 'gemini' }).providerId).toBe('gemini');
+        expect(normalizeLogFilters({ providerId: 'not-a-provider' }).providerId).toBeNull();
+    });
+
+    it('drops an outcome outside the known vocabulary', () => {
+        expect(normalizeLogFilters({ outcome: 'failure' }).outcome).toBe('failure');
+        expect(normalizeLogFilters({ outcome: 'anything' }).outcome).toBeNull();
+    });
+
+    it('bounds the search term, because it becomes a substring scan', () => {
+        const filters = normalizeLogFilters({ search: 'x'.repeat(500) });
+
+        expect(filters.search).toHaveLength(120);
+    });
+
+    it('treats an unrecognised filter as absent rather than as an error', () => {
+        // A stale bookmark should show unfiltered logs, not a failure.
+        const filters = normalizeLogFilters({ taskType: 'gone', outcome: 'gone' });
+
+        expect(filters.taskType).toBeNull();
+        expect(filters.outcome).toBeNull();
+    });
+});
+
 describe('describeTaskInput', () => {
     /**
      * The operator's real question is "what kind of request was this" — one

@@ -253,8 +253,114 @@ async function readRecentTelemetry(limit = 25) {
     }
 }
 
+/**
+ * Filtered transactions for the Logs view.
+ *
+ * ## Why the filtering is split between Firestore and here
+ *
+ * Firestore needs a composite index for every combination of equality filter
+ * plus `orderBy`, so filtering on all of task, outcome, provider and text
+ * server-side would mean an index per combination — a large, mostly-idle
+ * footprint for a collection that sees a few requests an hour.
+ *
+ * So the split follows what each side is actually good at. Firestore applies
+ * the time range and *at most one* equality filter, which covers the two
+ * highest-value cases (`taskType` and `outcome`) with two indexes. Provider and
+ * free-text matching happen here, over the returned page — provider especially,
+ * because it lives inside the `attempts` array and could not be indexed
+ * alongside `orderBy(timestamp)` without an array-contains composite anyway.
+ *
+ * ## Truncation is reported, not hidden
+ *
+ * In-memory filtering only sees the page Firestore returned. If that page hit
+ * its limit, matches may exist beyond it, and the response says so rather than
+ * presenting a partial list as a complete one — a filtered log that silently
+ * omits rows is worse than one that admits it is looking at a window.
+ *
+ * @param {object} filters
+ * @param {string} [filters.taskType] server-side equality filter
+ * @param {string} [filters.outcome] server-side equality filter
+ * @param {string} [filters.providerId] applied in memory, matches any attempt
+ * @param {string} [filters.search] applied in memory, case-insensitive
+ * @param {string} [filters.from] ISO date, inclusive
+ * @param {string} [filters.to] ISO date, exclusive
+ * @param {number} [filters.limit]
+ * @returns {Promise<{ entries: Array, windowSize: number, truncated: boolean }>}
+ */
+const DEFAULT_PAGE = 100;
+const MAX_PAGE = 250;
+
+function parseDate(value) {
+    if (typeof value !== 'string' || !value) return null;
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function matchesProvider(entry, providerId) {
+    if (!providerId) return true;
+    if (entry.providerId === providerId) return true;
+    return (entry.attempts || []).some((attempt) => attempt.providerId === providerId);
+}
+
+function matchesSearch(entry, search) {
+    if (!search) return true;
+    const needle = search.toLowerCase();
+    // Only the safe, already-sanitized fields are searchable. There is nothing
+    // else in the document to search.
+    const haystack = [
+        entry.transactionId,
+        entry.taskType,
+        entry.category,
+        entry.outcome,
+        entry.inputSummary,
+        ...(entry.attempts || []).flatMap((attempt) => [
+            attempt.providerId, attempt.model, attempt.category,
+            attempt.vendorCode, attempt.skipReason,
+        ]),
+    ].filter(Boolean).join(' ').toLowerCase();
+    return haystack.includes(needle);
+}
+
+async function readTelemetry(filters = {}) {
+    const limit = Math.max(1, Math.min(Number(filters.limit) || DEFAULT_PAGE, MAX_PAGE));
+    try {
+        let query = db.collection(COLLECTION);
+
+        // At most one equality filter, so two composite indexes cover every
+        // combination the UI can produce. `taskType` wins when both are given:
+        // "show me CDL" narrows harder than "show me failures".
+        if (filters.taskType) query = query.where('taskType', '==', filters.taskType);
+        else if (filters.outcome) query = query.where('outcome', '==', filters.outcome);
+
+        const from = parseDate(filters.from);
+        const to = parseDate(filters.to);
+        if (from) query = query.where('timestamp', '>=', from);
+        if (to) query = query.where('timestamp', '<', to);
+
+        const snapshot = await query.orderBy('timestamp', 'desc').limit(limit).get();
+        const windowSize = snapshot.docs.length;
+
+        let entries = snapshot.docs.map(toRow);
+        // When `taskType` took the server-side slot, `outcome` is applied here.
+        if (filters.taskType && filters.outcome) {
+            entries = entries.filter((entry) => entry.outcome === filters.outcome);
+        }
+        entries = entries
+            .filter((entry) => matchesProvider(entry, filters.providerId))
+            .filter((entry) => matchesSearch(entry, filters.search));
+
+        return { entries, windowSize, truncated: windowSize >= limit };
+    } catch (error) {
+        console.error(`[ai/telemetry] Could not read telemetry: ${error?.message}`);
+        return { entries: [], windowSize: 0, truncated: false };
+    }
+}
+
 module.exports = {
     COLLECTION,
+    DEFAULT_PAGE,
+    MAX_PAGE,
+    readTelemetry,
     ALLOWED_FIELDS,
     ALLOWED_ATTEMPT_FIELDS,
     MAX_ATTEMPTS,

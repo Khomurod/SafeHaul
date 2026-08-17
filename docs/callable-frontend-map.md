@@ -153,6 +153,7 @@ no request can name an arbitrary Secret Manager resource.
 | Callable | Caller | Purpose |
 | --- | --- | --- |
 | `listAiProviders` | [`AiIntegrationsView.jsx`](../src/features/super-admin/views/AiIntegrationsView.jsx) | All nine providers, masked. No plaintext in the response. |
+| `listAiTelemetry` | same | Filtered AI transactions for the Logs tab. `ai_telemetry` is server-only in the rules, so this is the only read path. |
 | `revealAiCredential` | same | Exactly one credential per request, audited. |
 | `saveAiCredential` | same | Add or replace one credential. |
 | `deleteAiCredential` | same | Destroy every version; typed confirmation re-checked server-side. |
