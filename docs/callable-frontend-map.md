@@ -159,7 +159,8 @@ no request can name an arbitrary Secret Manager resource.
 | `deleteAiCredential` | same | Destroy every version; typed confirmation re-checked server-side. |
 | `setAiProviderEnabled` | same | Include or exclude a provider from routing. |
 | `updateAiProviderConfig` | same | Non-secret settings only; registry-validated. |
-| `testAiProvider` | same | Tiny constant-prompt connection test. |
+| `testAiProvider` | same | Per-capability connection test: text, structured JSON, single and multi-image vision, and the article shapes. Synthetic prompts and generated images only. |
+| `diagnoseAiModelPins` | same | Reconciles every registry model pin against the vendor's live catalogue. Server-side; no credential is returned. |
 | `migrateGroqCredential` | same | Copies the legacy binding into Secret Manager server-side. The token is never returned. |
 
 ## Super Admin Blog Posts and blog media

@@ -322,7 +322,10 @@ projection, and `/apply/:slug` is not gated by any flag. See
 - **No feature may call an AI vendor directly.** Every AI request goes through
   `functions/ai/` (task interface → capability-aware router → provider adapter →
   schema-validated response). `npm run check:ai-boundary` fails CI if one tries.
-  See [`docs/ai-platform.md`](./ai-platform.md).
+  Every request carries a transaction id and records a per-provider timeline in
+  `ai_telemetry`, visible at Super Admin → AI Integrations → **Logs**; the
+  connection test probes each capability a provider claims rather than only that
+  its key works. See [`docs/ai-platform.md`](./ai-platform.md).
 - **SMS credentials are resolved by a factory, never inline.**
   `SMSAdapterFactory` fetches, decrypts and instantiates the right adapter. A
   per-user *keychain* (`.../sms_provider/keychain/{userId}`) maps a recruiter to

@@ -190,7 +190,7 @@ forge a record.
 | Collection | Contents | Why closed |
 | --- | --- | --- |
 | `ai_provider_config/{providerId}` | enabled flag, non-secret settings (Cloudflare account id, model overrides), health, consecutive failures, cooldown, last-test result | Holds no credential value, but still reveals which vendors a deployment uses and which are failing |
-| `ai_telemetry/{id}` | task type, provider, model, outcome, latency, fallback count; `expiresAt` for a 30-day TTL | Diagnostic only; a client could otherwise forge entries or enumerate failures |
+| `ai_telemetry/{id}` | one document per AI transaction: task type, required capabilities, outcome, latency, fallback count, final provider/model, a shape-only `inputSummary`, and a bounded `attempts[]` array recording each provider's turn (category, HTTP status, vendor code, latency, schema validity, token counts). `expiresAt` drives the 30-day TTL declared in `firestore.indexes.json`. Never prompts, images, response text or credentials | Diagnostic only; a client could otherwise forge entries or enumerate failures. Read by Super Admin through `listAiTelemetry` |
 | `blog_posts/{publicationDate}_{themeId}` | title, slug, excerpt, sanitized content blocks, theme, status, sources, image licence metadata, SEO, generation record, knowledge version, duplicate-prevention fingerprints, timestamps | The article *content* is public, but the document also carries tombstones, source fingerprints and provider/model records. The public surface is the server-rendered `/news` routes, which filter to published and strip metadata |
 
 `blog_posts` uses `${publicationDate}_${themeId}` as its id deliberately: that

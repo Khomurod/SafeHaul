@@ -50,7 +50,7 @@ export function AiTransactionModal({ entry, onClose }) {
                     <p className="mt-ds-1 text-ds-sm text-ds-content-secondary">
                         {entry.timestamp ? new Date(entry.timestamp).toLocaleString() : 'Time unknown'}
                         {' · '}
-                        {formatDuration(entry.totalDurationMs ?? entry.latencyMs)}
+                        {formatDuration(entry.latencyMs)}
                     </p>
                 </header>
 

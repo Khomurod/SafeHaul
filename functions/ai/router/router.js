@@ -328,7 +328,12 @@ async function runAiTask(task, deps = {}) {
     function linkedAttempts() {
         return attemptRecords.map((entry, index) => ({
             ...entry,
-            nextProviderId: attemptRecords[index + 1]?.providerId || null,
+            // The next provider actually *asked*, not merely the next row.
+            // Naming a skipped provider here would read as "fell back to
+            // Mistral" when Mistral was never contacted.
+            nextProviderId: attemptRecords
+                .slice(index + 1)
+                .find((candidate) => candidate.status === 'attempted')?.providerId || null,
         }));
     }
 
