@@ -36,6 +36,32 @@ const { extractJsonObject } = require("./ai/validation/schema");
 const MAX_IMAGE_CHARS = 12 * 1024 * 1024;
 
 /**
+ * The image formats every vision provider in the registry accepts.
+ *
+ * This callable used to admit any `data:image/*`, which let an unauthenticated
+ * guest hand a vendor an SVG, TIFF or AVIF payload. Two reasons that matters
+ * beyond tidiness: `image/svg+xml` is a markup format, not a raster one, and
+ * forwarding attacker-controlled markup to a third party is not something an
+ * OCR path should do; and the exotic raster formats are simply rejected by the
+ * vendors, so they spend a request and a rate-limit slot to fail.
+ *
+ * The E-Doc callable has always had this allowlist. The two paths take the same
+ * kind of input from less-trusted callers, so they now agree.
+ */
+const IMAGE_DATA_URL_PREFIX = /^data:image\/(png|jpeg|jpg|webp);base64,/;
+
+/**
+ * How long this function may run, in seconds.
+ *
+ * Named rather than inlined because the AI task's `totalDeadlineMs` has to stay
+ * *below* it, and that relationship was broken while both numbers were literals
+ * sitting in different files: the router used its 120s default inside a
+ * function that dies at 60. `cdlParser.test.js` asserts the two against each
+ * other so they cannot drift apart again.
+ */
+const FUNCTION_TIMEOUT_SECONDS = 60;
+
+/**
  * Maps a shared-platform failure category onto the HttpsError codes and
  * user-facing strings this callable has always returned. Preserved exactly so
  * the driver-application wizard's error handling keeps working unchanged.
@@ -64,15 +90,18 @@ function toHttpsError(category) {
 }
 
 exports.parseCdlWithGroq = functions
-    .runWith({ memory: "512MB", timeoutSeconds: 60, secrets: ["GROQ_API_KEY"] })
+    .runWith({ memory: "512MB", timeoutSeconds: FUNCTION_TIMEOUT_SECONDS, secrets: ["GROQ_API_KEY"] })
     .https.onCall(async (data, context) => {
         const { companyId, imageDataUrl, storagePath } = data || {};
 
         if (!companyId || typeof companyId !== "string") {
             throw new functions.https.HttpsError("invalid-argument", "companyId is required.");
         }
-        if (!imageDataUrl || typeof imageDataUrl !== "string" || !imageDataUrl.startsWith("data:image/")) {
-            throw new functions.https.HttpsError("invalid-argument", "imageDataUrl must be a data:image/* base64 URL.");
+        if (!imageDataUrl || typeof imageDataUrl !== "string" || !IMAGE_DATA_URL_PREFIX.test(imageDataUrl)) {
+            throw new functions.https.HttpsError(
+                "invalid-argument",
+                "imageDataUrl must be a base64 PNG, JPEG or WebP data URL.",
+            );
         }
         if (imageDataUrl.length > MAX_IMAGE_CHARS) {
             throw new functions.https.HttpsError("invalid-argument", "Image is too large. Please upload a smaller photo.");
@@ -125,5 +154,7 @@ exports.__private = {
     normalizeOutput: normalizeFields,
     extractJsonObject,
     MAX_IMAGE_CHARS,
+    IMAGE_DATA_URL_PREFIX,
+    FUNCTION_TIMEOUT_SECONDS,
     toHttpsError,
 };

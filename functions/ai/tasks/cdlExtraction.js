@@ -57,6 +57,14 @@ function normalizeFields(raw) {
 }
 
 /**
+ * Ceiling for the whole CDL request, across every fallback.
+ *
+ * Exported so `cdlParser.test.js` can assert it stays below the callable's
+ * `FUNCTION_TIMEOUT_SECONDS`. See the note at the `totalDeadlineMs` below.
+ */
+const CDL_TOTAL_DEADLINE_MS = 45000;
+
+/**
  * @param {object} params
  * @param {string} params.imageDataUrl a `data:image/...;base64,...` URL
  * @param {object} [deps] injection seam for tests
@@ -73,6 +81,17 @@ async function extractCdlFields({ imageDataUrl }, deps = {}) {
         temperature: 0,
         maxOutputTokens: 450,
         privacy: PRIVACY.RESTRICTED,
+        // Must stay below `parseCdlWithGroq`'s 60s function timeout.
+        //
+        // Without this the router used its 120s default *inside* a function
+        // that dies at 60, so a slow fallback chain was killed mid-walk: the
+        // driver got a generic function timeout instead of the mapped
+        // `unavailable` error, and no telemetry row was ever written — the
+        // failures hardest to diagnose were the ones that recorded nothing.
+        //
+        // 45s leaves room for the callable to map the error and for the
+        // telemetry write to land.
+        totalDeadlineMs: CDL_TOTAL_DEADLINE_MS,
     });
 
     const result = await runAiTask(task, deps);
@@ -85,4 +104,11 @@ async function extractCdlFields({ imageDataUrl }, deps = {}) {
     };
 }
 
-module.exports = { extractCdlFields, CDL_JSON_SCHEMA, CDL_PROMPT, normalizeFields, FIELD_KEYS };
+module.exports = {
+    extractCdlFields,
+    CDL_JSON_SCHEMA,
+    CDL_PROMPT,
+    CDL_TOTAL_DEADLINE_MS,
+    normalizeFields,
+    FIELD_KEYS,
+};

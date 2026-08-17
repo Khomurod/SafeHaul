@@ -46,6 +46,22 @@ const { analyzeEdocFieldPlacement, __private } = require('../../edocFieldPlaceme
 const { checkRateLimit } = require('../../shared/rateLimiter');
 const { assertCompanyAccessForRequest } = require('../../shared/companyAccess');
 const { AiError } = require('../../ai/router/errors');
+// `requireActual`, because the task module is mocked above to keep the callable
+// tests off the router. The real constant is what has to be asserted here.
+const { EDOC_TOTAL_DEADLINE_MS } = jest.requireActual('../../ai/tasks/edocFieldPlacement');
+
+describe('request budget', () => {
+  it('gives the router less time than the function has to live', () => {
+    // The task previously set no deadline, so it inherited the router's 120s
+    // default — exactly the function's own `timeoutSeconds`. The two raced with
+    // no margin, and the function death usually won: no mapped error for the
+    // signing editor, and no telemetry row explaining why.
+    const functionBudgetMs = __private.FUNCTION_TIMEOUT_SECONDS * 1000;
+
+    expect(EDOC_TOTAL_DEADLINE_MS).toBeLessThan(functionBudgetMs);
+    expect(functionBudgetMs - EDOC_TOTAL_DEADLINE_MS).toBeGreaterThanOrEqual(10000);
+  });
+});
 
 const PNG = 'data:image/png;base64,';
 const imageOfLength = (chars) => PNG + 'A'.repeat(Math.max(0, chars - PNG.length));
