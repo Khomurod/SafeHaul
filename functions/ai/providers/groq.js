@@ -11,6 +11,9 @@
 
 const { postJson } = require('./http');
 const { AiError } = require('../router/errors');
+const { STRUCTURED_MODE, resolveStructuredMode } = require('../registry/providers');
+const { applyPromptCarriedSchema } = require('./structuredOutput');
+const { normalizeUsage } = require('./usage');
 
 const RESPONSES_PATH = '/responses';
 
@@ -99,9 +102,27 @@ const groqAdapter = {
     id: 'groq',
     async execute(context) {
         const {
-            provider, model, systemInstructions, inputText, images, schema, schemaName,
+            provider, model, systemInstructions, inputText, images, schema,
             temperature, maxOutputTokens, timeoutMs, parentSignal, credentials, fetchImpl,
         } = context;
+        const schemaName = context.schemaName;
+
+        /**
+         * Which JSON mechanism this *model* supports — not this vendor.
+         *
+         * Groq's structured-output support is per model. `openai/gpt-oss-20b`
+         * and `openai/gpt-oss-120b` accept `json_schema` with constrained
+         * decoding; every other model, including the only one that can read an
+         * image, rejects it outright and supports JSON object mode instead.
+         *
+         * Sending the wrong one is not a soft failure — it is a 400 on every
+         * request, which is exactly how enabling vision by flipping a capability
+         * flag alone would have failed. In object mode the schema travels in the
+         * prompt, and `../validation/schema.js` enforces it on return, so
+         * SafeHaul's guarantee about the output shape is unchanged either way.
+         */
+        const structuredMode = resolveStructuredMode(provider, context.capability);
+        const promptText = applyPromptCarriedSchema({ inputText, schema, structuredMode });
 
         const body = {
             model,
@@ -109,11 +130,13 @@ const groqAdapter = {
             // See REASONING_HEADROOM_TOKENS: the caller's budget is for the
             // visible answer, so reasoning gets its own allowance on top.
             max_output_tokens: maxOutputTokens + REASONING_HEADROOM_TOKENS,
-            input: buildInput({ systemInstructions, inputText, images }),
+            input: buildInput({ systemInstructions, inputText: promptText, images }),
         };
 
         if (schema) {
-            body.text = { format: { type: 'json_schema', name: schemaName, schema } };
+            body.text = structuredMode === STRUCTURED_MODE.GROQ_RESPONSES_JSON_OBJECT
+                ? { format: { type: 'json_object' } }
+                : { format: { type: 'json_schema', name: schemaName, schema } };
         }
 
         const payload = await postJson({
@@ -140,7 +163,7 @@ const groqAdapter = {
                 providerId: provider.id,
             });
         }
-        return { text, model };
+        return { text, model, usage: normalizeUsage(payload) };
     },
 };
 

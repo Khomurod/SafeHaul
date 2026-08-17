@@ -226,14 +226,30 @@ describe('the operator-chosen routing order', () => {
         });
 
         const result = await runAiTask(visionTask(), {
-            providerOrder: ['cerebras', 'groq', 'cloudflare', 'gemini'],
+            providerOrder: ['cerebras', 'cloudflare', 'gemini'],
         });
 
         const attempted = mockExecute.mock.calls.map((call) => call[0]);
         expect(attempted).not.toContain('cerebras');
-        expect(attempted).not.toContain('groq');
         expect(attempted).not.toContain('cloudflare');
         expect(result.providerId).toBe('gemini');
+    });
+
+    it('lets an operator put a vision-capable provider first for image work', async () => {
+        // The other half of the same argument. Ordering is the operator's to
+        // set: a provider that *is* capable must be reachable at position one
+        // for image tasks, not just for text.
+        mockExecute.mockImplementation(async (providerId) => {
+            if (providerId === 'groq') return { text: '{"value":"x"}', model: 'qwen/qwen3.6-27b' };
+            throw new AiError('provider_unavailable', 'down', { providerId });
+        });
+
+        const result = await runAiTask(visionTask(), {
+            providerOrder: ['groq', 'gemini'],
+        });
+
+        expect(result.providerId).toBe('groq');
+        expect(mockExecute.mock.calls[0][0]).toBe('groq');
     });
 
     it('cannot promote a disabled provider into the walk', async () => {
@@ -340,16 +356,34 @@ describe('capability gating', () => {
         await runAiTask(visionTask());
 
         const attempted = mockExecute.mock.calls.map((call) => call[0]);
-        // Cloudflare, Cerebras and SambaNova declare no vision support.
+        // Cloudflare, Cerebras and SambaNova declare no vision support, so a
+        // CDL photograph can never reach them however the order is set.
         expect(attempted).not.toContain('cloudflare');
         expect(attempted).not.toContain('cerebras');
         expect(attempted).not.toContain('sambanova');
-        // Groq is absent too: it declared vision until Groq withdrew both
-        // llama-4 vision models, and a capability with no surviving model is
-        // worse than no capability — the router would spend a request to learn
-        // the model is gone. Gemini leads on vision now.
-        expect(attempted).not.toContain('groq');
-        expect(attempted).toEqual(['gemini', 'mistral']);
+        // Gemini leads on vision by default; Groq is capable again on
+        // `qwen/qwen3.6-27b` and sits at its registry priority behind it.
+        expect(attempted).toEqual(['gemini', 'groq', 'mistral']);
+    });
+
+    it('skips a provider that cannot take this many images, rather than 400ing', async () => {
+        // Groq caps at five images per request. Asking for six is a guaranteed
+        // 400, so the request is never spent finding that out.
+        const sixPages = defineTask({
+            taskType: TASK_TYPES.EDOC_FIELD_PLACEMENT,
+            capabilities: [CAPABILITIES.VISION, CAPABILITIES.STRUCTURED_JSON, CAPABILITIES.MULTI_IMAGE],
+            inputText: 'Read these.',
+            images: Array.from({ length: 6 }, () => ({ dataUrl: 'data:image/png;base64,AAAA' })),
+            privacy: PRIVACY.RESTRICTED,
+        });
+        mockExecute.mockImplementation(async (providerId) => {
+            if (providerId === 'gemini') throw new AiError('provider_unavailable', 'down', { providerId });
+            return { text: 'ok', model: 'm' };
+        });
+
+        await runAiTask(sixPages);
+
+        expect(mockExecute.mock.calls.map((call) => call[0])).not.toContain('groq');
     });
 
     it('routes CDL and E-Doc images to Gemini first, not Groq', async () => {
@@ -852,10 +886,10 @@ describe('describeRouting', () => {
         const rows = await describeRouting([CAPABILITIES.VISION]);
         const byId = Object.fromEntries(rows.map((row) => [row.providerId, row]));
 
-        // Groq is INCAPABLE for vision now, not eligible: its llama-4 vision
-        // models were withdrawn by the vendor, so the registry no longer claims
-        // the capability. The console must say so rather than offering it.
-        expect(byId.groq).toMatchObject({ eligible: false, reason: SKIP_REASONS.INCAPABLE });
+        // Groq is eligible for vision again, on `qwen/qwen3.6-27b`. The console
+        // must show the model it would actually use, so an operator deciding
+        // the order can see what each lane resolves to.
+        expect(byId.groq).toMatchObject({ eligible: true, model: 'qwen/qwen3.6-27b' });
         expect(byId.gemini).toMatchObject({ eligible: false, reason: SKIP_REASONS.DISABLED });
         expect(byId.cerebras).toMatchObject({ eligible: false, reason: SKIP_REASONS.INCAPABLE });
         expect(byId['github-models']).toMatchObject({ eligible: false, reason: SKIP_REASONS.RETIRED });

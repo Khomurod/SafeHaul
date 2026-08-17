@@ -13,7 +13,9 @@
 
 const { postJson } = require('./http');
 const { AiError } = require('../router/errors');
-const { STRUCTURED_MODE } = require('../registry/providers');
+const { STRUCTURED_MODE, resolveStructuredMode } = require('../registry/providers');
+const { applyPromptCarriedSchema, schemaReminder } = require('./structuredOutput');
+const { normalizeUsage } = require('./usage');
 
 /**
  * Builds the `messages` array, attaching images only when the caller supplied
@@ -67,21 +69,6 @@ function applyStructuredOutput(body, { schema, schemaName, structuredMode }) {
     }
 }
 
-/** Restates the schema in the prompt for vendors with no enforceable JSON mode. */
-function schemaReminder(schema) {
-    return [
-        '',
-        'Reply with a single JSON object and nothing else. No prose, no code fence.',
-        'The object must conform exactly to this JSON Schema:',
-        JSON.stringify(schema),
-    ].join('\n');
-}
-
-function needsPromptCarriedSchema(structuredMode) {
-    return structuredMode === STRUCTURED_MODE.PROMPT_ONLY
-        || structuredMode === STRUCTURED_MODE.OPENAI_JSON_OBJECT;
-}
-
 /**
  * Creates an adapter for an OpenAI-compatible vendor.
  *
@@ -109,10 +96,10 @@ function createOpenAiCompatibleAdapter(options) {
                 temperature, maxOutputTokens, timeoutMs, parentSignal, credentials, config, fetchImpl,
             } = context;
 
-            const structuredMode = provider.structuredMode;
-            const promptText = schema && needsPromptCarriedSchema(structuredMode)
-                ? `${inputText}${schemaReminder(schema)}`
-                : inputText;
+            // Per-capability, because schema support is a property of the
+            // resolved model rather than of the vendor as a whole.
+            const structuredMode = resolveStructuredMode(provider, context.capability);
+            const promptText = applyPromptCarriedSchema({ inputText, schema, structuredMode });
 
             let body = {
                 model,
@@ -140,7 +127,7 @@ function createOpenAiCompatibleAdapter(options) {
                     providerId: provider.id,
                 });
             }
-            return { text, model };
+            return { text, model, usage: normalizeUsage(payload) };
         },
     };
 }
@@ -163,5 +150,7 @@ module.exports = {
     createOpenAiCompatibleAdapter,
     buildMessages,
     defaultExtractText,
+    // Re-exported for callers that imported it from here before it moved to
+    // ./structuredOutput, which is now its home.
     schemaReminder,
 };

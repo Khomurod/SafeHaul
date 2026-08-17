@@ -276,12 +276,15 @@ describe('listAiProviders routing summary', () => {
         // vision models say so specifically — which is the question a bare rank
         // cannot answer.
         const reasons = Object.fromEntries(vision.providers.map((row) => [row.providerId, row.reason]));
-        expect(reasons.groq).toBe('incapable');
         expect(reasons.cerebras).toBe('incapable');
         expect(reasons.sambanova).toBe('incapable');
         expect(reasons.cloudflare).toBe('incapable');
         expect(reasons['github-models']).toBe('retired');
         expect(reasons.gemini).toBe('unconfigured');
+        // Groq declares vision again on `qwen/qwen3.6-27b`, so its gap in this
+        // suite is a missing credential, not a missing capability. The two need
+        // different operator action, which is why the lane names which one.
+        expect(reasons.groq).toBe('unconfigured');
     });
 
     it('reports the lanes in the effective order too', async () => {

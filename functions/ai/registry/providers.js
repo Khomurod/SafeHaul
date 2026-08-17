@@ -51,6 +51,17 @@ const STRUCTURED_MODE = Object.freeze({
     OPENAI_JSON_OBJECT: 'openai_json_object',
     /** Groq Responses API `text.format = { type: 'json_schema', … }`. */
     GROQ_RESPONSES_SCHEMA: 'groq_responses_schema',
+    /**
+     * Groq Responses API `text.format = { type: 'json_object' }` plus a
+     * prompt-carried schema.
+     *
+     * Needed because Groq's schema support is per *model*, not per vendor. Only
+     * `openai/gpt-oss-20b`, `openai/gpt-oss-120b` and
+     * `openai/gpt-oss-safeguard-20b` accept `json_schema`; every other model,
+     * including the only vision-capable one, answers a schema request with a
+     * 400. Verified against Groq's structured-outputs documentation 2026-08-17.
+     */
+    GROQ_RESPONSES_JSON_OBJECT: 'groq_responses_json_object',
     /** Gemini Interactions API `response_format` with a `schema`. */
     GEMINI_RESPONSE_FORMAT: 'gemini_response_format',
     /** No server-side JSON mode; schema is carried in the prompt and validated on return. */
@@ -104,15 +115,36 @@ const PROVIDER_LIST = [
         docsUrl: 'https://console.groq.com/docs',
         apiBaseUrl: 'https://api.groq.com/openai/v1',
         adapter: 'groq',
-        // Vision is deliberately absent. Groq withdrew both llama-4 vision
-        // models; `GET /models` no longer lists them and requesting either
-        // returns `model_not_found` (verified against the live API on
-        // 2026-08-03). Claiming a capability whose only models are gone makes
-        // the router route CDL and E-Doc images to a provider guaranteed to 404,
-        // spending a request to learn nothing. Gemini is the vision provider.
-        capabilities: [...TEXT_SUITE, STRUCTURED_JSON, LONG_CONTEXT],
+        /**
+         * Vision is back, on a different model and by a different mechanism.
+         *
+         * It was removed on 2026-08-03 because Groq withdrew both llama-4
+         * vision models, and that was correct at the time: Maverick shut down
+         * 2026-03-09 and Scout 2026-07-17. But Groq's catalogue moved on and
+         * the registry did not. `qwen/qwen3.6-27b` is multimodal — Groq
+         * documents it for "image analysis, OCR, and visual question
+         * answering" — and Groq's own deprecation page names it as the
+         * recommended replacement for Scout. Verified 2026-08-17.
+         *
+         * The subtlety that makes this more than a flag: Groq's schema support
+         * is per *model*. Only the `openai/gpt-oss-*` models accept
+         * `json_schema`; `qwen/qwen3.6-27b` supports JSON object mode only and
+         * answers a schema request with a 400. So the vision lanes carry their
+         * own structured mode below, and the schema is restated in the prompt
+         * and enforced by SafeHaul's own validator on return.
+         *
+         * `maxImages` is Groq's documented per-request cap. E-Doc already
+         * limits itself to five pages, so the two agree — but the router
+         * enforces it rather than trusting that they always will.
+         */
+        capabilities: [...TEXT_SUITE, STRUCTURED_JSON, LONG_CONTEXT, VISION, MULTI_IMAGE],
         structuredMode: STRUCTURED_MODE.GROQ_RESPONSES_SCHEMA,
-        supportsVision: false,
+        structuredModeByCapability: {
+            [VISION]: STRUCTURED_MODE.GROQ_RESPONSES_JSON_OBJECT,
+            [MULTI_IMAGE]: STRUCTURED_MODE.GROQ_RESPONSES_JSON_OBJECT,
+        },
+        supportsVision: true,
+        maxImages: 5,
         secretFields: [
             secretField('apiKey', 'API key', 'Groq API key from console.groq.com/keys.'),
         ],
@@ -149,6 +181,12 @@ const PROVIDER_LIST = [
             [SUMMARIZATION]: 'openai/gpt-oss-20b',
             [CLASSIFICATION]: 'openai/gpt-oss-20b',
             [STRUCTURED_JSON]: 'openai/gpt-oss-20b',
+            // Groq's only multimodal model. Preview status at the time of
+            // writing, which is why it is one lane among several rather than
+            // anything SafeHaul depends on: 131k context, 16,384 max output,
+            // five images and 20MB per request. Verified 2026-08-17.
+            [VISION]: 'qwen/qwen3.6-27b',
+            [MULTI_IMAGE]: 'qwen/qwen3.6-27b',
         },
         timeoutMs: 45000,
         retryPolicy: SINGLE_ATTEMPT,
@@ -215,7 +253,11 @@ const PROVIDER_LIST = [
             [TEXT]: '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
             [ARTICLE_WRITING]: '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
             [SUMMARIZATION]: '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
-            [CLASSIFICATION]: '@cf/meta/llama-3.1-8b-instruct',
+            // Was `@cf/meta/llama-3.1-8b-instruct`, which the Workers AI
+            // catalogue now marks deprecated. Folded into the same model as the
+            // other lanes rather than pinning a second one to keep current.
+            // Verified 2026-08-17.
+            [CLASSIFICATION]: '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
             [STRUCTURED_JSON]: '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
         },
         timeoutMs: 45000,
@@ -274,14 +316,31 @@ const PROVIDER_LIST = [
             secretField('apiKey', 'API key', 'Mistral API key from console.mistral.ai.'),
         ],
         configFields: [],
+        /**
+         * The vision entries were both **retired models**, and had been for
+         * months, which is why Mistral could never serve a CDL photograph:
+         *
+         *   pixtral-12b-2409    deprecated 2025-12-02, retired 2025-12-31
+         *   pixtral-large-2411  deprecated 2026-02-27, retired 2026-05-31
+         *
+         * `-latest` does not rescue an alias whose model is gone. Verified
+         * against Mistral's model catalogue 2026-08-17.
+         *
+         * `mistral-large-latest` replaces both. It resolves to
+         * `mistral-large-2512` (Mistral Large 3), whose published capabilities
+         * are `input: ['text', 'image']` with `structured-outputs` — so one
+         * model now serves the text lanes and the image lanes, on the same
+         * entitlement, instead of pinning two more that could rot separately.
+         */
         defaultModels: {
             [TEXT]: 'mistral-large-latest',
             [ARTICLE_WRITING]: 'mistral-large-latest',
+            // Resolves to mistral-small-2603 (Mistral Small 4). Verified 2026-08-17.
             [SUMMARIZATION]: 'mistral-small-latest',
             [CLASSIFICATION]: 'mistral-small-latest',
             [STRUCTURED_JSON]: 'mistral-large-latest',
-            [VISION]: 'pixtral-12b-latest',
-            [MULTI_IMAGE]: 'pixtral-large-latest',
+            [VISION]: 'mistral-large-latest',
+            [MULTI_IMAGE]: 'mistral-large-latest',
         },
         timeoutMs: 45000,
         retryPolicy: SINGLE_ATTEMPT,
@@ -302,12 +361,22 @@ const PROVIDER_LIST = [
             secretField('apiKey', 'API key', 'Cerebras inference API key from cloud.cerebras.ai.'),
         ],
         configFields: [],
+        /**
+         * Every previous pin was gone. `llama-3.3-70b` and `llama3.1-8b` are
+         * both absent from Cerebras' public catalogue, which now offers
+         * `gpt-oss-120b` (production), `gemma-4-31b` and `zai-glm-4.7`
+         * (preview) — so Cerebras was contributing nothing to the fallback
+         * order but a wasted round trip. Verified 2026-08-17.
+         *
+         * `gpt-oss-120b` is the only production model of the three, so it takes
+         * every lane rather than pinning a preview model alongside it.
+         */
         defaultModels: {
-            [TEXT]: 'llama-3.3-70b',
-            [ARTICLE_WRITING]: 'llama-3.3-70b',
-            [SUMMARIZATION]: 'llama-3.3-70b',
-            [CLASSIFICATION]: 'llama3.1-8b',
-            [STRUCTURED_JSON]: 'llama-3.3-70b',
+            [TEXT]: 'gpt-oss-120b',
+            [ARTICLE_WRITING]: 'gpt-oss-120b',
+            [SUMMARIZATION]: 'gpt-oss-120b',
+            [CLASSIFICATION]: 'gpt-oss-120b',
+            [STRUCTURED_JSON]: 'gpt-oss-120b',
         },
         timeoutMs: 30000,
         retryPolicy: SINGLE_ATTEMPT,
@@ -332,7 +401,9 @@ const PROVIDER_LIST = [
             [TEXT]: 'Meta-Llama-3.3-70B-Instruct',
             [ARTICLE_WRITING]: 'Meta-Llama-3.3-70B-Instruct',
             [SUMMARIZATION]: 'Meta-Llama-3.3-70B-Instruct',
-            [CLASSIFICATION]: 'Meta-Llama-3.1-8B-Instruct',
+            // Was `Meta-Llama-3.1-8B-Instruct`, which no longer appears among
+            // SambaNova Cloud's supported models. Verified 2026-08-17.
+            [CLASSIFICATION]: 'Meta-Llama-3.3-70B-Instruct',
             [STRUCTURED_JSON]: 'Meta-Llama-3.3-70B-Instruct',
         },
         timeoutMs: 45000,
@@ -362,7 +433,7 @@ const PROVIDER_LIST = [
                 appliesTo: [TEXT, ARTICLE_WRITING, SUMMARIZATION, CLASSIFICATION, STRUCTURED_JSON],
             }),
             configField('visionModel', 'Vision model override', 'OpenRouter model slug used for image tasks.', {
-                placeholder: 'e.g. meta-llama/llama-4-scout-17b-16e-instruct',
+                placeholder: 'e.g. meta-llama/llama-4-scout',
                 appliesTo: [VISION, MULTI_IMAGE],
             }),
         ],
@@ -372,8 +443,13 @@ const PROVIDER_LIST = [
             [SUMMARIZATION]: 'meta-llama/llama-3.3-70b-instruct',
             [CLASSIFICATION]: 'meta-llama/llama-3.3-70b-instruct',
             [STRUCTURED_JSON]: 'meta-llama/llama-3.3-70b-instruct',
-            [VISION]: 'meta-llama/llama-4-scout-17b-16e-instruct',
-            [MULTI_IMAGE]: 'meta-llama/llama-4-scout-17b-16e-instruct',
+            // The slug was `meta-llama/llama-4-scout-17b-16e-instruct` — Groq's
+            // naming for the same weights, not OpenRouter's. OpenRouter does
+            // not list it, so every OpenRouter image request 404'd on a model
+            // that was in fact available under a different name. Confirmed
+            // against OpenRouter's live catalogue (414 models) 2026-08-17.
+            [VISION]: 'meta-llama/llama-4-scout',
+            [MULTI_IMAGE]: 'meta-llama/llama-4-scout',
         },
         timeoutMs: 60000,
         retryPolicy: SINGLE_ATTEMPT,
@@ -432,6 +508,7 @@ function freezeProvider(row) {
         secretFields: Object.freeze([...row.secretFields]),
         configFields: Object.freeze([...row.configFields]),
         defaultModels: Object.freeze({ ...row.defaultModels }),
+        structuredModeByCapability: Object.freeze({ ...(row.structuredModeByCapability || {}) }),
         healthTest: Object.freeze({ ...row.healthTest }),
     });
 }
@@ -517,6 +594,27 @@ function resolveModel(provider, capability, config = {}) {
     return provider.defaultModels[capability] || provider.defaultModels[CAPABILITIES.TEXT] || null;
 }
 
+/**
+ * How this provider should be asked for JSON *for this capability*.
+ *
+ * Structured-output support is a property of the model, not only of the vendor,
+ * and the two can disagree within one provider. Groq accepts `json_schema` on
+ * its `openai/gpt-oss-*` models and rejects it with a 400 on the only model
+ * that can read an image. A single per-provider mode cannot express that, and
+ * the shape SafeHaul sends has to match the model the router actually resolved.
+ *
+ * Falls back to the row's `structuredMode`, so a provider whose whole catalogue
+ * behaves alike needs no map at all.
+ *
+ * @param {object} provider registry row
+ * @param {string} capability the primary capability the router resolved
+ * @returns {string} a `STRUCTURED_MODE` value
+ */
+function resolveStructuredMode(provider, capability) {
+    const override = provider.structuredModeByCapability?.[capability];
+    return override || provider.structuredMode;
+}
+
 module.exports = {
     PROVIDERS,
     DEFAULT_FALLBACK_ORDER,
@@ -526,4 +624,5 @@ module.exports = {
     isRetired,
     supportsAllCapabilities,
     resolveModel,
+    resolveStructuredMode,
 };

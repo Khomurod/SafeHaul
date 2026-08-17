@@ -13,6 +13,7 @@
 
 const { postJson } = require('./http');
 const { AiError } = require('../router/errors');
+const { normalizeUsage } = require('./usage');
 
 const INTERACTIONS_PATH = '/interactions';
 
@@ -204,7 +205,7 @@ const geminiAdapter = {
                 providerId: provider.id,
             });
         }
-        return { text, model };
+        return { text, model, usage: normalizeUsage(payload) };
     },
 };
 
