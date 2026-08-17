@@ -366,6 +366,50 @@ describe('safety and secrecy', () => {
         expect(mockExecute).not.toHaveBeenCalled();
     });
 
+    it('is exposed through the callable, not only from the task', async () => {
+        // The gap a stubbed frontend test cannot see: `testAiProvider` rebuilds
+        // its response field by field, and `capabilities` was simply absent — so
+        // the per-capability UI would have rendered nothing in production while
+        // every test passed. Asserting the *callable's* shape is what closes it.
+        const source = require('fs').readFileSync(
+            require('path').resolve(__dirname, '../../ai/callables.js'),
+            'utf8',
+        );
+        // Bounded to this handler: the file continues into other callables,
+        // and scanning past the closing brace asserts nothing about this one.
+        const start = source.indexOf('exports.testAiProvider');
+        const testBlock = source.slice(start, source.indexOf('exports.', start + 10));
+
+        expect(testBlock).toMatch(/capabilities:/);
+        // And rebuilt from an allowlist, not spread wholesale — what crosses
+        // this boundary is chosen, never inherited from an internal shape.
+        expect(testBlock).not.toMatch(/\.\.\.result/);
+    });
+
+    it('stops probing before the callable can be killed, and says so', async () => {
+        // Probes run serially; a stalled provider can burn the full per-probe
+        // timeout on each. The same shape of bug as a router deadline larger
+        // than the function it runs inside — and it bites hardest exactly when
+        // an operator is diagnosing a provider that has gone quiet.
+        const { HEALTH_TOTAL_BUDGET_MS } = require('../../ai/tasks/healthCheck');
+        let elapsed = 0;
+        const realNow = Date.now;
+        jest.spyOn(Date, 'now').mockImplementation(() => {
+            elapsed += 40000;
+            return realNow() + elapsed;
+        });
+
+        const result = await testProviderConnection('gemini');
+        Date.now.mockRestore();
+
+        expect(HEALTH_TOTAL_BUDGET_MS).toBeLessThan(180 * 1000);
+        const notRun = result.capabilities.filter((entry) => entry.status === 'not_run');
+        expect(notRun.length).toBeGreaterThan(0);
+        // A test that did not finish is not a pass.
+        expect(result.success).toBe(false);
+        expect(result.message).toMatch(/ran out of time/i);
+    });
+
     it('keeps the response fields the existing console already reads', async () => {
         // `capabilities` is additive. Renaming or dropping any of these would
         // break a deployed browser that has not reloaded.

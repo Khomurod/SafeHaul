@@ -184,7 +184,25 @@ async function diagnoseModelPins(options = {}) {
         (total, entry) => total + entry.pins.filter((pin) => !pin.present).length,
         0,
     );
-    return { providers, stalePins };
+
+    // A provider that was unconfigured, unreachable, or has no readable
+    // catalogue contributes zero stale pins — but that is not evidence its pins
+    // are good, it is evidence they were never looked at. Counting those
+    // separately is what stops "0 stale" being reported as "all clear" after a
+    // run that checked almost nothing.
+    const checked = providers.filter((entry) => entry.status === 'ok' || entry.status === 'stale');
+    const unchecked = providers.filter((entry) => (
+        entry.status !== 'ok' && entry.status !== 'stale' && entry.status !== 'retired'
+    ));
+
+    return {
+        providers,
+        stalePins,
+        checkedCount: checked.length,
+        uncheckedCount: unchecked.length,
+        // The only condition under which an all-clear is truthful.
+        complete: unchecked.length === 0 && checked.length > 0,
+    };
 }
 
 module.exports = {

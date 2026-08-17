@@ -36,10 +36,29 @@ const store = require('../credentials/store');
 const HEALTH_PROMPT = 'Reply with the single word: ready';
 const HEALTH_TIMEOUT_MS = PROBE_TIMEOUT_MS;
 
+/**
+ * Ceiling on the whole test, across every probe.
+ *
+ * Probes run serially, and a stalled provider can spend the full
+ * `PROBE_TIMEOUT_MS` on each. Six probes at 20s is 120s, which does not fit a
+ * callable's default 60s — the same shape of bug as the CDL task inheriting a
+ * 120s router deadline inside a 60s function, and it bites hardest exactly when
+ * an operator is diagnosing a provider that has gone quiet.
+ *
+ * `testAiProvider` is deployed with `timeoutSeconds: 180`; this keeps the work
+ * comfortably inside it so the result is recorded and returned rather than the
+ * function being killed mid-test. Probes not reached are reported as such —
+ * saying "not run" is honest, and calling them passed or failed would not be.
+ */
+const HEALTH_TOTAL_BUDGET_MS = 150000;
+
 const PROBE_STATUS = Object.freeze({
     PASSED: 'passed',
     FAILED: 'failed',
+    /** The provider does not offer this capability. Not a failure. */
     SKIPPED: 'skipped',
+    /** The overall budget ran out before this probe started. */
+    NOT_RUN: 'not_run',
 });
 
 /** A failure shape shared by every early return, so callers see one contract. */
@@ -201,6 +220,17 @@ async function testProviderConnection(providerId, deps = {}) {
 
     const capabilities = [];
     for (const { probe, applicable } of probesFor(provider)) {
+        if (Date.now() - startedAt > HEALTH_TOTAL_BUDGET_MS) {
+            // Out of budget. Reported as its own state rather than folded into
+            // pass or fail, because "we ran out of time" is a different fact.
+            capabilities.push({
+                id: probe.id,
+                label: probe.label,
+                status: PROBE_STATUS.NOT_RUN,
+                message: 'Not run — the test ran out of time.',
+            });
+            continue;
+        }
         if (!applicable) {
             // Not a failure. A text-only provider does not offer vision; saying
             // "failed" would make the console read as though something broke.
@@ -215,7 +245,10 @@ async function testProviderConnection(providerId, deps = {}) {
         capabilities.push(await runProbe(probe, { provider, config, credentials, deps }));
     }
 
-    const run = capabilities.filter((entry) => entry.status !== PROBE_STATUS.SKIPPED);
+    const run = capabilities.filter((entry) => (
+        entry.status === PROBE_STATUS.PASSED || entry.status === PROBE_STATUS.FAILED
+    ));
+    const notRun = capabilities.filter((entry) => entry.status === PROBE_STATUS.NOT_RUN);
     const failed = run.filter((entry) => entry.status === PROBE_STATUS.FAILED);
     const latencyMs = Date.now() - startedAt;
     const model = run.find((entry) => entry.model)?.model;
@@ -224,15 +257,19 @@ async function testProviderConnection(providerId, deps = {}) {
     // the text probe while failing structured JSON is precisely the state that
     // used to be reported as healthy, and precisely the state that broke CDL
     // extraction, E-Doc analysis and article publishing simultaneously.
-    const success = run.length > 0 && failed.length === 0;
+    // A test that did not finish is not a pass. Claiming one would recreate the
+    // problem this whole file exists to fix.
+    const success = run.length > 0 && failed.length === 0 && notRun.length === 0;
     const result = {
         success,
         category: failed[0]?.category || (run.length === 0 ? 'capability_unavailable' : null),
         message: success
             ? `Connected. ${run.length} capabilit${run.length === 1 ? 'y' : 'ies'} verified in ${latencyMs}ms.`
-            : run.length === 0
+            : run.length === 0 && notRun.length === 0
                 ? 'This provider declares no testable capability.'
-                : `${failed.length} of ${run.length} capabilities failed: ${failed.map((entry) => entry.label).join(', ')}.`,
+                : failed.length > 0
+                    ? `${failed.length} of ${run.length} capabilities failed: ${failed.map((entry) => entry.label).join(', ')}.`
+                    : `The test ran out of time before checking ${notRun.map((entry) => entry.label).join(', ')}.`,
         model,
         latencyMs,
         capabilities,
@@ -247,5 +284,6 @@ module.exports = {
     PROBE_STATUS,
     HEALTH_PROMPT,
     HEALTH_TIMEOUT_MS,
+    HEALTH_TOTAL_BUDGET_MS,
     __test: { runProbe },
 };

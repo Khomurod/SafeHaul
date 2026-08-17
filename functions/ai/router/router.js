@@ -78,6 +78,13 @@ const SKIP_REASONS = Object.freeze({
      * images per request and answers a sixth with a 400.
      */
     TOO_MANY_IMAGES: 'too_many_images',
+    /**
+     * Provider configuration could not be read and this instance holds no
+     * cached copy, so the router cannot tell which providers an operator
+     * disabled. Every provider is skipped rather than risk routing a restricted
+     * document to a vendor that was deliberately switched off.
+     */
+    CONFIG_UNAVAILABLE: 'config_unavailable',
 });
 
 /**
@@ -221,19 +228,47 @@ async function resolveProviderOrder(deps) {
 }
 
 /**
- * Stored non-secret config, or an empty map.
+ * The last config map this instance read successfully.
  *
- * Absent config already reads as `{ enabled: true }` per provider, so an empty
- * map is a safe degradation rather than a silent disable: a Firestore blip
- * makes the router fall back to registry defaults instead of refusing to run.
- * Enabled/disabled state is a preference; it is not worth an outage.
+ * Cloud Functions instances are ephemeral but not short-lived, so a warm
+ * instance has almost always read config at least once before Firestore has a
+ * bad minute. Keeping the last good copy is what lets a read failure degrade
+ * without discarding what the operator actually decided.
+ */
+let lastKnownConfigs = null;
+
+/**
+ * Stored non-secret config, degrading without ever *re-enabling* a provider.
+ *
+ * The first version of this returned an empty map on failure, reasoning that
+ * enabled/disabled is a preference not worth an outage. That was wrong in one
+ * specific and important way: absent config reads as `{ enabled: true }`, so an
+ * empty map silently **re-enables every provider an operator had disabled**.
+ * `setAiProviderEnabled` promises the opposite — "the router skips it
+ * immediately" — and a provider is sometimes disabled precisely because it is
+ * mishandling data, on paths that carry `restricted` CDL and document images.
+ * A transient Firestore error must not undo a deliberate safety decision.
+ *
+ * So: fall back to the last configuration this instance actually read, and if
+ * it has never read one, fail closed. Failing closed is not a regression — the
+ * previous behaviour was to throw, which took the request down anyway; the
+ * difference is that the caller now gets a categorised error and a telemetry
+ * row instead of an uncaught exception.
  */
 async function resolveConfigs() {
     try {
-        return await store.readAllConfigs();
+        const configs = await store.readAllConfigs();
+        lastKnownConfigs = configs;
+        return configs;
     } catch (error) {
-        console.warn(`[ai/router] Provider config unavailable; using defaults. ${error?.message || ''}`);
-        return new Map();
+        if (lastKnownConfigs) {
+            console.warn(`[ai/router] Provider config unreadable; using the last known configuration. ${error?.message || ''}`);
+            return lastKnownConfigs;
+        }
+        // Nothing to fall back to. Refusing is the safe direction: it cannot
+        // route a restricted document to a vendor an operator switched off.
+        console.error(`[ai/router] Provider config unreadable and no cached copy; refusing to route. ${error?.message || ''}`);
+        return null;
     }
 }
 
@@ -294,6 +329,11 @@ async function runAiTask(task, deps = {}) {
     const providers = await resolveProviderOrder(deps);
     const configs = await resolveConfigs();
     const now = typeof deps.now === 'number' ? deps.now : Date.now();
+    // `null` means config could not be read and this instance has no cached
+    // copy, so it cannot tell which providers an operator disabled. See
+    // `resolveConfigs`: refusing is the safe direction, and it is reported as a
+    // categorised failure with telemetry rather than as an uncaught throw.
+    const configUnavailable = configs === null;
 
     const attempted = [];
     const skipped = [];
@@ -363,9 +403,11 @@ async function runAiTask(task, deps = {}) {
                 break;
             }
 
-            const evaluation = await safeEvaluateProvider(provider, {
-                capabilities, primaryCapability, configs, now, deps, imageCount,
-            });
+            const evaluation = configUnavailable
+                ? { eligible: false, reason: SKIP_REASONS.CONFIG_UNAVAILABLE }
+                : await safeEvaluateProvider(provider, {
+                    capabilities, primaryCapability, configs, now, deps, imageCount,
+                });
 
             if (!evaluation.eligible) {
                 noteSkip(provider, evaluation.reason);
@@ -583,6 +625,12 @@ function buildTerminalFailure({ attempted, skipped, lastError, failures = [] }) 
             `${attempted.length} provider(s) attempted [${trail}];`
             + ` last failure ${lastError?.category || 'unknown'}.`);
     }
+    // Distinct from "nothing is configured": the configuration exists and could
+    // not be read, so pointing an operator at credentials would waste their time.
+    if (skipped.length > 0 && skipped.every((entry) => entry.reason === SKIP_REASONS.CONFIG_UNAVAILABLE)) {
+        return new AiError('not_configured', 'Provider configuration could not be read.');
+    }
+
     const onlyIncapable = skipped.length > 0
         && skipped.every((entry) => entry.reason === SKIP_REASONS.INCAPABLE || entry.reason === SKIP_REASONS.RETIRED);
     if (onlyIncapable) {
@@ -636,7 +684,10 @@ function sleep(ms, signal) {
 async function describeRouting(capabilities, deps = {}) {
     const normalized = normalizeCapabilities(capabilities);
     const primaryCapability = pickPrimaryCapability(normalized);
+    // `null` when config is unreadable with no cached copy; the console then
+    // shows every provider as `config_unavailable` rather than failing to load.
     const configs = deps.configs || await resolveConfigs();
+    const configUnavailable = configs === null;
     const now = typeof deps.now === 'number' ? deps.now : Date.now();
     const providers = await resolveProviderOrder(deps);
     const rows = [];
@@ -645,9 +696,11 @@ async function describeRouting(capabilities, deps = {}) {
         // Same non-throwing evaluation the router uses. A provider whose secret
         // cannot be read shows as `credential_error` on the console instead of
         // failing the whole AI Integrations page load.
-        const evaluation = await safeEvaluateProvider(provider, {
-            capabilities: normalized, primaryCapability, configs, now, deps,
-        });
+        const evaluation = configUnavailable
+            ? { eligible: false, reason: SKIP_REASONS.CONFIG_UNAVAILABLE }
+            : await safeEvaluateProvider(provider, {
+                capabilities: normalized, primaryCapability, configs, now, deps,
+            });
         rows.push({
             providerId: provider.id,
             eligible: evaluation.eligible,

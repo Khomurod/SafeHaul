@@ -220,7 +220,22 @@ function stubCallables(overrides = {}) {
     });
     callables.updateAiProviderConfig = vi.fn().mockResolvedValue({ data: { settings: {} } });
     callables.testAiProvider = vi.fn().mockResolvedValue({
-        data: { success: true, message: 'Connected. Responded in 120ms.' },
+        // Mirrors the real callable's response, `capabilities` included. A stub
+        // that invents a field the server does not send is how the
+        // per-capability UI passed every test while rendering nothing in
+        // production — `aiHealthCheck.test.js` asserts the callable's own shape
+        // so the two cannot drift again.
+        data: {
+            success: true,
+            message: 'Connected. 2 capabilities verified in 120ms.',
+            model: 'model-a',
+            latencyMs: 120,
+            capabilities: [
+                { id: 'text', label: 'Basic text', status: 'passed', message: 'Passed.' },
+                { id: 'structured_json', label: 'Structured JSON', status: 'failed', category: 'provider_request_rejected', message: 'Rejected.' },
+                { id: 'vision_single', label: 'Single-image vision', status: 'skipped', message: 'Not offered by this provider.' },
+            ],
+        },
     });
     callables.migrateGroqCredential = vi.fn().mockResolvedValue({
         data: { migrated: true, verified: true, message: 'Groq credential migrated and verified.' },
@@ -868,7 +883,23 @@ describe('mutations', () => {
         fireEvent.click(screen.getAllByRole('button', { name: /Test connection/i })[0]);
 
         await waitFor(() => expect(callables.testAiProvider).toHaveBeenCalledWith({ providerId: 'groq' }));
-        await waitFor(() => expect(showSuccess).toHaveBeenCalledWith('Connected. Responded in 120ms.'));
+        await waitFor(() => expect(showSuccess)
+            .toHaveBeenCalledWith('Connected. 2 capabilities verified in 120ms.'));
+    });
+
+    it('shows which capabilities passed, not just an overall verdict', async () => {
+        // The state that used to read as healthy: text fine, every structured
+        // request rejected. One verdict cannot express that, and it is the
+        // difference between "the key works" and "the product works".
+        await renderView();
+
+        fireEvent.click(screen.getAllByRole('button', { name: /Test connection/i })[0]);
+
+        await waitFor(() => expect(screen.getByText('Basic text')).toBeTruthy());
+        expect(screen.getByText('Structured JSON')).toBeTruthy();
+        // A capability the provider does not offer is not a failure and must
+        // not be rendered as one.
+        expect(screen.queryByText('Single-image vision')).toBeNull();
     });
 
     it('reports a failed connection test without exposing the credential', async () => {

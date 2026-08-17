@@ -919,14 +919,47 @@ describe('infrastructure failures do not become task failures', () => {
         expect(recorded).not.toMatch(/PERMISSION_DENIED/);
     });
 
-    it('degrades to registry defaults when provider config cannot be read', async () => {
-        // Enabled/disabled is a preference. A Firestore blip must not read as
-        // "every provider is disabled" and take AI down with it.
-        mockStore.readAllConfigs.mockRejectedValue(new Error('firestore unavailable'));
+    it('falls back to the last known config when Firestore has a bad minute', async () => {
+        // Warm instance: it read config successfully once, so a later failure
+        // must not discard what the operator decided.
+        mockStore.readAllConfigs.mockResolvedValueOnce(allConfigured());
+        await runAiTask(textTask());
 
+        mockStore.readAllConfigs.mockRejectedValue(new Error('firestore unavailable'));
         const result = await runAiTask(textTask());
 
         expect(result.providerId).toBe('gemini');
+    });
+
+    it('never re-enables a provider an operator disabled, even during a config outage', async () => {
+        // The first version of this returned an empty map on failure, and empty
+        // config reads as `{ enabled: true }` — silently re-enabling every
+        // disabled provider. `setAiProviderEnabled` promises the opposite, and a
+        // provider is sometimes disabled precisely because it is mishandling
+        // data, on paths carrying restricted CDL and document images.
+        mockStore.readAllConfigs.mockResolvedValueOnce(allConfigured({ gemini: { enabled: false } }));
+        await runAiTask(textTask());
+
+        mockStore.readAllConfigs.mockRejectedValue(new Error('firestore unavailable'));
+        const result = await runAiTask(textTask());
+
+        expect(result.providerId).not.toBe('gemini');
+        expect(mockExecute.mock.calls.map((call) => call[0])).not.toContain('gemini');
+    });
+
+    it('refuses to route at all when config is unreadable and nothing is cached', async () => {
+        // A cold instance cannot know which providers are disabled. Refusing is
+        // the safe direction, and it is still a categorised failure with
+        // telemetry rather than the uncaught throw this replaced.
+        jest.resetModules();
+        const isolated = require('../../ai/router/router');
+        mockStore.readAllConfigs.mockRejectedValue(new Error('firestore unavailable'));
+
+        await expect(isolated.runAiTask(textTask())).rejects.toMatchObject({ category: 'not_configured' });
+        expect(mockExecute).not.toHaveBeenCalled();
+        expect(mockRecordTelemetry).toHaveBeenCalledWith(
+            expect.objectContaining({ outcome: 'failure' }),
+        );
     });
 
     it('still produces a categorised error and telemetry if the walk throws unexpectedly', async () => {

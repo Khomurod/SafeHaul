@@ -311,6 +311,15 @@ export function AiIntegrationsView() {
             setPinDiagnosis(result);
             if (result.stalePins > 0) {
                 showError(`${result.stalePins} pinned model(s) are no longer offered by their vendor.`);
+            } else if (!result.complete) {
+                // Zero stale pins is not an all-clear when most providers were
+                // never checked — an unconfigured or unreachable vendor
+                // contributes no pins at all. Saying so beats a green message
+                // that means nothing.
+                showInfo(
+                    `Checked ${result.checkedCount} provider(s); `
+                    + `${result.uncheckedCount} could not be checked. No stale pins among those verified.`,
+                );
             } else {
                 showSuccess('Every pinned model is still offered by its vendor.');
             }
@@ -442,18 +451,27 @@ export function AiIntegrationsView() {
             priority: 'tertiary',
             width: 'sm',
             render: (provider) => {
-                if (!provider.lastTest) {
+                const probes = testResults[provider.id] || [];
+                // Probe results are shown as soon as the test returns, without
+                // waiting for `lastTest` to come back from the server on the
+                // next load. Gating on `lastTest` meant a freshly-run test
+                // rendered nothing until a refresh landed — which is precisely
+                // the moment an operator is looking at the row.
+                if (!provider.lastTest && probes.length === 0) {
                     return <span className="text-ds-xs text-ds-content-secondary">Never tested</span>;
                 }
-                const probes = testResults[provider.id] || [];
                 return (
                     <div className="flex flex-col gap-ds-1">
-                        <Badge tone={provider.lastTest.success ? 'success' : 'danger'}>
-                            {provider.lastTest.success ? 'Passed' : 'Failed'}
-                        </Badge>
-                        <span className="text-ds-xs text-ds-content-secondary">
-                            {provider.lastTest.at ? new Date(provider.lastTest.at).toLocaleString() : ''}
-                        </span>
+                        {provider.lastTest && (
+                            <>
+                                <Badge tone={provider.lastTest.success ? 'success' : 'danger'}>
+                                    {provider.lastTest.success ? 'Passed' : 'Failed'}
+                                </Badge>
+                                <span className="text-ds-xs text-ds-content-secondary">
+                                    {provider.lastTest.at ? new Date(provider.lastTest.at).toLocaleString() : ''}
+                                </span>
+                            </>
+                        )}
                         {/* Per-capability results from the most recent test in
                             this session. A provider that answers text but not
                             structured JSON now says so on the row rather than

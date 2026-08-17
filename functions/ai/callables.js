@@ -545,7 +545,15 @@ exports.updateAiProviderConfig = onCall(callableOptions, async (request) => {
 // Connection test
 // ---------------------------------------------------------------------------
 
-exports.testAiProvider = onCall(callableOptions, async (request) => {
+exports.testAiProvider = onCall({
+    ...callableOptions,
+    // The probes run serially and each may take up to `PROBE_TIMEOUT_MS`, so a
+    // vision provider's full set does not fit the 60-second default. This is the
+    // same mistake the CDL path had — a deadline larger than the function it
+    // runs inside — and it bites hardest exactly when an operator is diagnosing
+    // a stalled provider. `HEALTH_TOTAL_BUDGET_MS` keeps the work below this.
+    timeoutSeconds: 180,
+}, async (request) => {
     const providerId = String(request.data?.providerId || '');
 
     await assertSuperAdmin(request, ACTIONS.TEST, { providerId });
@@ -574,6 +582,22 @@ exports.testAiProvider = onCall(callableOptions, async (request) => {
             message: result.message,
             model: result.model || null,
             latencyMs: result.latencyMs,
+            // The per-capability breakdown. Without it the console can only show
+            // one verdict, which is exactly the state that let "text works,
+            // structured JSON is rejected on every request" read as healthy.
+            //
+            // Rebuilt field by field rather than spread, for the same reason
+            // every other response on this surface is: what crosses the boundary
+            // is an allowlist, not whatever the internal shape happens to hold.
+            capabilities: (result.capabilities || []).map((probe) => ({
+                id: probe.id,
+                label: probe.label,
+                status: probe.status,
+                category: probe.category || null,
+                model: probe.model || null,
+                latencyMs: typeof probe.latencyMs === 'number' ? probe.latencyMs : null,
+                message: probe.message || '',
+            })),
         };
     } catch (error) {
         return safeFailure(error, 'testAiProvider');
