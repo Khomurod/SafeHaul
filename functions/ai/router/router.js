@@ -39,7 +39,10 @@ const { AiError, isTaskFatal } = require('./errors');
 const { orderProviders, readProviderOrder } = require('./order');
 const { validateAgainstSchema, extractJsonObject } = require('../validation/schema');
 const store = require('../credentials/store');
-const { recordAiTelemetry } = require('../telemetry/record');
+const {
+    recordAiTelemetry, describeTaskInput, MAX_ATTEMPTS: MAX_RECORDED_ATTEMPTS,
+} = require('../telemetry/record');
+const { randomUUID } = require('crypto');
 
 /** Ceiling on how long a whole task may take, across every fallback. */
 const DEFAULT_TOTAL_DEADLINE_MS = 120000;
@@ -299,6 +302,55 @@ async function runAiTask(task, deps = {}) {
     const failures = [];
     let lastError = null;
 
+    /**
+     * The transaction record being assembled as the walk proceeds.
+     *
+     * One id per request, so the several provider attempts below can be read
+     * back as one timeline. Returned to the caller as well, so a callable's own
+     * log line can name the transaction an operator is looking at.
+     */
+    const transactionId = randomUUID();
+    const attemptRecords = [];
+
+    /** Appends one provider's turn. Metadata only — see ../telemetry/record.js. */
+    function noteAttempt(record) {
+        if (attemptRecords.length >= MAX_RECORDED_ATTEMPTS) return;
+        attemptRecords.push(record);
+    }
+
+    /**
+     * Names, on each entry, the provider the router moved on to.
+     *
+     * Redundant with the array order, and worth the duplication: it makes a
+     * single attempt legible on its own, so a log line or a filtered view
+     * showing one row still answers "and then what?".
+     */
+    function linkedAttempts() {
+        return attemptRecords.map((entry, index) => ({
+            ...entry,
+            nextProviderId: attemptRecords[index + 1]?.providerId || null,
+        }));
+    }
+
+    function noteSkip(provider, reason) {
+        skipped.push({ providerId: provider.id, reason });
+        noteAttempt({
+            providerId: provider.id,
+            attemptNumber: attemptRecords.length + 1,
+            status: 'skipped',
+            skipReason: reason,
+            success: false,
+        });
+    }
+
+    const transactionBase = {
+        transactionId,
+        taskType: task.taskType,
+        capability: primaryCapability,
+        requiredCapabilities: capabilities,
+        inputSummary: describeTaskInput(task),
+    };
+
     try {
         for (const provider of providers) {
             if (deadlineController.signal.aborted) {
@@ -311,13 +363,13 @@ async function runAiTask(task, deps = {}) {
             });
 
             if (!evaluation.eligible) {
-                skipped.push({ providerId: provider.id, reason: evaluation.reason });
+                noteSkip(provider, evaluation.reason);
                 continue;
             }
 
             attempted.push(provider.id);
             const adapter = getAdapter(provider);
-            const attempts = Math.max(1, provider.retryPolicy?.attempts || 1);
+            const providerAttemptBudget = Math.max(1, provider.retryPolicy?.attempts || 1);
 
             let providerError = null;
             // A vendor that tells us when to come back earns one attempt beyond
@@ -328,9 +380,10 @@ async function runAiTask(task, deps = {}) {
             // http.js caps the wait, `usedStatedWait` caps it to one occurrence,
             // and the deadline signal ends it regardless.
             let usedStatedWait = false;
-            let maxAttempts = attempts;
+            let maxAttempts = providerAttemptBudget;
 
             for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+                const attemptStartedAt = Date.now();
                 if (attempt > 0) {
                     const stated = providerError?.retryAfterMs && !usedStatedWait
                         ? providerError.retryAfterMs
@@ -367,21 +420,35 @@ async function runAiTask(task, deps = {}) {
 
                     await store.recordProviderOutcome(provider.id, { success: true });
                     const latencyMs = Date.now() - startedAt;
+                    noteAttempt({
+                        providerId: provider.id,
+                        model: raw.model || evaluation.model,
+                        attemptNumber: attemptRecords.length + 1,
+                        status: 'attempted',
+                        success: true,
+                        latencyMs: Date.now() - attemptStartedAt,
+                        // The output reached here, so it parsed *and* validated.
+                        schemaValid: Boolean(task.outputSchema),
+                        inputTokens: raw.usage?.inputTokens ?? null,
+                        outputTokens: raw.usage?.outputTokens ?? null,
+                    });
                     await recordAiTelemetry({
-                        taskType: task.taskType,
-                        capability: primaryCapability,
+                        ...transactionBase,
                         providerId: provider.id,
                         model: raw.model || evaluation.model,
                         outcome: 'success',
                         latencyMs,
                         fallbackCount: attempted.length - 1,
                         attemptedProviders: attempted,
+                        providersInvolved: attemptRecords.map((entry) => entry.providerId),
                         cooldownSkipped: skipped.filter((s) => s.reason === SKIP_REASONS.COOLDOWN).length,
                         credentialSource: evaluation.credentials.source,
+                        attempts: linkedAttempts(),
                     });
 
                     return {
                         output,
+                        transactionId,
                         providerId: provider.id,
                         model: raw.model || evaluation.model,
                         latencyMs,
@@ -393,12 +460,34 @@ async function runAiTask(task, deps = {}) {
                         ? error
                         : new AiError('internal', error?.message || 'Adapter failed.', { providerId: provider.id });
 
+                    noteAttempt({
+                        providerId: provider.id,
+                        model: evaluation.model,
+                        attemptNumber: attemptRecords.length + 1,
+                        status: 'attempted',
+                        success: false,
+                        category: providerError.category,
+                        // Both are already safe by construction: a status is a
+                        // number, and the code was pattern-checked in http.js.
+                        httpStatus: providerError.status,
+                        vendorCode: providerError.vendorCode,
+                        retryAfterMs: providerError.retryAfterMs,
+                        latencyMs: Date.now() - attemptStartedAt,
+                        // Records *why* fallback happened for a structured task:
+                        // the vendor answered, but not in a shape SafeHaul could
+                        // use. That reads very differently from an outage.
+                        schemaValid: providerError.category === 'schema_validation_failed'
+                            ? false
+                            : undefined,
+                    });
+
                     // Only a *task-fatal* category abandons the whole chain: a
                     // malformed SafeHaul request, no capable provider, or the
                     // deadline. Every vendor would answer those the same way.
                     if (isTaskFatal(providerError.category)) {
                         await finishFailure(task, providerError, {
                             attempted, skipped, startedAt, primaryCapability,
+                            transactionBase, attempts: linkedAttempts(),
                         });
                         throw providerError;
                     }
@@ -444,6 +533,7 @@ async function runAiTask(task, deps = {}) {
         const wrapped = new AiError('internal', error?.message || 'AI routing failed unexpectedly.');
         await finishFailure(task, wrapped, {
             attempted, skipped, startedAt, primaryCapability,
+            transactionBase, attempts: linkedAttempts(),
         });
         throw wrapped;
     } finally {
@@ -452,7 +542,11 @@ async function runAiTask(task, deps = {}) {
 
     // Nothing succeeded. Say so plainly rather than inventing an answer.
     const failure = buildTerminalFailure({ attempted, skipped, lastError, failures });
-    await finishFailure(task, failure, { attempted, skipped, startedAt, primaryCapability });
+    await finishFailure(task, failure, {
+        attempted, skipped, startedAt, primaryCapability,
+        transactionBase, attempts: linkedAttempts(),
+    });
+    failure.transactionId = transactionId;
     throw failure;
 }
 
@@ -492,17 +586,22 @@ function buildTerminalFailure({ attempted, skipped, lastError, failures = [] }) 
     return new AiError('not_configured', 'No configured, enabled provider can serve this task.');
 }
 
-async function finishFailure(task, error, { attempted, skipped, startedAt, primaryCapability }) {
+async function finishFailure(task, error, {
+    attempted, skipped, startedAt, primaryCapability, transactionBase = {}, attempts = [],
+}) {
     await recordAiTelemetry({
         taskType: task.taskType,
         capability: primaryCapability,
+        ...transactionBase,
         providerId: error.providerId || null,
         outcome: 'failure',
         category: error.category,
         latencyMs: Date.now() - startedAt,
         fallbackCount: Math.max(0, attempted.length - 1),
         attemptedProviders: attempted,
+        providersInvolved: attempts.map((entry) => entry.providerId),
         cooldownSkipped: skipped.filter((entry) => entry.reason === SKIP_REASONS.COOLDOWN).length,
+        attempts,
     });
 }
 

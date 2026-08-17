@@ -118,11 +118,13 @@ async function postJson({ url, headers, body, timeoutMs, provider, parentSignal,
             raw = '';
         }
         const category = categorizeHttpFailure(response.status, raw, provider);
-        // Status only. The body was read to classify the failure and is not
-        // carried forward, because it can quote the prompt back at us.
+        // Status and — where the vendor supplies one — its machine-readable
+        // error *code*. The body itself is not carried forward, because it can
+        // quote the prompt back at us. See `extractVendorCode`.
         throw new AiError(category, `HTTP ${response.status}`, {
             providerId: provider?.id,
             status: response.status,
+            vendorCode: extractVendorCode(raw),
             // How long the vendor says to wait, when it says so. Groq returns
             // `x-ratelimit-reset-tokens: 7.222s`; the standard `Retry-After` is
             // honoured too. The router uses this to wait rather than abandoning a
@@ -141,6 +143,55 @@ async function postJson({ url, headers, body, timeoutMs, provider, parentSignal,
     }
 }
 
+/**
+ * The vendor's machine-readable error code, and only that.
+ *
+ * `model_not_found` is the difference between "the vendor is down" and "we are
+ * asking for a model that no longer exists" — the second is the fault that
+ * emptied the vision lane, and a bare category could not express it. So the code
+ * is worth keeping where a vendor gives one.
+ *
+ * The error *message* beside it is not, and the two live in the same object. So
+ * this reads only the fields vendors use for codes, and then requires the result
+ * to look like a code: short, single-token, no whitespace or punctuation beyond
+ * `_.-`. Anything failing that is dropped rather than truncated, because a
+ * truncated error message is still an error message — and several vendors quote
+ * the submitted prompt back inside theirs, which on the CDL path means quoting
+ * the licence.
+ *
+ * @param {string} raw the response body, already length-capped
+ * @returns {string|null}
+ */
+const VENDOR_CODE_PATTERN = /^[a-z0-9_.-]{1,64}$/i;
+
+function extractVendorCode(raw) {
+    if (!raw) return null;
+    let parsed;
+    try {
+        parsed = JSON.parse(raw);
+    } catch {
+        return null;
+    }
+
+    const candidates = [
+        parsed?.error?.code,
+        parsed?.error?.type,
+        parsed?.code,
+        parsed?.type,
+    ];
+    for (const candidate of candidates) {
+        if (typeof candidate === 'string' && VENDOR_CODE_PATTERN.test(candidate)) {
+            return candidate;
+        }
+        // Some vendors report a numeric code. A number cannot carry a prompt.
+        if (Number.isInteger(candidate)) return String(candidate);
+    }
+    return null;
+}
+
 module.exports = {
     readRetryAfterMs,
-    MAX_RETRY_AFTER_MS, postJson };
+    extractVendorCode,
+    MAX_RETRY_AFTER_MS,
+    postJson,
+};
