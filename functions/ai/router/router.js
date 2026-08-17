@@ -55,6 +55,26 @@ const SKIP_REASONS = Object.freeze({
     UNCONFIGURED: 'unconfigured',
     COOLDOWN: 'cooldown',
     NO_MODEL: 'no_model',
+    /**
+     * This provider's eligibility could not be determined at all — most often
+     * Secret Manager answering something other than NOT_FOUND (PERMISSION_DENIED
+     * when the runtime service account has lost `secretAccessor`, UNAVAILABLE,
+     * or a project quota error), which `../credentials/secretManager.js`
+     * deliberately re-throws rather than treating as "no credential".
+     *
+     * It is a *skip*, not a failure of the task. One vendor's IAM problem is
+     * one vendor's problem; the other eight keys are unaffected. Before this
+     * existed the exception escaped `runAiTask` uncaught, no telemetry was
+     * written, and no further provider was tried — so a single missing IAM
+     * binding read as a total, silent AI outage.
+     */
+    CREDENTIAL_ERROR: 'credential_error',
+    /**
+     * The request carries more images than this vendor accepts. Skipping is
+     * strictly better than spending a request to be told so: Groq caps at five
+     * images per request and answers a sixth with a 400.
+     */
+    TOO_MANY_IMAGES: 'too_many_images',
 });
 
 /**
@@ -62,11 +82,17 @@ const SKIP_REASONS = Object.freeze({
  *
  * @returns {Promise<{ eligible: boolean, reason?: string, config?: object, credentials?: object, model?: string }>}
  */
-async function evaluateProvider(provider, { capabilities, primaryCapability, configs, now, deps }) {
+async function evaluateProvider(provider, { capabilities, primaryCapability, configs, now, deps, imageCount = 0 }) {
     if (isRetired(provider)) return { eligible: false, reason: SKIP_REASONS.RETIRED };
 
     if (!supportsAllCapabilities(provider, capabilities)) {
         return { eligible: false, reason: SKIP_REASONS.INCAPABLE };
+    }
+
+    // A vendor image cap is a hard gate for the same reason `capabilities` is:
+    // exceeding it is a guaranteed 400, so spending the request learns nothing.
+    if (Number.isInteger(provider.maxImages) && imageCount > provider.maxImages) {
+        return { eligible: false, reason: SKIP_REASONS.TOO_MANY_IMAGES };
     }
 
     const config = configs.get(provider.id) || { enabled: true };
@@ -91,6 +117,39 @@ async function evaluateProvider(provider, { capabilities, primaryCapability, con
     if (!model) return { eligible: false, reason: SKIP_REASONS.NO_MODEL };
 
     return { eligible: true, config, credentials, model };
+}
+
+/**
+ * `evaluateProvider` that cannot throw.
+ *
+ * Deciding whether a provider is eligible touches Secret Manager and Firestore,
+ * and both can fail in ways that are emphatically *not* "this credential is
+ * absent": `PERMISSION_DENIED` when the runtime service account is missing
+ * `roles/secretmanager.secretAccessor`, `UNAVAILABLE`, a project quota error.
+ * `../credentials/secretManager.js` re-throws those deliberately, so that a
+ * real infrastructure fault is never silently misread as an unconfigured
+ * provider.
+ *
+ * That is the right call there and the wrong outcome here. The exception used
+ * to escape `runAiTask` entirely: no telemetry row, no categorised error, and —
+ * worst — no attempt at any of the remaining providers. One provider's IAM
+ * binding could switch off all nine, which is precisely what the fallback order
+ * exists to prevent, and it is the same defect already fixed once for
+ * `unauthorized` and `internal` in ./errors.js.
+ *
+ * So the fault is recorded against *this* provider as a skip and the walk goes
+ * on. The reason is carried in telemetry so an operator sees "credential_error"
+ * against the affected vendor rather than an unexplained outage.
+ */
+async function safeEvaluateProvider(provider, context) {
+    try {
+        return await evaluateProvider(provider, context);
+    } catch (error) {
+        // Category only. Secret Manager errors can name resources, and several
+        // vendors echo the request back inside an error string.
+        console.error(`[ai/router] Eligibility check failed for ${provider.id}: ${error?.message || 'unknown'}`);
+        return { eligible: false, reason: SKIP_REASONS.CREDENTIAL_ERROR };
+    }
 }
 
 /**
@@ -144,10 +203,56 @@ function normalizeOutput({ text, schema, providerId }) {
  */
 async function resolveProviderOrder(deps) {
     const registryProviders = deps.providers || PROVIDERS;
-    const stored = deps.providerOrder !== undefined
-        ? deps.providerOrder
-        : await readProviderOrder();
-    return orderProviders(registryProviders, stored);
+    try {
+        const stored = deps.providerOrder !== undefined
+            ? deps.providerOrder
+            : await readProviderOrder();
+        return orderProviders(registryProviders, stored);
+    } catch (error) {
+        // `readProviderOrder` already promises never to throw; this is the
+        // belt to its braces. An unreadable *preference* must never be able to
+        // stop AI working — the registry order is always a valid answer.
+        console.warn(`[ai/router] Could not resolve provider order; using the registry default. ${error?.message || ''}`);
+        return orderProviders(registryProviders, []);
+    }
+}
+
+/**
+ * Stored non-secret config, or an empty map.
+ *
+ * Absent config already reads as `{ enabled: true }` per provider, so an empty
+ * map is a safe degradation rather than a silent disable: a Firestore blip
+ * makes the router fall back to registry defaults instead of refusing to run.
+ * Enabled/disabled state is a preference; it is not worth an outage.
+ */
+async function resolveConfigs() {
+    try {
+        return await store.readAllConfigs();
+    } catch (error) {
+        console.warn(`[ai/router] Provider config unavailable; using defaults. ${error?.message || ''}`);
+        return new Map();
+    }
+}
+
+/**
+ * Rejects images SafeHaul itself built wrongly, once, before any provider is
+ * tried.
+ *
+ * A non-data-URL image is a bug on our side, not a vendor's, so it is fatal —
+ * but it must be fatal *here*, where it costs nothing. It used to surface from
+ * inside the Gemini adapter as `invalid_request`, which `isTaskFatal` treats as
+ * terminal, so a malformed image aborted the whole walk from within whichever
+ * provider happened to be first. Same verdict, reached before spending a
+ * request, and identical no matter who leads the order.
+ */
+const IMAGE_DATA_URL = /^data:([a-z]+\/[a-z0-9.+-]+);base64,/i;
+
+function assertImagesAreWellFormed(images) {
+    for (const [index, image] of images.entries()) {
+        if (typeof image?.dataUrl !== 'string' || !IMAGE_DATA_URL.test(image.dataUrl)) {
+            throw new AiError('invalid_request', `Image ${index + 1} is not a base64 data URL.`);
+        }
+    }
 }
 
 /**
@@ -174,7 +279,9 @@ async function runAiTask(task, deps = {}) {
     if (hasImages && task.images.length > 1 && !capabilities.includes(CAPABILITIES.MULTI_IMAGE)) {
         throw new AiError('invalid_request', 'Task supplied multiple images without declaring multi-image.');
     }
+    if (hasImages) assertImagesAreWellFormed(task.images);
 
+    const imageCount = hasImages ? task.images.length : 0;
     const totalDeadlineMs = Number.isInteger(task.totalDeadlineMs)
         ? task.totalDeadlineMs
         : DEFAULT_TOTAL_DEADLINE_MS;
@@ -182,7 +289,7 @@ async function runAiTask(task, deps = {}) {
     const deadlineTimer = setTimeout(() => deadlineController.abort(), totalDeadlineMs);
 
     const providers = await resolveProviderOrder(deps);
-    const configs = await store.readAllConfigs();
+    const configs = await resolveConfigs();
     const now = typeof deps.now === 'number' ? deps.now : Date.now();
 
     const attempted = [];
@@ -199,8 +306,8 @@ async function runAiTask(task, deps = {}) {
                 break;
             }
 
-            const evaluation = await evaluateProvider(provider, {
-                capabilities, primaryCapability, configs, now, deps,
+            const evaluation = await safeEvaluateProvider(provider, {
+                capabilities, primaryCapability, configs, now, deps, imageCount,
             });
 
             if (!evaluation.eligible) {
@@ -324,6 +431,21 @@ async function runAiTask(task, deps = {}) {
                 });
             }
         }
+    } catch (error) {
+        // A task-fatal category has already recorded its telemetry and is on
+        // its way out; pass it through untouched.
+        if (error instanceof AiError) throw error;
+
+        // Anything else escaping the walk — an unknown adapter, a Firestore
+        // write that threw where it promised not to — must still leave the
+        // platform's contract intact: a categorised `AiError` and exactly one
+        // telemetry row. An uncategorised exception reaching a callable is how
+        // "AI is broken" becomes unanswerable.
+        const wrapped = new AiError('internal', error?.message || 'AI routing failed unexpectedly.');
+        await finishFailure(task, wrapped, {
+            attempted, skipped, startedAt, primaryCapability,
+        });
+        throw wrapped;
     } finally {
         clearTimeout(deadlineTimer);
     }
@@ -340,6 +462,13 @@ async function runAiTask(task, deps = {}) {
  * outage, the second is a configuration gap.
  */
 function buildTerminalFailure({ attempted, skipped, lastError, failures = [] }) {
+    // The deadline outranks everything below it. It used to be overwritten with
+    // `all_providers_failed`, or — when it fired before anything was tried —
+    // with `not_configured`, which tells an operator to go and check
+    // credentials that were never the problem. "We ran out of time" is a
+    // different fault from "nothing is configured" and needs a different fix.
+    if (lastError?.category === 'deadline_exceeded') return lastError;
+
     if (attempted.length > 0) {
         // Name every provider and the category it failed with, in order.
         //
@@ -403,13 +532,16 @@ function sleep(ms, signal) {
 async function describeRouting(capabilities, deps = {}) {
     const normalized = normalizeCapabilities(capabilities);
     const primaryCapability = pickPrimaryCapability(normalized);
-    const configs = deps.configs || await store.readAllConfigs();
+    const configs = deps.configs || await resolveConfigs();
     const now = typeof deps.now === 'number' ? deps.now : Date.now();
     const providers = await resolveProviderOrder(deps);
     const rows = [];
 
     for (const provider of providers) {
-        const evaluation = await evaluateProvider(provider, {
+        // Same non-throwing evaluation the router uses. A provider whose secret
+        // cannot be read shows as `credential_error` on the console instead of
+        // failing the whole AI Integrations page load.
+        const evaluation = await safeEvaluateProvider(provider, {
             capabilities: normalized, primaryCapability, configs, now, deps,
         });
         rows.push({
@@ -428,5 +560,12 @@ module.exports = {
     SKIP_REASONS,
     DEFAULT_TOTAL_DEADLINE_MS,
     resolveProviderOrder,
-    __test: { evaluateProvider, pickPrimaryCapability, normalizeOutput, buildTerminalFailure },
+    __test: {
+        evaluateProvider,
+        safeEvaluateProvider,
+        pickPrimaryCapability,
+        normalizeOutput,
+        buildTerminalFailure,
+        assertImagesAreWellFormed,
+    },
 };

@@ -404,13 +404,21 @@ describe('Gemini adapter', () => {
         expect(result.text).toBe('legacy shape');
     });
 
-    it('refuses an image that is not a base64 data URL', async () => {
+    it('refuses an image that is not a base64 data URL, without ending the whole task', async () => {
         const fetchImpl = fetchReturning(GEMINI_TEXT_RESPONSE);
 
+        // The router now validates every image data URL once, before the walk
+        // begins, so this branch is a backstop rather than the gate.
+        //
+        // The category matters. `invalid_request` is task-fatal, so raising it
+        // from inside an adapter aborted the entire nine-provider walk on one
+        // adapter's opinion of an image — a vendor-specific complaint that
+        // stopped vendors who were never asked. `provider_request_rejected`
+        // ends Gemini's turn and lets the next provider try.
         await expect(getAdapter(getProvider('gemini')).execute(contextFor('gemini', {
             fetchImpl,
             images: [{ dataUrl: 'https://example.com/photo.png' }],
-        }))).rejects.toMatchObject({ category: 'invalid_request' });
+        }))).rejects.toMatchObject({ category: 'provider_request_rejected' });
     });
 });
 
