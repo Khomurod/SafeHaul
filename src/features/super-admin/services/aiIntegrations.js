@@ -128,6 +128,20 @@ export async function testAiProvider(providerId) {
 }
 
 /**
+ * Reconciles every registry model pin against the vendors' live catalogues.
+ *
+ * Makes model drift checkable on demand instead of on incident. A pin is only a
+ * string until a request is made with it, so nothing in CI can notice a vendor
+ * retiring a model — this asks the vendor, server-side, with the credential
+ * already configured. No credential is returned.
+ */
+export async function diagnoseAiModelPins() {
+    const call = httpsCallable(functions, 'diagnoseAiModelPins');
+    const result = await call({});
+    return result.data;
+}
+
+/**
  * Copies the legacy Groq deploy binding into the managed credential store.
  * The token is moved server-side; it is never returned here.
  */

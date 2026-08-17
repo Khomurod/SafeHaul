@@ -36,6 +36,7 @@ const store = require('./credentials/store');
 const { testProviderConnection } = require('./tasks/healthCheck');
 const { readRecentTelemetry, readTelemetry, MAX_PAGE } = require('./telemetry/record');
 const { TASK_TYPES } = require('./tasks/contract');
+const { diagnoseModelPins } = require('./tasks/modelPins');
 
 const callableOptions = {
     cors: true,
@@ -731,6 +732,39 @@ exports.listAiTelemetry = onCall(callableOptions, async (request) => {
         };
     } catch (error) {
         return safeFailure(error, 'listAiTelemetry');
+    }
+});
+
+/**
+ * Reconciles every registry model pin against the vendors' live catalogues.
+ *
+ * The standing guard against the drift that emptied the vision lane: six pins
+ * naming models their vendors had retired, invisible to every test because
+ * fixtures cannot know what a vendor withdrew. Answering it needs real
+ * credentials, so it runs here — on demand, server-side, using the managed
+ * credential each provider is already configured with — and is deliberately not
+ * wired into CI or any scheduled job.
+ *
+ * No credential is returned, logged or echoed; the response is model names and
+ * whether the vendor still lists them.
+ */
+exports.diagnoseAiModelPins = onCall(callableOptions, async (request) => {
+    await assertSuperAdmin(request, ACTIONS.LIST);
+    await assertWithinRateLimit(request, 'test', ACTIONS.LIST);
+
+    try {
+        const result = await diagnoseModelPins();
+
+        await recordAuditEvent({
+            auth: request.auth,
+            action: ACTIONS.LIST,
+            result: RESULTS.SUCCESS,
+            metadata: { integration: 'AI model pins', stalePins: result.stalePins },
+        });
+
+        return { ...result, generatedAt: new Date().toISOString() };
+    } catch (error) {
+        return safeFailure(error, 'diagnoseAiModelPins');
     }
 });
 
