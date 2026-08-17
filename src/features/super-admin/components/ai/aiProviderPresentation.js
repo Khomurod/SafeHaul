@@ -100,6 +100,18 @@ export function describeSkipReason(reason) {
             return 'In cooldown after a recent failure or exhausted quota.';
         case 'no_model':
             return 'No model is configured for this capability.';
+        case 'credential_error':
+            // Deliberately points at infrastructure rather than at the vendor.
+            // This is what a missing Secret Manager IAM binding looks like, and
+            // it used to present as a total AI outage with no explanation.
+            return 'The credential could not be read. Check Secret Manager access for the Functions runtime.';
+        case 'too_many_images':
+            return 'This request carries more images than the vendor accepts.';
+        case 'config_unavailable':
+            // Deliberately not "not configured": the configuration exists and
+            // could not be read, so the router refuses rather than risk
+            // re-enabling a provider an operator switched off.
+            return 'Provider settings could not be read, so routing is paused for safety.';
         default:
             return 'Skipped by the router.';
     }

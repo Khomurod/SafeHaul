@@ -13,6 +13,7 @@
 
 const { postJson } = require('./http');
 const { AiError } = require('../router/errors');
+const { normalizeUsage } = require('./usage');
 
 const INTERACTIONS_PATH = '/interactions';
 
@@ -40,7 +41,16 @@ const THINKING_HEADROOM_TOKENS = 2048;
 function splitDataUrl(dataUrl) {
     const match = /^data:([^;,]+);base64,(.+)$/s.exec(dataUrl || '');
     if (!match) {
-        throw new AiError('invalid_request', 'Image was not a base64 data URL.', { providerId: 'gemini' });
+        // A backstop, not the gate. The router validates every image data URL
+        // once before the walk begins, so reaching here means SafeHaul built a
+        // malformed image *and* the central check missed it.
+        //
+        // Deliberately not `invalid_request`: that category is task-fatal, so
+        // raising it from inside an adapter aborted the entire provider walk
+        // from whichever vendor happened to be first — making one adapter's
+        // view of an image everyone's problem. This ends Gemini's turn and lets
+        // the next provider try.
+        throw new AiError('provider_request_rejected', 'Image was not a base64 data URL.', { providerId: 'gemini' });
     }
     return { mimeType: match[1], data: match[2] };
 }
@@ -195,7 +205,7 @@ const geminiAdapter = {
                 providerId: provider.id,
             });
         }
-        return { text, model };
+        return { text, model, usage: normalizeUsage(payload) };
     },
 };
 

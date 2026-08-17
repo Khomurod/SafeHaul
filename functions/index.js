@@ -286,6 +286,7 @@ exports.testManagedIntegration = environmentVault.testManagedIntegration;
 // browser can never name an arbitrary Secret Manager resource.
 const aiIntegrations = require('./ai/callables');
 exports.listAiProviders = aiIntegrations.listAiProviders;
+exports.listAiTelemetry = aiIntegrations.listAiTelemetry;
 exports.revealAiCredential = aiIntegrations.revealAiCredential;
 exports.saveAiCredential = aiIntegrations.saveAiCredential;
 exports.deleteAiCredential = aiIntegrations.deleteAiCredential;
@@ -293,6 +294,7 @@ exports.setAiProviderEnabled = aiIntegrations.setAiProviderEnabled;
 exports.setAiProviderPriority = aiIntegrations.setAiProviderPriority;
 exports.updateAiProviderConfig = aiIntegrations.updateAiProviderConfig;
 exports.testAiProvider = aiIntegrations.testAiProvider;
+exports.diagnoseAiModelPins = aiIntegrations.diagnoseAiModelPins;
 exports.migrateGroqCredential = aiIntegrations.migrateGroqCredential;
 
 // 22. SafeHaul News & Insights

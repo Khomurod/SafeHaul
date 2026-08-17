@@ -85,7 +85,7 @@ Three properties make it load-bearing rather than decorative:
 
 | Provider | Text | Structured JSON | Vision | Multi-image | Long context | Structured mode |
 | --- | :-: | :-: | :-: | :-: | :-: | --- |
-| Groq | ✅ | ✅ | — | — | ✅ | Responses `json_schema` |
+| Groq | ✅ | ✅ | ✅ | ✅ (max 5) | ✅ | Responses `json_schema`; **`json_object` on the image lanes** |
 | Google Gemini | ✅ | ✅ | ✅ | ✅ | ✅ | Interactions `response_format` |
 | Cloudflare Workers AI | ✅ | ✅ | — | — | — | prompt-carried |
 | GitHub Models | ✅ | ✅ | — | — | — | *retired — never selected* |
@@ -101,16 +101,54 @@ server-side, so the schema is restated in the prompt — and in **every** mode t
 router validates the parsed result, because "the vendor promised JSON" is not
 evidence that it sent JSON.
 
-Groq's vision entry says "—" deliberately. It declared vision until the vendor
-withdrew both llama-4 vision models on 2026-08-03; `GET /models` no longer lists
-them and requesting either returns `model_not_found`. A capability whose only
-models are gone is worse than no capability, because the router would spend a
-request to discover it.
+### Structured-output mode can differ *within* one provider
 
-Consequence worth stating: a CDL or E-Doc image task is eligible only for
-Gemini, Mistral, OpenRouter and Hugging Face. Groq, Cloudflare, Cerebras and
-SambaNova are skipped for image work by construction, not by configuration — and
-no amount of reordering changes that.
+Groq is the reason `structuredModeByCapability` exists. Its schema support is a
+property of the **model**, not the vendor: only `openai/gpt-oss-20b`,
+`openai/gpt-oss-120b` and `openai/gpt-oss-safeguard-20b` accept `json_schema`,
+and the only model that can read an image (`qwen/qwen3.6-27b`) answers a schema
+request with a 400.
+
+So Groq's text lanes send `text.format = { type: 'json_schema', … }` and its
+image lanes send `{ type: 'json_object' }` with the schema restated in the
+prompt. In both cases the router validates the parsed result, so SafeHaul's
+guarantee about output shape is identical either way.
+
+This is worth stating plainly because "turn the vision capability on" would have
+produced a 400 on every CDL photograph. A capability flag is a claim about the
+resolved model *and* the request shape SafeHaul sends it.
+
+Consequence worth stating: a CDL or E-Doc image task is eligible for Gemini,
+Groq, Mistral, OpenRouter and — for single images only — Hugging Face.
+Cloudflare, Cerebras and SambaNova are skipped for image work by construction,
+not by configuration, and no amount of reordering changes that.
+
+### Model pins rot, and only the vendor can tell you
+
+On 2026-08-17 an audit found six pins naming models their vendors had retired:
+
+| Provider | Lane | Pin | Vendor status |
+| --- | --- | --- | --- |
+| Mistral | vision | `pixtral-12b-latest` | retired 2025-12-31 |
+| Mistral | multi-image | `pixtral-large-latest` | retired 2026-05-31 |
+| OpenRouter | vision, multi-image | `meta-llama/llama-4-scout-17b-16e-instruct` | never an OpenRouter slug; it lists `meta-llama/llama-4-scout` |
+| Cerebras | every lane | `llama-3.3-70b`, `llama3.1-8b` | absent from the catalogue |
+| Cloudflare | classification | `@cf/meta/llama-3.1-8b-instruct` | deprecated |
+| SambaNova | classification | `Meta-Llama-3.1-8B-Instruct` | delisted |
+
+Nothing in the repository could have caught this. Fixtures cannot know what a
+vendor withdrew, and a pin is only a string until a request is made with it. The
+effect was that CDL and E-Doc multi-page work fell to Gemini alone, behind a
+20-request free-tier cap, with eight other providers configured and unable to
+help — which is what "AI is unreliable" looked like from a driver's seat.
+
+**`diagnoseAiModelPins`** (Super Admin → AI Integrations → *Verify model pins*)
+is the standing guard: it asks each configured vendor's catalogue endpoint,
+server-side with the managed credential, whether the pinned names still resolve.
+It is deliberately not in CI and not on a schedule — it needs real credentials.
+Where a vendor publishes no readable catalogue it reports "unsupported" rather
+than guessing, and an unreachable one reports "unreachable"; both are honest
+answers where "ok" would be a lie.
 
 ## Fallback order and behaviour
 
@@ -195,6 +233,58 @@ in the console and in telemetry:
 SafeHaul request, no capable provider, the total deadline, and
 `all_providers_failed`. Every vendor would answer the first two identically, and
 the last two mean there is no time or nothing left to try.
+
+### Infrastructure faults are one provider's problem, not the task's
+
+`evaluateProvider` reads Secret Manager, and `credentials/secretManager.js`
+re-throws anything that is not NOT_FOUND — `PERMISSION_DENIED` when the runtime
+service account has lost `secretAccessor`, `UNAVAILABLE`, a project quota error.
+That is right *there*: a real infrastructure fault must never be misread as
+"this provider has no credential".
+
+It was wrong here. The provider walk had no `catch`, only a `finally`, so the
+exception escaped `runAiTask` raw: **no telemetry row, no categorised error, and
+no attempt at any remaining provider.** A single missing IAM binding read as a
+total, silent AI outage — the same defect already fixed once for `unauthorized`
+and `internal`, arriving through a different door. It is the most likely single
+explanation for "AI stopped working entirely", and it is the first thing to
+suspect if that recurs.
+
+Now: `safeEvaluateProvider` records the fault as a `credential_error` skip
+against that provider and the walk continues. Anything else escaping the walk is
+wrapped into a categorised `AiError` with telemetry, so an uncategorised
+exception can never reach a callable.
+
+The stored routing *order* degrades to the registry order — an unreadable
+preference must never stop AI working, and the registry order is always valid.
+
+Provider **config** is treated differently, and the distinction is the point.
+An empty config map is not neutral: absent config reads as `{ enabled: true }`,
+so falling back to one would silently **re-enable every provider an operator had
+disabled**, on paths carrying `restricted` CDL and document images.
+`setAiProviderEnabled` promises the opposite. So `resolveConfigs` reuses the last
+configuration the instance actually read, and a cold instance with nothing cached
+skips every provider with `config_unavailable` rather than guessing. Failing
+closed there is not a regression — the previous behaviour was to throw — but the
+caller now gets a categorised error and a telemetry row instead of an uncaught
+exception.
+
+A deadline is also now reported as `deadline_exceeded` rather than being
+overwritten with `not_configured`, which used to send operators to check
+credentials that were never the problem.
+
+### Task deadlines sit below the function timeout
+
+Neither CDL nor E-Doc set `totalDeadlineMs`, so both inherited the router's 120s
+default. `parseCdlWithGroq` is deployed with a 60s timeout, so a slow fallback
+chain was killed mid-walk: the driver saw a generic function timeout instead of
+the mapped `unavailable` error, and no telemetry was written — the failures
+hardest to diagnose were the ones that recorded nothing.
+
+CDL now gets 45s against a 60s function; E-Doc 100s against 120s. Both function
+timeouts are named constants and the tests assert at least 10s of headroom,
+because the relationship broke while the two numbers were literals in separate
+files.
 
 ### "Do not retry this provider" is not "do not try the others"
 
@@ -375,7 +465,9 @@ Every AI use in the repository, as of this document:
 | News & Insights topic choice | `publishScheduledBlogPosts` | `selectTopic` | text + structured JSON + classification | `public` |
 | News & Insights drafting | `publishScheduledBlogPosts` | `articleGeneration` | article writing + structured JSON + long context | `public` |
 | News & Insights fact check | `publishScheduledBlogPosts` | `verifyArticleClaims` | text + structured JSON + long context | `public` |
-| Connection test | `testAiProvider` | `healthCheck` | provider's configured capability | constant prompt |
+| Connection test | `testAiProvider` | `healthCheck` | every capability the provider declares | constant prompts, generated images |
+| Model pin check | `diagnoseAiModelPins` | — | none (catalogue listing only) | no prompt at all |
+| AI logs | `listAiTelemetry` | — | none (reads `ai_telemetry`) | metadata only |
 
 `parseCdlWithGroq` names a vendor that is now only the *first* provider tried. It
 is a compatibility alias: deployed driver-application clients call it by that
@@ -445,15 +537,88 @@ capability gating and the fallback position are all derived.
 To remove one: delete the row and the adapter, or — if the vendor withdrew the
 service — set `retired` instead, which keeps the documented order legible.
 
-## Telemetry
+## Telemetry and the Logs tab
 
-`ai_telemetry` records task type, capability, provider, model, outcome category,
-latency, fallback count, cooldown skips and credential source, with a 30-day
-`expiresAt` for a Firestore TTL policy. The recorded fields are an allowlist:
-anything not named is dropped rather than trusted.
+### One document per transaction
+
+`ai_telemetry` used to record exactly one row per task, written on final success
+or terminal failure. Every intermediate provider failure existed nowhere: a
+fallback chain's causes survived only inside the `all_providers_failed` message
+string and as counters on `ai_provider_config`. An operator could see that CDL
+extraction failed and not which providers were tried, in what order, or why each
+declined.
+
+One document now carries the whole transaction:
+
+| Field | What it answers |
+| --- | --- |
+| `transactionId` | correlation. Returned to the caller, so a Cloud Logging line and a Logs row can be matched by an engineer |
+| `taskType`, `requiredCapabilities`, `capability` | which SafeHaul feature, and what it needed |
+| `outcome`, `category`, `latencyMs`, `fallbackCount` | what happened overall |
+| `providerId`, `model`, `credentialSource` | who finally served it |
+| `inputSummary` | a **shape** description — see below |
+| `attempts[]` | the timeline, bounded at 12 entries |
+
+Each attempt records `providerId`, `model`, `attemptNumber`, `status`
+(`attempted` / `skipped`), `skipReason`, `success`, `category`, `vendorCode`,
+`httpStatus`, `latencyMs`, `retryAfterMs`, `schemaValid`, `inputTokens` /
+`outputTokens`, and `nextProviderId` — enough to say why fallback happened and
+where it went.
+
+**Super Admin → AI Integrations → Logs** renders this: one row per transaction,
+filterable by feature, outcome, provider, free text and date, with quick filters
+for All / Errors / CDL / E-Docs / Articles. Activating a row opens the timeline:
+
+```
+CDL Extraction · txn 6f2a…
+  1. Gemini    gemini-3.6-flash      quota_exceeded     HTTP 429   812ms  → mistral
+  2. Mistral   mistral-large-latest  model_unavailable  HTTP 404   240ms  → groq
+  3. Groq      qwen/qwen3.6-27b      success                      1,940ms  schema ✓
+Final result → success (2 fallbacks, 2,992ms)
+```
+
+`ai_telemetry` is `allow read, write: if false`, so the tab reads through the
+`listAiTelemetry` callable — guarded exactly as `listAiProviders` is. Firestore
+applies the date range and at most one equality filter (two composite indexes
+cover every combination the UI can produce); provider and text matching run over
+the returned page, and when that page is a window the response reports
+`truncated` and the UI says so rather than implying completeness.
+
+### What is never recorded
 
 Never recorded: credentials, prompts, CDL or document images, provider response
-text, personal data, or article drafts.
+text, extracted personal data, article drafts, or vendor error **bodies**.
+
+The allowlist is the enforcement, and it applies twice — once at the transaction
+level and again inside each attempt, because attempts are where vendor
+diagnostics live and a vendor's error body is the likeliest place for a prompt
+to come back to us.
+
+Two rules are worth stating on their own:
+
+- **`vendorCode` is validated positively, not truncated.** A truncated error
+  message is still an error message. Only a short single-token value matching
+  `^[a-z0-9_.-]{1,64}$` from a known code field survives; anything with a space,
+  quote or newline is dropped. `model_not_found` is kept because it is the
+  difference between "the vendor is down" and "we are asking for a model that no
+  longer exists" — the exact fault a bare category could not express.
+- **`inputSummary` is computed from shape, never content** — image count and
+  media type from the data-URL prefix, field count from the schema, prompt
+  length as a number. It is derived inside the telemetry module rather than
+  passed in, so a caller cannot hand it a prompt by mistake. A CDL request reads
+  `"1 image (image/jpeg), 6 structured fields requested"`.
+
+`aiTelemetry.test.js` asserts the negative directly: given an entry carrying
+prompts, images, credentials and extracted driver fields, none of it survives.
+
+### Retention
+
+30 days, via `expiresAt` and a Firestore TTL policy. The policy is declared in
+`firestore.indexes.json` under `fieldOverrides`, so it deploys with everything
+else. **It previously did not exist**: `expiresAt` was written and the docs
+promised 30 days, but `fieldOverrides` was empty and `expiresAt` does nothing
+without a policy naming it — telemetry was being kept forever.
+`aiTelemetryIndexes.test.js` pins both the policy and the composite indexes.
 
 ## Emergency disable
 
@@ -476,8 +641,12 @@ text, personal data, or article drafts.
 2. The router has already been failing over. If a *later* provider is serving
    traffic, nothing is broken.
 3. When the vendor recovers, use **Test connection**. A pass clears the cooldown
-   and restores its position; the cooldown also expires on its own.
-4. If every capable provider is down, AI features return a safe error and the
+   and restores its position; the cooldown also expires on its own. The result
+   is now per-capability, so "text works, structured JSON is rejected" is
+   visible on the row rather than hidden behind one verdict.
+4. If a provider fails on `model_unavailable`, run **Verify model pins** before
+   suspecting the vendor: the model may simply have been retired.
+5. If every capable provider is down, AI features return a safe error and the
    blog records `failed_generation` and retries on the next hourly run. No
    article is published with unverified content.
 
@@ -486,9 +655,49 @@ text, personal data, or article drafts.
 No test in this repository contacts a real AI or image provider. Adapters take
 an injected `fetchImpl`; tasks are mocked at the task boundary in feature tests.
 
+The two live pathways are deliberately separate, operator-invoked and outside
+CI: **Test connection** (`testAiProvider`) and **Verify model pins**
+(`diagnoseAiModelPins`). Both run server-side with the managed credential and
+neither returns, logs or echoes it.
+
+### What the capability probes prove, and what they do not
+
+The connection test runs a synthetic probe per declared capability — text,
+structured JSON, single-image vision, multi-image vision, and the article
+generation and verification shapes — and reports a provider healthy only when
+everything it *claims* works. Probes are gated on the capability, so a text-only
+provider reports vision as *skipped*, not failed.
+
+The probes run serially and the whole test is bounded by
+`HEALTH_TOTAL_BUDGET_MS` (150s), inside `testAiProvider`'s 180s function
+timeout — the same "deadline below the function it runs in" rule the task
+deadlines follow. A probe the budget did not reach is reported as `not_run`, and
+a test that did not finish is **not** a pass.
+
+They are written to fail correctly, which is the harder half. The multi-image
+probe asks about the **second** image, so a provider that accepts two and reads
+one is caught. Structured answers are validated by SafeHaul's own validator and
+then checked for substance, because a schema-valid object is not evidence the
+model read anything. The verification probe uses a claim its source does not
+support, so a provider that rubber-stamps everything fails.
+
+**Stated plainly: these prove an image is accepted, understood and returned in
+shape. They do not measure OCR accuracy and are not a proxy for reading a real
+licence.** Extraction quality is not something a synthetic check can honestly
+assert, and claiming otherwise would recreate the original problem — a green
+check that means less than it looks.
+
+No probe touches driver, applicant or company data: every prompt is a constant,
+every image is an 8x8 PNG generated from flat colour in
+`functions/ai/tasks/healthProbes.js`, and the article probes name a fictional
+authority so nothing in a probe can be mistaken for real source material.
+
 | Suite | Covers |
 | --- | --- |
-| `functions/test/unit/aiRouter.test.js` | Ordering, capability gating, every fallback trigger, terminal categories, cooldown, no-loop, telemetry secrecy |
+| `functions/test/unit/aiRouter.test.js` | Ordering, capability gating, every fallback trigger, terminal categories, cooldown, no-loop, telemetry secrecy, credential-read failure failing over, transaction timelines |
+| `functions/test/unit/aiTelemetry.test.js` | Transaction shape, attempt cap, the allowlist at both levels, vendor-code validation, and explicit refusal to record prompts, images, credentials or extracted fields |
+| `functions/test/unit/aiTelemetryIndexes.test.js` | Composite indexes read out of the real query chain, and the TTL policy |
+| `functions/test/unit/aiHealthCheck.test.js` | Capability probes, including failing correctly: schema rejected while text works, retired vision model, an image ignored, a rubber-stamped claim |
 | `functions/test/unit/aiProviders.test.js` | All nine adapters: endpoint, auth header, structured mode, response envelope, HTTP classification, timeout, path-traversal refusal |
 | `functions/test/unit/aiCredentials.test.js` | Secret naming, namespace refusal, lifecycle, legacy fallback, every callable's authorization, audit records, Groq migration |
 | `functions/test/unit/cdlParser.test.js` | Callable contract preserved, guards ordered before AI spend, error mapping, log privacy |
@@ -510,9 +719,38 @@ owner. **The feature is not fully live until they are.**
    Without the first, every provider reads as unconfigured. Without the second,
    add and delete fail with a permission error.
 
+   **Check it:**
+
+   ```bash
+   gcloud secrets list --project truckerapp-system --filter="name:SAFEHAUL_AI_"
+   gcloud secrets get-iam-policy SAFEHAUL_AI_GEMINI_APIKEY --project truckerapp-system
+   ```
+
+   A missing `secretAccessor` no longer takes AI down wholesale — the router
+   records `credential_error` against that provider and continues — but the
+   affected provider is unusable until it is granted. The routing panel in AI
+   Integrations names the reason per provider.
+
 2. **Cloud Scheduler.** `publishScheduledBlogPosts` creates its job on first
    functions deploy. Confirm it exists, runs hourly at minute 15, and is pinned
-   to `America/Chicago`.
+   to `America/Chicago`:
+
+   ```bash
+   gcloud scheduler jobs list --location us-central1 --project truckerapp-system
+   gcloud scheduler jobs describe firebase-schedule-publishScheduledBlogPosts-us-central1 \
+     --location us-central1 --project truckerapp-system
+   ```
+
+   Check `state: ENABLED` and `lastAttemptTime`. Catch-up needs no
+   configuration: a slot becomes due at its local hour and stays due for the
+   rest of the local day, so a failed 07:00 run is filled by 08:15. It never
+   reaches into a previous day, and at most one article publishes per run.
+
+   Recent runs:
+
+   ```bash
+   firebase functions:log --only publishScheduledBlogPosts
+   ```
 
 3. **Deploy planner inclusion.** Add `publishScheduledBlogPosts` and
    `serveBlogPublic` to `DEPLOY_FUNCTIONS_ALWAYS_INCLUDE` in
@@ -525,6 +763,28 @@ owner. **The feature is not fully live until they are.**
 
 5. **Media credentials (optional).** Without Pexels or Unsplash, articles use
    the approved local fallback image. Openverse works without a credential.
+
+6. **Confirm the telemetry TTL policy exists.** It is declared in
+   `firestore.indexes.json`, so it deploys with everything else — but confirm
+   the deploy applied it, because until it exists `expiresAt` is an ordinary
+   field and nothing is ever deleted:
+
+   ```bash
+   gcloud firestore fields ttls list --collection-group=ai_telemetry --project truckerapp-system
+   ```
+
+7. **Run the checks that need live credentials.** These cannot run in CI, and
+   they are the ones that catch what fixtures cannot. From Super Admin → AI
+   Integrations:
+   - **Test connection** on each configured provider, reading the
+     per-capability results rather than only the overall pass/fail.
+   - **Verify model pins**. Anything reported stale needs a registry change, not
+     a credential change.
+
+   Then from Super Admin → Blog Posts, the **manual publication check**
+   (`runBlogPublicationNow`). It shares `publishDueSlots` with the schedule, so
+   it cannot double-publish. The per-slot `detail` is now shown, and the Logs
+   tab carries the full provider trail for that run.
 
 ## Related files
 

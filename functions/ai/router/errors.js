@@ -128,6 +128,12 @@ class AiError extends Error {
         this.detail = typeof detail === 'string' ? detail.slice(0, 200) : '';
         this.providerId = options.providerId || null;
         this.status = Number.isInteger(options.status) ? options.status : null;
+        // The vendor's machine-readable error code where it gave one, already
+        // pattern-checked by `providers/http.js`. A code, never a message:
+        // `model_not_found` distinguishes "the vendor is down" from "we are
+        // asking for a model that no longer exists", which is exactly the fault
+        // a bare category could not express.
+        this.vendorCode = typeof options.vendorCode === 'string' ? options.vendorCode : null;
         // The vendor's own "try again in" hint, in milliseconds, when it gave one
         // and it was short enough to honour. Never surfaced to a caller.
         this.retryAfterMs = Number.isFinite(options.retryAfterMs) && options.retryAfterMs > 0

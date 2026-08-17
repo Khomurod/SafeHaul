@@ -14,7 +14,8 @@
 
 const { postJson } = require('./http');
 const { AiError } = require('../router/errors');
-const { schemaReminder } = require('./openaiCompatible');
+const { schemaReminder } = require('./structuredOutput');
+const { normalizeUsage } = require('./usage');
 
 const ACCOUNT_ID_PATTERN = /^[a-f0-9]{32}$/;
 
@@ -100,7 +101,7 @@ const cloudflareAdapter = {
                 providerId: provider.id,
             });
         }
-        return { text, model: safeModel };
+        return { text, model: safeModel, usage: normalizeUsage(payload?.result) };
     },
 };
 

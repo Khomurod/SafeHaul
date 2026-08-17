@@ -42,7 +42,7 @@ jest.mock('../../ai/tasks/cdlExtraction', () => {
 const { parseCdlWithGroq, __private } = require('../../cdlParser');
 const { checkRateLimit } = require('../../shared/rateLimiter');
 const { assertCompanyAcceptingIntake } = require('../../shared/companyTenant');
-const { CDL_JSON_SCHEMA } = require('../../ai/tasks/cdlExtraction');
+const { CDL_JSON_SCHEMA, CDL_TOTAL_DEADLINE_MS } = require('../../ai/tasks/cdlExtraction');
 const { AiError } = require('../../ai/router/errors');
 
 const GUEST_CONTEXT = { rawRequest: { ip: '203.0.113.8' }, auth: undefined };
@@ -201,6 +201,40 @@ describe('parseCdlWithGroq', () => {
       { companyId: 'co1', imageDataUrl: 'data:application/pdf;base64,AAAA' },
       { rawRequest: { ip: '203.0.113.10' } },
     )).rejects.toMatchObject({ code: 'invalid-argument' });
+  });
+
+  it.each([
+    ['data:image/svg+xml;base64,AAAA'],
+    ['data:image/tiff;base64,AAAA'],
+    ['data:image/avif;base64,AAAA'],
+  ])('refuses %s, which no vision provider accepts', async (imageDataUrl) => {
+    // This callable used to admit any `data:image/*`. It is reachable without
+    // authentication, so that let a guest hand a third-party vendor an SVG —
+    // markup, not a raster image — and let the exotic raster formats burn a
+    // request and a rate-limit slot to be rejected downstream.
+    await expect(parseCdlWithGroq(
+      { companyId: 'co1', imageDataUrl },
+      GUEST_CONTEXT,
+    )).rejects.toMatchObject({ code: 'invalid-argument' });
+
+    expect(mockExtractCdlFields).not.toHaveBeenCalled();
+  });
+
+  it('gives the router less time than the function has to live', () => {
+    // The router walks providers on its own deadline, inside a function that
+    // Cloud Functions will kill at `timeoutSeconds`. When the task set no
+    // deadline it inherited the router's 120s default and ran inside a 60s
+    // function: on a slow fallback chain the function died mid-walk, so the
+    // driver saw a generic function timeout instead of the mapped `unavailable`
+    // error and no telemetry row was written at all — the failures hardest to
+    // diagnose were exactly the ones that recorded nothing.
+    //
+    // The margin is what the callable needs to map the error and let the
+    // telemetry write land.
+    const functionBudgetMs = __private.FUNCTION_TIMEOUT_SECONDS * 1000;
+
+    expect(CDL_TOTAL_DEADLINE_MS).toBeLessThan(functionBudgetMs);
+    expect(functionBudgetMs - CDL_TOTAL_DEADLINE_MS).toBeGreaterThanOrEqual(10000);
   });
 
   it('requires a companyId', async () => {

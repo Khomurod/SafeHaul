@@ -23,6 +23,11 @@ jest.mock('../../firebaseAdmin', () => ({
 // and never receive anything sensitive.
 const mockRecordTelemetry = jest.fn().mockResolvedValue(undefined);
 jest.mock('../../ai/telemetry/record', () => ({
+    // Only the *write* is faked. `describeTaskInput` and the attempt cap are
+    // real, because what they produce is exactly what these tests assert about
+    // — a request description built from shape rather than content, and a
+    // bounded attempts array.
+    ...jest.requireActual('../../ai/telemetry/record'),
     recordAiTelemetry: (...args) => mockRecordTelemetry(...args),
 }));
 
@@ -226,14 +231,30 @@ describe('the operator-chosen routing order', () => {
         });
 
         const result = await runAiTask(visionTask(), {
-            providerOrder: ['cerebras', 'groq', 'cloudflare', 'gemini'],
+            providerOrder: ['cerebras', 'cloudflare', 'gemini'],
         });
 
         const attempted = mockExecute.mock.calls.map((call) => call[0]);
         expect(attempted).not.toContain('cerebras');
-        expect(attempted).not.toContain('groq');
         expect(attempted).not.toContain('cloudflare');
         expect(result.providerId).toBe('gemini');
+    });
+
+    it('lets an operator put a vision-capable provider first for image work', async () => {
+        // The other half of the same argument. Ordering is the operator's to
+        // set: a provider that *is* capable must be reachable at position one
+        // for image tasks, not just for text.
+        mockExecute.mockImplementation(async (providerId) => {
+            if (providerId === 'groq') return { text: '{"value":"x"}', model: 'qwen/qwen3.6-27b' };
+            throw new AiError('provider_unavailable', 'down', { providerId });
+        });
+
+        const result = await runAiTask(visionTask(), {
+            providerOrder: ['groq', 'gemini'],
+        });
+
+        expect(result.providerId).toBe('groq');
+        expect(mockExecute.mock.calls[0][0]).toBe('groq');
     });
 
     it('cannot promote a disabled provider into the walk', async () => {
@@ -340,16 +361,34 @@ describe('capability gating', () => {
         await runAiTask(visionTask());
 
         const attempted = mockExecute.mock.calls.map((call) => call[0]);
-        // Cloudflare, Cerebras and SambaNova declare no vision support.
+        // Cloudflare, Cerebras and SambaNova declare no vision support, so a
+        // CDL photograph can never reach them however the order is set.
         expect(attempted).not.toContain('cloudflare');
         expect(attempted).not.toContain('cerebras');
         expect(attempted).not.toContain('sambanova');
-        // Groq is absent too: it declared vision until Groq withdrew both
-        // llama-4 vision models, and a capability with no surviving model is
-        // worse than no capability — the router would spend a request to learn
-        // the model is gone. Gemini leads on vision now.
-        expect(attempted).not.toContain('groq');
-        expect(attempted).toEqual(['gemini', 'mistral']);
+        // Gemini leads on vision by default; Groq is capable again on
+        // `qwen/qwen3.6-27b` and sits at its registry priority behind it.
+        expect(attempted).toEqual(['gemini', 'groq', 'mistral']);
+    });
+
+    it('skips a provider that cannot take this many images, rather than 400ing', async () => {
+        // Groq caps at five images per request. Asking for six is a guaranteed
+        // 400, so the request is never spent finding that out.
+        const sixPages = defineTask({
+            taskType: TASK_TYPES.EDOC_FIELD_PLACEMENT,
+            capabilities: [CAPABILITIES.VISION, CAPABILITIES.STRUCTURED_JSON, CAPABILITIES.MULTI_IMAGE],
+            inputText: 'Read these.',
+            images: Array.from({ length: 6 }, () => ({ dataUrl: 'data:image/png;base64,AAAA' })),
+            privacy: PRIVACY.RESTRICTED,
+        });
+        mockExecute.mockImplementation(async (providerId) => {
+            if (providerId === 'gemini') throw new AiError('provider_unavailable', 'down', { providerId });
+            return { text: 'ok', model: 'm' };
+        });
+
+        await runAiTask(sixPages);
+
+        expect(mockExecute.mock.calls.map((call) => call[0])).not.toContain('groq');
     });
 
     it('routes CDL and E-Doc images to Gemini first, not Groq', async () => {
@@ -696,6 +735,309 @@ describe('telemetry and secrecy', () => {
     });
 });
 
+describe('transaction logging', () => {
+    /**
+     * The gap this closes: telemetry recorded exactly one row per task, on final
+     * success or terminal failure. Every intermediate provider failure existed
+     * nowhere — it survived only inside the `all_providers_failed` message
+     * string and as a counter on `ai_provider_config`. An operator could see
+     * that CDL extraction failed and not which providers were tried, in what
+     * order, or why each declined.
+     */
+    it('records one transaction carrying every provider attempt in order', async () => {
+        mockExecute.mockImplementation(async (providerId) => {
+            if (providerId === 'gemini') {
+                throw new AiError('quota_exceeded', 'HTTP 429', {
+                    providerId, status: 429, vendorCode: 'resource_exhausted',
+                });
+            }
+            if (providerId === 'groq') {
+                throw new AiError('model_unavailable', 'HTTP 404', {
+                    providerId, status: 404, vendorCode: 'model_not_found',
+                });
+            }
+            return { text: '{"value":"x"}', model: 'mistral-large-latest', usage: { inputTokens: 900, outputTokens: 120 } };
+        });
+
+        const result = await runAiTask(visionTask());
+        const recorded = mockRecordTelemetry.mock.calls[0][0];
+
+        expect(recorded.outcome).toBe('success');
+        expect(recorded.transactionId).toEqual(expect.any(String));
+        expect(result.transactionId).toBe(recorded.transactionId);
+        expect(recorded.fallbackCount).toBe(2);
+
+        // The timeline an operator reads in the Logs detail view.
+        const attempted = recorded.attempts.filter((entry) => entry.status === 'attempted');
+        expect(attempted.map((entry) => [entry.providerId, entry.category ?? 'success'])).toEqual([
+            ['gemini', 'quota_exceeded'],
+            ['groq', 'model_unavailable'],
+            ['mistral', 'success'],
+        ]);
+
+        // Enough per attempt to say *why* fallback happened, and where it went.
+        expect(attempted[0]).toMatchObject({
+            httpStatus: 429,
+            vendorCode: 'resource_exhausted',
+            nextProviderId: 'groq',
+            success: false,
+        });
+        expect(attempted[1]).toMatchObject({ httpStatus: 404, vendorCode: 'model_not_found' });
+        expect(attempted[2]).toMatchObject({
+            success: true,
+            schemaValid: true,
+            inputTokens: 900,
+            outputTokens: 120,
+        });
+    });
+
+    it('records why a provider was never asked, not only the ones that were', async () => {
+        // `describeRouting` answers this for *now*; the transaction answers it
+        // for a request that already happened, which is the one an operator is
+        // usually looking at.
+        mockStore.readAllConfigs.mockResolvedValue(allConfigured({ gemini: { enabled: false } }));
+        mockExecute.mockResolvedValue({ text: '{"value":"x"}', model: 'test/model' });
+
+        // An explicit order, so the two skips are reached before the success
+        // that ends the walk. Only providers the router actually considered are
+        // recorded — it stops at the first provider that answers, and that is
+        // the behaviour being relied on here rather than worked around.
+        await runAiTask(visionTask(), {
+            providerOrder: ['cloudflare', 'gemini', 'mistral'],
+        });
+        const recorded = mockRecordTelemetry.mock.calls[0][0];
+        const byProvider = Object.fromEntries(
+            recorded.attempts.map((entry) => [entry.providerId, entry]),
+        );
+
+        // Two different reasons, needing two different operator actions:
+        // Cloudflare can never serve an image, Gemini was switched off.
+        expect(byProvider.cloudflare).toMatchObject({ status: 'skipped', skipReason: SKIP_REASONS.INCAPABLE });
+        expect(byProvider.gemini).toMatchObject({ status: 'skipped', skipReason: SKIP_REASONS.DISABLED });
+        expect(byProvider.mistral).toMatchObject({ status: 'attempted', success: true });
+    });
+
+    it('records a transaction even when every provider fails', async () => {
+        mockExecute.mockRejectedValue(new AiError('provider_unavailable', 'down'));
+
+        await expect(runAiTask(textTask())).rejects.toMatchObject({ category: 'all_providers_failed' });
+
+        const recorded = mockRecordTelemetry.mock.calls[0][0];
+        expect(recorded.outcome).toBe('failure');
+        expect(recorded.transactionId).toEqual(expect.any(String));
+        expect(recorded.attempts.length).toBeGreaterThan(1);
+        expect(recorded.attempts.every((entry) => entry.success === false)).toBe(true);
+    });
+
+    it('describes the request by shape, never by content', async () => {
+        mockExecute.mockResolvedValue({ text: '{"value":"x"}', model: 'test/model' });
+
+        await runAiTask(visionTask());
+        const recorded = mockRecordTelemetry.mock.calls[0][0];
+
+        expect(recorded.inputSummary).toContain('1 image (image/png)');
+        expect(recorded.inputSummary).toContain('1 structured field requested');
+        // `visionTask` prompts with "Read this."; not a word of it may appear.
+        expect(recorded.inputSummary).not.toMatch(/Read this/);
+    });
+
+    it('never puts a credential, prompt or image into an attempt record', async () => {
+        mockExecute.mockImplementation(async (providerId) => {
+            throw new AiError('provider_request_rejected', 'HTTP 400', { providerId, status: 400 });
+        });
+
+        await expect(runAiTask(visionTask())).rejects.toThrow();
+
+        const recorded = JSON.stringify(mockRecordTelemetry.mock.calls);
+        expect(recorded).not.toMatch(/base64/);
+        expect(recorded).not.toMatch(/AAAA/);
+        expect(recorded).not.toMatch(/Read this/);
+        expect(recorded).not.toMatch(/apiKey/);
+    });
+});
+
+describe('infrastructure failures do not become task failures', () => {
+    /**
+     * The defect these pin down: `evaluateProvider` reads Secret Manager, and
+     * `credentials/secretManager.js` deliberately re-throws anything that is not
+     * NOT_FOUND — `PERMISSION_DENIED` when the runtime service account has lost
+     * `roles/secretmanager.secretAccessor`, `UNAVAILABLE`, a project quota
+     * error. The router had no `catch` around the walk, only a `finally`, so
+     * that exception escaped `runAiTask` raw: no telemetry, no categorised
+     * error, and no attempt at any remaining provider.
+     *
+     * One vendor's IAM binding could therefore switch off all nine — the same
+     * class of defect already fixed once for `unauthorized` and `internal`, and
+     * the single most likely explanation for "AI stopped working entirely".
+     */
+    it('fails over when one provider credential cannot be read at all', async () => {
+        mockStore.resolveCredentials.mockImplementation(async (providerId) => {
+            if (providerId === 'gemini') {
+                const error = new Error('7 PERMISSION_DENIED: Permission denied on secret');
+                error.code = 7;
+                throw error;
+            }
+            return { complete: true, values: { apiKey: 'k' }, missing: [], source: 'secret-manager' };
+        });
+
+        const result = await runAiTask(textTask());
+
+        // Gemini leads by default, so before the fix this returned nothing at all.
+        expect(result.providerId).toBe('groq');
+        expect(mockExecute).toHaveBeenCalledWith('groq', expect.anything());
+    });
+
+    it('records the unreadable credential as a skip reason rather than an outage', async () => {
+        mockStore.resolveCredentials.mockImplementation(async (providerId) => {
+            if (providerId !== 'gemini') {
+                return { complete: true, values: { apiKey: 'k' }, missing: [], source: 'secret-manager' };
+            }
+            throw new Error('14 UNAVAILABLE');
+        });
+
+        const rows = await describeRouting([CAPABILITIES.TEXT]);
+        const byId = Object.fromEntries(rows.map((row) => [row.providerId, row]));
+
+        expect(byId.gemini).toMatchObject({
+            eligible: false,
+            reason: SKIP_REASONS.CREDENTIAL_ERROR,
+        });
+    });
+
+    it('never lets a Secret Manager error message reach telemetry', async () => {
+        mockStore.resolveCredentials.mockImplementation(async (providerId) => {
+            if (providerId === 'gemini') {
+                throw new Error('PERMISSION_DENIED on projects/x/secrets/SAFEHAUL_AI_GEMINI_APIKEY');
+            }
+            return { complete: true, values: { apiKey: 'k' }, missing: [], source: 'secret-manager' };
+        });
+
+        await runAiTask(textTask());
+
+        const recorded = JSON.stringify(mockRecordTelemetry.mock.calls);
+        expect(recorded).not.toMatch(/SAFEHAUL_AI_GEMINI_APIKEY/);
+        expect(recorded).not.toMatch(/PERMISSION_DENIED/);
+    });
+
+    it('falls back to the last known config when Firestore has a bad minute', async () => {
+        // Warm instance: it read config successfully once, so a later failure
+        // must not discard what the operator decided.
+        mockStore.readAllConfigs.mockResolvedValueOnce(allConfigured());
+        await runAiTask(textTask());
+
+        mockStore.readAllConfigs.mockRejectedValue(new Error('firestore unavailable'));
+        const result = await runAiTask(textTask());
+
+        expect(result.providerId).toBe('gemini');
+    });
+
+    it('never re-enables a provider an operator disabled, even during a config outage', async () => {
+        // The first version of this returned an empty map on failure, and empty
+        // config reads as `{ enabled: true }` — silently re-enabling every
+        // disabled provider. `setAiProviderEnabled` promises the opposite, and a
+        // provider is sometimes disabled precisely because it is mishandling
+        // data, on paths carrying restricted CDL and document images.
+        mockStore.readAllConfigs.mockResolvedValueOnce(allConfigured({ gemini: { enabled: false } }));
+        await runAiTask(textTask());
+
+        mockStore.readAllConfigs.mockRejectedValue(new Error('firestore unavailable'));
+        const result = await runAiTask(textTask());
+
+        expect(result.providerId).not.toBe('gemini');
+        expect(mockExecute.mock.calls.map((call) => call[0])).not.toContain('gemini');
+    });
+
+    it('refuses to route at all when config is unreadable and nothing is cached', async () => {
+        // A cold instance cannot know which providers are disabled. Refusing is
+        // the safe direction, and it is still a categorised failure with
+        // telemetry rather than the uncaught throw this replaced.
+        jest.resetModules();
+        const isolated = require('../../ai/router/router');
+        mockStore.readAllConfigs.mockRejectedValue(new Error('firestore unavailable'));
+
+        await expect(isolated.runAiTask(textTask())).rejects.toMatchObject({ category: 'not_configured' });
+        expect(mockExecute).not.toHaveBeenCalled();
+        expect(mockRecordTelemetry).toHaveBeenCalledWith(
+            expect.objectContaining({ outcome: 'failure' }),
+        );
+    });
+
+    it('still produces a categorised error and telemetry if the walk throws unexpectedly', async () => {
+        mockStore.readAllConfigs.mockResolvedValue(allConfigured());
+        mockStore.recordProviderOutcome.mockRejectedValue(new Error('boom'));
+        mockExecute.mockRejectedValue(new AiError('provider_unavailable', 'down'));
+
+        await expect(runAiTask(textTask())).rejects.toMatchObject({ category: 'internal' });
+        expect(mockRecordTelemetry).toHaveBeenCalledWith(
+            expect.objectContaining({ outcome: 'failure', category: 'internal' }),
+        );
+    });
+});
+
+describe('image handling before any provider is tried', () => {
+    it('rejects a malformed image once, centrally, without spending a request', async () => {
+        const task = defineTask({
+            taskType: TASK_TYPES.CDL_EXTRACTION,
+            capabilities: [CAPABILITIES.VISION, CAPABILITIES.STRUCTURED_JSON],
+            inputText: 'Read this.',
+            images: [{ dataUrl: 'https://example.com/not-a-data-url.png' }],
+            privacy: PRIVACY.RESTRICTED,
+        });
+
+        await expect(runAiTask(task)).rejects.toMatchObject({ category: 'invalid_request' });
+        expect(mockExecute).not.toHaveBeenCalled();
+    });
+
+    it('never puts image bytes into the error raised for a malformed image', async () => {
+        const task = defineTask({
+            taskType: TASK_TYPES.CDL_EXTRACTION,
+            capabilities: [CAPABILITIES.VISION, CAPABILITIES.STRUCTURED_JSON],
+            inputText: 'Read this.',
+            images: [{ dataUrl: 'data:image/png;NOTBASE64,SECRETLICENCEBYTES' }],
+            privacy: PRIVACY.RESTRICTED,
+        });
+
+        // `detail` names which image was wrong, for diagnosis; the public
+        // `message` stays generic and neither carries a byte of the image.
+        const error = await runAiTask(task).catch((thrown) => thrown);
+
+        expect(error.detail).toMatch(/Image 1 is not a base64 data URL/);
+        expect(JSON.stringify(error.toSafeJSON())).not.toMatch(/SECRETLICENCEBYTES/);
+        expect(`${error.message} ${error.detail}`).not.toMatch(/SECRETLICENCEBYTES/);
+    });
+});
+
+describe('deadline reporting', () => {
+    it('reports a deadline as a deadline, not as a configuration gap', async () => {
+        const { buildTerminalFailure } = require('../../ai/router/router').__test;
+
+        // Nothing was attempted because time ran out first. Reporting
+        // `not_configured` here sends an operator to check credentials that
+        // were never the problem.
+        const failure = buildTerminalFailure({
+            attempted: [],
+            skipped: [],
+            lastError: new AiError('deadline_exceeded', 'Total AI deadline reached.'),
+            failures: [],
+        });
+
+        expect(failure.category).toBe('deadline_exceeded');
+    });
+
+    it('reports a deadline as a deadline even after providers were attempted', async () => {
+        const { buildTerminalFailure } = require('../../ai/router/router').__test;
+
+        const failure = buildTerminalFailure({
+            attempted: ['gemini'],
+            skipped: [],
+            lastError: new AiError('deadline_exceeded', 'Total AI deadline reached.'),
+            failures: [{ providerId: 'gemini', category: 'timeout' }],
+        });
+
+        expect(failure.category).toBe('deadline_exceeded');
+    });
+});
+
 describe('describeRouting', () => {
     it('explains why each provider is or is not eligible', async () => {
         mockStore.readAllConfigs.mockResolvedValue(allConfigured({ gemini: { enabled: false } }));
@@ -703,10 +1045,10 @@ describe('describeRouting', () => {
         const rows = await describeRouting([CAPABILITIES.VISION]);
         const byId = Object.fromEntries(rows.map((row) => [row.providerId, row]));
 
-        // Groq is INCAPABLE for vision now, not eligible: its llama-4 vision
-        // models were withdrawn by the vendor, so the registry no longer claims
-        // the capability. The console must say so rather than offering it.
-        expect(byId.groq).toMatchObject({ eligible: false, reason: SKIP_REASONS.INCAPABLE });
+        // Groq is eligible for vision again, on `qwen/qwen3.6-27b`. The console
+        // must show the model it would actually use, so an operator deciding
+        // the order can see what each lane resolves to.
+        expect(byId.groq).toMatchObject({ eligible: true, model: 'qwen/qwen3.6-27b' });
         expect(byId.gemini).toMatchObject({ eligible: false, reason: SKIP_REASONS.DISABLED });
         expect(byId.cerebras).toMatchObject({ eligible: false, reason: SKIP_REASONS.INCAPABLE });
         expect(byId['github-models']).toMatchObject({ eligible: false, reason: SKIP_REASONS.RETIRED });

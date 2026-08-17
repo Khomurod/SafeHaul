@@ -116,7 +116,15 @@ export function BlogPostsView() {
             } else {
                 // A run that publishes nothing is usually correct — the slots
                 // are already filled — so it is reported as information.
-                const reasons = result.results.map((entry) => entry.outcome).join(', ');
+                // `detail` is the part worth reading. For a generation failure
+                // the router builds a per-provider trail —
+                // "groq=rate_limited, gemini=schema_validation_failed" —
+                // precisely because the bare `failed_generation` is unactionable
+                // and cost a full day of diagnosis once. Dropping it here threw
+                // that work away at the last step.
+                const reasons = result.results
+                    .map((entry) => (entry.detail ? `${entry.outcome}: ${entry.detail}` : entry.outcome))
+                    .join('; ');
                 showInfo(result.attempted === 0
                     ? 'Every due slot for today is already filled.'
                     : `Nothing new was published (${reasons}).`);

@@ -34,6 +34,17 @@ const {
 const { analyzeDocumentPages } = require('./ai/tasks/edocFieldPlacement');
 
 /** Ceilings. Kept modest: page images are large and the model is the slow part. */
+/**
+ * How long this function may run, in seconds.
+ *
+ * The AI task's `totalDeadlineMs` has to stay *below* it. While both were
+ * literals in separate files they matched exactly at 120, so the router's
+ * deadline and the function's death raced and the function usually won — no
+ * mapped error, no telemetry. `edocFieldPlacement.test.js` now asserts the two
+ * against each other.
+ */
+const FUNCTION_TIMEOUT_SECONDS = 120;
+
 const MAX_PAGES_PER_REQUEST = 5;
 const MAX_IMAGE_CHARS = 2 * 1024 * 1024; // ~1.5MB of decoded image per page
 const MAX_TOTAL_PAYLOAD_CHARS = 7 * 1024 * 1024;
@@ -211,7 +222,7 @@ async function assertEdocsFeatureEnabled(companyId) {
 }
 
 exports.analyzeEdocFieldPlacement = onCall(
-  { cors: true, memory: '1GiB', timeoutSeconds: 120, secrets: ['GROQ_API_KEY'] },
+  { cors: true, memory: '1GiB', timeoutSeconds: FUNCTION_TIMEOUT_SECONDS, secrets: ['GROQ_API_KEY'] },
   async (request) => {
     if (!request.auth?.uid) {
       throw new HttpsError('unauthenticated', 'You must be signed in.');
@@ -327,6 +338,7 @@ exports.analyzeEdocFieldPlacement = onCall(
 );
 
 exports.__private = {
+  FUNCTION_TIMEOUT_SECONDS,
   MAX_PAGES_PER_REQUEST,
   MAX_IMAGE_CHARS,
   MAX_TOTAL_PAYLOAD_CHARS,

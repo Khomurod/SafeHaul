@@ -16,7 +16,9 @@ jest.mock('../../firebaseAdmin', () => ({
 }));
 
 const { getAdapter, ADAPTERS } = require('../../ai/providers');
-const { getProvider, PROVIDERS, STRUCTURED_MODE, resolveModel } = require('../../ai/registry/providers');
+const {
+    getProvider, PROVIDERS, STRUCTURED_MODE, resolveModel, resolveStructuredMode,
+} = require('../../ai/registry/providers');
 const { CAPABILITIES } = require('../../ai/registry/capabilities');
 const { AiError } = require('../../ai/router/errors');
 const { requireModel: requireCloudflareModel } = require('../../ai/providers/cloudflare');
@@ -167,6 +169,66 @@ describe('Groq adapter', () => {
         ]);
     });
 
+    it('asks a vision request for json_object, not json_schema', async () => {
+        // The whole point of the per-capability structured mode. Groq's vision
+        // model rejects `json_schema` with a 400, so sending the schema form
+        // here would fail every CDL photograph — the exact way that "just turn
+        // the vision capability on" would have broken.
+        const fetchImpl = fetchReturning({
+            output: [{ type: 'message', content: [{ type: 'output_text', text: '{"value":"x"}' }] }],
+        });
+        const schema = {
+            type: 'object',
+            properties: { value: { type: 'string' } },
+            required: ['value'],
+            additionalProperties: false,
+        };
+
+        await getAdapter(getProvider('groq')).execute(contextFor('groq', {
+            fetchImpl,
+            capability: CAPABILITIES.VISION,
+            model: 'qwen/qwen3.6-27b',
+            schema,
+            images: [{ dataUrl: 'data:image/jpeg;base64,AAAA' }],
+        }));
+
+        const body = fetchImpl.calls[0].body;
+        expect(body.text).toEqual({ format: { type: 'json_object' } });
+        expect(JSON.stringify(body.text)).not.toMatch(/json_schema/);
+
+        // Object mode guarantees valid JSON and nothing about its shape, so the
+        // schema has to travel in the prompt for the model to aim at it — and
+        // SafeHaul's own validator still enforces it on return.
+        const userMessage = body.input.find((entry) => entry.role === 'user');
+        expect(userMessage.content[0].text).toContain('"required":["value"]');
+    });
+
+    it('still asks for json_schema on the text lanes, which do support it', async () => {
+        const fetchImpl = fetchReturning({
+            output: [{ type: 'message', content: [{ type: 'output_text', text: '{"value":"x"}' }] }],
+        });
+
+        await getAdapter(getProvider('groq')).execute(contextFor('groq', {
+            fetchImpl,
+            capability: CAPABILITIES.STRUCTURED_JSON,
+            schema: { type: 'object', properties: {}, additionalProperties: false },
+        }));
+
+        expect(fetchImpl.calls[0].body.text.format.type).toBe('json_schema');
+    });
+
+    it('records token usage when Groq reports it', async () => {
+        const fetchImpl = fetchReturning({
+            output: [{ type: 'message', content: [{ type: 'output_text', text: 'ok' }] }],
+            usage: { input_tokens: 120, output_tokens: 34 },
+        });
+
+        const result = await getAdapter(getProvider('groq'))
+            .execute(contextFor('groq', { fetchImpl }));
+
+        expect(result.usage).toEqual({ inputTokens: 120, outputTokens: 34 });
+    });
+
     it('reports an empty response as malformed rather than returning nothing', async () => {
         const fetchImpl = fetchReturning({ output: [] });
 
@@ -209,6 +271,71 @@ const GEMINI_TRUNCATED_RESPONSE = Object.freeze({
     usage: { total_output_tokens: 0, total_thought_tokens: 13 },
 });
 
+describe('model pins that vendors have retired', () => {
+    /**
+     * A registry pin is a claim about the world, and the world moves. Every
+     * entry below was live in the registry and dead at the vendor — silently,
+     * because the connection test sent plain text and never touched the model
+     * a real task would have resolved.
+     *
+     * These assertions are cheap insurance against the same drift returning by
+     * copy-paste. They cannot detect *new* drift; `diagnoseAiModelPins`
+     * reconciles the pins against the vendors' live catalogues for that.
+     *
+     * All verified against vendor documentation and live catalogues 2026-08-17.
+     */
+    const deadModels = [
+        // Retired 2025-12-31 and 2026-05-31 respectively. These were Mistral's
+        // vision and multi-image pins, so Mistral could not serve a CDL
+        // photograph for months while still advertising the capability.
+        ['mistral', 'pixtral-12b-latest'],
+        ['mistral', 'pixtral-large-latest'],
+        // Groq's naming for the weights, used as an OpenRouter slug. OpenRouter
+        // lists `meta-llama/llama-4-scout`, so every OpenRouter image request
+        // 404'd on a model that was in fact available under another name.
+        ['openrouter', 'meta-llama/llama-4-scout-17b-16e-instruct'],
+        // Absent from Cerebras' catalogue, which now offers gpt-oss-120b,
+        // gemma-4-31b and zai-glm-4.7.
+        ['cerebras', 'llama-3.3-70b'],
+        ['cerebras', 'llama3.1-8b'],
+        // Deprecated in the Workers AI catalogue.
+        ['cloudflare', '@cf/meta/llama-3.1-8b-instruct'],
+        // No longer listed among SambaNova Cloud's supported models.
+        ['sambanova', 'Meta-Llama-3.1-8B-Instruct'],
+    ];
+
+    it.each(deadModels)('%s no longer pins the retired model %s', (providerId, model) => {
+        expect(Object.values(getProvider(providerId).defaultModels)).not.toContain(model);
+    });
+
+    it('gives every vision-capable provider a model for every image lane it claims', () => {
+        // The defect this catches is the specific one that emptied the vision
+        // lane: a provider advertising `vision` whose vision model no longer
+        // resolves. The router gates on the capability, so the claim has to be
+        // backed by something.
+        for (const provider of PROVIDERS) {
+            if (provider.retired) continue;
+            for (const capability of [CAPABILITIES.VISION, CAPABILITIES.MULTI_IMAGE]) {
+                if (!provider.capabilities.includes(capability)) continue;
+                expect(resolveModel(provider, capability, {})).toBeTruthy();
+            }
+        }
+    });
+
+    it('keeps more than one provider able to serve a multi-page document', () => {
+        // E-Doc asks for `multi_image` on any scan of two pages or more. When
+        // Mistral's and OpenRouter's pins were dead, Gemini was the *only*
+        // provider that could serve one — a single point of failure behind a
+        // 20-request free-tier cap, which is what "AI is unreliable" looked
+        // like from a driver's seat.
+        const multiImageProviders = PROVIDERS.filter((provider) => (
+            !provider.retired && provider.capabilities.includes(CAPABILITIES.MULTI_IMAGE)
+        ));
+
+        expect(multiImageProviders.length).toBeGreaterThan(1);
+    });
+});
+
 describe('Groq model pins — verified against the live API', () => {
     /**
      * These are assertions about the *vendor*, not about our code, and they exist
@@ -219,15 +346,26 @@ describe('Groq model pins — verified against the live API', () => {
      */
     const groq = getProvider('groq');
 
-    it('pins only models that accept json_schema structured output', () => {
+    it('asks for json_schema only from the models that accept it', () => {
         // Groq rejects the others outright:
         //   400 "This model does not support response format `json_schema`."
-        // Confirmed for llama-3.3-70b-versatile, llama-3.1-8b-instant and
-        // qwen/qwen3.6-27b.
+        // Groq's structured-outputs documentation lists exactly the gpt-oss
+        // models as schema-capable (verified 2026-08-17).
+        //
+        // This is now a statement about the *pairing* rather than about every
+        // pin, because the vision model is deliberately not schema-capable and
+        // is asked in JSON object mode instead. A model pinned to a lane whose
+        // structured mode it cannot serve is a guaranteed 400 on every request.
         const SCHEMA_CAPABLE = ['openai/gpt-oss-20b', 'openai/gpt-oss-120b'];
+
         for (const [capability, model] of Object.entries(groq.defaultModels)) {
-            expect(SCHEMA_CAPABLE).toContain(model);
-            expect(capability).toBeTruthy();
+            const mode = resolveStructuredMode(groq, capability);
+            if (mode === STRUCTURED_MODE.GROQ_RESPONSES_SCHEMA) {
+                expect(SCHEMA_CAPABLE).toContain(model);
+            } else {
+                expect(mode).toBe(STRUCTURED_MODE.GROQ_RESPONSES_JSON_OBJECT);
+                expect(SCHEMA_CAPABLE).not.toContain(model);
+            }
         }
     });
 
@@ -244,12 +382,36 @@ describe('Groq model pins — verified against the live API', () => {
         for (const dead of WITHDRAWN) expect(pinned).not.toContain(dead);
     });
 
-    it('no longer claims vision, because it has no vision model', () => {
-        expect(groq.supportsVision).toBe(false);
-        expect(groq.capabilities).not.toContain(CAPABILITIES.VISION);
-        expect(groq.capabilities).not.toContain(CAPABILITIES.MULTI_IMAGE);
-        // Structured JSON is still Groq's job and is verified working.
+    it('claims vision again, on a model that exists and in a mode it supports', () => {
+        // Vision was withdrawn on 2026-08-03 when Groq retired both llama-4
+        // vision models, and that was right at the time. Groq's catalogue then
+        // moved on: `qwen/qwen3.6-27b` is multimodal and is Groq's own
+        // recommended replacement for Scout (verified 2026-08-17).
+        //
+        // Two things have to hold together for this to be more than a flag.
+        expect(groq.supportsVision).toBe(true);
+        expect(groq.capabilities).toContain(CAPABILITIES.VISION);
+        expect(groq.capabilities).toContain(CAPABILITIES.MULTI_IMAGE);
         expect(groq.capabilities).toContain(CAPABILITIES.STRUCTURED_JSON);
+
+        // 1. The image lanes resolve the multimodal model.
+        expect(resolveModel(groq, CAPABILITIES.VISION, {})).toBe('qwen/qwen3.6-27b');
+        expect(resolveModel(groq, CAPABILITIES.MULTI_IMAGE, {})).toBe('qwen/qwen3.6-27b');
+
+        // 2. Those lanes ask in the only mode that model accepts. Getting this
+        //    wrong is a 400 on every CDL photograph, not a degraded answer.
+        expect(resolveStructuredMode(groq, CAPABILITIES.VISION))
+            .toBe(STRUCTURED_MODE.GROQ_RESPONSES_JSON_OBJECT);
+        expect(resolveStructuredMode(groq, CAPABILITIES.STRUCTURED_JSON))
+            .toBe(STRUCTURED_MODE.GROQ_RESPONSES_SCHEMA);
+    });
+
+    it('declares the vendor image cap so the router does not spend a request learning it', () => {
+        // Groq accepts at most five images per request and answers a sixth with
+        // a 400. E-Doc caps itself at five pages, so the two agree today — the
+        // registry states it so the router enforces it rather than trusting
+        // that they always will.
+        expect(groq.maxImages).toBe(5);
     });
 
     it('declares a model for every capability it claims', () => {
@@ -404,13 +566,21 @@ describe('Gemini adapter', () => {
         expect(result.text).toBe('legacy shape');
     });
 
-    it('refuses an image that is not a base64 data URL', async () => {
+    it('refuses an image that is not a base64 data URL, without ending the whole task', async () => {
         const fetchImpl = fetchReturning(GEMINI_TEXT_RESPONSE);
 
+        // The router now validates every image data URL once, before the walk
+        // begins, so this branch is a backstop rather than the gate.
+        //
+        // The category matters. `invalid_request` is task-fatal, so raising it
+        // from inside an adapter aborted the entire nine-provider walk on one
+        // adapter's opinion of an image — a vendor-specific complaint that
+        // stopped vendors who were never asked. `provider_request_rejected`
+        // ends Gemini's turn and lets the next provider try.
         await expect(getAdapter(getProvider('gemini')).execute(contextFor('gemini', {
             fetchImpl,
             images: [{ dataUrl: 'https://example.com/photo.png' }],
-        }))).rejects.toMatchObject({ category: 'invalid_request' });
+        }))).rejects.toMatchObject({ category: 'provider_request_rejected' });
     });
 });
 

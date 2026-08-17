@@ -289,3 +289,67 @@ export const MobileViewport = {
   globals: { viewport: { value: 'safehaulMobile' } },
   args: { density: 'compact' },
 };
+
+/**
+ * A status column carrying a badge **and** trailing detail text.
+ *
+ * This is the shape that keeps breaking, and the reason it gets its own story:
+ * `Badge` is `white-space: nowrap`, so a column holding one must be at least as
+ * wide as the widest badge *plus* whatever sits beside it. Sizing from the
+ * common case is what put a Delete button on screen as "Dele" on a real phone,
+ * and what spilled a "Structured JSON output" badge over its neighbour.
+ *
+ * `check:table-layout` measures the catalog in a real browser at 412px and
+ * 1440px, and jsdom cannot measure overflow at all — so a shape only becomes
+ * covered once it appears here. Diagnostic tables in the application render
+ * exactly this arrangement.
+ */
+export const BadgeWithTrailingDetail = {
+  args: {
+    density: 'compact',
+    columns: [
+      {
+        key: 'moment',
+        header: 'Moment',
+        rowHeader: true,
+        width: 'md',
+        render: (row) => row.reference,
+      },
+      {
+        key: 'state',
+        header: 'State',
+        // `xl`, not `md`: the badge plus the longest trailing phrase is far
+        // wider than the badge alone.
+        width: 'xl',
+        render: (row) => (
+          <span style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 'var(--ds-space-2)' }}>
+            <Badge tone={row.tone}>{row.status}</Badge>
+            <span style={{ color: 'var(--ds-color-content-secondary)', fontSize: 'var(--ds-font-size-xs)' }}>
+              after 2 retries via a secondary route
+            </span>
+          </span>
+        ),
+      },
+      {
+        key: 'owner',
+        header: 'Handled by',
+        width: 'md',
+        truncate: true,
+        render: (row) => row.owner ?? NOT_PROVIDED,
+      },
+      {
+        key: 'elapsed',
+        header: 'Elapsed',
+        align: 'end',
+        width: 'sm',
+        render: (row) => `${row.items}ms`,
+      },
+    ],
+  },
+};
+
+/** The same arrangement at mobile width, where the badge column competes hardest. */
+export const BadgeWithTrailingDetailMobile = {
+  ...BadgeWithTrailingDetail,
+  globals: { viewport: { value: 'safehaulMobile' } },
+};

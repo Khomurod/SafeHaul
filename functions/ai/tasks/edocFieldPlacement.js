@@ -92,6 +92,13 @@ function buildPageLegend(pages) {
 }
 
 /**
+ * Ceiling for the whole E-Doc request, across every fallback. Exported so
+ * `edocFieldPlacement.test.js` can assert it stays below the callable's
+ * `FUNCTION_TIMEOUT_SECONDS`.
+ */
+const EDOC_TOTAL_DEADLINE_MS = 100000;
+
+/**
  * @param {object} params
  * @param {Array<{ pageNumber: number, imageDataUrl: string }>} params.pages
  * @param {object} [deps]
@@ -111,6 +118,12 @@ async function analyzeDocumentPages({ pages }, deps = {}) {
         temperature: 0,
         maxOutputTokens: 4000,
         privacy: PRIVACY.RESTRICTED,
+        // Must stay below `analyzeEdocFieldPlacement`'s 120s function timeout.
+        // The router's 120s default matched it exactly, leaving zero margin for
+        // the callable to map the failure or for telemetry to be written — so
+        // the deadline and the function death raced, and the function usually
+        // won. See the same note on the CDL task.
+        totalDeadlineMs: EDOC_TOTAL_DEADLINE_MS,
     });
 
     const result = await runAiTask(task, deps);
@@ -126,6 +139,7 @@ async function analyzeDocumentPages({ pages }, deps = {}) {
 
 module.exports = {
     analyzeDocumentPages,
+    EDOC_TOTAL_DEADLINE_MS,
     FIELD_PLACEMENT_JSON_SCHEMA,
     FIELD_PLACEMENT_PROMPT,
     buildPageLegend,
