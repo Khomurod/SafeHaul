@@ -116,6 +116,53 @@ test.describe('Super Admin AI Integrations', () => {
     expect(body).not.toMatch(/Bearer\s+\S/);
   });
 
+  test('splits Providers and Logs into a keyboard-operable tablist', async ({ page }) => {
+    await openAi(page);
+
+    const tablist = page.getByRole('tablist', { name: 'AI Integrations sections' });
+    await expect(tablist).toBeVisible();
+
+    const providers = page.getByRole('tab', { name: 'Providers' });
+    const logs = page.getByRole('tab', { name: 'Logs' });
+    await expect(providers).toHaveAttribute('aria-selected', 'true');
+
+    // Roving focus: a tablist must answer arrow keys, not only clicks. jsdom
+    // cannot prove this — focus and key handling are browser behaviour.
+    await providers.focus();
+    await page.keyboard.press('ArrowRight');
+    await expect(logs).toHaveAttribute('aria-selected', 'true');
+    await expect(logs).toBeFocused();
+  });
+
+  test('offers the log filters an operator actually reaches for', async ({ page }) => {
+    await openAi(page);
+    await page.getByRole('tab', { name: 'Logs' }).click();
+
+    for (const label of ['All', 'Errors', 'CDL', 'E-Docs', 'Articles']) {
+      await expect(page.getByRole('button', { name: label, exact: true })).toBeVisible();
+    }
+    await expect(page.getByRole('combobox', { name: 'Provider' })).toBeVisible();
+    await expect(page.getByLabel('From')).toBeVisible();
+  });
+
+  for (const { width, height, label } of WIDTHS) {
+    test(`shows the logs table without horizontal overflow at ${label}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height });
+      await openAi(page);
+      await page.getByRole('tab', { name: 'Logs' }).click();
+      await expect(page.getByRole('tab', { name: 'Logs' })).toHaveAttribute('aria-selected', 'true');
+      await expectNoHorizontalOverflow(page, `AI Logs @ ${label}`);
+    });
+  }
+
+  test('@a11y the Logs tab has no serious or critical axe violations', async ({ page }) => {
+    await openAi(page);
+    await page.getByRole('tab', { name: 'Logs' }).click();
+    const results = await new AxeBuilder({ page }).analyze();
+    const blocking = results.violations.filter((violation) => ['serious', 'critical'].includes(violation.impact));
+    expect(blocking.map((violation) => `${violation.id}: ${violation.help}`)).toEqual([]);
+  });
+
   test('is operable by keyboard from the navigation', async ({ page }) => {
     await page.goto(SUPER_ADMIN_URL);
     await expect(page.getByRole('heading', { name: 'Super Admin', level: 1 })).toBeVisible({ timeout: 20_000 });
