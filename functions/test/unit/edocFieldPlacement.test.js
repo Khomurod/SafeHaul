@@ -8,9 +8,13 @@
 
 jest.mock('firebase-functions/v2/https', () => {
   class HttpsError extends Error {
-    constructor(code, message) {
+    constructor(code, message, details) {
       super(message);
       this.code = code;
+      // The real HttpsError carries `details` to the client, and the callable
+      // uses it to say *which* precondition failed. A mock that dropped it would
+      // let that distinction be deleted without a test noticing.
+      this.details = details;
     }
   }
   return { HttpsError, onCall: (_opts, fn) => fn };
@@ -385,6 +389,24 @@ describe('provider failures', () => {
     await expect(callWith({ companyId: 'c1', scanId: 's1', pages: onePage() })).rejects.toMatchObject({
       code: 'failed-precondition',
     });
+  });
+
+  /**
+   * Both faults are a `failed-precondition`, but only one is fixed by
+   * configuring something. Telling a recruiter the server is unconfigured when
+   * the credential is present and merely unreadable sends them somewhere they
+   * cannot help, so the category travels in `details` for the client to read.
+   */
+  it('distinguishes an unreadable credential from an unconfigured server', async () => {
+    mockAnalyzeDocumentPages.mockRejectedValue(new AiError('credential_error', 'unreadable'));
+
+    const thrown = await callWith({ companyId: 'c1', scanId: 's1', pages: onePage() })
+      .catch((err) => err);
+
+    expect(thrown.code).toBe('failed-precondition');
+    expect(thrown.message).toMatch(/temporarily unavailable/i);
+    expect(thrown.message).not.toMatch(/not configured/i);
+    expect(thrown.details).toMatchObject({ category: 'credential_error' });
   });
 
   it('maps a network failure to unavailable', async () => {

@@ -74,6 +74,19 @@ function toHttpsError(category) {
                 "failed-precondition",
                 "AI auto-fill is not configured on the server.",
             );
+        // Deliberately *not* the string above, even though both are a
+        // `failed-precondition`. `useCdlAutoFill` shows this message verbatim to
+        // the driver, and "not configured on the server" is both wrong and
+        // useless to them when the real fault is that the runtime cannot read a
+        // credential that exists. They need to know the photo was fine and what
+        // to do next; the operator learns the actual cause from the category in
+        // telemetry and from AI Integrations.
+        case "credential_error":
+            return new functions.https.HttpsError(
+                "failed-precondition",
+                "AI auto-fill is temporarily unavailable. Please enter your licence details manually.",
+                { category },
+            );
         case "timeout":
         case "network":
         case "deadline_exceeded":

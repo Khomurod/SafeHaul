@@ -815,6 +815,86 @@ describe('HTTP failure classification', () => {
         expect(error.category).toBe('quota_exceeded');
     });
 
+    /**
+     * The word search used to run BEFORE the status mapping, for any status at
+     * or above 400. `bodyMarkers` are words — `quota`, `rate limit`,
+     * `insufficient` — and vendors put them in errors that have nothing to do
+     * with an allowance. Each of those was relabelled `quota_exceeded`, which
+     * earned a 30-minute cooldown and told the operator to go and buy capacity
+     * for what was actually a request-shape or credential bug.
+     *
+     * This is the mechanism that manufactured a false quota diagnosis, so these
+     * four cases pin the ordering rather than the wording.
+     */
+    it('does not call a rejected request a quota problem because the body says "quota"', async () => {
+        const error = await failWith(400, '{"error":{"message":"Invalid request. See quota docs at example.com"}}');
+
+        expect(error.category).toBe('provider_request_rejected');
+    });
+
+    it('does not call a refused credential a quota problem because the body says "insufficient"', async () => {
+        const error = await failWith(401, '{"error":{"message":"insufficient permissions for this key"}}');
+
+        expect(error.category).toBe('unauthorized');
+    });
+
+    it('does not call a retired model a quota problem because the body says "rate limit"', async () => {
+        const error = await failWith(404, 'model not found; see rate limit documentation');
+
+        expect(error.category).toBe('model_unavailable');
+    });
+
+    it('still trusts the vendor word search on a status it cannot read specifically', async () => {
+        // 402 has no SafeHaul-specific meaning, so the vendor's own wording is
+        // the best evidence available and the marker search still runs.
+        const fetchImpl = async () => ({
+            ok: false, status: 402, text: async () => 'insufficient credits', json: async () => ({}),
+        });
+        const error = await getAdapter(getProvider('mistral'))
+            .execute(contextFor('mistral', { fetchImpl }))
+            .catch((err) => err);
+
+        expect(error.category).toBe('quota_exceeded');
+    });
+
+    /**
+     * Measured live on 2026-08-18: the Gemini free tier allows 20 requests per
+     * minute and states the wait in the error BODY, not a header —
+     * "Please retry in 44.26781542s". Nothing read that sentence, so a
+     * 45-second cap earned the flat 30-minute quota cooldown and removed the
+     * highest-priority provider from every lane.
+     */
+    it('reads a stated wait out of the error body, not only the headers', async () => {
+        const body = JSON.stringify({
+            error: {
+                message: 'You exceeded your current quota. \n* Quota exceeded for metric:'
+                    + ' generativelanguage.googleapis.com/generate_content_free_tier_requests,'
+                    + ' limit: 20, model: gemini-3.6-flash\nPlease retry in 44.26781542s.',
+                code: 'too_many_requests',
+            },
+        });
+        const error = await failWith(429, body);
+
+        expect(error.category).toBe('rate_limited');
+        // Rounded up from 44.26781542s. Uncapped, because it sizes a cooldown
+        // rather than holding this request open.
+        expect(error.retryAfterHintMs).toBe(44268);
+    });
+
+    it('takes a duration from the body and never a phrase', async () => {
+        const { readStatedRetryMs } = require('../../ai/providers/http');
+        const noHeaders = { headers: { get: () => null } };
+
+        expect(readStatedRetryMs(noHeaders, 'Please retry in 44.26781542s.')).toBe(44268);
+        expect(readStatedRetryMs(noHeaders, 'retry after 30 seconds')).toBe(30000);
+        expect(readStatedRetryMs(noHeaders, 'try again in 2 minutes')).toBe(120000);
+        expect(readStatedRetryMs(noHeaders, 'try again in 500ms')).toBe(500);
+        // Nothing that is not a duration, and nothing absurd.
+        expect(readStatedRetryMs(noHeaders, 'retry when the licence for John Doe is readable')).toBeNull();
+        expect(readStatedRetryMs(noHeaders, 'please retry in 400 hours')).toBeNull();
+        expect(readStatedRetryMs(noHeaders, '')).toBeNull();
+    });
+
     it('never carries the provider error body forward', async () => {
         const error = await failWith(500, 'Error processing document for John Doe of 123 Main St');
 

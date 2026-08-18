@@ -33,7 +33,7 @@
  */
 
 const { PROVIDERS, supportsAllCapabilities, resolveModel, isRetired } = require('../registry/providers');
-const { CAPABILITIES, normalizeCapabilities } = require('../registry/capabilities');
+const { CAPABILITIES, normalizeCapabilities, laneForCapability } = require('../registry/capabilities');
 const { getAdapter } = require('../providers');
 const { AiError, isTaskFatal } = require('./errors');
 const { orderProviders, readProviderOrder } = require('./order');
@@ -108,7 +108,10 @@ async function evaluateProvider(provider, { capabilities, primaryCapability, con
     const config = configs.get(provider.id) || { enabled: true };
     if (config.enabled === false) return { eligible: false, reason: SKIP_REASONS.DISABLED };
 
-    const cooldown = store.cooldownState(config, now);
+    // Lane-scoped, so a cooldown earned by rejected document images cannot
+    // remove this provider from the text lane. A quota cooldown is still
+    // provider-wide, because a spent vendor allowance is an account fact.
+    const cooldown = store.cooldownState(config, now, laneForCapability(primaryCapability));
     if (cooldown.active) {
         return { eligible: false, reason: SKIP_REASONS.COOLDOWN, cooldown };
     }
@@ -121,6 +124,14 @@ async function evaluateProvider(provider, { capabilities, primaryCapability, con
     if (missingConfig) return { eligible: false, reason: SKIP_REASONS.UNCONFIGURED };
 
     const credentials = await store.resolveCredentials(provider.id, deps);
+    // A credential that could not be *read* is an infrastructure fault, not an
+    // absent credential, and the two need opposite operator actions. The store
+    // now reports which it was, so this no longer depends on an exception
+    // reaching `safeEvaluateProvider` to tell the difference — though that catch
+    // remains, because a store implementation is still allowed to throw.
+    if (Array.isArray(credentials.unreadable) && credentials.unreadable.length > 0) {
+        return { eligible: false, reason: SKIP_REASONS.CREDENTIAL_ERROR };
+    }
     if (!credentials.complete) return { eligible: false, reason: SKIP_REASONS.UNCONFIGURED };
 
     const model = resolveModel(provider, primaryCapability, config);
@@ -465,7 +476,14 @@ async function runAiTask(task, deps = {}) {
                         providerId: provider.id,
                     });
 
-                    await store.recordProviderOutcome(provider.id, { success: true });
+                    await store.recordProviderOutcome(provider.id, {
+                        success: true,
+                        // Per lane: a working article generator says nothing about
+                        // whether this provider can read a licence photograph, and
+                        // recording it as though it did is what let a provider show
+                        // as healthy while every CDL request to it was rejected.
+                        lane: laneForCapability(primaryCapability),
+                    });
                     const latencyMs = Date.now() - startedAt;
                     noteAttempt({
                         providerId: provider.id,
@@ -564,6 +582,14 @@ async function runAiTask(task, deps = {}) {
                 await store.recordProviderOutcome(provider.id, {
                     success: false,
                     category: providerError.category,
+                    // Which lane failed. A rejected CDL photograph must not count
+                    // against the provider's article writing, and must not cool
+                    // it out of that lane.
+                    lane: laneForCapability(primaryCapability),
+                    // The vendor's own statement of how long it is unavailable
+                    // for, so a per-minute cap costs a minute rather than the
+                    // flat half hour a spent daily allowance deserves.
+                    retryAfterHintMs: providerError.retryAfterHintMs,
                 });
             }
         }
@@ -629,6 +655,28 @@ function buildTerminalFailure({ attempted, skipped, lastError, failures = [] }) 
     // not be read, so pointing an operator at credentials would waste their time.
     if (skipped.length > 0 && skipped.every((entry) => entry.reason === SKIP_REASONS.CONFIG_UNAVAILABLE)) {
         return new AiError('not_configured', 'Provider configuration could not be read.');
+    }
+
+    // A credential SafeHaul could not read outranks every other skip reason,
+    // because it is the only one an operator can fix and the only one that is
+    // *our* fault. Before this branch existed the walk fell through to
+    // `not_configured`, which `cdlParser.js` renders as "AI auto-fill is not
+    // configured on the server." — shown verbatim to a driver mid-application,
+    // while the credentials sat correctly in Secret Manager and the runtime
+    // simply lacked `secretAccessor`. That one line is the reported symptom this
+    // whole stage exists to remove.
+    //
+    // `some`, not `every`: a vision task legitimately skips the text-only
+    // providers as `incapable`, so requiring every skip to be a credential error
+    // would never fire on the exact path that reported it.
+    if (skipped.some((entry) => entry.reason === SKIP_REASONS.CREDENTIAL_ERROR)) {
+        const affected = skipped
+            .filter((entry) => entry.reason === SKIP_REASONS.CREDENTIAL_ERROR)
+            .map((entry) => entry.providerId)
+            .join(', ');
+        return new AiError('credential_error',
+            `Credentials unreadable for ${affected || 'every eligible provider'};`
+            + ' check Secret Manager access for the Functions runtime.');
     }
 
     const onlyIncapable = skipped.length > 0

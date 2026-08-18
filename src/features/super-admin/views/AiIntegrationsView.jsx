@@ -21,6 +21,7 @@ import {
     isReauthCancelled,
     ReauthCancelledError,
     isReauthRequired,
+    diagnoseAiCredentialAccess,
     diagnoseAiModelPins,
     listAiProviders,
     listMediaProviders,
@@ -41,7 +42,12 @@ import { AiRoutingOrderCard } from '../components/ai/AiRoutingOrderCard';
 import { AiCredentialModal } from '../components/ai/AiCredentialModal';
 import { AiCredentialDeleteDialog } from '../components/ai/AiCredentialDeleteDialog';
 import { AiLogsPanel } from '../components/ai/AiLogsPanel';
-import { describePinStatus, describeProbe } from '../components/ai/aiTelemetryPresentation';
+import {
+    describeCategory,
+    describePinStatus,
+    describeProbe,
+    describeProbeDetail,
+} from '../components/ai/aiTelemetryPresentation';
 import { ReauthenticateModal } from '../components/environment/ReauthenticateModal';
 
 /**
@@ -98,6 +104,8 @@ export function AiIntegrationsView() {
     const [testResults, setTestResults] = useState({});
     const [pinDiagnosis, setPinDiagnosis] = useState(null);
     const [diagnosingPins, setDiagnosingPins] = useState(false);
+    const [credentialAccess, setCredentialAccess] = useState(null);
+    const [checkingCredentialAccess, setCheckingCredentialAccess] = useState(false);
     const tabRefs = useRef({});
     const tabsId = useId();
 
@@ -303,6 +311,42 @@ export function AiIntegrationsView() {
      * is made with it, so a vendor retiring a model is invisible to CI. Six pins
      * had rotted this way before anyone noticed.
      */
+    /**
+     * Asks both Functions generations whether they can read the credentials.
+     *
+     * The check that turns an invisible IAM gap into a sentence. AI credentials
+     * are read at runtime, so nothing grants the runtime service account access
+     * automatically — and this console can *create* a secret it is then unable to
+     * read, because writing and reading need different permissions.
+     */
+    const handleCheckCredentialAccess = useCallback(async () => {
+        setCheckingCredentialAccess(true);
+        showInfo('Checking credential access from both Functions generations…');
+        try {
+            const result = await diagnoseAiCredentialAccess();
+            setCredentialAccess(result);
+            const refused = result.generations
+                .filter((entry) => entry.ok)
+                .reduce((total, entry) => total + entry.report.unreadableCount, 0);
+            const ran = result.generations.filter((entry) => entry.ok).length;
+            if (ran === 0) {
+                showError('Neither generation could run the check.');
+            } else if (refused > 0) {
+                showError(`${refused} credential(s) could not be read. See the grant named below.`);
+            } else if (ran < result.generations.length) {
+                // Half an answer is not an all-clear: the generation that failed
+                // to answer is the one most likely to be misconfigured.
+                showInfo('One generation reported all credentials readable; the other could not be checked.');
+            } else {
+                showSuccess('Both Functions generations can read every stored credential.');
+            }
+        } catch (error) {
+            showError(describeAiError(error, 'Could not check credential access.'));
+        } finally {
+            setCheckingCredentialAccess(false);
+        }
+    }, [showError, showInfo, showSuccess]);
+
     const handleDiagnosePins = useCallback(async () => {
         setDiagnosingPins(true);
         showInfo('Checking model pins against each vendor…');
@@ -451,12 +495,14 @@ export function AiIntegrationsView() {
             priority: 'tertiary',
             width: 'sm',
             render: (provider) => {
-                const probes = testResults[provider.id] || [];
-                // Probe results are shown as soon as the test returns, without
-                // waiting for `lastTest` to come back from the server on the
-                // next load. Gating on `lastTest` meant a freshly-run test
-                // rendered nothing until a refresh landed — which is precisely
-                // the moment an operator is looking at the row.
+                // In-session results first, then the stored ones. Both matter:
+                // the first because a freshly-run test must render immediately,
+                // the second because a reload is when an operator comes back to
+                // look — and the breakdown used to exist only in memory, so the
+                // row degraded to a bare "Failed" the moment the page refreshed.
+                const probes = testResults[provider.id]?.length
+                    ? testResults[provider.id]
+                    : (provider.lastTest?.capabilities || []);
                 if (!provider.lastTest && probes.length === 0) {
                     return <span className="text-ds-xs text-ds-content-secondary">Never tested</span>;
                 }
@@ -467,21 +513,33 @@ export function AiIntegrationsView() {
                                 <Badge tone={provider.lastTest.success ? 'success' : 'danger'}>
                                     {provider.lastTest.success ? 'Passed' : 'Failed'}
                                 </Badge>
+                                {/* The category was returned and never rendered,
+                                    so every unsuccessful test looked identical. */}
+                                {!provider.lastTest.success && provider.lastTest.category && (
+                                    <span className="text-ds-xs text-ds-content-secondary">
+                                        {describeCategory(provider.lastTest.category)}
+                                    </span>
+                                )}
                                 <span className="text-ds-xs text-ds-content-secondary">
                                     {provider.lastTest.at ? new Date(provider.lastTest.at).toLocaleString() : ''}
                                 </span>
                             </>
                         )}
-                        {/* Per-capability results from the most recent test in
-                            this session. A provider that answers text but not
-                            structured JSON now says so on the row rather than
-                            reporting a single misleading verdict. */}
+                        {/* Per-capability results. A provider that answers text
+                            but not structured JSON says so on the row rather
+                            than reporting a single misleading verdict — and each
+                            line carries the vendor's own status and code, which
+                            is what turns "Failed" into something actionable. */}
                         {probes.filter((probe) => probe.status !== 'skipped').map((probe) => {
                             const state = describeProbe(probe);
+                            const detail = describeProbeDetail(probe);
                             return (
-                                <span key={probe.id} className="flex items-center gap-ds-1 text-ds-xs">
+                                <span key={probe.id} className="flex flex-wrap items-center gap-ds-1 text-ds-xs">
                                     <Badge tone={state.tone}>{state.label}</Badge>
                                     <span className="text-ds-content-secondary">{probe.label}</span>
+                                    {detail && (
+                                        <span className="text-ds-content-secondary">{detail}</span>
+                                    )}
                                 </span>
                             );
                         })}
@@ -807,6 +865,83 @@ export function AiIntegrationsView() {
                             );
                         })}
                     </ul>
+                )}
+            </Card>
+
+            {/* Credential access, asked of BOTH Functions generations.
+                Not one: 1st generation functions default to the App Engine
+                service account and 2nd generation ones to the Compute Engine
+                account, and AI credentials are read at runtime so access depends
+                entirely on a manual Secret Manager grant. A grant made to one
+                account fixes some AI entry points and leaves others refused,
+                which from the outside reads as "AI works sometimes". CDL
+                auto-fill is 1st generation; this console, the E-Doc assistant and
+                the blog scheduler are 2nd. One answer proves nothing. */}
+            <Card padding="md">
+                <div className="flex flex-wrap items-center justify-between gap-ds-2">
+                    <div>
+                        <h3 className="text-ds-sm font-semibold text-ds-content">Credential access</h3>
+                        <p className="mt-1 text-ds-sm text-ds-content-secondary">
+                            Asks each Functions generation whether it can actually read the stored
+                            credentials, and names the service account being refused. The two
+                            generations use different accounts, so both are checked.
+                        </p>
+                    </div>
+                    <Button
+                        variant="secondary"
+                        size="sm"
+                        loading={checkingCredentialAccess}
+                        onClick={handleCheckCredentialAccess}
+                    >
+                        Check credential access
+                    </Button>
+                </div>
+
+                {credentialAccess && (
+                    <Stack gap="sm" className="mt-ds-3">
+                        {credentialAccess.generations.map((entry) => (
+                            <div key={entry.generation} className="text-ds-sm">
+                                <div className="flex flex-wrap items-center gap-ds-2">
+                                    <span className="font-semibold text-ds-content">
+                                        {entry.generation === 'v1' ? '1st generation' : '2nd generation'}
+                                    </span>
+                                    {entry.ok ? (
+                                        <Badge tone={entry.report.unreadableCount > 0 ? 'danger' : 'success'}>
+                                            {entry.report.unreadableCount > 0
+                                                ? `${entry.report.unreadableCount} unreadable`
+                                                : 'All readable'}
+                                        </Badge>
+                                    ) : (
+                                        <Badge tone="warning">Check did not run</Badge>
+                                    )}
+                                </div>
+                                <p className="mt-1 text-ds-xs text-ds-content-secondary">
+                                    {entry.ok ? entry.report.summary : entry.error}
+                                </p>
+                                {entry.ok && entry.report.runtime.serviceAccount && (
+                                    <p className="mt-1 text-ds-xs text-ds-content-secondary">
+                                        Running as {entry.report.runtime.serviceAccount}
+                                    </p>
+                                )}
+                                {entry.ok && (
+                                    <ul className="mt-1 space-y-ds-1">
+                                        {entry.report.providers
+                                            .flatMap((row) => row.secrets
+                                                .filter((secret) => !secret.readable)
+                                                .map((secret) => ({ ...secret, displayName: row.displayName })))
+                                            .map((secret) => (
+                                                <li
+                                                    key={`${entry.generation}-${secret.secretId}`}
+                                                    className="text-ds-xs text-ds-content-secondary"
+                                                >
+                                                    {secret.displayName}: {secret.secretId} — {secret.reason}
+                                                </li>
+                                            ))}
+                                    </ul>
+                                )}
+                            </div>
+                        ))}
+                    </Stack>
                 )}
             </Card>
 

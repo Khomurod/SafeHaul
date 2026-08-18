@@ -82,6 +82,9 @@ const CATEGORY_LABELS = Object.freeze({
     schema_validation_failed: 'Failed SafeHaul validation',
     unauthorized: 'Credential rejected',
     not_configured: 'Not configured',
+    // Deliberately not "Not configured". The credential is present and this
+    // runtime cannot read it, which is an IAM fault rather than a missing key.
+    credential_error: 'Credential unreadable',
     invalid_request: 'Invalid SafeHaul request',
     capability_unavailable: 'No capable provider',
     deadline_exceeded: 'Deadline reached',
@@ -142,9 +145,66 @@ export function describeProbe(probe) {
             return { tone: 'success', label: 'Passed' };
         case 'failed':
             return { tone: 'danger', label: 'Failed' };
+        case 'rate_limited':
+            // The vendor throttled the check, so the capability was never
+            // tested. Reporting that as a failure is how two working vision
+            // providers came to be shown as broken: a free tier's per-minute
+            // budget is small enough that the connection test can spend it on
+            // itself.
+            return { tone: 'warning', label: 'Throttled' };
+        case 'inconclusive':
+            return { tone: 'warning', label: 'Not verified' };
+        case 'not_run':
+            // Distinct from `skipped`. "We ran out of time" and "this provider
+            // does not offer it" are different facts, and folding the first into
+            // the second reads as an all-clear for something nobody checked.
+            return { tone: 'warning', label: 'Not run' };
         default:
             // Not offered is not a failure, and must not read as one.
             return { tone: 'neutral', label: 'Not offered' };
+    }
+}
+
+/**
+ * The vendor's own account of a probe failure, in one short line.
+ *
+ * `httpStatus` and `vendorCode` were captured server-side and then dropped
+ * before they reached this screen, which is why every unsuccessful capability
+ * read simply "Failed". The difference between `404 model_not_found` and `429`
+ * is the difference between repinning a model and waiting a minute, and an
+ * operator could not see it.
+ *
+ * Both are safe by construction: a status is a number, and the code was
+ * positively validated against a short single-token pattern before it was ever
+ * allowed to leave the server — a vendor's error *message* never is.
+ */
+export function describeProbeDetail(probe) {
+    const parts = [];
+    if (Number.isInteger(probe?.httpStatus)) parts.push(`HTTP ${probe.httpStatus}`);
+    if (probe?.vendorCode) parts.push(probe.vendorCode);
+    if (parts.length === 0 && probe?.category) parts.push(describeCategory(probe.category));
+    return parts.join(' · ');
+}
+
+/**
+ * A provider's health in one lane.
+ *
+ * Two lanes rather than one badge, because a provider's text and image lanes
+ * reach different models on different entitlements and fail independently. A
+ * single scalar let a successful article quietly turn the badge green again while
+ * every CDL photograph the same provider was handed was being rejected.
+ */
+export function describeLaneHealth(state) {
+    switch (state) {
+        case 'healthy':
+            return { tone: 'success', label: 'Working' };
+        case 'degraded':
+            return { tone: 'danger', label: 'Failing' };
+        case 'quota':
+            return { tone: 'warning', label: 'Quota' };
+        default:
+            // Never exercised is not the same as working.
+            return { tone: 'neutral', label: 'Not seen yet' };
     }
 }
 
@@ -169,6 +229,8 @@ export function describePinStatus(entry) {
             return { tone: 'neutral', label: 'No catalogue to check' };
         case 'unconfigured':
             return { tone: 'neutral', label: 'Not configured' };
+        case 'credential_error':
+            return { tone: 'danger', label: 'Credential unreadable' };
         case 'retired':
             return { tone: 'neutral', label: 'Retired' };
         default:

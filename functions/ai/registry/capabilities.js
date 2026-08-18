@@ -49,6 +49,48 @@ const CAPABILITY_LABELS = Object.freeze({
     [CAPABILITIES.ARTICLE_WRITING]: 'Article writing',
 });
 
+/**
+ * The two routing lanes, and the reason health has to be tracked per lane.
+ *
+ * Every SafeHaul AI task is one of two shapes: text-and-structured-output, or a
+ * document image. They reach different models, in different request shapes, on
+ * different vendor entitlements — so they fail independently, and a single
+ * provider-wide health scalar cannot describe both.
+ *
+ * It described neither. `recordProviderOutcome` set `health: 'healthy'` on any
+ * success and `'degraded'` on any failure, so a blog article generating
+ * normally flipped a provider back to healthy while every CDL photograph it was
+ * handed was being rejected — exactly the "status looks healthy while important
+ * capabilities are failing" the console was reported for. And because the
+ * failure counter was shared, three rejected images put the provider into a
+ * cooldown that removed it from the *text* lane too.
+ */
+const LANES = Object.freeze({ TEXT: 'text', VISION: 'vision' });
+
+const ALL_LANES = Object.freeze(Object.values(LANES));
+
+const LANE_LABELS = Object.freeze({
+    [LANES.TEXT]: 'Text and structured output',
+    [LANES.VISION]: 'Document images',
+});
+
+/**
+ * Which lane a capability belongs to.
+ *
+ * Image capabilities decide the lane because they decide the model: a task
+ * needing an image must run on the vision model even though it also needs
+ * structured JSON.
+ */
+function laneForCapability(capability) {
+    return capability === CAPABILITIES.VISION || capability === CAPABILITIES.MULTI_IMAGE
+        ? LANES.VISION
+        : LANES.TEXT;
+}
+
+function isLane(value) {
+    return value === LANES.TEXT || value === LANES.VISION;
+}
+
 function isCapability(value) {
     return typeof value === 'string' && CAPABILITY_SET.has(value);
 }
@@ -79,6 +121,11 @@ module.exports = {
     CAPABILITIES,
     ALL_CAPABILITIES,
     CAPABILITY_LABELS,
+    LANES,
+    ALL_LANES,
+    LANE_LABELS,
+    laneForCapability,
+    isLane,
     isCapability,
     normalizeCapabilities,
 };

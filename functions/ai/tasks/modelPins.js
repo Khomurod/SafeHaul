@@ -124,8 +124,25 @@ async function checkProvider(provider, { fetchImpl = fetch, deps = {} } = {}) {
         };
     }
 
-    const config = await store.readConfig(provider.id);
-    const credentials = await store.resolveCredentials(provider.id, deps);
+    // Both reads sat outside the try below, so an infrastructure fault on one
+    // provider failed the whole diagnosis as a generic `internal` — a check whose
+    // purpose is to name a specific fault reporting nothing specific at all.
+    // Now the fault is reported against the provider it belongs to and the other
+    // vendors are still checked.
+    let config;
+    let credentials;
+    try {
+        config = await store.readConfig(provider.id);
+        credentials = await store.resolveCredentials(provider.id, deps);
+    } catch (error) {
+        console.error(`[ai/modelPins] Could not resolve ${provider.id}: ${error?.message || 'unknown'}`);
+        return { ...base, status: 'credential_error', pins: [] };
+    }
+    // Unreadable is a different fault from unconfigured, and only one of them is
+    // fixed by adding a credential.
+    if (Array.isArray(credentials.unreadable) && credentials.unreadable.length > 0) {
+        return { ...base, status: 'credential_error', pins: [] };
+    }
     if (!credentials.complete) {
         return { ...base, status: 'unconfigured', pins: [] };
     }

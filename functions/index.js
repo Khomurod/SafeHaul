@@ -296,6 +296,14 @@ exports.updateAiProviderConfig = aiIntegrations.updateAiProviderConfig;
 exports.testAiProvider = aiIntegrations.testAiProvider;
 exports.diagnoseAiModelPins = aiIntegrations.diagnoseAiModelPins;
 exports.migrateGroqCredential = aiIntegrations.migrateGroqCredential;
+// Credential access is diagnosed from BOTH Functions generations on purpose:
+// 1st gen defaults to the App Engine service account and 2nd gen to the Compute
+// Engine one, so a Secret Manager grant can fix some AI entry points and not
+// others. One answer proves nothing; the pair is the diagnosis. See
+// functions/ai/callablesV1.js.
+exports.diagnoseAiCredentialAccess = aiIntegrations.diagnoseAiCredentialAccess;
+const aiIntegrationsV1 = require('./ai/callablesV1');
+exports.diagnoseAiCredentialAccessV1 = aiIntegrationsV1.diagnoseAiCredentialAccessV1;
 
 // 22. SafeHaul News & Insights
 // Public rendering is one onRequest handler behind Hosting rewrites, so /news,

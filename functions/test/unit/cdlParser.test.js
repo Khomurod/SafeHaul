@@ -196,6 +196,46 @@ describe('parseCdlWithGroq', () => {
     )).rejects.toMatchObject({ code: 'failed-precondition' });
   });
 
+  /**
+   * `useCdlAutoFill` shows this message verbatim to the applicant, so the
+   * wording is the product. "AI auto-fill is not configured on the server."
+   * reached real drivers mid-application while nine providers sat correctly
+   * configured in Secret Manager and the runtime simply lacked
+   * `secretAccessor` — it is both wrong and useless to the person reading it.
+   */
+  it('tells a driver what to do when SafeHaul cannot read its own credentials', async () => {
+    const error = new Error('unreadable');
+    error.category = 'credential_error';
+    mockExtractCdlFields.mockRejectedValue(error);
+
+    const thrown = await parseCdlWithGroq(
+      { companyId: 'co1', imageDataUrl: 'data:image/png;base64,AAAA' },
+      GUEST_CONTEXT,
+    ).catch((err) => err);
+
+    expect(thrown.code).toBe('failed-precondition');
+    expect(thrown.message).toMatch(/temporarily unavailable/i);
+    expect(thrown.message).toMatch(/manually/i);
+    // Not the old sentence, and nothing about credentials, vendors or IAM: the
+    // operator learns the cause from the category in telemetry and the console.
+    expect(thrown.message).not.toMatch(/not configured/i);
+    expect(thrown.message).not.toMatch(/credential|secret|permission/i);
+  });
+
+  it('still says "not configured" when genuinely nothing is configured', async () => {
+    const error = new Error('nothing configured');
+    error.category = 'not_configured';
+    mockExtractCdlFields.mockRejectedValue(error);
+
+    const thrown = await parseCdlWithGroq(
+      { companyId: 'co1', imageDataUrl: 'data:image/png;base64,AAAA' },
+      GUEST_CONTEXT,
+    ).catch((err) => err);
+
+    expect(thrown.code).toBe('failed-precondition');
+    expect(thrown.message).toMatch(/not configured on the server/i);
+  });
+
   it('rejects non-image payloads', async () => {
     await expect(parseCdlWithGroq(
       { companyId: 'co1', imageDataUrl: 'data:application/pdf;base64,AAAA' },

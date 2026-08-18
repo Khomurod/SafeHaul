@@ -84,8 +84,14 @@ function provider(id, displayName, priority, overrides = {}) {
         missingCredentials: [],
         missingConfig: [],
         credentialSource: 'secret-manager',
+        credentialAccess: 'ok',
+        unreadableCredentials: [],
         enabled: true,
         health: 'healthy',
+        // Per lane, because a provider's text and image lanes fail independently
+        // and one scalar could describe neither.
+        laneHealth: { text: 'healthy', vision: 'healthy' },
+        laneFailures: { text: 0, vision: 0 },
         consecutiveFailures: 0,
         cooldown: { active: false, until: null, reason: null },
         lastTest: null,
@@ -247,6 +253,29 @@ function stubCallables(overrides = {}) {
     });
     callables.diagnoseAiModelPins = vi.fn().mockResolvedValue({
         data: { providers: [], stalePins: 0 },
+    });
+    // Both generations, because that is the whole point of the check: 1st and
+    // 2nd generation functions default to different service accounts, so a
+    // Secret Manager grant can fix one AI entry point and leave another refused.
+    callables.diagnoseAiCredentialAccess = vi.fn().mockResolvedValue({
+        data: {
+            generation: 'v2',
+            runtime: { serviceAccount: 'proj-number-compute@developer.gserviceaccount.com', source: 'metadata' },
+            providers: [],
+            unreadableCount: 0,
+            permissionDeniedCount: 0,
+            summary: 'Every configured AI credential is readable by this runtime.',
+        },
+    });
+    callables.diagnoseAiCredentialAccessV1 = vi.fn().mockResolvedValue({
+        data: {
+            generation: 'v1',
+            runtime: { serviceAccount: 'proj@appspot.gserviceaccount.com', source: 'metadata' },
+            providers: [],
+            unreadableCount: 0,
+            permissionDeniedCount: 0,
+            summary: 'Every configured AI credential is readable by this runtime.',
+        },
     });
     Object.assign(callables, overrides);
 }
@@ -1265,6 +1294,289 @@ describe('Providers and Logs tabs', () => {
         expect(markup).not.toContain(REAL_SECRET);
         expect(markup).not.toMatch(/data:image/);
         expect(markup).not.toMatch(/base64/);
+    });
+});
+
+/**
+ * The console has to be truthful about *why* a provider is not working, because
+ * the operator's next action differs completely between the cases — and two of
+ * them used to render identically.
+ */
+describe('an unreadable credential is not a missing one', () => {
+    it('says the credential exists and cannot be read, not "Needs API key"', async () => {
+        stubCallables({
+            listAiProviders: vi.fn().mockResolvedValue({
+                data: {
+                    providers: PROVIDERS.map((row) => (row.id === 'gemini'
+                        ? {
+                            ...row,
+                            configured: false,
+                            credentialAccess: 'unreadable',
+                            unreadableCredentials: ['apiKey'],
+                            missingCredentials: [],
+                            health: 'credential_error',
+                        }
+                        : row)),
+                    routing: routingFor(PROVIDERS),
+                    telemetry: [],
+                    generatedAt: '2026-08-02T12:00:00Z',
+                },
+            }),
+        });
+
+        await renderView();
+
+        // Named in both the configuration table and the routing-order list, which
+        // is the point: the page used to contradict itself about this provider.
+        expect(screen.getAllByText('Credential unreadable').length).toBeGreaterThan(0);
+        expect(screen.getAllByText(/cannot read it/i).length).toBeGreaterThan(0);
+
+        // And the wrong sentence must be gone *for this provider*, not merely
+        // supplemented — it is what sent operators to re-enter a working key.
+        // Cerebras is genuinely unconfigured in the fixture and must keep saying
+        // so, which is exactly the distinction being asserted.
+        const geminiRow = screen.getAllByRole('row')
+            .find((row) => row.textContent.includes('Google Gemini'));
+        expect(geminiRow.textContent).not.toContain('Needs API key');
+        const cerebrasRow = screen.getAllByRole('row')
+            .find((row) => row.textContent.includes('Cerebras'));
+        expect(cerebrasRow.textContent).toContain('Needs API key');
+    });
+
+    it('marks a provider still working only because of the legacy binding', async () => {
+        stubCallables({
+            listAiProviders: vi.fn().mockResolvedValue({
+                data: {
+                    providers: PROVIDERS.map((row) => (row.id === 'groq'
+                        ? { ...row, credentialSource: 'legacy-env-after-read-failure' }
+                        : row)),
+                    routing: routingFor(PROVIDERS),
+                    telemetry: [],
+                    generatedAt: '2026-08-02T12:00:00Z',
+                },
+            }),
+        });
+
+        await renderView();
+
+        expect(screen.getByText(/managed\s+credential could not be read/i)).toBeTruthy();
+    });
+});
+
+describe('per-lane health', () => {
+    it('shows a broken image lane even when the text lane is working', async () => {
+        stubCallables({
+            listAiProviders: vi.fn().mockResolvedValue({
+                data: {
+                    providers: PROVIDERS.map((row) => (row.id === 'gemini'
+                        ? {
+                            ...row,
+                            laneHealth: { text: 'healthy', vision: 'degraded' },
+                            laneFailures: { text: 0, vision: 3 },
+                        }
+                        : row)),
+                    routing: routingFor(PROVIDERS),
+                    telemetry: [],
+                    generatedAt: '2026-08-02T12:00:00Z',
+                },
+            }),
+        });
+
+        await renderView();
+
+        // The state a single badge could not express: articles fine, document
+        // images broken. A successful article used to turn the whole row green.
+        expect(screen.getAllByText('Failing').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Working').length).toBeGreaterThan(0);
+    });
+});
+
+describe('what a failed capability says', () => {
+    it('names the vendor status and code rather than only "Failed"', async () => {
+        stubCallables({
+            testAiProvider: vi.fn().mockResolvedValue({
+                data: {
+                    success: false,
+                    message: '1 of 2 capabilities failed: Single-image vision.',
+                    model: 'model-a',
+                    latencyMs: 300,
+                    capabilities: [
+                        { id: 'text', label: 'Basic text', status: 'passed', message: 'Passed.' },
+                        {
+                            id: 'vision_single',
+                            label: 'Single-image vision',
+                            status: 'failed',
+                            category: 'model_unavailable',
+                            httpStatus: 404,
+                            vendorCode: 'model_not_found',
+                            message: 'The configured AI model is not available.',
+                        },
+                    ],
+                },
+            }),
+        });
+        await renderView();
+
+        fireEvent.click(screen.getAllByRole('button', { name: /Test connection/i })[0]);
+
+        // "HTTP 404 · model_not_found" is the difference between repinning a
+        // model and suspecting the vendor. Both facts were captured server-side
+        // and then dropped before they reached this screen.
+        await waitFor(() => expect(screen.getByText(/HTTP 404/)).toBeTruthy());
+        expect(screen.getByText(/model_not_found/)).toBeTruthy();
+    });
+
+    it('reports a throttled probe as throttled, not as a broken capability', async () => {
+        stubCallables({
+            testAiProvider: vi.fn().mockResolvedValue({
+                data: {
+                    success: false,
+                    message: 'Not verified: Single-image vision. The vendor throttled the check rather than refusing the capability.',
+                    model: 'model-a',
+                    latencyMs: 300,
+                    capabilities: [
+                        { id: 'text', label: 'Basic text', status: 'passed', message: 'Passed.' },
+                        {
+                            id: 'vision_single',
+                            label: 'Single-image vision',
+                            status: 'rate_limited',
+                            category: 'rate_limited',
+                            httpStatus: 429,
+                            message: 'The vendor throttled this check, so the capability was not tested.',
+                        },
+                    ],
+                },
+            }),
+        });
+        await renderView();
+
+        fireEvent.click(screen.getAllByRole('button', { name: /Test connection/i })[0]);
+
+        await waitFor(() => expect(screen.getByText('Throttled')).toBeTruthy());
+        // It must not read as a failure: a free tier's per-minute budget is small
+        // enough that the connection test can spend it on itself, and calling
+        // that "this provider cannot read images" is how working vision
+        // providers were reported as broken.
+        expect(screen.queryByText('Failed')).toBeNull();
+    });
+
+    it('keeps the breakdown after a reload, from the stored result', async () => {
+        stubCallables({
+            listAiProviders: vi.fn().mockResolvedValue({
+                data: {
+                    providers: PROVIDERS.map((row) => (row.id === 'groq'
+                        ? {
+                            ...row,
+                            lastTest: {
+                                at: '2026-08-18T10:00:00Z',
+                                success: false,
+                                category: 'provider_request_rejected',
+                                capabilities: [
+                                    { id: 'text', label: 'Basic text', status: 'passed', message: 'Passed.' },
+                                    {
+                                        id: 'vision_single',
+                                        label: 'Single-image vision',
+                                        status: 'failed',
+                                        category: 'provider_request_rejected',
+                                        httpStatus: 400,
+                                        vendorCode: 'invalid_request_error',
+                                        message: 'The AI service rejected the request SafeHaul sent.',
+                                    },
+                                ],
+                            },
+                        }
+                        : row)),
+                    routing: routingFor(PROVIDERS),
+                    telemetry: [],
+                    generatedAt: '2026-08-02T12:00:00Z',
+                },
+            }),
+        });
+
+        await renderView();
+
+        // Without persistence this row showed a bare "Failed" after any reload —
+        // which is when an operator comes back to look.
+        expect(screen.getByText(/HTTP 400/)).toBeTruthy();
+        expect(screen.getByText('Request rejected by vendor')).toBeTruthy();
+    });
+});
+
+describe('credential access check', () => {
+    it('asks both Functions generations and names the account each runs as', async () => {
+        stubCallables();
+        await renderView();
+
+        fireEvent.click(screen.getByRole('button', { name: /Check credential access/i }));
+
+        await waitFor(() => expect(screen.getByText(/1st generation/)).toBeTruthy());
+        expect(screen.getByText(/2nd generation/)).toBeTruthy();
+        // The two accounts are the diagnosis: a grant made to one leaves the
+        // other refused, and nothing in the product could show that before.
+        expect(screen.getByText(/proj@appspot\.gserviceaccount\.com/)).toBeTruthy();
+        expect(screen.getByText(/proj-number-compute@developer\.gserviceaccount\.com/)).toBeTruthy();
+    });
+
+    it('names the refused secret and the grant to make', async () => {
+        stubCallables({
+            diagnoseAiCredentialAccessV1: vi.fn().mockResolvedValue({
+                data: {
+                    generation: 'v1',
+                    runtime: { serviceAccount: 'proj@appspot.gserviceaccount.com', source: 'metadata' },
+                    providers: [{
+                        providerId: 'gemini',
+                        displayName: 'Google Gemini',
+                        retired: false,
+                        legacyBinding: false,
+                        secrets: [{
+                            field: 'apiKey',
+                            label: 'API key',
+                            secretId: 'SAFEHAUL_AI_GEMINI_APIKEY',
+                            exists: null,
+                            readable: false,
+                            reason: 'permission_denied',
+                        }],
+                    }],
+                    unreadableCount: 1,
+                    permissionDeniedCount: 1,
+                    summary: '1 credential(s) refused for proj@appspot.gserviceaccount.com.'
+                        + ' Grant roles/secretmanager.secretAccessor on the named secrets to that account.',
+                },
+            }),
+        });
+        await renderView();
+
+        fireEvent.click(screen.getByRole('button', { name: /Check credential access/i }));
+
+        await waitFor(() => expect(screen.getByText(/SAFEHAUL_AI_GEMINI_APIKEY/)).toBeTruthy());
+        expect(screen.getByText(/permission_denied/)).toBeTruthy();
+        expect(screen.getByText(/secretmanager\.secretAccessor/)).toBeTruthy();
+    });
+
+    it('still reports one generation when the other cannot be checked', async () => {
+        stubCallables({
+            diagnoseAiCredentialAccessV1: vi.fn().mockRejectedValue(
+                Object.assign(new Error('nope'), { code: 'functions/internal' }),
+            ),
+        });
+        await renderView();
+
+        fireEvent.click(screen.getByRole('button', { name: /Check credential access/i }));
+
+        // A diagnosis that needs both halves to succeed is useless in exactly
+        // the situation it exists for.
+        await waitFor(() => expect(screen.getByText('Check did not run')).toBeTruthy());
+        expect(screen.getByText(/2nd generation/)).toBeTruthy();
+    });
+
+    it('never renders a credential value in the report', async () => {
+        stubCallables();
+        await renderView();
+
+        fireEvent.click(screen.getByRole('button', { name: /Check credential access/i }));
+        await waitFor(() => expect(screen.getByText(/1st generation/)).toBeTruthy());
+
+        expect(document.body.innerHTML).not.toContain(REAL_SECRET);
     });
 });
 
