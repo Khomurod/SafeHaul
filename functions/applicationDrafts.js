@@ -295,18 +295,33 @@ exports.saveApplicationProgress = functions
                 phone,
             });
             if (!authorizedBy) {
-                // Refusals get their own tight per-caller budget, and it
-                // deliberately never changes the reply: telling a caller they had
-                // exceeded a *refusal* budget would itself confirm that their
-                // earlier attempts were refusals. What it does is bound the audit
-                // writes one caller can cause, so a probe loop cannot turn into
-                // unbounded writes. The first attempts are recorded, which is all a
-                // spike needs to be visible, and the save limit above already
-                // bounds how fast attempts can arrive at all.
-                const withinProbeBudget = await checkRateLimit(
+                // Refusals get their own budget, and it deliberately never changes
+                // the reply: telling a caller they had exceeded a *refusal* budget
+                // would itself confirm that their earlier attempts were refusals.
+                // What it bounds is the audit writes one caller can cause, so a
+                // probe loop cannot become unbounded writes. The first attempts are
+                // recorded, which is all a spike needs to be visible, and the save
+                // limit above already bounds how fast attempts can arrive.
+                //
+                // Per identity as well as per caller, following the match limiter:
+                // otherwise spreading attempts across addresses spreads the budget
+                // with them. Its own key, not the match budget, because sharing that
+                // one would let a stranger's refused writes exhaust the budget the
+                // real applicant needs to find their own draft. Keyed on the HMAC
+                // prefix, so the limiter never holds a name or an SSN either.
+                const budgets = [checkRateLimit(
                     `draft_write_denied_${clientIp(context)}`,
                     LIMITS.match.limit, LIMITS.match.windowSeconds, 'closed',
-                );
+                )];
+                if (identityKey) {
+                    budgets.push(checkRateLimit(
+                        `draft_write_denied_id_${identityKey.slice(0, 32)}`,
+                        LIMITS.matchPerIdentity.limit,
+                        LIMITS.matchPerIdentity.windowSeconds,
+                        'closed',
+                    ));
+                }
+                const withinProbeBudget = (await Promise.all(budgets)).every(Boolean);
                 if (withinProbeBudget) {
                     await recordMatchAttempt(companyId, 'unauthorized_write', 'draft_write_refused');
                 }

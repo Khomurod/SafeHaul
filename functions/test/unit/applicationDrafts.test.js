@@ -348,6 +348,15 @@ describe('changing a draft that already exists', () => {
         const stored = mockStore.get(`companies/${COMPANY}/application_drafts/${keyFor()}`);
         expect(stored.formData.cdlNumber).toBe('REAL');
 
+        // A refusal spends a budget. This caller supplied no identity facts at all,
+        // so only the per-caller one applies — there is no identity to charge, and
+        // charging the *target's* would let a stranger spend the budget of the person
+        // they are attacking. The per-identity half is covered below.
+        const refusalKeys = mockCheckRateLimit.mock.calls
+            .map(([key]) => key)
+            .filter((key) => key.startsWith('draft_write_denied'));
+        expect(refusalKeys).toEqual([`draft_write_denied_${CONTEXT.rawRequest.ip}`]);
+
         // Audited under its own action — a refused write is a different operational
         // signal from a resume lookup, and must not inflate the lookup count. Still
         // value-free: no name, no contact detail, no identity hash.
@@ -361,6 +370,68 @@ describe('changing a draft that already exists', () => {
         expect(auditText).not.toContain(IDENTITY.email);
         expect(auditText).not.toContain('123456789');
         expect(auditText).not.toContain(IDENTITY.lastName);
+    });
+
+    it('charges the identity too when a refused caller supplies one', async () => {
+        // The other refusal shape: right email and phone (so the same document id),
+        // but identity facts that are not this draft's. Spreading that across
+        // addresses must not spread the budget with it.
+        await saveFirstPage({ formData: { firstName: 'Dana', cdlNumber: 'REAL' } });
+        mockCheckRateLimit.mockClear();
+
+        const attempt = await drafts.saveApplicationProgress({
+            companyId: COMPANY,
+            email: IDENTITY.email,
+            phone: IDENTITY.phone,
+            lastName: 'Nguyen',
+            dob: '1990-07-04',
+            ssn: '987-65-4321',
+            formData: { firstName: 'Attacker' },
+        }, CONTEXT);
+
+        expect(attempt.saved).toBe(false);
+        const refusalKeys = mockCheckRateLimit.mock.calls
+            .map(([key]) => key)
+            .filter((key) => key.startsWith('draft_write_denied'));
+        expect(refusalKeys).toHaveLength(2);
+        expect(refusalKeys.some((key) => key.startsWith('draft_write_denied_id_'))).toBe(true);
+        // Its own key, never the match budget the real applicant needs to find
+        // their draft.
+        expect(refusalKeys.some((key) => key.startsWith('draft_match_id_'))).toBe(false);
+        // Keyed on the HMAC prefix, so the limiter holds no name, contact detail or
+        // SSN of either party.
+        const keyText = refusalKeys.join(' ');
+        expect(keyText).not.toContain('987654321');
+        expect(keyText).not.toContain('123456789');
+        expect(keyText).not.toContain('Nguyen');
+        expect(keyText).not.toContain(IDENTITY.lastName);
+        expect(keyText).not.toContain(IDENTITY.email);
+
+        expect(mockStore.get(`companies/${COMPANY}/application_drafts/${keyFor()}`).formData.cdlNumber)
+            .toBe('REAL');
+    });
+
+    it('records nothing more once the refusal budget is spent', async () => {
+        // The reply is deliberately identical either way — saying "you exceeded the
+        // refusal budget" would confirm that the earlier attempts were refusals.
+        // What the budget bounds is the audit writes one caller can cause.
+        await saveFirstPage({ formData: { firstName: 'Dana', cdlNumber: 'REAL' } });
+        const auditBefore = [...mockStore.keys()].filter((key) => key.includes('application_draft_audit')).length;
+        mockCheckRateLimit.mockImplementation(async (key) => !String(key).startsWith('draft_write_denied'));
+
+        const attempt = await drafts.saveApplicationProgress({
+            companyId: COMPANY,
+            email: IDENTITY.email,
+            phone: IDENTITY.phone,
+            formData: { firstName: 'Attacker' },
+        }, CONTEXT);
+
+        expect(attempt.saved).toBe(false);
+        expect(attempt.resumeToken).toBeNull();
+        expect([...mockStore.keys()].filter((key) => key.includes('application_draft_audit')).length)
+            .toBe(auditBefore);
+        expect(mockStore.get(`companies/${COMPANY}/application_drafts/${keyFor()}`).formData.cdlNumber)
+            .toBe('REAL');
     });
 
     it('accepts the browser that holds the draft\'s resume token', async () => {

@@ -932,6 +932,64 @@ describe('reconciling the local and server drafts', () => {
     expect(saveProgressSpy.mock.calls[0][0].resumeToken).toBe('resume-token-1');
   });
 
+  it('keeps an edit typed during the server fetch marked as unsynchronised', async () => {
+    // The server fetch is a round trip, and an applicant can type through it. The
+    // reconciler overlays that edit onto the result, so recording the whole merged
+    // body as synced would claim the server holds an edit it has never seen — and
+    // closing the tab there would hand the older server value back on the next
+    // load, which is the silent loss this whole mechanism exists to prevent.
+    seedLocal({ data: { phone: '5551234' }, localSeq: 4, syncedSeq: 4 });
+    let releaseServer;
+    resumeDraftSpy.mockImplementation(() => new Promise((resolve) => {
+      releaseServer = () => resolve({
+        data: {
+          restored: true,
+          draft: {
+            applicantKey: 'key-1',
+            formData: { phone: '5551234' },
+            lastStep: 2,
+            lastSemanticStep: 'license',
+            clientSeq: 9,
+          },
+        },
+      });
+    }));
+
+    renderHandler();
+    await screen.findByText('probe-edit');
+    // Typed while the fetch is still outstanding.
+    fireEvent.click(screen.getByText('probe-edit'));
+    releaseServer();
+
+    await waitFor(() => {
+      const stored = JSON.parse(localStorage.getItem('draft_acme'));
+      expect(stored.data.phone).toBe('5559999');
+      // Owed to the server, not clean.
+      expect(stored.meta.localSeq).toBeGreaterThan(stored.meta.syncedSeq);
+      // ...and the synced position still names the server's own sequence, so a
+      // later genuine advance from another device is still recognised.
+      expect(stored.meta.syncedSeq).toBe(9);
+    });
+  });
+
+  it('records a server-won copy as clean when it holds nothing extra', async () => {
+    // The other direction: with no session edit and nothing local-only, the merged
+    // body *is* the server's body, so it must be recorded as synced — otherwise the
+    // next navigation writes server content out as unacknowledged local work.
+    seedLocal({ data: { phone: '5551234' }, localSeq: 4, syncedSeq: 4 });
+    serverReturns({ formData: { phone: '5551234' }, clientSeq: 9 });
+
+    renderHandler();
+    await screen.findByText('probe-next');
+    await waitFor(() => expect(resumeDraftSpy).toHaveBeenCalled());
+
+    await waitFor(() => {
+      const stored = JSON.parse(localStorage.getItem('draft_acme'));
+      expect(stored.meta.localSeq).toBe(9);
+      expect(stored.meta.syncedSeq).toBe(9);
+    });
+  });
+
   it('adopts a newly minted token, so a corrected email does not orphan the browser', async () => {
     // The server mints a token only for a draft it just created. An applicant who
     // corrects their email therefore writes a *new* draft and gets a new token,

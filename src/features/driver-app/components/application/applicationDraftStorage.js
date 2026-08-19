@@ -59,16 +59,23 @@ function fingerprint(value) {
 /**
  * Whether two draft bodies are the same answers.
  *
+ * Exported because the reconciliation write site needs the same question answered:
+ * a merged body that carries anything the server does not have must be recorded as
+ * unsynchronised, and "carries anything more" is this comparison.
+ *
  * Unserializable on either side counts as **changed**, never as unchanged: the
  * cost of a false "changed" is one redundant save, and the cost of a false
  * "unchanged" is dropping a dirty marker and letting an older server copy win.
  */
-function sameData(a, b) {
+export function sameDraftData(a, b) {
   const left = fingerprint(a);
   const right = fingerprint(b);
   if (left === null || right === null) return false;
   return left === right;
 }
+
+/** Internal alias, so the reasoning above reads the way it always has. */
+const sameData = sameDraftData;
 
 function stripSensitive(formData) {
   const { ssn: _ssn, signature: _signature, ...rest } = formData || {};

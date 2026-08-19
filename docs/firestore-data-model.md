@@ -182,9 +182,10 @@ email and phone to overwrite an existing draft, and anyone holding their name, d
 of birth and SSN digits to have it superseded. A save that would modify an existing
 document now requires either the `resumeTokenHash` match for this device or the full
 `identityKey`; superseding *other* drafts additionally requires a token that
-resolves to the same identity. An unauthorized attempt consumes the identity
-rate-limit budget, is audited as `draft_write_refused` / `unauthorized_write`, and returns the same
-`{ saved: false }` shape a network failure returns, so the refusal does not confirm
+resolves to the same identity. An unauthorized attempt consumes a refusal budget kept
+per caller and per identity (its own keys, so it cannot exhaust the budget the real
+applicant needs), is audited as `draft_write_refused` / `unauthorized_write`, and
+returns the same `{ saved: false }` shape a network failure returns, so the refusal does not confirm
 the document exists.
 
 **At most one live draft per (company, identity).** A returning applicant who

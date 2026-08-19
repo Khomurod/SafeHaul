@@ -19,6 +19,7 @@ import {
   saveApplicationDraft,
   clearApplicationDraft,
   draftSyncState,
+  sameDraftData,
 } from './applicationDraftStorage';
 import { fetchPublicProfileBySlug } from '../../services/publicProfileService';
 import { useGuestFileUpload } from '../../hooks/useGuestFileUpload';
@@ -339,8 +340,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
       });
       if (!resolved) return;
 
-      // Write the outcome back locally when the **server** copy won, recorded as
-      // synced at the server's own sequence.
+      // Write the outcome back locally when the **server** copy won.
       //
       // Otherwise the next navigation would write that server content out as if it
       // were unacknowledged local work: the copy would read as dirty, and a further
@@ -351,11 +351,31 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
       // When *local* won the sequences are deliberately left alone — that copy
       // really does hold work the server has not seen, and is still owed a save.
       if (resolved.source === 'server') {
-        saveApplicationDraft(slug, resolved.formData, {
-          lastStep: resolved.stepIndex,
-          localSeq: Number.isInteger(restored.clientSeq) ? restored.clientSeq : undefined,
-          synced: true,
-        });
+        // Synced only if the merged body really is the server's body. The reconciler
+        // overlays anything typed since page load, and the server fetch is a round
+        // trip an applicant can type through — so marking the whole merged body
+        // synced would claim the server holds an edit it has never seen. Close the
+        // tab there and the next load, finding a clean local copy, would hand back
+        // the older server value: the silent loss this mechanism exists to prevent,
+        // through a two-second window.
+        //
+        // Keys only the local copy has count the same way, for the same reason.
+        const serverSeq = Number.isInteger(restored.clientSeq) ? restored.clientSeq : null;
+        const holdsMoreThanServer = !sameDraftData(resolved.formData, restored.formData);
+        saveApplicationDraft(slug, resolved.formData, holdsMoreThanServer
+          // One above the server's position, with the synced position left at it:
+          // dirty, so the next navigation or reconnect sends it, while a later
+          // genuine server advance is still recognised by `clientSeq !== syncedSeq`.
+          ? {
+            lastStep: resolved.stepIndex,
+            localSeq: (serverSeq ?? 0) + 1,
+            syncedSeq: serverSeq ?? 0,
+          }
+          : {
+            lastStep: resolved.stepIndex,
+            localSeq: serverSeq ?? undefined,
+            synced: true,
+          });
       }
 
       // `resolved.formData` already carries anything typed since load, so it goes
