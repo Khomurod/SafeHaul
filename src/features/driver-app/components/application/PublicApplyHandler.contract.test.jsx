@@ -16,6 +16,12 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
 const showSuccess = vi.fn();
 const showError = vi.fn();
+// `showInfo` was missing here, and the omission was not harmless: the start-over
+// path calls it, so the real component threw an unhandled TypeError inside a test
+// that still reported green. The mock now matches `ToastProvider`'s actual
+// contract.
+const showInfo = vi.fn();
+const showWarning = vi.fn();
 const navigateSpy = vi.fn();
 
 const callableSpy = vi.fn();
@@ -33,11 +39,11 @@ vi.mock('@/context/DataContext', () => ({
 }));
 
 vi.mock('@shared/components/feedback/ToastProvider', () => ({
-  useToast: () => ({ showSuccess, showError }),
+  useToast: () => ({ showSuccess, showError, showInfo, showWarning }),
 }));
 
 vi.mock('@shared/components/feedback', () => ({
-  useToast: () => ({ showSuccess, showError }),
+  useToast: () => ({ showSuccess, showError, showInfo, showWarning }),
 }));
 
 vi.mock('@lib/firebase', () => ({ db: {}, functions: {}, storage: {} }));
@@ -637,6 +643,67 @@ describe('continuing an existing application', () => {
     expect(JSON.parse(localStorage.getItem('draft_acme')).cdlNumber).toBe('D9988776');
   });
 
+  it('writes nothing to the server while the resume question is unanswered', async () => {
+    findResumableSpy.mockResolvedValue({ data: MATCH });
+    await openAndAdvance();
+    await screen.findByRole('dialog');
+
+    // The load-bearing ordering. A save racing the lookup is how the draft the
+    // applicant came back for gets lost: it overwrites `lastStep` with page one
+    // when the email matches, and the server's at-most-one-draft rule hard-deletes
+    // the older draft when it does not.
+    expect(saveProgressSpy).not.toHaveBeenCalled();
+  });
+
+  it('does not overwrite the restored draft with what was typed before it', async () => {
+    findResumableSpy.mockResolvedValue({ data: MATCH });
+    resumeDraftSpy.mockResolvedValue({
+      data: {
+        restored: true,
+        draft: {
+          applicantKey: 'key-9',
+          formData: { firstName: 'Ada', cdlNumber: 'D9988776' },
+          lastStep: 2,
+          lastSemanticStep: 'license',
+        },
+      },
+    });
+    await openAndAdvance();
+    const dialog = await screen.findByRole('dialog');
+
+    fireEvent.click(within(dialog).getByRole('button', { name: /Continue where I left off/i }));
+    await waitFor(() => expect(screen.getByTestId('current-step').textContent).toBe('2'));
+
+    // The queued payload predates the restore and holds page one. Sending it
+    // would put the applicant back at the start of the draft they just reopened.
+    expect(saveProgressSpy).not.toHaveBeenCalled();
+
+    // The next forward step saves normally, from the restored answers.
+    fireEvent.click(screen.getByText('probe-next'));
+    await waitFor(() => expect(saveProgressSpy).toHaveBeenCalledTimes(1));
+    expect(saveProgressSpy.mock.calls[0][0].formData.cdlNumber).toBe('D9988776');
+  });
+
+  it('saves the newest step when saves overlap', async () => {
+    findResumableSpy.mockResolvedValue({ data: { resumable: false } });
+    let release;
+    saveProgressSpy.mockImplementation(() => new Promise((resolve) => {
+      release = () => resolve({ data: { saved: true, applicantKey: 'key-1', resumeToken: null } });
+    }));
+    await openAndAdvance();
+    await waitFor(() => expect(saveProgressSpy).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(screen.getByText('probe-next'));
+    fireEvent.click(screen.getByText('probe-next'));
+    release();
+
+    // An overlapping save used to be dropped outright, which quietly lost the
+    // last step of a fast clicker — and the last step before someone abandons the
+    // form is the one worth having.
+    await waitFor(() => expect(saveProgressSpy).toHaveBeenCalledTimes(2));
+    expect(saveProgressSpy.mock.calls[1][0].lastStep).toBe(3);
+  });
+
   it('keeps the dialog open with a message when the restore fails', async () => {
     findResumableSpy.mockResolvedValue({ data: MATCH });
     resumeDraftSpy.mockRejectedValue(Object.assign(new Error('gone'), { code: 'functions/not-found' }));
@@ -712,6 +779,22 @@ describe('starting over', () => {
     // The local copy goes too, or the next reload restores what they just
     // asked to be rid of.
     await waitFor(() => expect(localStorage.getItem('draft_acme')).toBeNull());
+  });
+
+  it('saves the new application once the old one is discarded', async () => {
+    const dialog = await openPrompt();
+    fireEvent.click(within(dialog).getByRole('button', { name: /Start a new application/i }));
+    const confirm = await screen.findByRole('dialog');
+    expect(saveProgressSpy).not.toHaveBeenCalled();
+
+    fireEvent.click(within(confirm).getByRole('button', { name: /Delete it and start over/i }));
+
+    // The payload held back by the resume question is the beginning of the new
+    // application, so it is sent rather than dropped — and only after the delete,
+    // so it cannot be superseded by the draft it replaces.
+    await waitFor(() => expect(saveProgressSpy).toHaveBeenCalledTimes(1));
+    expect(startNewSpy.mock.invocationCallOrder[0])
+      .toBeLessThan(saveProgressSpy.mock.invocationCallOrder[0]);
   });
 
   it('escaping the first dialog deletes nothing', async () => {

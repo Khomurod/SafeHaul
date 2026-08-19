@@ -132,7 +132,6 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     resumeError,
     saveProgressToServer: saveDraftToServer,
     restoreFromStoredToken,
-    offerResumeIfAny,
     continueExisting,
     startOver,
   } = useApplicationResume({
@@ -356,13 +355,13 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     persistLocalDraft(nextStep);
     // Only forward: going back is not new information, and a save on every Back
     // click would spend the applicant's rate-limit budget on nothing.
+    //
+    // One call, not two. The hook runs the resume lookup itself before its first
+    // server write and holds the write until the applicant has answered the
+    // prompt — see its header for the three ways a save racing that lookup loses
+    // the draft it was supposed to protect.
     if (direction === 'next') {
       saveDraftToServer({ formData, stepIndex: nextStep });
-      // The identity a resume is matched on is collected on page one, so the
-      // first forward move is the first moment there is anything to match. Asked
-      // once per browser; a device that already holds a resume token has restored
-      // and is never asked at all.
-      offerResumeIfAny(formData);
     }
     // Scrolling is owned by `Stepper`, which focuses the new step's heading.
     // A second scroll here raced that one and made step transitions

@@ -21,4 +21,21 @@ test.describe('guest draft resume', () => {
     await page.reload();
     await expect(page.locator('#step-title')).toContainText('License', { timeout: 30_000 });
   });
+
+  test('every forward step is also saved server-side, with the step it reached', async ({ page }) => {
+    await page.goto('/apply/e2e-company');
+    await fillStep1(page, 'draft');
+    await fillStep2(page);
+
+    // Per-step drafting used to be gated behind the E2E flag, so in production
+    // nothing was written per step at all — this spec proved a mechanism that was
+    // only ever switched on for itself.
+    const saves = await page.evaluate(() => window.__e2eDraftSaves || []);
+    expect(saves.length).toBeGreaterThanOrEqual(2);
+
+    // The semantic id, not just the index, so a company whose custom-questions
+    // step is present lands a resumed applicant on the page they were on.
+    expect(saves.map((save) => save.lastSemanticStep)).toContain('license');
+    expect(saves[saves.length - 1].formData.firstName).toBe('Testdraft');
+  });
 });
