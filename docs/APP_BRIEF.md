@@ -220,6 +220,23 @@ is invisible. The feature exists because drivers on bad connections were losing
 everything they had typed, and a version of it that blocked them on a bad
 connection would be a worse bargain than not having it.
 
+**An older server draft must never overwrite newer local work.** There are two
+copies on purpose — local is the immediate backup for weak signal and failed
+saves, the server one is the persistent primary — and restoring the server copy
+used to win every field unconditionally. That destroyed the backup with the exact
+failure it exists to survive: a save fails, the driver refreshes, and yesterday's
+values come back over their edits with nothing said.
+
+Reconciliation is decided on **write sequences, never on wall-clock time**: a
+Firestore `serverTimestamp` and a phone's clock are different clocks, and phone
+clocks are routinely wrong, so comparing them would mark some drivers' local work
+permanently stale. The local copy counts its own writes and remembers which the
+server confirmed; the server stores the sequence that came with its copy. Local
+holding unacknowledged work wins; a server copy another device advanced wins;
+**the loser is always merged underneath, never discarded**, so a field only one
+side has always survives. Work typed since page load outranks both. The decision
+lives in `reconcileApplicationDraft.js`, is pure, and is covered case by case.
+
 **The resume lookup runs before the first server save.** A save racing it loses
 the very draft the feature protects: it overwrites the saved step with page one
 when the email matches, and the at-most-one-live-draft rule hard-deletes the older

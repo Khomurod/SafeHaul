@@ -15,8 +15,11 @@ test.describe('guest draft resume', () => {
       .not.toBeNull();
 
     const parsed = await page.evaluate((key) => JSON.parse(localStorage.getItem(key)), draftKey);
-    expect(parsed.firstName).toBe('Testdraft');
+    // The answers sit under `data`, beside the sync metadata that lets the local
+    // and server copies be reconciled instead of one blindly overwriting the other.
+    expect(parsed.data.firstName).toBe('Testdraft');
     expect(parsed.lastStep).toBeGreaterThanOrEqual(2);
+    expect(parsed.meta.localSeq).toBeGreaterThan(0);
 
     await page.reload();
     await expect(page.locator('#step-title')).toContainText('License', { timeout: 30_000 });

@@ -533,6 +533,53 @@ describe('starting over', () => {
  * comes back on their own, and a carrier watching people drop off at the licence
  * page still has nobody to call.
  */
+describe('the browser write counter', () => {
+    it('stores the sequence a save carried and hands it back on resume', async () => {
+        const saved = await saveFirstPage({ clientSeq: 7 });
+        const stored = mockStore.get(`companies/${COMPANY}/application_drafts/${keyFor()}`);
+        expect(stored.clientSeq).toBe(7);
+
+        const resumed = await drafts.resumeApplicationDraft({
+            companyId: COMPANY,
+            applicantKey: saved.applicantKey,
+            resumeToken: saved.resumeToken,
+        }, CONTEXT);
+
+        // The browser compares this with the sequence it believes is synced. It is
+        // the whole reason a stale server draft can no longer overwrite newer local
+        // work, and it needs no clock on either side.
+        expect(resumed.draft.clientSeq).toBe(7);
+    });
+
+    it('records null rather than a neighbour\'s number when a save omits it', async () => {
+        // A cached older browser saves without the field. Claiming the previous
+        // device's sequence would be a lie about whose copy this is, so the client
+        // is told there is none and falls back to comparing progress.
+        await saveFirstPage({ clientSeq: 7 });
+        await saveFirstPage({ lastStep: 2 });
+
+        const stored = mockStore.get(`companies/${COMPANY}/application_drafts/${keyFor()}`);
+        expect(stored.clientSeq).toBeNull();
+    });
+
+    it('bounds and rejects a counter that is not a plain integer', async () => {
+        for (const value of ['9', 1.5, -3, NaN, {}, 10 ** 9]) {
+            await saveFirstPage({ clientSeq: value });
+            const stored = mockStore.get(`companies/${COMPANY}/application_drafts/${keyFor()}`);
+            expect(stored.clientSeq === null || Number.isInteger(stored.clientSeq)).toBe(true);
+            expect(stored.clientSeq === null || stored.clientSeq <= 100000).toBe(true);
+        }
+    });
+
+    it('still stores no SSN when a sequence is supplied', async () => {
+        await saveFirstPage({ clientSeq: 3, formData: { firstName: 'Dana', ssn: '123-45-6789' } });
+
+        const stored = mockStore.get(`companies/${COMPANY}/application_drafts/${keyFor()}`);
+        expect(JSON.stringify(stored)).not.toContain('123-45-6789');
+        expect(stored.formData).not.toHaveProperty('ssn');
+    });
+});
+
 describe('what a draft refuses to store', () => {
     it('drops prototype-shaped and Firestore-reserved keys at every depth', async () => {
         const hostile = JSON.parse('{"firstName":"Dana","__proto__":{"polluted":true},"constructor":"x","__name__":"y","employer1":{"__proto__":{"deep":true},"name":"Acme"}}');

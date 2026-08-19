@@ -4,6 +4,7 @@ import {
     buildSemanticStepOrder,
     resolveWizardStepIndex,
 } from '@shared/components/layout/Stepper';
+import { markDraftSynced } from '../components/application/applicationDraftStorage';
 import {
     clearResumeToken,
     findResumableApplication,
@@ -171,7 +172,7 @@ export function useApplicationResume({ slug, companyId, sandbox, hasCustomQuesti
     }, [companyId, slug]);
 
     /** One round trip. Swallows everything: see the file header. */
-    const sendSave = useCallback(async ({ formData, stepIndex }) => {
+    const sendSave = useCallback(async ({ formData, stepIndex, localSeq }) => {
         const semanticOrder = buildSemanticStepOrder(hasCustomQuestions);
         const stored = readResumeToken(slug);
         const result = await saveApplicationProgress({
@@ -187,9 +188,21 @@ export function useApplicationResume({ slug, companyId, sandbox, hasCustomQuesti
             ssn: formData?.ssn || '',
             lastStep: stepIndex,
             lastSemanticStep: semanticOrder[stepIndex] || null,
+            // The local write counter for exactly this content. The server stores
+            // it and a later resume hands it back, which is how the browser tells
+            // "the server holds my copy" from "another device moved on" — without
+            // either side comparing a phone clock to a server one.
+            clientSeq: Number.isInteger(localSeq) ? localSeq : null,
             formData: draftPayload(formData),
         });
         if (result?.saved) ownsDraftRef.current = true;
+        if (result?.saved && Number.isInteger(localSeq)) {
+            // The only place a save is known to have landed, so the only place
+            // sync may be recorded. `markDraftSynced` refuses when the local copy
+            // has moved on since: a late save must never declare newer local work
+            // acknowledged.
+            markDraftSynced(slug, localSeq);
+        }
         if (result?.resumeToken && !stored) {
             writeResumeToken(slug, {
                 resumeToken: result.resumeToken,
@@ -256,7 +269,13 @@ export function useApplicationResume({ slug, companyId, sandbox, hasCustomQuesti
                 resumeToken: stored.resumeToken,
             });
             if (!result?.draft) return null;
-            return { formData: result.draft.formData || {}, stepIndex: stepIndexFor(result.draft) };
+            return {
+                formData: result.draft.formData || {},
+                stepIndex: stepIndexFor(result.draft),
+                // Carried through so the page can reconcile the two copies rather
+                // than assume the server holds the newer one.
+                clientSeq: Number.isInteger(result.draft.clientSeq) ? result.draft.clientSeq : null,
+            };
         } catch {
             // An expired or discarded draft. Drop the token rather than retrying
             // it on every load, and let the applicant start normally — including
@@ -291,7 +310,11 @@ export function useApplicationResume({ slug, companyId, sandbox, hasCustomQuesti
             ownsDraftRef.current = true;
             // Drops the queued save, which holds pre-restore answers.
             settleGate('discard');
-            return { formData: result.draft.formData || {}, stepIndex: stepIndexFor(result.draft) };
+            return {
+                formData: result.draft.formData || {},
+                stepIndex: stepIndexFor(result.draft),
+                clientSeq: Number.isInteger(result.draft.clientSeq) ? result.draft.clientSeq : null,
+            };
         } catch {
             // The dialog stays open with the message, because the applicant asked
             // for something specific and silently continuing without it would

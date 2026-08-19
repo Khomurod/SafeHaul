@@ -185,14 +185,21 @@ describe('the report never carries a credential', () => {
         mockSecretStore.set('SAFEHAUL_AI_GROQ_APIKEY', secret);
         process.env.GROQ_API_KEY = 'legacy-value-also-never-shown';
 
-        const serialized = JSON.stringify(await diagnoseCredentialAccess({
+        const report = await diagnoseCredentialAccess({
             client: readableClient,
             fetchImpl: metadataServing(RUNTIME_EMAIL),
-        }));
+        });
+        const serialized = JSON.stringify(report);
 
         expect(serialized).not.toContain(secret);
         expect(serialized).not.toContain('legacy-value-also-never-shown');
-        expect(serialized).not.toContain(String(secret.length));
+        // The length check excludes `checkedAt`, which is not derived from the
+        // credential. This secret is 42 characters and a clock reading of 17:42
+        // contains "42", so asserting over the whole serialized report failed for a
+        // few seconds in every minute — a real flake, and one that would have read
+        // as "a credential leaked" to whoever hit it.
+        expect(JSON.stringify({ ...report, checkedAt: null }))
+            .not.toContain(String(secret.length));
     });
 
     it('does not echo the Secret Manager error message', async () => {

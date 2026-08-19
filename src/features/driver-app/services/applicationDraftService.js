@@ -32,6 +32,9 @@ const E2E_RESUME_TOKEN = 'e2e-resume-token';
 /** Deliberately a different step and different answers from a fresh first page. */
 const E2E_RESUME_DRAFT = Object.freeze({
     applicantKey: E2E_APPLICANT_KEY,
+    // A sequence, so a restored copy can be recorded as already-synced and the
+    // reconciliation branches are reachable from a browser test.
+    clientSeq: 5,
     formData: {
         firstName: 'Restored',
         lastName: 'Driver',
@@ -50,6 +53,20 @@ function e2eDraftsEnabled() {
 
 function e2eResumeMode() {
     return e2eDraftsEnabled() ? getE2EQueryParam('e2eResume', '') : '';
+}
+
+/**
+ * Whether a browser test has asked the next progress save to fail.
+ *
+ * Settable at runtime rather than only by query parameter, because the case worth
+ * proving needs a *successful* save first and a failing one after, without a
+ * reload in between — a reload would discard the in-memory form state that makes
+ * the local copy newer than the server's.
+ */
+function e2eSaveShouldFail() {
+    if (!e2eDraftsEnabled()) return false;
+    if (getE2EQueryParam('e2eDraftSave', '') === 'fail') return true;
+    return typeof window !== 'undefined' && window.__e2eFailDraftSave === true;
 }
 
 /** Where the resume token for this device lives. One per company slug. */
@@ -102,6 +119,12 @@ export function clearResumeToken(slug) {
  * swallow it anyway, and one that forgot would block the applicant.
  */
 export async function saveApplicationProgress(payload) {
+    if (e2eDraftsEnabled() && e2eSaveShouldFail()) {
+        // The same shape a real failure produces: the client swallows it and the
+        // applicant is never blocked, so the local copy is left holding work the
+        // server has not acknowledged.
+        return { saved: false };
+    }
     if (e2eDraftsEnabled()) {
         // Recorded so a browser test can assert what the client *actually* built,
         // rather than only what a mocked callable was handed in jsdom. The SSN is

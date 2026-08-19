@@ -45,6 +45,7 @@ import * as Sentry from '@sentry/react';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 import { useApplicationResume } from '../../hooks/useApplicationResume';
 import { ResumeApplicationDialog } from './ResumeApplicationDialog';
+import { reconcileApplicationDraft } from './reconcileApplicationDraft';
 
 // Bulletproof submission imports
 import {
@@ -205,7 +206,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
           }
           const sandboxDraft = readApplicationDraft(slug);
           if (sandboxDraft) {
-            setFormData((prev) => ({ ...prev, ...sandboxDraft }));
+            setFormData((prev) => ({ ...prev, ...sandboxDraft.data }));
           }
           const recruiter = searchParams.get('r') || searchParams.get('recruiter');
           if (recruiter) {
@@ -230,7 +231,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
           }
           const e2eDraft = readApplicationDraft(slug);
           if (e2eDraft) {
-            setFormData((prev) => ({ ...prev, ...e2eDraft }));
+            setFormData((prev) => ({ ...prev, ...e2eDraft.data }));
             if (typeof e2eDraft.lastStep === 'number') {
               setCurrentStep(e2eDraft.lastStep);
             }
@@ -265,7 +266,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
         // "nothing was saved".
         const savedDraft = readApplicationDraft(slug);
         if (savedDraft) {
-          setFormData(prev => ({ ...prev, ...savedDraft }));
+          setFormData(prev => ({ ...prev, ...savedDraft.data }));
           if (typeof savedDraft.lastStep === 'number') {
             setCurrentStep(savedDraft.lastStep);
             setIntakeMode('manual');
@@ -308,7 +309,27 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     let current = true;
     restoreFromStoredToken().then((restored) => {
       if (!current || !restored) return;
-      setFormData((prev) => ({ ...prev, ...restored.formData }));
+      // This used to be `{ ...prev, ...restored.formData }`, which made the server
+      // copy win every field it held whether or not it was the newer one. That
+      // destroyed the local backup with the very failure it exists to survive: a
+      // save fails, the driver refreshes, and the older server values come back
+      // over their edits with nothing said.
+      //
+      // The local copy is re-read here rather than relied upon through `prev`, so
+      // the decision does not depend on the order two effects happen to run in.
+      // Read outside the updater: a `setFormData` updater has to stay pure,
+      // because React may invoke it more than once.
+      const localDraft = readApplicationDraft(slug);
+      setFormData((prev) => {
+        const resolved = reconcileApplicationDraft({
+          local: localDraft,
+          server: restored,
+          live: prev,
+        });
+        // `resolved.formData` already carries anything typed since load, so it
+        // goes last; `prev` still supplies the wizard's untouched defaults.
+        return resolved ? { ...prev, ...resolved.formData } : prev;
+      });
       // `Math.max`: never move an applicant *backwards* from where they already
       // are in this session.
       setCurrentStep((prev) => Math.max(prev, restored.stepIndex));
@@ -317,7 +338,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
       // Handled inside the hook. Nothing here may interrupt the apply page.
     });
     return () => { current = false; };
-  }, [company?.id, sandbox, restoreFromStoredToken]);
+  }, [company?.id, sandbox, slug, restoreFromStoredToken]);
 
   // 2. Form Handlers
   const handleUpdateFormData = (name, value) => {
@@ -341,8 +362,12 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
    * whole time.
    */
   const persistLocalDraft = useCallback((stepIndex) => {
-    if (!slug || sandbox) return;
-    saveApplicationDraft(slug, formData, { lastStep: stepIndex });
+    if (!slug || sandbox) return null;
+    // The returned sequence identifies exactly this write. It travels with the
+    // server save so that, when the save lands, only *this* content is marked
+    // synced — see `markDraftSynced`.
+    const { localSeq } = saveApplicationDraft(slug, formData, { lastStep: stepIndex });
+    return localSeq;
   }, [slug, sandbox, formData]);
 
   const handleNavigate = (direction) => {
@@ -352,7 +377,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     else if (typeof direction === 'number') nextStep = direction;
 
     setCurrentStep(nextStep);
-    persistLocalDraft(nextStep);
+    const localSeq = persistLocalDraft(nextStep);
     // Only forward: going back is not new information, and a save on every Back
     // click would spend the applicant's rate-limit budget on nothing.
     //
@@ -361,7 +386,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     // prompt — see its header for the three ways a save racing that lookup loses
     // the draft it was supposed to protect.
     if (direction === 'next') {
-      saveDraftToServer({ formData, stepIndex: nextStep });
+      saveDraftToServer({ formData, stepIndex: nextStep, localSeq });
     }
     // Scrolling is owned by `Stepper`, which focuses the new step's heading.
     // A second scroll here raced that one and made step transitions
@@ -383,7 +408,20 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     setIntakeMode('manual');
     // Written straight back to the local copy, so a reload after a restore does
     // not fall back to a staler draft than the one just loaded.
-    saveApplicationDraft(slug, { ...formData, ...restored.formData }, { lastStep: restored.stepIndex });
+    //
+    // Recorded as **already synced**: this copy *is* the server's copy. Letting it
+    // advance the sequence as an ordinary write would mark it as holding
+    // unacknowledged work, and the next page load would then prefer it over a
+    // server draft that had genuinely moved on since.
+    //
+    // `synced: true` rather than a number, because a server draft written before
+    // `clientSeq` existed has none to adopt — and it still must not be treated as
+    // unsynced local work.
+    saveApplicationDraft(slug, { ...formData, ...restored.formData }, {
+      lastStep: restored.stepIndex,
+      localSeq: Number.isInteger(restored.clientSeq) ? restored.clientSeq : undefined,
+      synced: true,
+    });
     showSuccess('Your saved application has been restored.');
   }, [slug, formData, showSuccess]);
 
@@ -417,8 +455,12 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     // `lastStep` is recorded now. It was omitted, so an explicit "Save as Draft"
     // saved the answers and forgot where the applicant was — and the restore path
     // ignored the field anyway, so they landed back on page one either way.
-    if (saveApplicationDraft(slug, formData, { lastStep: currentStep })) {
-      saveDraftToServer({ formData, stepIndex: currentStep });
+    // `.ok`, not the return value itself: this used to be a bare boolean and is
+    // now `{ ok, localSeq }`, so testing the object would make every quota
+    // failure look like a success.
+    const { ok, localSeq } = saveApplicationDraft(slug, formData, { lastStep: currentStep });
+    if (ok) {
+      saveDraftToServer({ formData, stepIndex: currentStep, localSeq });
       showSuccess("Progress saved.");
     } else {
       showError("Could not save progress locally. Your data is still here — please continue filling the form.");

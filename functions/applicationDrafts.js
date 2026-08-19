@@ -71,6 +71,15 @@ const LIMITS = Object.freeze({
     startOver: { limit: 5, windowSeconds: 300 },
 });
 
+/**
+ * Ceiling on the browser's local write counter.
+ *
+ * One draft is a handful of pages, so a legitimate counter is in the tens. The
+ * bound exists because the value arrives from an unauthenticated caller, not
+ * because a real applicant could approach it.
+ */
+const MAX_CLIENT_SEQ = 100000;
+
 const FUNCTION_TIMEOUT_SECONDS = 30;
 const runtime = { memory: '256MB', timeoutSeconds: FUNCTION_TIMEOUT_SECONDS };
 
@@ -252,6 +261,16 @@ exports.saveApplicationProgress = functions
             formData: draft.sanitizeDraftData(formData),
             lastStep: Number.isInteger(data?.lastStep) ? Math.max(0, Math.min(20, data.lastStep)) : 0,
             lastSemanticStep: text(data?.lastSemanticStep, 40) || null,
+            // The browser's write counter for the copy this save carries. Stored
+            // so a later resume can tell the browser whether the server still
+            // holds the copy *it* synced, or whether another device has advanced
+            // it since — the alternative being to compare a phone's clock with a
+            // Firestore timestamp, which is not a comparison worth trusting.
+            // Bounded like `lastStep`: it is a counter from an unauthenticated
+            // caller and nothing reads it as anything but an integer.
+            clientSeq: Number.isInteger(data?.clientSeq)
+                ? Math.max(0, Math.min(MAX_CLIENT_SEQ, data.clientSeq))
+                : null,
             status: 'in_progress',
             updatedAt: draft.serverTimestamp(),
             expiresAt: draft.expiresAt(),

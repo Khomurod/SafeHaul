@@ -191,7 +191,7 @@ value-free audit record.
 
 | Callable | Caller | Purpose |
 | --- | --- | --- |
-| `saveApplicationProgress` | [`applicationDraftService.js`](../src/features/driver-app/services/applicationDraftService.js) | Saves everything entered so far, after each successful Next. Idempotent on the deterministic applicant key. Returns a resume token on the first save only. |
+| `saveApplicationProgress` | [`applicationDraftService.js`](../src/features/driver-app/services/applicationDraftService.js) | Saves everything entered so far, after each successful Next. Idempotent on the deterministic applicant key. Returns a resume token on the first save only. Carries `clientSeq`, the browser's write counter for this exact content, which is what lets a later resume tell "the server holds my copy" from "another device advanced it". |
 | `findResumableApplication` | same | "Is there an unfinished application to continue?" Answers with a short-lived token or a **uniform no-match** — identical whether nothing exists, something exists under a different contact detail, or the applicant has already submitted. Rate-limited per caller *and* per identity. |
 | `resumeApplicationDraft` | same | Exchanges the token for the saved answers and the step to return to. The token is the authorization, so it does not re-ask the identity questions. |
 | `startNewApplication` | same | Hard-deletes the matched draft in a transaction, so there is never a window with two live drafts for one person. |
