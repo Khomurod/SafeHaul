@@ -222,8 +222,15 @@ test.describe('Super Admin Blog Posts', () => {
 
   test('offers refresh and the manual publication check', async ({ page }) => {
     await openBlog(page);
-    await expect(page.getByRole('button', { name: /Refresh/i })).toBeVisible();
+    // Exact: the run ledger below has its own "Refresh runs", and a loose
+    // /Refresh/i now matches both. A second, differently-named refresh on the
+    // page is not a regression of this assertion — it is what the assertion has
+    // to be precise enough to tolerate.
+    await expect(page.getByRole('button', { name: 'Refresh', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: /Run today’s publication check/i })).toBeVisible();
+    // And the ledger's own control, which is the read path for "generation
+    // succeeded, so where is the article?"
+    await expect(page.getByRole('button', { name: 'Refresh runs' })).toBeVisible();
   });
 
   test('announces the load failure and offers a retry when the backend is unreachable', async ({ page }) => {
