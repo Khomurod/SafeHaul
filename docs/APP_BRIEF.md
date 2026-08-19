@@ -299,10 +299,17 @@ delete it. Creating a new draft is still open. Modifying one that exists now
 requires proof of ownership: the resume token issued to the device that created it,
 or the full identity HMAC. Superseding other drafts for an identity additionally
 requires holding a token that resolves to that same identity, so identity knowledge
-alone is not a delete primitive. An unauthorized attempt spends a refusal budget kept
-per caller **and** per identity — its own, so a stranger's refused writes cannot
-exhaust the budget the real applicant needs to find their draft — is audited, and
-returns exactly what a network failure returns —
+alone is not a delete primitive. The existence check, the authorization decision and the write happen in **one
+transaction**: a standalone read followed by a later write leaves a window in which
+two first saves each mint a token and overwrite each other, or a save lands after
+Start Over and resurrects the application the applicant just discarded.
+
+An unauthorized attempt spends a refusal budget kept per caller **and per targeted
+draft** — keyed on the draft being attacked rather than on the identity the caller
+claims, because the caller supplies those facts and could vary them per request,
+and on its own key, so a stranger's refused writes cannot exhaust the budget the
+real applicant needs to find their draft. It is audited, and returns exactly what a
+network failure returns —
 `{ saved: false }` with no key and no token — so the refusal does not confirm that
 a draft exists. **Known and accepted limitation:** a caller who already holds both
 the email and the phone can still distinguish "refused" from "created" by watching

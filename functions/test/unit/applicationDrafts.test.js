@@ -47,6 +47,10 @@ jest.mock('firebase-functions/v1', () => {
 const mockStore = new Map();
 const mockDeletedPaths = [];
 let mockFailWritesOn = null;
+/** What each transaction read and wrote, so atomicity can be asserted directly. */
+const mockRunTransactionCalls = [];
+/** Draft-document writes that did NOT go through a transaction. */
+const mockNonTransactionalWrites = [];
 
 function mockServerTimestamp() {
     return { toDate: () => new Date('2026-08-18T10:00:00Z'), __ts: true };
@@ -98,6 +102,7 @@ function mockDocRef(path) {
         get: async () => mockMakeDoc(path),
         set: async (patch, options) => {
             if (mockFailWritesOn && path.includes(mockFailWritesOn)) throw new Error('firestore unavailable');
+            mockNonTransactionalWrites.push(path);
             const current = options?.merge ? (mockStore.get(path) || {}) : {};
             mockStore.set(path, { ...current, ...patch });
         },
@@ -115,10 +120,30 @@ jest.mock('../../firebaseAdmin', () => ({
     },
     db: {
         collection: (name) => mockCollectionRef(name),
-        runTransaction: async (fn) => fn({
-            get: async (ref) => mockMakeDoc(ref.path),
+        // `set` as well as `get`/`delete`, because the progress save now does its
+        // existence check, its authorization decision and its write in one
+        // transaction — a standalone read followed by a later write leaves a window
+        // in which two first saves both mint a token, or a save resurrects a draft
+        // Start Over had just deleted. Same merge semantics as the non-transactional
+        // double below, so the two cannot disagree about what a write leaves behind.
+        runTransaction: async (fn) => {
+            const record = { reads: [], writes: [] };
+            mockRunTransactionCalls.push(record);
+            return fn({
+            get: async (ref) => { record.reads.push(ref.path); return mockMakeDoc(ref.path); },
+            set: (ref, value, options) => {
+                record.writes.push(ref.path);
+                // Honours `mockFailWritesOn` like the non-transactional double, so a
+                // simulated Firestore failure still surfaces from either path.
+                if (mockFailWritesOn && ref.path.includes(mockFailWritesOn)) {
+                    throw new Error('firestore unavailable');
+                }
+                const previous = options?.merge ? (mockStore.get(ref.path) || {}) : {};
+                mockStore.set(ref.path, { ...previous, ...value });
+            },
             delete: (ref) => { mockDeletedPaths.push(ref.path); mockStore.delete(ref.path); },
-        }),
+            });
+        },
     },
 }));
 
@@ -170,6 +195,8 @@ beforeEach(() => {
     mockStore.clear();
     mockDeletedPaths.length = 0;
     mockFailWritesOn = null;
+    mockRunTransactionCalls.length = 0;
+    mockNonTransactionalWrites.length = 0;
     mockCheckRateLimit.mockResolvedValue(true);
     mockAssertIntake.mockResolvedValue({ companyName: 'Acme Freight' });
     mockAssertCompanyAccess.mockResolvedValue(undefined);
@@ -348,14 +375,18 @@ describe('changing a draft that already exists', () => {
         const stored = mockStore.get(`companies/${COMPANY}/application_drafts/${keyFor()}`);
         expect(stored.formData.cdlNumber).toBe('REAL');
 
-        // A refusal spends a budget. This caller supplied no identity facts at all,
-        // so only the per-caller one applies — there is no identity to charge, and
-        // charging the *target's* would let a stranger spend the budget of the person
-        // they are attacking. The per-identity half is covered below.
+        // A refusal spends two budgets: one per caller, one per *targeted draft*, so
+        // spreading attempts across addresses does not spread the budget with them.
+        // This caller supplied no identity facts at all, and the target budget is
+        // charged anyway — which is the point: it is keyed on the document being
+        // attacked, not on identity facts the caller chooses.
         const refusalKeys = mockCheckRateLimit.mock.calls
             .map(([key]) => key)
             .filter((key) => key.startsWith('draft_write_denied'));
-        expect(refusalKeys).toEqual([`draft_write_denied_${CONTEXT.rawRequest.ip}`]);
+        expect(refusalKeys.sort()).toEqual([
+            `draft_write_denied_${CONTEXT.rawRequest.ip}`,
+            `draft_write_denied_target_${keyFor()}`,
+        ].sort());
 
         // Audited under its own action — a refused write is a different operational
         // signal from a resume lookup, and must not inflate the lookup count. Still
@@ -372,35 +403,42 @@ describe('changing a draft that already exists', () => {
         expect(auditText).not.toContain(IDENTITY.lastName);
     });
 
-    it('charges the identity too when a refused caller supplies one', async () => {
-        // The other refusal shape: right email and phone (so the same document id),
-        // but identity facts that are not this draft's. Spreading that across
-        // addresses must not spread the budget with it.
+    it('charges the same target budget however the caller varies its identity', async () => {
+        // Why the budget is keyed on the target and not on the identity the caller
+        // claims: the caller supplies those facts, so varying or omitting the SSN
+        // would produce a fresh key on every request while every one of them still
+        // attacks the same document. Three differently-shaped refusals, one shared
+        // target budget.
         await saveFirstPage({ formData: { firstName: 'Dana', cdlNumber: 'REAL' } });
         mockCheckRateLimit.mockClear();
 
-        const attempt = await drafts.saveApplicationProgress({
-            companyId: COMPANY,
-            email: IDENTITY.email,
-            phone: IDENTITY.phone,
-            lastName: 'Nguyen',
-            dob: '1990-07-04',
-            ssn: '987-65-4321',
-            formData: { firstName: 'Attacker' },
-        }, CONTEXT);
+        const shapes = [
+            {},
+            { lastName: 'Nguyen', dob: '1990-07-04', ssn: '987-65-4321' },
+            { lastName: 'Other', dob: '1975-01-02', ssn: '555-00-1111' },
+        ];
+        for (const shape of shapes) {
+            const attempt = await drafts.saveApplicationProgress({
+                companyId: COMPANY,
+                email: IDENTITY.email,
+                phone: IDENTITY.phone,
+                ...shape,
+                formData: { firstName: 'Attacker' },
+            }, CONTEXT);
+            expect(attempt.saved).toBe(false);
+        }
 
-        expect(attempt.saved).toBe(false);
-        const refusalKeys = mockCheckRateLimit.mock.calls
+        const targetKeys = mockCheckRateLimit.mock.calls
             .map(([key]) => key)
-            .filter((key) => key.startsWith('draft_write_denied'));
-        expect(refusalKeys).toHaveLength(2);
-        expect(refusalKeys.some((key) => key.startsWith('draft_write_denied_id_'))).toBe(true);
+            .filter((key) => key.startsWith('draft_write_denied_target_'));
+        expect(targetKeys).toEqual(Array(3).fill(`draft_write_denied_target_${keyFor()}`));
+
         // Its own key, never the match budget the real applicant needs to find
-        // their draft.
-        expect(refusalKeys.some((key) => key.startsWith('draft_match_id_'))).toBe(false);
-        // Keyed on the HMAC prefix, so the limiter holds no name, contact detail or
-        // SSN of either party.
-        const keyText = refusalKeys.join(' ');
+        // their own draft.
+        const allKeys = mockCheckRateLimit.mock.calls.map(([key]) => key);
+        expect(allKeys.some((key) => key.startsWith('draft_match_id_'))).toBe(false);
+        // A hash, so the limiter holds no name, contact detail or SSN of either party.
+        const keyText = allKeys.join(' ');
         expect(keyText).not.toContain('987654321');
         expect(keyText).not.toContain('123456789');
         expect(keyText).not.toContain('Nguyen');
@@ -409,6 +447,29 @@ describe('changing a draft that already exists', () => {
 
         expect(mockStore.get(`companies/${COMPANY}/application_drafts/${keyFor()}`).formData.cdlNumber)
             .toBe('REAL');
+    });
+
+    it('checks and writes in one transaction, so nothing slips through the gap', async () => {
+        // A standalone read followed by a later write leaves a window. Two ways
+        // through it both defeat the ownership rule: two first saves can each see no
+        // document and each mint a token, and a save that read "exists, authorized"
+        // can land *after* Start Over deleted the draft, resurrecting an application
+        // the applicant had just discarded.
+        //
+        // Asserted on the transaction rather than on a contrived interleaving, which
+        // this double cannot produce: the read that decides authorization and the
+        // write it authorizes must be the same transaction's.
+        mockRunTransactionCalls.length = 0;
+
+        await saveFirstPage();
+
+        expect(mockRunTransactionCalls).toHaveLength(1);
+        const [{ reads, writes }] = mockRunTransactionCalls;
+        const draftPath = `companies/${COMPANY}/application_drafts/${keyFor()}`;
+        expect(reads).toContain(draftPath);
+        expect(writes).toContain(draftPath);
+        // And nothing else was written to that document outside a transaction.
+        expect(mockNonTransactionalWrites.filter((path) => path === draftPath)).toEqual([]);
     });
 
     it('records nothing more once the refusal budget is spent', async () => {
