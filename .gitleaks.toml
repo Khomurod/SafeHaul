@@ -10,7 +10,13 @@ paths = [
   '''\.env\.example$''',
   '''functions/\.env\.example$''',
 ]
-# One specific, known-fake literal — NOT a path or rule exemption.
+# Two narrow value exemptions — NOT path or rule exemptions.
+#
+# Every entry below has to be a value that *cannot* be a credential, and has to
+# say why. Neither exempts a file or switches a rule off, so a real secret in the
+# same file is still reported.
+#
+# ## 1. The Firebase placeholder key
 #
 # `src/lib/firebase/config.js` ships a hardcoded placeholder Firebase config so
 # local dev and E2E can boot without credentials. It points at the non-existent
@@ -21,6 +27,25 @@ paths = [
 # It needs allowlisting because gitleaks scans the *diff*: the literal has been
 # on `main` since the placeholder branch was introduced, but any commit that
 # moves the line re-adds it and trips `generic-api-key` on entropy alone.
+#
+# ## 2. A blog publication slot id — a date and a theme name
+#
+# `blog_runs` documents are keyed `{publicationDate}_{themeId}` — the same pair
+# that makes `create()` the anti-double-publish guarantee — and the field is
+# called `slotKey`. That is enough for the default `generic-api-key` rule: the
+# identifier ends in `key`, and `2026-08-02_safehaul-education` clears the
+# entropy threshold at 4.06.
+#
+# Allowlisted by *shape* rather than as two exact literals, unlike the Firebase
+# placeholder above, because entropy alone decides which values trip it: in the
+# same fixture `2026-08-02_industry-news` passes while `2026-08-02_recruitment`
+# does not, so pinning today's literals would leave the next theme name to fail
+# the build for the same non-reason. The pattern is anchored and lowercase-only,
+# so a secret has to be *exactly* a date followed by a hyphenated slug to match —
+# no credential format can be. Verified both ways against gitleaks 8.24.3, the
+# version CI pins: the two findings clear, and a key with a slot-id-shaped
+# substring embedded in it is still reported.
 regexes = [
   '''AIzaSyE2EPlaceholderKey1234567890123''',
+  '''^\d{4}-\d{2}-\d{2}_[a-z][a-z0-9-]*$''',
 ]
