@@ -93,6 +93,16 @@ vi.mock('@lib/applicationId', () => ({
   generateConfirmationNumber: vi.fn(() => 'CONF-123'),
 }));
 
+/**
+ * Per-test company overrides.
+ *
+ * Hoisted, and merged into the profile on every fetch rather than queued with
+ * `mockResolvedValueOnce`: the container may load the profile more than once for
+ * one render, and a one-shot value would then serve the default to the second
+ * call and quietly test the wrong company configuration.
+ */
+const profileOverride = vi.hoisted(() => ({ current: null }));
+
 vi.mock('../../services/publicProfileService', () => ({
   fetchPublicProfileBySlug: vi.fn(async () => ({
     id: 'company-1',
@@ -106,6 +116,7 @@ vi.mock('../../services/publicProfileService', () => ({
     postApplicationTemplates: [
       { templateId: 'tpl-1', title: 'Direct Deposit', enabled: true },
     ],
+    ...(profileOverride.current || {}),
   })),
 }));
 
@@ -129,13 +140,17 @@ vi.mock('react-router-dom', async (importOriginal) => {
 // container's submission contract, not about rendering nine steps.
 vi.mock('@shared/components/layout/Stepper', () => ({
   __esModule: true,
-  default: ({ onFinalSubmit, onPartialSubmit, onNavigate, step }) => (
+  default: ({ onFinalSubmit, onPartialSubmit, onNavigate, updateFormData, step }) => (
     <div>
       <span data-testid="current-step">{step}</span>
       <button type="button" onClick={onFinalSubmit}>probe-submit</button>
       <button type="button" onClick={onPartialSubmit}>probe-save-draft</button>
       <button type="button" onClick={() => onNavigate('next')}>probe-next</button>
       <button type="button" onClick={() => onNavigate('back')}>probe-back</button>
+      {/* The applicant typing. Needed because navigation alone must NOT mark the
+          local copy as holding unsynchronised work, so a test that means "they did
+          work" has to actually change an answer. */}
+      <button type="button" onClick={() => updateFormData('phone', '5559999')}>probe-edit</button>
     </div>
   ),
   // The real order, so a resumed step index resolves the way it does in the app.
@@ -163,6 +178,12 @@ const SIGNED_DRAFT = {
   lastName: 'Driver',
   email: 'ada@example.com',
   phone: '5555551234',
+  // A real local draft never carries this — it is stripped on write, which is why
+  // a resumed applicant has to re-enter it. These fixtures write localStorage
+  // directly to stand in for "the applicant has filled every page in this
+  // session", so the value is present here on purpose. The resumed-without-it
+  // case is covered explicitly below.
+  ssn: '123-45-6789',
   'cdl-front': UPLOADED,
   'cdl-back': UPLOADED,
   'medical-card-upload': UPLOADED,
@@ -185,6 +206,24 @@ async function renderWithCompleteDraft(overrides = {}) {
   localStorage.setItem('draft_acme', JSON.stringify({ ...SIGNED_DRAFT, ...overrides }));
   renderHandler();
   await chooseManualIntake();
+}
+
+/**
+ * Seed a draft that resumes at a later step, the way a returning applicant does.
+ *
+ * A stored `lastStep` puts the container straight into the wizard — the intake
+ * chooser is for someone who has not started — so this cannot go through
+ * `chooseManualIntake`, and a test asserting "sent back to page one" needs to
+ * begin somewhere other than page one to be asserting anything.
+ */
+async function renderResumedAtStep(stepIndex, overrides = {}) {
+  localStorage.setItem(
+    'draft_acme',
+    JSON.stringify({ ...SIGNED_DRAFT, ...overrides, lastStep: stepIndex }),
+  );
+  renderHandler();
+  await screen.findByText('probe-submit');
+  expect(screen.getByTestId('current-step')).toHaveTextContent(String(stepIndex));
 }
 
 /**
@@ -220,6 +259,7 @@ function stubDraftCallables() {
 describe('PublicApplyHandler submission contract', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    profileOverride.current = null;
     localStorage.clear();
     sessionStorage.clear();
     isQueueSupportedSpy.mockReturnValue(true);
@@ -379,6 +419,91 @@ describe('PublicApplyHandler submission contract', () => {
     expect(screen.getByTestId('current-step')).toHaveTextContent('2');
   });
 
+  /**
+   * A draft never stores `ssn`, so an applicant who resumed part-way through has
+   * never been asked for it: the step that collects it never ran its validation,
+   * and before this the application submitted without a field the company
+   * requires. The server refuses it independently; these cases are about the
+   * applicant being told which field and taken to it.
+   */
+  const MISSING_SSN_MESSAGE =
+    'Please re-enter your Social Security Number to submit. '
+    + 'It is not saved with your progress for security.';
+
+  /**
+   * `lastStep` on purpose in each of these.
+   *
+   * The wizard opens on page one by default, so a test that asserts "sent back to
+   * page one" from step 0 asserts nothing — it would pass with the gate deleted.
+   * Resuming at a later step is also the real scenario: the applicant who never
+   * passes back through page one is exactly the one whose SSN is gone.
+   */
+  it('blocks submission and returns to page one when a resumed application has no SSN', async () => {
+    await renderResumedAtStep(5, { ssn: '' });
+    await submit();
+
+    expect(showError).toHaveBeenCalledWith(MISSING_SSN_MESSAGE);
+    // 0 = the contact step, which is where the field is collected.
+    expect(screen.getByTestId('current-step')).toHaveTextContent('0');
+    expect(callableSpy).not.toHaveBeenCalled();
+  });
+
+  it('treats whitespace as missing, not as an answer', async () => {
+    await renderResumedAtStep(5, { ssn: '   ' });
+    await submit();
+
+    expect(showError).toHaveBeenCalledWith(MISSING_SSN_MESSAGE);
+    expect(screen.getByTestId('current-step')).toHaveTextContent('0');
+    expect(callableSpy).not.toHaveBeenCalled();
+  });
+
+  it('routes to the earliest incomplete page when both the SSN and an upload are missing', async () => {
+    await renderResumedAtStep(5, { ssn: '', 'medical-card-upload': null });
+    await submit();
+
+    // Page one, not the upload step: one round trip through the form instead of
+    // two. The upload gate then stops them on the way back through.
+    expect(showError).toHaveBeenCalledWith(MISSING_SSN_MESSAGE);
+    expect(showError).not.toHaveBeenCalledWith(
+      'Please upload required documents before submitting: Medical Card.',
+    );
+    expect(screen.getByTestId('current-step')).toHaveTextContent('0');
+    expect(callableSpy).not.toHaveBeenCalled();
+  });
+
+  it('submits without an SSN when the company marks it optional', async () => {
+    profileOverride.current = {
+      applicationConfig: {
+        cdlUpload: { hidden: false, required: true },
+        medCardUpload: { hidden: false, required: true },
+        ssn: { hidden: false, required: false },
+      },
+    };
+    await renderWithCompleteDraft({ ssn: '' });
+    await submit();
+
+    await waitFor(() => expect(callableSpy).toHaveBeenCalledTimes(1));
+    expect(showError).not.toHaveBeenCalled();
+  });
+
+  it('submits without an SSN when the company hides the question', async () => {
+    profileOverride.current = {
+      applicationConfig: {
+        cdlUpload: { hidden: false, required: true },
+        medCardUpload: { hidden: false, required: true },
+        // Hidden AND required: a question nobody is shown cannot be one they must
+        // answer, so hidden has to win — otherwise this configuration produces an
+        // application that can never be submitted.
+        ssn: { hidden: true, required: true },
+      },
+    };
+    await renderWithCompleteDraft({ ssn: '' });
+    await submit();
+
+    await waitFor(() => expect(callableSpy).toHaveBeenCalledTimes(1));
+    expect(showError).not.toHaveBeenCalled();
+  });
+
   it('blocks submission and returns to the consent step when the signature is missing', async () => {
     await renderWithCompleteDraft({ signature: '' });
     await submit();
@@ -437,6 +562,7 @@ describe('PublicApplyHandler submission contract', () => {
 describe('progress is saved as the applicant advances', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    profileOverride.current = null;
     localStorage.clear();
     sessionStorage.clear();
     isQueueSupportedSpy.mockReturnValue(true);
@@ -547,6 +673,7 @@ describe('continuing an existing application', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    profileOverride.current = null;
     localStorage.clear();
     sessionStorage.clear();
     isQueueSupportedSpy.mockReturnValue(true);
@@ -737,6 +864,7 @@ describe('continuing an existing application', () => {
 describe('reconciling the local and server drafts', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    profileOverride.current = null;
     localStorage.clear();
     sessionStorage.clear();
     isQueueSupportedSpy.mockReturnValue(true);
@@ -755,7 +883,7 @@ describe('reconciling the local and server drafts', () => {
   });
 
   /** Seeds an enveloped local draft at a chosen sync position. */
-  function seedLocal({ data, lastStep = 2, localSeq, syncedSeq }) {
+  function seedLocal({ data, lastStep = 2, localSeq, syncedSeq }) {  // eslint-disable-line no-unused-vars
     localStorage.setItem('draft_acme', JSON.stringify({
       v: 1, lastStep, meta: { localSeq, syncedSeq, savedAt: '2026-08-19T10:00:00.000Z' }, data,
     }));
@@ -787,6 +915,123 @@ describe('reconciling the local and server drafts', () => {
     expect(saveProgressSpy.mock.calls[0][0].formData.phone).toBe('5551234');
   });
 
+  it('presents the resume token with every save, so an update is authorized', async () => {
+    // Without this the server refuses the update, because company id plus email
+    // plus phone derive the document id and knowing them is not ownership.
+    seedLocal({ data: { phone: '5551234' }, localSeq: 4, syncedSeq: 4 });
+    serverReturns({ formData: { phone: '5551234' }, clientSeq: 4 });
+
+    renderHandler();
+    await screen.findByText('probe-next');
+    await waitFor(() => expect(resumeDraftSpy).toHaveBeenCalled());
+
+    fireEvent.click(screen.getByText('probe-edit'));
+    fireEvent.click(screen.getByText('probe-next'));
+
+    await waitFor(() => expect(saveProgressSpy).toHaveBeenCalled());
+    expect(saveProgressSpy.mock.calls[0][0].resumeToken).toBe('resume-token-1');
+  });
+
+  it('adopts a newly minted token, so a corrected email does not orphan the browser', async () => {
+    // The server mints a token only for a draft it just created. An applicant who
+    // corrects their email therefore writes a *new* draft and gets a new token,
+    // while the old draft is retired underneath them. Keeping the old token left
+    // this browser holding a credential for a deleted document — cross-session
+    // resume gone, and, now that changing an existing draft requires proof of
+    // ownership, its background saves refused too.
+    seedLocal({ data: { phone: '5551234' }, localSeq: 4, syncedSeq: 4 });
+    serverReturns({ formData: { phone: '5551234' }, clientSeq: 4 });
+    saveProgressSpy.mockResolvedValue({
+      data: { saved: true, applicantKey: 'key-2', resumeToken: 'resume-token-2' },
+    });
+
+    renderHandler();
+    await screen.findByText('probe-next');
+    await waitFor(() => expect(resumeDraftSpy).toHaveBeenCalled());
+
+    fireEvent.click(screen.getByText('probe-edit'));
+    fireEvent.click(screen.getByText('probe-next'));
+    await waitFor(() => expect(saveProgressSpy).toHaveBeenCalled());
+
+    await waitFor(() => {
+      const stored = JSON.parse(localStorage.getItem('apply_resume_acme'));
+      expect(stored.resumeToken).toBe('resume-token-2');
+      expect(stored.applicantKey).toBe('key-2');
+    });
+  });
+
+  it('back navigation does not mark a fully synced copy as unsynced', async () => {
+    // Navigation is not applicant information. Advancing the sequence on Back left
+    // a synced copy permanently claiming unacknowledged work, and it would then
+    // beat genuinely newer work from another device for the life of the draft.
+    seedLocal({ data: { phone: '5551234' }, localSeq: 4, syncedSeq: 4, lastStep: 3 });
+    serverReturns({ formData: { phone: '5551234' }, clientSeq: 4 });
+
+    renderHandler();
+    await screen.findByText('probe-back');
+    await waitFor(() => expect(resumeDraftSpy).toHaveBeenCalled());
+
+    fireEvent.click(screen.getByText('probe-back'));
+
+    await waitFor(() => {
+      const stored = JSON.parse(localStorage.getItem('draft_acme'));
+      expect(stored.meta.localSeq).toBe(stored.meta.syncedSeq);
+    });
+  });
+
+  it('a newer server copy still wins after the applicant pressed Back', async () => {
+    // The consequence of the bug above, from the driver's seat: they navigated on
+    // one device while another device did real work.
+    seedLocal({ data: { phone: '5551234' }, localSeq: 4, syncedSeq: 4, lastStep: 3 });
+    serverReturns({ formData: { phone: '5559999' }, clientSeq: 9 });
+
+    renderHandler();
+    await screen.findByText('probe-back');
+    await waitFor(() => expect(resumeDraftSpy).toHaveBeenCalled());
+    fireEvent.click(screen.getByText('probe-back'));
+
+    // Reload with the same inputs: the server copy must still be the newer one.
+    await waitFor(() => {
+      const stored = JSON.parse(localStorage.getItem('draft_acme'));
+      expect(stored.meta.localSeq).toBe(stored.meta.syncedSeq);
+    });
+    fireEvent.click(screen.getByText('probe-next'));
+    await waitFor(() => expect(saveProgressSpy).toHaveBeenCalled());
+    expect(saveProgressSpy.mock.calls[0][0].formData.phone).toBe('5559999');
+  });
+
+  it('retries the server copy when the connection returns', async () => {
+    // Next and "Save as Draft" are the only other triggers, so an applicant who
+    // regained signal while sitting on a page kept their work locally and never
+    // sent it.
+    seedLocal({ data: { phone: '5551234' }, localSeq: 6, syncedSeq: 4, lastStep: 2 });
+    serverReturns({ formData: { phone: '5551234' }, clientSeq: 4 });
+
+    renderHandler();
+    await screen.findByText('probe-next');
+    await waitFor(() => expect(resumeDraftSpy).toHaveBeenCalled());
+    expect(saveProgressSpy).not.toHaveBeenCalled();
+
+    window.dispatchEvent(new Event('online'));
+
+    await waitFor(() => expect(saveProgressSpy).toHaveBeenCalled());
+    expect(saveProgressSpy.mock.calls[0][0].formData.phone).toBe('5551234');
+  });
+
+  it('does not retry on reconnect when nothing is owed', async () => {
+    seedLocal({ data: { phone: '5551234' }, localSeq: 4, syncedSeq: 4, lastStep: 2 });
+    serverReturns({ formData: { phone: '5551234' }, clientSeq: 4 });
+
+    renderHandler();
+    await screen.findByText('probe-next');
+    await waitFor(() => expect(resumeDraftSpy).toHaveBeenCalled());
+
+    window.dispatchEvent(new Event('online'));
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(saveProgressSpy).not.toHaveBeenCalled();
+  });
+
   it('applies a server draft another device advanced', async () => {
     seedLocal({ data: { firstName: 'Ada', phone: '5551234' }, localSeq: 4, syncedSeq: 4 });
     serverReturns({ formData: { firstName: 'Ada', phone: '5559999' }, clientSeq: 7 });
@@ -816,6 +1061,60 @@ describe('reconciling the local and server drafts', () => {
     expect(formData.phone).toBe('5551234');   // local won the overlap
     expect(formData.nickname).toBe('Slim');   // local-only survived
     expect(formData.cdlNumber).toBe('TX9');   // server-only survived
+  });
+
+  /**
+   * The wiring proof for the nested-merge fix.
+   *
+   * `reconcileApplicationDraft.test.js` pins the merge itself, field class by field
+   * class. These two assert the container actually *uses* it: a flat
+   * `{...loser, ...winner}` spread passes every test above, because every value in
+   * them is a scalar — and silently destroys a whole answer map or repeating list
+   * the moment one exists on both sides.
+   */
+  it('merges nested answer maps instead of replacing them, when the server wins', async () => {
+    seedLocal({
+      data: { customAnswers: { q1: 'local one', q3: 'local three' } },
+      localSeq: 4,
+      syncedSeq: 4,
+    });
+    serverReturns({
+      formData: { customAnswers: { q1: 'server one', q2: 'server two' } },
+      clientSeq: 9,
+    });
+
+    renderHandler();
+    await screen.findByText('probe-next');
+    await waitFor(() => expect(resumeDraftSpy).toHaveBeenCalled());
+
+    fireEvent.click(screen.getByText('probe-next'));
+    await waitFor(() => expect(saveProgressSpy).toHaveBeenCalled());
+    const { formData } = saveProgressSpy.mock.calls[0][0];
+    // The server won, so it owns the overlapping key — and the answer only this
+    // device has is still there. A flat spread would have dropped `q3`.
+    expect(formData.customAnswers).toEqual({
+      q1: 'server one', q2: 'server two', q3: 'local three',
+    });
+  });
+
+  it('unions repeating rows instead of replacing them, when the local copy wins', async () => {
+    seedLocal({
+      data: { employers: [{ name: 'Local Freight' }] },
+      localSeq: 6,
+      syncedSeq: 4,
+    });
+    serverReturns({ formData: { employers: [{ name: 'Server Freight' }] }, clientSeq: 4 });
+
+    renderHandler();
+    await screen.findByText('probe-next');
+    await waitFor(() => expect(resumeDraftSpy).toHaveBeenCalled());
+
+    fireEvent.click(screen.getByText('probe-next'));
+    await waitFor(() => expect(saveProgressSpy).toHaveBeenCalled());
+    const { formData } = saveProgressSpy.mock.calls[0][0];
+    // Winner's rows first, then the rows only the loser had: an employment record
+    // typed on one device is not deleted by a save from the other.
+    expect(formData.employers).toEqual([{ name: 'Local Freight' }, { name: 'Server Freight' }]);
   });
 
   it('reconciles a legacy local draft on progress, since it has no sequence', async () => {
@@ -868,6 +1167,9 @@ describe('reconciling the local and server drafts', () => {
     await screen.findByText('probe-next');
     await waitFor(() => expect(resumeDraftSpy).toHaveBeenCalled());
 
+    // Real work, not just navigation — navigation alone must never mark a synced
+    // copy as unsynchronised, which is what the Back-navigation fix is about.
+    fireEvent.click(screen.getByText('probe-edit'));
     fireEvent.click(screen.getByText('probe-next'));
     await waitFor(() => expect(saveProgressSpy).toHaveBeenCalled());
 
@@ -889,6 +1191,7 @@ describe('starting over', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    profileOverride.current = null;
     localStorage.clear();
     sessionStorage.clear();
     isQueueSupportedSpy.mockReturnValue(true);

@@ -4,7 +4,7 @@ import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { doc, getDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@lib/firebase';
-import Stepper from '@shared/components/layout/Stepper';
+import Stepper, { resolveWizardStepIndex } from '@shared/components/layout/Stepper';
 import { IntakeChooser } from './IntakeChooser';
 import { newSubmissionAttemptId } from '@shared/utils/submissionAttemptId';
 import {
@@ -18,6 +18,7 @@ import {
   readApplicationDraft,
   saveApplicationDraft,
   clearApplicationDraft,
+  draftSyncState,
 } from './applicationDraftStorage';
 import { fetchPublicProfileBySlug } from '../../services/publicProfileService';
 import { useGuestFileUpload } from '../../hooks/useGuestFileUpload';
@@ -46,6 +47,7 @@ import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 import { useApplicationResume } from '../../hooks/useApplicationResume';
 import { ResumeApplicationDialog } from './ResumeApplicationDialog';
 import { reconcileApplicationDraft } from './reconcileApplicationDraft';
+import { getMissingRequiredUnpersistedFields } from './requiredUnpersistedFields';
 
 // Bulletproof submission imports
 import {
@@ -291,6 +293,14 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
   }, [slug, sandbox, searchParams, setCurrentCompanyProfile, restorePostApplySession]);
 
   /**
+   * Latest form state, read by things that run later than the render they belong
+   * to — the reconciliation callback and the reconnect listener. Declared above
+   * both, so neither depends on where the other happens to sit in the file.
+   */
+  const latestDraftRef = useRef({ formData, currentStep });
+  latestDraftRef.current = { formData, currentStep };
+
+  /**
    * Reconciles with the server copy once the company is known.
    *
    * Its own effect on purpose. Calling this inside the company-loading effect
@@ -319,17 +329,38 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
       // the decision does not depend on the order two effects happen to run in.
       // Read outside the updater: a `setFormData` updater has to stay pure,
       // because React may invoke it more than once.
-      const localDraft = readApplicationDraft(slug);
-      setFormData((prev) => {
-        const resolved = reconcileApplicationDraft({
-          local: localDraft,
-          server: restored,
-          live: prev,
-        });
-        // `resolved.formData` already carries anything typed since load, so it
-        // goes last; `prev` still supplies the wizard's untouched defaults.
-        return resolved ? { ...prev, ...resolved.formData } : prev;
+      // All of this outside the updater: a `setFormData` updater has to stay pure,
+      // because React may invoke it more than once, and one of the steps below
+      // writes to storage.
+      const resolved = reconcileApplicationDraft({
+        local: readApplicationDraft(slug),
+        server: restored,
+        live: latestDraftRef.current.formData,
       });
+      if (!resolved) return;
+
+      // Write the outcome back locally when the **server** copy won, recorded as
+      // synced at the server's own sequence.
+      //
+      // Otherwise the next navigation would write that server content out as if it
+      // were unacknowledged local work: the copy would read as dirty, and a further
+      // advance from a third device would then lose to content that came from the
+      // server in the first place. Same reasoning as the explicit Continue path in
+      // `applyRestoredDraft`.
+      //
+      // When *local* won the sequences are deliberately left alone — that copy
+      // really does hold work the server has not seen, and is still owed a save.
+      if (resolved.source === 'server') {
+        saveApplicationDraft(slug, resolved.formData, {
+          lastStep: resolved.stepIndex,
+          localSeq: Number.isInteger(restored.clientSeq) ? restored.clientSeq : undefined,
+          synced: true,
+        });
+      }
+
+      // `resolved.formData` already carries anything typed since load, so it goes
+      // last; `prev` still supplies the wizard's untouched defaults.
+      setFormData((prev) => ({ ...prev, ...resolved.formData }));
       // `Math.max`: never move an applicant *backwards* from where they already
       // are in this session.
       setCurrentStep((prev) => Math.max(prev, restored.stepIndex));
@@ -339,6 +370,32 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     });
     return () => { current = false; };
   }, [company?.id, sandbox, slug, restoreFromStoredToken]);
+
+  /**
+   * Retries the server copy when the connection comes back.
+   *
+   * Without this, the only triggers for a server save are Next and "Save as
+   * Draft" — so an applicant who lost signal, typed a page, and regained signal
+   * while sitting on that page kept their work locally and never sent it. Nothing
+   * was lost (the submission carries the full form), but the server draft stayed
+   * behind, which is the copy a recruiter sees and the one that survives a lost
+   * device.
+   *
+   * Only when the local copy is actually owed a save. A clean draft needs no
+   * round trip, and a legacy draft counts as owed because nothing is known about
+   * whether the server has its contents.
+   */
+  useEffect(() => {
+    if (!slug || sandbox || !company?.id) return undefined;
+    const flush = () => {
+      const state = draftSyncState(slug);
+      if (!state?.dirty) return;
+      const { formData: latest, currentStep: step } = latestDraftRef.current;
+      saveDraftToServer({ formData: latest, stepIndex: step, localSeq: state.localSeq });
+    };
+    window.addEventListener('online', flush);
+    return () => window.removeEventListener('online', flush);
+  }, [slug, sandbox, company?.id, saveDraftToServer]);
 
   // 2. Form Handlers
   const handleUpdateFormData = (name, value) => {
@@ -468,6 +525,34 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
   };
 
   const handleFinalSubmit = async () => {
+    /**
+     * Required answers a resumed application could not have brought back.
+     *
+     * Checked before the uploads, because it routes to an earlier page: a draft
+     * never stores `ssn`, so an applicant who resumed part-way through has never
+     * been asked for it and the step that collects it never ran its validation.
+     * Sending them to the upload step first, then to page one, would be two
+     * round trips for one incomplete form.
+     *
+     * The server refuses the same submission independently
+     * (`assertRequiredUnpersistedFields`) — this half exists to tell the
+     * applicant which field and take them to it, not to be the enforcement.
+     */
+    const missingUnpersisted = getMissingRequiredUnpersistedFields(
+      company?.applicationConfig,
+      formData,
+    );
+    if (missingUnpersisted.length > 0) {
+      const labels = missingUnpersisted.map((field) => field.label).join(', ');
+      const subject = missingUnpersisted.length > 1 ? 'They are' : 'It is';
+      showError(`Please re-enter your ${labels} to submit. ${subject} not saved with your progress for security.`);
+      setCurrentStep(resolveWizardStepIndex(
+        missingUnpersisted[0].semanticStep,
+        customQuestions.length > 0,
+      ));
+      return;
+    }
+
     const requiredUploadErrors = [];
     if (!cdlUploadConfig.hidden && cdlUploadConfig.required) {
       if (!hasUploadedFile(formData['cdl-front'])) requiredUploadErrors.push('CDL Front');

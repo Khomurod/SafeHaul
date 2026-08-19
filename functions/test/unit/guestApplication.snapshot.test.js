@@ -178,7 +178,10 @@ const payload = (formData = {}) => ({
   email: 'ann@example.test',
   phone: '5551234567',
   signature: 'data:image/png;base64,AAA',
-  formData: { firstName: 'Ann', lastName: 'Adams', ...formData },
+  // `ssn` is present because a real submission carries it — the wizard requires it
+  // on page one and only the *draft* copies strip it. The server refuses a
+  // submission missing a required field the draft never carried.
+  formData: { firstName: 'Ann', lastName: 'Adams', ssn: '123-45-6789', ...formData },
 });
 const ctx = { rawRequest: { ip: '203.0.113.1' } };
 

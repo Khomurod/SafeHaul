@@ -160,6 +160,42 @@ function identityKeyOrNull(parts, where) {
 }
 
 /**
+ * May this caller modify a draft that already exists?
+ *
+ * **Creating a draft and changing one are different situations.** The callable is
+ * public because the application is public, and creating a draft where none exists
+ * has to stay that way — an applicant on page one has nothing to prove ownership
+ * with yet. But an *existing* unfinished application is somebody's work, and until
+ * now a caller who knew only a company id, an email and a phone could overwrite it,
+ * because those three derive the document id and nothing else was checked.
+ *
+ * Two proofs are accepted, and they are the two that already exist:
+ *
+ * 1. **The resume token** for that draft. This is the normal path: the browser is
+ *    handed one on the first save and keeps it, so ordinary autosave and
+ *    same-device resume present it without the applicant doing anything.
+ * 2. **The identity HMAC plus a contact detail the draft already holds** — the
+ *    same bar `findResumableApplication` requires to *read* the draft. A caller who
+ *    clears that bar can already retrieve the whole draft by design, so allowing
+ *    them to write it is not a new exposure. It is what keeps a browser that lost
+ *    its token from losing its autosave.
+ *
+ * Neither proof is obtainable from contact information alone.
+ */
+function mayModifyExistingDraft(doc, { resumeToken, identityKey, email, phone }) {
+    const stored = doc.data() || {};
+
+    if (resumeToken && draft.resumeTokenMatches(stored.resumeTokenHash, resumeToken)) {
+        return 'token';
+    }
+    if (identityKey && stored.identityKey && stored.identityKey === identityKey
+        && draft.contactMatches(stored, { email, phone })) {
+        return 'identity';
+    }
+    return null;
+}
+
+/**
  * Writes a value-free record of a matching attempt.
  *
  * Deliberately records the *outcome and the company*, never the name, the date of
@@ -168,12 +204,17 @@ function identityKeyOrNull(parts, where) {
  * seeing, and how many matched" — a pattern that would be visible in a spike and
  * is not otherwise recoverable, since the drafts themselves expire.
  */
-async function recordMatchAttempt(companyId, outcome) {
+async function recordMatchAttempt(companyId, outcome, action = 'resume_match_attempted') {
     try {
         await db.collection('companies').doc(String(companyId))
             .collection('application_draft_audit')
             .add({
-                action: 'resume_match_attempted',
+                // Named separately from the lookup, because the operational
+                // question this collection answers is "how many resume attempts is
+                // this apply page seeing, and how many matched". A refused *write*
+                // filed under the same action would inflate that count and hide
+                // what is actually a different signal.
+                action,
                 outcome,
                 at: draft.serverTimestamp(),
                 expiresAt: draft.expiresAt(),
@@ -242,6 +283,41 @@ exports.saveApplicationProgress = functions
 
         const ref = draft.draftsCollection(companyId).doc(applicantKey);
         const existing = await ref.get();
+
+        // Changing an existing draft needs proof of ownership; creating one does
+        // not, because an applicant on page one has nothing to prove it with yet.
+        let authorizedBy = null;
+        if (existing.exists) {
+            authorizedBy = mayModifyExistingDraft(existing, {
+                resumeToken: text(data?.resumeToken, 128),
+                identityKey,
+                email,
+                phone,
+            });
+            if (!authorizedBy) {
+                // Refusals get their own tight per-caller budget, and it
+                // deliberately never changes the reply: telling a caller they had
+                // exceeded a *refusal* budget would itself confirm that their
+                // earlier attempts were refusals. What it does is bound the audit
+                // writes one caller can cause, so a probe loop cannot turn into
+                // unbounded writes. The first attempts are recorded, which is all a
+                // spike needs to be visible, and the save limit above already
+                // bounds how fast attempts can arrive at all.
+                const withinProbeBudget = await checkRateLimit(
+                    `draft_write_denied_${clientIp(context)}`,
+                    LIMITS.match.limit, LIMITS.match.windowSeconds, 'closed',
+                );
+                if (withinProbeBudget) {
+                    await recordMatchAttempt(companyId, 'unauthorized_write', 'draft_write_refused');
+                }
+                // Deliberately the same shape a network failure produces. The client
+                // treats it as "not synced", keeps its local copy, and tells the
+                // applicant nothing — there is nothing they could do about it, and a
+                // message would confirm to a stranger that this draft exists.
+                return { saved: false, applicantKey: null, resumeToken: null };
+            }
+        }
+
         const token = existing.exists && existing.data()?.resumeTokenHash
             ? null
             : draft.mintResumeToken();
@@ -283,7 +359,13 @@ exports.saveApplicationProgress = functions
         // At most one live draft per identity per company. A returning applicant
         // who types a different email produces a second key, and leaving both
         // would make "continue" a coin flip.
-        if (identityKey) await supersedeOtherDrafts(companyId, identityKey, applicantKey);
+        //
+        // Gated on the caller's own resume token, because this deletes documents.
+        // See `supersedeOtherDrafts` for why "knows the identity" is not enough.
+        const supersedeToken = text(data?.resumeToken, 128);
+        if (identityKey && supersedeToken) {
+            await supersedeOtherDrafts(companyId, identityKey, applicantKey, supersedeToken);
+        }
 
         return {
             saved: true,
@@ -295,20 +377,42 @@ exports.saveApplicationProgress = functions
     });
 
 /**
- * Retires any other live draft for the same person in the same company.
+ * Retires the caller's *own* other live draft for the same person and company.
  *
  * Deleted rather than tombstoned: an applicant who retyped their email has one
  * application in progress, not two, and an abandoned duplicate holding a name and
  * a date of birth is not worth keeping to record that they changed their mind.
+ *
+ * **Only a draft whose resume token the caller presents is retired**, and that
+ * precision is the security property. This used to run on the identity alone,
+ * which made it a delete primitive: anyone who knew a name, a date of birth and an
+ * SSN could save under an email of their own and have the real applicant's draft
+ * superseded.
+ *
+ * "Holds a token for *some* draft with this identity" is not sufficient either,
+ * and that is the subtle version of the same attack: the same three facts let a
+ * stranger create their own draft, which inherits the victim's identity key, and
+ * the token minted for it would then unlock the deletion on the next save. The
+ * only claim that cannot be manufactured from identity facts is a token for the
+ * specific draft being deleted — you may retire an application you own.
+ *
+ * The legitimate case is exactly that. A browser whose applicant corrects their
+ * email writes a new key and presents the token it was given for the old one, so
+ * the old one goes; a device that resumed holds that draft's token for the same
+ * reason. A straggler nobody can prove they own is left to the 30-day TTL, which
+ * is a duplicate in a list, not somebody's deleted work.
  */
-async function supersedeOtherDrafts(companyId, identityKey, keepApplicantKey) {
+async function supersedeOtherDrafts(companyId, identityKey, keepApplicantKey, resumeToken) {
     try {
         const snapshot = await draft.draftsCollection(companyId)
             .where('identityKey', '==', identityKey)
             .get();
 
         const stale = snapshot.docs.filter((doc) => doc.id !== keepApplicantKey);
-        await Promise.all(stale.map((doc) => doc.ref.delete()));
+        const owned = stale.filter(
+            (doc) => draft.resumeTokenMatches(doc.data()?.resumeTokenHash, resumeToken),
+        );
+        await Promise.all(owned.map((doc) => doc.ref.delete()));
     } catch (error) {
         // A tidy-up failure must not fail the save it follows. The match below
         // takes the most recently updated draft, so a straggler is at worst
