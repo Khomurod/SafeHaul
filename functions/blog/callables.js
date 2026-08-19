@@ -128,7 +128,12 @@ exports.deleteBlogPost = onCall({ cors: true }, async (request) => {
         // check — and the 60-day duplicate window relies on the tombstone still
         // being there. Saying so beats an operator waiting for a replacement that
         // cannot come.
-        const [publicationDate, themeId] = postId.split('_');
+        // Split once: the id is `{date}_{themeId}` and a theme id is hyphenated
+        // today, but a future one containing an underscore would silently record
+        // half a theme under a filter an operator selects by.
+        const separator = postId.indexOf('_');
+        const publicationDate = separator > 0 ? postId.slice(0, separator) : postId;
+        const themeId = separator > 0 ? postId.slice(separator + 1) : '';
         await runLedger.recordSlotRun({
             outcome: 'skipped_slot_taken',
             slot: { key: postId, themeId, publicationDate },
