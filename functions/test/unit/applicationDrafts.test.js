@@ -533,6 +533,90 @@ describe('starting over', () => {
  * comes back on their own, and a carrier watching people drop off at the licence
  * page still has nobody to call.
  */
+describe('what a draft refuses to store', () => {
+    it('drops prototype-shaped and Firestore-reserved keys at every depth', async () => {
+        const hostile = JSON.parse('{"firstName":"Dana","__proto__":{"polluted":true},"constructor":"x","__name__":"y","employer1":{"__proto__":{"deep":true},"name":"Acme"}}');
+
+        const clean = draft.sanitizeDraftData(hostile);
+
+        expect(clean.firstName).toBe('Dana');
+        expect(Object.keys(clean)).not.toContain('__proto__');
+        expect(Object.keys(clean)).not.toContain('constructor');
+        expect(Object.keys(clean)).not.toContain('__name__');
+        expect(clean.employer1.name).toBe('Acme');
+        expect(Object.keys(clean.employer1)).not.toContain('__proto__');
+        // Nothing leaked onto the object's actual prototype either.
+        expect({}.polluted).toBeUndefined();
+        expect(clean.polluted).toBeUndefined();
+    });
+});
+
+describe('ids that arrived from a browser', () => {
+    it('refuses a company id that is a path rather than an id', async () => {
+        // `CollectionReference.doc()` takes a *path*, so an id with slashes reads a
+        // different document than the code appears to read. Nothing else lives
+        // under this subcollection and a resume still needs a 256-bit token, so
+        // this was not exploitable — but a client-controlled path segment should
+        // not be reachable at all.
+        await expect(drafts.saveApplicationProgress({
+            companyId: `${COMPANY}/applications/whatever`,
+            email: IDENTITY.email,
+            phone: IDENTITY.phone,
+            formData: {},
+        }, CONTEXT)).rejects.toMatchObject({ code: 'invalid-argument' });
+
+        await expect(drafts.findResumableApplication({
+            companyId: `${COMPANY}/applications/whatever`,
+            ...IDENTITY,
+        }, CONTEXT)).rejects.toMatchObject({ code: 'invalid-argument' });
+    });
+
+    it('refuses an applicant key that is not a plain hex id', async () => {
+        await saveFirstPage();
+
+        await expect(drafts.resumeApplicationDraft({
+            companyId: COMPANY,
+            applicantKey: '../../applications/abc',
+            resumeToken: 'anything',
+        }, CONTEXT)).rejects.toMatchObject({ code: 'not-found' });
+    });
+
+    it('accepts the real applicant key', () => {
+        expect(drafts.__private.applicantKeyOf(keyFor())).toBe(keyFor());
+        expect(drafts.__private.applicantKeyOf('has/slash')).toBe('');
+        expect(drafts.__private.docId(COMPANY)).toBe(COMPANY);
+        expect(drafts.__private.docId('a/b')).toBe('');
+        expect(drafts.__private.docId('.')).toBe('');
+    });
+});
+
+describe('when the identity HMAC key is unavailable', () => {
+    const realKey = process.env.SMS_ENCRYPTION_KEY;
+
+    afterEach(() => { process.env.SMS_ENCRYPTION_KEY = realKey; });
+
+    it('still saves the draft, without an identity key', async () => {
+        delete process.env.SMS_ENCRYPTION_KEY;
+
+        const result = await saveFirstPage();
+
+        // Losing cross-device matching is a far smaller loss than losing the
+        // draft: the same-device token path needs no identity key at all.
+        expect(result.saved).toBe(true);
+        const stored = mockStore.get(`companies/${COMPANY}/application_drafts/${keyFor()}`);
+        expect(stored.identityKey).toBeNull();
+        expect(typeof result.resumeToken).toBe('string');
+    });
+
+    it('answers a match attempt with the uniform no-match', async () => {
+        delete process.env.SMS_ENCRYPTION_KEY;
+
+        const found = await drafts.findResumableApplication({ companyId: COMPANY, ...IDENTITY }, CONTEXT);
+
+        expect(found).toEqual({ resumable: false });
+    });
+});
+
 describe('the company view of unfinished applications', () => {
     it('lists enough to recognise and contact someone', async () => {
         await saveFirstPage();

@@ -75,6 +75,18 @@ const MAX_PAYLOAD_CHARS = 512 * 1024;
 const NEVER_STORED = Object.freeze(['ssn', 'signature']);
 
 /**
+ * Keys that must never be written as fields.
+ *
+ * `JSON.parse` produces `__proto__` as an *own* property, and `clean.__proto__ = x`
+ * then reassigns the prototype instead of adding a field — so the value silently
+ * vanishes, or worse, changes the object's shape. Firestore also rejects a field
+ * name that both starts and ends with a double underscore, so `__proto__` would
+ * fail the whole write if it ever did get through. Skipped explicitly rather than
+ * relying on either of those accidents.
+ */
+const UNSAFE_KEYS = Object.freeze(['__proto__', 'constructor', 'prototype']);
+
+/**
  * Domain-separated key for the identity HMAC.
  *
  * Derived from `SMS_ENCRYPTION_KEY` rather than adding a tenth manually-managed
@@ -190,7 +202,10 @@ function sanitizeDraftData(value, depth = 0) {
             // nothing legitimate to lose — and a guarantee that only holds for
             // flat data is one a future nested section would silently break.
             if (NEVER_STORED.includes(key)) continue;
+            if (UNSAFE_KEYS.includes(key)) continue;
             if (typeof key !== 'string' || key.length > 120) continue;
+            // Firestore reserves field names wrapped in double underscores.
+            if (/^__.*__$/.test(key)) continue;
             clean[key] = sanitizeDraftData(item, depth + 1);
             kept += 1;
         }
@@ -274,6 +289,7 @@ module.exports = {
     MAX_STRING_CHARS,
     MAX_PAYLOAD_CHARS,
     NEVER_STORED,
+    UNSAFE_KEYS,
     IDENTITY_KEY_PURPOSE,
     normalizeSsn,
     normalizeName,

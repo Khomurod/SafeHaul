@@ -95,6 +95,49 @@ function text(value, max = 200) {
 }
 
 /**
+ * A Firestore document id that came from a browser.
+ *
+ * `CollectionReference.doc()` accepts a *path*, not just an id, so an id
+ * containing slashes reaches a different document than the one the code reads as
+ * written. Nothing else lives under `companies/{id}/application_drafts`, and a
+ * resume still needs a 256-bit token, so this was not exploitable — but a
+ * client-controlled path segment should not be reachable at all, and this repo
+ * whitelists ids against path injection everywhere else it accepts one.
+ *
+ * Returns '' for anything that is not a plain id, which every caller treats as a
+ * missing argument.
+ */
+function docId(value, max = 100) {
+    const trimmed = text(value, max);
+    return /^[A-Za-z0-9_-]+$/.test(trimmed) ? trimmed : '';
+}
+
+/** The deterministic applicant key: 20 lowercase hex characters. */
+function applicantKeyOf(value) {
+    const trimmed = text(value, 64);
+    return /^[a-f0-9]{1,64}$/.test(trimmed) ? trimmed : '';
+}
+
+/**
+ * The identity HMAC, or null when it cannot be computed.
+ *
+ * `buildIdentityKey` throws when `SMS_ENCRYPTION_KEY` is absent or the wrong
+ * length, which is right — a misconfiguration should be loud. But letting it
+ * escape a *save* would mean an unreadable secret silently costs the applicant
+ * their draft entirely, when the same-device resume path needs no identity key at
+ * all. So the fault is logged and the draft is saved without one: cross-device
+ * matching is degraded, which is the lesser loss by a wide margin.
+ */
+function identityKeyOrNull(parts, where) {
+    try {
+        return draft.buildIdentityKey(parts);
+    } catch (error) {
+        console.error(`[applicationDrafts] ${where}: identity key unavailable: ${error?.message || 'unknown'}`);
+        return null;
+    }
+}
+
+/**
  * Writes a value-free record of a matching attempt.
  *
  * Deliberately records the *outcome and the company*, never the name, the date of
@@ -140,7 +183,7 @@ async function recordMatchAttempt(companyId, outcome) {
 exports.saveApplicationProgress = functions
     .runWith(runtime)
     .https.onCall(async (data, context) => {
-        const companyId = text(data?.companyId, 100);
+        const companyId = docId(data?.companyId, 100);
         if (!companyId) {
             throw new functions.https.HttpsError('invalid-argument', 'companyId is required.');
         }
@@ -168,12 +211,12 @@ exports.saveApplicationProgress = functions
         }
 
         const { applicantKey, applicantKeyFull } = generateApplicantKey(companyId, email, phone);
-        const identityKey = draft.buildIdentityKey({
+        const identityKey = identityKeyOrNull({
             companyId,
             lastName: data?.lastName,
             dob: data?.dob,
             ssn: data?.ssn,
-        });
+        }, 'saveApplicationProgress');
 
         const ref = draft.draftsCollection(companyId).doc(applicantKey);
         const existing = await ref.get();
@@ -255,7 +298,7 @@ async function supersedeOtherDrafts(companyId, identityKey, keepApplicantKey) {
 exports.findResumableApplication = functions
     .runWith(runtime)
     .https.onCall(async (data, context) => {
-        const companyId = text(data?.companyId, 100);
+        const companyId = docId(data?.companyId, 100);
         if (!companyId) {
             throw new functions.https.HttpsError('invalid-argument', 'companyId is required.');
         }
@@ -269,12 +312,12 @@ exports.findResumableApplication = functions
 
         await assertCompanyAcceptingIntake(db, companyId);
 
-        const identityKey = draft.buildIdentityKey({
+        const identityKey = identityKeyOrNull({
             companyId,
             lastName: data?.lastName,
             dob: data?.dob,
             ssn: data?.ssn,
-        });
+        }, 'findResumableApplication');
         if (!identityKey) {
             // A partial identity matches nothing, and says so without spending
             // the per-identity budget of whoever it half-resembles.
@@ -353,8 +396,8 @@ exports.findResumableApplication = functions
 exports.resumeApplicationDraft = functions
     .runWith(runtime)
     .https.onCall(async (data, context) => {
-        const companyId = text(data?.companyId, 100);
-        const applicantKey = text(data?.applicantKey, 64);
+        const companyId = docId(data?.companyId, 100);
+        const applicantKey = applicantKeyOf(data?.applicantKey);
         const resumeToken = text(data?.resumeToken, 128);
 
         if (!companyId || !resumeToken) {
@@ -421,8 +464,8 @@ async function findByToken(companyId, applicantKey, resumeToken) {
 exports.startNewApplication = functions
     .runWith(runtime)
     .https.onCall(async (data, context) => {
-        const companyId = text(data?.companyId, 100);
-        const applicantKey = text(data?.applicantKey, 64);
+        const companyId = docId(data?.companyId, 100);
+        const applicantKey = applicantKeyOf(data?.applicantKey);
         const resumeToken = text(data?.resumeToken, 128);
 
         if (!companyId || !resumeToken) {
@@ -488,7 +531,7 @@ exports.startNewApplication = functions
  * authenticated staff read with no rate-limit-by-IP consideration.
  */
 exports.listApplicationDrafts = onCallV2({ cors: true }, async (request) => {
-    const companyId = text(request.data?.companyId, 100);
+    const companyId = docId(request.data?.companyId, 100);
     if (!companyId) {
         throw new HttpsErrorV2('invalid-argument', 'companyId is required.');
     }
@@ -529,4 +572,6 @@ exports.listApplicationDrafts = onCallV2({ cors: true }, async (request) => {
     }
 });
 
-exports.__private = { LIMITS, NO_MATCH, findByToken, supersedeOtherDrafts, text };
+exports.__private = {
+    LIMITS, NO_MATCH, findByToken, supersedeOtherDrafts, text, docId, applicantKeyOf,
+};
