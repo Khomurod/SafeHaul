@@ -100,50 +100,6 @@ function getMissingRequiredUploads(applicationConfig, formData) {
 }
 
 /**
- * Required fields a draft deliberately never keeps.
- *
- * `ssn` and `signature` are stripped from every draft copy on purpose — they are
- * PII and a biometric, and the privacy rule is that they never rest anywhere but
- * a real submission. The consequence nobody had accounted for: an applicant who
- * resumes at, say, the licence page never returns to page one, the wizard's
- * per-step validation therefore never runs for it, and the server never asked. So
- * a company that requires a Social Security Number could receive an application
- * without one.
- *
- * Driven off two things that already exist rather than a hand-written rule: the
- * draft module's own strip list, so the check automatically covers anything else
- * that stops being persisted, and `resolveGate`, so a company that hides the field
- * or marks it optional is respected exactly as the wizard respects it.
- *
- * @returns {string[]} human labels of the fields that are required and missing
- */
-function getMissingRequiredUnpersistedFields(applicationConfig, formData) {
-    const { STANDARD_SECTIONS, resolveGate } = require('./applicationDefinition');
-    const { NEVER_STORED } = require('./applicationDraft');
-    const answers = formData && typeof formData === 'object' ? formData : {};
-    const missing = [];
-
-    for (const section of STANDARD_SECTIONS) {
-        for (const field of section.fields || []) {
-            if (!field.gate) continue;
-            if (!NEVER_STORED.includes(field.id)) continue;
-
-            const gate = resolveGate(applicationConfig, field.gate);
-            // Hidden is never required, and optional is never blocking — the same
-            // resolution the wizard uses, so the two cannot disagree about what a
-            // company actually asked for.
-            if (gate.hidden || !gate.required) continue;
-
-            const value = answers[field.id];
-            const blank = value === undefined || value === null
-                || (typeof value === 'string' && value.trim() === '');
-            if (blank) missing.push(field.label || field.id);
-        }
-    }
-    return missing;
-}
-
-/**
  * Refuses a submission missing a required field the draft never carried.
  *
  * Server-side on purpose. The wizard also guides the applicant back to supply it,
@@ -151,6 +107,7 @@ function getMissingRequiredUnpersistedFields(applicationConfig, formData) {
  * and not something a caller of the callable has to have done at all.
  */
 function assertRequiredUnpersistedFields(applicationConfig, formData) {
+    const { getMissingRequiredUnpersistedFields } = require('./requiredUnpersistedFields');
     const missing = getMissingRequiredUnpersistedFields(applicationConfig, formData || {});
     if (missing.length > 0) {
         throw new functions.https.HttpsError(
@@ -249,7 +206,11 @@ module.exports = {
     generateApplicationId,
     generateConfirmationNumber,
     getFieldConfig,
-    getMissingRequiredUnpersistedFields,
+    // Re-exported from the pure module so existing callers and tests keep one
+    // import site, while the browser's parity test can read it without loading
+    // anything that needs `firebase-admin`.
+    getMissingRequiredUnpersistedFields:
+        require('./requiredUnpersistedFields').getMissingRequiredUnpersistedFields,
     getMissingRequiredUploads,
     hasUploadedFile,
     sanitizeData,

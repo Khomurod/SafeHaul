@@ -25,8 +25,15 @@ import {
 
 // The Cloud Functions modules, required directly: the point is to compare against
 // what actually runs on the server, not against a copy of it.
-const serverDraft = require('../../../../../functions/shared/applicationDraft.js');
-const serverDoc = require('../../../../../functions/shared/buildApplicationDoc.js');
+//
+// Both are deliberately **dependency-free** shared modules. This test runs in the
+// frontend job, which installs no functions dependencies, so requiring the modules
+// that wrap these (`applicationDraft`, `buildApplicationDoc`) fails in CI with
+// `Cannot find module 'firebase-admin'` — which is exactly what happened, and is
+// why the list and the resolver live on their own. Do not repoint these at the
+// wrappers.
+const serverStripList = require('../../../../../functions/shared/neverStoredDraftFields.js');
+const serverCheck = require('../../../../../functions/shared/requiredUnpersistedFields.js');
 
 /** Fields that are both never persisted and gated — the whole population here. */
 const neverStoredGatedFields = STANDARD_SECTIONS
@@ -39,7 +46,7 @@ describe('requiredUnpersistedFields', () => {
             // Not cosmetic: the browser decides what to re-ask for and the server
             // decides what to refuse. Diverging lists mean one of them is wrong
             // about which values a draft can bring back.
-            expect([...NEVER_STORED].sort()).toEqual([...serverDraft.NEVER_STORED].sort());
+            expect([...NEVER_STORED].sort()).toEqual([...serverStripList.NEVER_STORED].sort());
         });
 
         it('records the collecting step for every never-persisted gated field', () => {
@@ -136,14 +143,14 @@ describe('requiredUnpersistedFields', () => {
 
         it.each(CONFIGS)('agrees with the server on a blank value (%s)', (_label, config) => {
             const browser = getMissingRequiredUnpersistedFields(config, {});
-            const server = serverDoc.getMissingRequiredUnpersistedFields(config, {});
+            const server = serverCheck.getMissingRequiredUnpersistedFields(config, {});
             expect(browser.map((field) => field.label)).toEqual(server);
         });
 
         it.each(CONFIGS)('agrees with the server on a supplied value (%s)', (_label, config) => {
             const formData = { ssn: '123-45-6789' };
             const browser = getMissingRequiredUnpersistedFields(config, formData);
-            const server = serverDoc.getMissingRequiredUnpersistedFields(config, formData);
+            const server = serverCheck.getMissingRequiredUnpersistedFields(config, formData);
             expect(browser.map((field) => field.label)).toEqual(server);
             expect(server).toEqual([]);
         });
