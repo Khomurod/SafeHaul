@@ -1,5 +1,15 @@
 const { test, expect } = require('@playwright/test');
-const { fillStep1, expectStep } = require('./helpers/wizardHelpers.cjs');
+const {
+  applySignature,
+  completeRemainingSteps,
+  continueToStep,
+  expectStep,
+  fillStep1,
+  fillStep2,
+  fillStep3RequiredFields,
+  submitApplication,
+  uploadStandardDocuments,
+} = require('./helpers/wizardHelpers.cjs');
 
 /**
  * "Continue your existing application?" — in a real browser.
@@ -191,6 +201,141 @@ test.describe('guest application resume', () => {
     await page.getByRole('button', { name: 'Back' }).click();
     await expectStep(page, 'License');
     await expect(page.locator('#cdl-number')).toHaveValue('E2ERESTORED9');
+  });
+
+  test('back navigation does not let a stale local copy beat the server', async ({ page }) => {
+    // The wizard writes the local draft on EVERY navigation, Back included, and
+    // Back sends no server save. So Back used to advance `localSeq` past
+    // `syncedSeq` and permanently mark this device as holding unsynced work —
+    // after which its copy beat genuinely newer work from another device for the
+    // rest of the draft's life.
+    await page.goto('/apply/e2e-company?e2eResume=offer');
+    await fillStep1(page, 'resume');
+
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toContainText('Continue your existing application?', { timeout: 30_000 });
+    await dialog.getByRole('button', { name: 'Continue where I left off' }).click();
+    await expectStep(page, 'Motor Vehicle Record');
+
+    const restored = await page.evaluate(() => JSON.parse(localStorage.getItem('draft_e2e-company')));
+    expect(restored.meta.localSeq).toBe(restored.meta.syncedSeq);
+
+    // Navigate, without changing an answer. `exact` because the License step also
+    // renders an "Upload CDL (Back)" control, which a substring match resolves to.
+    await page.getByRole('button', { name: 'Back' }).click();
+    await expectStep(page, 'License');
+    await page.getByRole('button', { name: 'Back', exact: true }).click();
+    await expectStep(page, 'Qualification');
+
+    // Still clean: moving through the form is not applicant work.
+    const afterBack = await page.evaluate(() => JSON.parse(localStorage.getItem('draft_e2e-company')));
+    expect(afterBack.meta.localSeq).toBe(afterBack.meta.syncedSeq);
+
+    // And the consequence that matters: the server copy is still the one applied.
+    await page.goto('/apply/e2e-company?e2eResume=offer');
+    await expectStep(page, 'Motor Vehicle Record');
+    await page.getByRole('button', { name: 'Back' }).click();
+    await expectStep(page, 'License');
+    await expect(page.locator('#cdl-number')).toHaveValue('E2ERESTORED9');
+  });
+
+  test('a save that failed offline is sent when the connection returns', async ({ page }) => {
+    await page.goto('/apply/e2e-company?e2eResume=offer');
+    await fillStep1(page, 'resume');
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toContainText('Continue your existing application?', { timeout: 30_000 });
+    await dialog.getByRole('button', { name: 'Continue where I left off' }).click();
+    await expectStep(page, 'Motor Vehicle Record');
+
+    await page.getByRole('button', { name: 'Back' }).click();
+    await expectStep(page, 'License');
+
+    // Go offline for real — Chromium fires the same `offline`/`online` events the
+    // listener is registered for — and make the save fail while it is down.
+    await page.evaluate(() => { window.__e2eFailDraftSave = true; window.__e2eDraftSaves = []; });
+    await page.context().setOffline(true);
+
+    await page.fill('#cdl-number', 'OFFLINEEDIT');
+    await page.getByRole('button', { name: 'Save as Draft' }).click();
+    await expect(page.getByText('Progress saved.')).toBeVisible();
+
+    const offline = await page.evaluate(() => ({
+      draft: JSON.parse(localStorage.getItem('draft_e2e-company')),
+      saves: (window.__e2eDraftSaves || []).length,
+    }));
+    expect(offline.draft.meta.localSeq).toBeGreaterThan(offline.draft.meta.syncedSeq);
+    expect(offline.saves).toBe(0);
+
+    // Reconnect. Nothing is typed and nothing is navigated: the flush is the
+    // whole behaviour under test.
+    await page.evaluate(() => { window.__e2eFailDraftSave = false; });
+    await page.context().setOffline(false);
+
+    await expect
+      .poll(async () => page.evaluate(() => (window.__e2eDraftSaves || []).length), { timeout: 15_000 })
+      .toBeGreaterThan(0);
+
+    // The edit reached the server, and the local copy is no longer owed.
+    const flushed = await page.evaluate(() => ({
+      draft: JSON.parse(localStorage.getItem('draft_e2e-company')),
+      saves: window.__e2eDraftSaves || [],
+    }));
+    expect(flushed.saves[0].formData.cdlNumber).toBe('OFFLINEEDIT');
+    expect(flushed.draft.meta.localSeq).toBe(flushed.draft.meta.syncedSeq);
+  });
+
+  test('a resumed application cannot be submitted without the SSN it never stored', async ({ page }) => {
+    // Requirement #4, end to end, with no fixture standing in for the failure: a
+    // draft never stores the SSN, so an applicant who closes the browser and comes
+    // back has no SSN in memory and never passes back through the page that asks
+    // for it. Before this, that application submitted without one.
+    test.setTimeout(180_000);
+
+    await page.goto('/apply/e2e-company');
+    await fillStep1(page, 'ssngone');
+    await fillStep2(page);
+    await fillStep3RequiredFields(page);
+    await uploadStandardDocuments(page);
+    await continueToStep(page, 'Motor Vehicle Record');
+
+    // Closed browser, new visit. Only the local draft survives, and it never held
+    // the SSN — the assertion below is on the stored copy, not on a mock.
+    const stored = await page.evaluate(() => localStorage.getItem('draft_e2e-company'));
+    expect(JSON.parse(stored).data).not.toHaveProperty('ssn');
+
+    await page.goto('/apply/e2e-company');
+    await expectStep(page, 'Motor Vehicle Record');
+
+    await page.getByRole('button', { name: 'Back' }).click();
+    await expectStep(page, 'License');
+    // The uploads came back, so nothing else is blocking the submission.
+    await expect(page.locator('[data-upload-field="cdl-front"]'))
+      .toHaveAttribute('data-upload-state', 'uploaded');
+
+    await continueToStep(page, 'Motor Vehicle Record');
+    await completeRemainingSteps(page);
+    await applySignature(page);
+    await submitApplication(page);
+
+    // Blocked, told exactly what is missing, and taken to the page that collects
+    // it — not left with a server error at the end.
+    await expect(page.getByText(/re-enter your Social Security Number/)).toBeVisible();
+    await expectStep(page, 'Personal Information');
+    await expect(page.locator('#ssn')).toHaveValue('');
+    await expect(page.getByText('Application Submitted!')).toHaveCount(0);
+
+    // The other half of the requirement: re-entering it lets the application
+    // through. Everything else is still filled in, so this walks forward again.
+    await page.fill('#ssn', '123-45-6789');
+    await continueToStep(page, 'Qualification');
+    await continueToStep(page, 'License');
+    await continueToStep(page, 'Motor Vehicle Record');
+    // Every answer is still in memory, so this is the same walk again; the
+    // signature stays accepted and locked from the first pass.
+    await completeRemainingSteps(page);
+    await submitApplication(page);
+
+    await expect(page.getByText('Application Submitted!')).toBeVisible({ timeout: 30_000 });
   });
 
   test('the SSN is never persisted or put in a draft payload', async ({ page }) => {

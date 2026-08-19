@@ -188,6 +188,12 @@ export function useApplicationResume({ slug, companyId, sandbox, hasCustomQuesti
             ssn: formData?.ssn || '',
             lastStep: stepIndex,
             lastSemanticStep: semanticOrder[stepIndex] || null,
+            // Proof that this browser owns the draft it is writing. Creating one is
+            // public — an applicant on page one has nothing to prove yet — but
+            // *changing* an existing draft now requires this, or the identity bar,
+            // because company id plus email plus phone derive the document id and
+            // knowing them used to be enough to overwrite somebody's application.
+            resumeToken: stored?.resumeToken || null,
             // The local write counter for exactly this content. The server stores
             // it and a later resume hands it back, which is how the browser tells
             // "the server holds my copy" from "another device moved on" — without
@@ -203,7 +209,15 @@ export function useApplicationResume({ slug, companyId, sandbox, hasCustomQuesti
             // acknowledged.
             markDraftSynced(slug, localSeq);
         }
-        if (result?.resumeToken && !stored) {
+        if (result?.resumeToken) {
+            // Adopted even when this browser already had one, which it did not used
+            // to be. The server returns a token *only* for a draft it just created,
+            // so a returned token always belongs to the draft this save wrote — and
+            // an applicant who corrects their email writes a new draft while the old
+            // one is retired underneath them. Keeping the old token left the browser
+            // holding a credential for a deleted document: cross-session resume was
+            // gone, and now that changing an existing draft requires proof of
+            // ownership, background saves would be refused as well.
             writeResumeToken(slug, {
                 resumeToken: result.resumeToken,
                 applicantKey: result.applicantKey,

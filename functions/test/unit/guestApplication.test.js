@@ -90,6 +90,11 @@ describe('submitGuestApplication', () => {
     phone: '5551234567',
     signature: 'data:image/png;base64,AAA',
     formData: {
+      // A real submission always carries this: the wizard requires it on page one
+      // and it travels in the submission payload — only the *draft* copies strip
+      // it. The server now refuses a submission missing a required field the draft
+      // never carried, which is the hole a resumed applicant used to walk through.
+      ssn: '123-45-6789',
       'cdl-front': { url: 'x' },
       'cdl-back': { url: 'y' },
       'medical-card-upload': { url: 'z' },

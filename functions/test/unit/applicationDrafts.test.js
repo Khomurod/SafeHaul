@@ -252,14 +252,220 @@ describe('saving progress', () => {
     });
 
     it('keeps at most one live draft per person per company', async () => {
-        await saveFirstPage();
-        // Same person, new email — a different deterministic key.
-        await saveFirstPage({ email: 'dana.alvarez@example.test' });
+        const first = await saveFirstPage();
+        // Same person, new email — a different deterministic key. The browser
+        // presents the token it was given, which is what proves it owned the
+        // earlier draft and may therefore retire it.
+        await saveFirstPage({ email: 'dana.alvarez@example.test', resumeToken: first.resumeToken });
 
         const paths = [...mockStore.keys()].filter((key) => key.includes('/application_drafts/'));
         expect(paths).toHaveLength(1);
         // The one that survives is the one just saved.
         expect(paths[0]).toContain(keyFor(COMPANY, 'dana.alvarez@example.test'));
+    });
+
+    it('will not retire another draft for someone who only knows the identity', async () => {
+        // Superseding deletes documents. Running it on the identity alone handed
+        // anyone who knew a name, a date of birth and an SSN a way to destroy that
+        // person's unfinished application: save under an email of their choosing and
+        // the victim's real draft was superseded.
+        await saveFirstPage();
+
+        await saveFirstPage({ email: 'attacker@example.test' });
+
+        const paths = [...mockStore.keys()].filter((key) => key.includes('/application_drafts/'));
+        // The victim's draft is still there.
+        expect(paths.some((key) => key.includes(keyFor()))).toBe(true);
+        expect(mockDeletedPaths).toHaveLength(0);
+    });
+
+    it('will not retire a draft using a token minted for the attacker\'s own', async () => {
+        // The subtle version of the same attack, and the one the first attempt at
+        // this gate still allowed. The three identity facts let a stranger create a
+        // draft of their own, which inherits the victim's identity key; the token
+        // minted for it then looked like proof of ownership over that identity, and
+        // the next save deleted the victim's application.
+        //
+        // Only a token for the draft actually being deleted counts.
+        await saveFirstPage({ formData: { firstName: 'Dana', cdlNumber: 'REAL' } });
+
+        const attacker = await saveFirstPage({
+            email: 'attacker@example.test',
+            phone: '(214) 555-0199',
+        });
+        expect(attacker.resumeToken).toBeTruthy();
+
+        // Second save, now presenting the token the attacker legitimately owns.
+        await saveFirstPage({
+            email: 'attacker@example.test',
+            phone: '(214) 555-0199',
+            resumeToken: attacker.resumeToken,
+        });
+
+        const victim = mockStore.get(`companies/${COMPANY}/application_drafts/${keyFor()}`);
+        expect(victim).toBeDefined();
+        expect(victim.formData.cdlNumber).toBe('REAL');
+        expect(mockDeletedPaths).toHaveLength(0);
+    });
+
+    it('ignores a resume token that belongs to a different person', async () => {
+        const victim = await saveFirstPage();
+        const other = await saveFirstPage({
+            email: 'someone.else@example.test',
+            phone: '(972) 555-0100',
+            lastName: 'Nguyen',
+            dob: '1990-07-04',
+            ssn: '987-65-4321',
+        });
+
+        // A real token, but for a draft with a different identity, so it proves
+        // nothing about the identity whose siblings would be retired.
+        await saveFirstPage({ email: 'dana.new@example.test', resumeToken: other.resumeToken });
+
+        expect(mockStore.has(`companies/${COMPANY}/application_drafts/${keyFor()}`)).toBe(true);
+        expect(victim.resumeToken).toBeTruthy();
+    });
+});
+
+describe('changing a draft that already exists', () => {
+    it('refuses a caller who knows only the contact details', async () => {
+        // The whole point: those three values derive the document id, and until now
+        // nothing else was checked, so knowing them was enough to overwrite.
+        await saveFirstPage({ formData: { firstName: 'Dana', cdlNumber: 'REAL' } });
+
+        const attempt = await drafts.saveApplicationProgress({
+            companyId: COMPANY,
+            email: IDENTITY.email,
+            phone: IDENTITY.phone,
+            formData: { firstName: 'Attacker', cdlNumber: 'FAKE' },
+        }, CONTEXT);
+
+        expect(attempt.saved).toBe(false);
+        expect(attempt.resumeToken).toBeNull();
+        // The same shape a network failure returns, so the refusal does not confirm
+        // to a stranger that this person has an application here.
+        expect(attempt.applicantKey).toBeNull();
+        const stored = mockStore.get(`companies/${COMPANY}/application_drafts/${keyFor()}`);
+        expect(stored.formData.cdlNumber).toBe('REAL');
+
+        // Audited under its own action — a refused write is a different operational
+        // signal from a resume lookup, and must not inflate the lookup count. Still
+        // value-free: no name, no contact detail, no identity hash.
+        const audit = [...mockStore.entries()]
+            .filter(([key]) => key.includes('application_draft_audit'))
+            .map(([, value]) => value);
+        expect(audit).toHaveLength(1);
+        expect(audit[0].action).toBe('draft_write_refused');
+        expect(audit[0].outcome).toBe('unauthorized_write');
+        const auditText = JSON.stringify(audit[0]);
+        expect(auditText).not.toContain(IDENTITY.email);
+        expect(auditText).not.toContain('123456789');
+        expect(auditText).not.toContain(IDENTITY.lastName);
+    });
+
+    it('accepts the browser that holds the draft\'s resume token', async () => {
+        const first = await saveFirstPage({ formData: { firstName: 'Dana' } });
+
+        const update = await drafts.saveApplicationProgress({
+            companyId: COMPANY,
+            email: IDENTITY.email,
+            phone: IDENTITY.phone,
+            resumeToken: first.resumeToken,
+            lastStep: 3,
+            formData: { firstName: 'Dana', cdlNumber: 'TX99' },
+        }, CONTEXT);
+
+        expect(update.saved).toBe(true);
+        const stored = mockStore.get(`companies/${COMPANY}/application_drafts/${keyFor()}`);
+        expect(stored.formData.cdlNumber).toBe('TX99');
+    });
+
+    it('accepts a browser that lost its token but clears the identity bar', async () => {
+        // Same bar `findResumableApplication` requires to *read* the draft. A caller
+        // who clears it can already retrieve the whole thing by design, so writing
+        // is not a new exposure — and it is what keeps a cleared browser's autosave
+        // working.
+        await saveFirstPage({ formData: { firstName: 'Dana' } });
+
+        const update = await drafts.saveApplicationProgress({
+            companyId: COMPANY,
+            email: IDENTITY.email,
+            phone: IDENTITY.phone,
+            lastName: IDENTITY.lastName,
+            dob: IDENTITY.dob,
+            ssn: IDENTITY.ssn,
+            formData: { firstName: 'Dana', cdlNumber: 'TX77' },
+        }, CONTEXT);
+
+        expect(update.saved).toBe(true);
+        expect(mockStore.get(`companies/${COMPANY}/application_drafts/${keyFor()}`).formData.cdlNumber)
+            .toBe('TX77');
+    });
+
+    it('accepts a second device once it clears the identity bar', async () => {
+        // Named for what it proves. Cross-device resume is a supported flow: a
+        // phone that never held this draft's token, on a different address, is
+        // authorized by the full identity plus contact details that match the
+        // stored draft — the same bar that already lets it *read* the draft.
+        await saveFirstPage({ formData: { firstName: 'Dana', cdlNumber: 'REAL' } });
+
+        const attempt = await drafts.saveApplicationProgress({
+            companyId: COMPANY,
+            email: IDENTITY.email,
+            phone: IDENTITY.phone,
+            lastName: IDENTITY.lastName,
+            dob: IDENTITY.dob,
+            ssn: IDENTITY.ssn,
+            formData: { firstName: 'Dana', cdlNumber: 'CHANGED' },
+        }, { rawRequest: { ip: '198.51.100.7' } });
+
+        expect(attempt.saved).toBe(true);
+        expect(mockStore.get(`companies/${COMPANY}/application_drafts/${keyFor()}`).formData.cdlNumber)
+            .toBe('CHANGED');
+    });
+
+    it('refuses a stale token from a draft that was discarded', async () => {
+        const first = await saveFirstPage();
+        await drafts.startNewApplication({
+            companyId: COMPANY, resumeToken: first.resumeToken,
+        }, CONTEXT);
+        // Recreate a draft at the same key, as a genuinely new application would.
+        await saveFirstPage({ formData: { firstName: 'Dana', cdlNumber: 'FRESH' } });
+
+        const attempt = await drafts.saveApplicationProgress({
+            companyId: COMPANY,
+            email: IDENTITY.email,
+            phone: IDENTITY.phone,
+            resumeToken: first.resumeToken,
+            formData: { firstName: 'Ghost', cdlNumber: 'STALE' },
+        }, CONTEXT);
+
+        expect(attempt.saved).toBe(false);
+        expect(mockStore.get(`companies/${COMPANY}/application_drafts/${keyFor()}`).formData.cdlNumber)
+            .toBe('FRESH');
+    });
+
+    it('stays idempotent for a retried save with the same token', async () => {
+        const first = await saveFirstPage();
+        const payload = {
+            companyId: COMPANY,
+            email: IDENTITY.email,
+            phone: IDENTITY.phone,
+            resumeToken: first.resumeToken,
+            clientSeq: 4,
+            formData: { firstName: 'Dana' },
+        };
+
+        const a = await drafts.saveApplicationProgress(payload, CONTEXT);
+        const b = await drafts.saveApplicationProgress(payload, CONTEXT);
+
+        expect(a.saved).toBe(true);
+        expect(b.saved).toBe(true);
+        const paths = [...mockStore.keys()].filter((key) => key.includes('/application_drafts/'));
+        expect(paths).toHaveLength(1);
+        // A token is minted once and never handed out again.
+        expect(a.resumeToken).toBeNull();
+        expect(b.resumeToken).toBeNull();
     });
 });
 

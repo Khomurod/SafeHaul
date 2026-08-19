@@ -6,7 +6,11 @@
 const functions = require('firebase-functions/v1');
 const { admin, db, storage } = require('./firebaseAdmin');
 const { assertCompanyAcceptingIntake } = require('./shared/companyTenant');
-const { assertRequiredUploads, buildApplicationDoc } = require('./shared/buildApplicationDoc');
+const {
+    assertRequiredUnpersistedFields,
+    assertRequiredUploads,
+    buildApplicationDoc,
+} = require('./shared/buildApplicationDoc');
 const { upsertApplicationDoc } = require('./shared/upsertApplicationDoc');
 const { buildApplicationDefinition } = require('./shared/applicationDefinition');
 const { CURRENT_AGREEMENT_VERSION, submittableVersions } = require('./shared/legalAgreements');
@@ -162,6 +166,10 @@ exports.submitGuestApplication = functions
         }
 
         assertRequiredUploads(applicationConfig, normalizedFormData);
+        // A resumed applicant never revisits the page that collects these, and the
+        // draft deliberately never carried them, so this is the only place that can
+        // catch a required Social Security Number going missing.
+        assertRequiredUnpersistedFields(applicationConfig, normalizedFormData);
 
         const {
             applicantKeyFull,

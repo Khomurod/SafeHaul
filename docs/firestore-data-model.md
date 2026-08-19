@@ -170,8 +170,22 @@ merge idempotently. No new identity scheme was introduced.
 
 **The draft never holds an SSN.** It is stripped in three independent places — the
 local browser draft, the client payload, and again on arrival — and the identity
-match uses the HMAC. On resume the applicant re-enters it, which the form already
-requires.
+match uses the HMAC. On resume the applicant must re-enter it, and that is enforced
+at submission rather than assumed: `submitGuestApplication` refuses a submission
+missing a required field the draft never carried
+(`assertRequiredUnpersistedFields`), driven off this strip list and `resolveGate`
+so a company that hides the question or marks it Optional is respected.
+
+**Writing a new draft is open; changing an existing one is not.** A progress save
+is unauthenticated by necessity, but that allowed anyone holding an applicant's
+email and phone to overwrite an existing draft, and anyone holding their name, date
+of birth and SSN digits to have it superseded. A save that would modify an existing
+document now requires either the `resumeTokenHash` match for this device or the full
+`identityKey`; superseding *other* drafts additionally requires a token that
+resolves to the same identity. An unauthorized attempt consumes the identity
+rate-limit budget, is audited as `draft_write_refused` / `unauthorized_write`, and returns the same
+`{ saved: false }` shape a network failure returns, so the refusal does not confirm
+the document exists.
 
 **At most one live draft per (company, identity).** A returning applicant who
 retypes their email derives a second document id, and leaving both would make
@@ -184,7 +198,9 @@ completed application never leaves a resumable copy behind.
 
 Composite index: `identityKey` ASC + `updatedAt` DESC.
 
-`application_draft_audit/{id}` records `action`, `outcome`, `at` and `expiresAt` —
+`application_draft_audit/{id}` records `action` (`resume_match_attempted` for a
+lookup, `draft_write_refused` for a refused update), `outcome`, `at` and
+`expiresAt` —
 and nothing else. Not the name, the date of birth, the SSN, the identity hash or
 the contact detail. What matters operationally is how many resume attempts a
 company's apply page is seeing and how many matched; a spike is visible and
