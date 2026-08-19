@@ -14,6 +14,21 @@
 
 process.env.SMS_ENCRYPTION_KEY = 'x'.repeat(32);
 
+jest.mock('firebase-functions/v2/https', () => {
+    class HttpsError extends Error {
+        constructor(code, message) {
+            super(message);
+            this.code = code;
+        }
+    }
+    return { HttpsError, onCall: (_opts, fn) => fn };
+});
+
+const mockAssertCompanyAccess = jest.fn().mockResolvedValue(undefined);
+jest.mock('../../shared/companyAccess', () => ({
+    assertCompanyAccessForRequest: (...args) => mockAssertCompanyAccess(...args),
+}));
+
 jest.mock('firebase-functions/v1', () => {
     class HttpsError extends Error {
         constructor(code, message, details) {
@@ -157,6 +172,7 @@ beforeEach(() => {
     mockFailWritesOn = null;
     mockCheckRateLimit.mockResolvedValue(true);
     mockAssertIntake.mockResolvedValue({ companyName: 'Acme Freight' });
+    mockAssertCompanyAccess.mockResolvedValue(undefined);
 });
 
 describe('saving progress', () => {
@@ -509,5 +525,77 @@ describe('starting over', () => {
         // collection this file names is its own value-free audit trail.
         expect(code).toMatch(/require\('\.\/shared\/applicationDraft'\)/);
         expect(code).toMatch(/application_draft_audit/);
+    });
+});
+
+/**
+ * The recruiter half. Without it a draft is only ever useful to an applicant who
+ * comes back on their own, and a carrier watching people drop off at the licence
+ * page still has nobody to call.
+ */
+describe('the company view of unfinished applications', () => {
+    it('lists enough to recognise and contact someone', async () => {
+        await saveFirstPage();
+
+        const result = await drafts.listApplicationDrafts({
+            auth: { uid: 'recruiter-1' },
+            data: { companyId: COMPANY },
+        });
+
+        expect(result.drafts).toHaveLength(1);
+        expect(result.drafts[0]).toMatchObject({
+            firstName: 'Dana',
+            lastName: 'Alvarez',
+            email: IDENTITY.email.toLowerCase(),
+            lastSemanticStep: 'qualifications',
+        });
+    });
+
+    it('does not hand a recruiter the half-finished answers', async () => {
+        await saveFirstPage({
+            formData: {
+                firstName: 'Dana',
+                lastName: 'Alvarez',
+                cdlNumber: 'D9988776',
+                'drug-test-positive': 'yes',
+            },
+        });
+
+        const result = await drafts.listApplicationDrafts({
+            auth: { uid: 'recruiter-1' },
+            data: { companyId: COMPANY },
+        });
+
+        // A contact list, not a preview. The applicant has signed nothing and
+        // consented to nothing, so reading their partial DOT questionnaire is a
+        // decision they have not yet made.
+        const serialized = JSON.stringify(result);
+        expect(serialized).not.toContain('D9988776');
+        expect(serialized).not.toContain('drug-test-positive');
+        expect(result.drafts[0]).not.toHaveProperty('formData');
+    });
+
+    it('requires company membership', async () => {
+        mockAssertCompanyAccess.mockRejectedValue(
+            Object.assign(new Error('nope'), { code: 'permission-denied' }),
+        );
+
+        await expect(drafts.listApplicationDrafts({
+            auth: { uid: 'outsider' }, data: { companyId: COMPANY },
+        })).rejects.toThrow();
+    });
+
+    it('is scoped to the company that asked', async () => {
+        await saveFirstPage();
+
+        const result = await drafts.listApplicationDrafts({
+            auth: { uid: 'recruiter-2' },
+            data: { companyId: 'company-2' },
+        });
+
+        expect(result.drafts).toHaveLength(0);
+        expect(mockAssertCompanyAccess).toHaveBeenCalledWith(
+            expect.anything(), 'company-2', expect.any(String),
+        );
     });
 });

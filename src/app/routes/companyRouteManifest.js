@@ -20,6 +20,18 @@ export const COMPANY_ROUTE_MANIFEST = Object.freeze([
     nav: { kind: 'group-item', group: 'applications', label: 'Applications', icon: 'FileText' },
   },
   {
+    id: 'unfinishedApplications',
+    path: 'drivers/unfinished',
+    screen: 'companyUnfinishedApplications',
+    featureName: 'Unfinished Applications',
+    // Its own item rather than a tab on Applications, because an unfinished
+    // application is not a submitted one: nothing is signed, no consent has been
+    // given and no snapshot exists. Mixing them into the ATS funnel would mean
+    // statuses, assignment and exports treating a half-typed form as a candidate
+    // record the applicant never agreed to file.
+    nav: { kind: 'group-item', group: 'applications', label: 'Started (unfinished)', icon: 'Hourglass' },
+  },
+  {
     id: 'companyLeads',
     path: 'drivers/leads/company',
     screen: 'companyCandidatesListPage',

@@ -123,6 +123,9 @@ exports.saveApplicationProgress = applicationDrafts.saveApplicationProgress;
 exports.findResumableApplication = applicationDrafts.findResumableApplication;
 exports.resumeApplicationDraft = applicationDrafts.resumeApplicationDraft;
 exports.startNewApplication = applicationDrafts.startNewApplication;
+// The recruiter half: unfinished applications are only useful to the carrier if
+// somebody can see them.
+exports.listApplicationDrafts = applicationDrafts.listApplicationDrafts;
 exports.createPostApplicationSigningRequest = require('./postApplicationEdocs').createPostApplicationSigningRequest;
 // AI Field Assistant: authenticated, company-scoped PDF field-placement suggestions.
 // Deliberately separate from parseCdlWithGroq (public guest path, different model pin).
