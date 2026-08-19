@@ -15,7 +15,7 @@ import { StepNavigation } from './components/StepNavigation';
  * authoritative step title as the page `<h1>`, and this copy also said "of 9"
  * even when custom questions made it ten steps.
  */
-const Step2_Qualifications = ({ formData, updateFormData, onNavigate }) => {
+const Step2_Qualifications = ({ formData, updateFormData, onNavigate, onPartialSubmit }) => {
     const yesNoOptions = YES_NO_OPTIONS;
     const drugTestPositive = formData['drug-test-positive'] === 'yes';
     const experienceOptions = EXPERIENCE_OPTIONS;
@@ -101,6 +101,7 @@ const Step2_Qualifications = ({ formData, updateFormData, onNavigate }) => {
 
             <StepNavigation
                 onBack={() => onNavigate('back')}
+                onSaveDraft={onPartialSubmit}
                 onContinue={handleContinue}
             />
         </div>

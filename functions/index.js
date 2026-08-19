@@ -113,6 +113,16 @@ exports.submitGuestApplication = require('./guestApplication').submitGuestApplic
 // wording cannot diverge.
 exports.getApplicationAgreements = require('./applicationAgreements').getApplicationAgreements;
 exports.parseCdlWithGroq = require('./cdlParser').parseCdlWithGroq;
+// Autosave, resume and start-over for an in-progress application. Drafts live in
+// their own server-only subcollection rather than in `applications`, because
+// creating an application document fires the recruiter notification, the
+// applicant's "we received your application" email and the driver-profile sync —
+// none of which should happen when someone has filled in one page.
+const applicationDrafts = require('./applicationDrafts');
+exports.saveApplicationProgress = applicationDrafts.saveApplicationProgress;
+exports.findResumableApplication = applicationDrafts.findResumableApplication;
+exports.resumeApplicationDraft = applicationDrafts.resumeApplicationDraft;
+exports.startNewApplication = applicationDrafts.startNewApplication;
 exports.createPostApplicationSigningRequest = require('./postApplicationEdocs').createPostApplicationSigningRequest;
 // AI Field Assistant: authenticated, company-scoped PDF field-placement suggestions.
 // Deliberately separate from parseCdlWithGroq (public guest path, different model pin).

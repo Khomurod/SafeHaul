@@ -24,7 +24,7 @@ import { StateSelectField } from './components/StateSelectField';
  * group. Each row now scopes its ids and grouping name with `accident-…-<index>`
  * while `name` (the saved key) stays `commercial` / `preventable`.
  */
-const Step5_Accidents = ({ formData, updateFormData, onNavigate }) => {
+const Step5_Accidents = ({ formData, updateFormData, onNavigate, onPartialSubmit }) => {
     const ty = new Date().getFullYear();
     const { states } = useUtils();
     const yesNoOptions = [{ label: 'Yes', value: 'yes' }, { label: 'No', value: 'no' }];
@@ -119,6 +119,7 @@ const Step5_Accidents = ({ formData, updateFormData, onNavigate }) => {
 
             <StepNavigation
                 onBack={() => onNavigate('back')}
+                onSaveDraft={onPartialSubmit}
                 onContinue={handleContinue}
             />
         </div>

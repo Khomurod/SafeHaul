@@ -38,7 +38,7 @@ const EMAIL_OK = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  * toggled row 1's input through the duplicated `label[for]`. Each row now scopes
  * its ids and grouping name by index while `name` (the saved key) is unchanged.
  */
-const Step6_Employment = ({ formData, updateFormData, onNavigate }) => {
+const Step6_Employment = ({ formData, updateFormData, onNavigate, onPartialSubmit }) => {
     const { showError } = useToast();
     const ty = new Date().getFullYear();
     const { states } = useUtils();
@@ -454,6 +454,7 @@ const Step6_Employment = ({ formData, updateFormData, onNavigate }) => {
 
             <StepNavigation
                 onBack={() => onNavigate('back')}
+                onSaveDraft={onPartialSubmit}
                 onContinue={handleContinue}
             />
         </div>

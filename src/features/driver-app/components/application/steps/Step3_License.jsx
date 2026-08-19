@@ -29,7 +29,7 @@ import { resolveApplicationGate } from '@/config/applicationGates';
  * message could be off-screen. It is now a `role="alert"` region that receives
  * focus, so the reason Continue did nothing is always reachable.
  */
-const Step3_License = ({ formData, updateFormData, handleFileUpload, onNavigate, isUploading }) => {
+const Step3_License = ({ formData, updateFormData, handleFileUpload, onNavigate, isUploading, onPartialSubmit }) => {
     const ty = new Date().getFullYear();
     const expMaxYear = ty + 20;
     const expMinYear = ty - 30;
@@ -352,6 +352,7 @@ const Step3_License = ({ formData, updateFormData, handleFileUpload, onNavigate,
 
             <StepNavigation
                 onBack={() => onNavigate('back')}
+                onSaveDraft={onPartialSubmit}
                 onContinue={handleContinue}
                 continueLabel={isUploading ? 'Uploading...' : 'Continue'}
                 continueLoading={isUploading}
