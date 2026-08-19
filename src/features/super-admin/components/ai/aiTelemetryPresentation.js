@@ -37,21 +37,36 @@ export const LOG_QUICK_FILTERS = Object.freeze([
     { id: 'errors', label: 'Errors', filters: { outcome: 'failure' } },
     { id: 'cdl', label: 'CDL', filters: { taskType: 'cdl_extraction' } },
     { id: 'edocs', label: 'E-Docs', filters: { taskType: 'edoc_field_placement' } },
-    { id: 'articles', label: 'Articles', filters: { taskType: 'article_generation' } },
+    // Deliberately no `taskType`: an article run makes TWO transactions —
+    // generation and the fact-check — and this filter used to name only the first.
+    // So a run refused by the fact-check was invisible under the one filter an
+    // operator would think to use, which is most of why "generation succeeded" was
+    // being read as "an article published". Article transactions are selected
+    // client-side from the pair below.
+    { id: 'articles', label: 'Articles', filters: { articleTasks: true } },
 ]);
+
+/** The task types that make up one article run, in the order they happen. */
+export const ARTICLE_TASK_TYPES = Object.freeze(['article_generation', 'article_fact_check']);
 
 /** The overall result of one transaction. */
 export function describeOutcome(entry) {
     if (entry?.outcome === 'success') {
+        // A verdict outranks the fallback count in the detail line, because it is
+        // the fact most likely to be misread. A fact-check that answered
+        // `supported: false` IS a successful transaction — the provider replied in
+        // a valid shape — and it is also the reason no article was published. Left
+        // to "Success · first provider" it read as an unqualified pass.
+        const verdict = describeVerdictWord(entry.verdict);
         return {
-            tone: 'success',
+            tone: entry.verdict === 'unsupported' ? 'warning' : 'success',
             label: 'Success',
             // A success that needed three providers is not the same event as one
             // that needed none, and an operator watching for trouble wants the
             // difference visible without opening the row.
-            detail: entry.fallbackCount > 0
+            detail: verdict || (entry.fallbackCount > 0
                 ? `after ${entry.fallbackCount} fallback${entry.fallbackCount === 1 ? '' : 's'}`
-                : 'first provider',
+                : 'first provider'),
         };
     }
     return {
@@ -91,6 +106,23 @@ const CATEGORY_LABELS = Object.freeze({
     all_providers_failed: 'Every provider failed',
     internal: 'Internal error',
 });
+
+/**
+ * The task's own word for what its answer said, in plain English.
+ *
+ * Only words SafeHaul's own tasks produce are translated; anything else is shown
+ * verbatim, because it has already been pattern-checked to be a single short
+ * token and inventing a label for an unknown one would be a guess.
+ */
+const VERDICT_LABELS = Object.freeze({
+    supported: 'claims supported',
+    unsupported: 'claims NOT supported — article refused',
+});
+
+export function describeVerdictWord(verdict) {
+    if (!verdict) return null;
+    return VERDICT_LABELS[verdict] || verdict;
+}
 
 export function describeCategory(category) {
     if (!category) return '';

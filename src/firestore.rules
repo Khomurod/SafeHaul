@@ -599,6 +599,7 @@ service cloud.firestore {
     // rows, source fingerprints and provider/model records. Writes are the
     // scheduler's alone; deletion goes through `deleteBlogPost`.
     match /blog_posts/{postId} { allow read, write: if false; } // server-only (News & Insights)
+    match /blog_runs/{runId} { allow read, write: if false; } // server-only (publication run ledger)
 
     // --- LANDING PAGE (server-only) ---
     // Platform-level settings for the marketing site, including the encrypted

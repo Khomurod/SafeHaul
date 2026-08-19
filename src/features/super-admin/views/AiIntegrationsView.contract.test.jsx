@@ -1502,6 +1502,96 @@ describe('what a failed capability says', () => {
     });
 });
 
+/**
+ * One article run makes two AI transactions, and a telemetry success means "a
+ * provider answered in a valid shape" — not "an article published". Both facts
+ * conspired: the Articles quick filter named `article_generation` alone, so a run
+ * refused by the fact-check was invisible under the filter an operator would
+ * think to use, and the fact-check row itself said "Success" for a verdict that
+ * correctly refused publication.
+ */
+describe('article transactions in the log', () => {
+    const ENTRIES = [
+        {
+            id: 'e1',
+            transactionId: 'txn-gen',
+            taskType: 'article_generation',
+            outcome: 'success',
+            fallbackCount: 0,
+            timestamp: '2026-08-18T10:00:00Z',
+            attempts: [],
+        },
+        {
+            id: 'e2',
+            transactionId: 'txn-check',
+            taskType: 'article_fact_check',
+            outcome: 'success',
+            verdict: 'unsupported',
+            fallbackCount: 0,
+            timestamp: '2026-08-18T10:01:00Z',
+            attempts: [],
+        },
+        {
+            id: 'e3',
+            transactionId: 'txn-cdl',
+            taskType: 'cdl_extraction',
+            outcome: 'success',
+            fallbackCount: 0,
+            timestamp: '2026-08-18T10:02:00Z',
+            attempts: [],
+        },
+    ];
+
+    async function openLogsWithEntries() {
+        stubCallables({
+            listAiTelemetry: vi.fn().mockResolvedValue({
+                data: { entries: ENTRIES, truncated: false, windowSize: 3 },
+            }),
+        });
+        await renderView();
+        fireEvent.click(screen.getByRole('tab', { name: /logs/i }));
+        const table = await screen.findByRole('table', { name: /AI transactions/i });
+        await waitFor(() => expect(within(table).getByText('Article generation')).toBeTruthy());
+        return table;
+    }
+
+    it('says a successful fact-check refused the article', async () => {
+        const table = await openLogsWithEntries();
+
+        // "Success · first provider" read as an unqualified pass for a verdict
+        // that is the reason nothing published.
+        expect(within(table).getByText(/claims NOT supported/i)).toBeTruthy();
+    });
+
+    it('includes the fact-check under the Articles quick filter, not just generation', async () => {
+        const table = await openLogsWithEntries();
+
+        fireEvent.click(screen.getByRole('button', { name: /^Articles$/ }));
+
+        // The panel debounces and re-fetches, so wait for the filter to land
+        // rather than asserting against the pre-filter render.
+        await waitFor(() => expect(within(table).queryByText('CDL extraction')).toBeNull());
+        expect(within(table).getByText('Article verification')).toBeTruthy();
+        expect(within(table).getByText('Article generation')).toBeTruthy();
+    });
+
+    it('does not send the article pair to the server as a task type', async () => {
+        await openLogsWithEntries();
+        const call = callables.listAiTelemetry;
+        call.mockClear();
+
+        fireEvent.click(screen.getByRole('button', { name: /^Articles$/ }));
+
+        await waitFor(() => expect(call).toHaveBeenCalled());
+        // The server takes one equality filter, and `articleTasks` is not one of
+        // its filters — sending it would be silently dropped and the pair lost.
+        for (const [payload] of call.mock.calls) {
+            expect(payload).not.toHaveProperty('articleTasks');
+            expect(payload.taskType).toBeUndefined();
+        }
+    });
+});
+
 describe('credential access check', () => {
     it('asks both Functions generations and names the account each runs as', async () => {
         stubCallables();

@@ -60,6 +60,7 @@ function defineTask(spec) {
         maxOutputTokens = 2048,
         privacy = PRIVACY.INTERNAL,
         totalDeadlineMs,
+        verdictOf = null,
     } = spec;
 
     if (!Object.values(TASK_TYPES).includes(taskType)) {
@@ -70,6 +71,9 @@ function defineTask(spec) {
     }
     if (!Object.values(PRIVACY).includes(privacy)) {
         throw new Error(`Unknown privacy classification "${String(privacy)}".`);
+    }
+    if (verdictOf !== null && typeof verdictOf !== 'function') {
+        throw new Error('verdictOf must be a function when supplied.');
     }
 
     return Object.freeze({
@@ -84,6 +88,23 @@ function defineTask(spec) {
         maxOutputTokens,
         privacy,
         totalDeadlineMs,
+        /**
+         * Optional: reduces a successful answer to one short, safe word for
+         * telemetry.
+         *
+         * Exists because "a provider answered in a valid shape" and "the answer
+         * was the one we wanted" are different facts, and for the fact-check task
+         * they are opposite ones. A verdict of `supported: false` is a perfectly
+         * valid payload, so the transaction is recorded as a success and the
+         * article is correctly refused — which is how the Logs tab came to show
+         * `article_generation: Success` and `article_fact_check: Success` for a
+         * run that published nothing.
+         *
+         * A *word*, never content: the router pattern-checks the result before it
+         * reaches telemetry, so a task cannot smuggle an article, a claim or a
+         * source through this hook.
+         */
+        verdictOf,
     });
 }
 

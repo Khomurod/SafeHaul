@@ -41,6 +41,19 @@ export async function listBlogPosts() {
     return result.data;
 }
 
+/**
+ * The publication run ledger.
+ *
+ * `listBlogPosts` can only ever show the runs that succeeded, so a refused slot
+ * used to be indistinguishable from a slot nobody attempted. This is the read
+ * that says which stage refused, and which AI transactions the run made.
+ */
+export async function listBlogRuns(limit) {
+    const call = httpsCallable(functions, 'listBlogRuns');
+    const result = await call(limit ? { limit } : {});
+    return result.data;
+}
+
 export async function deleteBlogPost(postId) {
     const call = httpsCallable(functions, 'deleteBlogPost');
     const result = await call({ postId });

@@ -318,6 +318,9 @@ exports.publishScheduledBlogPosts = blogScheduler.publishScheduledBlogPosts;
 
 const blogAdmin = require('./blog/callables');
 exports.listBlogPosts = blogAdmin.listBlogPosts;
+// The publication run ledger. `blog_posts` holds only the runs that succeeded,
+// so publication failure used to be rendered in the product as absence.
+exports.listBlogRuns = blogAdmin.listBlogRuns;
 exports.deleteBlogPost = blogAdmin.deleteBlogPost;
 exports.listMediaProviders = blogAdmin.listMediaProviders;
 exports.saveMediaCredential = blogAdmin.saveMediaCredential;

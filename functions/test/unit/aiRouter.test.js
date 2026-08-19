@@ -735,6 +735,55 @@ describe('failure handling and fallback triggers', () => {
     });
 });
 
+/**
+ * "A provider answered in a valid shape" and "the answer was the one we wanted"
+ * are different facts, and for the article fact-check they are opposite ones: a
+ * verdict of `supported: false` is a valid payload, so the transaction is a
+ * success and the article is correctly refused. The Logs tab showed
+ * `article_generation: Success` and `article_fact_check: Success` for a run that
+ * published nothing.
+ */
+describe('a task can record what its answer said', () => {
+    const { safeVerdict } = require('../../ai/router/router').__test;
+
+    it('records the verdict alongside the successful outcome', async () => {
+        const task = defineTask({
+            taskType: TASK_TYPES.ARTICLE_FACT_CHECK,
+            capabilities: [CAPABILITIES.TEXT, CAPABILITIES.STRUCTURED_JSON],
+            inputText: 'Check this.',
+            outputSchema: {
+                type: 'object',
+                properties: { supported: { type: 'boolean' } },
+                required: ['supported'],
+                additionalProperties: false,
+            },
+            verdictOf: (output) => (output.supported ? 'supported' : 'unsupported'),
+        });
+        mockExecute.mockResolvedValue({ text: '{"supported":false}', model: 'm' });
+
+        await runAiTask(task);
+
+        const recorded = mockRecordTelemetry.mock.calls
+            .map(([entry]) => entry)
+            .find((entry) => entry.outcome === 'success');
+        expect(recorded.verdict).toBe('unsupported');
+    });
+
+    it('drops anything that is not a short single word', () => {
+        // The reducer is supplied by the task, so this is what makes it
+        // impossible for one to hand telemetry an article, a claim or a source.
+        expect(safeVerdict({ verdictOf: () => 'supported' }, {})).toBe('supported');
+        expect(safeVerdict({ verdictOf: () => 'The rule takes effect in 2027' }, {})).toBeNull();
+        expect(safeVerdict({ verdictOf: () => 'x'.repeat(40) }, {})).toBeNull();
+        expect(safeVerdict({ verdictOf: () => ({ supported: false }) }, {})).toBeNull();
+        expect(safeVerdict({}, {})).toBeNull();
+    });
+
+    it('never lets a throwing reducer fail the task it describes', () => {
+        expect(safeVerdict({ verdictOf: () => { throw new Error('boom'); } }, {})).toBeNull();
+    });
+});
+
 describe('structured output validation', () => {
     const schemaTask = () => defineTask({
         taskType: TASK_TYPES.TOPIC_SELECTION,

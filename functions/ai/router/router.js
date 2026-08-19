@@ -508,6 +508,13 @@ async function runAiTask(task, deps = {}) {
                         providersInvolved: attemptRecords.map((entry) => entry.providerId),
                         cooldownSkipped: skipped.filter((s) => s.reason === SKIP_REASONS.COOLDOWN).length,
                         credentialSource: evaluation.credentials.source,
+                        // What the answer actually *said*, where the task can
+                        // reduce it to a word. A successful transaction is not the
+                        // same fact as a useful answer — a fact-check returning
+                        // `supported: false` is a valid response that correctly
+                        // refuses an article, and without this the Logs tab shows
+                        // it as an unqualified success.
+                        verdict: safeVerdict(task, output),
                         attempts: linkedAttempts(),
                     });
 
@@ -706,6 +713,28 @@ async function finishFailure(task, error, {
     });
 }
 
+/**
+ * A task's own one-word summary of its answer, sanitised.
+ *
+ * The pattern check is the point: a task supplies the reducer, and this makes it
+ * impossible for one to hand telemetry an article, a claim, a source or anything
+ * else with a space in it. Anything that is not a short single token is dropped
+ * rather than truncated — the same rule `vendorCode` follows, because a truncated
+ * sentence is still a sentence.
+ */
+const VERDICT_PATTERN = /^[a-z0-9_.-]{1,32}$/i;
+
+function safeVerdict(task, output) {
+    if (typeof task?.verdictOf !== 'function') return null;
+    try {
+        const verdict = task.verdictOf(output);
+        return typeof verdict === 'string' && VERDICT_PATTERN.test(verdict) ? verdict : null;
+    } catch {
+        // A reducer that throws must never fail the task it is describing.
+        return null;
+    }
+}
+
 function sleep(ms, signal) {
     return new Promise((resolve) => {
         const timer = setTimeout(resolve, ms);
@@ -770,6 +799,7 @@ module.exports = {
         safeEvaluateProvider,
         pickPrimaryCapability,
         normalizeOutput,
+        safeVerdict,
         buildTerminalFailure,
         assertImagesAreWellFormed,
     },

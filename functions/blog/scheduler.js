@@ -26,6 +26,7 @@ const { dueSlots, TIMEZONE, THEMES } = require('./pipeline/themes');
 const { runSlot, OUTCOME } = require('./pipeline/generate');
 const store = require('./store');
 const mediaStore = require('./media/credentials');
+const { recordSlotRun } = require('./runLedger');
 
 /**
  * A run publishes at most one article, even when two slots are outstanding.
@@ -38,7 +39,9 @@ const MAX_PUBLISHED_PER_RUN = 1;
  * Does the work. Exported separately from the scheduled wrapper so it can be
  * driven directly by tests and by the manual catch-up callable.
  */
-async function publishDueSlots({ now = Date.now(), fetchImpl, aiDeps, mediaCredentials } = {}) {
+async function publishDueSlots({
+    now = Date.now(), fetchImpl, aiDeps, mediaCredentials, trigger = 'scheduled',
+} = {}) {
     const slots = dueSlots(now);
     const outstanding = await store.unfilledSlots(slots);
 
@@ -55,7 +58,16 @@ async function publishDueSlots({ now = Date.now(), fetchImpl, aiDeps, mediaCrede
 
     for (const slot of outstanding) {
         if (published >= MAX_PUBLISHED_PER_RUN) {
-            results.push({ outcome: 'deferred_to_next_run', slot: { key: slot.key, themeId: slot.themeId } });
+            const deferred = {
+                outcome: 'deferred_to_next_run',
+                slot: { key: slot.key, themeId: slot.themeId, publicationDate: slot.publicationDate },
+            };
+            results.push({ outcome: deferred.outcome, slot: deferred.slot });
+            // Recorded like any other outcome. "Nothing published for this slot"
+            // and "this slot was deliberately held for the next hourly run" are
+            // different facts, and only one of them is a problem.
+            // eslint-disable-next-line no-await-in-loop
+            await recordSlotRun({ ...deferred, trigger });
             continue;
         }
 
@@ -77,6 +89,26 @@ async function publishDueSlots({ now = Date.now(), fetchImpl, aiDeps, mediaCrede
             slot: { key: slot.key, themeId: slot.themeId, publicationDate: slot.publicationDate },
             detail: result.detail || null,
             slug: result.post?.slug || null,
+        });
+
+        // The ledger row. Every outcome, not only the failures and not only the
+        // successes: a refusal used to exist nowhere but this console line, so
+        // "yesterday's 07:00 article is missing" had no answer in the product.
+        // `recordSlotRun` never throws — a ledger write must not turn a published
+        // article into a failed run.
+        // eslint-disable-next-line no-await-in-loop
+        await recordSlotRun({
+            outcome: result.outcome,
+            slot: { key: slot.key, themeId: slot.themeId, publicationDate: slot.publicationDate },
+            detail: result.detail || null,
+            slug: result.post?.slug || null,
+            stage: result.stage || null,
+            trigger,
+            transactions: result.transactions,
+            verification: result.verification,
+            providerId: result.providerId,
+            model: result.model,
+            fallbackCount: result.fallbackCount,
         });
 
         // Counts and outcomes only.
