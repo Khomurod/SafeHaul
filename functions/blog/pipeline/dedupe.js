@@ -170,7 +170,20 @@ function selectFreshCandidate(candidates, recentPosts) {
     return { candidate: null, verdict: null };
 }
 
-/** Whether the day's articles cover three genuinely different subjects. */
+/**
+ * Whether the day's articles cover three genuinely different subjects.
+ *
+ * **Not wired into the pipeline.** It is exported and covered by tests, and
+ * nothing calls it — `docs/news-and-insights.md` used to describe it as an
+ * enforced rule, which is worse than not having it: a documented safeguard that
+ * does not run is one nobody re-examines.
+ *
+ * Same-day distinctness is in fact carried by two mechanisms that do run: one
+ * document per `{publicationDate, theme}`, so a theme cannot be published twice
+ * in a day; and `checkForDuplicate` over the whole 60-day window, which catches
+ * two themes converging on the same story. This function is the stricter
+ * post-hoc check for a day's set, kept for the day that is wanted.
+ */
 function themesAreDistinct(posts) {
     const themes = posts.map((post) => post.theme);
     if (new Set(themes).size !== themes.length) return false;

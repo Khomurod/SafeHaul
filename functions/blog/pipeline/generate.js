@@ -55,15 +55,19 @@ const MAX_CANDIDATES = 12;
  * published short article over an unpublished long one, on a free tier, twice.
  * Raising a provider tier is what reverses it.
  *
- * The two free tiers fail in opposite directions: Gemini writes 311-417 words but caps at 20 requests, while
- * Groq is reliably available and reliably terse at 175-213. Gemini now leads and
- * will usually clear 300 comfortably; the floor sits at 200 so that when Gemini's
- * quota is spent, Groq's shorter article still publishes rather than the day
- * producing nothing. The owner's words: "even the 200 word article is okay, if
- * Gemini fails".
+ * The two free tiers fail in opposite directions: Gemini writes 311-417 words but
+ * caps at 20 requests per minute, while Groq is reliably available and reliably
+ * terse at 175-213. Gemini leads and will usually clear 300 comfortably; the floor
+ * sits below Groq's measured output so that when Gemini's quota is spent, Groq's
+ * shorter article still publishes rather than the day producing nothing. The
+ * owner's words: "even the 200 word article is okay, if Gemini fails".
  *
- * The prompt still asks for 350-600 so the model aims above the floor rather than
- * at it. Under-shooting is tolerated; padding is still forbidden.
+ * **There is one enforced number and it is 150.** An earlier revision of this
+ * comment said the floor "sits at 200" while the constant read 150, and the prompt
+ * asks for at least 300 — three numbers for one rule. The prompt's 300 is an
+ * instruction to the model, deliberately above the gate so it aims high rather
+ * than at the minimum; 150 is the gate. Under-shooting the prompt is tolerated,
+ * padding is still forbidden, and nothing but this constant refuses an article.
  *
  * Three numbers move together — this floor, `maxOutputTokens` in
  * articleGeneration, and `MAX_DOCUMENT_TEXT_CHARS` in fetchSources. Raise all
@@ -629,6 +633,13 @@ async function runSlot(slot, context) {
             originalitySimilarity: originality.similarity,
             sourceCount: sources.length,
             hasPrimarySource: sources.some((source) => isPrimary(source.sourceId)),
+            // The AI transactions behind this article, so a published post and the
+            // Logs tab can be joined in both directions. The run ledger already
+            // carries them for every outcome; a published article outlives its
+            // ledger row's 30-day retention, so it keeps its own copy.
+            // `publicApi.js` serves no generation metadata, so these stay internal.
+            generationTransactionId: trail.transactions.generation || null,
+            verificationTransactionId: trail.transactions.verification || null,
         },
         knowledgeVersion: knowledge.version,
         normalizedTitle: dedupe.normalizeTitle(validated.title),

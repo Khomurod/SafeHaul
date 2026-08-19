@@ -162,12 +162,15 @@ no request can name an arbitrary Secret Manager resource.
 | `testAiProvider` | same | Per-capability connection test: text, structured JSON, single and multi-image vision, and the article shapes. Synthetic prompts and generated images only. |
 | `diagnoseAiModelPins` | same | Reconciles every registry model pin against the vendor's live catalogue. Server-side; no credential is returned. |
 | `migrateGroqCredential` | same | Copies the legacy binding into Secret Manager server-side. The token is never returned. |
+| `diagnoseAiCredentialAccess` | same | Per-secret: does it exist, and can **this 2nd-generation runtime** read it. Names the runtime service account, read from the metadata server. No credential value is read or returned. |
+| `diagnoseAiCredentialAccessV1` | same | The same question asked of the **1st-generation** runtime, which defaults to a different service account. The browser calls both with `Promise.allSettled` and shows them side by side, because a per-generation difference is the fault being looked for. |
 
 ## Super Admin Blog Posts and blog media
 
 | Callable | Caller | Purpose |
 | --- | --- | --- |
-| `listBlogPosts` | [`BlogPostsView.jsx`](../src/features/super-admin/views/BlogPostsView.jsx) | Article titles, dates and status. |
+| `listBlogPosts` | [`BlogPostsView.jsx`](../src/features/super-admin/views/BlogPostsView.jsx) | Article titles, dates, status and `slug` — the last of which it did not return, so every title linked to `/news/undefined`. |
+| `listBlogRuns` | same | The publication run ledger: one row per slot per run, with the pipeline stage that refused. `blog_runs` is server-only in the rules, so this is the only read path. |
 | `deleteBlogPost` | same | Tombstones an article; it leaves every public surface immediately. |
 | `runBlogPublicationNow` | same | Runs the same idempotent pass the hourly schedule uses. |
 | `listMediaProviders` | [`AiIntegrationsView.jsx`](../src/features/super-admin/views/AiIntegrationsView.jsx) | Pexels / Unsplash / Openverse, masked. |
@@ -176,6 +179,27 @@ no request can name an arbitrary Secret Manager resource.
 
 See [`docs/ai-platform.md`](./ai-platform.md) and
 [`docs/news-and-insights.md`](./news-and-insights.md).
+
+## Guest application autosave and resume
+
+Unauthenticated, called from the public apply page. 1st-generation, matching
+`submitGuestApplication` and the rest of the guest intake surface. App Check is
+deliberately absent from this project (it broke real drivers' uploads), so the
+compensating controls are the ones named here: fail-closed rate limits before any
+work, a company-accepting-intake check, a uniform no-match response, and a
+value-free audit record.
+
+| Callable | Caller | Purpose |
+| --- | --- | --- |
+| `saveApplicationProgress` | [`applicationDraftService.js`](../src/features/driver-app/services/applicationDraftService.js) | Saves everything entered so far, after each successful Next. Idempotent on the deterministic applicant key. Returns a resume token on the first save only. |
+| `findResumableApplication` | same | "Is there an unfinished application to continue?" Answers with a short-lived token or a **uniform no-match** — identical whether nothing exists, something exists under a different contact detail, or the applicant has already submitted. Rate-limited per caller *and* per identity. |
+| `resumeApplicationDraft` | same | Exchanges the token for the saved answers and the step to return to. The token is the authorization, so it does not re-ask the identity questions. |
+| `startNewApplication` | same | Hard-deletes the matched draft in a transaction, so there is never a window with two live drafts for one person. |
+| `listApplicationDrafts` | [`UnfinishedApplicationsPage.jsx`](../src/features/company-admin/views/UnfinishedApplicationsPage.jsx) | Staff-facing, 2nd-generation, company-guarded: who started and did not finish, with contact details only. No answers, and no way to open or edit one — an unfinished application is a call to make, not a record in the ATS funnel. |
+
+Neither the draft nor any of these responses carries an SSN. See
+[`docs/firestore-data-model.md`](./firestore-data-model.md) →
+`application_drafts`.
 
 ## Not `httpsCallable` (added with News & Insights)
 

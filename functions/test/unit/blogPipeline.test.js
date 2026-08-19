@@ -292,6 +292,12 @@ describe('idempotency and retry safety', () => {
         expect(result.outcome).toBe(generate.OUTCOME.PUBLISHED);
         expect(mockPosts.size).toBe(1);
         expect(mockPosts.has('2026-08-02_industry-news')).toBe(true);
+
+        // The article keeps the ids of the AI transactions behind it, so it can
+        // still be joined to the Logs tab after its ledger row has expired.
+        const stored = mockPosts.get('2026-08-02_industry-news');
+        expect(stored.generation.generationTransactionId).toBeTruthy();
+        expect(stored.generation.verificationTransactionId).toBeTruthy();
     });
 
     it('does not publish a second article for the same date and theme on retry', async () => {

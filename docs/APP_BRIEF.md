@@ -7,7 +7,7 @@ It is deliberately short enough to read at the start of every task. It describes
 *what the application is and why it behaves the way it does* — not every file.
 Deep detail lives in the linked runbooks under [`docs/`](.).
 
-Verified against the code and configuration on **2026-08-13**.
+Verified against the code and configuration on **2026-08-19**.
 
 ---
 
@@ -118,9 +118,9 @@ truth shared by routes and navigation, so the two cannot drift.
 
 ### Company workspace (`/company/*`)
 
-`dashboard` · `drivers/applications` · `drivers/leads/company` ·
-`drivers/leads/my` · `campaigns` · `e-docs` · `import-leads` (admin) ·
-`quick-add-lead` (admin) · `profile` · `settings` (admin)
+`dashboard` · `drivers/applications` · `drivers/unfinished` ·
+`drivers/leads/company` · `drivers/leads/my` · `campaigns` · `e-docs` ·
+`import-leads` (admin) · `quick-add-lead` (admin) · `profile` · `settings` (admin)
 
 Unknown `/company/*` paths redirect to the dashboard rather than rendering an
 empty shell.
@@ -135,6 +135,25 @@ photo auto-fill or manual entry, then completes a 9-step wizard (Contact →
 Qualifications → License → Violations → Accidents → Employment → General →
 Review → Consent) over 11 canonical data sections. Submission goes through the
 `submitGuestApplication` callable (Admin SDK), not a client write.
+
+**Progress survives, from the first page onward.** Every forward step writes a
+local copy synchronously and a server-side draft in the background, so a closed
+tab, a dropped connection, a failed CDL scan or a page error no longer costs an
+applicant everything they typed. Nothing waits for the last page. Drafts live in
+their own server-only collection, never in `applications` — see §5.
+
+**Returning applicants are offered their unfinished application.** A device that
+still holds its resume token restores silently on load. On another device, the
+first Next matches last name + date of birth + SSN *and* an email or phone
+already on the draft, and offers a two-stage choice: continue where they left
+off, or — behind its own explicit destructive confirmation — delete it and start
+genuinely fresh. A failed or unmatched lookup is indistinguishable from "nothing
+exists", and the applicant simply carries on filling the form.
+
+**Unfinished applications are visible to the carrier.** `/company/drivers/unfinished`
+lists who started and did not finish, with contact details only — deliberately no
+answers and no way to open or edit one. It is a call to make, not a record in the
+ATS funnel.
 
 **Recruiter pipeline (ATS).** Applications and leads are separate collections
 under the company with the same shape of tooling: status funnel, activity log,
@@ -177,6 +196,44 @@ normalization or truncation** — existing records would become unreachable.
 **Offline-tolerant submission.** Submissions are queued in IndexedDB
 (`src/lib/submissionQueue.js`) with exponential backoff and retried when the
 connection returns. This only works because the IDs are deterministic.
+
+**Drafts are never written into `applications`, and this is load-bearing.** Four
+triggers fire on `create` under `companies/{id}/applications/{appId}` —
+notification, applicant email confirmation, driver sync / shadow profile, and the
+stats rollup. A draft written there would email every half-finished applicant "we
+received your application" and create driver profiles for people who typed a name
+and left. Unfinished applications therefore live in
+`companies/{id}/application_drafts/{applicantKey}`, keyed by the *same*
+deterministic applicant key so a draft and the application it becomes share one
+identity. The draft is discarded on successful submission.
+
+**A draft never holds an SSN or a signature.** Both are stripped in three
+independent places — the local browser copy, the client payload, and again on
+arrival, at every depth of the object. Matching a returning applicant uses a keyed
+HMAC of company + last name + date of birth + SSN digits, never the SSN itself, so
+there is no new place a Social Security Number comes to rest. On resume the
+applicant re-enters it, which the form already requires.
+
+**Saving progress must never be able to stop an applicant.** The local copy is
+written first and synchronously; the server save is background work whose failure
+is invisible. The feature exists because drivers on bad connections were losing
+everything they had typed, and a version of it that blocked them on a bad
+connection would be a worse bargain than not having it.
+
+**The resume lookup runs before the first server save.** A save racing it loses
+the very draft the feature protects: it overwrites the saved step with page one
+when the email matches, and the at-most-one-live-draft rule hard-deletes the older
+draft when it does not. The hook owns that ordering so no call site can get it
+wrong.
+
+**A resume match must not become a lookup service.** "Does a driver with this name
+and SSN have an application at this carrier" is not a question an unauthenticated
+caller may ask. The response is uniform whether nothing exists, something exists
+under a different contact detail, or the applicant already submitted; the bar is
+three identity facts *plus* a contact detail already on the record; and both halves
+are rate-limited fail-closed per caller **and** per identity, audited without
+recording what was attempted. A submitted application is never offered for resume
+and its existence is never disclosed.
 
 **The submission snapshot is immutable.** At submission, exactly what the driver
 saw, answered and accepted is frozen into
@@ -280,13 +337,18 @@ Rule vocabulary: `isSuperAdmin()` · `isCompanyAdmin(companyId)` ·
   `isCompanyAdminForRoute()` in `src/app/auth/roles.js` backs both the sidebar
   and `CompanyAdminRoute`, so a hidden nav item can never be reachable by URL.
   Keep it that way.
-- **Server-only collections** rely on default-deny with no client rule:
-  `rate_limits`, `processing_status`, `integrations_index`,
+- **Server-only collections** are closed to every client, including super
+  admins: `rate_limits`, `processing_status`, `integrations_index`,
   `environment_audit_log`, `ai_provider_config`, `ai_routing_config`,
-  `ai_telemetry`, `blog_posts`, `platform_settings`, `landing_leads`,
-  `orphaned_signature_cleanup`, and the `application_originals` Storage prefix.
-  `environment_audit_log` is unreadable **even by super admins**, so it cannot be
-  read around or forged through the callable.
+  `ai_telemetry`, `blog_posts`, `blog_runs`, `platform_settings`,
+  `landing_leads`, `orphaned_signature_cleanup`,
+  `companies/{id}/application_drafts`, `companies/{id}/application_draft_audit`,
+  and the `application_originals` Storage prefix. Some rely on default-deny with
+  no rule at all; the AI, blog and application-draft paths carry an **explicit**
+  `allow read, write: if false`, which is the stronger form — it survives a later
+  broad `match` being added above them, and it states the intent where a reader
+  looks. `environment_audit_log` is unreadable **even by super admins**, so it
+  cannot be read around or forged through the callable.
 - **Guests never write Firestore directly.** Guest application creates go
   exclusively through `submitGuestApplication`.
 - **Documents are never public URLs.** Every file link is server-issued, single
@@ -325,7 +387,18 @@ projection, and `/apply/:slug` is not gated by any flag. See
   Every request carries a transaction id and records a per-provider timeline in
   `ai_telemetry`, visible at Super Admin → AI Integrations → **Logs**; the
   connection test probes each capability a provider claims rather than only that
-  its key works. See [`docs/ai-platform.md`](./ai-platform.md).
+  its key works, and reports a throttled probe as untested rather than as broken.
+  Health and cooldown are tracked **per lane** (text / vision), because a
+  provider's text and image work reach different models on different entitlements
+  and fail independently. See [`docs/ai-platform.md`](./ai-platform.md).
+- **Credential access differs by function generation, and both must be granted.**
+  This project mixes 1st- and 2nd-generation functions, which default to
+  *different* runtime service accounts (App Engine and Compute Engine), so
+  `roles/secretmanager.secretAccessor` is needed on both or one AI entry point
+  reads a credential the other cannot. Super Admin → AI Integrations →
+  **Check credential access** asks both generations and names the account actually
+  in use. "The secret is missing" and "this runtime cannot read the secret" are
+  reported as different faults, because they need opposite actions.
 - **SMS credentials are resolved by a factory, never inline.**
   `SMSAdapterFactory` fetches, decrypts and instantiates the right adapter. A
   per-user *keychain* (`.../sms_provider/keychain/{userId}`) maps a recruiter to
@@ -350,6 +423,15 @@ The blog scheduler runs hourly rather than three times a day on purpose: that on
 choice makes it idempotent, retry-safe, able to recover a slot missed during an
 outage, and incapable of posting three articles a minute apart.
 
+Every publication run — scheduled or operator-triggered — records one row per slot
+in `blog_runs`, naming the pipeline stage that refused: sourcing, generation,
+validation, claim check, verification, originality, image or publication. Before
+this, a refusal existed only as a log line, and an AI transaction reporting
+`success` meant "a provider replied in shape" — not "an article published" — so
+generation and fact-check could both read green for a run that published nothing.
+Super Admin → Blog Posts → **Publication runs** is the read path. **No article is
+ever published to meet the daily count**; refusing is a recorded outcome.
+
 ### Firestore triggers
 
 - **Driver sync** — applications, company leads, logs and activities upsert a
@@ -368,7 +450,10 @@ outage, and incapable of posting three articles a minute apart.
   idempotent; no template configured means no message.
 - **Segments** — application create/update maintains segment membership.
 - **Retention** — activity logs are stamped with `expiresAt` for the eventual TTL
-  policy.
+  policy. `blog_runs`, `application_drafts` and `application_draft_audit` are
+  stamped the same way, with TTL field overrides declared in
+  `firestore.indexes.json` so they deploy with everything else. An unfinished
+  application expires after 30 days if nobody comes back to it.
 
 ### Idempotency
 
@@ -449,6 +534,14 @@ currently populates them from a recipient's reply; see §12.
   not alter Firebase rules, data structures, integrations, permissions, routes,
   feature flags or business workflows unless that is separately justified and
   approved.
+- **Unfinished applications live in their own collection.** Not in `applications`,
+  because four `create` triggers there would email half-finished applicants and
+  create driver profiles for people who typed a name and left. See §5.
+- **Discarding a draft is never a dismissal.** `ConfirmDialog` routes Escape to
+  `onCancel`, so if "start a new application" were the cancel action a stray
+  keypress would permanently delete the work an applicant came back for. Start over
+  is its own explicit destructive confirmation, and Escape at either stage deletes
+  nothing.
 - **The landing site stays dependency-free.** No framework, no build step, and no
   application or design-system imports — asserted by
   `src/tests/landingNewsSection.test.js`. This holds for every surface, homepage
@@ -547,6 +640,24 @@ actually having run.
   Admin action reads its total from there rather than a hard-coded number, so it
   retires itself when the work is verified complete. See
   [`docs/application-record-reconstruction-runbook.md`](./application-record-reconstruction-runbook.md).
+- **A deleted blog article does not free its slot.** `slotIsFilled` tests only
+  whether the document exists and a tombstone exists, so that `{date, theme}` slot
+  stays filled and no replacement is written. The ledger now records a row saying
+  so, rather than leaving it to be discovered. Reopening a slot safely means
+  changing the `create()`-based anti-double-publish guarantee, which needs its own
+  justification and tests; see [`docs/news-and-insights.md`](./news-and-insights.md).
+- **The blog's enforced word floor is 150 words**, far below the 700–1,200
+  originally specified. A recorded owner decision taken three times against
+  free-tier provider limits, not drift. Raising a provider tier reverses it.
+- **`themesAreDistinct` is not wired into the blog pipeline.** It is exported and
+  tested and nothing calls it; same-day distinctness comes from the one-document-per
+  `{date, theme}` rule and the 60-day duplicate window. The docs used to describe
+  it as enforced.
+- **The AI live-credential checks cannot run in CI.** The credential-access
+  diagnostic, the per-capability connection tests, model-pin verification and a
+  manual publication check all need real credentials in a deployed environment.
+  Nothing in the repository can substitute for them, and a green test run is not
+  evidence that any of them passed.
 - **Several one-time backfill callables are still exported** (`backfillUserCompanyIds`,
   `backfillDriverCompanyIds`, `backfillPublicProfiles`, `migrateEmailSettings`,
   `backfillApplicationSearchFields`, stats and SMS-phone backfills). They are

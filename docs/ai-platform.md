@@ -150,6 +150,33 @@ Where a vendor publishes no readable catalogue it reports "unsupported" rather
 than guessing, and an unreachable one reports "unreachable"; both are honest
 answers where "ok" would be a lie.
 
+### Verified live against the vendors, 2026-08-19
+
+The registry's pins, capability flags and request shapes were checked against the
+three configured vendors with SafeHaul's **exact** request shapes, using
+credentials supplied for the purpose and used read-only. Recorded because the
+alternative is re-litigating the same guesses.
+
+| Provider | Pin | Request shape | Vision result |
+| --- | --- | --- | --- |
+| Gemini | `gemini-3.6-flash` present in the catalogue | `/v1beta/interactions`, plain-string `system_instruction`, `input:[{type:'user_input'}]`, `{type:'image',mime_type,data}`, `response_format` — all correct; `extractText`'s `steps[]` / `model_output` handling matches the live envelope | 256x256 read correctly (`"red"`, 1,089 image tokens) |
+| Mistral | `mistral-large-latest` → `mistral-large-2512`, catalogue declares `vision: true` | OpenAI-compatible `chat/completions`, nested `image_url:{url}`, `json_schema` `strict:true` — accepted | 256x256 read correctly; multi-image "name the SECOND image" answered `blue` |
+| Groq | `qwen/qwen3.6-27b` | `/openai/v1/responses`, `input_image` with a base64 data URL, `text.format:{type:'json_object'}` — accepted | 64x64 two-tone read correctly (`{"dark_half":"top"}`) |
+
+**Every pin, capability flag and request shape checked was correct, and no
+provider configuration change was warranted.** The reported failures came from
+the platform's own diagnostics — probe image size, a connection test spending the
+tier it was testing, a body marker outranking a status code, and a 30-minute
+cooldown for a 45-second cap — plus one episode of genuine transient vendor
+capacity (Groq's preview vision model returned `503 … currently over capacity`).
+
+**One genuine quota finding, and its limit is small:** Gemini's free tier caps at
+20 requests per minute and clears in under a minute. Nothing here supports
+upgrading or paying for a provider, and no such recommendation is made.
+
+The keys used for this were pasted into a working session and should be treated
+as disclosed. Rotate them.
+
 ## Fallback order and behaviour
 
 The **default** order, derived from `priority` so it lives in one place:
@@ -317,13 +344,67 @@ against the same inputs.
 **Bounds.** A per-provider timeout from the registry, a total request deadline
 (120 s default), exactly one attempt per provider unless the registry marks a
 retry safe (only Hugging Face does), a 5-minute cooldown after 3 consecutive
-failures, and a 30-minute cooldown after a quota or rate-limit response.
-Cooldown is persisted in Firestore rather than held in memory, because Cloud
-Functions instances are ephemeral and independent — an in-memory counter would
-let a dozen cold instances each rediscover the same exhausted quota.
+failures in a lane, and a quota or rate-limit cooldown **sized to the wait the
+vendor stated**, bounded by the same 30-minute ceiling. Cooldown is persisted in
+Firestore rather than held in memory, because Cloud Functions instances are
+ephemeral and independent — an in-memory counter would let a dozen cold instances
+each rediscover the same exhausted quota.
 
 **When everything fails** the caller gets a safe categorised error. Nothing is
 fabricated.
+
+### A cooldown sized to the vendor's cap, not to a round number
+
+The quota cooldown was a flat 30 minutes. Gemini's free tier is 20 requests per
+*minute*, and it says so:
+
+```
+Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests,
+limit: 20, model: gemini-3.6-flash
+Please retry in 44.26781542s.
+```
+
+Forty-five seconds of vendor cap was costing thirty minutes of the highest-ranked
+provider being unavailable in every lane. That is the whole of "Gemini has
+accumulated repeated failures while still passing basic text": the platform
+over-reacting to a cap that clears in under a minute, not an exhausted allowance.
+
+`readStatedRetryMs` now reads the wait from the response **body** as well as the
+`Retry-After` header — Gemini states it only in the body, so the one number that
+sizes the cooldown correctly was being discarded — and the cooldown becomes that
+wait plus a small buffer, floored at 5s and capped at the existing ceiling.
+
+### A body marker must not outrank a status code
+
+`categorizeHttpFailure` consulted `quotaDetection.bodyMarkers` for **any** status
+at or above 400, before mapping 400, 401 or 404. The markers include `quota`,
+`rate limit` and `insufficient`, so a request-shape error or an auth error whose
+body merely contained one of those words was relabelled `quota_exceeded`, earned a
+cooldown, and told the operator to buy capacity. That is the mechanism that
+manufactures a false quota diagnosis, and it is why the owner's own reading of
+the logs pointed at free tiers.
+
+The order is now: the vendor's own declared statuses decide first; then 401/403 →
+`unauthorized`, 404 → `model_unavailable`, 400/422 → `provider_request_rejected`,
+5xx → `provider_unavailable`; body markers are consulted only for other 4xx. A
+vendor that signals exhaustion with a 402 still earns a quota cooldown — that is
+a declared status, and it is deliberate.
+
+### Health is per lane, because the lanes fail independently
+
+`recordProviderOutcome` kept one `health` value and one `consecutiveFailures`
+counter per provider. Two consequences, both of them reported symptoms:
+
+- any text success flipped `health` back to `healthy` while the provider's vision
+  lane was rejecting every CDL photograph — "healthy while important capabilities
+  are failing";
+- three vision failures cooled the provider out of the **text** lane as well.
+
+A provider's text and image work reach different models on different
+entitlements. So health and the failure counter are now per lane (`text`,
+`vision`, from `laneForCapability`), the router's cooldown check is lane-scoped,
+and the console shows a badge per lane. Quota and rate-limit cooldowns stay
+provider-wide, because a vendor allowance is account-wide.
 
 ## GitHub Models is retired
 
@@ -408,6 +489,74 @@ validates declared patterns, so a malformed account id never reaches a URL.
 
 **No plaintext token is ever written to Firestore.**
 
+### Absent and unreadable are different faults
+
+`readCredentials` reports them separately — `missing` for a secret that is not
+there, `unreadable` for one this runtime cannot read — and never collapses one
+into the other. It used to. Three separate places swallowed a read failure into
+"no credential configured":
+
+- `resolveCredentials` returned `{ complete: false }` with no reason;
+- `buildProviderRow` turned that into **"Not configured — Needs API key"** on the
+  AI Integrations row, while the routing panel on the same page said
+  `credential_error`, so one screen contradicted itself;
+- `buildTerminalFailure` had no branch for an all-`credential_error` walk and
+  fell through to `not_configured`, which `cdlParser` mapped to "AI auto-fill is
+  not configured on the server." — a message `useCdlAutoFill` shows verbatim, so
+  **a driver mid-application** was told about our IAM.
+
+An IAM fault and a missing key need opposite actions, and the operator was being
+sent to add a credential that already existed. The category is now carried all
+the way: `credential_error` is terminal and task-fatal, the console row reads
+"Credential unreadable", and the driver sees "AI auto-fill is temporarily
+unavailable. Please enter your licence details manually."
+
+`saveAiCredential` also reads the credential straight back after writing it, so
+the console can no longer create a secret it cannot then read — which is exactly
+what happens when a new secret is created without an IAM binding.
+
+### The runtime identity is not the same on every AI entry point
+
+This is worth stating plainly because it produces the confusing symptom where
+one AI feature works and another reports no credential on the same deploy.
+
+| Entry point | Generation | Default runtime service account |
+| --- | --- | --- |
+| `parseCdlWithGroq` (CDL auto-fill), the four guest draft callables | 1st | `<project>@appspot.gserviceaccount.com` (App Engine default) |
+| E-Doc field placement, every AI Integrations callable, the blog | 2nd | `<project-number>-compute@developer.gserviceaccount.com` (Compute Engine default) |
+
+There is no `setGlobalOptions({ serviceAccountEmail })` anywhere in the
+repository, so both defaults are in play, and **both need
+`roles/secretmanager.secretAccessor`**. Granting it to the App Engine account
+alone — which is what this document used to instruct — leaves every 2nd-generation
+AI feature unable to read a credential the 1st-generation one reads fine.
+
+Unifying the two identities was considered and deliberately **not** done:
+`bulkActions/services/queueService.js` relies on the App Engine account for Cloud
+Tasks OIDC, so changing every 2nd-generation function's identity is a separate
+change needing its own justification. Grant both, and make the mismatch visible
+instead — which is what the diagnostic below is for.
+
+### The credential-access diagnostic
+
+Super Admin → AI Integrations → **Check credential access** answers, per provider
+secret: does it exist, can *this runtime* read it, and if not, why —
+`permission_denied`, `unauthenticated`, `resource_exhausted` or `unavailable`,
+mapped from the gRPC status rather than guessed from a message. It also reports
+**the service account actually in use**, read from the metadata server, so nobody
+has to infer it from a generation table.
+
+It is asked of **both** generations —`diagnoseAiCredentialAccess` (2nd) and
+`diagnoseAiCredentialAccessV1` (1st) — and the two answers are shown side by
+side, because a per-generation difference is the fault being looked for. The
+browser calls them with `Promise.allSettled`, so one generation failing still
+shows the other.
+
+`exists` is `null`, not `false`, when the runtime is refused permission to check:
+"we could not look" is an honest answer and reporting it as absence is how this
+whole class of confusion started. No credential value is read, returned or
+logged — the diagnostic only ever reports whether a read succeeded.
+
 ### Why runtime access, not deploy-time bindings
 
 Credentials are read with the Secret Manager client rather than `secrets: [...]`
@@ -424,6 +573,15 @@ production features. The migration is deliberately reversible.
 1. On first deploy, nothing changes behaviourally: `resolveCredentials` prefers
    the managed credential and falls back to the legacy binding, so CDL and E-Doc
    parsing keep working before anyone migrates anything.
+
+   The fallback covers a **failed** managed read as well as an absent secret.
+   That was the gap: `readSecret` re-throws anything that is not NOT_FOUND, so a
+   `PERMISSION_DENIED` threw before the fallback branch was ever reached — the
+   rollback path did not protect production in the one failure mode it exists
+   for. A fallback taken after a read failure reports
+   `source: 'legacy-env-after-read-failure'`, and the console says so, because
+   running on the legacy binding *because the managed read is broken* is a
+   different situation from not having migrated yet.
 2. AI Integrations shows Groq as configured, with "Using the legacy deploy
    binding, not the managed credential."
 3. **Migrate legacy key** copies the token into Secret Manager entirely
@@ -468,6 +626,8 @@ Every AI use in the repository, as of this document:
 | Connection test | `testAiProvider` | `healthCheck` | every capability the provider declares | constant prompts, generated images |
 | Model pin check | `diagnoseAiModelPins` | — | none (catalogue listing only) | no prompt at all |
 | AI logs | `listAiTelemetry` | — | none (reads `ai_telemetry`) | metadata only |
+| Credential access check | `diagnoseAiCredentialAccess` (2nd gen) and `diagnoseAiCredentialAccessV1` (1st gen) | — | none (Secret Manager reachability only) | no prompt at all; no credential value read |
+| Publication runs | `listBlogRuns` | — | none (reads `blog_runs`) | metadata only |
 
 `parseCdlWithGroq` names a vendor that is now only the *first* provider tried. It
 is a compatibility alias: deployed driver-application clients call it by that
@@ -491,9 +651,17 @@ knowledge package, and never driver, applicant, employee or company-private data
 ## Super Admin operation
 
 **Super Admin → AI Integrations** lists all nine providers in fallback order
-with status, capabilities, masked credentials, resolved models, last test,
-cooldown state and actions. A separated **Research & Media** subsection manages
-Pexels, Unsplash and Openverse credentials.
+with status, capabilities, masked credentials, resolved models, per-lane health,
+last test — including the stored per-capability results, so a reload no longer
+reduces them to a bare *Failed* — cooldown state and actions. A separated
+**Research & Media** subsection manages Pexels, Unsplash and Openverse
+credentials.
+
+**Check credential access** is the first thing to reach for when a provider
+reports a credential problem: it names the runtime service account in use and,
+per secret, whether it exists and whether this runtime can read it — asked of both
+function generations. See
+[The credential-access diagnostic](#the-credential-access-diagnostic).
 
 The page reuses the Environment & Integrations vault's guards and audit trail
 rather than starting a parallel security model, so the same rules apply without
@@ -556,6 +724,7 @@ One document now carries the whole transaction:
 | `taskType`, `requiredCapabilities`, `capability` | which SafeHaul feature, and what it needed |
 | `outcome`, `category`, `latencyMs`, `fallbackCount` | what happened overall |
 | `providerId`, `model`, `credentialSource` | who finally served it |
+| `verdict` | what the task's answer actually **said**, when the task supplies one |
 | `inputSummary` | a **shape** description — see below |
 | `attempts[]` | the timeline, bounded at 12 entries |
 
@@ -576,6 +745,17 @@ CDL Extraction · txn 6f2a…
   3. Groq      qwen/qwen3.6-27b      success                      1,940ms  schema ✓
 Final result → success (2 fallbacks, 2,992ms)
 ```
+
+`verdict` exists because `outcome: 'success'` answers a narrower question than it
+looks. It means "a provider replied in a valid shape", and it is written before
+the caller has looked at the reply. A fact-check that answered `supported: false`
+is a *successful* transaction and also the reason no article published, so
+`article_generation: Success` next to `article_fact_check: Success` was a green
+pair for a run that published nothing. The verdict is a single short token,
+positively validated against `/^[a-z0-9_.-]{1,32}$/i` at both the router and the
+telemetry layer — never a vendor message — and the Logs row reads
+"Success · claims NOT supported — article refused" instead of
+"Success · first provider".
 
 `ai_telemetry` is `allow read, write: if false`, so the tab reads through the
 `listAiTelemetry` callable — guarded exactly as `listAiProviders` is. Firestore
@@ -688,9 +868,52 @@ assert, and claiming otherwise would recreate the original problem — a green
 check that means less than it looks.
 
 No probe touches driver, applicant or company data: every prompt is a constant,
-every image is an 8x8 PNG generated from flat colour in
+every image is generated from flat colour in
 `functions/ai/tasks/healthProbes.js`, and the article probes name a fictional
 authority so nothing in a probe can be mistaken for real source material.
+
+#### The probe images were too small to be a fair test
+
+They were 8x8 PNGs, and at that size two working vision providers reported as
+broken. Measured on 2026-08-19 against the live vendors with SafeHaul's exact
+request shapes:
+
+| Provider | 8x8 | 256x256 |
+| --- | --- | --- |
+| Mistral, multi-image | `{"answer":"unknown"}` — **fails** | `{"answer":"blue"}` — passes |
+| Gemini, multi-image | HTTP 504 `Deadline expired` | 200, correct |
+
+The probes' intent was right; the input made them lie. They are now 256x256, and
+the size is the point: a real CDL photograph is large, so a probe of the
+capability SafeHaul actually uses has to give the model something to look at.
+Every adversarial property is unchanged — the multi-image probe still asks about
+the *second* image, structured answers are still validated and then checked for
+substance, the verification probe still uses an unsupported claim.
+
+#### A connection test must not spend the budget it is testing
+
+Six serial probes on a free tier can exhaust the tier on themselves. Measured the
+same day: Groq answered a two-image probe with
+`429 … tokens per minute (TPM): Limit 8000, Used 3051, Requested 5023` — one
+vision probe costs roughly 2.5k of an 8k-per-minute budget and the multi-image one
+roughly 5k, so all six cannot fit. Mistral rate-limited with `429 code 1300`
+after a handful of calls.
+
+So a throttled probe is now its own outcome, not a failure:
+
+| Probe status | Means |
+| --- | --- |
+| `passed` / `failed` | the capability was tested, and the answer was right or wrong |
+| `rate_limited` | the vendor throttled the diagnostic. **The capability was never tested.** Shown as "Throttled" |
+| `inconclusive` | the probe could not reach a verdict. Shown as "Not verified" |
+| `not_run` | the budget did not reach it. Shown as "Not run", distinct from `skipped` |
+| `skipped` | the provider does not declare this capability. Shown as "Not offered" |
+
+Reporting a throttled diagnostic as a broken capability is the other half of why
+working providers looked broken. The probe honours the vendor's stated wait once,
+bounded by `PROBE_RETRY_CEILING_MS` (30s), and otherwise reports rather than
+retrying into the limit. "A test that did not finish is not a pass" still holds —
+`success` requires at least one probe run, none failed, and none left untested.
 
 | Suite | Covers |
 | --- | --- |
@@ -703,21 +926,34 @@ authority so nothing in a probe can be mistaken for real source material.
 | `functions/test/unit/cdlParser.test.js` | Callable contract preserved, guards ordered before AI spend, error mapping, log privacy |
 | `functions/test/unit/edocFieldPlacement.test.js` | Callable contract preserved, clamping, dedup, category mapping, log privacy |
 | `src/features/super-admin/views/AiIntegrationsView.contract.test.jsx` | Masking, one-at-a-time reveal, 30-second clear, no plaintext in DOM or storage, retired provider, re-authentication, typed delete |
+| `functions/test/unit/aiCredentialAccess.test.js` | The diagnostic: per-secret exists/readable, gRPC status mapping, `exists: null` when a check is refused, the runtime account read from the metadata server, and that no credential value is ever returned or logged |
+| `functions/test/unit/aiCredentialAccessV1.test.js` | The 1st-generation entry point, and that its error codes are translated rather than flattened to `internal` |
 
 ## Manual actions required
 
 These cannot be performed from the repository and must be done by a project
 owner. **The feature is not fully live until they are.**
 
-1. **Secret Manager IAM.** Grant the Cloud Functions runtime service account
-   (`<project>@appspot.gserviceaccount.com`, or the configured runtime account):
+1. **Secret Manager IAM.** Grant **both** Cloud Functions runtime service
+   accounts — this project mixes 1st- and 2nd-generation functions and they
+   default to different identities (see "The runtime identity is not the same on
+   every AI entry point"):
+   - `<project>@appspot.gserviceaccount.com` — App Engine default, used by
+     1st-generation functions including CDL auto-fill
+   - `<project-number>-compute@developer.gserviceaccount.com` — Compute Engine
+     default, used by 2nd-generation functions including E-Doc, the blog and
+     every AI Integrations callable
+
+   Each needs:
    - `roles/secretmanager.secretAccessor` on secrets matching `SAFEHAUL_AI_*`
    - `roles/secretmanager.admin` (or `secretVersionManager` plus
      `secretmanager.secrets.create`) so the console can create secrets and
      destroy versions.
 
-   Without the first, every provider reads as unconfigured. Without the second,
-   add and delete fail with a permission error.
+   Without the first, the affected generation reads every provider as
+   unreadable. Without the second, add and delete fail with a permission error.
+   Granting only one account is the state that produces "CDL works but E-Doc
+   says there is no credential", or the reverse.
 
    **Check it:**
 
@@ -729,7 +965,10 @@ owner. **The feature is not fully live until they are.**
    A missing `secretAccessor` no longer takes AI down wholesale — the router
    records `credential_error` against that provider and continues — but the
    affected provider is unusable until it is granted. The routing panel in AI
-   Integrations names the reason per provider.
+   Integrations names the reason per provider, and **Check credential access**
+   reports it per secret, per generation, alongside the service account actually
+   in use. Run that before reaching for `gcloud`: it answers the same question
+   from inside the runtime that is actually failing.
 
 2. **Cloud Scheduler.** `publishScheduledBlogPosts` creates its job on first
    functions deploy. Confirm it exists, runs hourly at minute 15, and is pinned
