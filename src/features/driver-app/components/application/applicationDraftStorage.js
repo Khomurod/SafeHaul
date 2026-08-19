@@ -66,6 +66,12 @@ function fingerprint(value) {
  * Unserializable on either side counts as **changed**, never as unchanged: the
  * cost of a false "changed" is one redundant save, and the cost of a false
  * "unchanged" is dropping a dirty marker and letting an older server copy win.
+ *
+ * It compares serialized form, so two bodies holding identical answers in a
+ * different key order read as changed. Known and left alone: it errs in the
+ * direction whose cost is a redundant save, and a stable serializer would trade
+ * that harmless cost for a subtler failure mode in the code that decides whether a
+ * driver's work has been acknowledged.
  */
 export function sameDraftData(a, b) {
   const left = fingerprint(a);
