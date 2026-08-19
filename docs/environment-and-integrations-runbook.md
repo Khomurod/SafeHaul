@@ -143,7 +143,7 @@ runtime service account can read that secret. This project mixes 1st- and
 | Generation | Default runtime service account |
 | --- | --- |
 | 1st (`firebase-functions/v1`) | `truckerapp-system@appspot.gserviceaccount.com` (App Engine) |
-| 2nd (`firebase-functions/v2`) | `<project-number>-compute@developer.gserviceaccount.com` (Compute Engine) |
+| 2nd (`firebase-functions/v2`) | `725898258453-compute@developer.gserviceaccount.com` (Compute Engine) |
 
 So when a secret that only 2nd-generation functions used gains a 1st-generation
 consumer, the CLI tries to add a binding — and the CI deploy account can deploy

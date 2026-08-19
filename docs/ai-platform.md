@@ -523,7 +523,7 @@ one AI feature works and another reports no credential on the same deploy.
 | Entry point | Generation | Default runtime service account |
 | --- | --- | --- |
 | `parseCdlWithGroq` (CDL auto-fill), the four guest draft callables | 1st | `<project>@appspot.gserviceaccount.com` (App Engine default) |
-| E-Doc field placement, every AI Integrations callable, the blog | 2nd | `<project-number>-compute@developer.gserviceaccount.com` (Compute Engine default) |
+| E-Doc field placement, every AI Integrations callable, the blog | 2nd | `725898258453-compute@developer.gserviceaccount.com` (Compute Engine default) |
 
 There is no `setGlobalOptions({ serviceAccountEmail })` anywhere in the
 repository, so both defaults are in play, and **both need
@@ -940,7 +940,7 @@ owner. **The feature is not fully live until they are.**
    every AI entry point"):
    - `<project>@appspot.gserviceaccount.com` — App Engine default, used by
      1st-generation functions including CDL auto-fill
-   - `<project-number>-compute@developer.gserviceaccount.com` — Compute Engine
+   - `725898258453-compute@developer.gserviceaccount.com` — Compute Engine
      default, used by 2nd-generation functions including E-Doc, the blog and
      every AI Integrations callable
 
