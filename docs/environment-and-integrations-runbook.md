@@ -130,6 +130,63 @@ Value availability values:
 | `PROCESS_BULK_BATCH_URL` | SafeHaul platform | internal | `server-runtime` | reveal / — / — | Yes |
 | `SMS_ENCRYPTION_KEY` | SafeHaul platform | critical | `server-runtime` | reveal / — / — | Yes |
 
+#### Binding a secret from a new function generation needs an IAM grant first
+
+**This will fail a deploy if you skip it, and it will fail the deploy of *every*
+function, not just yours.** Learned on 2026-08-19, when a green pull request
+merged and `main` shipped nothing.
+
+Every `secrets: [...]` declaration makes the Firebase CLI ensure the function's
+runtime service account can read that secret. This project mixes 1st- and
+2nd-generation functions, and they default to **different** accounts:
+
+| Generation | Default runtime service account |
+| --- | --- |
+| 1st (`firebase-functions/v1`) | `truckerapp-system@appspot.gserviceaccount.com` (App Engine) |
+| 2nd (`firebase-functions/v2`) | `725898258453-compute@developer.gserviceaccount.com` (Compute Engine) |
+
+So when a secret that only 2nd-generation functions used gains a 1st-generation
+consumer, the CLI tries to add a binding — and the CI deploy account can deploy
+functions but deliberately **cannot** rewrite secret IAM policies:
+
+```
+i functions: ensuring truckerapp-system@appspot.gserviceaccount.com access to secret SMS_ENCRYPTION_KEY.
+Error: ... Permission 'secretmanager.secrets.setIamPolicy' denied
+```
+
+The deploy then aborts for the whole codebase, and `verify-shipped` refuses the
+run — which is the only reason it was noticed rather than being read as a green
+release.
+
+**Grant it once, by hand, before merging:**
+
+```bash
+gcloud secrets add-iam-policy-binding <SECRET_NAME> \
+  --project truckerapp-system \
+  --member "serviceAccount:<the account for that generation>" \
+  --role roles/secretmanager.secretAccessor
+```
+
+The next deploy sees the binding already present, skips `setIamPolicy`, and
+succeeds. Granting CI `secretmanager.admin` so it can do this itself was
+considered and rejected: it would let any compromised workflow rewrite the IAM on
+every secret in the project, which is a much larger surface than the
+inconvenience it removes.
+
+Current state, asserted by
+[`functions/test/unit/secretBindingGenerations.test.js`](../functions/test/unit/secretBindingGenerations.test.js)
+so it cannot drift silently:
+
+| Secret | Bound from | Note |
+| --- | --- | --- |
+| `SMS_ENCRYPTION_KEY` | v1 **and** v2 | v1 arrived with the guest application-draft callables |
+| `GROQ_API_KEY` | v1 **and** v2 | always has — `cdlParser.js` is 1st generation and predates the AI platform |
+| everything else in §3 | v2 only | a 1st-generation consumer needs the grant above first |
+
+That test reads the real `secrets: [...]` declarations and fails when a secret
+gains a generation its expectation does not list. Do not widen the expectation to
+make it pass — the entry is a claim that the IAM grant exists.
+
 ### 3b. Operator-managed landing credentials (`source: firestore-encrypted`)
 
 | Key | Integration | Sensitivity | Value availability | Reveal / Edit / Delete | Deploy needed |

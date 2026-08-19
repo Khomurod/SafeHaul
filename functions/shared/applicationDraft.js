@@ -278,6 +278,12 @@ function toClientDraft(doc) {
         formData: data.formData || {},
         lastStep: Number.isInteger(data.lastStep) ? data.lastStep : 0,
         lastSemanticStep: typeof data.lastSemanticStep === 'string' ? data.lastSemanticStep : null,
+        // The browser's own write counter for the copy it last synced here. The
+        // client compares it with the sequence *it* believes is synced to tell
+        // "this is my copy" from "another device advanced it", without either side
+        // comparing a device clock to a server one. Null for a draft written
+        // before the field existed; the client falls back to progress then.
+        clientSeq: Number.isInteger(data.clientSeq) ? data.clientSeq : null,
         updatedAt: data.updatedAt?.toDate?.()?.toISOString?.() || null,
     };
 }

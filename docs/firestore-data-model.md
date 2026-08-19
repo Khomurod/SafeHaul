@@ -164,6 +164,7 @@ merge idempotently. No new identity scheme was introduced.
 | `identityKey` | **A keyed HMAC** of company + normalized last name + date of birth + SSN digits, derived server-side from `SMS_ENCRYPTION_KEY` under its own purpose string. Null when the identity is incomplete |
 | `formData` | The answers so far, allowlisted and size-capped. `ssn` and `signature` are stripped **at every depth** |
 | `lastStep`, `lastSemanticStep` | Where to return the applicant. The semantic id is what survives a company's custom-questions step being present or absent |
+| `clientSeq` | The browser's own write counter for the copy this save carried. The client compares it with the sequence *it* believes is synced, which is how an older server draft is stopped from overwriting newer local work — without either side comparing a phone clock to a Firestore timestamp. Null for a draft written before the field existed; the client falls back to comparing progress |
 | `resumeTokenHash` | A hash of the bearer token issued to a browser. Compared in constant time; the token itself is never stored |
 | `status`, `createdAt`, `updatedAt`, `expiresAt` | 30-day TTL declared in `firestore.indexes.json` |
 

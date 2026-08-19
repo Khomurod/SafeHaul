@@ -123,6 +123,76 @@ test.describe('guest application resume', () => {
     await expect(page.getByRole('dialog')).toHaveCount(0);
   });
 
+  test('a failed server save does not lose the newer local answers on reload', async ({ page }) => {
+    // The reported bug, end to end. Driver edits a field, the local copy saves,
+    // the server save fails, they reload — and the older server values used to
+    // come back over their edit with nothing said.
+    await page.goto('/apply/e2e-company?e2eResume=offer');
+    await fillStep1(page, 'resume');
+
+    // Continue from the server copy first, so the local copy starts out synced
+    // with a known sequence and both copies genuinely exist.
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toContainText('Continue your existing application?', { timeout: 30_000 });
+    await dialog.getByRole('button', { name: 'Continue where I left off' }).click();
+    await expectStep(page, 'Motor Vehicle Record');
+
+    await page.getByRole('button', { name: 'Back' }).click();
+    await expectStep(page, 'License');
+    await expect(page.locator('#cdl-number')).toHaveValue('E2ERESTORED9');
+
+    // Every save from here fails. No reload in between: a reload would discard the
+    // in-memory state that makes the local copy the newer one.
+    await page.evaluate(() => { window.__e2eFailDraftSave = true; });
+
+    await page.fill('#cdl-number', 'LOCALNEWER1');
+    // "Save as Draft" rather than Continue: this step legitimately refuses to
+    // advance until the required documents are uploaded, and the point here is the
+    // save, not the navigation.
+    await page.getByRole('button', { name: 'Save as Draft' }).click();
+    await expect(page.getByText('Progress saved.')).toBeVisible();
+
+    // The local write succeeded and the server one did not, so the local copy now
+    // holds work the server never acknowledged.
+    const beforeReload = await page.evaluate(() => JSON.parse(localStorage.getItem('draft_e2e-company')));
+    expect(beforeReload.meta.localSeq).toBeGreaterThan(beforeReload.meta.syncedSeq);
+    expect(beforeReload.data.cdlNumber).toBe('LOCALNEWER1');
+
+    // Reload against the same server fixture, which still holds the old value.
+    await page.goto('/apply/e2e-company?e2eResume=offer');
+    // The furthest step either copy reached, not the one Save as Draft recorded —
+    // the wizard's standing rule is never to move an applicant backwards, and the
+    // merge means that page has data behind it.
+    await expectStep(page, 'Motor Vehicle Record');
+    await page.getByRole('button', { name: 'Back' }).click();
+    await expectStep(page, 'License');
+
+    // The edit survives. Before the fix this read back 'E2ERESTORED9'.
+    await expect(page.locator('#cdl-number')).toHaveValue('LOCALNEWER1');
+  });
+
+  test('a synced local copy still yields to the server draft', async ({ page }) => {
+    // The other direction, so the fix is not "always prefer local": with nothing
+    // unsynced locally, the server copy is the one that is applied.
+    await page.goto('/apply/e2e-company?e2eResume=offer');
+    await fillStep1(page, 'resume');
+
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toContainText('Continue your existing application?', { timeout: 30_000 });
+    await dialog.getByRole('button', { name: 'Continue where I left off' }).click();
+    await expectStep(page, 'Motor Vehicle Record');
+
+    // Restored, therefore already synced — nothing local is newer.
+    const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('draft_e2e-company')));
+    expect(stored.meta.localSeq).toBe(stored.meta.syncedSeq);
+
+    await page.goto('/apply/e2e-company?e2eResume=offer');
+    await expectStep(page, 'Motor Vehicle Record');
+    await page.getByRole('button', { name: 'Back' }).click();
+    await expectStep(page, 'License');
+    await expect(page.locator('#cdl-number')).toHaveValue('E2ERESTORED9');
+  });
+
   test('the SSN is never persisted or put in a draft payload', async ({ page }) => {
     const bodies = [];
     page.on('request', (request) => {
@@ -146,8 +216,10 @@ test.describe('guest application resume', () => {
     expect(stored.draft).not.toBeNull();
     expect(stored.draft).not.toContain(SSN);
     expect(stored.draft).not.toContain(SSN_DIGITS);
-    expect(JSON.parse(stored.draft)).not.toHaveProperty('ssn');
-    expect(JSON.parse(stored.draft)).not.toHaveProperty('signature');
+    // Asserted on `data`, which is where the answers now live — checking the
+    // envelope's top level would pass whatever the draft contained.
+    expect(JSON.parse(stored.draft).data).not.toHaveProperty('ssn');
+    expect(JSON.parse(stored.draft).data).not.toHaveProperty('signature');
     expect(stored.token).not.toContain(SSN_DIGITS);
 
     // The payload the client actually built. The SSN *is* a deliberate top-level

@@ -220,6 +220,23 @@ is invisible. The feature exists because drivers on bad connections were losing
 everything they had typed, and a version of it that blocked them on a bad
 connection would be a worse bargain than not having it.
 
+**An older server draft must never overwrite newer local work.** There are two
+copies on purpose — local is the immediate backup for weak signal and failed
+saves, the server one is the persistent primary — and restoring the server copy
+used to win every field unconditionally. That destroyed the backup with the exact
+failure it exists to survive: a save fails, the driver refreshes, and yesterday's
+values come back over their edits with nothing said.
+
+Reconciliation is decided on **write sequences, never on wall-clock time**: a
+Firestore `serverTimestamp` and a phone's clock are different clocks, and phone
+clocks are routinely wrong, so comparing them would mark some drivers' local work
+permanently stale. The local copy counts its own writes and remembers which the
+server confirmed; the server stores the sequence that came with its copy. Local
+holding unacknowledged work wins; a server copy another device advanced wins;
+**the loser is always merged underneath, never discarded**, so a field only one
+side has always survives. Work typed since page load outranks both. The decision
+lives in `reconcileApplicationDraft.js`, is pure, and is covered case by case.
+
 **The resume lookup runs before the first server save.** A save racing it loses
 the very draft the feature protects: it overwrites the saved step with page one
 when the email matches, and the at-most-one-live-draft rule hard-deletes the older
@@ -627,7 +644,14 @@ actually having run.
   16 %, branches 13 %, functions 13 %) — deliberately set just under the current
   baseline to block regressions, not to describe good coverage. Raise them as
   coverage genuinely improves; never lower them to make a build pass.
-- **Mixed Functions v1/v2** — intentional, not a defect.
+- **Mixed Functions v1/v2** — intentional, not a defect. It has two real
+  consequences worth knowing before touching either: the two generations default
+  to *different* runtime service accounts, so (a) a credential can be readable by
+  one AI entry point and not another (§7), and (b) binding a secret from a
+  generation that has never bound it fails the **entire** functions deploy until
+  someone grants that account access. `secretBindingGenerations.test.js` guards
+  the second; see
+  [`docs/environment-and-integrations-runbook.md`](./environment-and-integrations-runbook.md).
 - **Feature flag defaults are asymmetric** (opt-out; missing means on). Easy to
   misread as a bug.
 - **A direct Storage upload can bypass the backend helper** — a documented,

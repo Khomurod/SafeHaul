@@ -639,8 +639,14 @@ describe('continuing an existing application', () => {
     await waitFor(() => expect(screen.getByTestId('current-step').textContent).toBe('2'));
     expect(showSuccess).toHaveBeenCalledWith('Your saved application has been restored.');
     // Written straight back locally, so a reload does not fall back to a staler
-    // draft than the one just restored.
-    expect(JSON.parse(localStorage.getItem('draft_acme')).cdlNumber).toBe('D9988776');
+    // draft than the one just restored. The answers now sit under `data`, beside
+    // the sync metadata that lets the two copies be reconciled.
+    const stored = JSON.parse(localStorage.getItem('draft_acme'));
+    expect(stored.data.cdlNumber).toBe('D9988776');
+    // And it is recorded as already synced, because it *is* the server's copy:
+    // marking it as unacknowledged work would make the next load prefer it over a
+    // server draft that had genuinely moved on.
+    expect(stored.meta.localSeq).toBe(stored.meta.syncedSeq);
   });
 
   it('writes nothing to the server while the resume question is unanswered', async () => {
@@ -716,6 +722,160 @@ describe('continuing an existing application', () => {
     // would look like their answers had been lost a second time.
     await waitFor(() => expect(screen.getByRole('dialog').textContent)
       .toMatch(/could not be opened/i));
+  });
+});
+
+/**
+ * Reconciling the two draft copies.
+ *
+ * There are two copies of an unfinished application on purpose: the local one is
+ * the immediate backup for weak signal and failed saves, the server one is the
+ * persistent primary. Restoring the server copy used to overwrite the local one
+ * unconditionally, which destroyed the backup with the exact failure it exists to
+ * survive.
+ */
+describe('reconciling the local and server drafts', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+    sessionStorage.clear();
+    isQueueSupportedSpy.mockReturnValue(true);
+    initQueueSpy.mockResolvedValue(undefined);
+    callableSpy.mockResolvedValue({ data: {} });
+    stubDraftCallables();
+    // A token, so the same-device server restore path runs on load.
+    localStorage.setItem('apply_resume_acme', JSON.stringify({
+      resumeToken: 'resume-token-1', applicantKey: 'key-1',
+    }));
+  });
+
+  afterEach(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+  });
+
+  /** Seeds an enveloped local draft at a chosen sync position. */
+  function seedLocal({ data, lastStep = 2, localSeq, syncedSeq }) {
+    localStorage.setItem('draft_acme', JSON.stringify({
+      v: 1, lastStep, meta: { localSeq, syncedSeq, savedAt: '2026-08-19T10:00:00.000Z' }, data,
+    }));
+  }
+
+  function serverReturns({ formData, lastStep = 2, clientSeq }) {
+    resumeDraftSpy.mockResolvedValue({
+      data: {
+        restored: true,
+        draft: { applicantKey: 'key-1', formData, lastStep, lastSemanticStep: 'license', clientSeq },
+      },
+    });
+  }
+
+  it('keeps newer local work when the server save had failed', async () => {
+    // The reported case: the driver corrects their phone, the local copy saves,
+    // the server save fails, they refresh. The old number used to come back.
+    seedLocal({ data: { firstName: 'Ada', phone: '5551234' }, localSeq: 6, syncedSeq: 4 });
+    serverReturns({ formData: { firstName: 'Ada', phone: '5550000' }, clientSeq: 4 });
+
+    renderHandler();
+    // No intake chooser: a seeded `lastStep` restores straight into the wizard.
+    await screen.findByText('probe-next');
+
+    await waitFor(() => expect(resumeDraftSpy).toHaveBeenCalled());
+    // Advancing forces the current form data into a payload we can read.
+    fireEvent.click(screen.getByText('probe-next'));
+    await waitFor(() => expect(saveProgressSpy).toHaveBeenCalled());
+    expect(saveProgressSpy.mock.calls[0][0].formData.phone).toBe('5551234');
+  });
+
+  it('applies a server draft another device advanced', async () => {
+    seedLocal({ data: { firstName: 'Ada', phone: '5551234' }, localSeq: 4, syncedSeq: 4 });
+    serverReturns({ formData: { firstName: 'Ada', phone: '5559999' }, clientSeq: 7 });
+
+    renderHandler();
+    // No intake chooser: a seeded `lastStep` restores straight into the wizard.
+    await screen.findByText('probe-next');
+
+    await waitFor(() => expect(resumeDraftSpy).toHaveBeenCalled());
+    fireEvent.click(screen.getByText('probe-next'));
+    await waitFor(() => expect(saveProgressSpy).toHaveBeenCalled());
+    expect(saveProgressSpy.mock.calls[0][0].formData.phone).toBe('5559999');
+  });
+
+  it('loses no field from either copy, whichever one wins', async () => {
+    seedLocal({ data: { phone: '5551234', nickname: 'Slim' }, localSeq: 6, syncedSeq: 4 });
+    serverReturns({ formData: { phone: '5550000', cdlNumber: 'TX9' }, clientSeq: 4 });
+
+    renderHandler();
+    // No intake chooser: a seeded `lastStep` restores straight into the wizard.
+    await screen.findByText('probe-next');
+    await waitFor(() => expect(resumeDraftSpy).toHaveBeenCalled());
+
+    fireEvent.click(screen.getByText('probe-next'));
+    await waitFor(() => expect(saveProgressSpy).toHaveBeenCalled());
+    const { formData } = saveProgressSpy.mock.calls[0][0];
+    expect(formData.phone).toBe('5551234');   // local won the overlap
+    expect(formData.nickname).toBe('Slim');   // local-only survived
+    expect(formData.cdlNumber).toBe('TX9');   // server-only survived
+  });
+
+  it('reconciles a legacy local draft on progress, since it has no sequence', async () => {
+    // Already in real drivers' browsers, written before sync metadata existed.
+    localStorage.setItem('draft_acme', JSON.stringify({
+      firstName: 'Ada', phone: '5551234', lastStep: 6,
+    }));
+    serverReturns({ formData: { phone: '5550000' }, lastStep: 1, clientSeq: 3 });
+
+    renderHandler();
+    // No intake chooser: a seeded `lastStep` restores straight into the wizard.
+    await screen.findByText('probe-next');
+    await waitFor(() => expect(resumeDraftSpy).toHaveBeenCalled());
+
+    fireEvent.click(screen.getByText('probe-next'));
+    await waitFor(() => expect(saveProgressSpy).toHaveBeenCalled());
+    // The local copy got further, so its values stand.
+    expect(saveProgressSpy.mock.calls[0][0].formData.phone).toBe('5551234');
+  });
+
+  it('carries the write sequence to the server and records the confirmation', async () => {
+    seedLocal({ data: { phone: '5551234' }, localSeq: 4, syncedSeq: 4 });
+    serverReturns({ formData: { phone: '5551234' }, clientSeq: 4 });
+
+    renderHandler();
+    // No intake chooser: a seeded `lastStep` restores straight into the wizard.
+    await screen.findByText('probe-next');
+    await waitFor(() => expect(resumeDraftSpy).toHaveBeenCalled());
+
+    fireEvent.click(screen.getByText('probe-next'));
+    await waitFor(() => expect(saveProgressSpy).toHaveBeenCalled());
+
+    // The sequence travels with the payload, and a successful save marks exactly
+    // that write synced — which is what stops the next load preferring a stale copy.
+    const sent = saveProgressSpy.mock.calls[0][0];
+    expect(Number.isInteger(sent.clientSeq)).toBe(true);
+    await waitFor(() => {
+      const stored = JSON.parse(localStorage.getItem('draft_acme'));
+      expect(stored.meta.syncedSeq).toBe(sent.clientSeq);
+    });
+  });
+
+  it('leaves the local copy unsynced when the save fails', async () => {
+    seedLocal({ data: { phone: '5551234' }, localSeq: 4, syncedSeq: 4 });
+    serverReturns({ formData: { phone: '5551234' }, clientSeq: 4 });
+    saveProgressSpy.mockRejectedValue(Object.assign(new Error('offline'), { code: 'functions/unavailable' }));
+
+    renderHandler();
+    // No intake chooser: a seeded `lastStep` restores straight into the wizard.
+    await screen.findByText('probe-next');
+    await waitFor(() => expect(resumeDraftSpy).toHaveBeenCalled());
+
+    fireEvent.click(screen.getByText('probe-next'));
+    await waitFor(() => expect(saveProgressSpy).toHaveBeenCalled());
+
+    // Unsynced is the whole point: the next load must prefer this copy.
+    await waitFor(() => {
+      const stored = JSON.parse(localStorage.getItem('draft_acme'));
+      expect(stored.meta.localSeq).toBeGreaterThan(stored.meta.syncedSeq);
+    });
   });
 });
 
