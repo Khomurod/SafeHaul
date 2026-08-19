@@ -65,6 +65,14 @@ const ALLOWED_FIELDS = Object.freeze([
     'credentialSource',
     // A metadata-only description of the request. See `describeTaskInput`.
     'inputSummary',
+    // One short word describing what a successful answer actually said, supplied
+    // by the task and pattern-checked by the router. Kept because "a provider
+    // answered in a valid shape" and "the answer was the one we wanted" are
+    // different facts, and for the article fact-check they are opposite ones: a
+    // verdict of `supported: false` is a valid payload, so the transaction is a
+    // success and the article is correctly refused. Without this the Logs tab
+    // showed two green rows for a run that published nothing.
+    'verdict',
 ]);
 
 /**
@@ -110,6 +118,16 @@ const ALLOWED_ATTEMPT_FIELDS = Object.freeze([
  */
 const VENDOR_CODE_PATTERN = /^[a-z0-9_.-]{1,64}$/i;
 
+/**
+ * A task's verdict word, held to the same rule and for the same reason.
+ *
+ * The router already pattern-checks the reducer's result, but the value arrives
+ * here from a caller-supplied function, so validating it again is the point: the
+ * allowlist is only as strong as its narrowest gate, and this is the one field a
+ * task author could otherwise widen by accident.
+ */
+const VERDICT_PATTERN = /^[a-z0-9_.-]{1,32}$/i;
+
 function safeString(value, max) {
     return String(value).slice(0, max);
 }
@@ -141,6 +159,12 @@ function sanitize(entry) {
     for (const key of ALLOWED_FIELDS) {
         const value = entry[key];
         if (value === undefined || value === null) continue;
+        if (key === 'verdict') {
+            // Positively validated, not truncated — a truncated sentence is
+            // still a sentence.
+            if (typeof value === 'string' && VERDICT_PATTERN.test(value)) clean[key] = value;
+            continue;
+        }
         if (typeof value === 'string') {
             clean[key] = safeString(value, 200);
         } else if (typeof value === 'number' && Number.isFinite(value)) {
@@ -366,6 +390,7 @@ module.exports = {
     MAX_ATTEMPTS,
     RETENTION_DAYS,
     VENDOR_CODE_PATTERN,
+    VERDICT_PATTERN,
     recordAiTelemetry,
     readRecentTelemetry,
     describeTaskInput,

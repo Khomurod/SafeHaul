@@ -288,7 +288,16 @@ export function useAiFieldAssistant({ companyId, file, numPages, activePage, fie
                 } else if (code === 'functions/permission-denied') {
                     setError('You do not have access to run the AI Field Assistant for this company.');
                 } else if (code === 'functions/failed-precondition') {
-                    setError('The AI Field Assistant is not configured on the server yet.');
+                    // Two different faults share this code, and telling a
+                    // recruiter to configure something that is already
+                    // configured sends them somewhere they cannot help. The
+                    // server names which it was in `details.category`; a
+                    // category is the only failure information SafeHaul treats
+                    // as safe to cross a trust boundary, so it carries no
+                    // provider, credential or document detail.
+                    setError(err?.details?.category === 'credential_error'
+                        ? 'The AI Field Assistant is temporarily unavailable. You can place fields manually.'
+                        : 'The AI Field Assistant is not configured on the server yet.');
                 } else if (code === 'functions/unavailable') {
                     setError('Could not reach the AI service. Please try again.');
                 } else {

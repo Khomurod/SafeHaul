@@ -12,10 +12,12 @@ import {
     isReauthCancelled,
     isReauthRequired,
     listBlogPosts,
+    listBlogRuns,
     ReauthCancelledError,
     runBlogPublicationNow,
 } from '../services/blogPosts';
 import { ReauthenticateModal } from '../components/environment/ReauthenticateModal';
+import { BlogRunLedger } from '../components/blog/BlogRunLedger';
 
 /**
  * Super Admin → Blog Posts.
@@ -47,6 +49,17 @@ export function BlogPostsView() {
     const [deleteError, setDeleteError] = useState(null);
     const [reauth, setReauth] = useState(null);
     const [publishing, setPublishing] = useState(false);
+    /**
+     * The publication run ledger.
+     *
+     * Loaded alongside the article list rather than behind a tab, because the two
+     * answer halves of the same question and the missing half is the one that was
+     * causing the confusion: this list shows what published, that one shows what
+     * did not and why.
+     */
+    const [runs, setRuns] = useState(null);
+    const [runsLoading, setRunsLoading] = useState(false);
+    const [runsError, setRunsError] = useState(null);
 
     /**
      * The control that opened the dialog. `ConfirmDialog` restores focus to
@@ -70,7 +83,19 @@ export function BlogPostsView() {
         }
     }, []);
 
-    useEffect(() => { load(); }, [load]);
+    const loadRuns = useCallback(async () => {
+        setRunsLoading(true);
+        setRunsError(null);
+        try {
+            setRuns(await listBlogRuns());
+        } catch (error) {
+            setRunsError(describeBlogError(error, 'The publication run history could not be loaded.'));
+        } finally {
+            setRunsLoading(false);
+        }
+    }, []);
+
+    useEffect(() => { load(); loadRuns(); }, [load, loadRuns]);
 
     const requestReauth = useCallback(() => new Promise((resolve, reject) => {
         setReauth({ resolve, reject });
@@ -130,13 +155,16 @@ export function BlogPostsView() {
                     : `Nothing new was published (${reasons}).`);
             }
             await load();
+            // The run that just happened is the one an operator most wants to
+            // read, so the ledger is refreshed with the list.
+            await loadRuns();
         } catch (error) {
             if (isReauthCancelled(error)) return;
             showError(describeBlogError(error, 'The publication run could not be started.'));
         } finally {
             setPublishing(false);
         }
-    }, [load, runGuarded, showError, showInfo, showSuccess]);
+    }, [load, loadRuns, runGuarded, showError, showInfo, showSuccess]);
 
     const columns = useMemo(() => [
         {
@@ -171,13 +199,21 @@ export function BlogPostsView() {
                 <div className="flex justify-end gap-ds-1">
                     {post.status !== 'deleted' && (
                         <>
-                            <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => window.open(`/news/${post.slug}`, '_blank', 'noopener')}
-                            >
-                                <ExternalLink size={14} aria-hidden="true" /> View
-                            </Button>
+                            {/* Only with a slug. `listBlogPosts` did not return one,
+                                so every View opened `/news/undefined` — and the
+                                contract fixture included a slug, which is exactly
+                                why no test caught it. The server now sends it; this
+                                guard means a missing one costs a control rather
+                                than producing a broken link. */}
+                            {post.slug && (
+                                <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => window.open(`/news/${post.slug}`, '_blank', 'noopener')}
+                                >
+                                    <ExternalLink size={14} aria-hidden="true" /> View
+                                </Button>
+                            )}
                             <Button
                                 size="sm"
                                 variant="danger"
@@ -213,7 +249,11 @@ export function BlogPostsView() {
             </div>
 
             <div className="flex flex-wrap gap-ds-2">
-                <Button variant="secondary" onClick={load} disabled={loading}>
+                <Button
+                    variant="secondary"
+                    onClick={() => { load(); loadRuns(); }}
+                    disabled={loading}
+                >
                     <RefreshCw size={14} aria-hidden="true" /> Refresh
                 </Button>
                 <Button variant="secondary" loading={publishing} onClick={handlePublishNow}>
@@ -244,6 +284,16 @@ export function BlogPostsView() {
                     title: 'No articles have been published yet.',
                     description: 'The scheduler publishes three articles a day once an AI provider is configured.',
                 }}
+            />
+
+            <BlogRunLedger
+                runs={runs?.runs || []}
+                loading={runsLoading}
+                error={runsError}
+                truncated={runs?.truncated}
+                unavailable={runs?.unavailable}
+                retentionDays={runs?.retentionDays}
+                onRefresh={loadRuns}
             />
 
             {deleteTarget && (

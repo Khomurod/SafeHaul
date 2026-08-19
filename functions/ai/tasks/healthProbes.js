@@ -35,21 +35,47 @@
  *
  * Every prompt is a constant and every image is generated from flat colour.
  * Nothing here touches a driver, an applicant, a company or a document. The
- * images below are 8x8 solid-colour PNGs written out byte by byte, so the
+ * images below are solid-colour PNGs written out byte by byte, so the
  * repository carries no image file that could later be swapped for a real one.
+ *
+ * ## Why the images are 256x256 and not 8x8
+ *
+ * They were 8x8, on the reasoning that a probe should cost a rounding error.
+ * That was measured against the live vendors on 2026-08-18 and it made the
+ * probes lie — in the *pessimistic* direction, which is the harder kind to
+ * notice, because a false failure looks like diligence:
+ *
+ *   Mistral  multi-image, 8x8   -> {"answer":"unknown"}   FAILED
+ *   Mistral  multi-image, 256px -> {"answer":"blue"}      passed
+ *   Gemini   multi-image, 8x8   -> HTTP 504 Deadline expired before operation
+ *   Gemini   multi-image, 256px -> {"answer":"blue"}      passed
+ *
+ * Vision models tokenise an image into patches. An 8x8 image is under a single
+ * patch, so it carries almost no signal and vendors handle the degenerate case
+ * inconsistently — Mistral spent 15 prompt tokens on one and declined to answer.
+ * Reporting "this provider cannot read images" on that basis was wrong, and it
+ * is what put two working vision providers on the console as broken while CDL
+ * auto-fill had nothing to fall back to.
+ *
+ * 256x256 is still flat colour, still generated, still ~560 bytes, and still
+ * costs a rounding error — it is simply large enough for the question to be a
+ * fair one. **If these are ever shrunk again, the probes stop testing the
+ * vendors and start testing their tolerance of degenerate input.**
  */
 
 const { CAPABILITIES } = require('../registry/capabilities');
 
 /**
- * An 8x8 solid red PNG and an 8x8 solid blue PNG, 74 bytes each.
+ * A 256x256 solid red PNG and a 256x256 solid blue PNG, 564 bytes each.
  *
  * Two colours rather than one because the multi-image probe has to be able to
  * distinguish *which* image is which — a provider that silently drops all but
  * the first image would otherwise pass.
+ *
+ * See the note above on why these are not 8x8 any more.
  */
-const RED_PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAEUlEQVR4nGO4IyKCFTEMLQkAmD9BAZzFjLYAAAAASUVORK5CYII=';
-const BLUE_PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAEUlEQVR4nGMQ0biDFTEMLQkAKF1GAcVPm8wAAAAASUVORK5CYII=';
+const RED_PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAIAAADTED8xAAAB+0lEQVR42u3TQQkAAAjAwPUvrX8reHAJBmsK3pIAA4ABwABgADAAGAAMAAYAA4ABwABgADAAGAAMAAYAA4ABwABgADAAGAAMAAYAA4ABwABgADAAGAAMAAYAA4ABwABgADAAGAAMAAYAA4ABwABgADAAGAAMAAYAA4ABwAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgAJMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAyAASTAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAGAAOAAcAAYAAwABgADAAGAAOAAcAAYAAwABgADAAGAAOAAcAAYAAwABgADAAGAAOAAcAAYAAwABgADAAGAAOAAcAAYAAwABgADAAGAAOAAcAAYAAwABgADADHAllMDvLkz2XNAAAAAElFTkSuQmCC';
+const BLUE_PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAIAAADTED8xAAAB+0lEQVR42u3TQQkAAAjAwPUvrW8zeHAJBqsGHpMAA4ABwABgADAAGAAMAAYAA4ABwABgADAAGAAMAAYAA4ABwABgADAAGAAMAAYAA4ABwABgADAAGAAMAAYAA4ABwABgADAAGAAMAAYAA4ABwABgADAAGAAMAAYAA4ABwAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgAJMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAyAASTAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAGAAOAAcAAYAAwABgADAAGAAOAAcAAYAAwABgADAAGAAOAAcAAYAAwABgADAAGAAOAAcAAYAAwABgADAAGAAOAAcAAYAAwABgADAAGAAOAAcAAYAAwABgADADHAjtqDvJl75jFAAAAAElFTkSuQmCC';
 
 /** Deliberately tiny: a probe should cost a rounding error, not a real request. */
 const PROBE_TIMEOUT_MS = 20000;

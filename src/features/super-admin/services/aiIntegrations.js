@@ -142,6 +142,36 @@ export async function diagnoseAiModelPins() {
 }
 
 /**
+ * Asks both Functions generations whether they can read the AI credentials.
+ *
+ * Both, not one, and that is the whole point: 1st generation functions default
+ * to the App Engine service account and 2nd generation ones to the Compute
+ * Engine account, so a Secret Manager grant can fix some AI entry points and
+ * leave others refused. CDL auto-fill is 1st generation; the E-Doc assistant,
+ * this console and the blog scheduler are 2nd. A single answer cannot show that.
+ *
+ * The two run concurrently and are reported independently, so one generation
+ * failing still yields the other's answer — a diagnosis that needs both halves
+ * to succeed would be useless in exactly the situation it is for.
+ */
+export async function diagnoseAiCredentialAccess() {
+    const [gen2, gen1] = await Promise.allSettled([
+        httpsCallable(functions, 'diagnoseAiCredentialAccess')({}),
+        httpsCallable(functions, 'diagnoseAiCredentialAccessV1')({}),
+    ]);
+
+    const unwrap = (settled, generation) => (
+        settled.status === 'fulfilled'
+            ? { generation, ok: true, report: settled.value.data }
+            : { generation, ok: false, error: describeAiError(settled.reason, 'This check could not be run.') }
+    );
+
+    return {
+        generations: [unwrap(gen2, 'v2'), unwrap(gen1, 'v1')],
+    };
+}
+
+/**
  * Copies the legacy Groq deploy binding into the managed credential store.
  * The token is moved server-side; it is never returned here.
  */

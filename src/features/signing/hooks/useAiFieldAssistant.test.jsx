@@ -379,6 +379,31 @@ describe('failure handling', () => {
         expect(result.current.error).not.toContain('raw provider detail');
     });
 
+    /**
+     * Two different faults share `failed-precondition`, and telling a recruiter
+     * to configure something that is already configured sends them somewhere
+     * they cannot help. The server names which it was in `details.category`; a
+     * category is the only failure information SafeHaul treats as safe to cross
+     * a trust boundary, so it carries no provider, credential or document detail.
+     */
+    it('distinguishes an unreadable credential from an unconfigured server', async () => {
+        const error = new Error('raw provider detail');
+        error.code = 'functions/failed-precondition';
+        error.details = { category: 'credential_error' };
+        callable.mockRejectedValue(error);
+
+        const { result } = setup();
+        await act(async () => {
+            await result.current.startScan({ scope: 'current' });
+        });
+
+        expect(result.current.error).toMatch(/temporarily unavailable/i);
+        expect(result.current.error).toMatch(/place fields manually/i);
+        // The misleading sentence must not be the one shown.
+        expect(result.current.error).not.toMatch(/not configured/i);
+        expect(result.current.error).not.toContain('raw provider detail');
+    });
+
     it('does not surface raw provider detail for an unmapped failure', async () => {
         callable.mockRejectedValue(new Error('SSN 000-00-0000 leaked'));
         const { result } = setup();

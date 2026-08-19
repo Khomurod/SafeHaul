@@ -285,7 +285,21 @@ exports.analyzeEdocFieldPlacement = onCall(
       if (category === 'not_configured' || category === 'capability_unavailable') {
         throw new HttpsError(
           'failed-precondition',
-          'Document analysis is not configured on the server.'
+          'Document analysis is not configured on the server.',
+          { category }
+        );
+      }
+      // Separate from the line above on purpose: a credential the runtime cannot
+      // read is not an unconfigured server, and telling a recruiter to go and
+      // configure something that is already configured wastes their time. The
+      // category travels in `details` so the client can say which it was; a
+      // category is already the only failure information SafeHaul considers safe
+      // to cross a trust boundary.
+      if (category === 'credential_error') {
+        throw new HttpsError(
+          'failed-precondition',
+          'Document analysis is temporarily unavailable. You can place fields manually.',
+          { category }
         );
       }
       if (category === 'timeout' || category === 'network' || category === 'deadline_exceeded') {

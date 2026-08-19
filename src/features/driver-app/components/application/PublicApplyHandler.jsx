@@ -1,5 +1,5 @@
 // src/features/driver-app/components/application/PublicApplyHandler.jsx
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { doc, getDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
@@ -43,6 +43,8 @@ import { useData } from '@/context/DataContext';
 import { isValidEmail, isValidPhone } from '@shared/utils/validation';
 import * as Sentry from '@sentry/react';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
+import { useApplicationResume } from '../../hooks/useApplicationResume';
+import { ResumeApplicationDialog } from './ResumeApplicationDialog';
 
 // Bulletproof submission imports
 import {
@@ -73,7 +75,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
   const slug = sandbox ? SANDBOX_APP_SLUG : params.slug;
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { showSuccess, showError } = useToast();
+  const { showSuccess, showError, showInfo } = useToast();
   const { setCurrentCompanyProfile } = useData();
 
   const [loading, setLoading] = useState(true);
@@ -110,11 +112,35 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     onReturnToChooser: () => setIntakeMode(null),
   });
 
-  // #7 FIX: Derive custom questions from company profile for public applicants
-  const customQuestions = company?.customQuestions || [];
+  // #7 FIX: Derive custom questions from company profile for public applicants.
+  // Memoized because it is a hook dependency: a fresh `[]` on every render would
+  // re-create the callbacks that depend on it, and one of those drives the
+  // resume flow.
+  const customQuestions = useMemo(() => company?.customQuestions || [], [company]);
   const postApplicationTemplates = normalizePostApplicationTemplates(company?.postApplicationTemplates);
   // #8 FIX: Dynamic consent step index based on whether custom questions exist
   const consentStepIndex = customQuestions.length > 0 ? 9 : 8;
+  /**
+   * Server-side autosave and the "continue your existing application?" flow.
+   *
+   * Sandbox is excluded: a sandbox application is a disposable demo and there is
+   * nothing to come back to.
+   */
+  const {
+    resumePrompt,
+    resumeBusy,
+    resumeError,
+    saveProgressToServer: saveDraftToServer,
+    restoreFromStoredToken,
+    continueExisting,
+    startOver,
+  } = useApplicationResume({
+    slug,
+    companyId: company?.id,
+    sandbox,
+    hasCustomQuestions: customQuestions.length > 0,
+  });
+
   const cdlUploadConfig = getFieldConfig(company?.applicationConfig, 'cdlUpload');
   const medCardConfig = getFieldConfig(company?.applicationConfig, 'medCardUpload');
   const mvrConsentConfig = getFieldConfig(company?.applicationConfig, 'mvrConsent');
@@ -231,10 +257,19 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
         // bring back the success screen + required-documents checklist.
         restorePostApplySession(companyData);
 
-        // P2-5 FIX: Recover saved draft from localStorage on page revisit
+        // P2-5 FIX: Recover saved draft from localStorage on page revisit.
+        //
+        // The step is honoured as well as the fields. Restoring the answers and
+        // then showing page one meant a returning applicant had to click Next
+        // eight times past forms that were already filled in, which reads as
+        // "nothing was saved".
         const savedDraft = readApplicationDraft(slug);
         if (savedDraft) {
           setFormData(prev => ({ ...prev, ...savedDraft }));
+          if (typeof savedDraft.lastStep === 'number') {
+            setCurrentStep(savedDraft.lastStep);
+            setIntakeMode('manual');
+          }
         }
 
         const recruiter = searchParams.get('r') || searchParams.get('recruiter');
@@ -254,6 +289,36 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     loadCompany();
   }, [slug, sandbox, searchParams, setCurrentCompanyProfile, restorePostApplySession]);
 
+  /**
+   * Reconciles with the server copy once the company is known.
+   *
+   * Its own effect on purpose. Calling this inside the company-loading effect
+   * looked equivalent and was not: the resume hook is constructed with
+   * `companyId: company?.id`, and that id is only set *by* that effect — so the
+   * closure captured `undefined`, the hook reported itself disabled, and the
+   * server restore silently never ran. Keyed on the id it actually needs.
+   *
+   * The local copy is normally the same or newer, so this matters in two cases:
+   * storage was partially cleared and the token outlived the draft, or the draft
+   * was discarded or has expired server-side — in which case the hook drops the
+   * stale token rather than retrying it on every load.
+   */
+  useEffect(() => {
+    if (!company?.id || sandbox) return;
+    let current = true;
+    restoreFromStoredToken().then((restored) => {
+      if (!current || !restored) return;
+      setFormData((prev) => ({ ...prev, ...restored.formData }));
+      // `Math.max`: never move an applicant *backwards* from where they already
+      // are in this session.
+      setCurrentStep((prev) => Math.max(prev, restored.stepIndex));
+      setIntakeMode('manual');
+    }).catch(() => {
+      // Handled inside the hook. Nothing here may interrupt the apply page.
+    });
+    return () => { current = false; };
+  }, [company?.id, sandbox, restoreFromStoredToken]);
+
   // 2. Form Handlers
   const handleUpdateFormData = (name, value) => {
     setFormData((prev) => ({
@@ -262,10 +327,23 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     }));
   };
 
-  const persistLocalDraft = (stepIndex) => {
+  /**
+   * The local copy, written synchronously on every step change.
+   *
+   * First, and synchronously, on purpose: it cannot fail for a network reason and
+   * it cannot delay the applicant. The server copy follows in the background,
+   * so a driver on a bad connection still has everything they typed when they
+   * come back to this browser — which is the case this whole feature exists for.
+   *
+   * This used to be gated behind the E2E test flag, so in production nothing was
+   * written per step at all and `lastStep` was never recorded. Three lines, and
+   * `e2e/guest-draft-resume.spec.cjs` had been proving the mechanism worked the
+   * whole time.
+   */
+  const persistLocalDraft = useCallback((stepIndex) => {
     if (!slug || sandbox) return;
     saveApplicationDraft(slug, formData, { lastStep: stepIndex });
-  };
+  }, [slug, sandbox, formData]);
 
   const handleNavigate = (direction) => {
     let nextStep = currentStep;
@@ -274,13 +352,52 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     else if (typeof direction === 'number') nextStep = direction;
 
     setCurrentStep(nextStep);
-    if (isE2ETestMode) {
-      persistLocalDraft(nextStep);
+    persistLocalDraft(nextStep);
+    // Only forward: going back is not new information, and a save on every Back
+    // click would spend the applicant's rate-limit budget on nothing.
+    //
+    // One call, not two. The hook runs the resume lookup itself before its first
+    // server write and holds the write until the applicant has answered the
+    // prompt — see its header for the three ways a save racing that lookup loses
+    // the draft it was supposed to protect.
+    if (direction === 'next') {
+      saveDraftToServer({ formData, stepIndex: nextStep });
     }
     // Scrolling is owned by `Stepper`, which focuses the new step's heading.
     // A second scroll here raced that one and made step transitions
     // non-deterministic (see the Stepper header comment).
   };
+
+  /**
+   * Applies a restored draft to the wizard.
+   *
+   * Merged over whatever is already there rather than replacing it: an applicant
+   * who typed a page before being recognised should not lose those keystrokes to
+   * the restore, and the stored answers are the ones that matter for every field
+   * they have not touched this session.
+   */
+  const applyRestoredDraft = useCallback((restored) => {
+    if (!restored) return;
+    setFormData((prev) => ({ ...prev, ...restored.formData }));
+    setCurrentStep(restored.stepIndex);
+    setIntakeMode('manual');
+    // Written straight back to the local copy, so a reload after a restore does
+    // not fall back to a staler draft than the one just loaded.
+    saveApplicationDraft(slug, { ...formData, ...restored.formData }, { lastStep: restored.stepIndex });
+    showSuccess('Your saved application has been restored.');
+  }, [slug, formData, showSuccess]);
+
+  const handleContinueExisting = useCallback(async () => {
+    applyRestoredDraft(await continueExisting());
+  }, [continueExisting, applyRestoredDraft]);
+
+  const handleStartOver = useCallback(async () => {
+    if (!(await startOver())) return;
+    // A genuinely new application: the local copy goes too, or the next reload
+    // would restore what the applicant just asked to be rid of.
+    clearApplicationDraft(slug);
+    showInfo('Starting a new application.');
+  }, [startOver, slug, showInfo]);
 
   const handleMagicFillStep = useCallback(() => {
     const patch = getMagicFillPatchForStep(currentStep, {
@@ -296,7 +413,12 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
   const handlePartialSubmit = () => {
     // SEC-2/DL-1 live in applicationDraftStorage: ssn/signature are stripped and a
     // QuotaExceededError is surfaced (false) rather than silently swallowed.
-    if (saveApplicationDraft(slug, formData)) {
+    //
+    // `lastStep` is recorded now. It was omitted, so an explicit "Save as Draft"
+    // saved the answers and forgot where the applicant was — and the restore path
+    // ignored the field anyway, so they landed back on page one either way.
+    if (saveApplicationDraft(slug, formData, { lastStep: currentStep })) {
+      saveDraftToServer({ formData, stepIndex: currentStep });
       showSuccess("Progress saved.");
     } else {
       showError("Could not save progress locally. Your data is still here — please continue filling the form.");
@@ -772,6 +894,18 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
         />
       </Card>
 
+      {/* Offered on the first forward move, once the identity a resume is
+          matched on has been filled in. Rendering it here rather than at the
+          intake chooser keeps the applicant's typed page one on screen behind
+          it, so the question reads as "you have been here before" rather than
+          as an interruption before they have done anything. */}
+      <ResumeApplicationDialog
+        prompt={resumePrompt}
+        loading={resumeBusy}
+        error={resumeError}
+        onContinue={handleContinueExisting}
+        onStartOver={handleStartOver}
+      />
     </div>
   );
 }

@@ -22,7 +22,7 @@ import { resolveApplicationGate } from '@/config/applicationGates';
  * to supply only visibility, and the section hard-coded Contact #1 as required —
  * so "visible but optional" was unreachable and blocked the applicant.
  */
-const Step7_General = ({ formData, updateFormData, onNavigate }) => {
+const Step7_General = ({ formData, updateFormData, onNavigate, onPartialSubmit }) => {
     const { states } = useUtils();
     const { currentCompanyProfile } = useData();
     const currentCompany = currentCompanyProfile;
@@ -103,6 +103,7 @@ const Step7_General = ({ formData, updateFormData, onNavigate }) => {
 
             <StepNavigation
                 onBack={() => onNavigate('back')}
+                onSaveDraft={onPartialSubmit}
                 onContinue={handleContinue}
             />
         </div>

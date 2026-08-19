@@ -16,6 +16,7 @@ const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { guardPrivileged, assertSuperAdmin, assertWithinRateLimit } = require('../environmentVault/guards');
 const { ACTIONS, RESULTS, recordAuditEvent } = require('../environmentVault/audit');
 const store = require('./store');
+const runLedger = require('./runLedger');
 const mediaCredentials = require('./media/credentials');
 const { PROVIDERS: MEDIA_PROVIDERS, PROVIDERS_BY_ID } = require('./media/imageProviders');
 const { publishDueSlots } = require('./scheduler');
@@ -39,6 +40,11 @@ exports.listBlogPosts = onCall({ cors: true }, async (request) => {
             posts: posts.map((post) => ({
                 id: post.id,
                 title: post.title,
+                // The View action links by slug, and this response never carried
+                // one — so every View opened `/news/undefined`. The contract test
+                // fixture included `slug`, which is exactly why no test caught it:
+                // a fixture richer than the server is a test of the fixture.
+                slug: post.slug || null,
                 publicationDate: post.publicationDate,
                 status: post.status,
             })),
@@ -46,6 +52,41 @@ exports.listBlogPosts = onCall({ cors: true }, async (request) => {
         };
     } catch (error) {
         return safeFailure(error, 'listBlogPosts');
+    }
+});
+
+/**
+ * The publication run ledger: what every recent run did with every due slot.
+ *
+ * The screen this feeds answers the question `blog_posts` cannot, because that
+ * collection holds only the runs that succeeded. A refusal existed nowhere but a
+ * Cloud Logging line, so publication failure was rendered as absence — and the
+ * two AI transactions a refused run made were recorded as *successes*, since a
+ * telemetry success means "a provider answered in a valid shape".
+ *
+ * A read, so it takes the `list` guard rather than the mutate budget.
+ */
+exports.listBlogRuns = onCall({ cors: true }, async (request) => {
+    await assertSuperAdmin(request, ACTIONS.LIST, { integration: 'Blog runs' });
+    await assertWithinRateLimit(request, 'list', ACTIONS.LIST, { integration: 'Blog runs' });
+
+    try {
+        const limit = Number(request.data?.limit);
+        const { entries, truncated, unavailable } = await runLedger.readRecentSlotRuns(
+            Number.isFinite(limit) ? limit : undefined,
+        );
+
+        return {
+            runs: entries,
+            truncated: Boolean(truncated),
+            // Distinguished from "no runs yet", which is what an empty list would
+            // otherwise be read as.
+            unavailable: Boolean(unavailable),
+            retentionDays: runLedger.RETENTION_DAYS,
+            generatedAt: new Date().toISOString(),
+        };
+    } catch (error) {
+        return safeFailure(error, 'listBlogRuns');
     }
 });
 
@@ -77,6 +118,27 @@ exports.deleteBlogPost = onCall({ cors: true }, async (request) => {
                 // sources and generation record are not recorded here.
                 key: result.title ? result.title.slice(0, 200) : postId,
             },
+        });
+
+        // Recorded in the ledger, because deleting an article has a consequence
+        // an operator would not otherwise discover: the tombstone keeps holding
+        // that date-and-theme slot, so no replacement can ever be generated for
+        // it. `slotIsFilled` tests only that the document exists, deliberately —
+        // it is what makes `create()` the single authoritative anti-double-publish
+        // check — and the 60-day duplicate window relies on the tombstone still
+        // being there. Saying so beats an operator waiting for a replacement that
+        // cannot come.
+        // Split once: the id is `{date}_{themeId}` and a theme id is hyphenated
+        // today, but a future one containing an underscore would silently record
+        // half a theme under a filter an operator selects by.
+        const separator = postId.indexOf('_');
+        const publicationDate = separator > 0 ? postId.slice(0, separator) : postId;
+        const themeId = separator > 0 ? postId.slice(separator + 1) : '';
+        await runLedger.recordSlotRun({
+            outcome: 'skipped_slot_taken',
+            slot: { key: postId, themeId, publicationDate },
+            detail: 'article removed by an operator; this slot stays filled and will not regenerate',
+            trigger: 'manual',
         });
 
         return { postId, deleted: true };
@@ -215,7 +277,11 @@ exports.runBlogPublicationNow = onCall({
     await guardPrivileged(request, 'mutate', ACTIONS.UPDATE, { integration: 'Blog publication' });
 
     try {
-        const summary = await publishDueSlots();
+        // `trigger: 'manual'` so the ledger distinguishes an operator's
+        // catch-up check from the hourly schedule. Everything else about the run
+        // is identical — it shares `publishDueSlots`, so it cannot double-publish
+        // and cannot bypass a single safeguard.
+        const summary = await publishDueSlots({ trigger: 'manual' });
 
         await recordAuditEvent({
             auth: request.auth,

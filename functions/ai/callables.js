@@ -34,6 +34,7 @@ const routingOrder = require('./router/order');
 const { buildSecretId } = require('./credentials/secretManager');
 const store = require('./credentials/store');
 const { testProviderConnection } = require('./tasks/healthCheck');
+const { diagnoseCredentialAccess } = require('./tasks/credentialAccess');
 const { readRecentTelemetry, readTelemetry, MAX_PAGE } = require('./telemetry/record');
 const { TASK_TYPES } = require('./tasks/contract');
 const { diagnoseModelPins } = require('./tasks/modelPins');
@@ -78,6 +79,39 @@ function requireCredentialField(provider, fieldName) {
     return field;
 }
 
+/**
+ * Confirms a just-written credential can actually be read back.
+ *
+ * Returns a report, never a value or its length — the value's length is already
+ * recorded in the audit trail, where it belongs, and does not need to travel to
+ * a browser as well.
+ */
+async function verifyCredentialReadable(provider, field) {
+    const read = await store.readCredentials(provider.id).catch(() => null);
+    if (read === null) {
+        return {
+            readable: false,
+            message: 'Saved, but SafeHaul could not read it back. Grant roles/secretmanager.secretAccessor'
+                + ' on this secret to the Functions runtime service account, then run the credential access check.',
+        };
+    }
+    if (Array.isArray(read.unreadable) && read.unreadable.includes(field.name)) {
+        return {
+            readable: false,
+            message: 'Saved, but this runtime is not permitted to read it. Grant'
+                + ' roles/secretmanager.secretAccessor on this secret to the Functions runtime service account.'
+                + ' 1st and 2nd generation functions use different accounts — check both.',
+        };
+    }
+    if (!read.values?.[field.name]) {
+        return {
+            readable: false,
+            message: 'Saved, but the new version did not read back. Try the credential access check.',
+        };
+    }
+    return { readable: true, message: null };
+}
+
 // ---------------------------------------------------------------------------
 // List
 // ---------------------------------------------------------------------------
@@ -91,16 +125,37 @@ function requireCredentialField(provider, fieldName) {
  */
 async function buildProviderRow(provider, configs, rank) {
     const config = configs.get(provider.id) || { enabled: true };
+    // `readCredentials` no longer throws: it reports absent and unreadable
+    // fields separately. That distinction is the whole point of this block.
+    //
+    // This used to be `.catch(() => ({ complete: false, missing: everything }))`,
+    // which turned a `PERMISSION_DENIED` from Secret Manager into the row
+    // reading **"Not configured — Needs API key."** The credential existed; the
+    // runtime service account simply could not read it. So the console sent
+    // operators to re-enter keys that were already there, while the routing
+    // panel *on the same page* correctly reported `credential_error` — the page
+    // contradicted itself, and the wrong half was the headline.
+    //
+    // The outer catch stays as a backstop for an unexpected throw, but it now
+    // records the honest reason rather than inventing an absence.
     const credentials = await store.readCredentials(provider.id).catch(() => ({
-        complete: false, values: {}, missing: provider.secretFields.map((f) => f.name),
+        complete: false,
+        values: {},
+        missing: [],
+        unreadable: provider.secretFields.map((f) => f.name),
     }));
+    const unreadable = Array.isArray(credentials.unreadable) ? credentials.unreadable : [];
 
-    // Groq may still be served by the pre-migration deploy binding.
+    // Groq may still be served by the pre-migration deploy binding — including
+    // when the managed read *failed*, which is exactly when the rollback path
+    // earns its keep. `resolveCredentials` makes the same allowance.
     let credentialSource = credentials.complete ? 'secret-manager' : null;
     let configured = credentials.complete;
     if (!configured && provider.id === 'groq' && process.env.GROQ_API_KEY) {
         configured = true;
-        credentialSource = 'legacy-env';
+        credentialSource = unreadable.includes('apiKey')
+            ? 'legacy-env-after-read-failure'
+            : 'legacy-env';
     }
 
     const cooldown = store.cooldownState(config);
@@ -150,10 +205,31 @@ async function buildProviderRow(provider, configs, rank) {
         ),
         configured: configured && missingConfig.length === 0,
         missingCredentials: credentials.missing,
+        // Named separately from `missingCredentials` so the console can say
+        // "the credential is there and this runtime cannot read it" — the one
+        // sentence that points an operator at IAM instead of at a key field.
+        unreadableCredentials: unreadable,
+        credentialAccess: unreadable.length > 0 ? 'unreadable' : 'ok',
         missingConfig,
         credentialSource,
         enabled: config.enabled !== false && !provider.retired,
-        health: provider.retired ? 'retired' : (config.health || (configured ? 'unknown' : 'unconfigured')),
+        health: provider.retired
+            ? 'retired'
+            : (unreadable.length > 0 && !configured
+                ? 'credential_error'
+                : (config.health || (configured ? 'unknown' : 'unconfigured'))),
+        // Per lane, because a provider's text and image lanes fail independently
+        // and one scalar could describe neither. This is what lets the row say
+        // "articles fine, document images broken" instead of a single badge that
+        // the next successful article would quietly turn green again.
+        laneHealth: {
+            text: config.laneHealth?.text || 'unknown',
+            vision: config.laneHealth?.vision || 'unknown',
+        },
+        laneFailures: {
+            text: Number(config.laneFailures?.text || 0),
+            vision: Number(config.laneFailures?.vision || 0),
+        },
         consecutiveFailures: Number(config.consecutiveFailures || 0),
         cooldown: cooldown.active
             ? { active: true, until: cooldown.until, reason: cooldown.reason }
@@ -163,6 +239,14 @@ async function buildProviderRow(provider, configs, rank) {
                 at: config.lastTestAt?.toDate?.()?.toISOString?.() || null,
                 success: Boolean(config.lastTestSuccess),
                 category: config.lastTestCategory || null,
+                // The stored per-capability breakdown, so the row still says
+                // *which* capability failed after a reload. Without it the
+                // console could only show one verdict, which is the state that
+                // let "text works, every image request is rejected" read as a
+                // single anonymous failure.
+                capabilities: Array.isArray(config.lastTestCapabilities)
+                    ? config.lastTestCapabilities
+                    : [],
             }
             : null,
         lastSuccessAt: config.lastSuccessAt?.toDate?.()?.toISOString?.() || null,
@@ -357,7 +441,24 @@ exports.saveAiCredential = onCall(callableOptions, async (request) => {
         // usable again, so clear any cooldown left over from when it was not.
         await store.clearCooldown(provider.id).catch(() => {});
 
-        return { providerId: provider.id, field: field.name, saved: true, replaced: isReplacement };
+        // Read it straight back, and say so if it cannot be read.
+        //
+        // Writing a secret and reading one need different IAM permissions, and
+        // creating a secret grants nobody access to it. So this console could
+        // create a credential it was then unable to use, report "saved", and
+        // leave the provider skipped as unconfigured on every subsequent
+        // request — with the operator reasonably certain they had just fixed it.
+        // Verifying here turns a silent, invisible IAM gap into a sentence
+        // naming what to grant.
+        const verification = await verifyCredentialReadable(provider, field);
+
+        return {
+            providerId: provider.id,
+            field: field.name,
+            saved: true,
+            replaced: isReplacement,
+            ...verification,
+        };
     } catch (error) {
         return safeFailure(error, 'saveAiCredential');
     }
@@ -594,6 +695,14 @@ exports.testAiProvider = onCall({
                 label: probe.label,
                 status: probe.status,
                 category: probe.category || null,
+                // The vendor's own status line and machine-readable code. Both
+                // were captured in providers/http.js and then dropped, which is
+                // why this screen could only say "Failed": the difference between
+                // `404 model_not_found` and `429` is the difference between
+                // repinning a model and waiting a minute. Safe by construction —
+                // a status is a number and the code was pattern-validated.
+                httpStatus: Number.isInteger(probe.httpStatus) ? probe.httpStatus : null,
+                vendorCode: typeof probe.vendorCode === 'string' ? probe.vendorCode : null,
                 model: probe.model || null,
                 latencyMs: typeof probe.latencyMs === 'number' ? probe.latencyMs : null,
                 message: probe.message || '',
@@ -601,6 +710,53 @@ exports.testAiProvider = onCall({
         };
     } catch (error) {
         return safeFailure(error, 'testAiProvider');
+    }
+});
+
+// ---------------------------------------------------------------------------
+// Credential access diagnosis
+// ---------------------------------------------------------------------------
+
+/**
+ * Reports whether this runtime can read the AI credentials, and as whom.
+ *
+ * Read `../tasks/credentialAccess.js` for why this is a product feature rather
+ * than something to work out with `gcloud`. The short version: AI credentials are
+ * read at runtime, nothing grants the runtime service account access
+ * automatically, and 1st and 2nd generation functions default to *different*
+ * service accounts — so a grant can fix some AI entry points and not others,
+ * which from the outside reads as "AI works sometimes".
+ *
+ * This is the 2nd generation answer. `exports.diagnoseAiCredentialAccessV1` in
+ * ./callablesV1.js is the 1st generation one, and the console shows both,
+ * because the difference between them is the diagnosis.
+ *
+ * It is a read, so it takes the `list` guard rather than the mutate budget: no
+ * value is revealed, so requiring a re-authentication to look at IAM state would
+ * be friction without a security benefit.
+ */
+exports.diagnoseAiCredentialAccess = onCall(callableOptions, async (request) => {
+    await assertSuperAdmin(request, ACTIONS.LIST, { integration: 'AI credential access' });
+    await assertWithinRateLimit(request, 'list', ACTIONS.LIST, { integration: 'AI credential access' });
+
+    try {
+        const report = await diagnoseCredentialAccess({ generation: 'v2' });
+
+        await recordAuditEvent({
+            auth: request.auth,
+            action: ACTIONS.LIST,
+            result: RESULTS.SUCCESS,
+            metadata: {
+                integration: 'AI credential access',
+                setting: 'gen2',
+                entryCount: report.providers.length,
+                reason: report.unreadableCount > 0 ? 'credentials-unreadable' : null,
+            },
+        });
+
+        return report;
+    } catch (error) {
+        return safeFailure(error, 'diagnoseAiCredentialAccess');
     }
 });
 

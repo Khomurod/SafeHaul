@@ -68,6 +68,60 @@ const POSTS = [
     },
 ];
 
+/**
+ * Ledger rows, covering the three cases the screen exists to separate: an
+ * article that published, a run refused by a named stage, and a slot held for
+ * the next run — which looks like a failure in a list of outcomes and is the
+ * pipeline working as designed.
+ */
+const RUNS = [
+    {
+        id: 'run-1',
+        outcome: 'published',
+        stage: 'publication',
+        slotKey: '2026-08-02_industry-news',
+        themeId: 'industry-news',
+        publicationDate: '2026-08-02',
+        detail: null,
+        trigger: 'scheduled',
+        generationTransactionId: 'txn-gen-1',
+        verificationTransactionId: 'txn-ver-1',
+        verificationSupported: true,
+        unsupportedClaimCount: 0,
+        at: '2026-08-02T12:15:00Z',
+    },
+    {
+        id: 'run-2',
+        outcome: 'skipped_unsupported_claims',
+        stage: 'verification',
+        slotKey: '2026-08-02_recruitment',
+        themeId: 'recruitment',
+        publicationDate: '2026-08-02',
+        detail: 'The rule takes effect in January 2027.',
+        trigger: 'scheduled',
+        generationTransactionId: 'txn-gen-2',
+        verificationTransactionId: 'txn-ver-2',
+        verificationSupported: false,
+        unsupportedClaimCount: 1,
+        at: '2026-08-02T13:15:00Z',
+    },
+    {
+        id: 'run-3',
+        outcome: 'deferred_to_next_run',
+        stage: 'scheduling',
+        slotKey: '2026-08-02_safehaul-education',
+        themeId: 'safehaul-education',
+        publicationDate: '2026-08-02',
+        detail: null,
+        trigger: 'manual',
+        generationTransactionId: null,
+        verificationTransactionId: null,
+        verificationSupported: null,
+        unsupportedClaimCount: null,
+        at: '2026-08-02T13:15:00Z',
+    },
+];
+
 function stubCallables(overrides = {}) {
     callables.listBlogPosts = vi.fn().mockResolvedValue({
         data: { posts: POSTS, generatedAt: '2026-08-02T18:00:00Z' },
@@ -75,6 +129,9 @@ function stubCallables(overrides = {}) {
     callables.deleteBlogPost = vi.fn().mockResolvedValue({ data: { deleted: true } });
     callables.runBlogPublicationNow = vi.fn().mockResolvedValue({
         data: { dueCount: 3, attempted: 0, published: 0, results: [] },
+    });
+    callables.listBlogRuns = vi.fn().mockResolvedValue({
+        data: { runs: RUNS, truncated: false, unavailable: false, retentionDays: 30 },
     });
     Object.assign(callables, overrides);
 }
@@ -142,7 +199,9 @@ describe('listing', () => {
         });
         render(<BlogPostsView />);
 
-        await waitFor(() => expect(screen.getByText(/could not be loaded/i)).toBeTruthy());
+        // Specific: the run ledger below reports its own load failure, and both
+        // are correct to show. Matching loosely would pass on either.
+        await waitFor(() => expect(screen.getByText('The article list could not be loaded.')).toBeTruthy());
         expect(screen.getAllByRole('button', { name: /try again/i }).length).toBeGreaterThan(0);
     });
 
@@ -360,5 +419,152 @@ describe('manual publication check', () => {
         await waitFor(() => expect(showInfo).toHaveBeenCalledWith(
             'Nothing new was published (skipped_all_duplicates).',
         ));
+    });
+});
+
+/**
+ * The publication run ledger.
+ *
+ * The article list above can only ever show runs that *succeeded* — it reads
+ * `blog_posts` — so publication failure was rendered as absence, and a slot
+ * refused for an unsupported claim looked exactly like a slot nobody attempted.
+ * Meanwhile the AI transactions those refused runs made were recorded as
+ * successes, because a telemetry success means "a provider answered in a valid
+ * shape". Two green rows, no article.
+ */
+describe('publication run ledger', () => {
+    /**
+     * Scoped to the ledger list throughout. The article table has a "Published"
+     * column header and the stage filter repeats every stage name in an
+     * `<option>`, so an unscoped match would pass on the chrome rather than the
+     * data — the kind of assertion that keeps passing after the feature breaks.
+     */
+    const ledger = () => screen.getByRole('list', { name: /Publication runs/i });
+
+    it('names the stage that decided each run', async () => {
+        await renderView();
+
+        expect(within(ledger()).getByText('Fact-check')).toBeTruthy();
+        expect(within(ledger()).getByText('Publication')).toBeTruthy();
+        expect(within(ledger()).getByText('Scheduling')).toBeTruthy();
+    });
+
+    it('separates a refused run from a published one in words, not only colour', async () => {
+        await renderView();
+
+        expect(within(ledger()).getByText('Published')).toBeTruthy();
+        expect(within(ledger()).getByText('Unsupported factual claim')).toBeTruthy();
+    });
+
+    it('says a held slot was held, rather than leaving it looking like a failure', async () => {
+        await renderView();
+
+        // At most one article publishes per run, so a backlog fills over
+        // successive hourly runs. That is the pipeline working.
+        expect(screen.getByText('Held for the next run')).toBeTruthy();
+    });
+
+    it('reports the fact-check verdict, which is not the same fact as the call succeeding', async () => {
+        await renderView();
+
+        expect(screen.getByText(/Fact-check found 1 unsupported claim/)).toBeTruthy();
+    });
+
+    it('carries the transaction ids so a run can be matched to its provider timeline', async () => {
+        await renderView();
+
+        expect(screen.getByText(/txn-gen-2/)).toBeTruthy();
+        expect(screen.getByText(/txn-ver-2/)).toBeTruthy();
+    });
+
+    it('shows the pipeline detail the run recorded', async () => {
+        await renderView();
+
+        expect(screen.getByText('The rule takes effect in January 2027.')).toBeTruthy();
+    });
+
+    it('filters to one stage', async () => {
+        await renderView();
+
+        fireEvent.change(screen.getByLabelText(/Pipeline stage/i), { target: { value: 'verification' } });
+
+        expect(within(ledger()).getByText('Unsupported factual claim')).toBeTruthy();
+        expect(within(ledger()).queryByText('Published')).toBeNull();
+    });
+
+    it('hides the published runs when an operator only wants the refusals', async () => {
+        await renderView();
+
+        fireEvent.click(screen.getByLabelText(/Include published runs/i));
+
+        expect(within(ledger()).queryByText('Published')).toBeNull();
+        expect(within(ledger()).getByText('Unsupported factual claim')).toBeTruthy();
+    });
+
+    it('distinguishes an unreadable ledger from a ledger with nothing in it', async () => {
+        stubCallables({
+            listBlogRuns: vi.fn().mockResolvedValue({
+                data: { runs: [], truncated: false, unavailable: true, retentionDays: 30 },
+            }),
+        });
+        await renderView();
+
+        // "No runs recorded" would be a claim; "could not be read" is the truth.
+        expect(screen.getByText(/not evidence that no runs/i)).toBeTruthy();
+    });
+
+    it('reports an empty ledger plainly when it really is empty', async () => {
+        stubCallables({
+            listBlogRuns: vi.fn().mockResolvedValue({
+                data: { runs: [], truncated: false, unavailable: false, retentionDays: 30 },
+            }),
+        });
+        await renderView();
+
+        expect(screen.getByText('No publication runs have been recorded yet.')).toBeTruthy();
+    });
+
+    it('keeps the article list usable when the ledger cannot be loaded', async () => {
+        stubCallables({
+            listBlogRuns: vi.fn().mockRejectedValue({ code: 'functions/internal' }),
+        });
+        await renderView();
+
+        expect(screen.getByText(POSTS[0].title)).toBeTruthy();
+        expect(screen.getByText(/publication run history could not be loaded/i)).toBeTruthy();
+    });
+});
+
+describe('viewing a published article', () => {
+    it('links by the slug the server returned, not an undefined one', async () => {
+        const open = vi.spyOn(window, 'open').mockImplementation(() => null);
+        try {
+            await renderView();
+
+            fireEvent.click(screen.getAllByRole('button', { name: /^View$/ })[0]);
+
+            // `listBlogPosts` did not return `slug`, so every View opened
+            // `/news/undefined`. The fixture included one, which is precisely why
+            // no test caught it — a fixture richer than the server tests itself.
+            expect(open).toHaveBeenCalledWith(
+                `/news/${POSTS[0].slug}`,
+                '_blank',
+                'noopener',
+            );
+        } finally {
+            open.mockRestore();
+        }
+    });
+
+    it('does not offer a View for an article with no slug', async () => {
+        stubCallables({
+            listBlogPosts: vi.fn().mockResolvedValue({
+                data: { posts: [{ ...POSTS[0], slug: null }] },
+            }),
+        });
+        await renderView();
+
+        // Better no control than one that opens a broken URL.
+        expect(screen.queryByRole('button', { name: /^View$/ })).toBeNull();
     });
 });

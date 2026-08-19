@@ -25,6 +25,21 @@ export function describeProviderState(provider) {
         return { tone: 'neutral', label: 'Retired by vendor', detail: provider.retired.reason };
     }
 
+    // Before "not configured", because the two look identical from a distance and
+    // need opposite actions. A credential that exists and cannot be READ is an
+    // IAM fault on SafeHaul's side; telling the operator to add a key sends them
+    // to re-enter one that is already there. This row said "Needs API key" for a
+    // Secret Manager PERMISSION_DENIED while the routing panel on the same page
+    // correctly said the credential could not be read.
+    if (provider.credentialAccess === 'unreadable') {
+        return {
+            tone: 'danger',
+            label: 'Credential unreadable',
+            detail: 'The credential exists but this runtime cannot read it.'
+                + ' Run the credential access check.',
+        };
+    }
+
     if (!provider.configured) {
         const missing = [
             ...provider.missingCredentials.map((name) => {

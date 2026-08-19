@@ -153,7 +153,15 @@ recorded refusal out:
 
 1. Gather current source items for the theme's topics.
 2. Drop stale and duplicate items.
-3. Choose a candidate topic (AI-assisted; falls back to the freshest candidate).
+3. Choose a candidate topic — **deterministic, not an AI call**. Candidates are
+   ranked primary-source-first, then by document length, then by recency, and
+   filtered to those that can satisfy the theme's sourcing bar, so the first one
+   is already the judgement the model used to be asked for. It was also the third
+   sequential AI call in a run and it overran Groq's 8,000-tokens-per-minute
+   budget, causing generation to be rejected *after* selection had succeeded.
+   `selectTopic` still exists in `functions/ai/tasks/articleGeneration.js` and is
+   no longer called by the pipeline. Claim verification was **not** dropped: that
+   one is a safety control, not a convenience.
 4. Compare against the last 60 days.
 5. Build a fact package from the lead item plus topically-related corroboration.
 6. Generate a structured draft through the shared router.
@@ -171,11 +179,43 @@ fabricated topic, an unsupported claim or an unlicensed image to reach the daily
 count. Recorded outcomes: `published`, `skipped_no_sources`,
 `skipped_all_duplicates`, `skipped_validation`, `skipped_unsupported_claims`,
 `skipped_prohibited_claim`, `skipped_not_original`, `skipped_slot_taken`,
-`failed_generation`.
+`failed_generation`, `deferred_to_next_run`.
 
 If the verification step itself cannot run, the article is **not** published.
 Publishing unverified factual claims is the failure mode the pipeline exists to
 avoid.
+
+### The run ledger: which stage refused, and why
+
+Those outcomes used to exist only as a `console.log` in the scheduler. Nothing was
+persisted per run or per slot, so "the transaction succeeded and no article
+published" had no answer anywhere in the product — and the two AI transactions a
+run makes both reported `success`, because a provider *had* replied in shape.
+
+`blog_runs` now records one row per slot per run, on every path — scheduled,
+manual, and a slot deferred to the next run:
+
+| Field | Notes |
+| --- | --- |
+| `outcome` | one of the values above |
+| `stage` | `scheduling`, `sourcing`, `generation`, `validation`, `claim_check`, `verification`, `originality`, `image`, `publication` |
+| `slotKey`, `themeId`, `publicationDate`, `trigger` | which slot, and whether the schedule or an operator started it |
+| `detail` | the safe reason, bounded |
+| `slug` | present when something published |
+| `generationTransactionId`, `verificationTransactionId` | join keys into the Logs tab |
+| `verificationSupported`, `unsupportedClaimCount` | the fact-check's own answer, separate from its transaction succeeding |
+| `providerId`, `model`, `fallbackCount` | who served the generation |
+| `createdAt`, `expiresAt` | 30-day TTL, following the `ai_telemetry` precedent |
+
+`claim_check` and `verification` are deliberately distinct stages: the first is
+the deterministic SafeHaul claim check, the second the source-backed AI
+fact-check. They refuse for different reasons and an operator's next step
+differs — one means the draft over-claimed about SafeHaul, the other that a
+factual claim was not supported by its sources.
+
+Writing a ledger row can never fail a run: `recordSlotRun` swallows its own
+errors. A publication that happened must not be reported as a failure because its
+bookkeeping did not land.
 
 ## Duplicate prevention
 
@@ -194,8 +234,13 @@ The window includes **tombstoned** articles: a deleted article still means the
 topic was covered, so deleting one does not invite the generator to rewrite it
 the same day.
 
-The day's three articles must also cover distinct subjects
-(`themesAreDistinct`).
+Same-day distinctness comes from two rules that run: one document per
+`{publicationDate, theme}`, so a theme cannot publish twice in a day, and the
+duplicate window above, which catches two themes converging on one story.
+`themesAreDistinct` in `dedupe.js` is a stricter post-hoc check for a day's set;
+it is exported and tested but **not wired into the pipeline**. This document used
+to describe it as an enforced rule, which is worse than not having it — a
+documented safeguard that does not run is one nobody re-examines.
 
 ## Image licensing
 
@@ -251,7 +296,7 @@ client including Super Admins.
 | `sources[]` | title, publisher, url, summary, publishedAt, sourceId, tier, retrievedAt |
 | `image` | Full licence metadata (see above) |
 | `seo` | canonicalUrl, metaDescription, openGraph, twitter, author, publicationDate |
-| `generation` | provider, model, fallbackCount, wordCount, verification summary, claim-check result, originality similarity, source count, hasPrimarySource |
+| `generation` | provider, model, fallbackCount, wordCount, verification summary, claim-check result, originality similarity, source count, hasPrimarySource, and the generation/verification `transactionId`s |
 | `knowledgeVersion` | Which knowledge package authorised the SafeHaul claims |
 | `normalizedTitle`, `topicTokens`, `sourceFingerprint` | Duplicate prevention |
 | `publishedAt`, `modifiedAt`, `deletedAt` | |
@@ -261,7 +306,18 @@ validation results. No hidden chain-of-thought is stored.
 
 The document is server-only even though the article content is public, because it
 also carries tombstones, source fingerprints and provider/model records. The
-public surface is the server-rendered routes, which filter and strip.
+public surface is the server-rendered routes, which filter and strip —
+`publicApi.js` serves no generation metadata at all, so the transaction ids stay
+internal.
+
+The article keeps its own copy of the transaction ids because it outlives the
+ledger row: `blog_runs` expires after 30 days and a published article does not.
+
+`blog_runs/{runId}` — also **server-only** (`allow read, write: if false`), read
+through the `listBlogRuns` callable. Fields are listed under
+[The run ledger](#the-run-ledger-which-stage-refused-and-why). Its query is a
+single `orderBy('createdAt', 'desc')` so it needs no composite index; the stage
+filter is applied client-side.
 
 ## Public routes and SEO
 
@@ -409,6 +465,21 @@ Deletion requires the exact super-admin role, recent authentication, the shared
 confirmation dialog naming the article, server-side authorization, and a
 value-free audit record.
 
+**A deleted slot is not regenerated, and this is now said out loud.** `slotIsFilled`
+tests only whether the document exists, and a tombstone exists, so the
+`{date, theme}` slot stays filled for good. Deleting a bad article does not
+produce a replacement. The ledger records a row saying exactly that when an
+article is deleted, so the behaviour is visible instead of being discovered.
+
+Freeing the slot safely was considered and **deliberately not done here.** The
+`create()` on that document id is the *only* thing preventing a double
+publication, and the tombstone is also what stops the generator rewriting the same
+topic the same day. Reopening a slot means a transaction that removes the post
+while moving the duplicate-prevention record somewhere that survives, which is a
+change to the anti-double-publish guarantee and needs its own justification and
+its own tests. Until then: delete removes the article from every public surface,
+and the day publishes two.
+
 ## Super Admin operation
 
 **Super Admin → Blog Posts** is deliberately minimal: article titles, a
@@ -423,9 +494,20 @@ a provider outage without waiting for the next hour. A run that publishes nothin
 is usually correct — the slots are already filled — and is reported as
 information, not as a failure.
 
+**Publication runs** reads the ledger: one row per slot per run, with the stage
+that refused, the safe detail, the trigger, and the fact-check's own verdict where
+there was one. Filterable by stage, with published runs hidden by default because
+the reason to open the panel is usually that something did not publish. This is
+the screen that answers "generation succeeded, so where is the article?" — a
+question the product previously could not answer at all.
+
+Article titles link to the live article. They pointed at `/news/undefined`,
+because `listBlogPosts` did not return `slug` while the contract-test fixture
+included one — a fixture asserting a field the server never sent.
+
 ## Testing
 
-`functions/test/unit/blogPipeline.test.js` — 79 tests. No test contacts a real
+`functions/test/unit/blogPipeline.test.js` — 112 tests. No test contacts a real
 feed, AI provider or image provider.
 
 Proven: exactly three daily theme slots; publication date derived in
@@ -444,6 +526,14 @@ and JSON-LD present; deleted articles gone from every public surface; unpublishe
 articles never exposed; invalid slugs answered identically to unknown ones; write
 methods refused; and the Super Admin callables' authorization, recent-auth,
 malformed-id and tombstone behaviour.
+
+Also proven, and worth naming because their absence is what let "success" mean
+two different things: every refusal writes a ledger row naming its stage — the
+suite previously asserted refusals only against a return value, so it would have
+passed with no ledger at all; a fact-check verdict of `supported: false` is
+recorded as a verdict and not as an unqualified success; a published article
+carries its generation and verification transaction ids; and the deletion path
+records that the slot stays filled.
 
 `src/tests/landingNewsSection.test.js` — 24 tests over the shipped landing files:
 section and links present, no committed cards, no React or app code pulled in, no
@@ -470,6 +560,13 @@ Stated honestly rather than omitted:
 - **First-publication verification is a production step.** Nothing in CI proves
   that a real provider produces a publishable article, because no test may call
   one.
+- **A deleted slot stays filled.** See [Deletion behaviour](#deletion-behaviour).
+  Deleting an article does not cause a replacement to be written, and reopening
+  the slot was deliberately left out of the change that added the ledger.
+- **The enforced word floor is 150**, a long way below the 700–1,200 words
+  originally specified. That is a recorded owner decision taken three times
+  against free-tier provider limits, not drift. Raising a provider tier is what
+  reverses it.
 
 ## Related files
 

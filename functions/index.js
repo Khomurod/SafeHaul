@@ -113,6 +113,19 @@ exports.submitGuestApplication = require('./guestApplication').submitGuestApplic
 // wording cannot diverge.
 exports.getApplicationAgreements = require('./applicationAgreements').getApplicationAgreements;
 exports.parseCdlWithGroq = require('./cdlParser').parseCdlWithGroq;
+// Autosave, resume and start-over for an in-progress application. Drafts live in
+// their own server-only subcollection rather than in `applications`, because
+// creating an application document fires the recruiter notification, the
+// applicant's "we received your application" email and the driver-profile sync —
+// none of which should happen when someone has filled in one page.
+const applicationDrafts = require('./applicationDrafts');
+exports.saveApplicationProgress = applicationDrafts.saveApplicationProgress;
+exports.findResumableApplication = applicationDrafts.findResumableApplication;
+exports.resumeApplicationDraft = applicationDrafts.resumeApplicationDraft;
+exports.startNewApplication = applicationDrafts.startNewApplication;
+// The recruiter half: unfinished applications are only useful to the carrier if
+// somebody can see them.
+exports.listApplicationDrafts = applicationDrafts.listApplicationDrafts;
 exports.createPostApplicationSigningRequest = require('./postApplicationEdocs').createPostApplicationSigningRequest;
 // AI Field Assistant: authenticated, company-scoped PDF field-placement suggestions.
 // Deliberately separate from parseCdlWithGroq (public guest path, different model pin).
@@ -296,6 +309,14 @@ exports.updateAiProviderConfig = aiIntegrations.updateAiProviderConfig;
 exports.testAiProvider = aiIntegrations.testAiProvider;
 exports.diagnoseAiModelPins = aiIntegrations.diagnoseAiModelPins;
 exports.migrateGroqCredential = aiIntegrations.migrateGroqCredential;
+// Credential access is diagnosed from BOTH Functions generations on purpose:
+// 1st gen defaults to the App Engine service account and 2nd gen to the Compute
+// Engine one, so a Secret Manager grant can fix some AI entry points and not
+// others. One answer proves nothing; the pair is the diagnosis. See
+// functions/ai/callablesV1.js.
+exports.diagnoseAiCredentialAccess = aiIntegrations.diagnoseAiCredentialAccess;
+const aiIntegrationsV1 = require('./ai/callablesV1');
+exports.diagnoseAiCredentialAccessV1 = aiIntegrationsV1.diagnoseAiCredentialAccessV1;
 
 // 22. SafeHaul News & Insights
 // Public rendering is one onRequest handler behind Hosting rewrites, so /news,
@@ -310,6 +331,9 @@ exports.publishScheduledBlogPosts = blogScheduler.publishScheduledBlogPosts;
 
 const blogAdmin = require('./blog/callables');
 exports.listBlogPosts = blogAdmin.listBlogPosts;
+// The publication run ledger. `blog_posts` holds only the runs that succeeded,
+// so publication failure used to be rendered in the product as absence.
+exports.listBlogRuns = blogAdmin.listBlogRuns;
 exports.deleteBlogPost = blogAdmin.deleteBlogPost;
 exports.listMediaProviders = blogAdmin.listMediaProviders;
 exports.saveMediaCredential = blogAdmin.saveMediaCredential;

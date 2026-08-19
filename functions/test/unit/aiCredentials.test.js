@@ -280,6 +280,128 @@ describe('legacy Groq fallback', () => {
     });
 });
 
+/**
+ * A credential that cannot be READ is a different fact from one that is absent,
+ * and conflating them is what produced the reported symptom: "CDL scanning fails
+ * with Not configured even though providers and credentials exist."
+ *
+ * `readSecret` returns null only for NOT_FOUND and re-throws everything else, so
+ * `PERMISSION_DENIED` — a runtime service account without
+ * `roles/secretmanager.secretAccessor` — is the case these tests pin.
+ */
+describe('an unreadable credential is not an absent one', () => {
+    const original = process.env.GROQ_API_KEY;
+
+    /** A Secret Manager that exists, holds the secret, and refuses to serve it. */
+    const denyingClient = {
+        accessSecretVersion: async () => {
+            const error = new Error('7 PERMISSION_DENIED: Permission denied on resource');
+            error.code = 7;
+            throw error;
+        },
+    };
+
+    beforeEach(() => {
+        // Reads are cached for 60 seconds; an earlier test's success would
+        // otherwise answer before the denying client is ever consulted.
+        secretManager.clearCache();
+    });
+
+    afterAll(() => {
+        secretManager.clearCache();
+        if (original === undefined) delete process.env.GROQ_API_KEY;
+        else process.env.GROQ_API_KEY = original;
+    });
+
+    it('reports the field as unreadable rather than missing', async () => {
+        const read = await store.readCredentials('gemini', { client: denyingClient });
+
+        expect(read.complete).toBe(false);
+        expect(read.unreadable).toEqual(['apiKey']);
+        // The distinction the console depends on: nothing is *missing*, so
+        // telling an operator to add a key would be wrong.
+        expect(read.missing).toEqual([]);
+    });
+
+    it('does not throw, so the router can still try the next provider', async () => {
+        await expect(store.readCredentials('gemini', { client: denyingClient }))
+            .resolves.toMatchObject({ complete: false });
+    });
+
+    /**
+     * The defect this whole stage exists for. The Groq fallback triggered on
+     * `missing` alone, and a refused read throws before a field is ever recorded
+     * as missing — so the deploy binding sat there, working, and was never
+     * consulted. A rollback path that only survives the rarer of two faults is
+     * not a rollback path.
+     */
+    it('falls back to the legacy Groq binding when the managed read is refused', async () => {
+        process.env.GROQ_API_KEY = 'legacy-key';
+
+        const resolved = await store.resolveCredentials('groq', { client: denyingClient });
+
+        expect(resolved.complete).toBe(true);
+        expect(resolved.values.apiKey).toBe('legacy-key');
+        // Distinguished from a plain `legacy-env` so the console can say this is
+        // a fault being masked, not a migration state to leave alone.
+        expect(resolved.source).toBe('legacy-env-after-read-failure');
+    });
+
+    it('still refuses to extend that fallback to another provider', async () => {
+        process.env.GROQ_API_KEY = 'legacy-key';
+
+        const resolved = await store.resolveCredentials('mistral', { client: denyingClient });
+
+        expect(resolved.complete).toBe(false);
+        expect(resolved.source).toBeNull();
+        expect(resolved.unreadable).toEqual(['apiKey']);
+    });
+
+    it('lets an operator still reveal the legacy value when the managed read fails', async () => {
+        process.env.GROQ_API_KEY = 'legacy-key';
+
+        const revealed = await store.revealCredential('groq', 'apiKey', { client: denyingClient });
+
+        expect(revealed.value).toBe('legacy-key');
+        expect(revealed.source).toBe('legacy-env-after-read-failure');
+    });
+
+    it('never puts the Secret Manager resource name in what it returns', async () => {
+        const read = await store.readCredentials('gemini', { client: denyingClient });
+
+        expect(JSON.stringify(read)).not.toMatch(/PERMISSION_DENIED/);
+        expect(JSON.stringify(read)).not.toMatch(/projects\//);
+    });
+});
+
+/**
+ * A flat 30-minute quota cooldown is the right answer for a spent daily
+ * allowance and badly the wrong one for a per-minute cap. Measured live: the
+ * Gemini free tier allows 20 requests per minute and its 429 body says "Please
+ * retry in 44.26781542s" — so resting it for half an hour removed the
+ * highest-priority provider from every lane for forty times longer than the
+ * vendor asked.
+ */
+describe('quota cooldown sizing', () => {
+    it('rests for the vendor stated wait plus a small buffer', () => {
+        expect(store.quotaCooldownMs(44268)).toBe(44268 + store.QUOTA_COOLDOWN_BUFFER_MS);
+    });
+
+    it('keeps the flat window when the vendor stated nothing', () => {
+        expect(store.quotaCooldownMs(null)).toBe(store.QUOTA_COOLDOWN_MS);
+        expect(store.quotaCooldownMs(undefined)).toBe(store.QUOTA_COOLDOWN_MS);
+        expect(store.quotaCooldownMs(0)).toBe(store.QUOTA_COOLDOWN_MS);
+    });
+
+    it('never rests longer than the flat window, however long the vendor claims', () => {
+        expect(store.quotaCooldownMs(6 * 60 * 60 * 1000)).toBe(store.QUOTA_COOLDOWN_MS);
+    });
+
+    it('never rests for an unusably short moment', () => {
+        expect(store.quotaCooldownMs(1)).toBe(store.QUOTA_COOLDOWN_FLOOR_MS);
+    });
+});
+
 describe('cooldown', () => {
     it('reports no cooldown for a healthy provider', () => {
         expect(store.cooldownState({}).active).toBe(false);
@@ -295,6 +417,90 @@ describe('cooldown', () => {
 
     it('gives an exhausted quota a longer rest than an ordinary failure', () => {
         expect(store.QUOTA_COOLDOWN_MS).toBeGreaterThan(store.FAILURE_COOLDOWN_MS);
+    });
+});
+
+/**
+ * A provider's text lane and its image lane reach different models, in different
+ * request shapes, on different vendor entitlements. They fail independently, and
+ * one health scalar could describe neither:
+ *
+ *  - any success set `health: 'healthy'`, so blog articles generating normally
+ *    kept resetting the badge while every CDL photograph was being rejected;
+ *  - the failure counter was shared, so three rejected images cooled the provider
+ *    out of the *text* lane too.
+ */
+describe('health and cooldown are tracked per lane', () => {
+    async function fail(providerId, lane, category = 'provider_request_rejected') {
+        await store.recordProviderOutcome(providerId, { success: false, lane, category });
+    }
+
+    it('does not let a text success hide a broken vision lane', async () => {
+        await fail('gemini', 'vision');
+        await store.recordProviderOutcome('gemini', { success: true, lane: 'text' });
+
+        const config = await store.readConfig('gemini');
+
+        expect(config.laneHealth).toMatchObject({ vision: 'degraded', text: 'healthy' });
+        // The summary scalar reports the worst lane, so the console cannot show
+        // a green badge for a provider with a broken capability.
+        expect(config.health).toBe('degraded');
+    });
+
+    it('counts failures per lane rather than in one shared tally', async () => {
+        await fail('mistral', 'vision');
+        await fail('mistral', 'vision');
+        await fail('mistral', 'text');
+
+        const config = await store.readConfig('mistral');
+
+        expect(config.laneFailures).toMatchObject({ vision: 2, text: 1 });
+    });
+
+    it('cools only the failing lane, leaving the working one routable', async () => {
+        await fail('groq', 'vision');
+        await fail('groq', 'vision');
+        await fail('groq', 'vision');
+
+        const config = await store.readConfig('groq');
+
+        expect(store.cooldownState(config, Date.now(), 'vision').active).toBe(true);
+        // The whole point: three rejected images must not stop this provider
+        // writing an article.
+        expect(store.cooldownState(config, Date.now(), 'text').active).toBe(false);
+        // With no lane the console still sees that something is resting.
+        expect(store.cooldownState(config, Date.now()).active).toBe(true);
+    });
+
+    it('keeps a quota cooldown provider-wide, because an allowance is not per lane', async () => {
+        await store.recordProviderOutcome('cerebras', {
+            success: false, lane: 'text', category: 'rate_limited',
+        });
+
+        const config = await store.readConfig('cerebras');
+
+        expect(store.cooldownState(config, Date.now(), 'text').active).toBe(true);
+        expect(store.cooldownState(config, Date.now(), 'vision').active).toBe(true);
+        expect(config.laneHealth.text).toBe('quota');
+    });
+
+    it('clears every lane when an operator clears the cooldown', async () => {
+        await fail('sambanova', 'vision');
+        await fail('sambanova', 'vision');
+        await fail('sambanova', 'vision');
+        await store.clearCooldown('sambanova');
+
+        const config = await store.readConfig('sambanova');
+
+        expect(store.cooldownState(config, Date.now()).active).toBe(false);
+    });
+
+    it('reports the worst lane, and unknown when nothing has been recorded', () => {
+        expect(store.worstLaneHealth({ text: 'healthy', vision: 'quota' })).toBe('quota');
+        expect(store.worstLaneHealth({ text: 'healthy', vision: 'degraded' })).toBe('degraded');
+        expect(store.worstLaneHealth({ text: 'healthy' })).toBe('healthy');
+        expect(store.worstLaneHealth({})).toBe('unknown');
+        expect(store.worstLaneHealth(undefined)).toBe('unknown');
     });
 });
 
@@ -318,6 +524,24 @@ describe('Super Admin callables', () => {
         await expect(callables.listAiProviders(requestOf({}, auth))).rejects.toMatchObject({
             code: expect.stringMatching(/unauthenticated|permission-denied/),
         });
+    });
+
+    it.each(deniedIdentities)('denies %s on the credential access check', async (_label, auth) => {
+        await expect(callables.diagnoseAiCredentialAccess(requestOf({}, auth))).rejects.toMatchObject({
+            code: expect.stringMatching(/unauthenticated|permission-denied/),
+        });
+    });
+
+    it('reports credential access to a super admin without revealing a value', async () => {
+        await secretManager.writeSecret('gemini', 'apiKey', 'gemini-plaintext', { client: mockFakeClient });
+
+        const report = await callables.diagnoseAiCredentialAccess(requestOf({}));
+
+        expect(report.generation).toBe('v2');
+        expect(JSON.stringify(report)).not.toContain('gemini-plaintext');
+        // A read is not a reveal, so it takes the list budget rather than the
+        // mutate one — but it is still audited, value-free.
+        expect(JSON.stringify(mockAuditWrites)).toContain('AI credential access');
     });
 
     it.each(deniedIdentities)('denies %s on reveal', async (_label, auth) => {
@@ -464,6 +688,45 @@ describe('Super Admin callables', () => {
         const serialized = JSON.stringify(mockAuditWrites);
         expect(serialized).not.toContain('csk-secret-value');
         expect(serialized).toContain('SAFEHAUL_AI_CEREBRAS_APIKEY');
+    });
+
+    /**
+     * Writing a secret and reading one need different IAM permissions, and
+     * creating a secret grants nobody access to it. So this console could create
+     * a credential it was then unable to use, report "saved", and leave the
+     * provider skipped as unconfigured on every subsequent request — with the
+     * operator reasonably certain they had just fixed it.
+     */
+    it('confirms a saved credential can be read back', async () => {
+        const result = await callables.saveAiCredential(
+            requestOf({ providerId: 'cerebras', field: 'apiKey', value: 'csk-secret-value' }),
+        );
+
+        expect(result).toMatchObject({ saved: true, readable: true, message: null });
+    });
+
+    it('says what to grant when a saved credential cannot be read back', async () => {
+        // The write succeeds and the read-back is refused, which is exactly the
+        // shape of a secret created by a principal that may create but not read.
+        const spy = jest.spyOn(store, 'readCredentials').mockResolvedValue({
+            complete: false, values: {}, missing: [], unreadable: ['apiKey'],
+        });
+        try {
+            const result = await callables.saveAiCredential(
+                requestOf({ providerId: 'sambanova', field: 'apiKey', value: 'sn-secret-value' }),
+            );
+
+            expect(result.saved).toBe(true);
+            expect(result.readable).toBe(false);
+            expect(result.message).toMatch(/secretmanager\.secretAccessor/);
+            // It also has to say that the two Functions generations use
+            // different accounts, or half the grants will be made to the wrong one.
+            expect(result.message).toMatch(/1st and 2nd generation/i);
+            // Never the value, even in the sentence that explains the problem.
+            expect(JSON.stringify(result)).not.toContain('sn-secret-value');
+        } finally {
+            spy.mockRestore();
+        }
     });
 
     it('requires a typed confirmation to delete', async () => {

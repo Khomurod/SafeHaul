@@ -365,6 +365,46 @@ describeFirestore('firestore.rules security regressions', () => {
     await assertFails(setDoc(doc(anonDb, 'ai_routing_config', 'order'), { providerIds: ['groq'] }));
   });
 
+  it('blocks all client access to unfinished applications and their audit trail', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      const adminDb = context.firestore();
+      await setDoc(doc(adminDb, 'companies/co1/application_drafts/abc123'), {
+        companyId: 'co1',
+        contactEmail: 'dana@example.test',
+        identityKey: 'f'.repeat(64),
+        formData: { firstName: 'Dana', dob: '1988-03-11' },
+        lastStep: 3,
+      });
+      await setDoc(doc(adminDb, 'companies/co1/application_draft_audit/a1'), {
+        action: 'resume_match_attempted',
+        outcome: 'matched',
+      });
+    });
+
+    const superDb = testEnv.authenticatedContext('super-1', { globalRole: 'super_admin' }).firestore();
+    const teamDb = testEnv.authenticatedContext('admin-1', { roles: { co1: 'company_admin' } }).firestore();
+    const anonDb = testEnv.unauthenticatedContext().firestore();
+
+    for (const db of [superDb, teamDb, anonDb]) {
+      // Closed to company staff too, not only to guests. A draft holds a real
+      // person's name, date of birth, address and licence details before they
+      // have signed anything, and the resume flow is a deliberate,
+      // rate-limited, audited path rather than a query anyone can run.
+      await assertFails(getDoc(doc(db, 'companies/co1/application_drafts/abc123')));
+      await assertFails(getDoc(doc(db, 'companies/co1/application_draft_audit/a1')));
+    }
+
+    // And no client may write one either: a forged draft is a way to plant data
+    // that a returning applicant would then be shown as their own.
+    await assertFails(setDoc(doc(anonDb, 'companies/co1/application_drafts/forged'), {
+      companyId: 'co1', formData: { firstName: 'Attacker' },
+    }));
+    await assertFails(setDoc(doc(teamDb, 'companies/co1/application_drafts/abc123'), { lastStep: 9 }));
+    await assertFails(setDoc(doc(superDb, 'companies/co1/application_draft_audit/forged'), {
+      action: 'resume_match_attempted',
+    }));
+  });
+
   it('blocks all client access to blog posts, including published ones', async () => {
     await testEnv.withSecurityRulesDisabled(async (context) => {
       const adminDb = context.firestore();

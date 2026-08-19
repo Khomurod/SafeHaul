@@ -436,6 +436,79 @@ describe('capability gating', () => {
     });
 });
 
+/**
+ * The reported symptom, at its source.
+ *
+ * A driver saw "AI auto-fill is not configured on the server." while nine
+ * providers sat correctly configured in Secret Manager. `cdlParser.js` produces
+ * that sentence from the `not_configured` category, and `buildTerminalFailure`
+ * produced `not_configured` for a walk in which every provider was skipped
+ * because its credential could not be READ — an IAM fault on SafeHaul's side,
+ * reported as an absence of configuration.
+ *
+ * The two need opposite operator actions, so they are now different categories.
+ */
+describe('unreadable credentials are reported as such, not as unconfigured', () => {
+    const unreadable = {
+        complete: false,
+        values: {},
+        missing: [],
+        unreadable: ['apiKey'],
+        source: null,
+    };
+
+    it('reports credential_error when every provider credential is unreadable', async () => {
+        mockStore.resolveCredentials.mockResolvedValue(unreadable);
+
+        await expect(runAiTask(textTask())).rejects.toMatchObject({ category: 'credential_error' });
+        expect(mockExecute).not.toHaveBeenCalled();
+    });
+
+    /**
+     * `some`, not `every`. A vision task legitimately skips the text-only
+     * providers as `incapable`, so a rule requiring *every* skip to be a
+     * credential error would never fire on the CDL path — the exact path that
+     * reported the symptom.
+     */
+    it('reports credential_error even when incapable providers are skipped alongside', async () => {
+        mockStore.resolveCredentials.mockResolvedValue(unreadable);
+
+        await expect(runAiTask(visionTask())).rejects.toMatchObject({ category: 'credential_error' });
+    });
+
+    it('still reports not_configured when the credential is genuinely absent', async () => {
+        mockStore.resolveCredentials.mockResolvedValue({
+            complete: false, values: {}, missing: ['apiKey'], unreadable: [], source: null,
+        });
+
+        await expect(runAiTask(textTask())).rejects.toMatchObject({ category: 'not_configured' });
+    });
+
+    it('names the affected providers for an operator without naming a secret', async () => {
+        mockStore.resolveCredentials.mockResolvedValue(unreadable);
+
+        const error = await runAiTask(textTask()).catch((err) => err);
+
+        expect(error.detail).toMatch(/gemini/);
+        // A detail line is for server logs and the console, so it may name a
+        // provider — but never a resource, a project or a credential.
+        expect(error.detail).not.toMatch(/SAFEHAUL_AI_/);
+        expect(error.detail).not.toMatch(/projects\//);
+    });
+
+    it('skips the provider rather than failing the task when only one is unreadable', async () => {
+        mockStore.resolveCredentials.mockImplementation(async (providerId) => (
+            providerId === 'gemini'
+                ? unreadable
+                : { complete: true, values: { apiKey: 'k' }, missing: [], unreadable: [], source: 'secret-manager' }
+        ));
+
+        const result = await runAiTask(textTask());
+
+        expect(result.providerId).toBe('groq');
+    });
+});
+
 describe('failure handling and fallback triggers', () => {
     const failureCases = [
         ['timeout', 'timeout'],
@@ -633,7 +706,81 @@ describe('failure handling and fallback triggers', () => {
         expect(mockStore.recordProviderOutcome).toHaveBeenCalledWith('gemini', {
             success: false,
             category: 'quota_exceeded',
+            // Which lane failed, so a rejected document image cannot count
+            // against — or cool down — this provider's article writing.
+            lane: 'text',
+            // Null here because this vendor stated no wait. When one is stated
+            // it sizes the cooldown, so a per-minute cap costs a minute rather
+            // than the flat half hour a spent daily allowance deserves.
+            retryAfterHintMs: null,
         });
+    });
+
+    it('passes the vendor stated wait through so the cooldown can be sized to it', async () => {
+        mockExecute.mockImplementation(async (providerId) => {
+            if (providerId === 'gemini') {
+                throw new AiError('rate_limited', '429', { providerId, retryAfterHintMs: 44268 });
+            }
+            return { text: 'ok', model: 'g' };
+        });
+
+        await runAiTask(textTask());
+
+        expect(mockStore.recordProviderOutcome).toHaveBeenCalledWith('gemini', {
+            success: false,
+            category: 'rate_limited',
+            lane: 'text',
+            retryAfterHintMs: 44268,
+        });
+    });
+});
+
+/**
+ * "A provider answered in a valid shape" and "the answer was the one we wanted"
+ * are different facts, and for the article fact-check they are opposite ones: a
+ * verdict of `supported: false` is a valid payload, so the transaction is a
+ * success and the article is correctly refused. The Logs tab showed
+ * `article_generation: Success` and `article_fact_check: Success` for a run that
+ * published nothing.
+ */
+describe('a task can record what its answer said', () => {
+    const { safeVerdict } = require('../../ai/router/router').__test;
+
+    it('records the verdict alongside the successful outcome', async () => {
+        const task = defineTask({
+            taskType: TASK_TYPES.ARTICLE_FACT_CHECK,
+            capabilities: [CAPABILITIES.TEXT, CAPABILITIES.STRUCTURED_JSON],
+            inputText: 'Check this.',
+            outputSchema: {
+                type: 'object',
+                properties: { supported: { type: 'boolean' } },
+                required: ['supported'],
+                additionalProperties: false,
+            },
+            verdictOf: (output) => (output.supported ? 'supported' : 'unsupported'),
+        });
+        mockExecute.mockResolvedValue({ text: '{"supported":false}', model: 'm' });
+
+        await runAiTask(task);
+
+        const recorded = mockRecordTelemetry.mock.calls
+            .map(([entry]) => entry)
+            .find((entry) => entry.outcome === 'success');
+        expect(recorded.verdict).toBe('unsupported');
+    });
+
+    it('drops anything that is not a short single word', () => {
+        // The reducer is supplied by the task, so this is what makes it
+        // impossible for one to hand telemetry an article, a claim or a source.
+        expect(safeVerdict({ verdictOf: () => 'supported' }, {})).toBe('supported');
+        expect(safeVerdict({ verdictOf: () => 'The rule takes effect in 2027' }, {})).toBeNull();
+        expect(safeVerdict({ verdictOf: () => 'x'.repeat(40) }, {})).toBeNull();
+        expect(safeVerdict({ verdictOf: () => ({ supported: false }) }, {})).toBeNull();
+        expect(safeVerdict({}, {})).toBeNull();
+    });
+
+    it('never lets a throwing reducer fail the task it describes', () => {
+        expect(safeVerdict({ verdictOf: () => { throw new Error('boom'); } }, {})).toBeNull();
     });
 });
 

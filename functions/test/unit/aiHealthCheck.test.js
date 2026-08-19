@@ -323,6 +323,184 @@ describe('model pin reconciliation', () => {
     });
 });
 
+/**
+ * A diagnostic must be able to say "I did not learn anything", and it must not
+ * dress that up as either a pass or a failure.
+ *
+ * Measured against the live vendors on 2026-08-18: a two-image probe against
+ * Groq's free tier returned `429 ... tokens per minute (TPM): Limit 8000, Used
+ * 3051, Requested 5023`. One vision probe costs roughly 2.5k of an 8k/minute
+ * budget and the multi-image one roughly 5k, so six serial probes cannot fit --
+ * the connection test was spending the allowance and then reporting the
+ * resulting 429 as "this provider cannot read images". Groq's preview vision
+ * model separately returned `503 ... currently over capacity`. Neither says
+ * anything about the capability.
+ */
+describe('a throttled diagnostic is not a failed capability', () => {
+    it('reports a rate limit as rate_limited, not failed', async () => {
+        mockExecute.mockImplementation(async (providerId, context) => {
+            if (context.images) {
+                throw new AiError('rate_limited', 'HTTP 429', {
+                    providerId, status: 429, vendorCode: 'rate_limited',
+                });
+            }
+            return healthyProvider(providerId, context);
+        });
+
+        const result = await testProviderConnection('gemini');
+        const vision = result.capabilities.find((entry) => entry.id === 'vision_single');
+
+        expect(vision.status).toBe(PROBE_STATUS.RATE_LIMITED);
+        expect(vision.message).toMatch(/throttled/i);
+        // And it is still not a pass: claiming health for a capability nobody
+        // tested is the failure this whole file exists to prevent.
+        expect(result.success).toBe(false);
+        // But the headline must not accuse the capability either.
+        expect(result.category).toBeNull();
+        expect(result.message).toMatch(/throttled/i);
+    });
+
+    it('reports a vendor outage as inconclusive, not failed', async () => {
+        mockExecute.mockImplementation(async (providerId, context) => {
+            if (context.images) {
+                throw new AiError('provider_unavailable', 'HTTP 503', { providerId, status: 503 });
+            }
+            return healthyProvider(providerId, context);
+        });
+
+        const result = await testProviderConnection('gemini');
+        const vision = result.capabilities.find((entry) => entry.id === 'vision_single');
+
+        expect(vision.status).toBe(PROBE_STATUS.INCONCLUSIVE);
+        expect(result.success).toBe(false);
+    });
+
+    it('still calls a rejected request a failure, because that IS about the capability', async () => {
+        mockExecute.mockImplementation(async (providerId, context) => {
+            if (context.images) {
+                throw new AiError('provider_request_rejected', 'HTTP 400', {
+                    providerId, status: 400, vendorCode: 'invalid_request_error',
+                });
+            }
+            return healthyProvider(providerId, context);
+        });
+
+        const result = await testProviderConnection('gemini');
+        const vision = result.capabilities.find((entry) => entry.id === 'vision_single');
+
+        expect(vision.status).toBe(PROBE_STATUS.FAILED);
+        expect(result.category).toBe('provider_request_rejected');
+    });
+
+    it('carries the vendor status and code through, which is what made "Failed" useless', async () => {
+        mockExecute.mockImplementation(async (providerId, context) => {
+            if (context.images) {
+                throw new AiError('model_unavailable', 'HTTP 404', {
+                    providerId, status: 404, vendorCode: 'model_not_found',
+                });
+            }
+            return healthyProvider(providerId, context);
+        });
+
+        const result = await testProviderConnection('gemini');
+        const vision = result.capabilities.find((entry) => entry.id === 'vision_single');
+
+        expect(vision).toMatchObject({ httpStatus: 404, vendorCode: 'model_not_found' });
+    });
+
+    it('waits the vendor stated pause once and keeps the real answer', async () => {
+        let visionAttempts = 0;
+        mockExecute.mockImplementation(async (providerId, context) => {
+            // Only the single-image probe. Two probes carry images, so counting
+            // every image call would conflate the second probe with a retry.
+            if (context.images?.length === 1) {
+                visionAttempts += 1;
+                if (visionAttempts === 1) {
+                    throw new AiError('rate_limited', 'HTTP 429', {
+                        providerId, status: 429, retryAfterHintMs: 5,
+                    });
+                }
+            }
+            return healthyProvider(providerId, context);
+        });
+
+        const result = await testProviderConnection('gemini');
+
+        expect(visionAttempts).toBeGreaterThan(1);
+        expect(result.capabilities.find((entry) => entry.id === 'vision_single').status)
+            .toBe(PROBE_STATUS.PASSED);
+    });
+
+    it('does not retry when the vendor stated no wait', async () => {
+        let visionAttempts = 0;
+        mockExecute.mockImplementation(async (providerId, context) => {
+            // Only the single-image probe. Two probes carry images, so counting
+            // every image call would conflate the second probe with a retry.
+            if (context.images?.length === 1) {
+                visionAttempts += 1;
+                throw new AiError('rate_limited', 'HTTP 429', { providerId, status: 429 });
+            }
+            return healthyProvider(providerId, context);
+        });
+
+        await testProviderConnection('gemini');
+
+        expect(visionAttempts).toBe(1);
+    });
+
+    it('does not honour an absurd stated wait', async () => {
+        let visionAttempts = 0;
+        mockExecute.mockImplementation(async (providerId, context) => {
+            // Only the single-image probe. Two probes carry images, so counting
+            // every image call would conflate the second probe with a retry.
+            if (context.images?.length === 1) {
+                visionAttempts += 1;
+                throw new AiError('rate_limited', 'HTTP 429', {
+                    providerId, status: 429, retryAfterHintMs: 10 * 60 * 1000,
+                });
+            }
+            return healthyProvider(providerId, context);
+        });
+
+        await testProviderConnection('gemini');
+
+        expect(visionAttempts).toBe(1);
+    });
+});
+
+/**
+ * The per-capability breakdown has to survive a reload, because a reload is when
+ * an operator comes back to look. It was computed, returned once and discarded,
+ * so the row said "text passed, single-image failed" until the page refreshed and
+ * a bare "Failed" afterwards.
+ */
+describe('per-capability results are persisted, not just returned', () => {
+    it('stores the breakdown with the vendor detail against the provider', async () => {
+        mockExecute.mockImplementation(async (providerId, context) => {
+            if (context.images) {
+                throw new AiError('model_unavailable', 'HTTP 404', {
+                    providerId, status: 404, vendorCode: 'model_not_found',
+                });
+            }
+            return healthyProvider(providerId, context);
+        });
+
+        await testProviderConnection('gemini');
+
+        expect(mockStore.recordTestResult).toHaveBeenCalledWith('gemini', expect.objectContaining({
+            success: false,
+            capabilities: expect.arrayContaining([
+                expect.objectContaining({
+                    id: 'vision_single',
+                    status: 'failed',
+                    httpStatus: 404,
+                    vendorCode: 'model_not_found',
+                }),
+            ]),
+        }));
+    });
+});
+
 describe('safety and secrecy', () => {
     it('never sends anything but constant prompts and generated images', async () => {
         await testProviderConnection('gemini');
@@ -363,6 +541,47 @@ describe('safety and secrecy', () => {
         const result = await testProviderConnection('gemini');
 
         expect(result).toMatchObject({ success: false, category: 'not_configured' });
+        expect(mockExecute).not.toHaveBeenCalled();
+    });
+
+    /**
+     * "Add credentials before testing" is actively wrong when the credential is
+     * present and the runtime is not permitted to read it — and that read was
+     * unguarded, so the exception escaped to `safeFailure` in ../callables.js and
+     * became `internal: "The request could not be completed."` The one screen
+     * whose job is to explain why a provider is not working said nothing at all.
+     */
+    it('reports an unreadable credential as such, not as a missing one', async () => {
+        mockStore.resolveCredentials.mockResolvedValue({
+            complete: false, values: {}, missing: [], unreadable: ['apiKey'], source: null,
+        });
+
+        const result = await testProviderConnection('gemini');
+
+        expect(result).toMatchObject({ success: false, category: 'credential_error' });
+        expect(result.message).toMatch(/Secret Manager access/i);
+        expect(mockExecute).not.toHaveBeenCalled();
+    });
+
+    it('survives a credential read that throws instead of returning', async () => {
+        const denied = new Error('7 PERMISSION_DENIED on projects/x/secrets/SAFEHAUL_AI_GEMINI_APIKEY');
+        denied.code = 7;
+        mockStore.resolveCredentials.mockRejectedValue(denied);
+
+        const result = await testProviderConnection('gemini');
+
+        expect(result).toMatchObject({ success: false, category: 'credential_error' });
+        // The resource name stays in the server log where it belongs.
+        expect(JSON.stringify(result)).not.toMatch(/SAFEHAUL_AI_GEMINI_APIKEY/);
+        expect(JSON.stringify(result)).not.toMatch(/PERMISSION_DENIED/);
+    });
+
+    it('survives a provider config read that throws', async () => {
+        mockStore.readConfig.mockRejectedValue(new Error('firestore unavailable'));
+
+        const result = await testProviderConnection('gemini');
+
+        expect(result.success).toBe(false);
         expect(mockExecute).not.toHaveBeenCalled();
     });
 

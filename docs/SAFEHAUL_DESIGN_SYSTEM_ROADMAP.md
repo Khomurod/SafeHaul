@@ -362,6 +362,21 @@ lead intake, and Super Admin. Later campaigns extended it to the Environment &
 Integrations vault, AI Integrations and Blog Posts, and operator-controlled AI
 provider priority.
 
+Screens added since, built on approved components and `--ds-*` tokens from the
+start rather than migrated: AI Integrations → credential-access diagnostic and the
+per-lane health badges, Blog Posts → Publication runs, the driver application's
+two-stage resume dialog (the shared `ConfirmDialog`, twice — see below), and
+Company → Drivers → Started (unfinished). No new visual primitive was introduced
+for any of them.
+
+One design decision in that set is worth recording because it is a safety
+property, not a preference: **the resume dialog uses two sequential
+`ConfirmDialog`s rather than one dialog with two destructive choices.**
+`ConfirmDialog` routes Escape to `onCancel`, so a single dialog whose cancel
+action discarded the draft would delete a driver's saved application on a stray
+keypress. Discarding is therefore its own explicit `tone="danger"` confirmation,
+and Escape at either stage deletes nothing.
+
 Two areas are deliberately **NO-GO** and remain unmigrated, each blocked on an
 owner decision in §6:
 

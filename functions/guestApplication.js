@@ -75,6 +75,27 @@ function stampAcceptanceOrigin(acceptances, clientIp) {
     return stamped;
 }
 
+/**
+ * Removes the in-progress draft once its application has been submitted.
+ *
+ * The draft and the application share the deterministic applicant key, so this is
+ * a direct delete rather than a search — which is the practical dividend of not
+ * having invented a second identity scheme for drafts.
+ *
+ * A resubmission (the browser retried, or the offline queue replayed) finds
+ * nothing to delete and says nothing about it. That is correct: the submission
+ * itself is idempotent, and so is this.
+ */
+async function discardDraftForApplication(companyId, applicationId) {
+    try {
+        await db.collection('companies').doc(String(companyId))
+            .collection('application_drafts').doc(String(applicationId))
+            .delete();
+    } catch (error) {
+        console.error(`[submitGuestApplication] Could not discard the draft for ${applicationId}: ${error?.message || 'unknown'}`);
+    }
+}
+
 exports.submitGuestApplication = functions
     .runWith({ memory: '256MB', timeoutSeconds: 30 })
     .https.onCall(async (data, context) => {
@@ -316,6 +337,17 @@ exports.submitGuestApplication = functions
                     logLabel: 'submitGuestApplication',
                 });
             }
+
+            // The unfinished draft has served its purpose: the real application
+            // exists and its snapshot is frozen. Best-effort, and deliberately
+            // last — a draft that outlives its submission is untidy and expires
+            // on its own, whereas failing a completed submission over a cleanup
+            // would lose the thing the driver actually came to do.
+            // The *unsuffixed* key. `upsertApplicationDoc` can suffix the final
+            // application id on a hash collision, and the draft was written under
+            // the plain applicant key — deleting the suffixed one would target a
+            // document that never had a draft and leave the real one behind.
+            await discardDraftForApplication(companyId, applicationId);
 
             return {
                 ...result,

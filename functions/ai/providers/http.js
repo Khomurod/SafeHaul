@@ -60,6 +60,62 @@ function readRetryAfterMs(response) {
 const MAX_ERROR_BODY_CHARS = 2000;
 
 /**
+ * Longest stated wait worth recording at all. A vendor claiming a week is
+ * either broken or talking about something other than this request.
+ */
+const MAX_STATED_RETRY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * The vendor's stated wait, uncapped, from wherever it stated it.
+ *
+ * Separate from `readRetryAfterMs` because the two answer different questions.
+ * That one asks "is it worth holding this request open?" and is deliberately
+ * capped at 30 seconds. This one asks "how long is this provider actually
+ * unavailable for?", and the answer sizes the cooldown — where being wrong by
+ * an order of magnitude is expensive.
+ *
+ * It was measured being wrong by exactly that much. Gemini's free tier caps at
+ * 20 requests per minute and says so in the error *body*:
+ *
+ *   Quota exceeded for metric: …/generate_content_free_tier_requests,
+ *   limit: 20, model: gemini-3.6-flash
+ *   Please retry in 44.26781542s.
+ *
+ * Nothing read that sentence, so a 45-second cap earned the flat 30-minute
+ * quota cooldown and removed the highest-priority provider from every lane —
+ * which is what "Gemini has accumulated repeated failures while still passing
+ * basic text" looked like from the console.
+ *
+ * Only a duration is taken from the body: a number and a unit, nothing else. A
+ * body is untrusted text that can quote the submitted prompt back at us, so the
+ * result is a number or null, never a string.
+ *
+ * @returns {number|null}
+ */
+function readStatedRetryMs(response, raw) {
+    const headerMs = (() => {
+        let value = null;
+        try { value = response?.headers?.get?.('retry-after') ?? null; } catch { value = null; }
+        const seconds = Number.parseFloat(value);
+        return Number.isFinite(seconds) && seconds > 0 ? Math.ceil(seconds * 1000) : null;
+    })();
+    if (headerMs !== null && headerMs <= MAX_STATED_RETRY_MS) return headerMs;
+
+    if (typeof raw !== 'string' || !raw) return null;
+    // "Please retry in 44.26781542s", "retry after 30 seconds", "try again in 1.5s".
+    const match = /(?:retry|try again)[^0-9]{0,20}(\d+(?:\.\d+)?)\s*(ms|s|sec|secs|second|seconds|m|min|mins|minute|minutes)\b/i
+        .exec(raw);
+    if (!match) return null;
+
+    const amount = Number.parseFloat(match[1]);
+    if (!Number.isFinite(amount) || amount <= 0) return null;
+    const unit = match[2].toLowerCase();
+    const multiplier = unit === 'ms' ? 1 : (unit.startsWith('m') && unit !== 'ms' ? 60000 : 1000);
+    const ms = Math.ceil(amount * multiplier);
+    return ms > 0 && ms <= MAX_STATED_RETRY_MS ? ms : null;
+}
+
+/**
  * Performs a JSON POST with a hard timeout.
  *
  * @param {object} params
@@ -130,6 +186,9 @@ async function postJson({ url, headers, body, timeoutMs, provider, parentSignal,
             // honoured too. The router uses this to wait rather than abandoning a
             // provider over a few seconds — see `readRetryAfterMs`.
             retryAfterMs: readRetryAfterMs(response),
+            // The full stated wait, used to size the cooldown rather than to
+            // hold this request open. See `readStatedRetryMs`.
+            retryAfterHintMs: readStatedRetryMs(response, raw),
         });
     }
 
@@ -191,7 +250,9 @@ function extractVendorCode(raw) {
 
 module.exports = {
     readRetryAfterMs,
+    readStatedRetryMs,
     extractVendorCode,
     MAX_RETRY_AFTER_MS,
+    MAX_STATED_RETRY_MS,
     postJson,
 };

@@ -55,15 +55,19 @@ const MAX_CANDIDATES = 12;
  * published short article over an unpublished long one, on a free tier, twice.
  * Raising a provider tier is what reverses it.
  *
- * The two free tiers fail in opposite directions: Gemini writes 311-417 words but caps at 20 requests, while
- * Groq is reliably available and reliably terse at 175-213. Gemini now leads and
- * will usually clear 300 comfortably; the floor sits at 200 so that when Gemini's
- * quota is spent, Groq's shorter article still publishes rather than the day
- * producing nothing. The owner's words: "even the 200 word article is okay, if
- * Gemini fails".
+ * The two free tiers fail in opposite directions: Gemini writes 311-417 words but
+ * caps at 20 requests per minute, while Groq is reliably available and reliably
+ * terse at 175-213. Gemini leads and will usually clear 300 comfortably; the floor
+ * sits below Groq's measured output so that when Gemini's quota is spent, Groq's
+ * shorter article still publishes rather than the day producing nothing. The
+ * owner's words: "even the 200 word article is okay, if Gemini fails".
  *
- * The prompt still asks for 350-600 so the model aims above the floor rather than
- * at it. Under-shooting is tolerated; padding is still forbidden.
+ * **There is one enforced number and it is 150.** An earlier revision of this
+ * comment said the floor "sits at 200" while the constant read 150, and the prompt
+ * asks for at least 300 — three numbers for one rule. The prompt's 300 is an
+ * instruction to the model, deliberately above the gate so it aims high rather
+ * than at the minimum; 150 is the gate. Under-shooting the prompt is tolerated,
+ * padding is still forbidden, and nothing but this constant refuses an article.
  *
  * Three numbers move together — this floor, `maxOutputTokens` in
  * articleGeneration, and `MAX_DOCUMENT_TEXT_CHARS` in fetchSources. Raise all
@@ -317,10 +321,28 @@ async function runSlot(slot, context) {
     const theme = getTheme(slot.themeId);
     if (!theme) throw new Error(`Unknown theme "${slot.themeId}".`);
 
+    /**
+     * What the run ledger needs, accumulated as the pipeline goes.
+     *
+     * Held here rather than added at each of the fourteen `return` sites below:
+     * a field that has to be remembered at every exit is a field the fifteenth
+     * exit forgets, and the ledger's whole value is that it is always complete.
+     * `runSlot` returns it once, at the end, through `finish`.
+     */
+    const trail = {
+        transactions: { generation: null, verification: null },
+        verification: null,
+        providerId: null,
+        model: null,
+        fallbackCount: null,
+    };
+
+    const finish = (result) => ({ ...trail, ...result });
+
     // Cheap guard before spending any AI or network budget. The document-id
     // create is still the authoritative check.
     if (await store.slotIsFilled(slot.publicationDate, slot.themeId)) {
-        return { outcome: OUTCOME.SKIPPED_SLOT_TAKEN, slot };
+        return finish({ outcome: OUTCOME.SKIPPED_SLOT_TAKEN, slot });
     }
 
     const recentPosts = await store.recentForDeduplication({ now });
@@ -355,7 +377,7 @@ async function runSlot(slot, context) {
         const candidates = buildCandidates(items, theme);
 
         if (candidates.length === 0) {
-            return { outcome: OUTCOME.SKIPPED_NO_SOURCES, slot, detail: 'no current items matched this theme' };
+            return finish({ outcome: OUTCOME.SKIPPED_NO_SOURCES, slot, detail: 'no current items matched this theme' });
         }
 
         // --- 3 & 4. Choose a topic that is not a repeat -----------------------
@@ -365,11 +387,11 @@ async function runSlot(slot, context) {
         ).duplicate);
 
         if (fresh.length === 0) {
-            return {
+            return finish({
                 outcome: OUTCOME.SKIPPED_ALL_DUPLICATES,
                 slot,
                 detail: `all ${candidates.length} candidates repeat recent coverage`,
-            };
+            });
         }
 
         // Only offer leads that can actually satisfy this theme's sourcing bar.
@@ -392,11 +414,11 @@ async function runSlot(slot, context) {
         if (viable.length === 0) {
             // Report the bar the whole set failed, not one arbitrary candidate's.
             const reason = sourcingIsSufficient(buildFactPackage(fresh[0], fresh, theme), theme).reason;
-            return {
+            return finish({
                 outcome: OUTCOME.SKIPPED_NO_SOURCES,
                 slot,
                 detail: `${reason} (none of ${fresh.length} candidates)`,
-            };
+            });
         }
 
         // Topic selection is no longer an AI call.
@@ -441,7 +463,7 @@ async function runSlot(slot, context) {
         // the one failure this pipeline must never have.
         const sufficiency = sourcingIsSufficient(sources, theme);
         if (!sufficiency.ok) {
-            return { outcome: OUTCOME.SKIPPED_NO_SOURCES, slot, detail: sufficiency.reason };
+            return finish({ outcome: OUTCOME.SKIPPED_NO_SOURCES, slot, detail: sufficiency.reason });
         }
     } else {
         // The SafeHaul theme is written from the approved capability package.
@@ -457,7 +479,7 @@ async function runSlot(slot, context) {
 
         const repeat = dedupe.checkForDuplicate({ title: topic.title, sourceUrls: [] }, recentPosts);
         if (repeat.duplicate) {
-            return { outcome: OUTCOME.SKIPPED_ALL_DUPLICATES, slot, detail: `capability topic already covered (${repeat.reason})` };
+            return finish({ outcome: OUTCOME.SKIPPED_ALL_DUPLICATES, slot, detail: `capability topic already covered (${repeat.reason})` });
         }
     }
 
@@ -475,7 +497,7 @@ async function runSlot(slot, context) {
             recentTitles,
         }, aiDeps);
     } catch (error) {
-        return {
+        return finish({
             outcome: OUTCOME.FAILED_GENERATION,
             slot,
             // `detail` carries the router's per-provider trail when there is one
@@ -484,13 +506,18 @@ async function runSlot(slot, context) {
             // a full day of diagnosis. It is provider ids and categories only:
             // no credential, no prompt, no provider response body.
             detail: error?.detail || error?.category || 'generation failed',
-        };
+        });
     }
+
+    trail.transactions.generation = generated.transactionId || null;
+    trail.providerId = generated.providerId || null;
+    trail.model = generated.model || null;
+    trail.fallbackCount = Number.isInteger(generated.fallbackCount) ? generated.fallbackCount : null;
 
     // --- 7. Structural validation ---------------------------------------------
     const validated = validateDraft(generated.article);
     if (!validated.ok) {
-        return { outcome: OUTCOME.SKIPPED_VALIDATION, slot, detail: validated.problems.join('; ') };
+        return finish({ outcome: OUTCOME.SKIPPED_VALIDATION, slot, detail: validated.problems.join('; ') });
     }
 
     const plainText = sanitize.blocksToPlainText(validated.blocks);
@@ -501,35 +528,47 @@ async function runSlot(slot, context) {
     // mentions SafeHaul in passing.
     const claimCheck = knowledgePackage.checkClaims(`${validated.title} ${plainText}`);
     if (!claimCheck.ok) {
-        return {
+        return finish({
             outcome: OUTCOME.SKIPPED_PROHIBITED_CLAIM,
             slot,
             detail: claimCheck.violations.map((violation) => violation.claim).join('; '),
-        };
+        });
     }
 
     // --- 8. Source-backed claim verification ---------------------------------
     let verification = { supported: true, unsupportedClaims: [], notes: 'not run' };
     if (sources.length > 0 || usesKnowledge) {
         try {
-            verification = await verifyArticleClaims({
+            const checked = await verifyArticleClaims({
                 articleText: `${validated.title}\n\n${plainText}`,
                 sources,
                 knowledge: usesKnowledge ? knowledge : null,
             }, aiDeps);
+            verification = checked.verification;
+            trail.transactions.verification = checked.transactionId || null;
         } catch {
             // A verification step that cannot run must not silently pass an
             // article. Publishing unverified factual claims is the failure mode
             // this whole pipeline exists to avoid.
-            return { outcome: OUTCOME.SKIPPED_UNSUPPORTED_CLAIMS, slot, detail: 'verification step unavailable' };
+            return finish({ outcome: OUTCOME.SKIPPED_UNSUPPORTED_CLAIMS, slot, detail: 'verification step unavailable' });
         }
 
+        // The verdict, recorded whichever way it went. A successful fact-check
+        // transaction that returned `supported: false` is the case that read as
+        // two green rows and no article.
+        trail.verification = {
+            supported: Boolean(verification.supported),
+            unsupportedClaimCount: Array.isArray(verification.unsupportedClaims)
+                ? verification.unsupportedClaims.length
+                : 0,
+        };
+
         if (!verification.supported) {
-            return {
+            return finish({
                 outcome: OUTCOME.SKIPPED_UNSUPPORTED_CLAIMS,
                 slot,
                 detail: verification.unsupportedClaims.slice(0, 3).join(' | '),
-            };
+            });
         }
     }
 
@@ -539,11 +578,11 @@ async function runSlot(slot, context) {
         recentPosts,
     );
     if (originality.duplicate) {
-        return {
+        return finish({
             outcome: OUTCOME.SKIPPED_NOT_ORIGINAL,
             slot,
             detail: `${originality.reason} (similarity ${originality.similarity})`,
-        };
+        });
     }
 
     // --- 11. Licensed image ---------------------------------------------------
@@ -559,7 +598,7 @@ async function runSlot(slot, context) {
         // Should be unreachable: the fallback is always complete. If it ever
         // happens, publishing an image with unknown provenance is not the
         // answer.
-        return { outcome: OUTCOME.SKIPPED_VALIDATION, slot, detail: 'no image with complete licence metadata' };
+        return finish({ outcome: OUTCOME.SKIPPED_VALIDATION, slot, detail: 'no image with complete licence metadata', stage: 'image' });
     }
 
     // --- 12 & 13. Assemble and save ------------------------------------------
@@ -594,6 +633,13 @@ async function runSlot(slot, context) {
             originalitySimilarity: originality.similarity,
             sourceCount: sources.length,
             hasPrimarySource: sources.some((source) => isPrimary(source.sourceId)),
+            // The AI transactions behind this article, so a published post and the
+            // Logs tab can be joined in both directions. The run ledger already
+            // carries them for every outcome; a published article outlives its
+            // ledger row's 30-day retention, so it keeps its own copy.
+            // `publicApi.js` serves no generation metadata, so these stay internal.
+            generationTransactionId: trail.transactions.generation || null,
+            verificationTransactionId: trail.transactions.verification || null,
         },
         knowledgeVersion: knowledge.version,
         normalizedTitle: dedupe.normalizeTitle(validated.title),
@@ -607,10 +653,10 @@ async function runSlot(slot, context) {
     const saved = await store.createPost(post);
     if (!saved.created) {
         // Another run won the race. Correct outcome, not an error.
-        return { outcome: OUTCOME.SKIPPED_SLOT_TAKEN, slot };
+        return finish({ outcome: OUTCOME.SKIPPED_SLOT_TAKEN, slot });
     }
 
-    return { outcome: OUTCOME.PUBLISHED, slot, post: { ...post, id: saved.id } };
+    return finish({ outcome: OUTCOME.PUBLISHED, slot, post: { ...post, id: saved.id } });
 }
 
 module.exports = {

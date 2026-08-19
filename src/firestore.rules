@@ -453,6 +453,28 @@ service cloud.firestore {
         }
       }
 
+      // UNFINISHED APPLICATIONS — server-only, both collections.
+      //
+      // Every client write is denied and so is every client read. Writes go
+      // exclusively through `saveApplicationProgress`, and reads through
+      // `resumeApplicationDraft` (which requires a resume token) or
+      // `listApplicationDrafts` (which requires company membership). There is no
+      // rule that would let a browser read one directly, and that is the point:
+      // a draft holds a real person's name, date of birth, address and licence
+      // details before they have signed anything, and the resume flow is a
+      // deliberate, rate-limited, audited path rather than a query.
+      //
+      // The drafts hold no Social Security Number at all — see
+      // functions/shared/applicationDraft.js — only a keyed HMAC used to
+      // recognise a returning applicant.
+      match /application_drafts/{applicantKey} { allow read, write: if false; }
+      // Value-free record of resume-match attempts. Outcomes and counts only:
+      // never a name, a date of birth, an SSN, the identity hash or a contact
+      // detail. Unreadable by clients for the same reason as the vault's audit
+      // log — an audit trail nobody can edit or read around is worth more than a
+      // convenient one.
+      match /application_draft_audit/{entryId} { allow read, write: if false; }
+
       // LEADS (Company Specific)
       match /leads/{leadId} {
         allow read: if isCompanyTeam(companyId) || isSuperAdmin();
@@ -599,6 +621,7 @@ service cloud.firestore {
     // rows, source fingerprints and provider/model records. Writes are the
     // scheduler's alone; deletion goes through `deleteBlogPost`.
     match /blog_posts/{postId} { allow read, write: if false; } // server-only (News & Insights)
+    match /blog_runs/{runId} { allow read, write: if false; } // server-only (publication run ledger)
 
     // --- LANDING PAGE (server-only) ---
     // Platform-level settings for the marketing site, including the encrypted

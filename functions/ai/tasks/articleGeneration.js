@@ -262,7 +262,17 @@ async function generateArticle({ theme, topic, sources, knowledge, recentTitles 
     });
 
     const result = await runAiTask(task, deps);
-    return { article: result.output, providerId: result.providerId, model: result.model, fallbackCount: result.fallbackCount };
+    return {
+        article: result.output,
+        providerId: result.providerId,
+        model: result.model,
+        fallbackCount: result.fallbackCount,
+        // Carried out so the run ledger can join a slot to its provider timeline.
+        // It was minted by the router and dropped here, which is why a refused
+        // publication and the AI transactions that produced it could not be
+        // connected by anything at all.
+        transactionId: result.transactionId,
+    };
 }
 
 /**
@@ -300,10 +310,20 @@ async function verifyArticleClaims({ articleText, sources, knowledge }, deps = {
         maxOutputTokens: 1500,
         privacy: PRIVACY.PUBLIC,
         totalDeadlineMs: 120000,
+        // The verdict, so the Logs tab does not report a refusal as an
+        // unqualified success. A word, and only ever one of these two.
+        verdictOf: (output) => (output?.supported ? 'supported' : 'unsupported'),
     });
 
     const result = await runAiTask(task, deps);
-    return result.output;
+    // `{ verification, transactionId }` rather than the bare verdict.
+    //
+    // The verdict and the transaction's success are different facts, and the
+    // difference is the reported defect: `supported: false` is a perfectly valid
+    // response, so the transaction is recorded as a success and the article is
+    // correctly refused. Two green rows in the Logs tab, no article published.
+    // The ledger needs both halves to say which happened.
+    return { verification: result.output, transactionId: result.transactionId };
 }
 
 /**

@@ -20,7 +20,7 @@ import { StepNavigation } from './components/StepNavigation';
  * `drug-alcohol-convictions-no` are element ids the guest E2E specs click via
  * `label[for=…]`; the shared `RadioGroup` adapter keeps generating them.
  */
-const Step4_Violations = ({ formData, updateFormData, onNavigate }) => {
+const Step4_Violations = ({ formData, updateFormData, onNavigate, onPartialSubmit }) => {
     const yesNoOptions = YES_NO_OPTIONS;
     const ty = new Date().getFullYear();
     const initialViolation = { date: '', charge: '', location: '', penalty: '' };
@@ -182,6 +182,7 @@ const Step4_Violations = ({ formData, updateFormData, onNavigate }) => {
 
             <StepNavigation
                 onBack={() => onNavigate('back')}
+                onSaveDraft={onPartialSubmit}
                 onContinue={handleContinue}
             />
         </div>

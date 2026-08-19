@@ -17,6 +17,7 @@ import { ResponsiveGrid, Stack } from '@/design-system/layouts';
 import { describeAiError, listAiTelemetry } from '../../services/aiIntegrations';
 import { AiTransactionModal } from './AiTransactionModal';
 import {
+    ARTICLE_TASK_TYPES,
     LOG_QUICK_FILTERS,
     describeOutcome,
     describeTaskType,
@@ -38,7 +39,21 @@ const OUTCOME_OPTIONS = [
     { value: 'failure', label: 'Failure' },
 ];
 
-const EMPTY_FILTERS = { taskType: '', outcome: '', providerId: '', search: '', from: '', to: '' };
+const EMPTY_FILTERS = {
+    taskType: '', outcome: '', providerId: '', search: '', from: '', to: '',
+    /**
+     * Client-side only, and never sent to the server.
+     *
+     * One article run makes TWO transactions — generation and the fact-check —
+     * and the `Articles` quick filter used to select `taskType:
+     * 'article_generation'` alone. So a run refused by the fact-check was
+     * invisible under the one filter an operator would think to use, which is a
+     * large part of why "generation succeeded" was being read as "an article
+     * published". The server takes at most one equality filter, so selecting a
+     * pair of task types is done here instead.
+     */
+    articleTasks: false,
+};
 
 /**
  * AI Integrations → Logs.
@@ -67,7 +82,7 @@ export function AiLogsPanel({ providers = [] }) {
     const [selected, setSelected] = useState(null);
 
     const isFiltered = useMemo(
-        () => Object.values(filters).some((value) => value !== ''),
+        () => Object.entries(filters).some(([, value]) => value !== '' && value !== false),
         [filters],
     );
 
@@ -78,10 +93,15 @@ export function AiLogsPanel({ providers = [] }) {
             // Empty strings mean "no filter"; the server drops anything it does
             // not recognise anyway, but sending them is noise.
             const payload = Object.fromEntries(
-                Object.entries(active).filter(([, value]) => value !== ''),
+                Object.entries(active)
+                    // `articleTasks` is applied below, not by the server.
+                    .filter(([key, value]) => key !== 'articleTasks' && value !== ''),
             );
             const result = await listAiTelemetry(payload);
-            setEntries(result.entries || []);
+            const rows = result.entries || [];
+            setEntries(active.articleTasks
+                ? rows.filter((row) => ARTICLE_TASK_TYPES.includes(row.taskType))
+                : rows);
             setTruncated(Boolean(result.truncated));
         } catch (loadError) {
             setError(describeAiError(loadError, 'Could not load AI logs.'));
@@ -105,9 +125,10 @@ export function AiLogsPanel({ providers = [] }) {
         const match = LOG_QUICK_FILTERS.find((quick) => (
             (quick.filters.taskType || '') === filters.taskType
             && (quick.filters.outcome || '') === filters.outcome
+            && Boolean(quick.filters.articleTasks) === Boolean(filters.articleTasks)
         ));
         return match?.id || null;
-    }, [filters.taskType, filters.outcome]);
+    }, [filters.taskType, filters.outcome, filters.articleTasks]);
 
     const columns = useMemo(() => defineTableColumns([
         {
@@ -201,6 +222,7 @@ export function AiLogsPanel({ providers = [] }) {
                                 ...current,
                                 taskType: quick.filters.taskType || '',
                                 outcome: quick.filters.outcome || '',
+                                articleTasks: Boolean(quick.filters.articleTasks),
                             }))}
                         >
                             {quick.label}

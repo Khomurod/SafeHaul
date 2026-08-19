@@ -36,6 +36,12 @@ const TERMINAL_CATEGORIES = Object.freeze([
     'capability_unavailable',
     'deadline_exceeded',
     'all_providers_failed',
+    // SafeHaul could not read its own credentials — an infrastructure fault on
+    // our side, not a vendor's. Kept distinct from `not_configured` because the
+    // two need opposite operator actions: one says "add a key", this one says
+    // "the key is there and the runtime cannot read it". Reporting the first for
+    // the second sent operators to re-enter credentials that already existed.
+    'credential_error',
     'internal',
 ]);
 
@@ -69,6 +75,10 @@ const TASK_FATAL_CATEGORIES = Object.freeze([
     'capability_unavailable',
     'deadline_exceeded',
     'all_providers_failed',
+    // Only ever produced by `buildTerminalFailure` once the walk is over, so it
+    // cannot end a walk early. Listed for the same reason `all_providers_failed`
+    // is: it is an aggregate verdict, and nothing downstream should retry it.
+    'credential_error',
 ]);
 
 /** True when the failure ends the task rather than just this provider's turn. */
@@ -101,6 +111,11 @@ const SAFE_MESSAGES = Object.freeze({
     provider_request_rejected: 'The AI service rejected the request SafeHaul sent.',
     schema_validation_failed: 'The AI service returned an unexpected result.',
     not_configured: 'No AI provider is configured for this task.',
+    // Says whose fault it is without naming a resource. An operator reading this
+    // in the console needs to check Secret Manager access for the Functions
+    // runtime; a driver mid-application is shown the callable's own wording
+    // instead, which never mentions credentials at all.
+    credential_error: 'SafeHaul could not read its AI provider credentials.',
     invalid_request: 'The request could not be processed.',
     unauthorized: 'The AI service rejected SafeHaul credentials.',
     capability_unavailable: 'No configured AI provider supports this task.',
@@ -139,6 +154,12 @@ class AiError extends Error {
         this.retryAfterMs = Number.isFinite(options.retryAfterMs) && options.retryAfterMs > 0
             ? options.retryAfterMs
             : null;
+        // The vendor's stated wait, uncapped, used to size a cooldown rather
+        // than to hold a request open. A per-minute cap must not cost half an
+        // hour of a provider's availability.
+        this.retryAfterHintMs = Number.isFinite(options.retryAfterHintMs) && options.retryAfterHintMs > 0
+            ? options.retryAfterHintMs
+            : null;
     }
 
     get retryable() {
@@ -165,14 +186,23 @@ function categorizeHttpFailure(status, body, provider) {
     const detection = provider?.quotaDetection;
     const haystack = typeof body === 'string' ? body.toLowerCase() : '';
 
-    if (detection) {
-        const statusMatches = detection.statuses.includes(status);
-        const markerMatches = detection.bodyMarkers.some((marker) => haystack.includes(marker));
-        if (statusMatches || (status >= 400 && markerMatches)) {
-            return status === 429 ? 'rate_limited' : 'quota_exceeded';
-        }
+    // A status the vendor uses for exhaustion is decisive on its own. This is
+    // what keeps a vendor that signals a spent allowance with 402 rather than
+    // 429 earning a quota cooldown.
+    if (detection?.statuses.includes(status)) {
+        return status === 429 ? 'rate_limited' : 'quota_exceeded';
     }
 
+    // Everything below this line used to sit *after* a body-marker test that
+    // fired on any status >= 400, and that ordering manufactured false quota
+    // diagnoses. `bodyMarkers` are words — `quota`, `rate limit`,
+    // `insufficient` — and vendors put them in errors that have nothing to do
+    // with an allowance: "insufficient permissions" on a 401, or a 400 naming a
+    // quota *documentation* URL. Each of those was relabelled `quota_exceeded`,
+    // which earned a 30-minute cooldown and told the operator to go and buy
+    // capacity for a request-shape or credential bug. So a status SafeHaul can
+    // classify precisely is now classified precisely, and the word search is
+    // only consulted for statuses that carry no specific meaning.
     if (status === 401 || status === 403) return 'unauthorized';
     if (status === 404) return 'model_unavailable';
     if (status === 400 || status === 422) {
@@ -187,6 +217,13 @@ function categorizeHttpFailure(status, body, provider) {
         return 'provider_request_rejected';
     }
     if (status >= 500) return 'provider_unavailable';
+
+    // A 4xx SafeHaul has no specific reading for — 402 Payment Required is the
+    // one that matters — is where the vendor's own wording is the best evidence
+    // available, so the marker search still runs here.
+    if (status >= 400 && detection?.bodyMarkers.some((marker) => haystack.includes(marker))) {
+        return 'quota_exceeded';
+    }
     return 'provider_unavailable';
 }
 

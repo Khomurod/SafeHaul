@@ -16,6 +16,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
   GitBranch,
+  Hourglass,
   X,
 } from 'lucide-react';
 import { useData } from '@/context/DataContext';
@@ -38,6 +39,7 @@ const ICON_MAP = Object.freeze({
   PlusCircle,
   Settings,
   GitBranch,
+  Hourglass,
 });
 
 function stripEdgeDividers(entries) {

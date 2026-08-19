@@ -110,6 +110,8 @@ Used by Cloud Functions with Admin SDK:
 |------|---------|
 | `companies/{id}/blacklist/{phone}` | Company opt-out list |
 | `companies/{id}/inbound_messages/{id}` | Inbound SMS (STOP handling trigger) |
+| `companies/{id}/application_drafts/{applicantKey}` | An unfinished driver application, saved after each Next. See below |
+| `companies/{id}/application_draft_audit/{id}` | Value-free records of resume-match attempts and discards |
 
 ---
 
@@ -132,6 +134,60 @@ Used by Cloud Functions with Admin SDK:
 | `submission/{version}` | read: team, super, owner · **write: denied**. The frozen snapshot of exactly what the driver saw, answered and accepted. Server-only (Admin SDK) — this denial is what makes it immutable rather than merely intended to be |
 
 **Deterministic IDs:** doc ID = truncated SHA-256 of `companyId:email:phone` (see [`src/lib/applicationId.js`](../src/lib/applicationId.js)), which makes offline-queue retries idempotent upserts instead of duplicates. **Guest submissions go exclusively through the `submitGuestApplication` callable** (Admin SDK, which bypasses these rules); there is no unauthenticated client-write fallback.
+
+---
+
+## `application_drafts/{applicantKey}` (under company)
+
+An application in progress. **Server-only** — `allow read, write: if false` for
+every client including Super Admins — reached only through the four guest
+callables in [`functions/applicationDrafts.js`](../functions/applicationDrafts.js)
+and the staff-facing `listApplicationDrafts`.
+
+It is a **separate collection from `applications` on purpose.** Four triggers fire
+on `create` under `companies/{id}/applications/{appId}`:
+`onNewApplicationNotification`, `onNewApplicationEmailConfirmation`,
+`onApplicationSubmitted` (driver sync / shadow profile) and the stats rollup.
+Writing drafts there would email every half-finished applicant "we received your
+application" and create driver profiles for people who typed a name and left.
+
+The document id is the **existing deterministic applicant key** —
+`sha256(companyId:email:phone)` truncated to 20 hex, from
+[`functions/shared/buildApplicationDoc.js`](../functions/shared/buildApplicationDoc.js)
+— so a draft and the application it becomes share one identity and repeated saves
+merge idempotently. No new identity scheme was introduced.
+
+| Field | Notes |
+| --- | --- |
+| `companyId`, `applicantKey`, `applicantKeyFull` | Tenant binding and the id, as `applications` stores them |
+| `contactEmail`, `contactPhone` | Normalized, so a resume can require one of them without reading the whole document |
+| `identityKey` | **A keyed HMAC** of company + normalized last name + date of birth + SSN digits, derived server-side from `SMS_ENCRYPTION_KEY` under its own purpose string. Null when the identity is incomplete |
+| `formData` | The answers so far, allowlisted and size-capped. `ssn` and `signature` are stripped **at every depth** |
+| `lastStep`, `lastSemanticStep` | Where to return the applicant. The semantic id is what survives a company's custom-questions step being present or absent |
+| `resumeTokenHash` | A hash of the bearer token issued to a browser. Compared in constant time; the token itself is never stored |
+| `status`, `createdAt`, `updatedAt`, `expiresAt` | 30-day TTL declared in `firestore.indexes.json` |
+
+**The draft never holds an SSN.** It is stripped in three independent places — the
+local browser draft, the client payload, and again on arrival — and the identity
+match uses the HMAC. On resume the applicant re-enters it, which the form already
+requires.
+
+**At most one live draft per (company, identity).** A returning applicant who
+retypes their email derives a second document id, and leaving both would make
+"continue" a coin flip, so a save retires the others. That collapse is why the
+resume lookup runs *before* the first save — see
+[`useApplicationResume.js`](../src/features/driver-app/hooks/useApplicationResume.js).
+
+A successful submission discards the draft (`discardDraftForApplication`), so a
+completed application never leaves a resumable copy behind.
+
+Composite index: `identityKey` ASC + `updatedAt` DESC.
+
+`application_draft_audit/{id}` records `action`, `outcome`, `at` and `expiresAt` —
+and nothing else. Not the name, the date of birth, the SSN, the identity hash or
+the contact detail. What matters operationally is how many resume attempts a
+company's apply page is seeing and how many matched; a spike is visible and
+nothing about a person is retained.
 
 ---
 
@@ -183,7 +239,7 @@ Custom claims are set via `onMembershipWrite` and HR admin callables ([`function
 
 ## Shared AI platform and News & Insights (server-only)
 
-All three are denied to every client, including Super Admins. The consoles read
+All four are denied to every client, including Super Admins. The consoles read
 them through narrow callables, so no browser needs a direct read and none can
 forge a record.
 
@@ -192,6 +248,8 @@ forge a record.
 | `ai_provider_config/{providerId}` | enabled flag, non-secret settings (Cloudflare account id, model overrides), health, consecutive failures, cooldown, last-test result | Holds no credential value, but still reveals which vendors a deployment uses and which are failing |
 | `ai_telemetry/{id}` | one document per AI transaction: task type, required capabilities, outcome, latency, fallback count, final provider/model, a shape-only `inputSummary`, and a bounded `attempts[]` array recording each provider's turn (category, HTTP status, vendor code, latency, schema validity, token counts). `expiresAt` drives the 30-day TTL declared in `firestore.indexes.json`. Never prompts, images, response text or credentials | Diagnostic only; a client could otherwise forge entries or enumerate failures. Read by Super Admin through `listAiTelemetry` |
 | `blog_posts/{publicationDate}_{themeId}` | title, slug, excerpt, sanitized content blocks, theme, status, sources, image licence metadata, SEO, generation record, knowledge version, duplicate-prevention fingerprints, timestamps | The article *content* is public, but the document also carries tombstones, source fingerprints and provider/model records. The public surface is the server-rendered `/news` routes, which filter to published and strip metadata |
+
+| `blog_runs/{runId}` | one document per publication slot per run: `outcome`, the pipeline `stage` that refused, `slotKey`, `themeId`, `publicationDate`, `trigger`, safe `detail`, `slug` when something published, the generation and verification `transactionId`s, the fact-check's own `verificationSupported` verdict, provider/model/fallback count, `createdAt` and `expiresAt` (30-day TTL) | Diagnostic only, and forgeable if a client could write it. Read by Super Admin through `listBlogRuns` |
 
 `blog_posts` uses `${publicationDate}_${themeId}` as its id deliberately: that
 pair is the uniqueness constraint, so `create()` refusing a duplicate *is* the

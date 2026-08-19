@@ -28,6 +28,10 @@ export const featureScreens = Object.freeze({
     () => import('@features/company-admin/views/CompanyCandidatesListPage'),
     'CompanyCandidatesListPage',
   ),
+  companyUnfinishedApplications: lazyNamed(
+    () => import('@features/company-admin/views/UnfinishedApplicationsPage'),
+    'UnfinishedApplicationsPage',
+  ),
   companyCampaignsPage: lazyNamed(
     () => import('@features/campaigns/pages/CompanyCampaignsPage'),
     'CompanyCampaignsPage',

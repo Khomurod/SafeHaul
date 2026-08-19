@@ -28,6 +28,16 @@ jest.mock('firebase-functions/v2/scheduler', () => ({
 /** An in-memory Firestore standing in for the blog_posts collection. */
 const mockPosts = new Map();
 
+/**
+ * Rows written to the run ledger.
+ *
+ * Kept separately because the assertions that matter most here are about the
+ * ledger: before it existed every refusal was asserted only on `runSlot`'s
+ * *return value*, so this suite would have passed unchanged with nothing
+ * persisted at all — which is exactly what was shipped.
+ */
+const mockLedger = [];
+
 jest.mock('../../firebaseAdmin', () => {
     const serverTimestamp = () => ({ toDate: () => new Date('2026-08-02T12:00:00Z') });
     return {
@@ -82,7 +92,10 @@ jest.mock('../../firebaseAdmin', () => {
                             mockPosts.set(id, { ...(mockPosts.get(id) || {}), ...patch });
                         },
                     }),
-                    add: async () => {},
+                    add: async (data) => {
+                        // `blog_runs` is the only collection reached by `add`.
+                        if (name === 'blog_runs') mockLedger.push(data);
+                    },
                 };
             },
         },
@@ -121,6 +134,7 @@ const media = require('../../blog/media/imageProviders');
 const knowledge = require('../../ai/knowledge/safehaulCapabilities');
 const publicApi = require('../../blog/publicApi');
 const { publishDueSlots } = require('../../blog/scheduler');
+const runLedger = require('../../blog/runLedger');
 const research = require('../../blog/research/fetchSources');
 
 /** A generated draft long enough to clear the minimum word count. */
@@ -192,13 +206,22 @@ function researchFetch(items = [NEWS_ITEM, SECOND_ITEM]) {
 beforeEach(() => {
     jest.clearAllMocks();
     mockPosts.clear();
+    mockLedger.length = 0;
     mockGenerateArticle.mockResolvedValue({
         article: draftArticle(),
         providerId: 'groq',
+        // Carried so a ledger row can be joined to the provider timeline that
+        // produced it. The router mints it and this used to drop it.
+        transactionId: 'txn-generate-1',
         model: 'llama-3.3-70b-versatile',
         fallbackCount: 0,
     });
-    mockVerifyArticleClaims.mockResolvedValue({ supported: true, unsupportedClaims: [], notes: '' });
+    // `{ verification, transactionId }`: the verdict and the transaction's
+    // success are different facts, and the ledger needs both halves.
+    mockVerifyArticleClaims.mockResolvedValue({
+        verification: { supported: true, unsupportedClaims: [], notes: '' },
+        transactionId: 'txn-verify-1',
+    });
     mockSelectTopic.mockResolvedValue({ selectedIndex: 0, angle: 'Explain the recordkeeping change.' });
 });
 
@@ -269,6 +292,12 @@ describe('idempotency and retry safety', () => {
         expect(result.outcome).toBe(generate.OUTCOME.PUBLISHED);
         expect(mockPosts.size).toBe(1);
         expect(mockPosts.has('2026-08-02_industry-news')).toBe(true);
+
+        // The article keeps the ids of the AI transactions behind it, so it can
+        // still be joined to the Logs tab after its ledger row has expired.
+        const stored = mockPosts.get('2026-08-02_industry-news');
+        expect(stored.generation.generationTransactionId).toBeTruthy();
+        expect(stored.generation.verificationTransactionId).toBeTruthy();
     });
 
     it('does not publish a second article for the same date and theme on retry', async () => {
@@ -850,9 +879,12 @@ describe('claim verification against the knowledge package', () => {
 
     it('refuses to publish an article with an unsupported factual claim', async () => {
         mockVerifyArticleClaims.mockResolvedValue({
-            supported: false,
-            unsupportedClaims: ['The rule takes effect in January 2027.'],
-            notes: '',
+            verification: {
+                supported: false,
+                unsupportedClaims: ['The rule takes effect in January 2027.'],
+                notes: '',
+            },
+            transactionId: 'txn-verify-unsupported',
         });
 
         const result = await generate.runSlot(
@@ -1226,6 +1258,160 @@ describe('public rendering', () => {
         const res = await call('/news');
         expect(res.statusCode).toBe(200);
         expect(res.body).toMatch(/on their way/i);
+    });
+});
+
+/**
+ * The run ledger.
+ *
+ * Every assertion in this suite used to be made on `runSlot`'s **return value**,
+ * which meant the whole suite passed with nothing persisted anywhere. That is
+ * precisely what shipped: nine outcomes, recorded only as a `console.log`, so
+ * publication failure was rendered in the product as absence and "yesterday's
+ * 07:00 article is missing" had no answer.
+ *
+ * These assertions are therefore about the *row*, not the return.
+ */
+describe('the run ledger records what happened', () => {
+    const slotOf = (themeId = 'industry-news') => ({
+        themeId,
+        publicationDate: '2026-08-02',
+        key: `2026-08-02_${themeId}`,
+        slotIndex: 0,
+    });
+
+    it('records a published run with the transactions that produced it', async () => {
+        await publishDueSlots({
+            now: Date.parse('2026-08-02T13:00:00Z'),
+            fetchImpl: researchFetch(),
+            mediaCredentials: new Map(),
+        });
+
+        const published = mockLedger.find((row) => row.outcome === 'published');
+        expect(published).toMatchObject({
+            stage: 'publication',
+            themeId: 'industry-news',
+            publicationDate: '2026-08-02',
+            // The join key, in both directions. Without it a slot and its
+            // provider timeline could not be connected by anything at all.
+            generationTransactionId: 'txn-generate-1',
+            verificationTransactionId: 'txn-verify-1',
+            verificationSupported: true,
+            trigger: 'scheduled',
+        });
+    });
+
+    it('records a refusal, naming the stage that refused', async () => {
+        // Thin sourcing: no feed answers, so no candidate can meet the bar.
+        await publishDueSlots({
+            now: Date.parse('2026-08-02T13:00:00Z'),
+            fetchImpl: async () => ({ ok: false, status: 404, text: async () => '' }),
+            mediaCredentials: new Map(),
+        });
+
+        const refused = mockLedger.find((row) => row.outcome === 'skipped_no_sources');
+        expect(refused).toBeTruthy();
+        expect(refused.stage).toBe('sourcing');
+        // The pipeline's own explanation, which existed only in a log line.
+        expect(typeof refused.detail).toBe('string');
+    });
+
+    it('records the fact-check verdict separately from the transaction succeeding', async () => {
+        mockVerifyArticleClaims.mockResolvedValue({
+            verification: {
+                supported: false,
+                unsupportedClaims: ['The rule takes effect in January 2027.'],
+                notes: '',
+            },
+            transactionId: 'txn-verify-unsupported',
+        });
+
+        await publishDueSlots({
+            now: Date.parse('2026-08-02T13:00:00Z'),
+            fetchImpl: researchFetch(),
+            mediaCredentials: new Map(),
+        });
+
+        const row = mockLedger.find((entry) => entry.outcome === 'skipped_unsupported_claims');
+        expect(row).toMatchObject({
+            stage: 'verification',
+            // The transaction succeeded — `supported: false` is a valid payload —
+            // and only this field distinguishes that from the article shipping.
+            verificationSupported: false,
+            unsupportedClaimCount: 1,
+            verificationTransactionId: 'txn-verify-unsupported',
+        });
+        expect(mockPosts.size).toBe(0);
+    });
+
+    it('distinguishes a prohibited SafeHaul claim from an unsupported factual one', () => {
+        // Both are "the draft said something it should not have", and the
+        // operator's next step differs completely.
+        expect(runLedger.stageForOutcome('skipped_prohibited_claim')).toBe('claim_check');
+        expect(runLedger.stageForOutcome('skipped_unsupported_claims')).toBe('verification');
+    });
+
+    it('maps every outcome the pipeline can produce to a stage', () => {
+        for (const outcome of Object.values(generate.OUTCOME)) {
+            expect(runLedger.STAGE_BY_OUTCOME[outcome]).toBeTruthy();
+        }
+        // Plus the scheduler's own, which the pipeline never returns.
+        expect(runLedger.STAGE_BY_OUTCOME.deferred_to_next_run).toBe('scheduling');
+    });
+
+    it('records a slot held for the next run, because that is not a failure', async () => {
+        // Two slots due, one article per run: the second is deferred, and saying
+        // so is the difference between a backlog and a broken pipeline.
+        await publishDueSlots({
+            now: Date.parse('2026-08-02T18:00:00Z'),
+            fetchImpl: researchFetch(),
+            mediaCredentials: new Map(),
+        });
+
+        const deferred = mockLedger.filter((row) => row.outcome === 'deferred_to_next_run');
+        expect(deferred.length).toBeGreaterThan(0);
+        expect(deferred[0].stage).toBe('scheduling');
+    });
+
+    it('never records article text, a source body or a prompt', async () => {
+        await publishDueSlots({
+            now: Date.parse('2026-08-02T13:00:00Z'),
+            fetchImpl: researchFetch(),
+            mediaCredentials: new Map(),
+        });
+
+        const serialized = JSON.stringify(mockLedger);
+        expect(serialized).not.toContain('contentBlocks');
+        expect(serialized).not.toMatch(/paragraph/i);
+    });
+
+    it('stamps an expiry so the ledger cannot outlive its telemetry', async () => {
+        await publishDueSlots({
+            now: Date.parse('2026-08-02T13:00:00Z'),
+            fetchImpl: researchFetch(),
+            mediaCredentials: new Map(),
+        });
+
+        expect(mockLedger[0].expiresAt instanceof Date).toBe(true);
+        expect(runLedger.RETENTION_DAYS).toBe(30);
+    });
+
+    it('does not turn a published article into a failed run when the ledger write fails', async () => {
+        const spy = jest.spyOn(runLedger, 'recordSlotRun');
+        spy.mockRejectedValue(new Error('firestore down'));
+        try {
+            // `recordSlotRun` swallows its own errors, so this asserts the
+            // contract rather than the caller's defensiveness — but a rejected
+            // promise from the module must still not escape.
+            await expect(runLedger.recordSlotRun({ outcome: 'published', slot: slotOf() }))
+                .rejects.toThrow();
+        } finally {
+            spy.mockRestore();
+        }
+
+        // And the real implementation genuinely does not throw.
+        await expect(runLedger.recordSlotRun({ outcome: 'published', slot: slotOf() }))
+            .resolves.toBeUndefined();
     });
 });
 

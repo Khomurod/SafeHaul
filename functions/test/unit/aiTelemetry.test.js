@@ -162,6 +162,16 @@ describe('what must never be recorded', () => {
         expect(serialized).not.toMatch(/OCR data extractor/);
     });
 
+    it('keeps a verdict word, and only a word', () => {
+        // The verdict is the task's own summary of what its answer said, which is
+        // a different fact from the transaction succeeding. It is supplied by a
+        // task-provided reducer, so the value has to be as tightly bounded as a
+        // vendor code — a sentence, even a truncated one, is content.
+        expect(sanitize({ verdict: 'unsupported' }).verdict).toBe('unsupported');
+        expect(sanitize({ verdict: 'The rule takes effect in January 2027' }).verdict)
+            .toBeUndefined();
+    });
+
     it('drops unlisted fields inside an attempt too', () => {
         // The nested allowlist matters independently: attempts are where vendor
         // diagnostics live, and a vendor's error body is the most likely place
