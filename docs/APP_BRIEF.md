@@ -627,7 +627,14 @@ actually having run.
   16 %, branches 13 %, functions 13 %) — deliberately set just under the current
   baseline to block regressions, not to describe good coverage. Raise them as
   coverage genuinely improves; never lower them to make a build pass.
-- **Mixed Functions v1/v2** — intentional, not a defect.
+- **Mixed Functions v1/v2** — intentional, not a defect. It has two real
+  consequences worth knowing before touching either: the two generations default
+  to *different* runtime service accounts, so (a) a credential can be readable by
+  one AI entry point and not another (§7), and (b) binding a secret from a
+  generation that has never bound it fails the **entire** functions deploy until
+  someone grants that account access. `secretBindingGenerations.test.js` guards
+  the second; see
+  [`docs/environment-and-integrations-runbook.md`](./environment-and-integrations-runbook.md).
 - **Feature flag defaults are asymmetric** (opt-out; missing means on). Easy to
   misread as a bug.
 - **A direct Storage upload can bypass the backend helper** — a documented,

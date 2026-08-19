@@ -72,7 +72,20 @@ const LIMITS = Object.freeze({
 });
 
 const FUNCTION_TIMEOUT_SECONDS = 30;
-const runtime = { memory: '256MB', timeoutSeconds: FUNCTION_TIMEOUT_SECONDS, secrets: ['SMS_ENCRYPTION_KEY'] };
+const runtime = { memory: '256MB', timeoutSeconds: FUNCTION_TIMEOUT_SECONDS };
+
+/**
+ * Only the two callables that derive the identity HMAC bind the secret.
+ *
+ * `resumeApplicationDraft` and `startNewApplication` authorize off the resume
+ * token alone and read `identityKey` as a *stored* value, so they never call
+ * `buildIdentityKey` and have no use for the key. Binding a secret to a function
+ * that does not read it widens the blast radius for nothing — and here it did
+ * measurable harm: every `secrets: [...]` binding makes the Firebase CLI ensure
+ * the runtime service account can read that secret, and each function that names
+ * it is another chance to need an IAM change mid-deploy.
+ */
+const runtimeWithIdentityKey = { ...runtime, secrets: ['SMS_ENCRYPTION_KEY'] };
 
 /**
  * The answer to a matching attempt that did not succeed.
@@ -181,7 +194,7 @@ async function recordMatchAttempt(companyId, outcome) {
  * is also the one that asks the applicant for nothing.
  */
 exports.saveApplicationProgress = functions
-    .runWith(runtime)
+    .runWith(runtimeWithIdentityKey)
     .https.onCall(async (data, context) => {
         const companyId = docId(data?.companyId, 100);
         if (!companyId) {
@@ -296,7 +309,7 @@ async function supersedeOtherDrafts(companyId, identityKey, keepApplicantKey) {
  * file header for why the two are indistinguishable.
  */
 exports.findResumableApplication = functions
-    .runWith(runtime)
+    .runWith(runtimeWithIdentityKey)
     .https.onCall(async (data, context) => {
         const companyId = docId(data?.companyId, 100);
         if (!companyId) {
