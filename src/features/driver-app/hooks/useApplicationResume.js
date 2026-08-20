@@ -407,7 +407,14 @@ export function useApplicationResume({
         setPromptError(null);
         try {
             await startNewApplication({ companyId, resumeToken: prompt.resumeToken });
-            clearResumeToken(slug);
+            // Only if it is still the token this just retired. The call above is a
+            // round trip, and `localStorage` is shared: another tab can have saved in
+            // the meantime and been issued a token for *its* application, and taking
+            // that away would cost the applicant the ownership proof for work nobody
+            // discarded.
+            if (readResumeToken(slug)?.resumeToken === prompt.resumeToken) {
+                clearResumeToken(slug);
+            }
             setPrompt(null);
             // The queued save is now the beginning of the new application.
             settleGate('proceed');

@@ -293,7 +293,11 @@ offline-reconnect cases deterministic rather than dependent on an event a suspen
 tab may have missed.
 
 Start Over clears the local copy *before* writing the mark, and that order is the safe
-one. Clearing frees the space the mark needs; a mark written first can fail on a full
+one, and it clears only the application it discarded: deleting the server draft is a
+round trip, and another tab can write a different application into that one shared slot
+while it runs. The resume token is treated the same way — dropped only if it is still the
+token that Start Over just retired, because a save from another tab in that window is
+issued a token of its own. Clearing frees the space the mark needs; a mark written first can fail on a full
 quota, and by then the shared resume token is gone too — so another tab would see
 neither a changed mark nor a token, and its next save would be accepted as a
 token-less first save that recreates the application just deleted.
@@ -309,7 +313,14 @@ success screen, a confirmation number or the documents checklist.
 is submission: it is checked before any validation, because submitting writes an
 application and freezes an immutable snapshot, so a signal the `storage` event never
 delivered — a suspended tab, or a discard between the last navigation and the click —
-would otherwise make permanent exactly what the applicant asked to be rid of. The
+would otherwise make permanent exactly what the applicant asked to be rid of. It is
+checked **again immediately before each attempt at the callable**, because between the
+first check and the wire lie an id generation, a queue write and, on a retry, a backoff
+wait. A discard landing in those seconds finds a submission "in flight", which the
+reaction deliberately leaves alone so that it cannot wipe one that has *landed* — so
+the submit path has to notice for itself. Abandoning it also removes the queue entry
+written for guaranteed delivery, or that entry would replay the discarded answers hours
+later. The
 other is the return of the resume lookup, before any prompt is offered: a draft
 discarded while that request was open no longer exists, and both answers to a prompt
 for it fail against the deleted document, leaving the gate that holds autosave shut

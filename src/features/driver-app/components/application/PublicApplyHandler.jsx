@@ -765,7 +765,14 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     // and by then `startOver` has already removed the shared resume token: the other
     // tab would see neither a token nor a changed mark, and its next save would be
     // accepted as a token-less first save, recreating what was just deleted.
-    clearApplicationDraft(slug);
+    //
+    // Scoped to what this tab was working on, because `startOver` awaited the server:
+    // another tab can have written a different application into that slot in the
+    // meantime, and that draft is unsent work.
+    const inSlot = readApplicationDraft(slug)?.meta?.draftId || null;
+    if (!inSlot || !draftIdRef.current || inSlot === draftIdRef.current) {
+      clearApplicationDraft(slug);
+    }
     // Adopted as this tab's own mark in the same breath, which is what keeps this tab
     // from mistaking its own discard for somebody else's and resetting the new
     // application it is about to begin.
@@ -1068,6 +1075,30 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
       // 4. Submit via Cloud Function (Admin SDK — bypasses all rules)
       let lastError;
       for (let attempt = 1; attempt <= 3; attempt++) {
+        // The guard at the top of this function is not enough on its own. Between it
+        // and here are an id generation, a queue write and, on a retry, a backoff wait
+        // — seconds in which another tab can discard, and the reaction exempts a
+        // submission in flight precisely so it cannot wipe one that has landed. So the
+        // last word before the callable is this: nothing has changed since the
+        // applicant pressed the button.
+        if (discardedElsewhere()) {
+          // The queue entry goes first. It was written before the attempts for
+          // guaranteed delivery, and leaving it would replay the discarded answers
+          // hours later — the very hole the queue close exists to plug.
+          if (queueId) {
+            try {
+              await dequeueSubmission(queueId);
+            } catch (dequeueError) {
+              console.warn('[PublicApplyHandler] Dequeue after a discard failed:', dequeueError);
+            }
+          }
+          // Cleared before reacting, because the reaction deliberately leaves a
+          // submission in flight alone — and this one is being abandoned, not landed.
+          setSubmissionStatus(null);
+          isSubmittingRef.current = false;
+          handleDiscardedElsewhere();
+          return;
+        }
         try {
           const submitFn = httpsCallable(functions, 'submitGuestApplication');
           const result = await submitFn({

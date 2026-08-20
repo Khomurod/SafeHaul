@@ -106,8 +106,12 @@ vi.mock('@lib/submissionQueue', () => ({
   isSupported: (...a) => isQueueSupportedSpy(...a),
 }));
 
+// Spied rather than a bare mock, so a test can hold the submission open at the exact
+// await where a discard from another tab used to slip through.
+const generateIdSpy = vi.hoisted(() => vi.fn(async () => 'generated-app-id'));
+
 vi.mock('@lib/applicationId', () => ({
-  generateApplicationId: vi.fn(async () => 'generated-app-id'),
+  generateApplicationId: (...a) => generateIdSpy(...a),
   generateConfirmationNumber: vi.fn(() => 'CONF-123'),
 }));
 
@@ -285,6 +289,9 @@ describe('PublicApplyHandler submission contract', () => {
     enqueueSpy.mockResolvedValue('queue-1');
     dequeueSpy.mockResolvedValue(undefined);
     callableSpy.mockResolvedValue({ data: {} });
+    // Restored explicitly: `clearAllMocks` forgets calls but keeps implementations, and
+    // one case below holds this promise open on purpose.
+    generateIdSpy.mockImplementation(async () => 'generated-app-id');
     stubDraftCallables();
   });
 
@@ -1413,6 +1420,9 @@ describe('an application discarded in another tab', () => {
     enqueueSpy.mockResolvedValue('queue-1');
     dequeueSpy.mockResolvedValue(undefined);
     callableSpy.mockResolvedValue({ data: {} });
+    // Restored explicitly: `clearAllMocks` forgets calls but keeps implementations, and
+    // one case below holds this promise open on purpose.
+    generateIdSpy.mockImplementation(async () => 'generated-app-id');
     stubDraftCallables();
   });
 
@@ -1474,6 +1484,70 @@ describe('an application discarded in another tab', () => {
     expect(showInfo).toHaveBeenCalledWith(
       'That application was submitted in another tab. Starting fresh.',
     );
+  });
+
+  it('abandons a submission discarded while it was in flight', async () => {
+    // Between the guard at the top of the submit and the callable there is an id
+    // generation, a queue write and, on a retry, a backoff wait. A discard landing in
+    // that window used to get through, because the reaction exempts a submission in
+    // flight so that it cannot wipe one that has landed.
+    let releaseId;
+    generateIdSpy.mockImplementation(() => new Promise((resolve) => {
+      releaseId = () => resolve('generated-app-id');
+    }));
+    await renderWithCompleteDraft();
+
+    fireEvent.click(screen.getByText('probe-submit'));
+    await waitFor(() => expect(generateIdSpy).toHaveBeenCalled());
+    // Discarded while this tab waits for its application id.
+    localStorage.setItem(DISCARD_KEY, 'discard:mid-flight');
+    releaseId();
+
+    // No application was created, the queue entry that was written for guaranteed
+    // delivery is gone, and the applicant is told.
+    await waitFor(() => expect(showInfo).toHaveBeenCalled());
+    expect(callableSpy).not.toHaveBeenCalled();
+    expect(dequeueSpy).toHaveBeenCalledWith('queue-1');
+    expect(screen.queryByText('Application Submitted!')).not.toBeInTheDocument();
+  });
+
+  it('leaves another application in the slot alone when it starts over', async () => {
+    // `startOver` awaits the server, and another tab can write a different application
+    // into the shared slot while it does. That draft is unsent work.
+    findResumableSpy.mockResolvedValue({
+      data: {
+        resumable: true,
+        resumeToken: 'resume-token-1',
+        startedAt: '2026-08-14T09:00:00Z',
+        lastSemanticStep: 'license',
+      },
+    });
+    localStorage.setItem('draft_acme', JSON.stringify({
+      v: 1,
+      lastStep: 1,
+      meta: { localSeq: 2, syncedSeq: 2, savedAt: '2026-08-19T10:00:00.000Z', draftId: 'draft-mine' },
+      data: { firstName: 'Ada', lastName: 'Driver', email: 'ada@example.com', phone: '5555551234' },
+    }));
+    // The other tab's application lands during the server round trip.
+    startNewSpy.mockImplementation(async () => {
+      localStorage.setItem('draft_acme', JSON.stringify({
+        v: 1,
+        lastStep: 0,
+        meta: { localSeq: 1, syncedSeq: 0, savedAt: null, draftId: 'draft-theirs' },
+        data: { firstName: 'Someone else' },
+      }));
+      return { data: { discarded: true } };
+    });
+
+    renderHandler();
+    await screen.findByText('probe-next');
+    fireEvent.click(screen.getByText('probe-next'));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Start a new application' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Delete it and start over' }));
+
+    await waitFor(() => expect(showInfo).toHaveBeenCalledWith('Starting a new application.'));
+    expect(localStorage.getItem('draft_acme')).toContain('draft-theirs');
   });
 
   it('does not name the answers it keeps after the ended application', async () => {
