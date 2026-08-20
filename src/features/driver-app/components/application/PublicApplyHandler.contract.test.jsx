@@ -1525,6 +1525,53 @@ describe('an application discarded in another tab', () => {
     expect(screen.queryByText('Application Submitted!')).not.toBeInTheDocument();
   });
 
+  it('abandons a submission when the discard arrives as a real event', async () => {
+    // The event path, not the silent one, and they are not the same: an event delivered
+    // while a submission is in flight is *exempted* — the reaction must not wipe one
+    // that has landed — and that exemption adopts the new mark, so a comparison made
+    // afterwards reads clean. Only the reset counter still remembers.
+    let releaseId;
+    generateIdSpy.mockImplementation(() => new Promise((resolve) => {
+      releaseId = () => resolve('generated-app-id');
+    }));
+    await renderWithCompleteDraft();
+
+    fireEvent.click(screen.getByText('probe-submit'));
+    await waitFor(() => expect(generateIdSpy).toHaveBeenCalled());
+    discardInAnotherTab('discard:mid-flight-event');
+    releaseId();
+
+    await waitFor(() => expect(showInfo).toHaveBeenCalled());
+    expect(callableSpy).not.toHaveBeenCalled();
+    expect(dequeueSpy).toHaveBeenCalledWith('queue-1');
+    expect(screen.queryByText('Application Submitted!')).not.toBeInTheDocument();
+  });
+
+  it('does not restore a draft discarded before its listener existed', async () => {
+    // A mark written between this tab's first render and the effect that installs the
+    // listener: no event is delivered, so the reset counter never moves. The mark this
+    // tab loaded with is still the evidence.
+    localStorage.setItem('draft_acme', JSON.stringify({
+      v: 1,
+      lastStep: 3,
+      meta: { localSeq: 4, syncedSeq: 4, savedAt: '2026-08-19T10:00:00.000Z', draftId: 'draft-a' },
+      data: { firstName: 'Ada', phone: '5551234' },
+    }));
+
+    let releaseProfile;
+    profileGate.current = new Promise((resolve) => { releaseProfile = resolve; });
+    renderHandler();
+
+    // No `storage` event at all, and the stored copy survives — the case a Start Over
+    // from a tab holding no name of its own produces.
+    localStorage.setItem(DISCARD_KEY, 'discard:no-event');
+    releaseProfile();
+    profileGate.current = null;
+
+    await waitFor(() => expect(screen.getByText('Fill Out Manually')).toBeInTheDocument());
+    expect(screen.queryByTestId('current-step')).not.toBeInTheDocument();
+  });
+
   it('leaves another application in the slot alone when it starts over', async () => {
     // `startOver` awaits the server, and another tab can write a different application
     // into the shared slot while it does. That draft is unsent work.

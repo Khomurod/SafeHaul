@@ -316,16 +316,23 @@ all.** The reaction runs with nothing on screen to reset, so it adopts the mark 
 every later comparison reads clean — and the load then restores the stored draft, which
 may be the discarded one. The reset counter is what still remembers: the profile load
 captures it before its fetch and skips the restore if it moved, the same mechanism the
-server reconciliation uses.
+server reconciliation uses. It checks the mark there as well, for the mirror image of
+the same race: a mark written before the listener was installed delivers no event, so
+the counter never moves — but the mark this tab loaded with is still different from the
+one in storage.
 
 **The comparison runs at the two moments a missed signal would be unrecoverable.** One
 is submission: it is checked before any validation, because submitting writes an
 application and freezes an immutable snapshot, so a signal the `storage` event never
 delivered — a suspended tab, or a discard between the last navigation and the click —
 would otherwise make permanent exactly what the applicant asked to be rid of. It is
-checked **again immediately before each attempt at the callable**, because between the
-first check and the wire lie an id generation, a queue write and, on a retry, a backoff
-wait. A discard landing in those seconds finds a submission "in flight", which the
+checked **again immediately before each attempt at the callable**, and by two different
+tests, because between the first check and the wire lie an id generation, a queue write
+and, on a retry, a backoff wait. The mark comparison catches a discard no event
+announced. The reset counter catches one that *did* arrive as an event: an event during
+a submission in flight is exempted, so it cannot wipe a submission that has landed —
+and that exemption adopts the new mark, which would leave a comparison reading clean.
+The counter is bumped before the exemption, so it still remembers. A discard landing in those seconds finds a submission "in flight", which the
 reaction deliberately leaves alone so that it cannot wipe one that has *landed* — so
 the submit path has to notice for itself. Abandoning it also removes the queue entry
 written for guaranteed delivery, or that entry would replay the discarded answers hours

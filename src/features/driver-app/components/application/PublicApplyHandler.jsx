@@ -429,12 +429,16 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
         // eight times past forms that were already filled in, which reads as
         // "nothing was saved".
         const savedDraft = readApplicationDraft(slug);
-        // Discarded while the profile was loading. The mark has already been adopted by
-        // then — the reaction ran with nothing on screen to reset — so every later guard
-        // reads clean, and restoring here would put the discarded answers on screen with
-        // nothing left to notice it. The generation is the only thing that still
-        // remembers, which is why the reconciliation effect uses it too.
-        if (savedDraft && resetGenerationRef.current === loadGeneration) {
+        // Discarded while the profile was loading, either way it can happen. If the
+        // event was delivered, the reaction has already adopted the mark — it ran with
+        // nothing on screen to reset — so every later comparison reads clean and only
+        // the reset counter still remembers, which is why the reconciliation effect uses
+        // it too. If it was written before the listener existed, no event was delivered
+        // and the counter never moved, but the mark this tab loaded with is still
+        // different from the one in storage. Either way, restoring would put the
+        // discarded answers on screen.
+        if (savedDraft && resetGenerationRef.current === loadGeneration
+          && !discardedElsewhere()) {
           // Stored content on screen, so a discard elsewhere takes it with it, and
           // this tab has taken on that draft — which application it is matters if a
           // submission from here has to be closed out later.
@@ -875,6 +879,12 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
       handleDiscardedElsewhere();
       return;
     }
+    // Captured here because the mark alone cannot be trusted for the rest of this
+    // function. A `storage` event arriving during the work below is *exempted* while a
+    // submission is in flight — the reaction must not wipe one that has landed — and
+    // that exemption adopts the new mark, which makes a later comparison read clean.
+    // The counter is bumped before the exemption, so it still remembers.
+    const submitGeneration = resetGenerationRef.current;
 
     /**
      * Required answers a resumed application could not have brought back.
@@ -1097,11 +1107,11 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
       for (let attempt = 1; attempt <= 3; attempt++) {
         // The guard at the top of this function is not enough on its own. Between it
         // and here are an id generation, a queue write and, on a retry, a backoff wait
-        // — seconds in which another tab can discard, and the reaction exempts a
-        // submission in flight precisely so it cannot wipe one that has landed. So the
-        // last word before the callable is this: nothing has changed since the
-        // applicant pressed the button.
-        if (discardedElsewhere()) {
+        // — seconds in which another tab can discard. Both questions are asked,
+        // because they catch different deliveries: the mark comparison sees a discard
+        // no event announced, and the generation sees one that *did* arrive as an event
+        // and was exempted, which adopted the mark and left the comparison clean.
+        if (discardedElsewhere() || resetGenerationRef.current !== submitGeneration) {
           // The queue entry goes first. It was written before the attempts for
           // guaranteed delivery, and leaving it would replay the discarded answers
           // hours later — the very hole the queue close exists to plug.
