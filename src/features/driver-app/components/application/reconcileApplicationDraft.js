@@ -38,6 +38,50 @@
  * losing newer field values" has to mean when both copies contain real work.
  */
 
+import STANDARD_SECTIONS from '../../../../../functions/shared/applicationSections.json';
+
+/**
+ * Field ids the shared schema marks as repeating rows.
+ *
+ * Derived, not hand-listed: `functions/shared/applicationSections.json` is the
+ * one table both runtimes read, so a repeating field added there is covered here
+ * without anybody remembering to. Today that is previousAddresses,
+ * additionalLicenses, violations, accidents, employers, unemployment, schools and
+ * military — and the point is that the list is not written down twice.
+ */
+const REPEATING_FIELDS = new Set(
+    STANDARD_SECTIONS.flatMap((section) => (section.fields || [])
+        .filter((field) => field.repeating)
+        .map((field) => field.id)),
+);
+
+/**
+ * Fields whose object keys are *independent answers* rather than parts of one.
+ *
+ * `customAnswers` is `{ [questionKey]: answer }` — a company's custom questions,
+ * each answered separately — so a per-key merge is the only correct one: if one
+ * copy answered question A and the other answered B, taking the winner's whole
+ * object throws one answer away.
+ *
+ * It is explicit rather than derived because custom questions are defined per
+ * company and so are absent from the shared schema. Every *other* object-valued
+ * field is a value object — an upload is `{ name, url, storagePath }` — where
+ * per-key merging would be actively wrong, stitching one file's name onto
+ * another's URL. `reconcileApplicationDraft.test.js` asserts that every
+ * object-shaped field in the schema is still accounted for, so this cannot rot
+ * silently.
+ */
+const KEYED_ANSWER_MAPS = new Set(['customAnswers']);
+
+/**
+ * Ceiling on a merged repeating field.
+ *
+ * The server sanitizer caps arrays at 60 rows and rejects an oversized payload
+ * outright, and a rejected payload means autosave stops. Capping here keeps a
+ * union from growing past what the server will accept.
+ */
+const MAX_MERGED_ROWS = 60;
+
 /** Values that carry no answer, so they never outrank a stored one. */
 function isEmpty(value) {
     return value === undefined || value === null || value === '';
@@ -62,6 +106,90 @@ function sameAnswer(a, b) {
     } catch {
         return false;
     }
+}
+
+/** Every cell of a repeating row is blank, so the row is a template, not an answer. */
+function isBlankRow(row) {
+    if (!Array.isArray(row)) return isEmpty(row);
+    return row.every((cell) => isEmpty(cell));
+}
+
+function fingerprint(value) {
+    try {
+        return JSON.stringify(value);
+    } catch {
+        return String(value);
+    }
+}
+
+/**
+ * Winner's rows, plus any loser row the winner does not already have.
+ *
+ * Repeating rows have no stable identity — they are arrays of cells — so there is
+ * no key to merge on and no way to tell an edited row from a different one. The
+ * choice is therefore between dropping rows the loser alone has and keeping a row
+ * the applicant may have deleted elsewhere.
+ *
+ * Keeping wins. A dropped employer is retyping, and under 49 CFR 391.21 the
+ * application has to account for three years — while a row that comes back is
+ * visible on the Review page and can be deleted again. Losing an applicant's work
+ * silently is the failure this whole mechanism exists to prevent; a visible
+ * duplicate is not.
+ */
+function unionRows(winnerRows, loserRows) {
+    const merged = [...winnerRows];
+    const seen = new Set(winnerRows.map(fingerprint));
+
+    for (const row of loserRows) {
+        if (merged.length >= MAX_MERGED_ROWS) break;
+        if (isBlankRow(row)) continue;
+        const print = fingerprint(row);
+        if (seen.has(print)) continue;
+        seen.add(print);
+        merged.push(row);
+    }
+    return merged;
+}
+
+function isPlainObject(value) {
+    return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+/**
+ * Merges one field, respecting what its shape means.
+ *
+ * The winner decides genuine conflicts; the loser still contributes anything the
+ * winner has no answer for. A flat spread got this wrong for everything nested:
+ * the winner's whole `customAnswers` object replaced the loser's, so an answer
+ * that existed only on the losing copy was thrown away even though nothing about
+ * it was in conflict.
+ */
+function mergeField(key, loserValue, winnerValue) {
+    if (loserValue === undefined) return winnerValue;
+    if (winnerValue === undefined) return loserValue;
+
+    if (REPEATING_FIELDS.has(key) && Array.isArray(winnerValue) && Array.isArray(loserValue)) {
+        return unionRows(winnerValue, loserValue);
+    }
+
+    if (KEYED_ANSWER_MAPS.has(key) && isPlainObject(winnerValue) && isPlainObject(loserValue)) {
+        // Per key: the winner takes every question it answered, and a question
+        // only the loser answered survives untouched.
+        return { ...loserValue, ...winnerValue };
+    }
+
+    // Scalars, and value objects like an upload, where the winner's answer is the
+    // whole answer and mixing halves would corrupt it.
+    return winnerValue;
+}
+
+/** Merges two draft bodies, with `winner` deciding every genuine conflict. */
+function mergeDraftData(loser, winner) {
+    const merged = { ...(loser || {}) };
+    for (const [key, winnerValue] of Object.entries(winner || {})) {
+        merged[key] = mergeField(key, merged[key], winnerValue);
+    }
+    return merged;
 }
 
 /**
@@ -129,11 +257,12 @@ export function reconcileApplicationDraft({ local, server, live } = {}) {
 
     const localWins = decideLocalWins(local, server);
 
-    // The winner's values go last, so they take precedence on overlapping keys;
-    // the loser still contributes everything the winner does not have.
+    // Field-aware, not a flat spread. The winner decides genuine conflicts, but a
+    // nested answer the loser alone holds — a custom question, an employer row —
+    // is not a conflict and must survive. See `mergeField`.
     const merged = localWins.wins
-        ? { ...server.formData, ...local.data }
-        : { ...local.data, ...server.formData };
+        ? mergeDraftData(server.formData, local.data)
+        : mergeDraftData(local.data, server.formData);
 
     return {
         // Typed-this-session always outranks both stored copies.
@@ -180,5 +309,8 @@ function decideLocalWins(local, server) {
     // Identical: the server holds exactly what this device last synced.
     return { wins: false, reason: 'in-sync' };
 }
+
+/** Exposed so a test can prove the classification still matches the shared schema. */
+export const __private = { REPEATING_FIELDS, KEYED_ANSWER_MAPS, MAX_MERGED_ROWS, mergeDraftData };
 
 export default reconcileApplicationDraft;

@@ -71,8 +71,13 @@ const MAX_PAYLOAD_CHARS = 512 * 1024;
  * `applicationDraftStorage.js` has always stripped exactly these two from the
  * local copy. The server does the same, because the reasons are the same and
  * because a client-side guarantee is not one.
+ *
+ * Declared in `neverStoredDraftFields.js` and re-exported here, so this module's
+ * public surface is unchanged. The list moved because the submission validator and
+ * the browser's own check both need it, and reading it from here dragged
+ * `firebaseAdmin` into a frontend test — which has no `firebase-admin` in CI.
  */
-const NEVER_STORED = Object.freeze(['ssn', 'signature']);
+const { NEVER_STORED } = require('./neverStoredDraftFields');
 
 /**
  * Keys that must never be written as fields.

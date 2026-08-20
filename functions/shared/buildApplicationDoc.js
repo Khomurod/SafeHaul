@@ -99,6 +99,24 @@ function getMissingRequiredUploads(applicationConfig, formData) {
     return missingRequiredUploads;
 }
 
+/**
+ * Refuses a submission missing a required field the draft never carried.
+ *
+ * Server-side on purpose. The wizard also guides the applicant back to supply it,
+ * but "the applicant visited that page" is not something the server can observe
+ * and not something a caller of the callable has to have done at all.
+ */
+function assertRequiredUnpersistedFields(applicationConfig, formData) {
+    const { getMissingRequiredUnpersistedFields } = require('./requiredUnpersistedFields');
+    const missing = getMissingRequiredUnpersistedFields(applicationConfig, formData || {});
+    if (missing.length > 0) {
+        throw new functions.https.HttpsError(
+            'invalid-argument',
+            `Missing required information: ${missing.join(', ')}.`,
+        );
+    }
+}
+
 function assertRequiredUploads(applicationConfig, formData) {
     const missingRequiredUploads = getMissingRequiredUploads(applicationConfig, formData || {});
     if (missingRequiredUploads.length > 0) {
@@ -181,12 +199,18 @@ function buildApplicationDoc({
 }
 
 module.exports = {
+    assertRequiredUnpersistedFields,
     assertRequiredUploads,
     buildApplicationDoc,
     generateApplicantKey,
     generateApplicationId,
     generateConfirmationNumber,
     getFieldConfig,
+    // Re-exported from the pure module so existing callers and tests keep one
+    // import site, while the browser's parity test can read it without loading
+    // anything that needs `firebase-admin`.
+    getMissingRequiredUnpersistedFields:
+        require('./requiredUnpersistedFields').getMissingRequiredUnpersistedFields,
     getMissingRequiredUploads,
     hasUploadedFile,
     sanitizeData,

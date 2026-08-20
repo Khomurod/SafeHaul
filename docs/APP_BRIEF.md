@@ -211,8 +211,21 @@ identity. The draft is discarded on successful submission.
 independent places — the local browser copy, the client payload, and again on
 arrival, at every depth of the object. Matching a returning applicant uses a keyed
 HMAC of company + last name + date of birth + SSN digits, never the SSN itself, so
-there is no new place a Social Security Number comes to rest. On resume the
-applicant re-enters it, which the form already requires.
+there is no new place a Social Security Number comes to rest.
+
+On resume the applicant must re-enter it, and that is now **enforced rather than
+assumed**. The wizard validates a step when it is pressed Next on, so an applicant
+who resumed at the licence page never passed back through page one, nothing
+re-asked, and the application could be submitted without a field the company marked
+Required. `submitGuestApplication` refuses such a submission
+(`assertRequiredUnpersistedFields`) and the wizard blocks Submit and routes the
+applicant to the page that collects the field. Both halves are derived from the
+same three sources — the shared field table, `resolveGate`, and the draft module's
+own strip list — so a company that hides the question or marks it Optional is
+respected, and anything that stops being persisted later is covered automatically.
+The server half is the authority: "the applicant visited that page" is not
+something a server can observe, and not something a caller of the callable has to
+have done at all.
 
 **Saving progress must never be able to stop an applicant.** The local copy is
 written first and synchronously; the server save is background work whose failure
@@ -237,6 +250,31 @@ holding unacknowledged work wins; a server copy another device advanced wins;
 side has always survives. Work typed since page load outranks both. The decision
 lives in `reconcileApplicationDraft.js`, is pure, and is covered case by case.
 
+**Merging is field-aware, because a flat spread destroys nested answers.** The
+draft is not flat: repeating lists (employers, violations, accidents, schools,
+military, addresses) and keyed answer maps (`customAnswers`) are whole structures,
+and a top-level spread replaces one side's structure wholesale — silently deleting
+an employment record typed on one device or a custom answer given on another, which
+is a larger loss than the scalar case this reconciliation was built for. Repeating
+lists are **unioned** (winner's rows first, then loser rows not already present,
+capped), keyed answer maps are **merged key by key** with the winner's key winning,
+and every other value is taken whole from the winner so a composite such as an
+upload descriptor is never assembled from two halves. The repeating-field list is
+derived from `applicationSections.json`, not hand-written.
+
+**Navigation is not applicant work.** The draft is written on *every* wizard
+navigation, Back included, and Back sends no server save. Advancing the local
+sequence on such a write marked this device as holding unsynchronised work
+permanently, after which its stale copy beat genuinely newer work from another
+device for the rest of the draft's life. A write that changes no answer therefore
+leaves the sequences exactly where they were; the step is still recorded. A draft
+written before sequences existed is always treated as unsynchronised instead,
+because nothing is known about whether the server has its contents.
+
+**A dirty local copy is retried when the connection returns.** The `online` event
+flushes it once — and only when something is genuinely owed, so a reconnect on a
+fully synchronised draft sends nothing.
+
 **The resume lookup runs before the first server save.** A save racing it loses
 the very draft the feature protects: it overwrites the saved step with page one
 when the email matches, and the at-most-one-live-draft rule hard-deletes the older
@@ -251,6 +289,37 @@ three identity facts *plus* a contact detail already on the record; and both hal
 are rate-limited fail-closed per caller **and** per identity, audited without
 recording what was attempted. A submitted application is never offered for resume
 and its existence is never disclosed.
+
+**Creating a draft and updating an existing one are different security
+situations.** Progress saves are public by necessity — an applicant has no account
+— but that meant contact details alone could overwrite or supersede a draft that
+already existed, so anyone who knew an applicant's email and phone could replace
+their saved work, and anyone who knew name, date of birth and SSN digits could
+delete it. Creating a new draft is still open. Modifying one that exists now
+requires proof of ownership: the resume token issued to the device that created it,
+or the full identity HMAC. Superseding other drafts for an identity additionally
+requires holding a token that resolves to that same identity, so identity knowledge
+alone is not a delete primitive. The existence check, the authorization decision and the write happen in **one
+transaction**: a standalone read followed by a later write leaves a window in which
+two first saves each mint a token and overwrite each other, or a save lands after
+Start Over and resurrects the application the applicant just discarded.
+
+An unauthorized attempt spends a refusal budget kept per caller **and per targeted
+draft** — keyed on the draft being attacked rather than on the identity the caller
+claims, because the caller supplies those facts and could vary them per request,
+and on its own key, so a stranger's refused writes cannot exhaust the budget the
+real applicant needs to find their draft. It is audited, and returns exactly what a
+network failure returns —
+`{ saved: false }` with no key and no token — so the refusal does not confirm that
+a draft exists. **Known and accepted limitation:** a caller who already holds both
+the email and the phone can still distinguish "refused" from "created" by watching
+whether a token comes back; it is hard rate-limited and audited, and is strictly
+narrower than the overwrite capability it replaced. A second, accepted
+consequence: someone who creates a draft at another person's key *before* they
+ever apply leaves that applicant without server-side autosave or cross-session
+resume at that carrier, because the squatted document is the one their saves would
+have to modify. Their local copy and their submission are unaffected, the squatter
+can read nothing, and the squatted draft expires with the 30-day TTL.
 
 **The submission snapshot is immutable.** At submission, exactly what the driver
 saw, answered and accepted is frozen into
