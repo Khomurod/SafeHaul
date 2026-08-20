@@ -22,6 +22,7 @@ import {
   sameDraftData,
   readDiscardMark,
   writeDiscardMark,
+  discardMarkReason,
   subscribeToDiscardMark,
 } from './applicationDraftStorage';
 import { fetchPublicProfileBySlug } from '../../services/publicProfileService';
@@ -50,7 +51,7 @@ import * as Sentry from '@sentry/react';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 import { useApplicationResume } from '../../hooks/useApplicationResume';
 import { ResumeApplicationDialog } from './ResumeApplicationDialog';
-import { clearResumeToken } from '../../services/applicationDraftService';
+import { clearResumeToken, closeDraftAfterSubmission } from '../../services/applicationDraftService';
 import { reconcileApplicationDraft } from './reconcileApplicationDraft';
 import { getMissingRequiredUnpersistedFields } from './requiredUnpersistedFields';
 
@@ -220,8 +221,12 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
       return;
     }
 
+    // Read before adopting, because the value says which of the two things happened
+    // and the applicant is owed the true one.
+    const mark = readDiscardMark(slug);
+    const submitted = discardMarkReason(mark) === 'submit';
     // Adopted first, so nothing below can re-enter this.
-    discardMarkRef.current = readDiscardMark(slug);
+    discardMarkRef.current = mark;
     // This browser owns nothing now: the next save must ask the resume question
     // again rather than silently creating.
     forgetDraftOwnership();
@@ -235,13 +240,17 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
       setFormData({});
       setCurrentStep(0);
       setIntakeMode(null);
-      showInfo('That saved application was discarded in another tab. Starting fresh.');
+      showInfo(submitted
+        ? 'That application was submitted in another tab. Starting fresh.'
+        : 'That saved application was discarded in another tab. Starting fresh.');
       return;
     }
 
     // Typed here, so it is the applicant's own work and stays. It is simply no
     // longer attached to the draft that was deleted.
-    showInfo('The saved application was discarded in another tab. Your answers here will start a new one.');
+    showInfo(submitted
+      ? 'That application was submitted in another tab. Your answers here will start a new one.'
+      : 'The saved application was discarded in another tab. Your answers here will start a new one.');
   }, [slug, submissionStatus, forgetDraftOwnership, showInfo]);
 
   /**
@@ -688,8 +697,9 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
    */
   const finishDraftLifecycle = useCallback(() => {
     if (!slug || sandbox) return;
-    discardMarkRef.current = writeDiscardMark(slug) ?? discardMarkRef.current;
-    clearResumeToken(slug);
+    // The same three writes the offline queue performs when a submission it was
+    // holding finally lands, from one place so the two cannot drift.
+    discardMarkRef.current = closeDraftAfterSubmission(slug) ?? discardMarkRef.current;
     // This tab's own save queue goes too, and adopting the mark above is exactly why
     // it has to be said explicitly: `hasBeenDiscarded` stays false here, so a payload
     // already waiting behind an in-flight save would still be drained — and, with the
@@ -851,7 +861,10 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
           await enqueueSubmission(
             { ...formData, companyId: company.id, sourceSlug: slug },
             company.id,
-            { type: 'guest', userId: null },
+            // The apply slug travels with the entry so that, whenever this
+            // submission finally lands, the queue can end the draft's local life
+            // exactly as a direct submission does.
+            { type: 'guest', userId: null, applySlug: slug },
           );
           clearApplicationDraft(slug);
           sessionStorage.removeItem('pending_application_recruiter');
@@ -960,6 +973,12 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
           queueId = await enqueueSubmission(applicationData, company.id, {
             type: 'guest',
             userId: null,
+            // Carried so a replay that succeeds hours later can close this draft's
+            // local life — write the mark other tabs read, drop the token, clear the
+            // copy. Without it a queued submission that lands leaves every other open
+            // tab believing the application is still unfinished, free to submit these
+            // answers a second time.
+            applySlug: slug,
           });
           console.log(`[PublicApplyHandler] Queued submission ${queueId}`);
         } catch (queueError) {

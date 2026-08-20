@@ -332,14 +332,26 @@ export function markDraftSynced(slug, seq) {
  * a decision, and this is not an exception — a tab asks "is this the same mark I saw
  * when I loaded?", nothing more.
  *
+ * The value does carry a prefix naming *why* the draft's life ended, and that prefix
+ * is read for wording only — never compared, never authorizing anything. See
+ * `discardMarkReason`.
+ *
+ * @param {string} slug
+ * @param {'discard'|'submit'} [reason='discard'] What ended the draft: Start Over, or
+ *   a submission that reached the server. Anything unrecognised is treated as a
+ *   discard, which never claims a submission that did not happen.
  * @returns {string|null} the mark that was written, for the discarding tab to adopt
  *   as its own so it does not treat its own discard as somebody else's. `null` when
  *   storage refused the write, in which case cross-tab notification degrades to
  *   nothing — the same trade the draft write itself makes.
  */
-export function writeDiscardMark(slug) {
+export function writeDiscardMark(slug, reason = 'discard') {
   if (!slug) return null;
-  const mark = `${nextMarkValue()}`;
+  // The reason is prefixed onto the value, never compared: marks are still only ever
+  // tested for inequality. It exists so a reacting tab can *say* what happened —
+  // telling an applicant their application was discarded when they actually submitted
+  // it is misinformation about the one thing they cannot undo.
+  const mark = `${reason === 'submit' ? 'submit' : 'discard'}:${nextMarkValue()}`;
   try {
     localStorage.setItem(discardKey(slug), mark);
     return mark;
@@ -347,6 +359,17 @@ export function writeDiscardMark(slug) {
     console.warn('[applicationDraftStorage] Could not record the discard:', markErr);
     return null;
   }
+}
+
+/**
+ * Why the draft's life ended, for wording only.
+ *
+ * `'submit'` when the application was submitted, `'discard'` for Start Over — and
+ * `'discard'` for a mark written before the prefix existed, which is the safer of
+ * the two to guess: it never claims a submission that did not happen.
+ */
+export function discardMarkReason(mark) {
+  return typeof mark === 'string' && mark.startsWith('submit:') ? 'submit' : 'discard';
 }
 
 /** The mark currently stored, or `null` when this application was never discarded. */

@@ -215,7 +215,11 @@ neither the new document id nor the new `identityKey` finds the draft the token 
 Audited as `stale_token`.
 
 A successful submission discards the draft (`discardDraftForApplication`), so a
-completed application never leaves a resumable copy behind.
+completed application never leaves a resumable copy behind. That holds for a
+submission the browser had queued offline as well: the client closes the draft's local
+life — copy, resume token and cross-tab mark — when the replay actually reaches this
+function, not when the applicant pressed Submit, because until then the draft is still
+the only record of their work.
 
 Composite index: `identityKey` ASC + `updatedAt` DESC.
 

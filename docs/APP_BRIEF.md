@@ -315,15 +315,32 @@ discarded while that request was open no longer exists, and both answers to a pr
 for it fail against the deleted document, leaving the gate that holds autosave shut
 for the rest of the visit.
 
-**Submission closes the draft's life the same way.** The server discards the draft on
-submission, so the client writes the same mark, drops the resume token **and abandons
-its own queued saves**. All three are needed: writing the mark tells other tabs, but
+**Submission closes the draft's life the same way, including when it arrives late.**
+The server discards the draft on submission, so the client writes the same mark, drops
+the resume token **and abandons its own queued saves**. All three are needed: writing the mark tells other tabs, but
 the submitting tab *adopts* that mark, so its own staleness check stays false and a
 payload already queued behind an in-flight save would still go out — token-less, which
 the server accepts as a first save. Without this a second tab's autosave, or this
 tab's own queue, would recreate a draft for an application that had already been
 submitted, and the applicant would reappear in the recruiter's "started, incomplete"
 list after successfully applying.
+
+An offline submission does the same thing at the moment it actually lands. Those three
+writes belong to a submission *reaching the server*, not to the applicant pressing
+Submit — a queued submission has not been sent yet, and clearing its draft on a
+transient network failure would destroy the only copy of their work. So the apply
+page's slug travels with the queue entry, which may outlive the tab that made it, and
+the queue closes the draft out when a replay succeeds — possibly in a different tab,
+possibly a day later. Without that, every other open tab still believes the application
+is unfinished and is free to submit those same answers a second time.
+
+**The mark says which of the two things happened.** Discarding and submitting delete
+the same three things, and a tab reacting to either sees nothing but a changed value —
+so the value carries a `discard:` or `submit:` prefix, read *only* for wording, never
+compared for anything. Telling an applicant who has just successfully applied that
+their application was discarded would be misinformation about the one action they
+cannot undo. A mark written before the prefix existed reads as a discard, which never
+claims a submission that did not happen.
 
 **The resume lookup runs before the first server save.** A save racing it loses
 the very draft the feature protects: it overwrites the saved step with page one

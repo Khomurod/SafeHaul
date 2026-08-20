@@ -14,6 +14,7 @@ import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@lib/firebase';
 import * as Sentry from '@sentry/react';
 import { mergeApplicationDoc } from '@lib/applicationWrite';
+import { closeDraftAfterSubmission } from '../features/driver-app/services/applicationDraftService';
 
 import {
     initQueue,
@@ -99,6 +100,15 @@ export function useSubmissionQueue() {
                     },
                 },
             });
+
+            // The submission landed, so the server has just deleted the draft behind
+            // it. Nothing else will say so: other tabs of this apply page may still be
+            // holding these answers in memory, and without the mark they would be free
+            // to submit them a second time or autosave the draft back into existence.
+            // This hook already knows guest applications specifically — it is the only
+            // thing that knows a queued one has *succeeded*, and it may be a different
+            // tab, or a different day, from the one that queued it.
+            if (entry?.applySlug) closeDraftAfterSubmission(entry.applySlug);
 
             Sentry.addBreadcrumb({
                 category: 'queue',

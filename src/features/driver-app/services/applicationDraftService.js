@@ -1,6 +1,10 @@
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
+import {
+    clearApplicationDraft,
+    writeDiscardMark,
+} from '../components/application/applicationDraftStorage';
 
 /**
  * Client for the application autosave and resume callables.
@@ -100,6 +104,36 @@ export function writeResumeToken(slug, { resumeToken, applicantKey }) {
         // A browser refusing storage costs cross-session resume on this device.
         // The identity match still works, so it is a degradation, not a failure.
     }
+}
+
+/**
+ * Ends the local life of a draft whose application has been submitted.
+ *
+ * Three writes, and all three are needed. The local copy goes, or a reload would
+ * restore the answers of an application that has already been sent. The mark tells
+ * every other open tab, which is the only way they learn: the server deleted the
+ * draft, and a deletion is indistinguishable from "there was never anything here".
+ * The token goes last, because it is now a credential for a document that no longer
+ * exists.
+ *
+ * The order matches Start Over's, for the same reason: clearing the draft frees the
+ * space the mark needs, and a mark that fails to land leaves the other tabs able to
+ * autosave a submitted application back into existence.
+ *
+ * Lives here rather than in the wizard because two callers need it and must not
+ * drift: the direct submission, and the offline queue when a submission it was
+ * holding finally reaches the server — possibly in a different tab, possibly days
+ * later.
+ *
+ * @returns {string|null} the mark written, so a caller that must not react to its own
+ *   write can adopt it. `null` when storage refused it.
+ */
+export function closeDraftAfterSubmission(slug) {
+    if (!slug) return null;
+    clearApplicationDraft(slug);
+    const mark = writeDiscardMark(slug, 'submit');
+    clearResumeToken(slug);
+    return mark;
 }
 
 export function clearResumeToken(slug) {

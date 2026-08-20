@@ -353,7 +353,10 @@ describe('PublicApplyHandler submission contract', () => {
     expect(enqueueSpy).toHaveBeenCalledWith(
       expect.objectContaining({ applicationId: 'generated-app-id' }),
       'company-1',
-      { type: 'guest', userId: null },
+      // The slug travels with the entry: when a replay finally lands, the queue is
+      // what has to close out that application's local draft, and by then nothing
+      // else remembers which application it was.
+      { type: 'guest', userId: null, applySlug: 'acme' },
     );
   });
 
@@ -1445,6 +1448,22 @@ describe('an application discarded in another tab', () => {
     // And nothing was written back on the way out.
     expect(localStorage.getItem('draft_acme')).toBeNull();
     expect(saveProgressSpy).not.toHaveBeenCalled();
+  });
+
+  it('says submitted, not discarded, when that is what happened', async () => {
+    // Both cases delete the same three things, and a tab reacting to either sees only
+    // a changed mark. Telling an applicant who has just successfully applied that
+    // their application was discarded is misinformation about the one action they
+    // cannot undo, so the mark carries which it was.
+    const step = await renderRestoredTab();
+    expect(step).toHaveTextContent('3');
+
+    discardInAnotherTab('submit:mark-1');
+
+    await waitFor(() => expect(screen.getByText('Fill Out Manually')).toBeInTheDocument());
+    expect(showInfo).toHaveBeenCalledWith(
+      'That application was submitted in another tab. Starting fresh.',
+    );
   });
 
   it('does not carry the discarded answers into the fresh start', async () => {

@@ -82,6 +82,8 @@ async function ensureDb() {
  * @param {Object} options - Additional options
  * @param {string} [options.type='authenticated'] - 'authenticated' or 'guest'
  * @param {string} [options.userId] - User ID for authenticated submissions
+ * @param {string} [options.applySlug] - Apply-page slug for guest submissions, so a
+ *   replay that succeeds later can close out that application's local draft
  * @returns {Promise<string>} Queue entry ID
  */
 export async function enqueueSubmission(data, companyId, options = {}) {
@@ -93,6 +95,12 @@ export async function enqueueSubmission(data, companyId, options = {}) {
         data: { ...data }, // Deep copy to avoid mutations
         type: options.type || 'authenticated',
         userId: options.userId || null,
+        // The apply page this came from, for guest entries. Kept on the entry because
+        // the entry may outlive the tab that made it: when the submission finally
+        // reaches the server the draft it belongs to has to be closed out locally, and
+        // by then nothing else remembers which application that was. Absent on
+        // entries queued before this field existed, which read as `null`.
+        applySlug: options.applySlug || null,
         createdAt: Date.now(),
         attempts: 0,
         lastAttemptAt: null,

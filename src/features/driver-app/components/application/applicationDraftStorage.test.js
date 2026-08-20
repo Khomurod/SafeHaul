@@ -7,6 +7,7 @@ import {
     clearApplicationDraft,
     readDiscardMark,
     writeDiscardMark,
+    discardMarkReason,
     subscribeToDiscardMark,
 } from './applicationDraftStorage';
 
@@ -102,6 +103,31 @@ describe('applicationDraftStorage', () => {
             unsubscribe();
             window.dispatchEvent(new StorageEvent('storage', { key: DISCARD_KEY, newValue: 'mark-2' }));
             expect(onDiscarded).toHaveBeenCalledTimes(1);
+        });
+
+        it('says which of the two things ended the draft', () => {
+            // Wording, not authorization: the value is still only ever compared for
+            // inequality. But telling an applicant their application was *discarded*
+            // when they had just submitted it is misinformation about the one thing
+            // they cannot undo.
+            expect(discardMarkReason(writeDiscardMark(SLUG, 'submit'))).toBe('submit');
+            expect(discardMarkReason(writeDiscardMark(SLUG, 'discard'))).toBe('discard');
+            expect(discardMarkReason(writeDiscardMark(SLUG))).toBe('discard');
+
+            // A mark written before the prefix existed, and anything unrecognisable:
+            // read as a discard, which never claims a submission that did not happen.
+            expect(discardMarkReason('7c9e6679-7425-40de-944b-e07fc1f90ae7')).toBe('discard');
+            expect(discardMarkReason(null)).toBe('discard');
+        });
+
+        it('still writes a unique value once the reason is prefixed', () => {
+            const marks = new Set([
+                writeDiscardMark(SLUG, 'submit'),
+                writeDiscardMark(SLUG, 'submit'),
+                writeDiscardMark(SLUG, 'discard'),
+            ]);
+
+            expect(marks.size).toBe(3);
         });
 
         it('returns a usable unsubscribe even when there is nothing to watch', () => {
