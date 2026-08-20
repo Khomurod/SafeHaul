@@ -275,6 +275,36 @@ because nothing is known about whether the server has its contents.
 flushes it once — and only when something is genuinely owed, so a reconnect on a
 fully synchronised draft sends nothing.
 
+**A discard has to reach every open tab, and deletion alone cannot carry it.** Start
+Over removes the server draft, the resume token and the local copy, and `localStorage`
+is shared, so a tab that reloads afterwards already starts clean. What survived was
+another tab's *memory*: it still held the answers and still believed it owned a
+draft, so its next navigation wrote them back to storage and its next save recreated
+on the server the very application the applicant had asked to be rid of. Nothing in
+storage could tell it otherwise, because everything the discard touched was deleted —
+and a deletion is indistinguishable from "there was never anything here".
+
+So a discard leaves a **positive trace**: `apply_discarded_<slug>`, an opaque value
+compared *only for inequality* (no clock is a decision input here either). Every tab
+remembers the value it loaded with. The `storage` event — which browsers fire in every
+tab except the one that wrote it, so the acting tab never resets itself — updates the
+others immediately, and a comparison before every write makes the delayed, queued and
+offline-reconnect cases deterministic rather than dependent on an event a suspended
+tab may have missed.
+
+What a discard costs a tab depends on where its answers came from. If it **restored**
+them, they *are* the discarded application and it returns to a genuinely fresh start.
+If the applicant typed them in that tab and never restored anything, they are their
+own work: they stay on screen and simply become the start of a new application. A
+submitted application is exempt outright — a late signal must never take away a
+success screen, a confirmation number or the documents checklist.
+
+**Submission closes the draft's life the same way.** The server discards the draft on
+submission, so the client writes the same mark and drops the resume token. Without
+that, a second tab's autosave would recreate a draft for an application that had
+already been submitted, and the applicant would reappear in the recruiter's
+"started, incomplete" list after successfully applying.
+
 **The resume lookup runs before the first server save.** A save racing it loses
 the very draft the feature protects: it overwrites the saved step with page one
 when the email matches, and the at-most-one-live-draft rule hard-deletes the older
@@ -297,9 +327,20 @@ already existed, so anyone who knew an applicant's email and phone could replace
 their saved work, and anyone who knew name, date of birth and SSN digits could
 delete it. Creating a new draft is still open. Modifying one that exists now
 requires proof of ownership: the resume token issued to the device that created it,
-or the full identity HMAC. Superseding other drafts for an identity additionally
-requires holding a token that resolves to that same identity, so identity knowledge
-alone is not a delete primitive. The existence check, the authorization decision and the write happen in **one
+or the full identity HMAC. Superseding another draft on a save requires the
+token of **the draft being deleted** — not merely a token for some draft with the
+same identity, because the identity facts let a stranger create their own draft,
+inherit the victim's identity key, and use the token minted for it. So identity
+knowledge alone is not a delete primitive.
+
+**Start Over is a different situation and is judged differently.** It resolves a live
+draft of the identity *by token* before it deletes anything, so ownership is already
+proven and it retires that person's sibling drafts too — which is what start over has
+always meant: an applicant who retyped their email has a draft under each spelling,
+and discarding one while the next visit offers another is the failure the prompt
+exists to prevent. That sweep silently became a no-op when per-draft token matching
+was introduced, because the call passed no token at all; it is now explicit, named
+`ownershipProven`, and the save path must never set it. The existence check, the authorization decision and the write happen in **one
 transaction**: a standalone read followed by a later write leaves a window in which
 two first saves each mint a token and overwrite each other, or a save lands after
 Start Over and resurrects the application the applicant just discarded.
@@ -314,7 +355,23 @@ network failure returns —
 a draft exists. **Known and accepted limitation:** a caller who already holds both
 the email and the phone can still distinguish "refused" from "created" by watching
 whether a token comes back; it is hard rate-limited and audited, and is strictly
-narrower than the overwrite capability it replaced. A second, accepted
+narrower than the overwrite capability it replaced. **A resume token that opens nothing is refused.** Presenting one says "I am writing
+the draft I already own", and when that draft has been deleted — by Start Over in
+another tab, or by submission — the sentence is no longer true and the payload was
+composed against something that is gone. The client cannot cover this case on its
+own: the request may already have been on the wire. So a presented token must still
+resolve to a live draft (the target document, then the identity's own drafts, then a
+bounded recent scan when no identity HMAC can be derived), and otherwise the save is
+refused. It is judged **before** ownership and independently of it, because the
+identity bar would happily authorize that same stale payload — the applicant's own
+name, date of birth and SSN are in it — and let it overwrite whatever replaced the
+draft it was written against. Legitimate saves never trip it: ordinary autosave
+presents the token of the document it is writing, an applicant correcting their email
+presents a token whose draft is alive until that same save retires it, and a first
+save presents none. Audited as `stale_token`, which is ordinary multi-tab life and
+deliberately not filed as an attack.
+
+A second, accepted
 consequence: someone who creates a draft at another person's key *before* they
 ever apply leaves that applicant without server-side autosave or cross-session
 resume at that carrier, because the squatted document is the one their saves would

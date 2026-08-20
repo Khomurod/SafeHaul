@@ -5,6 +5,9 @@ import {
     saveApplicationDraft,
     markDraftSynced,
     clearApplicationDraft,
+    readDiscardMark,
+    writeDiscardMark,
+    subscribeToDiscardMark,
 } from './applicationDraftStorage';
 
 const SLUG = 'acme';
@@ -32,6 +35,79 @@ describe('applicationDraftStorage', () => {
             expect(draft.data.firstName).toBe('Ada');
         });
 
+    });
+
+    describe('the discard mark', () => {
+        // Start Over deletes everything it touches, and a deletion is
+        // indistinguishable from "there was never anything here" — so the discard
+        // leaves a positive trace for other tabs to notice instead.
+        const DISCARD_KEY = 'apply_discarded_acme';
+
+        it('records a mark and reads it back', () => {
+            const mark = writeDiscardMark(SLUG);
+
+            expect(mark).toBeTruthy();
+            expect(readDiscardMark(SLUG)).toBe(mark);
+            expect(localStorage.getItem(DISCARD_KEY)).toBe(mark);
+        });
+
+        it('reports no mark for an application nobody discarded', () => {
+            expect(readDiscardMark(SLUG)).toBeNull();
+        });
+
+        it('writes a value no previous mark equals', () => {
+            // Load-bearing: a tab decides "was this discarded since I loaded?" by
+            // comparing values, so a repeated mark would read as "nothing happened".
+            const marks = new Set([
+                writeDiscardMark(SLUG),
+                writeDiscardMark(SLUG),
+                writeDiscardMark(SLUG),
+            ]);
+
+            expect(marks.size).toBe(3);
+        });
+
+        it('keeps one application\'s discard out of another\'s', () => {
+            writeDiscardMark(SLUG);
+
+            expect(readDiscardMark('other-company')).toBeNull();
+        });
+
+        it('survives storage refusing the write', () => {
+            const setItem = vi.spyOn(window.localStorage, 'setItem').mockImplementation(() => {
+                throw new Error('QuotaExceededError');
+            });
+
+            // Null, not a throw: cross-tab notification degrades to nothing, which
+            // is the same trade the draft write itself makes.
+            expect(writeDiscardMark(SLUG)).toBeNull();
+            setItem.mockRestore();
+        });
+
+        it('notifies on another tab\'s discard, and only that', () => {
+            const onDiscarded = vi.fn();
+            const unsubscribe = subscribeToDiscardMark(SLUG, onDiscarded);
+
+            // Another key entirely.
+            window.dispatchEvent(new StorageEvent('storage', { key: 'draft_acme', newValue: '{}' }));
+            // Another application's discard.
+            window.dispatchEvent(new StorageEvent('storage', { key: 'apply_discarded_other', newValue: 'm' }));
+            // A removal rather than a discard.
+            window.dispatchEvent(new StorageEvent('storage', { key: DISCARD_KEY, newValue: null }));
+            expect(onDiscarded).not.toHaveBeenCalled();
+
+            window.dispatchEvent(new StorageEvent('storage', { key: DISCARD_KEY, newValue: 'mark-1' }));
+            expect(onDiscarded).toHaveBeenCalledWith('mark-1');
+
+            unsubscribe();
+            window.dispatchEvent(new StorageEvent('storage', { key: DISCARD_KEY, newValue: 'mark-2' }));
+            expect(onDiscarded).toHaveBeenCalledTimes(1);
+        });
+
+        it('returns a usable unsubscribe even when there is nothing to watch', () => {
+            expect(() => subscribeToDiscardMark('', vi.fn())()).not.toThrow();
+            expect(() => subscribeToDiscardMark(SLUG, null)()).not.toThrow();
+        });
     });
 
     describe('reading', () => {

@@ -38,12 +38,30 @@ vi.mock('@/context/DataContext', () => ({
   useData: () => ({ setCurrentCompanyProfile: vi.fn() }),
 }));
 
+/**
+ * Fresh function identities on every call, exactly like the real provider.
+ *
+ * `ToastProvider` defines `showSuccess`/`showError`/`showInfo`/`showWarning` inline
+ * and passes a fresh object as its context value, so anything closing over them is
+ * unstable across renders. A double handing out stable references hides a whole
+ * class of bug: naming such a closure as an effect dependency turns a load-once
+ * effect into a per-render one, and this suite would report green while the browser
+ * re-fetched the draft on a loop. The calls still land on the module-level spies, so
+ * every assertion about them is unaffected.
+ */
+const toastApi = () => ({
+  showSuccess: (...args) => showSuccess(...args),
+  showError: (...args) => showError(...args),
+  showInfo: (...args) => showInfo(...args),
+  showWarning: (...args) => showWarning(...args),
+});
+
 vi.mock('@shared/components/feedback/ToastProvider', () => ({
-  useToast: () => ({ showSuccess, showError, showInfo, showWarning }),
+  useToast: () => toastApi(),
 }));
 
 vi.mock('@shared/components/feedback', () => ({
-  useToast: () => ({ showSuccess, showError, showInfo, showWarning }),
+  useToast: () => toastApi(),
 }));
 
 vi.mock('@lib/firebase', () => ({ db: {}, functions: {}, storage: {} }));
@@ -1352,5 +1370,298 @@ describe('starting over', () => {
       .toMatch(/could not be removed/i));
     // And nothing local was cleared, so the applicant still has their answers.
     expect(localStorage.getItem('draft_acme')).not.toBeNull();
+  });
+});
+
+/**
+ * Two tabs, one application.
+ *
+ * Start Over deletes the server draft, the resume token and the local draft, and
+ * `localStorage` is shared, so a tab that *reloads* afterwards already starts clean.
+ * What used to survive was the other tab's **memory**: it still held the answers and
+ * still believed it owned a draft, so its next navigation wrote them back to storage
+ * and its next save recreated on the server the very application the applicant had
+ * asked to be rid of.
+ *
+ * The other tab is simulated the way the browser does it — the discard mark appears
+ * in `localStorage` and a `storage` event fires. Real browsers do not fire that event
+ * in the tab that wrote the value, which is why the acting tab never resets itself.
+ */
+describe('an application discarded in another tab', () => {
+  const DISCARD_KEY = 'apply_discarded_acme';
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    profileOverride.current = null;
+    localStorage.clear();
+    sessionStorage.clear();
+    isQueueSupportedSpy.mockReturnValue(true);
+    initQueueSpy.mockResolvedValue(undefined);
+    enqueueSpy.mockResolvedValue('queue-1');
+    dequeueSpy.mockResolvedValue(undefined);
+    callableSpy.mockResolvedValue({ data: {} });
+    stubDraftCallables();
+  });
+
+  afterEach(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+  });
+
+  /** Exactly what another tab's Start Over leaves behind for this one to notice. */
+  function discardInAnotherTab(mark = 'discard-1') {
+    localStorage.removeItem('draft_acme');
+    localStorage.removeItem('apply_resume_acme');
+    localStorage.setItem(DISCARD_KEY, mark);
+    window.dispatchEvent(new StorageEvent('storage', { key: DISCARD_KEY, newValue: mark }));
+  }
+
+  /** Renders a tab whose answers came out of the stored draft. */
+  async function renderRestoredTab() {
+    localStorage.setItem('draft_acme', JSON.stringify({
+      v: 1,
+      lastStep: 3,
+      meta: { localSeq: 4, syncedSeq: 4, savedAt: '2026-08-19T10:00:00.000Z' },
+      data: { firstName: 'Ada', phone: '5551234' },
+    }));
+    renderHandler();
+    await screen.findByText('probe-next');
+    return screen.getByTestId('current-step');
+  }
+
+  it('stops showing the discarded answers', async () => {
+    const step = await renderRestoredTab();
+    expect(step).toHaveTextContent('3');
+
+    discardInAnotherTab();
+
+    // Back to the screen a first-time visitor gets: the wizard holding the
+    // discarded answers is gone, not merely rewound.
+    await waitFor(() => expect(screen.getByText('Fill Out Manually')).toBeInTheDocument());
+    expect(screen.queryByTestId('current-step')).not.toBeInTheDocument();
+    expect(showInfo).toHaveBeenCalledWith(
+      'That saved application was discarded in another tab. Starting fresh.',
+    );
+    // And nothing was written back on the way out.
+    expect(localStorage.getItem('draft_acme')).toBeNull();
+    expect(saveProgressSpy).not.toHaveBeenCalled();
+  });
+
+  it('does not carry the discarded answers into the fresh start', async () => {
+    await renderRestoredTab();
+    discardInAnotherTab();
+    await waitFor(() => expect(screen.getByText('Fill Out Manually')).toBeInTheDocument());
+
+    // Starting again from the chooser: page one, and the next save carries none of
+    // the restored answers.
+    fireEvent.click(screen.getByText('Fill Out Manually'));
+    await screen.findByText('probe-next');
+    expect(screen.getByTestId('current-step')).toHaveTextContent('0');
+
+    fireEvent.click(screen.getByText('probe-edit'));
+    fireEvent.click(screen.getByText('probe-next'));
+    await waitFor(() => expect(saveProgressSpy).toHaveBeenCalled());
+    const { formData } = saveProgressSpy.mock.calls[0][0];
+    expect(formData.firstName).toBeUndefined();
+    expect(formData.phone).toBe('5559999');
+  });
+
+  it('keeps answers the applicant typed in this tab, and starts a new application with them', async () => {
+    // This tab never restored anything, so what is on screen is the applicant's own
+    // work. Destroying it because another tab discarded a *different* copy would be
+    // the data loss this whole feature exists to prevent.
+    renderHandler();
+    await chooseManualIntake();
+    fireEvent.click(screen.getByText('probe-edit'));
+
+    discardInAnotherTab();
+
+    await waitFor(() => expect(showInfo).toHaveBeenCalledWith(
+      'The saved application was discarded in another tab. Your answers here will start a new one.',
+    ));
+    // Still on the page they were on, with what they typed.
+    expect(screen.getByTestId('current-step')).toHaveTextContent('0');
+
+    // And the next step saves it as a *new* application rather than dropping it.
+    fireEvent.click(screen.getByText('probe-next'));
+    await waitFor(() => expect(saveProgressSpy).toHaveBeenCalled());
+    expect(saveProgressSpy.mock.calls[0][0].formData.phone).toBe('5559999');
+    // With no token, because the discarded draft's token is gone.
+    expect(saveProgressSpy.mock.calls[0][0].resumeToken).toBeNull();
+  });
+
+  it('refuses to write even if the event never arrived', async () => {
+    // A tab that was suspended, or an event lost: the mark comparison before every
+    // write is what makes this deterministic rather than dependent on the event.
+    await renderRestoredTab();
+
+    localStorage.removeItem('draft_acme');
+    localStorage.setItem(DISCARD_KEY, 'discard-silent');
+
+    fireEvent.click(screen.getByText('probe-next'));
+
+    // The guard fires on the navigation itself, so the same reset happens.
+    await waitFor(() => expect(screen.getByText('Fill Out Manually')).toBeInTheDocument());
+    expect(localStorage.getItem('draft_acme')).toBeNull();
+    expect(saveProgressSpy).not.toHaveBeenCalled();
+  });
+
+  it('drops a save that was already queued when the discard landed', async () => {
+    // The delayed case. One save is in flight, a second queues behind it, and the
+    // discard happens while the first is still open — so the queued payload is
+    // composed against an application that no longer exists by the time its turn
+    // comes.
+    let releaseFirstSave;
+    saveProgressSpy.mockImplementation(() => new Promise((resolve) => {
+      releaseFirstSave = () => resolve({ data: { saved: true, applicantKey: 'key-1', resumeToken: 'token-1' } });
+    }));
+
+    renderHandler();
+    await chooseManualIntake();
+    fireEvent.click(screen.getByText('probe-edit'));
+    fireEvent.click(screen.getByText('probe-next'));
+    await waitFor(() => expect(saveProgressSpy).toHaveBeenCalledTimes(1));
+
+    // A second navigation queues behind the open request.
+    fireEvent.click(screen.getByText('probe-edit'));
+    fireEvent.click(screen.getByText('probe-next'));
+
+    discardInAnotherTab();
+    releaseFirstSave();
+
+    // The queued payload is never sent.
+    await waitFor(() => expect(showInfo).toHaveBeenCalled());
+    expect(saveProgressSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('sends nothing when the connection returns after a discard', async () => {
+    await renderRestoredTab();
+    // Dirty local copy, the state the reconnect flush exists for.
+    localStorage.setItem('draft_acme', JSON.stringify({
+      v: 1,
+      lastStep: 3,
+      meta: { localSeq: 9, syncedSeq: 4, savedAt: '2026-08-19T10:00:00.000Z' },
+      data: { firstName: 'Ada', phone: '5559999' },
+    }));
+
+    localStorage.setItem(DISCARD_KEY, 'discard-offline');
+    window.dispatchEvent(new Event('online'));
+
+    await waitFor(() => expect(showInfo).toHaveBeenCalled());
+    expect(saveProgressSpy).not.toHaveBeenCalled();
+  });
+
+  it('fetches the server draft once, not once per render', async () => {
+    // A guard against the shape of mistake this change nearly shipped. The discard
+    // callbacks close over `showInfo`, which `ToastProvider` rebuilds every render,
+    // so naming them as dependencies of the reconciliation effect turned a
+    // load-once fetch into a per-render one — re-reading the draft and rewriting the
+    // local copy on a loop. It surfaced as a *sequence* being one too high, three
+    // files away from the cause.
+    localStorage.setItem('apply_resume_acme', JSON.stringify({
+      resumeToken: 'resume-token-1', applicantKey: 'key-1',
+    }));
+    localStorage.setItem('draft_acme', JSON.stringify({
+      v: 1,
+      lastStep: 2,
+      meta: { localSeq: 5, syncedSeq: 5, savedAt: '2026-08-19T10:00:00.000Z' },
+      data: { phone: '5551234' },
+    }));
+    resumeDraftSpy.mockResolvedValue({
+      data: {
+        restored: true,
+        draft: {
+          applicantKey: 'key-1',
+          formData: { phone: '5551234' },
+          lastStep: 2,
+          lastSemanticStep: 'license',
+          clientSeq: 5,
+        },
+      },
+    });
+
+    renderHandler();
+    await screen.findByText('probe-next');
+    await waitFor(() => expect(resumeDraftSpy).toHaveBeenCalled());
+
+    // Navigation only — no answer changes — so nothing here may dirty the copy or
+    // re-fetch anything.
+    fireEvent.click(screen.getByText('probe-back'));
+    fireEvent.click(screen.getByText('probe-next'));
+    await waitFor(() => expect(screen.getByTestId('current-step')).toBeInTheDocument());
+
+    expect(resumeDraftSpy).toHaveBeenCalledTimes(1);
+    // And the restored copy is still recorded as synced. This is the assertion that
+    // actually caught the loop: each re-run reconciled again and wrote the result
+    // back as *unacknowledged* work, one sequence above the server's.
+    const stored = JSON.parse(localStorage.getItem('draft_acme'));
+    expect(stored.meta.localSeq).toBe(stored.meta.syncedSeq);
+  });
+
+  it('does not write the server copy back after a discard mid-fetch', async () => {
+    // The subtlest writer of the four. Fetching the server draft is a round trip and
+    // the discard can land while it is open: the read succeeded, so nothing failed,
+    // and reconciliation would then write the discarded answers back into storage
+    // *after* the reset had cleared them — ready to be restored on the next load.
+    localStorage.setItem('apply_resume_acme', JSON.stringify({
+      resumeToken: 'resume-token-1', applicantKey: 'key-1',
+    }));
+    let releaseServer;
+    resumeDraftSpy.mockImplementation(() => new Promise((resolve) => {
+      releaseServer = () => resolve({
+        data: {
+          restored: true,
+          draft: {
+            applicantKey: 'key-1',
+            formData: { firstName: 'Ada', cdlNumber: 'FROM-SERVER' },
+            lastStep: 3,
+            lastSemanticStep: 'license',
+            clientSeq: 9,
+          },
+        },
+      });
+    }));
+
+    renderHandler();
+    await waitFor(() => expect(resumeDraftSpy).toHaveBeenCalled());
+
+    // Discarded while the fetch is still open, then the fetch completes.
+    discardInAnotherTab('discard-mid-fetch');
+    releaseServer();
+
+    await waitFor(() => expect(showInfo).toHaveBeenCalled());
+    // Nothing of the server copy reached storage.
+    const stored = localStorage.getItem('draft_acme');
+    expect(stored === null || !stored.includes('FROM-SERVER')).toBe(true);
+  });
+
+  it('leaves a submitted application completely alone', async () => {
+    // The one place a late signal must do nothing: the success screen, the
+    // confirmation number and the documents checklist are the only things in this
+    // flow the applicant cannot get back.
+    localStorage.setItem('draft_acme', JSON.stringify({
+      firstName: 'Ada',
+      lastName: 'Driver',
+      email: 'ada@example.com',
+      phone: '5555551234',
+      ssn: '123-45-6789',
+      'cdl-front': { name: 'f.pdf', url: 'https://example.com/f.pdf' },
+      'cdl-back': { name: 'f.pdf', url: 'https://example.com/f.pdf' },
+      'medical-card-upload': { name: 'f.pdf', url: 'https://example.com/f.pdf' },
+      signature: 'data:image/png;base64,AAAA',
+      'final-certification': 'agreed',
+    }));
+    renderHandler();
+    await chooseManualIntake();
+    fireEvent.click(screen.getByText('probe-submit'));
+    await waitFor(() => expect(screen.getByText('Application Submitted!')).toBeInTheDocument());
+
+    discardInAnotherTab('discard-after-submit');
+
+    // Still submitted, and not reset to a blank wizard.
+    await waitFor(() => expect(screen.getByText('Application Submitted!')).toBeInTheDocument());
+    expect(showInfo).not.toHaveBeenCalledWith(
+      'That saved application was discarded in another tab. Starting fresh.',
+    );
   });
 });

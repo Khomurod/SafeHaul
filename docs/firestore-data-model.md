@@ -193,9 +193,21 @@ the document exists.
 
 **At most one live draft per (company, identity).** A returning applicant who
 retypes their email derives a second document id, and leaving both would make
-"continue" a coin flip, so a save retires the others. That collapse is why the
-resume lookup runs *before* the first save — see
+"continue" a coin flip, so a save retires the others — specifically, the ones whose
+own resume token the caller presents, since deleting a draft needs proof of owning
+*that* draft. `startNewApplication` sweeps the identity's siblings outright, because
+it resolved a live draft of that identity by token before deleting anything and so has
+already proven ownership. That collapse is why the resume lookup runs *before* the
+first save — see
 [`useApplicationResume.js`](../src/features/driver-app/hooks/useApplicationResume.js).
+
+**A save presenting a resume token that opens no live draft is refused.** The token
+means "I am writing the draft I already own"; once that draft has been deleted — Start
+Over in another tab, or submission — the payload predates the deletion and writing it
+recreates a discarded application. Resolution is cheapest-first: the target document,
+then the identity's drafts, then a bounded recent scan when no `identityKey` can be
+derived, all inside the same transaction that authorizes the write. Audited as
+`stale_token`.
 
 A successful submission discards the draft (`discardDraftForApplication`), so a
 completed application never leaves a resumable copy behind.
@@ -203,7 +215,8 @@ completed application never leaves a resumable copy behind.
 Composite index: `identityKey` ASC + `updatedAt` DESC.
 
 `application_draft_audit/{id}` records `action` (`resume_match_attempted` for a
-lookup, `draft_write_refused` for a refused update), `outcome`, `at` and
+lookup, `draft_write_refused` for a refused update, whose `outcome` distinguishes
+`unauthorized_write` from the ordinary multi-tab `stale_token`), `outcome`, `at` and
 `expiresAt` —
 and nothing else. Not the name, the date of birth, the SSN, the identity hash or
 the contact detail. What matters operationally is how many resume attempts a

@@ -338,6 +338,87 @@ test.describe('guest application resume', () => {
     await expect(page.getByText('Application Submitted!')).toBeVisible({ timeout: 30_000 });
   });
 
+  /**
+   * Two real pages sharing one origin, so `localStorage` is genuinely shared and the
+   * `storage` event is the browser's own rather than a synthetic one.
+   *
+   * The ordering is deliberate and load-bearing. The resume prompt is only offered to
+   * a browser holding no token *at the moment its lookup runs*, and the token is
+   * shared between tabs — so the discarding tab asks first and keeps its dialog open
+   * while the other tab continues and takes ownership. That is also the honest
+   * sequence: one applicant, two windows, and the decision taken in the second.
+   */
+  async function twoTabsOneApplication(context, page) {
+    const discarding = await context.newPage();
+    await discarding.goto('/apply/e2e-company?e2eResume=offer');
+    await page.goto('/apply/e2e-company?e2eResume=offer');
+
+    // The discarding tab asks first, before any token exists, and waits.
+    await fillStep1(discarding, 'resume');
+    const discardDialog = discarding.getByRole('dialog');
+    await expect(discardDialog).toContainText('Continue your existing application?', { timeout: 30_000 });
+
+    // The other tab continues, so what it now holds *is* the application about to be
+    // discarded.
+    await fillStep1(page, 'resume');
+    const keepDialog = page.getByRole('dialog');
+    await expect(keepDialog).toContainText('Continue your existing application?', { timeout: 30_000 });
+    await keepDialog.getByRole('button', { name: 'Continue where I left off' }).click();
+    await expectStep(page, 'Motor Vehicle Record');
+    await page.getByRole('button', { name: 'Back' }).click();
+    await expectStep(page, 'License');
+    await expect(page.locator('#cdl-number')).toHaveValue('E2ERESTORED9');
+
+    // And the discard goes through its two-stage confirmation.
+    await discardDialog.getByRole('button', { name: 'Start a new application' }).click();
+    await expect(discardDialog).toContainText('Start a new application?');
+    await discardDialog.getByRole('button', { name: 'Delete it and start over' }).click();
+    await expect(discarding.getByRole('dialog')).toHaveCount(0);
+    await expect(discarding.getByText('Starting a new application.')).toBeVisible();
+
+    return discarding;
+  }
+
+  test('a discard in one tab does not come back from another', async ({ page, context }) => {
+    const discarding = await twoTabsOneApplication(context, page);
+
+    // The other tab notices on its own, untouched: the wizard holding the discarded
+    // answers is gone, replaced by the screen a first-time visitor gets.
+    await expect(page.getByRole('button', { name: 'Fill Out Manually' }))
+      .toBeVisible({ timeout: 15_000 });
+    await expect(page.locator('#cdl-number')).toHaveCount(0);
+
+    // Nothing of the discarded application was written back by that tab.
+    const stored = await page.evaluate(() => localStorage.getItem('draft_e2e-company'));
+    expect(stored === null || !stored.includes('E2ERESTORED9')).toBe(true);
+    const keptSaves = await page.evaluate(() => window.__e2eDraftSaves || []);
+    for (const save of keptSaves) {
+      expect(save.formData.cdlNumber).not.toBe('E2ERESTORED9');
+    }
+
+    // Starting again there begins genuinely empty.
+    await page.getByRole('button', { name: 'Fill Out Manually' }).click();
+    await expectStep(page, 'Personal Information');
+    await expect(page.locator('#first-name')).toHaveValue('');
+
+    await discarding.close();
+  });
+
+  test('a discarded application does not return when another tab reloads', async ({ page, context }) => {
+    const discarding = await twoTabsOneApplication(context, page);
+
+    // A guard rather than a fix: Start Over already clears the shared local draft and
+    // token, so a reload was clean before this change too. It is here so the cross-tab
+    // mechanism cannot quietly break the path that was already right — a reset that
+    // wrote anything back would show up here.
+    await page.goto('/apply/e2e-company');
+    await expectStep(page, 'Personal Information');
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(page.locator('#first-name')).toHaveValue('');
+
+    await discarding.close();
+  });
+
   test('the SSN is never persisted or put in a draft payload', async ({ page }) => {
     const bodies = [];
     page.on('request', (request) => {

@@ -20,6 +20,9 @@ import {
   clearApplicationDraft,
   draftSyncState,
   sameDraftData,
+  readDiscardMark,
+  writeDiscardMark,
+  subscribeToDiscardMark,
 } from './applicationDraftStorage';
 import { fetchPublicProfileBySlug } from '../../services/publicProfileService';
 import { useGuestFileUpload } from '../../hooks/useGuestFileUpload';
@@ -47,6 +50,7 @@ import * as Sentry from '@sentry/react';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 import { useApplicationResume } from '../../hooks/useApplicationResume';
 import { ResumeApplicationDialog } from './ResumeApplicationDialog';
+import { clearResumeToken } from '../../services/applicationDraftService';
 import { reconcileApplicationDraft } from './reconcileApplicationDraft';
 import { getMissingRequiredUnpersistedFields } from './requiredUnpersistedFields';
 
@@ -125,6 +129,47 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
   // #8 FIX: Dynamic consent step index based on whether custom questions exist
   const consentStepIndex = customQuestions.length > 0 ? 9 : 8;
   /**
+   * The discard mark this tab loaded with.
+   *
+   * `null` means "no discard had happened when I started", which is the ordinary
+   * case. Anything else is the mark of a discard that had already occurred, and
+   * adopting it is what stops this tab from treating old history as news.
+   */
+  const discardMarkRef = useRef(readDiscardMark(slug));
+  /**
+   * Whether what is on screen came out of a stored draft.
+   *
+   * Decides what a discard elsewhere costs this tab. If these answers were
+   * *restored*, they **are** the discarded application and must go. If the
+   * applicant typed them here, they are their own work and a discard somewhere else
+   * is no reason to destroy them — they simply become the start of a new
+   * application.
+   */
+  const restoredFromDraftRef = useRef(false);
+  /**
+   * Bumped every time a discard is observed.
+   *
+   * The mark alone is not enough for work that is already in flight. Reacting to a
+   * discard *adopts* the new mark — it has to, or the tab would react to its own
+   * history forever — so an asynchronous step that started before the reset finds
+   * the mark comparison clean again and carries on writing. A counter captured
+   * before the await and re-read after it asks the question that actually matters:
+   * "did anything get discarded while I was waiting?"
+   */
+  const resetGenerationRef = useRef(0);
+
+  /**
+   * Has this application been discarded since this tab loaded it?
+   *
+   * Read fresh from storage every time rather than cached: the whole point is that
+   * another tab may have changed it a moment ago.
+   */
+  const discardedElsewhere = useCallback(() => {
+    if (!slug || sandbox) return false;
+    return readDiscardMark(slug) !== discardMarkRef.current;
+  }, [slug, sandbox]);
+
+  /**
    * Server-side autosave and the "continue your existing application?" flow.
    *
    * Sandbox is excluded: a sandbox application is a disposable demo and there is
@@ -138,12 +183,90 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     restoreFromStoredToken,
     continueExisting,
     startOver,
+    forgetDraftOwnership,
   } = useApplicationResume({
     slug,
     companyId: company?.id,
     sandbox,
     hasCustomQuestions: customQuestions.length > 0,
+    hasBeenDiscarded: discardedElsewhere,
   });
+
+  /**
+   * Reacts to this application being discarded somewhere else.
+   *
+   * Two ways in, deliberately: the `storage` event, which arrives within
+   * milliseconds and is how the screen updates on its own, and a check before every
+   * write, which is what makes the delayed, queued and offline-reconnect cases
+   * deterministic rather than dependent on an event this tab might have been
+   * suspended through.
+   *
+   * What it costs this tab depends on where its answers came from — see
+   * `restoredFromDraftRef`.
+   */
+  const handleDiscardedElsewhere = useCallback(() => {
+    // A submitted application is finished, and nothing about a discarded *draft*
+    // may reach back into it. Resetting here would throw away the success screen,
+    // the confirmation number and the post-submission documents checklist — the
+    // one moment in this flow where the applicant has something they cannot get
+    // back. A submission in flight is left alone for the same reason.
+    // Bumped before the exemption, not after it: in-flight work has to abort in this
+    // case too. A submitted application must not have a draft written back for it
+    // either, which is the other half of the same rule.
+    resetGenerationRef.current += 1;
+
+    if (submissionStatus === 'submitting' || submissionStatus === 'success' || submissionStatus === 'queued') {
+      discardMarkRef.current = readDiscardMark(slug);
+      return;
+    }
+
+    // Adopted first, so nothing below can re-enter this.
+    discardMarkRef.current = readDiscardMark(slug);
+    // This browser owns nothing now: the next save must ask the resume question
+    // again rather than silently creating.
+    forgetDraftOwnership();
+    clearApplicationDraft(slug);
+    clearResumeToken(slug);
+
+    if (restoredFromDraftRef.current) {
+      // These answers *are* the discarded application. Keeping them on screen
+      // would be showing the applicant the thing they just deleted.
+      restoredFromDraftRef.current = false;
+      setFormData({});
+      setCurrentStep(0);
+      setIntakeMode(null);
+      showInfo('That saved application was discarded in another tab. Starting fresh.');
+      return;
+    }
+
+    // Typed here, so it is the applicant's own work and stays. It is simply no
+    // longer attached to the draft that was deleted.
+    showInfo('The saved application was discarded in another tab. Your answers here will start a new one.');
+  }, [slug, submissionStatus, forgetDraftOwnership, showInfo]);
+
+  /**
+   * A stable handle on the two discard callbacks.
+   *
+   * Neither is stable itself: `handleDiscardedElsewhere` closes over `showInfo`,
+   * which `ToastProvider` rebuilds on every render. Naming them as effect
+   * dependencies therefore re-runs those effects on every render — which, for the
+   * server-reconciliation effect below, means re-fetching the draft and rewriting
+   * the local copy over and over instead of once on load. Same reasoning as
+   * `latestDraftRef`.
+   */
+  const discardGuardsRef = useRef({ discardedElsewhere, handleDiscardedElsewhere });
+  discardGuardsRef.current = { discardedElsewhere, handleDiscardedElsewhere };
+
+  /**
+   * Notices a discard from another tab while this one is sitting idle.
+   *
+   * Sandbox is excluded along with everything else about resuming: a sandbox
+   * application is a disposable demo with nothing to discard.
+   */
+  useEffect(() => {
+    if (!slug || sandbox) return undefined;
+    return subscribeToDiscardMark(slug, () => discardGuardsRef.current.handleDiscardedElsewhere());
+  }, [slug, sandbox]);
 
   const cdlUploadConfig = getFieldConfig(company?.applicationConfig, 'cdlUpload');
   const medCardConfig = getFieldConfig(company?.applicationConfig, 'medCardUpload');
@@ -234,6 +357,10 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
           }
           const e2eDraft = readApplicationDraft(slug);
           if (e2eDraft) {
+            // Same flag as the production path below: stored content on screen, so a
+            // discard elsewhere takes it with it. Kept in step so a browser test
+            // exercises the behaviour production has, not a weaker one.
+            restoredFromDraftRef.current = true;
             setFormData((prev) => ({ ...prev, ...e2eDraft.data }));
             if (typeof e2eDraft.lastStep === 'number') {
               setCurrentStep(e2eDraft.lastStep);
@@ -269,6 +396,8 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
         // "nothing was saved".
         const savedDraft = readApplicationDraft(slug);
         if (savedDraft) {
+          // Stored content on screen, so a discard elsewhere takes it with it.
+          restoredFromDraftRef.current = true;
           setFormData(prev => ({ ...prev, ...savedDraft.data }));
           if (typeof savedDraft.lastStep === 'number') {
             setCurrentStep(savedDraft.lastStep);
@@ -318,8 +447,16 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
   useEffect(() => {
     if (!company?.id || sandbox) return;
     let current = true;
+    const generation = resetGenerationRef.current;
     restoreFromStoredToken().then((restored) => {
       if (!current || !restored) return;
+      // Discarded while this fetch was open. The read itself succeeded, so nothing
+      // looks wrong, and writing its result back would put the discarded answers
+      // into storage *after* the reset cleared them — to be restored on the next
+      // load. Checked by generation rather than by mark, because reacting to the
+      // discard adopted the mark already.
+      if (resetGenerationRef.current !== generation) return;
+      const guards = discardGuardsRef.current;
       // This used to be `{ ...prev, ...restored.formData }`, which made the server
       // copy win every field it held whether or not it was the newer one. That
       // destroyed the local backup with the very failure it exists to survive: a
@@ -328,8 +465,6 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
       //
       // The local copy is re-read here rather than relied upon through `prev`, so
       // the decision does not depend on the order two effects happen to run in.
-      // Read outside the updater: a `setFormData` updater has to stay pure,
-      // because React may invoke it more than once.
       // All of this outside the updater: a `setFormData` updater has to stay pure,
       // because React may invoke it more than once, and one of the steps below
       // writes to storage.
@@ -339,6 +474,14 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
         live: latestDraftRef.current.formData,
       });
       if (!resolved) return;
+
+      // A discard this tab has not noticed yet — no `storage` event delivered, or
+      // one it was suspended through — is caught here, where the generation check
+      // above cannot see it.
+      if (guards.discardedElsewhere()) {
+        guards.handleDiscardedElsewhere();
+        return;
+      }
 
       // Write the outcome back locally when the **server** copy won.
       //
@@ -378,6 +521,11 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
           });
       }
 
+      // Restored content, whichever copy won: both the local draft and the server
+      // draft are *stored* copies of the application, so a discard elsewhere means
+      // what is on screen is the discarded application. Only answers typed in this
+      // tab and never stored survive one.
+      restoredFromDraftRef.current = true;
       // `resolved.formData` already carries anything typed since load, so it goes
       // last; `prev` still supplies the wizard's untouched defaults.
       setFormData((prev) => ({ ...prev, ...resolved.formData }));
@@ -408,6 +556,13 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
   useEffect(() => {
     if (!slug || sandbox || !company?.id) return undefined;
     const flush = () => {
+      // The longest-delayed writer there is: the applicant may have discarded in
+      // another tab at any point while this one waited for a connection.
+      const guards = discardGuardsRef.current;
+      if (guards.discardedElsewhere()) {
+        guards.handleDiscardedElsewhere();
+        return;
+      }
       const state = draftSyncState(slug);
       if (!state?.dirty) return;
       const { formData: latest, currentStep: step } = latestDraftRef.current;
@@ -452,6 +607,15 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     if (direction === 'next') nextStep = currentStep + 1;
     else if (direction === 'back') nextStep = Math.max(0, currentStep - 1);
     else if (typeof direction === 'number') nextStep = direction;
+
+    // Before the step moves, not just before the write. Advancing and then
+    // refusing to persist would leave the applicant a page further on with nothing
+    // recorded; this way the click does nothing except explain itself, and their
+    // next one behaves normally.
+    if (discardedElsewhere()) {
+      handleDiscardedElsewhere();
+      return;
+    }
 
     setCurrentStep(nextStep);
     const localSeq = persistLocalDraft(nextStep);
@@ -499,6 +663,9 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
       localSeq: Number.isInteger(restored.clientSeq) ? restored.clientSeq : undefined,
       synced: true,
     });
+    // What is on screen now came out of the stored draft, which decides what a
+    // discard elsewhere costs this tab.
+    restoredFromDraftRef.current = true;
     showSuccess('Your saved application has been restored.');
   }, [slug, formData, showSuccess]);
 
@@ -506,8 +673,34 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     applyRestoredDraft(await continueExisting());
   }, [continueExisting, applyRestoredDraft]);
 
+  /**
+   * Closes the draft's life once the application has actually been submitted.
+   *
+   * The server discards the draft on submission (`discardDraftForApplication`), so
+   * afterwards the resume token is a credential for a document that no longer
+   * exists and the same in-memory staleness applies: a second tab still holding
+   * these answers would otherwise autosave them back and put an applicant who has
+   * already applied into the recruiter's "started, incomplete" list.
+   *
+   * The queued path deliberately does not call this. That submission has not
+   * reached the server yet, so its draft is still the live record of the
+   * application, and the offline queue owns getting it the rest of the way.
+   */
+  const finishDraftLifecycle = useCallback(() => {
+    if (!slug || sandbox) return;
+    discardMarkRef.current = writeDiscardMark(slug) ?? discardMarkRef.current;
+    clearResumeToken(slug);
+  }, [slug, sandbox]);
+
   const handleStartOver = useCallback(async () => {
     if (!(await startOver())) return;
+    // Recorded before anything is cleared, and adopted as this tab's own mark in the
+    // same breath. Other tabs are still holding these answers in memory and would
+    // otherwise write them straight back; adopting it here is what keeps this tab
+    // from mistaking its own discard for somebody else's and resetting the new
+    // application it is about to begin.
+    discardMarkRef.current = writeDiscardMark(slug) ?? discardMarkRef.current;
+    restoredFromDraftRef.current = false;
     // A genuinely new application: the local copy goes too, or the next reload
     // would restore what the applicant just asked to be rid of.
     clearApplicationDraft(slug);
@@ -535,6 +728,10 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     // `.ok`, not the return value itself: this used to be a bare boolean and is
     // now `{ ok, localSeq }`, so testing the object would make every quota
     // failure look like a success.
+    if (discardedElsewhere()) {
+      handleDiscardedElsewhere();
+      return;
+    }
     const { ok, localSeq } = saveApplicationDraft(slug, formData, { lastStep: currentStep });
     if (ok) {
       saveDraftToServer({ formData, stepIndex: currentStep, localSeq });
@@ -659,6 +856,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
         docs: {},
       });
       clearApplicationDraft(slug);
+      finishDraftLifecycle();
       sessionStorage.removeItem('pending_application_recruiter');
       setSubmissionStatus('success');
       return;
@@ -773,6 +971,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
           }
 
           clearApplicationDraft(slug);
+          finishDraftLifecycle();
           sessionStorage.removeItem('pending_application_recruiter');
 
           Sentry.addBreadcrumb({

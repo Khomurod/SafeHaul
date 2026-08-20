@@ -63,7 +63,22 @@ import {
  * restores on load. The strongest path is the one that asks the applicant for
  * nothing.
  */
-export function useApplicationResume({ slug, companyId, sandbox, hasCustomQuestions }) {
+/**
+ * @param {object} options
+ * @param {() => boolean} [options.hasBeenDiscarded] Whether this application has been
+ *   discarded — by Start Over or by a completed submission — since this browser
+ *   loaded it. Consulted immediately before anything crosses the wire, because by
+ *   then the answer may have changed: the applicant can discard in another tab while
+ *   a save is queued here, and a save that lands afterwards recreates the very
+ *   application they asked to be rid of.
+ */
+export function useApplicationResume({
+    slug,
+    companyId,
+    sandbox,
+    hasCustomQuestions,
+    hasBeenDiscarded,
+}) {
     const [prompt, setPrompt] = useState(null);
     const [busy, setBusy] = useState(false);
     const [promptError, setPromptError] = useState(null);
@@ -96,6 +111,16 @@ export function useApplicationResume({ slug, companyId, sandbox, hasCustomQuesti
      * applicant restored a draft, and the payload predates the restore).
      */
     const gateRef = useRef(null);
+    /**
+     * Held in a ref, not read from the closure.
+     *
+     * `sendSave` is a `useCallback` that half the hook depends on; taking the
+     * predicate as a dependency would rebuild it whenever the caller re-created its
+     * function, and rebuilding it re-creates `saveProgressToServer`, which the
+     * wizard's effects depend on.
+     */
+    const discardedRef = useRef(hasBeenDiscarded);
+    discardedRef.current = hasBeenDiscarded;
 
     const enabled = Boolean(slug && companyId && !sandbox);
 
@@ -173,6 +198,11 @@ export function useApplicationResume({ slug, companyId, sandbox, hasCustomQuesti
 
     /** One round trip. Swallows everything: see the file header. */
     const sendSave = useCallback(async ({ formData, stepIndex, localSeq }) => {
+        // The last check before the wire, and the reason it is *here* rather than at
+        // the call sites: a payload can wait in `pendingRef` behind another save, so
+        // the moment it was composed and the moment it is sent are different
+        // moments, and the application may have been discarded in between.
+        if (discardedRef.current?.()) return;
         const semanticOrder = buildSemanticStepOrder(hasCustomQuestions);
         const stored = readResumeToken(slug);
         const result = await saveApplicationProgress({
@@ -256,6 +286,12 @@ export function useApplicationResume({ slug, companyId, sandbox, hasCustomQuesti
             while (next) {
                 pendingRef.current = null;
                 await sendSave(next);
+                // Re-read rather than trusting the loop entry: the previous send was
+                // a round trip, and a discard elsewhere during it makes whatever
+                // queued behind it stale too. `sendSave` refuses on its own as well;
+                // this stops the loop instead of spinning through payloads it will
+                // drop one by one.
+                if (discardedRef.current?.()) break;
                 next = pendingRef.current;
             }
         } finally {
@@ -368,6 +404,26 @@ export function useApplicationResume({ slug, companyId, sandbox, hasCustomQuesti
         }
     }, [prompt, companyId, slug, settleGate]);
 
+    /**
+     * Forgets that this browser owns a draft.
+     *
+     * Called when the application was discarded elsewhere. Without it the two refs
+     * still say "already asked, already owns", so this tab would skip the resume
+     * question and quietly create a new draft on its next save — which is how the
+     * discarded answers came back. Cleared, it behaves like a browser that owns
+     * nothing: the next save asks first.
+     */
+    const forgetDraftOwnership = useCallback(() => {
+        askedRef.current = false;
+        ownsDraftRef.current = false;
+        pendingRef.current = null;
+        setPrompt(null);
+        setPromptError(null);
+        // Anything waiting on the resume question is released as a discard: the
+        // payload it holds belongs to an application that no longer exists.
+        settleGate('discard');
+    }, [settleGate]);
+
     return {
         resumePrompt: prompt,
         resumeBusy: busy,
@@ -376,6 +432,7 @@ export function useApplicationResume({ slug, companyId, sandbox, hasCustomQuesti
         restoreFromStoredToken,
         continueExisting,
         startOver,
+        forgetDraftOwnership,
     };
 }
 

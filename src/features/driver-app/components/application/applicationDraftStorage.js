@@ -32,6 +32,15 @@
 
 const draftKey = (slug) => `draft_${slug}`;
 
+/**
+ * Where the "this application was discarded" mark lives.
+ *
+ * Separate from the draft itself on purpose: the draft is *removed* by a discard,
+ * and a mark stored inside it would go with it, leaving other tabs nothing to
+ * notice.
+ */
+const discardKey = (slug) => `apply_discarded_${slug}`;
+
 /** Marks an enveloped draft, so the legacy flat shape is unambiguous. */
 const ENVELOPE_VERSION = 1;
 
@@ -46,6 +55,24 @@ const ENVELOPE_VERSION = 1;
  * list; `requiredUnpersistedFields.test.js` asserts the two stay identical.
  */
 export const NEVER_STORED = Object.freeze(['ssn', 'signature']);
+
+/**
+ * A value no previous mark will equal.
+ *
+ * `randomUUID` where the browser has it. The fallback pairs a random component with
+ * a timestamp *for uniqueness only* — two discards a millisecond apart must not
+ * collide — and nothing anywhere compares marks for order.
+ */
+function nextMarkValue() {
+  try {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID();
+    }
+  } catch {
+    // A browser that refuses `crypto` still needs a usable mark.
+  }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
 
 /** Stable-enough comparison for draft bodies, which are plain JSON by construction. */
 function fingerprint(value) {
@@ -282,9 +309,87 @@ export function markDraftSynced(slug, seq) {
   return ok;
 }
 
+/**
+ * Records that this application was deliberately discarded.
+ *
+ * ## Why a mark is needed at all
+ *
+ * Start Over removes all three copies — the server draft, the resume token and the
+ * local draft — and `localStorage` is shared between tabs, so a tab that *reloads*
+ * afterwards already starts clean. What survives is another tab's **memory**: it
+ * still holds the answers and still believes it owns a draft, so its next
+ * navigation writes those answers back to local storage and its next save recreates
+ * on the server the very application the applicant asked to be rid of.
+ *
+ * Nothing in `localStorage` can tell that tab what happened, because everything the
+ * discard touched was *deleted* — and a deletion is indistinguishable from "there
+ * was never anything here". So the discard leaves a positive trace instead.
+ *
+ * ## What the value is, and what it is not
+ *
+ * An opaque token, compared **only for inequality**. It is never ordered and never
+ * read as a time: the standing rule in this module is that no clock is an input to
+ * a decision, and this is not an exception — a tab asks "is this the same mark I saw
+ * when I loaded?", nothing more.
+ *
+ * @returns {string|null} the mark that was written, for the discarding tab to adopt
+ *   as its own so it does not treat its own discard as somebody else's. `null` when
+ *   storage refused the write, in which case cross-tab notification degrades to
+ *   nothing — the same trade the draft write itself makes.
+ */
+export function writeDiscardMark(slug) {
+  if (!slug) return null;
+  const mark = `${nextMarkValue()}`;
+  try {
+    localStorage.setItem(discardKey(slug), mark);
+    return mark;
+  } catch (markErr) {
+    console.warn('[applicationDraftStorage] Could not record the discard:', markErr);
+    return null;
+  }
+}
+
+/** The mark currently stored, or `null` when this application was never discarded. */
+export function readDiscardMark(slug) {
+  if (!slug) return null;
+  try {
+    return localStorage.getItem(discardKey(slug));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Calls back when **another** tab discards this application.
+ *
+ * The `storage` event is the whole mechanism: browsers fire it in every *other*
+ * document sharing the origin, and never in the one that wrote the value. That is
+ * exactly the behaviour wanted here — the tab that pressed Start Over must carry on
+ * with the new application it just began, and only its siblings need telling.
+ *
+ * Deliberately not the only line of defence. An event can be missed by a tab that
+ * was suspended, and a save may already be queued when it arrives, so callers also
+ * compare marks before writing. This is the fast path, not the guarantee.
+ *
+ * @returns {() => void} unsubscribe
+ */
+export function subscribeToDiscardMark(slug, onDiscarded) {
+  if (!slug || typeof onDiscarded !== 'function' || typeof window === 'undefined') {
+    return () => {};
+  }
+  const key = discardKey(slug);
+  const listener = (event) => {
+    // Another slug, another key entirely, or a clear rather than a discard.
+    if (event.key !== key || !event.newValue) return;
+    onDiscarded(event.newValue);
+  };
+  window.addEventListener('storage', listener);
+  return () => window.removeEventListener('storage', listener);
+}
+
 export function clearApplicationDraft(slug) {
   if (!slug) return;
   localStorage.removeItem(draftKey(slug));
 }
 
-export const __private = { ENVELOPE_VERSION, NEVER_STORED, draftKey };
+export const __private = { ENVELOPE_VERSION, NEVER_STORED, draftKey, discardKey };
