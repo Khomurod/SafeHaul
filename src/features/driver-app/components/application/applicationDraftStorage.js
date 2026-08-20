@@ -74,6 +74,29 @@ function nextMarkValue() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+/**
+ * The name this write's draft should carry.
+ *
+ * `localStorage` is shared, so "whatever name is in the slot" is not this writer's
+ * name: two tabs can each open the apply page, and the second one's first write would
+ * inherit the first's name and make one identity cover two different applications.
+ * Anything holding that name across a delay — an offline submission in the queue —
+ * would then accept the wrong draft as its own.
+ *
+ * So the caller says what it owns:
+ *
+ *  - a string — "I am writing the draft I already had", and the name is kept;
+ *  - `null` — "I own none", and a fresh name is minted even though the slot is full,
+ *    because this write is starting an application as far as this tab is concerned;
+ *  - absent — no claim either way, so the stored name carries on. Used by writes that
+ *    only annotate an existing draft, such as recording a confirmed sync.
+ */
+function draftIdFor(previous, options) {
+  if (typeof options.draftId === 'string' && options.draftId) return options.draftId;
+  if (options.draftId === null) return nextMarkValue();
+  return previous?.meta?.draftId || nextMarkValue();
+}
+
 /** Stable-enough comparison for draft bodies, which are plain JSON by construction. */
 function fingerprint(value) {
   try {
@@ -173,13 +196,16 @@ export function readApplicationDraft(slug) {
  *
  * @param {string} slug
  * @param {object} formData
- * @param {{ lastStep?: number, syncedSeq?: number, localSeq?: number, synced?: boolean }} [options]
+ * @param {{ lastStep?: number, syncedSeq?: number, localSeq?: number, synced?: boolean,
+ *   draftId?: string|null }} [options]
  *   `localSeq`/`syncedSeq` write a copy at a *known* sync position rather than
  *   advancing it. `synced: true` marks whatever sequence this write lands on as
  *   already confirmed — used when applying a restored server draft, which *is*
  *   the server's copy, and which must be clean even when the server draft carries
  *   no sequence of its own (one written before `clientSeq` existed). Marking it
  *   dirty instead would make a later genuine server advance lose to it.
+ *   `draftId` states which application this writer believes it is writing — see
+ *   `draftIdFor`, and why inheriting the stored name is wrong.
  * @returns {{ ok: boolean, localSeq: number|null, dirty: boolean, draftId: string|null }}
  *   `ok: false` on a
  *   QuotaExceededError (DL-1) so callers can inform the user instead of
@@ -259,7 +285,7 @@ export function saveApplicationDraft(slug, formData, options = {}) {
        * an answer to that question. Compared for equality only, like the discard
        * mark, and never sent to the server.
        */
-      draftId: previous?.meta?.draftId || nextMarkValue(),
+      draftId: draftIdFor(previous, options),
       // Left alone whenever the answers did not change — a navigation-only write,
       // or recording that the server confirmed this copy — so the stamp keeps
       // naming the last time an answer actually changed.

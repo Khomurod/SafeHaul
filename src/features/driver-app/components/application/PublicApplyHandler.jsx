@@ -536,11 +536,13 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
             lastStep: resolved.stepIndex,
             localSeq: (serverSeq ?? 0) + 1,
             syncedSeq: serverSeq ?? 0,
+            draftId: draftIdRef.current,
           }
           : {
             lastStep: resolved.stepIndex,
             localSeq: serverSeq ?? undefined,
             synced: true,
+            draftId: draftIdRef.current,
           });
         if (reconciled.draftId) draftIdRef.current = reconciled.draftId;
       }
@@ -622,7 +624,12 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     // The returned sequence identifies exactly this write. It travels with the
     // server save so that, when the save lands, only *this* content is marked
     // synced — see `markDraftSynced`.
-    const { localSeq, draftId } = saveApplicationDraft(slug, formData, { lastStep: stepIndex });
+    const { localSeq, draftId } = saveApplicationDraft(slug, formData, {
+      lastStep: stepIndex,
+      // What *this* tab owns, so a slot another tab filled first does not lend this
+      // write its name. Null means "I own none", which mints a new one.
+      draftId: draftIdRef.current,
+    });
     if (draftId) draftIdRef.current = draftId;
     return localSeq;
   }, [slug, sandbox, formData]);
@@ -687,6 +694,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
       lastStep: restored.stepIndex,
       localSeq: Number.isInteger(restored.clientSeq) ? restored.clientSeq : undefined,
       synced: true,
+      draftId: draftIdRef.current,
     });
     if (written.draftId) draftIdRef.current = written.draftId;
     // What is on screen now came out of the stored draft, which decides what a
@@ -770,7 +778,11 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
       handleDiscardedElsewhere();
       return;
     }
-    const { ok, localSeq } = saveApplicationDraft(slug, formData, { lastStep: currentStep });
+    const { ok, localSeq, draftId } = saveApplicationDraft(slug, formData, {
+      lastStep: currentStep,
+      draftId: draftIdRef.current,
+    });
+    if (draftId) draftIdRef.current = draftId;
     if (ok) {
       saveDraftToServer({ formData, stepIndex: currentStep, localSeq });
       showSuccess("Progress saved.");
@@ -791,13 +803,13 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
    */
   const submittedDraftIdentity = useCallback(() => ({
     applySlug: slug,
-    // This tab's own record, not a fresh read: the point is to name the application
-    // *this* submission was made from, and shared storage may already have moved on to
-    // another tab's. Null when this tab never took on a stored draft, which the close
-    // treats as "only act if storage holds no draft either".
-    applyDraftId: draftIdRef.current
-      || readApplicationDraft(slug)?.meta?.draftId
-      || null,
+    // This tab's own record, and *only* that. Falling back to a read of storage would
+    // be the same mistake in a quieter place: if this tab's writes failed on quota
+    // while another tab stored a draft for the same page, the read would hand this
+    // submission the other tab's name and let it close their unsent work. Null when
+    // this tab never took on a stored draft, which the close treats as "act only if
+    // storage holds no draft either".
+    applyDraftId: draftIdRef.current || null,
   }), [slug]);
 
   const handleFinalSubmit = async () => {

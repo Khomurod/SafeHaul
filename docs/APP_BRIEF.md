@@ -351,6 +351,17 @@ starting over entirely — can move it before this tab queues its submission, st
 the entry with an application it never submitted. The name is captured from what the
 *submitting tab* was working on rather than read back later, for the same reason.
 
+The name is **owned by the writer, not by the slot**. Two tabs can each open the apply
+page before either has saved, and if the second one's first write inherited the name it
+found in shared storage, one name would cover two different applications — and a
+submission holding it would later accept the wrong draft as its own. So a write says
+which application it believes it is writing: a name it already holds is kept, no name
+means this write is starting one and gets a fresh name, and a write that only annotates
+an existing draft — recording a confirmed sync — makes no claim and leaves the name
+alone. For the same reason the submitting tab never falls back to reading the name out
+of storage: a tab whose own writes failed on quota would otherwise stamp its submission
+with whatever another tab had stored.
+
 An empty slot is not somebody else's work: when no draft is stored the mark is still
 written, because other tabs may hold those answers in memory. A draft written before
 drafts had names cannot be proved either way, so it is left alone.

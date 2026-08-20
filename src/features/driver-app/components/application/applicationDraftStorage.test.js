@@ -63,6 +63,35 @@ describe('applicationDraftStorage', () => {
             expect(afterStartOver.draftId).not.toBe(first.draftId);
         });
 
+        it('mints its own name rather than inheriting the slot\'s', () => {
+            // Two tabs open the same apply page before either has saved. The second
+            // one's first write must not adopt the first's name, or one identity would
+            // cover two different applications — and an offline submission holding that
+            // name would later accept the wrong draft as the one it submitted.
+            const other = saveApplicationDraft(SLUG, { firstName: 'From another tab' });
+
+            const mine = saveApplicationDraft(SLUG, { firstName: 'Mine' }, { draftId: null });
+
+            expect(mine.draftId).not.toBe(other.draftId);
+            expect(readApplicationDraft(SLUG).meta.draftId).toBe(mine.draftId);
+        });
+
+        it('keeps the name a writer says it owns', () => {
+            saveApplicationDraft(SLUG, { firstName: 'Ada' });
+
+            const again = saveApplicationDraft(SLUG, { firstName: 'Ada Marie' }, { draftId: 'mine-1' });
+
+            expect(again.draftId).toBe('mine-1');
+        });
+
+        it('leaves the name alone when a write makes no claim', () => {
+            // Recording a confirmed sync annotates the draft rather than starting one.
+            const first = saveApplicationDraft(SLUG, { firstName: 'Ada' });
+            markDraftSynced(SLUG, readApplicationDraft(SLUG).meta.localSeq);
+
+            expect(readApplicationDraft(SLUG).meta.draftId).toBe(first.draftId);
+        });
+
         it('reports no name for a draft written before drafts had one', () => {
             localStorage.setItem(KEY, JSON.stringify({
                 v: 1, lastStep: 2, meta: { localSeq: 3, syncedSeq: 3, savedAt: null }, data: {},
