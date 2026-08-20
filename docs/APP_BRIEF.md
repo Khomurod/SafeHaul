@@ -295,7 +295,9 @@ tab may have missed.
 Start Over clears the local copy *before* writing the mark, and that order is the safe
 one, and it clears only the application it discarded: deleting the server draft is a
 round trip, and another tab can write a different application into that one shared slot
-while it runs. The resume token is treated the same way — dropped only if it is still the
+while it runs. A tab that never stored a draft of its own — its writes refused on a full
+quota — has no name to compare, and that is not a licence to clear somebody else's: an
+empty or unnamed slot it will clear, a named one it will not. The resume token is treated the same way — dropped only if it is still the
 token that Start Over just retired, because a save from another tab in that window is
 issued a token of its own. Clearing frees the space the mark needs; a mark written first can fail on a full
 quota, and by then the shared resume token is gone too — so another tab would see

@@ -1550,6 +1550,49 @@ describe('an application discarded in another tab', () => {
     expect(localStorage.getItem('draft_acme')).toContain('draft-theirs');
   });
 
+  it('keeps a named slot when it started over without a local draft of its own', async () => {
+    // Reachable when this tab's own local writes are refused — a full quota — so it
+    // reaches the resume prompt having stored nothing and holding no name. Having none
+    // is not a licence to clear somebody else's, which is what the arm this pins did.
+    findResumableSpy.mockResolvedValue({
+      data: {
+        resumable: true,
+        resumeToken: 'resume-token-1',
+        startedAt: '2026-08-14T09:00:00Z',
+        lastSemanticStep: 'license',
+      },
+    });
+
+    const realSetItem = window.localStorage.setItem.bind(window.localStorage);
+    let refuseDraftWrites = true;
+    const setItem = vi.spyOn(window.localStorage, 'setItem').mockImplementation((key, value) => {
+      if (refuseDraftWrites && key === 'draft_acme') throw new Error('QuotaExceededError');
+      realSetItem(key, value);
+    });
+    // The other tab's application lands while the server call is in flight.
+    startNewSpy.mockImplementation(async () => {
+      refuseDraftWrites = false;
+      realSetItem('draft_acme', JSON.stringify({
+        v: 1,
+        lastStep: 0,
+        meta: { localSeq: 1, syncedSeq: 0, savedAt: null, draftId: 'draft-theirs' },
+        data: { firstName: 'Someone else' },
+      }));
+      return { data: { discarded: true } };
+    });
+
+    renderHandler();
+    await chooseManualIntake();
+    fireEvent.click(screen.getByText('probe-next'));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Start a new application' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Delete it and start over' }));
+
+    await waitFor(() => expect(showInfo).toHaveBeenCalledWith('Starting a new application.'));
+    expect(localStorage.getItem('draft_acme')).toContain('draft-theirs');
+    setItem.mockRestore();
+  });
+
   it('does not name the answers it keeps after the ended application', async () => {
     // The kept answers are becoming a new application — the toast says so — so they
     // must not be written under the name of the one that just ended, or a queued

@@ -769,8 +769,14 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     // Scoped to what this tab was working on, because `startOver` awaited the server:
     // another tab can have written a different application into that slot in the
     // meantime, and that draft is unsent work.
+    // An empty or unnamed slot is nobody else's work — an unnamed draft is one written
+    // before drafts were named, and it is almost certainly the copy just discarded. A
+    // *named* one is removed only when it is the name this tab was working on: having no
+    // name of its own is not a licence to clear somebody's, which is the case a Start
+    // Over chosen from a server-only prompt produces, where this tab never wrote a local
+    // draft at all.
     const inSlot = readApplicationDraft(slug)?.meta?.draftId || null;
-    if (!inSlot || !draftIdRef.current || inSlot === draftIdRef.current) {
+    if (!inSlot || inSlot === draftIdRef.current) {
       clearApplicationDraft(slug);
     }
     // Adopted as this tab's own mark in the same breath, which is what keeps this tab
