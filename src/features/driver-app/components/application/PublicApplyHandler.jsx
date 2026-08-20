@@ -690,7 +690,15 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     if (!slug || sandbox) return;
     discardMarkRef.current = writeDiscardMark(slug) ?? discardMarkRef.current;
     clearResumeToken(slug);
-  }, [slug, sandbox]);
+    // This tab's own save queue goes too, and adopting the mark above is exactly why
+    // it has to be said explicitly: `hasBeenDiscarded` stays false here, so a payload
+    // already waiting behind an in-flight save would still be drained — and, with the
+    // token now cleared, sent token-less, which the server accepts as a first save.
+    // The result would be a fresh unfinished draft for somebody who has just
+    // submitted. The request already on the wire is refused server-side, because it
+    // carries the token of the draft submission deleted.
+    forgetDraftOwnership();
+  }, [slug, sandbox, forgetDraftOwnership]);
 
   const handleStartOver = useCallback(async () => {
     if (!(await startOver())) return;

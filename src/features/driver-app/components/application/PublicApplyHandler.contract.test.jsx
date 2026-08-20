@@ -1635,6 +1635,49 @@ describe('an application discarded in another tab', () => {
     expect(stored === null || !stored.includes('FROM-SERVER')).toBe(true);
   });
 
+  it('drops its own queued save when the application is submitted', async () => {
+    // Submission deletes the draft server-side, so anything still queued in this tab
+    // must not be sent. Writing the discard mark is not enough on its own: this tab
+    // *adopts* that mark, so its own staleness check stays false, and the queued
+    // payload would go out token-less — which the server accepts as a first save,
+    // creating a fresh unfinished draft for somebody who has just applied.
+    localStorage.setItem('draft_acme', JSON.stringify({
+      firstName: 'Ada',
+      lastName: 'Driver',
+      email: 'ada@example.com',
+      phone: '5555551234',
+      ssn: '123-45-6789',
+      'cdl-front': { name: 'f.pdf', url: 'https://example.com/f.pdf' },
+      'cdl-back': { name: 'f.pdf', url: 'https://example.com/f.pdf' },
+      'medical-card-upload': { name: 'f.pdf', url: 'https://example.com/f.pdf' },
+      signature: 'data:image/png;base64,AAAA',
+      'final-certification': 'agreed',
+    }));
+
+    // One autosave in flight, and another queued behind it.
+    let releaseSave;
+    saveProgressSpy.mockImplementation(() => new Promise((resolve) => {
+      releaseSave = () => resolve({ data: { saved: true, applicantKey: 'key-1', resumeToken: 'token-1' } });
+    }));
+
+    renderHandler();
+    await chooseManualIntake();
+    // Two forward steps: the first save goes out and stays open, the second queues
+    // behind it. No answer is edited, so the submission itself stays valid.
+    fireEvent.click(screen.getByText('probe-next'));
+    await waitFor(() => expect(saveProgressSpy).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByText('probe-next'));
+
+    // Submit, then let the in-flight save land.
+    fireEvent.click(screen.getByText('probe-submit'));
+    await waitFor(() => expect(screen.getByText('Application Submitted!')).toBeInTheDocument());
+    releaseSave();
+
+    // The queued payload was never sent.
+    await waitFor(() => expect(screen.getByText('Application Submitted!')).toBeInTheDocument());
+    expect(saveProgressSpy).toHaveBeenCalledTimes(1);
+  });
+
   it('leaves a submitted application completely alone', async () => {
     // The one place a late signal must do nothing: the success screen, the
     // confirmation number and the documents checklist are the only things in this

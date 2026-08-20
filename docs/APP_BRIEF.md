@@ -300,10 +300,14 @@ submitted application is exempt outright — a late signal must never take away 
 success screen, a confirmation number or the documents checklist.
 
 **Submission closes the draft's life the same way.** The server discards the draft on
-submission, so the client writes the same mark and drops the resume token. Without
-that, a second tab's autosave would recreate a draft for an application that had
-already been submitted, and the applicant would reappear in the recruiter's
-"started, incomplete" list after successfully applying.
+submission, so the client writes the same mark, drops the resume token **and abandons
+its own queued saves**. All three are needed: writing the mark tells other tabs, but
+the submitting tab *adopts* that mark, so its own staleness check stays false and a
+payload already queued behind an in-flight save would still go out — token-less, which
+the server accepts as a first save. Without this a second tab's autosave, or this
+tab's own queue, would recreate a draft for an application that had already been
+submitted, and the applicant would reappear in the recruiter's "started, incomplete"
+list after successfully applying.
 
 **The resume lookup runs before the first server save.** A save racing it loses
 the very draft the feature protects: it overwrites the saved step with page one
@@ -333,14 +337,17 @@ same identity, because the identity facts let a stranger create their own draft,
 inherit the victim's identity key, and use the token minted for it. So identity
 knowledge alone is not a delete primitive.
 
-**Start Over is a different situation and is judged differently.** It resolves a live
-draft of the identity *by token* before it deletes anything, so ownership is already
-proven and it retires that person's sibling drafts too — which is what start over has
-always meant: an applicant who retyped their email has a draft under each spelling,
-and discarding one while the next visit offers another is the failure the prompt
-exists to prevent. That sweep silently became a no-op when per-draft token matching
-was introduced, because the call passed no token at all; it is now explicit, named
-`ownershipProven`, and the save path must never set it. The existence check, the authorization decision and the write happen in **one
+**Start Over discards the application the applicant was offered, not every
+application their identity has**, and that boundary is a security property rather
+than a simplification. Sweeping the identity looks reasonable — start over resolved a
+live draft of it by token before deleting anything — but knowing a last name, a date
+of birth and an SSN is enough to *create* a draft that inherits the victim's identity
+HMAC and to be handed a valid token for it. "I own a draft with this identity" is
+therefore true of a stranger, and a sweep authorized by it deletes the real
+applicant's work. So a draft is retired only by a caller holding that draft's own
+token. A sibling — which exists because some other browser created one without a
+token — is left to its own start over, to being offered on a later visit, or to the
+30-day TTL. The existence check, the authorization decision and the write happen in **one
 transaction**: a standalone read followed by a later write leaves a window in which
 two first saves each mint a token and overwrite each other, or a save lands after
 Start Over and resurrects the application the applicant just discarded.
@@ -368,7 +375,10 @@ name, date of birth and SSN are in it — and let it overwrite whatever replaced
 draft it was written against. Legitimate saves never trip it: ordinary autosave
 presents the token of the document it is writing, an applicant correcting their email
 presents a token whose draft is alive until that same save retires it, and a first
-save presents none. Audited as `stale_token`, which is ordinary multi-tab life and
+save presents none. The resolution steps **fall through** rather than deciding, which
+is what keeps that promise when someone corrects a contact field and an identity field
+before the same save — both the document id and the identity HMAC change at once, and
+an early answer from either would refuse every save after it. Audited as `stale_token`, which is ordinary multi-tab life and
 deliberately not filed as an attack.
 
 A second, accepted

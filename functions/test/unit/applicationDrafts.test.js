@@ -698,6 +698,31 @@ describe('changing a draft that already exists', () => {
         expect(paths[0]).toContain(keyFor(COMPANY, 'dana.corrected@example.test'));
     });
 
+    it('still accepts the token when the applicant corrected their identity too', async () => {
+        // The case the first version of this rule broke. Correcting a contact field
+        // *and* an identity field before the same save changes the document id and the
+        // identity HMAC together, so neither the target nor the identity query can see
+        // the live draft the token belongs to. Refusing there would refuse every save
+        // after it — silently killing autosave for an applicant who fixed a typo.
+        const first = await saveFirstPage();
+
+        const corrected = await drafts.saveApplicationProgress({
+            companyId: COMPANY,
+            email: 'dana.fixed@example.test',
+            phone: IDENTITY.phone,
+            // A corrected surname: a different identity HMAC from the stored draft's.
+            lastName: 'Alvarez-Nguyen',
+            dob: IDENTITY.dob,
+            ssn: IDENTITY.ssn,
+            resumeToken: first.resumeToken,
+            formData: { firstName: 'Dana', cdlNumber: 'TX55' },
+        }, CONTEXT);
+
+        expect(corrected.saved).toBe(true);
+        expect(mockStore.get(`companies/${COMPANY}/application_drafts/${keyFor(COMPANY, 'dana.fixed@example.test')}`)
+            .formData.cdlNumber).toBe('TX55');
+    });
+
     it('accepts a token-less first save, which is what a discarded tab sends next', async () => {
         // After a discard the client clears the shared token, so the tab's next save
         // presents none. That has to keep working: it is the new application.
@@ -959,34 +984,51 @@ describe('starting over', () => {
         expect([...mockStore.keys()].filter((key) => key.includes('/application_drafts/'))).toHaveLength(0);
     });
 
-    it('retires the sibling drafts the applicant also left behind', async () => {
-        // How siblings actually arise: a second device holds no resume token, so its
-        // save creates a draft under the email *it* was given and nothing supersedes
-        // the first. Two documents, one identity — which is exactly the state
-        // "continue where I left off" cannot resolve, and why start over means all of
-        // them.
-        //
-        // Regression. When per-draft token matching was added to
-        // `supersedeOtherDrafts`, `startNewApplication` was still calling it with no
-        // token at all — and `hashResumeToken(undefined)` can never equal a real
-        // token's hash, so the sibling sweep silently became a no-op. The other test
-        // in this block has only one draft, so nothing caught it.
-        const firstDevice = await saveFirstPage();
+    it('cannot be used to delete a draft the caller cannot prove they own', async () => {
+        // The reason start over does not sweep the identity. Knowing a last name, a
+        // date of birth and an SSN is enough to *create* a draft that inherits the
+        // victim's identity HMAC and to be handed a valid token for it — so "I own a
+        // draft with this identity" is true of a stranger. A sweep authorized by that
+        // would delete the real applicant's work, which is precisely the primitive
+        // the save path's per-draft gate removed.
+        const victim = await saveFirstPage();
+
+        // The attacker's own draft: their contact details, the victim's identity.
+        const attacker = await saveFirstPage({
+            email: 'attacker@example.test',
+            phone: '(214) 555-0199',
+        });
+        expect(attacker.resumeToken).toBeTruthy();
+
+        await drafts.startNewApplication({
+            companyId: COMPANY, resumeToken: attacker.resumeToken,
+        }, CONTEXT);
+
+        // Their own draft is gone, and only their own.
+        expect(mockStore.has(`companies/${COMPANY}/application_drafts/${keyFor(COMPANY, 'attacker@example.test')}`))
+            .toBe(false);
+        const survivor = mockStore.get(`companies/${COMPANY}/application_drafts/${keyFor()}`);
+        expect(survivor).toBeDefined();
+        expect(victim.resumeToken).toBeTruthy();
+    });
+
+    it('discards the application it was offered, leaving a sibling it cannot prove it owns', async () => {
+        // The honest semantic, written down because the comment here used to promise
+        // the opposite. A second device with no token creates a sibling; start over on
+        // one device discards that device's application, and the other draft — whose
+        // token only that other browser holds — survives to be offered later or to
+        // expire with the TTL.
+        await saveFirstPage();
         const secondDevice = await saveFirstPage({ email: 'dana.alvarez@example.test' });
-        expect(secondDevice.resumeToken).toBeTruthy();
+        expect([...mockStore.keys()].filter((key) => key.includes('/application_drafts/'))).toHaveLength(2);
 
-        const before = [...mockStore.keys()].filter((key) => key.includes('/application_drafts/'));
-        expect(before).toHaveLength(2);
-
-        // Discarding from the second device must not leave the first device's draft
-        // behind for the next visit to offer.
         await drafts.startNewApplication({
             companyId: COMPANY, resumeToken: secondDevice.resumeToken,
         }, CONTEXT);
 
-        const after = [...mockStore.keys()].filter((key) => key.includes('/application_drafts/'));
-        expect(after).toEqual([]);
-        expect(firstDevice.resumeToken).toBeTruthy();
+        const remaining = [...mockStore.keys()].filter((key) => key.includes('/application_drafts/'));
+        expect(remaining).toHaveLength(1);
+        expect(remaining[0]).toContain(keyFor());
     });
 
     it('leaves exactly one consistent state, never two live drafts', async () => {

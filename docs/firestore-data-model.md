@@ -195,9 +195,9 @@ the document exists.
 retypes their email derives a second document id, and leaving both would make
 "continue" a coin flip, so a save retires the others — specifically, the ones whose
 own resume token the caller presents, since deleting a draft needs proof of owning
-*that* draft. `startNewApplication` sweeps the identity's siblings outright, because
-it resolved a live draft of that identity by token before deleting anything and so has
-already proven ownership. That collapse is why the resume lookup runs *before* the
+*that* draft. `startNewApplication` deletes only the draft its token resolved
+to: sweeping the identity would let anyone holding the three identity facts create a
+draft of their own, be given a token for it, and delete the real applicant's. That collapse is why the resume lookup runs *before* the
 first save — see
 [`useApplicationResume.js`](../src/features/driver-app/hooks/useApplicationResume.js).
 

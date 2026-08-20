@@ -213,32 +213,43 @@ function mayModifyExistingDraft(doc, { resumeToken, identityKey, email, phone })
  *    save retires it, so the token resolves;
  *  - a genuine first save presents no token at all and never reaches this.
  *
- * Cheapest question first: the document being written, then the identity's own
- * drafts (one indexed query, normally one document), and only when the identity is
- * unknown — a company that hides the SSN, so no HMAC can be derived — the bounded
- * recent-drafts scan. All of it inside the caller's transaction, so the answer and
- * the write it authorizes cannot disagree.
+ * Cheapest question first, and each step **falls through** rather than deciding: the
+ * document being written, then the identity's own drafts (one indexed query, normally
+ * one document), then the bounded recent-drafts scan.
+ *
+ * The fall-through is the part that matters. An applicant who corrects a contact
+ * field *and* an identity field before the same save changes both the document id and
+ * the identity HMAC at once, so neither of the first two questions can see the still
+ * live draft their token belongs to. Returning "stale" there would refuse every
+ * subsequent save and silently kill server autosave and cross-session resume for that
+ * applicant — the opposite of what this rule is for. The scan is bounded, so a very
+ * old draft at a busy company can still fall outside it; that is the same window
+ * `resumeApplicationDraft` already accepts when a browser presents a token without a
+ * key, and it errs towards refusing a write rather than towards accepting a stale one.
+ *
+ * All of it inside the caller's transaction, so the answer and the write it authorizes
+ * cannot disagree.
  */
 async function tokenOpensALiveDraft(transaction, { companyId, target, identityKey, resumeToken }) {
     if (target?.exists && draft.resumeTokenMatches(target.data()?.resumeTokenHash, resumeToken)) {
         return true;
     }
 
+    const matches = (docs) => docs.some(
+        (doc) => draft.resumeTokenMatches(doc.data()?.resumeTokenHash, resumeToken),
+    );
+
     if (identityKey) {
         const siblings = await transaction.get(
             draft.draftsCollection(companyId).where('identityKey', '==', identityKey),
         );
-        return siblings.docs.some(
-            (doc) => draft.resumeTokenMatches(doc.data()?.resumeTokenHash, resumeToken),
-        );
+        if (matches(siblings.docs)) return true;
     }
 
     const recent = await transaction.get(
         draft.draftsCollection(companyId).orderBy('updatedAt', 'desc').limit(50),
     );
-    return recent.docs.some(
-        (doc) => draft.resumeTokenMatches(doc.data()?.resumeTokenHash, resumeToken),
-    );
+    return matches(recent.docs);
 }
 
 /**
@@ -477,7 +488,7 @@ exports.saveApplicationProgress = functions
         // See `supersedeOtherDrafts` for why "knows the identity" is not enough.
         const supersedeToken = text(data?.resumeToken, 128);
         if (identityKey && supersedeToken) {
-            // No `ownershipProven` here, ever. See `supersedeOtherDrafts`.
+            // Per draft, never per identity. See `supersedeOtherDrafts`.
             await supersedeOtherDrafts(companyId, identityKey, applicantKey, {
                 resumeToken: supersedeToken,
             });
@@ -518,34 +529,32 @@ exports.saveApplicationProgress = functions
  * reason. A straggler nobody can prove they own is left to the 30-day TTL, which
  * is a duplicate in a list, not somebody's deleted work.
  *
- * ## `ownershipProven`, and why the save path must never pass it
+ * ## Per draft, never per identity — including for Start Over
  *
- * Start Over is a different situation from a save, and treating them alike broke
- * it. `startNewApplication` has *already* resolved a live draft of this identity by
- * its resume token before it calls this — that is the whole basis on which it was
- * allowed to delete anything — so it may retire the applicant's siblings too, which
- * is what "start over" has always meant and what the App Brief promises.
+ * It is tempting to let `startNewApplication` sweep the identity outright, on the
+ * grounds that it resolved a live draft of that identity by token before deleting
+ * anything. That reasoning does not hold, and trying it reintroduced the exact
+ * primitive this gate exists to remove: knowing a name, a date of birth and an SSN
+ * is enough to *create* a draft that inherits the victim's identity HMAC and to be
+ * handed a valid token for it — after which "I own a draft with this identity" is
+ * true of an attacker, and a sweep authorized by it deletes the victim's work.
  *
- * The save path cannot make that claim. There, the only thing on offer is knowledge
- * of a name, a date of birth and an SSN, and treating that as ownership is precisely
- * the delete primitive this gate exists to remove. So it passes a token and nothing
- * else, and per-draft token matching decides.
+ * So there is no ownership-proven mode. A draft is retired only by a caller holding
+ * that draft's own token, whoever is asking and whatever they are asking for.
  *
- * @param {{ resumeToken?: string, ownershipProven?: boolean }} [proof]
+ * @param {{ resumeToken?: string }} [proof]
  */
 async function supersedeOtherDrafts(companyId, identityKey, keepApplicantKey, proof = {}) {
-    const { resumeToken, ownershipProven = false } = proof;
+    const { resumeToken } = proof;
     try {
         const snapshot = await draft.draftsCollection(companyId)
             .where('identityKey', '==', identityKey)
             .get();
 
         const stale = snapshot.docs.filter((doc) => doc.id !== keepApplicantKey);
-        const owned = ownershipProven
-            ? stale
-            : stale.filter(
-                (doc) => draft.resumeTokenMatches(doc.data()?.resumeTokenHash, resumeToken),
-            );
+        const owned = stale.filter(
+            (doc) => draft.resumeTokenMatches(doc.data()?.resumeTokenHash, resumeToken),
+        );
         await Promise.all(owned.map((doc) => doc.ref.delete()));
     } catch (error) {
         // A tidy-up failure must not fail the save it follows. The match below
@@ -755,8 +764,6 @@ exports.startNewApplication = functions
             throw new functions.https.HttpsError('not-found', 'That saved application could not be found.');
         }
 
-        const identityKey = doc.data()?.identityKey || null;
-
         await db.runTransaction(async (transaction) => {
             // Re-read inside the transaction: a concurrent save could have
             // touched this document between the token check and here, and the
@@ -765,18 +772,23 @@ exports.startNewApplication = functions
             if (fresh.exists) transaction.delete(doc.ref);
         });
 
-        // Any sibling draft for the same person goes too, or "start over" would
-        // leave one behind for the next visit to find.
+        // No sibling sweep, and the reason is worth stating because the comment here
+        // used to promise one.
         //
-        // `ownershipProven`, because `findByToken` above resolved a live draft of
-        // this identity from the presented token. Without it this call passed no
-        // token at all and the per-draft token match could never succeed, so from
-        // the moment that gate was added until now **start over silently stopped
-        // removing siblings** — the applicant discarded one application and the
-        // next visit was offered another.
-        if (identityKey) {
-            await supersedeOtherDrafts(companyId, identityKey, null, { ownershipProven: true });
-        }
+        // The only draft this caller can prove they own is the one just deleted: the
+        // token they presented resolved to it. A sibling exists precisely because
+        // some *other* browser created it without a token, and its own token is the
+        // only proof of owning it. Sweeping the identity instead would mean anyone
+        // who knows a last name, a date of birth and an SSN could create a draft of
+        // their own, be handed a token for it, and use start over to delete the real
+        // applicant's work — see `supersedeOtherDrafts`.
+        //
+        // So start over discards **the application the applicant was offered**, not
+        // every application their identity has. A sibling is left to its own
+        // browser's start over, to the applicant being offered it on a later visit,
+        // or to the 30-day TTL. The draft's `identityKey` is not read here at all any
+        // more, which is the honest shape of that: this callable has no business
+        // reaching anything the token did not name.
 
         await recordMatchAttempt(companyId, 'discarded');
 
