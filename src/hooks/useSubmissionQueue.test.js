@@ -117,7 +117,7 @@ describe('useSubmissionQueue frontend-backend alignment', () => {
       await submitFn(
         { email: 'guest@example.com', lifecycle: { isGuest: true } },
         'co-guest',
-        { id: 'guest-q-2', type: 'guest', applySlug: 'acme' },
+        { id: 'guest-q-2', type: 'guest', applySlug: 'acme', applyApplicantKey: 'k1' },
       );
       return { processed: 1, succeeded: 1, failed: 0 };
     });
@@ -144,7 +144,7 @@ describe('useSubmissionQueue frontend-backend alignment', () => {
       await submitFn(
         { email: 'guest@example.com', lifecycle: { isGuest: true } },
         'co-guest',
-        { id: 'guest-q-3', type: 'guest', applySlug: 'acme' },
+        { id: 'guest-q-3', type: 'guest', applySlug: 'acme', applyApplicantKey: 'k1' },
       ).catch(() => {});
       return { processed: 1, succeeded: 0, failed: 1 };
     });
@@ -168,6 +168,84 @@ describe('useSubmissionQueue frontend-backend alignment', () => {
         { email: 'guest@example.com', lifecycle: { isGuest: true } },
         'co-guest',
         { id: 'guest-q-4', type: 'guest' },
+      );
+      return { processed: 1, succeeded: 1, failed: 0 };
+    });
+
+    const { result } = renderHook(() => useSubmissionQueue());
+    await waitFor(() => expect(queueMocks.initQueue).toHaveBeenCalled());
+    await act(async () => { await result.current.processQueueNow(); });
+
+    expect(localStorage.getItem('draft_acme')).not.toBeNull();
+    expect(localStorage.getItem('apply_discarded_acme')).toBeNull();
+  });
+
+  it('leaves a newer application alone when a late replay lands', async () => {
+    // The entry can outlive the tab that made it. If the applicant went back to the
+    // apply page and started something new before the replay landed, closing on the
+    // slug alone would clear a draft they never sent and tell every open tab that
+    // newer application had been submitted. Destroying unsent work is worse than the
+    // duplicate submission the close exists to prevent.
+    localStorage.setItem('draft_acme', JSON.stringify({ v: 1, data: { firstName: 'Newer' } }));
+    localStorage.setItem('apply_resume_acme', JSON.stringify({ resumeToken: 't-2', applicantKey: 'k2' }));
+
+    queueMocks.processQueue.mockImplementationOnce(async (submitFn) => {
+      await submitFn(
+        { email: 'guest@example.com', lifecycle: { isGuest: true } },
+        'co-guest',
+        { id: 'guest-q-5', type: 'guest', applySlug: 'acme', applyApplicantKey: 'k1' },
+      );
+      return { processed: 1, succeeded: 1, failed: 0 };
+    });
+
+    const { result } = renderHook(() => useSubmissionQueue());
+    await waitFor(() => expect(queueMocks.initQueue).toHaveBeenCalled());
+    await act(async () => { await result.current.processQueueNow(); });
+
+    // The submission still went, and the newer application is untouched.
+    expect(firebaseFunctionMocks.submitGuestApplication).toHaveBeenCalled();
+    expect(localStorage.getItem('draft_acme')).not.toBeNull();
+    expect(localStorage.getItem('apply_resume_acme')).not.toBeNull();
+    expect(localStorage.getItem('apply_discarded_acme')).toBeNull();
+  });
+
+  it('closes an application the server never held, by its write counter', async () => {
+    // Submitted while offline from the first attempt, so no resume token was ever
+    // issued and there is no key to compare. The local write counter still separates
+    // "the same draft" from "the applicant has typed more since".
+    localStorage.setItem('draft_acme', JSON.stringify({
+      v: 1, data: { firstName: 'Ada' }, meta: { localSeq: 4, syncedSeq: 0, savedAt: null },
+    }));
+
+    queueMocks.processQueue.mockImplementationOnce(async (submitFn) => {
+      await submitFn(
+        { email: 'guest@example.com', lifecycle: { isGuest: true } },
+        'co-guest',
+        { id: 'guest-q-6', type: 'guest', applySlug: 'acme', applyDraftSeq: 4 },
+      );
+      return { processed: 1, succeeded: 1, failed: 0 };
+    });
+
+    const { result } = renderHook(() => useSubmissionQueue());
+    await waitFor(() => expect(queueMocks.initQueue).toHaveBeenCalled());
+    await act(async () => { await result.current.processQueueNow(); });
+
+    expect(localStorage.getItem('draft_acme')).toBeNull();
+    expect(localStorage.getItem('apply_discarded_acme')).toMatch(/^submit:/);
+  });
+
+  it('leaves the draft alone when it has moved on since the submission was queued', async () => {
+    // Same application, but the applicant kept typing after the submission was
+    // queued — so what is in storage is not what was submitted.
+    localStorage.setItem('draft_acme', JSON.stringify({
+      v: 1, data: { firstName: 'Ada' }, meta: { localSeq: 7, syncedSeq: 0, savedAt: null },
+    }));
+
+    queueMocks.processQueue.mockImplementationOnce(async (submitFn) => {
+      await submitFn(
+        { email: 'guest@example.com', lifecycle: { isGuest: true } },
+        'co-guest',
+        { id: 'guest-q-7', type: 'guest', applySlug: 'acme', applyDraftSeq: 4 },
       );
       return { processed: 1, succeeded: 1, failed: 0 };
     });

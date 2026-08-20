@@ -14,7 +14,7 @@ import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@lib/firebase';
 import * as Sentry from '@sentry/react';
 import { mergeApplicationDoc } from '@lib/applicationWrite';
-import { closeDraftAfterSubmission } from '../features/driver-app/services/applicationDraftService';
+import { closeDraftAfterDelayedSubmission } from '../features/driver-app/services/applicationDraftService';
 
 import {
     initQueue,
@@ -108,7 +108,17 @@ export function useSubmissionQueue() {
             // This hook already knows guest applications specifically — it is the only
             // thing that knows a queued one has *succeeded*, and it may be a different
             // tab, or a different day, from the one that queued it.
-            if (entry?.applySlug) closeDraftAfterSubmission(entry.applySlug);
+            // Verified, not unconditional: `applySlug` names the apply page, and by
+            // now the applicant may have started a *new* application there. Clearing
+            // that would destroy work they never sent — worse than the duplicate
+            // submission this guards against — so the close happens only when storage
+            // still holds the application this entry was made from.
+            if (entry?.applySlug) {
+                closeDraftAfterDelayedSubmission(entry.applySlug, {
+                    applicantKey: entry.applyApplicantKey || null,
+                    localSeq: Number.isInteger(entry.applyDraftSeq) ? entry.applyDraftSeq : null,
+                });
+            }
 
             Sentry.addBreadcrumb({
                 category: 'queue',

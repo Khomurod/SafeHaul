@@ -51,7 +51,11 @@ import * as Sentry from '@sentry/react';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 import { useApplicationResume } from '../../hooks/useApplicationResume';
 import { ResumeApplicationDialog } from './ResumeApplicationDialog';
-import { clearResumeToken, closeDraftAfterSubmission } from '../../services/applicationDraftService';
+import {
+  clearResumeToken,
+  closeDraftAfterSubmission,
+  readResumeToken,
+} from '../../services/applicationDraftService';
 import { reconcileApplicationDraft } from './reconcileApplicationDraft';
 import { getMissingRequiredUnpersistedFields } from './requiredUnpersistedFields';
 
@@ -762,6 +766,24 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     }
   };
 
+  /**
+   * Which application a queued submission was made from.
+   *
+   * The queue entry can outlive this tab and land days later, by which time the apply
+   * page may hold a different application entirely — so the slug alone is not enough
+   * to decide whose draft to close. The key names the server draft where one was
+   * issued; the local write counter stands in for an application that never reached
+   * the server at all.
+   */
+  const submittedDraftIdentity = useCallback(() => {
+    const state = draftSyncState(slug);
+    return {
+      applySlug: slug,
+      applyApplicantKey: readResumeToken(slug)?.applicantKey || null,
+      applyDraftSeq: Number.isInteger(state?.localSeq) ? state.localSeq : null,
+    };
+  }, [slug]);
+
   const handleFinalSubmit = async () => {
     // Discarded elsewhere, and the most consequential place to miss it. A submission
     // is irreversible: it writes an application and freezes an immutable snapshot, so
@@ -863,8 +885,9 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
             company.id,
             // The apply slug travels with the entry so that, whenever this
             // submission finally lands, the queue can end the draft's local life
-            // exactly as a direct submission does.
-            { type: 'guest', userId: null, applySlug: slug },
+            // exactly as a direct submission does — and the draft's identity with
+            // it, so a late replay closes this application and not a newer one.
+            { type: 'guest', userId: null, ...submittedDraftIdentity() },
           );
           clearApplicationDraft(slug);
           sessionStorage.removeItem('pending_application_recruiter');
@@ -977,8 +1000,9 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
             // local life — write the mark other tabs read, drop the token, clear the
             // copy. Without it a queued submission that lands leaves every other open
             // tab believing the application is still unfinished, free to submit these
-            // answers a second time.
-            applySlug: slug,
+            // answers a second time. The identity comes too, because by then the
+            // applicant may have started a different application on the same page.
+            ...submittedDraftIdentity(),
           });
           console.log(`[PublicApplyHandler] Queued submission ${queueId}`);
         } catch (queueError) {

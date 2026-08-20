@@ -334,6 +334,17 @@ the queue closes the draft out when a replay succeeds — possibly in a differen
 possibly a day later. Without that, every other open tab still believes the application
 is unfinished and is free to submit those same answers a second time.
 
+**A late close has to prove it is closing the right application.** The slug names the
+apply page, not which application was submitted from it, and in the interval the
+applicant may have gone back and started a new one. Clearing *that* would delete work
+they have not sent and announce their new application as submitted — worse than the
+duplicate submission the close exists to prevent. So the entry also carries who it was:
+the draft's applicant key where the server had issued one, and the local write counter
+when it never did, because an application submitted offline from the first attempt has
+no key at all. Both are compared for equality only. When storage holds neither a draft
+nor a token there is nothing newer to protect, and the mark is still written, because
+other tabs may hold those answers in memory.
+
 **The mark says which of the two things happened.** Discarding and submitting delete
 the same three things, and a tab reacting to either sees nothing but a changed value —
 so the value carries a `discard:` or `submit:` prefix, read *only* for wording, never

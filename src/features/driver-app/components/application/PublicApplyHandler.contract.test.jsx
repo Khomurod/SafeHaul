@@ -355,8 +355,18 @@ describe('PublicApplyHandler submission contract', () => {
       'company-1',
       // The slug travels with the entry: when a replay finally lands, the queue is
       // what has to close out that application's local draft, and by then nothing
-      // else remembers which application it was.
-      { type: 'guest', userId: null, applySlug: 'acme' },
+      // else remembers which application it was. The draft's identity goes with it,
+      // so a replay landing after the applicant has started a new application closes
+      // the one that was submitted rather than their newer work.
+      {
+        type: 'guest',
+        userId: null,
+        applySlug: 'acme',
+        // Null here because this draft never reached the server, so no key was ever
+        // issued; the write counter stands in for it.
+        applyApplicantKey: null,
+        applyDraftSeq: 0,
+      },
     );
   });
 

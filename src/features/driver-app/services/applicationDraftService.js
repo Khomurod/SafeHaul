@@ -3,6 +3,7 @@ import { functions } from '@lib/firebase';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 import {
     clearApplicationDraft,
+    draftSyncState,
     writeDiscardMark,
 } from '../components/application/applicationDraftStorage';
 
@@ -134,6 +135,51 @@ export function closeDraftAfterSubmission(slug) {
     const mark = writeDiscardMark(slug, 'submit');
     clearResumeToken(slug);
     return mark;
+}
+
+/**
+ * The same close, for a submission that arrives long after it was made.
+ *
+ * An offline submission can land minutes or days later, and in between the applicant
+ * may have gone back to the apply page and started something new. `applySlug` names
+ * the apply page, not *which* application was submitted from it — so closing on the
+ * slug alone would clear a draft belonging to newer work and tell every open tab that
+ * newer application had been submitted. Deleting work the applicant has not sent is
+ * strictly worse than the duplicate-submission risk this close exists to remove, so
+ * the close only happens when what is in storage now is still the same application.
+ *
+ * Identified by the resume token's applicant key where one existed, because that is
+ * what actually names the draft; by the local write counter when no token was ever
+ * issued, which is the case for an application that never reached the server at all.
+ * Compared for equality only — neither value is read as an order or a time.
+ *
+ * When storage holds neither a token nor a draft there is nothing newer to protect,
+ * and the mark is still worth writing: other tabs may hold these answers in memory.
+ *
+ * @param {string} slug
+ * @param {{ applicantKey?: string|null, localSeq?: number|null }} [submitted] What the
+ *   draft looked like when this submission was queued.
+ * @returns {string|null} the mark written, or `null` when nothing was closed.
+ */
+export function closeDraftAfterDelayedSubmission(slug, submitted = {}) {
+    if (!slug) return null;
+    const { applicantKey = null, localSeq = null } = submitted;
+    const stored = readResumeToken(slug);
+
+    // A token on either side makes this decidable by key, which is the strongest
+    // answer available: it names the server draft the submission was made from.
+    if (stored?.applicantKey || applicantKey) {
+        if (!applicantKey || stored?.applicantKey !== applicantKey) return null;
+        return closeDraftAfterSubmission(slug);
+    }
+
+    // No token was ever issued for this application — it never reached the server.
+    // The local write counter still distinguishes "the same draft" from "the applicant
+    // has typed more since", which is all that is being asked here.
+    const state = draftSyncState(slug);
+    if (state && (!Number.isInteger(localSeq) || state.localSeq !== localSeq)) return null;
+
+    return closeDraftAfterSubmission(slug);
 }
 
 export function clearResumeToken(slug) {
