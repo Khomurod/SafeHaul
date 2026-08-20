@@ -343,6 +343,9 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     if (hasStarted.current) return;
     hasStarted.current = true;
 
+    // Captured before the first await, and compared after: see the local restore below.
+    const loadGeneration = resetGenerationRef.current;
+
     async function loadCompany() {
       if (!sandbox && !slug) {
         setError("Invalid link - no company specified.");
@@ -426,7 +429,12 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
         // eight times past forms that were already filled in, which reads as
         // "nothing was saved".
         const savedDraft = readApplicationDraft(slug);
-        if (savedDraft) {
+        // Discarded while the profile was loading. The mark has already been adopted by
+        // then — the reaction ran with nothing on screen to reset — so every later guard
+        // reads clean, and restoring here would put the discarded answers on screen with
+        // nothing left to notice it. The generation is the only thing that still
+        // remembers, which is why the reconciliation effect uses it too.
+        if (savedDraft && resetGenerationRef.current === loadGeneration) {
           // Stored content on screen, so a discard elsewhere takes it with it, and
           // this tab has taken on that draft — which application it is matters if a
           // submission from here has to be closed out later.
@@ -841,6 +849,12 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
    */
   const submittedDraftIdentity = useCallback(() => ({
     applySlug: slug,
+    // What this page's discard mark said when the submission was queued. A replay
+    // compares it before sending: an application discarded while the entry waited must
+    // not be submitted hours later, and this tab cannot be relied on to cancel the
+    // entry itself — it may be a `queued` screen that a discard deliberately leaves
+    // alone, or closed altogether.
+    applyDiscardMark: discardMarkRef.current,
     // This tab's own record, and *only* that. Falling back to a read of storage would
     // be the same mistake in a quieter place: if this tab's writes failed on quota
     // while another tab stored a draft for the same page, the read would hand this

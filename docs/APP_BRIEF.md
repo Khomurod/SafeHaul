@@ -311,6 +311,13 @@ own work: they stay on screen and simply become the start of a new application. 
 submitted application is exempt outright — a late signal must never take away a
 success screen, a confirmation number or the documents checklist.
 
+**A discard that lands while a tab is still starting up is the narrowest window of
+all.** The reaction runs with nothing on screen to reset, so it adopts the mark and
+every later comparison reads clean — and the load then restores the stored draft, which
+may be the discarded one. The reset counter is what still remembers: the profile load
+captures it before its fetch and skips the restore if it moved, the same mechanism the
+server reconciliation uses.
+
 **The comparison runs at the two moments a missed signal would be unrecoverable.** One
 is submission: it is checked before any validation, because submitting writes an
 application and freezes an immutable snapshot, so a signal the `storage` event never
@@ -337,6 +344,16 @@ the server accepts as a first save. Without this a second tab's autosave, or thi
 tab's own queue, would recreate a draft for an application that had already been
 submitted, and the applicant would reappear in the recruiter's "started, incomplete"
 list after successfully applying.
+
+**A queued submission is also refused when the application was discarded while it
+waited.** The entry records the page's discard mark at the moment it was queued, and a
+replay compares it before sending. Nothing else can be relied on to cancel it: the tab
+that queued it may be showing a *queued* screen, which a discard deliberately leaves
+alone so it cannot wipe a submission in progress, or may be closed altogether. The mark
+does not say which application ended, so an unrelated change also drops the entry —
+accepted, because the alternative is submitting answers the applicant deleted, and
+because a second application queued on the same page while the first was waiting is far
+rarer than either.
 
 An offline submission does the same thing at the moment it actually lands. Those three
 writes belong to a submission *reaching the server*, not to the applicant pressing

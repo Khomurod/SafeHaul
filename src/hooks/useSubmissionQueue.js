@@ -15,6 +15,7 @@ import { db, functions } from '@lib/firebase';
 import * as Sentry from '@sentry/react';
 import { mergeApplicationDoc } from '@lib/applicationWrite';
 import { closeDraftAfterDelayedSubmission } from '../features/driver-app/services/applicationDraftService';
+import { readDiscardMark } from '../features/driver-app/components/application/applicationDraftStorage';
 
 import {
     initQueue,
@@ -85,6 +86,23 @@ export function useSubmissionQueue() {
 
         // Guest submissions → Cloud Function (Admin SDK, bypasses rules)
         if (isGuest) {
+            // Discarded since this was queued, so it must not be sent. A submission
+            // creates an immutable application, and an entry can sit here long after the
+            // tab that made it stopped existing — a `queued` screen that a discard
+            // deliberately leaves alone, or a closed tab — so nothing else is in a
+            // position to cancel it. Returning drops the entry, which is the intent:
+            // there is nothing left to deliver.
+            if (entry?.applySlug && entry?.applyDiscardMark !== undefined
+                && readDiscardMark(entry.applySlug) !== entry.applyDiscardMark) {
+                Sentry.addBreadcrumb({
+                    category: 'queue',
+                    message: 'Queued guest submission dropped: the application was discarded',
+                    data: { companyId },
+                    level: 'info',
+                });
+                return;
+            }
+
             const submitFn = httpsCallable(functions, 'submitGuestApplication');
             await submitFn({
                 companyId: companyId,

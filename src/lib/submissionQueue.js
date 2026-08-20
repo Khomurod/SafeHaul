@@ -86,6 +86,8 @@ async function ensureDb() {
  *   replay that succeeds later can close out that application's local draft
  * @param {string} [options.applyDraftId] - Opaque name of the draft being submitted, so
  *   a late replay can tell it apart from a newer application on the same page
+ * @param {string} [options.applyDiscardMark] - The page's discard mark when this was
+ *   queued, so a replay can refuse to submit an application discarded since
  * @returns {Promise<string>} Queue entry ID
  */
 export async function enqueueSubmission(data, companyId, options = {}) {
@@ -107,6 +109,9 @@ export async function enqueueSubmission(data, companyId, options = {}) {
         // landing after the applicant has started a new one closes out the submitted
         // draft and not their newer work.
         applyDraftId: options.applyDraftId || null,
+        // The page's discard mark at the moment of queueing, so a replay can tell
+        // whether the application was discarded while this entry waited.
+        applyDiscardMark: options.applyDiscardMark || null,
         createdAt: Date.now(),
         attempts: 0,
         lastAttemptAt: null,

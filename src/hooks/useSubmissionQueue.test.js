@@ -186,6 +186,62 @@ describe('useSubmissionQueue frontend-backend alignment', () => {
     expect(localStorage.getItem('apply_discarded_acme')).toBeNull();
   });
 
+  it('drops a queued submission for an application discarded since', async () => {
+    // The applicant submitted offline, then started over — in another tab, or after
+    // closing this one. Nothing is left to cancel the entry, so the replay has to
+    // refuse: sending it would create an immutable application out of answers the
+    // applicant explicitly deleted.
+    localStorage.setItem('apply_discarded_acme', 'discard:after-queueing');
+
+    queueMocks.processQueue.mockImplementationOnce(async (submitFn) => {
+      await submitFn(
+        { email: 'guest@example.com', lifecycle: { isGuest: true } },
+        'co-guest',
+        {
+          id: 'guest-q-9',
+          type: 'guest',
+          applySlug: 'acme',
+          applyDraftId: 'draft-a',
+          applyDiscardMark: null,
+        },
+      );
+      return { processed: 1, succeeded: 1, failed: 0 };
+    });
+
+    const { result } = renderHook(() => useSubmissionQueue());
+    await waitFor(() => expect(queueMocks.initQueue).toHaveBeenCalled());
+    await act(async () => { await result.current.processQueueNow(); });
+
+    expect(firebaseFunctionMocks.submitGuestApplication).not.toHaveBeenCalled();
+  });
+
+  it('still sends when the page has not been discarded since', async () => {
+    // The other half: an unchanged mark — including one that was already set when the
+    // entry was queued — must not stop a legitimate delivery.
+    localStorage.setItem('apply_discarded_acme', 'discard:before-queueing');
+
+    queueMocks.processQueue.mockImplementationOnce(async (submitFn) => {
+      await submitFn(
+        { email: 'guest@example.com', lifecycle: { isGuest: true } },
+        'co-guest',
+        {
+          id: 'guest-q-10',
+          type: 'guest',
+          applySlug: 'acme',
+          applyDraftId: 'draft-a',
+          applyDiscardMark: 'discard:before-queueing',
+        },
+      );
+      return { processed: 1, succeeded: 1, failed: 0 };
+    });
+
+    const { result } = renderHook(() => useSubmissionQueue());
+    await waitFor(() => expect(queueMocks.initQueue).toHaveBeenCalled());
+    await act(async () => { await result.current.processQueueNow(); });
+
+    expect(firebaseFunctionMocks.submitGuestApplication).toHaveBeenCalled();
+  });
+
   it('leaves a newer application alone when a late replay lands', async () => {
     // The entry can outlive the tab that made it. If the applicant went back to the
     // apply page and started something new before the replay landed, closing on the

@@ -125,21 +125,32 @@ vi.mock('@lib/applicationId', () => ({
  */
 const profileOverride = vi.hoisted(() => ({ current: null }));
 
+/**
+ * Lets a test hold the profile fetch open.
+ *
+ * The load effect does its local-draft restore after this await, so holding it is the
+ * only way to reproduce a discard that lands while a tab is still starting up.
+ */
+const profileGate = vi.hoisted(() => ({ current: null }));
+
 vi.mock('../../services/publicProfileService', () => ({
-  fetchPublicProfileBySlug: vi.fn(async () => ({
-    id: 'company-1',
-    companyName: 'Acme Freight',
-    appSlug: 'acme',
-    customQuestions: [],
-    applicationConfig: {
-      cdlUpload: { hidden: false, required: true },
-      medCardUpload: { hidden: false, required: true },
-    },
-    postApplicationTemplates: [
-      { templateId: 'tpl-1', title: 'Direct Deposit', enabled: true },
-    ],
-    ...(profileOverride.current || {}),
-  })),
+  fetchPublicProfileBySlug: vi.fn(async () => {
+    if (profileGate.current) await profileGate.current;
+    return {
+      id: 'company-1',
+      companyName: 'Acme Freight',
+      appSlug: 'acme',
+      customQuestions: [],
+      applicationConfig: {
+        cdlUpload: { hidden: false, required: true },
+        medCardUpload: { hidden: false, required: true },
+      },
+      postApplicationTemplates: [
+        { templateId: 'tpl-1', title: 'Direct Deposit', enabled: true },
+      ],
+      ...(profileOverride.current || {}),
+    };
+  }),
 }));
 
 vi.mock('./postApplyDocsStorage', async (importOriginal) => {
@@ -373,6 +384,9 @@ describe('PublicApplyHandler submission contract', () => {
         // were named, so nothing can prove which application it is and the late close
         // will refuse to touch anything rather than guess. The named case is below.
         applyDraftId: null,
+        // Nothing had been discarded on this page when the entry was queued, and the
+        // replay compares against exactly that.
+        applyDiscardMark: null,
       },
     );
   });
@@ -1591,6 +1605,36 @@ describe('an application discarded in another tab', () => {
     await waitFor(() => expect(showInfo).toHaveBeenCalledWith('Starting a new application.'));
     expect(localStorage.getItem('draft_acme')).toContain('draft-theirs');
     setItem.mockRestore();
+  });
+
+  it('does not restore a draft discarded while the page was still loading', async () => {
+    // The narrowest window in the flow: the mark arrives before the profile does, so the
+    // reaction runs with nothing on screen to reset — and adopts the mark, which makes
+    // every later guard read clean. Restoring afterwards would put the discarded answers
+    // up with nothing left to notice.
+    localStorage.setItem('draft_acme', JSON.stringify({
+      v: 1,
+      lastStep: 3,
+      meta: { localSeq: 4, syncedSeq: 4, savedAt: '2026-08-19T10:00:00.000Z', draftId: 'draft-a' },
+      data: { firstName: 'Ada', phone: '5551234' },
+    }));
+
+    let releaseProfile;
+    profileGate.current = new Promise((resolve) => { releaseProfile = resolve; });
+    renderHandler();
+
+    // Discarded while the profile is still in flight — and the stored copy survives,
+    // which is the case that matters: a Start Over from a tab holding no name of its own
+    // leaves a named slot alone, so the draft is still sitting there to be restored.
+    const mark = 'discard:while-loading';
+    localStorage.setItem(DISCARD_KEY, mark);
+    window.dispatchEvent(new StorageEvent('storage', { key: DISCARD_KEY, newValue: mark }));
+    releaseProfile();
+    profileGate.current = null;
+
+    // The intake chooser, not a wizard holding the discarded answers.
+    await waitFor(() => expect(screen.getByText('Fill Out Manually')).toBeInTheDocument());
+    expect(screen.queryByTestId('current-step')).not.toBeInTheDocument();
   });
 
   it('does not name the answers it keeps after the ended application', async () => {
