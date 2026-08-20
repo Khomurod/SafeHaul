@@ -146,8 +146,10 @@ export function closeDraftAfterSubmission(slug, { draftId = null } = {}) {
         clearResumeToken(slug);
     }
     // Written either way: a third tab may be holding the answers that were just
-    // submitted, and it is the only thing that will ever tell it.
-    return writeDiscardMark(slug, 'submit');
+    // submitted, and it is the only thing that will ever tell it. Unnamed on purpose —
+    // see `writeDiscardMark`: two tabs on one application hold different local draft
+    // names, so a named mark would let the other tab ignore news it has to act on.
+    return writeDiscardMark(slug, { reason: 'submit' });
 }
 
 /**

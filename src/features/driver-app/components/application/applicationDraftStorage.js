@@ -387,20 +387,25 @@ export function markDraftSynced(slug, seq) {
  * `discardMarkReason`.
  *
  * @param {string} slug
- * @param {'discard'|'submit'} [reason='discard'] What ended the draft: Start Over, or
- *   a submission that reached the server. Anything unrecognised is treated as a
- *   discard, which never claims a submission that did not happen.
+ * @param {{ reason?: 'discard'|'submit' }} [about] What ended. Defaults to a discard,
+ *   which never claims a submission that did not happen.
  * @returns {string|null} the mark that was written, for the discarding tab to adopt
  *   as its own so it does not treat its own discard as somebody else's. `null` when
  *   storage refused the write, in which case cross-tab notification degrades to
  *   nothing — the same trade the draft write itself makes.
  */
-export function writeDiscardMark(slug, reason = 'discard') {
+export function writeDiscardMark(slug, { reason = 'discard' } = {}) {
   if (!slug) return null;
-  // The reason is prefixed onto the value, never compared: marks are still only ever
+  // The reason is prefixed onto the value and never compared: marks are still only
   // tested for inequality. It exists so a reacting tab can *say* what happened —
   // telling an applicant their application was discarded when they actually submitted
   // it is misinformation about the one thing they cannot undo.
+  //
+  // Deliberately *not* the draft's name, though that was tried. A local draft's name
+  // identifies one slot generation, not the application: two tabs working on the same
+  // application each mint their own when they first write, so a tab comparing names
+  // would decide a discard was none of its business and go on showing the answers the
+  // applicant just deleted. The browser test for two tabs proved it.
   const mark = `${reason === 'submit' ? 'submit' : 'discard'}:${nextMarkValue()}`;
   try {
     localStorage.setItem(discardKey(slug), mark);
@@ -415,8 +420,8 @@ export function writeDiscardMark(slug, reason = 'discard') {
  * Why the draft's life ended, for wording only.
  *
  * `'submit'` when the application was submitted, `'discard'` for Start Over — and
- * `'discard'` for a mark written before the prefix existed, which is the safer of
- * the two to guess: it never claims a submission that did not happen.
+ * `'discard'` for a mark written before the prefix existed, which is the safer of the
+ * two to guess: it never claims a submission that did not happen.
  */
 export function discardMarkReason(mark) {
   return typeof mark === 'string' && mark.startsWith('submit:') ? 'submit' : 'discard';

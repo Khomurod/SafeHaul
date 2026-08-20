@@ -175,8 +175,8 @@ describe('applicationDraftStorage', () => {
             // inequality. But telling an applicant their application was *discarded*
             // when they had just submitted it is misinformation about the one thing
             // they cannot undo.
-            expect(discardMarkReason(writeDiscardMark(SLUG, 'submit'))).toBe('submit');
-            expect(discardMarkReason(writeDiscardMark(SLUG, 'discard'))).toBe('discard');
+            expect(discardMarkReason(writeDiscardMark(SLUG, { reason: 'submit' }))).toBe('submit');
+            expect(discardMarkReason(writeDiscardMark(SLUG, { reason: 'discard' }))).toBe('discard');
             expect(discardMarkReason(writeDiscardMark(SLUG))).toBe('discard');
 
             // A mark written before the prefix existed, and anything unrecognisable:
@@ -187,9 +187,9 @@ describe('applicationDraftStorage', () => {
 
         it('still writes a unique value once the reason is prefixed', () => {
             const marks = new Set([
-                writeDiscardMark(SLUG, 'submit'),
-                writeDiscardMark(SLUG, 'submit'),
-                writeDiscardMark(SLUG, 'discard'),
+                writeDiscardMark(SLUG, { reason: 'submit' }),
+                writeDiscardMark(SLUG, { reason: 'submit' }),
+                writeDiscardMark(SLUG, { reason: 'discard' }),
             ]);
 
             expect(marks.size).toBe(3);

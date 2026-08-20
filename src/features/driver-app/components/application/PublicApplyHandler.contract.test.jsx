@@ -1476,6 +1476,31 @@ describe('an application discarded in another tab', () => {
     );
   });
 
+  it('does not name the answers it keeps after the ended application', async () => {
+    // The kept answers are becoming a new application — the toast says so — so they
+    // must not be written under the name of the one that just ended, or a queued
+    // submission for it would later delete them.
+    // Typed here, never restored — the keep branch. Its own first write names the
+    // application, and that is the name that must not survive the discard.
+    renderHandler();
+    await chooseManualIntake();
+    fireEvent.click(screen.getByText('probe-edit'));
+    fireEvent.click(screen.getByText('probe-next'));
+    await waitFor(() => expect(localStorage.getItem('draft_acme')).not.toBeNull());
+    const firstName = JSON.parse(localStorage.getItem('draft_acme')).meta.draftId;
+    expect(firstName).toBeTruthy();
+
+    discardInAnotherTab();
+
+    await waitFor(() => expect(showInfo).toHaveBeenCalledWith(
+      'The saved application was discarded in another tab. Your answers here will start a new one.',
+    ));
+    fireEvent.click(screen.getByText('probe-next'));
+
+    await waitFor(() => expect(localStorage.getItem('draft_acme')).not.toBeNull());
+    expect(JSON.parse(localStorage.getItem('draft_acme')).meta.draftId).not.toBe(firstName);
+  });
+
   it('leaves another application in the slot alone when it submits', async () => {
     // Two tabs, two different applications for the same page — reachable exactly
     // because a discard elsewhere lets a tab keep what it typed and start a new one.

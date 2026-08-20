@@ -177,6 +177,9 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
    */
   const discardedElsewhere = useCallback(() => {
     if (!slug || sandbox) return false;
+    // Any change means this application's life ended somewhere. Deliberately not
+    // narrowed by the draft's name: two tabs on the same application hold different
+    // local names, so a name test makes a tab ignore the very discard it must react to.
     return readDiscardMark(slug) !== discardMarkRef.current;
   }, [slug, sandbox]);
 
@@ -224,6 +227,8 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     // Bumped before the exemption, not after it: in-flight work has to abort in this
     // case too. A submitted application must not have a draft written back for it
     // either, which is the other half of the same rule.
+    const mark = readDiscardMark(slug);
+
     resetGenerationRef.current += 1;
 
     if (submissionStatus === 'submitting' || submissionStatus === 'success' || submissionStatus === 'queued') {
@@ -231,12 +236,15 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
       return;
     }
 
-    // Read before adopting, because the value says which of the two things happened
-    // and the applicant is owed the true one.
-    const mark = readDiscardMark(slug);
+    // The reason decides the wording, and the applicant is owed the true one.
     const submitted = discardMarkReason(mark) === 'submit';
     // Adopted first, so nothing below can re-enter this.
     discardMarkRef.current = mark;
+    // Whatever happens to the answers, the application they belonged to is over, so its
+    // name must not carry into the next draft this tab writes — in the branch below
+    // that keeps the answers just as much as in the one that clears them, because there
+    // the code is saying outright that they will start a new application.
+    draftIdRef.current = null;
     // This browser owns nothing now: the next save must ask the resume question
     // again rather than silently creating.
     forgetDraftOwnership();
@@ -250,10 +258,6 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
       // holds this tab's own application, and deleting that would destroy the backup
       // of work the applicant is still typing.
       clearApplicationDraft(slug);
-      // A new application from here on, so it must not inherit the ended one's name —
-      // a queued submission still holding that name would otherwise mistake the next
-      // draft for the one it submitted.
-      draftIdRef.current = null;
       setFormData({});
       setCurrentStep(0);
       setIntakeMode(null);

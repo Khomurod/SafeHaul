@@ -376,10 +376,27 @@ a mark clears the stored copy only when it had restored it: in the other case th
 holds that tab's own application, and deleting it would destroy the backup of work the
 applicant is still typing.
 
-**A name never outlives its application.** Start Over, a submission closing out, and a
-reset after a discard elsewhere all forget it, so the next draft is named afresh. Left
-in place, a queued submission still holding that name would take the applicant's next
-application for the one it submitted and delete it.
+**A name never outlives its application.** Start Over, a submission closing out,
+"apply again" after one, and reacting to a discard elsewhere all forget it — including
+when the reaction *keeps* the answers, because the applicant is then told outright that
+those answers will start a new application. Left in place, a queued submission still
+holding that name would take the applicant's next application for the one it submitted
+and delete it.
+
+**The mark deliberately does *not* say which application ended, and that asymmetry with
+the scoped clear is the point.** Naming it was tried, so that a tab minding a different
+application could ignore the news. It silently restored the original bug, and the
+two-tab browser test caught it: a draft's name identifies one local slot generation, not
+the application, so two tabs working on the same application each mint their own the
+first time they write. A tab comparing names then decides a discard is none of its
+business and goes on showing the answers the applicant just deleted. The name answers
+"is what is in the slot still the draft I submitted from?", which is a question about
+storage; it cannot answer "is this news about my application?".
+
+So every tab acts on any change to the mark. The residual is accepted and bounded: a tab
+minding a genuinely different application on the same page is told that an application
+was submitted or discarded, and keeps the answers it holds unless it had restored
+them.
 
 **The mark says which of the two things happened.** Discarding and submitting delete
 the same three things, and a tab reacting to either sees nothing but a changed value —
