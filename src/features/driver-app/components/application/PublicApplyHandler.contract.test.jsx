@@ -362,10 +362,10 @@ describe('PublicApplyHandler submission contract', () => {
         type: 'guest',
         userId: null,
         applySlug: 'acme',
-        // Null here because this draft never reached the server, so no key was ever
-        // issued; the write counter stands in for it.
-        applyApplicantKey: null,
-        applyDraftSeq: 0,
+        // Null for this fixture, and correctly so: it is a draft written before drafts
+        // were named, so nothing can prove which application it is and the late close
+        // will refuse to touch anything rather than guess. The named case is below.
+        applyDraftId: null,
       },
     );
   });
@@ -1473,6 +1473,41 @@ describe('an application discarded in another tab', () => {
     await waitFor(() => expect(screen.getByText('Fill Out Manually')).toBeInTheDocument());
     expect(showInfo).toHaveBeenCalledWith(
       'That application was submitted in another tab. Starting fresh.',
+    );
+  });
+
+  it('carries the name of the draft it submitted into the offline queue', async () => {
+    // The entry outlives the tab that made it, and by the time a replay lands another
+    // tab's application may occupy this slug. The name is what lets the close tell
+    // them apart, so it has to reach the queue.
+    callableSpy.mockRejectedValue(new Error('offline'));
+    localStorage.setItem('draft_acme', JSON.stringify({
+      v: 1,
+      lastStep: 3,
+      meta: { localSeq: 4, syncedSeq: 4, savedAt: '2026-08-19T10:00:00.000Z', draftId: 'draft-x' },
+      data: {
+        firstName: 'Ada',
+        lastName: 'Driver',
+        email: 'ada@example.com',
+        phone: '5555551234',
+        ssn: '123-45-6789',
+        'cdl-front': { name: 'f.pdf', url: 'https://example.com/f.pdf' },
+        'cdl-back': { name: 'f.pdf', url: 'https://example.com/f.pdf' },
+        'medical-card-upload': { name: 'f.pdf', url: 'https://example.com/f.pdf' },
+        signature: 'data:image/png;base64,AAAA',
+        'final-certification': 'agreed',
+      },
+    }));
+    renderHandler();
+    await screen.findByText('probe-submit');
+
+    fireEvent.click(screen.getByText('probe-submit'));
+
+    await waitFor(() => expect(enqueueSpy).toHaveBeenCalled());
+    expect(enqueueSpy).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({ applySlug: 'acme', applyDraftId: 'draft-x' }),
     );
   });
 

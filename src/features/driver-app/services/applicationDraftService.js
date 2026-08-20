@@ -3,7 +3,7 @@ import { functions } from '@lib/firebase';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 import {
     clearApplicationDraft,
-    draftSyncState,
+    readApplicationDraft,
     writeDiscardMark,
 } from '../components/application/applicationDraftStorage';
 
@@ -148,36 +148,39 @@ export function closeDraftAfterSubmission(slug) {
  * strictly worse than the duplicate-submission risk this close exists to remove, so
  * the close only happens when what is in storage now is still the same application.
  *
- * Identified by the resume token's applicant key where one existed, because that is
- * what actually names the draft; by the local write counter when no token was ever
- * issued, which is the case for an application that never reached the server at all.
- * Compared for equality only — neither value is read as an order or a time.
+ * Identified by the draft's own opaque name, compared for equality only. Not by the
+ * write counter, which restarts from zero on every new draft and so eventually reads
+ * equal to an unrelated later application; and not by the resume token's applicant
+ * key, which lives in shared storage and can already name a draft another tab began by
+ * the time this submission lands.
  *
- * When storage holds neither a token nor a draft there is nothing newer to protect,
- * and the mark is still worth writing: other tabs may hold these answers in memory.
+ * When storage holds no draft at all there is nothing newer to protect, and the mark
+ * is still worth writing: other tabs may hold these answers in memory.
  *
  * @param {string} slug
- * @param {{ applicantKey?: string|null, localSeq?: number|null }} [submitted] What the
- *   draft looked like when this submission was queued.
+ * @param {{ draftId?: string|null }} [submitted] The draft this submission was made
+ *   from, as the submitting tab knew it.
  * @returns {string|null} the mark written, or `null` when nothing was closed.
  */
 export function closeDraftAfterDelayedSubmission(slug, submitted = {}) {
     if (!slug) return null;
-    const { applicantKey = null, localSeq = null } = submitted;
-    const stored = readResumeToken(slug);
+    const { draftId = null } = submitted;
+    const current = readApplicationDraft(slug)?.meta?.draftId || null;
 
-    // A token on either side makes this decidable by key, which is the strongest
-    // answer available: it names the server draft the submission was made from.
-    if (stored?.applicantKey || applicantKey) {
-        if (!applicantKey || stored?.applicantKey !== applicantKey) return null;
-        return closeDraftAfterSubmission(slug);
+    if (draftId) {
+        // Whatever is in that slot has to be the draft this submission was made from.
+        // Anything else — a new application after Start Over, one begun in another tab,
+        // or work started while this submission waited in the queue — is unsent work,
+        // and destroying it is worse than the duplicate submission the close exists to
+        // prevent. An *empty* slot is not somebody else's work, so the mark is still
+        // written there: other tabs may hold these answers in memory.
+        if (current && current !== draftId) return null;
+    } else if (readApplicationDraft(slug)) {
+        // Nothing was named, so nothing can be proved, and there is a draft sitting
+        // there: leave it alone. Reached by entries queued before drafts were named,
+        // and by a browser that refused to store one.
+        return null;
     }
-
-    // No token was ever issued for this application — it never reached the server.
-    // The local write counter still distinguishes "the same draft" from "the applicant
-    // has typed more since", which is all that is being asked here.
-    const state = draftSyncState(slug);
-    if (state && (!Number.isInteger(localSeq) || state.localSeq !== localSeq)) return null;
 
     return closeDraftAfterSubmission(slug);
 }

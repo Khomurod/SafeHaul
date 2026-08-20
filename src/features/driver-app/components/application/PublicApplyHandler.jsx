@@ -51,11 +51,7 @@ import * as Sentry from '@sentry/react';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 import { useApplicationResume } from '../../hooks/useApplicationResume';
 import { ResumeApplicationDialog } from './ResumeApplicationDialog';
-import {
-  clearResumeToken,
-  closeDraftAfterSubmission,
-  readResumeToken,
-} from '../../services/applicationDraftService';
+import { clearResumeToken, closeDraftAfterSubmission } from '../../services/applicationDraftService';
 import { reconcileApplicationDraft } from './reconcileApplicationDraft';
 import { getMissingRequiredUnpersistedFields } from './requiredUnpersistedFields';
 
@@ -162,6 +158,16 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
    * "did anything get discarded while I was waiting?"
    */
   const resetGenerationRef = useRef(0);
+  /**
+   * Which application *this tab* is working on, by the draft's own opaque name.
+   *
+   * Deliberately a ref rather than a read of storage when it is needed. `localStorage`
+   * is shared, so by the time an offline submission finally lands the value there may
+   * belong to an application another tab began — and stamping a queued submission with
+   * somebody else's identity would let it close out their unsent work. Remembered when
+   * this tab writes or restores a draft, which is exactly when it takes one on.
+   */
+  const draftIdRef = useRef(null);
 
   /**
    * Has this application been discarded since this tab loaded it?
@@ -374,6 +380,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
             // discard elsewhere takes it with it. Kept in step so a browser test
             // exercises the behaviour production has, not a weaker one.
             restoredFromDraftRef.current = true;
+            draftIdRef.current = e2eDraft.meta?.draftId || null;
             setFormData((prev) => ({ ...prev, ...e2eDraft.data }));
             if (typeof e2eDraft.lastStep === 'number') {
               setCurrentStep(e2eDraft.lastStep);
@@ -409,8 +416,11 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
         // "nothing was saved".
         const savedDraft = readApplicationDraft(slug);
         if (savedDraft) {
-          // Stored content on screen, so a discard elsewhere takes it with it.
+          // Stored content on screen, so a discard elsewhere takes it with it, and
+          // this tab has taken on that draft — which application it is matters if a
+          // submission from here has to be closed out later.
           restoredFromDraftRef.current = true;
+          draftIdRef.current = savedDraft.meta?.draftId || null;
           setFormData(prev => ({ ...prev, ...savedDraft.data }));
           if (typeof savedDraft.lastStep === 'number') {
             setCurrentStep(savedDraft.lastStep);
@@ -518,7 +528,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
         // Keys only the local copy has count the same way, for the same reason.
         const serverSeq = Number.isInteger(restored.clientSeq) ? restored.clientSeq : null;
         const holdsMoreThanServer = !sameDraftData(resolved.formData, restored.formData);
-        saveApplicationDraft(slug, resolved.formData, holdsMoreThanServer
+        const reconciled = saveApplicationDraft(slug, resolved.formData, holdsMoreThanServer
           // One above the server's position, with the synced position left at it:
           // dirty, so the next navigation or reconnect sends it, while a later
           // genuine server advance is still recognised by `clientSeq !== syncedSeq`.
@@ -532,6 +542,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
             localSeq: serverSeq ?? undefined,
             synced: true,
           });
+        if (reconciled.draftId) draftIdRef.current = reconciled.draftId;
       }
 
       // Restored content, whichever copy won: both the local draft and the server
@@ -611,7 +622,8 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     // The returned sequence identifies exactly this write. It travels with the
     // server save so that, when the save lands, only *this* content is marked
     // synced — see `markDraftSynced`.
-    const { localSeq } = saveApplicationDraft(slug, formData, { lastStep: stepIndex });
+    const { localSeq, draftId } = saveApplicationDraft(slug, formData, { lastStep: stepIndex });
+    if (draftId) draftIdRef.current = draftId;
     return localSeq;
   }, [slug, sandbox, formData]);
 
@@ -671,11 +683,12 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     // `synced: true` rather than a number, because a server draft written before
     // `clientSeq` existed has none to adopt — and it still must not be treated as
     // unsynced local work.
-    saveApplicationDraft(slug, { ...formData, ...restored.formData }, {
+    const written = saveApplicationDraft(slug, { ...formData, ...restored.formData }, {
       lastStep: restored.stepIndex,
       localSeq: Number.isInteger(restored.clientSeq) ? restored.clientSeq : undefined,
       synced: true,
     });
+    if (written.draftId) draftIdRef.current = written.draftId;
     // What is on screen now came out of the stored draft, which decides what a
     // discard elsewhere costs this tab.
     restoredFromDraftRef.current = true;
@@ -771,18 +784,21 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
    *
    * The queue entry can outlive this tab and land days later, by which time the apply
    * page may hold a different application entirely — so the slug alone is not enough
-   * to decide whose draft to close. The key names the server draft where one was
-   * issued; the local write counter stands in for an application that never reached
-   * the server at all.
+   * to decide whose draft to close. The draft's own opaque name answers it, and it has
+   * to be the one this tab was working with: a counter restarts from zero on every new
+   * draft, and the shared resume token can already name another tab's application by
+   * the time the submission lands.
    */
-  const submittedDraftIdentity = useCallback(() => {
-    const state = draftSyncState(slug);
-    return {
-      applySlug: slug,
-      applyApplicantKey: readResumeToken(slug)?.applicantKey || null,
-      applyDraftSeq: Number.isInteger(state?.localSeq) ? state.localSeq : null,
-    };
-  }, [slug]);
+  const submittedDraftIdentity = useCallback(() => ({
+    applySlug: slug,
+    // This tab's own record, not a fresh read: the point is to name the application
+    // *this* submission was made from, and shared storage may already have moved on to
+    // another tab's. Null when this tab never took on a stored draft, which the close
+    // treats as "only act if storage holds no draft either".
+    applyDraftId: draftIdRef.current
+      || readApplicationDraft(slug)?.meta?.draftId
+      || null,
+  }), [slug]);
 
   const handleFinalSubmit = async () => {
     // Discarded elsewhere, and the most consequential place to miss it. A submission

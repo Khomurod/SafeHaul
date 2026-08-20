@@ -115,8 +115,7 @@ export function useSubmissionQueue() {
             // still holds the application this entry was made from.
             if (entry?.applySlug) {
                 closeDraftAfterDelayedSubmission(entry.applySlug, {
-                    applicantKey: entry.applyApplicantKey || null,
-                    localSeq: Number.isInteger(entry.applyDraftSeq) ? entry.applyDraftSeq : null,
+                    draftId: entry.applyDraftId || null,
                 });
             }
 

@@ -38,6 +38,42 @@ describe('applicationDraftStorage', () => {
 
     });
 
+    describe('the draft\'s name', () => {
+        // Identity, not progress. Something holding a draft across a delay — an
+        // offline submission waiting in the queue — has to know whether what is in
+        // storage now is still the application it was made from, and the write
+        // counters cannot answer that: they restart from zero every time a draft is
+        // cleared.
+        it('names a new draft and keeps that name through later writes', () => {
+            const first = saveApplicationDraft(SLUG, { firstName: 'Ada' });
+            expect(first.draftId).toBeTruthy();
+
+            const second = saveApplicationDraft(SLUG, { firstName: 'Ada', lastName: 'Driver' });
+            expect(second.draftId).toBe(first.draftId);
+            expect(readApplicationDraft(SLUG).meta.draftId).toBe(first.draftId);
+        });
+
+        it('names the next application differently, at the same write count', () => {
+            const first = saveApplicationDraft(SLUG, { firstName: 'Ada' });
+            clearApplicationDraft(SLUG);
+            const afterStartOver = saveApplicationDraft(SLUG, { firstName: 'Someone else' });
+
+            // The counter is back where it was; the name is not.
+            expect(readApplicationDraft(SLUG).meta.localSeq).toBe(1);
+            expect(afterStartOver.draftId).not.toBe(first.draftId);
+        });
+
+        it('reports no name for a draft written before drafts had one', () => {
+            localStorage.setItem(KEY, JSON.stringify({
+                v: 1, lastStep: 2, meta: { localSeq: 3, syncedSeq: 3, savedAt: null }, data: {},
+            }));
+
+            // Null rather than invented: a caller cannot prove identity here, and
+            // guessing one would let a stale queue entry clear an unrelated draft.
+            expect(readApplicationDraft(SLUG).meta.draftId).toBeNull();
+        });
+    });
+
     describe('the discard mark', () => {
         // Start Over deletes everything it touches, and a deletion is
         // indistinguishable from "there was never anything here" — so the discard

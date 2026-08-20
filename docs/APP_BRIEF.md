@@ -338,12 +338,22 @@ is unfinished and is free to submit those same answers a second time.
 apply page, not which application was submitted from it, and in the interval the
 applicant may have gone back and started a new one. Clearing *that* would delete work
 they have not sent and announce their new application as submitted — worse than the
-duplicate submission the close exists to prevent. So the entry also carries who it was:
-the draft's applicant key where the server had issued one, and the local write counter
-when it never did, because an application submitted offline from the first attempt has
-no key at all. Both are compared for equality only. When storage holds neither a draft
-nor a token there is nothing newer to protect, and the mark is still written, because
-other tabs may hold those answers in memory.
+duplicate submission the close exists to prevent. So a draft carries an **opaque name**
+of its own, minted when it is created and kept through every later write, and the queue
+entry carries the name of the draft it was made from. The close happens only when
+storage still holds that draft.
+
+Neither of the two obvious shortcuts works, and both were tried. The write counter is
+progress, not identity: it restarts from zero whenever a draft is cleared, so a later
+unrelated application eventually reads equal to the one before it. The resume token's
+applicant key lives in shared storage, so another tab correcting a contact detail — or
+starting over entirely — can move it before this tab queues its submission, stamping
+the entry with an application it never submitted. The name is captured from what the
+*submitting tab* was working on rather than read back later, for the same reason.
+
+An empty slot is not somebody else's work: when no draft is stored the mark is still
+written, because other tabs may hold those answers in memory. A draft written before
+drafts had names cannot be proved either way, so it is left alone.
 
 **The mark says which of the two things happened.** Discarding and submitting delete
 the same three things, and a tab reacting to either sees nothing but a changed value —

@@ -84,10 +84,8 @@ async function ensureDb() {
  * @param {string} [options.userId] - User ID for authenticated submissions
  * @param {string} [options.applySlug] - Apply-page slug for guest submissions, so a
  *   replay that succeeds later can close out that application's local draft
- * @param {string} [options.applyApplicantKey] - Key of the draft being submitted, so a
- *   late replay can tell it apart from a newer application on the same page
- * @param {number} [options.applyDraftSeq] - The local draft's write counter, used for
- *   the same check when no resume token was ever issued
+ * @param {string} [options.applyDraftId] - Opaque name of the draft being submitted, so
+ *   a late replay can tell it apart from a newer application on the same page
  * @returns {Promise<string>} Queue entry ID
  */
 export async function enqueueSubmission(data, companyId, options = {}) {
@@ -105,11 +103,10 @@ export async function enqueueSubmission(data, companyId, options = {}) {
         // by then nothing else remembers which application that was. Absent on
         // entries queued before this field existed, which read as `null`.
         applySlug: options.applySlug || null,
-        // Which application on that page, so a replay landing after the applicant has
-        // started a new one closes out the submitted draft and not their newer work.
-        // The key when the server had issued one, the local write counter otherwise.
-        applyApplicantKey: options.applyApplicantKey || null,
-        applyDraftSeq: Number.isInteger(options.applyDraftSeq) ? options.applyDraftSeq : null,
+        // Which application on that page, by the draft's own opaque name, so a replay
+        // landing after the applicant has started a new one closes out the submitted
+        // draft and not their newer work.
+        applyDraftId: options.applyDraftId || null,
         createdAt: Date.now(),
         attempts: 0,
         lastAttemptAt: null,

@@ -152,6 +152,9 @@ export function readApplicationDraft(slug) {
         localSeq: Number.isInteger(parsed.meta?.localSeq) ? parsed.meta.localSeq : 0,
         syncedSeq: Number.isInteger(parsed.meta?.syncedSeq) ? parsed.meta.syncedSeq : 0,
         savedAt: typeof parsed.meta?.savedAt === 'string' ? parsed.meta.savedAt : null,
+        // Which application this draft *is*, as opposed to how far along it is. See
+        // the write path for why a counter cannot answer that.
+        draftId: typeof parsed.meta?.draftId === 'string' ? parsed.meta.draftId : null,
       },
     };
   }
@@ -177,13 +180,14 @@ export function readApplicationDraft(slug) {
  *   the server's copy, and which must be clean even when the server draft carries
  *   no sequence of its own (one written before `clientSeq` existed). Marking it
  *   dirty instead would make a later genuine server advance lose to it.
- * @returns {{ ok: boolean, localSeq: number|null, dirty: boolean }} `ok: false` on a
+ * @returns {{ ok: boolean, localSeq: number|null, dirty: boolean, draftId: string|null }}
+ *   `ok: false` on a
  *   QuotaExceededError (DL-1) so callers can inform the user instead of
  *   silently swallowing it. `localSeq` is what the caller must hand to the
  *   server save so a successful save can mark exactly this write synced.
  */
 export function saveApplicationDraft(slug, formData, options = {}) {
-  if (!slug) return { ok: false, localSeq: null, dirty: false };
+  if (!slug) return { ok: false, localSeq: null, dirty: false, draftId: null };
 
   const previous = readApplicationDraft(slug);
   const data = stripSensitive(formData);
@@ -243,6 +247,19 @@ export function saveApplicationDraft(slug, formData, options = {}) {
     meta: {
       localSeq,
       syncedSeq,
+      /**
+       * An opaque name for *this* application, minted when the draft is created and
+       * carried unchanged through every later write.
+       *
+       * The counters cannot serve as identity: they restart from zero whenever the
+       * draft is cleared, so a later, unrelated application reaches the same values
+       * as the one before it. Something holding a draft across a delay — an offline
+       * submission waiting in the queue — needs to know whether what is in storage
+       * *now* is still the application it was made from, and a matching count is not
+       * an answer to that question. Compared for equality only, like the discard
+       * mark, and never sent to the server.
+       */
+      draftId: previous?.meta?.draftId || nextMarkValue(),
       // Left alone whenever the answers did not change — a navigation-only write,
       // or recording that the server confirmed this copy — so the stamp keeps
       // naming the last time an answer actually changed.
@@ -257,10 +274,17 @@ export function saveApplicationDraft(slug, formData, options = {}) {
     localStorage.setItem(draftKey(slug), JSON.stringify(envelope));
     // `dirty` lets a caller skip a server round trip that would send content the
     // server already has — while still retrying one that genuinely never landed.
-    return { ok: true, localSeq, dirty: localSeq > syncedSeq };
+    return {
+      ok: true,
+      localSeq,
+      dirty: localSeq > syncedSeq,
+      // Returned so the tab that wrote it can remember which application it is
+      // working on, rather than re-reading storage later and finding another tab's.
+      draftId: envelope.meta.draftId,
+    };
   } catch (draftErr) {
     console.warn('[applicationDraftStorage] Draft save failed (quota or privacy policy):', draftErr);
-    return { ok: false, localSeq: null, dirty: true };
+    return { ok: false, localSeq: null, dirty: true, draftId: null };
   }
 }
 
