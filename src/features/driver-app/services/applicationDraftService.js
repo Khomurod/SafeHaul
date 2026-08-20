@@ -110,12 +110,14 @@ export function writeResumeToken(slug, { resumeToken, applicantKey }) {
 /**
  * Ends the local life of a draft whose application has been submitted.
  *
- * Three writes, and all three are needed. The local copy goes, or a reload would
- * restore the answers of an application that has already been sent. The mark tells
- * every other open tab, which is the only way they learn: the server deleted the
- * draft, and a deletion is indistinguishable from "there was never anything here".
- * The token goes last, because it is now a credential for a document that no longer
- * exists.
+ * Three writes. The local copy goes, or a reload would restore the answers of an
+ * application that has already been sent, and the token with it, because it is now a
+ * credential for a document that no longer exists. The mark tells every other open tab,
+ * which is the only way they learn: the server deleted the draft, and a deletion is
+ * indistinguishable from "there was never anything here".
+ *
+ * The first two are scoped to the application that was submitted — see below — while
+ * the mark is written regardless.
  *
  * The order matches Start Over's, for the same reason: clearing the draft frees the
  * space the mark needs, and a mark that fails to land leaves the other tabs able to
@@ -126,15 +128,26 @@ export function writeResumeToken(slug, { resumeToken, applicantKey }) {
  * holding finally reaches the server — possibly in a different tab, possibly days
  * later.
  *
+ * @param {string} slug
+ * @param {{ draftId?: string|null }} [submitted] The draft this caller was working on.
+ *   Without it nothing can be proved, so an occupied slot is left alone.
  * @returns {string|null} the mark written, so a caller that must not react to its own
  *   write can adopt it. `null` when storage refused it.
  */
-export function closeDraftAfterSubmission(slug) {
+export function closeDraftAfterSubmission(slug, { draftId = null } = {}) {
     if (!slug) return null;
-    clearApplicationDraft(slug);
-    const mark = writeDiscardMark(slug, 'submit');
-    clearResumeToken(slug);
-    return mark;
+    const current = readApplicationDraft(slug)?.meta?.draftId || null;
+    // Clear only work that belongs to the application that was submitted. Two tabs can
+    // be on different applications for the same page — the applicant discarded in one
+    // and kept typing in the other — and the draft sitting in that slot may be the
+    // other tab's unsent work. An unnamed slot, or an empty one, is nobody else's.
+    if (!current || (draftId && current === draftId)) {
+        clearApplicationDraft(slug);
+        clearResumeToken(slug);
+    }
+    // Written either way: a third tab may be holding the answers that were just
+    // submitted, and it is the only thing that will ever tell it.
+    return writeDiscardMark(slug, 'submit');
 }
 
 /**
@@ -182,7 +195,7 @@ export function closeDraftAfterDelayedSubmission(slug, submitted = {}) {
         return null;
     }
 
-    return closeDraftAfterSubmission(slug);
+    return closeDraftAfterSubmission(slug, { draftId });
 }
 
 export function clearResumeToken(slug) {

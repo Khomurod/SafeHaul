@@ -240,13 +240,20 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     // This browser owns nothing now: the next save must ask the resume question
     // again rather than silently creating.
     forgetDraftOwnership();
-    clearApplicationDraft(slug);
     clearResumeToken(slug);
 
     if (restoredFromDraftRef.current) {
       // These answers *are* the discarded application. Keeping them on screen
       // would be showing the applicant the thing they just deleted.
       restoredFromDraftRef.current = false;
+      // The stored copy goes with them, and only here: in the other branch the slot
+      // holds this tab's own application, and deleting that would destroy the backup
+      // of work the applicant is still typing.
+      clearApplicationDraft(slug);
+      // A new application from here on, so it must not inherit the ended one's name —
+      // a queued submission still holding that name would otherwise mistake the next
+      // draft for the one it submitted.
+      draftIdRef.current = null;
       setFormData({});
       setCurrentStep(0);
       setIntakeMode(null);
@@ -721,10 +728,20 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
    * application, and the offline queue owns getting it the rest of the way.
    */
   const finishDraftLifecycle = useCallback(() => {
-    if (!slug || sandbox) return;
-    // The same three writes the offline queue performs when a submission it was
-    // holding finally lands, from one place so the two cannot drift.
-    discardMarkRef.current = closeDraftAfterSubmission(slug) ?? discardMarkRef.current;
+    if (!slug) return;
+    if (sandbox) {
+      // A sandbox application is a disposable demo: nothing to tell other tabs, no
+      // token to drop, and no other application can be sharing the slot.
+      clearApplicationDraft(slug);
+      return;
+    }
+    // The same writes the offline queue performs when a submission it was holding
+    // finally lands, from one place so the two cannot drift — scoped, as there, to the
+    // application this tab actually submitted.
+    discardMarkRef.current = closeDraftAfterSubmission(slug, { draftId: draftIdRef.current })
+      ?? discardMarkRef.current;
+    // This application is finished, so its name must not carry into the next one.
+    draftIdRef.current = null;
     // This tab's own save queue goes too, and adopting the mark above is exactly why
     // it has to be said explicitly: `hasBeenDiscarded` stays false here, so a payload
     // already waiting behind an in-flight save would still be drained — and, with the
@@ -750,6 +767,10 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     // application it is about to begin.
     discardMarkRef.current = writeDiscardMark(slug) ?? discardMarkRef.current;
     restoredFromDraftRef.current = false;
+    // The discarded application's name goes too. Keeping it would name the *new*
+    // application after the one just deleted, and anything still holding that name —
+    // a queued submission, most of all — would act on the wrong draft.
+    draftIdRef.current = null;
     showInfo('Starting a new application.');
   }, [startOver, slug, showInfo]);
 
@@ -941,7 +962,9 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
         slug,
         docs: {},
       });
-      clearApplicationDraft(slug);
+      // `finishDraftLifecycle` owns the clear as well as the mark and the token: it
+      // clears the draft *this* application was written from, and leaves another
+      // tab's application alone if that is what occupies the slot.
       finishDraftLifecycle();
       sessionStorage.removeItem('pending_application_recruiter');
       setSubmissionStatus('success');
@@ -1063,7 +1086,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
             }
           }
 
-          clearApplicationDraft(slug);
+          // Scoped clear, mark and token together — see `finishDraftLifecycle`.
           finishDraftLifecycle();
           sessionStorage.removeItem('pending_application_recruiter');
 
@@ -1164,6 +1187,10 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     setPostSubmitDocs({});
     setFormData({});
     setCurrentStep(0);
+    // A genuinely new application. `finishDraftLifecycle` has already forgotten the
+    // submitted one's name; this is here so the invariant holds from either direction,
+    // including a queued submission that has not landed yet.
+    draftIdRef.current = null;
   }, [company?.id]);
 
   const handleOpenPostApplicationTemplate = async (template) => {

@@ -1476,6 +1476,77 @@ describe('an application discarded in another tab', () => {
     );
   });
 
+  it('leaves another application in the slot alone when it submits', async () => {
+    // Two tabs, two different applications for the same page — reachable exactly
+    // because a discard elsewhere lets a tab keep what it typed and start a new one.
+    // Submitting here must not delete the other tab's unsent backup.
+    const named = (draftId, firstName) => JSON.stringify({
+      v: 1,
+      lastStep: 3,
+      meta: { localSeq: 4, syncedSeq: 4, savedAt: '2026-08-19T10:00:00.000Z', draftId },
+      data: {
+        firstName,
+        lastName: 'Driver',
+        email: 'ada@example.com',
+        phone: '5555551234',
+        ssn: '123-45-6789',
+        'cdl-front': { name: 'f.pdf', url: 'https://example.com/f.pdf' },
+        'cdl-back': { name: 'f.pdf', url: 'https://example.com/f.pdf' },
+        'medical-card-upload': { name: 'f.pdf', url: 'https://example.com/f.pdf' },
+        signature: 'data:image/png;base64,AAAA',
+        'final-certification': 'agreed',
+      },
+    });
+    localStorage.setItem('draft_acme', named('draft-a', 'Ada'));
+    renderHandler();
+    await screen.findByText('probe-submit');
+
+    // The other tab writes its own application over the slot.
+    localStorage.setItem('draft_acme', named('draft-b', 'Someone else'));
+
+    fireEvent.click(screen.getByText('probe-submit'));
+    await screen.findByText('Application Submitted!');
+
+    // Their work is still there, and they are still told what happened.
+    expect(localStorage.getItem('draft_acme')).toContain('draft-b');
+    expect(localStorage.getItem(DISCARD_KEY)).toMatch(/^submit:/);
+  });
+
+  it('does not name the next application after the one just discarded', async () => {
+    // Start Over ends an application, so the next draft must not inherit its name — a
+    // queued submission still holding that name would otherwise take the new draft for
+    // the one it submitted and delete it.
+    findResumableSpy.mockResolvedValue({
+      data: {
+        resumable: true,
+        resumeToken: 'resume-token-1',
+        startedAt: '2026-08-14T09:00:00Z',
+        lastSemanticStep: 'license',
+      },
+    });
+    localStorage.setItem('draft_acme', JSON.stringify({
+      v: 1,
+      lastStep: 1,
+      meta: { localSeq: 2, syncedSeq: 2, savedAt: '2026-08-19T10:00:00.000Z', draftId: 'draft-old' },
+      data: { firstName: 'Ada', lastName: 'Driver', email: 'ada@example.com', phone: '5555551234' },
+    }));
+
+    // A stored `lastStep` opens straight into the wizard — the intake chooser is for
+    // somebody who has not started.
+    renderHandler();
+    await screen.findByText('probe-next');
+    fireEvent.click(screen.getByText('probe-next'));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Start a new application' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Delete it and start over' }));
+    await waitFor(() => expect(localStorage.getItem('draft_acme')).toBeNull());
+
+    fireEvent.click(screen.getByText('probe-next'));
+
+    await waitFor(() => expect(localStorage.getItem('draft_acme')).not.toBeNull());
+    expect(localStorage.getItem('draft_acme')).not.toContain('draft-old');
+  });
+
   it('carries the name of the draft it submitted into the offline queue', async () => {
     // The entry outlives the tab that made it, and by the time a replay lands another
     // tab's application may occupy this slug. The name is what lets the close tell

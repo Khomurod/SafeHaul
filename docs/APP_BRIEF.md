@@ -366,6 +366,21 @@ An empty slot is not somebody else's work: when no draft is stored the mark is s
 written, because other tabs may hold those answers in memory. A draft written before
 drafts had names cannot be proved either way, so it is left alone.
 
+**A direct submission is scoped the same way, and for the same reason.** Two tabs can
+hold two different applications for one page — that is exactly what the discard rule
+above produces when one tab keeps what the applicant typed there — so a submission
+clears the draft *it* was written from and leaves another application in that slot
+alone. The mark is still written either way, because a third tab may be holding the
+answers that were just submitted and nothing else will ever tell it. A tab reacting to
+a mark clears the stored copy only when it had restored it: in the other case the slot
+holds that tab's own application, and deleting it would destroy the backup of work the
+applicant is still typing.
+
+**A name never outlives its application.** Start Over, a submission closing out, and a
+reset after a discard elsewhere all forget it, so the next draft is named afresh. Left
+in place, a queued submission still holding that name would take the applicant's next
+application for the one it submitted and delete it.
+
 **The mark says which of the two things happened.** Discarding and submitting delete
 the same three things, and a tab reacting to either sees nothing but a changed value —
 so the value carries a `discard:` or `submit:` prefix, read *only* for wording, never
