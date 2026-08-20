@@ -183,6 +183,14 @@ export function useApplicationResume({
         });
         if (!found?.resumable) return 'proceed';
 
+        // Discarded while the lookup was open. Installing a prompt now would offer a
+        // draft that no longer exists, and both answers to it fail: Continue and
+        // Start Over each throw against the deleted document, leaving the gate shut
+        // and this tab's autosave wedged for good. The reset that ran during the
+        // lookup could not settle a gate that did not exist yet, so the check has to
+        // happen here.
+        if (discardedRef.current?.()) return 'discard';
+
         const gate = {};
         gate.promise = new Promise((resolve) => { gate.resolve = resolve; });
         gateRef.current = gate;
@@ -224,6 +232,14 @@ export function useApplicationResume({
             // because company id plus email plus phone derive the document id and
             // knowing them used to be enough to overwrite somebody's application.
             resumeToken: stored?.resumeToken || null,
+            // The key this browser believes its token belongs to, so the server can
+            // resolve it with one read instead of a bounded scan. A hint, not a
+            // claim: the server still verifies the token hash on whatever document
+            // that key names, so naming somebody else's proves nothing. It matters
+            // when an applicant corrects a contact field *and* an identity field
+            // before the same save — then neither the new document id nor the new
+            // identity HMAC can find the draft the token actually opens.
+            resumeApplicantKey: stored?.applicantKey || null,
             // The local write counter for exactly this content. The server stores
             // it and a later resume hands it back, which is how the browser tells
             // "the server holds my copy" from "another device moved on" — without

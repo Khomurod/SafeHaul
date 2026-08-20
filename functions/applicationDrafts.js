@@ -230,7 +230,9 @@ function mayModifyExistingDraft(doc, { resumeToken, identityKey, email, phone })
  * All of it inside the caller's transaction, so the answer and the write it authorizes
  * cannot disagree.
  */
-async function tokenOpensALiveDraft(transaction, { companyId, target, identityKey, resumeToken }) {
+async function tokenOpensALiveDraft(transaction, {
+    companyId, target, identityKey, resumeToken, claimedApplicantKey,
+}) {
     if (target?.exists && draft.resumeTokenMatches(target.data()?.resumeTokenHash, resumeToken)) {
         return true;
     }
@@ -238,6 +240,19 @@ async function tokenOpensALiveDraft(transaction, { companyId, target, identityKe
     const matches = (docs) => docs.some(
         (doc) => draft.resumeTokenMatches(doc.data()?.resumeTokenHash, resumeToken),
     );
+
+    // The browser tells us which key it thinks its token belongs to. A hint, never a
+    // claim: the token hash on that document still has to match, so naming somebody
+    // else's draft proves nothing and gains nothing. What it buys is one read instead
+    // of a scan — and correctness for the case the scan can miss, where an applicant
+    // corrected a contact field and an identity field at once and the owned draft is
+    // old enough to sit outside the recent window.
+    if (claimedApplicantKey && claimedApplicantKey !== target?.id) {
+        const claimed = await transaction.get(
+            draft.draftsCollection(companyId).doc(claimedApplicantKey),
+        );
+        if (claimed.exists && matches([claimed])) return true;
+    }
 
     if (identityKey) {
         const siblings = await transaction.get(
@@ -369,7 +384,11 @@ exports.saveApplicationProgress = functions
             // own name, date of birth and SSN are in it, so it authorizes fine and
             // overwrites whatever replaced the draft it was written against.
             if (presentedToken && !(await tokenOpensALiveDraft(transaction, {
-                companyId, target: existing, identityKey, resumeToken: presentedToken,
+                companyId,
+                target: existing,
+                identityKey,
+                resumeToken: presentedToken,
+                claimedApplicantKey: applicantKeyOf(data?.resumeApplicantKey),
             }))) {
                 return { refused: true, stale: true, token: null };
             }

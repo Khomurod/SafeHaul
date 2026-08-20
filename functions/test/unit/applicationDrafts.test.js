@@ -723,6 +723,72 @@ describe('changing a draft that already exists', () => {
             .formData.cdlNumber).toBe('TX55');
     });
 
+    it('resolves the token by the key the browser names, beyond the scan window', async () => {
+        // The residual the bounded scan leaves: at a busy company the owned draft can
+        // be older than the recent window, so an applicant who corrected a contact
+        // field *and* an identity field would be refused for good. The browser already
+        // knows which key its token belongs to, so it says so — and the server still
+        // verifies the hash on that document, which is why naming one proves nothing
+        // on its own.
+        // Enough other drafts to push the owned one outside the scan's 50-document
+        // window. The double returns documents in insertion order, so these have to be
+        // seeded first — which is also why this asserts the *hint*, not the ordering
+        // of a real Firestore query.
+        for (let i = 0; i < 60; i += 1) {
+            mockStore.set(`companies/${COMPANY}/application_drafts/filler${i}`, {
+                companyId: COMPANY,
+                identityKey: `other-identity-${i}`,
+                resumeTokenHash: `hash-${i}`,
+                updatedAt: mockServerTimestamp(),
+            });
+        }
+        const first = await saveFirstPage();
+
+        const corrected = await drafts.saveApplicationProgress({
+            companyId: COMPANY,
+            email: 'dana.moved@example.test',
+            phone: '(469) 555-0142',
+            lastName: 'Alvarez-Nguyen',
+            dob: IDENTITY.dob,
+            ssn: IDENTITY.ssn,
+            resumeToken: first.resumeToken,
+            resumeApplicantKey: first.applicantKey,
+            formData: { firstName: 'Dana', cdlNumber: 'TX66' },
+        }, CONTEXT);
+
+        expect(corrected.saved).toBe(true);
+    });
+
+    it('gains nothing from naming a key whose token does not match', async () => {
+        // The hint is verified, not trusted. Pointing at somebody else's live draft
+        // does not make a stale token valid.
+        const victim = await saveFirstPage();
+        await drafts.startNewApplication({
+            companyId: COMPANY, resumeToken: victim.resumeToken,
+        }, CONTEXT);
+        const other = await saveFirstPage({
+            email: 'someone.else@example.test',
+            phone: '(972) 555-0100',
+            lastName: 'Nguyen',
+            dob: '1990-07-04',
+            ssn: '987-65-4321',
+        });
+
+        const attempt = await drafts.saveApplicationProgress({
+            companyId: COMPANY,
+            email: IDENTITY.email,
+            phone: IDENTITY.phone,
+            lastName: IDENTITY.lastName,
+            dob: IDENTITY.dob,
+            ssn: IDENTITY.ssn,
+            resumeToken: victim.resumeToken,
+            resumeApplicantKey: other.applicantKey,
+            formData: { firstName: 'Ghost' },
+        }, CONTEXT);
+
+        expect(attempt.saved).toBe(false);
+    });
+
     it('accepts a token-less first save, which is what a discarded tab sends next', async () => {
         // After a discard the client clears the shared token, so the tab's next save
         // presents none. That has to keep working: it is the new application.

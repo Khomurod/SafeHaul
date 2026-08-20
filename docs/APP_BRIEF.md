@@ -292,12 +292,28 @@ others immediately, and a comparison before every write makes the delayed, queue
 offline-reconnect cases deterministic rather than dependent on an event a suspended
 tab may have missed.
 
+Start Over clears the local copy *before* writing the mark, and that order is the safe
+one. Clearing frees the space the mark needs; a mark written first can fail on a full
+quota, and by then the shared resume token is gone too — so another tab would see
+neither a changed mark nor a token, and its next save would be accepted as a
+token-less first save that recreates the application just deleted.
+
 What a discard costs a tab depends on where its answers came from. If it **restored**
 them, they *are* the discarded application and it returns to a genuinely fresh start.
 If the applicant typed them in that tab and never restored anything, they are their
 own work: they stay on screen and simply become the start of a new application. A
 submitted application is exempt outright — a late signal must never take away a
 success screen, a confirmation number or the documents checklist.
+
+**The comparison runs at the two moments a missed signal would be unrecoverable.** One
+is submission: it is checked before any validation, because submitting writes an
+application and freezes an immutable snapshot, so a signal the `storage` event never
+delivered — a suspended tab, or a discard between the last navigation and the click —
+would otherwise make permanent exactly what the applicant asked to be rid of. The
+other is the return of the resume lookup, before any prompt is offered: a draft
+discarded while that request was open no longer exists, and both answers to a prompt
+for it fail against the deleted document, leaving the gate that holds autosave shut
+for the rest of the visit.
 
 **Submission closes the draft's life the same way.** The server discards the draft on
 submission, so the client writes the same mark, drops the resume token **and abandons
@@ -378,7 +394,12 @@ presents a token whose draft is alive until that same save retires it, and a fir
 save presents none. The resolution steps **fall through** rather than deciding, which
 is what keeps that promise when someone corrects a contact field and an identity field
 before the same save — both the document id and the identity HMAC change at once, and
-an early answer from either would refuse every save after it. Audited as `stale_token`, which is ordinary multi-tab life and
+an early answer from either would refuse every save after it. For that same case the
+browser also names the key it believes its token belongs to, and the server resolves it
+with a single read — a hint and never a claim, because the token hash on the named
+document still has to match, so naming another applicant's draft proves nothing and
+gains nothing. It is what keeps the promise when the owned draft is old enough to sit
+outside the bounded recent scan. Audited as `stale_token`, which is ordinary multi-tab life and
 deliberately not filed as an attack.
 
 A second, accepted

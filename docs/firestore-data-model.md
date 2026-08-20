@@ -205,9 +205,14 @@ first save — see
 means "I am writing the draft I already own"; once that draft has been deleted — Start
 Over in another tab, or submission — the payload predates the deletion and writing it
 recreates a discarded application. Resolution is cheapest-first: the target document,
-then the identity's drafts, then a bounded recent scan when no `identityKey` can be
-derived, all inside the same transaction that authorizes the write. Audited as
-`stale_token`.
+then the key the request names in `resumeApplicantKey`, then the identity's drafts,
+then a bounded recent scan when no `identityKey` can be derived, all inside the same
+transaction that authorizes the write. Each step falls through rather than deciding.
+`resumeApplicantKey` is a hint only — the named document is accepted solely on its own
+`resumeTokenHash` match, so naming another applicant's draft gains nothing — and it
+exists for the save that corrects a contact field and an identity field at once, where
+neither the new document id nor the new `identityKey` finds the draft the token opens.
+Audited as `stale_token`.
 
 A successful submission discards the draft (`discardDraftForApplication`), so a
 completed application never leaves a resumable copy behind.

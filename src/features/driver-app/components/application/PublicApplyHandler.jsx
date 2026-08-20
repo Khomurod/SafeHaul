@@ -702,16 +702,19 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
 
   const handleStartOver = useCallback(async () => {
     if (!(await startOver())) return;
-    // Recorded before anything is cleared, and adopted as this tab's own mark in the
-    // same breath. Other tabs are still holding these answers in memory and would
-    // otherwise write them straight back; adopting it here is what keeps this tab
+    // The local copy goes first, and the order is deliberate. A genuinely new
+    // application must not find the old one on the next reload — but clearing it also
+    // *frees space*, and the mark below is the only thing that tells the other tabs
+    // anything. Writing the mark while a large draft still fills the quota can fail,
+    // and by then `startOver` has already removed the shared resume token: the other
+    // tab would see neither a token nor a changed mark, and its next save would be
+    // accepted as a token-less first save, recreating what was just deleted.
+    clearApplicationDraft(slug);
+    // Adopted as this tab's own mark in the same breath, which is what keeps this tab
     // from mistaking its own discard for somebody else's and resetting the new
     // application it is about to begin.
     discardMarkRef.current = writeDiscardMark(slug) ?? discardMarkRef.current;
     restoredFromDraftRef.current = false;
-    // A genuinely new application: the local copy goes too, or the next reload
-    // would restore what the applicant just asked to be rid of.
-    clearApplicationDraft(slug);
     showInfo('Starting a new application.');
   }, [startOver, slug, showInfo]);
 
@@ -750,6 +753,17 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
   };
 
   const handleFinalSubmit = async () => {
+    // Discarded elsewhere, and the most consequential place to miss it. A submission
+    // is irreversible: it writes an application and freezes an immutable snapshot, so
+    // letting discarded answers through here would make permanent exactly what the
+    // applicant asked to be rid of. The `storage` event may not have arrived — a
+    // suspended tab, or a discard between the last navigation and this click — so the
+    // comparison runs here too, before any of the validation below.
+    if (discardedElsewhere()) {
+      handleDiscardedElsewhere();
+      return;
+    }
+
     /**
      * Required answers a resumed application could not have brought back.
      *

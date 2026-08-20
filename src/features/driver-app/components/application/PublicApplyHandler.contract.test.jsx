@@ -1635,6 +1635,81 @@ describe('an application discarded in another tab', () => {
     expect(stored === null || !stored.includes('FROM-SERVER')).toBe(true);
   });
 
+  it('refuses to submit answers that were discarded elsewhere', async () => {
+    // The most consequential place to miss a discard. A submission writes an
+    // application and freezes an immutable snapshot, so letting the discarded answers
+    // through here would make permanent exactly what the applicant deleted.
+    localStorage.setItem('draft_acme', JSON.stringify({
+      v: 1,
+      lastStep: 3,
+      meta: { localSeq: 4, syncedSeq: 4, savedAt: '2026-08-19T10:00:00.000Z' },
+      data: {
+        firstName: 'Ada',
+        lastName: 'Driver',
+        email: 'ada@example.com',
+        phone: '5555551234',
+        ssn: '123-45-6789',
+        'cdl-front': { name: 'f.pdf', url: 'https://example.com/f.pdf' },
+        'cdl-back': { name: 'f.pdf', url: 'https://example.com/f.pdf' },
+        'medical-card-upload': { name: 'f.pdf', url: 'https://example.com/f.pdf' },
+        signature: 'data:image/png;base64,AAAA',
+        'final-certification': 'agreed',
+      },
+    }));
+    renderHandler();
+    await screen.findByText('probe-submit');
+
+    // Discarded silently — no `storage` event, the case a suspended tab produces.
+    localStorage.removeItem('draft_acme');
+    localStorage.setItem(DISCARD_KEY, 'discard-before-submit');
+
+    fireEvent.click(screen.getByText('probe-submit'));
+
+    await waitFor(() => expect(showInfo).toHaveBeenCalled());
+    expect(callableSpy).not.toHaveBeenCalled();
+    expect(screen.queryByText('Application Submitted!')).not.toBeInTheDocument();
+  });
+
+  it('still records the discard when storage was full until the draft was cleared', async () => {
+    // Ordering, and it is load-bearing. `startOver` has already removed the shared
+    // resume token by this point, so the mark is the only thing left telling the other
+    // tabs anything. Writing it while a large draft still fills the quota fails — and
+    // then the other tab sees neither a token nor a changed mark, and its next save is
+    // accepted as a token-less first save that recreates what was just deleted.
+    findResumableSpy.mockResolvedValue({
+      data: {
+        resumable: true,
+        resumeToken: 'resume-token-1',
+        startedAt: '2026-08-14T09:00:00Z',
+        lastSemanticStep: 'license',
+      },
+    });
+    localStorage.setItem('draft_acme', JSON.stringify({
+      firstName: 'Ada', lastName: 'Driver', email: 'ada@example.com', phone: '5555551234',
+    }));
+
+    // Quota is exhausted for as long as the draft is still there.
+    const realSetItem = window.localStorage.setItem.bind(window.localStorage);
+    const setItem = vi.spyOn(window.localStorage, 'setItem').mockImplementation((key, value) => {
+      if (localStorage.getItem('draft_acme') !== null && key !== 'draft_acme') {
+        throw new Error('QuotaExceededError');
+      }
+      realSetItem(key, value);
+    });
+
+    renderHandler();
+    await chooseManualIntake();
+    fireEvent.click(screen.getByText('probe-next'));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Start a new application' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Delete it and start over' }));
+
+    await waitFor(() => expect(localStorage.getItem('draft_acme')).toBeNull());
+    // The mark landed, because the draft was cleared first.
+    await waitFor(() => expect(localStorage.getItem(DISCARD_KEY)).not.toBeNull());
+    setItem.mockRestore();
+  });
+
   it('drops its own queued save when the application is submitted', async () => {
     // Submission deletes the draft server-side, so anything still queued in this tab
     // must not be sent. Writing the discard mark is not enough on its own: this tab
