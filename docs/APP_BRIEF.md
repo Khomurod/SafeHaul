@@ -503,7 +503,12 @@ composed against something that is gone. The client cannot cover this case on it
 own: the request may already have been on the wire. So a presented token must still
 resolve to a live draft (the target document, then the identity's own drafts, then a
 bounded recent scan when no identity HMAC can be derived), and otherwise the save is
-refused. It is judged **before** ownership and independently of it, because the
+refused. **Resolving includes the token's last two generations**, because a resume lookup
+rotates the token on a live draft *before* the applicant has chosen anything: a second
+device reaching that prompt and closing it again would otherwise end the first device's
+server autosave for good, for an applicant who deleted nothing. The old generations prove
+only that the draft still exists; changing it still requires the current token or the
+full identity, so a harvested old token gains nothing. It is judged **before** ownership and independently of it, because the
 identity bar would happily authorize that same stale payload — the applicant's own
 name, date of birth and SSN are in it — and let it overwrite whatever replaced the
 draft it was written against. Legitimate saves never trip it: ordinary autosave

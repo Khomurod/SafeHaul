@@ -789,6 +789,100 @@ describe('changing a draft that already exists', () => {
         expect(attempt.saved).toBe(false);
     });
 
+    it('keeps accepting the first device after another device merely looked', async () => {
+        // A resume lookup rotates the token on a *live* draft, before the applicant has
+        // chosen anything — so a second device reaching the prompt, and then closing it,
+        // must not make the first device's saves look like writes against a deleted
+        // draft. Getting this wrong ends server autosave for somebody who deleted
+        // nothing, and every save after it.
+        const first = await saveFirstPage();
+
+        const looked = await drafts.findResumableApplication({
+            companyId: COMPANY,
+            lastName: IDENTITY.lastName,
+            dob: IDENTITY.dob,
+            ssn: IDENTITY.ssn,
+            email: IDENTITY.email,
+        }, CONTEXT);
+        expect(looked.resumable).toBe(true);
+        expect(looked.resumeToken).not.toBe(first.resumeToken);
+
+        const stillSaving = await drafts.saveApplicationProgress({
+            companyId: COMPANY,
+            email: IDENTITY.email,
+            phone: IDENTITY.phone,
+            lastName: IDENTITY.lastName,
+            dob: IDENTITY.dob,
+            ssn: IDENTITY.ssn,
+            resumeToken: first.resumeToken,
+            resumeApplicantKey: first.applicantKey,
+            formData: { firstName: 'Dana', cdlNumber: 'TX77' },
+        }, CONTEXT);
+
+        expect(stillSaving.saved).toBe(true);
+        expect(mockStore.get(`companies/${COMPANY}/application_drafts/${first.applicantKey}`)
+            .formData.cdlNumber).toBe('TX77');
+    });
+
+    it('refuses a token rotated further back than the draft remembers', async () => {
+        // The window is deliberately short: two generations. A token older than that is
+        // old enough that refusing the write is the safer answer.
+        const first = await saveFirstPage();
+        for (let i = 0; i < 3; i += 1) {
+            await drafts.findResumableApplication({
+                companyId: COMPANY,
+                lastName: IDENTITY.lastName,
+                dob: IDENTITY.dob,
+                ssn: IDENTITY.ssn,
+                email: IDENTITY.email,
+            }, CONTEXT);
+        }
+
+        const attempt = await drafts.saveApplicationProgress({
+            companyId: COMPANY,
+            email: IDENTITY.email,
+            phone: IDENTITY.phone,
+            lastName: IDENTITY.lastName,
+            dob: IDENTITY.dob,
+            ssn: IDENTITY.ssn,
+            resumeToken: first.resumeToken,
+            resumeApplicantKey: first.applicantKey,
+            formData: { firstName: 'Dana', cdlNumber: 'TX88' },
+        }, CONTEXT);
+
+        expect(attempt.saved).toBe(false);
+    });
+
+    it('still refuses a rotated token once the draft itself is gone', async () => {
+        // The prior generations answer liveness only. Once Start Over has removed the
+        // draft there is nothing to be live, and the old token opens nothing.
+        const first = await saveFirstPage();
+        const looked = await drafts.findResumableApplication({
+            companyId: COMPANY,
+            lastName: IDENTITY.lastName,
+            dob: IDENTITY.dob,
+            ssn: IDENTITY.ssn,
+            email: IDENTITY.email,
+        }, CONTEXT);
+        await drafts.startNewApplication({
+            companyId: COMPANY, resumeToken: looked.resumeToken,
+        }, CONTEXT);
+
+        const attempt = await drafts.saveApplicationProgress({
+            companyId: COMPANY,
+            email: IDENTITY.email,
+            phone: IDENTITY.phone,
+            lastName: IDENTITY.lastName,
+            dob: IDENTITY.dob,
+            ssn: IDENTITY.ssn,
+            resumeToken: first.resumeToken,
+            resumeApplicantKey: first.applicantKey,
+            formData: { firstName: 'Ghost' },
+        }, CONTEXT);
+
+        expect(attempt.saved).toBe(false);
+    });
+
     it('accepts a token-less first save, which is what a discarded tab sends next', async () => {
         // After a discard the client clears the shared token, so the tab's next save
         // presents none. That has to keep working: it is the new application.

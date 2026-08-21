@@ -230,16 +230,54 @@ function mayModifyExistingDraft(doc, { resumeToken, identityKey, email, phone })
  * All of it inside the caller's transaction, so the answer and the write it authorizes
  * cannot disagree.
  */
+/**
+ * How many superseded token hashes a draft remembers.
+ *
+ * Only for the liveness question below — never for authorization. Two is enough for the
+ * case it exists to serve, one other device reaching the resume prompt while this one is
+ * mid-save; a token rotated further back than that is old enough that refusing the write
+ * is the safer answer.
+ */
+const MAX_PRIOR_TOKEN_HASHES = 2;
+
+/** The prior-hash list a draft should carry once its token is rotated. */
+function priorHashesAfterRotation(stored) {
+    const prior = Array.isArray(stored?.priorResumeTokenHashes) ? stored.priorResumeTokenHashes : [];
+    const rotated = typeof stored?.resumeTokenHash === 'string' ? stored.resumeTokenHash : null;
+    return (rotated ? [rotated, ...prior] : prior)
+        .filter((hash) => typeof hash === 'string' && hash)
+        .slice(0, MAX_PRIOR_TOKEN_HASHES);
+}
+
+/**
+ * Does this token name this draft — now, or before its last rotation?
+ *
+ * The prior generations answer *liveness only*: "the draft this payload was written
+ * against still exists". They authorize nothing. Changing an existing draft still
+ * requires the current token hash or the full identity, which is what keeps a harvested
+ * old token from becoming a write capability.
+ *
+ * They are needed because a resume *lookup* rotates the token on a live draft before the
+ * applicant has chosen anything. A second device merely reaching the prompt — and then
+ * closing it — would otherwise make the first device's next save look like a write
+ * against a deleted draft, and every save after it, silently ending server autosave for
+ * an applicant who deleted nothing.
+ */
+function tokenNamesDraft(doc, resumeToken) {
+    const data = doc?.data?.() || {};
+    if (draft.resumeTokenMatches(data.resumeTokenHash, resumeToken)) return true;
+    const prior = Array.isArray(data.priorResumeTokenHashes) ? data.priorResumeTokenHashes : [];
+    return prior.some((hash) => draft.resumeTokenMatches(hash, resumeToken));
+}
+
 async function tokenOpensALiveDraft(transaction, {
     companyId, target, identityKey, resumeToken, claimedApplicantKey,
 }) {
-    if (target?.exists && draft.resumeTokenMatches(target.data()?.resumeTokenHash, resumeToken)) {
+    if (target?.exists && tokenNamesDraft(target, resumeToken)) {
         return true;
     }
 
-    const matches = (docs) => docs.some(
-        (doc) => draft.resumeTokenMatches(doc.data()?.resumeTokenHash, resumeToken),
-    );
+    const matches = (docs) => docs.some((doc) => tokenNamesDraft(doc, resumeToken));
 
     // The browser tells us which key it thinks its token belongs to. A hint, never a
     // claim: the token hash on that document still has to match, so naming somebody
@@ -660,11 +698,15 @@ exports.findResumableApplication = functions
             return NO_MATCH;
         }
 
-        // A fresh token per successful match, so a token cannot be harvested from
-        // one browser and replayed from another indefinitely.
+        // A fresh token per successful match, so a token cannot be harvested from one
+        // browser and replayed from another indefinitely. The superseded hash is kept —
+        // see `tokenNamesDraft` — because this rotation happens before the applicant has
+        // chosen anything: the device holding the old token has deleted nothing, and its
+        // saves must go on being accepted.
         const token = draft.mintResumeToken();
         await candidate.ref.set({
             resumeTokenHash: token.hash,
+            priorResumeTokenHashes: priorHashesAfterRotation(candidate.data()),
             updatedAt: draft.serverTimestamp(),
             expiresAt: draft.expiresAt(),
         }, { merge: true });

@@ -166,6 +166,7 @@ merge idempotently. No new identity scheme was introduced.
 | `lastStep`, `lastSemanticStep` | Where to return the applicant. The semantic id is what survives a company's custom-questions step being present or absent |
 | `clientSeq` | The browser's own write counter for the copy this save carried. The client compares it with the sequence *it* believes is synced, which is how an older server draft is stopped from overwriting newer local work — without either side comparing a phone clock to a Firestore timestamp. Null for a draft written before the field existed; the client falls back to comparing progress |
 | `resumeTokenHash` | A hash of the bearer token issued to a browser. Compared in constant time; the token itself is never stored |
+| `priorResumeTokenHashes` | Up to two superseded hashes, so a rotation by a resume lookup is not mistaken for the draft being deleted. Liveness evidence only — never authorization |
 | `status`, `createdAt`, `updatedAt`, `expiresAt` | 30-day TTL declared in `firestore.indexes.json` |
 
 **The draft never holds an SSN.** It is stripped in three independent places — the
@@ -204,7 +205,13 @@ first save — see
 **A save presenting a resume token that opens no live draft is refused.** The token
 means "I am writing the draft I already own"; once that draft has been deleted — Start
 Over in another tab, or submission — the payload predates the deletion and writing it
-recreates a discarded application. Resolution is cheapest-first: the target document,
+recreates a discarded application. "Opens" means the current `resumeTokenHash` **or one
+of the two hashes it superseded**, kept in `priorResumeTokenHashes`: a resume lookup
+rotates the token on a live draft before the applicant has chosen anything, so a second
+device merely reaching the prompt would otherwise make the first device's every
+subsequent save look like a write against a deleted draft. Those prior generations answer
+liveness only and authorize nothing — changing an existing draft still needs the current
+hash or the full identity. Resolution is cheapest-first: the target document,
 then the key the request names in `resumeApplicantKey`, then the identity's drafts,
 then a bounded recent scan when no `identityKey` can be derived, all inside the same
 transaction that authorizes the write. Each step falls through rather than deciding.
