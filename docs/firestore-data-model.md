@@ -221,6 +221,14 @@ exists for the save that corrects a contact field and an identity field at once,
 neither the new document id nor the new `identityKey` finds the draft the token opens.
 Audited as `stale_token`.
 
+**The lookup's token rotation happens in a transaction that re-reads the draft.** A
+merge-set creates what it cannot find, so a Start Over landing between the query that
+chose the candidate and the write that rotates its token would be undone — the document
+coming back as a stub with a token and two timestamps and no answers, which the same call
+would then offer as the applicant's unfinished application. When the re-read finds it
+gone the answer is the uniform `NO_MATCH`, which is also what keeps the response from
+disclosing that a draft existed a moment earlier.
+
 A successful submission discards the draft (`discardDraftForApplication`), so a
 completed application never leaves a resumable copy behind. That holds for a
 submission the browser had queued offline as well: the client closes the draft's local

@@ -703,17 +703,36 @@ exports.findResumableApplication = functions
         // see `tokenNamesDraft` — because this rotation happens before the applicant has
         // chosen anything: the device holding the old token has deleted nothing, and its
         // saves must go on being accepted.
+        //
+        // In a transaction that re-reads the document, because a merge-set *creates* what
+        // it cannot find. Start Over deleting this draft between the query above and the
+        // write below would otherwise be undone here — resurrected as a stub holding a
+        // token and two timestamps and no answers at all, which this call would then
+        // offer the applicant as their unfinished application.
         const token = draft.mintResumeToken();
-        await candidate.ref.set({
-            resumeTokenHash: token.hash,
-            priorResumeTokenHashes: priorHashesAfterRotation(candidate.data()),
-            updatedAt: draft.serverTimestamp(),
-            expiresAt: draft.expiresAt(),
-        }, { merge: true });
+        const rotated = await db.runTransaction(async (transaction) => {
+            const fresh = await transaction.get(candidate.ref);
+            if (!fresh.exists) return null;
+            transaction.set(candidate.ref, {
+                resumeTokenHash: token.hash,
+                priorResumeTokenHashes: priorHashesAfterRotation(fresh.data()),
+                updatedAt: draft.serverTimestamp(),
+                expiresAt: draft.expiresAt(),
+            }, { merge: true });
+            return fresh.data() || {};
+        });
+
+        if (!rotated) {
+            // Discarded while this lookup was running. Reported exactly as a lookup that
+            // found nothing: the applicant has no unfinished application any more, and
+            // the answer must not disclose that one existed a moment ago.
+            await recordMatchAttempt(companyId, 'no_draft');
+            return NO_MATCH;
+        }
 
         await recordMatchAttempt(companyId, 'matched');
 
-        const stored = candidate.data() || {};
+        const stored = rotated;
         return {
             resumable: true,
             resumeToken: token.token,

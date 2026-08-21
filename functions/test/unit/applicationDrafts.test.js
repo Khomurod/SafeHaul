@@ -49,6 +49,14 @@ const mockDeletedPaths = [];
 let mockFailWritesOn = null;
 /** What each transaction read and wrote, so atomicity can be asserted directly. */
 const mockRunTransactionCalls = [];
+/**
+ * Runs once at the start of the next transaction, for driving a race deterministically.
+ *
+ * The window that matters is "another caller changed this document between the read that
+ * chose it and the write that updates it", and a transaction boundary is exactly where
+ * that lands.
+ */
+let mockBeforeNextTransaction = null;
 /** Draft-document writes that did NOT go through a transaction. */
 const mockNonTransactionalWrites = [];
 
@@ -127,6 +135,11 @@ jest.mock('../../firebaseAdmin', () => ({
         // Start Over had just deleted. Same merge semantics as the non-transactional
         // double below, so the two cannot disagree about what a write leaves behind.
         runTransaction: async (fn) => {
+            if (mockBeforeNextTransaction) {
+                const hook = mockBeforeNextTransaction;
+                mockBeforeNextTransaction = null;
+                hook();
+            }
             const record = { reads: [], writes: [] };
             mockRunTransactionCalls.push(record);
             return fn({
@@ -209,6 +222,7 @@ beforeEach(() => {
     mockFailWritesOn = null;
     mockRunTransactionCalls.length = 0;
     mockNonTransactionalWrites.length = 0;
+    mockBeforeNextTransaction = null;
     mockCheckRateLimit.mockResolvedValue(true);
     mockAssertIntake.mockResolvedValue({ companyName: 'Acme Freight' });
     mockAssertCompanyAccess.mockResolvedValue(undefined);
@@ -938,6 +952,31 @@ describe('finding a resumable application', () => {
         // Enough to say "you were on the Qualifications step" and nothing more.
         expect(found.lastSemanticStep).toBe('qualifications');
         expect(JSON.stringify(found)).not.toContain('Dana');
+    });
+
+    it('does not resurrect a draft discarded while the lookup was running', async () => {
+        // The lookup rotates the matched draft's token, and a merge-set *creates* what it
+        // cannot find. Start Over deleting the draft between the query and that write
+        // would otherwise be undone — brought back as a stub holding a token and two
+        // timestamps and no answers — and this call would offer it as the applicant's
+        // unfinished application.
+        const first = await saveFirstPage();
+        const path = `companies/${COMPANY}/application_drafts/${first.applicantKey}`;
+        mockBeforeNextTransaction = () => { mockStore.delete(path); };
+
+        const found = await drafts.findResumableApplication({
+            companyId: COMPANY,
+            lastName: IDENTITY.lastName,
+            dob: IDENTITY.dob,
+            ssn: IDENTITY.ssn,
+            email: IDENTITY.email,
+        }, CONTEXT);
+
+        // Nothing offered, and nothing left behind. The answer is also the same one a
+        // lookup that found nothing gives, so it does not disclose that a draft existed
+        // a moment ago.
+        expect(found).toEqual({ resumable: false });
+        expect(mockStore.has(path)).toBe(false);
     });
 
     it('refuses when the identity matches but no contact detail does', async () => {
