@@ -271,6 +271,13 @@ leaves the sequences exactly where they were; the step is still recorded. A draf
 written before sequences existed is always treated as unsynchronised instead,
 because nothing is known about whether the server has its contents.
 
+**An acknowledgement has to name the application it acknowledges.** A save's response
+can arrive after a Start Over, and the new draft's counter has restarted from zero — so
+the sequence alone can match work the server has never seen. Marking that synced would
+make the reconnect flush skip the save it owes, and the applicant would silently lose
+server autosave and cross-device resume. Every server save therefore carries the draft's
+name, and the acknowledgement requires both the name and the sequence to match.
+
 **A dirty local copy is retried when the connection returns.** The `online` event
 flushes it once — and only when something is genuinely owed, so a reconnect on a
 fully synchronised draft sends nothing.
@@ -353,8 +360,12 @@ submitted, and the applicant would reappear in the recruiter's "started, incompl
 list after successfully applying.
 
 **A queued submission is also refused when the application was discarded while it
-waited.** The entry records the page's discard mark at the moment it was queued, and a
-replay compares it before sending. Nothing else can be relied on to cancel it: the tab
+waited.** The entry records the page's discard mark as it stood when the applicant
+pressed Submit — not as it stands at the moment of queueing, because a discard arriving
+in between is exempted while a submission is in flight, and exempting it adopts the new
+mark. Recording that would give the entry a baseline equal to the discard itself, and a
+replay would find nothing changed. The abort dequeues the entry, but a dequeue can fail;
+the baseline is what makes that failure harmless. A replay compares it before sending. Nothing else can be relied on to cancel it: the tab
 that queued it may be showing a *queued* screen, which a discard deliberately leaves
 alone so it cannot wipe a submission in progress, or may be closed altogether. The mark
 does not say which application ended, so an unrelated change also drops the entry —

@@ -340,14 +340,25 @@ export function draftSyncState(slug) {
  * next page load would hand the applicant the older server copy — reintroducing
  * the exact bug this metadata exists to prevent, through a slower door.
  *
+ * @param {string} slug
+ * @param {number} seq
+ * @param {{ draftId?: string|null }} [wrote] The draft the acknowledged save was
+ *   written from. Without it only the sequence is checked, which is not enough after a
+ *   draft has been replaced.
  * @returns {boolean} whether the draft was marked synced at `seq`
  */
-export function markDraftSynced(slug, seq) {
+export function markDraftSynced(slug, seq, { draftId = null } = {}) {
   if (!slug || !Number.isInteger(seq)) return false;
   const current = readApplicationDraft(slug);
   // A legacy draft has no sequence to compare, so there is nothing to
   // truthfully mark: leave it to be reconciled on progress instead.
   if (!current?.meta) return false;
+  // And it has to be the same application. The counters restart from zero on every
+  // new draft, so a response arriving after a Start Over can carry a sequence the
+  // *new* draft has already reached — acknowledging work the server has never seen,
+  // after which the reconnect flush skips the save it owes and that applicant
+  // silently loses server autosave and cross-device resume.
+  if (draftId && current.meta.draftId && current.meta.draftId !== draftId) return false;
   if (current.meta.localSeq !== seq) return false;
   if (current.meta.syncedSeq >= seq) return true;
 

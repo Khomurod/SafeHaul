@@ -92,6 +92,24 @@ describe('applicationDraftStorage', () => {
             expect(readApplicationDraft(SLUG).meta.draftId).toBe(first.draftId);
         });
 
+        it('refuses to acknowledge a save written from a different application', () => {
+            // The counters restart from zero on every new draft, so a response arriving
+            // after a Start Over can carry a sequence the *new* draft has already
+            // reached. Acknowledging it would tell the tab the server holds work it has
+            // never seen, and the reconnect flush would then skip the save it owes.
+            const first = saveApplicationDraft(SLUG, { firstName: 'Ada' });
+            clearApplicationDraft(SLUG);
+            const second = saveApplicationDraft(SLUG, { firstName: 'Someone new' });
+            expect(second.localSeq).toBe(first.localSeq);
+
+            expect(markDraftSynced(SLUG, second.localSeq, { draftId: first.draftId })).toBe(false);
+            expect(readApplicationDraft(SLUG).meta.syncedSeq).toBe(0);
+
+            // The same sequence, named correctly, is still acknowledged.
+            expect(markDraftSynced(SLUG, second.localSeq, { draftId: second.draftId })).toBe(true);
+            expect(readApplicationDraft(SLUG).meta.syncedSeq).toBe(second.localSeq);
+        });
+
         it('reports no name for a draft written before drafts had one', () => {
             localStorage.setItem(KEY, JSON.stringify({
                 v: 1, lastStep: 2, meta: { localSeq: 3, syncedSeq: 3, savedAt: null }, data: {},

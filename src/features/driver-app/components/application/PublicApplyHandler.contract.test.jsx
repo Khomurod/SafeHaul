@@ -1547,6 +1547,32 @@ describe('an application discarded in another tab', () => {
     expect(screen.queryByText('Application Submitted!')).not.toBeInTheDocument();
   });
 
+  it('stamps a queued entry with the mark from before the submission began', async () => {
+    // The abort dequeues, but a dequeue can fail — its catch says so out loud. What
+    // makes that failure harmless is the baseline the entry carries: if it recorded the
+    // *adopted* mark, the replay would find nothing changed and send the discarded
+    // answers hours later.
+    let releaseId;
+    generateIdSpy.mockImplementation(() => new Promise((resolve) => {
+      releaseId = () => resolve('generated-app-id');
+    }));
+    await renderWithCompleteDraft();
+
+    fireEvent.click(screen.getByText('probe-submit'));
+    await waitFor(() => expect(generateIdSpy).toHaveBeenCalled());
+    // Arrives as a real event, so the in-flight exemption adopts it.
+    discardInAnotherTab('discard:during-submit');
+    releaseId();
+
+    await waitFor(() => expect(enqueueSpy).toHaveBeenCalled());
+    expect(enqueueSpy).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      // Null: nothing had been discarded when the applicant pressed Submit.
+      expect.objectContaining({ applyDiscardMark: null }),
+    );
+  });
+
   it('does not restore a draft discarded before its listener existed', async () => {
     // A mark written between this tab's first render and the effect that installs the
     // listener: no event is delivered, so the reset counter never moves. The mark this

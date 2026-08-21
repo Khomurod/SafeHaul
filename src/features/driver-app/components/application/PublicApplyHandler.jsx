@@ -615,7 +615,14 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
       const state = draftSyncState(slug);
       if (!state?.dirty) return;
       const { formData: latest, currentStep: step } = latestDraftRef.current;
-      saveDraftToServer({ formData: latest, stepIndex: step, localSeq: state.localSeq });
+      saveDraftToServer({
+        formData: latest,
+        stepIndex: step,
+        localSeq: state.localSeq,
+        // Which application this owes a save for. The acknowledgement is scoped to it,
+        // because a reconnect can be minutes after the fact.
+        draftId: draftIdRef.current,
+      });
     };
     window.addEventListener('online', flush);
     return () => window.removeEventListener('online', flush);
@@ -682,7 +689,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     // prompt — see its header for the three ways a save racing that lookup loses
     // the draft it was supposed to protect.
     if (direction === 'next') {
-      saveDraftToServer({ formData, stepIndex: nextStep, localSeq });
+      saveDraftToServer({ formData, stepIndex: nextStep, localSeq, draftId: draftIdRef.current });
     }
     // Scrolling is owned by `Stepper`, which focuses the new step's heading.
     // A second scroll here raced that one and made step transitions
@@ -834,7 +841,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     });
     if (draftId) draftIdRef.current = draftId;
     if (ok) {
-      saveDraftToServer({ formData, stepIndex: currentStep, localSeq });
+      saveDraftToServer({ formData, stepIndex: currentStep, localSeq, draftId: draftIdRef.current });
       showSuccess("Progress saved.");
     } else {
       showError("Could not save progress locally. Your data is still here — please continue filling the form.");
@@ -851,14 +858,20 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
    * draft, and the shared resume token can already name another tab's application by
    * the time the submission lands.
    */
-  const submittedDraftIdentity = useCallback(() => ({
+  const submittedDraftIdentity = useCallback((markAtSubmit) => ({
     applySlug: slug,
-    // What this page's discard mark said when the submission was queued. A replay
-    // compares it before sending: an application discarded while the entry waited must
-    // not be submitted hours later, and this tab cannot be relied on to cancel the
-    // entry itself — it may be a `queued` screen that a discard deliberately leaves
-    // alone, or closed altogether.
-    applyDiscardMark: discardMarkRef.current,
+    // What this page's discard mark said when the applicant pressed Submit — passed in,
+    // not read here. A discard arriving during the work in between is exempted while a
+    // submission is in flight, and exempting it adopts the new mark; recording *that*
+    // would hand the entry a baseline equal to the discard itself, so a replay would
+    // find nothing changed and send the discarded answers. The abort dequeues the entry,
+    // but a dequeue can fail, and this is what makes that failure harmless.
+    //
+    // The replay compares it before sending: an application discarded while the entry
+    // waited must not be submitted hours later, and this tab cannot be relied on to
+    // cancel the entry itself — it may be a `queued` screen that a discard deliberately
+    // leaves alone, or closed altogether.
+    applyDiscardMark: markAtSubmit === undefined ? discardMarkRef.current : markAtSubmit,
     // This tab's own record, and *only* that. Falling back to a read of storage would
     // be the same mistake in a quieter place: if this tab's writes failed on quota
     // while another tab stored a draft for the same page, the read would hand this
@@ -885,6 +898,8 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     // that exemption adopts the new mark, which makes a later comparison read clean.
     // The counter is bumped before the exemption, so it still remembers.
     const submitGeneration = resetGenerationRef.current;
+    // The mark as it stands *now*, for the same reason. See `submittedDraftIdentity`.
+    const submitMark = discardMarkRef.current;
 
     /**
      * Required answers a resumed application could not have brought back.
@@ -977,7 +992,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
             // submission finally lands, the queue can end the draft's local life
             // exactly as a direct submission does — and the draft's identity with
             // it, so a late replay closes this application and not a newer one.
-            { type: 'guest', userId: null, ...submittedDraftIdentity() },
+            { type: 'guest', userId: null, ...submittedDraftIdentity(submitMark) },
           );
           clearApplicationDraft(slug);
           sessionStorage.removeItem('pending_application_recruiter');
@@ -1094,7 +1109,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
             // tab believing the application is still unfinished, free to submit these
             // answers a second time. The identity comes too, because by then the
             // applicant may have started a different application on the same page.
-            ...submittedDraftIdentity(),
+            ...submittedDraftIdentity(submitMark),
           });
           console.log(`[PublicApplyHandler] Queued submission ${queueId}`);
         } catch (queueError) {

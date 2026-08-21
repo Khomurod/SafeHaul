@@ -205,7 +205,7 @@ export function useApplicationResume({
     }, [companyId, slug]);
 
     /** One round trip. Swallows everything: see the file header. */
-    const sendSave = useCallback(async ({ formData, stepIndex, localSeq }) => {
+    const sendSave = useCallback(async ({ formData, stepIndex, localSeq, draftId }) => {
         // The last check before the wire, and the reason it is *here* rather than at
         // the call sites: a payload can wait in `pendingRef` behind another save, so
         // the moment it was composed and the moment it is sent are different
@@ -253,7 +253,10 @@ export function useApplicationResume({
             // sync may be recorded. `markDraftSynced` refuses when the local copy
             // has moved on since: a late save must never declare newer local work
             // acknowledged.
-            markDraftSynced(slug, localSeq);
+            // Named as well as numbered: a response can arrive after a Start Over, and
+            // the new draft's counter starts again from zero, so the sequence alone can
+            // match an application this save never touched.
+            markDraftSynced(slug, localSeq, { draftId });
         }
         if (result?.resumeToken) {
             // Adopted even when this browser already had one, which it did not used
