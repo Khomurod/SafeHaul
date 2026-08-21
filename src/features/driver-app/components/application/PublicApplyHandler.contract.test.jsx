@@ -1547,6 +1547,30 @@ describe('an application discarded in another tab', () => {
     expect(screen.queryByText('Application Submitted!')).not.toBeInTheDocument();
   });
 
+  it('does not promise a queued submission that will never be sent', async () => {
+    // The discard lands while the last attempt is still out, so the loop exits by
+    // rejection rather than through the pre-attempt check. Showing the queued screen
+    // then would have the applicant waiting for a submission the replay guard is going
+    // to refuse.
+    let rejectLast;
+    let attempts = 0;
+    callableSpy.mockImplementation(() => {
+      attempts += 1;
+      if (attempts < 3) return Promise.reject(new Error('offline'));
+      return new Promise((_resolve, reject) => { rejectLast = () => reject(new Error('offline')); });
+    });
+    await renderWithCompleteDraft();
+
+    fireEvent.click(screen.getByText('probe-submit'));
+    await waitFor(() => expect(attempts).toBe(3), { timeout: 5000 });
+    discardInAnotherTab('discard:during-last-attempt');
+    rejectLast();
+
+    await waitFor(() => expect(showInfo).toHaveBeenCalled());
+    expect(screen.queryByText(/submitted automatically/i)).not.toBeInTheDocument();
+    expect(dequeueSpy).toHaveBeenCalledWith('queue-1');
+  });
+
   it('stamps a queued entry with the mark from before the submission began', async () => {
     // The abort dequeues, but a dequeue can fail — its catch says so out loud. What
     // makes that failure harmless is the baseline the entry carries: if it recorded the

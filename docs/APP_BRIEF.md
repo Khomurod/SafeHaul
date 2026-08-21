@@ -276,7 +276,10 @@ can arrive after a Start Over, and the new draft's counter has restarted from ze
 the sequence alone can match work the server has never seen. Marking that synced would
 make the reconnect flush skip the save it owes, and the applicant would silently lose
 server autosave and cross-device resume. Every server save therefore carries the draft's
-name, and the acknowledgement requires both the name and the sequence to match.
+name, and the acknowledgement requires both the name and the sequence to match. An
+*unnamed* stored copy is not a wildcard either — an older client can replace the shared
+slot with a pre-name envelope at the same small sequence — so a named acknowledgement
+requires an exact match, not merely the absence of a contradiction.
 
 **A dirty local copy is retried when the connection returns.** The `online` event
 flushes it once — and only when something is genuinely owed, so a reconnect on a
@@ -343,7 +346,10 @@ The counter is bumped before the exemption, so it still remembers. A discard lan
 reaction deliberately leaves alone so that it cannot wipe one that has *landed* — so
 the submit path has to notice for itself. Abandoning it also removes the queue entry
 written for guaranteed delivery, or that entry would replay the discarded answers hours
-later. The
+later. The same question is asked once more after the final attempt fails, before the
+queued screen appears: that screen promises the submission will go when the connection
+returns, and for a discarded application the replay will correctly refuse it, so showing
+it would leave the applicant waiting for something that is never going to happen. The
 other is the return of the resume lookup, before any prompt is offered: a draft
 discarded while that request was open no longer exists, and both answers to a prompt
 for it fail against the deleted document, leaving the gate that holds autosave shut

@@ -105,7 +105,20 @@ describe('applicationDraftStorage', () => {
             expect(markDraftSynced(SLUG, second.localSeq, { draftId: first.draftId })).toBe(false);
             expect(readApplicationDraft(SLUG).meta.syncedSeq).toBe(0);
 
+            // An unnamed stored copy is not a wildcard either: an older client can
+            // replace the slot with a pre-name envelope at the same small sequence.
+            localStorage.setItem(KEY, JSON.stringify({
+                v: 1, lastStep: 0, meta: { localSeq: second.localSeq, syncedSeq: 0, savedAt: null }, data: {},
+            }));
+            expect(markDraftSynced(SLUG, second.localSeq, { draftId: first.draftId })).toBe(false);
+
             // The same sequence, named correctly, is still acknowledged.
+            localStorage.setItem(KEY, JSON.stringify({
+                v: 1,
+                lastStep: 0,
+                meta: { localSeq: second.localSeq, syncedSeq: 0, savedAt: null, draftId: second.draftId },
+                data: {},
+            }));
             expect(markDraftSynced(SLUG, second.localSeq, { draftId: second.draftId })).toBe(true);
             expect(readApplicationDraft(SLUG).meta.syncedSeq).toBe(second.localSeq);
         });

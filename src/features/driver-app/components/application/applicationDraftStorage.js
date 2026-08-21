@@ -358,7 +358,10 @@ export function markDraftSynced(slug, seq, { draftId = null } = {}) {
   // *new* draft has already reached — acknowledging work the server has never seen,
   // after which the reconnect flush skips the save it owes and that applicant
   // silently loses server autosave and cross-device resume.
-  if (draftId && current.meta.draftId && current.meta.draftId !== draftId) return false;
+  // Exact, not "if both happen to be named". A stored copy with no name is not a
+  // wildcard: an older client can replace the shared slot with a pre-name envelope, and
+  // treating that as a match would acknowledge work this save never wrote.
+  if (draftId && current.meta.draftId !== draftId) return false;
   if (current.meta.localSeq !== seq) return false;
   if (current.meta.syncedSeq >= seq) return true;
 

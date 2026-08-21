@@ -1097,6 +1097,29 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
 
       // 3. Queue first for guaranteed delivery
       let queueId = null;
+      /**
+       * Gives up on this submission because the application was discarded.
+       *
+       * The queue entry goes first. It was written before the attempts for guaranteed
+       * delivery, and leaving it would replay the discarded answers hours later — the
+       * very hole the replay guard exists to plug, and this is the belt to its braces.
+       * Then the submitting state is cleared *before* reacting, because the reaction
+       * deliberately leaves a submission in flight alone, and this one is being
+       * abandoned rather than landed.
+       */
+      const abandonForDiscard = async () => {
+        if (queueId) {
+          try {
+            await dequeueSubmission(queueId);
+          } catch (dequeueError) {
+            console.warn('[PublicApplyHandler] Dequeue after a discard failed:', dequeueError);
+          }
+        }
+        setSubmissionStatus(null);
+        isSubmittingRef.current = false;
+        handleDiscardedElsewhere();
+      };
+
       if (isQueueSupported()) {
         try {
           await initQueue();
@@ -1127,21 +1150,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
         // no event announced, and the generation sees one that *did* arrive as an event
         // and was exempted, which adopted the mark and left the comparison clean.
         if (discardedElsewhere() || resetGenerationRef.current !== submitGeneration) {
-          // The queue entry goes first. It was written before the attempts for
-          // guaranteed delivery, and leaving it would replay the discarded answers
-          // hours later — the very hole the queue close exists to plug.
-          if (queueId) {
-            try {
-              await dequeueSubmission(queueId);
-            } catch (dequeueError) {
-              console.warn('[PublicApplyHandler] Dequeue after a discard failed:', dequeueError);
-            }
-          }
-          // Cleared before reacting, because the reaction deliberately leaves a
-          // submission in flight alone — and this one is being abandoned, not landed.
-          setSubmissionStatus(null);
-          isSubmittingRef.current = false;
-          handleDiscardedElsewhere();
+          await abandonForDiscard();
           return;
         }
         try {
@@ -1223,6 +1232,15 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
         tags: { flow: 'guest_application', stage: 'submission_failed' },
         extra: { applicationId, companyId: company.id, queueId },
       });
+
+      // Discarded while the last attempt was still out. Without this the applicant is
+      // shown "saved, and it will be submitted when the connection returns" for a
+      // submission the replay guard will correctly refuse to send — they would wait for
+      // something that is never going to happen.
+      if (discardedElsewhere() || resetGenerationRef.current !== submitGeneration) {
+        await abandonForDiscard();
+        return;
+      }
 
       // If queued, show partial success
       if (queueId) {
