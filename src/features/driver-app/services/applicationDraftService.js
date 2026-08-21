@@ -1,6 +1,11 @@
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
+import {
+    clearApplicationDraft,
+    readApplicationDraft,
+    writeDiscardMark,
+} from '../components/application/applicationDraftStorage';
 
 /**
  * Client for the application autosave and resume callables.
@@ -100,6 +105,99 @@ export function writeResumeToken(slug, { resumeToken, applicantKey }) {
         // A browser refusing storage costs cross-session resume on this device.
         // The identity match still works, so it is a degradation, not a failure.
     }
+}
+
+/**
+ * Ends the local life of a draft whose application has been submitted.
+ *
+ * Three writes. The local copy goes, or a reload would restore the answers of an
+ * application that has already been sent, and the token with it, because it is now a
+ * credential for a document that no longer exists. The mark tells every other open tab,
+ * which is the only way they learn: the server deleted the draft, and a deletion is
+ * indistinguishable from "there was never anything here".
+ *
+ * The first two are scoped to the application that was submitted — see below — while
+ * the mark is written regardless.
+ *
+ * The order matches Start Over's, for the same reason: clearing the draft frees the
+ * space the mark needs, and a mark that fails to land leaves the other tabs able to
+ * autosave a submitted application back into existence.
+ *
+ * Lives here rather than in the wizard because two callers need it and must not
+ * drift: the direct submission, and the offline queue when a submission it was
+ * holding finally reaches the server — possibly in a different tab, possibly days
+ * later.
+ *
+ * @param {string} slug
+ * @param {{ draftId?: string|null }} [submitted] The draft this caller was working on.
+ *   Without it nothing can be proved, so an occupied slot is left alone.
+ * @returns {string|null} the mark written, so a caller that must not react to its own
+ *   write can adopt it. `null` when storage refused it.
+ */
+export function closeDraftAfterSubmission(slug, { draftId = null } = {}) {
+    if (!slug) return null;
+    const current = readApplicationDraft(slug)?.meta?.draftId || null;
+    // Clear only work that belongs to the application that was submitted. Two tabs can
+    // be on different applications for the same page — the applicant discarded in one
+    // and kept typing in the other — and the draft sitting in that slot may be the
+    // other tab's unsent work. An unnamed slot, or an empty one, is nobody else's.
+    if (!current || (draftId && current === draftId)) {
+        clearApplicationDraft(slug);
+        clearResumeToken(slug);
+    }
+    // Written either way: a third tab may be holding the answers that were just
+    // submitted, and it is the only thing that will ever tell it. Unnamed on purpose —
+    // see `writeDiscardMark`: two tabs on one application hold different local draft
+    // names, so a named mark would let the other tab ignore news it has to act on.
+    return writeDiscardMark(slug, { reason: 'submit' });
+}
+
+/**
+ * The same close, for a submission that arrives long after it was made.
+ *
+ * An offline submission can land minutes or days later, and in between the applicant
+ * may have gone back to the apply page and started something new. `applySlug` names
+ * the apply page, not *which* application was submitted from it — so closing on the
+ * slug alone would clear a draft belonging to newer work and tell every open tab that
+ * newer application had been submitted. Deleting work the applicant has not sent is
+ * strictly worse than the duplicate-submission risk this close exists to remove, so
+ * the close only happens when what is in storage now is still the same application.
+ *
+ * Identified by the draft's own opaque name, compared for equality only. Not by the
+ * write counter, which restarts from zero on every new draft and so eventually reads
+ * equal to an unrelated later application; and not by the resume token's applicant
+ * key, which lives in shared storage and can already name a draft another tab began by
+ * the time this submission lands.
+ *
+ * When storage holds no draft at all there is nothing newer to protect, and the mark
+ * is still worth writing: other tabs may hold these answers in memory.
+ *
+ * @param {string} slug
+ * @param {{ draftId?: string|null }} [submitted] The draft this submission was made
+ *   from, as the submitting tab knew it.
+ * @returns {string|null} the mark written, or `null` when nothing was closed.
+ */
+export function closeDraftAfterDelayedSubmission(slug, submitted = {}) {
+    if (!slug) return null;
+    const { draftId = null } = submitted;
+    const current = readApplicationDraft(slug)?.meta?.draftId || null;
+
+    if (draftId) {
+        // Whatever is in that slot has to be the draft this submission was made from.
+        // Anything else — a new application after Start Over, one begun in another tab,
+        // or work started while this submission waited in the queue — is unsent work,
+        // and destroying it is worse than the duplicate submission the close exists to
+        // prevent. An *empty* slot is not somebody else's work, so the mark is still
+        // written there: other tabs may hold these answers in memory.
+        if (current && current !== draftId) return null;
+    } else if (readApplicationDraft(slug)) {
+        // Nothing was named, so nothing can be proved, and there is a draft sitting
+        // there: leave it alone. Reached by entries queued before drafts were named,
+        // and by a browser that refused to store one.
+        return null;
+    }
+
+    return closeDraftAfterSubmission(slug, { draftId });
 }
 
 export function clearResumeToken(slug) {

@@ -82,6 +82,12 @@ async function ensureDb() {
  * @param {Object} options - Additional options
  * @param {string} [options.type='authenticated'] - 'authenticated' or 'guest'
  * @param {string} [options.userId] - User ID for authenticated submissions
+ * @param {string} [options.applySlug] - Apply-page slug for guest submissions, so a
+ *   replay that succeeds later can close out that application's local draft
+ * @param {string} [options.applyDraftId] - Opaque name of the draft being submitted, so
+ *   a late replay can tell it apart from a newer application on the same page
+ * @param {string} [options.applyDiscardMark] - The page's discard mark when this was
+ *   queued, so a replay can refuse to submit an application discarded since
  * @returns {Promise<string>} Queue entry ID
  */
 export async function enqueueSubmission(data, companyId, options = {}) {
@@ -93,6 +99,19 @@ export async function enqueueSubmission(data, companyId, options = {}) {
         data: { ...data }, // Deep copy to avoid mutations
         type: options.type || 'authenticated',
         userId: options.userId || null,
+        // The apply page this came from, for guest entries. Kept on the entry because
+        // the entry may outlive the tab that made it: when the submission finally
+        // reaches the server the draft it belongs to has to be closed out locally, and
+        // by then nothing else remembers which application that was. Absent on
+        // entries queued before this field existed, which read as `null`.
+        applySlug: options.applySlug || null,
+        // Which application on that page, by the draft's own opaque name, so a replay
+        // landing after the applicant has started a new one closes out the submitted
+        // draft and not their newer work.
+        applyDraftId: options.applyDraftId || null,
+        // The page's discard mark at the moment of queueing, so a replay can tell
+        // whether the application was discarded while this entry waited.
+        applyDiscardMark: options.applyDiscardMark || null,
         createdAt: Date.now(),
         attempts: 0,
         lastAttemptAt: null,

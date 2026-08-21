@@ -14,6 +14,8 @@ import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@lib/firebase';
 import * as Sentry from '@sentry/react';
 import { mergeApplicationDoc } from '@lib/applicationWrite';
+import { closeDraftAfterDelayedSubmission } from '../features/driver-app/services/applicationDraftService';
+import { readDiscardMark } from '../features/driver-app/components/application/applicationDraftStorage';
 
 import {
     initQueue,
@@ -84,6 +86,23 @@ export function useSubmissionQueue() {
 
         // Guest submissions → Cloud Function (Admin SDK, bypasses rules)
         if (isGuest) {
+            // Discarded since this was queued, so it must not be sent. A submission
+            // creates an immutable application, and an entry can sit here long after the
+            // tab that made it stopped existing — a `queued` screen that a discard
+            // deliberately leaves alone, or a closed tab — so nothing else is in a
+            // position to cancel it. Returning drops the entry, which is the intent:
+            // there is nothing left to deliver.
+            if (entry?.applySlug && entry?.applyDiscardMark !== undefined
+                && readDiscardMark(entry.applySlug) !== entry.applyDiscardMark) {
+                Sentry.addBreadcrumb({
+                    category: 'queue',
+                    message: 'Queued guest submission dropped: the application was discarded',
+                    data: { companyId },
+                    level: 'info',
+                });
+                return;
+            }
+
             const submitFn = httpsCallable(functions, 'submitGuestApplication');
             await submitFn({
                 companyId: companyId,
@@ -99,6 +118,24 @@ export function useSubmissionQueue() {
                     },
                 },
             });
+
+            // The submission landed, so the server has just deleted the draft behind
+            // it. Nothing else will say so: other tabs of this apply page may still be
+            // holding these answers in memory, and without the mark they would be free
+            // to submit them a second time or autosave the draft back into existence.
+            // This hook already knows guest applications specifically — it is the only
+            // thing that knows a queued one has *succeeded*, and it may be a different
+            // tab, or a different day, from the one that queued it.
+            // Verified, not unconditional: `applySlug` names the apply page, and by
+            // now the applicant may have started a *new* application there. Clearing
+            // that would destroy work they never sent — worse than the duplicate
+            // submission this guards against — so the close happens only when storage
+            // still holds the application this entry was made from.
+            if (entry?.applySlug) {
+                closeDraftAfterDelayedSubmission(entry.applySlug, {
+                    draftId: entry.applyDraftId || null,
+                });
+            }
 
             Sentry.addBreadcrumb({
                 category: 'queue',

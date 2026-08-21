@@ -271,9 +271,194 @@ leaves the sequences exactly where they were; the step is still recorded. A draf
 written before sequences existed is always treated as unsynchronised instead,
 because nothing is known about whether the server has its contents.
 
+**An acknowledgement has to name the application it acknowledges.** A save's response
+can arrive after a Start Over, and the new draft's counter has restarted from zero — so
+the sequence alone can match work the server has never seen. Marking that synced would
+make the reconnect flush skip the save it owes, and the applicant would silently lose
+server autosave and cross-device resume. Every server save therefore carries the draft's
+name, and the acknowledgement requires both the name and the sequence to match. An
+*unnamed* stored copy is not a wildcard either — an older client can replace the shared
+slot with a pre-name envelope at the same small sequence — so a named acknowledgement
+requires an exact match, not merely the absence of a contradiction.
+
 **A dirty local copy is retried when the connection returns.** The `online` event
 flushes it once — and only when something is genuinely owed, so a reconnect on a
 fully synchronised draft sends nothing.
+
+**A discard has to reach every open tab, and deletion alone cannot carry it.** Start
+Over removes the server draft, the resume token and the local copy, and `localStorage`
+is shared, so a tab that reloads afterwards already starts clean. What survived was
+another tab's *memory*: it still held the answers and still believed it owned a
+draft, so its next navigation wrote them back to storage and its next save recreated
+on the server the very application the applicant had asked to be rid of. Nothing in
+storage could tell it otherwise, because everything the discard touched was deleted —
+and a deletion is indistinguishable from "there was never anything here".
+
+So a discard leaves a **positive trace**: `apply_discarded_<slug>`, an opaque value
+compared *only for inequality* (no clock is a decision input here either). Every tab
+remembers the value it loaded with. The `storage` event — which browsers fire in every
+tab except the one that wrote it, so the acting tab never resets itself — updates the
+others immediately, and a comparison before every write makes the delayed, queued and
+offline-reconnect cases deterministic rather than dependent on an event a suspended
+tab may have missed.
+
+Start Over clears the local copy *before* writing the mark, and that order is the safe
+one, and it clears only the application it discarded: deleting the server draft is a
+round trip, and another tab can write a different application into that one shared slot
+while it runs. A tab that never stored a draft of its own — its writes refused on a full
+quota — has no name to compare, and that is not a licence to clear somebody else's: an
+empty or unnamed slot it will clear, a named one it will not. The resume token is treated the same way — dropped only if it is still the
+token that Start Over just retired, because a save from another tab in that window is
+issued a token of its own. Clearing frees the space the mark needs; a mark written first can fail on a full
+quota, and by then the shared resume token is gone too — so another tab would see
+neither a changed mark nor a token, and its next save would be accepted as a
+token-less first save that recreates the application just deleted.
+
+What a discard costs a tab depends on where its answers came from. If it **restored**
+them, they *are* the discarded application and it returns to a genuinely fresh start.
+If the applicant typed them in that tab and never restored anything, they are their
+own work: they stay on screen and simply become the start of a new application. A
+submitted application is exempt outright — a late signal must never take away a
+success screen, a confirmation number or the documents checklist.
+
+**A discard that lands while a tab is still starting up is the narrowest window of
+all.** The reaction runs with nothing on screen to reset, so it adopts the mark and
+every later comparison reads clean — and the load then restores the stored draft, which
+may be the discarded one. The reset counter is what still remembers: the profile load
+captures it before its fetch and skips the restore if it moved, the same mechanism the
+server reconciliation uses. It checks the mark there as well, for the mirror image of
+the same race: a mark written before the listener was installed delivers no event, so
+the counter never moves — but the mark this tab loaded with is still different from the
+one in storage.
+
+**The comparison runs at the two moments a missed signal would be unrecoverable.** One
+is submission: it is checked before any validation, because submitting writes an
+application and freezes an immutable snapshot, so a signal the `storage` event never
+delivered — a suspended tab, or a discard between the last navigation and the click —
+would otherwise make permanent exactly what the applicant asked to be rid of. It is
+checked **again immediately before each attempt at the callable**, and by two different
+tests, because between the first check and the wire lie an id generation, a queue write
+and, on a retry, a backoff wait. The mark comparison catches a discard no event
+announced. The reset counter catches one that *did* arrive as an event: an event during
+a submission in flight is exempted, so it cannot wipe a submission that has landed —
+and that exemption adopts the new mark, which would leave a comparison reading clean.
+The counter is bumped before the exemption, so it still remembers. A discard landing in those seconds finds a submission "in flight", which the
+reaction deliberately leaves alone so that it cannot wipe one that has *landed* — so
+the submit path has to notice for itself. Abandoning it also removes the queue entry
+written for guaranteed delivery, or that entry would replay the discarded answers hours
+later. The same question is asked once more after the final attempt fails, before the
+queued screen appears: that screen promises the submission will go when the connection
+returns, and for a discarded application the replay will correctly refuse it, so showing
+it would leave the applicant waiting for something that is never going to happen. The
+other is the return of the resume lookup, before any prompt is offered: a draft
+discarded while that request was open no longer exists, and both answers to a prompt
+for it fail against the deleted document, leaving the gate that holds autosave shut
+for the rest of the visit.
+
+**Submission closes the draft's life the same way, including when it arrives late.**
+The server discards the draft on submission, so the client writes the same mark, drops
+the resume token **and abandons its own queued saves**. All three are needed: writing the mark tells other tabs, but
+the submitting tab *adopts* that mark, so its own staleness check stays false and a
+payload already queued behind an in-flight save would still go out — token-less, which
+the server accepts as a first save. Without this a second tab's autosave, or this
+tab's own queue, would recreate a draft for an application that had already been
+submitted, and the applicant would reappear in the recruiter's "started, incomplete"
+list after successfully applying.
+
+**A queued submission is also refused when the application was discarded while it
+waited.** The entry records the page's discard mark as it stood when the applicant
+pressed Submit — not as it stands at the moment of queueing, because a discard arriving
+in between is exempted while a submission is in flight, and exempting it adopts the new
+mark. Recording that would give the entry a baseline equal to the discard itself, and a
+replay would find nothing changed. The abort dequeues the entry, but a dequeue can fail;
+the baseline is what makes that failure harmless. A replay compares it before sending. Nothing else can be relied on to cancel it: the tab
+that queued it may be showing a *queued* screen, which a discard deliberately leaves
+alone so it cannot wipe a submission in progress, or may be closed altogether. The mark
+does not say which application ended, so an unrelated change also drops the entry —
+accepted, because the alternative is submitting answers the applicant deleted, and
+because a second application queued on the same page while the first was waiting is far
+rarer than either.
+
+An offline submission does the same thing at the moment it actually lands. Those three
+writes belong to a submission *reaching the server*, not to the applicant pressing
+Submit — a queued submission has not been sent yet, and clearing its draft on a
+transient network failure would destroy the only copy of their work. So the apply
+page's slug travels with the queue entry, which may outlive the tab that made it, and
+the queue closes the draft out when a replay succeeds — possibly in a different tab,
+possibly a day later. Without that, every other open tab still believes the application
+is unfinished and is free to submit those same answers a second time.
+
+**A late close has to prove it is closing the right application.** The slug names the
+apply page, not which application was submitted from it, and in the interval the
+applicant may have gone back and started a new one. Clearing *that* would delete work
+they have not sent and announce their new application as submitted — worse than the
+duplicate submission the close exists to prevent. So a draft carries an **opaque name**
+of its own, minted when it is created and kept through every later write, and the queue
+entry carries the name of the draft it was made from. The close happens only when
+storage still holds that draft.
+
+Neither of the two obvious shortcuts works, and both were tried. The write counter is
+progress, not identity: it restarts from zero whenever a draft is cleared, so a later
+unrelated application eventually reads equal to the one before it. The resume token's
+applicant key lives in shared storage, so another tab correcting a contact detail — or
+starting over entirely — can move it before this tab queues its submission, stamping
+the entry with an application it never submitted. The name is captured from what the
+*submitting tab* was working on rather than read back later, for the same reason.
+
+The name is **owned by the writer, not by the slot**. Two tabs can each open the apply
+page before either has saved, and if the second one's first write inherited the name it
+found in shared storage, one name would cover two different applications — and a
+submission holding it would later accept the wrong draft as its own. So a write says
+which application it believes it is writing: a name it already holds is kept, no name
+means this write is starting one and gets a fresh name, and a write that only annotates
+an existing draft — recording a confirmed sync — makes no claim and leaves the name
+alone. For the same reason the submitting tab never falls back to reading the name out
+of storage: a tab whose own writes failed on quota would otherwise stamp its submission
+with whatever another tab had stored.
+
+An empty slot is not somebody else's work: when no draft is stored the mark is still
+written, because other tabs may hold those answers in memory. A draft written before
+drafts had names cannot be proved either way, so it is left alone.
+
+**A direct submission is scoped the same way, and for the same reason.** Two tabs can
+hold two different applications for one page — that is exactly what the discard rule
+above produces when one tab keeps what the applicant typed there — so a submission
+clears the draft *it* was written from and leaves another application in that slot
+alone. The mark is still written either way, because a third tab may be holding the
+answers that were just submitted and nothing else will ever tell it. A tab reacting to
+a mark clears the stored copy only when it had restored it: in the other case the slot
+holds that tab's own application, and deleting it would destroy the backup of work the
+applicant is still typing.
+
+**A name never outlives its application.** Start Over, a submission closing out,
+"apply again" after one, and reacting to a discard elsewhere all forget it — including
+when the reaction *keeps* the answers, because the applicant is then told outright that
+those answers will start a new application. Left in place, a queued submission still
+holding that name would take the applicant's next application for the one it submitted
+and delete it.
+
+**The mark deliberately does *not* say which application ended, and that asymmetry with
+the scoped clear is the point.** Naming it was tried, so that a tab minding a different
+application could ignore the news. It silently restored the original bug, and the
+two-tab browser test caught it: a draft's name identifies one local slot generation, not
+the application, so two tabs working on the same application each mint their own the
+first time they write. A tab comparing names then decides a discard is none of its
+business and goes on showing the answers the applicant just deleted. The name answers
+"is what is in the slot still the draft I submitted from?", which is a question about
+storage; it cannot answer "is this news about my application?".
+
+So every tab acts on any change to the mark. The residual is accepted and bounded: a tab
+minding a genuinely different application on the same page is told that an application
+was submitted or discarded, and keeps the answers it holds unless it had restored
+them.
+
+**The mark says which of the two things happened.** Discarding and submitting delete
+the same three things, and a tab reacting to either sees nothing but a changed value —
+so the value carries a `discard:` or `submit:` prefix, read *only* for wording, never
+compared for anything. Telling an applicant who has just successfully applied that
+their application was discarded would be misinformation about the one action they
+cannot undo. A mark written before the prefix existed reads as a discard, which never
+claims a submission that did not happen.
 
 **The resume lookup runs before the first server save.** A save racing it loses
 the very draft the feature protects: it overwrites the saved step with page one
@@ -297,9 +482,23 @@ already existed, so anyone who knew an applicant's email and phone could replace
 their saved work, and anyone who knew name, date of birth and SSN digits could
 delete it. Creating a new draft is still open. Modifying one that exists now
 requires proof of ownership: the resume token issued to the device that created it,
-or the full identity HMAC. Superseding other drafts for an identity additionally
-requires holding a token that resolves to that same identity, so identity knowledge
-alone is not a delete primitive. The existence check, the authorization decision and the write happen in **one
+or the full identity HMAC. Superseding another draft on a save requires the
+token of **the draft being deleted** — not merely a token for some draft with the
+same identity, because the identity facts let a stranger create their own draft,
+inherit the victim's identity key, and use the token minted for it. So identity
+knowledge alone is not a delete primitive.
+
+**Start Over discards the application the applicant was offered, not every
+application their identity has**, and that boundary is a security property rather
+than a simplification. Sweeping the identity looks reasonable — start over resolved a
+live draft of it by token before deleting anything — but knowing a last name, a date
+of birth and an SSN is enough to *create* a draft that inherits the victim's identity
+HMAC and to be handed a valid token for it. "I own a draft with this identity" is
+therefore true of a stranger, and a sweep authorized by it deletes the real
+applicant's work. So a draft is retired only by a caller holding that draft's own
+token. A sibling — which exists because some other browser created one without a
+token — is left to its own start over, to being offered on a later visit, or to the
+30-day TTL. The existence check, the authorization decision and the write happen in **one
 transaction**: a standalone read followed by a later write leaves a window in which
 two first saves each mint a token and overwrite each other, or a save lands after
 Start Over and resurrects the application the applicant just discarded.
@@ -314,7 +513,36 @@ network failure returns —
 a draft exists. **Known and accepted limitation:** a caller who already holds both
 the email and the phone can still distinguish "refused" from "created" by watching
 whether a token comes back; it is hard rate-limited and audited, and is strictly
-narrower than the overwrite capability it replaced. A second, accepted
+narrower than the overwrite capability it replaced. **A resume token that opens nothing is refused.** Presenting one says "I am writing
+the draft I already own", and when that draft has been deleted — by Start Over in
+another tab, or by submission — the sentence is no longer true and the payload was
+composed against something that is gone. The client cannot cover this case on its
+own: the request may already have been on the wire. So a presented token must still
+resolve to a live draft (the target document, then the identity's own drafts, then a
+bounded recent scan when no identity HMAC can be derived), and otherwise the save is
+refused. **Resolving includes the token's last two generations**, because a resume lookup
+rotates the token on a live draft *before* the applicant has chosen anything: a second
+device reaching that prompt and closing it again would otherwise end the first device's
+server autosave for good, for an applicant who deleted nothing. The old generations prove
+only that the draft still exists; changing it still requires the current token or the
+full identity, so a harvested old token gains nothing. It is judged **before** ownership and independently of it, because the
+identity bar would happily authorize that same stale payload — the applicant's own
+name, date of birth and SSN are in it — and let it overwrite whatever replaced the
+draft it was written against. Legitimate saves never trip it: ordinary autosave
+presents the token of the document it is writing, an applicant correcting their email
+presents a token whose draft is alive until that same save retires it, and a first
+save presents none. The resolution steps **fall through** rather than deciding, which
+is what keeps that promise when someone corrects a contact field and an identity field
+before the same save — both the document id and the identity HMAC change at once, and
+an early answer from either would refuse every save after it. For that same case the
+browser also names the key it believes its token belongs to, and the server resolves it
+with a single read — a hint and never a claim, because the token hash on the named
+document still has to match, so naming another applicant's draft proves nothing and
+gains nothing. It is what keeps the promise when the owned draft is old enough to sit
+outside the bounded recent scan. Audited as `stale_token`, which is ordinary multi-tab life and
+deliberately not filed as an attack.
+
+A second, accepted
 consequence: someone who creates a draft at another person's key *before* they
 ever apply leaves that applicant without server-side autosave or cross-session
 resume at that carrier, because the squatted document is the one their saves would

@@ -196,6 +196,116 @@ function mayModifyExistingDraft(doc, { resumeToken, identityKey, email, phone })
 }
 
 /**
+ * Does the token this caller presented still open a live draft?
+ *
+ * A browser presents a resume token to say "I am writing the draft I already own".
+ * When that draft no longer exists the sentence is no longer true, and the payload
+ * carrying it was composed against something that has since been deleted — by Start
+ * Over in another tab, or by the applicant submitting. Writing it anyway is how a
+ * discarded application comes back, and the client cannot help here: the request may
+ * already have been on the wire when the draft went away.
+ *
+ * Refusing on that basis is safe because a legitimate save never trips it:
+ *
+ *  - ordinary autosave presents the token of the very document it is writing;
+ *  - an applicant who corrects their email writes a *new* key while still holding
+ *    the previous draft's token — and that draft is alive right up until this same
+ *    save retires it, so the token resolves;
+ *  - a genuine first save presents no token at all and never reaches this.
+ *
+ * Cheapest question first, and each step **falls through** rather than deciding: the
+ * document being written, then the identity's own drafts (one indexed query, normally
+ * one document), then the bounded recent-drafts scan.
+ *
+ * The fall-through is the part that matters. An applicant who corrects a contact
+ * field *and* an identity field before the same save changes both the document id and
+ * the identity HMAC at once, so neither of the first two questions can see the still
+ * live draft their token belongs to. Returning "stale" there would refuse every
+ * subsequent save and silently kill server autosave and cross-session resume for that
+ * applicant — the opposite of what this rule is for. The scan is bounded, so a very
+ * old draft at a busy company can still fall outside it; that is the same window
+ * `resumeApplicationDraft` already accepts when a browser presents a token without a
+ * key, and it errs towards refusing a write rather than towards accepting a stale one.
+ *
+ * All of it inside the caller's transaction, so the answer and the write it authorizes
+ * cannot disagree.
+ */
+/**
+ * How many superseded token hashes a draft remembers.
+ *
+ * Only for the liveness question below — never for authorization. Two is enough for the
+ * case it exists to serve, one other device reaching the resume prompt while this one is
+ * mid-save; a token rotated further back than that is old enough that refusing the write
+ * is the safer answer.
+ */
+const MAX_PRIOR_TOKEN_HASHES = 2;
+
+/** The prior-hash list a draft should carry once its token is rotated. */
+function priorHashesAfterRotation(stored) {
+    const prior = Array.isArray(stored?.priorResumeTokenHashes) ? stored.priorResumeTokenHashes : [];
+    const rotated = typeof stored?.resumeTokenHash === 'string' ? stored.resumeTokenHash : null;
+    return (rotated ? [rotated, ...prior] : prior)
+        .filter((hash) => typeof hash === 'string' && hash)
+        .slice(0, MAX_PRIOR_TOKEN_HASHES);
+}
+
+/**
+ * Does this token name this draft — now, or before its last rotation?
+ *
+ * The prior generations answer *liveness only*: "the draft this payload was written
+ * against still exists". They authorize nothing. Changing an existing draft still
+ * requires the current token hash or the full identity, which is what keeps a harvested
+ * old token from becoming a write capability.
+ *
+ * They are needed because a resume *lookup* rotates the token on a live draft before the
+ * applicant has chosen anything. A second device merely reaching the prompt — and then
+ * closing it — would otherwise make the first device's next save look like a write
+ * against a deleted draft, and every save after it, silently ending server autosave for
+ * an applicant who deleted nothing.
+ */
+function tokenNamesDraft(doc, resumeToken) {
+    const data = doc?.data?.() || {};
+    if (draft.resumeTokenMatches(data.resumeTokenHash, resumeToken)) return true;
+    const prior = Array.isArray(data.priorResumeTokenHashes) ? data.priorResumeTokenHashes : [];
+    return prior.some((hash) => draft.resumeTokenMatches(hash, resumeToken));
+}
+
+async function tokenOpensALiveDraft(transaction, {
+    companyId, target, identityKey, resumeToken, claimedApplicantKey,
+}) {
+    if (target?.exists && tokenNamesDraft(target, resumeToken)) {
+        return true;
+    }
+
+    const matches = (docs) => docs.some((doc) => tokenNamesDraft(doc, resumeToken));
+
+    // The browser tells us which key it thinks its token belongs to. A hint, never a
+    // claim: the token hash on that document still has to match, so naming somebody
+    // else's draft proves nothing and gains nothing. What it buys is one read instead
+    // of a scan — and correctness for the case the scan can miss, where an applicant
+    // corrected a contact field and an identity field at once and the owned draft is
+    // old enough to sit outside the recent window.
+    if (claimedApplicantKey && claimedApplicantKey !== target?.id) {
+        const claimed = await transaction.get(
+            draft.draftsCollection(companyId).doc(claimedApplicantKey),
+        );
+        if (claimed.exists && matches([claimed])) return true;
+    }
+
+    if (identityKey) {
+        const siblings = await transaction.get(
+            draft.draftsCollection(companyId).where('identityKey', '==', identityKey),
+        );
+        if (matches(siblings.docs)) return true;
+    }
+
+    const recent = await transaction.get(
+        draft.draftsCollection(companyId).orderBy('updatedAt', 'desc').limit(50),
+    );
+    return matches(recent.docs);
+}
+
+/**
  * Writes a value-free record of a matching attempt.
  *
  * Deliberately records the *outcome and the company*, never the name, the date of
@@ -303,12 +413,29 @@ exports.saveApplicationProgress = functions
          */
         const attempt = await db.runTransaction(async (transaction) => {
             const existing = await transaction.get(ref);
+            const presentedToken = text(data?.resumeToken, 128);
+
+            // A token that opens nothing means this payload predates a deletion —
+            // Start Over in another tab, or a submission. Checked before the
+            // ownership rules and independently of them, because the identity bar
+            // would otherwise wave the same stale payload through: the applicant's
+            // own name, date of birth and SSN are in it, so it authorizes fine and
+            // overwrites whatever replaced the draft it was written against.
+            if (presentedToken && !(await tokenOpensALiveDraft(transaction, {
+                companyId,
+                target: existing,
+                identityKey,
+                resumeToken: presentedToken,
+                claimedApplicantKey: applicantKeyOf(data?.resumeApplicantKey),
+            }))) {
+                return { refused: true, stale: true, token: null };
+            }
 
             // Changing an existing draft needs proof of ownership; creating one does
             // not, because an applicant on page one has nothing to prove it with yet.
             if (existing.exists) {
                 const authorizedBy = mayModifyExistingDraft(existing, {
-                    resumeToken: text(data?.resumeToken, 128),
+                    resumeToken: presentedToken,
                     identityKey,
                     email,
                     phone,
@@ -393,7 +520,15 @@ exports.saveApplicationProgress = functions
                 ),
             ])).every(Boolean);
             if (withinProbeBudget) {
-                await recordMatchAttempt(companyId, 'unauthorized_write', 'draft_write_refused');
+                // Two different operational facts: somebody wrote to a draft they
+                // could not prove they own, versus a browser holding a token for a
+                // draft that had already gone. The second is ordinary multi-tab life
+                // and should not read as an attack in the audit trail.
+                await recordMatchAttempt(
+                    companyId,
+                    attempt.stale ? 'stale_token' : 'unauthorized_write',
+                    'draft_write_refused',
+                );
             }
             // Deliberately the same shape a network failure produces. The client
             // treats it as "not synced", keeps its local copy, and tells the
@@ -410,7 +545,10 @@ exports.saveApplicationProgress = functions
         // See `supersedeOtherDrafts` for why "knows the identity" is not enough.
         const supersedeToken = text(data?.resumeToken, 128);
         if (identityKey && supersedeToken) {
-            await supersedeOtherDrafts(companyId, identityKey, applicantKey, supersedeToken);
+            // Per draft, never per identity. See `supersedeOtherDrafts`.
+            await supersedeOtherDrafts(companyId, identityKey, applicantKey, {
+                resumeToken: supersedeToken,
+            });
         }
 
         return {
@@ -447,8 +585,24 @@ exports.saveApplicationProgress = functions
  * the old one goes; a device that resumed holds that draft's token for the same
  * reason. A straggler nobody can prove they own is left to the 30-day TTL, which
  * is a duplicate in a list, not somebody's deleted work.
+ *
+ * ## Per draft, never per identity — including for Start Over
+ *
+ * It is tempting to let `startNewApplication` sweep the identity outright, on the
+ * grounds that it resolved a live draft of that identity by token before deleting
+ * anything. That reasoning does not hold, and trying it reintroduced the exact
+ * primitive this gate exists to remove: knowing a name, a date of birth and an SSN
+ * is enough to *create* a draft that inherits the victim's identity HMAC and to be
+ * handed a valid token for it — after which "I own a draft with this identity" is
+ * true of an attacker, and a sweep authorized by it deletes the victim's work.
+ *
+ * So there is no ownership-proven mode. A draft is retired only by a caller holding
+ * that draft's own token, whoever is asking and whatever they are asking for.
+ *
+ * @param {{ resumeToken?: string }} [proof]
  */
-async function supersedeOtherDrafts(companyId, identityKey, keepApplicantKey, resumeToken) {
+async function supersedeOtherDrafts(companyId, identityKey, keepApplicantKey, proof = {}) {
+    const { resumeToken } = proof;
     try {
         const snapshot = await draft.draftsCollection(companyId)
             .where('identityKey', '==', identityKey)
@@ -544,18 +698,41 @@ exports.findResumableApplication = functions
             return NO_MATCH;
         }
 
-        // A fresh token per successful match, so a token cannot be harvested from
-        // one browser and replayed from another indefinitely.
+        // A fresh token per successful match, so a token cannot be harvested from one
+        // browser and replayed from another indefinitely. The superseded hash is kept —
+        // see `tokenNamesDraft` — because this rotation happens before the applicant has
+        // chosen anything: the device holding the old token has deleted nothing, and its
+        // saves must go on being accepted.
+        //
+        // In a transaction that re-reads the document, because a merge-set *creates* what
+        // it cannot find. Start Over deleting this draft between the query above and the
+        // write below would otherwise be undone here — resurrected as a stub holding a
+        // token and two timestamps and no answers at all, which this call would then
+        // offer the applicant as their unfinished application.
         const token = draft.mintResumeToken();
-        await candidate.ref.set({
-            resumeTokenHash: token.hash,
-            updatedAt: draft.serverTimestamp(),
-            expiresAt: draft.expiresAt(),
-        }, { merge: true });
+        const rotated = await db.runTransaction(async (transaction) => {
+            const fresh = await transaction.get(candidate.ref);
+            if (!fresh.exists) return null;
+            transaction.set(candidate.ref, {
+                resumeTokenHash: token.hash,
+                priorResumeTokenHashes: priorHashesAfterRotation(fresh.data()),
+                updatedAt: draft.serverTimestamp(),
+                expiresAt: draft.expiresAt(),
+            }, { merge: true });
+            return fresh.data() || {};
+        });
+
+        if (!rotated) {
+            // Discarded while this lookup was running. Reported exactly as a lookup that
+            // found nothing: the applicant has no unfinished application any more, and
+            // the answer must not disclose that one existed a moment ago.
+            await recordMatchAttempt(companyId, 'no_draft');
+            return NO_MATCH;
+        }
 
         await recordMatchAttempt(companyId, 'matched');
 
-        const stored = candidate.data() || {};
+        const stored = rotated;
         return {
             resumable: true,
             resumeToken: token.token,
@@ -667,8 +844,6 @@ exports.startNewApplication = functions
             throw new functions.https.HttpsError('not-found', 'That saved application could not be found.');
         }
 
-        const identityKey = doc.data()?.identityKey || null;
-
         await db.runTransaction(async (transaction) => {
             // Re-read inside the transaction: a concurrent save could have
             // touched this document between the token check and here, and the
@@ -677,9 +852,23 @@ exports.startNewApplication = functions
             if (fresh.exists) transaction.delete(doc.ref);
         });
 
-        // Any sibling draft for the same person goes too, or "start over" would
-        // leave one behind for the next visit to find.
-        if (identityKey) await supersedeOtherDrafts(companyId, identityKey, null);
+        // No sibling sweep, and the reason is worth stating because the comment here
+        // used to promise one.
+        //
+        // The only draft this caller can prove they own is the one just deleted: the
+        // token they presented resolved to it. A sibling exists precisely because
+        // some *other* browser created it without a token, and its own token is the
+        // only proof of owning it. Sweeping the identity instead would mean anyone
+        // who knows a last name, a date of birth and an SSN could create a draft of
+        // their own, be handed a token for it, and use start over to delete the real
+        // applicant's work — see `supersedeOtherDrafts`.
+        //
+        // So start over discards **the application the applicant was offered**, not
+        // every application their identity has. A sibling is left to its own
+        // browser's start over, to the applicant being offered it on a later visit,
+        // or to the 30-day TTL. The draft's `identityKey` is not read here at all any
+        // more, which is the honest shape of that: this callable has no business
+        // reaching anything the token did not name.
 
         await recordMatchAttempt(companyId, 'discarded');
 

@@ -166,6 +166,7 @@ merge idempotently. No new identity scheme was introduced.
 | `lastStep`, `lastSemanticStep` | Where to return the applicant. The semantic id is what survives a company's custom-questions step being present or absent |
 | `clientSeq` | The browser's own write counter for the copy this save carried. The client compares it with the sequence *it* believes is synced, which is how an older server draft is stopped from overwriting newer local work — without either side comparing a phone clock to a Firestore timestamp. Null for a draft written before the field existed; the client falls back to comparing progress |
 | `resumeTokenHash` | A hash of the bearer token issued to a browser. Compared in constant time; the token itself is never stored |
+| `priorResumeTokenHashes` | Up to two superseded hashes, so a rotation by a resume lookup is not mistaken for the draft being deleted. Liveness evidence only — never authorization |
 | `status`, `createdAt`, `updatedAt`, `expiresAt` | 30-day TTL declared in `firestore.indexes.json` |
 
 **The draft never holds an SSN.** It is stripped in three independent places — the
@@ -193,17 +194,53 @@ the document exists.
 
 **At most one live draft per (company, identity).** A returning applicant who
 retypes their email derives a second document id, and leaving both would make
-"continue" a coin flip, so a save retires the others. That collapse is why the
-resume lookup runs *before* the first save — see
+"continue" a coin flip, so a save retires the others — specifically, the ones whose
+own resume token the caller presents, since deleting a draft needs proof of owning
+*that* draft. `startNewApplication` deletes only the draft its token resolved
+to: sweeping the identity would let anyone holding the three identity facts create a
+draft of their own, be given a token for it, and delete the real applicant's. That collapse is why the resume lookup runs *before* the
+first save — see
 [`useApplicationResume.js`](../src/features/driver-app/hooks/useApplicationResume.js).
 
+**A save presenting a resume token that opens no live draft is refused.** The token
+means "I am writing the draft I already own"; once that draft has been deleted — Start
+Over in another tab, or submission — the payload predates the deletion and writing it
+recreates a discarded application. "Opens" means the current `resumeTokenHash` **or one
+of the two hashes it superseded**, kept in `priorResumeTokenHashes`: a resume lookup
+rotates the token on a live draft before the applicant has chosen anything, so a second
+device merely reaching the prompt would otherwise make the first device's every
+subsequent save look like a write against a deleted draft. Those prior generations answer
+liveness only and authorize nothing — changing an existing draft still needs the current
+hash or the full identity. Resolution is cheapest-first: the target document,
+then the key the request names in `resumeApplicantKey`, then the identity's drafts,
+then a bounded recent scan when no `identityKey` can be derived, all inside the same
+transaction that authorizes the write. Each step falls through rather than deciding.
+`resumeApplicantKey` is a hint only — the named document is accepted solely on its own
+`resumeTokenHash` match, so naming another applicant's draft gains nothing — and it
+exists for the save that corrects a contact field and an identity field at once, where
+neither the new document id nor the new `identityKey` finds the draft the token opens.
+Audited as `stale_token`.
+
+**The lookup's token rotation happens in a transaction that re-reads the draft.** A
+merge-set creates what it cannot find, so a Start Over landing between the query that
+chose the candidate and the write that rotates its token would be undone — the document
+coming back as a stub with a token and two timestamps and no answers, which the same call
+would then offer as the applicant's unfinished application. When the re-read finds it
+gone the answer is the uniform `NO_MATCH`, which is also what keeps the response from
+disclosing that a draft existed a moment earlier.
+
 A successful submission discards the draft (`discardDraftForApplication`), so a
-completed application never leaves a resumable copy behind.
+completed application never leaves a resumable copy behind. That holds for a
+submission the browser had queued offline as well: the client closes the draft's local
+life — copy, resume token and cross-tab mark — when the replay actually reaches this
+function, not when the applicant pressed Submit, because until then the draft is still
+the only record of their work.
 
 Composite index: `identityKey` ASC + `updatedAt` DESC.
 
 `application_draft_audit/{id}` records `action` (`resume_match_attempted` for a
-lookup, `draft_write_refused` for a refused update), `outcome`, `at` and
+lookup, `draft_write_refused` for a refused update, whose `outcome` distinguishes
+`unauthorized_write` from the ordinary multi-tab `stale_token`), `outcome`, `at` and
 `expiresAt` —
 and nothing else. Not the name, the date of birth, the SSN, the identity hash or
 the contact detail. What matters operationally is how many resume attempts a

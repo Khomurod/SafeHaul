@@ -63,7 +63,22 @@ import {
  * restores on load. The strongest path is the one that asks the applicant for
  * nothing.
  */
-export function useApplicationResume({ slug, companyId, sandbox, hasCustomQuestions }) {
+/**
+ * @param {object} options
+ * @param {() => boolean} [options.hasBeenDiscarded] Whether this application has been
+ *   discarded — by Start Over or by a completed submission — since this browser
+ *   loaded it. Consulted immediately before anything crosses the wire, because by
+ *   then the answer may have changed: the applicant can discard in another tab while
+ *   a save is queued here, and a save that lands afterwards recreates the very
+ *   application they asked to be rid of.
+ */
+export function useApplicationResume({
+    slug,
+    companyId,
+    sandbox,
+    hasCustomQuestions,
+    hasBeenDiscarded,
+}) {
     const [prompt, setPrompt] = useState(null);
     const [busy, setBusy] = useState(false);
     const [promptError, setPromptError] = useState(null);
@@ -96,6 +111,16 @@ export function useApplicationResume({ slug, companyId, sandbox, hasCustomQuesti
      * applicant restored a draft, and the payload predates the restore).
      */
     const gateRef = useRef(null);
+    /**
+     * Held in a ref, not read from the closure.
+     *
+     * `sendSave` is a `useCallback` that half the hook depends on; taking the
+     * predicate as a dependency would rebuild it whenever the caller re-created its
+     * function, and rebuilding it re-creates `saveProgressToServer`, which the
+     * wizard's effects depend on.
+     */
+    const discardedRef = useRef(hasBeenDiscarded);
+    discardedRef.current = hasBeenDiscarded;
 
     const enabled = Boolean(slug && companyId && !sandbox);
 
@@ -158,6 +183,14 @@ export function useApplicationResume({ slug, companyId, sandbox, hasCustomQuesti
         });
         if (!found?.resumable) return 'proceed';
 
+        // Discarded while the lookup was open. Installing a prompt now would offer a
+        // draft that no longer exists, and both answers to it fail: Continue and
+        // Start Over each throw against the deleted document, leaving the gate shut
+        // and this tab's autosave wedged for good. The reset that ran during the
+        // lookup could not settle a gate that did not exist yet, so the check has to
+        // happen here.
+        if (discardedRef.current?.()) return 'discard';
+
         const gate = {};
         gate.promise = new Promise((resolve) => { gate.resolve = resolve; });
         gateRef.current = gate;
@@ -172,7 +205,12 @@ export function useApplicationResume({ slug, companyId, sandbox, hasCustomQuesti
     }, [companyId, slug]);
 
     /** One round trip. Swallows everything: see the file header. */
-    const sendSave = useCallback(async ({ formData, stepIndex, localSeq }) => {
+    const sendSave = useCallback(async ({ formData, stepIndex, localSeq, draftId }) => {
+        // The last check before the wire, and the reason it is *here* rather than at
+        // the call sites: a payload can wait in `pendingRef` behind another save, so
+        // the moment it was composed and the moment it is sent are different
+        // moments, and the application may have been discarded in between.
+        if (discardedRef.current?.()) return;
         const semanticOrder = buildSemanticStepOrder(hasCustomQuestions);
         const stored = readResumeToken(slug);
         const result = await saveApplicationProgress({
@@ -194,6 +232,14 @@ export function useApplicationResume({ slug, companyId, sandbox, hasCustomQuesti
             // because company id plus email plus phone derive the document id and
             // knowing them used to be enough to overwrite somebody's application.
             resumeToken: stored?.resumeToken || null,
+            // The key this browser believes its token belongs to, so the server can
+            // resolve it with one read instead of a bounded scan. A hint, not a
+            // claim: the server still verifies the token hash on whatever document
+            // that key names, so naming somebody else's proves nothing. It matters
+            // when an applicant corrects a contact field *and* an identity field
+            // before the same save — then neither the new document id nor the new
+            // identity HMAC can find the draft the token actually opens.
+            resumeApplicantKey: stored?.applicantKey || null,
             // The local write counter for exactly this content. The server stores
             // it and a later resume hands it back, which is how the browser tells
             // "the server holds my copy" from "another device moved on" — without
@@ -207,7 +253,10 @@ export function useApplicationResume({ slug, companyId, sandbox, hasCustomQuesti
             // sync may be recorded. `markDraftSynced` refuses when the local copy
             // has moved on since: a late save must never declare newer local work
             // acknowledged.
-            markDraftSynced(slug, localSeq);
+            // Named as well as numbered: a response can arrive after a Start Over, and
+            // the new draft's counter starts again from zero, so the sequence alone can
+            // match an application this save never touched.
+            markDraftSynced(slug, localSeq, { draftId });
         }
         if (result?.resumeToken) {
             // Adopted even when this browser already had one, which it did not used
@@ -256,6 +305,12 @@ export function useApplicationResume({ slug, companyId, sandbox, hasCustomQuesti
             while (next) {
                 pendingRef.current = null;
                 await sendSave(next);
+                // Re-read rather than trusting the loop entry: the previous send was
+                // a round trip, and a discard elsewhere during it makes whatever
+                // queued behind it stale too. `sendSave` refuses on its own as well;
+                // this stops the loop instead of spinning through payloads it will
+                // drop one by one.
+                if (discardedRef.current?.()) break;
                 next = pendingRef.current;
             }
         } finally {
@@ -355,7 +410,14 @@ export function useApplicationResume({ slug, companyId, sandbox, hasCustomQuesti
         setPromptError(null);
         try {
             await startNewApplication({ companyId, resumeToken: prompt.resumeToken });
-            clearResumeToken(slug);
+            // Only if it is still the token this just retired. The call above is a
+            // round trip, and `localStorage` is shared: another tab can have saved in
+            // the meantime and been issued a token for *its* application, and taking
+            // that away would cost the applicant the ownership proof for work nobody
+            // discarded.
+            if (readResumeToken(slug)?.resumeToken === prompt.resumeToken) {
+                clearResumeToken(slug);
+            }
             setPrompt(null);
             // The queued save is now the beginning of the new application.
             settleGate('proceed');
@@ -368,6 +430,26 @@ export function useApplicationResume({ slug, companyId, sandbox, hasCustomQuesti
         }
     }, [prompt, companyId, slug, settleGate]);
 
+    /**
+     * Forgets that this browser owns a draft.
+     *
+     * Called when the application was discarded elsewhere. Without it the two refs
+     * still say "already asked, already owns", so this tab would skip the resume
+     * question and quietly create a new draft on its next save — which is how the
+     * discarded answers came back. Cleared, it behaves like a browser that owns
+     * nothing: the next save asks first.
+     */
+    const forgetDraftOwnership = useCallback(() => {
+        askedRef.current = false;
+        ownsDraftRef.current = false;
+        pendingRef.current = null;
+        setPrompt(null);
+        setPromptError(null);
+        // Anything waiting on the resume question is released as a discard: the
+        // payload it holds belongs to an application that no longer exists.
+        settleGate('discard');
+    }, [settleGate]);
+
     return {
         resumePrompt: prompt,
         resumeBusy: busy,
@@ -376,6 +458,7 @@ export function useApplicationResume({ slug, companyId, sandbox, hasCustomQuesti
         restoreFromStoredToken,
         continueExisting,
         startOver,
+        forgetDraftOwnership,
     };
 }
 

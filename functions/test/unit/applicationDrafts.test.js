@@ -49,6 +49,14 @@ const mockDeletedPaths = [];
 let mockFailWritesOn = null;
 /** What each transaction read and wrote, so atomicity can be asserted directly. */
 const mockRunTransactionCalls = [];
+/**
+ * Runs once at the start of the next transaction, for driving a race deterministically.
+ *
+ * The window that matters is "another caller changed this document between the read that
+ * chose it and the write that updates it", and a transaction boundary is exactly where
+ * that lands.
+ */
+let mockBeforeNextTransaction = null;
 /** Draft-document writes that did NOT go through a transaction. */
 const mockNonTransactionalWrites = [];
 
@@ -127,10 +135,27 @@ jest.mock('../../firebaseAdmin', () => ({
         // Start Over had just deleted. Same merge semantics as the non-transactional
         // double below, so the two cannot disagree about what a write leaves behind.
         runTransaction: async (fn) => {
+            if (mockBeforeNextTransaction) {
+                const hook = mockBeforeNextTransaction;
+                mockBeforeNextTransaction = null;
+                hook();
+            }
             const record = { reads: [], writes: [] };
             mockRunTransactionCalls.push(record);
             return fn({
-            get: async (ref) => { record.reads.push(ref.path); return mockMakeDoc(ref.path); },
+            // A transaction reads documents *and* queries: the progress save asks
+            // whether a presented resume token still opens any live draft, and that
+            // question has to be inside the transaction that authorizes the write.
+            // A double that only understood document refs would make the real code
+            // look broken.
+            get: async (refOrQuery) => {
+                if (refOrQuery?.path) {
+                    record.reads.push(refOrQuery.path);
+                    return mockMakeDoc(refOrQuery.path);
+                }
+                record.reads.push('<query>');
+                return refOrQuery.get();
+            },
             set: (ref, value, options) => {
                 record.writes.push(ref.path);
                 // Honours `mockFailWritesOn` like the non-transactional double, so a
@@ -197,6 +222,7 @@ beforeEach(() => {
     mockFailWritesOn = null;
     mockRunTransactionCalls.length = 0;
     mockNonTransactionalWrites.length = 0;
+    mockBeforeNextTransaction = null;
     mockCheckRateLimit.mockResolvedValue(true);
     mockAssertIntake.mockResolvedValue({ companyName: 'Acme Freight' });
     mockAssertCompanyAccess.mockResolvedValue(undefined);
@@ -577,6 +603,314 @@ describe('changing a draft that already exists', () => {
             .toBe('FRESH');
     });
 
+    it('refuses a token whose draft was discarded, even with the full identity', async () => {
+        // The multi-tab resurrection, from the server's side. One tab discards; the
+        // other still has a request on the wire carrying the token *and* the
+        // applicant's own name, date of birth and SSN. The identity bar authorizes
+        // that payload perfectly well — which is why staleness has to be judged
+        // before ownership, not instead of it.
+        const first = await saveFirstPage();
+        await drafts.startNewApplication({
+            companyId: COMPANY, resumeToken: first.resumeToken,
+        }, CONTEXT);
+
+        const inFlight = await drafts.saveApplicationProgress({
+            companyId: COMPANY,
+            email: IDENTITY.email,
+            phone: IDENTITY.phone,
+            lastName: IDENTITY.lastName,
+            dob: IDENTITY.dob,
+            ssn: IDENTITY.ssn,
+            resumeToken: first.resumeToken,
+            formData: { firstName: 'Dana', cdlNumber: 'DISCARDED' },
+        }, CONTEXT);
+
+        expect(inFlight.saved).toBe(false);
+        expect(inFlight.applicantKey).toBeNull();
+        expect(inFlight.resumeToken).toBeNull();
+        // Nothing was recreated.
+        expect([...mockStore.keys()].filter((key) => key.includes('/application_drafts/'))).toEqual([]);
+    });
+
+    it('refuses a stale token even when the draft was recreated underneath it', async () => {
+        // The nastier shape: the other tab discarded *and* began again, so a document
+        // exists at this key again. Matching on the target alone would say "no token
+        // match", fall through to the identity check, and let the old answers
+        // overwrite the new application.
+        const first = await saveFirstPage();
+        await drafts.startNewApplication({
+            companyId: COMPANY, resumeToken: first.resumeToken,
+        }, CONTEXT);
+        await saveFirstPage({ formData: { firstName: 'Dana', cdlNumber: 'FRESH' } });
+
+        const inFlight = await drafts.saveApplicationProgress({
+            companyId: COMPANY,
+            email: IDENTITY.email,
+            phone: IDENTITY.phone,
+            lastName: IDENTITY.lastName,
+            dob: IDENTITY.dob,
+            ssn: IDENTITY.ssn,
+            resumeToken: first.resumeToken,
+            formData: { firstName: 'Dana', cdlNumber: 'DISCARDED' },
+        }, CONTEXT);
+
+        expect(inFlight.saved).toBe(false);
+        expect(mockStore.get(`companies/${COMPANY}/application_drafts/${keyFor()}`).formData.cdlNumber)
+            .toBe('FRESH');
+    });
+
+    it('records a refused stale token as its own outcome, not as an attack', async () => {
+        // A browser that had a token for a draft the applicant discarded is ordinary
+        // multi-tab life. Filing it as an unauthorized write would make the audit
+        // trail read as though somebody was probing.
+        const first = await saveFirstPage();
+        await drafts.startNewApplication({
+            companyId: COMPANY, resumeToken: first.resumeToken,
+        }, CONTEXT);
+        const auditBefore = [...mockStore.entries()]
+            .filter(([key]) => key.includes('application_draft_audit')).length;
+
+        await drafts.saveApplicationProgress({
+            companyId: COMPANY,
+            email: IDENTITY.email,
+            phone: IDENTITY.phone,
+            resumeToken: first.resumeToken,
+            formData: { firstName: 'Dana' },
+        }, CONTEXT);
+
+        const audit = [...mockStore.entries()]
+            .filter(([key]) => key.includes('application_draft_audit'))
+            .map(([, value]) => value)
+            .slice(auditBefore);
+        expect(audit).toHaveLength(1);
+        expect(audit[0].action).toBe('draft_write_refused');
+        expect(audit[0].outcome).toBe('stale_token');
+    });
+
+    it('still accepts the token of a draft that is alive, on a different key', async () => {
+        // The legitimate flow the staleness rule must not break: the applicant
+        // corrects their email, so this save writes a new key while holding the
+        // previous draft's token — and that draft is alive right up until this same
+        // save retires it.
+        const first = await saveFirstPage();
+
+        const corrected = await drafts.saveApplicationProgress({
+            companyId: COMPANY,
+            email: 'dana.corrected@example.test',
+            phone: IDENTITY.phone,
+            lastName: IDENTITY.lastName,
+            dob: IDENTITY.dob,
+            ssn: IDENTITY.ssn,
+            resumeToken: first.resumeToken,
+            formData: { firstName: 'Dana', cdlNumber: 'TX44' },
+        }, CONTEXT);
+
+        expect(corrected.saved).toBe(true);
+        expect(corrected.resumeToken).toBeTruthy();
+        const paths = [...mockStore.keys()].filter((key) => key.includes('/application_drafts/'));
+        expect(paths).toHaveLength(1);
+        expect(paths[0]).toContain(keyFor(COMPANY, 'dana.corrected@example.test'));
+    });
+
+    it('still accepts the token when the applicant corrected their identity too', async () => {
+        // The case the first version of this rule broke. Correcting a contact field
+        // *and* an identity field before the same save changes the document id and the
+        // identity HMAC together, so neither the target nor the identity query can see
+        // the live draft the token belongs to. Refusing there would refuse every save
+        // after it — silently killing autosave for an applicant who fixed a typo.
+        const first = await saveFirstPage();
+
+        const corrected = await drafts.saveApplicationProgress({
+            companyId: COMPANY,
+            email: 'dana.fixed@example.test',
+            phone: IDENTITY.phone,
+            // A corrected surname: a different identity HMAC from the stored draft's.
+            lastName: 'Alvarez-Nguyen',
+            dob: IDENTITY.dob,
+            ssn: IDENTITY.ssn,
+            resumeToken: first.resumeToken,
+            formData: { firstName: 'Dana', cdlNumber: 'TX55' },
+        }, CONTEXT);
+
+        expect(corrected.saved).toBe(true);
+        expect(mockStore.get(`companies/${COMPANY}/application_drafts/${keyFor(COMPANY, 'dana.fixed@example.test')}`)
+            .formData.cdlNumber).toBe('TX55');
+    });
+
+    it('resolves the token by the key the browser names, beyond the scan window', async () => {
+        // The residual the bounded scan leaves: at a busy company the owned draft can
+        // be older than the recent window, so an applicant who corrected a contact
+        // field *and* an identity field would be refused for good. The browser already
+        // knows which key its token belongs to, so it says so — and the server still
+        // verifies the hash on that document, which is why naming one proves nothing
+        // on its own.
+        // Enough other drafts to push the owned one outside the scan's 50-document
+        // window. The double returns documents in insertion order, so these have to be
+        // seeded first — which is also why this asserts the *hint*, not the ordering
+        // of a real Firestore query.
+        for (let i = 0; i < 60; i += 1) {
+            mockStore.set(`companies/${COMPANY}/application_drafts/filler${i}`, {
+                companyId: COMPANY,
+                identityKey: `other-identity-${i}`,
+                resumeTokenHash: `hash-${i}`,
+                updatedAt: mockServerTimestamp(),
+            });
+        }
+        const first = await saveFirstPage();
+
+        const corrected = await drafts.saveApplicationProgress({
+            companyId: COMPANY,
+            email: 'dana.moved@example.test',
+            phone: '(469) 555-0142',
+            lastName: 'Alvarez-Nguyen',
+            dob: IDENTITY.dob,
+            ssn: IDENTITY.ssn,
+            resumeToken: first.resumeToken,
+            resumeApplicantKey: first.applicantKey,
+            formData: { firstName: 'Dana', cdlNumber: 'TX66' },
+        }, CONTEXT);
+
+        expect(corrected.saved).toBe(true);
+    });
+
+    it('gains nothing from naming a key whose token does not match', async () => {
+        // The hint is verified, not trusted. Pointing at somebody else's live draft
+        // does not make a stale token valid.
+        const victim = await saveFirstPage();
+        await drafts.startNewApplication({
+            companyId: COMPANY, resumeToken: victim.resumeToken,
+        }, CONTEXT);
+        const other = await saveFirstPage({
+            email: 'someone.else@example.test',
+            phone: '(972) 555-0100',
+            lastName: 'Nguyen',
+            dob: '1990-07-04',
+            ssn: '987-65-4321',
+        });
+
+        const attempt = await drafts.saveApplicationProgress({
+            companyId: COMPANY,
+            email: IDENTITY.email,
+            phone: IDENTITY.phone,
+            lastName: IDENTITY.lastName,
+            dob: IDENTITY.dob,
+            ssn: IDENTITY.ssn,
+            resumeToken: victim.resumeToken,
+            resumeApplicantKey: other.applicantKey,
+            formData: { firstName: 'Ghost' },
+        }, CONTEXT);
+
+        expect(attempt.saved).toBe(false);
+    });
+
+    it('keeps accepting the first device after another device merely looked', async () => {
+        // A resume lookup rotates the token on a *live* draft, before the applicant has
+        // chosen anything — so a second device reaching the prompt, and then closing it,
+        // must not make the first device's saves look like writes against a deleted
+        // draft. Getting this wrong ends server autosave for somebody who deleted
+        // nothing, and every save after it.
+        const first = await saveFirstPage();
+
+        const looked = await drafts.findResumableApplication({
+            companyId: COMPANY,
+            lastName: IDENTITY.lastName,
+            dob: IDENTITY.dob,
+            ssn: IDENTITY.ssn,
+            email: IDENTITY.email,
+        }, CONTEXT);
+        expect(looked.resumable).toBe(true);
+        expect(looked.resumeToken).not.toBe(first.resumeToken);
+
+        const stillSaving = await drafts.saveApplicationProgress({
+            companyId: COMPANY,
+            email: IDENTITY.email,
+            phone: IDENTITY.phone,
+            lastName: IDENTITY.lastName,
+            dob: IDENTITY.dob,
+            ssn: IDENTITY.ssn,
+            resumeToken: first.resumeToken,
+            resumeApplicantKey: first.applicantKey,
+            formData: { firstName: 'Dana', cdlNumber: 'TX77' },
+        }, CONTEXT);
+
+        expect(stillSaving.saved).toBe(true);
+        expect(mockStore.get(`companies/${COMPANY}/application_drafts/${first.applicantKey}`)
+            .formData.cdlNumber).toBe('TX77');
+    });
+
+    it('refuses a token rotated further back than the draft remembers', async () => {
+        // The window is deliberately short: two generations. A token older than that is
+        // old enough that refusing the write is the safer answer.
+        const first = await saveFirstPage();
+        for (let i = 0; i < 3; i += 1) {
+            await drafts.findResumableApplication({
+                companyId: COMPANY,
+                lastName: IDENTITY.lastName,
+                dob: IDENTITY.dob,
+                ssn: IDENTITY.ssn,
+                email: IDENTITY.email,
+            }, CONTEXT);
+        }
+
+        const attempt = await drafts.saveApplicationProgress({
+            companyId: COMPANY,
+            email: IDENTITY.email,
+            phone: IDENTITY.phone,
+            lastName: IDENTITY.lastName,
+            dob: IDENTITY.dob,
+            ssn: IDENTITY.ssn,
+            resumeToken: first.resumeToken,
+            resumeApplicantKey: first.applicantKey,
+            formData: { firstName: 'Dana', cdlNumber: 'TX88' },
+        }, CONTEXT);
+
+        expect(attempt.saved).toBe(false);
+    });
+
+    it('still refuses a rotated token once the draft itself is gone', async () => {
+        // The prior generations answer liveness only. Once Start Over has removed the
+        // draft there is nothing to be live, and the old token opens nothing.
+        const first = await saveFirstPage();
+        const looked = await drafts.findResumableApplication({
+            companyId: COMPANY,
+            lastName: IDENTITY.lastName,
+            dob: IDENTITY.dob,
+            ssn: IDENTITY.ssn,
+            email: IDENTITY.email,
+        }, CONTEXT);
+        await drafts.startNewApplication({
+            companyId: COMPANY, resumeToken: looked.resumeToken,
+        }, CONTEXT);
+
+        const attempt = await drafts.saveApplicationProgress({
+            companyId: COMPANY,
+            email: IDENTITY.email,
+            phone: IDENTITY.phone,
+            lastName: IDENTITY.lastName,
+            dob: IDENTITY.dob,
+            ssn: IDENTITY.ssn,
+            resumeToken: first.resumeToken,
+            resumeApplicantKey: first.applicantKey,
+            formData: { firstName: 'Ghost' },
+        }, CONTEXT);
+
+        expect(attempt.saved).toBe(false);
+    });
+
+    it('accepts a token-less first save, which is what a discarded tab sends next', async () => {
+        // After a discard the client clears the shared token, so the tab's next save
+        // presents none. That has to keep working: it is the new application.
+        const fresh = await drafts.saveApplicationProgress({
+            companyId: COMPANY,
+            email: IDENTITY.email,
+            phone: IDENTITY.phone,
+            formData: { firstName: 'Dana', cdlNumber: 'BRAND-NEW' },
+        }, CONTEXT);
+
+        expect(fresh.saved).toBe(true);
+        expect(fresh.resumeToken).toBeTruthy();
+    });
+
     it('stays idempotent for a retried save with the same token', async () => {
         const first = await saveFirstPage();
         const payload = {
@@ -618,6 +952,31 @@ describe('finding a resumable application', () => {
         // Enough to say "you were on the Qualifications step" and nothing more.
         expect(found.lastSemanticStep).toBe('qualifications');
         expect(JSON.stringify(found)).not.toContain('Dana');
+    });
+
+    it('does not resurrect a draft discarded while the lookup was running', async () => {
+        // The lookup rotates the matched draft's token, and a merge-set *creates* what it
+        // cannot find. Start Over deleting the draft between the query and that write
+        // would otherwise be undone — brought back as a stub holding a token and two
+        // timestamps and no answers — and this call would offer it as the applicant's
+        // unfinished application.
+        const first = await saveFirstPage();
+        const path = `companies/${COMPANY}/application_drafts/${first.applicantKey}`;
+        mockBeforeNextTransaction = () => { mockStore.delete(path); };
+
+        const found = await drafts.findResumableApplication({
+            companyId: COMPANY,
+            lastName: IDENTITY.lastName,
+            dob: IDENTITY.dob,
+            ssn: IDENTITY.ssn,
+            email: IDENTITY.email,
+        }, CONTEXT);
+
+        // Nothing offered, and nothing left behind. The answer is also the same one a
+        // lookup that found nothing gives, so it does not disclose that a draft existed
+        // a moment ago.
+        expect(found).toEqual({ resumable: false });
+        expect(mockStore.has(path)).toBe(false);
     });
 
     it('refuses when the identity matches but no contact detail does', async () => {
@@ -822,6 +1181,53 @@ describe('starting over', () => {
 
         expect(result.discarded).toBe(true);
         expect([...mockStore.keys()].filter((key) => key.includes('/application_drafts/'))).toHaveLength(0);
+    });
+
+    it('cannot be used to delete a draft the caller cannot prove they own', async () => {
+        // The reason start over does not sweep the identity. Knowing a last name, a
+        // date of birth and an SSN is enough to *create* a draft that inherits the
+        // victim's identity HMAC and to be handed a valid token for it — so "I own a
+        // draft with this identity" is true of a stranger. A sweep authorized by that
+        // would delete the real applicant's work, which is precisely the primitive
+        // the save path's per-draft gate removed.
+        const victim = await saveFirstPage();
+
+        // The attacker's own draft: their contact details, the victim's identity.
+        const attacker = await saveFirstPage({
+            email: 'attacker@example.test',
+            phone: '(214) 555-0199',
+        });
+        expect(attacker.resumeToken).toBeTruthy();
+
+        await drafts.startNewApplication({
+            companyId: COMPANY, resumeToken: attacker.resumeToken,
+        }, CONTEXT);
+
+        // Their own draft is gone, and only their own.
+        expect(mockStore.has(`companies/${COMPANY}/application_drafts/${keyFor(COMPANY, 'attacker@example.test')}`))
+            .toBe(false);
+        const survivor = mockStore.get(`companies/${COMPANY}/application_drafts/${keyFor()}`);
+        expect(survivor).toBeDefined();
+        expect(victim.resumeToken).toBeTruthy();
+    });
+
+    it('discards the application it was offered, leaving a sibling it cannot prove it owns', async () => {
+        // The honest semantic, written down because the comment here used to promise
+        // the opposite. A second device with no token creates a sibling; start over on
+        // one device discards that device's application, and the other draft — whose
+        // token only that other browser holds — survives to be offered later or to
+        // expire with the TTL.
+        await saveFirstPage();
+        const secondDevice = await saveFirstPage({ email: 'dana.alvarez@example.test' });
+        expect([...mockStore.keys()].filter((key) => key.includes('/application_drafts/'))).toHaveLength(2);
+
+        await drafts.startNewApplication({
+            companyId: COMPANY, resumeToken: secondDevice.resumeToken,
+        }, CONTEXT);
+
+        const remaining = [...mockStore.keys()].filter((key) => key.includes('/application_drafts/'));
+        expect(remaining).toHaveLength(1);
+        expect(remaining[0]).toContain(keyFor());
     });
 
     it('leaves exactly one consistent state, never two live drafts', async () => {
