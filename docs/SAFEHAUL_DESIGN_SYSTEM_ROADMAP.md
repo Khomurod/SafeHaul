@@ -120,6 +120,15 @@ The reverse directions are prohibited and enforced by
   attributes an icon library renders. Passing `size={24}` to a glyph in a button
   does nothing, deliberately.
 - **Status is never colour alone** — always text or icon plus tone.
+- **A state must announce itself.** Loading and empty are `role="status"`
+  (polite); errors are `role="alert"`. Use `EmptyState` / `ErrorState` /
+  `LoadingState` from `@design-system/patterns`, which choose for you. A polite
+  error is silent until the user happens to navigate to it; an assertive empty
+  state interrupts them to say there is nothing.
+- **A link navigates; a button acts.** Use `Link` / `ButtonLink` /
+  `IconButtonLink`, never a styled `<a>` and never a `<button>` dressed as a
+  link. Pass `external` instead of hand-writing `target="_blank"`, so the new
+  tab is announced and `rel` closes the reverse-tabnabbing hole.
 - **`--ds-color-content-muted` is safe on every surface.** It is slate-600 as of
   2026-08-21 (8.6:1 on `surface`, 7.0:1 on `surface-subtle`, 6.4:1 on
   `status-warning-bg`). It was slate-500 and approved on `surface` *only*, which
@@ -192,9 +201,13 @@ component itself as well.
 - **File inputs stay local** in `DQFileTab`, `BulkUploadLayout`, the public
   application and the PEV result upload: there is no approved file-input
   contract yet.
-- **Styled `<a>` navigations stay local** (`tel:`, `mailto:`, download, CDL
-  photos, the DQ file download): there is no Link/ButtonLink primitive yet. All
-  carry real accessible names.
+- ~~**Styled `<a>` navigations stay local.**~~ **RETIRED 2026-08-21.**
+  `Link`, `ButtonLink` and `IconButtonLink` exist
+  (`components/link`). The remaining feature-owned anchors are being migrated to
+  them; a new styled `<a>` is a violation, not an exception. Pass `external`
+  rather than hand-writing `target="_blank"` — every external anchor in the
+  product opened a new tab with no announcement, which is a WCAG 3.2.5 failure,
+  and the primitive exists mainly to fix that.
 - **`VOEPreviewModal`'s generated 49 CFR §391.23 document keeps its raw palette
   and its sub-12px type.** It is rasterised by html2canvas into a bare print
   window with no `--ds-*` custom properties, so a token would resolve to
@@ -424,11 +437,17 @@ owner decision in §6:
 | Company Settings → Integrations (Facebook) | The `request.auth.uid` tenant-binding defect |
 
 Component families that are **complete**: dialogs (every active overlay uses
-`Modal`, which now lives in `design-system/patterns/modal`) and
-toast/notification. Families still in progress —
-inputs, select/textarea, empty/error states, icons, loading primitives beyond
+`Modal`, which now lives in `design-system/patterns/modal`), toast/notification,
+and — as of 2026-08-21 — the **empty/error/loading states**
+(`patterns/page-state`) and **navigation links** (`components/link`). Families
+still in progress — inputs, select/textarea, icons, loading primitives beyond
 `ProgressBar` — are tracked by the guardrail work in §7 rather than by a list of
 screens, because the screens are done and what remains is preventing regression.
+
+The state and link primitives exist but their **consumers are not all migrated
+yet**: feature-owned empty/error states and styled `<a>` elements remain in the
+tree and are being replaced family by family. A primitive existing is not the
+same as the exception being gone.
 
 ### Catalog
 

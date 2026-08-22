@@ -5,4 +5,5 @@
  * migration so this foundation pass cannot change existing rendered screens.
  */
 @import './tokens/index.css';
+@import './utilities.css';
 @import '../shared/styles/designTokens.css';

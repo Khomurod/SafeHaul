@@ -1,0 +1,38 @@
+/*
+ * The inline text link.
+ *
+ * Underlined by default and at all times. Removing the underline and relying on
+ * colour alone fails WCAG 1.4.1 wherever the link sits inside body text, and
+ * "it is blue" is not a distinction a colour-blind reader can make against
+ * `--ds-color-content`.
+ */
+.ds-link {
+  border-radius: var(--ds-radius-sm);
+  color: var(--ds-color-content-link);
+  text-decoration: underline;
+  /* Descenders are legible, and the underline does not collide with them. */
+  text-underline-offset: 0.15em;
+}
+
+.ds-link:hover {
+  color: var(--ds-color-action-primary-hover);
+}
+
+.ds-link:focus-visible {
+  outline: 2px solid var(--ds-color-focus);
+  outline-offset: 2px;
+}
+
+/*
+ * For a link inside text that already carries a colour — a status message, a
+ * tinted callout — where the link colour would fight the message's own. It
+ * keeps the underline, which is what distinguishes it from the words around it.
+ */
+.ds-link[data-tone='quiet'] {
+  color: inherit;
+}
+
+.ds-link[data-tone='quiet']:hover {
+  color: inherit;
+  text-decoration-thickness: 2px;
+}

@@ -1,6 +1,7 @@
 export { Badge } from './badge';
 export { Button, IconButton } from './button';
 export { Card, MetricCard } from './card';
+export { ButtonLink, IconButtonLink, Link } from './link';
 export { ProgressBar } from './progress';
 export { SectionNavigation } from './section-navigation';
 export { StatusMedallion } from './status-medallion';

@@ -44,14 +44,21 @@ feature-owned exception in the product:
 
 - **Tabs** (a WAI-ARIA tablist). `SectionNavigation` is section navigation, not a
   tab widget. The driver dossier's tablist is a recorded exception.
-- **Link / ButtonLink.** Back navigation and `tel:` / `mailto:` / download links
-  are styled `<a>` elements today.
 - **Combobox / Listbox.** The FMCSA employer picker is a recorded exception.
 - **File input.** Every upload control is currently feature-owned.
 - **Switch** (ARIA `switch`) and an **indeterminate checkbox** outside
   `DataTable`'s own select-all.
 - **Segmented control / toggle group**, **filter chip**, **overflow menu**,
   **collapsible/disclosure**, **split panel** and **sticky page footer**.
+
+Closed recently, so the exceptions that cited them are retired:
+
+- **Link / ButtonLink / IconButtonLink** — added 2026-08-21. `external` is the
+  reason: every external anchor in the product opened a new tab with no
+  announcement. Do not hand-write `target="_blank"`.
+- **EmptyState / ErrorState / LoadingState** — added 2026-08-21 in
+  `@design-system/patterns`. This catalog used to document the composition and
+  ask you to copy it, which is a component waiting to be written.
 
 ## Appearance
 

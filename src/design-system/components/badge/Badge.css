@@ -1,5 +1,17 @@
 .ds-badge {
   display: inline-flex;
+  /*
+   * A badge is as wide as its label and no wider.
+   *
+   * `inline-flex` alone does not guarantee that. A badge placed in a `Stack`
+   * (a column flex container) is a flex item whose cross size is its *width*,
+   * and the default `align-self: stretch` made it fill the whole column — the
+   * dossier and the catalog's deletion list both rendered a "Removed" badge as a
+   * full-width pill. `width: fit-content` opts out of that in flex and grid
+   * alike, and unlike `align-self: start` it constrains only the width, so a
+   * badge sitting in a row keeps its existing vertical alignment.
+   */
+  width: fit-content;
   min-height: 24px;
   align-items: center;
   gap: var(--ds-space-1);

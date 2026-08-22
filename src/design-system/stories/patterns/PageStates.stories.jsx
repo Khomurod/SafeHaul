@@ -4,10 +4,9 @@ import { AlertTriangle, Inbox, Loader, Plus, RefreshCw } from 'lucide-react';
 import {
   Badge,
   Button,
-  Card,
   DataTable,
-  StatusMedallion,
 } from '@design-system/components';
+import { EmptyState, ErrorState, LoadingState } from '@design-system/patterns';
 import { Inline, PageContainer, PageHeader, Stack } from '@design-system/layouts';
 import { NOT_PROVIDED, RECORDS } from '../fixtures';
 
@@ -51,24 +50,6 @@ function StatePage({ children, actions }) {
   );
 }
 
-/** A full-page state: medallion, heading, explanation, and a way forward. */
-function FullPageState({ tone, Icon, title, body, action }) {
-  return (
-    <Card>
-      <div style={{ textAlign: 'center', padding: 'var(--ds-space-8) var(--ds-space-4)' }}>
-        <Stack gap="sm">
-          <StatusMedallion tone={tone} size="lg"><Icon /></StatusMedallion>
-          <h2 style={{ margin: 0 }}>{title}</h2>
-          <p style={{ margin: 0, color: 'var(--ds-color-content-secondary)' }}>{body}</p>
-          {action && (
-            <Inline gap="sm" style={{ justifyContent: 'center' }}>{action}</Inline>
-          )}
-        </Stack>
-      </div>
-    </Card>
-  );
-}
-
 /**
  * Loading, empty and error — the three states every data-backed page has, and
  * the three that are most often left to chance.
@@ -80,11 +61,11 @@ const meta = {
     docs: {
       description: {
         component: [
-          '**Status: Approved** for the in-table states, which `DataTable` owns and covers',
-          'with tests. **Needs review** for the full-page states: they are composed here from',
-          '`Card`, `StatusMedallion`, `Button` and `Stack`, and the roadmap\'s',
-          '`design-system/patterns` layer — where a shared `PageState` / `EmptyState` belongs —',
-          'is still empty. Follow this composition; do not invent a different one.',
+          '**Status: Approved.** The in-table states are `DataTable`\'s and are covered by its',
+          'tests. The full-page states are `EmptyState`, `ErrorState` and `LoadingState` from',
+          '`@design-system/patterns`, added 2026-08-21 — this page used to hand-compose them',
+          'from `Card`, `StatusMedallion` and inline styles, and said "follow this composition;',
+          'do not invent a different one", which is a component waiting to be written.',
           '',
           '### The three states',
           '',
@@ -228,31 +209,64 @@ export const ErrorWithStaleData = {
   ),
 };
 
-/** The full-page equivalents, for screens that are not a list. */
+/**
+ * The full-page equivalents, for screens that are not a list. Each picks its own
+ * announcement: loading and empty are polite, the error is an alert.
+ */
 export const FullPageStates = {
   render: () => (
     <div className="sb-page">
       <PageContainer width="standard">
         <Stack gap="lg">
-          <FullPageState
-            tone="info"
-            Icon={Loader}
+          <LoadingState
+            icon={Loader}
             title="Preparing your workspace"
-            body="This usually takes a few seconds."
+            description="This usually takes a few seconds."
           />
-          <FullPageState
-            tone="neutral"
-            Icon={Inbox}
+          <EmptyState
+            icon={Inbox}
             title="Nothing here yet"
-            body="Records you create will appear here."
-            action={<Button variant="primary" onClick={fn()}><Plus size={16} aria-hidden="true" />New record</Button>}
+            description="Records you create will appear here."
+            actions={<Button variant="primary" onClick={fn()}><Plus aria-hidden="true" />New record</Button>}
           />
-          <FullPageState
-            tone="danger"
-            Icon={AlertTriangle}
+          <ErrorState
             title="This page could not be loaded"
-            body="The connection was interrupted. Nothing has been lost — try again."
-            action={<Button variant="secondary" onClick={fn()}><RefreshCw size={16} aria-hidden="true" />Try again</Button>}
+            description="The connection was interrupted. Nothing has been lost — try again."
+            actions={<Button variant="secondary" onClick={fn()}><RefreshCw aria-hidden="true" />Try again</Button>}
+          />
+        </Stack>
+      </PageContainer>
+    </div>
+  ),
+};
+
+/**
+ * Empty is not one state. These three look identical and must not read
+ * identically — the third is a permissions boundary, and saying "no records"
+ * there implies data does not exist when the caller simply cannot see it.
+ */
+export const EmptyIsNotOneState = {
+  render: () => (
+    <div className="sb-page">
+      <PageContainer width="standard">
+        <Stack gap="lg">
+          <EmptyState
+            icon={Inbox}
+            title="No records yet"
+            description="Create the first record to get started."
+            actions={<Button variant="primary" onClick={fn()}>New record</Button>}
+          />
+          <EmptyState
+            icon={Inbox}
+            title="No records match these filters"
+            description="Clear one or more filters to see more results."
+            actions={<Button variant="secondary" onClick={fn()}>Clear all filters</Button>}
+          />
+          <EmptyState
+            tone="warning"
+            icon={AlertTriangle}
+            title="You do not have access to these records"
+            description="Ask an administrator to grant you access. Records may exist that are not shown here."
           />
         </Stack>
       </PageContainer>
@@ -274,12 +288,11 @@ export const MobileViewport = {
       <PageContainer>
         <Stack gap="lg">
           <PageHeader title="Records" />
-          <FullPageState
-            tone="neutral"
-            Icon={Inbox}
+          <EmptyState
+            icon={Inbox}
             title="Nothing here yet"
-            body="Records you create will appear here."
-            action={<Button variant="primary" fullWidth onClick={fn()}>New record</Button>}
+            description="Records you create will appear here."
+            actions={<Button variant="primary" onClick={fn()}>New record</Button>}
           />
         </Stack>
       </PageContainer>

@@ -19,7 +19,9 @@ Before changing UI code, read:
 - `patterns/` composes components into repeatable UI states such as data
   presentation, forms, empty states, and dialog structure. `patterns/modal`
   holds `Modal` and `ConfirmDialog` — the accessible dialog primitive every
-  overlay goes through, and the one confirmation shape.
+  overlay goes through, and the one confirmation shape. `patterns/page-state`
+  holds `EmptyState`, `ErrorState` and `LoadingState`, which own the
+  announcement each state needs as well as its appearance.
 - `layouts/` contains business-neutral page and region composition.
 - `icons/` documents and exports the approved icon contract.
 - `stories/` is the component catalog, built with Storybook 10 and configured in
