@@ -3,7 +3,7 @@ import { ArrowRight } from 'lucide-react';
 
 import { Badge, Button, FieldDisplay } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
-import { Modal } from '@shared/components/modals/Modal';
+import { Modal } from '@design-system/patterns';
 
 import {
     describeAttempt,
@@ -21,7 +21,7 @@ import {
  * story — which provider was tried, in what order, and why each declined
  * existed only inside an error string an operator never saw.
  *
- * Built on the shared `Modal` rather than an inline expander: the design system
+ * Built on the approved `Modal` rather than an inline expander: the design system
  * has no disclosure primitive, and `Modal` already owns focus trapping, focus
  * restoration and Escape handling. A log detail view is exactly the kind of
  * thing that is easy to get wrong for keyboard users, and this borrows a

@@ -6,7 +6,7 @@ import { useToast } from '@shared/components/feedback/ToastProvider';
 import { collection, getDocs } from 'firebase/firestore';
 import { Button, Card, Checkbox, IconButton, Input } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
-import { Modal } from '@shared/components/modals/Modal';
+import { Modal } from '@design-system/patterns';
 
 /**
  * Global feature-override matrix: one row per company, one column per feature.
@@ -27,7 +27,7 @@ import { Modal } from '@shared/components/modals/Modal';
  *     controls whose label names both the feature and the company.
  *  2. Two hand-built `fixed inset-0` overlays (schedule, alert stats) with no
  *     dialog role, focus trap, Escape or focus restoration — both now use the
- *     shared accessible `Modal`. The old ones also closed on any backdrop click
+ *     approved accessible `Modal`. The old ones also closed on any backdrop click
  *     while relying on `stopPropagation` inside, so a drag that ended outside
  *     discarded an in-progress schedule.
  *  3. `text-[10px]` schedule text, below the 12 px floor.

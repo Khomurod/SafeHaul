@@ -3,7 +3,7 @@ import { Loader2, AlertTriangle } from 'lucide-react';
 import { useApplicationView } from '@features/company-admin/hooks/useApplicationView';
 import { useApplicationDelete } from '@features/applications/hooks/useApplicationDelete';
 import { useData } from '@/context/DataContext';
-import { Modal } from '@shared/components/modals/Modal';
+import { Modal } from '@design-system/patterns';
 import { Button } from '@/design-system/components';
 import { DossierSidebar } from './DossierSidebar';
 import { DossierHeader } from './DossierHeader';
@@ -15,7 +15,7 @@ import { DossierContent } from './DossierContent';
  * The main container for the Driver Dossier. It manages the active tab state and
  * orchestrates data fetching via `useApplicationView`.
  *
- * Presentation migrated to the shared accessible `Modal`, the approved `Button`
+ * Presentation migrated to the approved accessible `Modal`, the approved `Button`
  * and `--ds-*` tokens (2026-07-27).
  *
  * Frozen contracts: the dialog's accessible name **"Driver dossier"** and the

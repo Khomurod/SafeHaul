@@ -6,7 +6,7 @@ import { doc, onSnapshot } from 'firebase/firestore';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import { Badge, Button, Card, IconButton } from '@/design-system/components';
 import { SafeHaulLoader } from '@shared/components/SafeHaulLoader';
-import { Modal } from '@shared/components/modals/Modal';
+import { Modal } from '@design-system/patterns';
 import { AddLineModal } from './AddLineModal';
 
 /**

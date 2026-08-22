@@ -10,7 +10,7 @@ import {
     Textarea,
 } from '@design-system/components';
 import { Inline, Stack } from '@design-system/layouts';
-import { Modal } from './Modal';
+import { Modal } from '@design-system/patterns';
 
 /**
  * Modals are rendered conditionally by their owner (`{open && <Modal …/>}`), so
@@ -58,7 +58,8 @@ function DialogShell({ titleId, title, onClose, children, footer }) {
 }
 
 /**
- * `Modal` is SafeHaul's shared accessible dialog primitive.
+ * `Modal` is SafeHaul's accessible dialog primitive — every overlay in the
+ * product goes through it.
  */
 const meta = {
     title: 'Components/Modal',
@@ -75,11 +76,10 @@ const meta = {
                     '**Status: Approved.** It is the dialog contract every migrated overlay now uses,',
                     'and its behaviour is covered by unit and a11y tests.',
                     '',
-                    '**Location caveat — Needs review.** The design-system README places dialog',
-                    'structure in `design-system/patterns`, and that is where `Modal` belongs',
-                    'long-term. It currently lives in `src/shared/components/modals` because the',
-                    'design system must not depend on `shared`, and moving it is a migration of its',
-                    'own. Its story is colocated with it and is pulled into this catalog until then.',
+                    'It lives in `design-system/patterns/modal`, where the README always said',
+                    'dialog structure belongs. It sat in `src/shared/components/modals` until',
+                    '2026-08-21 only because `ConfirmDialog` composes it and the design system may',
+                    'not depend on `shared`, so the pair had to move together.',
                     '',
                     '### Intended use',
                     '',

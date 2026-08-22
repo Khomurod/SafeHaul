@@ -1,6 +1,6 @@
 import React, { useId, useRef } from 'react';
 import { FilePlus2, FileText, Send, X } from 'lucide-react';
-import { Modal } from '@shared/components/modals/Modal';
+import { Modal } from '@design-system/patterns';
 import { Button, IconButton } from '@/design-system/components';
 
 /**

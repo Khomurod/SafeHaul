@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Button, FormField, Input } from '@design-system/components';
-import { ConfirmDialog } from './ConfirmDialog';
+import { ConfirmDialog } from '@design-system/patterns';
 
 /**
  * Typed confirmation: a destructive dialog that will not proceed until the

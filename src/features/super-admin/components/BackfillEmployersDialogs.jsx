@@ -1,7 +1,7 @@
 import React, { useId } from 'react';
 import { AlertTriangle, Wrench } from 'lucide-react';
 import { Button } from '@/design-system/components';
-import { Modal } from '@shared/components/modals/Modal';
+import { Modal } from '@design-system/patterns';
 
 /**
  * Confirmation and result dialogs for the employer-field backfill maintenance
@@ -11,7 +11,7 @@ import { Modal } from '@shared/components/modals/Modal';
  * report. Both were real defects: `window.confirm`/`alert` freeze the page, are
  * not stylable, are suppressible by the browser ("prevent this page from
  * creating additional dialogs" silently makes a destructive action unguarded),
- * and give assistive technology none of the dialog semantics the shared `Modal`
+ * and give assistive technology none of the dialog semantics the approved `Modal`
  * provides. The maintenance action itself is unchanged — the confirmation still
  * gates it, and the same four counters are still reported.
  */

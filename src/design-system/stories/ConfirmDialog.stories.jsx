@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Button, FieldDisplay } from '@design-system/components';
 import { Stack } from '@design-system/layouts';
-import { ConfirmDialog } from './ConfirmDialog';
+import { ConfirmDialog } from '@design-system/patterns';
 
 /**
  * `ConfirmDialog` renders nothing when `isOpen` is false, so each story owns a

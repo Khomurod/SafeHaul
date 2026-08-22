@@ -5,8 +5,7 @@ import { collection, query, where, doc, setDoc, onSnapshot, getDoc } from 'fireb
 import { httpsCallable } from 'firebase/functions';
 import { useToast } from '@shared/components/feedback';
 import { Badge, Button, FieldMessage, IconButton } from '@/design-system/components';
-import { Modal } from './Modal';
-
+import { Modal } from '@design-system/patterns';
 const DEFAULT_GOALS = { callGoal: 150, contactGoal: 50 };
 
 /**

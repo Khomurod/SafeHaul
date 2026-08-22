@@ -4,8 +4,7 @@ import { getCompanyProfile } from '@features/companies';
 import { Briefcase, LogOut } from 'lucide-react';
 import { Button } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
-import { Modal } from './Modal';
-
+import { Modal } from '@design-system/patterns';
 /**
  * Forced company choice for a user with more than one membership. Rendered by
  * `DataContext` and blocks the whole application until a company is picked.
@@ -28,7 +27,7 @@ import { Modal } from './Modal';
  *     `role="dialog"`, no `aria-modal`, no focus move on open and no focus trap.
  *     This is a blocking auth gate over the whole application, so a keyboard user
  *     landed on the page body with the dialog visually covering everything. It now
- *     uses the shared accessible `Modal`, deliberately **non-dismissable** (no
+ *     uses the approved accessible `Modal`, deliberately **non-dismissable** (no
  *     `onClose`): there is no valid way past this gate except choosing a company
  *     or logging out, which is the behaviour it always had.
  *  2. **The company list was an unnamed scroll region** (`max-h-60

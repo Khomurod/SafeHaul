@@ -1,7 +1,7 @@
 import React from 'react';
 import { Badge, Button, DataTable } from '@design-system/components';
 import { PageContainer, Stack } from '@design-system/layouts';
-import { ConfirmDialog } from '@shared/components/modals/ConfirmDialog';
+import { ConfirmDialog } from '@design-system/patterns';
 import { ExternalLink, Trash2 } from 'lucide-react';
 
 /**

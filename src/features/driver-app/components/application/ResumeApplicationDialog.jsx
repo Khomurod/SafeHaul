@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-import { ConfirmDialog } from '@shared/components/modals/ConfirmDialog';
+import { ConfirmDialog } from '@design-system/patterns';
 
 /**
  * "Continue your existing application?" — in two stages, deliberately.

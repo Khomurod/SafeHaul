@@ -18,12 +18,12 @@ npm run test:stories     # renders every story and runs axe over each one
 - `patterns/*.stories.jsx` — business-neutral page compositions.
 - `fixtures.js` — the shared, deterministic fixture data.
 
-Three story files live **outside** this directory, in
-`src/shared/components/modals/`: `Modal` and `ConfirmDialog` (plus the modal-form
-and typed-confirmation patterns built on them). They are colocated with the components they document
-because the design system must not depend on `shared`, and those primitives have
-not moved into `design-system/patterns` yet. Their catalog `title` still files
-them under Components and Patterns. They move when `Modal` moves.
+Every story lives here. Four of them — `Modal`, `ConfirmDialog`, and the
+modal-form and typed-confirmation patterns built on them — used to sit outside
+this directory in `src/shared/components/modals`, colocated with primitives that
+could not yet live in the design system. They moved in on 2026-08-21 with
+`patterns/modal`, and `.storybook/main.js` lost the second glob it needed for
+them.
 
 ## Rules for stories in this directory
 

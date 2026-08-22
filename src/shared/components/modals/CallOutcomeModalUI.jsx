@@ -9,8 +9,7 @@ import {
   Button, FormField, IconButton, Input, Select, Textarea,
 } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
-import { Modal } from './Modal';
-
+import { Modal } from '@design-system/patterns';
 /**
  * Call-outcome logging dialog for the recruiter dialer.
  *
@@ -33,7 +32,7 @@ import { Modal } from './Modal';
  *     `aria-modal` but was a bare div: focus never moved into it, Tab escaped to
  *     the page behind, Escape did nothing, and focus was not restored on close.
  *     `role="dialog"` was also on the *backdrop*, so the whole page was nominally
- *     inside the dialog. It now uses the shared accessible `Modal`.
+ *     inside the dialog. It now uses the approved accessible `Modal`.
  *  2. **Six controls had no accessible name.** Position, Experience, Freight
  *     Type, the callback Date and Time, and Recruiter Notes all had `<label>`
  *     elements with no `htmlFor` and controls with no `id`. `FormField` owns the

@@ -1,5 +1,5 @@
 import React from 'react';
-import { ConfirmDialog } from '@shared/components/modals/ConfirmDialog';
+import { ConfirmDialog } from '@design-system/patterns';
 
 /**
  * Confirmation for the two actions that change what end users are served.

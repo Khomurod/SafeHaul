@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { FileText, Eye, Download, X } from 'lucide-react';
 import { formatDate } from '@shared/utils/helpers';
-import { Modal } from '@shared/components/modals/Modal';
+import { Modal } from '@design-system/patterns';
 import { Card, IconButton } from '@/design-system/components';
 
 /**
@@ -25,7 +25,7 @@ import { Card, IconButton } from '@/design-system/components';
  *   mouse-only. Cards are now real buttons that name the document they open.
  * - The preview lightbox was a hand-rolled overlay with **no `role="dialog"`, no
  *   focus containment, no focus restoration and no Escape**, layered on top of a
- *   modal dialog. It now uses the shared accessible `Modal`.
+ *   modal dialog. It now uses the approved accessible `Modal`.
  * - The document date used `text-[10px]`, below the 12 px interface floor.
  * - The close and download controls in the lightbox had no accessible names.
  * - The list was a bare grid of `<div>`s; it is now a real list, so assistive

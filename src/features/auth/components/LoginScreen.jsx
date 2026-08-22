@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 
 import { Logo } from '@shared/components/Logo';
-import { Modal } from '@shared/components/modals/Modal';
+import { Modal } from '@design-system/patterns';
 import {
   Button,
   Card,

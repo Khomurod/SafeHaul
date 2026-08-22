@@ -5,7 +5,7 @@ import { db } from '@lib/firebase';
 import { AlertTriangle, X } from 'lucide-react';
 import { Button, IconButton, StatusMedallion } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
-import { Modal } from '@shared/components/modals/Modal';
+import { Modal } from '@design-system/patterns';
 
 /**
  * Interstitial notice shown when a company has features scheduled for
@@ -28,7 +28,7 @@ import { Modal } from '@shared/components/modals/Modal';
  *     `role="dialog"`, no `aria-modal`, no focus move on open, no focus trap and
  *     no focus restoration — and this dialog sits at `z-[9999]` over the whole
  *     app, so a keyboard user was trapped behind it with no way in or out. It now
- *     uses the shared accessible `Modal`. Escape now dismisses (recording the same
+ *     uses the approved accessible `Modal`. Escape now dismisses (recording the same
  *     `dismisses` counter the X button does); backdrop click still does **not**
  *     dismiss, preserving the original deliberate `stopPropagation`.
  *  2. **The close control had no accessible name** — an icon-only button whose

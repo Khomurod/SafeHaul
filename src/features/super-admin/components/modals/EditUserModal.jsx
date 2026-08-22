@@ -3,7 +3,7 @@ import { db } from '@lib/firebase';
 import { doc, getDoc } from "firebase/firestore";
 import { X } from 'lucide-react';
 import { Button, IconButton } from '@/design-system/components';
-import { Modal } from '@shared/components/modals/Modal';
+import { Modal } from '@design-system/patterns';
 
 import { EditUserNameForm } from '../users/EditUserNameForm';
 import { UserMembershipsManager } from '../users/UserMembershipsManager';
@@ -11,14 +11,14 @@ import { UserMembershipsManager } from '../users/UserMembershipsManager';
 /**
  * Super Admin user editor: name/email form plus the memberships manager.
  *
- * Migrated to the shared accessible `Modal` 2026-07-28. Presentation only — the
+ * Migrated to the approved accessible `Modal` 2026-07-28. Presentation only — the
  * `users/{userId}` read, the `companyId || Object.keys(allCompaniesMap)[0] || null`
  * fallback passed to `EditUserNameForm`, and the `onSave` wiring into both
  * children are unchanged. The `edit-user-modal` and `edit-user-close-btn` ids are
  * preserved because existing selectors depend on them.
  *
  * Fixed here:
- *  - Hand-built overlay replaced by the shared `Modal` (dialog semantics, focus
+ *  - Hand-built overlay replaced by the approved `Modal` (dialog semantics, focus
  *    trap, Escape, focus restoration).
  *  - Unnamed icon-only close control.
  *  - The loading state was a bare `<div>` with no live-region semantics, so

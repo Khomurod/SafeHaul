@@ -1,8 +1,7 @@
 import React, { useId } from 'react';
 import { X, Lock, Zap, Database } from 'lucide-react';
 import { Badge, Button, IconButton, StatusMedallion } from '@/design-system/components';
-import { Modal } from './Modal';
-
+import { Modal } from '@design-system/patterns';
 /**
  * "Feature not enabled" interstitial for feature-flagged areas (Import Leads,
  * E-Docs, driver search).

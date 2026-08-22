@@ -1,12 +1,12 @@
 import React, { useId } from 'react';
 import { X } from 'lucide-react';
-import { Modal } from '@shared/components/modals/Modal';
+import { Modal } from '@design-system/patterns';
 import { IconButton } from '@/design-system/components';
 
 /**
  * Bottom sheet for the compact editor.
  *
- * Built on the shared accessible `Modal`, so it inherits the behaviour a
+ * Built on the approved accessible `Modal`, so it inherits the behaviour a
  * hand-rolled sheet always gets wrong: focus moves in on open, Tab is trapped
  * while it is open, Escape and the backdrop close it, and focus returns to the
  * control that opened it. Only the anchoring and the shape are new — the sheet

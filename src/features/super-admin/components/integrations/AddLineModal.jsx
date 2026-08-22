@@ -4,7 +4,7 @@ import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import { Button, Checkbox, FormField, IconButton, Input, Textarea } from '@/design-system/components';
-import { Modal } from '@shared/components/modals/Modal';
+import { Modal } from '@design-system/patterns';
 
 /**
  * Modal for Super Admins to add a new phone line to the Digital Wallet.

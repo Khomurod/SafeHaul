@@ -14,7 +14,7 @@ import {
 } from '@shared/services/fmcsaEmployerSocrata';
 import { useFmcsaEmployerLookup } from './pev/useFmcsaEmployerLookup';
 import { FmcsaCarrierPicker, buildFmcsaRowKey } from './pev/FmcsaCarrierPicker';
-import { Modal } from '@shared/components/modals/Modal';
+import { Modal } from '@design-system/patterns';
 import {
     Button,
     ChoiceGroup,
@@ -28,7 +28,7 @@ import {
  * PEV request dialog: choose how the verification reaches the employer, confirm
  * the recipient, and continue to the VOE preview.
  *
- * Presentation migrated to the shared accessible `Modal`, the approved
+ * Presentation migrated to the approved accessible `Modal`, the approved
  * `ChoiceGroup`/`Radio`, `FormField`/`Input`, `Button` and `IconButton`
  * primitives, and `--ds-*` tokens (2026-07-27).
  *

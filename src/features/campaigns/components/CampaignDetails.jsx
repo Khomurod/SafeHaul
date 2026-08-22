@@ -8,7 +8,7 @@ import { CampaignResultsTable } from './CampaignResultsTable';
 import { functions } from '@lib/firebase';
 import { httpsCallable } from 'firebase/functions';
 import { useToast } from '@shared/components/feedback/ToastProvider';
-import { ConfirmDialog } from '@shared/components/modals/ConfirmDialog';
+import { ConfirmDialog } from '@design-system/patterns';
 import { useData } from '@/context/DataContext';
 import { Badge, Button, Card, FieldMessage, IconButton } from '@/design-system/components';
 

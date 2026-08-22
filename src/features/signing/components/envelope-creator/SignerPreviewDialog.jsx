@@ -1,7 +1,7 @@
 import React, { useId, useMemo, useRef, useState } from 'react';
 import { Document, Page } from 'react-pdf';
 import { AlertTriangle, ChevronLeft, ChevronRight, Eye, X } from 'lucide-react';
-import { Modal } from '@shared/components/modals/Modal';
+import { Modal } from '@design-system/patterns';
 import { Badge, Button, IconButton } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { SignerField } from '@features/signing/components/signing-room/SignerField';

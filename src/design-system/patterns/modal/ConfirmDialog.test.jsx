@@ -1,5 +1,5 @@
 /**
- * Contract for the shared `ConfirmDialog` (2026-07-28).
+ * Contract for the approved `ConfirmDialog` (2026-07-28).
  *
  * This component replaced the last six blocking `window.confirm` guards in the
  * app, so its behaviour is the guarantee every one of those flows now rests on:

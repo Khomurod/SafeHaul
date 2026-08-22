@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { Badge, Button, Card, ProgressBar, StatusMedallion } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
-import { Modal } from '@shared/components/modals/Modal';
+import { Modal } from '@design-system/patterns';
 import { useSystemHealth } from '../hooks/useSystemHealth';
 
 /**

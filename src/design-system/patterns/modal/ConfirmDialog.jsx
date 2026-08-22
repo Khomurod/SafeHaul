@@ -1,10 +1,10 @@
 import React, { useId, useRef } from 'react';
 import { AlertTriangle, HelpCircle, Info } from 'lucide-react';
-import { Button, StatusMedallion } from '@/design-system/components';
+import { Button, StatusMedallion } from '@design-system/components';
 import { Modal } from './Modal';
 
 /**
- * Business-neutral confirmation dialog, built on the shared accessible `Modal`.
+ * Business-neutral confirmation dialog, built on the approved accessible `Modal`.
  *
  * Added 2026-07-28 by the final-six-confirmations campaign. Before it, every
  * confirmation in the app was either a blocking `window.confirm` or one of eight
@@ -17,13 +17,12 @@ import { Modal } from './Modal';
  * action; it owns the dialog semantics, focus behaviour, the in-flight guard and
  * the announced failure state.
  *
- * ## Why it lives in `shared/components/modals` and not `design-system/patterns`
- *
- * The design-system README places dialog structure in `patterns/`, and that is
- * where this belongs long-term. But the `Modal` it composes still lives here, and
- * the design system must not depend on `shared` — that is the inversion the
- * migration is trying to remove, not add to. So this sits beside `Modal` and moves
- * with it. Recorded in the roadmap.
+ * Moved here from `shared/components/modals` on 2026-08-21, together with the
+ * `Modal` it composes. It could not move alone: the design system must not
+ * depend on `shared`, so a `ConfirmDialog` in `patterns/` importing a `Modal`
+ * still in `shared` would have been the exact inversion the migration exists to
+ * remove. `tests/architecture.test.js` now forbids that direction outright,
+ * which was only possible once both had landed.
  *
  * ## Behaviour contract
  *

@@ -3,7 +3,7 @@ import { render, cleanup } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { axe } from 'vitest-axe';
 import InputField from '@shared/components/form/InputField';
-import { Modal } from '@shared/components/modals/Modal';
+import { Modal } from '@design-system/patterns';
 
 afterEach(cleanup);
 

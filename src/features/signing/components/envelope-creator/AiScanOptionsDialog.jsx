@@ -1,6 +1,6 @@
 import React, { useId, useRef, useState } from 'react';
 import { Sparkles, X } from 'lucide-react';
-import { Modal } from '@shared/components/modals/Modal';
+import { Modal } from '@design-system/patterns';
 import { Button, ChoiceGroup, IconButton, Radio } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { parsePageRange } from '@features/signing/utils/pageRange';

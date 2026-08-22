@@ -48,7 +48,7 @@ import { useToast } from '@shared/components/feedback';
 import { StatusBadge } from '@shared/components/badges';
 import { ModernDriverTable } from '@shared/components/table';
 import { Badge, Button, Card, IconButton, Input, Select } from '@/design-system/components';
-import { Modal } from '@shared/components/modals/Modal';
+import { Modal } from '@design-system/patterns';
 
 // ========== SOURCE BADGE COMPONENT ==========
 /** Domain source type -> semantic tone/label. Feature-owned mapping. */

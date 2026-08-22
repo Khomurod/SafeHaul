@@ -2,7 +2,7 @@ import React, { useEffect, useId, useRef, useState } from 'react';
 import SignatureCanvas from 'react-signature-canvas';
 import { ChevronLeft, Eraser } from 'lucide-react';
 import { Button } from '@/design-system/components';
-import { Modal } from '@shared/components/modals/Modal';
+import { Modal } from '@design-system/patterns';
 
 /**
  * Signature / initials capture surface shared by mobile and desktop.
@@ -17,7 +17,7 @@ import { Modal } from '@shared/components/modals/Modal';
  * `SignatureCanvas` drawing prop, the wrapper-measured canvas size, and both
  * safe-area insets.
  *
- * The dialog now delegates to the shared accessible `Modal`, which adds focus
+ * The dialog now delegates to the approved accessible `Modal`, which adds focus
  * move-in, focus restore, a Tab trap and Escape-to-cancel — the hand-rolled
  * overlay had none of those. Backdrop dismissal stays **off**: a stray tap
  * outside the pad must not discard a half-drawn signature, which is the

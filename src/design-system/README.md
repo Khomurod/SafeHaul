@@ -17,7 +17,9 @@ Before changing UI code, read:
 - `components/` is for small, accessible, business-neutral controls and
   display primitives.
 - `patterns/` composes components into repeatable UI states such as data
-  presentation, forms, empty states, and dialog structure.
+  presentation, forms, empty states, and dialog structure. `patterns/modal`
+  holds `Modal` and `ConfirmDialog` — the accessible dialog primitive every
+  overlay goes through, and the one confirmation shape.
 - `layouts/` contains business-neutral page and region composition.
 - `icons/` documents and exports the approved icon contract.
 - `stories/` is the component catalog, built with Storybook 10 and configured in
@@ -35,7 +37,9 @@ layer while visual primitives migrate deliberately into this directory.
 
 Code in this directory may depend on React, approved presentation libraries,
 and other design-system modules. It must not import feature modules, Firebase,
-application context, domain services, or business vocabulary.
+application context, domain services, business vocabulary, **or `shared`** —
+`shared` imports *from* here, so a dependency in that direction is a cycle.
+`tests/architecture.test.js` enforces all of it.
 
 Do not move a feature screen here. Do not add a local alternative to an
 approved component without recording the gap and migration decision in the
@@ -75,7 +79,7 @@ verified.
   primitive, while the signing feature keeps the domain-to-tone/icon decision,
   every frozen user-facing string, and the `window.close()` behaviour.
 - The Login screen consumes FormField, Input, Button, IconButton, and Card, and
-  migrates its password-reset overlay to the shared accessible Modal, while
+  migrates its password-reset overlay to the approved accessible Modal, while
   authentication, redirects, password visibility, and the reset workflow remain
   feature-owned.
 - The public driver application (`/apply/:slug`) and the sandbox application that
@@ -106,7 +110,7 @@ verified.
 - PEV initiation and tracking — the `PEVTab` summary/list/actions, the
   verification-history dialog, `PEVRequestModal` and `FmcsaCarrierPicker` —
   consumes `MetricCard`, `Card`, `Badge`, `Button`, `IconButton`, `ChoiceGroup`,
-  `Radio`, `FormField` and `Input`, plus the shared accessible `Modal`. The
+  `Radio`, `FormField` and `Input`, plus the approved accessible `Modal`. The
   shared `PaywallMessage` is migrated with it and now takes a `headingLevel` so
   it stops colliding with its host's section heading. The callable payloads,
   activity log, Firestore write, Storage path, clipboard/URL behaviour, delivery
@@ -116,7 +120,7 @@ verified.
   `VOEPreviewModal`'s document layout, its PDF/print rendering and the employer
   response portal are deliberately not migrated.
 
-- The VOE preview (`VOEPreviewModal`) consumes the shared accessible `Modal`,
+- The VOE preview (`VOEPreviewModal`) consumes the approved accessible `Modal`,
   `Button` and `IconButton` for its **chrome only**. The generated 49 CFR
   §391.23 document inside it is deliberately **not** tokenised: it is rasterised
   by html2canvas and written into a bare print window that has no `--ds-*`
@@ -128,7 +132,7 @@ verified.
 
 - The Super Admin Environment & Integrations vault consumes Card, MetricCard,
   Badge, Button, IconButton, DataTable, FormField, Input, Select, the page
-  layout primitives, and the shared accessible `Modal` / `ConfirmDialog`. The
+  layout primitives, and the approved accessible `Modal` / `ConfirmDialog`. The
   configuration registry, the six Cloud Functions callables, the reveal
   authorisation and timing rules, the audit trail and every domain-to-visual
   mapping remain feature-owned. It deliberately does **not** use `PageHeader`:
@@ -148,11 +152,15 @@ durable visual baselines are owner-approved.
 
 ## Component catalog
 
-`npm run storybook` opens the catalog. It documents sixteen subjects — Button,
-IconButton, Input, Select, Textarea, Checkbox/Radio/ChoiceGroup, Badge,
-Card/MetricCard, DataTable, the page layout primitives, ProgressBar,
-StatusMedallion, SectionNavigation, the form-structure primitives, Modal and
-ConfirmDialog — plus eight business-neutral page patterns.
+`npm run storybook` opens the catalog. It documents the control scale plus
+sixteen subjects — Button, IconButton, Input, Select, Textarea,
+Checkbox/Radio/ChoiceGroup, Badge, Card/MetricCard, DataTable, the page layout
+primitives, ProgressBar, StatusMedallion, SectionNavigation, the form-structure
+primitives, Modal and ConfirmDialog — plus eight business-neutral page patterns.
+
+`Foundations/Control scale` is the one to read first: it shows an input and its
+adjacent button at each of the three steps, and proves that icon size comes from
+the design system rather than the call site.
 
 Each page records an explicit **Approved** / **Needs review** / **Temporary**
 status and names what is unresolved. Read that status before reusing something:

@@ -5,7 +5,7 @@ import { db } from '@lib/firebase';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { SafeHaulLoader } from '@shared/components/SafeHaulLoader';
 import { Badge, Button, Card, IconButton, Input, Select } from '@/design-system/components';
-import { Modal } from '@shared/components/modals/Modal';
+import { Modal } from '@design-system/patterns';
 
 /**
  * Super Admin companies table. Also serves the SMS Integrations hub via

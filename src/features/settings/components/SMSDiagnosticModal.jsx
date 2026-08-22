@@ -5,7 +5,7 @@ import { functions } from '@lib/firebase';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import { Button, FieldMessage, FormField, Input, Select } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
-import { Modal } from '@shared/components/modals/Modal';
+import { Modal } from '@design-system/patterns';
 
 /**
  * SMS Diagnostic Lab Modal
@@ -15,7 +15,7 @@ import { Modal } from '@shared/components/modals/Modal';
  * Migrated to the design system 2026-07-27. The previous overlay was a bare
  * `fixed inset-0` div with no dialog semantics (no focus move/trap/restore,
  * no Escape) and its close control was icon-only with no accessible name;
- * both now come from the shared accessible `Modal`. The sender `<select>`
+ * both now come from the approved accessible `Modal`. The sender `<select>`
  * had a visually adjacent `<label>` with no `htmlFor`/`id` pairing, so it was
  * never programmatically associated — now a `FormField`. Every
  * `verifySmsConfig`/`sendTestSMS` payload, guard, and message is unchanged.

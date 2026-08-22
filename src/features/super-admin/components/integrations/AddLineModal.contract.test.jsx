@@ -1,7 +1,7 @@
 /**
  * Contract freeze + a11y proof for `AddLineModal`, written with its
  * design-system migration. The migration moves the hand-built `fixed inset-0`
- * overlay to the shared accessible `Modal` and the legacy palette to `--ds-*`
+ * overlay to the approved accessible `Modal` and the legacy palette to `--ds-*`
  * tokens. It must not change:
  *
  *  - The `usePerLineCredentials` / `needsCredentials` logic derived from

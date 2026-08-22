@@ -10,7 +10,7 @@ import {
   Button, Card, FieldMessage, FormField, IconButton, Select, StatusMedallion,
 } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
-import { Modal } from '@shared/components/modals/Modal';
+import { Modal } from '@design-system/patterns';
 
 /**
  * Multi-tenant access editor inside the Super Admin Edit User dialog.

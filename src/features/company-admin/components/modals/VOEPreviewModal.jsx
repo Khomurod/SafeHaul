@@ -10,7 +10,7 @@ import {
     scrubTrustedPrintTree,
     waitForPrintDocumentReady,
 } from '@shared/utils/printDocument';
-import { Modal } from '@shared/components/modals/Modal';
+import { Modal } from '@design-system/patterns';
 import { Button, IconButton } from '@/design-system/components';
 
 /**

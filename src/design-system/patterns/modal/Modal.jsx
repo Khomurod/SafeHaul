@@ -1,7 +1,12 @@
 import React, { useCallback, useEffect, useRef } from 'react';
 
 /**
- * Shared accessible dialog primitive (C4, WCAG 2.1 AA).
+ * The accessible dialog primitive (C4, WCAG 2.1 AA).
+ *
+ * Every overlay in the product goes through this one component. A repository
+ * scan for `fixed inset-0` should return only this file and callers passing it
+ * an `overlayClassName`; anything else is a hand-built dialog missing the
+ * behaviour below.
  *
  * Rendering this component means the dialog is open — parents conditionally
  * render it (`{open && <Modal .../>}`), the same convention the rest of the app

@@ -12,7 +12,7 @@ import { CampaignEditor } from './CampaignEditor';
 import { CampaignDetails } from './components/CampaignDetails';
 import DetailedReportModal from './components/DetailedReportModal';
 import { useToast } from '@shared/components/feedback/ToastProvider';
-import { ConfirmDialog } from '@shared/components/modals/ConfirmDialog';
+import { ConfirmDialog } from '@design-system/patterns';
 import { useData } from '@/context/DataContext';
 import { PaywallMessage } from '@shared/components/feedback/PaywallMessage';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
@@ -180,7 +180,7 @@ export function CampaignsDashboard({ companyId }) {
 
     /**
      * Cancel and delete both used to be guarded by a blocking `window.confirm`.
-     * They now open the shared accessible `ConfirmDialog`.
+     * They now open the approved accessible `ConfirmDialog`.
      *
      * Both handlers capture the **target and the branch at open time** into
      * `pendingCancel` / `pendingDelete`. That matters: the delete path chooses its

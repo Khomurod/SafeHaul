@@ -3,7 +3,7 @@ import { ExternalLink, RefreshCw, Trash2 } from 'lucide-react';
 
 import { Badge, Button, Card, DataTable, FieldMessage } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
-import { ConfirmDialog } from '@shared/components/modals/ConfirmDialog';
+import { ConfirmDialog } from '@design-system/patterns';
 import { useToast } from '@shared/components/feedback';
 
 import {

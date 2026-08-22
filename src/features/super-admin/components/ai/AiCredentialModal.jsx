@@ -1,7 +1,7 @@
 import React, { useId, useRef, useState } from 'react';
 import { Button, Card, FieldMessage, FormField, Input } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
-import { Modal } from '@shared/components/modals/Modal';
+import { Modal } from '@design-system/patterns';
 
 /**
  * Add / Replace dialog for one AI provider credential.

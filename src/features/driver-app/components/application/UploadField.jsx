@@ -1,7 +1,7 @@
 import React, { useId, useRef, useState } from 'react';
 import { Upload, X, CheckCircle, RefreshCw, FileText, Image as ImageIcon, AlertCircle } from 'lucide-react';
 import { Button, IconButton, ProgressBar } from '@/design-system/components';
-import { ConfirmDialog } from '@shared/components/modals/ConfirmDialog';
+import { ConfirmDialog } from '@design-system/patterns';
 
 /**
  * UploadField
@@ -25,7 +25,7 @@ import { ConfirmDialog } from '@shared/components/modals/ConfirmDialog';
  *
  * DEFECT FIXED (2026-07-28): the removal prompt was a bare `confirm(...)`. The
  * *rule* (removal is always confirmed) is preserved; the blocking browser dialog
- * is replaced by the shared accessible `ConfirmDialog`.
+ * is replaced by the approved accessible `ConfirmDialog`.
  *
  * DEFECTS FIXED (2026-07-27):
  * - The empty state was a `<div onClick>`: unreachable by keyboard, no role, no
@@ -121,7 +121,7 @@ const UploadField = ({
      * blocking dialog. On the public driver application that is the worst place for
      * one: it is the most mobile-heavy surface in the product, and a native prompt
      * cannot be styled, announced or dismissed consistently across mobile browsers.
-     * It now opens the shared accessible `ConfirmDialog`.
+     * It now opens the approved accessible `ConfirmDialog`.
      */
     const requestClear = (e) => {
         e.preventDefault();

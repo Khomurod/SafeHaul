@@ -11,7 +11,7 @@ import {
   Label,
   Radio,
 } from '@/design-system/components';
-import { Modal } from '@shared/components/modals/Modal';
+import { Modal } from '@design-system/patterns';
 
 /**
  * Super Admin company editor.
@@ -29,7 +29,7 @@ import { Modal } from '@shared/components/modals/Modal';
  *    indistinguishable to assistive technology. They are now one properly
  *    grouped `ChoiceGroup` of `Radio`s with distinct ids.
  *  - The plan choice was communicated by border/ring colour only.
- *  - Hand-built overlay replaced by the shared accessible `Modal`.
+ *  - Hand-built overlay replaced by the approved accessible `Modal`.
  *  - Unnamed icon-only close control.
  *  - The save status message was plain text and never announced; it is now a
  *    live region, and the error case is `role="alert"`.

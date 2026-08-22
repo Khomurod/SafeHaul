@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 import { Badge, Button, Card } from '@/design-system/components';
-import { Modal } from '@shared/components/modals/Modal';
+import { Modal } from '@design-system/patterns';
 
 export function LaunchPad({ companyId, campaign, onLaunchSuccess }) {
     const navigate = useNavigate();

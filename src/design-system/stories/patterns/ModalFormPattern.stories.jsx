@@ -12,12 +12,12 @@ import {
     Textarea,
 } from '@design-system/components';
 import { Inline, Stack } from '@design-system/layouts';
-import { Modal } from './Modal';
+import { Modal } from '@design-system/patterns';
 
 /**
  * Lives beside `Modal` rather than in `src/design-system/stories/patterns`
  * because the design system must not depend on `shared`, and this pattern is
- * built on the shared `Modal`. Its catalog `title` still files it under
+ * built on the approved `Modal`. Its catalog `title` still files it under
  * Patterns. It moves with `Modal` when `Modal` moves.
  */
 
@@ -143,13 +143,9 @@ const meta = {
             story: { inline: false, iframeHeight: 560 },
             description: {
                 component: [
-                    '**Status: Approved composition.** It is built from the shared accessible',
+                    '**Status: Approved composition.** It is built from the approved accessible',
                     '`Modal` plus approved form primitives, and matches the migrated Login',
                     'password-reset overlay and the PEV request dialog.',
-                    '',
-                    '**Needs review:** this lives beside `Modal` in `src/shared/components/modals`',
-                    'rather than in `design-system/patterns`, because the design system must not',
-                    'depend on `shared`. It moves when `Modal` moves.',
                     '',
                     '### Anatomy',
                     '',

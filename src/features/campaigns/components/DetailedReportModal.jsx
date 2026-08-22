@@ -4,8 +4,7 @@ import { httpsCallable } from 'firebase/functions';
 import { X, RotateCcw } from 'lucide-react';
 import { db, functions } from '@lib/firebase';
 import { useToast } from '@shared/components/feedback';
-import { Modal } from '@shared/components/modals/Modal';
-import { ConfirmDialog } from '@shared/components/modals/ConfirmDialog';
+import { ConfirmDialog, Modal } from '@design-system/patterns';
 import { Badge, Button, IconButton } from '@/design-system/components';
 
 export default function DetailedReportModal({ companyId, sessionId, isOpen, onClose }) {
@@ -44,7 +43,7 @@ export default function DetailedReportModal({ companyId, sessionId, isOpen, onCl
 
     /**
      * Retry used to be guarded by a blocking `window.confirm`. It now opens the
-     * shared accessible `ConfirmDialog`, nested inside this report dialog.
+     * approved accessible `ConfirmDialog`, nested inside this report dialog.
      *
      * This is a *costly* action — it creates a whole new campaign and re-sends to
      * every failed recipient, including permanent errors — so the dialog is
@@ -195,7 +194,7 @@ export default function DetailedReportModal({ companyId, sessionId, isOpen, onCl
               Replaces `window.confirm('Start a new campaign for FAILED recipients
               only? This will retry permanent errors too.')`. Nested inside this
               report dialog: on success both unmount together, which is exactly the
-              case the shared `Modal`'s connected-target focus-restore guard covers.
+              case the approved `Modal`'s connected-target focus-restore guard covers.
             */}
             <ConfirmDialog
                 isOpen={pendingRetry}

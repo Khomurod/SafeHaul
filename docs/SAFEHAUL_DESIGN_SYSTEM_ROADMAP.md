@@ -127,9 +127,9 @@ The reverse directions are prohibited and enforced by
   per-surface rule left; `tokens.test.js` asserts AA on every pairing including
   the two that used to fail. Existing `content-secondary` call sites that were
   working around the old limit are correct and need no change.
-- **Every overlay goes through the shared accessible `Modal`.** No hand-built
-  `fixed inset-0` dialog. A repository-wide scan should return only `Modal`
-  itself and callers passing it an `overlayClassName`.
+- **Every overlay goes through `Modal`** (`@design-system/patterns`). No
+  hand-built `fixed inset-0` dialog. A repository-wide scan should return only
+  `Modal` itself and callers passing it an `overlayClassName`.
 - **No blocking browser dialogs.** `confirm()` and `alert()`, with or without a
   `window.` prefix, are rejected by a ratchet test — use `ConfirmDialog`.
 - **Scroll regions must be keyboard-reachable and named**, and every row action
@@ -214,7 +214,7 @@ while its call site still cites it.**
 | **Tabs** | `EnvelopeSidebar.jsx`, `DocumentsManager.jsx`, `AnalyticsView.jsx`, `CreateView.jsx`, `AiIntegrationsView.jsx` | `DocumentsManager`'s WAI-ARIA tab interface; `EnvelopeSidebar` uses collapsible sections instead, which also lets more than one stay open — something a tab strip cannot do |
 | **Toned `Button` variant** | `EnvelopeSidebar.jsx` | The eight field-palette buttons. The approved `Button` exposes only primary/secondary/ghost/danger and has no semantic status tone; the tone is load-bearing because `ResizableDraggableField` colour-codes each placed overlay by field type, so these buttons are the legend for what appears on the PDF. They already use `--ds-*` status tokens, a 44px activation height, a focus ring and unique names |
 | **Menu / overflow menu** | `TemplateLibraryPanel.jsx` | Every template action is a visible button rather than an overflow menu |
-| **Disclosure / Accordion** | `EnvelopeSidebar.jsx`, `AiLogsPanel.jsx` | `RailSection`'s header is a raw `<button>` — it must fill the rail edge-to-edge, carry a rotating affordance and sit inside a heading, which the approved `Button`'s padding and inline layout cannot express. `AiLogsPanel` sidesteps the gap entirely: a log row's detail opens in the approved shared `Modal` via `DataTable`'s `onRowActivate`, so no inline expander is hand-rolled and focus handling is the one already proven here |
+| **Disclosure / Accordion** | `EnvelopeSidebar.jsx`, `AiLogsPanel.jsx` | `RailSection`'s header is a raw `<button>` — it must fill the rail edge-to-edge, carry a rotating affordance and sit inside a heading, which the approved `Button`'s padding and inline layout cannot express. `AiLogsPanel` sidesteps the gap entirely: a log row's detail opens in the approved approved `Modal` via `DataTable`'s `onRowActivate`, so no inline expander is hand-rolled and focus handling is the one already proven here |
 | **Segmented control** | `EnvelopeSidebar.jsx` | The delivery-method toggle group (same gap as `CallOutcomeModalUI` above) |
 
 ---
@@ -244,10 +244,19 @@ enforcement permanently blocking.
   with leads; campaigns own bulk SMS with their own consent and throttling
   rules; nothing anywhere defines an "archived" state, so Archive is not delete.
   Each needs an owner decision on cross-tenant policy and audit-log shape.
-- `[!]` **Move `Modal` and `ConfirmDialog` into `design-system/patterns`.**
-  `ConfirmDialog` belongs in `patterns/`, but it composes `Modal`, which still
-  lives in `shared/components/modals`, and the design system must not depend on
-  `shared`. Both must move together, deliberately.
+- `[x]` **Move `Modal` and `ConfirmDialog` into `design-system/patterns`.
+  RESOLVED 2026-08-21.** Both moved together, as required, to
+  `design-system/patterns/modal`, with their tests and their four catalog
+  stories. Import them from `@design-system/patterns`; the `shared` barrel
+  deliberately does not re-export them, so there is one place to import each.
+  The domain modals (`CallOutcomeModal`, `CompanyChooserModal`,
+  `FeatureLockedModal`, `ManageTeamModal`) stay in `shared` and import from the
+  design system.
+
+  The point of the move is the rule it unlocked:
+  `tests/architecture.test.js` now forbids `@shared` imports inside
+  `src/design-system` outright. That rule could not be written before, because
+  these two files were the counterexample.
 - `[!]` **Promote a `Switch` primitive.** `FeaturesView` uses a native
   `Checkbox` because there is no approved ARIA switch, while Company Settings
   has a feature-owned `ToggleSwitch` that cannot be imported across features
@@ -348,7 +357,7 @@ weaken or delete one without replacing the guarantee.
 
 | Guard | What it enforces |
 |---|---|
-| `src/design-system/tests/architecture.test.js` | No imports from features, application context or Firebase into `src/design-system` |
+| `src/design-system/tests/architecture.test.js` | No imports from features, application context, Firebase **or `shared`** into `src/design-system`. The `shared` half became enforceable on 2026-08-21, when `Modal`/`ConfirmDialog` moved out of it |
 | `src/design-system/tests/tokens.test.js` | The semantic token contract and its contrast pairings, in both directions |
 | `src/tests/noBlockingBrowserDialogs.test.js` | No `confirm(` / `alert(` anywhere under `src/`, with or without a `window.` prefix. It walks every non-test file, strips comments and string literals, and is proven to catch a real call rather than passing vacuously |
 | `npm run test:stories` (`src/tests/designSystemStories.a11y.test.jsx`) | Every catalog story renders and passes axe |
@@ -394,7 +403,7 @@ provider priority.
 Screens added since, built on approved components and `--ds-*` tokens from the
 start rather than migrated: AI Integrations → credential-access diagnostic and the
 per-lane health badges, Blog Posts → Publication runs, the driver application's
-two-stage resume dialog (the shared `ConfirmDialog`, twice — see below), and
+two-stage resume dialog (the approved `ConfirmDialog`, twice — see below), and
 Company → Drivers → Started (unfinished). No new visual primitive was introduced
 for any of them.
 
@@ -414,8 +423,9 @@ owner decision in §6:
 | Company Settings → SMS / number assignment | Editable-matrix responsive strategy; entanglement with the out-of-scope secret-entry `LineManager` |
 | Company Settings → Integrations (Facebook) | The `request.auth.uid` tenant-binding defect |
 
-Component families that are **complete**: dialogs (every active overlay uses the
-shared `Modal`) and toast/notification. Families still in progress —
+Component families that are **complete**: dialogs (every active overlay uses
+`Modal`, which now lives in `design-system/patterns/modal`) and
+toast/notification. Families still in progress —
 inputs, select/textarea, empty/error states, icons, loading primitives beyond
 `ProgressBar` — are tracked by the guardrail work in §7 rather than by a list of
 screens, because the screens are done and what remains is preventing regression.

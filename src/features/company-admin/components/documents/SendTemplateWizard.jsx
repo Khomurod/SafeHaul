@@ -1,7 +1,7 @@
 import React, { useId, useRef, useState } from 'react';
 import DateTripletField from '@shared/components/form/DateTripletField';
 import { Check, Copy, Mail, MessageSquare, Send, User, X } from 'lucide-react';
-import { Modal } from '@shared/components/modals/Modal';
+import { Modal } from '@design-system/patterns';
 import { Badge, Button, FormField, IconButton, Input, Label } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 

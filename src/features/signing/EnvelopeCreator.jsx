@@ -22,7 +22,7 @@ import {
     adjustPdfViewportWidth,
     clampPdfViewportWidth,
 } from '@features/signing/utils/envelopePdfZoom';
-import { ConfirmDialog } from '@shared/components/modals/ConfirmDialog';
+import { ConfirmDialog } from '@design-system/patterns';
 import { FIELD_TEMPLATES, getFieldIcon } from './components/envelope-creator/fieldDefinitions';
 import { FieldPropertiesPanel } from './components/envelope-creator/FieldPropertiesPanel';
 import { EditorInspector } from './components/envelope-creator/EditorInspector';
