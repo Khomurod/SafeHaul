@@ -49,7 +49,14 @@ function columns() {
             key: 'actions',
             header: 'Actions',
             priority: 'actions',
-            width: 'actions',
+            // `sm` (120px), not `actions` (88px). The `actions` bucket is sized to
+            // fit the *word* "ACTIONS" in the header, which is a single icon
+            // button's worth of room — this cell holds two buttons with text
+            // labels, which measure 90px at the mobile cell padding. It fitted
+            // before only because the two 14px icons were being squeezed a pixel
+            // each; now that the design system pins icon size, the column has to
+            // be honest about what it holds.
+            width: 'sm',
             align: 'end',
             render: (item) => (
                 <div className="flex justify-end gap-ds-1">

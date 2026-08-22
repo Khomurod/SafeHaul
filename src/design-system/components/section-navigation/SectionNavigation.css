@@ -44,7 +44,10 @@
   display: grid;
   width: 100%;
   min-width: 0;
-  min-height: var(--ds-control-height-lg);
+  /* `md` (44px), not `lg`. This is a standard-height control; `lg` is now 52px
+     and reserved for a public screen's primary action. The rendered height is
+     unchanged — `lg` was 44px when this was written. */
+  min-height: var(--ds-control-height-md);
   grid-template-columns: 20px minmax(0, 1fr);
   align-items: center;
   gap: var(--ds-space-3);

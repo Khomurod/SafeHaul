@@ -24,16 +24,48 @@
   min-height: var(--ds-control-height-sm);
   padding-inline: var(--ds-space-3);
   font-size: var(--ds-font-size-sm);
+  --ds-button-icon-size: var(--ds-control-icon-sm);
 }
 
 .ds-button[data-size='md'] {
   min-height: var(--ds-control-height-md);
+  --ds-button-icon-size: var(--ds-control-icon-md);
 }
 
 .ds-button[data-size='lg'] {
   min-height: var(--ds-control-height-lg);
   padding-inline: var(--ds-space-5);
   font-size: var(--ds-font-size-body-lg);
+  --ds-button-icon-size: var(--ds-control-icon-lg);
+}
+
+/*
+ * The design system sizes the icon, not the call site.
+ *
+ * Callers passed `size={16}`, `size={18}`, `size={20}`, `size={24}` and
+ * `className="h-5 w-5"` to buttons that sit next to each other, so identical
+ * actions had different-sized glyphs and visibly different internal spacing.
+ * An icon library renders `width`/`height` as *attributes*, and a CSS
+ * declaration beats a presentational attribute — so this normalises every icon
+ * already in the tree without touching a single call site, and a new call site
+ * cannot diverge from it either.
+ *
+ * **Direct children only.** `Button` wraps its children in `.ds-button__content`,
+ * so the ordinary `<Button><Icon />Label</Button>` shape puts the glyph exactly
+ * one level down — 324 call sites in the product. The five that instead compose a
+ * multi-line tile (the CDL intake chooser, the upload dropzone, the send-template
+ * wizard) pair a deliberately larger icon with heading-sized text inside a nested
+ * wrapper, and flattening those to a label glyph would be a downgrade, not a
+ * normalisation. A descendant selector would not have been able to tell the
+ * difference.
+ *
+ * `flex: 0 0 auto` keeps the glyph from being squeezed when the label is long,
+ * which is what made a Delete button render as "Dele" on a real phone.
+ */
+.ds-button__content > svg {
+  width: var(--ds-button-icon-size, var(--ds-control-icon-md));
+  height: var(--ds-button-icon-size, var(--ds-control-icon-md));
+  flex: 0 0 auto;
 }
 
 .ds-button[data-variant='primary'] {
@@ -127,10 +159,29 @@
   gap: inherit;
 }
 
+/*
+ * An icon-only button has no label to sit beside, so the same glyph reads
+ * noticeably smaller in it than in a labelled button. Each step takes the next
+ * icon size up; `lg` stays at `lg` because there is no larger step.
+ */
 .ds-icon-button {
   width: var(--ds-control-height-md);
   flex: 0 0 var(--ds-control-height-md);
   padding: 0;
+}
+
+/*
+ * `.ds-button` is repeated in these selectors on purpose. `.ds-icon-button`
+ * alone scores below `.ds-button[data-size='md']`, so the size rule above would
+ * win and an icon-only button would take the labelled glyph size regardless of
+ * source order.
+ */
+.ds-button.ds-icon-button {
+  --ds-button-icon-size: var(--ds-control-icon-lg);
+}
+
+.ds-button.ds-icon-button[data-size='sm'] {
+  --ds-button-icon-size: var(--ds-control-icon-md);
 }
 
 .ds-icon-button[data-size='sm'] {

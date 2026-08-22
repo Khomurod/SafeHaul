@@ -289,7 +289,6 @@ export function EmailSettingsTab({ currentCompanyProfile }) {
                     <Button
                         type="button"
                         variant="secondary"
-                        size="lg"
                         loading={testing}
                         disabled={!emailSettings.smtpHost || !emailSettings.smtpUser || !smtpPassInput}
                         onClick={handleTestConnection}
@@ -438,7 +437,6 @@ export function EmailSettingsTab({ currentCompanyProfile }) {
                 <Button
                     type="button"
                     variant="primary"
-                    size="lg"
                     loading={loading}
                     disabled={!emailSettings.smtpHost || !emailSettings.smtpUser || (!smtpPassInput && !hasExistingPassword)}
                     onClick={handleSaveEmailSettings}

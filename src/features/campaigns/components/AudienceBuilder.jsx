@@ -484,7 +484,6 @@ export function AudienceBuilder({ companyId, filters, onChange, campaignScopeKey
                         <div className="border-t border-slate-800 bg-slate-900 p-ds-4">
                             <Button
                                 variant="primary"
-                                size="lg"
                                 fullWidth
                                 onClick={() => onChange(localFilters, finalCount)}
                             >

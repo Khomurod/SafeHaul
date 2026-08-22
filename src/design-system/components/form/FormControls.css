@@ -33,9 +33,17 @@
   color: var(--ds-color-action-danger);
 }
 
+/*
+ * Height, padding and type come from the shared control scale, so an input and
+ * the Button beside it are the same height with no caller override. `md` is the
+ * default; `data-size` is only present when a caller asks for another step.
+ *
+ * This used to be a hardcoded `min-height: 44px` while `Button`'s `md` was 40px,
+ * which is why an input and its adjacent button never lined up.
+ */
 .ds-form-control {
   width: 100%;
-  min-height: 44px;
+  min-height: var(--ds-control-height-md);
   border: 1px solid var(--ds-color-border);
   border-radius: var(--ds-radius-md);
   padding: var(--ds-space-2) var(--ds-space-3);
@@ -48,6 +56,18 @@
     border-color var(--ds-duration-fast) var(--ds-ease-standard),
     box-shadow var(--ds-duration-fast) var(--ds-ease-standard),
     background-color var(--ds-duration-fast) var(--ds-ease-standard);
+}
+
+.ds-form-control[data-size='sm'] {
+  min-height: var(--ds-control-height-sm);
+  padding: var(--ds-space-1) var(--ds-space-2);
+  font-size: var(--ds-font-size-sm);
+}
+
+.ds-form-control[data-size='lg'] {
+  min-height: var(--ds-control-height-lg);
+  padding: var(--ds-space-3) var(--ds-space-4);
+  font-size: var(--ds-font-size-body-lg);
 }
 
 .ds-form-control::placeholder {
@@ -88,12 +108,29 @@
   opacity: 0.72;
 }
 
-textarea.ds-form-control {
+/*
+ * A textarea is sized by rows, not by the control height, so it opts out of the
+ * scale's `min-height` — but it keeps the scale's padding and type so a textarea
+ * and the inputs above it still read as the same family. The selector carries
+ * the `[data-size]` cases too, because those set `min-height` at a higher
+ * specificity than the element selector alone.
+ */
+textarea.ds-form-control,
+textarea.ds-form-control[data-size='sm'],
+textarea.ds-form-control[data-size='lg'] {
   min-height: 112px;
   resize: vertical;
 }
 
-select.ds-form-control {
+/*
+ * Room for the native select arrow. The `[data-size]` variants are listed
+ * explicitly because a class+attribute selector outranks this element+class one,
+ * so without them a `sm` or `lg` select would lose its arrow gutter and the
+ * longest option would run underneath the chevron.
+ */
+select.ds-form-control,
+select.ds-form-control[data-size='sm'],
+select.ds-form-control[data-size='lg'] {
   padding-right: var(--ds-space-8);
 }
 

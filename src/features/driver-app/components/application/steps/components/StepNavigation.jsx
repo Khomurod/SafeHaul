@@ -25,11 +25,15 @@ export function StepNavigation({
     onSaveDraft,
     saveDraftLabel = 'Save as Draft',
 }) {
-    // `size="lg"` is the approved 44 px control height. The Button default (`md`)
-    // is 40 px, which clears WCAG 2.2 AA Target Size (Minimum, 24 px) but not the
-    // 44 px the design system's own form controls use. This is a mobile-primary
-    // flow whose most-tapped controls are these, so they take the larger approved
-    // size rather than a local override.
+    // `size="lg"` is the design system's 52 px step, reserved for the primary
+    // action of a public, mobile-first, single-task screen — which is exactly what
+    // this is. The whole row takes it so Back, Continue and Save as Draft are the
+    // same height as each other.
+    //
+    // It no longer means "match a form control": the Button default and
+    // `.ds-form-control` are both 44 px now, so an ordinary action does not need
+    // an override at all. These stay `lg` because they are the most-tapped
+    // controls in the flow, not because the default was too small.
     return (
         <div className="flex flex-col gap-ds-3 pt-ds-6 sm:flex-row sm:items-center sm:justify-between">
             {onBack ? (

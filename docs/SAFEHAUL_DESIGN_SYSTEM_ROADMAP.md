@@ -109,12 +109,24 @@ The reverse directions are prohibited and enforced by
   unsupported font size or competing visual primitive unless this file records
   the missing capability **and** the code documents the temporary exception.
 - **No 9px or 10px body text.** The floor is 12px for interface text.
+- **One control scale, and the default is the aligned case.**
+  `--ds-control-height-{sm,md,lg}` is 36 / 44 / 52px and is read by `Button`,
+  `IconButton`, `Input`, `Select` and `Textarea`, all defaulting to `md`. Do not
+  set a size to make a control match its neighbour — the default already does.
+  `lg` is for the primary action of a public, mobile-first, single-task screen.
+  A thing that is not a control must not read a control height.
+- **Icon size inside a control belongs to the design system.** `Button` sizes any
+  contained `svg` from the step's icon token, which outranks the width/height
+  attributes an icon library renders. Passing `size={24}` to a glyph in a button
+  does nothing, deliberately.
 - **Status is never colour alone** — always text or icon plus tone.
-- **`--ds-color-content-muted` is approved on `--ds-color-surface` only.** It
-  measures 4.34:1 on `surface-subtle` and 4.27:1 on `status-warning-bg`, both
-  below WCAG AA for normal text. Two unrelated surfaces failed real-browser axe
-  on this pairing. Use `content-secondary` (6.85:1) anywhere else, and see the
-  open decision in §6.
+- **`--ds-color-content-muted` is safe on every surface.** It is slate-600 as of
+  2026-08-21 (8.6:1 on `surface`, 7.0:1 on `surface-subtle`, 6.4:1 on
+  `status-warning-bg`). It was slate-500 and approved on `surface` *only*, which
+  three real axe findings proved was a rule too easy to forget. There is no
+  per-surface rule left; `tokens.test.js` asserts AA on every pairing including
+  the two that used to fail. Existing `content-secondary` call sites that were
+  working around the old limit are correct and need no change.
 - **Every overlay goes through the shared accessible `Modal`.** No hand-built
   `fixed inset-0` dialog. A repository-wide scan should return only `Modal`
   itself and callers passing it an `overlayClassName`.
@@ -214,11 +226,14 @@ identity and record evidence. They **do** block declaring the affected families
 fully approved, publishing durable visual baselines, or making the related CI
 enforcement permanently blocking.
 
-- `[!]` **Approve a `content-muted` value that is safe on `surface-subtle`.**
-  See §3. Darkening the token would change every muted label in the product, so
-  it needs owner approval. Until then `content-muted` is approved on `surface`
-  only, and `src/design-system/tests/tokens.test.js` pins the gap in both
-  directions.
+- `[x]` **Approve a `content-muted` value that is safe on `surface-subtle`.
+  RESOLVED 2026-08-21 — owner approved.** `content-muted` is slate-600. It clears
+  AA on `surface`, `surface-subtle`, `canvas` and all six status backgrounds, so
+  the surface-only rule is gone and `tokens.test.js` asserts the whole matrix,
+  including the two pairings (`surface-subtle` 4.34:1, `status-warning-bg`
+  4.27:1) that used to fail. Every muted label in the product is slightly darker.
+  Call sites that had moved to `content-secondary` to work around the old limit
+  were not moved back and do not need to be.
 - `[!]` **Decide what the Unified Driver Database bulk actions should do.**
   Message, Assign, Move Status and Archive were placeholders that fired a
   *success* toast and did nothing. The false success is removed (controls are
@@ -246,15 +261,29 @@ enforcement permanently blocking.
   and the product already has the concept (`TEXT_SIGNATURE:` on the VOE side),
   but a typed mark that is indistinguishable in the stored PNG from a drawn one
   is a **legal-semantics decision, not a styling one**.
-- `[!]` **Align control heights across the primitives.** `.ds-form-control` has
-  `min-height: 44px` (`components/form/FormControls.css`), while `Button` uses
-  `--ds-control-height-md: 40px` and `-sm: 36px`
-  (`tokens/foundation.css`), so an input and its adjacent button in the same row
-  are different heights. 40px still satisfies WCAG 2.2 AA SC 2.5.8 (24px
-  minimum) — 44px is SC 2.5.5, level AAA — so this is a consistency and
-  ergonomics decision, not a conformance failure. The public application uses
-  the approved `size="lg"` (44px) for the controls a driver taps repeatedly,
-  rather than overriding the primitive.
+- `[x]` **Align control heights across the primitives. RESOLVED 2026-08-21.**
+  One scale — `--ds-control-height-sm/md/lg` = 36 / 44 / 52px — read by `Button`,
+  `IconButton`, `Input`, `Select` and `Textarea`, all defaulting to `md`.
+  `.ds-form-control`'s hardcoded `min-height: 44px` now reads the token, so the
+  rendered height of a form control did not change; what changed is that the
+  default button grew 40 → 44px to meet it. 44px is WCAG 2.2 SC 2.5.5 (Enhanced)
+  and is now the default rather than something a screen opts into.
+
+  The consequence that matters for future work: `lg` used to mean "44px, so it
+  matches an input", and 25 internal call sites — Settings forms, dialog footers,
+  Super Admin panels — had used it that way. They were moved to the default, so
+  their height is unchanged and their type is no longer one step oversized.
+  `lg` now means what its name says, and the public driver/employer flows that
+  genuinely want the largest target (`StepNavigation`, `Step9_Consent`,
+  `EmploymentCoveragePrompt`, `UploadField`, `LoginScreen`, `VerificationPortal`,
+  `SignatureSheet`, `ReviewChangePortal`) keep it. **Do not reintroduce
+  `size="lg"` to line a button up with an input.**
+
+  Two non-controls were following `--ds-control-height-md` and would have grown
+  with it: `MetricCard`'s icon chip and the table's selection hit area. They have
+  their own roles now (`--ds-metric-icon-size`,
+  `--ds-table-selection-control-size`). `SectionNavigation` moved from `lg` to
+  `md`, preserving its rendered 44px.
 - `[x]` **Add an inverse surface to the semantic token contract. RESOLVED.**
   `--ds-color-surface-inverse` and `--ds-color-surface-inverse-subtle` now exist
   in `src/design-system/tokens/semantic.css` alongside

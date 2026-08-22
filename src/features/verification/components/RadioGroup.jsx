@@ -55,6 +55,12 @@ export const RadioGroup = ({
               `content-secondary` is the remedy the token blocker already
               prescribes for exactly this pairing, and it is darker on every
               surface, so the untinted groups improve too.
+
+              UPDATE (2026-08-21): `content-muted` is now slate-600 and clears AA
+              on every surface, including `status-warning-bg`, so the blocker this
+              cites is resolved. This stays on `content-secondary` — it is correct
+              and needs no change; the note is here so a future reader does not go
+              looking for a constraint that no longer exists.
             */}
             {description && (
                 <p id={descriptionId} className="mb-2 text-ds-xs text-ds-content-secondary">

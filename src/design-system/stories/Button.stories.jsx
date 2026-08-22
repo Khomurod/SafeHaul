@@ -61,7 +61,11 @@ const meta = {
           '| `ghost` | Low-emphasis actions inside dense rows and toolbars. |',
           '| `danger` | Destructive, hard-to-reverse actions. |',
           '',
-          'Sizes are `sm`, `md` (default) and `lg`. `tone="success"` is an *additional*',
+          'Sizes are `sm` (36px), `md` (44px, default) and `lg` (52px) — the shared control',
+          'scale, which the form controls read too. `lg` is for a public screen\'s primary',
+          'action, not for matching an input; the default already does that. Icon size comes',
+          'from the scale as well, so a `size={24}` passed to a glyph here does nothing.',
+          'See `Foundations/Control scale`. `tone="success"` is an *additional*',
           'colour meaning available to actions a feature reads as affirmative; it never',
           'replaces the text label, and the catalog does not decide which actions qualify —',
           'that mapping belongs to the feature.',
@@ -118,8 +122,13 @@ export const Variants = {
 };
 
 /**
- * Sizes share one type scale and one focus treatment. `sm` is for dense table
- * rows and toolbars; `lg` is for a primary call to action on a public page.
+ * The three steps of the shared control scale — 36 / 44 / 52px — which `Input`,
+ * `Select` and `Textarea` also read, so a button and the control beside it match
+ * at the default with no override. `sm` is for dense table rows and toolbars;
+ * `lg` is for the primary action of a public, mobile-first, single-task screen.
+ *
+ * `lg` is **not** the way to match a form control — see
+ * `Foundations/Control scale`, which shows the pairing at each step.
  */
 export const Sizes = {
   render: (args) => (

@@ -178,7 +178,7 @@ export function FeatureDeactivationWarning() {
                     <p className="text-ds-sm text-ds-content-secondary">
                         Please reach out to our Sales Team immediately if you wish to keep these features active.
                     </p>
-                    <Button variant="danger" size="lg" fullWidth onClick={handleContactSales}>
+                    <Button variant="danger" fullWidth onClick={handleContactSales}>
                         Contact Sales
                     </Button>
                 </Stack>

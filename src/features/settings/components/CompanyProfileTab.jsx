@@ -107,7 +107,6 @@ export function CompanyProfileTab({ currentCompanyProfile }) {
                 {isCompanyAdmin && !isEditing && (
                     <Button
                         variant="secondary"
-                        size="lg"
                         ref={editButtonRef}
                         onClick={() => setIsEditing(true)}
                     >
@@ -119,14 +118,12 @@ export function CompanyProfileTab({ currentCompanyProfile }) {
                     <div className="flex flex-wrap gap-ds-2">
                         <Button
                             variant="ghost"
-                            size="lg"
                             onClick={() => setIsEditing(false)}
                         >
                             Cancel
                         </Button>
                         <Button
                             variant="primary"
-                            size="lg"
                             loading={loading}
                             onClick={handleSaveCompany}
                         >

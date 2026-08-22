@@ -186,7 +186,15 @@ async function main() {
         process.exit(1);
     }
 
-    const browser = await chromium.launch();
+    // Honour the same `PW_CHROMIUM_EXECUTABLE` override `playwright.config.cjs`
+    // does. A sandboxed or CI-adjacent environment often provides a system
+    // Chromium whose build number does not match the one this Playwright version
+    // pins, and without the override this guard cannot run there at all — which
+    // in practice means it gets skipped, which is the same as not having it.
+    const chromiumExecutablePath = process.env.PW_CHROMIUM_EXECUTABLE;
+    const browser = await chromium.launch(
+        chromiumExecutablePath ? { executablePath: chromiumExecutablePath } : {},
+    );
     const violations = [];
     let tablesMeasured = 0;
 

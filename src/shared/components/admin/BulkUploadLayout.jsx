@@ -318,7 +318,6 @@ export function BulkUploadLayout({
 
             <Button
                 variant="primary"
-                size="lg"
                 fullWidth
                 onClick={onConfirm}
                 disabled={uploading}

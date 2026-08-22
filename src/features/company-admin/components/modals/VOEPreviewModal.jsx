@@ -610,12 +610,11 @@ export function VOEPreviewModal({ employer, applicant, onClose, onSend }) {
                         This form cannot be transmitted without a valid applicant signature.
                     </p>
                 )}
-                <Button variant="secondary" size="lg" onClick={onClose}>
+                <Button variant="secondary" onClick={onClose}>
                     Edit Request
                 </Button>
                 <Button
                     variant="primary"
-                    size="lg"
                     onClick={() => {
                         // Kept as a safety net: the control is disabled without a
                         // signature, so this guard is not reachable from the UI,

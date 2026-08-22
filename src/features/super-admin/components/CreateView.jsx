@@ -482,7 +482,7 @@ export function CreateView({ onDataUpdate, setActiveView }) {
                                 </Card>
 
                                 <div className="flex justify-end">
-                                    <Button type="submit" variant="primary" size="lg" disabled={loading} loading={loading}>
+                                    <Button type="submit" variant="primary" disabled={loading} loading={loading}>
                                         {!loading && <Save size={20} aria-hidden="true" />} Create Company
                                     </Button>
                                 </div>
@@ -574,7 +574,7 @@ export function CreateView({ onDataUpdate, setActiveView }) {
                                 </Card>
 
                                 <div className="flex justify-end">
-                                    <Button type="submit" variant="primary" size="lg" disabled={loading} loading={loading}>
+                                    <Button type="submit" variant="primary" disabled={loading} loading={loading}>
                                         {!loading && <UserPlus size={20} aria-hidden="true" />} Create User
                                     </Button>
                                 </div>

@@ -116,3 +116,57 @@ describe('Button tone', () => {
     expect(classAndAttributeCount(toneHover)).toBeGreaterThan(classAndAttributeCount(variantHover));
   });
 });
+
+/**
+ * The design system sizes the icon, not the call site.
+ *
+ * Before this contract, call sites passed `size={16}`, `size={18}`, `size={20}`,
+ * `size={24}` and `className="h-5 w-5"` to the same kind of button, so two
+ * adjacent buttons had different-sized glyphs and visibly different internal
+ * spacing. The rule works by outranking the width/height *attributes* an icon
+ * library renders, and by winning against the `[data-size]` rules that also set
+ * the custom property — both of which are specificity facts, so both are pinned
+ * here rather than left to a visual review.
+ */
+describe('Button icon sizing', () => {
+  it('sizes the icons it is handed directly from the button icon custom property', () => {
+    const selector = selectorFor('width: var\\(--ds-button-icon-size');
+    expect(selector).toBe('.ds-button__content > svg');
+  });
+
+  it('leaves a deliberately composed nested tile alone', () => {
+    // Five call sites pair a larger icon with heading-sized text inside a
+    // wrapper (the CDL intake chooser, the upload dropzone, the send-template
+    // wizard). A descendant selector would flatten those to a label glyph, so
+    // the child combinator is load-bearing rather than stylistic.
+    expect(BUTTON_CSS).not.toMatch(/\.ds-button svg\s*\{/);
+    expect(BUTTON_CSS).toMatch(/\.ds-button__content > svg\s*\{/);
+  });
+
+  it('keeps the glyph from being squeezed by a long label', () => {
+    // A shrinking icon is what made a Delete button render as "Dele" on a phone.
+    expect(BUTTON_CSS).toMatch(/\.ds-button__content > svg\s*\{[^}]*flex:\s*0 0 auto/);
+  });
+
+  it.each(['sm', 'md', 'lg'])('gives the %s size its own icon step', (size) => {
+    expect(BUTTON_CSS).toMatch(
+      new RegExp(`\\.ds-button\\[data-size='${size}'\\]\\s*\\{[^}]*--ds-button-icon-size`),
+    );
+  });
+
+  it('lets the icon-only rule outrank the size rule that also sets the property', () => {
+    // `.ds-icon-button` alone scores below `.ds-button[data-size='md']`, so the
+    // labelled glyph size would win no matter the source order. The repeated
+    // `.ds-button` in the selector is what fixes that, and removing it is a
+    // silent regression — hence this assertion rather than a comment.
+    const iconOnly = classAndAttributeCount('.ds-button.ds-icon-button');
+    const sizeRule = classAndAttributeCount(".ds-button[data-size='md']");
+    expect(iconOnly).toBeGreaterThanOrEqual(sizeRule);
+    expect(BUTTON_CSS).toMatch(/\.ds-button\.ds-icon-button\s*\{[^}]*--ds-button-icon-size/);
+  });
+
+  it('renders an icon-only button at the icon-only glyph step', () => {
+    render(<IconButton label="Close"><svg /></IconButton>);
+    expect(screen.getByRole('button', { name: 'Close' })).toHaveClass('ds-icon-button');
+  });
+});

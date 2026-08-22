@@ -339,10 +339,10 @@ export function PEVRequestModal({ employer, applicant: _applicant, onClose, onPr
 
             {/* Footer */}
             <div className="flex shrink-0 flex-col gap-ds-3 border-t border-ds-border-subtle bg-ds-surface-subtle p-ds-6 sm:flex-row">
-                <Button variant="secondary" size="lg" fullWidth onClick={onClose}>
+                <Button variant="secondary" fullWidth onClick={onClose}>
                     Cancel
                 </Button>
-                <Button variant="primary" size="lg" fullWidth onClick={handleContinue}>
+                <Button variant="primary" fullWidth onClick={handleContinue}>
                     <Send size={18} aria-hidden="true" />
                     {deliveryMethod === 'manual' ? 'Preview & Print' : 'Continue to Preview'}
                 </Button>

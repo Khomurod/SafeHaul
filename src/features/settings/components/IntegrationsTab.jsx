@@ -204,6 +204,11 @@ export function IntegrationsTab() {
                   Chromium axe scan caught this. The placeholder look is
                   carried by the dashed border and muted icon/text tokens
                   instead, at full opacity.
+
+                  Still true after `content-muted` moved to slate-600 on
+                  2026-08-21: the token now has more headroom, but `opacity` on an
+                  ancestor composites every descendant toward the background
+                  regardless of how much contrast the token started with.
                 */}
                 <Card padding="md" className="flex flex-col items-center justify-center border-dashed text-center">
                     <div className="mb-ds-3 flex h-10 w-10 items-center justify-center rounded-full bg-ds-surface-subtle text-ds-content-muted">

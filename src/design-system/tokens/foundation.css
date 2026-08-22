@@ -84,10 +84,43 @@
   --ds-shadow-md: 0 4px 6px rgb(15 23 42 / 0.1), 0 2px 4px rgb(15 23 42 / 0.06);
   --ds-shadow-lg: 0 10px 15px rgb(15 23 42 / 0.1), 0 4px 6px rgb(15 23 42 / 0.05);
 
-  /* Interaction and layering */
+  /*
+   * Interaction and layering.
+   *
+   * One control-height scale, shared by every interactive control the design
+   * system owns: Button, IconButton, Input, Select, Textarea. `md` is the
+   * default for all of them, so an input and the button beside it are the same
+   * height without the call site deciding anything.
+   *
+   * `md` was 40px and `.ds-form-control` hardcoded 44px, so an input and its
+   * adjacent button never lined up. 44px is the WCAG 2.2 SC 2.5.5 (AAA) target
+   * size, and it is what the product's form controls already used, so the button
+   * moved to the input rather than the other way round.
+   *
+   * `lg` (52px) is deliberately larger than a standard control. It is for the
+   * primary action of a public, mobile-first, single-task screen — the driver
+   * application wizard, login, the employer verification portal, the signing
+   * sheet — and for the sibling actions sharing that row. It is not the way to
+   * match a form control; that is what the default does.
+   */
   --ds-control-height-sm: 36px;
-  --ds-control-height-md: 40px;
-  --ds-control-height-lg: 44px;
+  --ds-control-height-md: 44px;
+  --ds-control-height-lg: 52px;
+
+  /*
+   * Icon glyph size inside a control.
+   *
+   * Call sites passed `size={16}`, `size={18}`, `size={20}`, `size={24}` and
+   * `className="h-5 w-5"` to the same kind of button, so two buttons side by
+   * side had different-sized icons and different-looking internal spacing.
+   * `Button.css` applies these to the icons a button is handed directly, which
+   * overrides the width/height attributes an icon library renders — so the icon
+   * size is the design system's decision and a call site cannot diverge from it.
+   * A nested multi-line tile keeps its own composition; see the note there.
+   */
+  --ds-control-icon-sm: 14px;
+  --ds-control-icon-md: 16px;
+  --ds-control-icon-lg: 18px;
   --ds-duration-fast: 150ms;
   --ds-duration-normal: 200ms;
   --ds-duration-slow: 300ms;

@@ -130,7 +130,6 @@ export function LaunchPad({ companyId, campaign, onLaunchSuccess }) {
                 <div className="flex gap-ds-4">
                     <Button
                         variant="primary"
-                        size="lg"
                         fullWidth
                         disabled={!isValid}
                         loading={isLaunching}

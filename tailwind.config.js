@@ -30,6 +30,22 @@ export default {
         'ds-content-muted': 'var(--ds-color-content-muted)',
         'ds-content-inverse': 'var(--ds-color-content-inverse)',
         'ds-content-link': 'var(--ds-color-content-link)',
+        // Gaps found by the 2026-08 UI audit: feature code reached for a raw
+        // palette class because these roles had no utility to reach for.
+        'ds-content-danger': 'var(--ds-color-content-danger)',
+        'ds-surface-hover': 'var(--ds-color-surface-hover)',
+        'ds-surface-selected': 'var(--ds-color-surface-selected)',
+        'ds-border-strong': 'var(--ds-color-border-strong)',
+        'ds-action-secondary': 'var(--ds-color-action-secondary)',
+        'ds-action-secondary-hover': 'var(--ds-color-action-secondary-hover)',
+        'ds-action-danger-hover': 'var(--ds-color-action-danger-hover)',
+        'ds-action-success': 'var(--ds-color-action-success)',
+        'ds-action-success-hover': 'var(--ds-color-action-success-hover)',
+        'ds-table-header-bg': 'var(--ds-table-header-bg)',
+        'ds-table-header-fg': 'var(--ds-table-header-fg)',
+        'ds-table-row-hover-bg': 'var(--ds-table-row-hover-bg)',
+        'ds-table-row-selected-bg': 'var(--ds-table-row-selected-bg)',
+        'ds-table-divider': 'var(--ds-table-divider)',
         'ds-overlay': 'var(--ds-color-overlay)',
         'ds-surface-inverse': 'var(--ds-color-surface-inverse)',
         'ds-surface-inverse-subtle': 'var(--ds-color-surface-inverse-subtle)',
@@ -75,6 +91,14 @@ export default {
         'ds-8': 'var(--ds-space-8)',
         'ds-10': 'var(--ds-space-10)',
         'ds-12': 'var(--ds-space-12)',
+        // Surface geometry roles. A feature-owned panel that must match a Card's
+        // rhythm references the role instead of guessing `p-4` or `p-6`.
+        'ds-card': 'var(--ds-card-padding)',
+        'ds-card-compact': 'var(--ds-card-padding-compact)',
+        'ds-card-spacious': 'var(--ds-card-padding-spacious)',
+        'ds-page-gutter': 'var(--ds-page-gutter)',
+        'ds-section-gap': 'var(--ds-section-gap)',
+        'ds-field-gap': 'var(--ds-field-gap)',
       },
       fontSize: {
         'ds-xs': ['var(--ds-font-size-xs)', { lineHeight: 'var(--ds-line-height-body)' }],
@@ -86,11 +110,25 @@ export default {
         'ds-heading-lg': ['var(--ds-font-size-heading-lg)', { lineHeight: 'var(--ds-line-height-tight)' }],
         'ds-heading-xl': ['var(--ds-font-size-heading-xl)', { lineHeight: 'var(--ds-line-height-tight)' }],
       },
+      // Control heights, so a feature-owned control that genuinely cannot be a
+      // Button (a nav row, a PDF field overlay) still lands on the scale.
+      height: {
+        'ds-control-sm': 'var(--ds-control-height-sm)',
+        'ds-control': 'var(--ds-control-height-md)',
+        'ds-control-lg': 'var(--ds-control-height-lg)',
+      },
+      minHeight: {
+        'ds-control-sm': 'var(--ds-control-height-sm)',
+        'ds-control': 'var(--ds-control-height-md)',
+        'ds-control-lg': 'var(--ds-control-height-lg)',
+      },
       borderRadius: {
         'ds-sm': 'var(--ds-radius-sm)',
         'ds-md': 'var(--ds-radius-md)',
         'ds-lg': 'var(--ds-radius-lg)',
         'ds-xl': 'var(--ds-radius-xl)',
+        'ds-full': 'var(--ds-radius-full)',
+        'ds-card': 'var(--ds-card-radius)',
       },
       boxShadow: {
         'ds-xs': 'var(--ds-shadow-xs)',

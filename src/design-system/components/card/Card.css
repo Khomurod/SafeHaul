@@ -1,8 +1,14 @@
+/*
+ * Radius, border, shadow and padding come from the surface roles in
+ * `tokens/semantic.css` rather than being chosen here, so a feature that needs a
+ * card-like surface of its own has one contract to reference instead of copying
+ * four values and getting one of them wrong.
+ */
 .ds-card {
-  border: 1px solid var(--ds-color-border-subtle);
-  border-radius: var(--ds-radius-lg);
+  border: 1px solid var(--ds-card-border);
+  border-radius: var(--ds-card-radius);
   background: var(--ds-color-surface);
-  box-shadow: var(--ds-shadow-xs);
+  box-shadow: var(--ds-card-shadow);
   color: var(--ds-color-content);
 }
 
@@ -11,15 +17,15 @@
 }
 
 .ds-card[data-padding='sm'] {
-  padding: var(--ds-space-3);
+  padding: var(--ds-card-padding-compact);
 }
 
 .ds-card[data-padding='md'] {
-  padding: var(--ds-space-5);
+  padding: var(--ds-card-padding);
 }
 
 .ds-card[data-padding='lg'] {
-  padding: var(--ds-space-6);
+  padding: var(--ds-card-padding-spacious);
 }
 
 .ds-metric-card {
@@ -30,11 +36,11 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--ds-space-3);
-  border: 1px solid var(--ds-color-border-subtle);
-  border-radius: var(--ds-radius-lg);
-  padding: var(--ds-space-5);
+  border: 1px solid var(--ds-card-border);
+  border-radius: var(--ds-card-radius);
+  padding: var(--ds-card-padding);
   background: var(--ds-color-surface);
-  box-shadow: var(--ds-shadow-xs);
+  box-shadow: var(--ds-card-shadow);
   color: var(--ds-color-content);
   font-family: inherit;
   text-align: left;
@@ -94,11 +100,16 @@
   white-space: nowrap;
 }
 
+/*
+ * `--ds-metric-icon-size`, not the control height: this chip is an illustration
+ * inside a card, not something you press, so it must not grow when the control
+ * scale changes. It followed `--ds-control-height-md` until that became 44px.
+ */
 .ds-metric-card__icon {
   display: inline-flex;
-  width: var(--ds-control-height-md);
-  height: var(--ds-control-height-md);
-  flex: 0 0 var(--ds-control-height-md);
+  width: var(--ds-metric-icon-size);
+  height: var(--ds-metric-icon-size);
+  flex: 0 0 var(--ds-metric-icon-size);
   align-items: center;
   justify-content: center;
   border-radius: var(--ds-radius-md);

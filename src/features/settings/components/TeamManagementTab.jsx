@@ -89,7 +89,7 @@ export function TeamManagementTab({ currentCompanyProfile, isCompanyAdmin, onSho
                         </FormField>
                     </div>
                     <div className="flex justify-end pt-ds-2">
-                        <Button type="submit" variant="primary" size="lg" loading={addUserLoading}>
+                        <Button type="submit" variant="primary" loading={addUserLoading}>
                             {!addUserLoading && <Plus size={18} aria-hidden="true" />}
                             Create User
                         </Button>

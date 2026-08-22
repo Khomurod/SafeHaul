@@ -74,14 +74,13 @@ export function FeatureLockedModal({ onClose, featureName = "Search For Drivers"
                 <div className="flex w-full max-w-md flex-col justify-center gap-ds-4 sm:flex-row">
                     <Button
                         variant="primary"
-                        size="lg"
                         className="flex-1"
                         onClick={() => window.open('https://t.me/tomr_robins0n', '_blank')}
                     >
                         Contact Sales
                     </Button>
 
-                    <Button variant="secondary" size="lg" onClick={onClose}>
+                    <Button variant="secondary" onClick={onClose}>
                         Close
                     </Button>
                 </div>
