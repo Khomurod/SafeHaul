@@ -1,0 +1,68 @@
+.ds-switch {
+  position: relative;
+  display: inline-flex;
+  width: 44px;
+  height: 24px;
+  flex-shrink: 0;
+  align-items: center;
+  border: 1px solid var(--ds-color-border);
+  border-radius: var(--ds-radius-full);
+  background: var(--ds-color-surface-subtle);
+  cursor: pointer;
+  transition: background-color var(--ds-duration-fast) var(--ds-ease-standard),
+    border-color var(--ds-duration-fast) var(--ds-ease-standard);
+}
+
+.ds-switch__thumb {
+  pointer-events: none;
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border-radius: var(--ds-radius-full);
+  background: var(--ds-color-surface);
+  box-shadow: var(--ds-shadow-xs);
+  transform: translateX(3px);
+  transition: transform var(--ds-duration-fast) var(--ds-ease-standard);
+}
+
+/*
+ * The thumb's position is the non-colour signal. `aria-checked` carries it for
+ * assistive technology; this carries it for a sighted user who cannot
+ * distinguish the track colours.
+ */
+.ds-switch[aria-checked='true'] .ds-switch__thumb {
+  transform: translateX(22px);
+}
+
+.ds-switch[aria-checked='true'] {
+  border-color: transparent;
+}
+
+.ds-switch[aria-checked='true'][data-tone='primary'] {
+  background: var(--ds-color-action-primary);
+}
+
+.ds-switch[aria-checked='true'][data-tone='success'] {
+  background: var(--ds-color-action-success);
+}
+
+.ds-switch[aria-checked='true'][data-tone='danger'] {
+  background: var(--ds-color-action-danger);
+}
+
+.ds-switch:focus-visible {
+  outline: 2px solid var(--ds-color-focus);
+  outline-offset: 2px;
+}
+
+.ds-switch:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-switch,
+  .ds-switch__thumb {
+    transition: none;
+  }
+}

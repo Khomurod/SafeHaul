@@ -155,10 +155,11 @@ durable visual baselines are owner-approved.
 ## Component catalog
 
 `npm run storybook` opens the catalog. It documents the control scale plus
-sixteen subjects — Button, IconButton, Input, Select, Textarea,
-Checkbox/Radio/ChoiceGroup, Badge, Card/MetricCard, DataTable, the page layout
-primitives, ProgressBar, StatusMedallion, SectionNavigation, the form-structure
-primitives, Modal and ConfirmDialog — plus eight business-neutral page patterns.
+Button, IconButton, Link/ButtonLink, Input, Select, Textarea,
+Checkbox/Radio/ChoiceGroup, Switch, FileInput, Badge, Card/MetricCard, Tabs,
+SegmentedControl, Disclosure, DataTable, the page layout primitives,
+ProgressBar, StatusMedallion, SectionNavigation, the form-structure primitives,
+Modal and ConfirmDialog — plus the business-neutral page patterns.
 
 `Foundations/Control scale` is the one to read first: it shows an input and its
 adjacent button at each of the three steps, and proves that icon size comes from

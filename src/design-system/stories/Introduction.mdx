@@ -42,23 +42,32 @@ These primitives do **not** exist yet. Do not hand-roll them — record the need
 the roadmap instead. Each one currently has at least one documented
 feature-owned exception in the product:
 
-- **Tabs** (a WAI-ARIA tablist). `SectionNavigation` is section navigation, not a
-  tab widget. The driver dossier's tablist is a recorded exception.
 - **Combobox / Listbox.** The FMCSA employer picker is a recorded exception.
-- **File input.** Every upload control is currently feature-owned.
-- **Switch** (ARIA `switch`) and an **indeterminate checkbox** outside
-  `DataTable`'s own select-all.
-- **Segmented control / toggle group**, **filter chip**, **overflow menu**,
-  **collapsible/disclosure**, **split panel** and **sticky page footer**.
+- **Indeterminate checkbox** outside `DataTable`'s own select-all.
+- **Filter chip**, **overflow menu**, **split panel** and **sticky page footer**.
+  The overflow menu has exactly one candidate consumer, whose every action is
+  currently a visible button — which is a perfectly good answer, not a
+  workaround, so it is not being built speculatively.
 
-Closed recently, so the exceptions that cited them are retired:
+Closed on 2026-08-21, so the exceptions that cited them are retired:
 
-- **Link / ButtonLink / IconButtonLink** — added 2026-08-21. `external` is the
-  reason: every external anchor in the product opened a new tab with no
-  announcement. Do not hand-write `target="_blank"`.
-- **EmptyState / ErrorState / LoadingState** — added 2026-08-21 in
-  `@design-system/patterns`. This catalog used to document the composition and
-  ask you to copy it, which is a component waiting to be written.
+- **Tabs** (`TabList` / `TabPanel`). Nine screens had hand-rolled the tablist and
+  seven had each written the same keyboard handler.
+- **Switch** (ARIA `switch`), promoted from a feature-owned implementation that
+  was already correct.
+- **SegmentedControl**, retiring four `role="group"` / `aria-pressed` exceptions.
+- **Disclosure**, for a collapsible section whose trigger sits inside a heading.
+- **FileInput**, the picker contract four upload controls were waiting on.
+- **Link / ButtonLink / IconButtonLink**. `external` is the reason: every
+  external anchor in the product opened a new tab with no announcement. Do not
+  hand-write `target="_blank"`.
+- **EmptyState / ErrorState / LoadingState** in `@design-system/patterns`. This
+  catalog used to document the composition and ask you to copy it, which is a
+  component waiting to be written.
+
+A primitive existing is not the same as its exception being gone: the
+feature-owned copies are migrated to these family by family in the PRs that
+follow, and until a call site moves, its exception still stands.
 
 ## Appearance
 

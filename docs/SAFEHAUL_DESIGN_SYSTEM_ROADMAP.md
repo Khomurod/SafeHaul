@@ -195,12 +195,14 @@ component itself as well.
   pattern with `--ds-*` tokens instead. The approved `DataTable` is proven only
   for display tables.
 - **`CallOutcomeModalUI`'s outcome grid stays a `role="group"` of raw
-  `<button aria-pressed>` cards** — there is no approved Segmented/ToggleGroup or
-  SelectableCard primitive. Same exception as the dossier summary toggle and the
-  PEV FMCSA rows. All its colours are approved tokens.
+  `<button aria-pressed>` cards** until it migrates to the `SegmentedControl`
+  built on 2026-08-21 — which keeps exactly that semantic, deliberately, rather
+  than becoming a radiogroup. Same for the dossier summary toggle and the PEV
+  FMCSA rows. All their colours are approved tokens.
 - **File inputs stay local** in `DQFileTab`, `BulkUploadLayout`, the public
-  application and the PEV result upload: there is no approved file-input
-  contract yet.
+  application and the PEV result upload — **until each migrates to the
+  `FileInput` primitive built on 2026-08-21.** The contract now exists, so a
+  *new* hand-built picker is a violation rather than an exception.
 - ~~**Styled `<a>` navigations stay local.**~~ **RETIRED 2026-08-21.**
   `Link`, `ButtonLink` and `IconButtonLink` exist
   (`components/link`). The remaining feature-owned anchors are being migrated to
@@ -222,13 +224,20 @@ one keeps a feature-owned control in the tree with a documented exception, and
 each exception retires when the primitive lands. **Do not delete an entry here
 while its call site still cites it.**
 
-| Missing primitive | Cited by | What stays feature-owned meanwhile |
+**Five of these closed on 2026-08-21.** The primitives now exist; the call sites
+listed against them are migrated family by family in the PRs that follow, and
+until a call site moves, its exception still stands. Delete a row only when its
+last consumer has migrated.
+
+| Primitive | Status | Cited by |
 |---|---|---|
-| **Tabs** | `EnvelopeSidebar.jsx`, `DocumentsManager.jsx`, `AnalyticsView.jsx`, `CreateView.jsx`, `AiIntegrationsView.jsx` | `DocumentsManager`'s WAI-ARIA tab interface; `EnvelopeSidebar` uses collapsible sections instead, which also lets more than one stay open — something a tab strip cannot do |
-| **Toned `Button` variant** | `EnvelopeSidebar.jsx` | The eight field-palette buttons. The approved `Button` exposes only primary/secondary/ghost/danger and has no semantic status tone; the tone is load-bearing because `ResizableDraggableField` colour-codes each placed overlay by field type, so these buttons are the legend for what appears on the PDF. They already use `--ds-*` status tokens, a 44px activation height, a focus ring and unique names |
-| **Menu / overflow menu** | `TemplateLibraryPanel.jsx` | Every template action is a visible button rather than an overflow menu |
-| **Disclosure / Accordion** | `EnvelopeSidebar.jsx`, `AiLogsPanel.jsx` | `RailSection`'s header is a raw `<button>` — it must fill the rail edge-to-edge, carry a rotating affordance and sit inside a heading, which the approved `Button`'s padding and inline layout cannot express. `AiLogsPanel` sidesteps the gap entirely: a log row's detail opens in the approved approved `Modal` via `DataTable`'s `onRowActivate`, so no inline expander is hand-rolled and focus handling is the one already proven here |
-| **Segmented control** | `EnvelopeSidebar.jsx` | The delivery-method toggle group (same gap as `CallOutcomeModalUI` above) |
+| **Tabs** (`components/tabs`) | **Built.** `TabList` / `TabPanel`, plus `tabIds` so a strip and a panel living in different components cannot drift apart | Nine hand-rolled tablists — `DocumentsManager`, `AnalyticsView`, `CreateView`, `AiIntegrationsView`, `CampaignsDashboard`, `AudienceBuilder` (x2), `DossierSidebar`, `EditorInspector`, `NotificationBell`. Seven had each written the same `handleTabKeyDown` |
+| **Disclosure** (`components/disclosure`) | **Built.** Trigger inside a heading; content unmounted when closed, not hidden | `EnvelopeSidebar`'s `RailSection`. `AiLogsPanel` never needed it — a log row's detail opens in the approved `Modal` via `DataTable`'s `onRowActivate`, so no inline expander was hand-rolled |
+| **Segmented control** (`components/segmented`) | **Built** as `role="group"` + `aria-pressed`, deliberately *not* a radiogroup — the README says why | `CallOutcomeModalUI`'s outcome grid, the dossier summary/full toggle, the PEV FMCSA rows, `EnvelopeSidebar`'s delivery-method toggle |
+| **Switch** (`components/switch`) | **Built**, promoted from Company Settings' `ToggleSwitch`, which was already correct | `FeaturesView`, which used a `Checkbox` and so announced the wrong role for a control that saves immediately |
+| **File input** (`components/file-input`) | **Built.** A real focusable `<input type="file">` behind a `<label>` | `DQFileTab`, `BulkUploadLayout`, the public application's upload, the PEV result upload. Two of the four were a `<div onClick>` driving a `display: none` input, which has no keyboard path to the picker at all |
+| **Toned `Button` variant** | **Still open** | `EnvelopeSidebar.jsx`'s eight field-palette buttons. `Button` exposes only primary/secondary/ghost/danger and has no semantic status tone; the tone is load-bearing because `ResizableDraggableField` colour-codes each placed overlay by field type, so these buttons are the legend for what appears on the PDF. They already use `--ds-*` status tokens, a 44px activation height, a focus ring and unique names |
+| **Menu / overflow menu** | **Not being built** | `TemplateLibraryPanel.jsx`, where every template action is a visible button. At that size that is a better answer than an overflow menu, not a workaround — so the primitive is not being written speculatively |
 
 ---
 
@@ -270,10 +279,12 @@ enforcement permanently blocking.
   `tests/architecture.test.js` now forbids `@shared` imports inside
   `src/design-system` outright. That rule could not be written before, because
   these two files were the counterexample.
-- `[!]` **Promote a `Switch` primitive.** `FeaturesView` uses a native
-  `Checkbox` because there is no approved ARIA switch, while Company Settings
-  has a feature-owned `ToggleSwitch` that cannot be imported across features
-  without breaking layering.
+- `[x]` **Promote a `Switch` primitive. RESOLVED 2026-08-21.**
+  `components/switch` is Company Settings' `ToggleSwitch`, which was already
+  correct — it was feature-owned only because the design system had no switch,
+  so `FeaturesView` could not import it and used a `Checkbox` instead,
+  announcing the wrong role for a control that saves immediately. Both call
+  sites migrate with their feature families.
 - `[!]` **Decide how an employer signs the verification portal without a
   mouse.** A canvas cannot be drawn on with a keyboard, so `SignaturePad` — the
   legally operative mark on a 49 CFR §391.23 response — has **no keyboard or

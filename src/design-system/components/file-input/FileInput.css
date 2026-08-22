@@ -1,0 +1,84 @@
+.ds-file-input {
+  display: grid;
+  gap: var(--ds-space-2);
+  min-width: 0;
+}
+
+.ds-file-input__label {
+  color: var(--ds-color-content);
+  font-size: var(--ds-font-size-sm);
+  font-weight: var(--ds-font-weight-semibold);
+  line-height: var(--ds-line-height-body);
+}
+
+.ds-file-input__description {
+  color: var(--ds-color-content-muted);
+  font-size: var(--ds-font-size-xs);
+  line-height: var(--ds-line-height-body);
+}
+
+/*
+ * The label is the visible control, and it takes the shared control height so a
+ * file picker is the same size as the Button next to it.
+ */
+.ds-file-input__control {
+  position: relative;
+  display: inline-flex;
+  min-height: var(--ds-control-height-md);
+  width: fit-content;
+  max-width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ds-space-2);
+  border: 1px solid var(--ds-color-border);
+  border-radius: var(--ds-radius-md);
+  padding: 0 var(--ds-space-4);
+  background: var(--ds-color-action-secondary);
+  color: var(--ds-color-content);
+  cursor: pointer;
+  font-size: var(--ds-font-size-body);
+  font-weight: var(--ds-font-weight-semibold);
+  line-height: var(--ds-line-height-tight);
+}
+
+.ds-file-input__control > svg {
+  width: var(--ds-control-icon-md);
+  height: var(--ds-control-icon-md);
+  flex: 0 0 auto;
+}
+
+.ds-file-input__control:hover:not([data-disabled]) {
+  background: var(--ds-color-action-secondary-hover);
+}
+
+.ds-file-input__control[data-disabled] {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+/*
+ * Visually hidden, NOT `display: none`.
+ *
+ * `display: none` and `visibility: hidden` both remove the input from the tab
+ * order, which takes the keyboard path to the picker with them — the exact
+ * defect in two of the four hand-built controls this replaces. Clipping keeps
+ * it focusable and operable; the focus ring is drawn on the label instead,
+ * through `:focus-within`.
+ */
+.ds-file-input__native {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.ds-file-input__control:focus-within {
+  outline: 2px solid var(--ds-color-focus);
+  outline-offset: 2px;
+  box-shadow: var(--ds-focus-ring);
+}
