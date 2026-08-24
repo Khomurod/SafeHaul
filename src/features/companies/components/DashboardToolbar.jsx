@@ -1,7 +1,29 @@
 // src/features/companies/components/DashboardToolbar.jsx
 
-import React, { useState, useEffect, useMemo, memo } from 'react';
+import React, { useState, useMemo, memo } from 'react';
 import { Search, Filter, X, Briefcase, Users, Calendar, UserCircle } from 'lucide-react';
+import { Button, FormField, Input, Select } from '@design-system/components';
+
+/**
+ * The candidate/lead list toolbar.
+ *
+ * Migrated 2026-08-21. Presentation only — the filter keys, the driver-type
+ * option list, the `setFilters` shape, `clearFilters`, the assignment action and
+ * the my-assignments toggle are unchanged.
+ *
+ * This screen was the campaign's exemplar, and it is worth recording what it
+ * looked like: four hand-built buttons with four *different* paddings
+ * (`px-4 py-1.5`, `px-3 py-2`, `p-2`, `px-4 p-2`), a search input at `py-2` and
+ * three filter selects at `p-2` — so no two controls in one toolbar were the
+ * same height — plus `text-gray-900`, `bg-blue-600` and `border-gray-200`
+ * throughout, and hand-built `text-xs font-bold uppercase` labels.
+ *
+ * Every control now comes from the shared scale, so the row lines up without
+ * anything being set here. The filter labels are real `FormField` labels, which
+ * also fixes the accessibility defect underneath the styling: the filter
+ * controls were labelled by an adjacent `<label>` with no `htmlFor` and had no
+ * `id`, so each announced as an anonymous combobox.
+ */
 
 // --- CONFIGURATION ---
 const DRIVER_TYPE_OPTIONS = [
@@ -60,119 +82,107 @@ export const DashboardToolbar = memo(function DashboardToolbar({
 
 
     return (
-        <div className="p-4 border-b border-gray-200 bg-white z-30 flex flex-col gap-3 shrink-0 relative">
+        <div className="relative z-30 flex shrink-0 flex-col gap-ds-3 border-b border-ds-border-subtle bg-ds-surface p-ds-4">
 
-            <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-                <div className="flex items-center gap-4 flex-wrap">
+            <div className="flex flex-col items-center justify-between gap-ds-4 sm:flex-row">
+                <div className="flex flex-wrap items-center gap-ds-4">
                     <div>
-                        <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-
-                            {activeTab === 'company_leads' && <Briefcase size={18} className="text-orange-600" />}
+                        <h2 className="flex items-center gap-ds-2 text-ds-heading-md font-bold text-ds-content">
+                            {activeTab === 'company_leads' && <Briefcase size={18} aria-hidden="true" className="text-ds-status-warning-fg" />}
                             {getTabTitle()}
                         </h2>
-                        <p className="text-xs text-gray-500 font-medium">
+                        <p className="text-ds-xs font-medium text-ds-content-muted">
                             Showing {dataCount} of {totalCount} records
                         </p>
                     </div>
 
-
-
-                    {/* NEW ASSIGN BUTTON */}
                     {canAssign && selectedCount > 0 && (
-                        <div className="animate-in fade-in slide-in-from-left-2 pl-4 border-l border-gray-200">
-                            <button
-                                type="button"
-                                onClick={onAssignLeads}
-                                className="flex items-center gap-2 px-4 py-1.5 bg-blue-600 text-white text-sm font-bold rounded-lg shadow-sm hover:bg-blue-700 transition-colors"
-                            >
-                                <Users size={16} /> Assign ({selectedCount})
-                            </button>
+                        <div className="border-l border-ds-border-subtle pl-ds-4 animate-in fade-in slide-in-from-left-2">
+                            <Button variant="primary" onClick={onAssignLeads}>
+                                <Users aria-hidden="true" />
+                                Assign ({selectedCount})
+                            </Button>
                         </div>
                     )}
                 </div>
 
-                <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap justify-end">
+                <div className="flex w-full flex-wrap items-center justify-end gap-ds-2 sm:w-auto">
                     {showMyAssignmentsToggle && (
-                        <button
-                            type="button"
-                            aria-label={myAssignmentsLabel}
+                        /*
+                         * `aria-pressed` rather than a colour swap: this is a
+                         * filter that is on or off, and the previous version
+                         * signalled its state only by turning blue.
+                         */
+                        <Button
+                            variant={myAssignmentsOnly ? 'primary' : 'secondary'}
+                            aria-pressed={myAssignmentsOnly}
                             onClick={() => onToggleMyAssignments?.(!myAssignmentsOnly)}
-                            className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-semibold transition-colors ${myAssignmentsOnly
-                                ? 'bg-blue-600 border-blue-600 text-white'
-                                : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
-                                }`}
                         >
-                            <UserCircle size={16} />
+                            <UserCircle aria-hidden="true" />
                             <span className="hidden sm:inline">{myAssignmentsLabel}</span>
-                        </button>
+                            <span className="sm:hidden ds-visually-hidden">{myAssignmentsLabel}</span>
+                        </Button>
                     )}
-                    {/* Search Bar */}
+
                     <div className="relative flex-1 sm:w-64">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <Search size={16} className="text-gray-400" />
-                        </div>
-                        <input
-                            type="text"
+                        <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-ds-3">
+                            <Search size={16} aria-hidden="true" className="text-ds-content-muted" />
+                        </span>
+                        <Input
+                            type="search"
+                            aria-label="Search name, phone or email"
                             placeholder="Search name, phone, email..."
-                            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none"
+                            className="pl-10"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
                     </div>
 
-                    {/* Filter Toggle Button */}
-                    <button
-                        type="button"
-                        aria-label="Filters"
+                    <Button
+                        variant={showFilters || hasActiveFilters ? 'primary' : 'secondary'}
+                        aria-pressed={showFilters}
+                        aria-expanded={showFilters}
                         onClick={() => setShowFilters(!showFilters)}
-                        className={`p-2 rounded-lg border transition-all flex items-center gap-2 text-sm font-medium ${showFilters || hasActiveFilters
-                            ? 'bg-blue-50 border-blue-200 text-blue-700'
-                            : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
-                            }`}
                     >
-                        <Filter size={16} />
+                        <Filter aria-hidden="true" />
                         <span className="hidden sm:inline">Filters</span>
-                        {hasActiveFilters && <span className="w-2 h-2 rounded-full bg-blue-600"></span>}
-                    </button>
+                        <span className="sm:hidden ds-visually-hidden">Filters</span>
+                        {/* The dot repeats what the label already says, for a
+                            glance rather than instead of it. */}
+                        {hasActiveFilters && (
+                            <>
+                                <span aria-hidden="true" className="h-2 w-2 rounded-ds-full bg-current" />
+                                <span className="ds-visually-hidden">(filters applied)</span>
+                            </>
+                        )}
+                    </Button>
                 </div>
             </div>
 
-            {/* --- Filter Panel --- */}
             {showFilters && (
-                <div className="pt-3 pb-1 border-t border-dashed border-gray-200 animate-in slide-in-from-top-2">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-
-                        {/* Filter: Driver Type */}
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Freight Type</label>
-                            <select
-                                className="w-full p-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none"
+                <div className="border-t border-dashed border-ds-border-subtle pb-ds-1 pt-ds-3 animate-in slide-in-from-top-2">
+                    <div className="grid grid-cols-1 gap-ds-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                        <FormField id="toolbar-driver-type" label="Freight type">
+                            <Select
                                 value={filters?.driverType || ''}
                                 onChange={(e) => handleFilterChange('driverType', e.target.value)}
                             >
                                 <option value="">All Types</option>
                                 {DRIVER_TYPE_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
-                            </select>
-                        </div>
+                            </Select>
+                        </FormField>
 
-                        {/* Filter: State */}
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">State</label>
-                            <input
-                                type="text"
+                        <FormField id="toolbar-state" label="State">
+                            <Input
                                 placeholder="e.g. IL, TX"
-                                className="w-full p-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none"
                                 value={filters?.state || ''}
                                 onChange={(e) => handleFilterChange('state', e.target.value)}
                                 maxLength={2}
                             />
-                        </div>
+                        </FormField>
 
-                        {/* Filter: Assignee */}
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Assigned To</label>
-                            <select
-                                className="w-full p-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none"
+                        <FormField id="toolbar-assignee" label="Assigned to">
+                            <Select
                                 value={filters?.assignee || ''}
                                 onChange={(e) => handleFilterChange('assignee', e.target.value)}
                             >
@@ -181,31 +191,30 @@ export const DashboardToolbar = memo(function DashboardToolbar({
                                 {teamMembers.map(m => (
                                     <option key={m.id} value={m.id}>{m.name || m.displayName || m.email}</option>
                                 ))}
-                            </select>
-                        </div>
+                            </Select>
+                        </FormField>
 
-                        {/* Filter: Specific Date */}
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">
-                                <span className="flex items-center gap-1"><Calendar size={11} /> Filter by Date</span>
-                            </label>
-                            <input
+                        <FormField
+                            id="toolbar-date"
+                            label={(
+                                <span className="flex items-center gap-ds-1">
+                                    <Calendar size={12} aria-hidden="true" /> Filter by date
+                                </span>
+                            )}
+                        >
+                            <Input
                                 type="date"
-                                className="w-full p-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 outline-none"
                                 value={filters?.dateFilter || ''}
                                 onChange={(e) => handleFilterChange('dateFilter', e.target.value)}
                             />
-                        </div>
-
+                        </FormField>
                     </div>
-                    {/* Clear Button — full width below filters */}
-                    <div className="mt-3">
-                        <button
-                            onClick={clearFilters}
-                            className="w-full sm:w-auto px-4 p-2 border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors"
-                        >
-                            <X size={14} /> Clear All Filters
-                        </button>
+
+                    <div className="mt-ds-3">
+                        <Button variant="danger" fullWidth className="sm:w-auto" onClick={clearFilters}>
+                            <X aria-hidden="true" />
+                            Clear all filters
+                        </Button>
                     </div>
                 </div>
             )}

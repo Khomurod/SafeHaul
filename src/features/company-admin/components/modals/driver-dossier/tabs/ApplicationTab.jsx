@@ -24,7 +24,7 @@ import { useApplicationChanges } from '@features/applications/hooks/useApplicati
 import { useSubmissionRecord } from '@features/applications/hooks/useSubmissionRecord';
 import { SubmissionRecordNotice } from '@features/applications/components/SubmissionRecordNotice';
 import { PreservedApplicationView } from '@features/applications/components/PreservedApplicationView';
-import { Badge, Button, Card, IconButton } from '@/design-system/components';
+import { Badge, Button, Card, IconButton, Link } from '@/design-system/components';
 
 /**
  * Dossier Application tab.
@@ -472,16 +472,18 @@ function LicenseCard({ appData, fileUrls = {} }) {
                         {/*
                           DOCUMENTED EXCEPTION — styled `<a>` rather than an
                           approved control: opening the full-size photo is a
-                          navigation, and there is no Link primitive yet. The
+                          navigation, so it is a `Link` — with `tone="bare"`,
+                          because there is no text to underline, and `external`,
+                          which is what announces the new tab it opens. The
                           caption is real text under the image instead of the old
                           `text-[10px]` overlay burned onto it.
                         */}
                         {cdlFrontUrl && (
-                            <a
+                            <Link
                                 href={cdlFrontUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="rounded-ds-md focus-visible:outline-none focus-visible:shadow-ds-focus"
+                                external
+                                tone="bare"
+                                className="focus-visible:shadow-ds-focus"
                             >
                                 <img
                                     src={cdlFrontUrl}
@@ -490,14 +492,14 @@ function LicenseCard({ appData, fileUrls = {} }) {
                                     onError={(e) => { e.target.style.display = 'none'; }}
                                 />
                                 <span className="mt-ds-1 block text-center text-ds-xs font-semibold text-ds-content-secondary">Front</span>
-                            </a>
+                            </Link>
                         )}
                         {cdlBackUrl && (
-                            <a
+                            <Link
                                 href={cdlBackUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="rounded-ds-md focus-visible:outline-none focus-visible:shadow-ds-focus"
+                                external
+                                tone="bare"
+                                className="focus-visible:shadow-ds-focus"
                             >
                                 <img
                                     src={cdlBackUrl}
@@ -506,7 +508,7 @@ function LicenseCard({ appData, fileUrls = {} }) {
                                     onError={(e) => { e.target.style.display = 'none'; }}
                                 />
                                 <span className="mt-ds-1 block text-center text-ds-xs font-semibold text-ds-content-secondary">Back</span>
-                            </a>
+                            </Link>
                         )}
                     </div>
                 </div>

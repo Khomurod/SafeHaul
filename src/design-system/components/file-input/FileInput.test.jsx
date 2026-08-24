@@ -5,10 +5,13 @@ import { describe, expect, it, vi } from 'vitest';
 import { FileInput } from './FileInput';
 
 describe('FileInput', () => {
-  it('renders a real file input, named by its label', () => {
+  it('renders a real file input, named by its field label', () => {
+    // Named by the *field*, not by the button text. The button says "Choose
+    // file"; the field is "Driver licence", and that is what it announces as.
     render(<FileInput label="Driver licence" buttonLabel="Choose file" onChange={vi.fn()} />);
-    const input = screen.getByLabelText(/Choose file/);
+    const input = screen.getByLabelText('Driver licence');
     expect(input).toHaveAttribute('type', 'file');
+    expect(input).toHaveAccessibleName('Driver licence');
   });
 
   it('requires a label naming what is being uploaded', () => {
@@ -42,19 +45,19 @@ describe('FileInput', () => {
         onChange={vi.fn()}
       />,
     );
-    const input = screen.getByLabelText(/Choose file/);
+    const input = screen.getByLabelText('Driver licence');
     expect(input).toHaveAccessibleDescription('PDF or JPEG, up to 10 MB.');
     expect(input).toHaveAttribute('accept', 'application/pdf,image/jpeg');
   });
 
   it('passes native attributes straight through', () => {
     render(<FileInput label="Documents" multiple onChange={vi.fn()} />);
-    expect(screen.getByLabelText(/Choose file/)).toHaveAttribute('multiple');
+    expect(screen.getByLabelText('Documents')).toHaveAttribute('multiple');
   });
 
   it('disables the control and the label together', () => {
     const { container } = render(<FileInput label="Driver licence" disabled onChange={vi.fn()} />);
-    expect(screen.getByLabelText(/Choose file/)).toBeDisabled();
+    expect(screen.getByLabelText('Driver licence')).toBeDisabled();
     expect(container.querySelector('.ds-file-input__control')).toHaveAttribute('data-disabled', 'true');
   });
 

@@ -49,17 +49,26 @@ export const FileInput = forwardRef(function FileInput({
   const inputId = id || `ds-file-input-${generatedId}`;
   const descriptionId = description ? `${inputId}-description` : undefined;
 
+  const labelId = `${inputId}-label`;
+
   return (
     <div className={`ds-file-input ${className}`.trim()}>
-      <span className="ds-file-input__label" id={`${inputId}-label`}>{label}</span>
+      <span className="ds-file-input__label" id={labelId}>{label}</span>
       {description && (
         <span className="ds-file-input__description" id={descriptionId}>{description}</span>
       )}
       {/*
-        The label is the visible control and the input's accessible name.
+        `aria-labelledby` points at the field label, not at the button text.
+        Without it the `<label>` wrapping the input would supply the name, and
+        the input would announce as "Choose a file" — the affordance rather than
+        the field. Every other control in the system announces as its field, and
+        a test looking for the field by its label would not find this one.
+        (Found by migrating a real upload control onto it, whose tests did
+        exactly that.)
+
         `aria-describedby` carries the accepted types, so a screen-reader user
-        hears the constraint before opening the picker rather than discovering
-        it from a rejection afterwards.
+        hears the constraint before opening the picker rather than discovering it
+        from a rejection afterwards.
       */}
       <label className="ds-file-input__control" htmlFor={inputId} data-disabled={disabled || undefined}>
         <Upload aria-hidden="true" />
@@ -73,6 +82,7 @@ export const FileInput = forwardRef(function FileInput({
           multiple={multiple}
           disabled={disabled}
           onChange={onChange}
+          aria-labelledby={labelId}
           aria-describedby={descriptionId}
           className="ds-file-input__native"
         />

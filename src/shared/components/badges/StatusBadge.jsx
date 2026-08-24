@@ -27,28 +27,44 @@ import { getStatusIcon } from './statusIcon';
  * the wrong trade — it would put domain distinctions into the token contract.
  */
 
-/** Domain status → approved tone. Feature-owned mapping; token-owned values. */
-const STATUS_TONES = {
-    'New': 'info',
-    'In Review': 'accent',
-    'Qualified': 'success',
-    'Approved': 'success',
-    'Hold': 'warning',
-    'Needs Info': 'warning',
-    'Rejected': 'danger',
-    'Stale': 'neutral',
-    'Background Check': 'accent',
-    'Offer Sent': 'success',
-};
+/**
+ * Domain status → approved tone.
+ *
+ * Substring matching, in the same order and the same shape as `getStatusIcon`,
+ * because the product has two kinds of status string: the canonical labels
+ * ("Offer Sent") and the free-form ones a recruiter list carries
+ * ("New Application", "Terminated", "Declined"). An exact-key map handled the
+ * first and silently defaulted the second, which is how one screen ended up
+ * calling "Hired" purple while another called it green.
+ *
+ * Order matters: "rejected/declined" is tested before "new", so
+ * "New — declined" reads as declined rather than as new.
+ */
+const STATUS_TONES = [
+    [/reject|disqualif|declin|terminat/, 'danger'],
+    [/hired|accept|approved|qualified/, 'success'],
+    [/offer/, 'success'],
+    [/background/, 'accent'],
+    [/hold|needs info/, 'warning'],
+    [/review|contacted|attempted/, 'accent'],
+    [/stale|archiv/, 'neutral'],
+    [/new|lead/, 'info'],
+];
+
+/** The tone a status reads as. Exported so a caller can tone a row to match. */
+export function getStatusTone(status) {
+    const s = (status || '').toLowerCase();
+    const match = STATUS_TONES.find(([pattern]) => pattern.test(s));
+    return match ? match[1] : 'neutral';
+}
 
 /**
  * @param {object} props
- * @param {string} props.status One of the keys above; anything else reads as new.
+ * @param {string} props.status Any status string; matching is fuzzy.
  */
 export function StatusBadge({ status }) {
-    const tone = STATUS_TONES[status] ?? STATUS_TONES.New;
     return (
-        <Badge tone={tone} icon={getStatusIcon(status)}>
+        <Badge tone={getStatusTone(status)} icon={getStatusIcon(status)}>
             {status}
         </Badge>
     );

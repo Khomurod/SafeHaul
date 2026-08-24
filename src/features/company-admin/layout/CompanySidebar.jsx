@@ -157,7 +157,7 @@ export const CompanySidebar = ({
           ${isActive
             ? 'bg-ds-status-info-bg text-ds-status-info-fg border-l-2 border-ds-action-primary'
             : 'text-ds-content-secondary hover:text-ds-content hover:bg-ds-surface-subtle border-l-2 border-transparent'}
-          ${isChild ? 'pl-9 text-sm' : ''}
+          ${isChild ? 'pl-9 text-ds-body' : ''}
           ${!isExpanded && !isChild ? 'justify-center' : ''}
         `}
       >
@@ -266,7 +266,7 @@ export const CompanySidebar = ({
                   />
                   {isExpanded && (
                     <>
-                      <span className="flex-1 text-left font-medium text-sm">{group.label}</span>
+                      <span className="flex-1 text-left font-medium text-ds-body">{group.label}</span>
                       <ChevronRight
                         size={16}
                         aria-hidden="true"

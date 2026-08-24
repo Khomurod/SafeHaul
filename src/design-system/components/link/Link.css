@@ -36,3 +36,20 @@
   color: inherit;
   text-decoration-thickness: 2px;
 }
+
+/*
+ * A link whose content is an image or other non-text node. No colour and no
+ * underline — there is no text to colour, and an underline under a thumbnail is
+ * noise. The focus ring stays, because that is the part a keyboard user needs.
+ *
+ * Only for non-text content. A `bare` link around words is a link a reader
+ * cannot find, which is the WCAG 1.4.1 failure the default underline prevents.
+ */
+.ds-link[data-tone='bare'] {
+  color: inherit;
+  text-decoration: none;
+}
+
+.ds-link[data-tone='bare']:hover {
+  color: inherit;
+}

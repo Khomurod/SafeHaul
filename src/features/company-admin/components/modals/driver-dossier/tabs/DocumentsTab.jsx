@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react';
 import { FileText, Eye, Download, X } from 'lucide-react';
 import { formatDate } from '@shared/utils/helpers';
 import { Modal } from '@design-system/patterns';
-import { Card, IconButton } from '@/design-system/components';
+import { Card, IconButton, IconButtonLink } from '@/design-system/components';
 
 /**
  * Dossier document gallery: the applicant's uploaded documents with preview and
@@ -143,23 +143,15 @@ export function DocumentsTab({ fileUrls = {}, appData }) {
                     <div className="flex shrink-0 items-center justify-between gap-ds-3 border-b border-ds-border-subtle px-ds-4 py-ds-3">
                         <h4 className="min-w-0 truncate text-ds-body-lg font-bold text-ds-content">{previewDoc.label}</h4>
                         <div className="flex shrink-0 items-center gap-ds-2">
-                            {/*
-                              DOCUMENTED EXCEPTION — styled `<a>` rather than an
-                              approved control. A download is a navigation, and
-                              the design system has no Link/ButtonLink primitive
-                              yet (recorded in the roadmap). Tokens only, 44 px
-                              target, visible focus ring.
-                            */}
-                            <a
+                            <IconButtonLink
                                 href={previewDoc.url}
                                 download
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex h-11 w-11 items-center justify-center rounded-ds-md text-ds-content-secondary hover:bg-ds-surface-subtle hover:text-ds-content-link focus-visible:outline-none focus-visible:shadow-ds-focus"
+                                external
+                                variant="ghost"
+                                label={`Download ${previewDoc.label}`}
                             >
-                                <Download size={24} aria-hidden="true" />
-                                <span className="ds-visually-hidden">Download {previewDoc.label}</span>
-                            </a>
+                                <Download aria-hidden="true" />
+                            </IconButtonLink>
                             <IconButton
                                 ref={closePreviewRef}
                                 variant="ghost"

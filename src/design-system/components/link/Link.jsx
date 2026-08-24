@@ -43,9 +43,14 @@ function ExternalHint({ external }) {
  * @param {object} props
  * @param {string} props.href Required — a link without a destination is a button.
  * @param {boolean} [props.external] Opens a new tab, announced and `rel`-protected.
- * @param {'default'|'quiet'} [props.tone] `quiet` inherits the surrounding colour
- *   for a link inside already-coloured text; it keeps the underline, which is
- *   what still distinguishes it from the text around it.
+ * @param {'default'|'quiet'|'bare'} [props.tone]
+ *   - `quiet` inherits the surrounding colour for a link inside already-coloured
+ *     text; it keeps the underline, which is what still distinguishes it.
+ *   - `bare` drops the colour *and* the underline, for a link whose content is
+ *     not text — a thumbnail, a logo. WCAG 1.4.1 asks that a link be
+ *     distinguishable from the text around it; an image link has no surrounding
+ *     text to be confused with, and underlining an image is meaningless. It
+ *     keeps the focus ring, which is the part that does matter.
  */
 export const Link = forwardRef(function Link({
   href,

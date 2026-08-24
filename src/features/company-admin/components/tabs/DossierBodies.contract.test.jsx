@@ -144,9 +144,17 @@ describe('DQFileTab — file listing and expiration status', () => {
         fs.getDocs.mockResolvedValue(snap([['f1', DQ_FILE]]));
         renderDq();
 
-        const download = await screen.findByRole('link', { name: 'Download Medical Card: medcard.pdf' });
+        /*
+         * The frozen part is that the name identifies *which* file the control
+         * acts on — "Delete" repeated down a column is unusable. It is asserted
+         * as a prefix rather than an exact string because `IconButtonLink`
+         * appends "(opens in a new tab)" to an `external` link's name, which is
+         * additive information, not a change to what the control is called.
+         */
+        const download = await screen.findByRole('link', { name: /^Download Medical Card: medcard\.pdf/ });
         expect(download).toHaveAttribute('href', DQ_FILE.url);
         expect(download).not.toHaveAttribute('title');
+        expect(download).toHaveAccessibleName(expect.stringContaining('opens in a new tab'));
         expect(screen.getByRole('button', { name: 'Delete Medical Card: medcard.pdf' })).toBeInTheDocument();
     });
 });

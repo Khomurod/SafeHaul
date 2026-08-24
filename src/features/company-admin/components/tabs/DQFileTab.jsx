@@ -5,7 +5,8 @@ import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage
 import { Upload, Trash2, FileText, Download, AlertTriangle } from 'lucide-react';
 import { logActivity } from '@shared/utils/activityLogger';
 import {
-  Badge, Button, Card, FieldMessage, FormField, IconButton, Select, StatusMedallion,
+  Badge, Button, Card, FieldMessage, FileInput, FormField, IconButton, IconButtonLink,
+  Select, StatusMedallion,
 } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { Modal } from '@design-system/patterns';
@@ -357,24 +358,20 @@ export function DQFileTab({ companyId, applicationId, collectionName = 'applicat
             </Select>
           </FormField>
 
-          <div className="ds-form-field">
-            <label htmlFor={fileInputId} className="ds-label"><span>File</span></label>
-            {/*
-              Feature-owned exception: no approved file-input contract exists yet.
-              The `file:` pseudo-element styling now uses `--ds-*` values.
-            */}
-            <input
-              type="file"
-              id={fileInputId}
-              ref={fileInputRef}
-              className="w-full text-ds-sm text-ds-content
-                         file:mr-ds-4 file:rounded-ds-md file:border-0
-                         file:bg-ds-status-info-bg file:px-ds-4 file:py-ds-2
-                         file:text-ds-sm file:font-semibold file:text-ds-status-info-fg"
-              onChange={(e) => setFileToUpload(e.target.files[0])}
-              disabled={isUploading}
-            />
-          </div>
+          {/*
+            `FileInput`, added 2026-08-21, closing the gap this call site used to
+            record as an exception. The picker's keyboard path and accessible
+            name are the primitive's; which file is selected and what happens to
+            it stay here.
+          */}
+          <FileInput
+            id={fileInputId}
+            ref={fileInputRef}
+            label="File"
+            buttonLabel={fileToUpload ? fileToUpload.name : 'Choose a file'}
+            onChange={(e) => setFileToUpload(e.target.files[0])}
+            disabled={isUploading}
+          />
 
           <div className="flex flex-wrap items-center gap-ds-4">
             <Button
@@ -457,20 +454,21 @@ export function DQFileTab({ companyId, applicationId, collectionName = 'applicat
                   ) : (
                     /*
                       Feature-owned exception: a real navigation to a signed Storage
-                      URL, so it must stay an `<a>`. The design system has no
-                      Link/ButtonLink primitive yet — the same exception already
-                      recorded for the dossier's four styled `<a>` navigations.
-                      It previously had `title` as its only name.
+                      URL, so it is a navigation and must be a link. It is now
+                      `IconButtonLink` at the 36px step, so it matches every
+                      other row action rather than being a bespoke tinted square,
+                      and `external` announces the tab it opens. It previously
+                      had `title` as its only name.
                     */
-                    <a
+                    <IconButtonLink
                       href={file.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      aria-label={`Download ${file.fileType}: ${file.fileName}`}
-                      className="flex h-9 w-9 items-center justify-center rounded-ds-md bg-ds-status-info-bg text-ds-status-info-fg transition-colors hover:bg-ds-surface-subtle focus-visible:outline-none focus-visible:shadow-ds-focus"
+                      external
+                      size="sm"
+                      variant="secondary"
+                      label={`Download ${file.fileType}: ${file.fileName}`}
                     >
-                      <Download size={18} aria-hidden="true" />
-                    </a>
+                      <Download aria-hidden="true" />
+                    </IconButtonLink>
                   )}
                   {/*
                     The preserved original carries no delete control. It is the
