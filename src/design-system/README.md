@@ -177,3 +177,29 @@ Catalog stories may not import features, Firebase, application context or domain
 services, and may not use domain vocabulary. `tests/architecture.test.js`
 enforces the import half of that rule, and `storybook-build` in CI builds the
 catalog with no credentials at all.
+
+## Guardrails
+
+Five automated checks stand between this design system and the state the
+application was in before the 2026-08 campaign, when a substantial and
+well-adopted system coexisted with 660 raw palette classes, off-scale type and
+sub-12px text — all of which passed review, lint, 234 test files and CI, because
+nothing checked.
+
+| Command | Blocking | Catches |
+|---|---|---|
+| `npm test` (`tests/architecture.test.js`) | yes | An import from features, context, Firebase or `shared` into this directory |
+| `npm test` (`tests/tokens.test.js`) | yes | A broken token contract, a contrast pairing below AA, an unbridged Tailwind utility, a control sizing itself in pixels |
+| `npm run check:ui-contract` | yes | A *new* raw colour, off-scale type size, sub-12px text, hand-built overlay, raw table or hand-styled control |
+| `npm run check:table-layout` | yes | A cell narrower than its content, in a real browser at 412px and 1440px |
+| `npm run check:visual-contract` | yes | A change to computed geometry — control heights, cell padding, radii, resolved colours |
+| `npm run test:visual` | reported | A change to how anything *looks*, across 29 catalog subjects and 10 real screens at both widths |
+
+`check:ui-contract` ratchets against
+`ui-contract.baseline.json`, which lists every currently tolerated violation with
+either a `reasons` entry naming the exception that justifies it or a `debt` note
+naming the slice that clears it. It fails on a decrease as well as an increase,
+so the inventory can never quietly describe a tree that no longer exists.
+
+Run all of them before opening a UI pull request — `.github/pull_request_template.md`
+is the checklist, and it asks you never to tick a check you did not run.

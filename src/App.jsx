@@ -153,7 +153,7 @@ function AppRoutes() {
 
             const screenContent = routeDef.requiresCompanyProfile && !currentCompanyProfile
               ? (
-                <div className="min-h-screen flex items-center justify-center text-gray-700">
+                <div className="min-h-screen flex items-center justify-center text-ds-content-secondary">
                   Please select a company.
                 </div>
                 )

@@ -385,7 +385,10 @@ weaken or delete one without replacing the guarantee.
 | `src/design-system/tests/tokens.test.js` | The semantic token contract and its contrast pairings, in both directions |
 | `src/tests/noBlockingBrowserDialogs.test.js` | No `confirm(` / `alert(` anywhere under `src/`, with or without a `window.` prefix. It walks every non-test file, strips comments and string literals, and is proven to catch a real call rather than passing vacuously |
 | `npm run test:stories` (`src/tests/designSystemStories.a11y.test.jsx`) | Every catalog story renders and passes axe |
-| `npm run check:table-layout` (`scripts/check-table-layout.mjs`) | Measures the built catalog in a real browser at 412px and 1440px: a cell must contain its content (`scrollWidth > clientWidth` is a violation unless the column opts into `truncate`), and no region may reserve a gutter it never scrolls into |
+| `npm run check:table-layout` (`scripts/check-table-layout.mjs`) | Measures the built catalog in a real browser at 412px and 1440px: a cell must contain its content (`scrollWidth > clientWidth` is a violation unless the column opts into `truncate`), and no region may reserve a gutter it never scrolls into. Honours `PW_CHROMIUM_EXECUTABLE`, so it runs in a sandbox whose Chromium is not the pinned build — a guard that cannot run gets skipped |
+| `npm run check:ui-contract` (`scripts/check-ui-contract.mjs`) | The design-system ratchet. Raw palette classes, raw hex, sub-12px text, off-scale type, hand-built overlays, raw tables and hand-styled buttons/fields/anchors, measured against `src/design-system/ui-contract.baseline.json`. New violations fail; so does a *decrease*, which forces the inventory to record shrinkage rather than silently permit a regression back up to the old number |
+| `npm run check:visual-contract` (`scripts/check-visual-contract.mjs`) | Computed geometry in a real browser at both widths — control heights, cell padding, radii, resolved token colours — against a committed snapshot. This is the blocking visual guard, because the numbers are portable across machines and a failure names what moved (`button[md].height: 44px -> 40px`) |
+| `npm run test:visual` (`e2e/visual/`) | Pixel baselines for 29 catalog subjects and 10 application screens, at 1440px and 412px, committed to the repository. **Reported, not enforced** — see below |
 
 ### Why `check:table-layout` is a browser check, and must stay one
 
@@ -403,15 +406,53 @@ than a clean result. **A guard that cannot fail on the broken input is not a
 guard** — prove any replacement fails before you trust it passing.
 
 **Honest limitation:** the guard covers the catalog, not the application. A
-feature screen with no story is not measured.
+feature screen with no story is not measured. `e2e/visual/app.spec.cjs` closes
+part of that gap — it screenshots ten real screens at both widths — but it
+checks appearance, not overflow, and it is advisory. A feature that changes a
+column's content still needs measuring on its own screen.
+
+### Why the pixel lane is reported and not enforced
+
+The catalog deliberately does not load Inter — the application imports it from
+`rsms.me` and the catalog omits it — so text rasterises with whatever the
+runner's `sans-serif` resolves to. A baseline recorded on one machine can differ
+on another for reasons that have nothing to do with the design system, and a
+lane that cries wolf gets ignored or switched off.
+
+So the pixel lane runs, uploads its diff artifact and raises a warning
+annotation, in the same shape the repository already uses for `typecheck` and
+the axe lane. The **first test in `catalog.spec.cjs` is the tripwire**: it
+measures the rendered width of a pangram, not `fontFamily` (which still names
+Inter whether or not Inter loaded), so a font substitution is one legible
+failure instead of 78 mystery diffs.
+
+**To make it blocking:** watch that metrics test stay green on the CI runner for
+a few weeks, then remove `continue-on-error` from the step and record the date
+here. Do not weaken `check:visual-contract` to compensate for pixel noise — the
+geometry guard is the portable one and is the reason the pixel lane can afford
+to be advisory.
+
+Both visual lanes freeze the clock at a fixed instant. Without that the company
+dashboard's date range stamps today's date into its baseline, and it would have
+failed the morning after it was recorded.
 
 ### Still open
 
-- `[ ]` Ratcheting rules for arbitrary colours and unsupported type sizes.
-- `[ ]` Ratcheting rules for raw tables, duplicate buttons, local modals and
-  local form controls, with machine-readable approved locations.
-- `[ ]` A design-system PR checklist requiring behaviour, desktop/mobile visual,
-  keyboard, a11y, tests, roadmap, catalog, diff and compatibility evidence.
+- `[x]` **Ratcheting rules for arbitrary colours and unsupported type sizes.**
+  Done 2026-08-21 — `check:ui-contract`.
+- `[x]` **Ratcheting rules for raw tables, duplicate buttons, local modals and
+  local form controls, with machine-readable approved locations.** Done
+  2026-08-21. The machine-readable locations are
+  `src/design-system/ui-contract.baseline.json`, where every tolerated violation
+  carries either a `reasons` entry naming the exception that justifies it or a
+  `debt` note naming the slice that clears it.
+- `[x]` **A design-system PR checklist.** Done 2026-08-21 —
+  `.github/pull_request_template.md`, with an explicit "never tick an unrun
+  check" instruction and a section confirming no backend, permission, route or
+  workflow behaviour changed.
+- `[ ]` Make the pixel lane blocking once its font tripwire has held on CI.
+- `[ ]` Drive `ui-contract.baseline.json` to zero and delete it, leaving only
+  the `reasons` entries. 660 violations across 59 files at the time of writing.
 
 ---
 

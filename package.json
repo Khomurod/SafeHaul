@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "prebuild": "node -e \"const fs=require('fs');fs.copyFileSync('node_modules/pdfjs-dist/build/pdf.worker.min.mjs','public/pdf.worker.min.mjs');console.log('✅ PDF worker synced from node_modules')\"",
+    "prebuild": "node -e \"const fs=require('fs');fs.copyFileSync('node_modules/pdfjs-dist/build/pdf.worker.min.mjs','public/pdf.worker.min.mjs');console.log('\u2705 PDF worker synced from node_modules')\"",
     "build": "vite build",
     "lint": "npm run lint:frontend && npm run lint:backend && npm run check:landing-claims",
     "lint:frontend": "eslint .",
@@ -35,7 +35,11 @@
     "test:coverage": "vitest run --coverage",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
-    "test:stories": "vitest run src/tests/designSystemStories.a11y.test.jsx"
+    "test:stories": "vitest run src/tests/designSystemStories.a11y.test.jsx",
+    "check:ui-contract": "node scripts/check-ui-contract.mjs",
+    "check:visual-contract": "node scripts/check-visual-contract.mjs",
+    "test:visual": "playwright test --project=visual",
+    "test:visual:update": "playwright test --project=visual --update-snapshots"
   },
   "dependencies": {
     "@sentry/react": "^10.32.1",

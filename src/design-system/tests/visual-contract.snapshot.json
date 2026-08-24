@@ -1,0 +1,220 @@
+{
+  "mobile · the control scale, and the pairing it exists for · input[md]": {
+    "height": "44px",
+    "fontSize": "14px",
+    "borderRadius": "8px",
+    "paddingLeft": "12px",
+    "paddingRight": "12px"
+  },
+  "mobile · the control scale, and the pairing it exists for · input[sm]": {
+    "height": "36px",
+    "fontSize": "13px",
+    "borderRadius": "8px",
+    "paddingLeft": "8px",
+    "paddingRight": "8px"
+  },
+  "mobile · the control scale, and the pairing it exists for · input[lg]": {
+    "height": "52px",
+    "fontSize": "15px",
+    "borderRadius": "8px",
+    "paddingLeft": "16px",
+    "paddingRight": "16px"
+  },
+  "mobile · the control scale, and the pairing it exists for · button[md]": {
+    "height": "44px",
+    "fontSize": "14px",
+    "borderRadius": "8px",
+    "paddingLeft": "16px",
+    "paddingRight": "16px"
+  },
+  "mobile · the control scale, and the pairing it exists for · button[sm]": {
+    "height": "36px",
+    "fontSize": "13px",
+    "borderRadius": "8px",
+    "paddingLeft": "12px",
+    "paddingRight": "12px"
+  },
+  "mobile · the control scale, and the pairing it exists for · button[lg]": {
+    "height": "52px",
+    "fontSize": "15px",
+    "borderRadius": "8px",
+    "paddingLeft": "20px",
+    "paddingRight": "20px"
+  },
+  "mobile · the control scale, and the pairing it exists for · iconButton[md]": {
+    "height": "44px",
+    "fontSize": "14px",
+    "borderRadius": "8px",
+    "paddingLeft": "0px",
+    "paddingRight": "0px"
+  },
+  "mobile · icon size is the system's decision, not the call site's · icon in button[md]": {
+    "width": "16px",
+    "height": "16px"
+  },
+  "mobile · icon size is the system's decision, not the call site's · icon in button[sm]": {
+    "width": "14px",
+    "height": "14px"
+  },
+  "mobile · icon size is the system's decision, not the call site's · icon in button[lg]": {
+    "width": "18px",
+    "height": "18px"
+  },
+  "mobile · the surface geometry every card shares · card": {
+    "borderRadius": "12px",
+    "padding": "0px",
+    "borderTopWidth": "1px",
+    "backgroundColor": "rgb(255, 255, 255)"
+  },
+  "mobile · badges hug their label and never stretch · badge": {
+    "height": "24px",
+    "fontSize": "12px",
+    "borderRadius": "9999px",
+    "width": "59.34px"
+  },
+  "mobile · table density: row height and cell padding · headerCell": {
+    "height": "48px",
+    "paddingLeft": "16px",
+    "paddingRight": "16px",
+    "fontSize": "12px"
+  },
+  "mobile · table density: row height and cell padding · bodyCell": {
+    "height": "72px",
+    "paddingLeft": "16px",
+    "paddingRight": "16px",
+    "fontSize": "14px"
+  },
+  "mobile · a tab is a control, at the control height · tab": {
+    "height": "44px",
+    "fontSize": "13px"
+  },
+  "mobile · switch geometry · switch": {
+    "width": "44px",
+    "height": "24px",
+    "borderRadius": "9999px"
+  },
+  "mobile · the three page states are the same shape as each other · state": {
+    "padding": "24px 16px",
+    "fontSize": "16px",
+    "maxWidth": "none"
+  },
+  "mobile · the three page states are the same shape as each other · title": {
+    "padding": "0px",
+    "fontSize": "18px",
+    "maxWidth": "none"
+  },
+  "mobile · the three page states are the same shape as each other · description": {
+    "padding": "0px",
+    "fontSize": "14px",
+    "maxWidth": "327.02px"
+  },
+  "desktop · the control scale, and the pairing it exists for · input[md]": {
+    "height": "44px",
+    "fontSize": "14px",
+    "borderRadius": "8px",
+    "paddingLeft": "12px",
+    "paddingRight": "12px"
+  },
+  "desktop · the control scale, and the pairing it exists for · input[sm]": {
+    "height": "36px",
+    "fontSize": "13px",
+    "borderRadius": "8px",
+    "paddingLeft": "8px",
+    "paddingRight": "8px"
+  },
+  "desktop · the control scale, and the pairing it exists for · input[lg]": {
+    "height": "52px",
+    "fontSize": "15px",
+    "borderRadius": "8px",
+    "paddingLeft": "16px",
+    "paddingRight": "16px"
+  },
+  "desktop · the control scale, and the pairing it exists for · button[md]": {
+    "height": "44px",
+    "fontSize": "14px",
+    "borderRadius": "8px",
+    "paddingLeft": "16px",
+    "paddingRight": "16px"
+  },
+  "desktop · the control scale, and the pairing it exists for · button[sm]": {
+    "height": "36px",
+    "fontSize": "13px",
+    "borderRadius": "8px",
+    "paddingLeft": "12px",
+    "paddingRight": "12px"
+  },
+  "desktop · the control scale, and the pairing it exists for · button[lg]": {
+    "height": "52px",
+    "fontSize": "15px",
+    "borderRadius": "8px",
+    "paddingLeft": "20px",
+    "paddingRight": "20px"
+  },
+  "desktop · the control scale, and the pairing it exists for · iconButton[md]": {
+    "height": "44px",
+    "fontSize": "14px",
+    "borderRadius": "8px",
+    "paddingLeft": "0px",
+    "paddingRight": "0px"
+  },
+  "desktop · icon size is the system's decision, not the call site's · icon in button[md]": {
+    "width": "16px",
+    "height": "16px"
+  },
+  "desktop · icon size is the system's decision, not the call site's · icon in button[sm]": {
+    "width": "14px",
+    "height": "14px"
+  },
+  "desktop · icon size is the system's decision, not the call site's · icon in button[lg]": {
+    "width": "18px",
+    "height": "18px"
+  },
+  "desktop · the surface geometry every card shares · card": {
+    "borderRadius": "12px",
+    "padding": "0px",
+    "borderTopWidth": "1px",
+    "backgroundColor": "rgb(255, 255, 255)"
+  },
+  "desktop · badges hug their label and never stretch · badge": {
+    "height": "24px",
+    "fontSize": "12px",
+    "borderRadius": "9999px",
+    "width": "59.34px"
+  },
+  "desktop · table density: row height and cell padding · headerCell": {
+    "height": "48px",
+    "paddingLeft": "20px",
+    "paddingRight": "20px",
+    "fontSize": "12px"
+  },
+  "desktop · table density: row height and cell padding · bodyCell": {
+    "height": "72px",
+    "paddingLeft": "20px",
+    "paddingRight": "20px",
+    "fontSize": "14px"
+  },
+  "desktop · a tab is a control, at the control height · tab": {
+    "height": "44px",
+    "fontSize": "13px"
+  },
+  "desktop · switch geometry · switch": {
+    "width": "44px",
+    "height": "24px",
+    "borderRadius": "9999px"
+  },
+  "desktop · the three page states are the same shape as each other · state": {
+    "padding": "32px 16px",
+    "fontSize": "16px",
+    "maxWidth": "none"
+  },
+  "desktop · the three page states are the same shape as each other · title": {
+    "padding": "0px",
+    "fontSize": "18px",
+    "maxWidth": "none"
+  },
+  "desktop · the three page states are the same shape as each other · description": {
+    "padding": "0px",
+    "fontSize": "14px",
+    "maxWidth": "327.02px"
+  }
+}
