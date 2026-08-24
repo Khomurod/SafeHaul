@@ -1,11 +1,24 @@
 import React from 'react';
+import { Home, RefreshCw } from 'lucide-react';
 import * as Sentry from '@sentry/react';
+import { Button } from '@design-system/components';
+import { PageState } from '@design-system/patterns';
 
 /**
  * Feature-scoped error boundary.
  *
- * Keeps the rest of the app usable when one feature crashes by
- * containing failures to the current route/view only.
+ * Keeps the rest of the app usable when one feature crashes by containing
+ * failures to the current route or view only.
+ *
+ * Migrated to `PageState` on 2026-08-21. The Sentry tags, the retry that clears
+ * the boundary's own state, and the go-home navigation are unchanged.
+ *
+ * It uses `PageState` with `tone="warning"` rather than `ErrorState`, and the
+ * distinction is the point: the *page* has not failed. One section has, the rest
+ * of the application still works, and the copy says so. An `alert`-level
+ * announcement would overstate it — `PageState` announces politely at this tone,
+ * which matches "this part is unavailable, carry on" rather than "everything
+ * stopped".
  */
 class FeatureErrorBoundary extends React.Component {
   constructor(props) {
@@ -36,27 +49,26 @@ class FeatureErrorBoundary extends React.Component {
       const featureName = this.props.featureName || 'This section';
 
       return (
-        <div className="min-h-[280px] w-full rounded-xl border border-amber-200 bg-amber-50 p-6 text-amber-900">
-          <h2 className="text-lg font-bold">{featureName} is temporarily unavailable</h2>
-          <p className="mt-2 text-sm">
-            An unexpected error occurred in this feature. You can continue using other parts of the app.
-          </p>
-          <div className="mt-4 flex gap-3">
-            <button
-              onClick={this.handleRetry}
-              className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700"
-            >
-              Retry Section
-            </button>
-            <button
-              onClick={() => window.location.assign('/')}
-              className="rounded-lg border border-amber-400 bg-white px-4 py-2 text-sm font-semibold text-amber-800 hover:bg-amber-100"
-            >
-              Go Home
-            </button>
-          </div>
+        <div className="min-h-[280px] w-full">
+          <PageState
+            tone="warning"
+            title={`${featureName} is temporarily unavailable`}
+            description="An unexpected error occurred in this feature. You can continue using other parts of the app."
+            actions={(
+              <>
+                <Button variant="primary" onClick={this.handleRetry}>
+                  <RefreshCw aria-hidden="true" />
+                  Retry section
+                </Button>
+                <Button variant="secondary" onClick={() => window.location.assign('/')}>
+                  <Home aria-hidden="true" />
+                  Go home
+                </Button>
+              </>
+            )}
+          />
           {import.meta.env.DEV && this.state.error && (
-            <pre className="mt-4 overflow-auto rounded bg-white p-3 text-xs text-amber-800">
+            <pre className="mt-ds-4 overflow-auto rounded-ds-md bg-ds-surface-subtle p-ds-3 text-ds-xs text-ds-content-secondary">
               {String(this.state.error)}
             </pre>
           )}

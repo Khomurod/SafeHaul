@@ -220,61 +220,23 @@
       "off-scale-type": 8,
       "debt": "PR 7 — Super Admin"
     },
-    "shared/components/badges/FieldConfidenceTag.jsx": {
-      "raw-palette-class": 6,
-      "off-scale-type": 2,
-      "debt": "PR 5 — shared UI"
-    },
-    "shared/components/badges/StatusBadge.jsx": {
-      "raw-palette-class": 40,
-      "off-scale-type": 2,
-      "debt": "PR 5 — shared UI"
-    },
-    "shared/components/feedback/ErrorBoundary.jsx": {
-      "raw-palette-class": 18,
-      "off-scale-type": 4,
-      "hand-styled-button": 2,
-      "debt": "PR 5 — shared UI"
-    },
-    "shared/components/feedback/FeatureErrorBoundary.jsx": {
-      "raw-palette-class": 9,
-      "off-scale-type": 5,
-      "hand-styled-button": 1,
-      "debt": "PR 5 — shared UI"
-    },
-    "shared/components/feedback/GlobalLoadingState.jsx": {
-      "raw-palette-class": 2,
-      "off-scale-type": 1,
-      "debt": "PR 5 — shared UI"
-    },
-    "shared/components/feedback/InlineValidationNote.jsx": {
-      "raw-palette-class": 9,
-      "off-scale-type": 1,
-      "debt": "PR 5 — shared UI"
-    },
-    "shared/components/feedback/QueueStatusIndicator.jsx": {
-      "raw-palette-class": 16,
-      "off-scale-type": 6,
-      "hand-styled-button": 2,
-      "debt": "PR 5 — shared UI"
-    },
     "shared/components/modals/CallOutcomeModalUI.jsx": {
       "hand-styled-anchor": 1,
-      "debt": "PR 5 — shared UI"
+      "reasons": {
+        "hand-styled-anchor": "A status-tinted phone chip that is also a tel: link. Fully tokenised with a screen-reader prefix (\"Call now:\"). Neither Link (underlined text) nor ButtonLink (button-shaped) is a tinted inline chip. See the tinted-chip-link gap in §5."
+      }
     },
     "shared/components/modals/CompanyChooserModal.jsx": {
       "hand-styled-button": 1,
-      "debt": "PR 5 — shared UI"
+      "reasons": {
+        "hand-styled-button": "A selectable company row, not a button. It is correctly a <button> (it is a real activation), uses only --ds-* tokens and the shared focus ring. The rule cannot distinguish a tokenised selectable row from a hand-built button; forcing it into Button would make a list row look like an action bar."
+      }
     },
     "shared/components/modals/ManageTeamModal.jsx": {
       "hand-styled-field": 2,
-      "debt": "PR 5 — shared UI"
-    },
-    "shared/components/schema/SchemaRenderer.jsx": {
-      "raw-palette-class": 29,
-      "off-scale-type": 15,
-      "hand-styled-anchor": 1,
-      "debt": "PR 5 — shared UI"
+      "reasons": {
+        "hand-styled-field": "Two inline numeric goal editors inside a labelled chip. Both are already tokenised, carry an aria-label and aria-invalid, and use the shared focus ring. `Input` is a 44px bordered full-width control and would destroy the compact inline chip; overriding it back would be worse than this. See the inline-editable-value gap in §5."
+      }
     },
     "shared/components/table/ModernDriverTable.jsx": {
       "raw-table": 2,
@@ -282,22 +244,11 @@
         "raw-table": "roadmap §5 — approved native-table pattern for an editable matrix or per-row interactive rows. DataTable is a display-table contract. The table must still use the --ds-table-* roles."
       }
     },
-    "shared/components/table/SkeletonRow.jsx": {
-      "raw-palette-class": 2,
-      "debt": "PR 5 — shared UI"
-    },
-    "shared/utils/helpers.js": {
-      "raw-palette-class": 17,
-      "off-scale-type": 2,
-      "debt": "PR 5 — shared UI"
-    },
     "shared/utils/printDocument.js": {
       "raw-hex-colour": 1,
-      "debt": "PR 5 — shared UI"
-    },
-    "shared/utils/statusStyles.js": {
-      "raw-palette-class": 12,
-      "debt": "PR 5 — shared UI"
+      "reasons": {
+        "raw-hex-colour": "A print stylesheet, injected as a string into a bare print window that has no --ds-* custom properties — the same class of exception as the VOE export document. A token here would resolve to nothing and the page would print with no background."
+      }
     }
   }
 }

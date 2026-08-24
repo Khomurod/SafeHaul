@@ -310,8 +310,24 @@ function main() {
             const previous = baseline.files?.[file] ?? {};
             files[file] = { ...counts };
             // Annotations survive a regeneration; only the numbers are recomputed.
-            if (previous.reasons) files[file].reasons = previous.reasons;
-            if (previous.debt) files[file].debt = previous.debt;
+            // A `reasons` entry for a rule the file no longer breaks is dropped
+            // with it, so a retired exception cannot linger as cover for a
+            // future one.
+            if (previous.reasons) {
+                const live = Object.fromEntries(
+                    Object.entries(previous.reasons).filter(([rule]) => rule in counts),
+                );
+                if (Object.keys(live).length > 0) files[file].reasons = live;
+            }
+            /*
+             * `debt` means "a migration slice still owes work here". Once every
+             * rule the file breaks has a documented reason, it owes nothing, and
+             * leaving the tag would make the "no debt left" check at the end of
+             * the campaign meaningless.
+             */
+            const stillOwed = Object.keys(counts)
+                .some((rule) => !(files[file].reasons?.[rule]));
+            if (previous.debt && stillOwed) files[file].debt = previous.debt;
         }
         writeFileSync(baselinePath(), `${JSON.stringify({
             $comment: baseline.$comment,

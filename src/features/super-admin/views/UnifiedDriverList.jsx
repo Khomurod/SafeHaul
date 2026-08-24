@@ -381,7 +381,7 @@ export function UnifiedDriverList({
                 return (
                     <div className="flex flex-col gap-1">
                         <StatusBadge status={item.status || 'New'} />
-                        {stale && <StatusBadge status="Stale" size="sm" />}
+                        {stale && <StatusBadge status="Stale" />}
                     </div>
                 );
             },
