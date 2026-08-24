@@ -27,7 +27,7 @@ import { Modal } from '@design-system/patterns';
  *     now live regions, and the in-flight state is announced too.
  *  3. Every button was disabled by a shared `loading` flag but nothing said a
  *     run was in progress — silent progress on a long action.
- *  4. Legacy palette throughout, including a `bg-amber-50` warning panel and a
+ *  4. Legacy palette throughout, including a `bg-ds-status-warning-bg` warning panel and a
  *     `bg-red-600` run button.
  *
  * PRODUCT/LEGAL — deliberately NOT changed: the "All Companies" help text names
@@ -239,7 +239,7 @@ export default function StatsBackfillPanel() {
                                 <div className="max-h-64 overflow-auto rounded-ds-lg border border-ds-border-subtle bg-ds-surface">
                                     <table className="w-full text-ds-sm">
                                         <caption className="sr-only">Backfill preview by day</caption>
-                                        <thead className="sticky top-0 bg-ds-surface-subtle">
+                                        <thead className="sticky top-0 bg-ds-table-header-bg">
                                             <tr>
                                                 <th scope="col" className="px-ds-3 py-ds-2 text-left text-ds-xs font-semibold text-ds-content-secondary">Date</th>
                                                 <th scope="col" className="px-ds-3 py-ds-2 text-right text-ds-xs font-semibold text-ds-content-secondary">Dials</th>

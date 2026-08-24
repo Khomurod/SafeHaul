@@ -1,7 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useId } from 'react';
 import { RefreshCw } from 'lucide-react';
 
-import { Badge, Button, Card, FieldMessage } from '@/design-system/components';
+import { Badge, Button, Card, Checkbox, FieldMessage, FormField, Select } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 
 import {
@@ -34,6 +34,7 @@ import {
  * Integrations Logs tab.
  */
 export function BlogRunLedger({ runs, loading, error, truncated, unavailable, retentionDays, onRefresh }) {
+    const stageFilterId = useId();
     const [stageFilter, setStageFilter] = useState('all');
     const [showPublished, setShowPublished] = useState(true);
 
@@ -87,10 +88,9 @@ export function BlogRunLedger({ runs, loading, error, truncated, unavailable, re
             )}
 
             <div className="mt-ds-3 flex flex-wrap items-end gap-ds-2">
-                <label className="flex flex-col gap-ds-1 text-ds-xs text-ds-content-secondary">
-                    Pipeline stage
-                    <select
-                        className="rounded border border-ds-border bg-ds-surface px-ds-2 py-ds-1 text-ds-sm text-ds-content"
+                <FormField id={stageFilterId} label="Pipeline stage">
+                    <Select
+                        size="sm"
                         value={stageFilter}
                         onChange={(event) => setStageFilter(event.target.value)}
                     >
@@ -98,17 +98,14 @@ export function BlogRunLedger({ runs, loading, error, truncated, unavailable, re
                         {availableStages.map((stage) => (
                             <option key={stage.id} value={stage.id}>{stage.label}</option>
                         ))}
-                    </select>
-                </label>
+                    </Select>
+                </FormField>
 
-                <label className="flex items-center gap-ds-1 text-ds-sm text-ds-content-secondary">
-                    <input
-                        type="checkbox"
-                        checked={showPublished}
-                        onChange={(event) => setShowPublished(event.target.checked)}
-                    />
-                    Include published runs
-                </label>
+                <Checkbox
+                    label="Include published runs"
+                    checked={showPublished}
+                    onChange={(event) => setShowPublished(event.target.checked)}
+                />
             </div>
 
             {truncated && (

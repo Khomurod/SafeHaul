@@ -5,10 +5,10 @@ import { X, CreditCard } from 'lucide-react';
 import {
   Button,
   ChoiceGroup,
+  FileInput,
   FormField,
   IconButton,
   Input,
-  Label,
   Radio,
 } from '@/design-system/components';
 import { Modal } from '@design-system/patterns';
@@ -37,10 +37,10 @@ import { Modal } from '@design-system/patterns';
  *    could still be dismissed mid-flight; Escape/backdrop are now suppressed
  *    while saving.
  *
- * Documented feature-owned exception: the logo file input stays a raw
- * `<input type="file">` — the design system still has no approved file-input
- * contract (the same exception already recorded for the public application and
- * PEV result upload).
+ * The logo upload uses the approved `FileInput` (added 2026-08-21), which
+ * closed the file-input gap this file used to record as an exception. The
+ * picker's keyboard path and accessible name are the primitive's; the accepted
+ * types and what happens to the file stay here.
  */
 function TextField({ id, label, ...props }) {
   return (
@@ -193,8 +193,7 @@ export function EditCompanyModal({ companyDoc, onClose, onSave }) {
           </div>
 
           <div>
-            <Label htmlFor={logoId}>Company Logo</Label>
-            <div className="mt-ds-1 flex items-center gap-ds-4">
+            <div className="flex items-center gap-ds-4">
               {formData.companyLogoUrl && (
                 <img
                   src={formData.companyLogoUrl}
@@ -202,13 +201,13 @@ export function EditCompanyModal({ companyDoc, onClose, onSave }) {
                   className="h-16 w-16 rounded-ds-lg border border-ds-border-subtle bg-ds-surface-subtle object-contain p-1"
                 />
               )}
-              {/* Feature-owned exception: no approved file-input contract yet. */}
-              <input
-                type="file"
+              <FileInput
                 id={logoId}
-                className="w-full rounded-ds-lg border border-ds-border p-ds-3 text-ds-sm text-ds-content"
-                onChange={handleFileChange}
+                label="Company Logo"
+                description="PNG or JPEG."
+                buttonLabel="Choose a logo"
                 accept="image/png, image/jpeg"
+                onChange={handleFileChange}
               />
             </div>
           </div>

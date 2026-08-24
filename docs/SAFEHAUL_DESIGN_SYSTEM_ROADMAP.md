@@ -194,6 +194,21 @@ component itself as well.
   `CampaignResultsTable` and `DetailedReportModal` use the approved native-table
   pattern with `--ds-*` tokens instead. The approved `DataTable` is proven only
   for display tables.
+
+  Four more were confirmed against this rule on 2026-08-21 and now read the
+  `--ds-table-*` roles explicitly rather than resolving to the same values by
+  coincidence: `AnalyticsView` (three linked tables sharing one scroll region,
+  each with per-row actions), `ViewCompanyAppsModal` (a per-row filter control
+  inside a dialog), `StatsBackfillPanel` (an operator console with six per-row
+  actions and live progress) and `UsersView` — the last because it sits inside a
+  virtualised scroll region, and `DataTable` owns its own scroll container, so
+  adopting it would nest two and reproduce the dead-gutter defect
+  `check:table-layout` exists to catch.
+
+  **A native table is not a licence to style a table by hand.** Each of these
+  uses `--ds-table-header-bg`, `--ds-table-header-fg` and the density roles, and
+  `check:ui-contract` records each with the reason above rather than exempting
+  the file wholesale.
 - **`CallOutcomeModalUI`'s outcome grid stays a `role="group"` of raw
   `<button aria-pressed>` cards** until it migrates to the `SegmentedControl`
   built on 2026-08-21 — which keeps exactly that semantic, deliberately, rather

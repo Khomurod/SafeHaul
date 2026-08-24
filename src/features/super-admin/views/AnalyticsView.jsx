@@ -303,15 +303,15 @@ export function AnalyticsView() {
                                         {stats.companyPerformance.slice(0, 5).map((comp, i) => (
                                             <div key={i} className="flex items-center justify-between gap-ds-3">
                                                 <div className="flex min-w-0 items-center gap-ds-3">
-                                                    <span aria-hidden="true" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-ds-status-info-bg text-ds-xs font-bold text-ds-status-info-fg">
+                                                    <span aria-hidden="true" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-ds-full bg-ds-status-info-bg text-ds-xs font-bold text-ds-status-info-fg">
                                                         {i + 1}
                                                     </span>
                                                     <span className="truncate text-ds-sm font-medium text-ds-content-secondary">{comp.companyName}</span>
                                                 </div>
                                                 <div className="flex shrink-0 items-center gap-ds-2">
-                                                    <span aria-hidden="true" className="h-2 w-24 overflow-hidden rounded-full bg-ds-surface-subtle">
+                                                    <span aria-hidden="true" className="h-2 w-24 overflow-hidden rounded-ds-full bg-ds-surface-subtle">
                                                         <span
-                                                            className="block h-full rounded-full bg-ds-action-primary"
+                                                            className="block h-full rounded-ds-full bg-ds-action-primary"
                                                             style={{ width: `${(comp.callsMade / (stats.summary.totalCalls || 1)) * 100}%` }}
                                                         />
                                                     </span>
@@ -329,7 +329,7 @@ export function AnalyticsView() {
                                         {stats.userPerformance.slice(0, 5).map((user, i) => (
                                             <div key={i} className="flex items-center justify-between gap-ds-3">
                                                 <div className="flex min-w-0 items-center gap-ds-3">
-                                                    <span aria-hidden="true" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-ds-status-accent-bg text-ds-xs font-bold text-ds-status-accent-fg">
+                                                    <span aria-hidden="true" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-ds-full bg-ds-status-accent-bg text-ds-xs font-bold text-ds-status-accent-fg">
                                                         {i + 1}
                                                     </span>
                                                     <span className="min-w-0">
@@ -351,7 +351,7 @@ export function AnalyticsView() {
                         <Card padding="none" className="overflow-x-auto">
                             <table className="w-full border-collapse text-left">
                                 <caption className="sr-only">Company performance for the selected period</caption>
-                                <thead className="bg-ds-surface-subtle text-ds-xs font-bold uppercase text-ds-content-secondary">
+                                <thead className="bg-ds-table-header-bg text-ds-xs font-bold uppercase text-ds-table-header-fg">
                                     <tr>
                                         <th scope="col" className="border-b border-ds-border-subtle px-ds-6 py-ds-4">Company</th>
                                         <th scope="col" className="border-b border-ds-border-subtle px-ds-6 py-ds-4 text-center">Calls Made</th>
@@ -386,7 +386,7 @@ export function AnalyticsView() {
                         <Card padding="none" className="overflow-x-auto">
                             <table className="w-full border-collapse text-left">
                                 <caption className="sr-only">Recruiter performance for the selected period</caption>
-                                <thead className="bg-ds-surface-subtle text-ds-xs font-bold uppercase text-ds-content-secondary">
+                                <thead className="bg-ds-table-header-bg text-ds-xs font-bold uppercase text-ds-table-header-fg">
                                     <tr>
                                         <th scope="col" className="border-b border-ds-border-subtle px-ds-6 py-ds-4">Recruiter Name</th>
                                         <th scope="col" className="border-b border-ds-border-subtle px-ds-6 py-ds-4">Company</th>
