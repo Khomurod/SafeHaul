@@ -896,6 +896,29 @@ evidence in the same task, and never mark an item complete without the
 functional, visual, mobile, accessibility, documentation and diff checks
 actually having run.
 
+**These rules are now checked, not just written.** Six automated guards stand
+behind them, and they exist because for most of 2026 a substantial, well-adopted
+design system coexisted with 660 raw palette classes, off-scale type and
+sub-12px text — all of which passed review, lint, 234 test files and CI, because
+nothing looked:
+
+| Command | Blocking | Catches |
+|---|---|---|
+| `npm test` (`design-system/tests/`) | yes | An import across a layer boundary; a broken token contract or a pairing below AA |
+| `npm run check:ui-contract` | yes | A raw colour, off-scale type, sub-12px text, a Tailwind radius or shadow, a hand-built overlay, a raw table, a hand-styled control |
+| `npm run check:table-layout` | yes | A cell narrower than its content, in a real browser at 412px and 1440px |
+| `npm run check:visual-contract` | yes | A change to computed geometry — control heights, cell padding, radii, resolved colours |
+| `npm run test:stories` | yes | A story that fails to render, or fails axe |
+| `npm run test:visual` | reported | A change to how anything *looks*, across the catalog and ten real screens at both widths |
+
+`check:ui-contract` is zero-tolerance against
+`src/design-system/ui-contract.allowlist.json`, which records every violation
+the product deliberately keeps **and why**. An entry without a reason fails.
+
+Note that Tailwind's radius and shadow scales share their names with the
+`--ds-*` ones and sit one step off them — `rounded-lg` is 8px where
+`rounded-ds-lg` is 12px. Convert by value, never by name.
+
 ---
 
 ## 12. Known limitations, retired features and intentional exceptions
@@ -915,6 +938,27 @@ actually having run.
 
 **Current limitations:**
 
+- **Facebook lead capture wrote to a tenant that does not exist (fixed
+  2026-08-25).** `connectFacebookPage` stored the caller's user id where a
+  company id belongs, so leads from a connected page were written to
+  `companies/{uid}/leads` — a tree no screen reads. They were not sent to the
+  wrong company; they went nowhere. The callable now takes the company from the
+  client and authorizes it against the caller's per-company role. The feature
+  remains switched off. Run `scripts/audit-facebook-lead-tenancy.mjs` (read-only)
+  to see whether any leads were stranded while the fault was live. A page that
+  the old code bound to a uid is reclaimed automatically when its owning admin
+  reconnects it; a page held by a real company is refused, so one company can no
+  longer take over another's lead feed by reconnecting it. That claim is a
+  Firestore transaction taken *before* the Facebook OAuth exchange, so two
+  companies connecting the same page at the same moment cannot both pass the
+  check; a connect that then fails releases the claim rather than locking the
+  page away from its owner.
+- **Two orphaned fields on `users/{uid}`: `onboardingTourCompleted` and
+  `tourCompletedAt`.** The welcome tour was removed on 2026-08-25 and nothing
+  writes or reads them any more. Existing values are left in place deliberately —
+  stripping fields from live user records is a data migration, not a UI removal —
+  so expect to see them on older accounts and ignore them. Nothing in
+  `firestore.rules` or Cloud Functions ever referenced them.
 - **No payment processing.** `companies/{id}.planType` is a manual super-admin
   `free` / `paid` flag that only changes a badge ("Free Plan" / "Pro Plan").
   Marketing prices ($199 / $299 per month) are **not** enforced anywhere in the

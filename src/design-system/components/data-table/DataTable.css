@@ -223,8 +223,8 @@
 
 .ds-data-table__selection-control {
   display: inline-flex;
-  width: 40px;
-  height: 40px;
+  width: var(--ds-table-selection-control-size);
+  height: var(--ds-table-selection-control-size);
   align-items: center;
   justify-content: center;
   cursor: pointer;

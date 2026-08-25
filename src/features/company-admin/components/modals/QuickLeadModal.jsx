@@ -6,7 +6,7 @@ import { useToast } from '@shared/components/feedback/ToastProvider';
 import { LEAD_DEFAULT_STATUS } from '@shared/constants/atsStatus';
 import { Button, FormField, IconButton, Input } from '@/design-system/components';
 import { ResponsiveGrid, Stack } from '@/design-system/layouts';
-import { Modal } from '@shared/components/modals/Modal';
+import { Modal } from '@design-system/patterns';
 
 /**
  * Modal for quickly adding a new lead with basic information.

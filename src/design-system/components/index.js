@@ -1,6 +1,12 @@
 export { Badge } from './badge';
 export { Button, IconButton } from './button';
 export { Card, MetricCard } from './card';
+export { Disclosure } from './disclosure';
+export { FileInput } from './file-input';
+export { ButtonLink, IconButtonLink, Link } from './link';
+export { SegmentedControl } from './segmented';
+export { Switch } from './switch';
+export { TabList, TabPanel, tabIds } from './tabs';
 export { ProgressBar } from './progress';
 export { SectionNavigation } from './section-navigation';
 export { StatusMedallion } from './status-medallion';

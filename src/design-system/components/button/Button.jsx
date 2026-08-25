@@ -1,7 +1,14 @@
 import React, { forwardRef } from 'react';
 import './Button.css';
 
-const VARIANTS = new Set(['primary', 'secondary', 'ghost', 'danger']);
+/**
+ * `link` is the odd one out and is documented in `Button.css`: an action that
+ * reads as inline text, which deliberately opts out of the control-height scale
+ * because a 44px-tall link inside a form row pushes the text around it apart.
+ * Use it only for a text action sitting beside other text; anything standing
+ * alone as a control wants `ghost`, which keeps the full target size.
+ */
+const VARIANTS = new Set(['primary', 'secondary', 'ghost', 'danger', 'link']);
 const SIZES = new Set(['sm', 'md', 'lg']);
 /**
  * Optional colour tone layered over a variant, for actions whose meaning is
@@ -63,6 +70,18 @@ export const IconButton = forwardRef(function IconButton({
 }, ref) {
   if (typeof label !== 'string' || label.trim() === '') {
     throw new TypeError('IconButton requires a non-empty label.');
+  }
+  /*
+   * `link` zeroes the control height, which is right for a text action and
+   * wrong for an icon-only one: `.ds-icon-button` sets only the width, so the
+   * result is a 44px-wide, 16px-tall target — under the WCAG 2.5.8 minimum, and
+   * with nothing but a bare glyph to aim at. An icon-only affordance keeps its
+   * target size; use `ghost` for a quiet one.
+   */
+  if (props.variant === 'link') {
+    throw new TypeError(
+      'IconButton cannot use variant="link": it would drop below the minimum target size. Use variant="ghost".',
+    );
   }
 
   return (

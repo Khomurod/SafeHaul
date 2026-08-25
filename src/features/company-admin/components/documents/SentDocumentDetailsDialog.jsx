@@ -1,6 +1,6 @@
 import React, { useId, useRef } from 'react';
 import { Ban, Copy, Download, Edit3, X } from 'lucide-react';
-import { Modal } from '@shared/components/modals/Modal';
+import { Modal } from '@design-system/patterns';
 import { Badge, Button, IconButton } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { formatTimestamp } from '@features/company-admin/utils/documentsWorkspace';

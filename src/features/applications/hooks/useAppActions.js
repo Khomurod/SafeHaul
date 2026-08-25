@@ -163,7 +163,7 @@ export function useAppActions({
 
   /**
    * Stage a file removal for confirmation. Performs no deletion — a presentation
-   * component renders the shared `ConfirmDialog` from `pendingFileRemoval` and
+   * component renders the approved `ConfirmDialog` from `pendingFileRemoval` and
    * calls `confirmAdminFileDelete` only when the operator confirms.
    */
   const requestAdminFileDelete = (fieldKey, storagePath) => {

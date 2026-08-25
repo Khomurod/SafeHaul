@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { FormField, Input } from '@/design-system/components';
-import { ConfirmDialog } from '@shared/components/modals/ConfirmDialog';
+import { ConfirmDialog } from '@design-system/patterns';
 
 /**
  * Typed-confirmation delete for one AI provider credential.
  *
- * Built on the shared `ConfirmDialog`, so focus trapping, focus restoration,
+ * Built on the approved `ConfirmDialog`, so focus trapping, focus restoration,
  * Escape handling and the double-activation guard are the ones the rest of the
  * application already uses.
  *

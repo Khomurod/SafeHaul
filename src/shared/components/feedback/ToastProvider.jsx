@@ -123,7 +123,7 @@ export function ToastProvider({ children }) {
               className={`pointer-events-auto flex w-full max-w-md items-center gap-ds-3 rounded-ds-md border bg-ds-surface px-ds-4 py-ds-3 text-ds-content shadow-ds-lg animate-in slide-in-from-right-full duration-300 ${variant.border}`}
               role="alert"
             >
-              <div className={`shrink-0 rounded-full p-1 ${variant.badge}`}>
+              <div className={`shrink-0 rounded-ds-full p-1 ${variant.badge}`}>
                 {/* Decorative: the severity word and the message carry the meaning. */}
                 <Icon size={18} aria-hidden="true" />
               </div>

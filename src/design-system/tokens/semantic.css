@@ -22,11 +22,49 @@
   --ds-color-status-success-fg-on-inverse: var(--ds-color-green-200);
   --ds-color-status-warning-fg-on-inverse: var(--ds-color-amber-200);
   --ds-color-status-danger-fg-on-inverse: var(--ds-color-red-200);
+  /* The inverse family's hover step, completing the same base / subtle / hover
+     shape the light surfaces already have. Added 2026-08-25 for the login hero's
+     feature cards, which were hand-rolling `hover:bg-white/15`. */
+  --ds-color-surface-inverse-hover: var(--ds-color-slate-700);
+
+  /* Brand.
+     Added 2026-08-25. The product has carried its two brand colours as bare
+     hexes since the beginning — in the logo SVG, the loader, the favicon and the
+     login hero — and the login hero is the one place they are used as *interface*
+     colour rather than inside artwork: an icon, a stat numeral, a chip. Naming
+     them stops the next branded surface re-typing `#0BE2A4` and getting it
+     slightly wrong.
+
+     `brand-accent` is legible on the inverse surface (pinned in
+     `tests/tokens.test.js`) and is deliberately NOT offered as a colour for text
+     on a light surface: at 1.6:1 on white it fails AA badly, which is exactly the
+     mistake a named token invites if nobody says so. `brand-primary` is the deep
+     mark colour, for artwork and solid brand fills. */
+  --ds-color-brand-primary: var(--ds-color-brand-deep);
+  --ds-color-brand-accent: var(--ds-color-brand-mint);
+  /* The accent at chip strength. A literal rgba rather than a Tailwind `/20`
+     modifier: an opacity modifier needs a computable colour, and a `var()` is not
+     one, so `bg-ds-brand-accent/20` compiles to nothing at all. */
+  --ds-color-brand-accent-soft: rgb(11 226 164 / 0.2);
 
   /* Content */
   --ds-color-content: var(--ds-color-slate-800);
   --ds-color-content-secondary: var(--ds-color-slate-600);
-  --ds-color-content-muted: var(--ds-color-slate-500);
+  /*
+   * slate-600, not slate-500.
+   *
+   * At slate-500 this token measured 4.34:1 on `surface-subtle` and 4.27:1 on
+   * `status-warning-bg` — below WCAG AA for normal text — so it was approved on
+   * plain `surface` only, and every other muted label had to remember to use
+   * `content-secondary` instead. A real-browser axe scan found three failing
+   * nodes on the driver application's success screen from exactly that mistake.
+   *
+   * slate-600 clears AA on every surface the product puts muted text on
+   * (8.6:1 on `surface`, 7.0:1 on `surface-subtle`, 6.4:1 on `status-warning-bg`),
+   * so the token is safe wherever it lands and there is no per-surface rule left
+   * to forget. `tests/tokens.test.js` asserts all of those pairings.
+   */
+  --ds-color-content-muted: var(--ds-color-slate-600);
   --ds-color-content-inverse: var(--ds-color-white);
   --ds-color-content-link: var(--ds-color-blue-700);
   --ds-color-content-danger: var(--ds-color-red-700);
@@ -90,6 +128,13 @@
   --ds-table-cell-padding-block-comfortable: var(--ds-space-3);
   --ds-table-selection-width: 56px;
   /*
+   * The row-selection checkbox's hit area. Deliberately 40px rather than the
+   * 44px control height: it sits inside a 56px compact row next to a 56px
+   * selection column, and a 44px target there would crowd both. It is a table
+   * density decision, which is why it is a table role and not a control height.
+   */
+  --ds-table-selection-control-size: 40px;
+  /*
    * 88px, not 64px. At 64px an actions column could not fit its own header: the
    * mobile cell padding is 2x --ds-space-4, leaving 32px of content box for the
    * word "ACTIONS", which needs 41px at --ds-font-size-xs uppercase. Every table
@@ -102,6 +147,28 @@
    * at the call site; `scripts/check-table-layout.mjs` reports it if it does not.
    */
   --ds-table-actions-width: 88px;
+
+  /*
+   * Surface geometry.
+   *
+   * One card and page rhythm, so a screen's padding, radius and section spacing
+   * are the design system's decision rather than each feature's. Features that
+   * hand-picked `p-4`/`p-6`/`rounded-lg` produced cards that were visibly
+   * different sizes beside one another on the same screen.
+   */
+  --ds-card-radius: var(--ds-radius-lg);
+  --ds-card-padding: var(--ds-space-5);
+  --ds-card-padding-compact: var(--ds-space-3);
+  --ds-card-padding-spacious: var(--ds-space-6);
+  --ds-card-border: var(--ds-color-border-subtle);
+  --ds-card-shadow: var(--ds-shadow-xs);
+  --ds-page-gutter: var(--ds-space-6);
+  --ds-page-gutter-mobile: var(--ds-space-4);
+  --ds-section-gap: var(--ds-space-6);
+  --ds-field-gap: var(--ds-space-5);
+  /* MetricCard's icon chip. Its own role so it does not follow the control
+     height — it is an illustration inside a card, not something you press. */
+  --ds-metric-icon-size: 40px;
 
   /* Responsive workspace geometry. Feature shells provide navigation content. */
   --ds-workspace-navigation-width-collapsed: 64px;

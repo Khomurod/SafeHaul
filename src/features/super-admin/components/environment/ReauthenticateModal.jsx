@@ -2,7 +2,7 @@ import React, { useId, useRef, useState } from 'react';
 import { ShieldCheck } from 'lucide-react';
 import { Button, FieldMessage, FormField, Input } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
-import { Modal } from '@shared/components/modals/Modal';
+import { Modal } from '@design-system/patterns';
 import { reauthenticateWithPassword } from '../../services/environmentVault';
 
 /**

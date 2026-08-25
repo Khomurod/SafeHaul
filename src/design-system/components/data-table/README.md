@@ -80,6 +80,17 @@ common case, and leave real margin rather than a few pixels. If clipping is what
 you actually want, declare `truncate` — that is the supported opt-in, and the
 guard below exempts it.
 
+**`width: 'actions'` is not "the width for an actions column".** It is 88px,
+sized to fit the word "ACTIONS" in the header at mobile cell padding, which is
+about one icon button's worth of room. A cell holding two buttons with text
+labels measures roughly 90px and does not fit — pick `sm` or wider for those.
+The name is the trap: it describes the column's role, not its capacity.
+
+Until 2026-08-21 that overflow was invisible, because an icon inside a button
+could be squeezed by a pixel or two to make the content fit. `Button` now pins
+icon size and sets `flex: 0 0 auto`, so a cell that is too small reports it
+instead of quietly distorting its glyphs.
+
 `npm run check:table-layout` measures the built catalog in a real browser and
 fails on a cell whose content is wider than its column. It cannot be a unit test:
 jsdom has no layout engine, so `scrollWidth` is always `0` there. It covers
@@ -92,7 +103,9 @@ fixtures still needs measuring on its own screen.
 - Empty states accept a feature-owned title, description, and optional icon.
 - Errors use an alert and retry action. When existing rows are available, the
   error is an inline notice so stale-but-useful data is not discarded.
-- Pagination controls are always labelled and use 40px interaction targets.
+- Pagination controls are always labelled and take the shared control height
+  (`--ds-control-height-md`, 44px), so they match every other control in the
+  product rather than being table-specific.
 
 ## Verification contract
 

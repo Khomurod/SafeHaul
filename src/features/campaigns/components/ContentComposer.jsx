@@ -136,15 +136,20 @@ export function ContentComposer({ messageConfig, onChange }) {
                     {/* Device Preview */}
                     <div className="rounded-ds-xl border border-ds-border-subtle bg-ds-surface-subtle p-ds-6">
                         <DeviceMockup type={messageConfig.method}>
-                            <div className="p-6">
-                                <div className="flex items-center gap-3 mb-6">
-                                    <div className="w-10 h-10 rounded-full bg-slate-200"></div>
+                            {/* A simulated inbound thread: the grey shapes stand in for a
+                                sender the preview does not know. They are placeholders, so
+                                they take the border roles — `border-subtle` and
+                                `surface-subtle` are the same two greys they were drawn with,
+                                now named. */}
+                            <div className="p-ds-6">
+                                <div className="mb-ds-6 flex items-center gap-ds-3">
+                                    <div aria-hidden="true" className="h-10 w-10 rounded-ds-full bg-ds-border-subtle"></div>
                                     <div className="flex-1">
-                                        <div className="h-2 w-20 bg-slate-200 rounded mb-2"></div>
-                                        <div className="h-1.5 w-32 bg-slate-100 rounded"></div>
+                                        <div aria-hidden="true" className="mb-ds-2 h-2 w-20 rounded-ds-sm bg-ds-border-subtle"></div>
+                                        <div aria-hidden="true" className="h-1.5 w-32 rounded-ds-sm bg-ds-surface-subtle"></div>
                                     </div>
                                 </div>
-                                <div className="bg-blue-600 text-white p-4 rounded-2xl rounded-tl-none text-sm font-medium shadow-md leading-relaxed">
+                                <div className="rounded-ds-xl rounded-tl-none bg-ds-action-primary p-ds-4 text-ds-body font-medium leading-relaxed text-ds-content-inverse shadow-ds-md">
                                     {messageConfig.message || 'Type something to see a preview...'}
                                 </div>
                             </div>

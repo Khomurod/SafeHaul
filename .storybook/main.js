@@ -24,14 +24,13 @@ const projectRoot = path.resolve(currentDir, '..');
  * @type {import('@storybook/react-vite').StorybookConfig}
  */
 const config = {
+  // One glob. `Modal` and `ConfirmDialog` used to need a second one pointing at
+  // `src/shared/components/modals`, because the design system may not depend on
+  // `shared` and they had not moved yet. They now live in
+  // `design-system/patterns/modal`, so the exception is gone.
   stories: [
     '../src/design-system/stories/**/*.mdx',
     '../src/design-system/**/*.stories.@(js|jsx)',
-    // The accessible `Modal` and `ConfirmDialog` still live in `shared` because
-    // the design system must not depend on `shared` (see the note in
-    // `ConfirmDialog.jsx`). Their stories are colocated with them and are pulled
-    // into the same catalog until those primitives move.
-    '../src/shared/components/modals/*.stories.@(js|jsx)',
   ],
 
   addons: ['@storybook/addon-docs', '@storybook/addon-a11y'],

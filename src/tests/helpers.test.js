@@ -1,10 +1,9 @@
 // src/tests/helpers.test.js
 import { describe, it, expect } from 'vitest';
-import { 
-    normalizePhone, 
-    formatPhoneNumber, 
-    getFieldValue, 
-    getStatusColor 
+import {
+    normalizePhone,
+    formatPhoneNumber,
+    getFieldValue,
 } from '../shared/utils/helpers';
 
 describe('Utility Helpers', () => {
@@ -95,28 +94,4 @@ describe('Utility Helpers', () => {
     });
 
     // --- 4. Status Color Logic Tests ---
-    describe('getStatusColor', () => {
-        it('returns green for Approved', () => {
-            const result = getStatusColor('Approved');
-            expect(result).toContain('bg-green-100');
-            expect(result).toContain('text-green-800');
-        });
-
-        it('returns red for Rejected', () => {
-            const result = getStatusColor('Rejected');
-            expect(result).toContain('bg-red-100');
-            expect(result).toContain('text-red-800');
-        });
-
-        it('returns purple for Background Check', () => {
-            const result = getStatusColor('Background Check');
-            expect(result).toContain('bg-purple-100');
-        });
-
-        it('returns default gray for unknown status', () => {
-            expect(getStatusColor('Unknown Status')).toContain('bg-gray-100');
-            expect(getStatusColor('')).toContain('bg-gray-100');
-            expect(getStatusColor(null)).toContain('bg-gray-100');
-        });
-    });
 });

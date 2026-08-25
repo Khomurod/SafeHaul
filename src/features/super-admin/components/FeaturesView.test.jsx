@@ -53,7 +53,7 @@ describe('FeaturesView — frozen write contract', () => {
         const onDataUpdate = vi.fn();
         renderView({ onDataUpdate });
 
-        fireEvent.click(screen.getByRole('checkbox', { name: 'E-Docs for Artificial Freight Co' }));
+        fireEvent.click(screen.getByRole('switch', { name: 'E-Docs for Artificial Freight Co' }));
 
         await waitFor(() => expect(updateDoc).toHaveBeenCalled());
         expect(updateDoc.mock.calls[0][0]).toEqual({ path: 'companies/co-1' });
@@ -67,7 +67,7 @@ describe('FeaturesView — frozen write contract', () => {
 
     it('inverts an already-enabled feature', async () => {
         renderView();
-        fireEvent.click(screen.getByRole('checkbox', { name: 'PEV for Artificial Freight Co' }));
+        fireEvent.click(screen.getByRole('switch', { name: 'PEV for Artificial Freight Co' }));
         await waitFor(() => expect(updateDoc.mock.calls[0][1]['features.pev']).toBe(false));
     });
 
@@ -80,7 +80,7 @@ describe('FeaturesView — frozen write contract', () => {
     it('reports a failed toggle through the frozen toast', async () => {
         updateDoc.mockRejectedValueOnce(new Error('nope'));
         renderView();
-        fireEvent.click(screen.getByRole('checkbox', { name: 'PEV for Artificial Freight Co' }));
+        fireEvent.click(screen.getByRole('switch', { name: 'PEV for Artificial Freight Co' }));
         await waitFor(() => expect(showError).toHaveBeenCalledWith('Failed to toggle feature.'));
     });
 
@@ -96,19 +96,19 @@ describe('FeaturesView — toggles are named and stateful (defect)', () => {
     it('gives every toggle an accessible name identifying feature and company', () => {
         renderView();
         // 2 companies x 5 features
-        expect(screen.getAllByRole('checkbox')).toHaveLength(10);
-        expect(screen.getByRole('checkbox', { name: 'Campaigns for Second Artificial Carrier' })).toBeInTheDocument();
+        expect(screen.getAllByRole('switch')).toHaveLength(10);
+        expect(screen.getByRole('switch', { name: 'Campaigns for Second Artificial Carrier' })).toBeInTheDocument();
     });
 
     it('exposes the on/off state programmatically, not by colour', () => {
         renderView();
-        expect(screen.getByRole('checkbox', { name: 'PEV for Artificial Freight Co' })).toBeChecked();
-        expect(screen.getByRole('checkbox', { name: 'E-Docs for Artificial Freight Co' })).not.toBeChecked();
+        expect(screen.getByRole('switch', { name: 'PEV for Artificial Freight Co' })).toBeChecked();
+        expect(screen.getByRole('switch', { name: 'E-Docs for Artificial Freight Co' })).not.toBeChecked();
     });
 
     it('is operable by keyboard', async () => {
         renderView();
-        const box = screen.getByRole('checkbox', { name: 'E-Docs for Artificial Freight Co' });
+        const box = screen.getByRole('switch', { name: 'E-Docs for Artificial Freight Co' });
         box.focus();
         expect(box).toHaveFocus();
         fireEvent.click(box);

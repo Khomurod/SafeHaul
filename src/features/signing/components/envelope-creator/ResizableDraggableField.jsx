@@ -236,7 +236,7 @@ export const ResizableDraggableField = React.memo(({ field, pageNum, pageWidth, 
                             type="button"
                             aria-label={`Remove ${fieldName} from page ${pageNum}`}
                             onMouseDown={(e) => { e.stopPropagation(); onRemove(field.id); }}
-                            className="absolute -right-2 -top-2 z-[70] rounded-full bg-ds-action-danger p-0.5 text-ds-content-inverse shadow-ds-sm focus-visible:outline-none focus-visible:shadow-ds-focus"
+                            className="absolute -right-2 -top-2 z-[70] rounded-ds-full bg-ds-action-danger p-0.5 text-ds-content-inverse shadow-ds-sm focus-visible:outline-none focus-visible:shadow-ds-focus"
                         >
                             <X size={10} aria-hidden="true" />
                         </button>

@@ -8,7 +8,7 @@ import { CampaignResultsTable } from './CampaignResultsTable';
 import { functions } from '@lib/firebase';
 import { httpsCallable } from 'firebase/functions';
 import { useToast } from '@shared/components/feedback/ToastProvider';
-import { ConfirmDialog } from '@shared/components/modals/ConfirmDialog';
+import { ConfirmDialog } from '@design-system/patterns';
 import { useData } from '@/context/DataContext';
 import { Badge, Button, Card, FieldMessage, IconButton } from '@/design-system/components';
 
@@ -285,7 +285,7 @@ export function CampaignDetails({ campaign, onClose }) {
                                 <BarChart3 size={16} className="text-ds-action-primary" aria-hidden="true" /> Campaign Progress
                             </h3>
                             <div
-                                className="mb-ds-2 h-4 w-full overflow-hidden rounded-full bg-ds-surface-subtle"
+                                className="mb-ds-2 h-4 w-full overflow-hidden rounded-ds-full bg-ds-surface-subtle"
                                 role="progressbar"
                                 aria-label="Campaign progress"
                                 aria-valuenow={campaign.progress.processedCount}

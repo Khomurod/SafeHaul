@@ -1,0 +1,171 @@
+{
+  "$comment": "Every UI-contract violation the product deliberately keeps, and why. `npm run check:ui-contract` fails on anything not listed here, on a count higher OR lower than recorded, and on any entry whose rule has no `reasons` text. This began as a shrink-only inventory of 660 violations carrying `debt` tags for the migration slices that owed the work; that debt reached zero on 2026-08-25 and the `debt` escape hatch was removed with it. An entry here is now a decision someone wrote down, not a promise to come back. Regenerate with `npm run check:ui-contract -- --update`.",
+  "files": {
+    "design-system/components/data-table/DataTable.jsx": {
+      "raw-table": 1,
+      "reasons": {
+        "raw-table": "DataTable is the approved display-table contract. The rule exists to send feature code here; this is here."
+      }
+    },
+    "features/auth/components/LoginScreen.jsx": {
+      "raw-hex-colour": 2,
+      "reasons": {
+        "raw-hex-colour": "roadmap §5 — the hero's background wash is brand artwork: three decorative blobs blurred over 256–384px, aria-hidden, carrying no information, drawn in the mark's own colours. The named brand roles (--ds-color-brand-accent / -primary) cover everything on that panel that carries meaning; these three are translucent, and a Tailwind opacity modifier cannot be applied to a var() colour, so tokenising them would mean three single-use tint tokens for a blur."
+      }
+    },
+    "features/campaigns/components/CampaignResultsTable.jsx": {
+      "raw-table": 1,
+      "reasons": {
+        "raw-table": "roadmap §5 — approved native-table pattern for an editable matrix or per-row interactive rows. DataTable is a display-table contract. The table must still use the --ds-table-* roles."
+      }
+    },
+    "features/campaigns/components/DetailedReportModal.jsx": {
+      "raw-table": 1,
+      "reasons": {
+        "raw-table": "roadmap §5 — approved native-table pattern for an editable matrix or per-row interactive rows. DataTable is a display-table contract. The table must still use the --ds-table-* roles."
+      }
+    },
+    "features/campaigns/components/DeviceMockup.jsx": {
+      "raw-palette-class": 4,
+      "sub-12px-type": 1,
+      "tailwind-radius": 5,
+      "reasons": {
+        "raw-palette-class": "roadmap §5 — DeviceMockup is artwork, not interface. The bezel, side buttons and battery pips are moulded plastic, not a SafeHaul surface; mapping them onto --ds-color-surface-inverse-subtle would look identical today and would mean re-tuning the console surface silently restyles a picture of a phone. Declared once in the DEVICE constant at the top of the file. The screen itself takes --ds-color-surface.",
+        "sub-12px-type": "roadmap §5 — the phone status-bar time is a decorative illustration of a real device, not interface text.",
+        "tailwind-radius": "roadmap §5 — device artwork. The bezel and side-button radii describe a moulded plastic case, not a SafeHaul surface, and they are part of the same DEVICE palette exception as its colours."
+      }
+    },
+    "features/company-admin/components/modals/VOEPreviewModal.jsx": {
+      "raw-palette-class": 100,
+      "sub-12px-type": 31,
+      "off-scale-type": 20,
+      "arbitrary-type-size": 1,
+      "tailwind-radius": 14,
+      "tailwind-shadow": 1,
+      "reasons": {
+        "arbitrary-type-size": "roadmap §5 — the 13px release-authorisation paragraph inside the generated 49 CFR §391.23 document. Same immutable export as this file's other entries: html2canvas rasterises it into a bare print window with no --ds-* properties, and VOEPreviewModal.export.test.jsx fails if the document acquires a token.",
+        "off-scale-type": "roadmap §5 — same exported document.",
+        "raw-palette-class": "roadmap §5 — the generated 49 CFR §391.23 document is rasterised by html2canvas into a bare print window with no --ds-* custom properties, so a token would resolve to nothing. VOEPreviewModal.export.test.jsx enforces the boundary in both directions.",
+        "sub-12px-type": "roadmap §5 — printed-form facsimile small print, not interface text.",
+        "tailwind-radius": "roadmap §5 — the generated 49 CFR §391.23 document is rasterised by html2canvas into a bare print window with no --ds-* custom properties, so a tokenised radius would resolve to nothing on export. Enforced in both directions by VOEPreviewModal.export.test.jsx.",
+        "tailwind-shadow": "roadmap §5 — the generated 49 CFR §391.23 document is rasterised by html2canvas into a bare print window with no --ds-* custom properties, so a tokenised shadow would resolve to nothing on export. Enforced in both directions by VOEPreviewModal.export.test.jsx."
+      }
+    },
+    "features/driver-app/components/application/steps/components/EmployerNameAutocomplete.jsx": {
+      "hand-styled-button": 1,
+      "reasons": {
+        "hand-styled-button": "roadmap §5 — an ARIA combobox option must carry role=\"option\" inside the listbox, and `Button` renders role=\"button\", which would break the combobox contract. No Combobox/Listbox primitive exists yet."
+      }
+    },
+    "features/settings/components/IntegrationsTab.jsx": {
+      "raw-hex-colour": 2,
+      "reasons": {
+        "raw-hex-colour": "roadmap §5 — #1877F2 is Facebook's brand blue on the Facebook connection tile. A third-party mark is not a SafeHaul role and must not be re-tuned by a change to this product's palette, so it stays literal, the same way the SafeHaul mark's own colours are pinned rather than derived."
+      }
+    },
+    "features/settings/components/number-assignment/AssignmentTable.jsx": {
+      "raw-table": 1,
+      "reasons": {
+        "raw-table": "roadmap §5 — approved native-table pattern for an editable matrix or per-row interactive rows. DataTable is a display-table contract. The table must still use the --ds-table-* roles."
+      }
+    },
+    "features/signing/components/envelope-creator/AiSuggestionOverlay.jsx": {
+      "hand-styled-button": 2,
+      "reasons": {
+        "hand-styled-button": "roadmap §5 — two ~14px accept/reject badges pinned to the corners of a suggestion box whose minimum size is 8px; `IconButton`'s min-height would overflow it. Both keep an accessible name, a focus-visible ring and --ds-* tones. Retiring them needs a compact icon-button size in the design system."
+      }
+    },
+    "features/signing/components/envelope-creator/EnvelopeSidebar.jsx": {
+      "hand-styled-button": 1,
+      "reasons": {
+        "hand-styled-button": "roadmap §5 — the field-palette tiles are colour-coded per field type, which is domain-to-visual mapping the feature owns and `Button` has no API for. Same exception family as the PEV FMCSA suggestion rows and the call-outcome grid: no approved SelectableCard/Listbox primitive yet."
+      }
+    },
+    "features/signing/components/envelope-creator/ResizableDraggableField.jsx": {
+      "hand-styled-field": 1,
+      "reasons": {
+        "hand-styled-field": "roadmap §5 — the inline field-label editor sits inside the draggable field rectangle, whose minimum size is 8px. The approved `Input`'s control height would overflow the box it is labelling. Same exception family as this file's corner remove badge."
+      }
+    },
+    "features/signing/components/signing-room/SignerField.jsx": {
+      "off-scale-type": 2,
+      "hand-styled-field": 3,
+      "reasons": {
+        "hand-styled-field": "roadmap §5 — these inputs overlay author-placed PDF field boxes, whose geometry comes from the document's own coordinates and can be as small as 8px. The approved controls carry the shared 36/44/52px control height and inline padding, which would break alignment with the PDF. Same constraint already recorded for the signature button in this file.",
+        "off-scale-type": "roadmap §5 — `text-base` is the 16px iOS no-zoom size. The design system solved this for `.ds-form-control` on 2026-08-25 (`--ds-font-size-control-mobile`), but these inputs are deliberately NOT `.ds-form-control`: they overlay author-placed PDF field boxes and cannot take the shared control styling, per the geometry exception above. The fix does not reach them, so they keep their own 16px."
+      }
+    },
+    "features/super-admin/components/CompaniesView.jsx": {
+      "raw-table": 1,
+      "reasons": {
+        "raw-table": "roadmap §5 — approved native-table pattern for an editable matrix or per-row interactive rows. DataTable is a display-table contract. The table must still use the --ds-table-* roles."
+      }
+    },
+    "features/super-admin/components/FeaturesView.jsx": {
+      "raw-table": 2,
+      "reasons": {
+        "raw-table": "roadmap §5 — approved native-table pattern for an editable matrix or per-row interactive rows. DataTable is a display-table contract. The table must still use the --ds-table-* roles."
+      }
+    },
+    "features/super-admin/components/StatsBackfillPanel.jsx": {
+      "raw-table": 1,
+      "reasons": {
+        "raw-table": "roadmap §5 — an operator console with six per-row actions and live progress. Uses the --ds-table-* roles. Per-row interactive rows are the case §5 approves a native table for."
+      }
+    },
+    "features/super-admin/components/UsersView.jsx": {
+      "raw-table": 1,
+      "reasons": {
+        "raw-table": "roadmap §5 — a native table inside a virtualised scroll region. Uses the --ds-table-* roles. DataTable owns its own scroll container, so adopting it here would mean nesting two, which is the defect that produces a dead scrollbar gutter."
+      }
+    },
+    "features/super-admin/components/integrations/LineManager.jsx": {
+      "raw-table": 1,
+      "reasons": {
+        "raw-table": "roadmap §5 — approved native-table pattern for an editable matrix or per-row interactive rows. DataTable is a display-table contract. The table must still use the --ds-table-* roles."
+      }
+    },
+    "features/super-admin/components/modals/ViewCompanyAppsModal.jsx": {
+      "raw-table": 1,
+      "reasons": {
+        "raw-table": "roadmap §5 — a native table with a per-row filter control and a per-row action, inside a dialog. Uses the --ds-table-* roles. Converting it to DataTable would need the editable-matrix decision that §6 still records as open."
+      }
+    },
+    "features/super-admin/views/AnalyticsView.jsx": {
+      "raw-table": 3,
+      "reasons": {
+        "raw-table": "roadmap §5 — three native tables with per-row actions. They use the --ds-table-* roles for header, divider and density, so they follow the approved table contract visually; DataTable is a display-table contract and does not cover per-row actions in three linked tables sharing one scroll region."
+      }
+    },
+    "shared/components/modals/CallOutcomeModalUI.jsx": {
+      "hand-styled-anchor": 1,
+      "reasons": {
+        "hand-styled-anchor": "A status-tinted phone chip that is also a tel: link. Fully tokenised with a screen-reader prefix (\"Call now:\"). Neither Link (underlined text) nor ButtonLink (button-shaped) is a tinted inline chip. See the tinted-chip-link gap in §5."
+      }
+    },
+    "shared/components/modals/CompanyChooserModal.jsx": {
+      "hand-styled-button": 1,
+      "reasons": {
+        "hand-styled-button": "A selectable company row, not a button. It is correctly a <button> (it is a real activation), uses only --ds-* tokens and the shared focus ring. The rule cannot distinguish a tokenised selectable row from a hand-built button; forcing it into Button would make a list row look like an action bar."
+      }
+    },
+    "shared/components/modals/ManageTeamModal.jsx": {
+      "hand-styled-field": 2,
+      "reasons": {
+        "hand-styled-field": "Two inline numeric goal editors inside a labelled chip. Both are already tokenised, carry an aria-label and aria-invalid, and use the shared focus ring. `Input` is a 44px bordered full-width control and would destroy the compact inline chip; overriding it back would be worse than this. See the inline-editable-value gap in §5."
+      }
+    },
+    "shared/components/table/ModernDriverTable.jsx": {
+      "raw-table": 2,
+      "reasons": {
+        "raw-table": "roadmap §5 — approved native-table pattern for an editable matrix or per-row interactive rows. DataTable is a display-table contract. The table must still use the --ds-table-* roles."
+      }
+    },
+    "shared/utils/printDocument.js": {
+      "raw-hex-colour": 1,
+      "reasons": {
+        "raw-hex-colour": "A print stylesheet, injected as a string into a bare print window that has no --ds-* custom properties — the same class of exception as the VOE export document. A token here would resolve to nothing and the page would print with no background."
+      }
+    }
+  }
+}

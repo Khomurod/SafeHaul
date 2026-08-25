@@ -48,7 +48,7 @@ import { useToast } from '@shared/components/feedback';
 import { StatusBadge } from '@shared/components/badges';
 import { ModernDriverTable } from '@shared/components/table';
 import { Badge, Button, Card, IconButton, Input, Select } from '@/design-system/components';
-import { Modal } from '@shared/components/modals/Modal';
+import { Modal } from '@design-system/patterns';
 
 // ========== SOURCE BADGE COMPONENT ==========
 /** Domain source type -> semantic tone/label. Feature-owned mapping. */
@@ -361,10 +361,10 @@ export function UnifiedDriverList({
             header: 'Driver',
             render: (item) => (
                 <div className="min-w-[180px]">
-                    <p className="text-sm font-semibold text-slate-900">
+                    <p className="text-ds-body font-semibold text-ds-content">
                         {item.firstName} {item.lastName}
                     </p>
-                    <p className="text-xs text-slate-500 truncate max-w-[200px] mt-0.5">
+                    <p className="text-ds-xs text-ds-content-muted truncate max-w-[200px] mt-0.5">
                         {item.phone ? formatPhoneNumber(item.phone) : ''}
                         {item.phone && item.email ? ' • ' : ''}
                         {item.email || ''}
@@ -381,7 +381,7 @@ export function UnifiedDriverList({
                 return (
                     <div className="flex flex-col gap-1">
                         <StatusBadge status={item.status || 'New'} />
-                        {stale && <StatusBadge status="Stale" size="sm" />}
+                        {stale && <StatusBadge status="Stale" />}
                     </div>
                 );
             },
@@ -399,14 +399,14 @@ export function UnifiedDriverList({
             render: (item) => (
                 <div>
                     {(item.city || item.state) ? (
-                        <p className="text-sm font-semibold text-slate-900 flex items-center gap-1">
-                            <MapPin size={12} className="text-slate-400" />
+                        <p className="text-ds-body font-semibold text-ds-content flex items-center gap-1">
+                            <MapPin size={12} className="text-ds-content-muted" />
                             {item.city}{item.city && item.state ? ', ' : ''}{item.state}
                         </p>
                     ) : (
-                        <p className="text-sm text-slate-300">—</p>
+                        <p className="text-ds-body text-ds-content-muted">—</p>
                     )}
-                    <p className="text-xs text-slate-500 mt-0.5">
+                    <p className="text-ds-xs text-ds-content-muted mt-0.5">
                         {Array.isArray(item.driverType)
                             ? item.driverType.join(', ')
                             : item.driverType || '—'}
@@ -422,12 +422,12 @@ export function UnifiedDriverList({
                 const docsStatus = getDocsStatus(item);
                 return (
                     <div>
-                        <p className="text-sm text-slate-700 font-medium">
+                        <p className="text-ds-body text-ds-content-secondary font-medium">
                             {item.positionApplyingTo || 'Driver'}
                             {item.yearsExperience ? ` · ${item.yearsExperience}y exp` : ''}
                         </p>
-                        <span className={`text-xs font-medium mt-0.5 inline-block ${docsStatus === 'Complete' ? 'text-emerald-600' :
-                                docsStatus === 'Missing' ? 'text-amber-600' : 'text-slate-500'
+                        <span className={`text-ds-xs font-medium mt-0.5 inline-block ${docsStatus === 'Complete' ? 'text-ds-status-success-fg' :
+                                docsStatus === 'Missing' ? 'text-ds-status-warning-fg' : 'text-ds-content-muted'
                             }`}>
                             Docs: {docsStatus}
                         </span>
@@ -440,7 +440,7 @@ export function UnifiedDriverList({
             key: 'activity',
             header: 'Activity',
             render: (item) => (
-                <span className="inline-flex items-center gap-1 text-xs text-slate-500">
+                <span className="inline-flex items-center gap-1 text-ds-xs text-ds-content-muted">
                     <Clock size={12} />
                     {getRelativeTime(item.updatedAt || item.createdAt)}
                 </span>

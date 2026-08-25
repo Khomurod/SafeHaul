@@ -131,7 +131,7 @@ export function NotificationBell({ userId }) {
                 {totalUnread > 0 && (
                     <span
                         aria-hidden="true"
-                        className={`absolute right-0 top-0 flex h-5 w-5 items-center justify-center rounded-full text-ds-xs font-bold text-ds-content-inverse ring-2 ring-ds-surface ${
+                        className={`absolute right-0 top-0 flex h-5 w-5 items-center justify-center rounded-ds-full text-ds-xs font-bold text-ds-content-inverse ring-2 ring-ds-surface ${
                             upcomingCount > 0 ? 'bg-ds-action-danger' : 'bg-ds-action-primary'
                         }`}
                     >

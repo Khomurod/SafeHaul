@@ -219,6 +219,16 @@ jobs:
       - name: Frontend Lint
         run: npm run lint:frontend
 
+      # The design-system ratchet. It measures the tree against a committed
+      # inventory and fails on anything the inventory does not already cover, so
+      # a new raw palette class, off-scale type size, sub-12px text or
+      # hand-built control cannot land. It is here rather than in its own job
+      # because it needs nothing but a checkout and `npm ci` — and because a new
+      # job below `plan` would have to re-derive the skip-propagation clauses
+      # this pipeline documents at length.
+      - name: UI contract ratchet
+        run: npm run check:ui-contract
+
       - name: Frontend Unit Tests + Coverage (baseline-ratchet gate)
         run: npm run test:coverage
 
@@ -294,6 +304,11 @@ jobs:
     # a precaution — if this build ever starts needing a secret, something has
     # been imported into the catalog that does not belong there, and this job
     # failing is the correct outcome.
+    #
+    # The visual lane's application screens run here too, and they run against
+    # `VITE_E2E_TEST_MODE=1` fixture data with these same secrets blank — which
+    # is the point: if a screenshot of a real screen ever needs a credential to
+    # render, that is a finding, not a configuration problem.
     env:
       VITE_FIREBASE_API_KEY: ''
       VITE_FIREBASE_AUTH_DOMAIN: ''
@@ -359,6 +374,49 @@ jobs:
 
       - name: Table layout check
         run: npm run check:table-layout
+
+      # Computed geometry — control heights, cell padding, radii, resolved token
+      # colours — measured in a real browser and compared to a committed
+      # snapshot. Blocking, because the numbers are portable across machines and
+      # a failure names exactly what moved ("button[md].height: 44px -> 40px")
+      # rather than showing a diff of pixels.
+      - name: Visual contract (geometry)
+        run: npm run check:visual-contract
+
+      # Pixel baselines. Deliberately NOT blocking, and this is not laziness:
+      # the catalog does not load Inter, so text rasterises with whatever the
+      # runner's `sans-serif` resolves to, and a baseline recorded on one machine
+      # can differ on another for reasons that are not design-system changes.
+      # The first test in `catalog.spec.cjs` measures text metrics and fails
+      # loudly when that happens, so the cause is one legible failure rather than
+      # 78 mystery diffs.
+      #
+      # The lane still does its job: the diff is uploaded below and a real visual
+      # change shows up in review. Make it blocking once the metrics test has
+      # been green on this runner for a few weeks, and record that decision in
+      # the roadmap.
+      - name: Visual regression (pixel baselines, reported not enforced)
+        id: visual-regression
+        continue-on-error: true
+        run: npm run test:visual
+
+      - name: Upload the visual diff
+        if: steps.visual-regression.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-regression-diff
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 14
+          if-no-files-found: warn
+
+      - name: Say so when the visual lane moved
+        if: steps.visual-regression.outcome == 'failure'
+        run: |
+          echo "::warning title=Visual baselines moved::A pixel baseline changed. Download the"\
+               "visual-regression-diff artifact. If the change is intended, run"\
+               "'npm run test:visual:update' and commit the baselines."
 
       - name: Upload the static catalog
         uses: actions/upload-artifact@v4
@@ -654,7 +712,8 @@ jobs:
       !cancelled() &&
       github.repository == 'Khomurod/SafeHaul' &&
       needs.release-validation.result == 'success' &&
-      ((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch')
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     concurrency:
       # Serialised against itself, but NOT against a production promotion — the
       # two touch different Hosting sites and must not cancel one another.
@@ -794,7 +853,8 @@ jobs:
       !cancelled() &&
       github.repository == 'Khomurod/SafeHaul' &&
       needs.release-validation.result == 'success' &&
-      ((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch')
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     concurrency:
       group: firebase-functions-live
       cancel-in-progress: true
@@ -940,7 +1000,8 @@ jobs:
     if: >-
       !cancelled() &&
       github.repository == 'Khomurod/SafeHaul' &&
-      ((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch')
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     permissions:
       contents: read
 
@@ -1011,7 +1072,8 @@ jobs:
       needs.deploy-testing.result == 'success' &&
       needs.deploy-functions.result == 'success' &&
       needs.verify-shipped.result == 'success' &&
-      ((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch')
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     permissions:
       contents: read
       deployments: write

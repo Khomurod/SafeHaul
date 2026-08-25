@@ -116,6 +116,18 @@ real time. None were code defects; all were tooling mistakes.
    create empty or otherwise meaningless commits merely to change the branch SHA;
    that pollutes history and does not reliably fix anything.
 
+5. **`--project` accumulates; it does not narrow.** `main.yml` runs
+   `npm run test:e2e -- --project=chromium`, so any `--project` baked into the
+   `test:e2e` script UNIONS with chromium instead of being replaced by it. Naming
+   the five functional projects in that script — a reasonable-looking way to keep
+   the visual lane out of a bare `playwright test` — put firefox, webkit and both
+   mobile lanes into every chromium shard. The runner installs only Chromium, so
+   113 tests failed with `browserType.launch: Executable doesn't exist`, on all
+   four shards, through all three retries. The visual lane is kept out by living
+   in `playwright.visual.config.cjs` instead, which no caller can widen.
+   `scripts/test-ci-plan.mjs` (J1–J5) pins both halves; run `npm run check:ci-plan`
+   after touching either the configs or those scripts.
+
 Also avoid editing files that are in the module graph while a Playwright suite is
 running: the dev server hot-reloads and the in-flight tests can fail spuriously.
 

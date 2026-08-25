@@ -157,7 +157,7 @@ export function AiSuggestionOverlay({
                     tokens. Recorded in the roadmap alongside the existing exception. */}
                 <button
                     type="button"
-                    className="ai-suggestion-action absolute -right-2 -top-2 z-50 rounded-full bg-ds-action-danger p-0.5 text-ds-content-inverse shadow-ds-sm focus-visible:outline-none focus-visible:shadow-ds-focus"
+                    className="ai-suggestion-action absolute -right-2 -top-2 z-50 rounded-ds-full bg-ds-action-danger p-0.5 text-ds-content-inverse shadow-ds-sm focus-visible:outline-none focus-visible:shadow-ds-focus"
                     aria-label={`Reject AI suggestion ${suggestion.label} on page ${pageNum}`}
                     onMouseDown={(event) => event.stopPropagation()}
                     onClick={(event) => {
@@ -169,7 +169,7 @@ export function AiSuggestionOverlay({
                 </button>
                 <button
                     type="button"
-                    className="ai-suggestion-action absolute -left-2 -top-2 z-50 rounded-full bg-ds-action-primary p-0.5 text-ds-content-inverse shadow-ds-sm focus-visible:outline-none focus-visible:shadow-ds-focus"
+                    className="ai-suggestion-action absolute -left-2 -top-2 z-50 rounded-ds-full bg-ds-action-primary p-0.5 text-ds-content-inverse shadow-ds-sm focus-visible:outline-none focus-visible:shadow-ds-focus"
                     aria-label={`${accepted ? 'Unselect' : 'Select'} AI suggestion ${suggestion.label} on page ${pageNum}`}
                     aria-pressed={accepted}
                     onMouseDown={(event) => event.stopPropagation()}

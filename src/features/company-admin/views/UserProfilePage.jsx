@@ -400,7 +400,6 @@ export const UserProfilePage = () => {
                                 <Button
                                     type="button"
                                     variant="primary"
-                                    size="lg"
                                     onClick={handleSaveProfile}
                                     loading={isSavingProfile}
                                 >
@@ -452,7 +451,6 @@ export const UserProfilePage = () => {
                                 <Button
                                     type="button"
                                     variant="primary"
-                                    size="lg"
                                     onClick={handleChangePassword}
                                     loading={isSavingPassword}
                                 >

@@ -3,7 +3,7 @@ import { Wrench } from 'lucide-react';
 import { useBulkImport } from '@shared/hooks';
 import { useCompanyLeadUpload } from '../hooks/useCompanyLeadUpload';
 import { BulkUploadLayout } from '@shared/components/admin/BulkUploadLayout';
-import { Modal } from '@shared/components/modals/Modal';
+import { Modal } from '@design-system/patterns';
 import {
     Button, Card, Checkbox, ChoiceGroup, Radio,
 } from '@/design-system/components';

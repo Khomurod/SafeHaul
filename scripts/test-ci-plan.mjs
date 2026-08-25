@@ -547,6 +547,109 @@ for (const jobId of REPORTER_JOBS) {
         + 'it was written for; the check belongs in its script, where it is unit-tested');
 }
 
+// E6f. Anything reachable by `workflow_dispatch` must be unsatisfiable off `main`.
+//
+// The `push` arm of these conditions was always pinned; the `workflow_dispatch`
+// arm was pinned to nothing. A manual dispatch from a feature branch therefore
+// deployed that branch to Testing and rolled out Cloud Functions that Production
+// shares. It had never fired by accident only because a pull request cannot
+// reach this path — `pull_request` matches neither arm — so nothing routine
+// exercised it.
+//
+// This EVALUATES the condition instead of matching strings on it. The first
+// version of this assertion checked that the header contained
+// `github.ref == 'refs/heads/main'`, and a mutation test walked straight through
+// it: the buggy form contains that exact string too, nested inside the push arm
+// where it guards nothing. Substring checks cannot see structure. Substituting a
+// hostile context and asking whether the job would run can.
+//
+// The job list is DERIVED from the workflow. A hardcoded list is how this file's
+// other rules were learned the hard way — a new job with the same shape slips
+// past a list, and the point of this rule is that the next one cannot.
+//
+// Deliberately NOT covered: `promote-production.yml`, which is dispatch-only with
+// no branch guard. That is correct — it promotes an exact SHA resolved against
+// the recorded Testing release rather than building whatever the ref points at,
+// and rollback has to work from any ref. The rule is "a job that ships the
+// current ref must be pinned to main", not "everything must be pinned".
+{
+    // Turn a GitHub `if:` expression into something JS can evaluate under a
+    // supplied context. Only the operators these workflows actually use.
+    const evaluateCondition = (expression, context) => {
+        const js = expression
+            .replace(/!\s*cancelled\(\)/g, String(!context.cancelled))
+            .replace(/\bsuccess\(\)/g, 'true')
+            .replace(/\balways\(\)/g, 'true')
+            .replace(/github\.event_name/g, JSON.stringify(context.event_name))
+            .replace(/github\.ref_name/g, JSON.stringify(context.ref.replace('refs/heads/', '')))
+            .replace(/github\.ref/g, JSON.stringify(context.ref))
+            .replace(/github\.repository/g, JSON.stringify(context.repository))
+            .replace(/needs\.[a-z0-9-]+\.result/g, '"success"')
+            .replace(/inputs\.[a-z_]+/g, '""')
+            .replace(/'/g, '"');
+        // eslint-disable-next-line no-new-func
+        return Boolean(new Function(`return (${js});`)());
+    };
+
+    const dispatchJobs = [...workflow.matchAll(/^ {2}([a-z][a-z0-9-]*):$/gm)]
+        .map((match) => {
+            const rest = workflow.slice(match.index + 1);
+            const nextJob = rest.search(/^ {2}[a-z][a-z0-9-]*:$/m);
+            const block = nextJob === -1 ? rest : rest.slice(0, nextJob);
+            const stepsAt = block.indexOf('\n    steps:');
+            const header = stepsAt === -1 ? block : block.slice(0, stepsAt);
+            // `if: >-` folded scalar: the indented lines under it, joined.
+            const ifAt = header.indexOf('\n    if: >-');
+            if (ifAt === -1) return null;
+            const lines = header.slice(ifAt).split('\n').slice(2);
+            const body = [];
+            for (const line of lines) {
+                if (!/^ {6}\S/.test(line)) break;
+                body.push(line.trim());
+            }
+            return { id: match[1], condition: body.join(' ') };
+        })
+        .filter((job) => job && job.condition.includes("github.event_name == 'workflow_dispatch'"));
+
+    // If the scan finds nothing, the parser broke — that is not a clean result.
+    assert('E6f. the dispatch-reachable job scan found jobs to check',
+        dispatchJobs.length > 0,
+        'no job mentions workflow_dispatch; the job-block parser is probably broken');
+
+    const base = { cancelled: false, repository: 'Khomurod/SafeHaul' };
+
+    const shippable = dispatchJobs.filter((job) => evaluateCondition(job.condition, {
+        ...base, event_name: 'workflow_dispatch', ref: 'refs/heads/some-feature-branch',
+    })).map((job) => job.id);
+
+    assert('E6f. no dispatch-reachable job can run off main',
+        shippable.length === 0,
+        `these would run — and ship — from a dispatch on any branch: ${shippable.join(', ')}`);
+
+    // And the fix must not have simply switched manual dispatch off: the
+    // intended path, a dispatch on main, still has to reach these jobs.
+    const brokenOnMain = dispatchJobs.filter((job) => !evaluateCondition(job.condition, {
+        ...base, event_name: 'workflow_dispatch', ref: 'refs/heads/main',
+    })).map((job) => job.id);
+
+    assert('E6f. a dispatch on main still reaches them',
+        brokenOnMain.length === 0,
+        `pinning went too far — these can no longer be dispatched at all: ${brokenOnMain.join(', ')}`);
+
+    // The set above is derived, so it cannot notice a job that drops out of it.
+    // Removing `workflow_dispatch` from a deploy job would silently remove the
+    // ability to re-run a deploy by hand — the same shape of failure as the
+    // inherited-skip bug this file was written for, where nothing is red and
+    // nothing ships. `RELEASE_CHAIN` is the list of jobs that must stay
+    // manually runnable.
+    const dispatchable = new Set(dispatchJobs.map((job) => job.id));
+    const unreachable = RELEASE_CHAIN.filter((jobId) => !dispatchable.has(jobId));
+
+    assert('E6g. the release chain can still be re-run by hand',
+        unreachable.length === 0,
+        `these no longer respond to workflow_dispatch at all: ${unreachable.join(', ')}`);
+}
+
 // `verify-shipped` is what turns "CI is green" into "it is actually live", so the
 // promotion gate has to require it by name.
 assert('E7a. the promotion gate requires proof the release shipped',
@@ -890,6 +993,56 @@ console.log('\nI. Workflow wiring');
             assert(`I4. ${file}/${id}: declares where it runs`,
                 /^ {4}runs-on:/m.test(header), 'missing runs-on');
         }
+    }
+}
+
+/*
+ * J. Playwright project selection: the scripts and the workflow are one contract.
+ *
+ * Learned on 2026-08-25, in CI, twice in one afternoon.
+ *
+ * `--project` ACCUMULATES on the Playwright command line. `main.yml` runs
+ * `npm run test:e2e -- --project=chromium`, so any `--project` baked into the
+ * script UNIONS with chromium rather than being narrowed by it. Naming the five
+ * functional projects in `test:e2e` — a reasonable-looking way to keep the
+ * visual lane out of a bare run — therefore put firefox, webkit and both mobile
+ * lanes into every chromium shard. The runner installs only Chromium, so 113
+ * tests failed with `browserType.launch: Executable doesn't exist`, on all four
+ * shards, through all three retries.
+ *
+ * The visual lane is kept out by living in its own config instead, which no
+ * caller can accidentally widen. These checks pin both halves of that.
+ */
+{
+    const pkg = JSON.parse(readFileSync(resolvePath(here, '../package.json'), 'utf8'));
+    const scripts = pkg.scripts || {};
+    const workflow = readFileSync(resolvePath(here, '../.github/workflows/main.yml'), 'utf8');
+
+    assert('J1. test:e2e bakes in no --project',
+        !/--project/.test(scripts['test:e2e'] || ''),
+        `test:e2e = ${JSON.stringify(scripts['test:e2e'])} — a caller's --project would union with it, not replace it`);
+
+    assert('J2. every workflow use of test:e2e names its project',
+        [...workflow.matchAll(/npm run test:e2e\b[^\n]*/g)].every((m) => m[0].includes('--project=')),
+        'a run without --project would execute every configured project');
+
+    // The reason J1 is safe: the functional config carries no visual project, so
+    // a bare `playwright test` cannot reach the lane that needs storybook-static.
+    const functional = readFileSync(resolvePath(here, '../playwright.config.cjs'), 'utf8');
+    assert('J3. the functional config declares no visual project',
+        !/name:\s*'visual'/.test(functional),
+        'a visual project here runs on a bare `playwright test`, which needs storybook-static');
+
+    const visual = readFileSync(resolvePath(here, '../playwright.visual.config.cjs'), 'utf8');
+    assert('J4. the visual config declares the visual project',
+        /name:\s*'visual'/.test(visual));
+
+    // And the scripts that drive it must ask for that config by name, or they
+    // silently run the functional projects instead.
+    for (const name of ['test:visual', 'test:visual:update']) {
+        assert(`J5. ${name} names the visual config`,
+            (scripts[name] || '').includes('--config=playwright.visual.config.cjs'),
+            `${name} = ${JSON.stringify(scripts[name])}`);
     }
 }
 

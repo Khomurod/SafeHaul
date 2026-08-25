@@ -11,23 +11,9 @@ import {
     Phone, User, Briefcase, MapPin, Calendar, ArrowUp, ArrowDown
 } from 'lucide-react';
 import { getFieldValue, formatPhoneNumber, toTitleCase } from '@shared/utils/helpers';
-import { getStatusIcon } from '@shared/components/badges/statusIcon';
+import { StatusBadge } from '@shared/components/badges/StatusBadge';
 
 // ── Status pill styling ──
-const getStatusPillStyle = (status) => {
-    const s = (status || '').toLowerCase();
-    if (s.includes('hired') || s.includes('accepted') || s.includes('approved'))
-        return 'bg-ds-status-accent-bg text-ds-status-accent-fg border-ds-status-accent-border';
-    if (s.includes('rejected') || s.includes('disqualified') || s.includes('declined'))
-        return 'bg-ds-status-danger-bg text-ds-status-danger-fg border-ds-status-danger-border';
-    if (s.includes('offer') || s.includes('background'))
-        return 'bg-ds-status-info-bg text-ds-status-info-fg border-ds-status-info-border';
-    if (s.includes('contacted') || s.includes('attempted') || s.includes('review'))
-        return 'bg-ds-status-neutral-bg text-ds-status-neutral-fg border-ds-status-neutral-border';
-    if (s.includes('new') || s.includes('lead'))
-        return 'bg-ds-status-success-bg text-ds-status-success-fg border-ds-status-success-border';
-    return 'bg-ds-status-neutral-bg text-ds-status-neutral-fg border-ds-status-neutral-border';
-};
 
 // ── Call outcome pill ──
 const getOutcomePillStyle = (outcome) => {
@@ -263,10 +249,10 @@ export const CompanyCandidatesListPage = ({ scope }) => {
                     return (
                         <div>
                             <div className="flex items-center gap-2 flex-wrap">
-                                <p className="text-sm font-semibold text-slate-900">{name}</p>
+                                <p className="text-ds-body font-semibold text-ds-content">{name}</p>
                                 {stale && (
                                     <span
-                                        className={`text-ds-xs font-bold uppercase px-2 py-0.5 rounded-full border ${stale === 'severe'
+                                        className={`text-ds-xs font-bold uppercase px-2 py-0.5 rounded-ds-full border ${stale === 'severe'
                                             ? 'bg-ds-status-danger-bg text-ds-status-danger-fg border-ds-status-danger-border'
                                             : 'bg-ds-status-warning-bg text-ds-status-warning-fg border-ds-status-warning-border'
                                             }`}
@@ -299,16 +285,18 @@ export const CompanyCandidatesListPage = ({ scope }) => {
             align: 'center',
             width: 'sm',
             priority: 'primary',
-            render: (item) => {
-                // C3 (WCAG 1.4.1): icon shape + text, so status is never colour-only.
-                const StatusIcon = getStatusIcon(item.status || 'New');
-                return (
-                    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-ds-xs font-semibold border ${getStatusPillStyle(item.status)}`}>
-                        <StatusIcon size={12} aria-hidden="true" />
-                        {item.status || 'New'}
-                    </span>
-                );
-            },
+            /*
+             * `StatusBadge`, not a fourth hand-built pill. The local one was
+             * tokenised — which is why the colour rules never flagged it — but it
+             * was still a second badge contract, and it had its *own*
+             * status-to-tone mapping that disagreed with the dossier's: this
+             * screen called "Hired" purple while the dossier called it green.
+             * One adapter now, so a status is the same colour wherever it
+             * appears. It also stops wrapping: `Badge` is `white-space: nowrap`
+             * and sized to its content, so "New Application" no longer breaks
+             * across two lines inside a stretched pill.
+             */
+            render: (item) => <StatusBadge status={item.status || 'New'} />,
         });
 
 
@@ -326,7 +314,7 @@ export const CompanyCandidatesListPage = ({ scope }) => {
 
                 return (
                     <div>
-                        <div className="flex items-center gap-1.5 text-sm font-semibold text-slate-900">
+                        <div className="flex items-center gap-1.5 text-ds-body font-semibold text-ds-content">
                             <Briefcase size={12} className="text-ds-content-muted" aria-hidden="true" />
                             {position}
                         </div>
@@ -419,7 +407,7 @@ export const CompanyCandidatesListPage = ({ scope }) => {
                     return <span className="text-ds-xs text-ds-content-muted italic">—</span>;
                 }
                 return (
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-ds-xs font-semibold border ${getOutcomePillStyle(item.lastCallOutcome)}`}>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-ds-full text-ds-xs font-semibold border ${getOutcomePillStyle(item.lastCallOutcome)}`}>
                         {item.lastCallOutcome}
                     </span>
                 );
@@ -435,8 +423,8 @@ export const CompanyCandidatesListPage = ({ scope }) => {
             render: (item) => {
                 if (item.assignedToName) {
                     return (
-                        <span className="inline-flex items-center gap-1.5 text-ds-xs font-medium text-ds-content bg-ds-surface-subtle px-2 py-1 rounded-full border border-ds-border-subtle">
-                            <span className="w-5 h-5 bg-ds-status-accent-bg text-ds-status-accent-fg rounded-full flex items-center justify-center text-ds-xs font-bold" aria-hidden="true">
+                        <span className="inline-flex items-center gap-1.5 text-ds-xs font-medium text-ds-content bg-ds-surface-subtle px-2 py-1 rounded-ds-full border border-ds-border-subtle">
+                            <span className="w-5 h-5 bg-ds-status-accent-bg text-ds-status-accent-fg rounded-ds-full flex items-center justify-center text-ds-xs font-bold" aria-hidden="true">
                                 {item.assignedToName.charAt(0)}
                             </span>
                             {item.assignedToName}
@@ -482,17 +470,17 @@ export const CompanyCandidatesListPage = ({ scope }) => {
     }, [scope, sortConfig]);
 
     return (
-        <div className="h-full flex flex-col bg-gray-50">
+        <div className="h-full flex flex-col bg-ds-surface-subtle">
             {/* Page Header */}
             <div className="bg-ds-surface border-b border-ds-border-subtle px-ds-4 sm:px-ds-6 py-ds-4 shrink-0">
-                <h1 className="text-xl font-bold text-gray-900">{getPageTitle()}</h1>
-                <p className="text-sm text-gray-500">Manage and track your driver pipeline.</p>
+                <h1 className="text-ds-heading-lg font-bold text-ds-content">{getPageTitle()}</h1>
+                <p className="text-ds-body text-ds-content-muted">Manage and track your driver pipeline.</p>
             </div>
 
             {/* List Content */}
             <div className="flex-1 overflow-hidden p-3 sm:p-6 flex flex-col gap-0">
                 {/* Toolbar — search, filters, timer, assign */}
-                <div className="bg-white rounded-t-xl border border-b-0 border-gray-200">
+                <div className="rounded-t-ds-lg border border-b-0 border-ds-border-subtle bg-ds-surface">
                     <DashboardToolbar
                         activeTab={scope}
                         dataCount={sortedData.length}
@@ -527,15 +515,15 @@ export const CompanyCandidatesListPage = ({ scope }) => {
                         myAssignmentsLabel={scope === 'applications' ? 'My assignments' : 'My leads'}
                     />
                     {showPipelineTabs && (
-                        <div className="flex flex-wrap gap-2 px-4 py-3 border-t border-gray-100 bg-slate-50/60">
+                        <div className="flex flex-wrap gap-2 px-4 py-3 border-t border-ds-border-subtle bg-ds-surface-subtle/60">
                             {pipelineTabs.map((tab) => (
                                 <button
                                     key={tab.id}
                                     type="button"
                                     onClick={() => dashboard.setPipelineSegment(tab.id)}
-                                    className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${dashboard.pipelineSegment === tab.id
-                                        ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                                        : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                                    className={`px-3 py-1.5 rounded-ds-full text-ds-xs font-semibold border transition-colors ${dashboard.pipelineSegment === tab.id
+                                        ? 'bg-ds-action-primary text-ds-content-inverse border-ds-action-primary shadow-ds-sm'
+                                        : 'bg-ds-surface text-ds-content-secondary border-ds-border-subtle hover:border-ds-border'
                                         }`}
                                 >
                                     {tab.label}

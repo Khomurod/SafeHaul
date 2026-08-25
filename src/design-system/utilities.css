@@ -1,0 +1,58 @@
+/*
+ * Design-system utilities: the few global classes that are not owned by any one
+ * component.
+ *
+ * Loaded by `index.css`, so they exist wherever the design system's tokens do —
+ * in the application, in the catalog, and in a test that imports the entry
+ * stylesheet. Keep this file tiny. A utility here is a decision every component
+ * inherits, so anything that belongs to one component belongs in that
+ * component's stylesheet instead.
+ */
+
+/*
+ * Visible to assistive technology, invisible on screen.
+ *
+ * Used by 57 call sites for the text that a sighted user gets from layout or
+ * iconography and a screen-reader user would otherwise not get at all: a live
+ * region's status, a link's "opens in a new tab", the word "required".
+ *
+ * It lived in `components/form/FormControls.css` until 2026-08-21, which meant
+ * it only existed on a page that had rendered a form control. `Link` is the
+ * component that would have broken on that: an external link on a page with no
+ * form would have shown its hidden hint as visible text.
+ *
+ * `clip` rather than `display: none` or `visibility: hidden`, both of which
+ * remove the element from the accessibility tree — which is the opposite of the
+ * intent. The 1px box with negative margin keeps it rendered and reachable.
+ */
+.ds-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/*
+ * One focus ring, in the product's colour.
+ *
+ * The design-system focus ring is a `box-shadow`, so it does not replace the
+ * browser's own `outline` — it draws *next to* it. The convention is to write
+ * `focus-visible:outline-none` alongside `focus-visible:shadow-ds-focus`, and 67
+ * of the 74 call sites do. The seven that forgot showed the UA outline instead:
+ * `auto 1px rgb(16, 16, 16)`, a black ring in a product whose focus colour is
+ * blue. The 2026-08-25 walkthrough found one of them on the driver
+ * application's step heading, which every applicant sees on every step.
+ *
+ * Doing it here rather than at those seven call sites means the next one cannot
+ * forget either. The attribute selector matches the Tailwind utility by name
+ * because that is how call sites ask for the ring; `.ds-*` components set the
+ * shadow in their own CSS and already reset their outline.
+ */
+[class*='shadow-ds-focus']:focus-visible {
+  outline: none;
+}

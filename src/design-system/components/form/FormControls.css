@@ -1,15 +1,3 @@
-.ds-visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
 .ds-form-field {
   display: grid;
   gap: var(--ds-space-2);
@@ -33,9 +21,17 @@
   color: var(--ds-color-action-danger);
 }
 
+/*
+ * Height, padding and type come from the shared control scale, so an input and
+ * the Button beside it are the same height with no caller override. `md` is the
+ * default; `data-size` is only present when a caller asks for another step.
+ *
+ * This used to be a hardcoded `min-height: 44px` while `Button`'s `md` was 40px,
+ * which is why an input and its adjacent button never lined up.
+ */
 .ds-form-control {
   width: 100%;
-  min-height: 44px;
+  min-height: var(--ds-control-height-md);
   border: 1px solid var(--ds-color-border);
   border-radius: var(--ds-radius-md);
   padding: var(--ds-space-2) var(--ds-space-3);
@@ -48,6 +44,18 @@
     border-color var(--ds-duration-fast) var(--ds-ease-standard),
     box-shadow var(--ds-duration-fast) var(--ds-ease-standard),
     background-color var(--ds-duration-fast) var(--ds-ease-standard);
+}
+
+.ds-form-control[data-size='sm'] {
+  min-height: var(--ds-control-height-sm);
+  padding: var(--ds-space-1) var(--ds-space-2);
+  font-size: var(--ds-font-size-sm);
+}
+
+.ds-form-control[data-size='lg'] {
+  min-height: var(--ds-control-height-lg);
+  padding: var(--ds-space-3) var(--ds-space-4);
+  font-size: var(--ds-font-size-body-lg);
 }
 
 .ds-form-control::placeholder {
@@ -73,7 +81,21 @@
   box-shadow: var(--ds-focus-ring);
 }
 
-.ds-form-control:read-only {
+/*
+ * Read-only is for text fields, and the selector has to say so.
+ *
+ * `:read-only` is defined as "not `:read-write`", and only inputs, textareas and
+ * contenteditable elements are ever `:read-write`. So a bare
+ * `.ds-form-control:read-only` matches **every `<select>` in the product**, and
+ * this rule — meant for a field the user cannot type into — greyed out every
+ * dropdown SafeHaul has. Found by the 2026-08-25 walkthrough: on the public
+ * driver application, eleven inputs rendered white and four selects rendered
+ * slate-100 beside them, at the same height, on the same form.
+ *
+ * A `<select>` can still be genuinely `:disabled`, and that rule below is
+ * unchanged.
+ */
+:is(input, textarea).ds-form-control:read-only {
   border-color: var(--ds-color-border-subtle);
   background: var(--ds-color-surface-subtle);
   color: var(--ds-color-content-secondary);
@@ -88,12 +110,29 @@
   opacity: 0.72;
 }
 
-textarea.ds-form-control {
+/*
+ * A textarea is sized by rows, not by the control height, so it opts out of the
+ * scale's `min-height` — but it keeps the scale's padding and type so a textarea
+ * and the inputs above it still read as the same family. The selector carries
+ * the `[data-size]` cases too, because those set `min-height` at a higher
+ * specificity than the element selector alone.
+ */
+textarea.ds-form-control,
+textarea.ds-form-control[data-size='sm'],
+textarea.ds-form-control[data-size='lg'] {
   min-height: 112px;
   resize: vertical;
 }
 
-select.ds-form-control {
+/*
+ * Room for the native select arrow. The `[data-size]` variants are listed
+ * explicitly because a class+attribute selector outranks this element+class one,
+ * so without them a `sm` or `lg` select would lose its arrow gutter and the
+ * longest option would run underneath the chevron.
+ */
+select.ds-form-control,
+select.ds-form-control[data-size='sm'],
+select.ds-form-control[data-size='lg'] {
   padding-right: var(--ds-space-8);
 }
 
@@ -184,6 +223,32 @@ select.ds-form-control {
 }
 
 @media (max-width: 639px) {
+  /*
+   * iOS Safari zooms the viewport when a focused input is under 16px and never
+   * zooms back out, so on a phone every control takes the platform's minimum
+   * rather than its scale step. See `--ds-font-size-control-mobile`.
+   *
+   * The `[data-size]` variants are listed explicitly for the same reason the
+   * select-arrow rule above lists them: a class+attribute selector outranks a
+   * bare class one, so without them `sm` and `lg` would keep their 13px and
+   * 15px and go on zooming.
+   *
+   * Heights do not move. 16px at `--ds-line-height-body` is a 24px content box;
+   * with each step's padding and border that is 34/42/50px against min-heights
+   * of 36/44/52px, so the type grows inside the control and the control stays
+   * put. `check:visual-contract` measures this at 412px.
+   *
+   * Selects are included even though iOS only zooms for text entry: leaving
+   * them out would put a 14px select beside a 16px input, which is the exact
+   * divergence the input/select probe in `check:visual-contract` now forbids.
+   */
+  .ds-form-control,
+  .ds-form-control[data-size='sm'],
+  .ds-form-control[data-size='md'],
+  .ds-form-control[data-size='lg'] {
+    font-size: var(--ds-font-size-control-mobile);
+  }
+
   .ds-form-section {
     gap: var(--ds-space-5);
   }

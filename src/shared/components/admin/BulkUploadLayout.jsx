@@ -8,7 +8,7 @@ import {
     IconButton, Input, ProgressBar, Radio, StatusMedallion,
 } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
-import { Modal } from '../modals/Modal';
+import { Modal } from '@design-system/patterns';
 
 /**
  * Shared bulk-upload surface (step meter, upload methods, preview, success).
@@ -22,7 +22,7 @@ import { Modal } from '../modals/Modal';
  *
  *  1. The overlay was a bare `fixed inset-0` div: no `role="dialog"`, no
  *     `aria-modal`, no focus move, no focus trap, no focus restore and no
- *     Escape. It is now the shared accessible `Modal`.
+ *     Escape. It is now the approved accessible `Modal`.
  *  2. `ImportLeadsPage` has always passed `isEmbedded`, but nothing consumed it,
  *     so a full-screen modal rendered on top of the page's own header. The prop
  *     is now honoured: embedded renders in place, and only the dashboard's
@@ -116,7 +116,7 @@ export function BulkUploadLayout({
                         >
                             <span
                                 aria-hidden="true"
-                                className={`flex h-6 w-6 items-center justify-center rounded-full border-2 text-ds-xs font-bold ${isComplete
+                                className={`flex h-6 w-6 items-center justify-center rounded-ds-full border-2 text-ds-xs font-bold ${isComplete
                                     ? 'border-ds-action-primary bg-ds-action-primary text-ds-content-inverse'
                                     : isCurrent
                                         ? 'border-ds-action-primary bg-ds-surface text-ds-action-primary'
@@ -318,7 +318,6 @@ export function BulkUploadLayout({
 
             <Button
                 variant="primary"
-                size="lg"
                 fullWidth
                 onClick={onConfirm}
                 disabled={uploading}

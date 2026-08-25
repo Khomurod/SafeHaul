@@ -44,7 +44,7 @@ export function ProfileAvatarField({
 
     return (
         <div className="flex flex-wrap items-center gap-ds-4">
-            <div className="h-20 w-20 shrink-0 overflow-hidden rounded-full border border-ds-border bg-ds-surface-subtle">
+            <div className="h-20 w-20 shrink-0 overflow-hidden rounded-ds-full border border-ds-border bg-ds-surface-subtle">
                 {photoURL ? (
                     <img
                         src={photoURL}

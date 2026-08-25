@@ -14,6 +14,15 @@ const forbiddenDependencies = [
   /@lib\/firebase(?:\/|['"])/,
   /from\s+['"]firebase(?:\/|['"])/,
   /(?:^|[/\\])features[/\\]/,
+  /*
+   * `shared` is a compatibility layer that imports *from* the design system, so
+   * a dependency in this direction is a cycle. It was not enforceable until
+   * 2026-08-21: `ConfirmDialog` composes `Modal`, `Modal` lived in
+   * `shared/components/modals`, and the pair could only move together. They now
+   * live in `patterns/modal`, so the rule can finally be a rule.
+   */
+  /@shared(?:\/|['"])/,
+  /from\s+['"](?:\.\.\/)+shared[/'"]/,
 ];
 
 function sourceFiles(directory) {

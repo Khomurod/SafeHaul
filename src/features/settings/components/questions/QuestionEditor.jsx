@@ -4,13 +4,14 @@ import {
 } from 'lucide-react';
 import {
     Button,
+    Checkbox,
     IconButton,
     FormField,
     Input,
     Select,
+    Switch,
 } from '@/design-system/components';
 import { QUESTION_TYPES, hasOptions } from './QuestionConfig';
-import { ToggleSwitch } from './ToggleSwitch';
 
 export function QuestionEditor({
     question,
@@ -182,22 +183,26 @@ export function QuestionEditor({
                     </div>
 
                     <div className="grid grid-cols-1 gap-ds-4 md:grid-cols-2">
-                        <label className="flex cursor-pointer items-center gap-ds-3 rounded-ds-lg border border-ds-border p-ds-3">
-                            <input
-                                type="checkbox"
-                                className="h-4 w-4 rounded accent-ds-status-warning-fg focus-visible:shadow-ds-focus"
+                        {/* Three hand-built checkboxes here used `accent-*` in two
+                            different colours, so one screen had two checkbox
+                            appearances and neither matched the approved control.
+                            The decorative glyph moves beside the box rather than
+                            inside its label: `Checkbox` takes a string label on
+                            purpose, because an unlabelled box is the defect it
+                            exists to prevent. */}
+                        <div className="flex items-center gap-ds-2 rounded-ds-lg border border-ds-border p-ds-3">
+                            <Checkbox
+                                id={`q-${rawId}-dot-required`}
+                                label="DOT Required"
                                 checked={question.dotRequired || false}
                                 onChange={(e) => handleChange('dotRequired', e.target.checked)}
                             />
-                            <span className="flex items-center gap-ds-2">
-                                <Shield
-                                    size={14}
-                                    className={question.dotRequired ? 'text-ds-status-warning-fg' : 'text-ds-content-muted'}
-                                    aria-hidden="true"
-                                />
-                                <span className="text-ds-sm font-medium text-ds-content">DOT Required</span>
-                            </span>
-                        </label>
+                            <Shield
+                                size={14}
+                                className={question.dotRequired ? 'text-ds-status-warning-fg' : 'text-ds-content-muted'}
+                                aria-hidden="true"
+                            />
+                        </div>
 
                         {question.dotRequired && (
                             <FormField id={`q-${rawId}-fmcsa`} label={`Question ${number} FMCSA reference`}>
@@ -212,27 +217,25 @@ export function QuestionEditor({
                     </div>
 
                     <div className="flex flex-wrap gap-ds-4 pt-ds-1">
-                        <label className="flex cursor-pointer select-none items-center gap-ds-2">
-                            <input
-                                type="checkbox"
-                                className="h-4 w-4 rounded accent-ds-action-primary focus-visible:shadow-ds-focus"
+                        <div className="flex items-center gap-ds-2">
+                            <Checkbox
+                                id={`q-${rawId}-lock-hide`}
+                                label="Lock (companies can't hide)"
                                 checked={!(question.canCompanyHide ?? true)}
                                 onChange={(e) => handleChange('canCompanyHide', !e.target.checked)}
                             />
                             <Lock size={14} className="text-ds-content-muted" aria-hidden="true" />
-                            <span className="text-ds-sm text-ds-content-secondary">Lock (companies can't hide)</span>
-                        </label>
+                        </div>
 
-                        <label className="flex cursor-pointer select-none items-center gap-ds-2">
-                            <input
-                                type="checkbox"
-                                className="h-4 w-4 rounded accent-ds-action-primary focus-visible:shadow-ds-focus"
+                        <div className="flex items-center gap-ds-2">
+                            <Checkbox
+                                id={`q-${rawId}-protect-label`}
+                                label="Protect label (read-only)"
                                 checked={!(question.canCompanyModify ?? true)}
                                 onChange={(e) => handleChange('canCompanyModify', !e.target.checked)}
                             />
                             <AlertTriangle size={14} className="text-ds-content-muted" aria-hidden="true" />
-                            <span className="text-ds-sm text-ds-content-secondary">Protect label (read-only)</span>
-                        </label>
+                        </div>
                     </div>
                 </div>
 
@@ -240,7 +243,7 @@ export function QuestionEditor({
                     <span className="text-ds-sm font-medium text-ds-content-secondary" aria-hidden="true">
                         Required
                     </span>
-                    <ToggleSwitch
+                    <Switch
                         checked={question.required || false}
                         label="Required"
                         onChange={(next) => handleChange('required', next)}

@@ -57,7 +57,7 @@ export function useApplicationDetails(companyId, applicationId, onStatusUpdate) 
     handleAdminFileDelete: actions.handleAdminFileDelete,
     // Additive confirm-ready file-removal API (2026-07-28). `handleAdminFileDelete`
     // is now purely the executor — it no longer opens a blocking `window.confirm`
-    // — so a consumer that wires the action renders the shared `ConfirmDialog`
+    // — so a consumer that wires the action renders the approved `ConfirmDialog`
     // from `pendingFileRemoval` instead.
     pendingFileRemoval: actions.pendingFileRemoval,
     requestAdminFileDelete: actions.requestAdminFileDelete,

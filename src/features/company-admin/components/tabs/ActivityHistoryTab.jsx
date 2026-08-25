@@ -208,7 +208,7 @@ export function ActivityHistoryTab({ companyId, applicationId, collectionName })
                         {Object.entries(groupedLogs).map(([group, groupLogs]) => (
                             <section key={group} className="space-y-ds-4">
                                 <h4 className="mb-ds-2 flex items-center gap-ds-2 pl-8 text-ds-xs font-bold uppercase tracking-wider text-ds-content-secondary">
-                                    <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-ds-border"></span>
+                                    <span aria-hidden="true" className="h-1.5 w-1.5 rounded-ds-full bg-ds-border"></span>
                                     {group}
                                 </h4>
 
@@ -217,7 +217,7 @@ export function ActivityHistoryTab({ companyId, applicationId, collectionName })
                                         {/* Icon Container */}
                                         <span
                                             aria-hidden="true"
-                                            className="absolute left-0 top-0 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-ds-border-subtle bg-ds-surface shadow-ds-xs"
+                                            className="absolute left-0 top-0 z-10 flex h-8 w-8 items-center justify-center rounded-ds-full border border-ds-border-subtle bg-ds-surface shadow-ds-xs"
                                         >
                                             {getIcon(log.type, log.action)}
                                         </span>
@@ -246,7 +246,7 @@ export function ActivityHistoryTab({ companyId, applicationId, collectionName })
                                                 <div className="flex items-center gap-1.5 text-ds-xs font-semibold text-ds-content-secondary">
                                                     <span
                                                         aria-hidden="true"
-                                                        className="flex h-5 w-5 items-center justify-center rounded-full bg-ds-status-accent-bg text-ds-xs text-ds-status-accent-fg"
+                                                        className="flex h-5 w-5 items-center justify-center rounded-ds-full bg-ds-status-accent-bg text-ds-xs text-ds-status-accent-fg"
                                                     >
                                                         {log.performedByName?.charAt(0) || 'S'}
                                                     </span>

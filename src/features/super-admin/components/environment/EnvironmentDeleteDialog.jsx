@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { FormField, Input } from '@/design-system/components';
-import { ConfirmDialog } from '@shared/components/modals/ConfirmDialog';
+import { ConfirmDialog } from '@design-system/patterns';
 
 /**
  * Typed-confirmation delete for a single configuration entry.

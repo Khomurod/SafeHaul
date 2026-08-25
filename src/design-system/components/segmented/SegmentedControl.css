@@ -1,0 +1,114 @@
+.ds-segmented {
+  display: grid;
+  gap: var(--ds-space-2);
+}
+
+.ds-segmented[data-columns='2'] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.ds-segmented[data-columns='3'] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.ds-segmented[data-columns='4'] { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+.ds-segmented__option {
+  display: inline-flex;
+  /* The shared control height, like every other control on the screen. */
+  min-height: var(--ds-control-height-md);
+  min-width: 0;
+  align-items: center;
+  gap: var(--ds-space-2);
+  border: 1px solid var(--ds-color-border);
+  border-radius: var(--ds-radius-md);
+  padding: var(--ds-space-2) var(--ds-space-3);
+  background: var(--ds-color-surface);
+  color: var(--ds-color-content-secondary);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: var(--ds-font-size-sm);
+  font-weight: var(--ds-font-weight-semibold);
+  line-height: var(--ds-line-height-tight);
+  text-align: start;
+  transition: background-color var(--ds-duration-fast) var(--ds-ease-standard),
+    border-color var(--ds-duration-fast) var(--ds-ease-standard),
+    color var(--ds-duration-fast) var(--ds-ease-standard);
+}
+
+.ds-segmented__option > svg {
+  width: var(--ds-control-icon-md);
+  height: var(--ds-control-icon-md);
+  flex: 0 0 auto;
+}
+
+.ds-segmented__label {
+  min-width: 0;
+}
+
+.ds-segmented__option:hover:not(:disabled):not([data-selected]) {
+  background: var(--ds-color-surface-hover);
+  color: var(--ds-color-content);
+}
+
+/*
+ * Selection is `aria-pressed` for assistive technology and, for everyone else,
+ * a filled tint *plus* a heavier border — never the tint alone, which is the
+ * signal that disappears in forced-colours mode.
+ */
+.ds-segmented__option[data-selected] {
+  border-color: var(--ds-segment-border);
+  background: var(--ds-segment-bg);
+  color: var(--ds-segment-fg);
+  box-shadow: inset 0 0 0 1px var(--ds-segment-border);
+}
+
+.ds-segmented__option[data-tone='neutral'][data-selected] {
+  --ds-segment-bg: var(--ds-color-status-neutral-bg);
+  --ds-segment-fg: var(--ds-color-status-neutral-fg);
+  --ds-segment-border: var(--ds-color-status-neutral-border);
+}
+.ds-segmented__option[data-tone='info'][data-selected] {
+  --ds-segment-bg: var(--ds-color-status-info-bg);
+  --ds-segment-fg: var(--ds-color-status-info-fg);
+  --ds-segment-border: var(--ds-color-status-info-border);
+}
+.ds-segmented__option[data-tone='success'][data-selected] {
+  --ds-segment-bg: var(--ds-color-status-success-bg);
+  --ds-segment-fg: var(--ds-color-status-success-fg);
+  --ds-segment-border: var(--ds-color-status-success-border);
+}
+.ds-segmented__option[data-tone='warning'][data-selected] {
+  --ds-segment-bg: var(--ds-color-status-warning-bg);
+  --ds-segment-fg: var(--ds-color-status-warning-fg);
+  --ds-segment-border: var(--ds-color-status-warning-border);
+}
+.ds-segmented__option[data-tone='danger'][data-selected] {
+  --ds-segment-bg: var(--ds-color-status-danger-bg);
+  --ds-segment-fg: var(--ds-color-status-danger-fg);
+  --ds-segment-border: var(--ds-color-status-danger-border);
+}
+.ds-segmented__option[data-tone='accent'][data-selected] {
+  --ds-segment-bg: var(--ds-color-status-accent-bg);
+  --ds-segment-fg: var(--ds-color-status-accent-fg);
+  --ds-segment-border: var(--ds-color-status-accent-border);
+}
+
+.ds-segmented__option:focus-visible {
+  outline: 2px solid var(--ds-color-focus);
+  outline-offset: 2px;
+}
+
+.ds-segmented__option:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+/* A multi-column grid of cards is unusable at phone width; stack it. */
+@media (max-width: 639px) {
+  .ds-segmented[data-columns='2'],
+  .ds-segmented[data-columns='3'],
+  .ds-segmented[data-columns='4'] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-segmented__option {
+    transition: none;
+  }
+}

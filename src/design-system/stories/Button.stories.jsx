@@ -61,7 +61,11 @@ const meta = {
           '| `ghost` | Low-emphasis actions inside dense rows and toolbars. |',
           '| `danger` | Destructive, hard-to-reverse actions. |',
           '',
-          'Sizes are `sm`, `md` (default) and `lg`. `tone="success"` is an *additional*',
+          'Sizes are `sm` (36px), `md` (44px, default) and `lg` (52px) — the shared control',
+          'scale, which the form controls read too. `lg` is for a public screen\'s primary',
+          'action, not for matching an input; the default already does that. Icon size comes',
+          'from the scale as well, so a `size={24}` passed to a glyph here does nothing.',
+          'See `Foundations/Control scale`. `tone="success"` is an *additional*',
           'colour meaning available to actions a feature reads as affirmative; it never',
           'replaces the text label, and the catalog does not decide which actions qualify —',
           'that mapping belongs to the feature.',
@@ -105,7 +109,7 @@ export default meta;
 /** The default: a secondary, medium button. */
 export const Default = {};
 
-/** All four approved variants side by side, at their default size. */
+/** The four boxed variants side by side, at their default size. */
 export const Variants = {
   render: (args) => (
     <div className="sb-row">
@@ -118,8 +122,48 @@ export const Variants = {
 };
 
 /**
- * Sizes share one type scale and one focus treatment. `sm` is for dense table
- * rows and toolbars; `lg` is for a primary call to action on a public page.
+ * `link` — an action that reads as inline text.
+ *
+ * It is still a `<button>`, because it performs an action rather than
+ * navigating. Something that changes the address bar is a `Link`, and the
+ * difference is not cosmetic: a link can be opened in a new tab, restored from
+ * history and read out as a link, and none of that is true of this.
+ *
+ * It is the one variant that leaves the control-height scale, deliberately. A
+ * 44px-tall link inside a form row would push the text around it apart, and the
+ * affordance here is the underline rather than a box. That also bounds where it
+ * belongs: **beside other text**. Anything standing on its own as a control
+ * wants `ghost`, which keeps the full target size — the two are shown together
+ * below so the difference is visible rather than described.
+ *
+ * The *hit area* is not 16px even though the text is. An invisible
+ * pseudo-element takes the pointer region to about 26px, clearing the WCAG 2.5.8
+ * minimum, without changing the layout box — so the variant does not lean on the
+ * "inline in a sentence" exemption for the cases that are not in a sentence.
+ */
+export const LinkVariant = {
+  render: (args) => (
+    <div className="sb-column">
+      <p>
+        Signed in as someone else?{' '}
+        <Button {...args} variant="link" size="sm">Use a different account</Button>
+      </p>
+      <div className="sb-row">
+        <Button {...args} variant="link">Inline text action</Button>
+        <Button {...args} variant="ghost">Standalone quiet action</Button>
+      </div>
+    </div>
+  ),
+};
+
+/**
+ * The three steps of the shared control scale — 36 / 44 / 52px — which `Input`,
+ * `Select` and `Textarea` also read, so a button and the control beside it match
+ * at the default with no override. `sm` is for dense table rows and toolbars;
+ * `lg` is for the primary action of a public, mobile-first, single-task screen.
+ *
+ * `lg` is **not** the way to match a form control — see
+ * `Foundations/Control scale`, which shows the pairing at each step.
  */
 export const Sizes = {
   render: (args) => (

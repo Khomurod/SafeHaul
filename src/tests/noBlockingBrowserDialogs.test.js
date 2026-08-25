@@ -10,7 +10,7 @@
  * A blocking dialog freezes the tab, cannot be styled, cannot be announced
  * consistently, is unreliable on mobile browsers, and on a DOT-compliance surface
  * it can be dismissed by a stray keypress without the operator reading it. Every
- * confirmation in the app now goes through `shared/components/modals/ConfirmDialog`.
+ * confirmation in the app now goes through `design-system/patterns/modal/ConfirmDialog`.
  *
  * If this fails: use `ConfirmDialog` for confirmations, and a toast or an inline
  * `FieldMessage` for notifications. Do not add an exemption without a recorded

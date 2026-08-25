@@ -221,14 +221,14 @@ export function NotesTab({ companyId, applicationId, collectionName = 'applicati
                                 {note.isShared ? (
                                     <span
                                         aria-hidden="true"
-                                        className="flex h-8 w-8 items-center justify-center rounded-full border border-ds-status-accent-border bg-ds-status-accent-bg text-ds-status-accent-fg"
+                                        className="flex h-8 w-8 items-center justify-center rounded-ds-full border border-ds-status-accent-border bg-ds-status-accent-bg text-ds-status-accent-fg"
                                     >
                                         <History size={14} />
                                     </span>
                                 ) : (
                                     <span
                                         aria-hidden="true"
-                                        className="flex h-8 w-8 items-center justify-center rounded-full bg-ds-surface-subtle text-ds-xs font-bold text-ds-content-secondary"
+                                        className="flex h-8 w-8 items-center justify-center rounded-ds-full bg-ds-surface-subtle text-ds-xs font-bold text-ds-content-secondary"
                                     >
                                         {note.author ? note.author.charAt(0).toUpperCase() : 'A'}
                                     </span>

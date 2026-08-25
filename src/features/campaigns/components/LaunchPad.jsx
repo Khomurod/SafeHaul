@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 import { Badge, Button, Card } from '@/design-system/components';
-import { Modal } from '@shared/components/modals/Modal';
+import { Modal } from '@design-system/patterns';
 
 export function LaunchPad({ companyId, campaign, onLaunchSuccess }) {
     const navigate = useNavigate();
@@ -93,7 +93,7 @@ export function LaunchPad({ companyId, campaign, onLaunchSuccess }) {
     return (
         <div className="mx-auto max-w-2xl pt-ds-12 text-center">
             <Card padding="lg">
-                <span aria-hidden="true" className="mx-auto mb-ds-4 flex h-16 w-16 items-center justify-center rounded-full bg-ds-status-info-bg text-ds-status-info-fg">
+                <span aria-hidden="true" className="mx-auto mb-ds-4 flex h-16 w-16 items-center justify-center rounded-ds-full bg-ds-status-info-bg text-ds-status-info-fg">
                     <Rocket size={32} />
                 </span>
 
@@ -130,7 +130,6 @@ export function LaunchPad({ companyId, campaign, onLaunchSuccess }) {
                 <div className="flex gap-ds-4">
                     <Button
                         variant="primary"
-                        size="lg"
                         fullWidth
                         disabled={!isValid}
                         loading={isLaunching}

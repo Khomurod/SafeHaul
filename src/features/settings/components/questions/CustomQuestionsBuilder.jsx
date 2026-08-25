@@ -74,7 +74,7 @@ export function CustomQuestionsBuilder({ questions = [], onChange, onSave, loadi
                     <div className="space-y-ds-2">
                         {q.options?.map((opt, i) => (
                             <div key={i} className="flex items-center gap-ds-2">
-                                <span className="h-4 w-4 rounded-full border border-ds-border" aria-hidden="true"></span>
+                                <span className="h-4 w-4 rounded-ds-full border border-ds-border" aria-hidden="true"></span>
                                 <span className="text-ds-sm text-ds-content-secondary">{opt}</span>
                             </div>
                         ))}
@@ -114,7 +114,7 @@ export function CustomQuestionsBuilder({ questions = [], onChange, onSave, loadi
                         <span className="text-ds-xs text-ds-content-muted">{q.min || 1} ({q.minLabel || 'Min'})</span>
                         <div className="flex gap-ds-2">
                             {[1, 2, 3, 4, 5].map(n => (
-                                <span key={n} className="h-4 w-4 rounded-full border border-ds-border" aria-hidden="true"></span>
+                                <span key={n} className="h-4 w-4 rounded-ds-full border border-ds-border" aria-hidden="true"></span>
                             ))}
                         </div>
                         <span className="text-ds-xs text-ds-content-muted">{q.max || 5} ({q.maxLabel || 'Max'})</span>

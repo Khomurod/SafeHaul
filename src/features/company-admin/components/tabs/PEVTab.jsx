@@ -15,14 +15,14 @@ import { doc, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { httpsCallable } from 'firebase/functions';
 import { PaywallMessage } from '@shared/components/feedback/PaywallMessage';
-import { Modal } from '@shared/components/modals/Modal';
+import { Modal } from '@design-system/patterns';
 import { Badge, Button, Card, IconButton, MetricCard } from '@/design-system/components';
 
 /**
  * Previous Employment Verification — initiation and tracking.
  *
  * Presentation migrated to the approved `Card`, `MetricCard`, `Badge`, `Button`
- * and `IconButton` primitives, the shared accessible `Modal`, and `--ds-*`
+ * and `IconButton` primitives, the approved accessible `Modal`, and `--ds-*`
  * tokens (2026-07-27).
  *
  * DELIBERATELY NOT MIGRATED in this campaign: `VOEPreviewModal`'s generated
@@ -50,7 +50,7 @@ import { Badge, Button, Card, IconButton, MetricCard } from '@/design-system/com
  *   `<div class="fixed inset-0">` with no `role="dialog"`, no `aria-modal`, no
  *   focus containment, no focus restoration and no Escape — opened on top of the
  *   driver dossier, which *is* a modal dialog. Keyboard users tabbed straight
- *   through it into the page behind. It now uses the shared accessible `Modal`.
+ *   through it into the page behind. It now uses the approved accessible `Modal`.
  * - **Its close control had no accessible name** and was a `Plus` icon rotated
  *   45° to fake an X, so assistive technology was offered an unlabelled button
  *   whose icon claimed "add".
@@ -592,7 +592,7 @@ export function PEVTab({ companyId, applicationId, appData, collectionName = 'ap
                             <ol className="space-y-ds-4">
                                 {historyEntries.map((log, i) => (
                                     <li key={i} className="flex gap-ds-3 text-ds-sm">
-                                        <span aria-hidden="true" className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-ds-action-primary" />
+                                        <span aria-hidden="true" className="mt-1.5 h-2 w-2 shrink-0 rounded-ds-full bg-ds-action-primary" />
                                         <div className="min-w-0">
                                             <p className="font-bold text-ds-content">{log.action}</p>
                                             <p className="text-ds-xs text-ds-content-secondary">

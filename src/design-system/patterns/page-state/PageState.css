@@ -1,0 +1,105 @@
+/*
+ * The full-page state: medallion, heading, explanation, and a way forward,
+ * centred in its surface.
+ *
+ * The padding lives here rather than on the `Card`, so a `bare` state — one
+ * already inside a card — keeps the same internal spacing without the caller
+ * reproducing it.
+ */
+.ds-page-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--ds-space-3);
+  padding: var(--ds-space-8) var(--ds-space-4);
+  text-align: center;
+}
+
+.ds-page-state__title {
+  margin: 0;
+  color: var(--ds-color-content);
+  font-size: var(--ds-font-size-heading-md);
+  font-weight: var(--ds-font-weight-semibold);
+  line-height: var(--ds-line-height-tight);
+}
+
+.ds-page-state__description {
+  /*
+   * Capped at a readable measure and centred. An uncapped centred paragraph on
+   * a wide workspace runs to 1200px, which is unreadable — the eye loses the
+   * start of the next line.
+   */
+  max-width: 42ch;
+  margin: 0;
+  color: var(--ds-color-content-secondary);
+  font-size: var(--ds-font-size-body);
+  line-height: var(--ds-line-height-body);
+}
+
+.ds-page-state__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--ds-space-2);
+  margin-top: var(--ds-space-2);
+}
+
+/*
+ * A loading medallion turns, so that "something is happening" is visible as
+ * well as announced. Disabled under `prefers-reduced-motion`, where the polite
+ * announcement is doing the work anyway.
+ */
+.ds-page-state--loading .ds-status-medallion {
+  animation: ds-page-state-spin 1.4s linear infinite;
+}
+
+@keyframes ds-page-state-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 639px) {
+  .ds-page-state {
+    padding: var(--ds-space-6) var(--ds-space-4);
+  }
+
+  /*
+   * One action per row on a phone, at full width. Two side-by-side buttons at
+   * 412px each get about 170px, which truncates any real label.
+   */
+  .ds-page-state__actions {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .ds-page-state__actions > * {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-page-state--loading .ds-status-medallion {
+    animation: none;
+  }
+}
+
+/*
+ * A state rendered on the dark console surface (`--ds-color-surface-inverse`).
+ *
+ * Only the two text roles change. The medallion stays as it is: its tinted
+ * backgrounds are light, so on a dark panel it reads as a light chip — which is
+ * how every other tinted element on those surfaces already reads, including
+ * `Badge`. Inverting it as well would make the state the one thing on the panel
+ * that follows different rules.
+ *
+ * Both pairings are asserted in `tests/tokens.test.js`: `content-on-inverse` and
+ * `content-on-inverse-muted` each clear AA on `surface-inverse`.
+ */
+.ds-page-state[data-surface='inverse'] .ds-page-state__title {
+  color: var(--ds-color-content-on-inverse);
+}
+
+.ds-page-state[data-surface='inverse'] .ds-page-state__description {
+  color: var(--ds-color-content-on-inverse-muted);
+}

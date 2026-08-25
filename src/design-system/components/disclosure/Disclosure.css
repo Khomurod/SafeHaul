@@ -1,0 +1,89 @@
+.ds-disclosure {
+  border-bottom: 1px solid var(--ds-color-border-subtle);
+}
+
+.ds-disclosure__heading {
+  margin: 0;
+  /* The heading is structural only; the trigger inside it carries the type. */
+  font: inherit;
+}
+
+.ds-disclosure__trigger {
+  display: flex;
+  /*
+   * Edge to edge, and at the shared control height. This is the reason
+   * `Button` could not be used: its inline layout and horizontal padding cannot
+   * fill a rail, and its own height scale would not match a section header.
+   */
+  width: 100%;
+  min-height: var(--ds-control-height-md);
+  align-items: center;
+  gap: var(--ds-space-2);
+  border: 0;
+  padding: var(--ds-space-2) var(--ds-space-4);
+  background: transparent;
+  color: var(--ds-color-content-secondary);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: var(--ds-font-size-xs);
+  font-weight: var(--ds-font-weight-bold);
+  letter-spacing: 0.04em;
+  line-height: var(--ds-line-height-tight);
+  text-align: start;
+  text-transform: uppercase;
+  transition: background-color var(--ds-duration-fast) var(--ds-ease-standard);
+}
+
+.ds-disclosure__trigger:hover {
+  background: var(--ds-color-surface-hover);
+}
+
+.ds-disclosure__trigger:focus-visible {
+  outline: 2px solid var(--ds-color-focus);
+  outline-offset: -2px;
+}
+
+.ds-disclosure__title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ds-disclosure__meta {
+  margin-inline-start: auto;
+  color: var(--ds-color-content-muted);
+  font-weight: var(--ds-font-weight-semibold);
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+/*
+ * The rotating affordance. It is decorative: `aria-expanded` on the trigger is
+ * what actually announces the state, so the rotation is never the only signal.
+ */
+.ds-disclosure__chevron {
+  width: var(--ds-control-icon-md);
+  height: var(--ds-control-icon-md);
+  flex: 0 0 auto;
+  transition: transform var(--ds-duration-fast) var(--ds-ease-standard);
+}
+
+.ds-disclosure:not([data-open]) .ds-disclosure__meta {
+  margin-inline-start: auto;
+}
+
+.ds-disclosure[data-open] .ds-disclosure__chevron {
+  transform: rotate(180deg);
+}
+
+.ds-disclosure__panel {
+  padding: 0 var(--ds-space-4) var(--ds-space-4);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-disclosure__trigger,
+  .ds-disclosure__chevron {
+    transition: none;
+  }
+}

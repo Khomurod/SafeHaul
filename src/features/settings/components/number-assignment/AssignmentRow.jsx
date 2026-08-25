@@ -144,7 +144,7 @@ export function AssignmentRow({
                 )}
             </td>
             <td className="px-ds-6 py-ds-4 text-center">
-                <span aria-hidden="true" className={`mx-auto block h-2 w-2 rounded-full ${dotClassName}`} />
+                <span aria-hidden="true" className={`mx-auto block h-2 w-2 rounded-ds-full ${dotClassName}`} />
                 <span className="sr-only">{dotText}</span>
             </td>
         </tr>

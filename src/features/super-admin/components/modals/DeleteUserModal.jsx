@@ -3,12 +3,12 @@ import { httpsCallable } from "firebase/functions";
 import { functions } from '@lib/firebase';
 import { AlertTriangle, X } from 'lucide-react';
 import { Button, IconButton } from '@/design-system/components';
-import { Modal } from '@shared/components/modals/Modal';
+import { Modal } from '@design-system/patterns';
 
 /**
  * Destructive confirmation for deleting a portal user.
  *
- * Migrated to the shared accessible `Modal` 2026-07-28. Presentation only — the
+ * Migrated to the approved accessible `Modal` 2026-07-28. Presentation only — the
  * `deletePortalUser` callable name and its `{ userId }` payload, the
  * `onConfirm()` → `onClose()` order, and every frozen string are unchanged.
  *

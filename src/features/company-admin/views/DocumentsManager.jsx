@@ -27,7 +27,7 @@ import { NewDocumentDialog } from '../components/documents/NewDocumentDialog';
 import { DEFAULT_FILTERS, isTemplateDuplicable } from '../utils/documentsWorkspace';
 
 import { FeatureLockedModal } from '@shared/components/modals/FeatureLockedModal';
-import { ConfirmDialog } from '@shared/components/modals/ConfirmDialog';
+import { ConfirmDialog } from '@design-system/patterns';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 import { Button } from '@/design-system/components';
 import { Inline, PageContainer, PageHeader, Stack } from '@/design-system/layouts';

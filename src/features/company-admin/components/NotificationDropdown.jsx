@@ -6,10 +6,10 @@ import { useCompanyNotifications } from '../hooks/useCompanyNotifications';
 // Icon mapping for notification types
 const getNotificationIcon = (type) => {
     switch (type) {
-        case 'lead_assigned': return <Briefcase size={16} className="text-blue-500" />;
-        case 'status_change': return <FileText size={16} className="text-green-500" />;
-        case 'team_activity': return <User size={16} className="text-purple-500" />;
-        default: return <Bell size={16} className="text-gray-500" />;
+        case 'lead_assigned': return <Briefcase size={16} className="text-ds-status-info-fg" />;
+        case 'status_change': return <FileText size={16} className="text-ds-status-success-fg" />;
+        case 'team_activity': return <User size={16} className="text-ds-status-accent-fg" />;
+        default: return <Bell size={16} className="text-ds-content-muted" />;
     }
 };
 
@@ -62,7 +62,7 @@ export function NotificationDropdown({ companyId }) {
             >
                 <Bell size={20} aria-hidden="true" />
                 {unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 bg-ds-action-danger text-ds-content-inverse text-ds-xs font-bold rounded-full flex items-center justify-center border-2 border-ds-surface shadow-ds-xs">
+                    <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 bg-ds-action-danger text-ds-content-inverse text-ds-xs font-bold rounded-ds-full flex items-center justify-center border-2 border-ds-surface shadow-ds-xs">
                         {unreadCount > 9 ? '9+' : unreadCount}
                     </span>
                 )}
@@ -72,9 +72,9 @@ export function NotificationDropdown({ companyId }) {
             {isOpen && (
                 <div className="absolute right-0 top-full mt-2 w-[min(24rem,calc(100vw-1.5rem))] bg-ds-surface rounded-ds-lg shadow-ds-lg border border-ds-border-subtle z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                     {/* Header */}
-                    <div className="px-4 py-3 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
+                    <div className="px-4 py-3 border-b border-ds-border-subtle bg-ds-surface-subtle flex justify-between items-center">
                         <div className="flex items-center gap-2">
-                            <h3 className="font-bold text-gray-900">Notifications</h3>
+                            <h3 className="font-bold text-ds-content">Notifications</h3>
                             {unreadCount > 0 && (
                                 <Badge tone="info">
                                     {unreadCount} new
@@ -96,33 +96,33 @@ export function NotificationDropdown({ companyId }) {
                     <div className="max-h-96 overflow-y-auto">
                         {loading ? (
                             <div className="p-8 text-center">
-                                <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full mx-auto"></div>
-                                <p className="text-sm text-gray-500 mt-2">Loading...</p>
+                                <div className="animate-spin w-6 h-6 border-2 border-ds-action-primary border-t-transparent rounded-ds-full mx-auto"></div>
+                                <p className="text-ds-body text-ds-content-muted mt-2">Loading...</p>
                             </div>
                         ) : notifications.length === 0 ? (
                             <div className="p-8 text-center">
-                                <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                                    <Bell size={24} className="text-gray-400" />
+                                <div className="w-12 h-12 bg-ds-surface-subtle rounded-ds-full flex items-center justify-center mx-auto mb-3">
+                                    <Bell size={24} className="text-ds-content-muted" />
                                 </div>
-                                <p className="text-sm font-medium text-gray-900">All caught up!</p>
-                                <p className="text-xs text-gray-500 mt-1">No new notifications</p>
+                                <p className="text-ds-body font-medium text-ds-content">All caught up!</p>
+                                <p className="text-ds-xs text-ds-content-muted mt-1">No new notifications</p>
                             </div>
                         ) : (
                             notifications.map(notif => (
                                 <div
                                     key={notif.id}
                                     onClick={() => !notif.read && markAsRead(notif.id)}
-                                    className={`px-4 py-3 border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition-colors ${!notif.read ? 'bg-blue-50/50' : ''}`}
+                                    className={`px-4 py-3 border-b border-ds-border-subtle hover:bg-ds-surface-hover cursor-pointer transition-colors ${!notif.read ? 'bg-ds-status-info-bg' : ''}`}
                                 >
                                     <div className="flex gap-3">
-                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${!notif.read ? 'bg-white shadow-sm' : 'bg-gray-100'}`}>
+                                        <div className={`w-8 h-8 rounded-ds-md flex items-center justify-center ${!notif.read ? 'bg-ds-surface shadow-ds-sm' : 'bg-ds-surface-subtle'}`}>
                                             {getNotificationIcon(notif.type)}
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <p className={`text-sm ${!notif.read ? 'font-semibold text-gray-900' : 'text-gray-700'}`}>
+                                            <p className={`text-ds-body ${!notif.read ? 'font-semibold text-ds-content' : 'text-ds-content-secondary'}`}>
                                                 {notif.title || 'Notification'}
                                             </p>
-                                            <p className="text-xs text-gray-500 mt-0.5 truncate">
+                                            <p className="text-ds-xs text-ds-content-muted mt-0.5 truncate">
                                                 {notif.message}
                                             </p>
                                             <p className="text-ds-xs text-ds-content-muted mt-1 flex items-center gap-1">
@@ -131,7 +131,7 @@ export function NotificationDropdown({ companyId }) {
                                             </p>
                                         </div>
                                         {!notif.read && (
-                                            <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
+                                            <div className="w-2 h-2 bg-ds-action-primary rounded-ds-full mt-2"></div>
                                         )}
                                     </div>
                                 </div>

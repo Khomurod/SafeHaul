@@ -27,7 +27,7 @@ import { SafeHaulLoader } from '@shared/components/SafeHaulLoader';
  *  - Loading and error states were not announced.
  *  - The loading spinner was a bare `Loader2`; it now uses the shared loader
  *    like the sibling companies table.
- *  - Legacy palette throughout, including the `bg-purple-100` avatar.
+ *  - Legacy palette throughout, including the `bg-ds-status-accent-bg` avatar.
  */
 export function UsersView({
     listLoading,
@@ -103,7 +103,7 @@ export function UsersView({
                 >
                 <table className="w-full border-collapse text-left">
                     <caption className="sr-only">All platform users</caption>
-                    <thead className="sticky top-0 z-10 bg-ds-surface-subtle shadow-ds-xs">
+                    <thead className="sticky top-0 z-10 bg-ds-table-header-bg shadow-ds-xs">
                         <tr>
                             <th scope="col" className="border-b border-ds-border-subtle px-ds-6 py-ds-3 text-ds-xs font-bold uppercase tracking-wider text-ds-content-secondary">User</th>
                             <th scope="col" className="border-b border-ds-border-subtle px-ds-6 py-ds-3 text-ds-xs font-bold uppercase tracking-wider text-ds-content-secondary">Role &amp; Access</th>
@@ -124,7 +124,7 @@ export function UsersView({
                                     <tr key={user.id} className="transition-colors hover:bg-ds-surface-subtle">
                                         <th scope="row" className="px-ds-6 py-ds-4 text-left align-middle font-normal">
                                             <div className="flex items-center gap-ds-3">
-                                                <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-ds-status-accent-border bg-ds-status-accent-bg text-ds-sm font-bold text-ds-status-accent-fg">
+                                                <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-ds-full border border-ds-status-accent-border bg-ds-status-accent-bg text-ds-sm font-bold text-ds-status-accent-fg">
                                                     {userName.charAt(0).toUpperCase()}
                                                 </span>
                                                 <span className="min-w-0">

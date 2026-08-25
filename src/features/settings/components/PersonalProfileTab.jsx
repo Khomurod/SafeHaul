@@ -200,7 +200,6 @@ export function PersonalProfileTab({ currentUser, currentCompanyProfile }) {
                     <div className="flex justify-end pt-2">
                         <Button
                             variant="primary"
-                            size="lg"
                             onClick={handleSavePersonal}
                             loading={loading}
                         >

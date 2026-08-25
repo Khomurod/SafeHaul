@@ -3,20 +3,20 @@ import { loadApplications } from '@features/applications/services/applicationSer
 import { X, Search, FileText, Calendar, User, AlertCircle } from 'lucide-react';
 import { Badge, Button, IconButton, Input, StatusMedallion } from '@/design-system/components';
 import { SafeHaulLoader } from '@shared/components/SafeHaulLoader';
-import { Modal } from '@shared/components/modals/Modal';
+import { Modal } from '@design-system/patterns';
 
 /**
  * Read-only list of a company's driver applications, opened from the Super Admin
  * companies table.
  *
- * Migrated to the shared accessible `Modal` 2026-07-28. Presentation only — the
+ * Migrated to the approved accessible `Modal` 2026-07-28. Presentation only — the
  * `loadApplications(companyId)` call, the multi-shape name/email/phone resolvers,
  * the client-side filter across name/email/status, the `submittedAt` →
  * `createdAt` → `'--'` date precedence, and every frozen string are unchanged.
  * The `view-apps-modal` id is preserved for existing selectors.
  *
  * Fixed here:
- *  - Hand-built overlay replaced by the shared `Modal`. The old one closed on any
+ *  - Hand-built overlay replaced by the approved `Modal`. The old one closed on any
  *    click on the backdrop *and* relied on `stopPropagation` inside the panel —
  *    which meant a click that started inside the panel and ended on the backdrop
  *    (a drag while selecting text in the table) closed the dialog and lost the
@@ -41,8 +41,8 @@ import { Modal } from '@shared/components/modals/Modal';
  *
  * This mapping is feature-owned on purpose: the design system must not know what
  * "Background Check" means, and the feature must not invent colours. It replaces
- * `getStatusColor`, which returned legacy palette classes (`bg-green-100`,
- * `text-red-800`, ...) — arbitrary colours that have no business inside a
+ * `getStatusColor`, which returned legacy palette classes (`bg-ds-status-success-bg`,
+ * `text-ds-status-danger-fg`, ...) — arbitrary colours that have no business inside a
  * surface declared migrated. The keys are the exact frozen status strings.
  */
 const STATUS_TONES = {
@@ -200,7 +200,7 @@ export function ViewCompanyAppsModal({ companyId, companyName, onClose }) {
                   <caption className="sr-only">
                     Driver applications for {companyName}
                   </caption>
-                  <thead className="sticky top-0 z-10 bg-ds-surface-subtle text-ds-xs font-bold uppercase text-ds-content-secondary shadow-ds-xs">
+                  <thead className="sticky top-0 z-10 bg-ds-table-header-bg text-ds-xs font-bold uppercase text-ds-table-header-fg shadow-ds-xs">
                       <tr>
                           <th scope="col" className="border-b border-ds-border-subtle px-ds-6 py-ds-3">Driver Name</th>
                           <th scope="col" className="border-b border-ds-border-subtle px-ds-6 py-ds-3">Contact</th>

@@ -17,7 +17,11 @@ Before changing UI code, read:
 - `components/` is for small, accessible, business-neutral controls and
   display primitives.
 - `patterns/` composes components into repeatable UI states such as data
-  presentation, forms, empty states, and dialog structure.
+  presentation, forms, empty states, and dialog structure. `patterns/modal`
+  holds `Modal` and `ConfirmDialog` — the accessible dialog primitive every
+  overlay goes through, and the one confirmation shape. `patterns/page-state`
+  holds `EmptyState`, `ErrorState` and `LoadingState`, which own the
+  announcement each state needs as well as its appearance.
 - `layouts/` contains business-neutral page and region composition.
 - `icons/` documents and exports the approved icon contract.
 - `stories/` is the component catalog, built with Storybook 10 and configured in
@@ -35,7 +39,9 @@ layer while visual primitives migrate deliberately into this directory.
 
 Code in this directory may depend on React, approved presentation libraries,
 and other design-system modules. It must not import feature modules, Firebase,
-application context, domain services, or business vocabulary.
+application context, domain services, business vocabulary, **or `shared`** —
+`shared` imports *from* here, so a dependency in that direction is a cycle.
+`tests/architecture.test.js` enforces all of it.
 
 Do not move a feature screen here. Do not add a local alternative to an
 approved component without recording the gap and migration decision in the
@@ -75,7 +81,7 @@ verified.
   primitive, while the signing feature keeps the domain-to-tone/icon decision,
   every frozen user-facing string, and the `window.close()` behaviour.
 - The Login screen consumes FormField, Input, Button, IconButton, and Card, and
-  migrates its password-reset overlay to the shared accessible Modal, while
+  migrates its password-reset overlay to the approved accessible Modal, while
   authentication, redirects, password visibility, and the reset workflow remain
   feature-owned.
 - The public driver application (`/apply/:slug`) and the sandbox application that
@@ -106,7 +112,7 @@ verified.
 - PEV initiation and tracking — the `PEVTab` summary/list/actions, the
   verification-history dialog, `PEVRequestModal` and `FmcsaCarrierPicker` —
   consumes `MetricCard`, `Card`, `Badge`, `Button`, `IconButton`, `ChoiceGroup`,
-  `Radio`, `FormField` and `Input`, plus the shared accessible `Modal`. The
+  `Radio`, `FormField` and `Input`, plus the approved accessible `Modal`. The
   shared `PaywallMessage` is migrated with it and now takes a `headingLevel` so
   it stops colliding with its host's section heading. The callable payloads,
   activity log, Firestore write, Storage path, clipboard/URL behaviour, delivery
@@ -116,7 +122,7 @@ verified.
   `VOEPreviewModal`'s document layout, its PDF/print rendering and the employer
   response portal are deliberately not migrated.
 
-- The VOE preview (`VOEPreviewModal`) consumes the shared accessible `Modal`,
+- The VOE preview (`VOEPreviewModal`) consumes the approved accessible `Modal`,
   `Button` and `IconButton` for its **chrome only**. The generated 49 CFR
   §391.23 document inside it is deliberately **not** tokenised: it is rasterised
   by html2canvas and written into a bare print window that has no `--ds-*`
@@ -128,7 +134,7 @@ verified.
 
 - The Super Admin Environment & Integrations vault consumes Card, MetricCard,
   Badge, Button, IconButton, DataTable, FormField, Input, Select, the page
-  layout primitives, and the shared accessible `Modal` / `ConfirmDialog`. The
+  layout primitives, and the approved accessible `Modal` / `ConfirmDialog`. The
   configuration registry, the six Cloud Functions callables, the reveal
   authorisation and timing rules, the audit trail and every domain-to-visual
   mapping remain feature-owned. It deliberately does **not** use `PageHeader`:
@@ -142,17 +148,45 @@ verified.
   unreachable by exactly the users who most need it. Callers using
   `aria-disabled` must refuse the activation themselves.
 
+- The Campaigns audience and content builders consume Card, Button, Badge,
+  FormField, Input, Select and the three page states. The campaign draft shape,
+  the `getFilteredLeadsPage` callable, the filter keys, the CSV/Sheet import
+  path, the exclusion semantics and every frozen string remain feature-owned.
+  The audience preview panel is an **inverse (console) surface** expressed in
+  the `--ds-color-surface-inverse` roles, the same ones `SystemHealthView`'s log
+  panel uses; `PageState` gained `surface="inverse"` so its three states did not
+  have to be hand-composed there. One documented feature-owned exception
+  remains: `DeviceMockup`, which is artwork rather than interface and keeps its
+  own four-literal device palette.
+
+- Settings, the driver-change review portal, the e-doc envelope creator, the
+  onboarding tour and the Login screen consume the form primitives, Card,
+  Button (including the new `link` variant), IconButton, IconButtonLink,
+  Checkbox, Switch and the inverse surface roles. Authentication, the reset
+  workflow, the envelope field model and its PDF coordinates, the question
+  schema, the tour's step list and every callable contract remain
+  feature-owned. Documented feature-owned exceptions: the signing-room and
+  envelope-creator controls whose geometry comes from the PDF, the
+  field-palette tiles, the FMCSA combobox options, the login hero's artwork
+  wash and Facebook's own brand blue.
+
 The primitive APIs are usable for migrated consumers, but their broader
 component-family roadmap items remain in progress until catalog examples and
 durable visual baselines are owner-approved.
 
 ## Component catalog
 
-`npm run storybook` opens the catalog. It documents sixteen subjects — Button,
-IconButton, Input, Select, Textarea, Checkbox/Radio/ChoiceGroup, Badge,
-Card/MetricCard, DataTable, the page layout primitives, ProgressBar,
-StatusMedallion, SectionNavigation, the form-structure primitives, Modal and
-ConfirmDialog — plus eight business-neutral page patterns.
+`npm run storybook` opens the catalog. It documents the control scale plus
+Button (five variants, including `link`), IconButton, Link/ButtonLink, Input,
+Select, Textarea,
+Checkbox/Radio/ChoiceGroup, Switch, FileInput, Badge, Card/MetricCard, Tabs,
+SegmentedControl, Disclosure, DataTable, the page layout primitives,
+ProgressBar, StatusMedallion, SectionNavigation, the form-structure primitives,
+Modal and ConfirmDialog — plus the business-neutral page patterns.
+
+`Foundations/Control scale` is the one to read first: it shows an input and its
+adjacent button at each of the three steps, and proves that icon size comes from
+the design system rather than the call site.
 
 Each page records an explicit **Approved** / **Needs review** / **Temporary**
 status and names what is unresolved. Read that status before reusing something:
@@ -166,3 +200,33 @@ Catalog stories may not import features, Firebase, application context or domain
 services, and may not use domain vocabulary. `tests/architecture.test.js`
 enforces the import half of that rule, and `storybook-build` in CI builds the
 catalog with no credentials at all.
+
+## Guardrails
+
+Six automated checks stand between this design system and the state the
+application was in before the 2026-08 campaign, when a substantial and
+well-adopted system coexisted with 660 raw palette classes, off-scale type and
+sub-12px text — all of which passed review, lint, 234 test files and CI, because
+nothing checked.
+
+| Command | Blocking | Catches |
+|---|---|---|
+| `npm test` (`tests/architecture.test.js`) | yes | An import from features, context, Firebase or `shared` into this directory |
+| `npm test` (`tests/tokens.test.js`) | yes | A broken token contract, a contrast pairing below AA, an unbridged Tailwind utility, a control sizing itself in pixels |
+| `npm run check:ui-contract` | yes | A raw colour, off-scale type size, sub-12px text, Tailwind radius or shadow, hand-built overlay, raw table or hand-styled control |
+| `npm run check:table-layout` | yes | A cell narrower than its content, in a real browser at 412px and 1440px |
+| `npm run check:visual-contract` | yes | A change to computed geometry — control heights, cell padding, radii, resolved colours |
+| `npm run test:stories` | yes | A story that fails to render, or fails axe |
+| `npm run test:visual` | reported | A change to how anything *looks*, across the catalog subject list and 10 real screens at both widths |
+
+`check:ui-contract` is zero-tolerance against
+`ui-contract.allowlist.json`, which lists every violation the product
+deliberately keeps and **why**. It fails on anything not listed, on a count
+higher *or lower* than recorded, and on any entry whose rule has no reason. It
+began as a shrink-only inventory of 660 violations tagged with the migration
+slice that owed each one; that debt reached zero on 2026-08-25 and the `debt`
+escape hatch went with it, so an entry is now a decision someone wrote down
+rather than a promise to come back.
+
+Run all of them before opening a UI pull request — `.github/pull_request_template.md`
+is the checklist, and it asks you never to tick a check you did not run.

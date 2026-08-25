@@ -9,6 +9,7 @@ import {
     Mail,
     History,
 } from 'lucide-react';
+import { ButtonLink } from '@design-system/components';
 import { StatusBadge } from '@shared/components/badges/StatusBadge';
 import { useCompactViewport } from './useCompactViewport';
 
@@ -102,7 +103,7 @@ export function DossierSidebar({
                 <div className="flex items-center gap-ds-4">
                     <span
                         aria-hidden="true"
-                        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-2 border-ds-surface bg-ds-status-info-bg text-ds-body-lg font-bold text-ds-status-info-fg shadow-ds-xs sm:h-16 sm:w-16 sm:text-ds-heading-sm"
+                        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-ds-full border-2 border-ds-surface bg-ds-status-info-bg text-ds-body-lg font-bold text-ds-status-info-fg shadow-ds-xs sm:h-16 sm:w-16 sm:text-ds-heading-sm"
                     >
                         {initials}
                     </span>
@@ -120,26 +121,22 @@ export function DossierSidebar({
                 </div>
 
                 {/*
-                  Contact actions live in the identity block rather than a
-                  desktop-only footer, so the Call/Email affordances survive the
-                  compact layout instead of disappearing on phones — the devices
-                  most likely to place the call.
-
-                  DOCUMENTED EXCEPTION — styled `<a>` rather than an approved
-                  control. `tel:` and `mailto:` are navigations, so a link is the
-                  correct element; the design system has no Link/ButtonLink
-                  primitive yet (recorded in the roadmap). Tokens only, 44 px
-                  target, visible focus ring.
+                  `ButtonLink`, not a styled `<a>`: these are navigations
+                  (a dialler, a mail client), so they must be announced as
+                  links. The two-line tile shape comes from the caller; the
+                  border, radius, focus ring and hover are the primitive's.
                 */}
                 <div className="mt-ds-4 grid grid-cols-2 gap-ds-2">
                     {phone ? (
-                        <a
+                        <ButtonLink
                             href={`tel:${phone}`}
-                            className="flex min-h-11 flex-col items-center justify-center gap-ds-1 rounded-ds-md border border-ds-border bg-ds-surface text-ds-xs font-semibold text-ds-content-secondary hover:border-ds-focus hover:text-ds-content-link focus-visible:outline-none focus-visible:shadow-ds-focus"
+                            variant="secondary"
+                            fullWidth
+                            className="h-auto flex-col gap-ds-1 py-ds-2 text-ds-xs"
                         >
-                            <Phone size={18} aria-hidden="true" />
+                            <Phone aria-hidden="true" />
                             <span>Call</span>
-                        </a>
+                        </ButtonLink>
                     ) : (
                         <p className="flex min-h-11 flex-col items-center justify-center gap-ds-1 rounded-ds-md border border-ds-border-subtle bg-ds-surface-subtle text-ds-xs font-medium text-ds-content-secondary">
                             <Phone size={18} aria-hidden="true" />
@@ -148,13 +145,15 @@ export function DossierSidebar({
                     )}
 
                     {email ? (
-                        <a
+                        <ButtonLink
                             href={`mailto:${email}`}
-                            className="flex min-h-11 flex-col items-center justify-center gap-ds-1 rounded-ds-md border border-ds-border bg-ds-surface text-ds-xs font-semibold text-ds-content-secondary hover:border-ds-focus hover:text-ds-content-link focus-visible:outline-none focus-visible:shadow-ds-focus"
+                            variant="secondary"
+                            fullWidth
+                            className="h-auto flex-col gap-ds-1 py-ds-2 text-ds-xs"
                         >
-                            <Mail size={18} aria-hidden="true" />
+                            <Mail aria-hidden="true" />
                             <span>Email</span>
-                        </a>
+                        </ButtonLink>
                     ) : (
                         <p className="flex min-h-11 flex-col items-center justify-center gap-ds-1 rounded-ds-md border border-ds-border-subtle bg-ds-surface-subtle text-ds-xs font-medium text-ds-content-secondary">
                             <Mail size={18} aria-hidden="true" />
@@ -207,7 +206,7 @@ export function DossierSidebar({
                                 <>
                                     <span
                                         aria-hidden="true"
-                                        className="ml-auto h-2 w-2 shrink-0 rounded-full bg-ds-status-danger-fg"
+                                        className="ml-auto h-2 w-2 shrink-0 rounded-ds-full bg-ds-status-danger-fg"
                                     />
                                     <span className="ds-visually-hidden">— incomplete</span>
                                 </>

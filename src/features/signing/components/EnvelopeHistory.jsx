@@ -5,7 +5,7 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 import { FileText, CheckCircle, Clock, Download, Loader2, AlertCircle, Copy, MessageSquare, Mail, Ban, Info } from 'lucide-react';
 import { useToast } from '@shared/components/feedback';
 import { useIsMobile } from '@shared/hooks/useIsMobile';
-import { ConfirmDialog } from '@shared/components/modals/ConfirmDialog';
+import { ConfirmDialog } from '@design-system/patterns';
 import { Badge, Button, DataTable, defineTableColumns } from '@/design-system/components';
 import { useSigningRequests } from '@features/signing/hooks/useSigningRequests';
 import { SentDocumentDetailsDialog } from '@features/company-admin/components/documents/SentDocumentDetailsDialog';

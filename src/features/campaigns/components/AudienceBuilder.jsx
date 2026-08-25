@@ -7,7 +7,7 @@ import { Filter, Users, RefreshCw, CheckCircle2, UploadCloud, FileSpreadsheet, C
 import { useBulkImport } from '@/shared/hooks/useBulkImport';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import VirtualLeadList from './VirtualLeadList';
-import { Button, Card, FormField, Input, Select } from '@/design-system/components';
+import { Badge, Button, Card, FormField, Input, Select } from '@/design-system/components';
 
 const getUploadFingerprint = (rows) => {
     if (!Array.isArray(rows) || rows.length === 0) return 'empty';
@@ -426,24 +426,25 @@ export function AudienceBuilder({ companyId, filters, onChange, campaignScopeKey
 
                 {/* RIGHT COLUMN: PREVIEW */}
                 <div className="lg:col-span-8">
-                    {/* Temporary exception: this preview surface stays dark because the
-                        unmigrated `VirtualLeadList` (out of scope for this slice) renders
-                        its own hard-coded dark list chrome. The dark treatment is removed
-                        when that list is migrated — tracked in the roadmap. */}
-                    <div className="flex h-[650px] flex-col overflow-hidden rounded-ds-xl border border-slate-800 bg-slate-900 p-1 text-white shadow-ds-lg">
+                    {/* An inverse ("console") surface, expressed in the approved
+                        `--ds-color-surface-inverse` roles. This used to be literal slate
+                        values described as a temporary exception pending
+                        `VirtualLeadList`'s migration; the list is migrated now, and both
+                        halves of the panel read from the same roles. */}
+                    <div className="flex h-[650px] flex-col overflow-hidden rounded-ds-xl border border-ds-border-inverse bg-ds-surface-inverse p-ds-1 text-ds-content-on-inverse shadow-ds-lg">
                         {/* Preview Header */}
-                        <div className="z-10 border-b border-slate-800 bg-slate-900 p-ds-6">
+                        <div className="z-10 border-b border-ds-border-inverse bg-ds-surface-inverse p-ds-6">
                             <div className="flex items-end justify-between gap-ds-4">
                                 <div className="min-w-0">
-                                    <div className="mb-ds-1 text-ds-sm font-bold uppercase tracking-wide text-blue-300">
+                                    <div className="mb-ds-1 text-ds-sm font-bold uppercase tracking-wide text-ds-status-info-fg-on-inverse">
                                         {isUploadMode ? 'Import Manifest' : 'Live Database Query'}
                                     </div>
                                     <p className="flex items-baseline gap-ds-2">
-                                        <span className="text-ds-heading-xl font-bold tracking-tight text-white">{finalCount}</span>
-                                        <span className="text-ds-body font-medium text-slate-300">recipients</span>
+                                        <span className="text-ds-heading-xl font-bold tracking-tight text-ds-content-on-inverse">{finalCount}</span>
+                                        <span className="text-ds-body font-medium text-ds-content-on-inverse-muted">recipients</span>
                                     </p>
                                 </div>
-                                {isCountLoading && <RefreshCw className="animate-spin text-blue-300" aria-hidden="true" />}
+                                {isCountLoading && <RefreshCw className="animate-spin text-ds-status-info-fg-on-inverse" aria-hidden="true" />}
                             </div>
 
                             {/* Announce the recipient count and its loading state. */}
@@ -454,15 +455,15 @@ export function AudienceBuilder({ companyId, filters, onChange, campaignScopeKey
                             </p>
 
                             <div className="mt-ds-2 flex flex-wrap gap-ds-2">
+                                {/* These were two hand-built tinted chips. They are counts with
+                                    a status meaning, which is what `Badge` is — and the list
+                                    below already puts `Badge`s on this same surface, so the two
+                                    were the odd ones out on their own panel. */}
                                 {manualExcludedCount > 0 && (
-                                    <span className="inline-block rounded-ds-sm bg-red-500/20 px-ds-2 py-ds-1 text-ds-xs font-medium text-red-200">
-                                        {manualExcludedCount} manually excluded
-                                    </span>
+                                    <Badge tone="danger">{manualExcludedCount} manually excluded</Badge>
                                 )}
                                 {phoneExcludedCount > 0 && (
-                                    <span className="inline-block rounded-ds-sm bg-amber-500/20 px-ds-2 py-ds-1 text-ds-xs font-medium text-amber-100">
-                                        {phoneExcludedCount} already messaged
-                                    </span>
+                                    <Badge tone="warning">{phoneExcludedCount} already messaged</Badge>
                                 )}
                             </div>
                         </div>
@@ -481,10 +482,9 @@ export function AudienceBuilder({ companyId, filters, onChange, campaignScopeKey
                         </div>
 
                         {/* Footer Action */}
-                        <div className="border-t border-slate-800 bg-slate-900 p-ds-4">
+                        <div className="border-t border-ds-border-inverse bg-ds-surface-inverse p-ds-4">
                             <Button
                                 variant="primary"
-                                size="lg"
                                 fullWidth
                                 onClick={() => onChange(localFilters, finalCount)}
                             >

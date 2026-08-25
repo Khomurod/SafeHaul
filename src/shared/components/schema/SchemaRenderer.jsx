@@ -12,6 +12,16 @@
 
 import React from 'react';
 import { APPLICATION_SCHEMA, getFieldByKey, isFieldConditionallyVisible } from '@/config/applicationSchema';
+import {
+    Checkbox,
+    ChoiceGroup,
+    FieldDisplay,
+    FormField,
+    Input,
+    Link,
+    Radio,
+    Textarea,
+} from '@design-system/components';
 import InputField from '@shared/components/form/InputField';
 
 // Field type constants for type checking (matches config schema string types)
@@ -128,56 +138,53 @@ function renderInputMode(definition, value, onChange, isRequired, error, onBlur)
 
         case FIELD_TYPES.RADIO:
             return (
-                <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-700">{label}</label>
-                    <div className="flex gap-4">
-                        {(options || ['yes', 'no']).map(normalizeOption).map(opt => (
-                            <label key={opt.value} className="flex items-center gap-2 cursor-pointer">
-                                <input
-                                    type="radio"
-                                    name={key}
-                                    value={opt.value}
-                                    checked={value === opt.value}
-                                    onChange={(e) => onChange(key, e.target.value)}
-                                    className="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
-                                />
-                                <span className="text-sm text-gray-700 capitalize">{opt.label}</span>
-                            </label>
-                        ))}
-                    </div>
-                </div>
+                /*
+                 * A real fieldset/legend through `ChoiceGroup`, so the question is
+                 * announced once rather than repeated inside every option label.
+                 * The previous markup was a bare `<label>` above loose radios: the
+                 * group had no accessible name at all, so a screen-reader user
+                 * heard "yes radio, no radio" with no idea what was being asked.
+                 */
+                <ChoiceGroup legend={label} orientation="horizontal" error={error}>
+                    {(options || ['yes', 'no']).map(normalizeOption).map(opt => (
+                        <Radio
+                            key={opt.value}
+                            name={key}
+                            id={`${key}-${opt.value}`}
+                            label={opt.label}
+                            value={opt.value}
+                            checked={value === opt.value}
+                            onChange={(e) => onChange(key, e.target.value)}
+                            requiredMark={false}
+                        />
+                    ))}
+                </ChoiceGroup>
             );
 
         case FIELD_TYPES.TEXTAREA:
             return (
-                <div>
-                    <label htmlFor={key} className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-                    <textarea
-                        id={key}
+                <FormField id={key} label={label} required={isRequired} error={error}>
+                    <Textarea
                         name={key}
                         rows={3}
                         required={isRequired}
                         value={value || ''}
                         onChange={(e) => onChange(key, e.target.value)}
-                        className="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        onBlur={onBlur ? (e) => onBlur(key, e.target.value) : undefined}
                         placeholder={placeholder}
                     />
-                </div>
+                </FormField>
             );
 
         case FIELD_TYPES.CHECKBOX:
             return (
-                <div className="flex items-center gap-2">
-                    <input
-                        type="checkbox"
-                        id={key}
-                        name={key}
-                        checked={value === true || value === 'yes'}
-                        onChange={(e) => onChange(key, e.target.checked)}
-                        className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                    />
-                    <label htmlFor={key} className="text-sm text-gray-700">{label}</label>
-                </div>
+                <Checkbox
+                    id={key}
+                    name={key}
+                    label={label}
+                    checked={value === true || value === 'yes'}
+                    onChange={(e) => onChange(key, e.target.checked)}
+                />
             );
 
         default:
@@ -202,49 +209,59 @@ function renderDisplayMode(definition, value, onChange, isEditing, fileUrls = {}
 
     // Editing mode in admin panel
     if (isEditing && !definition.readOnly) {
+        /*
+         * The admin edit surface. Every control here was previously unlabelled —
+         * a `<label>` with no `htmlFor` above a control with no `id`, so nothing
+         * connected them and each field announced as an anonymous textbox. The
+         * approved primitives own that wiring, so the fix comes with the
+         * migration rather than being a separate pass.
+         */
+        if (type === FIELD_TYPES.RADIO) {
+            return (
+                <div className="col-span-1">
+                    <ChoiceGroup legend={label} orientation="horizontal">
+                        {(options || ['yes', 'no']).map(normalizeOption).map(opt => (
+                            <Radio
+                                key={opt.value}
+                                name={key}
+                                id={`${key}-edit-${opt.value}`}
+                                label={opt.label}
+                                value={opt.value}
+                                checked={value === opt.value}
+                                onChange={(e) => onChange(key, e.target.value)}
+                                requiredMark={false}
+                            />
+                        ))}
+                    </ChoiceGroup>
+                </div>
+            );
+        }
+
         return (
             <div className="col-span-1">
-                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">{label}</label>
-                {type === FIELD_TYPES.TEXTAREA ? (
-                    <textarea
-                        value={value || ''}
-                        onChange={(e) => onChange(key, e.target.value)}
-                        rows={3}
-                        className="w-full p-2 border border-gray-300 rounded text-sm"
-                    />
-                ) : type === FIELD_TYPES.RADIO ? (
-                    <div className="flex gap-4">
-                        {(options || ['yes', 'no']).map(normalizeOption).map(opt => (
-                            <label key={opt.value} className="flex items-center gap-2 cursor-pointer text-sm">
-                                <input
-                                    type="radio"
-                                    name={key}
-                                    value={opt.value}
-                                    checked={value === opt.value}
-                                    onChange={(e) => onChange(key, e.target.value)}
-                                    className="h-4 w-4 text-blue-600"
-                                />
-                                <span className="capitalize">{opt.label}</span>
-                            </label>
-                        ))}
-                    </div>
-                ) : (
-                    <input
-                        type={mapFieldType(type)}
-                        value={value || ''}
-                        onChange={(e) => onChange(key, e.target.value)}
-                        className="w-full p-2 border border-gray-300 rounded text-sm"
-                    />
-                )}
+                <FormField id={`${key}-edit`} label={label}>
+                    {type === FIELD_TYPES.TEXTAREA ? (
+                        <Textarea
+                            rows={3}
+                            value={value || ''}
+                            onChange={(e) => onChange(key, e.target.value)}
+                        />
+                    ) : (
+                        <Input
+                            type={mapFieldType(type)}
+                            value={value || ''}
+                            onChange={(e) => onChange(key, e.target.value)}
+                        />
+                    )}
+                </FormField>
             </div>
         );
     }
 
-    // Read-only display
+    // Read-only display.
     return (
         <div className="col-span-1">
-            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">{label}</label>
-            <p className="text-lg font-medium text-gray-900">{displayValue}</p>
+            <FieldDisplay label={label} emphasis="strong">{displayValue}</FieldDisplay>
         </div>
     );
 }
@@ -267,7 +284,7 @@ function mapFieldType(schemaType) {
  */
 function formatDisplayValue(value, definition, fileUrls = {}) {
     if (value === undefined || value === null || value === '') {
-        return <span className="text-gray-400 italic">-</span>;
+        return <span className="italic text-ds-content-muted">-</span>;
     }
 
     // Handle sensitive data masking
@@ -287,16 +304,22 @@ function formatDisplayValue(value, definition, fileUrls = {}) {
         const resolvedHref = (definition?.key && fileUrls[definition.key]) || value.url;
         if (resolvedHref) {
             return (
-                <a href={resolvedHref} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline text-sm">
+                /*
+                 * `external` rather than a hand-written `target="_blank"`: this
+                 * opened a new tab with no announcement, so a screen-reader user
+                 * lost the page with no warning. `Link` adds the hint and the
+                 * `rel` that closes the reverse-tabnabbing hole.
+                 */
+                <Link href={resolvedHref} external>
                     📎 {value.name || 'View File'}
-                </a>
+                </Link>
             );
         }
         // Firestore timestamp objects
         if (value.seconds) {
             return new Date(value.seconds * 1000).toLocaleDateString();
         }
-        return <span className="text-gray-400 italic">-</span>;
+        return <span className="italic text-ds-content-muted">-</span>;
     }
 
     // Handle arrays
@@ -311,7 +334,7 @@ function formatDisplayValue(value, definition, fileUrls = {}) {
             <img
                 src={value}
                 alt={definition?.label || 'Signature'}
-                className="max-h-20 w-auto border border-gray-200 rounded bg-gray-50 p-1"
+                className="max-h-20 w-auto rounded-ds-sm border border-ds-border-subtle bg-ds-surface-subtle p-ds-1"
             />
         );
     }
@@ -380,8 +403,8 @@ export function SchemaSection({
             arrayContent = (
                 <div className="space-y-4 mt-4">
                     {itemArray.map((item, idx) => (
-                        <div key={idx} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                            <p className="text-xs font-bold text-gray-400 uppercase mb-3">Entry {idx + 1}</p>
+                        <div key={idx} className="rounded-ds-md border border-ds-border-subtle bg-ds-surface-subtle p-ds-4">
+                            <p className="mb-ds-3 text-ds-xs font-bold uppercase text-ds-content-muted">Entry {idx + 1}</p>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {section.itemFields.map(field => {
                                     // Support legacy field name fallbacks for employers
@@ -393,8 +416,7 @@ export function SchemaSection({
                                     const displayVal = formatDisplayValue(val, field, fileUrls);
                                     return (
                                         <div key={field.key} className="col-span-1">
-                                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">{field.label}</label>
-                                            <p className="text-sm font-medium text-gray-900">{displayVal}</p>
+                                            <FieldDisplay label={field.label}>{displayVal}</FieldDisplay>
                                         </div>
                                     );
                                 })}
@@ -405,7 +427,7 @@ export function SchemaSection({
             );
         } else {
             arrayContent = (
-                <p className="text-sm text-gray-400 italic mt-2">No entries provided.</p>
+                <p className="mt-ds-2 text-ds-sm italic text-ds-content-muted">No entries provided.</p>
             );
         }
     }

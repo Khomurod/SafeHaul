@@ -3,12 +3,12 @@ import { httpsCallable } from "firebase/functions";
 import { functions } from '@lib/firebase';
 import { AlertTriangle, X } from 'lucide-react';
 import { Button, IconButton } from '@/design-system/components';
-import { Modal } from '@shared/components/modals/Modal';
+import { Modal } from '@design-system/patterns';
 
 /**
  * Destructive confirmation for deleting a company.
  *
- * Migrated to the shared accessible `Modal` 2026-07-28. Presentation only — the
+ * Migrated to the approved accessible `Modal` 2026-07-28. Presentation only — the
  * `deleteCompany` callable name and its `{ companyId }` payload, the
  * `onConfirm()` → `onClose()` order, and every frozen string are unchanged.
  *
@@ -16,7 +16,7 @@ import { Modal } from '@shared/components/modals/Modal';
  *  - The hand-built `fixed inset-0` overlay had no dialog semantics, no focus
  *    trap, no Escape handling and no focus restoration, so keyboard users could
  *    Tab straight out of a destructive confirmation into the page behind it.
- *    The shared `Modal` owns all of that now.
+ *    The approved `Modal` owns all of that now.
  *  - The close control was an icon-only raw `<button>` with no accessible name.
  *  - The failure message was plain text and so was never announced; it is now
  *    `role="alert"`.

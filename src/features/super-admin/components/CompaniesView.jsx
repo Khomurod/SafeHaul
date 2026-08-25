@@ -5,7 +5,7 @@ import { db } from '@lib/firebase';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { SafeHaulLoader } from '@shared/components/SafeHaulLoader';
 import { Badge, Button, Card, IconButton, Input, Select } from '@/design-system/components';
-import { Modal } from '@shared/components/modals/Modal';
+import { Modal } from '@design-system/patterns';
 
 /**
  * Super Admin companies table. Also serves the SMS Integrations hub via
@@ -240,7 +240,7 @@ export function CompaniesView({
                                     >
                                         <th scope="row" className="px-ds-6 py-ds-4 text-left align-middle font-normal">
                                             <div className="flex items-center gap-ds-3">
-                                                <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-ds-md border border-ds-border-subtle bg-ds-surface-subtle text-lg font-bold text-ds-content-muted">
+                                                <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-ds-md border border-ds-border-subtle bg-ds-surface-subtle text-ds-heading-md font-bold text-ds-content-muted">
                                                     {company.companyLogoUrl ? (
                                                         <img src={company.companyLogoUrl} alt="" loading="lazy" className="h-full w-full rounded-ds-md object-contain" />
                                                     ) : (

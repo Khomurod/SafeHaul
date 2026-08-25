@@ -204,10 +204,18 @@ describe('UploadField accessibility and required rules', () => {
     expect(screen.getByAltText('Upload CDL (Front) preview')).toBeInTheDocument();
   });
 
-  it('names the view-file link', () => {
+  it('names the view-file link, and says it opens a new tab', () => {
     renderField({ value: { name: 'cdl.pdf', url: 'https://example.com/cdl.pdf' } });
-    const link = screen.getByRole('link', { name: 'View Upload CDL (Front) file' });
+    // Matched as a prefix, not an exact string. The frozen property is that the
+    // name says *which* file the link opens — one of these renders per document,
+    // so a shared name would leave a screen-reader user with a list of
+    // identical links. The new-tab suffix comes from `IconButtonLink`'s
+    // `external` and is asserted separately, so this test pins the requirement
+    // without pinning out an improvement to how the name is announced.
+    const link = screen.getByRole('link', { name: /^View Upload CDL \(Front\) file\b/ });
     expect(link).toHaveAttribute('href', 'https://example.com/cdl.pdf');
     expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAccessibleName(/\(opens in a new tab\)$/);
   });
 });

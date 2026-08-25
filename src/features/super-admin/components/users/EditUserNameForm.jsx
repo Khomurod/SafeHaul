@@ -6,7 +6,7 @@ import { httpsCallable } from 'firebase/functions';
 import { KeyRound, Trash2, AlertTriangle } from 'lucide-react';
 import { Button, Card, FieldMessage, FormField, Input, StatusMedallion } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
-import { Modal } from '@shared/components/modals/Modal';
+import { Modal } from '@design-system/patterns';
 
 /**
  * User profile editor inside the Super Admin Edit User dialog.

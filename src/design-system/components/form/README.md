@@ -11,6 +11,24 @@ business rules, fetch data, or save anything.
 - `Label` and `FieldMessage` are available for uncommon compositions.
 - `Input`, `Textarea`, and `Select` share height, typography, focus, invalid,
   disabled, and read-only presentation.
+- They take `size` from the **shared control scale** — `sm` (36px), `md` (44px,
+  the default) and `lg` (52px) — which is the same scale `Button` reads. That is
+  what makes an input and its adjacent button line up at the default; before it,
+  `.ds-form-control` hardcoded 44px while `Button`'s `md` was 40px and screens
+  compensated with `size="lg"` on the button.
+  - A `Textarea` opts out of the height token, because it is sized by rows, but
+    keeps the step's padding and type so it still reads as the same family.
+  - **On a phone they take 16px, not their scale step.** iOS Safari zooms the
+    viewport in when a focused input is under 16px and does not zoom back out,
+    and every step here is 13–15px. Under `max-width: 639px` all three take
+    `--ds-font-size-control-mobile`. Heights are unaffected: 16px at the body
+    line-height fits inside all three min-heights, so the type grows and the
+    control does not move.
+  - `size` deliberately **shadows the native `size` attribute** of `<input>` and
+    `<select>` (character width / visible rows). A control whose width came from
+    a character count could not line up with anything beside it, so width is a
+    layout decision. Passing `size={30}` throws, with a message saying so —
+    silently ignoring it would be worse.
 - `FormSection` groups related fields with a heading and optional actions.
 - `Checkbox` and `Radio` are the native-first choice controls: each owns its own
   label (always required — an unlabelled box is the defect they exist to

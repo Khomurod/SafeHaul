@@ -24,16 +24,48 @@
   min-height: var(--ds-control-height-sm);
   padding-inline: var(--ds-space-3);
   font-size: var(--ds-font-size-sm);
+  --ds-button-icon-size: var(--ds-control-icon-sm);
 }
 
 .ds-button[data-size='md'] {
   min-height: var(--ds-control-height-md);
+  --ds-button-icon-size: var(--ds-control-icon-md);
 }
 
 .ds-button[data-size='lg'] {
   min-height: var(--ds-control-height-lg);
   padding-inline: var(--ds-space-5);
   font-size: var(--ds-font-size-body-lg);
+  --ds-button-icon-size: var(--ds-control-icon-lg);
+}
+
+/*
+ * The design system sizes the icon, not the call site.
+ *
+ * Callers passed `size={16}`, `size={18}`, `size={20}`, `size={24}` and
+ * `className="h-5 w-5"` to buttons that sit next to each other, so identical
+ * actions had different-sized glyphs and visibly different internal spacing.
+ * An icon library renders `width`/`height` as *attributes*, and a CSS
+ * declaration beats a presentational attribute — so this normalises every icon
+ * already in the tree without touching a single call site, and a new call site
+ * cannot diverge from it either.
+ *
+ * **Direct children only.** `Button` wraps its children in `.ds-button__content`,
+ * so the ordinary `<Button><Icon />Label</Button>` shape puts the glyph exactly
+ * one level down — 324 call sites in the product. The five that instead compose a
+ * multi-line tile (the CDL intake chooser, the upload dropzone, the send-template
+ * wizard) pair a deliberately larger icon with heading-sized text inside a nested
+ * wrapper, and flattening those to a label glyph would be a downgrade, not a
+ * normalisation. A descendant selector would not have been able to tell the
+ * difference.
+ *
+ * `flex: 0 0 auto` keeps the glyph from being squeezed when the label is long,
+ * which is what made a Delete button render as "Dele" on a real phone.
+ */
+.ds-button__content > svg {
+  width: var(--ds-button-icon-size, var(--ds-control-icon-md));
+  height: var(--ds-button-icon-size, var(--ds-control-icon-md));
+  flex: 0 0 auto;
 }
 
 .ds-button[data-variant='primary'] {
@@ -64,6 +96,69 @@
 .ds-button[data-variant='danger'] {
   background: var(--ds-color-action-danger);
   color: var(--ds-color-content-inverse);
+}
+
+/*
+ * `link` — an action that reads as inline text.
+ *
+ * It is a `<button>`, not an `<a>`, because it performs an action rather than
+ * navigating: "Forgot password?", "Change this", a name that opens a dialog.
+ * Six screens had already written this by hand, and the six had drifted into
+ * two font weights and three font sizes between them, all of them otherwise
+ * using the correct tokens. That is the divergence this variant removes.
+ *
+ * It deliberately opts out of the control-height scale. A link inside a
+ * sentence or a form row must not be 44px tall — the height would push the
+ * surrounding text apart, and the affordance is the underline, not a box. The
+ * hit area is therefore the text itself, which is why this variant is only for
+ * a text action beside other text: anything that stands alone as a control
+ * should be `ghost`, which keeps the full target size.
+ */
+.ds-button[data-variant='link'] {
+  position: relative;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--ds-radius-sm);
+  background: none;
+  color: var(--ds-color-content-link);
+  font-weight: var(--ds-font-weight-medium);
+}
+
+/*
+ * The hit area, which is larger than the text.
+ *
+ * Dropping the control height leaves the rendered text about 16px tall, under
+ * the 24px WCAG 2.5.8 minimum. WCAG exempts a target inline in a sentence, but
+ * not every use is — "Forgot password?" on its own line is the obvious one — so
+ * the variant does not rely on the exemption. This extends the region that
+ * accepts the pointer to about 26px without changing the layout box by one
+ * pixel, so surrounding text does not move.
+ *
+ * The expansion is vertical only, on purpose: growing it sideways would make
+ * two adjacent inline links overlap, and an overlapping target is a worse
+ * defect than a small one. Two *stacked* links still need about 10px between
+ * them, which the `--ds-space-*` gaps all clear.
+ */
+.ds-button[data-variant='link']::after {
+  content: '';
+  position: absolute;
+  inset-block: -5px;
+  inset-inline: 0;
+}
+
+.ds-button[data-variant='link']:hover:not(:disabled),
+.ds-button[data-variant='link']:focus-visible {
+  background: none;
+  text-decoration: underline;
+}
+
+/* `fullWidth` on a link would produce a full-bleed underline the width of the
+   container, which reads as a rule rather than a link. The variant stays inline
+   regardless, and `justify-content` stops a stretched parent doing it instead. */
+.ds-button[data-variant='link'][data-full-width='true'] {
+  width: auto;
+  justify-content: flex-start;
 }
 
 .ds-button[data-variant='danger']:hover:not(:disabled) {
@@ -127,10 +222,29 @@
   gap: inherit;
 }
 
+/*
+ * An icon-only button has no label to sit beside, so the same glyph reads
+ * noticeably smaller in it than in a labelled button. Each step takes the next
+ * icon size up; `lg` stays at `lg` because there is no larger step.
+ */
 .ds-icon-button {
   width: var(--ds-control-height-md);
   flex: 0 0 var(--ds-control-height-md);
   padding: 0;
+}
+
+/*
+ * `.ds-button` is repeated in these selectors on purpose. `.ds-icon-button`
+ * alone scores below `.ds-button[data-size='md']`, so the size rule above would
+ * win and an icon-only button would take the labelled glyph size regardless of
+ * source order.
+ */
+.ds-button.ds-icon-button {
+  --ds-button-icon-size: var(--ds-control-icon-lg);
+}
+
+.ds-button.ds-icon-button[data-size='sm'] {
+  --ds-button-icon-size: var(--ds-control-icon-md);
 }
 
 .ds-icon-button[data-size='sm'] {

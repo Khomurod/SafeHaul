@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { Badge, Button, Card, ProgressBar, StatusMedallion } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
-import { Modal } from '@shared/components/modals/Modal';
+import { Modal } from '@design-system/patterns';
 import { useSystemHealth } from '../hooks/useSystemHealth';
 
 /**
@@ -198,15 +198,15 @@ export function SystemHealthView() {
 
                         <Stack gap="sm">
                             {status === 'running' ? (
-                                <Button variant="secondary" size="lg" fullWidth onClick={pauseDiagnostics}>
+                                <Button variant="secondary" fullWidth onClick={pauseDiagnostics}>
                                     <Pause size={20} aria-hidden="true" /> Pause Test
                                 </Button>
                             ) : status === 'paused' ? (
-                                <Button variant="primary" size="lg" fullWidth onClick={() => runDiagnostics(true)}>
+                                <Button variant="primary" fullWidth onClick={() => runDiagnostics(true)}>
                                     <Play size={20} aria-hidden="true" /> Resume Test
                                 </Button>
                             ) : (
-                                <Button variant="primary" size="lg" fullWidth onClick={() => runDiagnostics(false)}>
+                                <Button variant="primary" fullWidth onClick={() => runDiagnostics(false)}>
                                     <Play size={20} aria-hidden="true" /> Start Deep Diagnostic
                                 </Button>
                             )}

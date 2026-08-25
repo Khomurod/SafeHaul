@@ -1,0 +1,95 @@
+.ds-tab-list {
+  display: flex;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--ds-color-border);
+}
+
+.ds-tab-list[data-orientation='vertical'] {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  border-bottom: 0;
+  border-inline-end: 1px solid var(--ds-color-border);
+}
+
+.ds-tab {
+  display: inline-flex;
+  /*
+   * The shared control height. A tab strip is a row of controls, and one that
+   * sizes itself from its own padding ends up a different height from every
+   * other control on the screen — which is what the nine hand-rolled copies
+   * each decided separately.
+   */
+  min-height: var(--ds-control-height-md);
+  align-items: center;
+  gap: var(--ds-space-2);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  padding: var(--ds-space-2) var(--ds-space-4);
+  background: transparent;
+  color: var(--ds-color-content-secondary);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: var(--ds-font-size-sm);
+  font-weight: var(--ds-font-weight-semibold);
+  line-height: var(--ds-line-height-tight);
+  transition: color var(--ds-duration-fast) var(--ds-ease-standard),
+    border-color var(--ds-duration-fast) var(--ds-ease-standard);
+}
+
+/* Icon size comes from the scale, exactly as it does inside a Button. */
+.ds-tab > svg {
+  width: var(--ds-control-icon-md);
+  height: var(--ds-control-icon-md);
+  flex: 0 0 auto;
+}
+
+.ds-tab__label {
+  min-width: 0;
+}
+
+.ds-tab:hover:not([data-selected]) {
+  color: var(--ds-color-content);
+}
+
+.ds-tab[data-selected] {
+  border-bottom-color: var(--ds-color-action-primary);
+  color: var(--ds-color-action-primary);
+}
+
+.ds-tab-list[data-orientation='vertical'] .ds-tab {
+  justify-content: flex-start;
+  border-bottom: 0;
+  border-inline-start: 3px solid transparent;
+  text-align: start;
+}
+
+.ds-tab-list[data-orientation='vertical'] .ds-tab[data-selected] {
+  border-inline-start-color: var(--ds-color-action-primary);
+  background: var(--ds-color-surface-selected);
+}
+
+.ds-tab:focus-visible {
+  outline: 2px solid var(--ds-color-focus);
+  /*
+   * Inset, not the usual 2px outside. A tab sits flush against its neighbours
+   * and against the strip's bottom border, so an outward ring is clipped by the
+   * scroll container on a narrow strip.
+   */
+  outline-offset: -2px;
+}
+
+/*
+ * The panel is focusable by the pattern, so it needs a visible ring — but only
+ * from the keyboard. Without this it takes the UA default, which several
+ * browsers draw as a full-width box around the whole content region.
+ */
+.ds-tab-panel:focus-visible {
+  outline: 2px solid var(--ds-color-focus);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-tab {
+    transition: none;
+  }
+}

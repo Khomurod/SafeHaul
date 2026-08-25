@@ -133,9 +133,34 @@ function controlClassName(className) {
   return `ds-form-control ${className || ''}`.trim();
 }
 
+/**
+ * The control size scale, shared with `Button` so an input and the button beside
+ * it are the same height by default. `md` renders no attribute at all, which
+ * keeps the common case out of the DOM and lets the base rule apply.
+ *
+ * `size` deliberately shadows the native `size` attribute of `<input>` and
+ * `<select>`. Character-width and visible-row sizing are layout decisions the
+ * design system owns through the control scale, and a control whose width came
+ * from a character count could not line up with anything beside it. The throw
+ * below says so, because a silently ignored `size={30}` would be worse.
+ */
+const CONTROL_SIZES = new Set(['sm', 'md', 'lg']);
+
+function controlSize(size, component) {
+  if (!CONTROL_SIZES.has(size)) {
+    throw new TypeError(
+      `Unsupported ${component} size: ${size}. Expected 'sm', 'md' or 'lg' — `
+      + `this is the design system's control scale, not the native size attribute. `
+      + `For width, use the layout around the control.`,
+    );
+  }
+  return size === 'md' ? undefined : size;
+}
+
 export const Input = forwardRef(function Input({
   className = '',
   type = 'text',
+  size = 'md',
   ...props
 }, ref) {
   return (
@@ -144,12 +169,14 @@ export const Input = forwardRef(function Input({
       ref={ref}
       type={type}
       className={controlClassName(className)}
+      data-size={controlSize(size, 'Input')}
     />
   );
 });
 
 export const Textarea = forwardRef(function Textarea({
   className = '',
+  size = 'md',
   ...props
 }, ref) {
   return (
@@ -157,6 +184,7 @@ export const Textarea = forwardRef(function Textarea({
       {...props}
       ref={ref}
       className={controlClassName(className)}
+      data-size={controlSize(size, 'Textarea')}
     />
   );
 });
@@ -164,6 +192,7 @@ export const Textarea = forwardRef(function Textarea({
 export const Select = forwardRef(function Select({
   className = '',
   children,
+  size = 'md',
   ...props
 }, ref) {
   return (
@@ -171,6 +200,7 @@ export const Select = forwardRef(function Select({
       {...props}
       ref={ref}
       className={controlClassName(className)}
+      data-size={controlSize(size, 'Select')}
     >
       {children}
     </select>

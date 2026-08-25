@@ -140,7 +140,6 @@ export function AutomatedSmsTab({ companyId }) {
                     <Button
                         type="button"
                         variant="primary"
-                        size="lg"
                         loading={saving}
                         onClick={handleSave}
                     >

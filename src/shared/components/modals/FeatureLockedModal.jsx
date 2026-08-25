@@ -1,8 +1,7 @@
 import React, { useId } from 'react';
 import { X, Lock, Zap, Database } from 'lucide-react';
 import { Badge, Button, IconButton, StatusMedallion } from '@/design-system/components';
-import { Modal } from './Modal';
-
+import { Modal } from '@design-system/patterns';
 /**
  * "Feature not enabled" interstitial for feature-flagged areas (Import Leads,
  * E-Docs, driver search).
@@ -53,7 +52,7 @@ export function FeatureLockedModal({ onClose, featureName = "Search For Drivers"
                     <StatusMedallion tone="info" size="lg"><Lock size={40} /></StatusMedallion>
                     <span
                         aria-hidden="true"
-                        className="absolute -bottom-1 -right-1 rounded-full border-2 border-ds-surface bg-ds-status-warning-bg p-1.5 text-ds-status-warning-fg"
+                        className="absolute -bottom-1 -right-1 rounded-ds-full border-2 border-ds-surface bg-ds-status-warning-bg p-1.5 text-ds-status-warning-fg"
                     >
                         <Database size={14} />
                     </span>
@@ -74,14 +73,13 @@ export function FeatureLockedModal({ onClose, featureName = "Search For Drivers"
                 <div className="flex w-full max-w-md flex-col justify-center gap-ds-4 sm:flex-row">
                     <Button
                         variant="primary"
-                        size="lg"
                         className="flex-1"
                         onClick={() => window.open('https://t.me/tomr_robins0n', '_blank')}
                     >
                         Contact Sales
                     </Button>
 
-                    <Button variant="secondary" size="lg" onClick={onClose}>
+                    <Button variant="secondary" onClick={onClose}>
                         Close
                     </Button>
                 </div>

@@ -2,7 +2,7 @@ import React, { useId, useRef, useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { Button, Card, FieldMessage, FormField, Input, Select } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
-import { Modal } from '@shared/components/modals/Modal';
+import { Modal } from '@design-system/patterns';
 
 /**
  * Edit / Replace / Add dialog for a single configuration entry.

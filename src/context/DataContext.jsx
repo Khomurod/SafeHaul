@@ -299,10 +299,10 @@ export function DataProvider({ children }) {
   // after them to satisfy the rules of hooks.
   if (loading) {
     return (
-      <div className="h-screen flex items-center justify-center bg-gray-50">
+      <div role="status" className="flex h-screen items-center justify-center bg-ds-canvas">
         <div className="text-center">
-          <SafeHaulLoader size="h-20 w-20" className="mx-auto mb-4" />
-          <p className="text-gray-500 font-medium">Loading Platform...</p>
+          <SafeHaulLoader size="h-20 w-20" className="mx-auto mb-ds-4" />
+          <p className="font-medium text-ds-content-muted">Loading Platform...</p>
         </div>
       </div>
     );

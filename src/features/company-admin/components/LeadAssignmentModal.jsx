@@ -8,7 +8,7 @@ import {
     Button, Checkbox, FieldMessage, FormField, IconButton, Select,
 } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
-import { Modal } from '@shared/components/modals/Modal';
+import { Modal } from '@design-system/patterns';
 
 /**
  * Bulk lead assignment — manual pick or round-robin distribution.
@@ -32,7 +32,7 @@ import { Modal } from '@shared/components/modals/Modal';
  * Defects fixed:
  *  1. **The overlay was a hand-built `fixed inset-0` div** with no
  *     `role="dialog"`, no `aria-modal`, no focus move, no focus trap, no Escape
- *     and no focus restoration. It now uses the shared accessible `Modal`.
+ *     and no focus restoration. It now uses the approved accessible `Modal`.
  *  2. **The round-robin recruiter list was completely unusable by keyboard.**
  *     Each row was a `<div onClick>` with a `CheckSquare`/`Square` icon standing
  *     in for a checkbox — no `role`, no `tabIndex`, no key handling, no

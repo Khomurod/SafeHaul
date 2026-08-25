@@ -1,8 +1,8 @@
 import React, { useRef, useState } from 'react';
 import { FileText, Eye, Download, X } from 'lucide-react';
 import { formatDate } from '@shared/utils/helpers';
-import { Modal } from '@shared/components/modals/Modal';
-import { Card, IconButton } from '@/design-system/components';
+import { Modal } from '@design-system/patterns';
+import { Card, IconButton, IconButtonLink } from '@/design-system/components';
 
 /**
  * Dossier document gallery: the applicant's uploaded documents with preview and
@@ -25,7 +25,7 @@ import { Card, IconButton } from '@/design-system/components';
  *   mouse-only. Cards are now real buttons that name the document they open.
  * - The preview lightbox was a hand-rolled overlay with **no `role="dialog"`, no
  *   focus containment, no focus restoration and no Escape**, layered on top of a
- *   modal dialog. It now uses the shared accessible `Modal`.
+ *   modal dialog. It now uses the approved accessible `Modal`.
  * - The document date used `text-[10px]`, below the 12 px interface floor.
  * - The close and download controls in the lightbox had no accessible names.
  * - The list was a bare grid of `<div>`s; it is now a real list, so assistive
@@ -114,7 +114,7 @@ export function DocumentsTab({ fileUrls = {}, appData }) {
                                     aria-hidden="true"
                                     className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 transition-opacity group-hover:opacity-100"
                                 >
-                                    <span className="rounded-full bg-ds-surface p-ds-2 text-ds-content shadow-ds-md">
+                                    <span className="rounded-ds-full bg-ds-surface p-ds-2 text-ds-content shadow-ds-md">
                                         <Eye size={16} />
                                     </span>
                                 </span>
@@ -143,23 +143,15 @@ export function DocumentsTab({ fileUrls = {}, appData }) {
                     <div className="flex shrink-0 items-center justify-between gap-ds-3 border-b border-ds-border-subtle px-ds-4 py-ds-3">
                         <h4 className="min-w-0 truncate text-ds-body-lg font-bold text-ds-content">{previewDoc.label}</h4>
                         <div className="flex shrink-0 items-center gap-ds-2">
-                            {/*
-                              DOCUMENTED EXCEPTION — styled `<a>` rather than an
-                              approved control. A download is a navigation, and
-                              the design system has no Link/ButtonLink primitive
-                              yet (recorded in the roadmap). Tokens only, 44 px
-                              target, visible focus ring.
-                            */}
-                            <a
+                            <IconButtonLink
                                 href={previewDoc.url}
                                 download
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex h-11 w-11 items-center justify-center rounded-ds-md text-ds-content-secondary hover:bg-ds-surface-subtle hover:text-ds-content-link focus-visible:outline-none focus-visible:shadow-ds-focus"
+                                external
+                                variant="ghost"
+                                label={`Download ${previewDoc.label}`}
                             >
-                                <Download size={24} aria-hidden="true" />
-                                <span className="ds-visually-hidden">Download {previewDoc.label}</span>
-                            </a>
+                                <Download aria-hidden="true" />
+                            </IconButtonLink>
                             <IconButton
                                 ref={closePreviewRef}
                                 variant="ghost"

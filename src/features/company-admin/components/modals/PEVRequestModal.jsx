@@ -14,7 +14,7 @@ import {
 } from '@shared/services/fmcsaEmployerSocrata';
 import { useFmcsaEmployerLookup } from './pev/useFmcsaEmployerLookup';
 import { FmcsaCarrierPicker, buildFmcsaRowKey } from './pev/FmcsaCarrierPicker';
-import { Modal } from '@shared/components/modals/Modal';
+import { Modal } from '@design-system/patterns';
 import {
     Button,
     ChoiceGroup,
@@ -28,7 +28,7 @@ import {
  * PEV request dialog: choose how the verification reaches the employer, confirm
  * the recipient, and continue to the VOE preview.
  *
- * Presentation migrated to the shared accessible `Modal`, the approved
+ * Presentation migrated to the approved accessible `Modal`, the approved
  * `ChoiceGroup`/`Radio`, `FormField`/`Input`, `Button` and `IconButton`
  * primitives, and `--ds-*` tokens (2026-07-27).
  *
@@ -339,10 +339,10 @@ export function PEVRequestModal({ employer, applicant: _applicant, onClose, onPr
 
             {/* Footer */}
             <div className="flex shrink-0 flex-col gap-ds-3 border-t border-ds-border-subtle bg-ds-surface-subtle p-ds-6 sm:flex-row">
-                <Button variant="secondary" size="lg" fullWidth onClick={onClose}>
+                <Button variant="secondary" fullWidth onClick={onClose}>
                     Cancel
                 </Button>
-                <Button variant="primary" size="lg" fullWidth onClick={handleContinue}>
+                <Button variant="primary" fullWidth onClick={handleContinue}>
                     <Send size={18} aria-hidden="true" />
                     {deliveryMethod === 'manual' ? 'Preview & Print' : 'Continue to Preview'}
                 </Button>

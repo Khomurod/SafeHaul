@@ -106,3 +106,48 @@ describe('form controls', () => {
     expect((await axe(container)).violations).toEqual([]);
   });
 });
+
+/**
+ * The control size scale, shared with `Button`.
+ *
+ * `.ds-form-control` hardcoded `min-height: 44px` while `Button`'s `md` was
+ * 40px, so an input and the button beside it were never the same height. The
+ * point of these tests is that the *default* is now the aligned case: a caller
+ * that passes nothing gets a control matching a default Button, and `data-size`
+ * is absent so no call site has to opt in.
+ */
+describe('form control size scale', () => {
+  it.each([
+    ['Input', <Input aria-label="Search" key="i" />, 'textbox'],
+    ['Textarea', <Textarea aria-label="Notes" key="t" />, 'textbox'],
+    ['Select', <Select aria-label="Role" key="s"><option>a</option></Select>, 'combobox'],
+  ])('renders %s at the default size with no size attribute', (_name, element, role) => {
+    render(element);
+    expect(screen.getByRole(role)).not.toHaveAttribute('data-size');
+  });
+
+  it.each(['sm', 'lg'])('marks a %s control so the CSS can size it', (size) => {
+    render(<Input aria-label="Search" size={size} />);
+    expect(screen.getByRole('textbox')).toHaveAttribute('data-size', size);
+  });
+
+  it('rejects the native size attribute rather than silently ignoring it', () => {
+    // `size` shadows the native character-width attribute of `<input>` and the
+    // visible-row attribute of `<select>`. A caller reaching for either gets an
+    // error naming the scale, not a control that quietly ignores them.
+    expect(() => render(<Input aria-label="Search" size={30} />))
+      .toThrow(/Unsupported Input size: 30/);
+    expect(() => render(<Select aria-label="Role" size={5}><option>a</option></Select>))
+      .toThrow(/Unsupported Select size: 5/);
+  });
+
+  it('keeps the size attribute off the accessible name and role', async () => {
+    const { container } = render(
+      <FormField id="q" label="Search">
+        <Input size="lg" />
+      </FormField>,
+    );
+    expect(screen.getByRole('textbox', { name: 'Search' })).toBeInTheDocument();
+    expect((await axe(container)).violations).toEqual([]);
+  });
+});

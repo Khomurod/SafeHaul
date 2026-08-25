@@ -6,7 +6,7 @@ import { doc, onSnapshot } from 'firebase/firestore';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import { Badge, Button, Card, IconButton } from '@/design-system/components';
 import { SafeHaulLoader } from '@shared/components/SafeHaulLoader';
-import { Modal } from '@shared/components/modals/Modal';
+import { Modal } from '@design-system/patterns';
 import { AddLineModal } from './AddLineModal';
 
 /**
@@ -120,7 +120,7 @@ export function LineManager({ companyId, companyName }) {
             {/* Empty State */}
             {inventory.length === 0 ? (
                 <div className="p-12 text-center">
-                    <div className="mx-auto mb-ds-4 flex h-16 w-16 items-center justify-center rounded-full bg-ds-surface-subtle">
+                    <div className="mx-auto mb-ds-4 flex h-16 w-16 items-center justify-center rounded-ds-full bg-ds-surface-subtle">
                         <Phone className="text-ds-content-muted" size={32} aria-hidden="true" />
                     </div>
                     <h4 className="mb-ds-2 font-bold text-ds-content">No Phone Lines</h4>

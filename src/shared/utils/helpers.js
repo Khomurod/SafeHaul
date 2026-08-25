@@ -24,21 +24,6 @@ export function toTitleCase(str) {
         .join(' ');
 }
 
-/**
- * Formats experience string.
- * Returns "Unidentified" if value is 'New', '0', empty, or null.
- */
-export function formatExperience(value) {
-    if (!value || value === 'New' || value === '0' || value === 0 || value === '') {
-        return 'Unidentified';
-    }
-    return `${value} Years`;
-}
-
-/**
- * Strips a phone number to raw digits for database searching/comparison.
- * FIX: Now returns raw digits even if length != 10 to prevent data loss.
- */
 export function normalizePhone(phone) {
     if (!phone) return "";
 
@@ -78,47 +63,6 @@ export function formatPhoneNumber(phone) {
     return phone || "Not Specified";
 }
 
-/**
- * Returns Tailwind classes for the application status.
- */
-export function getStatusColor(status) {
-    switch (status) {
-        case 'Approved':
-            return 'bg-green-100 text-green-800';
-        case 'Rejected':
-            return 'bg-red-100 text-red-800';
-        case 'Background Check':
-            return 'bg-purple-100 text-purple-800';
-        case 'Awaiting Documents':
-            return 'bg-yellow-100 text-yellow-800';
-        case 'Pending Review':
-            return 'bg-blue-100 text-blue-800';
-        case 'New Application':
-        default:
-            return 'bg-gray-100 text-gray-800';
-    }
-}
-
-export function field(label, value) {
-    const displayValue = getFieldValue(value);
-    const val = (displayValue === "Not Specified")
-        ? `<span class="text-gray-400 italic">${displayValue}</span>`
-        : displayValue;
-    return `<div class="py-2 sm:grid sm:grid-cols-3 sm:gap-4"><dt class="text-sm font-medium text-gray-500">${label}</dt><dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">${val}</dd></div>`;
-}
-
-export function createFileLink(url, label, fileName) {
-    const fName = getFieldValue(fileName);
-    if (url) {
-        return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline font-medium">${label} (${fName}) &rarr;</a>`;
-    }
-    return `<span class="text-gray-500">${label} (${fName === "Not Specified" ? "File not available" : fName})</span>`;
-}
-
-/**
- * Formats a date object, timestamp, or string into a readable date string.
- * Supports Firestore Timestamps.
- */
 export function formatDate(date, includeTime = false) {
     if (!date) return '--';
 
