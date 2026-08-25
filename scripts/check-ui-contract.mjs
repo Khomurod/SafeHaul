@@ -230,6 +230,29 @@ const RULES = [
             + 'how a dialog ends up with no role, no focus trap and no Escape.',
     },
     {
+        /*
+         * Nine primitives throw `TypeError` on a label that is not a non-empty
+         * string — `FormField`, `FieldDisplay`, `Checkbox`, `Radio`, `Switch`,
+         * `IconButton`, `IconButtonLink`, `FileInput`, `ProgressBar`. That is the
+         * right contract: an unlabelled control is the defect they exist to
+         * prevent, and a silent fallback would hide it.
+         *
+         * The cost is that passing JSX — usually to sneak a decorative icon in
+         * beside the words — is a CRASH, not a downgrade, and only at the moment
+         * that branch renders. `DashboardToolbar`'s filter panel carried one for
+         * ten migration slices: it sits behind a toggle, the component had no
+         * tests, and nothing in the e2e suite clicked Filters. A review bot found
+         * it, not this file, which is why the rule now exists.
+         *
+         * Put the icon next to the control instead of inside its label.
+         */
+        name: 'jsx-label-on-throwing-primitive',
+        pattern: /<(?:FormField|FieldDisplay|Checkbox|Radio|Switch|IconButton|IconButtonLink|FileInput|ProgressBar)\b[^>]*?\blabel=\{\s*[(<]/gs,
+        remedy: 'These primitives throw on a label that is not a non-empty string, so JSX here '
+            + 'is a runtime crash the moment the branch renders. Pass the words as a string and '
+            + 'put the icon beside the control, not inside its label.',
+    },
+    {
         name: 'raw-table',
         pattern: /<table\b/g,
         remedy: 'Use `DataTable` for a display table. An editable matrix or a per-row '

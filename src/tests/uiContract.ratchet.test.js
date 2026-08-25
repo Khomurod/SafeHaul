@@ -30,6 +30,7 @@ describe('the guard fires on the defects it exists for', () => {
         ['hand-styled-anchor', '<a href="/x" className="px-4 py-2 rounded border">Go</a>'],
         ['tailwind-radius', '<div className="rounded-lg" />'],
         ['tailwind-shadow', '<div className="shadow-sm" />'],
+        ['jsx-label-on-throwing-primitive', '<FormField id="x" label={(<span>Date</span>)}>{c}</FormField>'],
     ])('catches %s', (rule, source) => {
         expect(count(source, rule)).toBeGreaterThan(0);
     });
@@ -59,6 +60,8 @@ describe('the guard stays silent on correct code', () => {
         ['the ds radius scale', '<div className="rounded-ds-md rounded-t-ds-lg" />'],
         ['the ds shadow scale', '<div className="shadow-ds-xs shadow-ds-lg" />'],
         ['a focus ring, which is not a shadow step', '<div className="focus-visible:shadow-ds-focus" />'],
+        ['a string label', '<FormField id="x" label="Filter by date">{c}</FormField>'],
+        ['a JSX title on PageHeader, which accepts one', '<PageHeader title={(<span>My Profile</span>)} />'],
     ])('does not flag %s', (_name, source) => {
         expect(countViolations(source)).toEqual({});
     });
@@ -79,6 +82,20 @@ describe('the guard stays silent on correct code', () => {
     it('tells the two shadow scales apart, and leaves the focus ring alone', () => {
         expect(count('<div className="shadow-ds-md shadow-ds-focus" />', 'tailwind-shadow')).toBe(0);
         expect(count('<div className="shadow-md shadow-inner" />', 'tailwind-shadow')).toBe(2);
+    });
+
+    /*
+     * The rule names the primitives that THROW on a non-string label. Widening
+     * it to every `label={(` would fire on `PageHeader`, which accepts JSX
+     * titles quite legitimately — and a check that flags correct code is a check
+     * someone turns off.
+     */
+    it('catches the JSX label on each throwing primitive, and only those', () => {
+        for (const tag of ['FormField', 'Checkbox', 'Switch', 'IconButton', 'FileInput']) {
+            expect(count(`<${tag} label={<span>x</span>} />`, 'jsx-label-on-throwing-primitive')).toBe(1);
+        }
+        expect(count('<PageHeader title={<span>x</span>} />', 'jsx-label-on-throwing-primitive')).toBe(0);
+        expect(count('<Badge label={<span>x</span>} />', 'jsx-label-on-throwing-primitive')).toBe(0);
     });
 
     it('does not flag an overlayClassName passed to Modal', () => {

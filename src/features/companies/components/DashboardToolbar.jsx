@@ -1,7 +1,7 @@
 // src/features/companies/components/DashboardToolbar.jsx
 
 import React, { useState, useMemo, memo } from 'react';
-import { Search, Filter, X, Briefcase, Users, Calendar, UserCircle } from 'lucide-react';
+import { Search, Filter, X, Briefcase, Users, UserCircle } from 'lucide-react';
 import { Button, FormField, Input, Select } from '@design-system/components';
 
 /**
@@ -194,14 +194,13 @@ export const DashboardToolbar = memo(function DashboardToolbar({
                             </Select>
                         </FormField>
 
-                        <FormField
-                            id="toolbar-date"
-                            label={(
-                                <span className="flex items-center gap-ds-1">
-                                    <Calendar size={12} aria-hidden="true" /> Filter by date
-                                </span>
-                            )}
-                        >
+                        {/* A plain string label, like its three siblings.
+                            `FormField` throws on anything else, and this one was
+                            passed a `<span>` carrying a decorative calendar icon
+                            — so opening this panel crashed the toolbar. None of
+                            the other filters had an icon anyway; the label reads
+                            the same without it. */}
+                        <FormField id="toolbar-date" label="Filter by date">
                             <Input
                                 type="date"
                                 value={filters?.dateFilter || ''}
