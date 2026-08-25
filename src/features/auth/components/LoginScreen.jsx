@@ -264,7 +264,12 @@ export function LoginScreen() {
               Your Gateway to the Road
             </h2>
 
-            <p className="mb-ds-10 text-ds-heading-md leading-relaxed text-ds-content-on-inverse">
+            {/* `heading-xl` over `body-lg` is exactly the pairing `PageHeader` gives
+                every page in the app. The headline used to be 30/36px, which the
+                type scale tops out below; capping it at 24px on its own left this
+                lead nearly as heavy as the headline, so the lead steps down with
+                it rather than a display size being invented for one screen. */}
+            <p className="mb-ds-10 text-ds-body-lg leading-relaxed text-ds-content-on-inverse">
               Whether you're a driver seeking your next opportunity or a company building your fleet, SafeHaul connects you to success.
             </p>
 
