@@ -70,9 +70,12 @@ module.exports = defineConfig({
          * double every baseline's size and make the mobile and desktop captures
          * incomparable.
          *
-         * Deliberately *not* in the default functional run: it needs
-         * `storybook-static` built for the catalog half, and its baselines are
-         * platform-sensitive. Run it with `--project=visual`.
+         * Kept out of the default functional run, which matters because Playwright
+         * runs EVERY configured project when none is named — declaring a separate
+         * project does not make it opt-in. `npm run test:e2e` therefore lists the
+         * functional projects explicitly; without that, a clean checkout running
+         * it would fail here, since the catalog half needs `storybook-static`
+         * built first. Run this one with `npm run test:visual`.
          */
         {
             name: 'visual',

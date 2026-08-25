@@ -18,7 +18,7 @@
     "test:rules": "vitest --run src/tests/firestore.rules.security.test.js src/tests/storage.rules.security.test.js",
     "test:rules:emulators": "node scripts/run-rules-stress.mjs --loops=1",
     "test:rules:stress": "node scripts/run-rules-stress.mjs",
-    "test:e2e": "playwright test",
+    "test:e2e": "playwright test --project=chromium --project=firefox --project=webkit --project=mobile-safari --project=mobile-chrome",
     "deploy:functions": "firebase deploy --only functions --non-interactive",
     "deploy:functions:sequential": "node scripts/deploy-functions-sequential.mjs",
     "deploy:functions:incremental": "node scripts/deploy-functions-incremental.mjs",
