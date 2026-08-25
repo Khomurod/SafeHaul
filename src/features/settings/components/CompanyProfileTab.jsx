@@ -4,7 +4,7 @@ import { uploadCompanyLogo } from '@lib/firebase';
 import { Save, Edit2, Info, ListChecks } from 'lucide-react';
 import { useToast } from '@shared/components/feedback';
 import { useData } from '@/context/DataContext';
-import { Button } from '@/design-system/components';
+import { Button, TabList, TabPanel } from '@/design-system/components';
 import { CompanyInfoSection, QuestionsTabContent } from './profile';
 
 export function CompanyProfileTab({ currentCompanyProfile }) {
@@ -134,20 +134,34 @@ export function CompanyProfileTab({ currentCompanyProfile }) {
                 )}
             </div>
 
-            <div className="grid grid-cols-1 sm:flex border-b border-ds-border-subtle">
-                {tabs.map(tab => (
-                    <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`min-h-11 px-ds-4 py-ds-3 text-ds-body font-medium border-b-2 flex items-center gap-2 text-left sm:whitespace-nowrap transition-colors ${activeTab === tab.id ? 'border-ds-action-primary text-ds-content-link' : 'border-transparent text-ds-content-muted hover:text-ds-content-secondary'}`}>
-                        <tab.icon size={16} /> {tab.label}
-                    </button>
-                ))}
-            </div>
+            {/*
+              This was a row of plain `<button>`s with `activeTab` state and a
+              coloured bottom border: tab BEHAVIOUR with no tab semantics at all.
+              No `role="tablist"`, no `role="tab"`, no `aria-selected`, no
+              `aria-controls`, no roving `tabIndex` and no arrow keys — so
+              assistive technology could not tell it was a tab interface or say
+              which section was current, and it was the only such strip left in
+              the product. `check:ui-contract`'s `hand-rolled-tablist` rule could
+              not see it either, precisely because it had no `role="tablist"` to
+              match; the `hand-styled-button` rule is what caught it, once the
+              scanner stopped truncating attribute lists at the `>` in `=>`.
+            */}
+            <TabList
+                ariaLabel="Company profile sections"
+                idBase="company-profile"
+                tabs={tabs}
+                activeTab={activeTab}
+                onChange={setActiveTab}
+            />
 
-            {activeTab === 'info' && (
-                <CompanyInfoSection compData={compData} isEditing={isEditing} logoUploading={logoUploading} onLogoUpload={handleLogoUpload} onFieldChange={handleFieldChange} />
-            )}
-            {activeTab === 'questions' && (
-                <QuestionsTabContent compData={compData} isCompanyAdmin={isCompanyAdmin} onConfigChange={(newConfig) => setCompData(prev => ({ ...prev, applicationConfig: newConfig }))} onQuestionsChange={(updatedQuestions) => setCompData(prev => ({ ...prev, customQuestions: updatedQuestions }))} onSave={handleSaveCompany} loading={loading} />
-            )}
+            <TabPanel idBase="company-profile" tabId={activeTab}>
+                {activeTab === 'info' && (
+                    <CompanyInfoSection compData={compData} isEditing={isEditing} logoUploading={logoUploading} onLogoUpload={handleLogoUpload} onFieldChange={handleFieldChange} />
+                )}
+                {activeTab === 'questions' && (
+                    <QuestionsTabContent compData={compData} isCompanyAdmin={isCompanyAdmin} onConfigChange={(newConfig) => setCompData(prev => ({ ...prev, applicationConfig: newConfig }))} onQuestionsChange={(updatedQuestions) => setCompData(prev => ({ ...prev, customQuestions: updatedQuestions }))} onSave={handleSaveCompany} loading={loading} />
+                )}
+            </TabPanel>
         </div>
     );
 }

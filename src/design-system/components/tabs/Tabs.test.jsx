@@ -11,7 +11,9 @@ const TABS = [
   { id: 'archive', label: 'Archive', icon: Inbox },
 ];
 
-function Harness({ initial = 'documents', orientation = 'horizontal' }) {
+function Harness({
+  initial = 'documents', orientation = 'horizontal', variant, fitted,
+}) {
   const [active, setActive] = useState(initial);
   return (
     <>
@@ -22,6 +24,8 @@ function Harness({ initial = 'documents', orientation = 'horizontal' }) {
         activeTab={active}
         onChange={setActive}
         orientation={orientation}
+        {...(variant ? { variant } : {})}
+        {...(fitted ? { fitted } : {})}
       />
       <TabPanel idBase="docs" tabId={active}>Panel for {active}</TabPanel>
     </>
@@ -52,12 +56,78 @@ describe('TabList structure', () => {
     render(<Harness />);
     const inOrder = screen.getAllByRole('tab').filter((tab) => tab.getAttribute('tabindex') === '0');
     expect(inOrder).toHaveLength(1);
-    expect(inOrder[0]).toHaveAccessibleName(/Documents/);
+    expect(inOrder[0]).toHaveAccessibleName('Documents');
   });
 
-  it('announces selection as text as well as colour', () => {
+  /*
+   * `aria-selected` is the whole mechanism, and the accessible name is only the
+   * label.
+   *
+   * This component used to append a visually-hidden " (selected)" as well, so
+   * that selection was "not colour alone". It made the selected tab announce its
+   * state twice, and it put state inside the NAME — which means every exact-match
+   * query for a tab has to know about it. The visual half of that concern is
+   * handled in `Tabs.css`, where a `forced-colors` rule keeps the selected tab
+   * distinguishable by a border that is present against ones that are not.
+   */
+  it('carries selection in aria-selected and keeps it out of the name', () => {
     render(<Harness />);
-    expect(screen.getByRole('tab', { selected: true })).toHaveAccessibleName(/\(selected\)/);
+    const selected = screen.getByRole('tab', { selected: true });
+    expect(selected).toHaveAccessibleName('Documents');
+    expect(screen.getByRole('tab', { name: 'Templates' })).toHaveAttribute('aria-selected', 'false');
+  });
+});
+
+/**
+ * The two strip shapes, and the reason they are props rather than call-site CSS.
+ *
+ * Eleven hand-rolled strips carried at least three treatments between them. A
+ * primitive that could express only the page-level underline would have left the
+ * others hand-rolled, which is how a primitive ends up with zero consumers — as
+ * this one did for the four days between being built and being adopted.
+ */
+describe('TabList shapes', () => {
+  it('defaults to the underline strip', () => {
+    render(<Harness />);
+    expect(screen.getByRole('tablist')).toHaveAttribute('data-variant', 'underline');
+    expect(screen.getByRole('tablist')).not.toHaveAttribute('data-fitted');
+  });
+
+  it('takes the pill variant for a strip inside a panel', () => {
+    render(<Harness variant="pill" />);
+    expect(screen.getByRole('tablist')).toHaveAttribute('data-variant', 'pill');
+  });
+
+  it('takes fitted for a strip that must span its container', () => {
+    render(<Harness fitted />);
+    expect(screen.getByRole('tablist')).toHaveAttribute('data-fitted', 'true');
+  });
+
+  it('keeps the same keyboard model in every shape', () => {
+    // The shapes differ in the selected treatment and nothing else. If a variant
+    // ever changed the interaction it would stop being the same control.
+    render(<Harness variant="pill" fitted />);
+    fireEvent.keyDown(screen.getByRole('tablist'), { key: 'End' });
+    expect(screen.getByRole('tab', { selected: true })).toHaveAccessibleName('Archive');
+  });
+
+  it('refuses an unsupported variant rather than ignoring it', () => {
+    expect(() => render(<Harness variant="ghost" />)).toThrow(/Unsupported TabList variant/i);
+  });
+
+  it('refuses the one combination it does not support', () => {
+    // A silently-ignored combination is how a component starts lying about what
+    // it supports.
+    expect(() => render(<Harness variant="pill" orientation="vertical" />))
+      .toThrow(/does not support variant="pill"/i);
+  });
+
+  it('has no accessibility violations in either shape', async () => {
+    const pill = render(<Harness variant="pill" />);
+    expect((await axe(pill.container)).violations).toEqual([]);
+    pill.unmount();
+    const fitted = render(<Harness fitted />);
+    expect((await axe(fitted.container)).violations).toEqual([]);
   });
 });
 
@@ -125,6 +195,24 @@ describe('TabPanel wiring', () => {
     expect(panel).toHaveAttribute('aria-labelledby', tab.id);
   });
 
+  /*
+   * `aria-controls` on an unselected tab pointed at a panel id that does not
+   * exist, because only the active panel is rendered. The ARIA tab pattern makes
+   * the attribute optional in exactly that case, and a dangling IDREF is worse
+   * than an absent optional attribute.
+   */
+  it('does not leave a dangling aria-controls on the unselected tabs', () => {
+    render(<Harness />);
+    for (const tab of screen.getAllByRole('tab')) {
+      const controls = tab.getAttribute('aria-controls');
+      if (tab.getAttribute('aria-selected') === 'true') {
+        expect(document.getElementById(controls)).not.toBeNull();
+      } else {
+        expect(controls).toBeNull();
+      }
+    }
+  });
+
   it('derives the same ids from the same base in both components', () => {
     // The two are separate exports because two consumers render them in
     // different components; this is what stops the pair drifting apart.
@@ -141,6 +229,14 @@ describe('TabPanel wiring', () => {
   it('makes the panel focusable so keyboard focus lands in the content', () => {
     render(<Harness />);
     expect(screen.getByRole('tabpanel')).toHaveAttribute('tabindex', '0');
+  });
+
+  it('forwards its ref, because the panel is a real focus target', () => {
+    // The driver dossier passes it to `Modal`'s `initialFocusRef`, so opening
+    // the dialog lands the user in the content instead of on its close button.
+    const ref = React.createRef();
+    render(<TabPanel ref={ref} idBase="docs" tabId="documents">body</TabPanel>);
+    expect(ref.current).toBe(screen.getByRole('tabpanel'));
   });
 
   it('has no accessibility violations', async () => {

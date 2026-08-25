@@ -7,6 +7,8 @@ import {
 } from 'lucide-react';
 import {
     Button, Card, Checkbox, ChoiceGroup, FormField, Input, Radio, Select,
+    TabList,
+    TabPanel,
 } from '@/design-system/components';
 import { ResponsiveGrid, Stack } from '@/design-system/layouts';
 import { SUPER_ADMIN_VIEWS } from '../config/views';
@@ -105,7 +107,6 @@ export function CreateView({ onDataUpdate, setActiveView }) {
     const [userForm, setUserForm] = useState(EMPTY_USER_FORM);
 
     const tabsId = useId();
-    const tabRefs = useRef({});
     /**
      * Ref, not state: `loading` only takes effect on the next render, so two
      * activations dispatched before React re-renders would both get past it.
@@ -127,20 +128,6 @@ export function CreateView({ onDataUpdate, setActiveView }) {
             setCompanyForm(prev => ({ ...prev, appSlug: slug }));
         }
     }, [companyForm.companyName]);
-
-    // Roving focus: a tablist must respond to Arrow/Home/End, not just clicks.
-    const onTabKeyDown = (event) => {
-        const index = TABS.findIndex((t) => t.id === activeTab);
-        let next = null;
-        if (event.key === 'ArrowRight') next = TABS[(index + 1) % TABS.length];
-        if (event.key === 'ArrowLeft') next = TABS[(index - 1 + TABS.length) % TABS.length];
-        if (event.key === 'Home') next = TABS[0];
-        if (event.key === 'End') next = TABS[TABS.length - 1];
-        if (!next) return;
-        event.preventDefault();
-        setActiveTab(next.id);
-        tabRefs.current[next.id]?.focus();
-    };
 
     // --- HANDLERS ---
 
@@ -241,50 +228,21 @@ export function CreateView({ onDataUpdate, setActiveView }) {
                     )}
                 </header>
 
-                <div
-                    role="tablist"
-                    aria-label="Entity type"
-                    onKeyDown={onTabKeyDown}
-                    className="flex gap-ds-4 overflow-x-auto border-b border-ds-border-subtle"
-                >
-                    {TABS.map((tab) => {
-                        const selected = activeTab === tab.id;
-                        const TabIcon = tab.icon;
-                        return (
-                            <button
-                                key={tab.id}
-                                type="button"
-                                role="tab"
-                                id={`${tabsId}-tab-${tab.id}`}
-                                aria-selected={selected}
-                                aria-controls={`${tabsId}-panel-${tab.id}`}
-                                tabIndex={selected ? 0 : -1}
-                                ref={(node) => { tabRefs.current[tab.id] = node; }}
-                                onClick={() => selectTab(tab.id)}
-                                className={`flex items-center gap-ds-2 whitespace-nowrap border-b-2 px-ds-4 pb-ds-3 text-ds-sm font-bold transition-colors focus-visible:outline-none focus-visible:shadow-ds-focus ${
-                                    selected
-                                        ? 'border-ds-action-primary text-ds-content-link'
-                                        : 'border-transparent text-ds-content-secondary hover:text-ds-content'
-                                }`}
-                            >
-                                <TabIcon size={18} aria-hidden="true" /> {tab.label}
-                            </button>
-                        );
-                    })}
-                </div>
+                <TabList
+                    ariaLabel="Entity type"
+                    idBase={tabsId}
+                    tabs={TABS}
+                    activeTab={activeTab}
+                    onChange={selectTab}
+                    className="overflow-x-auto"
+                />
 
                 {/* Outcome. Replaces the four blocking `alert()` calls; wording preserved. */}
                 <CreateOutcome outcome={outcome} />
 
                 {/* --- TAB 1: CREATE COMPANY --- */}
                 {activeTab === 'company' && (
-                    <div
-                        role="tabpanel"
-                        id={`${tabsId}-panel-company`}
-                        aria-labelledby={`${tabsId}-tab-company`}
-                        tabIndex={0}
-                        className="focus-visible:outline-none focus-visible:shadow-ds-focus"
-                    >
+                    <TabPanel idBase={tabsId} tabId="company">
                         <form onSubmit={handleCompanySubmit}>
                             <Stack gap="lg">
                                 <Card padding="none" className="overflow-hidden">
@@ -488,18 +446,12 @@ export function CreateView({ onDataUpdate, setActiveView }) {
                                 </div>
                             </Stack>
                         </form>
-                    </div>
+                    </TabPanel>
                 )}
 
                 {/* --- TAB 2: CREATE USER --- */}
                 {activeTab === 'user' && (
-                    <div
-                        role="tabpanel"
-                        id={`${tabsId}-panel-user`}
-                        aria-labelledby={`${tabsId}-tab-user`}
-                        tabIndex={0}
-                        className="focus-visible:outline-none focus-visible:shadow-ds-focus"
-                    >
+                    <TabPanel idBase={tabsId} tabId="user">
                         <form onSubmit={handleUserSubmit}>
                             <Stack gap="lg">
                                 <Card padding="none" className="overflow-hidden">
@@ -580,7 +532,7 @@ export function CreateView({ onDataUpdate, setActiveView }) {
                                 </div>
                             </Stack>
                         </form>
-                    </div>
+                    </TabPanel>
                 )}
             </Stack>
         </div>

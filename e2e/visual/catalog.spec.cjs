@@ -77,6 +77,8 @@ const SUBJECTS = [
     ['components-tabs--default', 'tabs'],
     ['components-tabs--vertical', 'tabs-vertical'],
     ['components-tabs--with-badges', 'tabs-with-badges'],
+    ['components-tabs--pill-variant', 'tabs-pill'],
+    ['components-tabs--fitted', 'tabs-fitted'],
     ['components-segmentedcontrol--toned-grid', 'segmented-toned-grid'],
     ['components-segmentedcontrol--with-disabled-option', 'segmented-disabled'],
     ['components-disclosure--default', 'disclosure'],

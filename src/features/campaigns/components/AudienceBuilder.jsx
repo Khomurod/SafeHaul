@@ -7,7 +7,9 @@ import { Filter, Users, RefreshCw, CheckCircle2, UploadCloud, FileSpreadsheet, C
 import { useBulkImport } from '@/shared/hooks/useBulkImport';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import VirtualLeadList from './VirtualLeadList';
-import { Badge, Button, Card, FormField, Input, Select } from '@/design-system/components';
+import {
+    Badge, Button, Card, FormField, Input, Select, TabList, TabPanel,
+} from '@/design-system/components';
 
 const getUploadFingerprint = (rows) => {
     if (!Array.isArray(rows) || rows.length === 0) return 'empty';
@@ -25,13 +27,13 @@ const getUploadFingerprint = (rows) => {
 // frozen state contract ('crm' | 'upload' for the source, and the saved
 // `_importTab` filter key); labels/icons are presentation only.
 const SOURCE_TABS = [
-    { value: 'crm', label: 'CRM Filters', icon: null },
-    { value: 'upload', label: 'Upload List', icon: FileSpreadsheet },
+    { id: 'crm', label: 'CRM Filters' },
+    { id: 'upload', label: 'Upload List', icon: FileSpreadsheet },
 ];
 
 const IMPORT_TABS = [
-    { value: 'file', label: 'File Upload (CSV/XLSX)' },
-    { value: 'sheet', label: 'Google Sheets' },
+    { id: 'file', label: 'File Upload (CSV/XLSX)' },
+    { id: 'sheet', label: 'Google Sheets' },
 ];
 
 // Shared option list for both the CRM and upload "exclude previously messaged"
@@ -42,24 +44,6 @@ const EXCLUDE_RECENT_OPTIONS = [
     { value: '30', label: 'Last 30 Days' },
     { value: 'forever', label: 'All Time (Never Re-send)' },
 ];
-
-/**
- * Moves focus (and selection) across a roving-tabindex tablist. Presentation
- * only — the selected values themselves are unchanged.
- */
-function moveTabFocus(event, tabs, index, container, idPrefix, onSelect) {
-    let nextIndex = null;
-    if (event.key === 'ArrowRight') nextIndex = (index + 1) % tabs.length;
-    else if (event.key === 'ArrowLeft') nextIndex = (index - 1 + tabs.length) % tabs.length;
-    else if (event.key === 'Home') nextIndex = 0;
-    else if (event.key === 'End') nextIndex = tabs.length - 1;
-    if (nextIndex === null) return;
-
-    event.preventDefault();
-    const nextTab = tabs[nextIndex];
-    onSelect(nextTab.value);
-    container.current?.querySelector(`#${idPrefix}-${nextTab.value}`)?.focus();
-}
 
 export function AudienceBuilder({ companyId, filters, onChange, campaignScopeKey = 'default' }) {
     const { currentUser } = useData();
@@ -99,8 +83,6 @@ export function AudienceBuilder({ companyId, filters, onChange, campaignScopeKey
     const lastUploadFingerprintRef = useRef('empty');
     const lastCampaignScopeRef = useRef(campaignScopeKey);
 
-    const sourceTablistRef = useRef(null);
-    const importTablistRef = useRef(null);
     const fileInputRef = useRef(null);
     const rawId = useId().replace(/:/g, '');
     const statusLabelId = `audience-status-label-${rawId}`;
@@ -193,235 +175,185 @@ export function AudienceBuilder({ companyId, filters, onChange, campaignScopeKey
                     <h2 className="mb-ds-2 text-ds-heading-lg font-bold text-ds-content">Target Audience</h2>
                     <p className="text-ds-body text-ds-content-secondary">Define criteria or upload a custom list.</p>
                 </div>
-                <div
-                    ref={sourceTablistRef}
-                    role="tablist"
-                    aria-label="Audience source"
-                    className="inline-flex flex-wrap gap-ds-1 self-start rounded-ds-lg border border-ds-border-subtle bg-ds-surface p-ds-1"
-                >
-                    {SOURCE_TABS.map((tab, index) => {
-                        const selected = activeTab === tab.value;
-                        const Icon = tab.icon;
-                        return (
-                            <button
-                                key={tab.value}
-                                type="button"
-                                role="tab"
-                                id={`audience-source-tab-${tab.value}`}
-                                aria-selected={selected}
-                                aria-controls="audience-source-panel"
-                                tabIndex={selected ? 0 : -1}
-                                onClick={() => setActiveTab(tab.value)}
-                                onKeyDown={(event) => moveTabFocus(
-                                    event, SOURCE_TABS, index, sourceTablistRef, 'audience-source-tab', setActiveTab,
-                                )}
-                                className={`flex items-center gap-ds-2 rounded-ds-md px-ds-4 py-ds-2 text-ds-sm font-semibold transition-colors focus-visible:outline-none focus-visible:shadow-ds-focus ${
-                                    selected
-                                        ? 'bg-ds-action-primary text-ds-content-inverse shadow-ds-sm'
-                                        : 'text-ds-content-muted hover:bg-ds-surface-subtle hover:text-ds-content'
-                                }`}
-                            >
-                                {Icon && <Icon size={16} aria-hidden="true" />}
-                                <span>{tab.label}</span>
-                            </button>
-                        );
-                    })}
-                </div>
+                <TabList
+                    ariaLabel="Audience source"
+                    idBase="audience-source"
+                    tabs={SOURCE_TABS}
+                    activeTab={activeTab}
+                    onChange={setActiveTab}
+                    className="self-start"
+                />
             </div>
 
             <div className="grid grid-cols-1 gap-ds-8 lg:grid-cols-12">
 
                 {/* LEFT COLUMN: FILTERS */}
                 <div className="lg:col-span-4">
-                    <Card
-                        id="audience-source-panel"
-                        role="tabpanel"
-                        aria-labelledby={`audience-source-tab-${activeTab}`}
-                        className="h-full"
-                    >
-                        {activeTab === 'crm' ? (
-                            <>
-                                <h3 className="mb-ds-6 flex items-center gap-ds-2 border-b border-ds-border-subtle pb-ds-4 font-bold text-ds-content">
-                                    <Filter size={18} className="text-ds-action-primary" aria-hidden="true" /> Filter Criteria
-                                </h3>
-                                <div className="flex flex-col gap-ds-6">
-                                    {/* Source */}
-                                    <FormField label="Source">
-                                        <Select
-                                            value={localFilters.leadType || 'applications'}
-                                            onChange={(e) => handleFilterChange('leadType', e.target.value)}
-                                        >
-                                            <option value="applications">Applicants</option>
-                                            <option value="leads">My Leads</option>
-                                        </Select>
-                                    </FormField>
-
-                                    {/* Recruiter */}
-                                    <FormField label="Owner">
-                                        <Select
-                                            value={localFilters.recruiterId || 'all'}
-                                            onChange={(e) => handleFilterChange('recruiterId', e.target.value)}
-                                        >
-                                            <option value="all">All Team Members</option>
-                                            <option value="my_leads">Current User Only</option>
-                                            {team.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                                        </Select>
-                                    </FormField>
-
-                                    {/* Status Pills */}
-                                    <div role="group" aria-labelledby={statusLabelId}>
-                                        <span id={statusLabelId} className="mb-ds-2 block text-ds-xs font-bold uppercase text-ds-content-secondary">
-                                            Status
-                                        </span>
-                                        <div className="flex flex-wrap gap-ds-2">
-                                            {APPLICATION_STATUSES.map((status) => {
-                                                const isActive = localFilters.status?.includes(status.id);
-                                                return (
-                                                    <button
-                                                        key={status.id}
-                                                        type="button"
-                                                        aria-pressed={isActive}
-                                                        onClick={() => {
-                                                            const current = localFilters.status || [];
-                                                            const newVal = isActive ? current.filter(s => s !== status.id) : [...current, status.id];
-                                                            handleFilterChange('status', newVal);
-                                                        }}
-                                                        className={`flex items-center gap-ds-1 rounded-ds-md border px-ds-3 py-ds-1 text-ds-xs font-bold transition-colors focus-visible:outline-none focus-visible:shadow-ds-focus ${
-                                                            isActive
-                                                                ? 'border-ds-action-primary bg-ds-action-primary text-ds-content-inverse shadow-ds-xs'
-                                                                : 'border-ds-border bg-ds-surface text-ds-content-secondary hover:border-ds-border hover:bg-ds-surface-subtle'
-                                                        }`}
-                                                    >
-                                                        {/* Icon + pressed state so selection is never colour-only. */}
-                                                        {isActive && <Check size={12} aria-hidden="true" />}
-                                                        {status.label}
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-
-                                    {/* Exclude Previously Messaged */}
-                                    <div className="border-t border-ds-border-subtle pt-ds-4">
-                                        {excludeRecentField('off')}
-                                    </div>
-
-                                    <FormField label="Limit Volume" description="Leave empty to message all matches.">
-                                        <Input
-                                            type="number"
-                                            placeholder="No Limit"
-                                            value={localFilters.campaignLimit || ''}
-                                            onChange={(e) => handleFilterChange('campaignLimit', e.target.value)}
-                                        />
-                                    </FormField>
-                                </div>
-                            </>
-                        ) : (
-                            /* UPLOAD MODE UI (Simplified for brevity, logic maintained) */
-                            <div className="flex flex-col gap-ds-6">
-                                <div
-                                    ref={importTablistRef}
-                                    role="tablist"
-                                    aria-label="Import method"
-                                    className="flex flex-wrap justify-center gap-ds-2"
-                                >
-                                    {IMPORT_TABS.map((tab, index) => {
-                                        const selected = activeImportTab === tab.value;
-                                        return (
-                                            <button
-                                                key={tab.value}
-                                                type="button"
-                                                role="tab"
-                                                id={`audience-import-tab-${tab.value}`}
-                                                aria-selected={selected}
-                                                aria-controls="audience-import-panel"
-                                                tabIndex={selected ? 0 : -1}
-                                                onClick={() => setLocalFilters(p => ({ ...p, _importTab: tab.value }))}
-                                                onKeyDown={(event) => moveTabFocus(
-                                                    event, IMPORT_TABS, index, importTablistRef, 'audience-import-tab',
-                                                    (value) => setLocalFilters(p => ({ ...p, _importTab: value })),
-                                                )}
-                                                className={`rounded-ds-md px-ds-4 py-ds-2 text-ds-sm font-bold transition-colors focus-visible:outline-none focus-visible:shadow-ds-focus ${
-                                                    selected
-                                                        ? 'bg-ds-status-info-bg text-ds-status-info-fg'
-                                                        : 'text-ds-content-muted hover:bg-ds-surface-subtle hover:text-ds-content'
-                                                }`}
+                    <TabPanel idBase="audience-source" tabId={activeTab} className="h-full">
+                        <Card className="h-full">
+                            {activeTab === 'crm' ? (
+                                <>
+                                    <h3 className="mb-ds-6 flex items-center gap-ds-2 border-b border-ds-border-subtle pb-ds-4 font-bold text-ds-content">
+                                        <Filter size={18} className="text-ds-action-primary" aria-hidden="true" /> Filter Criteria
+                                    </h3>
+                                    <div className="flex flex-col gap-ds-6">
+                                        {/* Source */}
+                                        <FormField label="Source">
+                                            <Select
+                                                value={localFilters.leadType || 'applications'}
+                                                onChange={(e) => handleFilterChange('leadType', e.target.value)}
                                             >
-                                                {tab.label}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
+                                                <option value="applications">Applicants</option>
+                                                <option value="leads">My Leads</option>
+                                            </Select>
+                                        </FormField>
 
-                                <div
-                                    id="audience-import-panel"
-                                    role="tabpanel"
-                                    aria-labelledby={`audience-import-tab-${activeImportTab}`}
-                                >
-                                    {activeImportTab === 'file' ? (
-                                        <div className="flex flex-col items-center gap-ds-3 rounded-ds-lg border-2 border-dashed border-ds-border p-ds-6 text-center">
-                                            <UploadCloud className="text-ds-action-primary" size={40} aria-hidden="true" />
-                                            <h3 className="font-bold text-ds-content">Upload a recipient list</h3>
-                                            {/* The design system has no approved file-input primitive yet, so this
-                                                is a documented feature-level composition: a single visually hidden
-                                                but labelled native input triggered by the approved Button — no
-                                                nested interactive controls, and the accept list is unchanged. */}
-                                            <input
-                                                ref={fileInputRef}
-                                                id={fileInputId}
-                                                type="file"
-                                                onChange={handleFileChange}
-                                                className="ds-visually-hidden"
-                                                tabIndex={-1}
-                                                aria-label="Upload recipient list file"
-                                                aria-describedby={fileHelpId}
-                                                accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
+                                        {/* Recruiter */}
+                                        <FormField label="Owner">
+                                            <Select
+                                                value={localFilters.recruiterId || 'all'}
+                                                onChange={(e) => handleFilterChange('recruiterId', e.target.value)}
+                                            >
+                                                <option value="all">All Team Members</option>
+                                                <option value="my_leads">Current User Only</option>
+                                                {team.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                                            </Select>
+                                        </FormField>
+
+                                        {/* Status Pills */}
+                                        <div role="group" aria-labelledby={statusLabelId}>
+                                            <span id={statusLabelId} className="mb-ds-2 block text-ds-xs font-bold uppercase text-ds-content-secondary">
+                                                Status
+                                            </span>
+                                            <div className="flex flex-wrap gap-ds-2">
+                                                {APPLICATION_STATUSES.map((status) => {
+                                                    const isActive = localFilters.status?.includes(status.id);
+                                                    return (
+                                                        <button
+                                                            key={status.id}
+                                                            type="button"
+                                                            aria-pressed={isActive}
+                                                            onClick={() => {
+                                                                const current = localFilters.status || [];
+                                                                const newVal = isActive ? current.filter(s => s !== status.id) : [...current, status.id];
+                                                                handleFilterChange('status', newVal);
+                                                            }}
+                                                            className={`flex items-center gap-ds-1 rounded-ds-md border px-ds-3 py-ds-1 text-ds-xs font-bold transition-colors focus-visible:outline-none focus-visible:shadow-ds-focus ${
+                                                                isActive
+                                                                    ? 'border-ds-action-primary bg-ds-action-primary text-ds-content-inverse shadow-ds-xs'
+                                                                    : 'border-ds-border bg-ds-surface text-ds-content-secondary hover:border-ds-border hover:bg-ds-surface-subtle'
+                                                            }`}
+                                                        >
+                                                            {/* Icon + pressed state so selection is never colour-only. */}
+                                                            {isActive && <Check size={12} aria-hidden="true" />}
+                                                            {status.label}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+
+                                        {/* Exclude Previously Messaged */}
+                                        <div className="border-t border-ds-border-subtle pt-ds-4">
+                                            {excludeRecentField('off')}
+                                        </div>
+
+                                        <FormField label="Limit Volume" description="Leave empty to message all matches.">
+                                            <Input
+                                                type="number"
+                                                placeholder="No Limit"
+                                                value={localFilters.campaignLimit || ''}
+                                                onChange={(e) => handleFilterChange('campaignLimit', e.target.value)}
                                             />
-                                            <Button
-                                                variant="secondary"
-                                                aria-describedby={fileHelpId}
-                                                onClick={() => fileInputRef.current?.click()}
-                                            >
-                                                Choose file
-                                            </Button>
-                                            <p id={fileHelpId} className="text-ds-xs text-ds-content-secondary">
-                                                Support: .csv, .xlsx, .xls
-                                            </p>
-                                        </div>
-                                    ) : (
-                                        <div className="flex flex-col gap-ds-3 rounded-ds-lg border border-ds-border-subtle p-ds-6">
-                                            <FileSpreadsheet className="mx-auto text-ds-status-success-fg" size={40} aria-hidden="true" />
-                                            <h3 className="text-center font-bold text-ds-content">Paste Sheet URL</h3>
-                                            <FormField
-                                                label="Google Sheet URL"
-                                                description='Make sure the sheet is accessible to "Anyone with the link" or public.'
-                                            >
-                                                <Input
-                                                    type="text"
-                                                    placeholder="https://docs.google.com/spreadsheets/d/..."
-                                                    value={sheetUrl}
-                                                    onChange={(e) => setSheetUrl(e.target.value)}
+                                        </FormField>
+                                    </div>
+                                </>
+                            ) : (
+                                /* UPLOAD MODE UI (Simplified for brevity, logic maintained) */
+                                <div className="flex flex-col gap-ds-6">
+                                    {/*
+                                      `variant="pill"` because this strip sits INSIDE
+                                      the source panel: an underline here would read as
+                                      a second page-level strip competing with the one
+                                      above it. Same control, same keyboard model — only
+                                      the selected treatment differs.
+                                    */}
+                                    <TabList
+                                        ariaLabel="Import method"
+                                        idBase="audience-import"
+                                        tabs={IMPORT_TABS}
+                                        activeTab={activeImportTab}
+                                        onChange={(value) => setLocalFilters(prev => ({ ...prev, _importTab: value }))}
+                                        variant="pill"
+                                        className="justify-center"
+                                    />
+
+                                    <TabPanel idBase="audience-import" tabId={activeImportTab}>
+                                        {activeImportTab === 'file' ? (
+                                            <div className="flex flex-col items-center gap-ds-3 rounded-ds-lg border-2 border-dashed border-ds-border p-ds-6 text-center">
+                                                <UploadCloud className="text-ds-action-primary" size={40} aria-hidden="true" />
+                                                <h3 className="font-bold text-ds-content">Upload a recipient list</h3>
+                                                {/* The design system has no approved file-input primitive yet, so this
+                                                    is a documented feature-level composition: a single visually hidden
+                                                    but labelled native input triggered by the approved Button — no
+                                                    nested interactive controls, and the accept list is unchanged. */}
+                                                <input
+                                                    ref={fileInputRef}
+                                                    id={fileInputId}
+                                                    type="file"
+                                                    onChange={handleFileChange}
+                                                    className="ds-visually-hidden"
+                                                    tabIndex={-1}
+                                                    aria-label="Upload recipient list file"
+                                                    aria-describedby={fileHelpId}
+                                                    accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
                                                 />
-                                            </FormField>
-                                            <Button
-                                                variant="primary"
-                                                onClick={handleSheetImport}
-                                                loading={processingSheet}
-                                            >
-                                                {processingSheet ? 'Loading...' : 'Import'}
-                                            </Button>
-                                        </div>
-                                    )}
+                                                <Button
+                                                    variant="secondary"
+                                                    aria-describedby={fileHelpId}
+                                                    onClick={() => fileInputRef.current?.click()}
+                                                >
+                                                    Choose file
+                                                </Button>
+                                                <p id={fileHelpId} className="text-ds-xs text-ds-content-secondary">
+                                                    Support: .csv, .xlsx, .xls
+                                                </p>
+                                            </div>
+                                        ) : (
+                                            <div className="flex flex-col gap-ds-3 rounded-ds-lg border border-ds-border-subtle p-ds-6">
+                                                <FileSpreadsheet className="mx-auto text-ds-status-success-fg" size={40} aria-hidden="true" />
+                                                <h3 className="text-center font-bold text-ds-content">Paste Sheet URL</h3>
+                                                <FormField
+                                                    label="Google Sheet URL"
+                                                    description='Make sure the sheet is accessible to "Anyone with the link" or public.'
+                                                >
+                                                    <Input
+                                                        type="text"
+                                                        placeholder="https://docs.google.com/spreadsheets/d/..."
+                                                        value={sheetUrl}
+                                                        onChange={(e) => setSheetUrl(e.target.value)}
+                                                    />
+                                                </FormField>
+                                                <Button
+                                                    variant="primary"
+                                                    onClick={handleSheetImport}
+                                                    loading={processingSheet}
+                                                >
+                                                    {processingSheet ? 'Loading...' : 'Import'}
+                                                </Button>
+                                            </div>
+                                        )}
+                                    </TabPanel>
+
+                                    {/* Exclude Previously Messaged for Uploads */}
+                                    <div className="border-t border-ds-border-subtle pt-ds-4">
+                                        {excludeRecentField('7')}
+                                    </div>
                                 </div>
 
-                                {/* Exclude Previously Messaged for Uploads */}
-                                <div className="border-t border-ds-border-subtle pt-ds-4">
-                                    {excludeRecentField('7')}
-                                </div>
-                            </div>
-
-                        )}
-                    </Card>
+                            )}
+                        </Card>
+                    </TabPanel>
                 </div>
 
                 {/* RIGHT COLUMN: PREVIEW */}

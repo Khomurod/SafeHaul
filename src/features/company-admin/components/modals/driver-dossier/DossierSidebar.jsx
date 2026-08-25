@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React from 'react';
 import {
     LayoutDashboard,
     FileText,
@@ -9,7 +9,7 @@ import {
     Mail,
     History,
 } from 'lucide-react';
-import { ButtonLink } from '@design-system/components';
+import { ButtonLink, TabList } from '@design-system/components';
 import { StatusBadge } from '@shared/components/badges/StatusBadge';
 import { useCompactViewport } from './useCompactViewport';
 
@@ -22,12 +22,20 @@ import { useCompactViewport } from './useCompactViewport';
  * their visible labels, the exact `setActiveTab(id)` values, the
  * `tel:` / `mailto:` href schemes, and the `dqStatus === 'incomplete'` rule.
  *
- * DOCUMENTED EXCEPTION — feature-owned WAI-ARIA tab composition.
- * The design system has no approved Tabs primitive (`SectionNavigation` is a
- * vertical `nav` with `aria-current`, not a tablist), so this is a documented
- * feature-owned composition, matching the Documents Center precedent: real
- * `role="tablist"`/`role="tab"`, `aria-selected`, `aria-controls`, roving
- * `tabIndex`, and automatic activation on Arrow/Home/End.
+ * The strip is the design system's `TabList` (2026-08-25). It was a feature-owned
+ * WAI-ARIA composition, recorded as an exception because "the design system has
+ * no approved Tabs primitive" — true when it was written, and untrue from
+ * 2026-08-21, when `TabList` shipped naming this file as one of its nine intended
+ * consumers. This is the split-across-components case the primitive's `tabIds`
+ * export exists for: the sidebar owns the strip and `DriverProfileModal` owns the
+ * panel, and they now derive their ids from one `idBase` instead of passing two
+ * id-builder functions between them.
+ *
+ * `orientation` still follows the viewport, because that is a property of this
+ * dossier's layout rather than of tabs in general: the strip is a horizontal row
+ * on a phone and a vertical rail on a desktop, and `aria-orientation` has to
+ * describe the one the user is looking at, or the arrow keys announce the wrong
+ * axis.
  *
  * DEFECTS FIXED (2026-07-27):
  * - The navigation was six plain `<button>`s. There was no `tablist`, no
@@ -52,8 +60,6 @@ const NAV_ITEMS = [
     { id: 'notes', label: 'Notes', icon: StickyNote },
 ];
 
-const TAB_KEYS = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End']);
-
 export function DossierSidebar({
     appData,
     currentStatus,
@@ -61,10 +67,8 @@ export function DossierSidebar({
     setActiveTab,
     loading,
     dqStatus,
-    tabPanelId,
-    tabIdFor = (tab) => `dossier-tab-${tab}`,
+    idBase = 'dossier',
 }) {
-    const tabRefs = useRef({});
     const isCompact = useCompactViewport();
 
     // Contact Logic
@@ -77,25 +81,6 @@ export function DossierSidebar({
     // Automatic activation: Arrow/Home/End both move focus and select, so the
     // panel always matches the focused tab. Both axes are handled because the
     // strip is horizontal on small screens and vertical from `sm` up.
-    const handleTabKeyDown = (event) => {
-        if (!TAB_KEYS.has(event.key)) return;
-        event.preventDefault();
-        const currentIndex = NAV_ITEMS.findIndex((item) => item.id === activeTab);
-        const lastIndex = NAV_ITEMS.length - 1;
-        let nextIndex = currentIndex;
-        if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') {
-            nextIndex = (currentIndex - 1 + NAV_ITEMS.length) % NAV_ITEMS.length;
-        }
-        if (event.key === 'ArrowDown' || event.key === 'ArrowRight') {
-            nextIndex = (currentIndex + 1) % NAV_ITEMS.length;
-        }
-        if (event.key === 'Home') nextIndex = 0;
-        if (event.key === 'End') nextIndex = lastIndex;
-        const nextTab = NAV_ITEMS[nextIndex];
-        setActiveTab(nextTab.id);
-        tabRefs.current[nextTab.id]?.focus();
-    };
-
     return (
         <div className="flex h-full flex-col">
             {/* Identity Header */}
@@ -164,57 +149,26 @@ export function DossierSidebar({
             </div>
 
             {/* Navigation */}
-            <div
-                role="tablist"
-                aria-label="Driver dossier sections"
-                aria-orientation={isCompact ? 'horizontal' : 'vertical'}
-                onKeyDown={handleTabKeyDown}
-                className="flex flex-row gap-ds-1 overflow-x-auto px-ds-2 py-ds-2 sm:flex-1 sm:flex-col sm:overflow-x-visible sm:overflow-y-auto sm:px-ds-3 sm:py-ds-4"
-            >
-                {NAV_ITEMS.map((item) => {
-                    const Icon = item.icon;
-                    const isSelected = activeTab === item.id;
-                    const flagIncomplete = item.id === 'dq' && dqStatus === 'incomplete';
-                    return (
-                        <button
-                            key={item.id}
-                            ref={(node) => { tabRefs.current[item.id] = node; }}
-                            type="button"
-                            role="tab"
-                            id={tabIdFor(item.id)}
-                            aria-selected={isSelected}
-                            aria-controls={tabPanelId}
-                            // Roving tabIndex: only the selected tab is in the tab order.
-                            tabIndex={isSelected ? 0 : -1}
-                            onClick={() => setActiveTab(item.id)}
-                            className={`flex min-h-11 shrink-0 items-center gap-ds-3 whitespace-nowrap rounded-ds-md px-ds-4 py-ds-3 text-ds-sm font-medium transition-colors focus-visible:outline-none focus-visible:shadow-ds-focus sm:w-full ${
-                                isSelected
-                                    ? 'border border-ds-border-subtle bg-ds-surface text-ds-content-link shadow-ds-xs'
-                                    : 'border border-transparent text-ds-content-secondary hover:bg-ds-surface hover:text-ds-content'
-                            }`}
-                        >
-                            <Icon
-                                size={18}
+            <TabList
+                ariaLabel="Driver dossier sections"
+                idBase={idBase}
+                activeTab={activeTab}
+                onChange={setActiveTab}
+                orientation={isCompact ? 'horizontal' : 'vertical'}
+                className="gap-ds-1 overflow-x-auto px-ds-2 py-ds-2 sm:flex-1 sm:overflow-x-visible sm:overflow-y-auto sm:px-ds-3 sm:py-ds-4"
+                tabs={NAV_ITEMS.map((item) => ({
+                    ...item,
+                    badge: item.id === 'dq' && dqStatus === 'incomplete' ? (
+                        <>
+                            <span
                                 aria-hidden="true"
-                                className={isSelected ? 'text-ds-action-primary' : 'text-ds-content-muted'}
+                                className="ml-auto h-2 w-2 shrink-0 rounded-ds-full bg-ds-status-danger-fg"
                             />
-                            <span>{item.label}</span>
-                            {/* Selection is carried by aria-selected plus this text, never
-                                by the background colour alone. */}
-                            {isSelected && <span className="ds-visually-hidden"> (selected)</span>}
-                            {flagIncomplete && (
-                                <>
-                                    <span
-                                        aria-hidden="true"
-                                        className="ml-auto h-2 w-2 shrink-0 rounded-ds-full bg-ds-status-danger-fg"
-                                    />
-                                    <span className="ds-visually-hidden">— incomplete</span>
-                                </>
-                            )}
-                        </button>
-                    );
-                })}
-            </div>
+                            <span className="ds-visually-hidden">— incomplete</span>
+                        </>
+                    ) : null,
+                }))}
+            />
 
         </div>
     );

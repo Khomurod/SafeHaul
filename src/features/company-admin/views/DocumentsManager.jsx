@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useId, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useId } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db, auth } from '@lib/firebase';
 import { getFunctions, httpsCallable } from 'firebase/functions';
@@ -29,7 +29,7 @@ import { DEFAULT_FILTERS, isTemplateDuplicable } from '../utils/documentsWorkspa
 import { FeatureLockedModal } from '@shared/components/modals/FeatureLockedModal';
 import { ConfirmDialog } from '@design-system/patterns';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
-import { Button } from '@/design-system/components';
+import { Button, TabList, TabPanel } from '@/design-system/components';
 import { Inline, PageContainer, PageHeader, Stack } from '@/design-system/layouts';
 
 /**
@@ -47,8 +47,6 @@ const DOCUMENT_TABS = [
     { id: 'templates', label: 'Templates', icon: FileText },
     { id: 'forms', label: 'Application Forms', icon: ClipboardList },
 ];
-
-const TAB_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'Home', 'End']);
 
 export default function DocumentsManager() {
     const { currentCompanyProfile, loading } = useData();
@@ -95,10 +93,7 @@ export default function DocumentsManager() {
     const [deletingTemplate, setDeletingTemplate] = useState(false);
     const isE2EEdocMock = isE2ETestMode && getE2EQueryParam('e2eEdoc', '') === 'mock';
 
-    const rawId = useId().replace(/:/g, '');
-    const tabPanelId = `edocs-tabpanel-${rawId}`;
-    const tabIdFor = (value) => `edocs-tab-${value}-${rawId}`;
-    const tabRefs = useRef({});
+    const tabsIdBase = `edocs-${useId().replace(/:/g, '')}`;
 
     // One live subscription for the whole workspace: Overview metrics and the
     // Sent Documents table read the same documents rather than opening two
@@ -109,23 +104,6 @@ export default function DocumentsManager() {
         loadError: signingRequestsError,
         retry: retrySigningRequests,
     } = useSigningRequests(isE2EEdocMock ? null : currentCompanyProfile?.id);
-
-    // Automatic activation: arrow/Home/End both select and move focus, so the
-    // panel always matches the focused tab.
-    const handleTabKeyDown = (event) => {
-        if (!TAB_KEYS.has(event.key)) return;
-        event.preventDefault();
-        const currentIndex = DOCUMENT_TABS.findIndex((tab) => tab.id === activeTab);
-        const lastIndex = DOCUMENT_TABS.length - 1;
-        let nextIndex = currentIndex;
-        if (event.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + DOCUMENT_TABS.length) % DOCUMENT_TABS.length;
-        if (event.key === 'ArrowRight') nextIndex = (currentIndex + 1) % DOCUMENT_TABS.length;
-        if (event.key === 'Home') nextIndex = 0;
-        if (event.key === 'End') nextIndex = lastIndex;
-        const nextTab = DOCUMENT_TABS[nextIndex];
-        setActiveTab(nextTab.id);
-        tabRefs.current[nextTab.id]?.focus();
-    };
 
     if (currentCompanyProfile?.features?.eDocs === false) {
         return <FeatureLockedModal featureName="E-Docs" onClose={() => navigate('/company/dashboard')} />;
@@ -613,48 +591,18 @@ export default function DocumentsManager() {
                         />
                     </Stack>
 
-                    <div
-                        role="tablist"
-                        aria-label="Documents workspace views"
-                        onKeyDown={handleTabKeyDown}
-                        className="flex flex-wrap rounded-t-ds-xl border-b border-ds-border bg-ds-surface px-ds-2"
-                    >
-                        {DOCUMENT_TABS.map((tab) => {
-                            const Icon = tab.icon;
-                            const isSelected = activeTab === tab.id;
-                            return (
-                                <button
-                                    key={tab.id}
-                                    ref={(node) => { tabRefs.current[tab.id] = node; }}
-                                    type="button"
-                                    role="tab"
-                                    id={tabIdFor(tab.id)}
-                                    aria-selected={isSelected}
-                                    aria-controls={tabPanelId}
-                                    // Roving tabIndex: only the selected tab is in the tab order.
-                                    tabIndex={isSelected ? 0 : -1}
-                                    onClick={() => setActiveTab(tab.id)}
-                                    className={`flex min-h-11 items-center gap-ds-2 border-b-2 px-ds-5 py-ds-4 text-ds-sm font-bold transition-colors focus-visible:outline-none focus-visible:shadow-ds-focus ${
-                                        isSelected
-                                            ? 'border-ds-action-primary text-ds-action-primary'
-                                            : 'border-transparent text-ds-content-secondary hover:text-ds-content'
-                                    }`}
-                                >
-                                    <Icon size={16} aria-hidden="true" />
-                                    {tab.label}
-                                    {/* Selection is carried by aria-selected plus this text, never
-                                        by the underline colour alone. */}
-                                    {isSelected && <span className="ds-visually-hidden"> (selected)</span>}
-                                </button>
-                            );
-                        })}
-                    </div>
+                    <TabList
+                        ariaLabel="Documents workspace views"
+                        idBase={tabsIdBase}
+                        tabs={DOCUMENT_TABS}
+                        activeTab={activeTab}
+                        onChange={setActiveTab}
+                        className="rounded-t-ds-xl bg-ds-surface px-ds-2"
+                    />
 
-                    <div
-                        id={tabPanelId}
-                        role="tabpanel"
-                        aria-labelledby={tabIdFor(activeTab)}
-                        tabIndex={-1}
+                    <TabPanel
+                        idBase={tabsIdBase}
+                        tabId={activeTab}
                         className="animate-in fade-in slide-in-from-bottom-2 duration-300"
                     >
                         {activeTab === 'overview' && (
@@ -722,7 +670,7 @@ export default function DocumentsManager() {
                                 togglePostSubmitTemplate={togglePostSubmitTemplate}
                             />
                         )}
-                    </div>
+                    </TabPanel>
                 </Stack>
             </PageContainer>
 

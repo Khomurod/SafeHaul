@@ -4,7 +4,7 @@ import { useApplicationView } from '@features/company-admin/hooks/useApplication
 import { useApplicationDelete } from '@features/applications/hooks/useApplicationDelete';
 import { useData } from '@/context/DataContext';
 import { Modal } from '@design-system/patterns';
-import { Button } from '@/design-system/components';
+import { Button, TabPanel } from '@/design-system/components';
 import { DossierSidebar } from './DossierSidebar';
 import { DossierHeader } from './DossierHeader';
 import { DossierContent } from './DossierContent';
@@ -59,9 +59,14 @@ export function DriverProfileModal({
     const [confirmingDelete, setConfirmingDelete] = useState(false);
     const cancelDeleteRef = useRef(null);
     const tabPanelRef = useRef(null);
-    const rawId = useId().replace(/:/g, '');
-    const tabPanelId = `dossier-panel-${rawId}`;
-    const tabIdFor = (tab) => `dossier-tab-${tab}-${rawId}`;
+    /*
+      One id base, shared with the sidebar that renders the strip.
+      `tabIds` derives both halves of the `aria-controls` / `aria-labelledby`
+      pair from it, which is why this component no longer hands two
+      id-builder functions across a prop boundary — that was the drift the
+      primitive's `tabIds` export was written to prevent.
+    */
+    const tabsIdBase = `dossier-${useId().replace(/:/g, '')}`;
 
     const { currentUserClaims } = useData();
     const isCompanyAdmin = currentUserClaims?.roles?.[companyId] === 'company_admin'
@@ -133,8 +138,7 @@ export function DriverProfileModal({
                         setActiveTab={setActiveTab}
                         loading={loading}
                         dqStatus={dqStatus}
-                        tabPanelId={tabPanelId}
-                        tabIdFor={tabIdFor}
+                        idBase={tabsIdBase}
                     />
                 </div>
 
@@ -172,13 +176,11 @@ export function DriverProfileModal({
                       keyboard-focusable so a keyboard user can scroll long tab
                       content without tabbing through every control inside it.
                     */}
-                    <div
+                    <TabPanel
                         ref={tabPanelRef}
-                        id={tabPanelId}
-                        role="tabpanel"
-                        aria-labelledby={tabIdFor(activeTab)}
-                        tabIndex={0}
-                        className="relative flex-1 overflow-y-auto overflow-x-hidden bg-ds-surface p-ds-4 focus-visible:outline-none focus-visible:shadow-ds-focus sm:p-ds-6"
+                        idBase={tabsIdBase}
+                        tabId={activeTab}
+                        className="relative flex-1 overflow-y-auto overflow-x-hidden bg-ds-surface p-ds-4 sm:p-ds-6"
                     >
                         {loading ? (
                             <div
@@ -208,7 +210,7 @@ export function DriverProfileModal({
                                 canEdit={canEdit}
                             />
                         )}
-                    </div>
+                    </TabPanel>
                 </div>
             </Modal>
 

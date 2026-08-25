@@ -288,15 +288,25 @@ describe('DocumentsManager views', () => {
         expect(screen.queryByTestId('documents-overview')).not.toBeInTheDocument();
     });
 
+    /*
+     * The strip is the design system's `TabList` since 2026-08-25.
+     *
+     * `aria-controls` is on the SELECTED tab only. One panel is rendered, so
+     * pointing all four tabs at it was fine here but is not the primitive's
+     * contract — it renders a panel per selected tab, and an unselected tab
+     * pointing at an id that does not exist is a dangling IDREF. The ARIA tab
+     * pattern makes the attribute optional in exactly that case.
+     */
     it('exposes a labelled tablist with connected tabs and panel', () => {
         renderManager();
         expect(screen.getByRole('tablist', { name: 'Documents workspace views' })).toBeInTheDocument();
 
         const panel = screen.getByRole('tabpanel');
         const all = tabs();
-        for (const tab of Object.values(all)) {
-            expect(tab).toHaveAttribute('aria-controls', panel.id);
+        expect(all.overview).toHaveAttribute('aria-controls', panel.id);
+        for (const [name, tab] of Object.entries(all)) {
             expect(tab.id).toBeTruthy();
+            if (name !== 'overview') expect(tab).not.toHaveAttribute('aria-controls');
         }
         expect(new Set(Object.values(all).map((tab) => tab.id)).size).toBe(4);
         expect(panel).toHaveAttribute('aria-labelledby', all.overview.id);
@@ -315,10 +325,20 @@ describe('DocumentsManager views', () => {
         expect(tabs().sent).toHaveAttribute('tabindex', '0');
     });
 
-    it('states the selected tab with text as well as colour', () => {
+    /*
+     * Selection is `aria-selected`, and the name is only the label.
+     *
+     * This used to assert a visually-hidden "(selected)" inside the tab. The
+     * primitive dropped it: it made the selected tab announce its state twice and
+     * put state inside the accessible NAME, so every exact-match query for a tab
+     * had to know about it. The visual concern it was aimed at — selection by
+     * colour alone — is handled by a `forced-colors` rule in `Tabs.css`.
+     */
+    it('states the selected tab in aria-selected, not in its name', () => {
         renderManager();
-        expect(tabs().overview).toHaveTextContent('(selected)');
-        expect(tabs().sent).not.toHaveTextContent('(selected)');
+        expect(tabs().overview).toHaveAttribute('aria-selected', 'true');
+        expect(tabs().overview).toHaveAccessibleName('Overview');
+        expect(tabs().sent).toHaveAttribute('aria-selected', 'false');
     });
 
     it('moves selection and focus with ArrowRight and ArrowLeft, wrapping at the ends', () => {

@@ -1,10 +1,12 @@
-import React, { useId, useRef, useState } from 'react';
+import React, { useId, useState } from 'react';
 import {
     BarChart3, Download, Users, Phone,
     Zap, TrendingUp, ArrowUpRight, User
 } from 'lucide-react';
 import { useAnalytics } from '@features/analytics';
-import { Badge, Button, Card, MetricCard } from '@/design-system/components';
+import {
+    Badge, Button, Card, MetricCard, TabList, TabPanel,
+} from '@/design-system/components';
 import { ResponsiveGrid, Stack } from '@/design-system/layouts';
 
 /**
@@ -142,7 +144,6 @@ const DATE_RANGES = ['7d', '30d', '90d'];
 export function AnalyticsView() {
     const { loading, stats, dateRange, setDateRange } = useAnalytics();
     const [activeTab, setActiveTab] = useState('overview');
-    const tabRefs = useRef({});
     const tabsId = useId();
 
     const handleExport = () => {
@@ -173,20 +174,6 @@ export function AnalyticsView() {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-    };
-
-    // Roving focus: a tablist must respond to Arrow/Home/End, not just clicks.
-    const onTabKeyDown = (event) => {
-        const index = TABS.findIndex((t) => t.id === activeTab);
-        let next = null;
-        if (event.key === 'ArrowRight') next = TABS[(index + 1) % TABS.length];
-        if (event.key === 'ArrowLeft') next = TABS[(index - 1 + TABS.length) % TABS.length];
-        if (event.key === 'Home') next = TABS[0];
-        if (event.key === 'End') next = TABS[TABS.length - 1];
-        if (!next) return;
-        event.preventDefault();
-        setActiveTab(next.id);
-        tabRefs.current[next.id]?.focus();
     };
 
     if (loading) {
@@ -248,43 +235,19 @@ export function AnalyticsView() {
 
             {/* 3. Tabs & Content */}
             <Card padding="none" className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                <div
-                    role="tablist"
-                    aria-label="Analytics views"
-                    onKeyDown={onTabKeyDown}
-                    className="flex overflow-x-auto border-b border-ds-border-subtle px-ds-6 pt-ds-2"
-                >
-                    {TABS.map((tab) => {
-                        const selected = activeTab === tab.id;
-                        return (
-                            <button
-                                key={tab.id}
-                                type="button"
-                                role="tab"
-                                id={`${tabsId}-tab-${tab.id}`}
-                                aria-selected={selected}
-                                aria-controls={`${tabsId}-panel-${tab.id}`}
-                                tabIndex={selected ? 0 : -1}
-                                ref={(node) => { tabRefs.current[tab.id] = node; }}
-                                onClick={() => setActiveTab(tab.id)}
-                                className={`whitespace-nowrap border-b-2 px-ds-4 py-ds-3 text-ds-sm font-bold transition-colors focus-visible:outline-none focus-visible:shadow-ds-focus ${
-                                    selected
-                                        ? 'border-ds-action-primary text-ds-content-link'
-                                        : 'border-transparent text-ds-content-muted hover:text-ds-content'
-                                }`}
-                            >
-                                {tab.label}
-                            </button>
-                        );
-                    })}
-                </div>
+                <TabList
+                    ariaLabel="Analytics views"
+                    idBase={tabsId}
+                    tabs={TABS}
+                    activeTab={activeTab}
+                    onChange={setActiveTab}
+                    className="overflow-x-auto px-ds-6 pt-ds-2"
+                />
 
-                <div
-                    role="tabpanel"
-                    id={`${tabsId}-panel-${activeTab}`}
-                    aria-labelledby={`${tabsId}-tab-${activeTab}`}
-                    tabIndex={0}
-                    className="flex-1 overflow-auto bg-ds-canvas p-ds-6 focus-visible:outline-none focus-visible:shadow-ds-focus"
+                <TabPanel
+                    idBase={tabsId}
+                    tabId={activeTab}
+                    className="flex-1 overflow-auto bg-ds-canvas p-ds-6"
                 >
 
                     {activeTab === 'overview' && (
@@ -416,7 +379,7 @@ export function AnalyticsView() {
                             </table>
                         </Card>
                     )}
-                </div>
+                </TabPanel>
             </Card>
         </Stack>
     );
