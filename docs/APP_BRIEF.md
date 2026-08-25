@@ -938,6 +938,19 @@ Note that Tailwind's radius and shadow scales share their names with the
 
 **Current limitations:**
 
+- **`workflow_dispatch` on the CI/CD pipeline is not branch-guarded.** The
+  Testing deploy, the shared Cloud Functions rollout and the release record all
+  gate on
+  `((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch')`.
+  The `push` arm is correctly pinned to `main`; the `workflow_dispatch` arm is
+  not pinned to anything, so manually dispatching the pipeline from a feature
+  branch deploys that branch to the Testing site and rolls out its Cloud
+  Functions — which are shared with Production. A pull request cannot do this
+  (`pull_request` matches neither arm). Found 2026-08-25 while looking for a way
+  to get CI evidence for a branch with no open PR; **not changed**, because
+  §"Changing the release pipeline" in `CLAUDE.md` requires fixing the family
+  rather than the instance and watching a real `main` run afterwards, and a
+  pull request cannot exercise the path. Needs its own reviewed change.
 - **Every form input zooms the viewport on an iPhone.** iOS Safari zooms in when
   a focused input's `font-size` is under 16px and does not zoom back out; the
   shared control scale is 13–15px at all three sizes, so this affects every form
