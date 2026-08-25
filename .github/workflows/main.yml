@@ -712,7 +712,8 @@ jobs:
       !cancelled() &&
       github.repository == 'Khomurod/SafeHaul' &&
       needs.release-validation.result == 'success' &&
-      ((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch')
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     concurrency:
       # Serialised against itself, but NOT against a production promotion — the
       # two touch different Hosting sites and must not cancel one another.
@@ -852,7 +853,8 @@ jobs:
       !cancelled() &&
       github.repository == 'Khomurod/SafeHaul' &&
       needs.release-validation.result == 'success' &&
-      ((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch')
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     concurrency:
       group: firebase-functions-live
       cancel-in-progress: true
@@ -998,7 +1000,8 @@ jobs:
     if: >-
       !cancelled() &&
       github.repository == 'Khomurod/SafeHaul' &&
-      ((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch')
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     permissions:
       contents: read
 
@@ -1069,7 +1072,8 @@ jobs:
       needs.deploy-testing.result == 'success' &&
       needs.deploy-functions.result == 'success' &&
       needs.verify-shipped.result == 'success' &&
-      ((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch')
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     permissions:
       contents: read
       deployments: write
