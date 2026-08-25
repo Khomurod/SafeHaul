@@ -24,7 +24,7 @@ import { useApplicationChanges } from '@features/applications/hooks/useApplicati
 import { useSubmissionRecord } from '@features/applications/hooks/useSubmissionRecord';
 import { SubmissionRecordNotice } from '@features/applications/components/SubmissionRecordNotice';
 import { PreservedApplicationView } from '@features/applications/components/PreservedApplicationView';
-import { Badge, Button, Card, IconButton, Link } from '@/design-system/components';
+import { Badge, Button, Card, IconButton, Link, SegmentedControl } from '@/design-system/components';
 
 /**
  * Dossier Application tab.
@@ -234,32 +234,28 @@ export function ApplicationTab({ appData, fileUrls = {}, canEdit = false, compan
                 </div>
             )}
 
-            {/* Toggle Header */}
-            {/* Feature-owned toggle group. `aria-pressed` carries the selection so
-                it is never signalled by background colour alone. The design system
-                has no Segmented/ToggleGroup primitive yet (recorded in the
-                roadmap). */}
-            <div
-                role="group"
-                aria-label="Application view"
-                className="flex w-fit flex-wrap items-center gap-ds-1 rounded-ds-md border border-ds-border-subtle bg-ds-surface-subtle p-ds-1"
-            >
-                {VIEW_MODES.map((mode) => (
-                    <button
-                        key={mode.id}
-                        type="button"
-                        aria-pressed={resolvedViewMode === mode.id}
-                        onClick={() => setViewMode(mode.id)}
-                        className={`flex min-h-11 items-center gap-ds-2 rounded-ds-sm px-ds-4 text-ds-sm font-medium transition-colors focus-visible:outline-none focus-visible:shadow-ds-focus ${resolvedViewMode === mode.id
-                            ? 'border border-ds-border-subtle bg-ds-surface text-ds-content-link shadow-ds-xs'
-                            : 'border border-transparent text-ds-content-secondary hover:text-ds-content'
-                            }`}
-                    >
-                        {mode.Icon ? <mode.Icon size={14} aria-hidden="true" /> : null}
-                        {mode.label}
-                    </button>
-                ))}
-            </div>
+            {/*
+              Toggle Header — the design system's `SegmentedControl` since
+              2026-08-25. It was a hand-built `role="group"` of `aria-pressed`
+              buttons, recorded as an exception because "the design system has no
+              Segmented/ToggleGroup primitive yet"; one shipped on 2026-08-21
+              naming this call site. The semantics are the same by design — the
+              primitive is `role="group"` + `aria-pressed`, not a radiogroup — and
+              the icon size now comes from the control-icon token instead of a
+              `size={14}` chosen here.
+            */}
+            <SegmentedControl
+                ariaLabel="Application view"
+                columns={3}
+                className="w-fit"
+                value={resolvedViewMode}
+                onChange={setViewMode}
+                options={VIEW_MODES.map((mode) => ({
+                    value: mode.id,
+                    label: mode.label,
+                    icon: mode.Icon || undefined,
+                }))}
+            />
 
             {/*
               Each view says which record it is. The provenance notice used to sit

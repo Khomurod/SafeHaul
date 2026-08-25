@@ -1,0 +1,151 @@
+import React, { useState } from 'react';
+import { Trash2 } from 'lucide-react';
+import {
+  Badge, Button, Card, IconButton, Input, Switch,
+} from '@design-system/components';
+
+/**
+ * Hand-written fixtures only. No production data, no generated values, so the
+ * story renders identically on every run — which is what lets the browser guards
+ * measure it.
+ */
+const ROWS = [
+  { id: 'r-1', reference: 'REF-4821', owner: 'Northern Route', quota: '120', live: true, tone: 'success', state: 'Active' },
+  { id: 'r-2', reference: 'REF-4822', owner: 'Coastal Division with a deliberately long owner name', quota: '40', live: false, tone: 'warning', state: 'Paused' },
+  { id: 'r-3', reference: 'REF-4823', owner: 'Central', quota: '8', live: true, tone: 'neutral', state: 'Draft' },
+];
+
+function Matrix({ density }) {
+  const [live, setLive] = useState(() => Object.fromEntries(ROWS.map((r) => [r.id, r.live])));
+  return (
+    <table className="ds-native-table" data-density={density}>
+      <caption className="ds-visually-hidden">Reference allocation matrix</caption>
+      <thead>
+        <tr>
+          <th scope="col">Reference</th>
+          <th scope="col">Owner</th>
+          <th scope="col">Quota</th>
+          <th scope="col" className="text-center">State</th>
+          <th scope="col" className="text-center">Enabled</th>
+          <th scope="col" className="text-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {ROWS.map((row) => (
+          <tr key={row.id}>
+            <th scope="row">{row.reference}</th>
+            <td>{row.owner}</td>
+            <td>
+              <Input size="sm" defaultValue={row.quota} aria-label={`Quota for ${row.reference}`} />
+            </td>
+            <td className="text-center"><Badge tone={row.tone}>{row.state}</Badge></td>
+            <td className="text-center">
+              <Switch
+                label={`Enable ${row.reference}`}
+                checked={live[row.id]}
+                onChange={() => setLive((prev) => ({ ...prev, [row.id]: !prev[row.id] }))}
+              />
+            </td>
+            <td className="text-right">
+              <IconButton variant="ghost" size="sm" label={`Remove ${row.reference}`}>
+                <Trash2 aria-hidden="true" />
+              </IconButton>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colSpan={5}>3 references</td>
+          <td className="text-right"><Button variant="secondary" size="sm">Add</Button></td>
+        </tr>
+      </tfoot>
+    </table>
+  );
+}
+
+const meta = {
+  title: 'Patterns/Native table',
+  parameters: {
+    docs: {
+      description: {
+        component: [
+          '**Status: Approved.** The `ds-native-table` contract, added 2026-08-25.',
+          '',
+          '### What it is for',
+          '',
+          '`DataTable` is a *display*-table contract. The roadmap approves a native `<table>`',
+          'for the two things it does not cover — an **editable matrix** (a form control in',
+          'every row) and a **grid with per-row interactive controls** — and eleven tables in',
+          'the product use that permission.',
+          '',
+          'It has always said the other half too: *"a native table is not a licence to style a',
+          'table by hand."* On 2026-08-25 that was measured. **Seven of the eleven referenced',
+          'no `--ds-table-*` role at all**, and the four that did referenced one or two. They',
+          'looked right because `bg-ds-surface-subtle` happens to be what the header role',
+          'resolves to — a coincidence, not a contract, and one a re-tuned role would have',
+          'broken in silence. Inline cell padding had already drifted to **three** different',
+          'values (24px, 20px, 16px) against a contract of 20px.',
+          '',
+          '### The contract',
+          '',
+          'One class on the `<table>`. Header background and foreground, divider, row',
+          'background, hover, cell padding and row height all come from the same',
+          '`--ds-table-*` roles `DataTable` reads, so the two kinds of table are the same',
+          'table and a re-tuned role moves both.',
+          '',
+          '| Attribute | Does |',
+          '| --- | --- |',
+          '| `data-density="compact"` | The compact row height and block padding, mirroring `DataTable`\'s prop |',
+          '| `data-row-hover` | A hover tint. Only for a table whose rows are activatable — on a matrix of form controls a hover tint suggests a row activation that is not there |',
+          '| `.text-center` / `.text-right` on a cell | Still wins, for a status or actions column |',
+          '',
+          'It deliberately does **not** supply selection, sorting, pagination, empty/error',
+          'states or a scroll container. Those are what make `DataTable` a contract rather',
+          'than a stylesheet, and a native table is chosen precisely when the feature owns',
+          'the row\'s interaction.',
+          '',
+          '### Why this story exists',
+          '',
+          '`check:table-layout` and `check:visual-contract` measure the **catalog** in a real',
+          'browser. Before this story, no native table was measured anywhere — the guard that',
+          'exists to catch a cell narrower than its content had nothing to look at for the',
+          'eleven tables that are not `DataTable`. The long owner name and the 8-character',
+          'quota are here for that: extremes in the same row.',
+          '',
+          '`check:ui-contract` requires every file with an approved `raw-table` exception to',
+          'reference `ds-native-table`, so "we kept a native table" can no longer quietly mean',
+          '"we styled a table by hand".',
+        ].join('\n'),
+      },
+    },
+  },
+};
+
+export default meta;
+
+/** The editable matrix: a form control and a per-row action in every row. */
+export const EditableMatrix = {
+  render: () => <Card padding="none"><Matrix density="comfortable" /></Card>,
+};
+
+/** Compact, for an operator console. Same roles, the compact density step. */
+export const Compact = {
+  render: () => <Card padding="none"><Matrix density="compact" /></Card>,
+};
+
+/** Both densities together — the thing a reviewer actually needs to compare. */
+export const DensityComparison = {
+  render: () => (
+    <Card padding="none">
+      <Matrix density="comfortable" />
+      <Matrix density="compact" />
+    </Card>
+  ),
+};
+
+/** Mobile width. Every cell must still contain its content. */
+export const MobileViewport = {
+  globals: { viewport: { value: 'safehaulMobile' } },
+  render: () => <Card padding="none"><Matrix density="compact" /></Card>,
+};

@@ -196,37 +196,37 @@ export function ViewCompanyAppsModal({ companyId, companyName, onClose }) {
           )}
 
           {!loading && !error && filteredApplications.length > 0 && (
-              <table className="w-full border-collapse text-left">
+              <table className="ds-native-table" data-density="compact">
                   <caption className="sr-only">
                     Driver applications for {companyName}
                   </caption>
-                  <thead className="sticky top-0 z-10 bg-ds-table-header-bg text-ds-xs font-bold uppercase text-ds-table-header-fg shadow-ds-xs">
+                  <thead className="sticky top-0 z-10 bg-ds-table-header-bg text-ds-table-header-fg shadow-ds-xs">
                       <tr>
-                          <th scope="col" className="border-b border-ds-border-subtle px-ds-6 py-ds-3">Driver Name</th>
-                          <th scope="col" className="border-b border-ds-border-subtle px-ds-6 py-ds-3">Contact</th>
-                          <th scope="col" className="border-b border-ds-border-subtle px-ds-6 py-ds-3 text-center">Status</th>
-                          <th scope="col" className="border-b border-ds-border-subtle px-ds-6 py-ds-3 text-right">Date</th>
+                          <th scope="col">Driver Name</th>
+                          <th scope="col">Contact</th>
+                          <th scope="col" className="text-center">Status</th>
+                          <th scope="col" className="text-right">Date</th>
                       </tr>
                   </thead>
-                  <tbody className="divide-y divide-ds-border-subtle bg-ds-surface">
+                  <tbody>
                       {filteredApplications.map(app => (
-                        <tr key={app.id} className="transition-colors hover:bg-ds-surface-subtle">
-                            <td className="px-ds-6 py-ds-4">
+                        <tr key={app.id} className="transition-colors">
+                            <td>
                                 <span className="block font-bold text-ds-content">
                                     {getDriverName(app)}
                                 </span>
                                 <span className="font-mono text-ds-xs text-ds-content-muted">{app.id}</span>
                             </td>
-                            <td className="px-ds-6 py-ds-4 text-ds-sm text-ds-content-secondary">
+                            <td className="text-ds-sm">
                                 <div>{getDriverEmail(app)}</div>
                                 <div className="text-ds-xs text-ds-content-muted">{getDriverPhone(app)}</div>
                             </td>
-                            <td className="px-ds-6 py-ds-4 text-center">
+                            <td className="text-center">
                                 <Badge tone={STATUS_TONES[app.status] || 'neutral'}>
                                     {app.status || 'New Application'}
                                 </Badge>
                             </td>
-                            <td className="px-ds-6 py-ds-4 text-right text-ds-sm text-ds-content-muted">
+                            <td className="text-right text-ds-sm text-ds-content-muted">
                                 <div className="flex items-center justify-end gap-1">
                                     <Calendar size={12} aria-hidden="true" />
                                     {app.submittedAt?.seconds

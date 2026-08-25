@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { DashboardToolbar, useCompanyDashboard } from '@features/companies';
-import { DataTable, defineTableColumns } from '@/design-system/components';
+import { DataTable, IconButton, defineTableColumns } from '@/design-system/components';
 import { useData } from '@/context/DataContext';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 
@@ -452,15 +452,20 @@ export const CompanyCandidatesListPage = ({ scope }) => {
                 const name = getCandidateName(item);
                 return (
                     <div className="opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-opacity duration-200">
-                        <button
-                            type="button"
+                        {/*
+                          `IconButton size="sm"` — 36px, which is exactly the
+                          `h-9 w-9` this had chosen by hand, so the row height does
+                          not move. The accessible name is record-specific, which is
+                          the rule for a row action.
+                        */}
+                        <IconButton
+                            variant="ghost"
+                            size="sm"
+                            label={`Call ${name}`}
                             onClick={(e) => handlePhoneClick(e, item)}
-                            aria-label={`Call ${name}`}
-                            className="h-9 w-9 inline-flex items-center justify-center text-ds-content-muted hover:text-ds-status-success-fg hover:bg-ds-status-success-bg rounded-ds-md transition-colors focus-visible:outline-none focus-visible:shadow-ds-focus"
-                            title="Call Driver"
                         >
-                            <Phone size={16} aria-hidden="true" />
-                        </button>
+                            <Phone aria-hidden="true" />
+                        </IconButton>
                     </div>
                 );
             },

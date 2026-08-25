@@ -6,7 +6,7 @@ import {
 import { formatPhoneNumber } from '@shared/utils/helpers';
 import { EXPERIENCE_OPTIONS } from '../../../config/form-options';
 import {
-  Button, FormField, IconButton, Input, Select, Textarea,
+  Button, FormField, IconButton, Input, SegmentedControl, Select, Textarea,
 } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { Modal } from '@design-system/patterns';
@@ -48,34 +48,41 @@ import { Modal } from '@design-system/patterns';
  *  6. A `<label>` carried both `block` and `flex` display classes, so its icon
  *     alignment depended on class order.
  *
- * Documented feature-owned exception: the outcome grid stays a `role="group"` of
- * raw `<button aria-pressed>` elements. It is a single-select toggle group of
- * tinted cards, and the design system has no approved Segmented/ToggleGroup or
- * SelectableCard primitive — the same exception already recorded for the dossier's
- * summary/full toggle and the PEV FMCSA suggestion rows. All of its colours are
- * now approved tokens, and the selection is exposed through `aria-pressed`.
+ * The outcome grid is the design system's `SegmentedControl` (2026-08-25). It was
+ * a `role="group"` of raw `<button aria-pressed>` cards with a local six-tone
+ * class map, recorded as an exception "because the design system has no approved
+ * Segmented/ToggleGroup primitive" — one shipped on 2026-08-21 naming this exact
+ * call site. The semantics are identical by design: the primitive is
+ * deliberately `role="group"` + `aria-pressed` rather than a radiogroup, for the
+ * reason its own README gives, so nothing about how this dialog announces changed.
+ *
+ * The `tel:` chip above it stays local. It is a status-tinted pill that is also a
+ * link; `Link` is underlined text and `ButtonLink` is button-shaped, and neither
+ * is an inline tinted chip. That gap is recorded in the roadmap.
  */
 
-/** Domain outcome → semantic tone. Feature-owned mapping; token-owned values. */
+/**
+ * Domain outcome → semantic tone. Feature-owned mapping; token-owned values.
+ *
+ * `icon` is a component reference rather than a rendered element, because
+ * `SegmentedControl` sizes the glyph from the control-icon token — the same rule
+ * `Button` applies. A pre-rendered `size={18}` here would be overridden anyway.
+ *
+ * The local `TONE_CLASS` map that used to sit beside this is gone: the tinted
+ * selected treatment for each of the six tones is the primitive's, so this file
+ * decides which outcome is a warning and the design system decides what a
+ * warning looks like.
+ */
 const OUTCOMES_CONFIG = [
-  { id: 'interested', label: 'Connected / Interested', icon: <CheckCircle size={18} aria-hidden="true" />, tone: 'success' },
-  { id: 'callback', label: 'Connected / Scheduled Callback', icon: <Clock size={18} aria-hidden="true" />, tone: 'info' },
-  { id: 'not_qualified', label: 'Connected / Not Qualified', icon: <Ban size={18} aria-hidden="true" />, tone: 'warning' },
-  { id: 'not_interested', label: 'Connected / Not Interested', icon: <ThumbsDown size={18} aria-hidden="true" />, tone: 'neutral' },
-  { id: 'hired_elsewhere', label: 'Connected / Hired Elsewhere', icon: <Briefcase size={18} aria-hidden="true" />, tone: 'accent' },
-  { id: 'voicemail', label: 'Left Voicemail', icon: <MessageSquare size={18} aria-hidden="true" />, tone: 'warning' },
-  { id: 'no_answer', label: 'No Answer', icon: <XCircle size={18} aria-hidden="true" />, tone: 'danger' },
-  { id: 'wrong_number', label: 'Wrong Number', icon: <AlertCircle size={18} aria-hidden="true" />, tone: 'danger' },
+  { id: 'interested', label: 'Connected / Interested', icon: CheckCircle, tone: 'success' },
+  { id: 'callback', label: 'Connected / Scheduled Callback', icon: Clock, tone: 'info' },
+  { id: 'not_qualified', label: 'Connected / Not Qualified', icon: Ban, tone: 'warning' },
+  { id: 'not_interested', label: 'Connected / Not Interested', icon: ThumbsDown, tone: 'neutral' },
+  { id: 'hired_elsewhere', label: 'Connected / Hired Elsewhere', icon: Briefcase, tone: 'accent' },
+  { id: 'voicemail', label: 'Left Voicemail', icon: MessageSquare, tone: 'warning' },
+  { id: 'no_answer', label: 'No Answer', icon: XCircle, tone: 'danger' },
+  { id: 'wrong_number', label: 'Wrong Number', icon: AlertCircle, tone: 'danger' },
 ];
-
-const TONE_CLASS = {
-  success: 'border-ds-status-success-border bg-ds-status-success-bg text-ds-status-success-fg',
-  info: 'border-ds-status-info-border bg-ds-status-info-bg text-ds-status-info-fg',
-  warning: 'border-ds-status-warning-border bg-ds-status-warning-bg text-ds-status-warning-fg',
-  neutral: 'border-ds-status-neutral-border bg-ds-status-neutral-bg text-ds-status-neutral-fg',
-  accent: 'border-ds-status-accent-border bg-ds-status-accent-bg text-ds-status-accent-fg',
-  danger: 'border-ds-status-danger-border bg-ds-status-danger-bg text-ds-status-danger-fg',
-};
 
 const DRIVER_TYPES = [
   'Dry Van', 'Reefer', 'Flatbed', 'Tanker', 'Box Truck', 'Car Hauler',
@@ -166,27 +173,18 @@ export function CallOutcomeModalUI({
       <form onSubmit={handleSave} className="overflow-y-auto p-ds-5">
         <Stack gap="lg">
 
-          <div role="group" aria-label="Call outcome" className="grid grid-cols-2 gap-ds-3">
-            {OUTCOMES_CONFIG.map((opt) => {
-              const isSelected = outcome === opt.id;
-              return (
-                <button
-                  key={opt.id}
-                  type="button"
-                  aria-pressed={isSelected}
-                  onClick={() => setOutcome(opt.id)}
-                  className={`flex flex-col items-center gap-ds-2 rounded-ds-md border p-ds-3 text-center text-ds-xs font-bold transition-all focus-visible:outline-none focus-visible:shadow-ds-focus ${
-                    isSelected
-                      ? TONE_CLASS[opt.tone]
-                      : 'border-ds-border-subtle text-ds-content-secondary hover:bg-ds-surface-subtle'
-                  }`}
-                >
-                  {opt.icon}
-                  {opt.label}
-                </button>
-              );
-            })}
-          </div>
+          <SegmentedControl
+            ariaLabel="Call outcome"
+            columns={2}
+            value={outcome}
+            onChange={setOutcome}
+            options={OUTCOMES_CONFIG.map((opt) => ({
+              value: opt.id,
+              label: opt.label,
+              icon: opt.icon,
+              tone: opt.tone,
+            }))}
+          />
 
           {outcome === 'no_answer' && (
             <div className="flex justify-center">

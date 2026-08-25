@@ -112,8 +112,32 @@ function measureTables() {
     const findings = [];
     let tableCount = 0;
 
-    for (const root of document.querySelectorAll('.ds-data-table')) {
-        const region = root.querySelector('.ds-data-table__scroll-region');
+    /*
+     * Both approved table contracts are measured.
+     *
+     * `DataTable` owns its own scroll region, so the dead-gutter invariant is
+     * about that element. `ds-native-table` — the contract the eleven approved
+     * native tables adopted on 2026-08-25 — deliberately has no scroll container:
+     * a native table is chosen when the feature owns the row's interaction, and
+     * the feature owns its overflow too. So its own element is the subject, and
+     * only the cell-containment invariant applies to it.
+     *
+     * Until this was added, no native table was measured ANYWHERE. The guard that
+     * exists because a Delete button rendered as "Dele" on a real phone was
+     * looking only at the four tables in the catalog that are `DataTable`.
+     */
+    const subjects = [
+        ...Array.from(document.querySelectorAll('.ds-data-table'), (root) => ({
+            region: root.querySelector('.ds-data-table__scroll-region'),
+            checkGutter: true,
+        })),
+        ...Array.from(document.querySelectorAll('table.ds-native-table'), (table) => ({
+            region: table,
+            checkGutter: false,
+        })),
+    ];
+
+    for (const { region, checkGutter } of subjects) {
         if (!region) continue;
         // An async/empty state renders the shell with no cells. Counting only
         // regions that actually contain a row keeps the "did we measure
@@ -121,13 +145,15 @@ function measureTables() {
         if (region.querySelector('td, th')) tableCount += 1;
 
         // Invariant 2 — space reserved at the edge that the table cannot paint.
-        const reserved = region.offsetWidth - region.clientWidth;
-        const scrollsVertically = region.scrollHeight > region.clientHeight + 1;
-        if (reserved > 1 && !scrollsVertically) {
-            findings.push({
-                kind: 'dead-gutter',
-                detail: `${reserved}px reserved at the edge of a region that does not scroll vertically`,
-            });
+        if (checkGutter) {
+            const reserved = region.offsetWidth - region.clientWidth;
+            const scrollsVertically = region.scrollHeight > region.clientHeight + 1;
+            if (reserved > 1 && !scrollsVertically) {
+                findings.push({
+                    kind: 'dead-gutter',
+                    detail: `${reserved}px reserved at the edge of a region that does not scroll vertically`,
+                });
+            }
         }
 
         // Invariant 1 — every cell contains its content.

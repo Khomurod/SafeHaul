@@ -34,36 +34,54 @@ describe('ProfileAvatarField', () => {
         expect(fallback).toHaveTextContent('AB');
     });
 
+    /*
+     * The picker is the design system's `FileInput` since 2026-08-25. It was a
+     * hidden input driven by a `Button` calling `.click()` on it — which works
+     * with a keyboard, but names the trigger rather than the field and was one of
+     * three ways this product opened a picker.
+     *
+     * So the assertions move with it: the input is named by its FIELD (as every
+     * other control in the system is), and the visible affordance is the
+     * `<label>` that wraps it rather than a separate button. That is the
+     * structural rule the primitive exists to enforce — a real focusable input
+     * behind a real label, which also makes the label the browser's own
+     * drag-and-drop target.
+     */
     it('exposes a labelled image-only file input described by the help text', () => {
         const { container } = setup({ photoURL: PHOTO_URL });
         const input = container.querySelector('input[type="file"]');
-        expect(input).toHaveAccessibleName('Upload profile photo');
+        expect(input).toHaveAccessibleName('Profile photo');
         expect(input).toHaveAttribute('accept', 'image/*');
 
         const describedBy = input.getAttribute('aria-describedby');
-        expect(document.getElementById(describedBy)).toHaveTextContent(/Accepts image files under 2 MB/i);
+        expect(describedBy.split(/\s+/).map((id) => document.getElementById(id)?.textContent).join(' '))
+            .toMatch(/Accepts image files under 2 MB/i);
     });
 
     it('labels the trigger Change photo when a photo exists and Upload photo when none', () => {
-        const { rerender } = setup({ photoURL: PHOTO_URL });
-        expect(screen.getByRole('button', { name: 'Change photo' })).toBeInTheDocument();
+        const { container, rerender } = setup({ photoURL: PHOTO_URL });
+        expect(container.querySelector('.ds-file-input__button-label')).toHaveTextContent('Change photo');
         rerender(
             <ProfileAvatarField photoURL="" initials="AB" uploading={false} onFileSelect={vi.fn()} />,
         );
-        expect(screen.getByRole('button', { name: 'Upload photo' })).toBeInTheDocument();
+        expect(container.querySelector('.ds-file-input__button-label')).toHaveTextContent('Upload photo');
     });
 
-    it('opens the file picker from the keyboard-accessible button (no nested interactive elements)', () => {
+    it('reaches the picker through a real label, with no nested interactive elements', () => {
         const { container } = setup({ photoURL: PHOTO_URL });
         const input = container.querySelector('input[type="file"]');
-        const clickSpy = vi.spyOn(input, 'click');
 
-        fireEvent.click(screen.getByRole('button', { name: 'Change photo' }));
-        expect(clickSpy).toHaveBeenCalledTimes(1);
-
-        expect(container.querySelectorAll('button')).toHaveLength(1);
+        // The visible control IS the label for this input — not a button that
+        // clicks it, which is the shape that leaves the name on the wrong element.
+        const label = input.closest('label');
+        expect(label).not.toBeNull();
+        expect(label).toHaveAttribute('for', input.id);
+        expect(container.querySelectorAll('button')).toHaveLength(0);
         expect(input.closest('button')).toBeNull();
-        expect(input.closest('label')).toBeNull();
+
+        // Still focusable: `display: none` would take the keyboard path with it.
+        input.focus();
+        expect(document.activeElement).toBe(input);
     });
 
     it('forwards the native change event verbatim on file selection', () => {
@@ -76,25 +94,36 @@ describe('ProfileAvatarField', () => {
         expect(onFileSelect.mock.calls[0][0].target.files[0]).toBe(file);
     });
 
-    it('announces uploading and disables the controls while an upload is in flight', () => {
+    /*
+     * `aria-busy` and the label text carry the state now, in place of the
+     * `role="status"` region. The focus-return effect went with the migration and
+     * is not missed: it existed because the trigger was a `Button` that briefly
+     * *disabled*, dropping focus. The control is not replaced now — the same
+     * label stays in the DOM throughout — so there is nothing to return focus to.
+     */
+    it('says it is busy and refuses a second file while an upload is in flight', () => {
         const { container } = setup({ photoURL: PHOTO_URL, uploading: true });
-        expect(screen.getByRole('status')).toHaveTextContent('Uploading profile photo…');
-        expect(screen.getByRole('button', { name: 'Uploading…' })).toBeDisabled();
-        expect(container.querySelector('input[type="file"]')).toBeDisabled();
+        const input = container.querySelector('input[type="file"]');
+        expect(container.querySelector('.ds-file-input__button-label')).toHaveTextContent('Uploading…');
+        expect(input).toBeDisabled();
+        expect(input).toHaveAttribute('aria-busy', 'true');
     });
 
-    it('returns focus to the trigger after an upload settles', () => {
+    it('keeps focus on the control across an upload, rather than restoring it', () => {
         const onFileSelect = vi.fn();
-        const { rerender } = render(
+        const { container, rerender } = render(
             <ProfileAvatarField photoURL={PHOTO_URL} initials="AB" uploading={false} onFileSelect={onFileSelect} />,
         );
+        const before = container.querySelector('input[type="file"]');
         rerender(
             <ProfileAvatarField photoURL={PHOTO_URL} initials="AB" uploading onFileSelect={onFileSelect} />,
         );
         rerender(
             <ProfileAvatarField photoURL={PHOTO_URL} initials="AB" uploading={false} onFileSelect={onFileSelect} />,
         );
-        expect(screen.getByRole('button', { name: 'Change photo' })).toHaveFocus();
+        // Same element throughout: nothing was unmounted, so nothing lost focus.
+        expect(container.querySelector('input[type="file"]')).toBe(before);
+        expect(before).not.toBeDisabled();
     });
 
     it('has no accessibility violations with a photo and with the fallback', async () => {

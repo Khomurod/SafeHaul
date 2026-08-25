@@ -1,6 +1,6 @@
-import React, { useEffect, useId, useRef } from 'react';
+import React, { useId } from 'react';
 import { Building } from 'lucide-react';
-import { Button, FieldMessage } from '@/design-system/components';
+import { FieldMessage, FileInput } from '@/design-system/components';
 
 /**
  * Company logo preview + upload affordance.
@@ -10,11 +10,13 @@ import { Button, FieldMessage } from '@/design-system/components';
  * which owns `uploadCompanyLogo` (Storage) and `saveCompanySettings` (Firestore).
  * This component adds no Company, Firebase, or branding knowledge.
  *
- * Accessibility: the design system has no approved file-input primitive yet, so
- * this is a documented feature-level composition. A visually hidden but
- * labelled native input is triggered by the approved keyboard-accessible
- * Button (no nested interactive elements); an assertive-free `role="status"`
- * region announces uploading; focus returns to the trigger after an upload.
+ * The picker is the design system's `FileInput` (2026-08-25), which is where the
+ * `loading` state it needed now lives. It was a hidden input driven by a `Button`
+ * calling `.click()` on it, under a comment saying the design system had no
+ * file-input primitive — untrue from 2026-08-21. Same change, and the same
+ * reasoning, as `ProfileAvatarField`: the accessible name belongs on the field
+ * rather than on the trigger, and `aria-busy` plus the label text replace the
+ * `role="status"` region and the focus-restoring effect.
  */
 export function BrandingSection({
     companyLogoUrl,
@@ -22,23 +24,9 @@ export function BrandingSection({
     logoUploading,
     onLogoUpload,
 }) {
-    const inputRef = useRef(null);
-    const buttonRef = useRef(null);
-    const wasUploadingRef = useRef(false);
-
     const rawId = useId().replace(/:/g, '');
     const inputId = `company-logo-input-${rawId}`;
     const helpId = `company-logo-help-${rawId}`;
-    const statusId = `company-logo-status-${rawId}`;
-
-    // Return focus to the upload trigger once an in-flight upload settles, so
-    // keyboard users are not dropped after the button briefly disables.
-    useEffect(() => {
-        if (wasUploadingRef.current && !logoUploading) {
-            buttonRef.current?.focus();
-        }
-        wasUploadingRef.current = logoUploading;
-    }, [logoUploading]);
 
     return (
         <div className="flex flex-col items-center gap-ds-3">
@@ -62,42 +50,28 @@ export function BrandingSection({
 
             {isEditing && (
                 <div className="flex w-full max-w-[16rem] flex-col items-center gap-ds-2">
-                    <input
-                        ref={inputRef}
+                    {/* The preview above already says what this field is, so the
+                        label is hidden — the accessible name stays. */}
+                    <FileInput
                         id={inputId}
-                        type="file"
+                        label="Company logo"
+                        labelHidden
                         accept="image/*"
-                        className="ds-visually-hidden"
-                        tabIndex={-1}
-                        aria-label="Upload company logo"
-                        aria-describedby={helpId}
-                        onChange={onLogoUpload}
-                        disabled={logoUploading}
-                    />
-                    <Button
-                        ref={buttonRef}
-                        type="button"
-                        variant="secondary"
-                        size="md"
                         loading={logoUploading}
                         aria-describedby={helpId}
-                        onClick={() => inputRef.current?.click()}
-                    >
-                        {logoUploading
+                        onChange={onLogoUpload}
+                        buttonLabel={logoUploading
                             ? 'Uploading…'
                             : companyLogoUrl
                                 ? 'Change logo'
                                 : 'Upload logo'}
-                    </Button>
+                    />
                     <FieldMessage id={helpId} tone="help" className="text-center">
                         {companyLogoUrl
                             ? 'A logo is set. Uploading a new image replaces it.'
                             : 'No logo uploaded yet.'}{' '}
                         Accepts image files (e.g. PNG, JPG, or SVG).
                     </FieldMessage>
-                    <p id={statusId} role="status" className="ds-visually-hidden">
-                        {logoUploading ? 'Uploading company logo…' : ''}
-                    </p>
                 </div>
             )}
         </div>

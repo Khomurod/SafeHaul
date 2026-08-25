@@ -128,17 +128,17 @@ export const ModernDriverTable = memo(function ModernDriverTable({
         return (
             <div className="overflow-hidden rounded-ds-lg border border-ds-border-subtle bg-ds-surface shadow-ds-sm">
                 <p role="status" className="sr-only">Loading {ariaLabel}…</p>
-                <table className="w-full">
+                <table className="ds-native-table">
                     <caption className="sr-only">{ariaLabel}</caption>
                     <thead>
-                        <tr className="border-b border-ds-border-subtle bg-ds-surface-subtle">
+                        <tr>
                             {showCheckboxes && (
-                                <th scope="col" className="w-12 px-ds-4 py-ds-3">
+                                <th scope="col" className="w-12">
                                     <span className="sr-only">Select</span>
                                 </th>
                             )}
                             {columns.map(col => (
-                                <th scope="col" key={col.key} className={`px-ds-5 py-ds-3 text-left ${col.headerClassName || ''}`}>
+                                <th scope="col" key={col.key} className={col.headerClassName || undefined}>
                                     <span className="sr-only">{col.header}</span>
                                     <div aria-hidden="true" className="h-3 w-20 animate-pulse rounded bg-ds-border-subtle" />
                                 </th>
@@ -147,12 +147,12 @@ export const ModernDriverTable = memo(function ModernDriverTable({
                     </thead>
                     <tbody aria-hidden="true">
                         {Array.from({ length: 6 }).map((_, i) => (
-                            <tr key={i} className="border-b border-ds-border-subtle">
+                            <tr key={i}>
                                 {showCheckboxes && (
-                                    <td className="px-ds-4 py-ds-4"><div className="h-5 w-5 animate-pulse rounded bg-ds-surface-subtle" /></td>
+                                    <td><div className="h-5 w-5 animate-pulse rounded bg-ds-surface-subtle" /></td>
                                 )}
                                 {columns.map(col => (
-                                    <td key={col.key} className="px-ds-5 py-ds-4">
+                                    <td key={col.key}>
                                         <div className="space-y-ds-2">
                                             <div className="h-4 w-3/4 animate-pulse rounded bg-ds-surface-subtle" />
                                             <div className="h-3 w-1/2 animate-pulse rounded bg-ds-surface-subtle" />
@@ -177,15 +177,15 @@ export const ModernDriverTable = memo(function ModernDriverTable({
                 tabIndex={0}
                 className="min-h-0 flex-1 overflow-auto focus-visible:outline-none focus-visible:shadow-ds-focus"
             >
-                <table className="w-full text-left">
+                <table className="ds-native-table" data-row-hover>
                     <caption id={captionId} className="sr-only">
                         {ariaLabel}. Scroll horizontally to view all columns.
                     </caption>
                     {/* ── Header ── */}
                     <thead className="sticky top-0 z-10">
-                        <tr className="border-b border-ds-border-subtle bg-ds-surface-subtle">
+                        <tr>
                             {showCheckboxes && (
-                                <th scope="col" className="w-12 px-ds-4 py-ds-3">
+                                <th scope="col" className="w-12">
                                     <Checkbox
                                         label={allSelected ? 'Deselect all rows' : 'Select all rows'}
                                         labelHidden
@@ -248,7 +248,6 @@ export const ModernDriverTable = memo(function ModernDriverTable({
                                         {/* Checkbox */}
                                         {showCheckboxes && (
                                             <td
-                                                className="px-ds-4 py-ds-4 align-middle"
                                                 // Keeps a selection click from also activating the row.
                                                 onClick={(e) => e.stopPropagation()}
                                             >

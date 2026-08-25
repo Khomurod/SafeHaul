@@ -125,34 +125,34 @@ export default function DetailedReportModal({ companyId, sessionId, isOpen, onCl
                     role="group"
                     aria-label="Delivery results"
                 >
-                    <table className="min-w-full border-collapse text-ds-sm">
+                    <table className="ds-native-table min-w-full" data-density="compact">
                         <caption className="sr-only">Per-recipient delivery results</caption>
-                        <thead className="sticky top-0 bg-ds-surface-subtle">
+                        <thead className="sticky top-0">
                             <tr>
-                                <th scope="col" className="px-ds-4 py-ds-3 text-left text-ds-xs font-semibold uppercase tracking-wide text-ds-content-secondary">
+                                <th scope="col" className="font-semibold">
                                     Recipient
                                 </th>
-                                <th scope="col" className="px-ds-4 py-ds-3 text-left text-ds-xs font-semibold uppercase tracking-wide text-ds-content-secondary">
+                                <th scope="col" className="font-semibold">
                                     Contact
                                 </th>
-                                <th scope="col" className="px-ds-4 py-ds-3 text-left text-ds-xs font-semibold uppercase tracking-wide text-ds-content-secondary">
+                                <th scope="col" className="font-semibold">
                                     Status
                                 </th>
-                                <th scope="col" className="px-ds-4 py-ds-3 text-left text-ds-xs font-semibold uppercase tracking-wide text-ds-content-secondary">
+                                <th scope="col" className="font-semibold">
                                     Error Detail
                                 </th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-ds-border-subtle">
+                        <tbody>
                             {loading ? (
                                 <tr>
-                                    <td colSpan="4" className="px-ds-4 py-ds-4 text-center text-ds-sm text-ds-content-muted">
+                                    <td colSpan="4" className="text-center text-ds-sm text-ds-content-muted">
                                         Loading logs...
                                     </td>
                                 </tr>
                             ) : logs.length === 0 ? (
                                 <tr>
-                                    <td colSpan="4" className="px-ds-4 py-ds-4 text-center text-ds-sm text-ds-content-muted">
+                                    <td colSpan="4" className="text-center text-ds-sm text-ds-content-muted">
                                         No activity logs found. Ensure permissions are set.
                                     </td>
                                 </tr>
@@ -161,18 +161,18 @@ export default function DetailedReportModal({ companyId, sessionId, isOpen, onCl
                                     const delivered = log.status === 'delivered' || log.isSuccess;
                                     return (
                                         <tr key={log.id}>
-                                            <td className="whitespace-nowrap px-ds-4 py-ds-3 text-ds-sm font-medium text-ds-content">
+                                            <td className="whitespace-nowrap text-ds-sm font-medium text-ds-content">
                                                 {log.recipientName || 'Unknown'}
                                             </td>
-                                            <td className="whitespace-nowrap px-ds-4 py-ds-3 text-ds-sm text-ds-content-secondary">
+                                            <td className="whitespace-nowrap text-ds-sm">
                                                 {log.recipientIdentity || 'N/A'}
                                             </td>
-                                            <td className="px-ds-4 py-ds-3">
+                                            <td>
                                                 <Badge tone={delivered ? 'success' : 'danger'}>
                                                     {delivered ? 'Delivered' : 'Failed'}
                                                 </Badge>
                                             </td>
-                                            <td className="px-ds-4 py-ds-3 text-ds-sm text-ds-content-muted [overflow-wrap:anywhere]">
+                                            <td className="text-ds-sm text-ds-content-muted [overflow-wrap:anywhere]">
                                                 {log.error || '-'}
                                             </td>
                                         </tr>

@@ -103,20 +103,20 @@ export function CampaignResultsTable({ companyId, campaignId }) {
                 tabIndex={0}
                 className="custom-scrollbar max-h-[400px] overflow-auto focus-visible:outline-none focus-visible:shadow-ds-focus"
             >
-                <table className="w-full min-w-[640px] border-collapse text-left">
+                <table className="ds-native-table min-w-[640px]" data-density="compact" data-row-hover>
                     <caption className="sr-only">Recipient delivery log</caption>
-                    <thead className="sticky top-0 z-10 bg-ds-surface-subtle">
+                    <thead className="sticky top-0 z-10">
                         <tr>
-                            <th scope="col" className="px-ds-6 py-ds-3 text-ds-xs font-bold uppercase tracking-wide text-ds-content-secondary">Recipient</th>
-                            <th scope="col" className="px-ds-6 py-ds-3 text-ds-xs font-bold uppercase tracking-wide text-ds-content-secondary">Contact</th>
-                            <th scope="col" className="px-ds-6 py-ds-3 text-ds-xs font-bold uppercase tracking-wide text-ds-content-secondary">Status</th>
-                            <th scope="col" className="px-ds-6 py-ds-3 text-ds-xs font-bold uppercase tracking-wide text-ds-content-secondary">Time</th>
+                            <th scope="col">Recipient</th>
+                            <th scope="col">Contact</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Time</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-ds-border-subtle">
+                    <tbody>
                         {filteredLogs.length === 0 ? (
                             <tr>
-                                <td colSpan={4} className="px-ds-6 py-ds-8 text-center text-ds-sm font-medium text-ds-content-muted">
+                                <td colSpan={4} className="text-center text-ds-sm font-medium text-ds-content-muted">
                                     No recipients match your search.
                                 </td>
                             </tr>
@@ -124,14 +124,14 @@ export function CampaignResultsTable({ companyId, campaignId }) {
                             filteredLogs.map(log => {
                                 const delivered = log.status === 'delivered';
                                 return (
-                                    <tr key={log.id} className="transition-colors hover:bg-ds-surface-subtle">
-                                        <th scope="row" className="px-ds-6 py-ds-3 text-left align-top">
+                                    <tr key={log.id} className="transition-colors">
+                                        <th scope="row" className="align-top">
                                             <span className="text-ds-sm font-bold text-ds-content">{log.recipientName || 'Unknown'}</span>
                                         </th>
-                                        <td className="px-ds-6 py-ds-3 align-top">
+                                        <td className="align-top">
                                             <span className="font-mono text-ds-xs text-ds-content-secondary">{log.recipientIdentity}</span>
                                         </td>
-                                        <td className="px-ds-6 py-ds-3 align-top">
+                                        <td className="align-top">
                                             <Badge tone={delivered ? 'success' : 'danger'} icon={delivered ? CheckCircle2 : AlertCircle}>
                                                 {delivered ? 'Delivered' : 'Failed'}
                                             </Badge>
@@ -139,7 +139,7 @@ export function CampaignResultsTable({ companyId, campaignId }) {
                                                 <p className="mt-ds-1 text-ds-xs font-medium text-ds-status-danger-fg">{log.error}</p>
                                             )}
                                         </td>
-                                        <td className="px-ds-6 py-ds-3 align-top">
+                                        <td className="align-top">
                                             <span className="inline-flex items-center gap-ds-1 text-ds-xs font-medium text-ds-content-muted">
                                                 <Clock size={12} aria-hidden="true" />
                                                 {log.timestamp?.toDate ? log.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Pending'}

@@ -1,6 +1,5 @@
-import React, { useEffect, useId, useRef } from 'react';
-import { Camera } from 'lucide-react';
-import { Button, FieldMessage } from '@/design-system/components';
+import React, { useId } from 'react';
+import { FieldMessage, FileInput } from '@/design-system/components';
 
 /**
  * Account profile photo preview + upload affordance.
@@ -11,12 +10,19 @@ import { Button, FieldMessage } from '@/design-system/components';
  * input's change event is forwarded verbatim through `onFileSelect`. This
  * component adds no SafeHaul, Firebase, Auth, or Storage knowledge.
  *
- * Accessibility: the design system has no approved file-input primitive yet, so
- * this is a documented feature-level composition. A visually hidden but labelled
- * native input is triggered by the approved keyboard-accessible Button (no nested
- * interactive elements — the previous surface stacked a clickable wrapper, a
- * hover overlay, and a nested corner button). A `role="status"` region announces
- * uploading, and focus returns to the trigger once an in-flight upload settles.
+ * The picker is the design system's `FileInput` (2026-08-25). It was a hidden
+ * input driven by a `Button` calling `.click()` on it, under a comment saying
+ * "the design system has no approved file-input primitive yet" — untrue from
+ * 2026-08-21. That shape works with a keyboard but puts the accessible name on
+ * the trigger rather than the field, and it was one of three different ways this
+ * product opened a picker.
+ *
+ * `FileInput` needed `loading` to take it, which is the right place for it: an
+ * upload picker is exactly the control that has to say it is busy AND refuse a
+ * second file while the first is in flight. The `role="status"` region and the
+ * focus-return effect are gone with it — `aria-busy` on the input and the label
+ * text carry the state, and focus never leaves the control now, because the
+ * control is no longer replaced by a disabled button.
  */
 export function ProfileAvatarField({
     photoURL,
@@ -24,23 +30,9 @@ export function ProfileAvatarField({
     uploading = false,
     onFileSelect,
 }) {
-    const inputRef = useRef(null);
-    const buttonRef = useRef(null);
-    const wasUploadingRef = useRef(false);
-
     const rawId = useId().replace(/:/g, '');
     const inputId = `profile-avatar-input-${rawId}`;
     const helpId = `profile-avatar-help-${rawId}`;
-    const statusId = `profile-avatar-status-${rawId}`;
-
-    // Return focus to the upload trigger once an in-flight upload settles, so
-    // keyboard users are not dropped after the button briefly disables.
-    useEffect(() => {
-        if (wasUploadingRef.current && !uploading) {
-            buttonRef.current?.focus();
-        }
-        wasUploadingRef.current = uploading;
-    }, [uploading]);
 
     return (
         <div className="flex flex-wrap items-center gap-ds-4">
@@ -64,40 +56,25 @@ export function ProfileAvatarField({
             </div>
 
             <div className="flex flex-col items-start gap-ds-2">
-                <input
-                    ref={inputRef}
+                {/* The preview beside it already says what this field is, so the
+                    label is hidden — but it stays the input's accessible name. */}
+                <FileInput
                     id={inputId}
-                    type="file"
+                    label="Profile photo"
+                    labelHidden
                     accept="image/*"
-                    className="ds-visually-hidden"
-                    tabIndex={-1}
-                    aria-label="Upload profile photo"
-                    aria-describedby={helpId}
-                    onChange={onFileSelect}
-                    disabled={uploading}
-                />
-                <Button
-                    ref={buttonRef}
-                    type="button"
-                    variant="secondary"
-                    size="md"
                     loading={uploading}
                     aria-describedby={helpId}
-                    onClick={() => inputRef.current?.click()}
-                >
-                    {!uploading && <Camera size={16} aria-hidden="true" />}
-                    {uploading
+                    onChange={onFileSelect}
+                    buttonLabel={uploading
                         ? 'Uploading…'
                         : photoURL
                             ? 'Change photo'
                             : 'Upload photo'}
-                </Button>
+                />
                 <FieldMessage id={helpId} tone="help">
                     Accepts image files under 2 MB.
                 </FieldMessage>
-                <p id={statusId} role="status" className="ds-visually-hidden">
-                    {uploading ? 'Uploading profile photo…' : ''}
-                </p>
             </div>
         </div>
     );

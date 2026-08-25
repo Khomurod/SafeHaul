@@ -1,6 +1,8 @@
 import React, { useId, useRef, useState } from 'react';
-import { Upload, X, CheckCircle, RefreshCw, FileText, Image as ImageIcon, AlertCircle } from 'lucide-react';
-import { Button, IconButton, IconButtonLink, ProgressBar } from '@/design-system/components';
+import { X, CheckCircle, RefreshCw, FileText, Image as ImageIcon, AlertCircle } from 'lucide-react';
+import {
+    Button, FileInput, IconButton, IconButtonLink, ProgressBar,
+} from '@/design-system/components';
 import { ConfirmDialog } from '@design-system/patterns';
 
 /**
@@ -134,6 +136,14 @@ const UploadField = ({
         onChange(name, null);
         setStatus('idle');
         setProgress(0);
+        /*
+          Belt and braces since the picker became `FileInput` (2026-08-25): it is
+          only rendered in the idle/error state, so in the state this runs from
+          the ref is usually null — and clearing `value` is not needed there
+          anyway, because dropping `value` to null remounts a fresh input. The
+          guard stays for the case where it IS live, so re-selecting the same
+          filename still fires `change`.
+        */
         if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
@@ -239,43 +249,41 @@ const UploadField = ({
                 </div>
             )}
 
-            {/* IDLE / EMPTY STATE — keyboard-reachable trigger for the hidden input. */}
-            {(!hasValue && status !== 'uploading') && (
-                <Button
-                    variant="secondary"
-                    size="lg"
-                    fullWidth
-                    className="border-2 border-dashed"
-                    onClick={() => fileInputRef.current?.click()}
-                >
-                    <span className="flex flex-col items-center gap-ds-1 py-ds-4">
-                        <span className="flex h-10 w-10 items-center justify-center rounded-ds-md bg-ds-status-info-bg text-ds-status-info-fg">
-                            <Upload size={20} aria-hidden="true" />
-                        </span>
-                        {/* Visible copy is frozen; the field name is added for
-                            assistive tech so several upload triggers on one step
-                            do not all announce as "Click to upload". */}
-                        <span className="text-ds-sm font-medium text-ds-content">
-                            Click to upload<span className="ds-visually-hidden"> {label}</span>
-                        </span>
-                        <span className="text-ds-xs font-normal text-ds-content-muted">
-                            {accept.includes('image') ? 'PDF, PNG, JPG accepted' : 'Files accepted'}
-                        </span>
-                    </span>
-                </Button>
-            )}
+            {/*
+              IDLE / EMPTY STATE — `FileInput variant="dropzone"`.
+              This was a `Button` styled as a dashed panel driving a hidden input
+              with `tabIndex={-1}`, under the roadmap's "no approved file-input
+              contract" exception, which closed on 2026-08-21. The primitive is a
+              real focusable input behind a real `<label>`, so the whole panel is
+              also the browser's native drag-and-drop target — which this field
+              never had.
 
-            <input
-                ref={fileInputRef}
-                type="file"
-                name={name}
-                tabIndex={-1}
-                aria-labelledby={labelId}
-                className="ds-visually-hidden"
-                accept={accept}
-                required={required && !hasValue}
-                onChange={handleFileSelect}
-            />
+              `labelHidden`, because the field's visible `ds-label` above carries
+              the required mark and stays put across the error, uploading and
+              selected states; only this one state is a picker. The accessible name
+              is still the field's, which is better than the old arrangement, where
+              the announced name was the frozen visible copy plus a hidden
+              disambiguating suffix.
+
+              The input is only rendered in this state now. `handleRetry` and the
+              value reset both go through the same ref, and both only run when
+              there is a file to retry or clear, which is the state where the ref
+              is live.
+            */}
+            {(!hasValue && status !== 'uploading') && (
+                <FileInput
+                    ref={fileInputRef}
+                    label={label}
+                    labelHidden
+                    variant="dropzone"
+                    buttonLabel="Click to upload"
+                    description={accept.includes('image') ? 'PDF, PNG, JPG accepted' : 'Files accepted'}
+                    name={name}
+                    accept={accept}
+                    required={required && !hasValue}
+                    onChange={handleFileSelect}
+                />
+            )}
 
             {/* Replaces the bare `confirm("Are you sure you want to remove this file?")`. */}
             <ConfirmDialog

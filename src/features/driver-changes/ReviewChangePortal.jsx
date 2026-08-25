@@ -4,7 +4,7 @@ import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 import { Loader2, Check, X, Pencil, ShieldCheck, CheckCircle2, AlertCircle } from 'lucide-react';
-import { Button, Card, Input } from '@/design-system/components';
+import { Button, Card, Input, SegmentedControl } from '@/design-system/components';
 
 const MOCK_REVIEW = {
     applicantName: 'Test Driver',
@@ -24,10 +24,18 @@ const isScalar = (v) => v === null || v === undefined || typeof v !== 'object';
 
 // Feature-owned segmented decision control. Active tone uses semantic status
 // tokens; icon + label + aria-pressed carry the state (not colour alone).
+/*
+ * Decision → semantic tone. The feature owns which decision is a success and
+ * which is a danger; `SegmentedControl` owns what those look like.
+ *
+ * The local `activeCls` strings that used to live here were the third copy of the
+ * same six-tone map in the product, on buttons that were also `min-h-10` — 40px,
+ * which is not a step on the 36/44/52 control scale at all.
+ */
 const ACTIONS = [
-    { id: 'approve', label: 'Approve', icon: Check, activeCls: 'border-ds-status-success-border bg-ds-status-success-bg text-ds-status-success-fg' },
-    { id: 'reject', label: 'Reject', icon: X, activeCls: 'border-ds-status-danger-border bg-ds-status-danger-bg text-ds-status-danger-fg' },
-    { id: 'edit', label: 'Edit', icon: Pencil, activeCls: 'border-ds-status-info-border bg-ds-status-info-bg text-ds-status-info-fg' },
+    { id: 'approve', label: 'Approve', icon: Check, tone: 'success' },
+    { id: 'reject', label: 'Reject', icon: X, tone: 'danger' },
+    { id: 'edit', label: 'Edit', icon: Pencil, tone: 'info' },
 ];
 
 export function ReviewChangePortal() {
@@ -155,23 +163,20 @@ export function ReviewChangePortal() {
                                                 <span className="font-semibold">{previewValue(c.proposedValue)}</span>
                                             </span>
                                         </div>
-                                        <div role="group" aria-label={`Decision for ${fieldName}`} className="flex flex-wrap gap-2">
-                                            {ACTIONS.filter((a) => a.id !== 'edit' || canEdit).map((a) => {
-                                                const active = r.action === a.id;
-                                                const Icon = a.icon;
-                                                return (
-                                                    <button
-                                                        key={a.id}
-                                                        type="button"
-                                                        aria-pressed={active}
-                                                        onClick={() => setAction(c.fieldKey, a.id)}
-                                                        className={`inline-flex min-h-10 items-center gap-1.5 rounded-ds-md border px-3 text-ds-sm font-semibold transition-colors focus-visible:outline-none focus-visible:shadow-ds-focus ${active ? a.activeCls : 'border-ds-border bg-ds-surface text-ds-content-secondary hover:bg-ds-surface-subtle'}`}
-                                                    >
-                                                        <Icon size={15} aria-hidden="true" /> {a.label}
-                                                    </button>
-                                                );
-                                            })}
-                                        </div>
+                                        <SegmentedControl
+                                            ariaLabel={`Decision for ${fieldName}`}
+                                            columns={canEdit ? 3 : 2}
+                                            value={r.action || null}
+                                            onChange={(value) => setAction(c.fieldKey, value)}
+                                            options={ACTIONS
+                                                .filter((a) => a.id !== 'edit' || canEdit)
+                                                .map((a) => ({
+                                                    value: a.id,
+                                                    label: a.label,
+                                                    icon: a.icon,
+                                                    tone: a.tone,
+                                                }))}
+                                        />
                                         {r.action === 'edit' && canEdit && (
                                             <Input
                                                 type="text"

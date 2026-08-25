@@ -24,12 +24,16 @@ import './SegmentedControl.css';
  * `ChoiceGroup` with `Radio`, which is a real radiogroup.
  *
  * The group needs an accessible name, because "pressed" on its own does not say
- * what was chosen.
+ * what was chosen. Give it `ariaLabel`, or `ariaLabelledBy` when the group
+ * already has a visible label on screen — which is the better of the two, and is
+ * why the prop exists: the e-doc delivery-method toggle sits under a real label,
+ * and duplicating those words in an `aria-label` is how the two drift apart.
  */
 const TONES = new Set(['neutral', 'info', 'success', 'warning', 'danger', 'accent']);
 
 export function SegmentedControl({
   ariaLabel,
+  ariaLabelledBy,
   options,
   value,
   onChange,
@@ -37,8 +41,10 @@ export function SegmentedControl({
   className = '',
   ...props
 }) {
-  if (typeof ariaLabel !== 'string' || ariaLabel.trim() === '') {
-    throw new TypeError('SegmentedControl requires an ariaLabel naming the choice.');
+  const named = (typeof ariaLabel === 'string' && ariaLabel.trim() !== '')
+    || (typeof ariaLabelledBy === 'string' && ariaLabelledBy.trim() !== '');
+  if (!named) {
+    throw new TypeError('SegmentedControl requires an ariaLabel or ariaLabelledBy naming the choice.');
   }
   if (!Array.isArray(options) || options.length === 0) {
     throw new TypeError('SegmentedControl requires at least one option.');
@@ -53,7 +59,14 @@ export function SegmentedControl({
     <div
       {...props}
       role="group"
-      aria-label={ariaLabel}
+      /*
+        One or the other, never both: with both set the accname algorithm silently
+        prefers `aria-labelledby` and the `aria-label` becomes a lie nobody can
+        see. `ariaLabelledBy` wins here because a visible label is the better
+        pattern when one exists.
+      */
+      aria-label={ariaLabelledBy ? undefined : ariaLabel}
+      aria-labelledby={ariaLabelledBy}
       className={`ds-segmented ${className}`.trim()}
       data-columns={columns}
     >

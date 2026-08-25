@@ -145,30 +145,39 @@ describe('UploadField upload lifecycle', () => {
 });
 
 describe('UploadField accessibility and required rules', () => {
-  it('offers a keyboard-reachable, uniquely named upload trigger', () => {
+  /*
+   * The picker is the design system's `FileInput variant="dropzone"` since
+   * 2026-08-25. It was a `Button` driving a `tabIndex={-1}` hidden input; it is
+   * now a real focusable input behind a real `<label>`, which is the primitive's
+   * one structural rule and gives the panel the browser's own drag-and-drop
+   * target for free.
+   *
+   * So the trigger is not a `<button>` any more, the input IS in the tab order,
+   * and the visible copy is unchanged. The accessible name moved from "the frozen
+   * visible copy plus a hidden disambiguating suffix" to the field's own label,
+   * which is what every other control in the system announces as.
+   */
+  it('offers a keyboard-reachable upload control named by its field', () => {
     renderField();
 
-    const trigger = screen.getByRole('button', { name: /Click to upload Upload CDL \(Front\)/ });
-    expect(trigger).toBeInstanceOf(HTMLButtonElement);
+    expect(input()).toHaveAccessibleName('Upload CDL (Front)');
+    const label = input().closest('label');
+    expect(label).not.toBeNull();
+    expect(label).toHaveAttribute('for', input().id);
     // Visible copy is unchanged.
-    expect(trigger).toHaveTextContent('Click to upload');
+    expect(label).toHaveTextContent('Click to upload');
   });
 
-  it('opens the native picker when the trigger is activated by keyboard', () => {
-    renderField();
-    const click = vi.spyOn(input(), 'click');
-
-    fireEvent.click(screen.getByRole('button', { name: /Click to upload/ }));
-    expect(click).toHaveBeenCalled();
-  });
-
-  it('keeps the hidden input out of the tab order but focusable for validation', () => {
+  it('keeps the input focusable rather than hiding it from the tab order', () => {
     renderField({ required: true });
-    expect(input()).toHaveAttribute('tabindex', '-1');
-    expect(input().className).toContain('ds-visually-hidden');
-    // Not display:none — an unfocusable required control makes reportValidity()
-    // fail with no visible message.
-    expect(input().className).not.toContain('hidden ');
+    expect(input()).not.toHaveAttribute('tabindex', '-1');
+    expect(input()).not.toHaveAttribute('hidden');
+    // Clipped, not display:none — an unfocusable required control makes
+    // reportValidity() fail with no visible message.
+    expect(input().className).toContain('ds-file-input__native');
+
+    input().focus();
+    expect(document.activeElement).toBe(input());
   });
 
   it('names the hidden input from the visible field label', () => {
@@ -176,7 +185,14 @@ describe('UploadField accessibility and required rules', () => {
     expect(screen.getByLabelText('Upload CDL (Front)')).toBe(input());
   });
 
-  it('is required only while empty', () => {
+  /*
+   * Same guarantee, reached differently. The picker used to stay in the DOM in
+   * every state with `required={required && !hasValue}`; it is now rendered only
+   * in the idle/error state, always required. Either way native validation blocks
+   * an empty required field and does not block a filled one — an absent control
+   * cannot be required.
+   */
+  it('blocks submission only while empty', () => {
     const { rerender } = render(
       <UploadField label="Upload CDL (Front)" name="cdl-front" value={null} required onUpload={vi.fn()} onChange={vi.fn()} />,
     );
@@ -185,7 +201,8 @@ describe('UploadField accessibility and required rules', () => {
     rerender(
       <UploadField label="Upload CDL (Front)" name="cdl-front" value={{ name: 'a.pdf', url: 'u' }} required onUpload={vi.fn()} onChange={vi.fn()} />,
     );
-    expect(input()).not.toBeRequired();
+    expect(input()).toBeNull();
+    expect(document.querySelector(':invalid')).toBeNull();
   });
 
   it('keeps the accept default and its help copy', () => {

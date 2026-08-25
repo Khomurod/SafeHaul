@@ -1,10 +1,10 @@
 import React, { useId } from 'react';
 import {
-    Upload, Link as LinkIcon, X, CheckCircle,
+    Link as LinkIcon, X, CheckCircle,
     Download, HelpCircle, RotateCcw, ArrowRight,
 } from 'lucide-react';
 import {
-    Button, ChoiceGroup, DataTable, FieldMessage, FormField,
+    Button, ChoiceGroup, DataTable, FieldMessage, FileInput, FormField,
     IconButton, Input, ProgressBar, Radio, StatusMedallion,
 } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
@@ -193,26 +193,24 @@ export function BulkUploadLayout({
             )}
 
             {importMethod === 'file' && (
-                <div className="rounded-ds-xl border-2 border-dashed border-ds-border p-ds-8 text-center transition-colors hover:border-ds-action-primary focus-within:border-ds-action-primary focus-within:shadow-ds-focus">
-                    {/*
-                      `sr-only` rather than `hidden`: the input must stay in the tab
-                      order. There is no approved file-input contract in the design
-                      system yet (recorded in the roadmap), so this composition is a
-                      documented feature-owned exception.
-                    */}
-                    <input
-                        type="file"
-                        accept=".csv,.xlsx,.xls"
-                        onChange={handleFileChange}
-                        className="sr-only"
-                        id={fileInputId}
-                    />
-                    <label htmlFor={fileInputId} className="cursor-pointer">
-                        <Upload className="mx-auto mb-ds-4 text-ds-content-muted" size={40} aria-hidden="true" />
-                        <p className="font-medium text-ds-content-secondary">Click to upload a file</p>
-                        <p className="mt-ds-1 text-ds-sm text-ds-content-muted">CSV, XLS, or XLSX files</p>
-                    </label>
-                </div>
+                /*
+                  `FileInput variant="dropzone"`. This was the same structure by
+                  hand — a real input plus a `<label>` — under a comment saying
+                  "there is no approved file-input contract in the design system
+                  yet", which stopped being true on 2026-08-21. The label is
+                  hidden because the radio above it already says "Upload a file";
+                  the accessible name stays.
+                */
+                <FileInput
+                    label="Upload a file"
+                    labelHidden
+                    variant="dropzone"
+                    buttonLabel="Click to upload a file"
+                    description="CSV, XLS, or XLSX files"
+                    accept=".csv,.xlsx,.xls"
+                    onChange={handleFileChange}
+                    id={fileInputId}
+                />
             )}
 
             {importMethod === 'gsheet' && (

@@ -312,23 +312,23 @@ export function AnalyticsView() {
 
                     {activeTab === 'companies' && (
                         <Card padding="none" className="overflow-x-auto">
-                            <table className="w-full border-collapse text-left">
+                            <table className="ds-native-table" data-density="compact" data-row-hover>
                                 <caption className="sr-only">Company performance for the selected period</caption>
-                                <thead className="bg-ds-table-header-bg text-ds-xs font-bold uppercase text-ds-table-header-fg">
+                                <thead className="bg-ds-table-header-bg text-ds-table-header-fg">
                                     <tr>
-                                        <th scope="col" className="border-b border-ds-border-subtle px-ds-6 py-ds-4">Company</th>
-                                        <th scope="col" className="border-b border-ds-border-subtle px-ds-6 py-ds-4 text-center">Calls Made</th>
-                                        <th scope="col" className="border-b border-ds-border-subtle px-ds-6 py-ds-4 text-center">Total Actions</th>
-                                        <th scope="col" className="border-b border-ds-border-subtle px-ds-6 py-ds-4 text-right">Engagement</th>
+                                        <th scope="col">Company</th>
+                                        <th scope="col" className="text-center">Calls Made</th>
+                                        <th scope="col" className="text-center">Total Actions</th>
+                                        <th scope="col" className="text-right">Engagement</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-ds-border-subtle">
+                                <tbody>
                                     {stats.companyPerformance.map((comp) => (
-                                        <tr key={comp.companyId} className="transition-colors hover:bg-ds-surface-subtle">
-                                            <th scope="row" className="px-ds-6 py-ds-4 text-left font-medium text-ds-content">{comp.companyName}</th>
-                                            <td className="px-ds-6 py-ds-4 text-center tabular-nums text-ds-content-secondary">{comp.callsMade}</td>
-                                            <td className="px-ds-6 py-ds-4 text-center tabular-nums text-ds-content-secondary">{comp.actions}</td>
-                                            <td className="px-ds-6 py-ds-4 text-right">
+                                        <tr key={comp.companyId} className="transition-colors">
+                                            <th scope="row" className="font-medium text-ds-content">{comp.companyName}</th>
+                                            <td className="text-center tabular-nums">{comp.callsMade}</td>
+                                            <td className="text-center tabular-nums">{comp.actions}</td>
+                                            <td className="text-right">
                                                 <Badge tone={comp.callsMade > 20 ? 'success' : 'warning'} icon={ArrowUpRight}>
                                                     {comp.callsMade > 20 ? 'High' : 'Low'}
                                                 </Badge>
@@ -337,7 +337,7 @@ export function AnalyticsView() {
                                     ))}
                                     {stats.companyPerformance.length === 0 && (
                                         <tr>
-                                            <td colSpan="4" className="p-ds-6 text-center italic text-ds-content-muted">No data found for this period.</td>
+                                            <td colSpan="4" className="text-center italic text-ds-content-muted">No data found for this period.</td>
                                         </tr>
                                     )}
                                 </tbody>
@@ -347,23 +347,23 @@ export function AnalyticsView() {
 
                     {activeTab === 'users' && (
                         <Card padding="none" className="overflow-x-auto">
-                            <table className="w-full border-collapse text-left">
+                            <table className="ds-native-table" data-density="compact" data-row-hover>
                                 <caption className="sr-only">Recruiter performance for the selected period</caption>
-                                <thead className="bg-ds-table-header-bg text-ds-xs font-bold uppercase text-ds-table-header-fg">
+                                <thead className="bg-ds-table-header-bg text-ds-table-header-fg">
                                     <tr>
-                                        <th scope="col" className="border-b border-ds-border-subtle px-ds-6 py-ds-4">Recruiter Name</th>
-                                        <th scope="col" className="border-b border-ds-border-subtle px-ds-6 py-ds-4">Company</th>
-                                        <th scope="col" className="border-b border-ds-border-subtle px-ds-6 py-ds-4 text-center">Calls Made</th>
-                                        <th scope="col" className="border-b border-ds-border-subtle px-ds-6 py-ds-4 text-right">Last Active</th>
+                                        <th scope="col">Recruiter Name</th>
+                                        <th scope="col">Company</th>
+                                        <th scope="col" className="text-center">Calls Made</th>
+                                        <th scope="col" className="text-right">Last Active</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-ds-border-subtle">
+                                <tbody>
                                     {stats.userPerformance.map((user) => (
-                                        <tr key={user.userId} className="transition-colors hover:bg-ds-surface-subtle">
-                                            <th scope="row" className="px-ds-6 py-ds-4 text-left font-bold text-ds-content">{user.userName}</th>
-                                            <td className="px-ds-6 py-ds-4 text-ds-content-secondary">{user.companyName}</td>
-                                            <td className="px-ds-6 py-ds-4 text-center font-mono font-bold tabular-nums text-ds-content-link">{user.callsMade}</td>
-                                            <td className="px-ds-6 py-ds-4 text-right text-ds-sm text-ds-content-muted">
+                                        <tr key={user.userId} className="transition-colors">
+                                            <th scope="row" className="text-ds-content">{user.userName}</th>
+                                            <td>{user.companyName}</td>
+                                            <td className="text-center font-mono tabular-nums text-ds-content-link">{user.callsMade}</td>
+                                            <td className="text-right text-ds-sm text-ds-content-muted">
                                                 {user.lastActive?.toDate
                                                     ? user.lastActive.toDate().toLocaleString()
                                                     : 'Unknown'}
@@ -372,7 +372,7 @@ export function AnalyticsView() {
                                     ))}
                                     {stats.userPerformance.length === 0 && (
                                         <tr>
-                                            <td colSpan="4" className="p-ds-6 text-center italic text-ds-content-muted">No activity found for this period.</td>
+                                            <td colSpan="4" className="text-center italic text-ds-content-muted">No activity found for this period.</td>
                                         </tr>
                                     )}
                                 </tbody>

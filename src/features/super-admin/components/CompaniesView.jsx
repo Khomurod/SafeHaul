@@ -210,24 +210,24 @@ export function CompaniesView({
                     tabIndex={0}
                     className="min-h-0 flex-1 overflow-auto bg-ds-canvas focus-visible:outline-none focus-visible:shadow-ds-focus"
                 >
-                <table className="w-full border-collapse text-left">
+                <table className="ds-native-table" data-row-hover>
                     <caption className="sr-only">{title}</caption>
-                    <thead className="sticky top-0 z-10 bg-ds-surface-subtle shadow-ds-xs">
+                    <thead className="sticky top-0 z-10 shadow-ds-xs">
                         <tr>
-                            <th scope="col" className="border-b border-ds-border-subtle px-ds-6 py-ds-3 text-ds-xs font-bold uppercase tracking-wider text-ds-content-secondary">Company Name</th>
-                            <th scope="col" className="border-b border-ds-border-subtle px-ds-6 py-ds-3 text-ds-xs font-bold uppercase tracking-wider text-ds-content-secondary">Slug / ID</th>
-                            <th scope="col" className="border-b border-ds-border-subtle px-ds-6 py-ds-3 text-ds-xs font-bold uppercase tracking-wider text-ds-content-secondary">{isIntegrationMode ? "SMS Number" : "Plan"}</th>
-                            <th scope="col" className="border-b border-ds-border-subtle px-ds-6 py-ds-3 text-center text-ds-xs font-bold uppercase tracking-wider text-ds-content-secondary">Status</th>
-                            <th scope="col" className="border-b border-ds-border-subtle px-ds-6 py-ds-3 text-right text-ds-xs font-bold uppercase tracking-wider text-ds-content-secondary">Actions</th>
+                            <th scope="col">Company Name</th>
+                            <th scope="col">Slug / ID</th>
+                            <th scope="col">{isIntegrationMode ? "SMS Number" : "Plan"}</th>
+                            <th scope="col" className="text-center">Status</th>
+                            <th scope="col" className="text-right">Actions</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-ds-border-subtle bg-ds-surface">
+                    <tbody>
                         {listLoading ? (
-                            <tr><td colSpan="5" role="status" className="p-ds-10 text-center text-ds-content-muted"><SafeHaulLoader size="h-10 w-10" className="mx-auto mb-ds-2" />Loading companies...</td></tr>
+                            <tr><td colSpan="5" role="status" className="py-ds-10 text-center text-ds-content-muted"><SafeHaulLoader size="h-10 w-10" className="mx-auto mb-ds-2" />Loading companies...</td></tr>
                         ) : statsError.companies ? (
-                            <tr><td colSpan="5" role="alert" className="p-ds-10 text-center text-ds-status-danger-fg">Error loading companies.</td></tr>
+                            <tr><td colSpan="5" role="alert" className="py-ds-10 text-center text-ds-status-danger-fg">Error loading companies.</td></tr>
                         ) : filteredCompanyList.length === 0 ? (
-                            <tr><td colSpan="5" className="p-ds-10 text-center text-ds-content-muted">No companies found.</td></tr>
+                            <tr><td colSpan="5" className="py-ds-10 text-center text-ds-content-muted">No companies found.</td></tr>
                         ) : (
                             paginatedData.map(company => {
                                 const isActive = company.isActive !== false;
@@ -236,9 +236,9 @@ export function CompaniesView({
                                     <tr
                                         key={company.id}
                                         onClick={() => openCompany(company)}
-                                        className="cursor-pointer transition-colors hover:bg-ds-surface-subtle"
+                                        className="cursor-pointer transition-colors"
                                     >
-                                        <th scope="row" className="px-ds-6 py-ds-4 text-left align-middle font-normal">
+                                        <th scope="row">
                                             <div className="flex items-center gap-ds-3">
                                                 <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-ds-md border border-ds-border-subtle bg-ds-surface-subtle text-ds-heading-md font-bold text-ds-content-muted">
                                                     {company.companyLogoUrl ? (
@@ -247,23 +247,29 @@ export function CompaniesView({
                                                         companyName.charAt(0)
                                                     )}
                                                 </span>
-                                                {/* A real button so keyboard users can open a company at all. */}
-                                                <button
-                                                    type="button"
+                                                {/*
+                                                  A real button so keyboard users can open a
+                                                  company at all — and `Button variant="link"`
+                                                  since 2026-08-25, rather than a seventh
+                                                  hand-written "action that reads as text".
+                                                */}
+                                                <Button
+                                                    variant="link"
+                                                    justify="start"
+                                                    className="truncate"
                                                     onClick={rowAction(() => openCompany(company))}
-                                                    className="truncate rounded-ds-sm text-left font-semibold text-ds-content hover:underline focus-visible:outline-none focus-visible:shadow-ds-focus"
                                                 >
                                                     {companyName}
-                                                </button>
+                                                </Button>
                                             </div>
                                         </th>
-                                        <td className="px-ds-6 py-ds-4 align-middle">
+                                        <td>
                                             <span className="flex flex-col">
                                                 <span className="w-fit rounded-ds-sm bg-ds-status-info-bg px-2 py-0.5 font-mono text-ds-sm text-ds-status-info-fg">/{getFieldValue(company.appSlug)}</span>
                                                 <span className="mt-1 font-mono text-ds-xs text-ds-content-muted">{company.id}</span>
                                             </span>
                                         </td>
-                                        <td className="px-ds-6 py-ds-4 align-middle">
+                                        <td>
                                             {isIntegrationMode ? (
                                                 <span className="flex flex-col items-start gap-1">
                                                     {company.defaultPhoneNumber ? (
@@ -281,7 +287,7 @@ export function CompaniesView({
                                                 <Badge tone="neutral" icon={Shield}>Free Plan</Badge>
                                             )}
                                         </td>
-                                        <td className="px-ds-6 py-ds-4 text-center align-middle">
+                                        <td className="text-center">
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
@@ -300,7 +306,7 @@ export function CompaniesView({
                                                 </span>
                                             </Button>
                                         </td>
-                                        <td className="px-ds-6 py-ds-4 text-right align-middle">
+                                        <td className="text-right">
                                             <div className="flex justify-end gap-ds-2">
                                                 {isIntegrationMode ? (
                                                     <Button variant="primary" size="sm" onClick={rowAction(() => onEdit(company))}>

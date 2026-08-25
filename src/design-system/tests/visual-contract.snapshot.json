@@ -98,6 +98,30 @@
     "borderRadius": "9999px",
     "width": "61px"
   },
+  "mobile · a native table is the same table as DataTable · nativeTable.headerRow": {
+    "paddingLeft": "0px",
+    "paddingRight": "0px",
+    "paddingTop": "0px",
+    "paddingBottom": "0px",
+    "backgroundColor": "rgb(241, 245, 249)",
+    "height": "48px"
+  },
+  "mobile · a native table is the same table as DataTable · nativeTable.headerCell": {
+    "paddingLeft": "16px",
+    "paddingRight": "16px",
+    "paddingTop": "0px",
+    "paddingBottom": "0px",
+    "backgroundColor": "rgba(0, 0, 0, 0)",
+    "height": "48px"
+  },
+  "mobile · a native table is the same table as DataTable · nativeTable.cell": {
+    "paddingLeft": "16px",
+    "paddingRight": "16px",
+    "paddingTop": "12px",
+    "paddingBottom": "12px",
+    "backgroundColor": "rgba(0, 0, 0, 0)",
+    "height": "63.5px"
+  },
   "mobile · table density: row height and cell padding · headerCell": {
     "height": "48px",
     "paddingLeft": "16px",
@@ -232,6 +256,30 @@
     "fontSize": "12px",
     "borderRadius": "9999px",
     "width": "61px"
+  },
+  "desktop · a native table is the same table as DataTable · nativeTable.headerRow": {
+    "paddingLeft": "0px",
+    "paddingRight": "0px",
+    "paddingTop": "0px",
+    "paddingBottom": "0px",
+    "backgroundColor": "rgb(241, 245, 249)",
+    "height": "48px"
+  },
+  "desktop · a native table is the same table as DataTable · nativeTable.headerCell": {
+    "paddingLeft": "20px",
+    "paddingRight": "20px",
+    "paddingTop": "0px",
+    "paddingBottom": "0px",
+    "backgroundColor": "rgba(0, 0, 0, 0)",
+    "height": "48px"
+  },
+  "desktop · a native table is the same table as DataTable · nativeTable.cell": {
+    "paddingLeft": "20px",
+    "paddingRight": "20px",
+    "paddingTop": "12px",
+    "paddingBottom": "12px",
+    "backgroundColor": "rgba(0, 0, 0, 0)",
+    "height": "60.5px"
   },
   "desktop · table density: row height and cell padding · headerCell": {
     "height": "48px",

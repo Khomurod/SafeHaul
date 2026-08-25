@@ -68,3 +68,100 @@ describe('FileInput', () => {
     expect((await axe(container)).violations).toEqual([]);
   });
 });
+
+/**
+ * The three shapes the product actually uses.
+ *
+ * This component shipped on 2026-08-21 and four days later had two consumers,
+ * while nine raw `<input type="file">` controls were still in the tree — every
+ * one carrying a comment that said no file-input contract existed. Migrating them
+ * is what showed why: the contract existed, and its API covered one of the three
+ * shapes. A primitive that fits a third of its call sites does not get adopted.
+ */
+describe('FileInput shapes', () => {
+  it('hides the field label on request while keeping the accessible name', () => {
+    // For a picker whose field is already named on screen — a photo preview
+    // beside it. Same prop, same meaning, as `Checkbox`'s `labelHidden`.
+    render(<FileInput label="Profile photo" labelHidden onChange={vi.fn()} />);
+    const input = screen.getByLabelText('Profile photo');
+    expect(input).toHaveAccessibleName('Profile photo');
+    expect(screen.getByText('Profile photo').className).toContain('ds-visually-hidden');
+  });
+
+  it('says it is busy and refuses a second file while uploading', () => {
+    // The defect the two hand-built pickers avoided by disabling their trigger:
+    // a picker that stays live during an upload lets a second file replace the
+    // first mid-flight.
+    render(<FileInput label="Company logo" loading onChange={vi.fn()} />);
+    const input = screen.getByLabelText('Company logo');
+    expect(input).toBeDisabled();
+    expect(input).toHaveAttribute('aria-busy', 'true');
+  });
+
+  it('puts the dropzone description inside the panel and still describes the input', () => {
+    const { container } = render(
+      <FileInput
+        label="Recipient list"
+        variant="dropzone"
+        buttonLabel="Click to upload a file"
+        description="CSV, XLS or XLSX files"
+        onChange={vi.fn()}
+      />,
+    );
+    const input = screen.getByLabelText('Recipient list');
+    expect(input).toHaveAccessibleDescription('CSV, XLS or XLSX files');
+    // Inside the label, which is what makes the whole panel the click target and
+    // the browser's native drag-and-drop target for this input.
+    const control = container.querySelector('.ds-file-input__control');
+    expect(control.querySelector('.ds-file-input__description')).not.toBeNull();
+    expect(container.querySelector('.ds-file-input')).toHaveAttribute('data-variant', 'dropzone');
+  });
+
+  /*
+   * `aria-describedby` used to sit after the `{...props}` spread, so a caller
+   * passing its own help-text id had it silently dropped. Found by migrating the
+   * profile-photo picker, whose "Accepts image files under 2 MB" stopped being
+   * announced — and nothing looked wrong.
+   */
+  it('adds a caller aria-describedby to its own rather than replacing it', () => {
+    render(
+      <>
+        <FileInput
+          label="Profile photo"
+          description="Square images look best."
+          aria-describedby="caller-help"
+          onChange={vi.fn()}
+        />
+        <p id="caller-help">Accepts image files under 2 MB.</p>
+      </>,
+    );
+    expect(screen.getByLabelText('Profile photo'))
+      .toHaveAccessibleDescription('Square images look best. Accepts image files under 2 MB.');
+  });
+
+  it('still describes the input from a caller id alone', () => {
+    render(
+      <>
+        <FileInput label="Profile photo" aria-describedby="only-help" onChange={vi.fn()} />
+        <p id="only-help">Accepts image files under 2 MB.</p>
+      </>,
+    );
+    expect(screen.getByLabelText('Profile photo'))
+      .toHaveAccessibleDescription('Accepts image files under 2 MB.');
+  });
+
+  it('refuses an unsupported variant rather than falling back to the button', () => {
+    expect(() => render(<FileInput label="x" variant="tile" onChange={vi.fn()} />))
+      .toThrow(/Unsupported FileInput variant/i);
+  });
+
+  it('has no accessibility violations in either variant, loading or not', async () => {
+    const dropzone = render(
+      <FileInput label="Recipient list" variant="dropzone" description="CSV" onChange={vi.fn()} />,
+    );
+    expect((await axe(dropzone.container)).violations).toEqual([]);
+    dropzone.unmount();
+    const busy = render(<FileInput label="Company logo" loading onChange={vi.fn()} />);
+    expect((await axe(busy.container)).violations).toEqual([]);
+  });
+});

@@ -25,3 +25,10 @@
 @import './tokens/typeface.css';
 @import './tokens/index.css';
 @import './utilities.css';
+/*
+ * The approved native-table contract. Global rather than component-scoped
+ * because its consumers are `<table>` elements in feature code, which import no
+ * design-system component to bring a stylesheet with them — that is exactly why
+ * seven of them had drifted to hand-picked padding and header colours.
+ */
+@import './components/data-table/nativeTable.css';

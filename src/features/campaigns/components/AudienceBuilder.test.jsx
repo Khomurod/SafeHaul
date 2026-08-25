@@ -402,18 +402,25 @@ describe('AudienceBuilder — migrated presentation', () => {
         expect(uploadProps.excludedPhones).toBeInstanceOf(Set);
     });
 
-    it('uses one labelled file input with the exact accept list and no nested controls', () => {
+    /*
+     * The picker is the design system's `FileInput variant="dropzone"` since
+     * 2026-08-25. The accept list is byte-for-byte the same; what changed is that
+     * the visible affordance is the `<label>` wrapping the input rather than a
+     * sibling `Button` calling `.click()` on it, so the whole panel is also the
+     * browser's own drag-and-drop target.
+     */
+    it('uses one labelled file input with the exact accept list', () => {
         renderBuilder({ filters: { leadType: 'import', excludedLeadIds: [] } });
 
-        const input = screen.getByLabelText('Upload recipient list file');
+        const input = screen.getByLabelText('Upload a recipient list');
         expect(input).toHaveAttribute('type', 'file');
         expect(input).toHaveAttribute(
             'accept',
             '.csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel',
         );
-        // The trigger is a sibling button — the input is not nested inside it.
-        const trigger = screen.getByRole('button', { name: 'Choose file' });
-        expect(trigger.contains(input)).toBe(false);
+        // One control: the label IS the affordance, and there is no button.
+        expect(input.closest('label')).toHaveAttribute('for', input.id);
+        expect(screen.queryByRole('button', { name: 'Choose file' })).not.toBeInTheDocument();
 
         fireEvent.change(input, { target: { files: [] } });
         expect(importMocks.handleFileChange).toHaveBeenCalled();

@@ -117,6 +117,26 @@ const PROBES = [
         properties: ['height', 'fontSize', 'borderRadius', 'width'],
     },
     {
+        /*
+         * The native-table contract, measured because the roadmap approves a
+         * native `<table>` for editable matrices and per-row interactive rows —
+         * and because on 2026-08-25 seven of the eleven that use that permission
+         * turned out to reference no `--ds-table-*` role at all, with three
+         * different inline cell paddings between them. These are the numbers that
+         * make the two kinds of table one table.
+         */
+        story: 'patterns-native-table--editable-matrix',
+        label: 'a native table is the same table as DataTable',
+        selectors: {
+            // The surface is on the ROW; a header cell is transparent, so
+            // measuring the cell's background would record nothing useful.
+            'nativeTable.headerRow': '.ds-native-table thead tr',
+            'nativeTable.headerCell': '.ds-native-table thead th',
+            'nativeTable.cell': '.ds-native-table tbody td',
+        },
+        properties: ['paddingLeft', 'paddingRight', 'paddingTop', 'paddingBottom', 'backgroundColor', 'height'],
+    },
+    {
         story: 'components-datatable--default',
         label: 'table density: row height and cell padding',
         selectors: {

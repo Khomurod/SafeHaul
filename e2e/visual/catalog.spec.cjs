@@ -112,6 +112,8 @@ const SUBJECTS = [
     ['patterns-page-states--error-with-stale-data', 'page-states-stale-error'],
     ['patterns-page-states--on-an-inverse-surface', 'page-states-inverse'],
     ['patterns-compact-data-table--density-comparison', 'pattern-table-density'],
+    ['patterns-native-table--editable-matrix', 'pattern-native-table'],
+    ['patterns-native-table--density-comparison', 'pattern-native-table-density'],
     ['patterns-filter-panel--default', 'pattern-filter-panel'],
     ['patterns-filter-panel--no-matching-results', 'pattern-filter-no-results'],
     ['patterns-title-deletion-list--default', 'pattern-deletion-list'],

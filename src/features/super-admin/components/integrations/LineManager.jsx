@@ -139,26 +139,26 @@ export function LineManager({ companyId, companyName }) {
                     tabIndex={0}
                     className="overflow-auto focus-visible:outline-none focus-visible:shadow-ds-focus"
                 >
-                    <table className="w-full border-collapse text-left">
+                    <table className="ds-native-table">
                         <caption id={tableRegionId} className="sr-only">Provisioned phone lines</caption>
-                        <thead className="bg-ds-surface-subtle text-ds-xs font-bold uppercase tracking-wider text-ds-content-secondary">
+                        <thead>
                             <tr>
-                                <th scope="col" className="px-ds-6 py-ds-3">Phone Number</th>
-                                <th scope="col" className="px-ds-6 py-ds-3">Label</th>
-                                <th scope="col" className="px-ds-6 py-ds-3 text-center">Status</th>
-                                <th scope="col" className="px-ds-6 py-ds-3 text-center">Default</th>
-                                <th scope="col" className="px-ds-6 py-ds-3 text-right">Actions</th>
+                                <th scope="col">Phone Number</th>
+                                <th scope="col">Label</th>
+                                <th scope="col" className="text-center">Status</th>
+                                <th scope="col" className="text-center">Default</th>
+                                <th scope="col" className="text-right">Actions</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-ds-border-subtle">
+                        <tbody>
                             {inventory.map((line) => (
-                                <tr key={line.phoneNumber} className="transition-colors hover:bg-ds-surface-subtle">
-                                    <th scope="row" className="px-ds-6 py-ds-4 text-left align-middle">
+                                <tr key={line.phoneNumber} className="transition-colors">
+                                    <th scope="row">
                                         <span className="font-mono text-ds-sm font-medium text-ds-content">
                                             {line.phoneNumber}
                                         </span>
                                     </th>
-                                    <td className="px-ds-6 py-ds-4 align-middle">
+                                    <td>
                                         <span className="text-ds-sm text-ds-content-secondary">
                                             {line.label || '-'}
                                         </span>
@@ -168,21 +168,21 @@ export function LineManager({ companyId, companyName }) {
                                             </span>
                                         )}
                                     </td>
-                                    <td className="px-ds-6 py-ds-4 text-center align-middle">
+                                    <td className="text-center">
                                         {line.status === 'active' ? (
                                             <Badge tone="success" icon={CheckCircle}>Active</Badge>
                                         ) : (
                                             <Badge tone="warning" icon={AlertCircle}>{line.status || 'Unknown'}</Badge>
                                         )}
                                     </td>
-                                    <td className="px-ds-6 py-ds-4 text-center align-middle">
+                                    <td className="text-center">
                                         {line.phoneNumber === defaultNumber ? (
                                             <Badge tone="info" icon={User}>Default</Badge>
                                         ) : (
                                             <span className="text-ds-content-muted" aria-hidden="true">—</span>
                                         )}
                                     </td>
-                                    <td className="px-ds-6 py-ds-4 text-right align-middle">
+                                    <td className="text-right">
                                         <IconButton
                                             label={`Remove line ${line.phoneNumber}`}
                                             variant="ghost"

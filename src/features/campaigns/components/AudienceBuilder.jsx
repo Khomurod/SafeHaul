@@ -3,12 +3,12 @@ import { useCampaignTargeting } from '../hooks/useCampaignTargeting';
 import { useCompanyTeam } from '@/shared/hooks/useCompanyTeam';
 import { useData } from '@/context/DataContext';
 import { APPLICATION_STATUSES, LAST_CALL_RESULTS } from '../constants/campaignConstants';
-import { Filter, Users, RefreshCw, CheckCircle2, UploadCloud, FileSpreadsheet, Check } from 'lucide-react';
+import { Filter, Users, RefreshCw, CheckCircle2, FileSpreadsheet, Check } from 'lucide-react';
 import { useBulkImport } from '@/shared/hooks/useBulkImport';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import VirtualLeadList from './VirtualLeadList';
 import {
-    Badge, Button, Card, FormField, Input, Select, TabList, TabPanel,
+    Badge, Button, Card, FileInput, FormField, Input, Select, TabList, TabPanel,
 } from '@/design-system/components';
 
 const getUploadFingerprint = (rows) => {
@@ -87,7 +87,6 @@ export function AudienceBuilder({ companyId, filters, onChange, campaignScopeKey
     const rawId = useId().replace(/:/g, '');
     const statusLabelId = `audience-status-label-${rawId}`;
     const fileInputId = `audience-file-input-${rawId}`;
-    const fileHelpId = `audience-file-help-${rawId}`;
 
     useEffect(() => {
         if (lastCampaignScopeRef.current === campaignScopeKey) return;
@@ -290,35 +289,25 @@ export function AudienceBuilder({ companyId, filters, onChange, campaignScopeKey
 
                                     <TabPanel idBase="audience-import" tabId={activeImportTab}>
                                         {activeImportTab === 'file' ? (
-                                            <div className="flex flex-col items-center gap-ds-3 rounded-ds-lg border-2 border-dashed border-ds-border p-ds-6 text-center">
-                                                <UploadCloud className="text-ds-action-primary" size={40} aria-hidden="true" />
-                                                <h3 className="font-bold text-ds-content">Upload a recipient list</h3>
-                                                {/* The design system has no approved file-input primitive yet, so this
-                                                    is a documented feature-level composition: a single visually hidden
-                                                    but labelled native input triggered by the approved Button — no
-                                                    nested interactive controls, and the accept list is unchanged. */}
-                                                <input
-                                                    ref={fileInputRef}
-                                                    id={fileInputId}
-                                                    type="file"
-                                                    onChange={handleFileChange}
-                                                    className="ds-visually-hidden"
-                                                    tabIndex={-1}
-                                                    aria-label="Upload recipient list file"
-                                                    aria-describedby={fileHelpId}
-                                                    accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
-                                                />
-                                                <Button
-                                                    variant="secondary"
-                                                    aria-describedby={fileHelpId}
-                                                    onClick={() => fileInputRef.current?.click()}
-                                                >
-                                                    Choose file
-                                                </Button>
-                                                <p id={fileHelpId} className="text-ds-xs text-ds-content-secondary">
-                                                    Support: .csv, .xlsx, .xls
-                                                </p>
-                                            </div>
+                                            /*
+                                              `FileInput variant="dropzone"`. This was a hidden
+                                              input driven by a `Button`, under a comment saying
+                                              the design system had no file-input primitive —
+                                              untrue from 2026-08-21. The accept list is
+                                              unchanged, and the whole panel is now the
+                                              browser's own drag-and-drop target for the input
+                                              it labels, which it was not before.
+                                            */
+                                            <FileInput
+                                                ref={fileInputRef}
+                                                id={fileInputId}
+                                                label="Upload a recipient list"
+                                                variant="dropzone"
+                                                buttonLabel="Choose file"
+                                                description="Support: .csv, .xlsx, .xls"
+                                                accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel"
+                                                onChange={handleFileChange}
+                                            />
                                         ) : (
                                             <div className="flex flex-col gap-ds-3 rounded-ds-lg border border-ds-border-subtle p-ds-6">
                                                 <FileSpreadsheet className="mx-auto text-ds-status-success-fg" size={40} aria-hidden="true" />

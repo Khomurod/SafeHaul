@@ -61,22 +61,28 @@ describe('EnvelopeSidebar — rail sections', () => {
         expect(screen.queryAllByRole('button', { expanded: false })).toHaveLength(0);
     });
 
-    it('collapses and reopens a section, hiding its panel in between', () => {
+    /*
+     * The rail sections are the design system's `Disclosure` since 2026-08-25,
+     * which UNMOUNTS a closed panel where this component used `hidden`. Both take
+     * it out of the accessibility tree; unmounting also takes it out of
+     * find-in-page and screen-reader browse mode, which is the primitive's stated
+     * reason. Safe here because the recipient fields are lifted state, so
+     * collapsing a section loses no typed value.
+     */
+    it('collapses and reopens a section, removing its panel in between', () => {
         renderSidebar(withFile);
         const header = screen.getByRole('button', { name: /^Add Fields/ });
-        const panel = document.getElementById(header.getAttribute('aria-controls'));
+        const panelId = header.getAttribute('aria-controls');
 
-        expect(panel).toBeVisible();
+        expect(document.getElementById(panelId)).toBeVisible();
         fireEvent.click(header);
         expect(header).toHaveAttribute('aria-expanded', 'false');
-        expect(panel).not.toBeVisible();
-        // `hidden` takes the panel out of the accessibility tree entirely, so a
-        // collapsed section is unreachable rather than merely invisible.
+        expect(document.getElementById(panelId)).toBeNull();
         expect(screen.queryByRole('button', { name: 'Add Signature field' })).toBeNull();
 
         fireEvent.click(header);
         expect(header).toHaveAttribute('aria-expanded', 'true');
-        expect(panel).toBeVisible();
+        expect(document.getElementById(header.getAttribute('aria-controls'))).toBeVisible();
     });
 
     it('points each disclosure at the panel it controls', () => {
@@ -199,6 +205,13 @@ describe('EnvelopeSidebar — delivery method', () => {
 });
 
 describe('EnvelopeSidebar — upload state', () => {
+    /*
+     * The picker is the design system's `FileInput variant="dropzone"` since
+     * 2026-08-25 — a real focusable input behind a real `<label>`, instead of a
+     * hidden `tabIndex={-1}` input clicked by a `Button`. The frozen copy and the
+     * accept list are unchanged; what changed is that the panel itself is the
+     * control, so it is also the browser's own drag-and-drop target for a PDF.
+     */
     it('prompts for a PDF and exposes a reachable file input before upload', () => {
         const { container } = renderSidebar({ file: null });
         expect(screen.getByText('Upload a PDF first')).toBeInTheDocument();
@@ -206,18 +219,21 @@ describe('EnvelopeSidebar — upload state', () => {
         const input = container.querySelector('input[type="file"]');
         expect(input).toHaveAttribute('accept', 'application/pdf');
         expect(input).toHaveAccessibleName('Choose a PDF file');
-        // Visually hidden, not display:none, so it is not removed from the page.
-        expect(input.className).toContain('ds-visually-hidden');
-        expect(input.className).not.toContain('hidden ');
+        // Clipped, not display:none, so it stays in the tab order.
+        expect(input.className).toContain('ds-file-input__native');
+        expect(input).not.toHaveAttribute('hidden');
+        input.focus();
+        expect(document.activeElement).toBe(input);
     });
 
-    it('opens the file picker from the approved button', () => {
+    it('reaches the picker through the label that is the visible control', () => {
         const { container } = renderSidebar({ file: null });
         const input = container.querySelector('input[type="file"]');
-        const click = vi.spyOn(input, 'click').mockImplementation(() => {});
+        const label = input.closest('label');
 
-        fireEvent.click(screen.getByRole('button', { name: 'Choose File' }));
-        expect(click).toHaveBeenCalledTimes(1);
+        expect(label).toHaveAttribute('for', input.id);
+        expect(label).toHaveTextContent('Choose File');
+        expect(screen.queryByRole('button', { name: 'Choose File' })).not.toBeInTheDocument();
     });
 
     it('forwards the change event to handleFileChange', () => {
@@ -357,14 +373,24 @@ describe('EnvelopeSidebar — placed fields', () => {
 });
 
 describe('EnvelopeSidebar — presentation and accessibility', () => {
-    it('uses the approved Button for the delivery toggle group', () => {
+    /*
+     * The delivery toggle is the design system's `SegmentedControl` since
+     * 2026-08-25 — one of the four call sites the primitive was built for. It was
+     * a `role="group"` of `Button variant={selected ? 'primary' : 'secondary'}`,
+     * which meant the selected state was a *button variant*: the same tokens as a
+     * primary action, on a control that is not an action.
+     *
+     * `ariaLabelledBy` keeps the group named by the visible "Delivery" label
+     * rather than by a duplicate `aria-label`.
+     */
+    it('uses the approved SegmentedControl for the delivery toggle group', () => {
         renderSidebar({ deliveryMethod: 'sms' });
         const group = screen.getByRole('group', { name: 'Delivery' });
         for (const button of within(group).getAllByRole('button')) {
-            expect(button).toHaveClass('ds-button');
+            expect(button).toHaveClass('ds-segmented__option');
         }
-        expect(screen.getByRole('button', { name: 'SMS' })).toHaveAttribute('data-variant', 'primary');
-        expect(screen.getByRole('button', { name: 'Email' })).toHaveAttribute('data-variant', 'secondary');
+        expect(screen.getByRole('button', { name: 'SMS' })).toHaveAttribute('data-selected', 'true');
+        expect(screen.getByRole('button', { name: 'Email' })).not.toHaveAttribute('data-selected');
     });
 
     it('uses the approved Button for each placed-field row and its remove control', () => {
@@ -397,14 +423,14 @@ describe('EnvelopeSidebar — presentation and accessibility', () => {
             file: { name: 'artificial.pdf' },
             fields: [FIELD_A, FIELD_B],
         });
+        // Any design-system control counts as approved, not just `Button`: the
+        // delivery toggle is a `SegmentedControl` now.
         const raw = Array.from(container.querySelectorAll('button'))
-            .filter((b) => !b.classList.contains('ds-button'))
+            .filter((b) => ![...b.classList].some((c) => c.startsWith('ds-')))
             .map((b) => b.getAttribute('aria-label') || b.textContent.trim());
-        // The three rail-section disclosures and the eight documented palette
-        // buttons. Both exceptions are recorded in the component.
+        // Only the eight documented palette buttons: the rail-section triggers
+        // are `Disclosure`'s now, and carry `ds-disclosure__trigger`.
         expect(raw).toEqual([
-            'Setup',
-            'Add Fields',
             'Add Signature field',
             'Add Initial field',
             'Add Date Signed field',
@@ -413,7 +439,6 @@ describe('EnvelopeSidebar — presentation and accessibility', () => {
             'Add Company field',
             'Add Text field',
             'Add Checkbox field',
-            'Fields22 placed',
         ]);
     });
 

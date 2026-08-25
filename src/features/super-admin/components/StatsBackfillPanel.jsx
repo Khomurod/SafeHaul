@@ -237,23 +237,23 @@ export default function StatsBackfillPanel() {
                                     Preview (First {result.preview.length} Days)
                                 </h5>
                                 <div className="max-h-64 overflow-auto rounded-ds-lg border border-ds-border-subtle bg-ds-surface">
-                                    <table className="w-full text-ds-sm">
+                                    <table className="ds-native-table" data-density="compact">
                                         <caption className="sr-only">Backfill preview by day</caption>
                                         <thead className="sticky top-0 bg-ds-table-header-bg">
                                             <tr>
-                                                <th scope="col" className="px-ds-3 py-ds-2 text-left text-ds-xs font-semibold text-ds-content-secondary">Date</th>
-                                                <th scope="col" className="px-ds-3 py-ds-2 text-right text-ds-xs font-semibold text-ds-content-secondary">Dials</th>
-                                                <th scope="col" className="px-ds-3 py-ds-2 text-right text-ds-xs font-semibold text-ds-content-secondary">Connected</th>
-                                                <th scope="col" className="px-ds-3 py-ds-2 text-right text-ds-xs font-semibold text-ds-content-secondary">Users</th>
+                                                <th scope="col" className="font-semibold">Date</th>
+                                                <th scope="col" className="text-right font-semibold">Dials</th>
+                                                <th scope="col" className="text-right font-semibold">Connected</th>
+                                                <th scope="col" className="text-right font-semibold">Users</th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-ds-border-subtle">
+                                        <tbody>
                                             {result.preview.map((day, idx) => (
-                                                <tr key={idx} className="hover:bg-ds-surface-subtle">
-                                                    <th scope="row" className="px-ds-3 py-ds-2 text-left font-mono text-ds-xs font-normal text-ds-content">{day.dateKey}</th>
-                                                    <td className="px-ds-3 py-ds-2 text-right font-semibold tabular-nums text-ds-content">{day.totalDials}</td>
-                                                    <td className="px-ds-3 py-ds-2 text-right tabular-nums text-ds-status-success-fg">{day.connected}</td>
-                                                    <td className="px-ds-3 py-ds-2 text-right tabular-nums text-ds-content-secondary">{day.userCount}</td>
+                                                <tr key={idx}>
+                                                    <th scope="row" className="font-mono font-normal text-ds-content">{day.dateKey}</th>
+                                                    <td className="text-right font-semibold tabular-nums text-ds-content">{day.totalDials}</td>
+                                                    <td className="text-right tabular-nums text-ds-status-success-fg">{day.connected}</td>
+                                                    <td className="text-right tabular-nums">{day.userCount}</td>
                                                 </tr>
                                             ))}
                                         </tbody>

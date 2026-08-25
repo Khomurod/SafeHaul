@@ -363,7 +363,15 @@ describe('EmailSettingsTab — presentation and accessibility', () => {
         expect(toggle).toHaveAttribute('aria-expanded', 'true');
         expect(screen.getByText('Gmail / Google Workspace')).toBeInTheDocument();
 
-        const link = screen.getByRole('link', { name: 'Google Account' });
+        /*
+         * `Link external` since 2026-08-25, instead of a hand-written
+         * `target="_blank"`. The announcement is the whole reason the primitive
+         * exists — target plus rel written by hand gets the new tab and the
+         * tabnabbing fix and silently drops the WCAG 3.2.5 announcement — so the
+         * assertion now requires it rather than just the attributes.
+         */
+        const link = screen.getByRole('link', { name: /^Google Account/ });
+        expect(link).toHaveAccessibleName('Google Account (opens in a new tab)');
         expect(link).toHaveAttribute('target', '_blank');
         expect(link).toHaveAttribute('rel', 'noopener noreferrer');
     });

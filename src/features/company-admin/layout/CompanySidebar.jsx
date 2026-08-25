@@ -203,16 +203,23 @@ export const CompanySidebar = ({
                 {currentCompanyProfile?.companyName || currentCompanyProfile?.name || 'Company'}
               </span>
               {isCompanyAdmin ? (
-                <button
-                  type="button"
+                /*
+                  `Button variant="link"` — an action that reads as inline text.
+                  It was a hand-written one: `text-ds-content-link` plus
+                  `hover:underline` plus its own focus ring, which is the sixth
+                  copy of a treatment the variant was added on 2026-08-25 to own.
+                */
+                <Button
+                  variant="link"
+                  justify="start"
+                  className="truncate"
                   onClick={() => {
                     navigate('/company/settings');
                     onNavigate?.();
                   }}
-                  className="text-ds-xs text-ds-content-link hover:underline text-left truncate focus-visible:outline-none focus-visible:shadow-ds-focus rounded-ds-sm"
                 >
                   Company Settings
-                </button>
+                </Button>
               ) : (
                 <span className="text-ds-xs text-ds-content-muted truncate">Team Member</span>
               )}
