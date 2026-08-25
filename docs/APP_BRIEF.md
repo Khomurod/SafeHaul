@@ -948,7 +948,11 @@ Note that Tailwind's radius and shadow scales share their names with the
   to see whether any leads were stranded while the fault was live. A page that
   the old code bound to a uid is reclaimed automatically when its owning admin
   reconnects it; a page held by a real company is refused, so one company can no
-  longer take over another's lead feed by reconnecting it.
+  longer take over another's lead feed by reconnecting it. That claim is a
+  Firestore transaction taken *before* the Facebook OAuth exchange, so two
+  companies connecting the same page at the same moment cannot both pass the
+  check; a connect that then fails releases the claim rather than locking the
+  page away from its owner.
 - **Two orphaned fields on `users/{uid}`: `onboardingTourCompleted` and
   `tourCompletedAt`.** The welcome tour was removed on 2026-08-25 and nothing
   writes or reads them any more. Existing values are left in place deliberately —

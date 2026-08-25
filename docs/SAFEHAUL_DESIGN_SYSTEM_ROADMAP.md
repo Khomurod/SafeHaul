@@ -424,9 +424,20 @@ enforcement permanently blocking.
   comment assuming a 1:1 user-to-company mapping, which this application has
   never had. The caller now names the company and the server authorizes it
   against `roles[companyId]` — the same default-deny check `addUserToCompany`
-  makes. Six authorization tests cover the matrix, including the case that
-  matters most: a company admin naming a company they do not administer is
-  rejected, so the fix cannot become a worse bug than the one it closes.
+  makes. Fifteen tests cover the matrix, including the case that matters most: a
+  company admin naming a company they do not administer is rejected, so the fix
+  cannot become a worse bug than the one it closes.
+
+  Binding the page to a real company also made a second-order problem worth
+  closing. The callable read the page's existing binding, made two Facebook API
+  round-trips, and only then wrote — so two admins of two different companies
+  connecting the same unclaimed page concurrently both read "unclaimed" and the
+  later write took the page. The check and the claim are now one transaction that
+  runs before Facebook is contacted; a connect that fails afterwards releases the
+  claim, and a failed token refresh restores the connection the company already
+  had. Three mutations of the production code (claim not written early, rollback
+  made unconditional, stale token left in place on a reclaim) each fail a
+  different test.
 
   The presentation migration this item was blocking is therefore unblocked, but
   the feature flag stays **off** by owner decision, and the visible
