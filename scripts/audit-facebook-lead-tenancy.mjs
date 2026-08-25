@@ -73,9 +73,12 @@ const iso = (ts) => {
                 ? `      looks like user  : ${user.data().email || '(no email on record)'}`
                 : '      not a user either: id matches no user and no company');
 
-            // And how many leads went there.
+            // And how many leads went there. Counted once and kept on the row:
+            // this is somebody's production database, and re-reading a lead
+            // collection to print the same number twice is a charge for nothing.
             const leads = await db.collection('companies').doc(row.companyId)
                 .collection('leads').get();
+            row.leadCount = leads.size;
             console.log(`      leads stranded   : ${leads.size}`);
             if (leads.size > 0) {
                 const dates = leads.docs
@@ -90,11 +93,9 @@ const iso = (ts) => {
         }
     }
 
-    const stranded = [];
-    for (const row of orphaned) {
-        const leads = await db.collection('companies').doc(row.companyId).collection('leads').get();
-        if (leads.size > 0) stranded.push({ id: row.companyId, count: leads.size });
-    }
+    const stranded = orphaned
+        .filter((row) => row.leadCount > 0)
+        .map((row) => ({ id: row.companyId, count: row.leadCount }));
 
     console.log('---');
     if (orphaned.length > 0) {
