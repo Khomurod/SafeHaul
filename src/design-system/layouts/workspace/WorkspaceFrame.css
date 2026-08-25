@@ -22,8 +22,21 @@
   transform: translateY(calc(-100% - var(--ds-space-4)));
 }
 
+/*
+ * The focus colour, not white.
+ *
+ * `--ds-color-content-inverse` is white, and `outline-offset: 2px` puts the ring
+ * OUTSIDE the blue chip — on the page canvas, which is light. So the one
+ * indicator on the first control a keyboard user reaches was invisible. Found by
+ * tabbing through a real screen; axe cannot see it, because there is an outline
+ * and it has a width.
+ *
+ * `--ds-color-focus` is the same blue as every other focus ring in the product,
+ * and the 2px offset is exactly what puts it on the light canvas rather than on
+ * the chip it surrounds.
+ */
 .ds-workspace__skip-link:focus {
-  outline: 2px solid var(--ds-color-content-inverse);
+  outline: 2px solid var(--ds-color-focus);
   outline-offset: 2px;
   transform: translateY(0);
 }

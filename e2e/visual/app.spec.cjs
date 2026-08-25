@@ -80,6 +80,45 @@ const SCREENS = [
         url: '/verify/e2e-token-1?e2eVerify=mock',
         ready: (page) => page.getByRole('heading', { level: 1 }).first(),
     },
+    /*
+     * Added 2026-08-25. The ten screens above were the ones the lane started
+     * with; these five are the rest of the areas a user actually spends time in,
+     * and every one of them was unmeasured while the lane was advisory:
+     *
+     *  - the signing room is where a legally operative signature is made;
+     *  - the change-review portal is a public token route with no navigation
+     *    around it, so nothing else on the screen would reveal a broken state;
+     *  - Started (unfinished) and the two lead lists are three more tables, and
+     *    tables are where this campaign found most of its geometry defects;
+     *  - Import Leads carries the `FileInput` dropzone that four uploads
+     *    migrated onto, so its appearance is now a shared contract rather than
+     *    one screen's decision.
+     */
+    {
+        name: 'signing-room',
+        url: '/sign/e2e-company/e2e-request?token=e2e-token&e2eSign=mock',
+        ready: (page) => page.getByRole('heading', { level: 1 }).first(),
+    },
+    {
+        name: 'change-review-portal',
+        url: '/review-change/e2e-token-1?e2eReview=mock',
+        ready: (page) => page.getByRole('heading', { level: 1 }).first(),
+    },
+    {
+        name: 'company-unfinished',
+        url: '/company/drivers/unfinished?e2eAuth=company_admin',
+        ready: (page) => page.getByRole('heading', { level: 1 }).first(),
+    },
+    {
+        name: 'company-leads',
+        url: '/company/drivers/leads/company?e2eAuth=company_admin',
+        ready: (page) => page.getByRole('heading', { level: 1 }).first(),
+    },
+    {
+        name: 'company-import-leads',
+        url: '/company/import-leads?e2eAuth=company_admin',
+        ready: (page) => page.getByRole('heading', { level: 1 }).first(),
+    },
 ];
 
 const WIDTHS = [

@@ -286,9 +286,18 @@ jobs:
       # that hazard is two suites contending for one server on one machine.
       # `workers: 1` and `retries: 2` are untouched.
       #
-      # Excludes the @a11y axe lane here; it runs in the non-blocking e2e-a11y job.
-      - name: Frontend E2E Tests (Chromium)
-        run: npm run test:e2e -- --project=chromium --grep-invert "@a11y" --shard=${{ matrix.shard }}/4
+      # The @axe accessibility specs run HERE, in this blocking lane, since
+      # 2026-08-25. They used to be excluded with `--grep-invert "@a11y"` and run
+      # in a separate `continue-on-error` job, whose own comment said to fold them
+      # back in "once confirmed green in CI". They were: 11/11 passed on the last
+      # run of the campaign that wrote that comment, and on every run before it.
+      #
+      # An accessibility gate nobody has to pass is a report, not a gate — and the
+      # roadmap requires accessibility to be enforced. `scripts/test-ci-plan.mjs`
+      # (K2) asserts no workflow step excludes `@a11y`, so it cannot drift back
+      # out.
+      - name: Frontend E2E Tests (Chromium, including the axe specs)
+        run: npm run test:e2e -- --project=chromium --shard=${{ matrix.shard }}/4
 
   storybook-build:
     name: Build the design-system catalog
@@ -487,42 +496,13 @@ jobs:
 
   # ---------------------------------------------------------------------------
   # Non-blocking baselines — advisory, never in the required set
+  #
+  # `e2e-a11y` used to live here and no longer does: its axe specs run inside the
+  # blocking `frontend-e2e` lane as of 2026-08-25. `typecheck` is the only
+  # advisory lane left, and it is advisory for a different reason — it is a
+  # ratchet over pre-existing `checkJs` findings in modules this campaign does not
+  # touch, not a gate someone decided to switch off.
   # ---------------------------------------------------------------------------
-  e2e-a11y:
-    runs-on: ubuntu-latest
-    needs: plan
-    if: needs.plan.outputs.run_frontend_e2e == 'true'
-    # E3: automated accessibility gate (@axe-core/playwright) on the mobile-critical
-    # journeys. Initially NON-BLOCKING (continue-on-error) and intentionally absent
-    # from the release-validation lane set, because it could not be verified in the
-    # dev sandbox (browser download blocked). Once confirmed green in CI, fold these
-    # tests back into the blocking frontend-e2e lane (drop the --grep-invert) and
-    # remove this job.
-    steps:
-      - uses: actions/checkout@v5
-      - name: Use Node.js 20.x
-        uses: actions/setup-node@v5
-        with:
-          node-version: 20.x
-          cache: 'npm'
-      - name: Install Dependencies
-        run: npm ci
-      - name: Cache the Playwright browser
-        id: playwright-cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
-      - name: Install Playwright Browser
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: npx playwright install --with-deps chromium
-      - name: Install Playwright OS dependencies
-        if: steps.playwright-cache.outputs.cache-hit == 'true'
-        run: npx playwright install-deps chromium
-      - name: E2E accessibility (axe) — non-blocking baseline
-        run: npm run test:e2e -- --project=chromium --grep "@a11y"
-        continue-on-error: true
-
   typecheck:
     runs-on: ubuntu-latest
     needs: plan
