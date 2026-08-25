@@ -241,6 +241,52 @@ export const FullPageStates = {
 };
 
 /**
+ * On a dark console surface. `surface="inverse"` recolours the title and the
+ * description to the on-inverse roles and drops the card — without it the title
+ * renders in `--ds-color-content`, which is near-black and therefore invisible
+ * here.
+ *
+ * The medallion is deliberately not inverted. Its tinted backgrounds are light,
+ * so it reads as a light chip on the panel — the same way `Badge` already does
+ * on these surfaces. Inverting it would make the state the one element on the
+ * panel following different rules.
+ */
+export const OnAnInverseSurface = {
+  render: () => (
+    <div className="sb-page">
+      <PageContainer width="standard">
+        <Stack gap="lg">
+          <div className="rounded-ds-xl border border-ds-border-inverse bg-ds-surface-inverse p-ds-4">
+            <LoadingState
+              surface="inverse"
+              icon={Loader}
+              title="Reading the current selection"
+              description="This usually takes a few seconds."
+            />
+          </div>
+          <div className="rounded-ds-xl border border-ds-border-inverse bg-ds-surface-inverse p-ds-4">
+            <EmptyState
+              surface="inverse"
+              icon={Inbox}
+              title="No records match these filters"
+              description="Widen a filter to see more."
+            />
+          </div>
+          <div className="rounded-ds-xl border border-ds-border-inverse bg-ds-surface-inverse p-ds-4">
+            <ErrorState
+              surface="inverse"
+              title="This preview could not be loaded"
+              description="The connection was interrupted. Nothing has been lost — try again."
+              actions={<Button variant="secondary" onClick={fn()}><RefreshCw aria-hidden="true" />Try again</Button>}
+            />
+          </div>
+        </Stack>
+      </PageContainer>
+    </div>
+  ),
+};
+
+/**
  * Empty is not one state. These three look identical and must not read
  * identically — the third is a permissions boundary, and saying "no records"
  * there implies data does not exist when the caller simply cannot see it.

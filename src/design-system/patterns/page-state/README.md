@@ -60,6 +60,14 @@ genuinely cannot resolve. Everything else without an action is an oversight.
 - **`surface="bare"`** when it already sits inside a `Card`. Two nested card
   surfaces is the defect that otherwise produces; the padding lives on the state
   itself, so spacing is identical either way.
+- **`surface="inverse"`** when it sits on a dark console surface
+  (`--ds-color-surface-inverse`) — a log viewer, a live preview panel.
+  It drops the card and recolours the title and description to
+  `--ds-color-content-on-inverse` and `--ds-color-content-on-inverse-muted`.
+  Without it the title renders in `--ds-color-content`, which is near-black:
+  invisible on the panel, and invisible in a code review too. The medallion is
+  deliberately *not* inverted — its tinted backgrounds are light, so it reads as
+  a light chip, the same as `Badge` on those surfaces.
 - **On a phone, actions stack full width.** Two side-by-side buttons at 412px
   get about 170px each, which truncates any real label.
 - **The loading medallion's spin stops under `prefers-reduced-motion`.** The

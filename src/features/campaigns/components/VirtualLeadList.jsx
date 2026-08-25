@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Virtuoso } from 'react-virtuoso';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/lib/firebase/config';
-import { Loader2, AlertCircle, CheckCircle2, XCircle } from 'lucide-react';
+import { CheckCircle2, Inbox, Loader2, XCircle } from 'lucide-react';
 import { Badge, Button } from '@/design-system/components';
+import { EmptyState, ErrorState, LoadingState } from '@/design-system/patterns';
 
 /**
  * Feature-owned domain → visual mapping for a recipient's lifecycle status.
@@ -15,6 +16,20 @@ const STATUS_TONE = {
     new: 'info',
     hired: 'success',
 };
+
+/**
+ * The preview panel is an inverse ("console") surface, which the token contract
+ * supports directly — `--ds-color-surface-inverse` and its on-inverse content
+ * and status roles. It used to be literal slate values under a comment saying
+ * the design system had no dark-surface tokens; it has had them since the
+ * inverse roles were added, and `SystemHealthView`'s log console already uses
+ * the same three.
+ *
+ * The failure state reuses this exact class so the panel does not resize when a
+ * fetch fails — it previously shrank from 500px to 400px, moving everything
+ * below it up the page.
+ */
+const PANEL_CLASS = 'h-[500px] w-full overflow-hidden rounded-ds-xl border border-ds-border-inverse bg-ds-surface-inverse';
 
 export default function VirtualLeadList({ companyId, filters, excludedIds = [], onToggleExclusion, localData = null, excludedPhones = null }) {
     const [leads, setLeads] = useState([]);
@@ -114,26 +129,30 @@ export default function VirtualLeadList({ companyId, filters, excludedIds = [], 
                 {/* Selection Indicator */}
                 <span
                     aria-hidden="true"
-                    className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-all ${isPhoneExcluded
-                        ? 'border-amber-400 bg-transparent text-amber-300'
+                    className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-ds-full border transition-all ${isPhoneExcluded
+                        ? 'border-ds-status-warning-fg-on-inverse bg-transparent text-ds-status-warning-fg-on-inverse'
                         : isExcluded
-                            ? 'border-slate-400 bg-transparent text-slate-300'
-                            : 'border-blue-400 bg-blue-500 text-white'}`}
+                            ? 'border-ds-content-on-inverse-muted bg-transparent text-ds-content-on-inverse-muted'
+                            : 'border-ds-action-primary bg-ds-action-primary text-ds-content-inverse'}`}
                 >
                     <StateIcon size={14} />
                 </span>
 
-                {/* Avatar */}
-                <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-700 text-ds-sm font-bold text-slate-200">
+                {/* Monogram. A ring rather than a filled disc: the row behind it is
+                    `surface-inverse-subtle` when the recipient is included and the bare
+                    panel when they are not, so any single fill is invisible against one
+                    of the two. The ring reads on both, and matches the selection
+                    indicator beside it. */}
+                <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-ds-full border border-ds-content-on-inverse-muted text-ds-sm font-bold text-ds-content-on-inverse">
                     {name[0] || '?'}
                 </span>
 
                 {/* Info */}
                 <span className="min-w-0 flex-1">
-                    <span className={`block truncate text-ds-sm font-semibold ${isPhoneExcluded || isExcluded ? 'text-slate-400 line-through' : 'text-white'}`}>
+                    <span className={`block truncate text-ds-sm font-semibold ${isPhoneExcluded || isExcluded ? 'text-ds-content-on-inverse-muted line-through' : 'text-ds-content-on-inverse'}`}>
                         {name}
                     </span>
-                    <span className="block truncate text-ds-xs text-slate-300">{contact}</span>
+                    <span className="block truncate text-ds-xs text-ds-content-on-inverse-muted">{contact}</span>
                 </span>
 
                 {/* Status Badge */}
@@ -153,8 +172,8 @@ export default function VirtualLeadList({ companyId, filters, excludedIds = [], 
         // control at all — only the toggleable rows become buttons.
         if (isPhoneExcluded) {
             return (
-                <div className="pb-2 pr-2">
-                    <div className={`${rowClass} border-amber-700/50 bg-amber-900/20`}>
+                <div className="pb-ds-2 pr-ds-2">
+                    <div className={`${rowClass} border-ds-status-warning-fg-on-inverse bg-transparent`}>
                         {rowBody}
                     </div>
                 </div>
@@ -162,14 +181,14 @@ export default function VirtualLeadList({ companyId, filters, excludedIds = [], 
         }
 
         return (
-            <div className="pb-2 pr-2">
+            <div className="pb-ds-2 pr-ds-2">
                 <button
                     type="button"
                     aria-pressed={!isExcluded}
                     onClick={() => onToggleExclusion && onToggleExclusion(safeId)}
                     className={`${rowClass} focus-visible:outline-none focus-visible:shadow-ds-focus ${isExcluded
-                        ? 'border-slate-700 bg-slate-900/50'
-                        : 'group border-transparent bg-slate-800 hover:border-slate-600'}`}
+                        ? 'border-ds-border-inverse bg-transparent'
+                        : 'group border-transparent bg-ds-surface-inverse-subtle hover:border-ds-content-on-inverse-muted'}`}
                 >
                     {rowBody}
                 </button>
@@ -179,39 +198,42 @@ export default function VirtualLeadList({ companyId, filters, excludedIds = [], 
 
     if (error) {
         return (
-            <div
-                role="alert"
-                className="flex h-[400px] flex-col items-center justify-center gap-ds-2 rounded-ds-lg border border-red-500/40 bg-slate-900/50 p-ds-4 text-center text-red-200"
-            >
-                <AlertCircle aria-hidden="true" />
-                <p className="text-ds-sm">Failed to load preview</p>
-                <Button variant="secondary" size="sm" onClick={() => loadMore(true)}>
-                    Retry Connection
-                </Button>
+            <div className={`${PANEL_CLASS} flex items-center justify-center`}>
+                <ErrorState
+                    surface="inverse"
+                    headingLevel={3}
+                    title="Failed to load preview"
+                    description="The recipient preview could not be reached. Your filters are unchanged."
+                    actions={(
+                        <Button variant="secondary" onClick={() => loadMore(true)}>
+                            Retry Connection
+                        </Button>
+                    )}
+                />
             </div>
         );
     }
 
     return (
-        // Documented feature-level exception: this preview keeps a dark surface
-        // (literal slate colours rather than `--ds-*`) because the campaign editor
-        // renders it as an inverted "device/console" panel. The design system has
-        // no approved dark-surface tokens yet; rather than expand the token set
-        // for one surface, the exception is scoped to this container and the
-        // contrast of every piece of text on it is verified.
-        <div className="h-[500px] w-full overflow-hidden rounded-ds-xl border border-slate-800 bg-slate-950 shadow-inner">
+        <div className={PANEL_CLASS}>
             {leads.length === 0 && loading ? (
-                <div role="status" className="flex h-full flex-col items-center justify-center gap-ds-3 text-slate-300">
-                    <Loader2 className="animate-spin text-blue-400" size={24} aria-hidden="true" />
-                    <span className="text-ds-xs font-medium uppercase tracking-widest">Scanning Database...</span>
+                <div className="flex h-full items-center justify-center">
+                    <LoadingState
+                        surface="inverse"
+                        headingLevel={3}
+                        title="Scanning Database..."
+                        description="Counting the recipients that match these filters."
+                    />
                 </div>
             ) : leads.length === 0 ? (
-                <div role="status" className="flex h-full flex-col items-center justify-center gap-ds-2 text-slate-300">
-                    <span aria-hidden="true" className="mb-ds-2 flex h-12 w-12 items-center justify-center rounded-full bg-slate-900 text-slate-400">
-                        <AlertCircle size={24} />
-                    </span>
-                    <p className="font-medium">No leads match these filters.</p>
-                    <p className="text-ds-xs text-slate-400">Try adjusting your criteria.</p>
+                <div className="flex h-full items-center justify-center">
+                    <EmptyState
+                        surface="inverse"
+                        headingLevel={3}
+                        icon={Inbox}
+                        title="No leads match these filters."
+                        description="Try adjusting your criteria."
+                    />
                 </div>
             ) : (
                 <Virtuoso
@@ -223,7 +245,7 @@ export default function VirtualLeadList({ companyId, filters, excludedIds = [], 
                     components={{
                         Footer: () => (
                             loading ? (
-                                <div role="status" className="flex items-center justify-center gap-ds-2 p-ds-4 text-ds-xs text-slate-300">
+                                <div role="status" className="flex items-center justify-center gap-ds-2 p-ds-4 text-ds-xs text-ds-content-on-inverse-muted">
                                     <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" /> Fetching more...
                                 </div>
                             ) : <div className="h-4" />

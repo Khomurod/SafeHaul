@@ -83,3 +83,23 @@
     animation: none;
   }
 }
+
+/*
+ * A state rendered on the dark console surface (`--ds-color-surface-inverse`).
+ *
+ * Only the two text roles change. The medallion stays as it is: its tinted
+ * backgrounds are light, so on a dark panel it reads as a light chip — which is
+ * how every other tinted element on those surfaces already reads, including
+ * `Badge`. Inverting it as well would make the state the one thing on the panel
+ * that follows different rules.
+ *
+ * Both pairings are asserted in `tests/tokens.test.js`: `content-on-inverse` and
+ * `content-on-inverse-muted` each clear AA on `surface-inverse`.
+ */
+.ds-page-state[data-surface='inverse'] .ds-page-state__title {
+  color: var(--ds-color-content-on-inverse);
+}
+
+.ds-page-state[data-surface='inverse'] .ds-page-state__description {
+  color: var(--ds-color-content-on-inverse-muted);
+}

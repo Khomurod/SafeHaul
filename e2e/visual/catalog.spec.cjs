@@ -104,6 +104,7 @@ const SUBJECTS = [
     ['patterns-page-states--full-page-states', 'page-states'],
     ['patterns-page-states--empty-is-not-one-state', 'page-states-empty'],
     ['patterns-page-states--error-with-stale-data', 'page-states-stale-error'],
+    ['patterns-page-states--on-an-inverse-surface', 'page-states-inverse'],
     ['patterns-compact-data-table--density-comparison', 'pattern-table-density'],
     ['patterns-filter-panel--default', 'pattern-filter-panel'],
     ['patterns-filter-panel--no-matching-results', 'pattern-filter-no-results'],

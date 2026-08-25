@@ -148,6 +148,17 @@ verified.
   unreachable by exactly the users who most need it. Callers using
   `aria-disabled` must refuse the activation themselves.
 
+- The Campaigns audience and content builders consume Card, Button, Badge,
+  FormField, Input, Select and the three page states. The campaign draft shape,
+  the `getFilteredLeadsPage` callable, the filter keys, the CSV/Sheet import
+  path, the exclusion semantics and every frozen string remain feature-owned.
+  The audience preview panel is an **inverse (console) surface** expressed in
+  the `--ds-color-surface-inverse` roles, the same ones `SystemHealthView`'s log
+  panel uses; `PageState` gained `surface="inverse"` so its three states did not
+  have to be hand-composed there. One documented feature-owned exception
+  remains: `DeviceMockup`, which is artwork rather than interface and keeps its
+  own four-literal device palette.
+
 The primitive APIs are usable for migrated consumers, but their broader
 component-family roadmap items remain in progress until catalog examples and
 durable visual baselines are owner-approved.
@@ -193,7 +204,7 @@ nothing checked.
 | `npm run check:ui-contract` | yes | A *new* raw colour, off-scale type size, sub-12px text, hand-built overlay, raw table or hand-styled control |
 | `npm run check:table-layout` | yes | A cell narrower than its content, in a real browser at 412px and 1440px |
 | `npm run check:visual-contract` | yes | A change to computed geometry — control heights, cell padding, radii, resolved colours |
-| `npm run test:visual` | reported | A change to how anything *looks*, across 29 catalog subjects and 10 real screens at both widths |
+| `npm run test:visual` | reported | A change to how anything *looks*, across the catalog subject list and 10 real screens at both widths |
 
 `check:ui-contract` ratchets against
 `ui-contract.baseline.json`, which lists every currently tolerated violation with

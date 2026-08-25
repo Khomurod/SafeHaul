@@ -93,7 +93,7 @@ export function LaunchPad({ companyId, campaign, onLaunchSuccess }) {
     return (
         <div className="mx-auto max-w-2xl pt-ds-12 text-center">
             <Card padding="lg">
-                <span aria-hidden="true" className="mx-auto mb-ds-4 flex h-16 w-16 items-center justify-center rounded-full bg-ds-status-info-bg text-ds-status-info-fg">
+                <span aria-hidden="true" className="mx-auto mb-ds-4 flex h-16 w-16 items-center justify-center rounded-ds-full bg-ds-status-info-bg text-ds-status-info-fg">
                     <Rocket size={32} />
                 </span>
 

@@ -229,8 +229,24 @@ component itself as well.
   and its sub-12px type.** It is rasterised by html2canvas into a bare print
   window with no `--ds-*` custom properties, so a token would resolve to
   nothing. Enforced in both directions by `VOEPreviewModal.export.test.jsx`.
-- **`DeviceMockup`'s phone status-bar time keeps `text-[10px]`** — it is a
-  decorative illustration of a real device, not interface text.
+- **`DeviceMockup` keeps literal greys and `text-[10px]` — it is artwork, not
+  interface.** The component draws a picture of a physical phone. The status-bar
+  time is that small because a real one is, and the bezel, side buttons and
+  battery pips are moulded plastic, not a surface of the SafeHaul interface.
+  Mapping the bezel onto `--ds-color-surface-inverse-subtle` would look
+  identical today and would mean that re-tuning the console surface silently
+  restyles a picture of a phone. Migrated 2026-08-24 to declare that palette
+  once, in a named `DEVICE` constant at the top of the file, so it is four
+  reviewable literals rather than ten anonymous classes. The *screen* is the
+  other way round: what renders on it is SafeHaul's own preview content, so it
+  takes `--ds-color-surface` like any other drawn surface.
+
+  Two real defects were fixed in passing. Its `dark:` variants were the only
+  ones in the application, so under an OS dark preference the phone half-inverted
+  while every screen around it stayed light; they are gone. And the simulated
+  status bar was in the accessibility tree, so a screen reader announced a fake
+  clock before the message — it is now `aria-hidden`, while the message itself
+  stays readable.
 
 ### Missing primitives that live code is waiting on
 
@@ -469,7 +485,11 @@ failed the morning after it was recorded.
   workflow behaviour changed.
 - `[ ]` Make the pixel lane blocking once its font tripwire has held on CI.
 - `[ ]` Drive `ui-contract.baseline.json` to zero and delete it, leaving only
-  the `reasons` entries. 660 violations across 59 files at the time of writing.
+  the `reasons` entries. 660 violations across 59 files at the time of writing;
+  **268 across 34 files after the campaigns slice (2026-08-24)**, of which 179
+  are approved exceptions carrying a `reasons` entry and 89 are migration debt,
+  every one of them assigned to the settings / driver-flows / signing /
+  onboarding / auth slice.
 
 ---
 
@@ -517,6 +537,36 @@ The state and link primitives exist but their **consumers are not all migrated
 yet**: feature-owned empty/error states and styled `<a>` elements remain in the
 tree and are being replaced family by family. A primitive existing is not the
 same as the exception being gone.
+
+**Campaigns, migrated 2026-08-24.** `AudienceBuilder`, `VirtualLeadList`,
+`ContentComposer` and `DeviceMockup` carried 55 raw palette classes between them
+and now carry four, all of them the `DeviceMockup` artwork exception above.
+
+The interesting part was the audience preview panel, because the reason it was
+never migrated turned out to be a stale comment. `VirtualLeadList` said the
+design system "has no approved dark-surface tokens yet"; `AudienceBuilder` said
+the dark treatment was temporary and would be *removed* when the list migrated.
+Both were written after `--ds-color-surface-inverse` and its on-inverse content,
+border and status roles had already landed (§6, resolved), and the two comments
+contradicted each other about what the outcome should be. The panel is a
+console surface, the token contract expresses console surfaces, and
+`SystemHealthView`'s log panel was already using the same three roles. So the
+panel stays dark and now says so in tokens.
+
+That migration added one capability to the design system: **`PageState` takes
+`surface="inverse"`**. Its three states previously had to be hand-composed on
+that panel, because the default title colour is `--ds-color-content` — near
+black, and therefore invisible on `--ds-color-surface-inverse`. The medallion is
+deliberately *not* inverted: its tinted backgrounds are light, so it reads as a
+light chip exactly as `Badge` already does on those surfaces. Both text
+pairings are covered by the AA assertions in `tests/tokens.test.js`.
+
+Two behavioural details were corrected with it, neither of them cosmetic. The
+failure state used to shrink the panel from 500px to 400px, moving everything
+below it up the page at the moment the user was reading an error; it now reuses
+the panel's own class. And the two hand-built tinted count chips in the preview
+header are `Badge`s — they are counts with a status meaning, on a surface whose
+list rows were already using `Badge` for the same job.
 
 ### Catalog
 

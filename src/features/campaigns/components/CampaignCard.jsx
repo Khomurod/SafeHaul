@@ -121,7 +121,7 @@ export function CampaignCard({ campaign, onClick, onDelete, onCancel, onViewRepo
                             </span>
                         </div>
                         <div
-                            className="h-2 w-full overflow-hidden rounded-full bg-ds-surface-subtle"
+                            className="h-2 w-full overflow-hidden rounded-ds-full bg-ds-surface-subtle"
                             role="progressbar"
                             aria-label="Send progress"
                             aria-valuenow={campaign.progress.processedCount}

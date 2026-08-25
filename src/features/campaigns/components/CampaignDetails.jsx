@@ -285,7 +285,7 @@ export function CampaignDetails({ campaign, onClose }) {
                                 <BarChart3 size={16} className="text-ds-action-primary" aria-hidden="true" /> Campaign Progress
                             </h3>
                             <div
-                                className="mb-ds-2 h-4 w-full overflow-hidden rounded-full bg-ds-surface-subtle"
+                                className="mb-ds-2 h-4 w-full overflow-hidden rounded-ds-full bg-ds-surface-subtle"
                                 role="progressbar"
                                 aria-label="Campaign progress"
                                 aria-valuenow={campaign.progress.processedCount}

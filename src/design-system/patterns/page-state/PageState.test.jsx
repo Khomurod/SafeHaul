@@ -56,6 +56,40 @@ describe('PageState', () => {
     expect(container.querySelector('.ds-card')).toBeNull();
     expect(container.querySelector('.ds-page-state')).toBeInTheDocument();
   });
+
+  /*
+   * The inverse surface is the one where getting this wrong is invisible in
+   * review and total in use: the default title colour is `--ds-color-content`,
+   * which is near-black, so a state that forgets to mark itself renders as
+   * black text on a slate-900 console. The marker is what the stylesheet keys
+   * off, so it is pinned rather than the resolved colour, which happy-dom
+   * cannot compute.
+   */
+  it('marks an inverse state so the on-inverse text roles apply', () => {
+    const { container } = render(
+      <PageState tone="neutral" title="Nothing here" surface="inverse" />,
+    );
+    const state = container.querySelector('.ds-page-state');
+    expect(state).toHaveAttribute('data-surface', 'inverse');
+    expect(container.querySelector('.ds-card')).toBeNull();
+  });
+
+  it('marks a card state too, so the default is a positive value not an absence', () => {
+    const { container } = render(<PageState tone="neutral" title="Nothing here" />);
+    expect(container.querySelector('.ds-page-state')).toHaveAttribute('data-surface', 'card');
+  });
+
+  it('rejects a surface it has no styling for', () => {
+    expect(() => render(<PageState tone="neutral" title="x" surface="dark" />))
+      .toThrow(/Unsupported PageState surface/i);
+  });
+
+  it('puts a caller id on the state itself when there is no card to carry it', () => {
+    const { container } = render(
+      <PageState tone="neutral" title="Nothing here" surface="inverse" id="preview-state" />,
+    );
+    expect(container.querySelector('.ds-page-state')).toHaveAttribute('id', 'preview-state');
+  });
 });
 
 /**

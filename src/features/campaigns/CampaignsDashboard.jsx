@@ -123,7 +123,7 @@ export function CampaignsDashboard({ companyId }) {
 
     if (!isCampaignsEnabled) {
         return (
-            <div className="p-8">
+            <div className="p-ds-8">
                 <PaywallMessage
                     title="Campaigns Module Unavailable"
                     message="Bulk Actions and SMS Campaigns are currently turned off for your company. Please contact our Sales Team to enable this feature."
@@ -359,7 +359,7 @@ export function CampaignsDashboard({ companyId }) {
                                 <div className="flex flex-col items-center justify-center gap-ds-4 rounded-ds-lg border-2 border-dashed border-ds-border bg-ds-surface px-ds-6 py-ds-12 text-center">
                                     <span
                                         aria-hidden="true"
-                                        className="flex h-16 w-16 items-center justify-center rounded-full bg-ds-surface-subtle text-ds-content-muted"
+                                        className="flex h-16 w-16 items-center justify-center rounded-ds-full bg-ds-surface-subtle text-ds-content-muted"
                                     >
                                         <Rocket size={32} />
                                     </span>

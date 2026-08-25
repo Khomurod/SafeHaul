@@ -30,6 +30,7 @@ import './PageState.css';
 const TONES = new Set(['neutral', 'info', 'success', 'warning', 'danger', 'accent']);
 const ANNOUNCEMENTS = new Set(['polite', 'assertive', 'off']);
 const HEADING_LEVELS = new Set([1, 2, 3, 4, 5, 6]);
+const SURFACES = new Set(['card', 'bare', 'inverse']);
 
 function liveRegionProps(announce) {
   if (announce === 'off') return {};
@@ -55,8 +56,12 @@ function liveRegionProps(announce) {
  *   content on navigation rather than appearing in response to something.
  * @param {1|2|3|4|5|6} [props.headingLevel=2] Match the surrounding outline. A
  *   state inside a section that already has an `<h2>` needs `3`.
- * @param {'card'|'bare'} [props.surface='card'] `bare` when it already sits
- *   inside a `Card` — nesting two card surfaces is the defect that produces.
+ * @param {'card'|'bare'|'inverse'} [props.surface='card'] `bare` when it already
+ *   sits inside a `Card` — nesting two card surfaces is the defect that
+ *   produces. `inverse` for a state rendered on a dark console surface
+ *   (`--ds-color-surface-inverse`): it drops the card and recolours the title
+ *   and description to the on-inverse roles, because the default content
+ *   colours are dark text and would be invisible there.
  */
 export function PageState({
   tone = 'neutral',
@@ -85,7 +90,7 @@ export function PageState({
     throw new TypeError(`Unsupported PageState announce: ${resolvedAnnounce}`);
   }
 
-  if (surface !== 'card' && surface !== 'bare') {
+  if (!SURFACES.has(surface)) {
     throw new TypeError(`Unsupported PageState surface: ${surface}`);
   }
 
@@ -95,6 +100,7 @@ export function PageState({
       {...liveRegionProps(resolvedAnnounce)}
       className={`ds-page-state ${className}`.trim()}
       data-tone={tone}
+      data-surface={surface}
     >
       {Icon && (
         <StatusMedallion tone={tone} size="lg">
@@ -107,10 +113,11 @@ export function PageState({
     </div>
   );
 
-  // `bare` puts the remaining props on the state itself; `card` puts them on the
-  // surface, which is where a caller's `id` or `aria-labelledby` belongs. The
-  // padding lives on `.ds-page-state`, so `bare` keeps its own spacing.
-  if (surface === 'bare') {
+  // `bare` and `inverse` put the remaining props on the state itself; `card`
+  // puts them on the surface, which is where a caller's `id` or
+  // `aria-labelledby` belongs. The padding lives on `.ds-page-state`, so a
+  // card-less state keeps its own spacing.
+  if (surface !== 'card') {
     return React.cloneElement(body, props);
   }
   return <Card padding="none" {...props}>{body}</Card>;
