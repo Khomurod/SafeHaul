@@ -26,7 +26,8 @@ Delete this whole section for a change that renders nothing.
 | `npm run check:visual-contract` | [ ] | geometry unchanged, or the diff and why |
 | `npm run test:stories` | [ ] | |
 | `npm run check:table-layout` | [ ] | required if a table, cell or column width moved |
-| `npm run test:visual` | [ ] | non-blocking lane; attach the diff if it moved |
+| `npm run test:visual` | [ ] | **blocking** since 2026-08-25; if a baseline moved, say why and commit the re-recording |
+| `npm run test:e2e -- --grep "@a11y"` | [ ] | **blocking** since 2026-08-25, inside the `frontend-e2e` lane |
 | Desktop review at 1440 | [ ] | |
 | **Mobile review at 412** | [ ] | not a shrunk desktop — say what you checked |
 | Keyboard: tab order, visible focus, accessible names | [ ] | |
@@ -48,6 +49,11 @@ Delete this whole section for a change that renders nothing.
       `shadow-sm` is the `shadow-ds-xs` step.
 - [ ] `ui-contract.allowlist.json` is regenerated if the counts moved, and any
       new entry says **why** it is allowed. There is no `debt` option any more.
+- [ ] Nothing here is a **hand-composed pattern**: a status screen built from
+      `Card` + `StatusMedallion` + heading + body + actions, or a `Modal` with
+      its own Cancel/Confirm footer. Both are made of approved primitives, so no
+      check can see them — use `patterns/page-state` and `ConfirmDialog`. See
+      roadmap §7.
 
 ## Nothing here changes behaviour
 
