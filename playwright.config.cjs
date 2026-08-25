@@ -65,27 +65,23 @@ module.exports = defineConfig({
             use: { ...devices['Pixel 7'], ...chromiumLaunchOverride },
         },
         /*
-         * Visual regression. Its own project because it sets its own viewport per
-         * test and must not inherit a device's deviceScaleFactor — a 2x DPR would
-         * double every baseline's size and make the mobile and desktop captures
-         * incomparable.
+         * The visual-regression project is NOT here. It lives in
+         * `playwright.visual.config.cjs`, and the reason is worth stating because
+         * two plausible-looking alternatives are both wrong:
          *
-         * Kept out of the default functional run, which matters because Playwright
-         * runs EVERY configured project when none is named — declaring a separate
-         * project does not make it opt-in. `npm run test:e2e` therefore lists the
-         * functional projects explicitly; without that, a clean checkout running
-         * it would fail here, since the catalog half needs `storybook-static`
-         * built first. Run this one with `npm run test:visual`.
+         *   - Declaring it as a project here does not make it opt-in. Playwright
+         *     runs EVERY configured project when none is named, so a clean
+         *     checkout running `npm run test:e2e` would try the visual lane and
+         *     fail — its catalog half needs `storybook-static` built first.
+         *   - Naming the functional projects in the `test:e2e` script does not fix
+         *     that either. `--project` ACCUMULATES on the command line, and CI
+         *     runs `npm run test:e2e -- --project=chromium`, so a baked-in list
+         *     unions with chromium and runs every project. That was tried on
+         *     2026-08-25 and put 113 firefox tests into the chromium shard lane.
+         *
+         * A separate config is the only arrangement where no caller can get it
+         * wrong: the visual lane is unreachable unless you ask for that config.
          */
-        {
-            name: 'visual',
-            testDir: './e2e/visual',
-            use: {
-                ...devices['Desktop Chrome'],
-                ...chromiumLaunchOverride,
-                deviceScaleFactor: 1,
-            },
-        },
     ],
     /* Run your local dev server before starting the tests */
     webServer: {

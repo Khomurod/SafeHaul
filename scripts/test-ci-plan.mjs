@@ -996,5 +996,55 @@ console.log('\nI. Workflow wiring');
     }
 }
 
+/*
+ * J. Playwright project selection: the scripts and the workflow are one contract.
+ *
+ * Learned on 2026-08-25, in CI, twice in one afternoon.
+ *
+ * `--project` ACCUMULATES on the Playwright command line. `main.yml` runs
+ * `npm run test:e2e -- --project=chromium`, so any `--project` baked into the
+ * script UNIONS with chromium rather than being narrowed by it. Naming the five
+ * functional projects in `test:e2e` — a reasonable-looking way to keep the
+ * visual lane out of a bare run — therefore put firefox, webkit and both mobile
+ * lanes into every chromium shard. The runner installs only Chromium, so 113
+ * tests failed with `browserType.launch: Executable doesn't exist`, on all four
+ * shards, through all three retries.
+ *
+ * The visual lane is kept out by living in its own config instead, which no
+ * caller can accidentally widen. These checks pin both halves of that.
+ */
+{
+    const pkg = JSON.parse(readFileSync(resolvePath(here, '../package.json'), 'utf8'));
+    const scripts = pkg.scripts || {};
+    const workflow = readFileSync(resolvePath(here, '../.github/workflows/main.yml'), 'utf8');
+
+    assert('J1. test:e2e bakes in no --project',
+        !/--project/.test(scripts['test:e2e'] || ''),
+        `test:e2e = ${JSON.stringify(scripts['test:e2e'])} — a caller's --project would union with it, not replace it`);
+
+    assert('J2. every workflow use of test:e2e names its project',
+        [...workflow.matchAll(/npm run test:e2e\b[^\n]*/g)].every((m) => m[0].includes('--project=')),
+        'a run without --project would execute every configured project');
+
+    // The reason J1 is safe: the functional config carries no visual project, so
+    // a bare `playwright test` cannot reach the lane that needs storybook-static.
+    const functional = readFileSync(resolvePath(here, '../playwright.config.cjs'), 'utf8');
+    assert('J3. the functional config declares no visual project',
+        !/name:\s*'visual'/.test(functional),
+        'a visual project here runs on a bare `playwright test`, which needs storybook-static');
+
+    const visual = readFileSync(resolvePath(here, '../playwright.visual.config.cjs'), 'utf8');
+    assert('J4. the visual config declares the visual project',
+        /name:\s*'visual'/.test(visual));
+
+    // And the scripts that drive it must ask for that config by name, or they
+    // silently run the functional projects instead.
+    for (const name of ['test:visual', 'test:visual:update']) {
+        assert(`J5. ${name} names the visual config`,
+            (scripts[name] || '').includes('--config=playwright.visual.config.cjs'),
+            `${name} = ${JSON.stringify(scripts[name])}`);
+    }
+}
+
 console.log(failures === 0 ? '\nAll CI plan and gate checks passed.' : `\n${failures} check(s) failed.`);
 process.exit(failures === 0 ? 0 : 1);
