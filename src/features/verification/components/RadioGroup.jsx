@@ -75,13 +75,13 @@ export const RadioGroup = ({
                     >
                         <span
                             aria-hidden="true"
-                            className={`flex h-5 w-5 items-center justify-center rounded-full border-2 transition-all ${
+                            className={`flex h-5 w-5 items-center justify-center rounded-ds-full border-2 transition-all ${
                                 value === opt.value
                                     ? 'border-ds-action-primary bg-ds-action-primary'
                                     : 'border-ds-border group-hover:border-ds-content-muted'
                             }`}
                         >
-                            {value === opt.value && <span className="h-2 w-2 rounded-full bg-ds-content-inverse" />}
+                            {value === opt.value && <span className="h-2 w-2 rounded-ds-full bg-ds-content-inverse" />}
                         </span>
                         <input
                             type="radio"

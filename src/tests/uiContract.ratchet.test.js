@@ -28,6 +28,8 @@ describe('the guard fires on the defects it exists for', () => {
         ['hand-styled-button', '<button className="px-4 py-2 bg-ds-surface rounded">Go</button>'],
         ['hand-styled-field', '<input className="border rounded px-3" />'],
         ['hand-styled-anchor', '<a href="/x" className="px-4 py-2 rounded border">Go</a>'],
+        ['tailwind-radius', '<div className="rounded-lg" />'],
+        ['tailwind-shadow', '<div className="shadow-sm" />'],
     ])('catches %s', (rule, source) => {
         expect(count(source, rule)).toBeGreaterThan(0);
     });
@@ -54,8 +56,29 @@ describe('the guard stays silent on correct code', () => {
         ['a plain anchor', '<a href="/records">All records</a>'],
         ['a design-system component', '<Button variant="primary">Go</Button>'],
         ['a Link with external', '<Link href="https://x.example" external>Docs</Link>'],
+        ['the ds radius scale', '<div className="rounded-ds-md rounded-t-ds-lg" />'],
+        ['the ds shadow scale', '<div className="shadow-ds-xs shadow-ds-lg" />'],
+        ['a focus ring, which is not a shadow step', '<div className="focus-visible:shadow-ds-focus" />'],
     ])('does not flag %s', (_name, source) => {
         expect(countViolations(source)).toEqual({});
+    });
+
+    /*
+     * Tailwind's radius and shadow scales share their names with the `--ds-*`
+     * ones and sit one step off them: `rounded-lg` is 8px where
+     * `rounded-ds-lg` is 12px. A rule written to match the bare names must not
+     * also swallow the prefixed ones, or the guard silently stops guarding the
+     * thing it was written for.
+     */
+    it('tells the two radius scales apart rather than matching on the suffix', () => {
+        const source = '<div className="rounded-ds-lg rounded-t-ds-full rounded-ds-card" />';
+        expect(count(source, 'tailwind-radius')).toBe(0);
+        expect(count('<div className="rounded-lg rounded-t-full" />', 'tailwind-radius')).toBe(2);
+    });
+
+    it('tells the two shadow scales apart, and leaves the focus ring alone', () => {
+        expect(count('<div className="shadow-ds-md shadow-ds-focus" />', 'tailwind-shadow')).toBe(0);
+        expect(count('<div className="shadow-md shadow-inner" />', 'tailwind-shadow')).toBe(2);
     });
 
     it('does not flag an overlayClassName passed to Modal', () => {

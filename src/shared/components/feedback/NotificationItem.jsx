@@ -78,7 +78,7 @@ export function NotificationItem({ notification, onClick }) {
     const renderIcon = () => {
         if (isCompleted) {
             return (
-                <span aria-hidden="true" className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-ds-status-success-bg text-ds-status-success-fg">
+                <span aria-hidden="true" className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-ds-full bg-ds-status-success-bg text-ds-status-success-fg">
                     <Check size={16} />
                 </span>
             );
@@ -88,7 +88,7 @@ export function NotificationItem({ notification, onClick }) {
                 ? 'bg-ds-status-danger-bg text-ds-status-danger-fg'
                 : 'bg-ds-status-warning-bg text-ds-status-warning-fg';
             return (
-                <span aria-hidden="true" className={`mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${iconTone}`}>
+                <span aria-hidden="true" className={`mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-ds-full ${iconTone}`}>
                     <Clock size={16} />
                 </span>
             );
@@ -96,7 +96,7 @@ export function NotificationItem({ notification, onClick }) {
         return (
             <span
                 aria-hidden="true"
-                className={`mt-1 h-2 w-2 shrink-0 rounded-full ${!isRead ? 'bg-ds-action-primary' : 'bg-ds-border'}`}
+                className={`mt-1 h-2 w-2 shrink-0 rounded-ds-full ${!isRead ? 'bg-ds-action-primary' : 'bg-ds-border'}`}
             />
         );
     };

@@ -480,7 +480,7 @@ export const CompanyCandidatesListPage = ({ scope }) => {
             {/* List Content */}
             <div className="flex-1 overflow-hidden p-3 sm:p-6 flex flex-col gap-0">
                 {/* Toolbar — search, filters, timer, assign */}
-                <div className="bg-ds-surface rounded-t-xl border border-b-0 border-ds-border-subtle">
+                <div className="rounded-t-ds-lg border border-b-0 border-ds-border-subtle bg-ds-surface">
                     <DashboardToolbar
                         activeTab={scope}
                         dataCount={sortedData.length}

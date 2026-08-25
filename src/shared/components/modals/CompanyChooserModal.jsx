@@ -136,7 +136,7 @@ export function CompanyChooserModal() {
                 <span className="flex min-w-0 items-center gap-ds-3">
                   <span
                     aria-hidden="true"
-                    className="flex shrink-0 items-center justify-center rounded-full bg-ds-status-info-bg p-ds-2 text-ds-status-info-fg"
+                    className="flex shrink-0 items-center justify-center rounded-ds-full bg-ds-status-info-bg p-ds-2 text-ds-status-info-fg"
                   >
                     <Briefcase size={20} />
                   </span>

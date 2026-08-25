@@ -103,7 +103,7 @@ export function DossierSidebar({
                 <div className="flex items-center gap-ds-4">
                     <span
                         aria-hidden="true"
-                        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-2 border-ds-surface bg-ds-status-info-bg text-ds-body-lg font-bold text-ds-status-info-fg shadow-ds-xs sm:h-16 sm:w-16 sm:text-ds-heading-sm"
+                        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-ds-full border-2 border-ds-surface bg-ds-status-info-bg text-ds-body-lg font-bold text-ds-status-info-fg shadow-ds-xs sm:h-16 sm:w-16 sm:text-ds-heading-sm"
                     >
                         {initials}
                     </span>
@@ -206,7 +206,7 @@ export function DossierSidebar({
                                 <>
                                     <span
                                         aria-hidden="true"
-                                        className="ml-auto h-2 w-2 shrink-0 rounded-full bg-ds-status-danger-fg"
+                                        className="ml-auto h-2 w-2 shrink-0 rounded-ds-full bg-ds-status-danger-fg"
                                     />
                                     <span className="ds-visually-hidden">— incomplete</span>
                                 </>

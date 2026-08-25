@@ -116,7 +116,7 @@ export function BulkUploadLayout({
                         >
                             <span
                                 aria-hidden="true"
-                                className={`flex h-6 w-6 items-center justify-center rounded-full border-2 text-ds-xs font-bold ${isComplete
+                                className={`flex h-6 w-6 items-center justify-center rounded-ds-full border-2 text-ds-xs font-bold ${isComplete
                                     ? 'border-ds-action-primary bg-ds-action-primary text-ds-content-inverse'
                                     : isCurrent
                                         ? 'border-ds-action-primary bg-ds-surface text-ds-action-primary'

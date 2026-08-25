@@ -896,6 +896,29 @@ evidence in the same task, and never mark an item complete without the
 functional, visual, mobile, accessibility, documentation and diff checks
 actually having run.
 
+**These rules are now checked, not just written.** Six automated guards stand
+behind them, and they exist because for most of 2026 a substantial, well-adopted
+design system coexisted with 660 raw palette classes, off-scale type and
+sub-12px text — all of which passed review, lint, 234 test files and CI, because
+nothing looked:
+
+| Command | Blocking | Catches |
+|---|---|---|
+| `npm test` (`design-system/tests/`) | yes | An import across a layer boundary; a broken token contract or a pairing below AA |
+| `npm run check:ui-contract` | yes | A raw colour, off-scale type, sub-12px text, a Tailwind radius or shadow, a hand-built overlay, a raw table, a hand-styled control |
+| `npm run check:table-layout` | yes | A cell narrower than its content, in a real browser at 412px and 1440px |
+| `npm run check:visual-contract` | yes | A change to computed geometry — control heights, cell padding, radii, resolved colours |
+| `npm run test:stories` | yes | A story that fails to render, or fails axe |
+| `npm run test:visual` | reported | A change to how anything *looks*, across the catalog and ten real screens at both widths |
+
+`check:ui-contract` is zero-tolerance against
+`src/design-system/ui-contract.allowlist.json`, which records every violation
+the product deliberately keeps **and why**. An entry without a reason fails.
+
+Note that Tailwind's radius and shadow scales share their names with the
+`--ds-*` ones and sit one step off them — `rounded-lg` is 8px where
+`rounded-ds-lg` is 12px. Convert by value, never by name.
+
 ---
 
 ## 12. Known limitations, retired features and intentional exceptions
@@ -915,6 +938,19 @@ actually having run.
 
 **Current limitations:**
 
+- **Every form input zooms the viewport on an iPhone.** iOS Safari zooms in when
+  a focused input's `font-size` is under 16px and does not zoom back out; the
+  shared control scale is 13–15px at all three sizes, so this affects every form
+  in the product rather than one screen. The fix is a design-system one and
+  moves the rendered size of every mobile control, so it is an open roadmap item
+  with its own mobile visual review. Found 2026-08-25.
+- **The onboarding tour's first step dims the page without being a dialog.** The
+  tour is a coach mark — a `pointer-events-none` layer holding a popover placed
+  against a page element — and correctly does not use `Modal`, which would
+  centre it and trap focus. But its centred first step renders a blocking
+  backdrop with no `role="dialog"`, no focus move and no Escape. Giving it modal
+  semantics changes the tour's keyboard behaviour, so it needs an owner
+  decision.
 - **No payment processing.** `companies/{id}.planType` is a manual super-admin
   `free` / `paid` flag that only changes a badge ("Free Plan" / "Pro Plan").
   Marketing prices ($199 / $299 per month) are **not** enforced anywhere in the

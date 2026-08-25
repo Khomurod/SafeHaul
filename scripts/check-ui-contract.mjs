@@ -18,24 +18,26 @@
  * A rule that lives only in a document is a rule that is followed until someone
  * is in a hurry.
  *
- * ## How it ratchets
+ * ## Zero tolerance, with a written allowlist
  *
- * Zero-tolerance on day one would have been unmergeable, so this measures
- * against a committed inventory — `src/design-system/ui-contract.baseline.json`
- * — and enforces that the numbers only ever go **down**:
+ * Every violation this finds must appear in
+ * `src/design-system/ui-contract.allowlist.json` **with a reason** naming the
+ * roadmap entry that justifies it. There is no other way to pass:
  *
- *   - a violation in a file that is not in the inventory  -> fail
- *   - more violations in a file than the inventory records -> fail
+ *   - a violation in a file that is not in the allowlist   -> fail
+ *   - more violations in a file than the allowlist records -> fail
  *   - fewer                                                -> fail, "run --update"
+ *   - an allowlist entry with no reason                    -> fail
  *
- * Failing on a *decrease* is deliberate. It keeps the inventory honest, so it
- * can never quietly describe a tree that no longer exists, and it makes every
- * migration's shrinkage visible in its own diff. `--update` rewrites the file.
+ * It began (2026-08-21) as a shrink-only ratchet over an inventory of 660
+ * tolerated violations, most tagged with the migration slice that owed the
+ * work. The last of that debt cleared on 2026-08-25, so the `debt` escape hatch
+ * is gone: an entry without a reason is now an error rather than a promise.
  *
- * Each entry carries either a `reason` (a permanent, roadmap-referenced
- * exception — the VOE export document, brand artwork) or a `debt` note naming
- * the slice that will clear it. When the last `debt` entry goes, this check
- * becomes zero-tolerance and the inventory is deleted.
+ * Failing on a *decrease* is deliberate too. It keeps the allowlist honest, so
+ * it can never quietly describe a tree that no longer exists, and it makes
+ * every fix visible in its own diff. `--update` rewrites the file, preserving
+ * reasons and dropping the ones whose rule no longer fires.
  *
  * ## What it deliberately does not flag
  *
@@ -62,8 +64,8 @@ function repoRoot() {
 function srcRoot() {
     return path.join(repoRoot(), 'src');
 }
-function baselinePath() {
-    return path.join(srcRoot(), 'design-system/ui-contract.baseline.json');
+function allowlistPath() {
+    return path.join(srcRoot(), 'design-system/ui-contract.allowlist.json');
 }
 
 /* ------------------------------------------------------------------ *
@@ -182,6 +184,35 @@ const RULES = [
             + 'scale step. An arbitrary size is a new type scale of one.',
     },
     {
+        /*
+         * Tailwind's radius scale and the `--ds-*` one share names and are
+         * offset by one step: `rounded-lg` is 8px, `rounded-ds-lg` is 12px.
+         * That makes this worse than an arbitrary value — the name actively
+         * misleads, and the two rendered side by side in the same product for
+         * the whole of 2026 without anyone noticing. Convert by *value*, not by
+         * name: rounded → ds-sm, rounded-lg → ds-md, rounded-xl → ds-lg,
+         * rounded-2xl → ds-xl, rounded-full → ds-full.
+         */
+        name: 'tailwind-radius',
+        pattern: /\brounded(?:-(?:t|b|l|r|tl|tr|bl|br|s|e|ss|se|es|ee))?-(?:sm|md|lg|xl|2xl|3xl|full)\b/g,
+        remedy: 'Use the `--ds-*` radius scale, and match it by value rather than by name: '
+            + 'Tailwind\'s `rounded-lg` is 8px but `rounded-ds-lg` is 12px. `rounded` → '
+            + '`rounded-ds-sm`, `rounded-lg` → `rounded-ds-md`, `rounded-xl` → `rounded-ds-lg`, '
+            + '`rounded-2xl` → `rounded-ds-xl`, `rounded-full` → `rounded-ds-full`.',
+    },
+    {
+        /*
+         * Same offset, same trap. Tailwind's `shadow-sm` is the `--ds-shadow-xs`
+         * step, and every Tailwind shadow is pure black where the `--ds-*` ones
+         * are tinted with the slate the rest of the product is built from.
+         */
+        name: 'tailwind-shadow',
+        pattern: /\bshadow-(?:sm|md|lg|xl|2xl|inner)\b/g,
+        remedy: 'Use the `--ds-*` shadow scale, matched by value: Tailwind\'s `shadow-sm` is '
+            + 'the `shadow-ds-xs` step. Tailwind\'s shadows are pure black; the `--ds-*` ones '
+            + 'are tinted with the same slate as the rest of the product.',
+    },
+    {
         name: 'hand-built-overlay',
         pattern: /fixed inset-0/g,
         /*
@@ -283,9 +314,9 @@ function scan() {
     return measured;
 }
 
-function loadBaseline() {
+function loadAllowlist() {
     try {
-        return JSON.parse(readFileSync(baselinePath(), 'utf8'));
+        return JSON.parse(readFileSync(allowlistPath(), 'utf8'));
     } catch {
         return { files: {} };
     }
@@ -293,7 +324,7 @@ function loadBaseline() {
 
 function main() {
     const update = process.argv.includes('--update');
-    const baseline = loadBaseline();
+    const allowlist = loadAllowlist();
     const measured = scan();
 
     // A guard that cannot fail on a broken input is not a guard. If the walker
@@ -307,7 +338,7 @@ function main() {
     if (update) {
         const files = {};
         for (const [file, counts] of Object.entries(measured).sort()) {
-            const previous = baseline.files?.[file] ?? {};
+            const previous = allowlist.files?.[file] ?? {};
             files[file] = { ...counts };
             // Annotations survive a regeneration; only the numbers are recomputed.
             // A `reasons` entry for a rule the file no longer breaks is dropped
@@ -320,17 +351,15 @@ function main() {
                 if (Object.keys(live).length > 0) files[file].reasons = live;
             }
             /*
-             * `debt` means "a migration slice still owes work here". Once every
-             * rule the file breaks has a documented reason, it owes nothing, and
-             * leaving the tag would make the "no debt left" check at the end of
-             * the campaign meaningless.
+             * `debt` used to be the other way to pass — "a migration slice still
+             * owes work here". It is deliberately not carried forward: since
+             * 2026-08-25 every entry needs a reason, and `--update` inventing one
+             * would defeat the point. An entry whose rule has no reason fails the
+             * check below instead, which is where the author has to write it.
              */
-            const stillOwed = Object.keys(counts)
-                .some((rule) => !(files[file].reasons?.[rule]));
-            if (previous.debt && stillOwed) files[file].debt = previous.debt;
         }
-        writeFileSync(baselinePath(), `${JSON.stringify({
-            $comment: baseline.$comment,
+        writeFileSync(allowlistPath(), `${JSON.stringify({
+            $comment: allowlist.$comment,
             files,
         }, null, 2)}\n`);
         const total = Object.values(measured).reduce(
@@ -344,7 +373,7 @@ function main() {
     let toleratedTotal = 0;
 
     for (const [file, counts] of Object.entries(measured)) {
-        const allowed = baseline.files?.[file] ?? {};
+        const allowed = allowlist.files?.[file] ?? {};
         for (const [rule, count] of Object.entries(counts)) {
             const permitted = typeof allowed[rule] === 'number' ? allowed[rule] : 0;
             toleratedTotal += Math.min(count, permitted);
@@ -361,19 +390,38 @@ function main() {
         }
     }
 
-    // Shrinkage: the inventory describes a tree that no longer exists.
+    /*
+     * Every allowlist entry must say why it is there.
+     *
+     * This is what makes the file an allowlist rather than a pile of tolerated
+     * numbers. Without it, "add it to the allowlist" is a way to make any
+     * failure go away, and the next reader has no way to tell a deliberate
+     * exception from something someone was in a hurry about.
+     */
+    const unexplained = [];
+    for (const [file, allowed] of Object.entries(allowlist.files ?? {})) {
+        for (const rule of Object.keys(allowed)) {
+            if (rule === 'reasons') continue;
+            const reason = allowed.reasons?.[rule];
+            if (typeof reason !== 'string' || reason.trim().length < 20) {
+                unexplained.push(`${file} → ${rule}`);
+            }
+        }
+    }
+
+    // Shrinkage: the allowlist describes a tree that no longer exists.
     const stale = [];
-    for (const [file, allowed] of Object.entries(baseline.files ?? {})) {
+    for (const [file, allowed] of Object.entries(allowlist.files ?? {})) {
         const counts = measured[file] ?? {};
         for (const [rule, permitted] of Object.entries(allowed)) {
-            if (rule === 'reasons' || rule === 'debt') continue;
+            if (rule === 'reasons') continue;
             const count = counts[rule] ?? 0;
             if (count < permitted) stale.push(`${file} → ${rule}: ${permitted} → ${count}`);
         }
     }
 
     if (problems.length > 0) {
-        console.error('\nUI contract violations that the inventory does not cover:\n');
+        console.error('\nUI contract violations that the allowlist does not cover:\n');
         const byRule = new Map();
         for (const problem of problems) {
             if (!byRule.has(problem.rule)) byRule.set(problem.rule, []);
@@ -386,14 +434,23 @@ function main() {
             console.error('');
         }
         console.error('If one of these is a genuine, documented exception, add it to');
-        console.error('src/design-system/ui-contract.baseline.json under `reasons`, keyed by rule,');
+        console.error('src/design-system/ui-contract.allowlist.json under `reasons`, keyed by rule,');
         console.error('naming the roadmap entry that justifies it. Do not add one without that —');
         console.error('an unexplained entry is how the inventory stops meaning anything.\n');
         process.exit(1);
     }
 
+    if (unexplained.length > 0 && !update) {
+        console.error('\nThese allowlist entries do not say why they are allowed:\n');
+        for (const entry of unexplained) console.error(`  ${entry}`);
+        console.error('\nEvery entry needs a `reasons` entry for its rule, naming the roadmap');
+        console.error('item that justifies it. The `debt` escape hatch was removed once the');
+        console.error('migration finished — an exception is now a decision, not a promise.\n');
+        process.exit(1);
+    }
+
     if (stale.length > 0) {
-        console.error('\nThe UI contract inventory is out of date — these have been fixed:\n');
+        console.error('\nThe UI contract allowlist is out of date — these have been fixed:\n');
         for (const line of stale) console.error(`  ${line}`);
         console.error('\nRun `npm run check:ui-contract -- --update` and commit the result, so the');
         console.error('inventory records the shrinkage rather than quietly permitting a regression');

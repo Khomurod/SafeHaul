@@ -525,7 +525,7 @@ function SafetyCard({ appData }) {
     if (!hasIncidents) {
         return (
             <Card padding="md" className="flex items-center gap-ds-4 border-ds-status-success-border bg-ds-status-success-bg">
-                <span className="rounded-full bg-ds-surface p-ds-2 text-ds-status-success-fg">
+                <span className="rounded-ds-full bg-ds-surface p-ds-2 text-ds-status-success-fg">
                     <CheckCircle size={24} aria-hidden="true" />
                 </span>
                 <div className="min-w-0">
@@ -597,7 +597,7 @@ function ExperienceTimeline({ appData }) {
                         <li key={idx} className="relative">
                             <span
                                 aria-hidden="true"
-                                className="absolute -left-[21px] top-1 h-3 w-3 rounded-full bg-ds-action-primary ring-4 ring-ds-surface"
+                                className="absolute -left-[21px] top-1 h-3 w-3 rounded-ds-full bg-ds-action-primary ring-4 ring-ds-surface"
                             />
 
                             <div className="flex flex-col gap-ds-1 sm:flex-row sm:items-start sm:justify-between">
@@ -720,7 +720,7 @@ function ConsentCard({ appData }) {
                                     {isAccepted ? (
                                         <CheckCircle size={14} className="shrink-0 text-ds-status-success-fg" aria-hidden="true" />
                                     ) : (
-                                        <span aria-hidden="true" className="h-3.5 w-3.5 shrink-0 rounded-full border-2 border-ds-border" />
+                                        <span aria-hidden="true" className="h-3.5 w-3.5 shrink-0 rounded-ds-full border-2 border-ds-border" />
                                     )}
                                     <span className={isAccepted ? 'text-ds-content' : 'text-ds-content-secondary'}>
                                         {a.label}

@@ -335,7 +335,7 @@ export function LoginScreen() {
           <div className="p-8">
             {resetEmailSent ? (
               <div className="text-center">
-                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-ds-status-success-bg">
+                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-ds-full bg-ds-status-success-bg">
                   <CheckCircle2 size={32} className="text-ds-status-success-fg" aria-hidden="true" />
                 </div>
                 <h3 id={RESET_DIALOG_TITLE_ID} className="mb-2 text-ds-heading-md font-bold text-ds-content">

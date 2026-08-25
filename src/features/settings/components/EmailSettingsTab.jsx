@@ -359,7 +359,7 @@ export function EmailSettingsTab({ currentCompanyProfile }) {
                 {showGuide && (
                     <div id="email-setup-guide" className="mt-6 space-y-6 animate-in fade-in slide-in-from-top-2">
                         {/* Gmail Guide */}
-                        <div className="bg-ds-surface rounded-lg p-5 border border-ds-border-subtle shadow-sm">
+                        <div className="rounded-ds-md border border-ds-border-subtle bg-ds-surface p-5 shadow-ds-xs">
                             <h4 className="font-bold text-ds-content text-ds-heading-md mb-ds-3 flex items-center gap-2">
                                 <Mail className="text-ds-status-danger-fg" size={20} />
                                 Gmail / Google Workspace
@@ -384,7 +384,7 @@ export function EmailSettingsTab({ currentCompanyProfile }) {
                         </div>
 
                         {/* Outlook Guide */}
-                        <div className="bg-ds-surface rounded-lg p-5 border border-ds-border-subtle shadow-sm">
+                        <div className="rounded-ds-md border border-ds-border-subtle bg-ds-surface p-5 shadow-ds-xs">
                             <h4 className="font-bold text-ds-content text-ds-heading-md mb-ds-3 flex items-center gap-2">
                                 <Mail className="text-ds-status-info-fg" size={20} />
                                 Outlook / Microsoft 365
@@ -406,7 +406,7 @@ export function EmailSettingsTab({ currentCompanyProfile }) {
                         </div>
 
                         {/* SendGrid Guide */}
-                        <div className="bg-ds-surface rounded-lg p-5 border border-ds-border-subtle shadow-sm">
+                        <div className="rounded-ds-md border border-ds-border-subtle bg-ds-surface p-5 shadow-ds-xs">
                             <h4 className="font-bold text-ds-content text-ds-heading-md mb-ds-3 flex items-center gap-2">
                                 <Server className="text-ds-status-accent-fg" size={20} />
                                 SendGrid (Recommended for High Volume)

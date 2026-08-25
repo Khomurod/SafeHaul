@@ -592,7 +592,7 @@ export function PEVTab({ companyId, applicationId, appData, collectionName = 'ap
                             <ol className="space-y-ds-4">
                                 {historyEntries.map((log, i) => (
                                     <li key={i} className="flex gap-ds-3 text-ds-sm">
-                                        <span aria-hidden="true" className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-ds-action-primary" />
+                                        <span aria-hidden="true" className="mt-1.5 h-2 w-2 shrink-0 rounded-ds-full bg-ds-action-primary" />
                                         <div className="min-w-0">
                                             <p className="font-bold text-ds-content">{log.action}</p>
                                             <p className="text-ds-xs text-ds-content-secondary">

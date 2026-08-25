@@ -211,7 +211,7 @@ export function IntegrationsTab() {
                   regardless of how much contrast the token started with.
                 */}
                 <Card padding="md" className="flex flex-col items-center justify-center border-dashed text-center">
-                    <div className="mb-ds-3 flex h-10 w-10 items-center justify-center rounded-full bg-ds-surface-subtle text-ds-content-muted">
+                    <div className="mb-ds-3 flex h-10 w-10 items-center justify-center rounded-ds-full bg-ds-surface-subtle text-ds-content-muted">
                         <Blocks size={20} aria-hidden="true" />
                     </div>
                     <h2 className="font-semibold text-ds-content-muted">More Integrations Coming Soon</h2>

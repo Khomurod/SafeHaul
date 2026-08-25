@@ -43,8 +43,11 @@ Delete this whole section for a change that renders nothing.
 - [ ] Heights and spacing come from the control scale and the surface geometry
       roles — no hand-picked `h-*` or `p-*` on a control.
 - [ ] Status is never colour alone.
-- [ ] `ui-contract.baseline.json` is regenerated if the counts moved, so the
-      inventory records the shrinkage rather than permitting a regression back up.
+- [ ] Radii and shadows come from the `--ds-*` scales, matched **by value**:
+      Tailwind's `rounded-lg` is 8px where `rounded-ds-lg` is 12px, and its
+      `shadow-sm` is the `shadow-ds-xs` step.
+- [ ] `ui-contract.allowlist.json` is regenerated if the counts moved, and any
+      new entry says **why** it is allowed. There is no `debt` option any more.
 
 ## Nothing here changes behaviour
 

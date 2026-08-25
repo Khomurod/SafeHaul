@@ -154,7 +154,7 @@ export function CallOutcomeModalUI({
         {lead.phone && (
           <a
             href={`tel:${lead.phone}`}
-            className="flex items-center gap-1 rounded-full bg-ds-status-success-bg px-ds-3 py-1.5 text-ds-xs font-bold text-ds-status-success-fg transition-colors hover:bg-ds-surface focus-visible:outline-none focus-visible:shadow-ds-focus"
+            className="flex items-center gap-1 rounded-ds-full bg-ds-status-success-bg px-ds-3 py-1.5 text-ds-xs font-bold text-ds-status-success-fg transition-colors hover:bg-ds-surface focus-visible:outline-none focus-visible:shadow-ds-focus"
           >
             <Phone size={12} fill="currentColor" aria-hidden="true" />
             <span className="sr-only">Call now: </span>

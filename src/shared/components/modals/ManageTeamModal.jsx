@@ -238,7 +238,7 @@ export function ManageTeamModal({ companyId, onClose }) {
                                     className="flex flex-col items-center justify-between gap-ds-4 rounded-ds-lg border border-ds-border bg-ds-surface p-ds-4 shadow-ds-xs lg:flex-row lg:flex-wrap"
                                 >
                                     <div className="flex w-full min-w-0 items-center gap-ds-3 lg:w-1/3">
-                                        <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-ds-surface-subtle font-bold text-ds-content-secondary">
+                                        <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-ds-full bg-ds-surface-subtle font-bold text-ds-content-secondary">
                                             {member.name || member.email ? memberName.charAt(0).toUpperCase() : '?'}
                                         </span>
                                         <div className="min-w-0">

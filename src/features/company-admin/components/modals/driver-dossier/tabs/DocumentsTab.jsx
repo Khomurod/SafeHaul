@@ -114,7 +114,7 @@ export function DocumentsTab({ fileUrls = {}, appData }) {
                                     aria-hidden="true"
                                     className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 transition-opacity group-hover:opacity-100"
                                 >
-                                    <span className="rounded-full bg-ds-surface p-ds-2 text-ds-content shadow-ds-md">
+                                    <span className="rounded-ds-full bg-ds-surface p-ds-2 text-ds-content shadow-ds-md">
                                         <Eye size={16} />
                                     </span>
                                 </span>

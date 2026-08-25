@@ -95,7 +95,7 @@ export const CompanyTopbar = ({
                     </div>
 
                     {/* Avatar */}
-                    <div className="w-9 h-9 rounded-full bg-ds-action-primary flex items-center justify-center text-ds-body font-bold text-ds-content-inverse shadow-ds-xs" aria-hidden="true">
+                    <div className="w-9 h-9 rounded-ds-full bg-ds-action-primary flex items-center justify-center text-ds-body font-bold text-ds-content-inverse shadow-ds-xs" aria-hidden="true">
                         {initials}
                     </div>
                 </div>

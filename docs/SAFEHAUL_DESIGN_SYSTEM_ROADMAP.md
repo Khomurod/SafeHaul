@@ -266,6 +266,15 @@ component itself as well.
   meaning now uses the named brand roles. `#1877F2` is Facebook's mark, not a
   SafeHaul role, and must not move when this product's palette does.
 
+- **The `landing/` marketing site is out of scope, and deliberately so.** It is
+  hand-written HTML/CSS/vanilla JS with no build step, no framework and no
+  Tailwind, and it has its own approved visual specification in `DESIGN.md` — a
+  paper/graphite/ink language with Archivo display type, quite different from
+  the application's on purpose. "Public pages" in this campaign means the
+  public *application* routes (`/apply/:slug`, `/verify/:token`,
+  `/review-change/:token`, `/sign/...`, `/login`), all of which are migrated.
+  A future audit should not read `landing/` as unmigrated product.
+
 ### Missing primitives that live code is waiting on
 
 These are the gaps that source comments say are "tracked in the roadmap". Each
@@ -457,7 +466,7 @@ weaken or delete one without replacing the guarantee.
 | `src/tests/noBlockingBrowserDialogs.test.js` | No `confirm(` / `alert(` anywhere under `src/`, with or without a `window.` prefix. It walks every non-test file, strips comments and string literals, and is proven to catch a real call rather than passing vacuously |
 | `npm run test:stories` (`src/tests/designSystemStories.a11y.test.jsx`) | Every catalog story renders and passes axe |
 | `npm run check:table-layout` (`scripts/check-table-layout.mjs`) | Measures the built catalog in a real browser at 412px and 1440px: a cell must contain its content (`scrollWidth > clientWidth` is a violation unless the column opts into `truncate`), and no region may reserve a gutter it never scrolls into. Honours `PW_CHROMIUM_EXECUTABLE`, so it runs in a sandbox whose Chromium is not the pinned build — a guard that cannot run gets skipped |
-| `npm run check:ui-contract` (`scripts/check-ui-contract.mjs`) | The design-system ratchet. Raw palette classes, raw hex, sub-12px text, off-scale type, hand-built overlays, raw tables and hand-styled buttons/fields/anchors, measured against `src/design-system/ui-contract.baseline.json`. New violations fail; so does a *decrease*, which forces the inventory to record shrinkage rather than silently permit a regression back up to the old number |
+| `npm run check:ui-contract` (`scripts/check-ui-contract.mjs`) | The design-system contract, zero-tolerance. Raw palette classes, raw hex, sub-12px text, off-scale type, **Tailwind radii and shadows** (whose names collide with the `--ds-*` ones one step off), hand-built overlays, raw tables and hand-styled buttons/fields/anchors, measured against `src/design-system/ui-contract.allowlist.json`. Anything unlisted fails; so does a count *lower* than recorded, and so does an allowlist entry that does not say why it is allowed |
 | `npm run check:visual-contract` (`scripts/check-visual-contract.mjs`) | Computed geometry in a real browser at both widths — control heights, cell padding, radii, resolved token colours — against a committed snapshot. This is the blocking visual guard, because the numbers are portable across machines and a failure names what moved (`button[md].height: 44px -> 40px`) |
 | `npm run test:visual` (`e2e/visual/`) | Pixel baselines for 29 catalog subjects and 10 application screens, at 1440px and 412px, committed to the repository. **Reported, not enforced** — see below |
 
@@ -507,6 +516,40 @@ Both visual lanes freeze the clock at a fixed instant. Without that the company
 dashboard's date range stamps today's date into its baseline, and it would have
 failed the morning after it was recorded.
 
+### Two scales, the same names, one step apart
+
+The final audit's most useful finding, 2026-08-25, and the reason
+`tailwind-radius` and `tailwind-shadow` exist as rules.
+
+Tailwind's radius scale and the `--ds-*` one share their names and are offset by
+one step:
+
+| class | Tailwind | the `--ds-*` step with the same **value** |
+|---|---|---|
+| `rounded` | 4px | `rounded-ds-sm` |
+| `rounded-lg` | **8px** | `rounded-ds-md` |
+| `rounded-xl` | **12px** | `rounded-ds-lg` |
+| `rounded-2xl` | 16px | `rounded-ds-xl` |
+| `rounded-full` | 9999px | `rounded-ds-full` |
+
+So `rounded-lg` and `rounded-ds-lg` sat in the same product, on adjacent
+surfaces, sharing a name and rendering different corners — for the whole of
+2026, without anyone noticing. Shadows have the identical problem: Tailwind's
+`shadow-sm` is the `--ds-shadow-xs` step, and every Tailwind shadow is pure
+black where the `--ds-*` ones are tinted with the same slate as the rest of the
+product.
+
+This is worse than an arbitrary value, because the name actively misleads: a
+developer reaching for `rounded-lg` and meaning the design system's `lg` gets
+8px and has no reason to look twice. **Convert by value, never by name.**
+
+The sweep that closed it found 55 occurrences in 26 files. Fifty of them were
+`rounded-full`, which is 9999px in both scales — a naming inconsistency with no
+visual divergence. Only four actually rendered differently from their
+`--ds-*` namesake, and they are fixed. Nineteen remain, all in the two files
+that were already fully exempt: the VOE export document and the `DeviceMockup`
+artwork.
+
 ### Still open
 
 - `[x]` **Ratcheting rules for arbitrary colours and unsupported type sizes.**
@@ -514,21 +557,27 @@ failed the morning after it was recorded.
 - `[x]` **Ratcheting rules for raw tables, duplicate buttons, local modals and
   local form controls, with machine-readable approved locations.** Done
   2026-08-21. The machine-readable locations are
-  `src/design-system/ui-contract.baseline.json`, where every tolerated violation
-  carries either a `reasons` entry naming the exception that justifies it or a
-  `debt` note naming the slice that clears it.
+  `src/design-system/ui-contract.allowlist.json`, where every tolerated
+  violation carries a `reasons` entry naming the exception that justifies it.
+  The `debt` alternative was removed on 2026-08-25 when the last of it cleared.
 - `[x]` **A design-system PR checklist.** Done 2026-08-21 —
   `.github/pull_request_template.md`, with an explicit "never tick an unrun
   check" instruction and a section confirming no backend, permission, route or
   workflow behaviour changed.
 - `[ ]` Make the pixel lane blocking once its font tripwire has held on CI.
-- `[ ]` Drive `ui-contract.baseline.json` to zero and delete it, leaving only
-  the `reasons` entries. 660 violations across 59 files at the time of writing.
-  **Migration debt reached zero on 2026-08-25**: 193 violations across 26 files
-  remain and every one of them carries a `reasons` entry naming the exception
-  that justifies it. Nothing is left marked `debt`. What remains for the final
-  slice is therefore not migration but mechanism — delete the `debt` field and
-  the shrink-only ratchet, and keep the `reasons` map as a plain allowlist.
+- `[x]` **Drive the tolerated-violation inventory to zero debt and make the
+  check zero-tolerance. DONE 2026-08-25.** 660 violations across 59 files at the
+  start. The file is now `src/design-system/ui-contract.allowlist.json`: 213
+  violations across 26 files, every one carrying a `reasons` entry, and the
+  `debt` escape hatch removed. The check fails on anything unlisted, on a count
+  higher *or lower* than recorded, and on an entry whose rule has no reason —
+  the last of those is what stops "add it to the allowlist" from being a way to
+  make any failure go away.
+
+  The count went *up* from 193 in the same slice, which is the guard getting
+  stricter rather than the tree getting worse: two new rules now catch Tailwind
+  radii and shadows, and the twenty they found were all in the two files that
+  were already fully exempt.
 
 ---
 

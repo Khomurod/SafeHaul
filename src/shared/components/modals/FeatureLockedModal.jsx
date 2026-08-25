@@ -52,7 +52,7 @@ export function FeatureLockedModal({ onClose, featureName = "Search For Drivers"
                     <StatusMedallion tone="info" size="lg"><Lock size={40} /></StatusMedallion>
                     <span
                         aria-hidden="true"
-                        className="absolute -bottom-1 -right-1 rounded-full border-2 border-ds-surface bg-ds-status-warning-bg p-1.5 text-ds-status-warning-fg"
+                        className="absolute -bottom-1 -right-1 rounded-ds-full border-2 border-ds-surface bg-ds-status-warning-bg p-1.5 text-ds-status-warning-fg"
                     >
                         <Database size={14} />
                     </span>

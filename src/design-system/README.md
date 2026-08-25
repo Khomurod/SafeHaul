@@ -203,7 +203,7 @@ catalog with no credentials at all.
 
 ## Guardrails
 
-Five automated checks stand between this design system and the state the
+Six automated checks stand between this design system and the state the
 application was in before the 2026-08 campaign, when a substantial and
 well-adopted system coexisted with 660 raw palette classes, off-scale type and
 sub-12px text — all of which passed review, lint, 234 test files and CI, because
@@ -213,16 +213,20 @@ nothing checked.
 |---|---|---|
 | `npm test` (`tests/architecture.test.js`) | yes | An import from features, context, Firebase or `shared` into this directory |
 | `npm test` (`tests/tokens.test.js`) | yes | A broken token contract, a contrast pairing below AA, an unbridged Tailwind utility, a control sizing itself in pixels |
-| `npm run check:ui-contract` | yes | A *new* raw colour, off-scale type size, sub-12px text, hand-built overlay, raw table or hand-styled control |
+| `npm run check:ui-contract` | yes | A raw colour, off-scale type size, sub-12px text, Tailwind radius or shadow, hand-built overlay, raw table or hand-styled control |
 | `npm run check:table-layout` | yes | A cell narrower than its content, in a real browser at 412px and 1440px |
 | `npm run check:visual-contract` | yes | A change to computed geometry — control heights, cell padding, radii, resolved colours |
+| `npm run test:stories` | yes | A story that fails to render, or fails axe |
 | `npm run test:visual` | reported | A change to how anything *looks*, across the catalog subject list and 10 real screens at both widths |
 
-`check:ui-contract` ratchets against
-`ui-contract.baseline.json`, which lists every currently tolerated violation with
-either a `reasons` entry naming the exception that justifies it or a `debt` note
-naming the slice that clears it. It fails on a decrease as well as an increase,
-so the inventory can never quietly describe a tree that no longer exists.
+`check:ui-contract` is zero-tolerance against
+`ui-contract.allowlist.json`, which lists every violation the product
+deliberately keeps and **why**. It fails on anything not listed, on a count
+higher *or lower* than recorded, and on any entry whose rule has no reason. It
+began as a shrink-only inventory of 660 violations tagged with the migration
+slice that owed each one; that debt reached zero on 2026-08-25 and the `debt`
+escape hatch went with it, so an entry is now a decision someone wrote down
+rather than a promise to come back.
 
 Run all of them before opening a UI pull request — `.github/pull_request_template.md`
 is the checklist, and it asks you never to tick a check you did not run.
