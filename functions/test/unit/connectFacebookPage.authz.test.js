@@ -311,7 +311,12 @@ describe('connectFacebookPage page claim', () => {
         // the first Graph request is made, the index already names the tenant.
         let bindingWhenFacebookWasCalled;
         axios.get.mockReset().mockImplementation(async (url) => {
-            bindingWhenFacebookWasCalled ??= mockStore.get('integrations_index/artificial-page-id');
+            // Not `??=`: the functions eslint config pins `ecmaVersion: 2020`,
+            // and logical assignment is ES2021. Jest parses it happily, so this
+            // only fails in lint.
+            if (bindingWhenFacebookWasCalled === undefined) {
+                bindingWhenFacebookWasCalled = mockStore.get('integrations_index/artificial-page-id');
+            }
             return url.includes('oauth/access_token')
                 ? { data: { access_token: 'artificial-long-lived-user-token' } }
                 : { data: { access_token: 'artificial-page-token' } };
