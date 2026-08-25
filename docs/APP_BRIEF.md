@@ -951,12 +951,6 @@ Note that Tailwind's radius and shadow scales share their names with the
   §"Changing the release pipeline" in `CLAUDE.md` requires fixing the family
   rather than the instance and watching a real `main` run afterwards, and a
   pull request cannot exercise the path. Needs its own reviewed change.
-- **Every form input zooms the viewport on an iPhone.** iOS Safari zooms in when
-  a focused input's `font-size` is under 16px and does not zoom back out; the
-  shared control scale is 13–15px at all three sizes, so this affects every form
-  in the product rather than one screen. The fix is a design-system one and
-  moves the rendered size of every mobile control, so it is an open roadmap item
-  with its own mobile visual review. Found 2026-08-25.
 - **The onboarding tour's first step dims the page without being a dialog.** The
   tour is a coach mark — a `pointer-events-none` layer holding a popover placed
   against a page element — and correctly does not use `Modal`, which would

@@ -316,17 +316,26 @@ enforcement permanently blocking.
   4.27:1) that used to fail. Every muted label in the product is slightly darker.
   Call sites that had moved to `content-secondary` to work around the old limit
   were not moved back and do not need to be.
-- `[!]` **Every input in the product zooms the viewport on an iPhone.** iOS
-  Safari zooms in when a focused input's `font-size` is below 16px, and does not
-  zoom back out — the user is left on a magnified page and has to pinch out
-  after every field. `.ds-form-control` is 13–15px at all three sizes, so this
-  affects every form in the product, not one screen. `SignerField` already works
-  around it locally with `text-base md:text-ds-sm`, which is where this was
-  found. The fix is a `--ds-font-size-control-mobile: 16px` role applied under a
-  narrow-viewport media query, but it changes the rendered size of every control
-  on every mobile form, so it needs its own slice with a mobile visual review
-  across the forms — not a late addition to a migration PR. Discovered
-  2026-08-25; recorded rather than fixed for exactly that reason.
+- `[x]` **Every input in the product zoomed the viewport on an iPhone. FIXED
+  2026-08-25.** iOS Safari zooms in when a focused input's `font-size` is under
+  16px and does not zoom back out; the control scale is 13–15px, so every form in
+  the product did it. `--ds-font-size-control-mobile: 16px` now applies to
+  `.ds-form-control` under `max-width: 639px`.
+
+  Two things make this safer than it sounds. **Heights do not move** — 16px at
+  the body line-height is a 24px content box, which fits inside all three
+  min-heights, so the type grows and the control stays put; verified in a real
+  browser by `check:visual-contract`, which recorded a `fontSize` change and no
+  `height` change. And **the blast radius was exactly what it should be**: 19
+  pixel baselines moved and every one of them was `-mobile`.
+
+  Selects are included even though iOS only zooms for text entry, because
+  excluding them would put a 14px select beside a 16px input — the divergence the
+  input/select probe added the same week forbids.
+
+  `SignerField` is not covered and keeps its local workaround: its inputs are not
+  `.ds-form-control` (they overlay PDF coordinate boxes), so the rule cannot
+  reach them. Its allowlist entry says so.
 - `[!]` **Decide the onboarding tour's dialog semantics.** `OnboardingTour` is a
   coach mark: a `pointer-events-none` positioning layer holding a popover placed
   against a page element. It correctly does not use `Modal`, which would centre

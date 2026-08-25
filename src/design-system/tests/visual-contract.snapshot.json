@@ -1,21 +1,21 @@
 {
   "mobile · the control scale, and the pairing it exists for · input[md]": {
     "height": "44px",
-    "fontSize": "14px",
+    "fontSize": "16px",
     "borderRadius": "8px",
     "paddingLeft": "12px",
     "paddingRight": "12px"
   },
   "mobile · the control scale, and the pairing it exists for · input[sm]": {
     "height": "36px",
-    "fontSize": "13px",
+    "fontSize": "16px",
     "borderRadius": "8px",
     "paddingLeft": "8px",
     "paddingRight": "8px"
   },
   "mobile · the control scale, and the pairing it exists for · input[lg]": {
     "height": "52px",
-    "fontSize": "15px",
+    "fontSize": "16px",
     "borderRadius": "8px",
     "paddingLeft": "16px",
     "paddingRight": "16px"
@@ -50,14 +50,14 @@
   },
   "mobile · an input and a select are the same control, and must look it · input[md]": {
     "height": "44px",
-    "fontSize": "14px",
+    "fontSize": "16px",
     "backgroundColor": "rgb(255, 255, 255)",
     "borderColor": "rgb(203, 213, 225)",
     "color": "rgb(30, 41, 59)"
   },
   "mobile · an input and a select are the same control, and must look it · select[md]": {
     "height": "44px",
-    "fontSize": "14px",
+    "fontSize": "16px",
     "backgroundColor": "rgb(255, 255, 255)",
     "borderColor": "rgb(203, 213, 225)",
     "color": "rgb(30, 41, 59)"

@@ -223,6 +223,32 @@ select.ds-form-control[data-size='lg'] {
 }
 
 @media (max-width: 639px) {
+  /*
+   * iOS Safari zooms the viewport when a focused input is under 16px and never
+   * zooms back out, so on a phone every control takes the platform's minimum
+   * rather than its scale step. See `--ds-font-size-control-mobile`.
+   *
+   * The `[data-size]` variants are listed explicitly for the same reason the
+   * select-arrow rule above lists them: a class+attribute selector outranks a
+   * bare class one, so without them `sm` and `lg` would keep their 13px and
+   * 15px and go on zooming.
+   *
+   * Heights do not move. 16px at `--ds-line-height-body` is a 24px content box;
+   * with each step's padding and border that is 34/42/50px against min-heights
+   * of 36/44/52px, so the type grows inside the control and the control stays
+   * put. `check:visual-contract` measures this at 412px.
+   *
+   * Selects are included even though iOS only zooms for text entry: leaving
+   * them out would put a 14px select beside a 16px input, which is the exact
+   * divergence the input/select probe in `check:visual-contract` now forbids.
+   */
+  .ds-form-control,
+  .ds-form-control[data-size='sm'],
+  .ds-form-control[data-size='md'],
+  .ds-form-control[data-size='lg'] {
+    font-size: var(--ds-font-size-control-mobile);
+  }
+
   .ds-form-section {
     gap: var(--ds-space-5);
   }

@@ -72,6 +72,21 @@
   --ds-font-size-heading-md: 18px;
   --ds-font-size-heading-lg: 20px;
   --ds-font-size-heading-xl: 24px;
+  /*
+   * Not a step of the type scale — a platform constraint with a number in it.
+   *
+   * iOS Safari zooms the viewport in when a focused input's font-size is under
+   * 16px, and does not zoom back out. Every step of the control scale is 13–15px,
+   * so before 2026-08-25 every form in the product did this on an iPhone: the
+   * page jumped on first focus and stayed magnified for the rest of the session.
+   * The driver application felt it worst, being nine steps of fields filled
+   * almost entirely on phones.
+   *
+   * 16px is Safari's threshold, not a design decision, which is why this is its
+   * own role rather than a reuse of `heading-sm`: the two are the same number
+   * today and must be free to diverge.
+   */
+  --ds-font-size-control-mobile: 16px;
   --ds-line-height-tight: 1.25;
   --ds-line-height-body: 1.5;
   --ds-line-height-relaxed: 1.75;
