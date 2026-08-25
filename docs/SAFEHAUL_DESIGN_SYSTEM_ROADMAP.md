@@ -741,6 +741,28 @@ The general rule for a subject in either lane: **`ready` must name the last thin
 that arrives on the screen, not the first.** A `<h1>` in a banner is almost never
 that.
 
+**And the same lane found a worse one on the first CI run where it was allowed to
+finish.** `Started (unfinished)` was the one screen in the list whose content came
+from a *real* `listApplicationDrafts` callable rather than a fixture harness. With
+no credentials the call fails — and *how* it fails decides what renders, so the
+committed baseline was a loading skeleton captured in one environment while CI
+captured something 30% different. A screenshot of a screen whose content depends
+on a network failure is not a baseline. It has a `?e2eUnfinished=mock` harness
+now, like every other route in the lane, and the baseline shows three fixture
+drafts: a complete contact, one with no name typed yet, one with no contact
+details.
+
+Two rules follow from it, both cheap and both now in place:
+
+- **Every route in the pixel lane must reach a settled state from fixture data.**
+  The lane's own header already said so; one screen did not, and nothing checked.
+- **`playwright.visual.config.cjs` pins `locale: 'en-US'` and
+  `timezoneId: 'UTC'`.** That screen writes a timestamp through
+  `toLocaleString()` with no arguments, which takes the *runtime's* locale and
+  zone: "6/14/2026, 4:45:00 PM" on one machine, "14/06/2026, 21:45" on another —
+  a different column width and a reflowed table. `settle.cjs` already freezes the
+  clock; this freezes how it is written.
+
 ### Two scales, the same names, one step apart
 
 The final audit's most useful finding, 2026-08-25, and the reason

@@ -66,7 +66,18 @@ async function undersizedControls(page, minimum = MIN_TARGET) {
     const out = [];
     const nodes = document.querySelectorAll('button, a[href], select, input:not([type=hidden]), textarea');
     for (const el of nodes) {
-      const r = el.getBoundingClientRect();
+      /*
+       * The design system's file picker is a real `<input type="file">` that is
+       * visually hidden but still focusable, wrapped in a `<label>` styled as the
+       * visible control — so the input measures 1x1 and the LABEL is the pointer
+       * target. Measure the label. Skipping the control outright, the way the
+       * `ds-visually-hidden` line below does, would stop asserting that a target
+       * exists at all, and the whole point of that contract is that one does.
+       */
+      const target = el.classList.contains('ds-file-input__native')
+        ? (el.closest('label') || el)
+        : el;
+      const r = target.getBoundingClientRect();
       if (r.width === 0 || r.height === 0) continue;
       if (el.classList.contains('ds-visually-hidden')) continue;
       if (el.type === 'checkbox' || el.type === 'radio') continue;

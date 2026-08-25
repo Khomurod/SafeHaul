@@ -122,8 +122,17 @@ const SCREENS = [
     },
     {
         name: 'company-unfinished',
-        url: '/company/drivers/unfinished?e2eAuth=company_admin',
-        ready: (page) => page.getByRole('heading', { level: 1 }).first(),
+        /*
+         * `e2eUnfinished=mock`, added 2026-08-25 because this screen was the one
+         * in this list whose content came from a real callable. With no
+         * credentials the call fails, and *how* it fails decides what renders:
+         * the committed baseline was a loading skeleton captured in one
+         * environment, and CI captured something 30% different. Every other
+         * route here already uses a fixture harness; this one now does too.
+         */
+        url: '/company/drivers/unfinished?e2eAuth=company_admin&e2eUnfinished=mock',
+        // A fixture row, not the `<h1>` — the heading paints before the data.
+        ready: (page) => page.getByText('Dana Whitfield'),
     },
     {
         name: 'company-leads',
