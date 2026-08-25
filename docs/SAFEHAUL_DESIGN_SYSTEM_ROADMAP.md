@@ -357,7 +357,7 @@ the outside.* Check the shapes before declaring a family closed.
 
 A third, found the same day and worse than either: **`PageState` and
 `ConfirmDialog` had consumers, and duplicates kept being written anyway.**
-Fifteen hand-composed states and six hand-composed confirmations, several of
+Fifteen hand-composed states and ten hand-composed confirmations, several of
 them added *after* the pattern existed, one of them a local component with the
 same name as the approved export. Neither family had a `check:ui-contract` rule,
 because a hand-composed pattern is not a raw HTML element — it is correct
@@ -368,6 +368,14 @@ rather than for the element: every file outside the design system that used
 search is written into the guardrail table in §7 as a **review** step, honestly
 labelled, because it is not automated and pretending otherwise is how the gap
 opened.
+
+**The first version of that search was too narrow, which is worth recording
+because it is the same mistake one level up.** It looked for a local
+`*Confirm*Dialog*`, found six, and missed four more named after what they delete
+— `RemoveLineDialog`, `DeleteRecordDialog`, `DeleteFileDialog`,
+`ToggleActiveDialog`. A search for the *word* "confirm" finds the dialogs that
+call themselves confirmations; a search for the *shape* finds the rest. The
+procedure in §7 is the broad one.
 
 | Primitive | Status | Cited by |
 |---|---|---|
@@ -600,7 +608,7 @@ weaken or delete one without replacing the guarantee.
 | `npm run check:visual-contract` (`scripts/check-visual-contract.mjs`) | Computed geometry in a real browser at both widths — control heights, cell padding, radii, resolved token colours — against a committed snapshot. This is the blocking visual guard, because the numbers are portable across machines and a failure names what moved (`button[md].height: 44px -> 40px`) |
 | `npm run test:visual` (`e2e/visual/`) | Pixel baselines for **67 catalog subjects and 15 application screens**, at 1440px and 412px, committed to the repository. **Blocking as of 2026-08-25** — see below |
 | `npm run test:e2e -- --grep "@a11y"` (`e2e/a11y.spec.cjs` and friends) | Real-browser axe on the mobile-critical journeys, plus the keyboard behaviour axe cannot see: roving `tabIndex`, arrow/Home/End on a tab strip, `aria-pressed` on a segmented group, a focusable file input named by its field, and that every control a Tab press reaches shows the product's focus ring rather than the browser's black one. **Blocking as of 2026-08-25**, inside the `frontend-e2e` lane |
-| **A review step, not automated** — see below | A *hand-composed pattern*: correct primitives arranged into a shape the design system already owns. No class-list or tag-name rule can see one, and this is how fifteen page states and six confirmation dialogs accumulated beside the patterns that own them. The two searches that find them are `StatusMedallion` used outside `src/design-system`, and a locally declared component whose name ends in `Dialog` |
+| **A review step, not automated** — see below | A *hand-composed pattern*: correct primitives arranged into a shape the design system already owns. No class-list or tag-name rule can see one, and this is how fifteen page states and ten confirmation dialogs accumulated beside the patterns that own them. The two searches that find them are `StatusMedallion` used outside `src/design-system`, and a locally declared component whose name ends in `Dialog` — and the second search has to be that broad, because the first pass of it looked for `*Confirm*Dialog*` and missed four confirmations named after what they delete |
 
 ### The one guard that is a person, and why it is not a script
 
@@ -613,7 +621,7 @@ throughout — arranged into a composition that `patterns/modal` or
 `patterns/page-state` already owns. Every static rule in `check:ui-contract`
 looks for the *wrong ingredient*: a raw palette class, a hex, a bare `<table>`, a
 `<button>` with a class list. A hand-composed pattern has no wrong ingredient. It
-passes every rule, and on 2026-08-25 twenty-one of them did.
+passes every rule, and on 2026-08-25 twenty-five of them did.
 
 Two searches find them, and both belong in a review of any UI change:
 
@@ -899,9 +907,11 @@ families above, and on 2026-08-25 it was measured rather than repeated:
   list. Three native-table empty rows announced nothing either, while `DataTable`
   and `ModernDriverTable` both announced their own — and two of those three put
   the live-region role on the `<td>`, which replaces the cell role.
-- `ConfirmDialog` had consumers *and* **six hand-composed duplicates**, one of
-  them a local component with the same name shadowing the import, one with no
-  medallion at all. Each had lost the same three capabilities: initial focus on
+- `ConfirmDialog` had consumers *and* **ten hand-composed duplicates**, one of
+  them a local component with the same name shadowing the import, three with no
+  medallion at all, and one — the permanent record delete in the Unified Driver
+  Database, the most destructive action in the product — carrying its severity in
+  the *heading's colour* with no medallion, which is status by colour alone. Each had lost the same three capabilities: initial focus on
   Cancel rather than on the destructive action, the synchronous double-activation
   guard, and Escape/backdrop dismissal disabled while the action is in flight. The
   first two apply at every one of the six — on "Delete this user?" they are not

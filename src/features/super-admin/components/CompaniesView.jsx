@@ -1,11 +1,11 @@
 import React, { useState, useMemo, useEffect, useId } from 'react';
 import { getFieldValue } from '@shared/utils/helpers.js';
-import { Building, FileText, Edit2, Trash2, Search, ChevronLeft, ChevronRight, Crown, Shield, MessageSquare, Phone, Database, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import { Building, FileText, Edit2, Trash2, Search, ChevronLeft, ChevronRight, Crown, Shield, MessageSquare, Phone, Database, CheckCircle, XCircle } from 'lucide-react';
 import { db } from '@lib/firebase';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { SafeHaulLoader } from '@shared/components/SafeHaulLoader';
 import { Badge, Button, Card, IconButton, Input, Select } from '@/design-system/components';
-import { Modal } from '@design-system/patterns';
+import { ConfirmDialog } from '@design-system/patterns';
 
 /**
  * Super Admin companies table. Also serves the SMS Integrations hub via
@@ -422,41 +422,28 @@ export function CompaniesView({
  * Replaces the blocking `window.confirm` that guarded activate/deactivate. The
  * wording is preserved verbatim, including the ALL-CAPS action verb, because it
  * is what Super Admins have been reading before a portal-access change.
+ *
+ * The approved `ConfirmDialog` since 2026-08-25; hand-composed before that, with
+ * the warning icon *inside* the heading rather than a medallion. The two tones
+ * reproduce the two confirm variants exactly — the tone map pairs `danger` with a
+ * danger-styled confirm and `info` with a primary one — so deactivating is still
+ * red and re-activating is still blue, and the icon now differs between them
+ * (a warning versus a question) rather than being a warning for both.
  */
 function ToggleActiveDialog({ pending, onCancel, onConfirm }) {
-    const titleId = useId();
-    const descriptionId = useId();
     const { companyName, currentStatus } = pending;
     const action = currentStatus ? 'deactivate' : 'activate';
 
     return (
-        <Modal
-            onClose={onCancel}
-            labelledBy={titleId}
-            describedBy={descriptionId}
-            closeOnBackdrop={false}
-            className="w-full max-w-lg overflow-hidden rounded-ds-xl border border-ds-border-subtle bg-ds-surface shadow-ds-lg"
-        >
-            <div className="p-ds-5">
-                <h2 id={titleId} className="flex items-center gap-ds-2 text-ds-heading-sm font-bold text-ds-content">
-                    <AlertTriangle className="text-ds-status-warning-fg" aria-hidden="true" />
-                    {action.toUpperCase()} "{companyName}"?
-                </h2>
-                <p id={descriptionId} className="mt-ds-3 text-ds-sm text-ds-content-secondary">
-                    {currentStatus
-                        ? 'This company will be blocked from logging in and using the portal.'
-                        : 'This company will regain access to the portal.'}
-                </p>
-            </div>
-            <div className="flex justify-end gap-ds-3 border-t border-ds-border-subtle bg-ds-surface-subtle p-ds-4">
-                <Button variant="secondary" onClick={onCancel}>Cancel</Button>
-                <Button
-                    variant={currentStatus ? 'danger' : 'primary'}
-                    onClick={() => onConfirm({ companyId: pending.companyId, action, currentStatus })}
-                >
-                    {currentStatus ? 'Deactivate' : 'Activate'}
-                </Button>
-            </div>
-        </Modal>
+        <ConfirmDialog
+            tone={currentStatus ? 'danger' : 'info'}
+            title={`${action.toUpperCase()} "${companyName}"?`}
+            description={currentStatus
+                ? 'This company will be blocked from logging in and using the portal.'
+                : 'This company will regain access to the portal.'}
+            confirmLabel={currentStatus ? 'Deactivate' : 'Activate'}
+            onCancel={onCancel}
+            onConfirm={() => onConfirm({ companyId: pending.companyId, action, currentStatus })}
+        />
     );
 }

@@ -48,7 +48,7 @@ import { useToast } from '@shared/components/feedback';
 import { StatusBadge } from '@shared/components/badges';
 import { ModernDriverTable } from '@shared/components/table';
 import { Badge, Button, Card, IconButton, Input, Select } from '@/design-system/components';
-import { Modal } from '@design-system/patterns';
+import { ConfirmDialog } from '@design-system/patterns';
 
 // ========== SOURCE BADGE COMPONENT ==========
 /** Domain source type -> semantic tone/label. Feature-owned mapping. */
@@ -625,34 +625,31 @@ export function UnifiedDriverList({
 /**
  * Replaces the blocking `window.confirm` on the permanent record delete. The
  * SUPER ADMIN WARNING wording is preserved verbatim.
+ *
+ * The approved `ConfirmDialog` since 2026-08-25. Hand-composed before that, and
+ * it carried the severity **in the heading's colour** — `text-ds-status-danger-fg`
+ * on the title, with no medallion — which is status by colour alone on the most
+ * destructive action in the product. The pattern's danger medallion carries it
+ * instead, the wording is untouched, and initial focus lands on Cancel rather
+ * than on "Permanently delete".
  */
 function DeleteRecordDialog({ item, onCancel, onConfirm }) {
-    const titleId = useId();
-    const descriptionId = useId();
     const who = `${item.firstName || ''} ${item.lastName || ''}`.trim();
 
     return (
-        <Modal
-            onClose={onCancel}
-            labelledBy={titleId}
-            describedBy={descriptionId}
-            closeOnBackdrop={false}
-            className="w-full max-w-lg overflow-hidden rounded-ds-xl border border-ds-border-subtle bg-ds-surface shadow-ds-lg"
-        >
-            <div className="p-ds-5">
-                <h2 id={titleId} className="text-ds-heading-sm font-bold text-ds-status-danger-fg">
-                    SUPER ADMIN WARNING
-                </h2>
-                <p id={descriptionId} className="mt-ds-3 text-ds-sm text-ds-content-secondary">
+        <ConfirmDialog
+            tone="danger"
+            title="SUPER ADMIN WARNING"
+            description={(
+                <>
                     Are you sure you want to PERMANENTLY DELETE this record for{' '}
                     <strong className="text-ds-content">{who}</strong>? This cannot be undone.
-                </p>
-            </div>
-            <div className="flex justify-end gap-ds-3 border-t border-ds-border-subtle bg-ds-surface-subtle p-ds-4">
-                <Button variant="secondary" onClick={onCancel}>Cancel</Button>
-                <Button variant="danger" onClick={onConfirm}>Permanently delete</Button>
-            </div>
-        </Modal>
+                </>
+            )}
+            confirmLabel="Permanently delete"
+            onCancel={onCancel}
+            onConfirm={onConfirm}
+        />
     );
 }
 

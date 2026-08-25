@@ -6,7 +6,7 @@ import { doc, onSnapshot } from 'firebase/firestore';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import { Badge, Button, Card, IconButton } from '@/design-system/components';
 import { SafeHaulLoader } from '@shared/components/SafeHaulLoader';
-import { Modal } from '@design-system/patterns';
+import { ConfirmDialog } from '@design-system/patterns';
 import { AddLineModal } from './AddLineModal';
 
 /**
@@ -234,32 +234,26 @@ export function LineManager({ companyId, companyName }) {
 /**
  * Replaces the blocking `window.confirm` that guarded line removal. The warning
  * wording is preserved verbatim.
+ *
+ * The approved `ConfirmDialog` since 2026-08-25; hand-composed before that, and
+ * without a medallion, so this destructive question looked different from the
+ * ones that had one. The pattern also puts initial focus on Cancel rather than on
+ * "Remove line" and guards `onConfirm` against a double activation.
  */
 function RemoveLineDialog({ line, onCancel, onConfirm }) {
-    const titleId = useId();
-    const descriptionId = useId();
-
     return (
-        <Modal
-            onClose={onCancel}
-            labelledBy={titleId}
-            describedBy={descriptionId}
-            closeOnBackdrop={false}
-            className="w-full max-w-lg overflow-hidden rounded-ds-xl border border-ds-border-subtle bg-ds-surface shadow-ds-lg"
-        >
-            <div className="p-ds-5">
-                <h2 id={titleId} className="text-ds-heading-sm font-bold text-ds-content">
-                    Remove phone line?
-                </h2>
-                <p id={descriptionId} className="mt-ds-3 text-ds-sm text-ds-content-secondary">
+        <ConfirmDialog
+            tone="danger"
+            title="Remove phone line?"
+            description={(
+                <>
                     Are you sure you want to remove <strong className="font-mono text-ds-content">{line.phoneNumber}</strong>? Any users assigned to this line will be unassigned.
-                </p>
-            </div>
-            <div className="flex justify-end gap-ds-3 border-t border-ds-border-subtle bg-ds-surface-subtle p-ds-4">
-                <Button variant="secondary" onClick={onCancel}>Cancel</Button>
-                <Button variant="danger" onClick={onConfirm}>Remove line</Button>
-            </div>
-        </Modal>
+                </>
+            )}
+            confirmLabel="Remove line"
+            onCancel={onCancel}
+            onConfirm={onConfirm}
+        />
     );
 }
 

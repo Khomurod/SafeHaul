@@ -6,10 +6,10 @@ import { Upload, Trash2, FileText, Download, AlertTriangle } from 'lucide-react'
 import { logActivity } from '@shared/utils/activityLogger';
 import {
   Badge, Button, Card, FieldMessage, FileInput, FormField, IconButton, IconButtonLink,
-  Select, StatusMedallion,
+  Select,
 } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
-import { Modal } from '@design-system/patterns';
+import { ConfirmDialog } from '@design-system/patterns';
 import {
   NoPreservedPdfError,
   downloadPreservedApplicationPdf,
@@ -506,30 +506,21 @@ export function DQFileTab({ companyId, applicationId, collectionName = 'applicat
 /**
  * Replaces the blocking `window.confirm` that guarded DQ file deletion. The
  * question is preserved verbatim.
+ *
+ * The approved `ConfirmDialog` since 2026-08-25; hand-composed before that. The
+ * pattern already wraps a long description in `[overflow-wrap:anywhere]`, which
+ * is what the local `break-words` was for — a DQ file name can be one unbroken
+ * string.
  */
 function DeleteFileDialog({ file, onCancel, onConfirm }) {
-  const titleId = useId();
-  const descriptionId = useId();
-
   return (
-    <Modal
-      onClose={onCancel}
-      labelledBy={titleId}
-      describedBy={descriptionId}
-      closeOnBackdrop={false}
-      className="w-full max-w-lg overflow-hidden rounded-ds-xl border border-ds-border-subtle bg-ds-surface shadow-ds-lg"
-    >
-      <div className="p-ds-5 text-center">
-        <StatusMedallion tone="danger" className="mx-auto mb-ds-3"><AlertTriangle /></StatusMedallion>
-        <h2 id={titleId} className="text-ds-heading-sm font-bold text-ds-content">Delete this DQ file?</h2>
-        <p id={descriptionId} className="mt-ds-3 break-words text-ds-sm text-ds-content-secondary">
-          {`Are you sure you want to delete "${file.fileName}"?`}
-        </p>
-      </div>
-      <div className="flex justify-end gap-ds-3 border-t border-ds-border-subtle bg-ds-surface-subtle p-ds-4">
-        <Button variant="secondary" onClick={onCancel}>Cancel</Button>
-        <Button variant="danger" onClick={onConfirm}>Delete file</Button>
-      </div>
-    </Modal>
+    <ConfirmDialog
+      tone="danger"
+      title="Delete this DQ file?"
+      description={`Are you sure you want to delete "${file.fileName}"?`}
+      confirmLabel="Delete file"
+      onCancel={onCancel}
+      onConfirm={onConfirm}
+    />
   );
 }

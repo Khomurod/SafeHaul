@@ -244,7 +244,7 @@ The trap that caught this product twice is worth naming here: a **hand-composed
 pattern** — `Card` + `StatusMedallion` + heading + body + actions, or a `Modal`
 with its own Cancel/Confirm footer — is made entirely of approved primitives, so
 it passes every automated rule while being a second implementation of something
-the design system owns. Twenty-one had accumulated by 2026-08-25. If you are
+the design system owns. Twenty-five had accumulated by 2026-08-25. If you are
 arranging primitives into a shape that looks like `PageState` or
 `ConfirmDialog`, use the pattern.
 
@@ -284,7 +284,7 @@ for weeks.
 the eight can see a *hand-composed pattern* — a status screen built from `Card` +
 `StatusMedallion` + heading + body + actions, or a `Modal` with its own
 Cancel/Confirm footer. Every ingredient is approved, so every rule passes, and
-twenty-one of them had accumulated by 2026-08-25. Two searches find them, and both
+twenty-five of them had accumulated by 2026-08-25. Two searches find them, and both
 belong in a review of any UI change: `StatusMedallion` used outside this
 directory, and a locally declared component whose name ends in `Dialog`. Neither
 is a clean automated rule — both have legitimate hits — and a check that fires on

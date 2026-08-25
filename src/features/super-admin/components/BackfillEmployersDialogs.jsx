@@ -16,7 +16,7 @@ import { ConfirmDialog, Modal } from '@design-system/patterns';
  */
 /*
  * The approved `ConfirmDialog` since 2026-08-25. Hand-composed before that, and
- * the odd one out even among the six hand-composed confirmations: it had no
+ * the odd one out even among the ten hand-composed confirmations: it had no
  * medallion, putting the warning icon *inside* the heading instead, so the same
  * kind of question looked different here than anywhere else. It also lost what
  * the pattern adds — initial focus on Cancel rather than on a live-data rename,

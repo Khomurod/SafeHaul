@@ -930,7 +930,7 @@ Note that Tailwind's radius and shadow scales share their names with the
 `--ds-*` ones and sit one step off them — `rounded-lg` is 8px where
 `rounded-ds-lg` is 12px. Convert by value, never by name.
 
-**One thing no guard catches**, recorded here because it accumulated twenty-one
+**One thing no guard catches**, recorded here because it accumulated twenty-five
 call sites: a *hand-composed pattern*. A status screen built from `Card` +
 `StatusMedallion` + heading + body + actions, or a `Modal` with its own
 Cancel/Confirm footer, is made entirely of approved primitives — so it passes
