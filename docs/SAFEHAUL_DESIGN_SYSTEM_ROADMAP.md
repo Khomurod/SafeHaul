@@ -248,6 +248,24 @@ component itself as well.
   clock before the message — it is now `aria-hidden`, while the message itself
   stays readable.
 
+- **`SignerField`, `ResizableDraggableField` and `AiSuggestionOverlay` keep
+  hand-built controls, because the PDF owns their geometry.** These overlay
+  author-placed field boxes whose size comes from the document's own
+  coordinates and can be as small as 8px. Every approved control carries the
+  shared 36/44/52px control height and inline padding, which would break
+  alignment with the PDF underneath. All of them keep an accessible name, a
+  focus-visible ring and `--ds-*` tones. Retiring them needs a compact
+  icon-button step and a geometry-free field in the design system.
+- **`EnvelopeSidebar`'s field-palette tiles stay raw `<button>`s.** They are
+  colour-coded per field type — domain-to-visual mapping the feature owns, and
+  `Button` has no API for it. Same family as the PEV FMCSA rows and the
+  call-outcome grid: there is no approved SelectableCard/Listbox primitive.
+- **`LoginScreen`'s hero wash and `IntegrationsTab`'s Facebook tile keep raw
+  hexes.** The hero's three blobs are artwork: blurred over 256–384px,
+  `aria-hidden`, no information in them. Everything on that panel that carries
+  meaning now uses the named brand roles. `#1877F2` is Facebook's mark, not a
+  SafeHaul role, and must not move when this product's palette does.
+
 ### Missing primitives that live code is waiting on
 
 These are the gaps that source comments say are "tracked in the roadmap". Each
@@ -289,6 +307,26 @@ enforcement permanently blocking.
   4.27:1) that used to fail. Every muted label in the product is slightly darker.
   Call sites that had moved to `content-secondary` to work around the old limit
   were not moved back and do not need to be.
+- `[!]` **Every input in the product zooms the viewport on an iPhone.** iOS
+  Safari zooms in when a focused input's `font-size` is below 16px, and does not
+  zoom back out — the user is left on a magnified page and has to pinch out
+  after every field. `.ds-form-control` is 13–15px at all three sizes, so this
+  affects every form in the product, not one screen. `SignerField` already works
+  around it locally with `text-base md:text-ds-sm`, which is where this was
+  found. The fix is a `--ds-font-size-control-mobile: 16px` role applied under a
+  narrow-viewport media query, but it changes the rendered size of every control
+  on every mobile form, so it needs its own slice with a mobile visual review
+  across the forms — not a late addition to a migration PR. Discovered
+  2026-08-25; recorded rather than fixed for exactly that reason.
+- `[!]` **Decide the onboarding tour's dialog semantics.** `OnboardingTour` is a
+  coach mark: a `pointer-events-none` positioning layer holding a popover placed
+  against a page element. It correctly does not use `Modal`, which would centre
+  it and trap focus. But its first step *is* centred and *does* dim the page
+  with a blocking backdrop, and that step has no `role="dialog"`, no focus move
+  and no Escape. Giving it real modal semantics changes the tour's keyboard
+  behaviour, so it is an owner decision rather than a token migration. The
+  tour's unlabelled close button and colour-only step dots were fixed in the
+  2026-08-25 slice; this is what is left.
 - `[!]` **Decide what the Unified Driver Database bulk actions should do.**
   Message, Assign, Move Status and Archive were placeholders that fired a
   *success* toast and did nothing. The false success is removed (controls are
@@ -485,11 +523,12 @@ failed the morning after it was recorded.
   workflow behaviour changed.
 - `[ ]` Make the pixel lane blocking once its font tripwire has held on CI.
 - `[ ]` Drive `ui-contract.baseline.json` to zero and delete it, leaving only
-  the `reasons` entries. 660 violations across 59 files at the time of writing;
-  **268 across 34 files after the campaigns slice (2026-08-24)**, of which 179
-  are approved exceptions carrying a `reasons` entry and 89 are migration debt,
-  every one of them assigned to the settings / driver-flows / signing /
-  onboarding / auth slice.
+  the `reasons` entries. 660 violations across 59 files at the time of writing.
+  **Migration debt reached zero on 2026-08-25**: 193 violations across 26 files
+  remain and every one of them carries a `reasons` entry naming the exception
+  that justifies it. Nothing is left marked `debt`. What remains for the final
+  slice is therefore not migration but mechanism — delete the `debt` field and
+  the shrink-only ratchet, and keep the `reasons` map as a plain allowlist.
 
 ---
 
@@ -567,6 +606,50 @@ below it up the page at the moment the user was reading an error; it now reuses
 the panel's own class. And the two hand-built tinted count chips in the preview
 header are `Badge`s — they are counts with a status meaning, on a surface whose
 list rows were already using `Badge` for the same job.
+
+**Settings, driver flows, signing, onboarding and auth, migrated 2026-08-25.**
+This is the slice that took migration debt to zero: every violation the ratchet
+still tolerates now names the exception that justifies it, and nothing is left
+marked as debt.
+
+Two capabilities were added to the design system on the way, both because live
+code had already written them by hand more than once.
+
+**Brand colours are named.** `--ds-color-brand-primary` (#004C68) and
+`--ds-color-brand-accent` (#0BE2A4) are the mark's own two colours, and the
+product had carried them as bare hexes since the beginning — in the logo SVG, the
+loader, the favicon, and the login hero, which is the one place they are used as
+*interface* colour rather than inside artwork. `tokens.test.js` pins the resolved
+values, so a brand change is now a deliberate edit rather than a drift between
+four copies of a hex. The accent is blessed as a foreground on the inverse
+surface only: on a light surface the same colour is about 1.6:1, which is exactly
+the mistake a named token invites if nobody writes it down.
+
+**`Button variant="link"`.** Six screens had hand-written "an action that reads
+as inline text" — all of them using the correct tokens, and between them using
+two font weights and three font sizes. It stays a `<button>` because it performs
+an action rather than navigating, and it is the one variant that leaves the
+control-height scale: a 44px-tall link inside a form row pushes the text around
+it apart. Its hit area is not its text — a pseudo-element takes the pointer
+region to about 26px without changing the layout box, so it clears WCAG 2.5.8
+rather than leaning on the "inline in a sentence" exemption for the uses that are
+not in a sentence. `IconButton` refuses the variant outright, because there the
+same rule would produce a 44×16px target.
+
+Three other things were put right, none of them cosmetic:
+
+- **The Super Admin feature matrix announced the wrong role.** Its cells were
+  `Checkbox`, which announces a value you set and then submit; toggling one
+  writes to Firestore immediately. They are `Switch` now. This was the call site
+  the roadmap recorded when `Switch` was promoted, and the local
+  `settings/questions/ToggleSwitch` it was promoted from is deleted, with its two
+  call sites moved across.
+- **The onboarding tour's close button had no accessible name** — the single
+  control that ends the tour announced as "button" — and its progress dots were
+  colour alone. Both fixed.
+- **The login hero used five text opacities**, one of which (`text-white/50`)
+  measured roughly 3.6:1 on its background, below AA for body text. They are now
+  the two on-inverse content roles, which are AA-asserted.
 
 ### Catalog
 

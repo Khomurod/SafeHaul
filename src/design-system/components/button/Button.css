@@ -98,6 +98,69 @@
   color: var(--ds-color-content-inverse);
 }
 
+/*
+ * `link` — an action that reads as inline text.
+ *
+ * It is a `<button>`, not an `<a>`, because it performs an action rather than
+ * navigating: "Forgot password?", "Change this", a name that opens a dialog.
+ * Six screens had already written this by hand, and the six had drifted into
+ * two font weights and three font sizes between them, all of them otherwise
+ * using the correct tokens. That is the divergence this variant removes.
+ *
+ * It deliberately opts out of the control-height scale. A link inside a
+ * sentence or a form row must not be 44px tall — the height would push the
+ * surrounding text apart, and the affordance is the underline, not a box. The
+ * hit area is therefore the text itself, which is why this variant is only for
+ * a text action beside other text: anything that stands alone as a control
+ * should be `ghost`, which keeps the full target size.
+ */
+.ds-button[data-variant='link'] {
+  position: relative;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--ds-radius-sm);
+  background: none;
+  color: var(--ds-color-content-link);
+  font-weight: var(--ds-font-weight-medium);
+}
+
+/*
+ * The hit area, which is larger than the text.
+ *
+ * Dropping the control height leaves the rendered text about 16px tall, under
+ * the 24px WCAG 2.5.8 minimum. WCAG exempts a target inline in a sentence, but
+ * not every use is — "Forgot password?" on its own line is the obvious one — so
+ * the variant does not rely on the exemption. This extends the region that
+ * accepts the pointer to about 26px without changing the layout box by one
+ * pixel, so surrounding text does not move.
+ *
+ * The expansion is vertical only, on purpose: growing it sideways would make
+ * two adjacent inline links overlap, and an overlapping target is a worse
+ * defect than a small one. Two *stacked* links still need about 10px between
+ * them, which the `--ds-space-*` gaps all clear.
+ */
+.ds-button[data-variant='link']::after {
+  content: '';
+  position: absolute;
+  inset-block: -5px;
+  inset-inline: 0;
+}
+
+.ds-button[data-variant='link']:hover:not(:disabled),
+.ds-button[data-variant='link']:focus-visible {
+  background: none;
+  text-decoration: underline;
+}
+
+/* `fullWidth` on a link would produce a full-bleed underline the width of the
+   container, which reads as a rule rather than a link. The variant stays inline
+   regardless, and `justify-content` stops a stretched parent doing it instead. */
+.ds-button[data-variant='link'][data-full-width='true'] {
+  width: auto;
+  justify-content: flex-start;
+}
+
 .ds-button[data-variant='danger']:hover:not(:disabled) {
   background: var(--ds-color-action-danger-hover);
 }

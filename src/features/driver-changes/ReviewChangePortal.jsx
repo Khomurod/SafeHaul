@@ -101,14 +101,16 @@ export function ReviewChangePortal() {
     return (
         <div className="flex min-h-screen items-start justify-center bg-ds-canvas p-4 sm:p-6">
             <Card as="main" padding="none" className="my-6 w-full max-w-xl overflow-hidden">
-                <div className="bg-slate-900 p-6 text-white">
-                    <div className="flex items-center gap-3">
-                        <span className="rounded-ds-lg bg-ds-action-primary p-2">
-                            <ShieldCheck size={22} aria-hidden="true" />
+                {/* An inverse masthead, on the same roles as the other dark
+                    surfaces in the product. */}
+                <div className="bg-ds-surface-inverse p-ds-6 text-ds-content-on-inverse">
+                    <div className="flex items-center gap-ds-3">
+                        <span aria-hidden="true" className="rounded-ds-lg bg-ds-action-primary p-ds-2">
+                            <ShieldCheck size={22} />
                         </span>
                         <div className="min-w-0">
-                            <h1 className="text-lg font-bold">Review changes to your application</h1>
-                            <p className="text-sm text-slate-400">Your recruiter proposed edits. Approve, reject, or fix each one.</p>
+                            <h1 className="text-ds-heading-md font-bold">Review changes to your application</h1>
+                            <p className="text-ds-body text-ds-content-on-inverse-muted">Your recruiter proposed edits. Approve, reject, or fix each one.</p>
                         </div>
                     </div>
                 </div>

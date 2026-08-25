@@ -12,6 +12,13 @@
   --ds-color-slate-800: #1e293b;
   --ds-color-slate-900: #0f172a;
 
+  /* Brand. The two colours of the SafeHaul mark itself — the logo paths, the
+     loader and the favicon are drawn from them. They are a *brand* identity,
+     not an interface role: nothing here should be re-tuned to fix a contrast
+     problem on some screen. Use the semantic roles below, never these directly. */
+  --ds-color-brand-deep: #004C68;
+  --ds-color-brand-mint: #0BE2A4;
+
   /* Existing SafeHaul interface palette */
   --ds-color-blue-50: #eff6ff;
   --ds-color-blue-100: #dbeafe;

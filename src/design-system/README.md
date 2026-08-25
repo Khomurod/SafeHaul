@@ -159,6 +159,17 @@ verified.
   remains: `DeviceMockup`, which is artwork rather than interface and keeps its
   own four-literal device palette.
 
+- Settings, the driver-change review portal, the e-doc envelope creator, the
+  onboarding tour and the Login screen consume the form primitives, Card,
+  Button (including the new `link` variant), IconButton, IconButtonLink,
+  Checkbox, Switch and the inverse surface roles. Authentication, the reset
+  workflow, the envelope field model and its PDF coordinates, the question
+  schema, the tour's step list and every callable contract remain
+  feature-owned. Documented feature-owned exceptions: the signing-room and
+  envelope-creator controls whose geometry comes from the PDF, the
+  field-palette tiles, the FMCSA combobox options, the login hero's artwork
+  wash and Facebook's own brand blue.
+
 The primitive APIs are usable for migrated consumers, but their broader
 component-family roadmap items remain in progress until catalog examples and
 durable visual baselines are owner-approved.
@@ -166,7 +177,8 @@ durable visual baselines are owner-approved.
 ## Component catalog
 
 `npm run storybook` opens the catalog. It documents the control scale plus
-Button, IconButton, Link/ButtonLink, Input, Select, Textarea,
+Button (five variants, including `link`), IconButton, Link/ButtonLink, Input,
+Select, Textarea,
 Checkbox/Radio/ChoiceGroup, Switch, FileInput, Badge, Card/MetricCard, Tabs,
 SegmentedControl, Disclosure, DataTable, the page layout primitives,
 ProgressBar, StatusMedallion, SectionNavigation, the form-structure primitives,

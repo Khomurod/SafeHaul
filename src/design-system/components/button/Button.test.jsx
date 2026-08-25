@@ -170,3 +170,58 @@ describe('Button icon sizing', () => {
     expect(screen.getByRole('button', { name: 'Close' })).toHaveClass('ds-icon-button');
   });
 });
+
+/*
+ * `link` is the one variant that leaves the control-height scale, so the rules
+ * that keep it honest are pinned here rather than left to review.
+ */
+describe('Button variant="link"', () => {
+  it('is a button, not an anchor — it performs an action', () => {
+    render(<Button variant="link">Forgot password?</Button>);
+    const action = screen.getByRole('button', { name: 'Forgot password?' });
+    expect(action).toHaveAttribute('data-variant', 'link');
+    expect(action.tagName).toBe('BUTTON');
+  });
+
+  it('opts out of the control height, so it does not push a form row apart', () => {
+    expect(BUTTON_CSS).toMatch(/\.ds-button\[data-variant='link'\]\s*\{[^}]*min-height:\s*0/);
+    expect(BUTTON_CSS).toMatch(/\.ds-button\[data-variant='link'\]\s*\{[^}]*padding:\s*0/);
+  });
+
+  it('carries the underline affordance on hover and on keyboard focus alike', () => {
+    // Focus-visible matters more than hover here: with the box gone, the
+    // underline is the only thing that says this text is operable.
+    const rule = BUTTON_CSS.match(
+      /\.ds-button\[data-variant='link'\]:hover:not\(:disabled\),\s*\.ds-button\[data-variant='link'\]:focus-visible\s*\{[^}]*\}/,
+    );
+    expect(rule).not.toBeNull();
+    expect(rule[0]).toMatch(/text-decoration:\s*underline/);
+  });
+
+  it('stays inline when a caller asks for full width', () => {
+    // A full-bleed underline the width of its container reads as a rule, not a link.
+    expect(BUTTON_CSS).toMatch(
+      /\.ds-button\[data-variant='link'\]\[data-full-width='true'\]\s*\{[^}]*width:\s*auto/,
+    );
+  });
+
+  it('extends the hit area past the text, without moving the layout box', () => {
+    // ~16px of text is under the WCAG 2.5.8 minimum. The pseudo-element takes
+    // the pointer region to ~26px while `position: absolute` keeps the button's
+    // own box — and therefore the surrounding text — exactly where it was.
+    expect(BUTTON_CSS).toMatch(/\.ds-button\[data-variant='link'\]\s*\{[^}]*position:\s*relative/);
+    const hitArea = BUTTON_CSS.match(
+      /\.ds-button\[data-variant='link'\]::after\s*\{[^}]*\}/,
+    );
+    expect(hitArea).not.toBeNull();
+    expect(hitArea[0]).toMatch(/position:\s*absolute/);
+    expect(hitArea[0]).toMatch(/inset-block:\s*-\d/);
+    // Vertical only: a sideways expansion would overlap the next inline link.
+    expect(hitArea[0]).toMatch(/inset-inline:\s*0/);
+  });
+
+  it('refuses to be an icon-only button, which would drop under the target size', () => {
+    expect(() => render(<IconButton label="Close" variant="link"><svg /></IconButton>))
+      .toThrow(/cannot use variant="link"/);
+  });
+});

@@ -4,7 +4,7 @@ import { doc, updateDoc, writeBatch } from 'firebase/firestore';
 import { Search, Zap, Loader2, Calendar, X, Clock, BarChart2 } from 'lucide-react';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import { collection, getDocs } from 'firebase/firestore';
-import { Button, Card, Checkbox, IconButton, Input } from '@/design-system/components';
+import { Button, Card, IconButton, Input, Switch } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { Modal } from '@design-system/patterns';
 
@@ -37,11 +37,12 @@ import { Modal } from '@design-system/patterns';
  *     accessible name, repeated once per company × feature.
  *  6. Legacy palette throughout, including two saturated modal headers.
  *
- * A native `Checkbox` is used rather than an ARIA switch: the design system has
- * no approved switch primitive (the `ToggleSwitch` in Company Settings is
- * feature-owned, and importing it here would cross feature boundaries). That gap
- * is recorded in the roadmap. A checkbox is the correct accessible fallback for
- * a boolean and needs no custom keyboard handling.
+ * These cells are `Switch`, not `Checkbox`, as of 2026-08-25. They were
+ * checkboxes only because the design system had no switch when this view was
+ * migrated, and a checkbox announces a value you set and then submit. Toggling
+ * one here writes to Firestore immediately, so "checkbox" was the wrong role for
+ * what the control actually does. `Switch` closed that gap and this is the call
+ * site the roadmap recorded against it.
  *
  * NOTE — `handleBulkAction` below is **unreachable**: nothing in the render calls
  * it, so the platform has no bulk enable/disable UI despite the handler existing.
@@ -289,9 +290,8 @@ export function FeaturesView({ companyList, onDataUpdate }) {
                                             return (
                                                 <td key={f.key} className="min-w-[160px] space-y-ds-2 px-ds-6 py-ds-4 text-center">
                                                     <div className="flex items-center justify-center gap-ds-2">
-                                                        <Checkbox
+                                                        <Switch
                                                             label={`${f.label} for ${company.companyName}`}
-                                                            labelHidden
                                                             checked={isEnabled}
                                                             onChange={() => toggleFeature(company, f.key, isEnabled)}
                                                         />

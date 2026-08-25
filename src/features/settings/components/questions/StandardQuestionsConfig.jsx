@@ -1,7 +1,6 @@
 import React, { useId } from 'react';
 import { Settings } from 'lucide-react';
-import { Card, FieldMessage } from '@/design-system/components';
-import { ToggleSwitch } from './ToggleSwitch';
+import { Card, FieldMessage, Switch } from '@/design-system/components';
 import { resolveApplicationGate } from '@/config/applicationGates';
 
 /**
@@ -86,7 +85,7 @@ export function StandardQuestionsConfig({ config, onChange }) {
                             <div className="flex items-center gap-ds-4 sm:gap-ds-4">
                                 <span className="flex items-center gap-ds-2">
                                     <span className="text-ds-xs font-medium text-ds-content-muted sm:hidden">Required</span>
-                                    <ToggleSwitch
+                                    <Switch
                                         checked={Boolean(setting.required)}
                                         tone="success"
                                         label={`Require ${field.label}`}
@@ -95,7 +94,7 @@ export function StandardQuestionsConfig({ config, onChange }) {
                                 </span>
                                 <span className="flex items-center gap-ds-2">
                                     <span className="text-ds-xs font-medium text-ds-content-muted sm:hidden">Hidden</span>
-                                    <ToggleSwitch
+                                    <Switch
                                         checked={Boolean(setting.hidden)}
                                         tone="danger"
                                         label={`Hide ${field.label}`}

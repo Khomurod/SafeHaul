@@ -67,6 +67,18 @@ const PROBES = [
         properties: ['height', 'fontSize', 'borderRadius', 'paddingLeft', 'paddingRight'],
     },
     {
+        story: 'components-button--link-variant',
+        label: 'the one variant that leaves the control scale, and the one that does not',
+        selectors: {
+            // Pinned because the whole point of `link` is the absence of a box:
+            // if a future edit lets the control height back in, every form row
+            // carrying one silently grows and the link stops reading as text.
+            'button[link]': ".ds-button[data-variant='link']",
+            'button[ghost]': ".ds-button[data-variant='ghost']",
+        },
+        properties: ['height', 'fontSize', 'paddingLeft', 'paddingRight'],
+    },
+    {
         story: 'foundations-control-scale--icon-normalisation',
         label: 'icon size is the system\'s decision, not the call site\'s',
         selectors: {

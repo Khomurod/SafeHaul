@@ -360,11 +360,11 @@ export function EmailSettingsTab({ currentCompanyProfile }) {
                     <div id="email-setup-guide" className="mt-6 space-y-6 animate-in fade-in slide-in-from-top-2">
                         {/* Gmail Guide */}
                         <div className="bg-ds-surface rounded-lg p-5 border border-ds-border-subtle shadow-sm">
-                            <h4 className="font-bold text-ds-content text-lg mb-3 flex items-center gap-2">
+                            <h4 className="font-bold text-ds-content text-ds-heading-md mb-ds-3 flex items-center gap-2">
                                 <Mail className="text-ds-status-danger-fg" size={20} />
                                 Gmail / Google Workspace
                             </h4>
-                            <ol className="space-y-2 text-sm text-ds-content-secondary list-decimal list-inside">
+                            <ol className="space-y-ds-2 text-ds-body text-ds-content-secondary list-decimal list-inside">
                                 <li>Go to your <a href="https://myaccount.google.com/" target="_blank" rel="noopener noreferrer" className="text-ds-content-link underline">Google Account</a></li>
                                 <li>Navigate to <strong>Security</strong> → <strong>2-Step Verification</strong> (you must enable this first)</li>
                                 <li>Scroll down and click <strong>App passwords</strong></li>
@@ -373,8 +373,8 @@ export function EmailSettingsTab({ currentCompanyProfile }) {
                                 <li>Copy the 16-character password (e.g., <code className="bg-ds-surface-subtle px-1 rounded">xxxx xxxx xxxx xxxx</code>)</li>
                             </ol>
                             <div className="mt-4 p-3 bg-ds-status-info-bg rounded border border-ds-status-info-border">
-                                <p className="text-sm font-semibold text-ds-status-info-fg">Configuration:</p>
-                                <ul className="text-xs text-ds-status-info-fg mt-1 space-y-1">
+                                <p className="text-ds-body font-semibold text-ds-status-info-fg">Configuration:</p>
+                                <ul className="text-ds-xs text-ds-status-info-fg mt-ds-1 space-y-ds-1">
                                     <li>• <strong>Host:</strong> smtp.gmail.com</li>
                                     <li>• <strong>Port:</strong> 587</li>
                                     <li>• <strong>Username:</strong> your-email@gmail.com</li>
@@ -385,18 +385,18 @@ export function EmailSettingsTab({ currentCompanyProfile }) {
 
                         {/* Outlook Guide */}
                         <div className="bg-ds-surface rounded-lg p-5 border border-ds-border-subtle shadow-sm">
-                            <h4 className="font-bold text-ds-content text-lg mb-3 flex items-center gap-2">
+                            <h4 className="font-bold text-ds-content text-ds-heading-md mb-ds-3 flex items-center gap-2">
                                 <Mail className="text-ds-status-info-fg" size={20} />
                                 Outlook / Microsoft 365
                             </h4>
-                            <ol className="space-y-2 text-sm text-ds-content-secondary list-decimal list-inside">
+                            <ol className="space-y-ds-2 text-ds-body text-ds-content-secondary list-decimal list-inside">
                                 <li>Ensure your Microsoft account has <strong>SMTP authentication enabled</strong></li>
                                 <li>For Microsoft 365 admins: Go to <strong>Exchange Admin Center</strong> → <strong>Settings</strong> → Enable SMTP AUTH</li>
                                 <li>Use your regular Outlook email and password (or create an app-specific password if using MFA)</li>
                             </ol>
                             <div className="mt-4 p-3 bg-ds-status-info-bg rounded border border-ds-status-info-border">
-                                <p className="text-sm font-semibold text-ds-status-info-fg">Configuration:</p>
-                                <ul className="text-xs text-ds-status-info-fg mt-1 space-y-1">
+                                <p className="text-ds-body font-semibold text-ds-status-info-fg">Configuration:</p>
+                                <ul className="text-ds-xs text-ds-status-info-fg mt-ds-1 space-y-ds-1">
                                     <li>• <strong>Host:</strong> smtp.office365.com</li>
                                     <li>• <strong>Port:</strong> 587</li>
                                     <li>• <strong>Username:</strong> your-email@outlook.com (or company domain)</li>
@@ -407,11 +407,11 @@ export function EmailSettingsTab({ currentCompanyProfile }) {
 
                         {/* SendGrid Guide */}
                         <div className="bg-ds-surface rounded-lg p-5 border border-ds-border-subtle shadow-sm">
-                            <h4 className="font-bold text-ds-content text-lg mb-3 flex items-center gap-2">
+                            <h4 className="font-bold text-ds-content text-ds-heading-md mb-ds-3 flex items-center gap-2">
                                 <Server className="text-ds-status-accent-fg" size={20} />
                                 SendGrid (Recommended for High Volume)
                             </h4>
-                            <ol className="space-y-2 text-sm text-ds-content-secondary list-decimal list-inside">
+                            <ol className="space-y-ds-2 text-ds-body text-ds-content-secondary list-decimal list-inside">
                                 <li>Sign up for a free SendGrid account at <a href="https://sendgrid.com/" target="_blank" rel="noopener noreferrer" className="text-ds-content-link underline">sendgrid.com</a></li>
                                 <li>Go to <strong>Settings</strong> → <strong>API Keys</strong></li>
                                 <li>Click <strong>Create API Key</strong></li>
@@ -419,8 +419,8 @@ export function EmailSettingsTab({ currentCompanyProfile }) {
                                 <li>Copy the generated API key (starts with <code className="bg-ds-surface-subtle px-1 rounded">SG.</code>)</li>
                             </ol>
                             <div className="mt-4 p-3 bg-ds-status-accent-bg rounded border border-ds-status-accent-border">
-                                <p className="text-sm font-semibold text-ds-status-accent-fg">Configuration:</p>
-                                <ul className="text-xs text-ds-status-accent-fg mt-1 space-y-1">
+                                <p className="text-ds-body font-semibold text-ds-status-accent-fg">Configuration:</p>
+                                <ul className="text-ds-xs text-ds-status-accent-fg mt-ds-1 space-y-ds-1">
                                     <li>• <strong>Host:</strong> smtp.sendgrid.net</li>
                                     <li>• <strong>Port:</strong> 587</li>
                                     <li>• <strong>Username:</strong> apikey (exactly as written)</li>

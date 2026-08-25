@@ -137,10 +137,14 @@ export function LoginScreen() {
           <div className="mb-10">
             <div className="flex items-center gap-3 mb-8">
               <Logo className="w-10 h-10" />
-              <span className="text-xl font-bold text-ds-content">SafeHaul</span>
+              <span className="text-ds-heading-lg font-bold text-ds-content">SafeHaul</span>
             </div>
 
-            <h1 className="text-3xl font-extrabold text-ds-content mb-2 tracking-tight">
+            {/* `heading-xl`, the same size `PageHeader` gives every other page
+                title in the product. This was `text-3xl` — 30px — which made the
+                one page a signed-out user sees the only page with a bigger
+                title than the app behind it. */}
+            <h1 className="mb-ds-2 text-ds-heading-xl font-extrabold tracking-tight text-ds-content">
               Welcome Back
             </h1>
             <p className="text-ds-content-muted text-ds-body font-medium">
@@ -195,13 +199,9 @@ export function LoginScreen() {
                 </IconButton>
               </div>
               <div className="text-right">
-                <button
-                  type="button"
-                  className="text-ds-sm font-medium text-ds-content-link hover:underline focus-visible:outline-none focus-visible:shadow-ds-focus rounded-ds-sm"
-                  onClick={openForgotPassword}
-                >
+                <Button variant="link" size="sm" onClick={openForgotPassword}>
                   Forgot password?
-                </button>
+                </Button>
               </div>
             </div>
 
@@ -237,70 +237,81 @@ export function LoginScreen() {
         </div>
       </div>
 
-      {/* Right Side - Hero / Marketing (branded artwork, presentation preserved) */}
-      <div className="hidden lg:flex lg:w-[55%] bg-slate-900 relative overflow-hidden">
+      {/* Right Side - Hero / Marketing.
+          The panel is the inverse surface role, and everything on it that carries
+          information — headline, copy, icons, numerals, labels — now reads from
+          `--ds-*`. Five different text opacities (white at 100/80/70/60/50) became
+          the two on-inverse content roles; `text-white/50` in particular was
+          roughly 3.6:1 on this background, below AA for body text. */}
+      <div className="relative hidden overflow-hidden bg-ds-surface-inverse lg:flex lg:w-[55%]">
 
-        {/* Background Effects */}
-        <div className="absolute inset-0">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-[#0BE2A4]/10 rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2"></div>
-          <div className="absolute bottom-0 left-0 w-80 h-80 bg-[#004C68]/20 rounded-full blur-3xl transform -translate-x-1/2 translate-y-1/2"></div>
-          <div className="absolute top-1/2 left-1/2 w-64 h-64 bg-white/5 rounded-full blur-2xl transform -translate-x-1/2 -translate-y-1/2"></div>
+        {/* Background wash. Recorded artwork exception (roadmap §5): three
+            decorative blobs blurred over 256–384px, no information in them, and
+            their colour is the brand's own rather than an interface role. A
+            Tailwind opacity modifier cannot be applied to a `var()` colour, so
+            tokenising these would mean three more single-use tint tokens. */}
+        <div aria-hidden="true" className="absolute inset-0">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-[#0BE2A4]/10 rounded-ds-full blur-3xl transform translate-x-1/2 -translate-y-1/2"></div>
+          <div className="absolute bottom-0 left-0 w-80 h-80 bg-[#004C68]/20 rounded-ds-full blur-3xl transform -translate-x-1/2 translate-y-1/2"></div>
+          <div className="absolute top-1/2 left-1/2 w-64 h-64 bg-white/5 rounded-ds-full blur-2xl transform -translate-x-1/2 -translate-y-1/2"></div>
         </div>
 
-        <div className="relative z-10 flex flex-col justify-center items-center text-center px-12 lg:px-16 xl:px-20 w-full">
+        <div className="relative z-10 flex w-full flex-col items-center justify-center px-ds-12 text-center lg:px-16 xl:px-20">
           <div className="max-w-lg">
-            <Logo className="w-20 h-20 mx-auto mb-8" />
+            <Logo className="mx-auto mb-ds-8 h-20 w-20" />
 
-            <h2 className="text-3xl xl:text-4xl font-bold text-white mb-4 leading-tight">
+            <h2 className="mb-ds-4 text-ds-heading-xl font-bold leading-tight text-ds-content-on-inverse">
               Your Gateway to the Road
             </h2>
 
-            <p className="text-lg text-white/80 leading-relaxed mb-10">
+            <p className="mb-ds-10 text-ds-heading-md leading-relaxed text-ds-content-on-inverse">
               Whether you're a driver seeking your next opportunity or a company building your fleet, SafeHaul connects you to success.
             </p>
 
-            <div className="space-y-4 text-left mb-10">
-              <div className="flex items-start gap-4 bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/10 hover:bg-white/15 transition-colors">
-                <div className="w-10 h-10 bg-[#0BE2A4]/20 rounded-lg flex items-center justify-center shrink-0">
-                  <Briefcase size={20} className="text-[#0BE2A4]" />
+            <div className="mb-ds-10 flex flex-col gap-ds-4 text-left">
+              <div className="flex items-start gap-ds-4 rounded-ds-xl border border-ds-border-inverse bg-ds-surface-inverse-subtle p-ds-4 backdrop-blur-sm transition-colors hover:bg-ds-surface-inverse-hover">
+                <div aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-ds-lg bg-ds-brand-accent-soft">
+                  <Briefcase size={20} className="text-ds-brand-accent" />
                 </div>
                 <div>
-                  <h3 className="text-white font-semibold mb-1">For Drivers</h3>
-                  <p className="text-white/70 text-sm">Apply to top carriers, track your applications, and find the perfect driving job that fits your lifestyle.</p>
+                  <h3 className="mb-ds-1 font-semibold text-ds-content-on-inverse">For Drivers</h3>
+                  <p className="text-ds-body text-ds-content-on-inverse-muted">Apply to top carriers, track your applications, and find the perfect driving job that fits your lifestyle.</p>
                 </div>
               </div>
 
-              <div className="flex items-start gap-4 bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/10 hover:bg-white/15 transition-colors">
-                <div className="w-10 h-10 bg-[#0BE2A4]/20 rounded-lg flex items-center justify-center shrink-0">
-                  <Users size={20} className="text-[#0BE2A4]" />
+              <div className="flex items-start gap-ds-4 rounded-ds-xl border border-ds-border-inverse bg-ds-surface-inverse-subtle p-ds-4 backdrop-blur-sm transition-colors hover:bg-ds-surface-inverse-hover">
+                <div aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-ds-lg bg-ds-brand-accent-soft">
+                  <Users size={20} className="text-ds-brand-accent" />
                 </div>
                 <div>
-                  <h3 className="text-white font-semibold mb-1">For Companies</h3>
-                  <p className="text-white/70 text-sm">Streamline recruitment, manage applications, and connect with qualified CDL drivers faster than ever.</p>
+                  <h3 className="mb-ds-1 font-semibold text-ds-content-on-inverse">For Companies</h3>
+                  <p className="text-ds-body text-ds-content-on-inverse-muted">Streamline recruitment, manage applications, and connect with qualified CDL drivers faster than ever.</p>
                 </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-3 gap-ds-4">
               <div className="text-center">
-                <div className="text-2xl xl:text-3xl font-bold text-[#0BE2A4] mb-1">10K+</div>
-                <div className="text-sm text-white/60">Active Drivers</div>
+                <div className="mb-ds-1 text-ds-heading-xl font-bold text-ds-brand-accent">10K+</div>
+                <div className="text-ds-body text-ds-content-on-inverse-muted">Active Drivers</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl xl:text-3xl font-bold text-[#0BE2A4] mb-1">10+</div>
-                <div className="text-sm text-white/60">Partner Carriers</div>
+                <div className="mb-ds-1 text-ds-heading-xl font-bold text-ds-brand-accent">10+</div>
+                <div className="text-ds-body text-ds-content-on-inverse-muted">Partner Carriers</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl xl:text-3xl font-bold text-[#0BE2A4] mb-1">98%</div>
-                <div className="text-sm text-white/60">Satisfaction Rate</div>
+                <div className="mb-ds-1 text-ds-heading-xl font-bold text-ds-brand-accent">98%</div>
+                <div className="text-ds-body text-ds-content-on-inverse-muted">Satisfaction Rate</div>
               </div>
             </div>
 
-            <div className="mt-10 flex items-center justify-center gap-2 text-white/50 text-sm">
-              <CheckCircle2 size={16} className="text-[#0BE2A4]" />
+            <div className="mt-ds-10 flex items-center justify-center gap-ds-2 text-ds-body text-ds-content-on-inverse-muted">
+              <CheckCircle2 size={16} aria-hidden="true" className="text-ds-brand-accent" />
               <span>DOT Compliant</span>
-              <span className="mx-2">|</span>
-              <CheckCircle2 size={16} className="text-[#0BE2A4]" />
+              {/* A pipe is read out as "vertical line" by some screen readers; it
+                  is a visual separator between two claims, nothing more. */}
+              <span aria-hidden="true" className="mx-ds-2">|</span>
+              <CheckCircle2 size={16} aria-hidden="true" className="text-ds-brand-accent" />
               <span>FMCSA Approved</span>
             </div>
           </div>
@@ -340,13 +351,15 @@ export function LoginScreen() {
               </div>
             ) : (
               <>
-                <button
-                  type="button"
-                  onClick={closeForgotPassword}
-                  className="mb-4 inline-flex items-center gap-1 rounded-ds-sm text-ds-sm text-ds-content-muted hover:text-ds-content focus-visible:outline-none focus-visible:shadow-ds-focus"
-                >
-                  <ArrowLeft size={16} aria-hidden="true" /> Back to login
-                </button>
+                {/* `ghost`, not `link`: this stands alone above the dialog body
+                    rather than sitting inside a sentence, so it keeps the full
+                    control height and target size. */}
+                <div className="mb-ds-4">
+                  <Button variant="ghost" size="sm" onClick={closeForgotPassword}>
+                    <ArrowLeft aria-hidden="true" />
+                    Back to login
+                  </Button>
+                </div>
                 <h3 id={RESET_DIALOG_TITLE_ID} className="mb-2 text-ds-heading-md font-bold text-ds-content">
                   Reset your password
                 </h3>

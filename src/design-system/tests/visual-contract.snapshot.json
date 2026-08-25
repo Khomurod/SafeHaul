@@ -48,6 +48,18 @@
     "paddingLeft": "0px",
     "paddingRight": "0px"
   },
+  "mobile · the one variant that leaves the control scale, and the one that does not · button[link]": {
+    "height": "16.25px",
+    "fontSize": "13px",
+    "paddingLeft": "0px",
+    "paddingRight": "0px"
+  },
+  "mobile · the one variant that leaves the control scale, and the one that does not · button[ghost]": {
+    "height": "44px",
+    "fontSize": "14px",
+    "paddingLeft": "16px",
+    "paddingRight": "16px"
+  },
   "mobile · icon size is the system's decision, not the call site's · icon in button[md]": {
     "width": "16px",
     "height": "16px"
@@ -156,6 +168,18 @@
     "borderRadius": "8px",
     "paddingLeft": "0px",
     "paddingRight": "0px"
+  },
+  "desktop · the one variant that leaves the control scale, and the one that does not · button[link]": {
+    "height": "16.25px",
+    "fontSize": "13px",
+    "paddingLeft": "0px",
+    "paddingRight": "0px"
+  },
+  "desktop · the one variant that leaves the control scale, and the one that does not · button[ghost]": {
+    "height": "44px",
+    "fontSize": "14px",
+    "paddingLeft": "16px",
+    "paddingRight": "16px"
   },
   "desktop · icon size is the system's decision, not the call site's · icon in button[md]": {
     "width": "16px",

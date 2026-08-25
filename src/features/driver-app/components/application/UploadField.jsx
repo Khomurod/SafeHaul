@@ -1,6 +1,6 @@
 import React, { useId, useRef, useState } from 'react';
 import { Upload, X, CheckCircle, RefreshCw, FileText, Image as ImageIcon, AlertCircle } from 'lucide-react';
-import { Button, IconButton, ProgressBar } from '@/design-system/components';
+import { Button, IconButton, IconButtonLink, ProgressBar } from '@/design-system/components';
 import { ConfirmDialog } from '@design-system/patterns';
 
 /**
@@ -214,16 +214,18 @@ const UploadField = ({
                         </p>
                     </div>
                     <div className="flex shrink-0 items-center gap-ds-1">
+                        {/* `external` is what announces the new tab. The hand-written
+                            `target="_blank"` here did not, which is a WCAG 3.2.5
+                            failure — the primitive exists mainly to fix that. */}
                         {fileUrl && (
-                            <a
+                            <IconButtonLink
                                 href={fileUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex h-11 w-11 items-center justify-center rounded-ds-md text-ds-content-muted hover:text-ds-content-link focus-visible:shadow-ds-focus"
+                                external
+                                variant="ghost"
+                                label={`View ${label} file`}
                             >
-                                <ImageIcon size={18} aria-hidden="true" />
-                                <span className="ds-visually-hidden">View {label} file</span>
-                            </a>
+                                <ImageIcon aria-hidden="true" />
+                            </IconButtonLink>
                         )}
                         <IconButton
                             variant="ghost"

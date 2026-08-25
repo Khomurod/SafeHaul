@@ -98,13 +98,9 @@ export function TeamManagementTab({ currentCompanyProfile, isCompanyAdmin, onSho
             </FormSection>
 
             <div className="text-center">
-                <button
-                    type="button"
-                    onClick={onShowManageTeam}
-                    className="rounded-ds-sm text-ds-sm font-semibold text-ds-content-link hover:underline focus-visible:outline-none focus-visible:shadow-ds-focus"
-                >
+                <Button variant="link" size="sm" onClick={onShowManageTeam}>
                     View All Team Members &amp; Goals
-                </button>
+                </Button>
             </div>
         </div>
     );

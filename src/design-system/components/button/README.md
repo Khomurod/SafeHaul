@@ -5,7 +5,21 @@ Features own labels, icons, permission checks, and callbacks.
 
 - Use `Button` for text or text-plus-icon actions.
 - Use `IconButton` for icon-only actions and always provide `label`.
-- Supported variants are `primary`, `secondary`, `ghost`, and `danger`.
+- Supported variants are `primary`, `secondary`, `ghost`, `danger`, and `link`.
+- **`link` is an action that reads as inline text**, and it is the one variant
+  that leaves the control scale below. It is still a `<button>`: it acts rather
+  than navigates, and something that changes the address bar is a `Link`
+  instead. Use it beside other text — a "Forgot password?" under a field, a
+  "Change this" in a sentence. Anything standing alone as a control wants
+  `ghost`, which keeps the full target size.
+  - The rendered text is about 16px tall, under WCAG 2.5.8. The variant does not
+    rely on the standard's "inline in a sentence" exemption, because not every
+    use is in a sentence: an invisible pseudo-element extends the pointer region
+    to about 26px without changing the layout box, so surrounding text does not
+    move. The expansion is vertical only — widening it would make two adjacent
+    inline links overlap, and an overlapping target is worse than a small one.
+  - `IconButton` throws on `variant="link"`. `.ds-icon-button` sets only the
+    width, so the result would be a 44×16px target with a bare glyph in it.
 - Supported sizes are `sm` (36px), `md` (44px, the default) and `lg` (52px).
   This is the **shared control scale**: `Input`, `Select` and `Textarea` read the
   same three tokens, so a button and the control beside it are the same height

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Calendar, Users, MessageSquare, ChevronRight, MoreVertical, Trash2, Ban } from 'lucide-react';
-import { Card, Badge, IconButton } from '@/design-system/components';
+import { Badge, Button, Card, IconButton } from '@/design-system/components';
 import { isCancellableSessionStatus } from '../constants/campaignConstants';
 
 /**
@@ -166,13 +166,12 @@ export function CampaignCard({ campaign, onClick, onDelete, onCancel, onViewRepo
 
                 <div className="flex items-center gap-ds-3">
                     {onViewReport && campaign.status !== 'draft' && (
-                        <button
-                            type="button"
+                        <Button
+                            variant="link"
                             onClick={(e) => { e.stopPropagation(); onViewReport(); }}
-                            className="rounded-ds-sm text-ds-content-link hover:underline focus-visible:outline-none focus-visible:shadow-ds-focus"
                         >
                             View Report
-                        </button>
+                        </Button>
                     )}
                     <button
                         type="button"

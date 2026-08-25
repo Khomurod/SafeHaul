@@ -18,6 +18,14 @@ business rules, fetch data, or save anything.
   compensated with `size="lg"` on the button.
   - A `Textarea` opts out of the height token, because it is sized by rows, but
     keeps the step's padding and type so it still reads as the same family.
+  - **Known limitation: these controls zoom the viewport on an iPhone.** iOS
+    Safari zooms in when a focused input's `font-size` is under 16px and does
+    not zoom back out; every step of this scale is 13–15px. It affects every
+    form in the product, so the fix is a design-system one — a
+    `--ds-font-size-control-mobile` role under a narrow-viewport query — and it
+    moves the rendered size of every mobile control, which is why it is an open
+    roadmap item with its own mobile visual review rather than a quiet edit.
+    `SignerField` works around it locally today.
   - `size` deliberately **shadows the native `size` attribute** of `<input>` and
     `<select>` (character width / visible rows). A control whose width came from
     a character count could not line up with anything beside it, so width is a

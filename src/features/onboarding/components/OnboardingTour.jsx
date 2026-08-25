@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, ChevronRight, Check, Info } from 'lucide-react';
+import { Button, IconButton } from '@/design-system/components';
 
 const TOUR_STEPS = [
   {
@@ -92,52 +93,70 @@ export function OnboardingTour({ onComplete }) {
 
   const isCenter = stepData.position === 'center';
 
+  const isLastStep = currentStep === TOUR_STEPS.length - 1;
+
   return (
-    <div className="fixed inset-0 z-[100] pointer-events-none">
-      {isCenter && <div className="absolute inset-0 bg-black/40 backdrop-blur-sm pointer-events-auto transition-opacity duration-500" />}
+    /*
+     * `fixed inset-0` here is a *positioning canvas*, not a dialog backdrop:
+     * it is `pointer-events-none` and exists so a coach mark can be placed
+     * against a page element's coordinates. It is recorded as an exception to
+     * the hand-built-overlay rule for that reason — `Modal` centres and traps
+     * focus, which is the opposite of what a coach mark attached to a toolbar
+     * button needs. See the roadmap for the open item on this component's
+     * dialog semantics.
+     */
+    <div className="pointer-events-none fixed inset-0 z-[100]">
+      {isCenter && <div className="pointer-events-auto absolute inset-0 bg-ds-overlay backdrop-blur-sm transition-opacity duration-500" />}
 
       <div
-        className={`absolute pointer-events-auto bg-white rounded-xl shadow-2xl border border-blue-100 p-6 w-80 transition-all duration-500 ease-in-out ${isCenter ? 'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2' : ''}`}
+        className={`pointer-events-auto absolute w-80 rounded-ds-xl border border-ds-border-subtle bg-ds-surface p-ds-6 shadow-ds-lg transition-all duration-500 ease-in-out ${isCenter ? 'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2' : ''}`}
         style={!isCenter ? { top: coords.top, left: coords.left } : {}}
       >
         {!isCenter && stepData.position === 'bottom' && (
-          <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-white border-t border-l border-blue-100 transform rotate-45"></div>
+          <div aria-hidden="true" className="absolute -top-2 left-1/2 h-4 w-4 -translate-x-1/2 rotate-45 transform border-t border-l border-ds-border-subtle bg-ds-surface"></div>
         )}
         {!isCenter && stepData.position === 'left' && (
-          <div className="absolute top-6 -right-2 w-4 h-4 bg-white border-t border-r border-blue-100 transform rotate-45"></div>
+          <div aria-hidden="true" className="absolute top-6 -right-2 h-4 w-4 rotate-45 transform border-t border-r border-ds-border-subtle bg-ds-surface"></div>
         )}
 
-        <div className="flex justify-between items-start mb-3 relative z-10">
-          <div className="bg-yellow-100 p-2 rounded-lg text-yellow-700">
-            <Info size={20} fill="currentColor" className="text-yellow-500/20" />
-          </div>
-          <button onClick={onComplete} className="text-gray-400 hover:text-gray-600 transition-colors">
-            <X size={18} />
-          </button>
+        <div className="relative z-10 mb-ds-3 flex items-start justify-between">
+          <span aria-hidden="true" className="rounded-ds-lg bg-ds-status-warning-bg p-ds-2 text-ds-status-warning-fg">
+            <Info size={20} />
+          </span>
+          {/* This was a bare `<button>` wrapping an X glyph, with no accessible
+              name at all — the one control that ends the tour announced as
+              "button". */}
+          <IconButton label="Close tour" variant="ghost" size="sm" onClick={onComplete}>
+            <X aria-hidden="true" />
+          </IconButton>
         </div>
 
-        <h3 className="text-lg font-bold text-gray-900 mb-2">{stepData.title}</h3>
-        <p className="text-sm text-gray-600 mb-6 leading-relaxed">
+        <h3 className="mb-ds-2 text-ds-heading-md font-bold text-ds-content">{stepData.title}</h3>
+        <p className="mb-ds-6 text-ds-body leading-relaxed text-ds-content-secondary">
           {stepData.content}
         </p>
 
-        <div className="flex justify-between items-center relative z-10">
-          <div className="flex gap-1">
-            {TOUR_STEPS.map((_, idx) => (
-              <div
-                key={idx}
-                className={`w-2 h-2 rounded-full transition-colors ${idx === currentStep ? 'bg-blue-600' : 'bg-gray-200'}`}
-              />
-            ))}
-          </div>
+        <div className="relative z-10 flex items-center justify-between">
+          {/* The dots were colour-alone: the current step was a blue dot among
+              grey ones and nothing said so in text. */}
+          <span className="flex items-center gap-ds-1">
+            <span aria-hidden="true" className="flex gap-ds-1">
+              {TOUR_STEPS.map((_, idx) => (
+                <span
+                  key={idx}
+                  className={`h-2 w-2 rounded-ds-full transition-colors ${idx === currentStep ? 'bg-ds-action-primary' : 'bg-ds-border'}`}
+                />
+              ))}
+            </span>
+            <span className="ds-visually-hidden">
+              {`Step ${currentStep + 1} of ${TOUR_STEPS.length}`}
+            </span>
+          </span>
 
-          <button
-            onClick={handleNext}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5"
-          >
-            {currentStep === TOUR_STEPS.length - 1 ? 'Finish' : 'Next'}
-            {currentStep === TOUR_STEPS.length - 1 ? <Check size={16} /> : <ChevronRight size={16} />}
-          </button>
+          <Button variant="primary" size="sm" onClick={handleNext}>
+            {isLastStep ? 'Finish' : 'Next'}
+            {isLastStep ? <Check aria-hidden="true" /> : <ChevronRight aria-hidden="true" />}
+          </Button>
         </div>
       </div>
     </div>

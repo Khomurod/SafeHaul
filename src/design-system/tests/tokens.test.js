@@ -92,6 +92,11 @@ describe('design tokens', () => {
     ['status-success-fg-on-inverse', 'surface-inverse'],
     ['status-warning-fg-on-inverse', 'surface-inverse'],
     ['status-danger-fg-on-inverse', 'surface-inverse'],
+    // The brand accent is offered as a foreground on the inverse surface only —
+    // the login hero's icons, stat numerals and compliance ticks. See the note in
+    // `semantic.css`: on a light surface the same colour is about 1.6:1, so there
+    // is deliberately no `['brand-accent', 'surface']` row here to bless.
+    ['brand-accent', 'surface-inverse'],
   ])('%s on %s meets WCAG AA normal-text contrast', (foreground, background) => {
     const ratio = contrast(
       resolveToken(`ds-color-${foreground}`),
@@ -272,5 +277,32 @@ describe('design tokens', () => {
     expect(colors['ds-content-on-inverse']).toBe('var(--ds-color-content-on-inverse)');
     expect(colors['ds-content-on-inverse-muted']).toBe('var(--ds-color-content-on-inverse-muted)');
     expect(colors['ds-border-inverse']).toBe('var(--ds-color-border-inverse)');
+    expect(colors['ds-surface-inverse-hover']).toBe('var(--ds-color-surface-inverse-hover)');
+  });
+
+  /*
+   * The brand colours are the mark's own, and the product carried them as bare
+   * hexes everywhere. Pinning the resolved values here means a change to the
+   * brand is a deliberate edit to a test, not a silent drift between the logo,
+   * the favicon and whatever screen last copied the hex.
+   */
+  it('names the brand colours and keeps them pinned to the mark', () => {
+    expect(resolveToken('ds-color-brand-primary')).toBe('#004C68');
+    expect(resolveToken('ds-color-brand-accent')).toBe('#0BE2A4');
+
+    const colors = tailwindConfig.theme.extend.colors;
+    expect(colors['ds-brand-primary']).toBe('var(--ds-color-brand-primary)');
+    expect(colors['ds-brand-accent']).toBe('var(--ds-color-brand-accent)');
+    expect(colors['ds-brand-accent-soft']).toBe('var(--ds-color-brand-accent-soft)');
+  });
+
+  /*
+   * A translucent token has to be a real colour value, not a Tailwind opacity
+   * modifier: `bg-ds-brand-accent/20` needs a computable colour to modify and a
+   * `var()` is not one, so it compiles to nothing and the chip disappears. This
+   * has already happened once in this codebase, with `bg-ds-status-info-bg/50`.
+   */
+  it('expresses the translucent brand tint as a colour, not an opacity modifier', () => {
+    expect(resolveToken('ds-color-brand-accent-soft')).toMatch(/^rgb\(/);
   });
 });

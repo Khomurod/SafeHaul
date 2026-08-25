@@ -109,7 +109,7 @@ export default meta;
 /** The default: a secondary, medium button. */
 export const Default = {};
 
-/** All four approved variants side by side, at their default size. */
+/** The four boxed variants side by side, at their default size. */
 export const Variants = {
   render: (args) => (
     <div className="sb-row">
@@ -117,6 +117,41 @@ export const Variants = {
       <Button {...args} variant="secondary">Secondary</Button>
       <Button {...args} variant="ghost">Ghost</Button>
       <Button {...args} variant="danger">Delete</Button>
+    </div>
+  ),
+};
+
+/**
+ * `link` — an action that reads as inline text.
+ *
+ * It is still a `<button>`, because it performs an action rather than
+ * navigating. Something that changes the address bar is a `Link`, and the
+ * difference is not cosmetic: a link can be opened in a new tab, restored from
+ * history and read out as a link, and none of that is true of this.
+ *
+ * It is the one variant that leaves the control-height scale, deliberately. A
+ * 44px-tall link inside a form row would push the text around it apart, and the
+ * affordance here is the underline rather than a box. That also bounds where it
+ * belongs: **beside other text**. Anything standing on its own as a control
+ * wants `ghost`, which keeps the full target size — the two are shown together
+ * below so the difference is visible rather than described.
+ *
+ * The *hit area* is not 16px even though the text is. An invisible
+ * pseudo-element takes the pointer region to about 26px, clearing the WCAG 2.5.8
+ * minimum, without changing the layout box — so the variant does not lean on the
+ * "inline in a sentence" exemption for the cases that are not in a sentence.
+ */
+export const LinkVariant = {
+  render: (args) => (
+    <div className="sb-column">
+      <p>
+        Signed in as someone else?{' '}
+        <Button {...args} variant="link" size="sm">Use a different account</Button>
+      </p>
+      <div className="sb-row">
+        <Button {...args} variant="link">Inline text action</Button>
+        <Button {...args} variant="ghost">Standalone quiet action</Button>
+      </div>
     </div>
   ),
 };

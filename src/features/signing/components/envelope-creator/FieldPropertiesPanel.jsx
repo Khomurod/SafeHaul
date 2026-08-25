@@ -1,6 +1,6 @@
 import React from 'react';
 import { Lock } from 'lucide-react';
-import { FormField, Input, Select, Textarea } from '@/design-system/components';
+import { Checkbox, FormField, Input, Select, Textarea } from '@/design-system/components';
 
 /** Field types that carry no text content, so they expose no prefill/default/format options. */
 const CONTENT_LESS_TYPES = new Set(['signature', 'initial', 'checkbox']);
@@ -47,19 +47,16 @@ export const FieldPropertiesPanel = React.memo(({ activeField, updateActiveField
             {/* Toggles */}
             <div className="flex flex-col gap-ds-3 border-b border-ds-border-subtle p-ds-4">
                 <h4 className="text-ds-xs font-bold uppercase tracking-wide text-ds-content-secondary">Options</h4>
-                <label className="inline-flex min-h-11 cursor-pointer select-none items-center gap-ds-2 text-ds-sm font-medium text-ds-content">
-                    <input
-                        type="checkbox"
-                        className="h-5 w-5 shrink-0 accent-ds-action-primary focus-visible:outline-none focus-visible:shadow-ds-focus"
-                        checked={Boolean(activeField.required)}
-                        onChange={() => updateActiveField('required', !activeField.required)}
-                    />
-                    <span>Required Field</span>
-                </label>
-                <label className="inline-flex min-h-11 cursor-pointer select-none items-center gap-ds-2 text-ds-sm font-medium text-ds-content">
-                    <input
-                        type="checkbox"
-                        className="h-5 w-5 shrink-0 accent-ds-action-primary focus-visible:outline-none focus-visible:shadow-ds-focus"
+                <Checkbox
+                    id="field-properties-required"
+                    label="Required Field"
+                    checked={Boolean(activeField.required)}
+                    onChange={() => updateActiveField('required', !activeField.required)}
+                />
+                <div className="flex items-center gap-ds-2">
+                    <Checkbox
+                        id="field-properties-read-only"
+                        label="Read Only"
                         checked={Boolean(activeField.readOnly)}
                         onChange={() => {
                             const nextReadOnly = !activeField.readOnly;
@@ -68,8 +65,7 @@ export const FieldPropertiesPanel = React.memo(({ activeField, updateActiveField
                         }}
                     />
                     <Lock size={12} className="text-ds-content-muted" aria-hidden="true" />
-                    <span>Read Only</span>
-                </label>
+                </div>
 
                 {hasTextOptions && (
                     <FormField label="Prefill Behavior">

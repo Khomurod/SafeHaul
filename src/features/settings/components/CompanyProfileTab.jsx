@@ -101,8 +101,8 @@ export function CompanyProfileTab({ currentCompanyProfile }) {
         <div className="space-y-6 max-w-6xl animate-in fade-in">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end border-b border-ds-border-subtle pb-4 gap-4">
                 <div>
-                    <h2 className="text-xl font-bold text-ds-content">Company Profile</h2>
-                    <p className="text-sm text-ds-content-muted mt-1">Manage your public presence and application settings.</p>
+                    <h2 className="text-ds-heading-lg font-bold text-ds-content">Company Profile</h2>
+                    <p className="mt-ds-1 text-ds-body text-ds-content-muted">Manage your public presence and application settings.</p>
                 </div>
                 {isCompanyAdmin && !isEditing && (
                     <Button
@@ -136,7 +136,7 @@ export function CompanyProfileTab({ currentCompanyProfile }) {
 
             <div className="grid grid-cols-1 sm:flex border-b border-ds-border-subtle">
                 {tabs.map(tab => (
-                    <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`min-h-11 px-4 py-3 text-sm font-medium border-b-2 flex items-center gap-2 text-left sm:whitespace-nowrap transition-colors ${activeTab === tab.id ? 'border-ds-action-primary text-ds-content-link' : 'border-transparent text-ds-content-muted hover:text-ds-content-secondary'}`}>
+                    <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`min-h-11 px-ds-4 py-ds-3 text-ds-body font-medium border-b-2 flex items-center gap-2 text-left sm:whitespace-nowrap transition-colors ${activeTab === tab.id ? 'border-ds-action-primary text-ds-content-link' : 'border-transparent text-ds-content-muted hover:text-ds-content-secondary'}`}>
                         <tab.icon size={16} /> {tab.label}
                     </button>
                 ))}
