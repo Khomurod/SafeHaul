@@ -1,0 +1,71 @@
+/*
+ * The product's typeface, served from this repository.
+ *
+ * ## Why this file exists
+ *
+ * Until 2026-08-25 `src/index.css` opened with
+ *
+ *     @import url('https://rsms.me/inter/inter.css');
+ *
+ * so SafeHaul's typeface was fetched from a third party at runtime. Three things
+ * followed from that, and the third is what forced this change:
+ *
+ *  1. Anyone whose network cannot reach `rsms.me` saw the entire application in
+ *     a fallback font — not a graceful degradation, a different product.
+ *  2. Every user's IP address was disclosed to a third party in order to render
+ *     text.
+ *  3. **The visual-regression lane could never be trusted.** On GitHub's runners
+ *     the font did not arrive, so all twenty application-screen baselines failed
+ *     on every run — 20 of 152, every time — while `continue-on-error: true`
+ *     swallowed it. The recorded diff was every glyph offset and every box
+ *     unchanged: a pure substitution. The lane had never once been green in CI.
+ *
+ * `.storybook/preview.css` had already written down the right principle for the
+ * catalog: "a webfont that may or may not have loaded is exactly the kind of
+ * timing-dependent difference that makes a catalog untrustworthy." It is exactly
+ * as true of the application, which is why the carve-out that kept Inter out of
+ * the catalog is gone too — the catalog now renders in the product's real
+ * typeface, so `check:table-layout` and `check:visual-contract` finally measure
+ * the metrics the product actually has rather than a fallback's.
+ *
+ * ## Why the variable font, under the name `Inter`
+ *
+ * `rsms.me/inter/inter.css` declares four families: `InterVariable`, the legacy
+ * `Inter var`, the static `Inter`, and `InterDisplay`. The application's stack
+ * asks for `Inter`, which resolved to the *static* faces — one file per weight,
+ * and this product uses four of them. Two variable files cover 100–900 in both
+ * styles, so self-hosting sends FEWER bytes than the CDN did, in two requests
+ * instead of eight, and no weight the design system might add later needs a new
+ * file.
+ *
+ * The family is declared as `Inter` so the stack in `src/index.css`,
+ * `.storybook/preview.css` and `--ds-font-family-sans` is unchanged. There is
+ * one source of truth for the bytes: `src/design-system/fonts/`, licensed under
+ * SIL OFL 1.1 (`fonts/LICENSE.txt`), which permits redistribution.
+ *
+ * Referenced with a relative `url()` rather than from `public/`, so Vite and
+ * Storybook both emit it through the normal asset pipeline: the application
+ * build, the catalog build and the visual lane get the same file with no
+ * `staticDirs` configuration to keep in step.
+ *
+ * `font-display: swap` is kept from the CDN stylesheet. It is the right choice
+ * for a user, and it costs the visual lane nothing: `e2e/visual/settle.cjs`
+ * awaits `document.fonts.ready` before every screenshot, and a local file
+ * resolves that in the same frame.
+ */
+
+@font-face {
+  font-family: Inter;
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('../fonts/InterVariable.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: Inter;
+  font-style: italic;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('../fonts/InterVariable-Italic.woff2') format('woff2');
+}

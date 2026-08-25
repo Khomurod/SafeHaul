@@ -383,25 +383,33 @@ jobs:
       - name: Visual contract (geometry)
         run: npm run check:visual-contract
 
-      # Pixel baselines. Deliberately NOT blocking, and this is not laziness:
-      # the catalog does not load Inter, so text rasterises with whatever the
-      # runner's `sans-serif` resolves to, and a baseline recorded on one machine
-      # can differ on another for reasons that are not design-system changes.
-      # The first test in `catalog.spec.cjs` measures text metrics and fails
-      # loudly when that happens, so the cause is one legible failure rather than
-      # 78 mystery diffs.
+      # Pixel baselines. BLOCKING since 2026-08-25, and the history is the reason
+      # it has to stay that way.
       #
-      # The lane still does its job: the diff is uploaded below and a real visual
-      # change shows up in review. Make it blocking once the metrics test has
-      # been green on this runner for a few weeks, and record that decision in
-      # the roadmap.
-      - name: Visual regression (pixel baselines, reported not enforced)
+      # It ran with `continue-on-error: true` on the stated grounds that the
+      # catalog did not load Inter, so text rasterised with whatever the runner's
+      # `sans-serif` resolved to. The CI record said something else: the 130
+      # catalog baselines passed here every time, and all 20 APPLICATION
+      # baselines failed every time, because the application fetched Inter from
+      # rsms.me and this runner never received it. The lane had never once been
+      # green, its 52MB diff artifact was uploaded and ignored, and the warning
+      # annotation below said "a pixel baseline changed" on every single run.
+      #
+      # A lane that always fails teaches everyone to ignore it, which is worse
+      # than no lane. The font is served from the repository now, so there is no
+      # machine-dependent input left and this is enforced.
+      #
+      # `scripts/test-ci-plan.mjs` (K1) asserts this step carries no
+      # `continue-on-error`, so it cannot quietly go back to advisory.
+      - name: Visual regression (pixel baselines)
         id: visual-regression
-        continue-on-error: true
         run: npm run test:visual
 
+      # The step above fails the job now, so this needs `always()` to run at all —
+      # and the artifact is more valuable than ever, because a red lane is now a
+      # blocked merge and the diff is how you triage it.
       - name: Upload the visual diff
-        if: steps.visual-regression.outcome == 'failure'
+        if: always() && steps.visual-regression.outcome == 'failure'
         uses: actions/upload-artifact@v4
         with:
           name: visual-regression-diff
@@ -412,9 +420,9 @@ jobs:
           if-no-files-found: warn
 
       - name: Say so when the visual lane moved
-        if: steps.visual-regression.outcome == 'failure'
+        if: always() && steps.visual-regression.outcome == 'failure'
         run: |
-          echo "::warning title=Visual baselines moved::A pixel baseline changed. Download the"\
+          echo "::error title=Visual baselines moved::A pixel baseline changed. Download the"\
                "visual-regression-diff artifact. If the change is intended, run"\
                "'npm run test:visual:update' and commit the baselines."
 

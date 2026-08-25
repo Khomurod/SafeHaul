@@ -11,10 +11,14 @@
  * functional specs already use, so the data is deterministic fixture data and no
  * credentials are involved.
  *
- * Non-blocking in CI for the same reason as the catalog lane — see the comment
- * at the top of `catalog.spec.cjs`.
+ * Blocking in CI, as of 2026-08-25. Every one of these twenty baselines used to
+ * fail on GitHub's runners, on every run, invisibly: the application fetched
+ * Inter from rsms.me and the runner never received it, so each screenshot was a
+ * whole page of substituted glyphs. The font is served from the repository now
+ * (`design-system/tokens/typeface.css`), which is what makes these comparable
+ * across machines. See the header of `catalog.spec.cjs`.
  *
- * Update baselines with:  npx playwright test --project=visual --update-snapshots
+ * Update baselines with:  npm run test:visual:update
  */
 const { test, expect } = require('@playwright/test');
 const { freezeClock, settle, SHOT } = require('./settle.cjs');

@@ -96,7 +96,7 @@
     "height": "24px",
     "fontSize": "12px",
     "borderRadius": "9999px",
-    "width": "59.34px"
+    "width": "61px"
   },
   "mobile · table density: row height and cell padding · headerCell": {
     "height": "48px",
@@ -132,7 +132,7 @@
   "mobile · the three page states are the same shape as each other · description": {
     "padding": "0px",
     "fontSize": "14px",
-    "maxWidth": "327.02px"
+    "maxWidth": "378px"
   },
   "desktop · the control scale, and the pairing it exists for · input[md]": {
     "height": "44px",
@@ -231,7 +231,7 @@
     "height": "24px",
     "fontSize": "12px",
     "borderRadius": "9999px",
-    "width": "59.34px"
+    "width": "61px"
   },
   "desktop · table density: row height and cell padding · headerCell": {
     "height": "48px",
@@ -267,6 +267,6 @@
   "desktop · the three page states are the same shape as each other · description": {
     "padding": "0px",
     "fontSize": "14px",
-    "maxWidth": "327.02px"
+    "maxWidth": "378px"
   }
 }

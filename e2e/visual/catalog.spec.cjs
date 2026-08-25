@@ -10,22 +10,26 @@
  * edge, or an icon that now points the other way. That is what a screenshot is
  * for.
  *
- * ## Why this lane is not blocking in CI
+ * ## Why this lane is blocking, as of 2026-08-25
  *
- * The catalog deliberately does not load Inter — the application imports it from
- * rsms.me and the catalog omits that — so text rasterises with whatever the
- * runner's `sans-serif` resolves to. A baseline recorded on one machine can
- * therefore differ on another for reasons that have nothing to do with the
- * design system, and a lane that cries wolf gets ignored or deleted.
+ * It was `continue-on-error` before, on the stated grounds that the catalog did
+ * not load Inter so text rasterised with whatever the runner's `sans-serif`
+ * resolved to. The CI record contradicted that diagnosis in both directions: all
+ * 130 catalog baselines passed on GitHub's runners, and all 20 *application*
+ * baselines failed — because the application fetched Inter from rsms.me and the
+ * runner never got it. The lane had never been green, and nobody could see that,
+ * because the step swallowed its own failure.
  *
- * So: this runs in CI, uploads its diff artifact, and is reported rather than
- * enforced, exactly as the repository already does for `typecheck` and the axe
- * lane. The `rendering font` test below is the tripwire — if it fails, the
- * baselines are being compared against a different font and every other
- * difference in the run is noise. Make this lane blocking once that test has
- * been green on the CI runner for a few weeks, and record the decision.
+ * The font is served from `design-system/fonts/` now, by the application and by
+ * this catalog, so there is no machine-dependent input left and the lane is
+ * enforced. The first test below is still the tripwire and matters more than
+ * ever: it asserts Inter actually loaded, so a font problem is one legible
+ * failure instead of 150 pixel diffs.
  *
- * Update baselines with:  npx playwright test --project=visual --update-snapshots
+ * `scripts/test-ci-plan.mjs` (K1) asserts the workflow step carries no
+ * `continue-on-error`, so this cannot quietly become advisory again.
+ *
+ * Update baselines with:  npm run test:visual:update
  */
 const { test, expect } = require('@playwright/test');
 const { startCatalogServer } = require('./catalogServer.cjs');
@@ -145,26 +149,34 @@ test.describe('@visual design-system catalog', () => {
      *
      * If the runner rasterises with different glyphs, every baseline below
      * differs for a reason that is not a design-system change. This fails first
-     * and says so, instead of leaving 58 mystery diffs for someone to triage.
+     * and says so, instead of leaving 65 mystery diffs for someone to triage.
      *
-     * It measures *metrics*, not `fontFamily`. The declared stack names Inter
-     * whether or not Inter loaded — the catalog deliberately does not load it —
-     * so asserting on the name would pass while the actual glyphs changed
-     * underneath. 410.03px is what this pangram measures with the fallback the
-     * baselines were captured against; a substituted font moves it by tens of
-     * pixels, well outside this tolerance.
+     * Two assertions, because they fail differently. `interLoaded` is
+     * `document.fonts.check()` — the direct question, which names the cause in
+     * one sentence when the vendored font does not reach the page. The metrics
+     * reading catches what `check()` cannot: a *different build* of Inter, whose
+     * glyphs differ while the family name matches. Neither is
+     * `getComputedStyle().fontFamily`, which names Inter whether or not Inter
+     * loaded and is exactly how a substitution hid for a whole campaign.
      */
-    const BASELINE_PANGRAM_WIDTH = 410.03;
+    const BASELINE_PANGRAM_WIDTH = 426;
 
     test('rasterises with the font the baselines were captured with', async ({ page }) => {
         await page.goto(`${catalog.base}/iframe.html?id=${SUBJECTS[0][0]}&viewMode=story`, { waitUntil: 'networkidle' });
         await settle(page);
-        const { family, width } = await fontFingerprint(page);
+        const { family, width, interLoaded } = await fontFingerprint(page);
+        expect(
+            interLoaded,
+            `Inter did not load (stack "${family}"). It is served from `
+            + '`src/design-system/fonts/` through `design-system/index.css`, so this is a '
+            + 'build or asset-pipeline failure, not a network one. Every pixel difference in '
+            + 'this run is noise until it is fixed.',
+        ).toBe(true);
         expect(
             Math.abs(width - BASELINE_PANGRAM_WIDTH),
             `text metrics moved (${width}px vs ${BASELINE_PANGRAM_WIDTH}px, stack "${family}"). `
-            + 'The baselines were captured against a different font, so every pixel difference '
-            + 'in this run is noise. Re-record them on this runner, or install the font.',
+            + 'Inter loaded, but not the build the baselines were captured with. Check '
+            + '`src/design-system/fonts/` against the diff before re-recording.',
         ).toBeLessThan(2);
     });
 
