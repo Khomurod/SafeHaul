@@ -57,12 +57,6 @@
         "hand-styled-button": "roadmap §5 — an ARIA combobox option must carry role=\"option\" inside the listbox, and `Button` renders role=\"button\", which would break the combobox contract. No Combobox/Listbox primitive exists yet."
       }
     },
-    "features/onboarding/components/OnboardingTour.jsx": {
-      "hand-built-overlay": 1,
-      "reasons": {
-        "hand-built-overlay": "roadmap §5 — `fixed inset-0` here is a positioning canvas, not a dialog backdrop: the layer is pointer-events-none and exists so a coach mark can be placed against a page element's coordinates. `Modal` centres and traps focus, which is the opposite of what a coach mark attached to a toolbar button needs. The one centred step does dim the page; that step's dialog semantics are recorded as an open item rather than claimed here."
-      }
-    },
     "features/settings/components/IntegrationsTab.jsx": {
       "raw-hex-colour": 2,
       "reasons": {

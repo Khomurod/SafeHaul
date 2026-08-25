@@ -18,19 +18,16 @@ import { CompanyBulkUpload } from './CompanyBulkUpload';
 import { InlineLeaderboard } from './InlineLeaderboard';
 import { QuickLeadModal } from './modals/QuickLeadModal';
 
-import { useOnboarding } from '@features/onboarding/hooks/useOnboarding';
-import { OnboardingTour } from '@features/onboarding/components/OnboardingTour';
 
 import {
     FileText, Briefcase, User, CheckCircle
 } from 'lucide-react';
 
 export function CompanyAdminDashboard() {
-    const { currentCompanyProfile, returnToCompanyChooser, currentUserClaims, currentUser, logout } = useData();
+    const { currentCompanyProfile, returnToCompanyChooser, currentUserClaims, logout } = useData();
     const { showError } = useToast();
     const navigate = useNavigate();
 
-    const { showTour, completeTour } = useOnboarding(currentUser);
 
     const companyId = currentCompanyProfile?.id;
     const companyName = currentCompanyProfile?.companyName;
@@ -102,7 +99,6 @@ export function CompanyAdminDashboard() {
                     )}
                         <ResponsiveGrid minItemWidth="210px">
                             <MetricCard
-                                id="stat-card-applications"
                                 label="Applications"
                                 value={dashboard.counts?.applications || 0}
                                 icon={<FileText size={20} />}
@@ -111,7 +107,6 @@ export function CompanyAdminDashboard() {
                             />
 
                             <MetricCard
-                                id="stat-card-company_leads"
                                 label="Company Leads"
                                 value={dashboard.counts?.companyLeads || 0}
                                 icon={<Briefcase size={20} />}
@@ -163,7 +158,6 @@ export function CompanyAdminDashboard() {
                 />
             )}
 
-            {showTour && <OnboardingTour onComplete={completeTour} />}
         </div>
     );
 }

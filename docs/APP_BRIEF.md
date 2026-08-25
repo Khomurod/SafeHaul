@@ -951,13 +951,12 @@ Note that Tailwind's radius and shadow scales share their names with the
   §"Changing the release pipeline" in `CLAUDE.md` requires fixing the family
   rather than the instance and watching a real `main` run afterwards, and a
   pull request cannot exercise the path. Needs its own reviewed change.
-- **The onboarding tour's first step dims the page without being a dialog.** The
-  tour is a coach mark — a `pointer-events-none` layer holding a popover placed
-  against a page element — and correctly does not use `Modal`, which would
-  centre it and trap focus. But its centred first step renders a blocking
-  backdrop with no `role="dialog"`, no focus move and no Escape. Giving it modal
-  semantics changes the tour's keyboard behaviour, so it needs an owner
-  decision.
+- **Two orphaned fields on `users/{uid}`: `onboardingTourCompleted` and
+  `tourCompletedAt`.** The welcome tour was removed on 2026-08-25 and nothing
+  writes or reads them any more. Existing values are left in place deliberately —
+  stripping fields from live user records is a data migration, not a UI removal —
+  so expect to see them on older accounts and ignore them. Nothing in
+  `firestore.rules` or Cloud Functions ever referenced them.
 - **No payment processing.** `companies/{id}.planType` is a manual super-admin
   `free` / `paid` flag that only changes a badge ("Free Plan" / "Pro Plan").
   Marketing prices ($199 / $299 per month) are **not** enforced anywhere in the

@@ -15,21 +15,8 @@ const dashboardState = vi.hoisted(() => ({
     refreshData: vi.fn(),
 }));
 
-const onboardingState = vi.hoisted(() => ({
-    showTour: false,
-    completeTour: vi.fn(),
-}));
-
 vi.mock('@features/companies', () => ({
     useCompanyDashboard: () => dashboardState,
-}));
-
-vi.mock('@features/onboarding/hooks/useOnboarding', () => ({
-    useOnboarding: () => onboardingState,
-}));
-
-vi.mock('@features/onboarding/components/OnboardingTour', () => ({
-    OnboardingTour: () => <div role="dialog" aria-label="Onboarding tour">Tour</div>,
 }));
 
 vi.mock('@features/company-admin/components/InlineLeaderboard', () => ({
@@ -193,24 +180,5 @@ describe('CompanyAdminDashboard Smoke Tests', () => {
         fireEvent.keyDown(applications, { key: 'Enter' });
         fireEvent.click(applications);
         expect(window.location.pathname).toBe('/company/drivers/applications');
-    });
-
-    it('preserves onboarding composition when the feature hook requests it', () => {
-        onboardingState.showTour = true;
-        const mockCompanyProfile = {
-            id: 'test-company-123',
-            companyName: 'Test Logistics',
-        };
-
-        render(
-            <BrowserRouter>
-                <MockDataProvider value={{ currentCompanyProfile: mockCompanyProfile }}>
-                    <CompanyAdminDashboard />
-                </MockDataProvider>
-            </BrowserRouter>
-        );
-
-        expect(screen.getByRole('dialog', { name: 'Onboarding tour' })).toBeInTheDocument();
-        onboardingState.showTour = false;
     });
 });

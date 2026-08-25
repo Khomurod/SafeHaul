@@ -336,15 +336,16 @@ enforcement permanently blocking.
   `SignerField` is not covered and keeps its local workaround: its inputs are not
   `.ds-form-control` (they overlay PDF coordinate boxes), so the rule cannot
   reach them. Its allowlist entry says so.
-- `[!]` **Decide the onboarding tour's dialog semantics.** `OnboardingTour` is a
-  coach mark: a `pointer-events-none` positioning layer holding a popover placed
-  against a page element. It correctly does not use `Modal`, which would centre
-  it and trap focus. But its first step *is* centred and *does* dim the page
-  with a blocking backdrop, and that step has no `role="dialog"`, no focus move
-  and no Escape. Giving it real modal semantics changes the tour's keyboard
-  behaviour, so it is an owner decision rather than a token migration. The
-  tour's unlabelled close button and colour-only step dots were fixed in the
-  2026-08-25 slice; this is what is left.
+- `[x]` **The onboarding tour's dialog semantics. RETIRED 2026-08-25 — the tour
+  was removed.** The question was real: the tour was a coach mark on a
+  `pointer-events-none` layer, correctly not using `Modal`, but its centred first
+  step dimmed the page with a blocking backdrop and had no `role="dialog"`, no
+  focus move and no Escape. The owner's answer was to delete the tour rather than
+  give it modal semantics, so this closes by removal rather than by decision. If
+  a guided tour is ever reintroduced, this is the question it has to answer, and
+  the two accessibility fixes made to it on the way out — an accessible name on
+  the close control, and step progress announced in text rather than by a
+  coloured dot — are the baseline to start from.
 - `[!]` **Decide what the Unified Driver Database bulk actions should do.**
   Message, Assign, Move Status and Archive were placeholders that fired a
   *success* toast and did nothing. The false success is removed (controls are
