@@ -67,6 +67,20 @@ const PROBES = [
         properties: ['height', 'fontSize', 'borderRadius', 'paddingLeft', 'paddingRight'],
     },
     {
+        story: 'foundations-control-scale--every-control',
+        label: 'an input and a select are the same control, and must look it',
+        selectors: {
+            // `backgroundColor` is the point. `.ds-form-control:read-only` used to
+            // match every `<select>` — the pseudo-class means "not `:read-write`",
+            // and only inputs and textareas ever are — so every dropdown in the
+            // product wore the greyed read-only treatment. Height and type matched,
+            // which is exactly why nobody caught it.
+            'input[md]': 'input.ds-form-control:not([data-size])',
+            'select[md]': 'select.ds-form-control:not([data-size])',
+        },
+        properties: ['height', 'fontSize', 'backgroundColor', 'borderColor', 'color'],
+    },
+    {
         story: 'components-button--link-variant',
         label: 'the one variant that leaves the control scale, and the one that does not',
         selectors: {

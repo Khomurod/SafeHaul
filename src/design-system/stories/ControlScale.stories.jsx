@@ -121,7 +121,19 @@ export const InputAndButton = {
   ),
 };
 
-/** A select and a textarea take the same steps, so a whole form stays in step. */
+/**
+ * An input, a select and a textarea take the same steps, so a whole form stays
+ * in step.
+ *
+ * The input sits next to the select on purpose. They must be the same height,
+ * the same type size **and the same colour**, and for most of 2026 the last of
+ * those was not true: `.ds-form-control:read-only` matched every `<select>` in
+ * the product — `:read-only` means "not `:read-write`", and only inputs,
+ * textareas and contenteditable are ever `:read-write` — so every dropdown wore
+ * the greyed treatment meant for a field you cannot type into. It is pinned by
+ * a resolved-colour probe in `check:visual-contract` now, because it is the
+ * kind of difference that reads as a rendering quirk rather than a bug.
+ */
 export const EveryControl = {
   render: () => (
     <div className="sb-measure">
@@ -131,6 +143,7 @@ export const EveryControl = {
             <span className="sb-specimen__label">{label}</span>
             <Stack gap="sm">
               <Inline gap="sm" wrap={false}>
+                <Input size={size} aria-label={`Reference (${size})`} placeholder="REC-000000" onChange={fn()} />
                 <Select size={size} aria-label={`Status (${size})`} onChange={fn()}>
                   <option>Any status</option>
                   <option>Complete</option>

@@ -81,7 +81,21 @@
   box-shadow: var(--ds-focus-ring);
 }
 
-.ds-form-control:read-only {
+/*
+ * Read-only is for text fields, and the selector has to say so.
+ *
+ * `:read-only` is defined as "not `:read-write`", and only inputs, textareas and
+ * contenteditable elements are ever `:read-write`. So a bare
+ * `.ds-form-control:read-only` matches **every `<select>` in the product**, and
+ * this rule — meant for a field the user cannot type into — greyed out every
+ * dropdown SafeHaul has. Found by the 2026-08-25 walkthrough: on the public
+ * driver application, eleven inputs rendered white and four selects rendered
+ * slate-100 beside them, at the same height, on the same form.
+ *
+ * A `<select>` can still be genuinely `:disabled`, and that rule below is
+ * unchanged.
+ */
+:is(input, textarea).ds-form-control:read-only {
   border-color: var(--ds-color-border-subtle);
   background: var(--ds-color-surface-subtle);
   color: var(--ds-color-content-secondary);
