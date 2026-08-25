@@ -29,6 +29,10 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const toastMocks = vi.hoisted(() => ({ showSuccess: vi.fn(), showError: vi.fn() }));
+// The tenant this tab is acting for. The callable re-checks it against the
+// caller's per-company role, so it is a real argument, not decoration.
+const ARTIFICIAL_COMPANY_ID = 'artificial-company-1';
+
 const connectFacebookPage = vi.hoisted(() => vi.fn());
 
 vi.mock('@shared/components/feedback/ToastProvider', () => ({ useToast: () => toastMocks }));
@@ -60,7 +64,7 @@ function resetFacebookGlobals() {
  * callback — mirroring how the real `sdk.js` calls it once loaded.
  */
 function mountAndLoadSdk(fbStub) {
-    const utils = render(<IntegrationsTab />);
+    const utils = render(<IntegrationsTab companyId={ARTIFICIAL_COMPANY_ID} />);
     window.FB = fbStub;
     // `fbAsyncInit` triggers `setIsSdkLoaded(true)` outside of any
     // testing-library event wrapper, so the update must be flushed explicitly
@@ -83,12 +87,12 @@ afterEach(() => {
 describe('IntegrationsTab — preserved contracts', () => {
     it('skips script injection when window.FB already exists', () => {
         window.FB = { login: vi.fn(), init: vi.fn() };
-        render(<IntegrationsTab />);
+        render(<IntegrationsTab companyId={ARTIFICIAL_COMPANY_ID} />);
         expect(document.getElementById('facebook-jssdk')).toBeNull();
     });
 
     it('injects the facebook-jssdk script and initializes FB with the exact config on load', () => {
-        render(<IntegrationsTab />);
+        render(<IntegrationsTab companyId={ARTIFICIAL_COMPANY_ID} />);
 
         const script = document.getElementById('facebook-jssdk');
         expect(script).toBeTruthy();
@@ -111,7 +115,7 @@ describe('IntegrationsTab — preserved contracts', () => {
         const before = document.querySelectorAll('#facebook-jssdk').length;
         expect(before).toBe(1);
 
-        const { unmount } = render(<IntegrationsTab />);
+        const { unmount } = render(<IntegrationsTab companyId={ARTIFICIAL_COMPANY_ID} />);
         expect(document.querySelectorAll('#facebook-jssdk').length).toBe(before);
         unmount();
     });
@@ -120,7 +124,7 @@ describe('IntegrationsTab — preserved contracts', () => {
         // Native disabled buttons do not dispatch click, so the component's own
         // "SDK not loaded yet" showError branch is unreachable through a real
         // click while disabled — the disabled state itself is the guard.
-        render(<IntegrationsTab />);
+        render(<IntegrationsTab companyId={ARTIFICIAL_COMPANY_ID} />);
         expect(screen.getByRole('button', { name: /Connect Facebook/i })).toBeDisabled();
     });
 
@@ -171,10 +175,15 @@ describe('IntegrationsTab — preserved contracts', () => {
         fireEvent.click(screen.getByRole('button', { name: /Connect Facebook/i }));
         loginCallback({ authResponse: { accessToken: 'artificial-short-lived-token' } });
 
+        // `companyId` joined this payload on 2026-08-25. Before it, the callable
+        // derived the tenant from `request.auth.uid`, which is not a company id
+        // in this application, so every connected page wrote its leads to a tree
+        // no screen reads. It is part of the frozen contract now.
         await waitFor(() => expect(connectFacebookPage).toHaveBeenCalledWith({
             shortLivedUserToken: 'artificial-short-lived-token',
             pageId: 'artificial-page-1',
             pageName: 'Artificial Page One',
+            companyId: ARTIFICIAL_COMPANY_ID,
         }));
         expect(fetchMock).toHaveBeenCalledWith(
             'https://graph.facebook.com/v19.0/me/accounts?access_token=artificial-short-lived-token',
@@ -182,6 +191,35 @@ describe('IntegrationsTab — preserved contracts', () => {
         await waitFor(() => expect(toastMocks.showSuccess).toHaveBeenCalledWith(
             'Successfully connected Facebook Page: Artificial Page One',
         ));
+    });
+
+    /*
+     * The tenant binding, from the client's side.
+     *
+     * The callable authorizes `companyId` against the caller's per-company role,
+     * so this check is not the security boundary — the server is. It exists so a
+     * missing company fails loudly here instead of arriving at the callable as
+     * `undefined` and being rejected with a less useful message, and so that a
+     * future refactor cannot quietly drop the argument.
+     */
+    it('refuses to connect when no company is selected, and does not call the callable', async () => {
+        let loginCallback;
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+            json: async () => ({ data: [{ id: 'artificial-page-1', name: 'Artificial Page One' }] }),
+        }));
+        vi.spyOn(console, 'error').mockImplementation(() => {});
+
+        render(<IntegrationsTab companyId={undefined} />);
+        window.FB = { init: vi.fn(), login: (cb) => { loginCallback = cb; } };
+        act(() => { window.fbAsyncInit(); });
+
+        fireEvent.click(screen.getByRole('button', { name: /Connect Facebook/i }));
+        loginCallback({ authResponse: { accessToken: 'artificial-short-lived-token' } });
+
+        await waitFor(() => expect(toastMocks.showError).toHaveBeenCalledWith(
+            'No company selected. Reopen Settings and try again.',
+        ));
+        expect(connectFacebookPage).not.toHaveBeenCalled();
     });
 
     it('reports the frozen no-pages message when Graph API returns none', async () => {
@@ -227,7 +265,7 @@ describe('IntegrationsTab — preserved contracts', () => {
         await waitFor(() => expect(screen.getByRole('button', { name: /^Connected$/ })).toBeDisabled());
         unmount();
 
-        render(<IntegrationsTab />);
+        render(<IntegrationsTab companyId={ARTIFICIAL_COMPANY_ID} />);
         expect(screen.getByRole('button', { name: /Connect Facebook/i })).toBeInTheDocument();
     });
 });

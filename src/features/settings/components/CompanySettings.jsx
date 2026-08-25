@@ -107,7 +107,7 @@ export function CompanySettings() {
                     <AutomatedSmsTab companyId={currentCompanyProfile?.id} />
                 );
             case 'integrations':
-                return <IntegrationsTab />;
+                return <IntegrationsTab companyId={currentCompanyProfile?.id} />;
             case 'billing':
                 return <BillingTab currentCompanyProfile={currentCompanyProfile} />;
             default:

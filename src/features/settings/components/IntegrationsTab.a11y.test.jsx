@@ -13,6 +13,10 @@ import { axe } from 'vitest-axe';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const toastMocks = vi.hoisted(() => ({ showSuccess: vi.fn(), showError: vi.fn() }));
+// The tenant this tab is acting for. The callable re-checks it against the
+// caller's per-company role, so it is a real argument, not decoration.
+const ARTIFICIAL_COMPANY_ID = 'artificial-company-1';
+
 const connectFacebookPage = vi.hoisted(() => vi.fn());
 
 vi.mock('@shared/components/feedback/ToastProvider', () => ({ useToast: () => toastMocks }));
@@ -33,7 +37,7 @@ function resetFacebookGlobals() {
 }
 
 function mountAndLoadSdk(fbStub) {
-    const utils = render(<IntegrationsTab />);
+    const utils = render(<IntegrationsTab companyId={ARTIFICIAL_COMPANY_ID} />);
     window.FB = fbStub;
     act(() => { window.fbAsyncInit(); });
     return utils;
@@ -68,7 +72,7 @@ describe('IntegrationsTab — connected state is not colour-only (defect)', () =
 
 describe('IntegrationsTab — SDK loading is announced (defect: silent 10px notice)', () => {
     it('shows the loading notice in a live region while the SDK has not finished loading', () => {
-        render(<IntegrationsTab />);
+        render(<IntegrationsTab companyId={ARTIFICIAL_COMPANY_ID} />);
         const status = screen.getByRole('status');
         expect(status).toHaveTextContent('SDK Loading...');
     });
@@ -81,7 +85,7 @@ describe('IntegrationsTab — SDK loading is announced (defect: silent 10px noti
 
 describe('IntegrationsTab — 12px floor (defect: text-[10px])', () => {
     it('renders no interface text below 12px', () => {
-        const { container } = render(<IntegrationsTab />);
+        const { container } = render(<IntegrationsTab companyId={ARTIFICIAL_COMPANY_ID} />);
         const offenders = [...container.querySelectorAll('[class*="text-["]')]
             .map((el) => el.className)
             .filter((cls) => /text-\[(9|10|11)px\]/.test(cls));
@@ -106,7 +110,7 @@ describe('IntegrationsTab — no secret ever renders', () => {
 
 describe('IntegrationsTab — axe', () => {
     it('has no violations before the SDK loads', async () => {
-        const { container } = render(<IntegrationsTab />);
+        const { container } = render(<IntegrationsTab companyId={ARTIFICIAL_COMPANY_ID} />);
         expect((await axe(container)).violations).toEqual([]);
     });
 

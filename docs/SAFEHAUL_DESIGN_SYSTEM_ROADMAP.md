@@ -419,14 +419,21 @@ enforcement permanently blocking.
   document (2.56:1, 1.95:1, two at 2.45:1). They are conventional grey legal
   small print on a printed-form facsimile; changing them changes every exported
   PDF and needs approval plus a re-proof of export parity.
-- `[!]` **Correct the Facebook Integrations tenant binding before any
-  Integrations presentation migration.** `connectFacebookPage` uses
-  `companyId = request.auth.uid`, which is incompatible with SafeHaul's auto-id
-  + membership multi-tenant model, so connected leads ingest to
-  `companies/{uid}/leads` instead of the real company. This is a backend
-  correctness/security defect for a separate, security-reviewed project — not a
-  design-system slice. The Integrations presentation stays unmigrated so the UI
-  does not imply the workflow is production-ready.
+- `[x]` **The Facebook Integrations tenant binding. FIXED 2026-08-25.**
+  `connectFacebookPage` derived the tenant from `request.auth.uid` under a
+  comment assuming a 1:1 user-to-company mapping, which this application has
+  never had. The caller now names the company and the server authorizes it
+  against `roles[companyId]` — the same default-deny check `addUserToCompany`
+  makes. Six authorization tests cover the matrix, including the case that
+  matters most: a company admin naming a company they do not administer is
+  rejected, so the fix cannot become a worse bug than the one it closes.
+
+  The presentation migration this item was blocking is therefore unblocked, but
+  the feature flag stays **off** by owner decision, and the visible
+  "not production-ready" notice stays with it. `scripts/audit-facebook-lead-tenancy.mjs`
+  is a read-only report on whether any leads were stranded under a uid while the
+  fault was live; no migration was written, because whether stranded records are
+  real drivers or test noise is not something the code can tell.
 - `[!]` **Decide the responsive/interaction strategy for editable matrices**
   (per-row form controls), starting with the SMS number-assignment recruiter
   matrix. Converting an editable matrix to a scroll table or stacked cards needs

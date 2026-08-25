@@ -3,6 +3,7 @@ const { onRequest } = require("firebase-functions/v2/https");
 const { defineSecret } = require("firebase-functions/params");
 const functions = require("firebase-functions"); // V1 for public HTTP
 const admin = require("firebase-admin");
+const { assertCompanyAdminStrict } = require("../shared/companyAccess");
 const axios = require("axios");
 const crypto = require("crypto");
 
@@ -27,11 +28,87 @@ exports.connectFacebookPage = onCall(
             throw new HttpsError('unauthenticated', 'User must be logged in.');
         }
 
-        const { shortLivedUserToken, pageId, pageName } = request.data;
-        const companyId = request.auth.uid; // Assumes 1:1 user-company mapping for simplicity, or get from custom claims
+        const { shortLivedUserToken, pageId, pageName, companyId } = request.data;
 
         if (!shortLivedUserToken || !pageId) {
             throw new HttpsError('invalid-argument', 'Missing token or page ID.');
+        }
+        /*
+         * TENANT BINDING.
+         *
+         * This used to be `const companyId = request.auth.uid`, under a comment
+         * assuming a 1:1 user-to-company mapping. SafeHaul has never worked that
+         * way: companies carry generated ids and users join them through
+         * `memberships`, and a user can belong to several (hence the company
+         * chooser). So every page connected this way wrote its leads to
+         * `companies/{uid}/leads` — a tree belonging to no company at all, which
+         * no screen reads. The leads were not misrouted between tenants; they
+         * were silently dropped into nowhere.
+         *
+         * The caller must therefore say which company they are acting for, and
+         * the server must not believe them. `assertCompanyAdminStrict` is the
+         * shared assertion every comparable callable uses — `saveEmailSettings`,
+         * `deleteApplication`, `applicationChanges`, the bulk-action admin tools —
+         * and its docblock names this exact situation: "sensitive configuration
+         * and outbound actions". It throws `invalid-argument` on a missing
+         * companyId, so that check comes free.
+         *
+         * Reusing it rather than hand-rolling `token.roles[companyId]` matters
+         * for one case in particular: custom claims are rebuilt asynchronously on
+         * membership writes, so a freshly promoted admin can hold a stale token.
+         * The shared helper falls back to the `memberships` collection and the
+         * company's own ownerId; a bespoke claims-only check would reject them.
+         *
+         * Accepting an unverified `companyId` would have turned a bug that loses
+         * leads into one that plants them in someone else's tenant.
+         */
+        await assertCompanyAdminStrict(request.auth.uid, companyId);
+
+        /*
+         * A page is claimed by one company, and this matters MORE after the
+         * tenant fix above than before it. The write below has always been an
+         * unconditional `.set()`; while the stored value was the caller's uid a
+         * rebind just moved the page to another tree nobody reads. Now the value
+         * is a REAL company, so an unguarded rebind would silently redirect a
+         * live lead feed from one tenant into another. An attacker still needs
+         * Facebook-side access to the page, which is a real barrier — but "you
+         * must first compromise their Facebook account" is not a boundary worth
+         * relying on when refusing costs three lines.
+         *
+         * Checked BEFORE the Graph API calls, both because it needs nothing from
+         * them and because it must not be thrown inside the try below, whose
+         * catch would flatten it into "Failed to connect Facebook Page." and
+         * leave the admin with no idea why.
+         *
+         * Re-connecting a page to the SAME company is allowed: that is the
+         * ordinary token-refresh path and it has to keep working.
+         */
+        const existing = await db.collection('integrations_index').doc(pageId).get();
+        const heldBy = existing.exists ? existing.data().companyId : null;
+        if (heldBy && heldBy !== companyId) {
+            /*
+             * One exception, and it is the whole recovery path for this bug.
+             *
+             * Every page connected before the fix holds a USER id here, not a
+             * company id. Refusing those would mean the rightful company could
+             * never reconnect its own page — it would be told, permanently and
+             * incomprehensibly, that another company owns it. A stale uid binding
+             * was never serving anyone (its leads went to a tree no screen
+             * reads), so releasing it costs nothing and unblocks the owner.
+             *
+             * A binding to a real company is a different matter and still stands.
+             */
+            const holder = await db.collection('companies').doc(heldBy).get();
+            if (holder.exists) {
+                throw new HttpsError(
+                    'already-exists',
+                    'This Facebook Page is already connected to another company. Disconnect it there first.',
+                );
+            }
+            console.log(
+                `[connectFacebookPage] Page ${pageId} was bound to ${heldBy}, which is not a company `
+                + `(pre-2026-08-25 uid binding). Reclaiming it for ${companyId}.`,
+            );
         }
 
         try {
@@ -66,7 +143,7 @@ exports.connectFacebookPage = onCall(
             }
 
             // 3. Save to Global Index (Root Collection for Webhook Lookup)
-            // integrations_index/{pageId}
+            //    integrations_index/{pageId}
             await db.collection('integrations_index').doc(pageId).set({
                 companyId: companyId,
                 pageName: pageName || 'Unknown Page',
@@ -87,6 +164,10 @@ exports.connectFacebookPage = onCall(
             return { success: true, message: `Connected ${pageName} successfully.` };
 
         } catch (error) {
+            // A deliberate HttpsError carries a message the admin can act on.
+            // Flattening it into the generic one below loses exactly the part
+            // that tells them what to do.
+            if (error instanceof HttpsError) throw error;
             console.error("Facebook Connection Error:", error.response?.data || error.message);
             throw new HttpsError('internal', 'Failed to connect Facebook Page.');
         }

@@ -14,16 +14,18 @@ import { PageHeader, ResponsiveGrid, Stack } from '@/design-system/layouts';
  * in the 2026-07-23 Integrations deep-audit (NO-GO) is unchanged, and no
  * Cloud Function, rule, or data shape was touched.
  *
- * That audit found a real, unfixed **tenant-binding security defect**:
- * `connectFacebookPage` derives the tenant from `request.auth.uid` rather than
- * the company's real Firestore document id, which is incompatible with
- * SafeHaul's auto-id + membership multi-tenant model. Connected leads would
- * ingest to `companies/{uid}/leads` instead of the real company. That defect
- * is NOT fixed here — fixing it means changing `functions/integrations/
- * facebook.js`, which is out of this campaign's scope (no Firebase/Functions
- * changes) and belongs to a separate, security-reviewed backend project. This
- * migration only replaces the presentation layer around that unchanged,
- * still-unsafe workflow; it does not make the workflow production-ready.
+ * The 2026-07-23 audit found a **tenant-binding defect** in
+ * `connectFacebookPage`: it derived the tenant from `request.auth.uid` rather
+ * than the company's Firestore document id, so connected leads ingested to
+ * `companies/{uid}/leads` — a tree belonging to no company. **Fixed 2026-08-25**
+ * in `functions/integrations/facebook.js`: this component now sends `companyId`
+ * and the callable authorizes it against the caller's per-company role. Sending
+ * it is not the same as being trusted with it — the server re-checks, and a
+ * company admin naming a company they do not administer is rejected.
+ *
+ * The feature is still **switched off** and the "not production-ready" notice
+ * below stays. The fault is corrected; the workflow has still never run
+ * end-to-end against a real Facebook page in production.
  *
  * No credential or secret ever reaches this component: only the public
  * `VITE_FACEBOOK_APP_ID` and a short-lived user access token are used
@@ -46,7 +48,7 @@ import { PageHeader, ResponsiveGrid, Stack } from '@/design-system/layouts';
  * none was added; the "Connected" control remains a disabled indicator, as
  * frozen by the audit.
  */
-export function IntegrationsTab() {
+export function IntegrationsTab({ companyId }) {
     const { showSuccess, showError } = useToast();
     const [isSdkLoaded, setIsSdkLoaded] = useState(false);
     const [connecting, setConnecting] = useState(false);
@@ -118,11 +120,21 @@ export function IntegrationsTab() {
 
             const pageToConnect = pagesResp.data[0];
 
+            // `companyId` is which tenant this page's leads belong to. It used to
+            // be absent, and the callable fell back to the caller's uid — see the
+            // tenant-binding note in `functions/integrations/facebook.js`. The
+            // server re-checks it against the caller's per-company role; sending
+            // it is not the same as being trusted with it.
+            if (!companyId) {
+                throw new Error("No company selected. Reopen Settings and try again.");
+            }
+
             const connectFn = httpsCallable(functions, 'connectFacebookPage');
             await connectFn({
                 shortLivedUserToken,
                 pageId: pageToConnect.id,
-                pageName: pageToConnect.name
+                pageName: pageToConnect.name,
+                companyId
             });
 
             setConnectedPage(pageToConnect.name);

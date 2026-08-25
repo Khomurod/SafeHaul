@@ -938,19 +938,17 @@ Note that Tailwind's radius and shadow scales share their names with the
 
 **Current limitations:**
 
-- **`workflow_dispatch` on the CI/CD pipeline is not branch-guarded.** The
-  Testing deploy, the shared Cloud Functions rollout and the release record all
-  gate on
-  `((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch')`.
-  The `push` arm is correctly pinned to `main`; the `workflow_dispatch` arm is
-  not pinned to anything, so manually dispatching the pipeline from a feature
-  branch deploys that branch to the Testing site and rolls out its Cloud
-  Functions — which are shared with Production. A pull request cannot do this
-  (`pull_request` matches neither arm). Found 2026-08-25 while looking for a way
-  to get CI evidence for a branch with no open PR; **not changed**, because
-  §"Changing the release pipeline" in `CLAUDE.md` requires fixing the family
-  rather than the instance and watching a real `main` run afterwards, and a
-  pull request cannot exercise the path. Needs its own reviewed change.
+- **Facebook lead capture wrote to a tenant that does not exist (fixed
+  2026-08-25).** `connectFacebookPage` stored the caller's user id where a
+  company id belongs, so leads from a connected page were written to
+  `companies/{uid}/leads` — a tree no screen reads. They were not sent to the
+  wrong company; they went nowhere. The callable now takes the company from the
+  client and authorizes it against the caller's per-company role. The feature
+  remains switched off. Run `scripts/audit-facebook-lead-tenancy.mjs` (read-only)
+  to see whether any leads were stranded while the fault was live. A page that
+  the old code bound to a uid is reclaimed automatically when its owning admin
+  reconnects it; a page held by a real company is refused, so one company can no
+  longer take over another's lead feed by reconnecting it.
 - **Two orphaned fields on `users/{uid}`: `onboardingTourCompleted` and
   `tourCompletedAt`.** The welcome tour was removed on 2026-08-25 and nothing
   writes or reads them any more. Existing values are left in place deliberately —
