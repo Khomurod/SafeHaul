@@ -66,6 +66,19 @@ feature-owned exception in the product:
   `SectionNavigation` is the near miss: it hardcodes `aria-current="page"` where
   this is a wizard step, and has no trailing slot for the complete/incomplete
   indicator that is the rail's whole purpose.
+- **A status notice / callout** — the largest remaining gap, measured on
+  2026-08-25. A tinted bordered block with an icon and a sentence. `FieldMessage`
+  is scoped to a form field, `Badge` is a chip and `PageState` is a whole slot, so
+  the shape is rebuilt at every call site. Its token signature returns 109 lines
+  across 87 files, which includes some separately recorded exceptions; the true
+  count of notices is lower and was not enumerated. Deliberately not built the
+  same day: a primitive for it needs a shape audit of the real call sites first,
+  and shipping one without migrating them is the mistake this catalog page already
+  records twice.
+- **An avatar / initial disc** — a circular tinted disc holding an initial, an
+  index or a count, decorative in every case. Eight of them at five different
+  diameters. `StatusMedallion` is the near miss: it holds an *icon* and its tone
+  carries meaning, where these carry a character.
 - **A bottom app bar**, deliberately *not* being built. The e-doc mobile bar's
   items are equal-width stacked icon-over-label targets at 56px — the platform
   convention, and deliberately taller than the 44px control step. One consumer.

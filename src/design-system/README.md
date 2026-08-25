@@ -233,8 +233,12 @@ the catalog is deliberately not a list of things that are all finished. The
 2026-08-25 that is Combobox/Listbox, an indeterminate checkbox outside
 `DataTable`, a compact icon-button step for a control overlaying PDF geometry, a
 filter chip, an overflow menu, a split panel, a sticky page footer, a
-card-section disclosure, a section rail with per-item status, and a bottom app
-bar that is deliberately not being built. Tabs, Link, FileInput, Switch,
+card-section disclosure, a section rail with per-item status, a bottom app bar
+that is deliberately not being built, and — the largest of them, measured on
+2026-08-25 — a **status notice / callout**: a tinted bordered block with an icon
+and a sentence, rebuilt at every call site because `FieldMessage` is scoped to a
+form field, `Badge` is a chip and `PageState` is a whole slot. Roadmap §5 records
+the measurement and why it was not attempted the same day. Tabs, Link, FileInput, Switch,
 SegmentedControl, Disclosure, the three page states and `ConfirmDialog` all
 exist and all have consumers — *every* consumer, as of 2026-08-25. Do not
 hand-roll any of them, and do not hand-roll the ones that are missing either;
