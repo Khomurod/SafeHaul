@@ -550,6 +550,33 @@ visual divergence. Only four actually rendered differently from their
 that were already fully exempt: the VOE export document and the `DeviceMockup`
 artwork.
 
+### Raw Tailwind spacing is left alone, deliberately
+
+The final audit also counted **512 raw Tailwind spacing utilities** (`p-4`,
+`gap-3`, `mb-6`…) across 100 files, and decided against converting them. The
+reasoning, so the next audit does not rediscover it as an open item:
+
+**The two spacing scales are numerically identical.** `--ds-space-1..12` are
+4/8/12/16/20/24/32/40/48px, and Tailwind's `1..12` are the same nine values. So
+unlike radius and shadow above, there is no divergence to see and none to fix:
+`p-4` and `p-ds-4` render the same 16px today. Converting 512 call sites would
+be a large mechanical diff with real regression risk and no visual change, at
+the end of a campaign — and several of the values in use (`p-7`, `p-9`, `p-11`,
+`p-20`) have no `ds-` equivalent at all, so a blanket rewrite would not even be
+possible without inventing scale steps.
+
+The residual risk is real but narrow: if `--ds-space-*` is ever re-tuned, raw
+utilities will not follow. If that day comes, this is the sweep to do, and it is
+mechanical because the mapping is one-to-one.
+
+**One genuine difference is worth knowing.** Tailwind's spacing is in `rem`;
+`--ds-space-*` is in `px`. Browser *zoom* scales both, so WCAG 2.2 SC 1.4.4
+(Resize Text) is unaffected — that criterion is satisfied through zoom. What `px`
+does not follow is a user's **default font size** preference. The whole
+`--ds-*` contract is px-based, type included, so this is a property of the design
+system rather than of these 512 call sites, and moving it to `rem` would be its
+own campaign with its own visual review. Recorded, not scheduled.
+
 ### Still open
 
 - `[x]` **Ratcheting rules for arbitrary colours and unsupported type sizes.**
