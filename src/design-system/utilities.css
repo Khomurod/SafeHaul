@@ -56,3 +56,34 @@
 [class*='shadow-ds-focus']:focus-visible {
   outline: none;
 }
+
+/*
+ * Motion, off, when the user has asked the operating system for that.
+ *
+ * A global rule, and the one thing in
+ * `src/shared/styles/designTokens.css` that still had an effect when that file
+ * was retired on 2026-08-25. Everything else in it — a second colour, type,
+ * radius, shadow, spacing, z-index and focus-ring scale, plus `.focus-ring`,
+ * `.skip-link`, `.hide-mobile` and `.two-column-layout` — had no consumer left
+ * anywhere in `src/`. This did, and it belongs here: it is a decision every
+ * component inherits, which is exactly what this file is for.
+ *
+ * Individual components disable their own specific animations under the same
+ * query (`PageState`, `DataTable`, `Switch`, `ProgressBar`, `Card`,
+ * `SectionNavigation`, `Tabs`) and keep doing so. This is the floor underneath
+ * them, so a component nobody remembered to cover still stops moving. WCAG 2.2
+ * SC 2.3.3.
+ *
+ * `0.01ms` rather than `0`: an animation with zero duration never fires its
+ * `animationend`/`transitionend` event in some engines, and code that waits for
+ * one would hang. This is the widely used form for that reason.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

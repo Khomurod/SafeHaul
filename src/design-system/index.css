@@ -1,9 +1,27 @@
 /*
  * SafeHaul's canonical design-system CSS entry point.
  *
- * The legacy stylesheet remains last in the cascade during the incremental
- * migration so this foundation pass cannot change existing rendered screens.
+ * Everything the design system contributes globally, in cascade order: the
+ * typeface it ships, the token contract, and the handful of global utilities
+ * that belong to no single component.
+ *
+ * It imports nothing from outside `src/design-system`. It used to end with
+ *
+ *     @import '../shared/styles/designTokens.css';
+ *
+ * commented "during the incremental migration". That file declared a second,
+ * un-namespaced scale for colour, type, radius, shadow, spacing, z-index and the
+ * focus ring, in forty-odd raw hexes — and by 2026-08-25 not one of its ~60
+ * variables or six utility classes had a consumer left in `src/`. Its only live
+ * rule was the global `prefers-reduced-motion` reset, which moved to
+ * `utilities.css` where a decision every component inherits belongs.
+ *
+ * Two guards now cover the hole it sat in: `tests/architecture.test.js` walks
+ * CSS as well as JavaScript, so "no `shared` inside the design system" finally
+ * covers the `@import` that had been evading it for the whole campaign, and
+ * `check:ui-contract` scans stylesheets for raw colour and sub-12px type instead
+ * of only JSX.
  */
+@import './tokens/typeface.css';
 @import './tokens/index.css';
 @import './utilities.css';
-@import '../shared/styles/designTokens.css';
