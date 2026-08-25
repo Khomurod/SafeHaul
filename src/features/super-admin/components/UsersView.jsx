@@ -112,11 +112,11 @@ export function UsersView({
                     </thead>
                     <tbody>
                         {listLoading ? (
-                            <tr><td colSpan="3" role="status" className="text-center text-ds-content-muted"><SafeHaulLoader size="h-10 w-10" className="mx-auto mb-ds-2" />Loading users...</td></tr>
+                            <tr><td colSpan="3" className="text-center text-ds-content-muted"><div role="status"><SafeHaulLoader size="h-10 w-10" className="mx-auto mb-ds-2" />Loading users...</div></td></tr>
                         ) : statsError.users ? (
-                            <tr><td colSpan="3" role="alert" className="text-center text-ds-status-danger-fg">Error loading users.</td></tr>
+                            <tr><td colSpan="3" className="text-center text-ds-status-danger-fg"><div role="alert">Error loading users.</div></td></tr>
                         ) : filteredUserList.length === 0 ? (
-                            <tr><td colSpan="3" className="text-center text-ds-content-muted">No users found.</td></tr>
+                            <tr><td colSpan="3" className="text-center text-ds-content-muted"><div role="status">No users found.</div></td></tr>
                         ) : (
                             paginatedData.map(user => {
                                 const userName = getFieldValue(user.name);

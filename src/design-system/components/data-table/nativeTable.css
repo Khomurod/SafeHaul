@@ -38,6 +38,22 @@
  * `check:ui-contract` requires every file with an approved `raw-table` exception
  * to reference this class, so "we kept a native table" can no longer quietly mean
  * "we styled a table by hand".
+ *
+ * ## The state row
+ *
+ * A native table still owns its own loading/error/empty row. There is no styling
+ * here for it, because it needs none — one `<td colSpan>` and the cell padding
+ * above are enough — but there IS a rule, and three of the eleven broke it:
+ *
+ *     <tr><td colSpan={n}><div role="status">No companies found.</div></td></tr>
+ *
+ * The live-region role goes on a wrapper INSIDE the cell, never on the `<td>`.
+ * `role="status"` on a cell replaces the cell role, and a row whose only child is
+ * not a cell is a row assistive technology may drop from the table altogether.
+ * `CompaniesView` and `UsersView` had it on the cell; `FeaturesView` had no role
+ * at all, so filtering the matrix down to nothing was silent. `DataTable` and
+ * `ModernDriverTable` had already been doing it correctly, which is what made the
+ * other three visible as defects rather than as a choice.
  */
 
 .ds-native-table {

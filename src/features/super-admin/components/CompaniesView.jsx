@@ -223,11 +223,11 @@ export function CompaniesView({
                     </thead>
                     <tbody>
                         {listLoading ? (
-                            <tr><td colSpan="5" role="status" className="py-ds-10 text-center text-ds-content-muted"><SafeHaulLoader size="h-10 w-10" className="mx-auto mb-ds-2" />Loading companies...</td></tr>
+                            <tr><td colSpan="5" className="py-ds-10 text-center text-ds-content-muted"><div role="status"><SafeHaulLoader size="h-10 w-10" className="mx-auto mb-ds-2" />Loading companies...</div></td></tr>
                         ) : statsError.companies ? (
-                            <tr><td colSpan="5" role="alert" className="py-ds-10 text-center text-ds-status-danger-fg">Error loading companies.</td></tr>
+                            <tr><td colSpan="5" className="py-ds-10 text-center text-ds-status-danger-fg"><div role="alert">Error loading companies.</div></td></tr>
                         ) : filteredCompanyList.length === 0 ? (
-                            <tr><td colSpan="5" className="py-ds-10 text-center text-ds-content-muted">No companies found.</td></tr>
+                            <tr><td colSpan="5" className="py-ds-10 text-center text-ds-content-muted"><div role="status">No companies found.</div></td></tr>
                         ) : (
                             paginatedData.map(company => {
                                 const isActive = company.isActive !== false;

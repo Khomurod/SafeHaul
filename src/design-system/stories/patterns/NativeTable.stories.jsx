@@ -116,6 +116,17 @@ const meta = {
           '`check:ui-contract` requires every file with an approved `raw-table` exception to',
           'reference `ds-native-table`, so "we kept a native table" can no longer quietly mean',
           '"we styled a table by hand".',
+          '',
+          '### The state row',
+          '',
+          'A native table owns its own loading/error/empty row, and needs no styling from this',
+          'contract for it — one `<td colSpan>` and the cell padding are enough. It does need',
+          'one rule, and three of the eleven broke it: **the live-region role goes on a',
+          'wrapper inside the cell, never on the `<td>`.** `role="status"` on a cell replaces',
+          'the cell role, and a row whose only child is not a cell is a row assistive',
+          'technology may drop from the table altogether. `CompaniesView` and `UsersView` had',
+          'it on the cell; `FeaturesView` had no role at all, so filtering the matrix down to',
+          'nothing was silent. The `EmptyRow` story is the shape to copy.',
         ].join('\n'),
       },
     },
@@ -148,4 +159,33 @@ export const DensityComparison = {
 export const MobileViewport = {
   globals: { viewport: { value: 'safehaulMobile' } },
   render: () => <Card padding="none"><Matrix density="compact" /></Card>,
+};
+
+/**
+ * The empty row. The announcement lives in a wrapper inside the cell — on the
+ * `<td>` it would replace the cell role, and a row whose only child is not a
+ * cell is a row assistive technology may drop from the table.
+ */
+export const EmptyRow = {
+  render: () => (
+    <Card padding="none">
+      <table className="ds-native-table">
+        <caption className="ds-visually-hidden">Reference allocation matrix</caption>
+        <thead>
+          <tr>
+            <th scope="col">Reference</th>
+            <th scope="col">Owner</th>
+            <th scope="col">Quota</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td colSpan={3} className="text-center">
+              <div role="status">No references match this filter.</div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </Card>
+  ),
 };

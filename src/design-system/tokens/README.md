@@ -7,10 +7,17 @@ SafeHaul uses two token levels:
 - `semantic.css` assigns UI meaning such as surface, content, action, status,
   focus, and table roles.
 
-The `--ds-*` namespace prevents collisions with the temporary legacy variables
-in `src/shared/styles/designTokens.css`. Tailwind exposes selected semantic
-tokens with `ds-`-prefixed utilities. Existing utilities continue to work
-until their feature area is migrated and verified.
+The `--ds-*` namespace was originally there to avoid colliding with the legacy
+variables in `src/shared/styles/designTokens.css`. That file is **deleted** as of
+2026-08-25 — not one of its ~60 variables had a consumer left — so the namespace
+now serves only its second purpose: making a design-system token visible as one
+at every call site. Tailwind exposes selected semantic tokens with `ds-`-prefixed
+utilities.
+
+`typeface.css` holds the product's typeface, served from
+`src/design-system/fonts/` rather than fetched from a CDN. Read its header before
+changing it: an external `@import` is what made every application visual baseline
+fail on the CI runner, for the whole life of that lane.
 
 Do not add body text below 12px. Do not add a raw color to a feature when an
 appropriate semantic role exists; add or revise a semantic role with contrast

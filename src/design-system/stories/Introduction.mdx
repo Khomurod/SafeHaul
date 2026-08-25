@@ -53,7 +53,22 @@ feature-owned exception in the product:
 - **Filter chip**, **overflow menu**, **split panel** and **sticky page footer**.
   The overflow menu has exactly one candidate consumer, whose every action is
   currently a visible button — which is a perfectly good answer, not a
-  workaround, so it is not being built speculatively.
+  workaround, so it is not being built speculatively. The filter chip has two
+  named consumers as of 2026-08-25: the campaign audience builder's
+  application-status chips, which are **multi**-select over an array and 12px
+  tall, and the candidate list's single-select pipeline strip.
+- **A card-section disclosure.** `Disclosure` has exactly one appearance — a
+  rail-section header at 12px, bold, uppercase — because that is the shape its
+  consumer needed. The SMTP setup guide in email settings is a `heading-sm` card
+  section with a description line, and one consumer does not justify a second
+  variant.
+- **A section rail with per-item status.** The e-doc campaign editor's rail.
+  `SectionNavigation` is the near miss: it hardcodes `aria-current="page"` where
+  this is a wizard step, and has no trailing slot for the complete/incomplete
+  indicator that is the rail's whole purpose.
+- **A bottom app bar**, deliberately *not* being built. The e-doc mobile bar's
+  items are equal-width stacked icon-over-label targets at 56px — the platform
+  convention, and deliberately taller than the 44px control step. One consumer.
 
 Closed on 2026-08-21, so the exceptions that cited them are retired:
 
@@ -80,6 +95,24 @@ Closed on 2026-08-25:
 - **Named brand colours** (`ds-brand-primary`, `ds-brand-accent`). The mark's own
   two colours were bare hexes in four places. The accent is for the inverse
   surface only — on a light one it is about 1.6:1.
+
+Also closed on 2026-08-25, by **adoption** rather than by building anything:
+
+- Every hand-rolled tab strip, toggle group and file picker in the product now
+  uses `TabList`/`TabPanel`, `SegmentedControl` and `FileInput`. The primitives
+  above had shipped on 2026-08-21 with zero, zero and two consumers while eleven
+  tab strips, five toggle groups and nine raw file inputs stayed in the tree.
+- Every status screen, panel-level empty and confirmation dialog uses
+  `patterns/page-state` or `ConfirmDialog`. Fifteen states and six dialogs were
+  still hand-composed out of the right primitives in the wrong shape, several of
+  them written *after* the pattern existed.
+- Every approved native `<table>` applies the `ds-native-table` contract, so a
+  table that is not `DataTable` still gets `DataTable`'s header, divider, density
+  and cell padding from the same `--ds-table-*` roles.
+
+`PageState` gained three capabilities on the way, each because more than one
+consumer had hand-written it: `titleId`, `children` and `focusOnMount`. Its
+story page documents all three.
 
 As of 2026-08-25 every remaining exception in the product carries a written
 reason; none is left marked as migration debt. That does not make the gaps above

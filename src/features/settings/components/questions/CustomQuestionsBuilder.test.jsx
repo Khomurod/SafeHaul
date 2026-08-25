@@ -45,6 +45,24 @@ describe('CustomQuestionsBuilder', () => {
         expect(created.canCompanyModify).toBe(true);
     });
 
+    /*
+     * The empty panel was a hand-composed dashed block with its copy in a `<p>`;
+     * it is the approved `EmptyState` as of 2026-08-25, with the "add your first
+     * question" control as the state's action rather than a `<div>` under the
+     * text. The copy and the control's behaviour are unchanged — the test above
+     * still clicks the same button and asserts the same frozen defaults.
+     */
+    it('renders the empty panel as the approved page state, announced', () => {
+        render(<Harness />);
+        // Scoped by name: the panel's "0 questions added" counter is also a
+        // `role="status"`, and it is a different announcement.
+        const state = screen
+            .getByRole('heading', { name: 'No questions yet.', level: 3 })
+            .closest('[role="status"]');
+        expect(state).toHaveClass('ds-page-state');
+        expect(state).toContainElement(screen.getByRole('button', { name: /Add your first question/i }));
+    });
+
     it('appends additional questions and reports the count', () => {
         const onChangeSpy = vi.fn();
         render(<Harness initial={[{ ...INITIAL_QUESTION_STATE, id: 'a', label: 'First' }]} onChangeSpy={onChangeSpy} />);

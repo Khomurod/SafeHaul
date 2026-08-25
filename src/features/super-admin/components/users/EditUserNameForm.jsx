@@ -3,10 +3,10 @@ import { updateUser } from '@features/auth/services/userService';
 import { auth, functions } from '@lib/firebase';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { httpsCallable } from 'firebase/functions';
-import { KeyRound, Trash2, AlertTriangle } from 'lucide-react';
-import { Button, Card, FieldMessage, FormField, Input, StatusMedallion } from '@/design-system/components';
+import { KeyRound, Trash2 } from 'lucide-react';
+import { Button, Card, FieldMessage, FormField, Input } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
-import { Modal } from '@design-system/patterns';
+import { ConfirmDialog } from '@design-system/patterns';
 
 /**
  * User profile editor inside the Super Admin Edit User dialog.
@@ -37,6 +37,17 @@ import { Modal } from '@design-system/patterns';
  *  4. Raw inputs with `focus:ring-blue-500`, raw buttons, `bg-orange-50` /
  *     `bg-red-50` action tints and a hand-built `Loader2` spinner replaced by
  *     `FormField`/`Input`/`Button` and the primitives' own loading state.
+ *  5. **A local component called `ConfirmDialog`** — the same name as the
+ *     approved pattern, shadowing it in this file (fixed 2026-08-25). It
+ *     reproduced the medallion/heading/description/Cancel-Confirm structure the
+ *     pattern owns, and lost two things that are not cosmetic on "Delete this
+ *     user?": initial focus lands on **Cancel** rather than on the destructive
+ *     action, and `onConfirm` is guarded by a synchronous ref, so two activations
+ *     dispatched inside one React render cannot both fire the callable.
+ *
+ *     The pattern's in-flight guards (Escape and backdrop dismissal disabled
+ *     while `loading`) are deliberately not used here: both handlers close the
+ *     dialog before starting, and the progress is shown on the page's own button.
  */
 export function EditUserNameForm({ userId, initialName, email, companyId, onSave }) {
     const [userName, setUserName] = useState(initialName || '');
@@ -196,11 +207,18 @@ export function EditUserNameForm({ userId, initialName, email, companyId, onSave
 
             {pendingAction === 'reset' && (
                 <ConfirmDialog
-                    tone="warning"
+                    /*
+                     * `info`, not the `warning` the local copy used: sending a
+                     * reset email is advisory, and the approved tone map pairs
+                     * `warning` with a danger-styled confirm button. The local
+                     * dialog had overridden that pairing by hand — an amber alert
+                     * medallion above a blue primary button — which is exactly the
+                     * inconsistency a tone map exists to prevent.
+                     */
+                    tone="info"
                     title="Send a password reset email?"
                     description={`Send password reset email to ${userEmail}?`}
                     confirmLabel="Send reset email"
-                    confirmVariant="primary"
                     onCancel={() => setPendingAction(null)}
                     onConfirm={confirmResetPassword}
                 />
@@ -212,40 +230,10 @@ export function EditUserNameForm({ userId, initialName, email, companyId, onSave
                     title="Delete this user?"
                     description="Are you sure you want to delete this user? This action cannot be undone."
                     confirmLabel="Delete user"
-                    confirmVariant="danger"
                     onCancel={() => setPendingAction(null)}
                     onConfirm={confirmDeleteUser}
                 />
             )}
         </Card>
-    );
-}
-
-/**
- * Replaces the two blocking `window.confirm` guards. Each description keeps the
- * original confirm wording verbatim.
- */
-function ConfirmDialog({ tone, title, description, confirmLabel, confirmVariant, onCancel, onConfirm }) {
-    const titleId = useId();
-    const descriptionId = useId();
-
-    return (
-        <Modal
-            onClose={onCancel}
-            labelledBy={titleId}
-            describedBy={descriptionId}
-            closeOnBackdrop={false}
-            className="w-full max-w-lg overflow-hidden rounded-ds-xl border border-ds-border-subtle bg-ds-surface shadow-ds-lg"
-        >
-            <div className="p-ds-5 text-center">
-                <StatusMedallion tone={tone} className="mx-auto mb-ds-3"><AlertTriangle /></StatusMedallion>
-                <h2 id={titleId} className="text-ds-heading-sm font-bold text-ds-content">{title}</h2>
-                <p id={descriptionId} className="mt-ds-3 text-ds-sm text-ds-content-secondary">{description}</p>
-            </div>
-            <div className="flex justify-end gap-ds-3 border-t border-ds-border-subtle bg-ds-surface-subtle p-ds-4">
-                <Button variant="secondary" onClick={onCancel}>Cancel</Button>
-                <Button variant={confirmVariant} onClick={onConfirm}>{confirmLabel}</Button>
-            </div>
-        </Modal>
     );
 }

@@ -113,10 +113,29 @@ const meta = {
           'Every state here is driven by a prop, never by a timer. No story transitions on its',
           'own, so what you see is what a reviewer sees.',
           '',
+          '### The three props most often written by hand instead',
+          '',
+          'Each of these was hand-written at more than one call site before it was a prop,',
+          'which is the bar for adding one:',
+          '',
+          '| Prop | For | Why not at the call site |',
+          '| --- | --- | --- |',
+          '| `titleId` | A full-page state that is the accessible name of its `<main>` | `role="status"` is not valid on `<main>`, so the landmark and the live region must be separate elements — leaving the landmark nothing to be named by unless the heading has an id. The alternative is duplicating the title into an `aria-label` |',
+          '| `children` | A confirmation reference, a checklist of what is still outstanding | The description is a `<p>`, so a bordered panel or a list cannot go in it |',
+          '| `focusOnMount` | A state that REPLACES the control the user just activated | Focus falls to `<body>`, so a keyboard or screen-reader user is never taken to the confirmation they asked for. Announcement does not move the reading position |',
+          '',
           '### When feature-specific composition is acceptable',
           '',
           'Features own the words, which action is offered and what retry does. They must not',
           'invent new state visuals or skip a state because it is "rare".',
+          '',
+          '**The failure mode this page exists to prevent is not a raw `<div>`.** It is a',
+          '*hand-composed* state: `Card` + `StatusMedallion` + heading + body + actions, every',
+          'ingredient approved, arranged into the shape these three components own. Fifteen of',
+          'those were found in the product on 2026-08-25, several written after this pattern',
+          'existed, and the nine full-page ones had two title sizes, two medallion sizes, icons',
+          'at 28/32/40/48px and three different gaps under the medallion between them. No',
+          'automated rule can see one, because there is nothing wrong with any of the parts.',
         ].join('\n'),
       },
     },
@@ -343,5 +362,36 @@ export const MobileViewport = {
         </Stack>
       </PageContainer>
     </div>
+  ),
+};
+
+/**
+ * The three props above, in the shape their real consumers use them: a full-page
+ * state that names its own landmark, carries a reference the reader needs, and
+ * takes focus because the control that produced it is gone.
+ */
+export const FullPageWithReferenceAndFocus = {
+  render: () => (
+    <main
+      aria-labelledby="page-state-story-title"
+      className="flex min-h-screen items-center justify-center bg-ds-canvas p-ds-4"
+    >
+      <EmptyState
+        className="w-full max-w-md"
+        icon={Inbox}
+        headingLevel={1}
+        titleId="page-state-story-title"
+        title="Submission received"
+        description="We have your submission and someone will be in touch."
+        actions={<Button variant="ghost" onClick={fn()}>Go to home</Button>}
+      >
+        <div className="rounded-ds-md border border-ds-border-subtle bg-ds-surface-subtle px-ds-4 py-ds-3 text-center">
+          <p className="mb-ds-1 text-ds-xs uppercase tracking-wide text-ds-content-secondary">
+            Reference
+          </p>
+          <p className="font-mono text-ds-body-lg font-bold text-ds-content">REF-2026-0000123</p>
+        </div>
+      </EmptyState>
+    </main>
   ),
 };

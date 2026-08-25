@@ -338,6 +338,48 @@ describe('ViewCompanyAppsModal — frozen data contract', () => {
     expect(screen.getByText('Beta Driver')).toBeInTheDocument();
   });
 
+  /*
+   * Filtering to nothing replaced the whole table with a hand-composed
+   * icon-and-copy block that carried no live-region role, so a screen-reader
+   * user typing in the filter got silence (found 2026-08-25). It is the approved
+   * `EmptyState` now, which owns the announcement, and it keeps the two distinct
+   * strings — "nothing matches your filter" must not read as "nothing exists".
+   */
+  it('announces the filtered-empty state, and distinguishes it from never-any', async () => {
+    mockLoadApplications.mockResolvedValue([
+      { id: 'a1', firstName: 'Alpha', lastName: 'Driver', email: 'alpha@example.test', status: 'Hired' },
+    ]);
+
+    const { unmount } = render(<ViewCompanyAppsModal companyId="co-1" companyName="Artificial Freight Co" onClose={vi.fn()} />);
+    await screen.findByText('Alpha Driver');
+
+    fireEvent.change(screen.getByLabelText(/Filter applications/), { target: { value: 'nothing-matches-this' } });
+    const filtered = screen.getByRole('status');
+    expect(filtered).toHaveClass('ds-page-state');
+    expect(screen.getByRole('heading', { name: 'No matches found.', level: 3 })).toBeInTheDocument();
+    unmount();
+
+    mockLoadApplications.mockResolvedValue([]);
+    render(<ViewCompanyAppsModal companyId="co-1" companyName="Artificial Freight Co" onClose={vi.fn()} />);
+    expect(
+      await screen.findByRole('heading', { name: 'No applications submitted yet.', level: 3 }),
+    ).toBeInTheDocument();
+  });
+
+  /*
+   * The error panel was the same shape of hand-composition — a `StatusMedallion`
+   * and a bare paragraph. `ErrorState` gives it a title, because red text with
+   * no heading is not an error state, and keeps `role="alert"`.
+   */
+  it('reports a load failure as the approved error state', async () => {
+    mockLoadApplications.mockRejectedValue(new Error('network down'));
+    render(<ViewCompanyAppsModal companyId="co-1" companyName="Artificial Freight Co" onClose={vi.fn()} />);
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveClass('ds-page-state');
+    expect(screen.getByRole('heading', { name: 'Unable to load applications', level: 3 })).toBeInTheDocument();
+  });
+
   it('announces the load failure', async () => {
     mockLoadApplications.mockRejectedValue(new Error('boom'));
     render(<ViewCompanyAppsModal companyId="co-1" companyName="Artificial Freight Co" onClose={vi.fn()} />);

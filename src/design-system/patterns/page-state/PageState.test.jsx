@@ -44,6 +44,66 @@ describe('PageState', () => {
     expect(screen.getByRole('heading', { level: 3 })).toBeInTheDocument();
   });
 
+  /*
+   * A full-page state is the accessible name of its `<main>`, and `role="status"`
+   * is not valid on `<main>` — so the landmark and the live region must be
+   * different elements, and the landmark then has nothing to be named by unless
+   * the heading carries an id. The signing room and the public application both
+   * need this; without it they would each duplicate the title into an
+   * `aria-label`.
+   */
+  it('gives the heading an id when a landmark has to point at it', () => {
+    render(
+      <main aria-labelledby="state-title">
+        <PageState tone="neutral" title="Access Denied" headingLevel={1} titleId="state-title" />
+      </main>,
+    );
+    expect(screen.getByRole('heading', { level: 1 })).toHaveAttribute('id', 'state-title');
+    expect(screen.getByRole('main')).toHaveAccessibleName('Access Denied');
+  });
+
+  /*
+   * Announcement is not the same as moving the reading position. A state that
+   * REPLACES the control the user just activated — a submitted application, a
+   * completed signing — leaves focus on `<body>`, so a keyboard or screen-reader
+   * user is never taken to the confirmation they asked for. Both consumers that
+   * need this had written their own `useRef`/`useEffect`; only one of them had.
+   */
+  it('moves focus to its heading when it replaces what the user activated', () => {
+    render(<PageState tone="success" title="Application Submitted!" focusOnMount />);
+    const heading = screen.getByRole('heading', { name: 'Application Submitted!' });
+    expect(heading).toHaveFocus();
+    // Focusable, therefore it needs to be reachable programmatically only.
+    expect(heading).toHaveAttribute('tabindex', '-1');
+  });
+
+  it('leaves focus alone by default', () => {
+    render(<PageState tone="neutral" title="Nothing here" />);
+    expect(screen.getByRole('heading', { name: 'Nothing here' })).not.toHaveFocus();
+    expect(screen.getByRole('heading', { name: 'Nothing here' })).not.toHaveAttribute('tabindex');
+  });
+
+  it('carries extra content between the description and the actions', () => {
+    render(
+      <PageState
+        tone="success"
+        title="Application Submitted!"
+        description="A recruiter will contact you soon."
+        actions={<button type="button">Go to home</button>}
+      >
+        <p data-testid="reference">Confirmation Number</p>
+      </PageState>,
+    );
+    const content = screen.getByTestId('reference').parentElement;
+    expect(content).toHaveClass('ds-page-state__content');
+    // Order matters: the reference comes after the explanation, before the way out.
+    const order = [...content.parentElement.children].map((node) => node.className);
+    expect(order.indexOf('ds-page-state__description'))
+      .toBeLessThan(order.indexOf('ds-page-state__content'));
+    expect(order.indexOf('ds-page-state__content'))
+      .toBeLessThan(order.indexOf('ds-page-state__actions'));
+  });
+
   it('rejects a heading level that is not one', () => {
     expect(() => render(<PageState tone="neutral" title="x" headingLevel={7} />))
       .toThrow(/Unsupported PageState headingLevel/i);

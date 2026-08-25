@@ -1,11 +1,11 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import {
     Activity, Play, Pause, RotateCcw, Terminal, Server, Database, HardDrive, ShieldCheck,
-    Wrench, RefreshCw, DatabaseZap, CheckCircle, AlertCircle, AlertTriangle, Clock
+    Wrench, RefreshCw, DatabaseZap, CheckCircle, AlertCircle, Clock
 } from 'lucide-react';
-import { Badge, Button, Card, ProgressBar, StatusMedallion } from '@/design-system/components';
+import { Badge, Button, Card, ProgressBar } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
-import { Modal } from '@design-system/patterns';
+import { ConfirmDialog } from '@design-system/patterns';
 import { useSystemHealth } from '../hooks/useSystemHealth';
 
 /**
@@ -318,31 +318,16 @@ function MaintenanceAction({ description, status, successLabel, onRun, icon: Ico
  * Replaces the blocking `window.confirm` that guarded Reset. The warning wording
  * is preserved verbatim.
  */
+/** The approved `ConfirmDialog` since 2026-08-25; hand-composed before that. */
 function ResetConfirmDialog({ onCancel, onConfirm }) {
-    const titleId = useId();
-    const descriptionId = useId();
-
     return (
-        <Modal
-            onClose={onCancel}
-            labelledBy={titleId}
-            describedBy={descriptionId}
-            closeOnBackdrop={false}
-            className="w-full max-w-lg overflow-hidden rounded-ds-xl border border-ds-border-subtle bg-ds-surface shadow-ds-lg"
-        >
-            <div className="p-ds-5 text-center">
-                <StatusMedallion tone="warning" className="mx-auto mb-ds-3"><AlertTriangle /></StatusMedallion>
-                <h2 id={titleId} className="text-ds-heading-sm font-bold text-ds-content">
-                    Reset the diagnostic?
-                </h2>
-                <p id={descriptionId} className="mt-ds-3 text-ds-sm text-ds-content-secondary">
-                    This will clear saved test progress. Continue?
-                </p>
-            </div>
-            <div className="flex justify-end gap-ds-3 border-t border-ds-border-subtle bg-ds-surface-subtle p-ds-4">
-                <Button variant="secondary" onClick={onCancel}>Cancel</Button>
-                <Button variant="danger" onClick={onConfirm}>Reset</Button>
-            </div>
-        </Modal>
+        <ConfirmDialog
+            tone="warning"
+            title="Reset the diagnostic?"
+            description="This will clear saved test progress. Continue?"
+            confirmLabel="Reset"
+            onCancel={onCancel}
+            onConfirm={onConfirm}
+        />
     );
 }

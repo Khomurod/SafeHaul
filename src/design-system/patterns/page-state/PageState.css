@@ -36,6 +36,31 @@
   line-height: var(--ds-line-height-body);
 }
 
+/*
+ * The optional extra-content slot: a confirmation reference, a checklist of what
+ * is still outstanding. Full width of the state so a bordered panel or a list
+ * inside it lines up with the state's own padding, and left-aligned, because
+ * centred body content longer than a line is hard to read — the title and
+ * description above it stay centred.
+ */
+.ds-page-state__content {
+  width: 100%;
+  text-align: start;
+}
+
+/*
+ * `focusOnMount` puts `tabIndex="-1"` on the heading so focus can land there when
+ * the state replaces what the user was interacting with. A focusable element
+ * needs a visible focus indicator, and the browser default on a heading is an
+ * outline that ignores this product's focus token.
+ */
+.ds-page-state__title:focus-visible {
+  outline: 2px solid var(--ds-color-focus);
+  outline-offset: 2px;
+  border-radius: var(--ds-radius-sm);
+  box-shadow: var(--ds-focus-ring);
+}
+
 .ds-page-state__actions {
   display: flex;
   flex-wrap: wrap;

@@ -63,7 +63,23 @@ const SCREENS = [
     {
         name: 'super-admin',
         url: '/super-admin?e2eAuth=super_admin',
-        ready: (page) => page.getByRole('heading', { level: 1 }).first(),
+        /*
+         * The totals, not the banner heading — and this is why `ready` is worth
+         * choosing carefully rather than defaulting to `<h1>`.
+         *
+         * `<h1>Super Admin</h1>` is in the banner and present on first paint, so
+         * the old predicate let the screenshot race the three metric cards. The
+         * committed baseline had caught them mid-load showing `•••`; a run on
+         * 2026-08-25 caught them resolved showing `0`, and the lane failed on a
+         * diff of three glyphs with nothing wrong in the product. That is exactly
+         * the failure a blocking lane cannot have: one flake teaches everyone to
+         * disbelieve the next real regression.
+         *
+         * `DashboardView` announces the transition itself, so waiting on that
+         * announcement pins the screenshot to the *settled* state rather than to
+         * whichever side of the race the machine happened to be on.
+         */
+        ready: (page) => page.getByText('Platform totals loaded.'),
     },
     {
         name: 'login',

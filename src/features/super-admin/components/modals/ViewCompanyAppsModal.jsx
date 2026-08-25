@@ -1,9 +1,9 @@
 import React, { useId, useState, useEffect, useMemo } from 'react';
 import { loadApplications } from '@features/applications/services/applicationService';
-import { X, Search, FileText, Calendar, User, AlertCircle } from 'lucide-react';
-import { Badge, Button, IconButton, Input, StatusMedallion } from '@/design-system/components';
+import { X, Search, FileText, Calendar, User } from 'lucide-react';
+import { Badge, Button, IconButton, Input } from '@/design-system/components';
 import { SafeHaulLoader } from '@shared/components/SafeHaulLoader';
-import { Modal } from '@design-system/patterns';
+import { EmptyState, ErrorState, Modal } from '@design-system/patterns';
 
 /**
  * Read-only list of a company's driver applications, opened from the Super Admin
@@ -24,7 +24,11 @@ import { Modal } from '@design-system/patterns';
  *  - The filter `<input>` had no label, only a placeholder.
  *  - The unnamed icon-only close control.
  *  - Loading and error states were not announced (`role="status"` / `role="alert"`
- *    now).
+ *    now). The empty state still was not, until 2026-08-25: filtering the list to
+ *    nothing replaced the whole table with "No matches found." and announced
+ *    nothing. The error and empty panels are the approved `ErrorState` and
+ *    `EmptyState`, which own that announcement; the brand loader stays, because
+ *    `LoadingState`'s spinner is not it.
  *  - **Status was communicated by colour alone.** The old markup passed the
  *    status through `getStatusColor(...).replace('bg-', ...).replace('text-', ...)`,
  *    a brittle string rewrite that produced a colour-only pill built from legacy
@@ -182,17 +186,21 @@ export function ViewCompanyAppsModal({ companyId, companyName, onClose }) {
           )}
 
           {error && (
-              <div role="alert" className="flex h-64 flex-col items-center justify-center px-ds-6 text-center text-ds-status-danger-fg">
-                  <StatusMedallion tone="danger" className="mb-ds-2"><AlertCircle /></StatusMedallion>
-                  <p>{error}</p>
-              </div>
+              <ErrorState
+                surface="bare"
+                headingLevel={3}
+                title="Unable to load applications"
+                description={error}
+              />
           )}
 
           {!loading && !error && filteredApplications.length === 0 && (
-            <div className="flex h-64 flex-col items-center justify-center text-ds-content-muted">
-                <User size={48} aria-hidden="true" className="mb-ds-2 opacity-20" />
-                <p>{search ? "No matches found." : "No applications submitted yet."}</p>
-            </div>
+            <EmptyState
+              surface="bare"
+              icon={User}
+              headingLevel={3}
+              title={search ? "No matches found." : "No applications submitted yet."}
+            />
           )}
 
           {!loading && !error && filteredApplications.length > 0 && (

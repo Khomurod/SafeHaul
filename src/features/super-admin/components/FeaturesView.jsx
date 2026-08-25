@@ -275,7 +275,7 @@ export function FeaturesView({ companyList, onDataUpdate }) {
                                 {filteredList.length === 0 ? (
                                     <tr>
                                         <td colSpan={ALL_FEATURES.length + 1} className="text-center text-ds-content-muted">
-                                            No companies found.
+                                            <div role="status">No companies found.</div>
                                         </td>
                                     </tr>
                                 ) : filteredList.map(company => (

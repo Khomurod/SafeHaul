@@ -479,6 +479,23 @@ describe('NotesTab — read contract', () => {
         expect(await screen.findByText('No notes yet.')).toBeInTheDocument();
     });
 
+    /*
+     * The loading line and the empty block used to be two different shapes in
+     * the same slot — small centred text, then a dashed bordered panel — and the
+     * empty one announced nothing when the notes resolved. Both are the approved
+     * page-state pattern as of 2026-08-25, which is where "the three states of
+     * one slot look alike" is a rule rather than a habit.
+     */
+    it('uses the approved page-state pattern for both loading and empty', async () => {
+        renderNotes();
+        expect(screen.getByRole('status')).toHaveClass('ds-page-state');
+        expect(screen.getByRole('heading', { name: 'Loading notes...', level: 3 })).toBeInTheDocument();
+
+        await screen.findByText('No notes yet.');
+        expect(screen.getByRole('status')).toHaveClass('ds-page-state');
+        expect(screen.getByRole('heading', { name: 'No notes yet.', level: 3 })).toBeInTheDocument();
+    });
+
     it('anonymises shared history and marks it as such', async () => {
         fs.getDoc.mockResolvedValue({
             exists: () => true,

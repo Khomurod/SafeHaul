@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useData } from '@/context/DataContext';
 import { CompanyBulkUpload } from '@features/company-admin/components/CompanyBulkUpload';
 import { ShieldAlert } from 'lucide-react';
-import { Button, Card, StatusMedallion } from '@/design-system/components';
+import { Button } from '@/design-system/components';
+import { PageState } from '@design-system/patterns';
 import { PageContainer, PageHeader, Stack } from '@/design-system/layouts';
 
 import { FeatureLockedModal } from '@shared/components/modals/FeatureLockedModal';
@@ -52,24 +53,33 @@ export const ImportLeadsPage = () => {
         return (
             <div className="min-h-full bg-ds-canvas">
                 <PageContainer width="standard">
-                    <Card padding="lg" className="mx-auto max-w-md text-center">
-                        <StatusMedallion tone="danger" className="mx-auto mb-ds-4">
-                            <ShieldAlert size={32} />
-                        </StatusMedallion>
-                        <h1 className="mb-ds-2 text-ds-heading-sm font-bold text-ds-content">
-                            Access Denied
-                        </h1>
-                        <p className="mb-ds-6 text-ds-content-secondary">
-                            You do not have permission to import leads. Please contact your Company Admin to request access.
-                        </p>
-                        <Button
-                            variant="secondary"
-                            fullWidth
-                            onClick={() => navigate('/company/dashboard')}
-                        >
-                            Return to Dashboard
-                        </Button>
-                    </Card>
+                    {/*
+                     * The approved page-state pattern since 2026-08-25; this was a
+                     * hand-composed Card + medallion + heading + action. `announce`
+                     * is `off` deliberately: this is ordinary page content on
+                     * navigation, not a state that appeared in response to
+                     * something the user just did, and an assertive announcement
+                     * would interrupt whatever they were reading.
+                     */}
+                    <div className="mx-auto w-full max-w-md">
+                        <PageState
+                            tone="danger"
+                            icon={ShieldAlert}
+                            announce="off"
+                            headingLevel={1}
+                            title="Access Denied"
+                            description="You do not have permission to import leads. Please contact your Company Admin to request access."
+                            actions={(
+                                <Button
+                                    variant="secondary"
+                                    fullWidth
+                                    onClick={() => navigate('/company/dashboard')}
+                                >
+                                    Return to Dashboard
+                                </Button>
+                            )}
+                        />
+                    </div>
                 </PageContainer>
             </div>
         );
