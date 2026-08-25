@@ -280,7 +280,7 @@ export function FeaturesView({ companyList, onDataUpdate }) {
                                     </tr>
                                 ) : filteredList.map(company => (
                                     <tr key={company.id} className="transition-colors">
-                                        <th scope="row" className="sticky left-0 z-10 border-r font-medium text-ds-content">
+                                        <th scope="row" className="sticky left-0 z-10 border-r border-ds-border-subtle font-medium text-ds-content">
                                             {company.companyName}
                                         </th>
                                         {ALL_FEATURES.map(f => {

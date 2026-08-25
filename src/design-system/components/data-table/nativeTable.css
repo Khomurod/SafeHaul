@@ -139,6 +139,37 @@
 .ds-native-table > tbody > tr > th.text-right { text-align: end; }
 
 /*
+ * A STICKY cell needs its own background, and this is the one thing the contract
+ * has to say that `DataTable` never had to.
+ *
+ * The row paints `--ds-table-row-bg`, not the cell. A `position: sticky` cell
+ * stays put while the row scrolls horizontally underneath it — so with a
+ * transparent background the other columns' text paints straight through the
+ * frozen first column. `FeaturesView`'s feature matrix is 20+ columns wide and
+ * freezes the company name; it had `bg-ds-surface` by hand before the contract
+ * arrived, that class was removed with the rest of the hand-picked styling, and a
+ * review on 2026-08-25 caught the consequence.
+ *
+ * The header and body take their own surfaces so a frozen column reads as part of
+ * the row it belongs to, and the hover tint follows for a table that has one:
+ * without that the frozen cell is the one part of a hovered row that does not
+ * highlight.
+ */
+.ds-native-table > thead > tr > th.sticky {
+  background: var(--ds-table-header-bg);
+}
+
+.ds-native-table > tbody > tr > th.sticky,
+.ds-native-table > tbody > tr > td.sticky {
+  background: var(--ds-table-row-bg);
+}
+
+.ds-native-table[data-row-hover] > tbody > tr:hover > th.sticky,
+.ds-native-table[data-row-hover] > tbody > tr:hover > td.sticky {
+  background: var(--ds-table-row-hover-bg);
+}
+
+/*
  * `tfoot` carries a pager or a totals row. Same divider, same padding, and the
  * header surface so it reads as chrome rather than as one more row of data.
  */

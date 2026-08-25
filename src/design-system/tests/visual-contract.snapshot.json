@@ -122,6 +122,16 @@
     "backgroundColor": "rgba(0, 0, 0, 0)",
     "height": "63.5px"
   },
+  "mobile · a frozen column is opaque · stickyTable.headerCell": {
+    "backgroundColor": "rgb(241, 245, 249)",
+    "position": "sticky",
+    "left": "0px"
+  },
+  "mobile · a frozen column is opaque · stickyTable.rowHeader": {
+    "backgroundColor": "rgb(255, 255, 255)",
+    "position": "sticky",
+    "left": "0px"
+  },
   "mobile · table density: row height and cell padding · headerCell": {
     "height": "48px",
     "paddingLeft": "16px",
@@ -280,6 +290,16 @@
     "paddingBottom": "12px",
     "backgroundColor": "rgba(0, 0, 0, 0)",
     "height": "60.5px"
+  },
+  "desktop · a frozen column is opaque · stickyTable.headerCell": {
+    "backgroundColor": "rgb(241, 245, 249)",
+    "position": "sticky",
+    "left": "0px"
+  },
+  "desktop · a frozen column is opaque · stickyTable.rowHeader": {
+    "backgroundColor": "rgb(255, 255, 255)",
+    "position": "sticky",
+    "left": "0px"
   },
   "desktop · table density: row height and cell padding · headerCell": {
     "height": "48px",

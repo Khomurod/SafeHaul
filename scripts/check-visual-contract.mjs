@@ -137,6 +137,24 @@ const PROBES = [
         properties: ['paddingLeft', 'paddingRight', 'paddingTop', 'paddingBottom', 'backgroundColor', 'height'],
     },
     {
+        /*
+         * The frozen first column, measured because it is the one cell in a native
+         * table that must NOT be transparent. The surface is painted on the row,
+         * so a `position: sticky` cell with no background of its own lets the
+         * scrolled columns paint straight through it — which is what happened to
+         * the Super Admin feature matrix when its hand-picked `bg-ds-surface` was
+         * removed in favour of the contract, and what a review on 2026-08-25
+         * caught. An `rgba(0, 0, 0, 0)` here is the regression.
+         */
+        story: 'patterns-native-table--sticky-first-column',
+        label: 'a frozen column is opaque',
+        selectors: {
+            'stickyTable.headerCell': '.ds-native-table thead th.sticky',
+            'stickyTable.rowHeader': '.ds-native-table tbody th.sticky',
+        },
+        properties: ['backgroundColor', 'position', 'left'],
+    },
+    {
         story: 'components-datatable--default',
         label: 'table density: row height and cell padding',
         selectors: {

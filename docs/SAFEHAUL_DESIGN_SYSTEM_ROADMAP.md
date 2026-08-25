@@ -607,7 +607,7 @@ weaken or delete one without replacing the guarantee.
 | `npm run test:stories` (`src/tests/designSystemStories.a11y.test.jsx`) | Every catalog story renders and passes axe |
 | `npm run check:table-layout` (`scripts/check-table-layout.mjs`) | Measures the built catalog in a real browser at 412px and 1440px: a cell must contain its content (`scrollWidth > clientWidth` is a violation unless the column opts into `truncate`), and no region may reserve a gutter it never scrolls into. Covers `DataTable` **and** the `ds-native-table` contract — until 2026-08-25 no native table was measured anywhere, so the eleven tables that are not `DataTable` had no layout guard at all. Honours `PW_CHROMIUM_EXECUTABLE`, so it runs in a sandbox whose Chromium is not the pinned build — a guard that cannot run gets skipped |
 | `npm run check:ui-contract` (`scripts/check-ui-contract.mjs`) | The design-system contract, zero-tolerance. Raw palette classes, raw hex, sub-12px text, off-scale type, **Tailwind radii and shadows** (whose names collide with the `--ds-*` ones one step off), hand-built overlays, raw tables, hand-styled buttons/fields/anchors, **hand-rolled tablists, raw file inputs and hand-written `target="_blank"`** — in JSX, in stories and in CSS. Measured against `src/design-system/ui-contract.allowlist.json`: anything unlisted fails, so does a count *lower* than recorded, so does an entry that does not say why it is allowed, and so does an approved native table that does not apply `ds-native-table` |
-| `npm run check:visual-contract` (`scripts/check-visual-contract.mjs`) | Computed geometry in a real browser at both widths — control heights, cell padding, radii, resolved token colours — against a committed snapshot. This is the blocking visual guard, because the numbers are portable across machines and a failure names what moved (`button[md].height: 44px -> 40px`) |
+| `npm run check:visual-contract` (`scripts/check-visual-contract.mjs`) | Computed geometry in a real browser at both widths — control heights, cell padding, radii, resolved token colours — against a committed snapshot. This is the blocking visual guard, because the numbers are portable across machines and a failure names what moved (`button[md].height: 44px -> 40px`). 56 measurements as of 2026-08-25, the last four being a frozen table column's background: a `sticky` cell that loses its own surface lets the scrolled columns paint through it, and that regression is now `rgb(255, 255, 255) -> rgba(0, 0, 0, 0)` in a diff rather than something found on a screen |
 | `npm run test:visual` (`e2e/visual/`) | Pixel baselines for **67 catalog subjects and 15 application screens**, at 1440px and 412px, committed to the repository. **Blocking as of 2026-08-25** — see below |
 | `npm run test:e2e -- --grep "@a11y"` (`e2e/a11y.spec.cjs` and friends) | Real-browser axe on the mobile-critical journeys, plus the keyboard behaviour axe cannot see: roving `tabIndex`, arrow/Home/End on a tab strip, `aria-pressed` on a segmented group, a focusable file input named by its field, and that every control a Tab press reaches shows the product's focus ring rather than the browser's black one. **Blocking as of 2026-08-25**, inside the `frontend-e2e` lane |
 | **A review step, not automated** — see below | A *hand-composed pattern*: correct primitives arranged into a shape the design system already owns. No class-list or tag-name rule can see one, and this is how fifteen page states and ten confirmation dialogs accumulated beside the patterns that own them. The two searches that find them are `StatusMedallion` used outside `src/design-system`, and a locally declared component whose name ends in `Dialog` — and the second search has to be that broad, because the first pass of it looked for `*Confirm*Dialog*` and missed four confirmations named after what they delete |
@@ -711,6 +711,18 @@ the two answer different questions.
 Both visual lanes freeze the clock at a fixed instant. Without that the company
 dashboard's date range stamps today's date into its baseline, and it would have
 failed the morning after it was recorded.
+
+**A review of this campaign's own diff found the one thing the contract had not
+said**, which is worth recording next to the guards it prompted. `ds-native-table`
+paints the row surface on the `<tr>`, and the Super Admin feature matrix freezes
+its first column with `sticky left-0`. Its hand-picked `bg-ds-surface` was removed
+in favour of the contract — and the contract had no rule for a sticky cell, so the
+frozen company names became transparent and the twenty scrolled columns painted
+through them. The contract owns it now (header surface, row surface, and the hover
+tint so a frozen cell does not stay unhighlighted in a hovered row), a
+`StickyFirstColumn` story puts it in the catalog, and `check:visual-contract`
+measures its background at both widths. Verified by removing the rule and watching
+the guard report `rgb(255, 255, 255) -> rgba(0, 0, 0, 0)`.
 
 **Making a lane blocking is what finds its flakes, and one of them surfaced the
 same day.** The `super-admin` subject waited on `<h1>Super Admin</h1>`, which is

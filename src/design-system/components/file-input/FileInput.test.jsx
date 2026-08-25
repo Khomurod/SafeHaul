@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { axe } from 'vitest-axe';
 import { describe, expect, it, vi } from 'vitest';
 import { FileInput } from './FileInput';
@@ -96,6 +96,63 @@ describe('FileInput shapes', () => {
     const input = screen.getByLabelText('Company logo');
     expect(input).toBeDisabled();
     expect(input).toHaveAttribute('aria-busy', 'true');
+  });
+
+  /*
+   * Disabling the element that has focus drops focus to `<body>`, so an upload
+   * started from the keyboard used to end with the user at the top of the
+   * document. The two pickers this component replaced each had their own
+   * focus-return effect; a review on 2026-08-25 caught that deleting them left
+   * nothing here.
+   */
+  it('returns focus to the picker when the upload it disabled itself for ends', () => {
+    const Harness = ({ uploading }) => (
+      <FileInput label="Profile photo" loading={uploading} onChange={vi.fn()} />
+    );
+    const { rerender } = render(<Harness uploading={false} />);
+    const input = screen.getByLabelText('Profile photo');
+    input.focus();
+    expect(input).toHaveFocus();
+
+    // The picked file, from the focused input — the only moment it is certainly
+    // focused, which is why the flag is set here.
+    fireEvent.change(input, { target: { files: [] } });
+
+    // The parent starts uploading. In a real browser, disabling the focused
+    // element is what drops focus to the body; this DOM leaves it on the input,
+    // so the browser's effect is reproduced explicitly rather than assumed.
+    rerender(<Harness uploading />);
+    expect(input).toBeDisabled();
+    document.body.focus();
+    expect(document.body).toHaveFocus();
+
+    // The upload settles. The picker is usable again, and focus is back on it
+    // rather than at the top of the document.
+    rerender(<Harness uploading={false} />);
+    expect(input).not.toBeDisabled();
+    expect(input).toHaveFocus();
+  });
+
+  it('does not steal focus back from wherever the user moved during the upload', () => {
+    function Harness({ uploading }) {
+      return (
+        <>
+          <FileInput label="Profile photo" loading={uploading} onChange={vi.fn()} />
+          <button type="button">Elsewhere</button>
+        </>
+      );
+    }
+    const { rerender } = render(<Harness uploading={false} />);
+    const input = screen.getByLabelText('Profile photo');
+    input.focus();
+    fireEvent.change(input, { target: { files: [] } });
+
+    rerender(<Harness uploading />);
+    const elsewhere = screen.getByRole('button', { name: 'Elsewhere' });
+    elsewhere.focus();
+    rerender(<Harness uploading={false} />);
+
+    expect(elsewhere).toHaveFocus();
   });
 
   it('puts the dropzone description inside the panel and still describes the input', () => {

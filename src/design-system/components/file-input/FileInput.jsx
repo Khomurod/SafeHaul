@@ -1,4 +1,4 @@
-import React, { forwardRef, useId } from 'react';
+import React, { forwardRef, useCallback, useEffect, useId, useRef } from 'react';
 import { Loader2, Upload } from 'lucide-react';
 import './FileInput.css';
 
@@ -96,6 +96,55 @@ export const FileInput = forwardRef(function FileInput({
   const inert = disabled || loading;
 
   /*
+   * `loading` disables the input, and disabling the element that currently has
+   * focus drops focus to `<body>` — so an upload started from the keyboard ended
+   * with the user at the top of the document once it finished. The two pickers
+   * this component replaced each had their own focus-return effect for exactly
+   * this; deleting them without putting the behaviour here is what a review of
+   * 2026-08-25 caught.
+   *
+   * It belongs in the primitive rather than at each call site: `loading` is this
+   * component's prop, so this is this component's consequence.
+   *
+   * The flag is set on `change`, which is the only moment the input is
+   * *certainly* focused — the change event comes from it. Restoring is then
+   * conditional on nothing meaningful holding focus: never steal it back from
+   * wherever the user moved while the upload was in flight.
+   */
+  const inputRef = useRef(null);
+  const restoreFocusOnIdle = useRef(false);
+
+  const mergeRef = useCallback((node) => {
+    inputRef.current = node;
+    if (typeof ref === 'function') ref(node);
+    else if (ref) ref.current = node;
+  }, [ref]);
+
+  const handleChange = useCallback((event) => {
+    restoreFocusOnIdle.current = true;
+    onChange?.(event);
+  }, [onChange]);
+
+  useEffect(() => {
+    if (loading || !restoreFocusOnIdle.current) return;
+    restoreFocusOnIdle.current = false;
+    const node = inputRef.current;
+    if (!node || node.disabled) return;
+    /*
+     * `<body>` is where a browser puts focus after disabling the focused
+     * element, but not every engine agrees: Safari can leave `activeElement`
+     * null transiently, and a test DOM may report the documentElement. Treating
+     * all three as "nothing focused" is what makes this a restore rather than a
+     * focus steal.
+     */
+    const active = document.activeElement;
+    const nothingFocused = !active
+      || active === document.body
+      || active === document.documentElement;
+    if (nothingFocused) node.focus();
+  }, [loading]);
+
+  /*
    * The dropzone puts the description INSIDE the panel, because that is where
    * the accepted types belong when the panel is the whole control. The button
    * variant puts it above, next to the field label, like every other field's
@@ -142,13 +191,13 @@ export const FileInput = forwardRef(function FileInput({
         )}
         <input
           {...props}
-          ref={ref}
+          ref={mergeRef}
           id={inputId}
           type="file"
           accept={accept}
           multiple={multiple}
           disabled={inert}
-          onChange={onChange}
+          onChange={handleChange}
           aria-labelledby={labelId}
           aria-describedby={describedBy}
           aria-busy={loading || undefined}

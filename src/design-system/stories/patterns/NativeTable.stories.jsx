@@ -127,6 +127,15 @@ const meta = {
           'technology may drop from the table altogether. `CompaniesView` and `UsersView` had',
           'it on the cell; `FeaturesView` had no role at all, so filtering the matrix down to',
           'nothing was silent. The `EmptyRow` story is the shape to copy.',
+          '',
+          '### A frozen first column',
+          '',
+          'One rule the contract has to state that `DataTable` never needed: **a `sticky`',
+          'cell gets its own background from the contract.** The row paints the surface, not',
+          'the cell, so a frozen column with a transparent background lets the other columns',
+          'text paint straight through it as they scroll under. Add `sticky left-0` (and a',
+          'stacking context) and the surface, the hover tint and the padding follow. The',
+          '`StickyFirstColumn` story is the one to scroll sideways.',
         ].join('\n'),
       },
     },
@@ -186,6 +195,47 @@ export const EmptyRow = {
           </tr>
         </tbody>
       </table>
+    </Card>
+  ),
+};
+
+/**
+ * A frozen first column, which is the case that needs the contract's sticky rule:
+ * the row paints the surface, not the cell, so a transparent `sticky` cell lets
+ * the scrolled columns paint through it. Scroll this one sideways.
+ */
+export const StickyFirstColumn = {
+  render: () => (
+    <Card padding="none">
+      <div className="overflow-x-auto">
+        <table className="ds-native-table min-w-[1100px]" data-density="compact" data-row-hover>
+          <caption className="ds-visually-hidden">Reference allocation matrix, wide</caption>
+          <thead>
+            <tr>
+              <th scope="col" className="sticky left-0 z-30">Reference</th>
+              {['Owner', 'Quota', 'Region', 'Contact', 'Renewal', 'Notes', 'Reviewer'].map((h) => (
+                <th key={h} scope="col">{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {ROWS.map((row) => (
+              <tr key={row.id}>
+                <th scope="row" className="sticky left-0 z-10 border-r border-ds-border-subtle">
+                  {row.reference}
+                </th>
+                <td>{row.owner}</td>
+                <td>{row.quota}</td>
+                <td>Northern</td>
+                <td>ops@example.test</td>
+                <td>2027-01-01</td>
+                <td>Renewed early, pending review</td>
+                <td>A. Reviewer</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </Card>
   ),
 };

@@ -45,6 +45,24 @@ Progress, retry, preview, size limits, and the upload itself stay with the
 feature. The public application's `UploadField` composes exactly this and owns
 all of that around it.
 
+## `loading` owns the focus it takes away
+
+`loading` disables the input, and disabling the element that currently has focus
+drops focus to `<body>`. An upload started from the keyboard therefore ended with
+the user at the top of the document once it finished — the picker they were on had
+been disabled underneath them.
+
+The two hand-built pickers this component replaced each had their own
+focus-return effect for exactly this, and deleting them without putting the
+behaviour here is a real regression a review caught on 2026-08-25. It lives in
+the component now, because `loading` is the component's prop and this is the
+component's consequence.
+
+It is a **restore**, not a grab: the flag is set on `change` — the one moment the
+input is certainly focused, since the event comes from it — and focus is only
+returned if nothing meaningful holds it when `loading` clears. A user who tabbed
+away during the upload keeps their place.
+
 ## Rules the tests pin
 
 - **`label` is required** and names what is being uploaded.
