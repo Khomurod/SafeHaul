@@ -1,5 +1,6 @@
-import React, { forwardRef, useCallback, useEffect, useId, useRef } from 'react';
+import React, { forwardRef, useCallback, useEffect, useId, useRef, useState } from 'react';
 import { Loader2, Upload } from 'lucide-react';
+import { resolveDroppedFiles } from './dropAcceptance';
 import './FileInput.css';
 
 /**
@@ -63,34 +64,6 @@ import './FileInput.css';
  */
 const VARIANTS = new Set(['button', 'dropzone']);
 
-/**
- * Does a file satisfy an `accept` attribute, the way the native picker would?
- *
- * `accept` is a comma-separated list of three shapes and all three appear in this
- * product: an extension (`.pdf`), a MIME type (`application/pdf`), and a wildcard
- * MIME (`image/*`). An empty or absent `accept` accepts everything, which is the
- * attribute's own meaning.
- *
- * Deliberately compares lower-cased: a file called `LOGO.PNG` is a PNG, and a
- * browser reporting `IMAGE/PNG` is reporting an image.
- */
-function matchesAccept(file, accept) {
-  const patterns = String(accept ?? '')
-    .split(',')
-    .map((pattern) => pattern.trim().toLowerCase())
-    .filter(Boolean);
-  if (patterns.length === 0) return true;
-
-  const type = String(file?.type ?? '').toLowerCase();
-  const name = String(file?.name ?? '').toLowerCase();
-
-  return patterns.some((pattern) => {
-    if (pattern.startsWith('.')) return name.endsWith(pattern);
-    if (pattern.endsWith('/*')) return type.startsWith(pattern.slice(0, -1));
-    return type === pattern;
-  });
-}
-
 export const FileInput = forwardRef(function FileInput({
   label,
   labelHidden = false,
@@ -119,16 +92,35 @@ export const FileInput = forwardRef(function FileInput({
   const inputId = id || `ds-file-input-${generatedId}`;
   const descriptionId = description ? `${inputId}-description` : undefined;
   /*
-   * A caller's `aria-describedby` is ADDED to ours, not replaced by it.
+   * What the last drop refused, or null.
    *
-   * This used to be `aria-describedby={descriptionId}` after a `{...props}`
-   * spread, so a caller passing its own help-text id had it silently dropped —
-   * found by migrating the profile-photo picker, whose "Accepts image files under
-   * 2 MB" message stopped being announced. Silently discarding an accessibility
+   * State rather than a prop: this is the component's own consequence, exactly
+   * as the focus restore below is. `accept` and `multiple` are its props, the
+   * drop handler is its handler, and no call site can see the files that were
+   * turned away — `onChange` only ever carries the ones that survived.
+   */
+  const [rejection, setRejection] = useState(null);
+
+  /*
+   * Three sources, one description.
+   *
+   * A caller's `aria-describedby` is ADDED to ours, not replaced by it. This
+   * used to be `aria-describedby={descriptionId}` after a `{...props}` spread,
+   * so a caller passing its own help-text id had it silently dropped — found by
+   * migrating the profile-photo picker, whose "Accepts image files under 2 MB"
+   * message stopped being announced. Silently discarding an accessibility
    * attribute a caller asked for is the worst kind of override, because
    * everything still looks right.
+   *
+   * The rejection joins them while it stands, matching `FormField`: an error is
+   * part of what describes the control, so someone who tabs to the picker
+   * afterwards hears why their file did not take. It leaves again the moment a
+   * new selection clears it, so the description never keeps a stale complaint.
    */
-  const describedBy = [descriptionId, callerDescribedBy].filter(Boolean).join(' ') || undefined;
+  const errorId = `${inputId}-error`;
+  const describedBy = [descriptionId, rejection ? errorId : null, callerDescribedBy]
+    .filter(Boolean)
+    .join(' ') || undefined;
 
   const labelId = `${inputId}-label`;
   // `loading` implies the picker cannot be used, exactly as it does on `Button`.
@@ -217,6 +209,13 @@ export const FileInput = forwardRef(function FileInput({
      */
     const node = inputRef.current;
     restoreFocusOnIdle.current = Boolean(node) && document.activeElement === node;
+    /*
+     * Any new selection retires the old rejection — the message described a drop
+     * the user has now replaced, and stale error text under a file that uploaded
+     * fine is worse than no text at all. `handleDrop` re-records its own message
+     * after dispatching, so a mixed drop keeps the one it just earned.
+     */
+    setRejection(null);
     onChange?.(event);
   }, [onChange]);
 
@@ -285,16 +284,33 @@ export const FileInput = forwardRef(function FileInput({
      * Found in review on 2026-08-25, one round after the drop handling itself was
      * added. Programmatic assignment inherits none of the picker's behaviour, and
      * `accept` was the piece of it that mattered.
+     *
+     * ## And then it has to SAY so (2026-08-26)
+     *
+     * Filtering silently is its own defect, and it shipped for a day: the file
+     * went nowhere, no message appeared, and the panel looked exactly as it had.
+     * A drop is a direct manipulation, so "nothing visibly happened" reads as
+     * "this control is broken" rather than "that file is not allowed here".
+     *
+     * `resolveDroppedFiles` decides both halves together, because they are one
+     * decision — what survives, and what the user has to be told. The accepted
+     * files go down the existing path untouched; the message is state, below.
      */
-    const allowed = dropped.filter((file) => matchesAccept(file, accept));
-    if (allowed.length === 0) return;
+    const { accepted, message } = resolveDroppedFiles({ files: dropped, accept, multiple });
 
-    const transfer = new DataTransfer();
-    // A single-file field takes the first ACCEPTED file, which is what the native
-    // picker does when `multiple` is absent.
-    for (const file of multiple ? allowed : allowed.slice(0, 1)) transfer.items.add(file);
-    node.files = transfer.files;
-    node.dispatchEvent(new Event('change', { bubbles: true }));
+    if (accepted.length > 0) {
+      const transfer = new DataTransfer();
+      for (const file of accepted) transfer.items.add(file);
+      node.files = transfer.files;
+      /*
+       * Dispatched BEFORE the message is recorded, and that order is load-bearing:
+       * `handleChange` clears any standing rejection, so a mixed drop that
+       * cleared it afterwards would swallow the very message it just earned.
+       * Both calls land in one React batch, so the message wins.
+       */
+      node.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    setRejection(message);
   }, [accept, inert, loading, multiple]);
 
   useEffect(() => {
@@ -375,9 +391,40 @@ export const FileInput = forwardRef(function FileInput({
           aria-labelledby={labelId}
           aria-describedby={describedBy}
           aria-busy={loading || undefined}
+          aria-invalid={rejection ? true : undefined}
           className="ds-file-input__native"
         />
       </label>
+      {/*
+        What the last drop refused.
+
+        - **`role="alert"`, not `role="status"`.** The system's rule, and the
+          right one here: `FormControls`' `FieldMessage` renders an error as an
+          alert and everything else politely. A rejection is the direct answer to
+          something the user just did, and there is nothing else competing to be
+          heard — waiting politely for a gap would be waiting for nothing. The
+          upload region above stays polite for the opposite reason: an upload
+          starting is information, not a correction.
+        - **Mounted only while there is something to say**, which is the
+          opposite of the status region above and deliberate. `role="alert"` is
+          defined to announce on insertion — that is what separates it from a
+          bare `aria-live` region, which does need to exist first — and it is
+          what every other error in this system does (`FieldMessage`,
+          `ConfirmDialog`, `DataTable`). The alternative, an always-mounted span
+          hidden by `:empty`, was written first and measured wrong: `display:
+          none` takes the element out of the accessibility tree altogether, so
+          the idle region a screen reader was supposed to be watching is not
+          there to watch. A live region that is not in the tree announces
+          nothing.
+        - **Visible as well as announced.** WCAG 3.3.1 wants the error in text,
+          and the sighted user who dropped a PDF on an image field needs to know
+          it went nowhere just as much.
+      */}
+      {rejection && (
+        <span className="ds-file-input__error" id={errorId} role="alert">
+          {rejection}
+        </span>
+      )}
       {/*
         The upload announces itself.
 

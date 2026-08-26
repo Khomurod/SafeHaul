@@ -1188,18 +1188,39 @@ rule has to decide.
   `=>`, so any control whose `className` followed an arrow-function attribute — the
   common React ordering — was invisible to it. 49 hand-styled controls existed
   where it reported 12. The larger number is the honest one.
-- `[ ]` **A dropped file the `accept` list refuses is rejected silently.**
-  `FileInput.handleDrop` filters dropped files by `accept` (2026-08-25, after a
-  PDF dropped on the company-logo control was saved as the logo) and returns
-  without telling anyone when nothing survives the filter — no message, no
-  announcement, and the panel looks exactly as it did. The native picker never
-  had this problem because its own dialog will not offer a file it cannot accept.
-  Found on 2026-08-26 while giving `loading` a live region, and **deliberately not
-  attempted in that change**: the region now exists to carry such a message, but
-  choosing the copy, deciding whether a rejection is polite or assertive, and
-  agreeing whether a mixed drop that keeps one file of three should say so are a
-  separate decision with its own tests. Recorded here rather than left as a
-  surprise for whoever drops the wrong file next.
+- `[x]` **A dropped file the `accept` list refuses is rejected silently.**
+  **Closed 2026-08-26.** `FileInput.handleDrop` filtered dropped files by
+  `accept` (2026-08-25, after a PDF dropped on the company-logo control was saved
+  as the logo) and returned without telling anyone — no message, no announcement,
+  and the panel looked exactly as it did. The native picker never had this
+  problem because its own dialog will not offer a file it cannot accept.
+
+  The three questions this item was holding open were answered as follows.
+
+  - **Polite or assertive: assertive.** `FormControls`' `FieldMessage` renders an
+    error as `role="alert"` and everything else politely, and this system has one
+    rule for errors. A rejection is the direct answer to something the user just
+    did, with nothing competing to be heard. The `loading` region stays polite,
+    because an upload starting is information rather than a correction.
+  - **A mixed drop says so.** `resolveDroppedFiles` names what was refused and,
+    on a single-file field, says that only the first was taken — the other way a
+    drop could quietly swallow a file, and one the picker never had either.
+  - **The copy** names files while there are three or fewer and counts them after
+    that, because a screen reader reading nine filenames is worse than being told
+    there were nine.
+
+  Two things were measured rather than assumed. `role="alert"` is mounted only
+  while it has something to say: the always-mounted-and-hidden shape was written
+  first, and `display: none` takes a live region out of the accessibility tree
+  altogether, so the region a screen reader was meant to be watching is not there
+  to watch. And the message is recorded *after* the accepted files dispatch their
+  `change`, because that handler clears any standing rejection — the other order
+  let a mixed drop erase the message it had just earned.
+
+  The rules live in `dropAcceptance.js` (`matchesAccept`, `resolveDroppedFiles`),
+  pure and directly tested: 22 assertions for `accept`'s three syntaxes, case
+  folding, mixed drops and every message shape, plus 16 in `FileInput.test.jsx`
+  for the wiring, the aria contract, clearing and the accessibility check.
 
 ---
 

@@ -483,6 +483,187 @@ describe('FileInput shapes', () => {
  *
  * So the region is back, once, in the primitive whose prop `loading` is.
  */
+/**
+ * A drop the `accept` list refuses used to end in silence — the file went
+ * nowhere, no message appeared, and the panel looked exactly as it had. Recorded
+ * on the roadmap on 2026-08-26 and fixed here.
+ */
+describe('FileInput rejected-drop feedback', () => {
+  const dropOn = (label, ...files) => {
+    const transfer = new DataTransfer();
+    for (const file of files) transfer.items.add(file);
+    fireEvent.drop(label, { dataTransfer: transfer });
+  };
+  const labelOf = () => document.querySelector('input[type="file"]').closest('label');
+  const inputOf = () => document.querySelector('input[type="file"]');
+  const pdf = (name = 'scan.pdf') => new File(['%PDF'], name, { type: 'application/pdf' });
+  const png = (name = 'logo.png') => new File(['png'], name, { type: 'image/png' });
+
+  it('says out loud that the file was refused', () => {
+    render(<FileInput label="Company logo" accept="image/*" onChange={vi.fn()} />);
+    dropOn(labelOf(), pdf());
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'scan.pdf was not added. It is not an accepted file type.',
+    );
+  });
+
+  it('shows the message visibly, not only to a screen reader', () => {
+    // The sighted user who dropped a PDF on an image field needs to know it went
+    // nowhere just as much — WCAG 3.3.1 wants the error identified in text.
+    render(<FileInput label="Company logo" accept="image/*" onChange={vi.fn()} />);
+    dropOn(labelOf(), pdf());
+
+    const alert = screen.getByRole('alert');
+    expect(alert).not.toHaveClass('ds-visually-hidden');
+    expect(alert).toHaveClass('ds-file-input__error');
+  });
+
+  it('is assertive, matching the system\'s rule for an error', () => {
+    // `FieldMessage` renders an error as role="alert" and everything else
+    // politely. A rejection answers something the user just did.
+    render(<FileInput label="Company logo" accept="image/*" onChange={vi.fn()} />);
+    expect(screen.queryByRole('alert')).toBeNull();
+
+    dropOn(labelOf(), pdf());
+
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveAttribute('role', 'alert');
+    expect(alert).not.toHaveAttribute('aria-live', 'polite');
+  });
+
+  it('still refuses to hand the file to the consumer', () => {
+    const onChange = vi.fn();
+    render(<FileInput label="Company logo" accept="image/*" onChange={onChange} />);
+    dropOn(labelOf(), pdf());
+
+    expect(onChange).not.toHaveBeenCalled();
+    expect(inputOf().files).toHaveLength(0);
+  });
+
+  it('marks the control invalid and describes it while the message stands', () => {
+    render(<FileInput label="Company logo" accept="image/*" onChange={vi.fn()} />);
+    const input = inputOf();
+    expect(input).not.toHaveAttribute('aria-invalid');
+
+    dropOn(labelOf(), pdf());
+
+    expect(input).toHaveAttribute('aria-invalid', 'true');
+    expect(input.getAttribute('aria-describedby'))
+      .toContain(screen.getByRole('alert').id);
+  });
+
+  it('keeps a caller description and adds the rejection to it', () => {
+    render(
+      <FileInput
+        label="Company logo"
+        accept="image/*"
+        description="PNG or JPG, under 2 MB"
+        onChange={vi.fn()}
+      />,
+    );
+    dropOn(labelOf(), pdf());
+
+    expect(inputOf()).toHaveAccessibleDescription(
+      /PNG or JPG, under 2 MB.*was not added/s,
+    );
+  });
+
+  describe('a mixed drop', () => {
+    it('takes the accepted files and reports the refused one', () => {
+      const onChange = vi.fn();
+      render(<FileInput label="Attachments" accept="image/*" multiple onChange={onChange} />);
+      dropOn(labelOf(), png('logo.png'), pdf('resume.pdf'));
+
+      expect(Array.from(onChange.mock.calls[0][0].target.files).map((f) => f.name))
+        .toEqual(['logo.png']);
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        'resume.pdf was not added. It is not an accepted file type.',
+      );
+    });
+
+    it('does not let the accepted file erase the message it earned', () => {
+      // `handleChange` clears the standing rejection, and the drop dispatches
+      // that change. If the message were recorded first it would be wiped by its
+      // own accepted files.
+      render(<FileInput label="Attachments" accept="image/*" multiple onChange={vi.fn()} />);
+      dropOn(labelOf(), png(), pdf());
+
+      expect(screen.getByRole('alert')).toHaveTextContent('was not added');
+    });
+
+    it('tells a single-file field\'s user that only one file was taken', () => {
+      render(<FileInput label="Company logo" accept="image/*" onChange={vi.fn()} />);
+      dropOn(labelOf(), png('one.png'), png('two.png'));
+
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        'This field takes one file, so only one.png was added.',
+      );
+    });
+  });
+
+  describe('clearing', () => {
+    it('clears when a later drop is accepted in full', () => {
+      render(<FileInput label="Company logo" accept="image/*" onChange={vi.fn()} />);
+      dropOn(labelOf(), pdf());
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+
+      dropOn(labelOf(), png());
+
+      expect(screen.queryByRole('alert')).toBeNull();
+      expect(inputOf()).not.toHaveAttribute('aria-invalid');
+    });
+
+    it('clears when the native picker is used instead', () => {
+      render(<FileInput label="Company logo" accept="image/*" onChange={vi.fn()} />);
+      dropOn(labelOf(), pdf());
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+
+      fireEvent.change(inputOf(), { target: { files: [png()] } });
+
+      expect(screen.queryByRole('alert')).toBeNull();
+    });
+
+    it('does not leave the description quoting a message that is gone', () => {
+      render(
+        <FileInput
+          label="Company logo"
+          accept="image/*"
+          description="PNG or JPG"
+          onChange={vi.fn()}
+        />,
+      );
+      dropOn(labelOf(), pdf());
+      dropOn(labelOf(), png());
+
+      expect(inputOf()).toHaveAccessibleDescription('PNG or JPG');
+    });
+  });
+
+  it('stays silent for a drop on a disabled control, which accepts nothing anyway', () => {
+    render(<FileInput label="Company logo" accept="image/*" disabled onChange={vi.fn()} />);
+    dropOn(labelOf(), pdf());
+
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('does not announce a rejection for a drop of files it can all take', () => {
+    render(<FileInput label="Attachments" accept="image/*" multiple onChange={vi.fn()} />);
+    dropOn(labelOf(), png('a.png'), png('b.png'));
+
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('has no accessibility violations while showing a rejection', async () => {
+    const { container } = render(
+      <FileInput label="Company logo" accept="image/*" variant="dropzone" onChange={vi.fn()} />,
+    );
+    dropOn(labelOf(), pdf());
+
+    expect((await axe(container)).violations).toEqual([]);
+  });
+});
+
 describe('FileInput upload announcement', () => {
   it('announces the upload in a polite live region', () => {
     const Harness = ({ uploading }) => (
