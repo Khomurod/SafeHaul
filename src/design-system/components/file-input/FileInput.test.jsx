@@ -155,6 +155,109 @@ describe('FileInput shapes', () => {
     expect(elsewhere).toHaveFocus();
   });
 
+  /*
+   * The drag-and-drop half of that restore, and the defect it shipped with.
+   *
+   * `handleDrop` delivers a dropped file by assigning it to the input and
+   * dispatching `change` from it — deliberately, so every call site keeps
+   * reading `event.target.files`. The first version of the focus flag was armed
+   * by *any* change, on the reasoning that a change event proves the input is
+   * focused. It does not prove it for that dispatch: a drop moves no focus.
+   *
+   * Measured in Chromium rather than assumed: after a drop on the panel
+   * `document.activeElement` is still `<body>`, and disabling a focused input
+   * also leaves it on `<body>` — so the "nothing is focused" guard below cannot
+   * tell a mouse user who never focused anything from a keyboard user whose
+   * focus was just taken away. A drag-and-drop upload therefore ended with focus
+   * inside a 1x1 clipped file input the user had never touched.
+   *
+   * These three tests pin the rule that replaced it: focus goes back to where
+   * the user actually was, which is a question about focus and not about which
+   * path delivered the file.
+   */
+  it('does not move focus into the hidden input after a drag-and-drop upload', () => {
+    const Harness = ({ uploading }) => (
+      <FileInput
+        label="Company logo"
+        variant="dropzone"
+        accept="image/*"
+        loading={uploading}
+        onChange={vi.fn()}
+      />
+    );
+    const { rerender } = render(<Harness uploading={false} />);
+    const input = screen.getByLabelText('Company logo');
+
+    // A file dragged from the desktop, by a user who has focused nothing.
+    expect(document.body).toHaveFocus();
+    const transfer = new DataTransfer();
+    transfer.items.add(new File(['png'], 'logo.png', { type: 'image/png' }));
+    fireEvent.drop(input.closest('label'), { dataTransfer: transfer });
+
+    // The parent uploads it and finishes.
+    rerender(<Harness uploading />);
+    rerender(<Harness uploading={false} />);
+
+    expect(input).not.toHaveFocus();
+    expect(document.body).toHaveFocus();
+  });
+
+  it('restores focus after a drop when the input is what the user was on', () => {
+    // Not a special case for drops: the same question, with the other answer. A
+    // keyboard user sitting on the picker who drags a file in still had focus
+    // here, so giving it back is a return rather than a jump.
+    const Harness = ({ uploading }) => (
+      <FileInput
+        label="Company logo"
+        variant="dropzone"
+        accept="image/*"
+        loading={uploading}
+        onChange={vi.fn()}
+      />
+    );
+    const { rerender } = render(<Harness uploading={false} />);
+    const input = screen.getByLabelText('Company logo');
+    input.focus();
+
+    const transfer = new DataTransfer();
+    transfer.items.add(new File(['png'], 'logo.png', { type: 'image/png' }));
+    fireEvent.drop(input.closest('label'), { dataTransfer: transfer });
+
+    rerender(<Harness uploading />);
+    // The browser's own consequence of disabling the focused element.
+    document.body.focus();
+    rerender(<Harness uploading={false} />);
+
+    expect(input).toHaveFocus();
+  });
+
+  it('does not arm a restore from a change the input was not focused for', () => {
+    // The arming rule itself, isolated from the guard below it: at the moment
+    // the file arrives the user is on another control, so nothing is armed —
+    // and the fact that they are nowhere by the time the upload ends must not
+    // pull focus into a hidden input.
+    function Harness({ uploading }) {
+      return (
+        <>
+          <FileInput label="Profile photo" loading={uploading} onChange={vi.fn()} />
+          <button type="button">Elsewhere</button>
+        </>
+      );
+    }
+    const { rerender } = render(<Harness uploading={false} />);
+    const input = screen.getByLabelText('Profile photo');
+    screen.getByRole('button', { name: 'Elsewhere' }).focus();
+
+    fireEvent.change(input, { target: { files: [] } });
+
+    rerender(<Harness uploading />);
+    document.body.focus();
+    rerender(<Harness uploading={false} />);
+
+    expect(input).not.toHaveFocus();
+    expect(document.body).toHaveFocus();
+  });
+
   it('puts the dropzone description inside the panel and still describes the input', () => {
     const { container } = render(
       <FileInput
@@ -362,5 +465,136 @@ describe('FileInput shapes', () => {
     dropzone.unmount();
     const busy = render(<FileInput label="Company logo" loading onChange={vi.fn()} />);
     expect((await axe(busy.container)).violations).toEqual([]);
+  });
+});
+
+/**
+ * The upload has to say it is happening.
+ *
+ * Both pickers this component replaced carried a `<p role="status">` region
+ * reading "Uploading company logo…", and the 2026-08-25 migration deleted them
+ * on the reasoning that `aria-busy` on the input plus the button text now carried
+ * the state. Neither of those is announced: `aria-busy` sits on an input that
+ * `loading` has just disabled and taken focus from, and the button text is
+ * ordinary content in a `<label>`, not a live region. A review on 2026-08-26
+ * caught it — the upload had gone silent for a screen-reader user, and the two
+ * feature tests that had proven otherwise were rewritten to assert the
+ * replacement rather than the behaviour.
+ *
+ * So the region is back, once, in the primitive whose prop `loading` is.
+ */
+describe('FileInput upload announcement', () => {
+  it('announces the upload in a polite live region', () => {
+    const Harness = ({ uploading }) => (
+      <FileInput label="Company logo" loading={uploading} onChange={vi.fn()} />
+    );
+    const { container, rerender } = render(<Harness uploading={false} />);
+
+    // Present and EMPTY before the upload starts. A live region has to be in the
+    // document before its text changes for the change to be announced, so the
+    // span is unconditional and only its contents move.
+    const status = container.querySelector('[role="status"]');
+    expect(status).not.toBeNull();
+    expect(status).toBeEmptyDOMElement();
+    expect(status).toHaveAttribute('aria-live', 'polite');
+    expect(status.className).toContain('ds-visually-hidden');
+
+    rerender(<Harness uploading />);
+    expect(status).toHaveTextContent('Uploading Company logo…');
+    // The same element, not a remounted one — a region that is replaced while it
+    // fills is a region that may never be announced.
+    expect(container.querySelector('[role="status"]')).toBe(status);
+  });
+
+  it('empties the region when the upload ends rather than claiming it worked', () => {
+    // This component knows an upload *started*; `loading` is all it is told. It
+    // never learns whether the request succeeded, so "Upload complete" here
+    // would eventually announce success over a failure. The feature that owns
+    // the request owns the outcome.
+    const Harness = ({ uploading }) => (
+      <FileInput label="Company logo" loading={uploading} onChange={vi.fn()} />
+    );
+    const { container, rerender } = render(<Harness uploading />);
+    const status = container.querySelector('[role="status"]');
+    expect(status).toHaveTextContent('Uploading Company logo…');
+
+    rerender(<Harness uploading={false} />);
+    expect(status).toBeEmptyDOMElement();
+  });
+
+  it('names the field being uploaded, and takes an override', () => {
+    // Two busy pickers on one screen have to be distinguishable, which a bare
+    // "Uploading…" is not.
+    const { unmount } = render(
+      <FileInput label="Recipient list" loading onChange={vi.fn()} />,
+    );
+    expect(screen.getByRole('status')).toHaveTextContent('Uploading Recipient list…');
+    unmount();
+
+    render(
+      <FileInput
+        label="Recipient list"
+        loading
+        loadingStatus="Importing the recipient list…"
+        onChange={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole('status')).toHaveTextContent('Importing the recipient list…');
+  });
+
+  it('falls back to the default rather than letting a blank override silence it', () => {
+    // `loadingStatus=""` is not a supported way to turn the announcement off:
+    // an upload that says nothing is the defect this region exists to fix.
+    render(<FileInput label="Recipient list" loading loadingStatus="   " onChange={vi.fn()} />);
+    expect(screen.getByRole('status')).toHaveTextContent('Uploading Recipient list…');
+  });
+
+  /*
+   * The name and the description are a contract, and the region must not join
+   * either of them. A field whose accessible name grows "Uploading…" mid-upload
+   * is a field that has been renamed underneath the user; one whose description
+   * does is a field whose accepted types have been overwritten by a progress
+   * message. The region is read because it is live, not because it names
+   * anything, which is why it is referenced by neither attribute and sits
+   * outside the `<label>`.
+   */
+  it('leaves the accessible name and description untouched while uploading', () => {
+    const Harness = ({ uploading }) => (
+      <FileInput
+        label="Company logo"
+        description="PNG, JPG or SVG."
+        aria-describedby="logo-help"
+        loading={uploading}
+        onChange={vi.fn()}
+      />
+    );
+    const { container, rerender } = render(
+      <>
+        <Harness uploading={false} />
+        <p id="logo-help">Replaces the current logo.</p>
+      </>,
+    );
+    const input = screen.getByLabelText('Company logo');
+    expect(input).toHaveAccessibleName('Company logo');
+    expect(input).toHaveAccessibleDescription('PNG, JPG or SVG. Replaces the current logo.');
+
+    rerender(
+      <>
+        <Harness uploading />
+        <p id="logo-help">Replaces the current logo.</p>
+      </>,
+    );
+    expect(container.querySelector('[role="status"]')).toHaveTextContent('Uploading Company logo…');
+    expect(input).toHaveAccessibleName('Company logo');
+    expect(input).toHaveAccessibleDescription('PNG, JPG or SVG. Replaces the current logo.');
+    // Outside the `<label>`, so the visible control cannot absorb it either.
+    expect(input.closest('label').querySelector('[role="status"]')).toBeNull();
+  });
+
+  it('has no accessibility violations with the region filled', async () => {
+    const { container } = render(
+      <FileInput label="Company logo" description="PNG, JPG or SVG." loading onChange={vi.fn()} />,
+    );
+    expect((await axe(container)).violations).toEqual([]);
   });
 });

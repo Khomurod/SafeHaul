@@ -129,6 +129,26 @@ The reverse directions are prohibited and enforced by
   `LoadingState` from `@design-system/patterns`, which choose for you. A polite
   error is silent until the user happens to navigate to it; an assertive empty
   state interrupts them to say there is nothing.
+- **A busy control is a state too, and `aria-busy` is not an announcement.**
+  Nothing reads `aria-busy` off a control that `loading` has just disabled and
+  taken focus from, and a button label that changed from "Upload logo" to
+  "Uploading…" is ordinary content, not a live region. The primitive that owns
+  the `loading` prop owns the region that goes with it — `FileInput` renders one
+  polite `role="status"`, always present and empty when idle, because a live
+  region has to exist before it fills for the fill to be announced. Recorded
+  2026-08-26: the `FileInput` migration deleted the two regions the avatar and
+  logo pickers had and put `aria-busy` plus a label change in their place, and
+  the feature tests were rewritten to assert the replacement — so both screens
+  went silent with their tests green.
+- **Restoring focus is a claim about where focus was.** A component that disables
+  itself may put focus back where the disabling took it from, and it must decide
+  by asking what was focused — never by which event delivered the data.
+  `FileInput` armed its restore on any `change`, and its own drop handler
+  dispatches one from the input, so a dragged-and-dropped upload ended with focus
+  inside a clipped 1×1 file input the user had never touched (2026-08-26).
+  `document.activeElement === theControl` at the moment the data arrives is the
+  whole question; `<body>` afterwards means "there is nothing to steal from", and
+  never "this focus was mine".
 - **A link navigates; a button acts.** Use `Link` / `ButtonLink` /
   `IconButtonLink`, never a styled `<a>` and never a `<button>` dressed as a
   link. Pass `external` instead of hand-writing `target="_blank"`, so the new
@@ -1168,6 +1188,18 @@ rule has to decide.
   `=>`, so any control whose `className` followed an arrow-function attribute — the
   common React ordering — was invisible to it. 49 hand-styled controls existed
   where it reported 12. The larger number is the honest one.
+- `[ ]` **A dropped file the `accept` list refuses is rejected silently.**
+  `FileInput.handleDrop` filters dropped files by `accept` (2026-08-25, after a
+  PDF dropped on the company-logo control was saved as the logo) and returns
+  without telling anyone when nothing survives the filter — no message, no
+  announcement, and the panel looks exactly as it did. The native picker never
+  had this problem because its own dialog will not offer a file it cannot accept.
+  Found on 2026-08-26 while giving `loading` a live region, and **deliberately not
+  attempted in that change**: the region now exists to carry such a message, but
+  choosing the copy, deciding whether a rejection is polite or assertive, and
+  agreeing whether a mixed drop that keeps one file of three should say so are a
+  separate decision with its own tests. Recorded here rather than left as a
+  surprise for whoever drops the wrong file next.
 
 ---
 

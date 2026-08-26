@@ -40,7 +40,7 @@ const meta = {
           '| --- | --- |',
           '| default | A picker beside other controls. A settings field, a per-row upload |',
           '| `variant="dropzone"` | The full-width dashed panel four uploads use. As a `<label>` the whole panel is the click target, and `onDrop` accepts a file dropped anywhere on it — a label forwards a click to its control but never a drop, so the handler is what makes the dashed border honest |',
-          '| `loading` | An upload in flight. Spins, says so with `aria-busy`, and refuses a second file — which is why the two avatar pickers used `Button loading` plus a hidden input before this existed |',
+          '| `loading` | An upload in flight. Spins, sets `aria-busy`, announces itself in a polite live region, and refuses a second file — which is why the two avatar pickers used `Button loading` plus a hidden input before this existed |',
           '| `labelHidden` | A picker whose field is already named on screen, such as a photo preview beside it. Same prop, same meaning, as `Checkbox` |',
           '',
           'Four days after this component shipped it had two consumers and nine raw',
@@ -62,6 +62,24 @@ const meta = {
           '  rejection afterwards.',
           '- The focus ring is drawn on the label through `:focus-within`, because the input',
           '  itself is clipped.',
+          '- `loading` **announces itself**. A polite `role="status"` region, visually hidden,',
+          '  always in the document and empty when idle — a live region has to exist before it',
+          '  fills for the fill to be announced. It says `Uploading <label>…` so that two busy',
+          '  pickers on one screen are distinguishable; pass `loadingStatus` for a field whose',
+          '  label does not read well in that sentence. `aria-busy` alone was not enough and',
+          '  was never a substitute: it sits on an input `loading` has just disabled and taken',
+          '  focus from, and a `buttonLabel` that changes to "Uploading…" is ordinary content.',
+          '  The region is referenced by neither `aria-labelledby` nor `aria-describedby` — a',
+          '  field must not be renamed, or have its accepted types overwritten, mid-upload —',
+          '  and it empties when `loading` ends rather than claiming success this component',
+          '  cannot know about.',
+          '- **Focus goes back only where it was.** `loading` disables the input, and disabling',
+          '  the focused element drops focus to `<body>`, so an upload started from the',
+          '  keyboard gets focus returned when it settles. The restore is armed only if this',
+          '  input was `document.activeElement` when the file arrived: dropping a file moves no',
+          '  focus, so a drag-and-drop upload must not — and no longer does — end with focus in',
+          '  a clipped 1x1 input. Nothing is taken back from a control the user moved to while',
+          '  the upload ran.',
         ].join('\n'),
       },
     },
@@ -146,7 +164,11 @@ export const Dropzone = {
   ),
 };
 
-/** `loading` — an upload in flight. It says so, and refuses a second file. */
+/**
+ * `loading` — an upload in flight. It says so twice: visibly, with the spinner and
+ * the label, and to a screen reader, in a polite live region that is hidden here
+ * but present in the DOM of both pickers below.
+ */
 export const Loading = {
   render: () => (
     <Card>

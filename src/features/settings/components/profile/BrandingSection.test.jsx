@@ -88,21 +88,31 @@ describe('BrandingSection', () => {
     });
 
     /*
-     * `aria-busy` plus the label text replace the `role="status"` region. The
-     * focus-restoring effect went too: it existed because the trigger was a
-     * `Button` that briefly disabled and dropped focus, and the same label element
-     * now stays mounted throughout.
+     * The upload is disabled, busy, AND announced.
+     *
+     * This test used to assert that `aria-busy` plus the button text had replaced
+     * this component's own `role="status"` region. Neither of those is announced,
+     * so what it really asserted was that the announcement had gone — the
+     * migration's markup, not the screen's behaviour. Found in review on
+     * 2026-08-26. The region is `FileInput`'s now; the behaviour is still this
+     * screen's, so this is where it is checked.
      */
-    it('says it is busy and refuses a second file while an upload is in flight', () => {
+    it('says it is busy, announces the upload, and refuses a second file', () => {
         const { container } = setup({ companyLogoUrl: LOGO_URL, isEditing: true, logoUploading: true });
 
         const input = container.querySelector('input[type="file"]');
         expect(container.querySelector('.ds-file-input__button-label')).toHaveTextContent('Uploading…');
         expect(input).toBeDisabled();
         expect(input).toHaveAttribute('aria-busy', 'true');
+        expect(screen.getByRole('status')).toHaveTextContent('Uploading Company logo…');
     });
 
-    it('keeps focus on the control across an upload, rather than restoring it', () => {
+    it('says nothing in the status region while no upload is running', () => {
+        const { container } = setup({ companyLogoUrl: LOGO_URL, isEditing: true });
+        expect(container.querySelector('[role="status"]')).toBeEmptyDOMElement();
+    });
+
+    it('keeps the same control element mounted across an upload', () => {
         const onLogoUpload = vi.fn();
         const { container, rerender } = render(
             <BrandingSection companyLogoUrl={LOGO_URL} isEditing logoUploading={false} onLogoUpload={onLogoUpload} />,
@@ -115,7 +125,10 @@ describe('BrandingSection', () => {
             <BrandingSection companyLogoUrl={LOGO_URL} isEditing logoUploading={false} onLogoUpload={onLogoUpload} />,
         );
 
-        // Same element throughout: nothing was unmounted, so nothing lost focus.
+        // Same element throughout: the picker is not swapped for a disabled
+        // button any more, so an upload does not tear the control down. Whether
+        // focus comes back when `loading` disables it is `FileInput`'s contract,
+        // asserted in its own suite.
         expect(container.querySelector('input[type="file"]')).toBe(before);
         expect(before).not.toBeDisabled();
     });

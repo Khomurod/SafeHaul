@@ -15,8 +15,11 @@ import { FieldMessage, FileInput } from '@/design-system/components';
  * calling `.click()` on it, under a comment saying the design system had no
  * file-input primitive — untrue from 2026-08-21. Same change, and the same
  * reasoning, as `ProfileAvatarField`: the accessible name belongs on the field
- * rather than on the trigger, and `aria-busy` plus the label text replace the
- * `role="status"` region and the focus-restoring effect.
+ * rather than on the trigger, and the `role="status"` region and the
+ * focus-restoring effect this component used to own now live in `FileInput`,
+ * beside the `loading` prop that causes both. The migration first replaced them
+ * with `aria-busy` and the button text, which announce nothing; a review on
+ * 2026-08-26 caught that and put the region back in the primitive.
  */
 export function BrandingSection({
     companyLogoUrl,

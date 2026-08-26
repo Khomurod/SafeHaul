@@ -218,6 +218,43 @@ test.describe('@a11y migrated design-system surfaces', () => {
         await expect(picker).toHaveAccessibleName('Profile photo');
         await picker.focus();
         await expect(picker).toBeFocused();
+
+        /*
+         * The upload's live region, in a real browser, on a real screen.
+         *
+         * This picker owned a `role="status"` region before the migration and
+         * lost it — `aria-busy` on an input the upload disables and unfocuses
+         * announces nothing, and neither does a button label changing to
+         * "Uploading…". `FileInput` renders the region for every picker now, and
+         * two things about it can only be checked here: that it is present and
+         * EMPTY while idle (a live region has to exist before it fills for the
+         * fill to be announced), and that `ds-visually-hidden` really clips it,
+         * so the message is announced without ever being drawn. jsdom computes
+         * no layout and cannot see the second one.
+         */
+        const status = page.locator('.ds-file-input [role="status"]');
+        await expect(status).toHaveCount(1);
+        await expect(status).toHaveText('');
+        const clipped = await status.evaluate((el) => {
+            const box = el.getBoundingClientRect();
+            const style = getComputedStyle(el);
+            return {
+                width: Math.round(box.width),
+                height: Math.round(box.height),
+                display: style.display,
+                visibility: style.visibility,
+                live: el.getAttribute('aria-live'),
+            };
+        });
+        // Clipped to 1x1, never `display: none` or `visibility: hidden`, both of
+        // which would take it out of the accessibility tree with the
+        // announcement. Asserted as the intent rather than as one exact
+        // `display` value, which is a detail of how the utility clips.
+        expect(clipped.width).toBe(1);
+        expect(clipped.height).toBe(1);
+        expect(clipped.display).not.toBe('none');
+        expect(clipped.visibility).toBe('visible');
+        expect(clipped.live).toBe('polite');
     });
 
     test('the change-review decision group announces its selection', async ({ page }) => {

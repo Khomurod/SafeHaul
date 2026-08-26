@@ -49,6 +49,17 @@ import './FileInput.css';
  * - `labelHidden` is for a picker whose field is already named on screen — a
  *   photo preview beside it — matching `Checkbox`'s prop of the same name. The
  *   name stays in the accessibility tree either way.
+ *
+ * ## `loading` says so out loud, too (2026-08-26)
+ *
+ * Both pickers this replaced also carried a `<p role="status">` region reading
+ * "Uploading company logo…", and the migration dropped it on the reasoning that
+ * `aria-busy` plus the button text now carried the state. Neither is announced:
+ * `aria-busy` is on an input that `loading` has just disabled and taken focus
+ * from, and the button text is ordinary content, not a live region. The upload
+ * went silent for a screen-reader user. Restored here rather than at each call
+ * site — one region per picker, in the component whose prop `loading` is. See
+ * `loadingStatus`.
  */
 const VARIANTS = new Set(['button', 'dropzone']);
 
@@ -88,6 +99,7 @@ export const FileInput = forwardRef(function FileInput({
   multiple = false,
   disabled = false,
   loading = false,
+  loadingStatus,
   variant = 'button',
   onChange,
   id,
@@ -126,6 +138,27 @@ export const FileInput = forwardRef(function FileInput({
   const inert = disabled || loading;
 
   /*
+   * What the live region says while `loading` is true.
+   *
+   * Defaults to the field it names, so a screen on which two pickers are busy
+   * says which one — "Uploading Company logo…", not a bare "Uploading…" twice.
+   * Named `loadingStatus` and not `loadingLabel` (which is what `DataTable`
+   * calls its equivalent) because both of this component's label props are
+   * *visible* copy — `label` and `buttonLabel` — and this is the one string that
+   * is never seen. A call site whose field label does not read well in that
+   * sentence passes its own.
+   *
+   * A blank or non-string override falls back to the default rather than being
+   * honoured. An upload that says nothing is the defect this region exists to
+   * fix, so `loadingStatus=""` must not be a quiet way back to it — a consumer
+   * that wants to announce the upload itself instead needs a prop that does not
+   * exist yet, and adding one would be a deliberate decision.
+   */
+  const statusMessage = typeof loadingStatus === 'string' && loadingStatus.trim() !== ''
+    ? loadingStatus
+    : `Uploading ${label}…`;
+
+  /*
    * `loading` disables the input, and disabling the element that currently has
    * focus drops focus to `<body>` — so an upload started from the keyboard ended
    * with the user at the top of the document once it finished. The two pickers
@@ -136,10 +169,36 @@ export const FileInput = forwardRef(function FileInput({
    * It belongs in the primitive rather than at each call site: `loading` is this
    * component's prop, so this is this component's consequence.
    *
-   * The flag is set on `change`, which is the only moment the input is
-   * *certainly* focused — the change event comes from it. Restoring is then
-   * conditional on nothing meaningful holding focus: never steal it back from
-   * wherever the user moved while the upload was in flight.
+   * ## Focus goes back only if it was HERE to begin with (2026-08-26)
+   *
+   * The first version armed the flag on every `change`, reasoning that "the
+   * change event comes from the input, so the input is focused". True of the
+   * picker, false of a drop: `handleDrop` below assigns the dropped files to
+   * this input and dispatches `change` *from* it, and a drop moves no focus at
+   * all. Measured in Chromium — after a drop on the panel `document.activeElement`
+   * is still `<body>`, and the dispatched `change` arrives with it still there.
+   *
+   * So a mouse user who dragged a logo onto the dashed panel had focus jump into
+   * a 1x1 clipped input the moment the upload finished. The restore guard below
+   * cannot catch that, because `<body>` is both "the user had nothing focused"
+   * and "focus was just taken away from this input" — the two states it exists
+   * to tell apart. Found in review on 2026-08-26.
+   *
+   * The fix asks the question the guard cannot: was this input *itself* what
+   * focus was on when the file arrived? That is exactly what separates the
+   * paths, and each half was measured rather than assumed:
+   *
+   * - keyboard — Tab to the input, Space opens the picker, the OS dialog leaves
+   *   `document.activeElement` on the input, and `change` fires with it there;
+   * - mouse on the control — a real click on a `<label>` focuses the control it
+   *   names (Chromium, measured), so this path arms too, which is right: focus
+   *   is on the control the user just clicked;
+   * - drop — focus stays wherever it was, so nothing arms. Unless the user had
+   *   already Tabbed to this input and then dragged a file in, in which case
+   *   restoring it is not a steal but a return to where they really were.
+   *
+   * Restoring stays conditional on nothing meaningful holding focus: never take
+   * it back from wherever the user moved while the upload was in flight.
    */
   const inputRef = useRef(null);
   const restoreFocusOnIdle = useRef(false);
@@ -151,7 +210,13 @@ export const FileInput = forwardRef(function FileInput({
   }, [ref]);
 
   const handleChange = useCallback((event) => {
-    restoreFocusOnIdle.current = true;
+    /*
+     * Read the focus BEFORE passing the event on. A consumer's `onChange` is
+     * what sets the state that turns `loading` on, and disabling this input is
+     * what takes focus off it — so afterwards the answer is already gone.
+     */
+    const node = inputRef.current;
+    restoreFocusOnIdle.current = Boolean(node) && document.activeElement === node;
     onChange?.(event);
   }, [onChange]);
 
@@ -313,6 +378,34 @@ export const FileInput = forwardRef(function FileInput({
           className="ds-file-input__native"
         />
       </label>
+      {/*
+        The upload announces itself.
+
+        Four rules, each of them the reason a line of this is written the way it
+        is rather than a shorter way:
+
+        - **Always rendered, empty when idle.** A live region has to be in the
+          document *before* its text changes for the change to be announced;
+          mounting one that already contains the message is unreliable. So the
+          span is unconditional and `loading` swaps its contents.
+        - **`role="status"`, not `role="alert"`.** An upload starting is
+          information, not an interruption — polite is the whole point. The
+          `aria-live` is written out as well as implied by the role, matching
+          `DataTable`'s status region so the system has one live-region shape.
+        - **Outside the `<label>` and referenced by nothing.** The field's
+          accessible name (`aria-labelledby`) and description
+          (`aria-describedby`) are a contract, and a name that gains and loses
+          "Uploading…" as an upload runs is a broken one. This region is read
+          because it is live, not because it names anything.
+        - **Silent when the upload ends.** This component knows an upload
+          *started* — that is what `loading` tells it — and never whether it
+          succeeded. Announcing "Upload complete" here would say so over a
+          failure; the outcome belongs to the feature that owns the request.
+          Emptying the region is what stops it repeating itself.
+      */}
+      <span className="ds-visually-hidden" role="status" aria-live="polite">
+        {loading ? statusMessage : ''}
+      </span>
     </div>
   );
 });
