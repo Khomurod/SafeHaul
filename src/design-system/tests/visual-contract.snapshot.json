@@ -86,6 +86,15 @@
     "width": "18px",
     "height": "18px"
   },
+  "mobile · the gap between a glyph and its label is the system's too · gap in button[md]": {
+    "columnGap": "8px"
+  },
+  "mobile · the gap between a glyph and its label is the system's too · gap in button[sm]": {
+    "columnGap": "8px"
+  },
+  "mobile · the gap between a glyph and its label is the system's too · gap in button[lg]": {
+    "columnGap": "8px"
+  },
   "mobile · the surface geometry every card shares · card": {
     "borderRadius": "12px",
     "padding": "0px",
@@ -254,6 +263,15 @@
   "desktop · icon size is the system's decision, not the call site's · icon in button[lg]": {
     "width": "18px",
     "height": "18px"
+  },
+  "desktop · the gap between a glyph and its label is the system's too · gap in button[md]": {
+    "columnGap": "8px"
+  },
+  "desktop · the gap between a glyph and its label is the system's too · gap in button[sm]": {
+    "columnGap": "8px"
+  },
+  "desktop · the gap between a glyph and its label is the system's too · gap in button[lg]": {
+    "columnGap": "8px"
   },
   "desktop · the surface geometry every card shares · card": {
     "borderRadius": "12px",

@@ -103,6 +103,28 @@ const PROBES = [
         properties: ['width', 'height'],
     },
     {
+        /*
+         * The gap between a glyph and its label — the other half of the rule.
+         *
+         * The design system owns this as well as the icon size: `.ds-button` sets
+         * `gap: var(--ds-space-2)` and `.ds-button__content` inherits it. Only
+         * the icon size was measured until 2026-08-25, so a re-tuned gap would
+         * have surfaced as a pixel diff on `button-with-icons` — which says a
+         * screenshot changed — rather than as `columnGap: 8px -> 12px`, which
+         * says what moved. Its own probe rather than extra properties on the one
+         * above, because asking an `svg` for its `columnGap` records `normal`
+         * three times and calls it a measurement.
+         */
+        story: 'foundations-control-scale--icon-normalisation',
+        label: 'the gap between a glyph and its label is the system\'s too',
+        selectors: {
+            'gap in button[md]': ".ds-button[data-size='md'] .ds-button__content",
+            'gap in button[sm]': ".ds-button[data-size='sm'] .ds-button__content",
+            'gap in button[lg]': ".ds-button[data-size='lg'] .ds-button__content",
+        },
+        properties: ['columnGap'],
+    },
+    {
         story: 'components-card--padding',
         fallbackStory: 'components-card--default',
         label: 'the surface geometry every card shares',
