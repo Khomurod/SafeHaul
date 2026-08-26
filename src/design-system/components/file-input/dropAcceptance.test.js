@@ -213,6 +213,16 @@ describe('resolveDroppedFiles', () => {
       expect(rejected).toEqual([pdf, second]);
     });
 
+    it('accounts for a repeated file reference too', () => {
+      // Identity-based accounting lost the duplicate from BOTH lists; position
+      // cannot collide.
+      const twice = [png, png];
+      const { accepted, rejected } = resolveDroppedFiles({ files: twice, accept: 'image/*' });
+      expect(accepted).toEqual([png]);
+      expect(rejected).toEqual([png]);
+      expect(accepted.length + rejected.length).toBe(twice.length);
+    });
+
     it('accounts for every dropped file exactly once', () => {
       const second = file('banner.png', 'image/png');
       const dropped = [png, pdf, second];

@@ -97,12 +97,33 @@ function describeRejected(rejected) {
  */
 export function resolveDroppedFiles({ files, accept, multiple = false }) {
   const dropped = Array.from(files ?? []);
-  const allowed = dropped.filter((file) => matchesAccept(file, accept));
 
-  // A single-file field takes the first ACCEPTED file, which is what the native
-  // picker does when `multiple` is absent.
-  const accepted = multiple ? allowed : allowed.slice(0, 1);
-  const surplus = allowed.length - accepted.length;
+  /*
+   * Split by POSITION, not by identity.
+   *
+   * `accepted` and `rejected` have to account for every dropped file exactly
+   * once — that is what makes the pair trustworthy to a caller. Deriving the
+   * second from the first with a `Set` of file objects almost does it, and fails
+   * on the one case where a `DataTransfer` carries the same `File` reference
+   * twice: the duplicate matches the set and vanishes from both lists. Indices
+   * cannot collide, so nothing can fall between them.
+   *
+   * A single-file field takes the first ACCEPTED file, which is what the native
+   * picker does when `multiple` is absent.
+   */
+  const keptIndices = new Set();
+  const accepted = [];
+  const refusedByType = [];
+  dropped.forEach((file, index) => {
+    if (!matchesAccept(file, accept)) {
+      refusedByType.push(file);
+      return;
+    }
+    if (multiple || accepted.length === 0) {
+      accepted.push(file);
+      keptIndices.add(index);
+    }
+  });
 
   /*
    * Everything the drop did NOT deliver, in the order it was dropped.
@@ -113,10 +134,8 @@ export function resolveDroppedFiles({ files, accept, multiple = false }) {
    * 2026-08-26 caught exactly that. `rejected` means *what you dropped and did
    * not get*, whichever of the two reasons applies.
    */
-  const keptFiles = new Set(accepted);
-  const rejected = dropped.filter((file) => !keptFiles.has(file));
-
-  const refusedByType = dropped.filter((file) => !matchesAccept(file, accept));
+  const rejected = dropped.filter((_, index) => !keptIndices.has(index));
+  const surplus = rejected.length - refusedByType.length;
 
   const clauses = [];
   if (refusedByType.length > 0) clauses.push(describeRejected(refusedByType));
