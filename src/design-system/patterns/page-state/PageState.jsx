@@ -60,6 +60,16 @@ function liveRegionProps(announce) {
  *   submitted form, a completed handoff — where focus would otherwise fall to
  *   `<body>` and a keyboard or screen-reader user would not be told the thing
  *   they did had worked. Announcement alone does not move the reading position.
+ * @param {string} [props.className] Goes on the **state** element, never on the
+ *   surface — so with the default `surface="card"` it lands *inside* the card.
+ *   A width or margin belongs on a wrapper `<div>` around `PageState`, which is
+ *   the shape `ErrorBoundary` has always used. Getting this wrong is not
+ *   hypothetical: nine of the fifteen screens migrated on 2026-08-25 first
+ *   passed `className="max-w-md"` here, which constrained the text inside a
+ *   full-width card instead of narrowing the card, and it looks close enough to
+ *   right that only reading the diff caught it. Every remaining prop goes to the
+ *   surface instead (the `Card` for `card`, the state element for `bare` and
+ *   `inverse`), which is where a caller's `id` or `aria-labelledby` belongs.
  * @param {'polite'|'assertive'|'off'} [props.announce] Defaults to assertive for
  *   `danger`, polite otherwise. `off` is for a state rendered as ordinary page
  *   content on navigation rather than appearing in response to something.

@@ -93,6 +93,29 @@ by hand. That is the bar: a capability with one caller belongs at the caller.
 | `children` | A confirmation reference, a checklist of what is still outstanding | `description` renders as a `<p>`, so a bordered panel or a list cannot go inside it |
 | `focusOnMount` | A state that **replaces** the control the user just activated | Focus falls to `<body>`, so a keyboard or screen-reader user is never taken to the confirmation they asked for. A polite announcement does not move the reading position. The heading gets `tabIndex="-1"` and the product's focus ring |
 
+## `className` goes on the state, not on the surface
+
+Worth its own heading, because it is the one thing about this pattern that looks
+like it works when it does not. `className` is merged onto the **state** element;
+every other prop goes to the surface — the `Card` when `surface="card"` (the
+default), the state element itself for `bare` and `inverse`.
+
+So with the default surface, a layout class passed here lands *inside* the card:
+
+```jsx
+{/* Wrong: narrows the text inside a full-width card. */}
+<ErrorState className="max-w-md" title="…" />
+
+{/* Right: the wrapper owns the width, the pattern owns the state. */}
+<div className="w-full max-w-md">
+  <ErrorState title="…" />
+</div>
+```
+
+Nine of the fifteen screens migrated on 2026-08-25 were written the first way,
+and the rendered result is close enough to correct that only reading the diff
+caught it. The wrapper shape is the one `ErrorBoundary` has always used.
+
 ```jsx
 <main aria-labelledby={headingId} className="…">
   <EmptyState
