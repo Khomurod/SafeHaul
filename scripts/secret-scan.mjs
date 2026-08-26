@@ -205,26 +205,34 @@ export function resolveScanPlan({
 
     if (eventName === 'push') {
         const before = payload?.before;
-        // `before` is the branch's previous tip and is the right answer for an
-        // ordinary push, INCLUDING a merge: everything the merge introduced is
-        // reachable from the new head and not from the old one.
-        //
-        // It is NOT trustworthy for a branch that was just created (all zeros)
-        // or force-pushed (not an ancestor of the new head), and there is no
-        // sound way to derive the range from git in those cases:
-        //
-        //   - the old fallback took the merge base with the default branch,
-        //     which on a force-push TO the default branch is `mergeBase(head,
-        //     head)` — the head itself. That scans the empty range `head..head`,
-        //     so a credential added and removed inside the rewritten commits
-        //     passed both scans. Found in review on 2026-08-26, and it is why
-        //     `plan()` now refuses any base equal to the head.
-        //
-        // What replaces it is the last commit CI actually validated, below.
-        if (before && before !== ZERO_SHA && before !== headSha
-            && git.exists(before) && git.isAncestor(before, headSha)) {
-            return plan(before, headSha, 'push-before');
-        }
+        /*
+         * A push is compared against the last commit CI actually validated, not
+         * against the push's own `before`.
+         *
+         * `before` is the obvious answer and it is wrong in one specific,
+         * reachable way, found in review on 2026-08-26 and reproduced: when the
+         * PREVIOUS push failed its scan, `before` is that failed tip. The next
+         * ordinary push then compares against it, so the increment that failed
+         * is behind the range; if the credential it added was also deleted in
+         * that increment, the tree is clean too, and the later push passes and
+         * DEPLOYS. Measured on a throwaway repository: push A (adds and deletes
+         * a synthetic key) fails with 1 finding, push B passes with 0 — and the
+         * same push B anchored at the last validated commit fails with 1.
+         *
+         * `before` is also unusable for a branch just created (all zeros) or
+         * force-pushed (not an ancestor of the new head), and the old fallback
+         * for those — the merge base with the default branch — collapsed to the
+         * head itself after a force-push TO the default branch, scanning
+         * nothing. Both cases now take the same answer as the first.
+         *
+         * In the healthy case this changes nothing: the previous tip passed its
+         * own scan, so it IS the last validated commit and the range is
+         * identical. It widens only where something was left unverified, which
+         * is exactly where widening is the point. And it gives the pipeline an
+         * invariant worth stating: since a deploy requires this job to pass,
+         * nothing reaches Testing unless every commit since the last passing
+         * scan was scanned.
+         */
         const validated = lastValidatedBase();
         if (validated) {
             return plan(
@@ -234,10 +242,11 @@ export function resolveScanPlan({
             );
         }
         throw new ScanPlanError(
-            `this push gives no usable baseline (before=${describeSha(before)}), and no earlier commit `
-            + 'on this history has a successful secret scan to compare against. Re-run with '
-            + 'SECRET_SCAN_BASE set to a commit you know was scanned. Refusing to fall back to a '
-            + 'full-history scan, or to an empty one.',
+            `no ancestor of ${short(headSha)} has a successful secret scan on record `
+            + `(before=${describeSha(before)}), so there is no validated baseline to compare against. `
+            + 'Trusting `before` here is what lets the increment behind a FAILED scan through. Set '
+            + 'SECRET_SCAN_BASE to a commit you know was scanned, or fix the failing run. Refusing to '
+            + 'fall back to a full-history scan, or to an empty one.',
         );
     }
 
@@ -286,22 +295,38 @@ function requireUsableBase(git, candidate, headSha, label) {
     if (!/^[0-9a-f]{7,40}$/i.test(candidate)) {
         throw new ScanPlanError(`${label} is not a commit SHA: ${JSON.stringify(candidate)}`);
     }
-    if (!git.exists(candidate)) {
+    /*
+     * Resolve to the full SHA before anything COMPARES it.
+     *
+     * An abbreviated SHA of the head is a different string and the same commit,
+     * and every check below except this one is a string comparison. Found in
+     * review on 2026-08-26 and reproduced: `SECRET_SCAN_BASE=<head[0..8]>` was
+     * accepted, `git merge-base --is-ancestor` said yes (a commit is its own
+     * ancestor), and the resulting `short..full` range held 0 commits — so a
+     * credential added and deleted inside the change was compared against
+     * nothing and the job passed. Against the same repository with the correct
+     * base it fails with 1 finding.
+     */
+    const resolved = git.resolve(candidate);
+    if (!resolved) {
         throw new ScanPlanError(`${label}=${short(candidate)} is not a commit in this clone.`);
     }
-    if (candidate === headSha) {
+    if (resolved === headSha) {
         throw new ScanPlanError(
-            `${label}=${short(candidate)} is the head itself, so the range would be empty and `
-            + 'nothing would be compared. Refusing.',
+            `${label}=${short(candidate)} resolves to the head itself (${short(headSha)}), so the `
+            + 'range would be empty and nothing would be compared. Refusing.',
         );
     }
-    if (!git.isAncestor(candidate, headSha)) {
+    if (!git.isAncestor(resolved, headSha)) {
         throw new ScanPlanError(
             `${label}=${short(candidate)} is not an ancestor of ${short(headSha)}, so `
             + `${short(candidate)}..${short(headSha)} would not describe this change.`,
         );
     }
-    return candidate;
+    // The canonical SHA, never the string that was handed in: everything
+    // downstream — the equality guard in `plan()`, the range, the report —
+    // compares and prints it.
+    return resolved;
 }
 
 /**
@@ -329,12 +354,6 @@ function plan(base, head, source) {
         logOpts: `-m ${base}..${head}`,
         describe: `${short(base)}..${short(head)} (${source})`,
     };
-}
-
-/** The same test the push branch applies, so main() knows when to ask GitHub. */
-export function isUsablePushBefore(before, headSha, git) {
-    return Boolean(before) && before !== ZERO_SHA && before !== headSha
-        && git.exists(before) && git.isAncestor(before, headSha);
 }
 
 const short = (sha) => String(sha || '').slice(0, 8);
@@ -374,11 +393,21 @@ export const gitRunner = (cwd) => ({
  * merge it lands on the previous branch tip rather than on the merged branch's
  * head, which makes the range wider, never narrower.
  *
- * Returns `null` when nothing qualifies, and the callers treat that as a refusal
- * rather than a licence to scan less. Network failures are also `null` for the
- * same reason: an unanswerable question is not a "yes".
+ * `sha` is `null` when nothing qualifies, and the callers treat that as a refusal
+ * rather than a licence to scan less. A lookup that could not run is also `null`,
+ * for the same reason — an unanswerable question is not a "yes" — but it carries
+ * `error`, so the refusal can say which of the two it was.
  *
- * @returns {Promise<string|null>}
+ * What this inherits, stated plainly: trusting a commit because its own scan
+ * passed means trusting the scanner that ran then. An ancestor scanned by the
+ * old action's `--no-merges --first-parent` range could have passed while
+ * missing a secret that arrived through a second parent. That secret is still
+ * caught here if it is in the tree at `head`; if it was added and removed in
+ * history, it belongs to `secret-history-audit`, which sweeps everything. The
+ * alternative — trusting a commit merely because it EXISTS — is the P1 this
+ * function replaced, and it is strictly worse.
+ *
+ * @returns {Promise<{sha: string|null, checked: number, error: string|null}>}
  */
 export async function findLastValidatedAncestor({
     headSha, cwd, repository, token, fetchImpl = fetch, walk = VALIDATED_ANCESTOR_WALK,
@@ -649,8 +678,10 @@ async function main() {
     // Looked up once, only if the event's own baseline turns out to be unusable,
     // and awaited before the (synchronous) plan is resolved.
     let validatedBase;
-    const needsValidatedBase = REVERIFICATION_EVENTS.includes(eventName)
-        || (eventName === 'push' && !isUsablePushBefore(payload?.before, headSha, git));
+    // Every event except a pull request compares against a validated commit, so
+    // every one of them has to ask. A pull request has its merge base, which is
+    // what the change proposes and needs nothing from GitHub.
+    const needsValidatedBase = REVERIFICATION_EVENTS.includes(eventName) || eventName === 'push';
     let lookupError = null;
     if (needsValidatedBase && !(process.env.SECRET_SCAN_BASE || '').trim()) {
         const lookup = await findLastValidatedAncestor({

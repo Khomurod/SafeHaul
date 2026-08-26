@@ -31,8 +31,9 @@ on:
           compares against the newest ancestor whose own secret-scan passed,
           which it asks GitHub for. Set it when there is no such commit — a
           branch CI has never scanned, or a run you need to reproduce against a
-          specific point. It must be an ancestor of the ref being run, and it is
-          validated exactly as hard as an inferred base.
+          specific point. It is resolved to its full SHA and must be an ancestor
+          of the ref being run and not the ref itself: validated exactly as hard
+          as an inferred base.
         required: false
         type: string
 

@@ -280,6 +280,22 @@ a baseline that looked sound and was not:
   branch — the head itself, an empty range, everything passing. Any base equal to
   the head is refused now, wherever it came from.
 
+A second review round found the same shape twice more, and both were reproduced
+before they were fixed:
+
+- **A push's own `before` is only as good as the scan that ran on it.** When the
+  previous push FAILED, `before` is that failed tip, so the next ordinary push
+  compares against it and the failed increment sits behind the range — and if the
+  credential was also deleted there, the tree is clean too, so the later push
+  passes and deploys. Measured: push A fails with 1 finding, push B passes with
+  0, and push B anchored at the last *validated* commit fails with 1. Every event
+  but a pull request now anchors there.
+- **An abbreviated SHA is a different string and the same commit.** Every check
+  but `is-ancestor` compared strings, and a commit is its own ancestor, so
+  `SECRET_SCAN_BASE=<head[0..8]>` gave a 0-commit range that passed over a real
+  disclosure. Bases are resolved to their full SHA *before* anything compares
+  them.
+
 `check:ci-plan` §L pins all of it: no third-party scanning action, a pinned
 version *and* digest, both scans present, `secret-scan` still unskippable, no
 path exemptions in `.gitleaks.toml`, the check name the lookup asks about

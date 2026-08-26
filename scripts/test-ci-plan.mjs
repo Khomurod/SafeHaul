@@ -1233,6 +1233,15 @@ console.log('\nL. The secret scanner is scoped, pinned, and still mandatory');
     assert('L19. an unusable baseline is never widened to a full scan',
         !/--all/.test(scanner),
         'the full sweep belongs to the audit workflow; this one refuses instead');
+    /*
+     * A push's own `before` is the tip of the PREVIOUS push, whose scan may have
+     * failed — trusting it puts that failed increment behind the range, and a
+     * credential added and deleted inside it then passes and deploys (reproduced,
+     * 2026-08-26). Every event but a pull request anchors at a validated commit.
+     */
+    assert('L20. a push never anchors at its own `before`',
+        !/'push-before'/.test(scanner),
+        'that baseline is only as trustworthy as a scan that may have failed');
 
     const gitleaksConfig = readFileSync(resolvePath(here, '../.gitleaks.toml'), 'utf8');
     assert('L15. the default rule set is still extended, not replaced',

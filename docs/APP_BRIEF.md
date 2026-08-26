@@ -1064,7 +1064,15 @@ blocking; `typecheck` is the only lane that is not (see below).
 
 The secret scan compares **what the change introduced** — the commit range for
 this event, plus the resulting source tree — and never the whole repository
-history. The full-history sweep is a separate, non-blocking workflow
+history. A pull request compares against its merge base. Everything else — a
+push to `main`, a manual run, a scheduled run — compares against the newest
+ancestor whose own `secret-scan` **passed**, which it asks GitHub for, so the
+increment behind a failed scan is re-scanned rather than stepped over. Every
+base is resolved to its full SHA and must exist, be an ancestor of the head and
+not be the head itself; a base that cannot be determined **fails the job**, and
+there is no fallback that widens the scan or empties it. The invariant that
+buys: because a deploy requires this job, nothing reaches Testing unless every
+commit since the last passing scan was scanned. The full-history sweep is a separate, non-blocking workflow
 (`secret-history-audit`), because the history's known legacy findings were
 failing unrelated releases; see `docs/SECRET_HISTORY_AUDIT.md`, which also lists
 the credentials that still need owner rotation.

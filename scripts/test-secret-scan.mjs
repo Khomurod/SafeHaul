@@ -232,16 +232,47 @@ console.log('A. Range selection — what each event compares against');
         pr.base !== a,
         'a range starting at the first commit is the bug this replaces');
 
-    // 6. A push to main scans what the push introduced.
+    // 6. A push to main scans what the push introduced. In the healthy case the
+    // previous tip passed its own scan, so it IS the last validated commit and
+    // the range is exactly what the push added.
     const push = resolveScanPlan({
         eventName: 'push',
         payload: { before: b, after: e },
         headSha: e,
+        lastValidatedBase: validated(b),
         git,
     });
     assert('A4 (req 6). push uses the event\'s previous tip as the base',
-        push.base === b && push.source === 'push-before',
+        push.base === b && push.source === 'last-validated-commit',
         `${push.source}: ${String(push.base).slice(0, 8)}`);
+
+    /*
+     * ...and it is NOT the previous tip when that tip's own scan failed. Review
+     * on 2026-08-26: `before` is the failed tip, so the increment that failed is
+     * behind the range, and if its credential was also deleted there the tree is
+     * clean too — the later push passes and deploys. B16/B17 below measure it.
+     */
+    // `before` here is B: a real ancestor of the head, exactly what an ordinary
+    // push carries — but B's own scan failed, so A is the last validated commit.
+    const pushAfterFailure = resolveScanPlan({
+        eventName: 'push',
+        payload: { before: b, after: e },
+        headSha: e,
+        lastValidatedBase: validated(a),
+        git,
+    });
+    assert('A4b (req 6). a push whose previous tip FAILED widens to the last validated commit',
+        pushAfterFailure.base === a && pushAfterFailure.source === 'last-validated-commit',
+        `${pushAfterFailure.source}: ${String(pushAfterFailure.base).slice(0, 8)}`);
+    throws('A4c (req 10). and with nothing validated it refuses rather than trusting `before`',
+        () => resolveScanPlan({
+            eventName: 'push',
+            payload: { before: b, after: e },
+            headSha: e,
+            lastValidatedBase: nothingValidated,
+            git,
+        }),
+        'a usable-looking `before` is not evidence that anything was ever scanned');
 
     // 8 + 9. Manual re-verification of an already-merged commit.
     const dispatch = resolveScanPlan({
@@ -274,6 +305,7 @@ console.log('A. Range selection — what each event compares against');
         eventName: 'push',
         payload: { before: e, after: merge },
         headSha: merge,
+        lastValidatedBase: validated(e),
         git,
     });
     assert('A9 (req 7). a merge push scans everything the merge introduced',
@@ -434,7 +466,7 @@ if (binary) {
         repo.write('src/config.js', `export const apiKey = '${FAKE_GCP_KEY}';`);
         const head = repo.commit('adds a secret');
         const result = scan(repo, resolveScanPlan({
-            eventName: 'push', payload: { before: base, after: head }, headSha: head, git: repo.gitOps(),
+            eventName: 'push', payload: { before: base, after: head }, headSha: head, lastValidatedBase: () => base, git: repo.gitOps(),
         }), binary);
         assert('B6 (req 2, 4, 18). a new commit that adds a secret FAILS',
             !result.ok && result.range.findings.length > 0 && result.tree.findings.length > 0,
@@ -452,7 +484,7 @@ if (binary) {
         const head = repo.commit('removes it again, same pull request');
 
         const plan = resolveScanPlan({
-            eventName: 'push', payload: { before: base, after: head }, headSha: head, git: repo.gitOps(),
+            eventName: 'push', payload: { before: base, after: head }, headSha: head, lastValidatedBase: () => base, git: repo.gitOps(),
         });
         const result = scan(repo, plan, binary);
         assert('B7 (req 6). a secret added and then deleted in the same change still FAILS',
@@ -461,6 +493,80 @@ if (binary) {
         assert('B8 (req 6). and the tree scan alone would NOT have caught it',
             result.tree.findings.length === 0,
             'which is why both protections exist rather than just the tree scan');
+    }
+
+    /*
+     * 3b. The same shape one push later — found in review on 2026-08-26 (P1).
+     *
+     * Push A adds the credential and deletes it again, so its scan fails and the
+     * release is blocked. Push B is an ordinary unrelated change. Anchored at
+     * push B's own `before` — the tip that FAILED — the disclosed increment is
+     * behind the range and the tree is clean, so push B passes and deploys.
+     * Anchored at the last commit that actually passed, it does not.
+     */
+    {
+        const repo = makeRepo().useRepoConfig();
+        repo.write('src/app.js', 'export const answer = 42;');
+        const validatedTip = repo.commit('the last release, scanned and PASSED');
+        repo.write('.env.local.tmp', `TOKEN=${FAKE_GCP_KEY}`);
+        repo.commit('push A: commits a secret');
+        repo.remove('.env.local.tmp');
+        const failedTip = repo.commit('push A: removes it again — this push FAILS its scan');
+        repo.write('README.md', 'push B: something else entirely');
+        const head = repo.commit('push B: an ordinary later change');
+
+        const anchoredAtBefore = scan(repo, resolveScanPlan({
+            eventName: 'push',
+            payload: { before: failedTip, after: head },
+            headSha: head,
+            // What trusting `before` would have produced.
+            lastValidatedBase: () => failedTip,
+            git: repo.gitOps(),
+        }), binary);
+        assert('B16 (req 2, 6). trusting `before` after a FAILED push would have passed the next one',
+            anchoredAtBefore.ok,
+            'this is the hole, measured: the credential is disclosed and nothing reports it');
+
+        const anchoredAtValidated = scan(repo, resolveScanPlan({
+            eventName: 'push',
+            payload: { before: failedTip, after: head },
+            headSha: head,
+            lastValidatedBase: () => validatedTip,
+            git: repo.gitOps(),
+        }), binary);
+        assert('B17 (req 2, 6). anchoring at the last VALIDATED commit fails it instead',
+            !anchoredAtValidated.ok && anchoredAtValidated.range.findings.length > 0
+            && anchoredAtValidated.tree.findings.length === 0,
+            `range=${anchoredAtValidated.range.findings.length} tree=${anchoredAtValidated.tree.findings.length}`
+            + ' — the tree is clean, so only the widened range can catch it');
+    }
+
+    /*
+     * 3c. The abbreviated-SHA collapse, measured — found in review on 2026-08-26
+     * (P1). `SECRET_SCAN_BASE=<head[0..8]>` used to be accepted: a 0-commit range
+     * that reports nothing, over a change that added and deleted a credential.
+     */
+    {
+        const repo = makeRepo().useRepoConfig();
+        repo.write('src/app.js', 'export const answer = 42;');
+        const base = repo.commit('clean base');
+        repo.write('.env.local.tmp', `TOKEN=${FAKE_GCP_KEY}`);
+        repo.commit('adds a credential');
+        repo.remove('.env.local.tmp');
+        const head = repo.commit('and deletes it again');
+
+        const collapsed = scan(repo, {
+            base: head.slice(0, 8), head, source: 'test', logOpts: `-m ${head.slice(0, 8)}..${head}`,
+        }, binary);
+        assert('B18 (req 10). a short-SHA-of-the-head range reports nothing over a real disclosure',
+            collapsed.ok && collapsed.range.findings.length === 0,
+            'which is exactly why the resolver refuses to build it (C11)');
+        const honest = scan(repo, resolveScanPlan({
+            eventName: 'workflow_dispatch', headSha: head, baseOverride: base, git: repo.gitOps(),
+        }), binary);
+        assert('B19 (req 10). the honest range over the same commits FAILS',
+            !honest.ok && honest.range.findings.length > 0 && honest.tree.findings.length === 0,
+            `range=${honest.range.findings.length} tree=${honest.tree.findings.length}`);
     }
 
     // 4. Present in the tree, but not added by this range.
@@ -472,7 +578,7 @@ if (binary) {
         const head = repo.commit('the change under test touches nothing sensitive');
 
         const plan = resolveScanPlan({
-            eventName: 'push', payload: { before: base, after: head }, headSha: head, git: repo.gitOps(),
+            eventName: 'push', payload: { before: base, after: head }, headSha: head, lastValidatedBase: () => base, git: repo.gitOps(),
         });
         const result = scan(repo, plan, binary);
         assert('B9 (req 8). a secret sitting in the tree FAILS even when this range did not add it',
@@ -497,7 +603,7 @@ if (binary) {
         const merge = repo.merge('side', 'merge side into main');
 
         const plan = resolveScanPlan({
-            eventName: 'push', payload: { before: mainTip, after: merge }, headSha: merge, git: repo.gitOps(),
+            eventName: 'push', payload: { before: mainTip, after: merge }, headSha: merge, lastValidatedBase: () => mainTip, git: repo.gitOps(),
         });
         const result = scan(repo, plan, binary);
         assert('B11 (req 7). a secret arriving through a SECOND PARENT fails',
@@ -537,7 +643,7 @@ if (binary) {
         const merge = repo.head();
 
         const plan = resolveScanPlan({
-            eventName: 'push', payload: { before: base, after: merge }, headSha: merge, git: repo.gitOps(),
+            eventName: 'push', payload: { before: base, after: merge }, headSha: merge, lastValidatedBase: () => base, git: repo.gitOps(),
         });
         const result = scan(repo, plan, binary);
         assert('B13 (req 7). a secret introduced by a merge-conflict resolution fails',
@@ -567,7 +673,7 @@ if (binary) {
         );
         const head = repo.commit('a real one beside the placeholder');
         const beside = scan(repo, resolveScanPlan({
-            eventName: 'push', payload: { before: base, after: head }, headSha: head, git: repo.gitOps(),
+            eventName: 'push', payload: { before: base, after: head }, headSha: head, lastValidatedBase: () => base, git: repo.gitOps(),
         }), binary);
         assert('B15 (req 12). a real secret next to an allowed placeholder is still detected',
             !beside.ok && beside.tree.findings.length > 0,
@@ -636,6 +742,27 @@ console.log('\nC. Failing safe — a base that cannot be trusted is never widene
     assert('C9. a valid SECRET_SCAN_BASE is honoured and recorded as the source',
         overridden.base === first && overridden.source === 'explicit-base-override',
         `${overridden.source}: ${String(overridden.base).slice(0, 8)}`);
+
+    /*
+     * Found in review on 2026-08-26 (P1).
+     *
+     * An abbreviated SHA of the head is a different STRING and the same COMMIT.
+     * Every check but one is a string comparison, and `merge-base --is-ancestor`
+     * says yes because a commit is its own ancestor — so `SECRET_SCAN_BASE` set
+     * to the head's short form produced a 0-commit range that passed. The base is
+     * resolved to its full SHA before anything compares it now.
+     */
+    throws('C11 (req 10). an ABBREVIATED SHA of the head refuses, like the full one',
+        () => resolveScanPlan({
+            eventName: 'workflow_dispatch', headSha: second, baseOverride: second.slice(0, 8), git,
+        }),
+        'short and long names of one commit must both be recognised as the head');
+    const abbreviated = resolveScanPlan({
+        eventName: 'workflow_dispatch', headSha: second, baseOverride: first.slice(0, 10), git,
+    });
+    assert('C12. an abbreviated base that IS an ancestor is honoured, and canonicalised',
+        abbreviated.base === first && abbreviated.logOpts === `-m ${first}..${second}`,
+        `${abbreviated.logOpts} — the range must name commits in full, not as typed`);
 
     // A repository whose single commit has never been validated has no baseline,
     // and says so rather than inventing one.
