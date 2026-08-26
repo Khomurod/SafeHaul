@@ -239,4 +239,128 @@ Before merging a pipeline change: run `npm run check:ci-plan`, and afterwards
 **watch the real main run to completion**, because a pull request never deploys and
 therefore cannot exercise the path you just changed. That asymmetry is why these
 bugs reached `main` green.
+
+**4. A security gate must own its own scope.** Added 2026-08-26, after run #159.
+`gitleaks/gitleaks-action@v2` picked the scan range out of the event payload, and
+the rule for `workflow_dispatch` was *no range at all* — so a manual
+re-verification of an already-merged commit scanned all 256 commits, reported the
+eight legacy values that have been in this repository's history since 2025-12,
+failed `secret-scan`, failed `release-validation`, and skipped both deploys. The
+same action used `--no-merges --first-parent` elsewhere, which was measured to
+**miss a secret merged in from a side branch entirely**, and resolved its scanner
+version by asking GitHub for the *latest* release at run time.
+
+Three lessons, in order of how expensive they were:
+
+- **A range chosen by someone else's code is a range you cannot test.**
+  `scripts/secret-scan.mjs` selects it here, per event, and
+  `scripts/test-secret-scan.mjs` drives every event against throwaway
+  repositories — including proving that the old strategy missed what the new one
+  catches.
+- **"Scan everything" is not the safe default it looks like.** It cannot
+  distinguish a new leak from a known old one, so it fails every release equally
+  and teaches everyone to ignore it. Scope the gate to the change; inventory the
+  history separately (`secret-history-audit`, which gates nothing).
+- **A gate that fails open on a bad input is worse than no gate.** Every path
+  that cannot determine a base exits non-zero and says so. There is no fallback
+  that widens the scan.
+
+Review of the first implementation added two more, and both are the same shape —
+a baseline that looked sound and was not:
+
+- **"Every earlier commit was scanned" assumes it was scanned *successfully*.**
+  Comparing a manual re-run against `head^1` meant that after a push whose scan
+  FAILED, a re-run scanned only the newest commit — so a credential added earlier
+  in that push and deleted before its tip was in neither the range nor the tree.
+  `workflow_dispatch` deploys, so that was a bypass. The baseline is the newest
+  ancestor whose own `secret-scan` passed, asked of GitHub because git cannot
+  know it, and no such ancestor means refusal.
+- **A fallback can collapse to nothing.** Falling back to the merge base with the
+  default branch is `mergeBase(head, head)` after a force-push *to* the default
+  branch — the head itself, an empty range, everything passing. Any base equal to
+  the head is refused now, wherever it came from.
+
+A second review round found the same shape twice more, and both were reproduced
+before they were fixed:
+
+- **A push's own `before` is only as good as the scan that ran on it.** When the
+  previous push FAILED, `before` is that failed tip, so the next ordinary push
+  compares against it and the failed increment sits behind the range — and if the
+  credential was also deleted there, the tree is clean too, so the later push
+  passes and deploys. Measured: push A fails with 1 finding, push B passes with
+  0, and push B anchored at the last *validated* commit fails with 1. Every event
+  but a pull request now anchors there.
+- **An abbreviated SHA is a different string and the same commit.** Every check
+  but `is-ancestor` compared strings, and a commit is its own ancestor, so
+  `SECRET_SCAN_BASE=<head[0..8]>` gave a 0-commit range that passed over a real
+  disclosure. Bases are resolved to their full SHA *before* anything compares
+  them.
+
+A third round found the same principle inside the scanner wrapper rather than
+the range:
+
+- **A readable report is not proof that the scan finished.** A nonzero exit that
+  still wrote a parseable EMPTY report set `ok` false and `errored` false, and
+  the caller only looked at `errored` and the finding count — so no problem was
+  recorded and the gate reported success over a scanner that had failed. Nonzero
+  with nothing to show for it is now an incomplete scan, and the caller also
+  refuses any scan that did not report success. gitleaks 8.30.1 could not be
+  made to do this (every probed failure exits 0 or writes no report at all),
+  which is the point: the guarantee must not rest on one version's exit-code
+  habits. Driven by a stub scanner in `test-secret-scan.mjs` C16/C17.
+
+And a fourth round found it in the definition of "validated" itself:
+
+- **A green `secret-scan` does not mean the scanner works.** The commit that
+  BREAKS the scanner is exactly the commit whose `secret-scan` passes wrongly
+  while `callable-contract` — which runs the scanner's own tests — fails. That
+  commit looked like a valid baseline, so the next push, with the scanner fixed,
+  anchored there and never looked at what the broken scanner waved through. A
+  baseline now needs **`secret-scan` and `Verify the release is fully validated`
+  to have succeeded in the same workflow run**; the second refuses unless every
+  `ALWAYS_REQUIRED_JOBS` entry passed, which is what makes it proof that the
+  scanner passed its own tests. It is the same check the production-promotion
+  gate already requires by name.
+
+- **An escape hatch is a bypass if nobody checks it.** `SECRET_SCAN_BASE` cleared
+  only the structural bar — a real SHA, an ancestor, not the head — while the
+  refusal messages *tell an operator to set it*. The natural repair for "nothing
+  is validated" was therefore to paste in the tip that had just failed, which is
+  the one commit whose broken scanner reported success. An override now has to
+  carry a validated release like any inferred base: it names a release known to
+  be good, it does not invent one.
+
+`.gitleaks.toml` comes from the branch under test, so weakening the gate is an
+alternative to passing it — and enumerating the ways is a losing game. Measured
+against gitleaks 8.30.1, each of these hides the same synthetic key from BOTH
+scans while leaving the pinned values untouched: `[extend] disabledRules`,
+`[allowlist] stopwords`, the plural `[[allowlists]]` form, and `[allowlist]
+paths`; `[allowlist] commits` hides it from the range scan alone.
+
+Whitelisting the *keys* was the first attempt and it was not enough: TOML spells
+one key several ways, and `"disabledRules" = [...]`, `'disabledRules' = [...]`
+and `extend = { disabledRules = [...] }` all reach the scanner while a regex over
+bare identifiers sees four innocent keys. **The config's non-comment content is
+pinned line for line instead** (L24a) — any edit in any syntax fails until the
+test is updated with the measurement that justifies it. Comments stay free,
+because gitleaks ignores them and the reasoning belongs beside the values.
+
+Two more exemptions need no config change at all, and both were measured:
+
+- **`gitleaks:allow` in a source comment is honoured by DEFAULT.** The same key is
+  reported in a plain file and silently ignored in one carrying that comment, in
+  both scans. A change could exempt its own credential with one line of code.
+  The scanner passes `--ignore-gitleaks-allow` (L25); the repository has no such
+  comment today.
+- **`.gitleaksignore` suppresses findings by fingerprint**, and pointing
+  `--gitleaks-ignore-path` at a directory without one does **not** restore them —
+  so it cannot be neutralised from the command line. The scanner refuses when one
+  is present, in the checkout or in the exported tree, rather than scanning
+  around it (L26).
+
+`check:ci-plan` §L pins all of it: no third-party scanning action, a pinned
+version *and* digest, both scans present, `secret-scan` still unskippable, no
+path exemptions in `.gitleaks.toml`, the check name the lookup asks about
+matching the job that produces it, and the audit workflow unable to reach
+`release-validation`.
 <!-- /safehaul-design-system -->

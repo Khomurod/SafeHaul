@@ -1058,8 +1058,32 @@ these.
 CI also runs `check:callable-contract`, `check:ai-boundary`, `check:ci-plan`,
 `check:release-scripts`, `check:deploy-script`, `check:function-exports`,
 `check:ui-contract`, `check:table-layout`, `check:visual-contract`,
-`test:stories`, `test:visual`, and a Gitleaks secret scan. Every one of those is
+`test:stories`, `test:visual`, `test:secret-scan`, and a secret scan
+(`scripts/secret-scan.mjs`, a pinned Gitleaks CLI). Every one of those is
 blocking; `typecheck` is the only lane that is not (see below).
+
+The secret scan compares **what the change introduced** — the commit range for
+this event, plus the resulting source tree — and never the whole repository
+history. A pull request compares against its merge base. Everything else — a
+push to `main`, a manual run, a scheduled run — compares against the newest
+ancestor carrying a **fully validated release**: one run in which both
+`secret-scan` and `Verify the release is fully validated` succeeded. The second
+is what proves the scanner's own tests passed with it, so a commit that broke the
+scanner cannot become the thing later releases trust. The increment behind a
+failed release is therefore re-scanned rather than stepped over. Every base is
+resolved to its full SHA and must exist, be an ancestor of the head and not be
+the head itself; the `SECRET_SCAN_BASE` dispatch input must additionally carry a
+validated release of its own, so it names a known-good release rather than
+inventing one. A base that cannot be determined **fails the job**, and there is
+no fallback that widens the scan or empties it. Exemptions are pinned rather
+than trusted: `.gitleaks.toml` may declare only the reviewed tables, keys and
+values, `gitleaks:allow` comments are switched off, and a `.gitleaksignore`
+fails the job instead of silencing it. The invariant that buys: because
+a deploy requires this job, nothing reaches Testing unless every commit since the
+last fully validated release was scanned by a scanner that passed its own tests. The full-history sweep is a separate, non-blocking workflow
+(`secret-history-audit`), because the history's known legacy findings were
+failing unrelated releases; see `docs/SECRET_HISTORY_AUDIT.md`, which also lists
+the credentials that still need owner rotation.
 
 CI runs Playwright as a 4-way shard matrix with `workers: 1` and `retries: 2`
 per shard.

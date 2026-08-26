@@ -1,20 +1,43 @@
-# Local / CI secret scanning (gitleaks-action picks this up automatically).
+# Secret-scanning configuration, used by BOTH scans in `scripts/secret-scan.mjs`
+# (the commit range and the exported source tree) and by the separate
+# `secret-history-audit` workflow. Passed explicitly with `--config`, so which
+# file is in force is never inferred from a working directory.
 title = "SafeHaul"
 
 [extend]
 useDefault = true
 
-[allowlist]
-description = "Placeholder env templates only — never allow real .env files here."
-paths = [
-  '''\.env\.example$''',
-  '''functions/\.env\.example$''',
-]
-# Two narrow value exemptions — NOT path or rule exemptions.
+# ## There are no path exemptions, deliberately
 #
-# Every entry below has to be a value that *cannot* be a credential, and has to
-# say why. Neither exempts a file or switches a rule off, so a real secret in the
-# same file is still reported.
+# This section used to allowlist `\.env\.example$` and `functions/\.env\.example$`
+# on the theory that their placeholder values tripped rules. Measured against the
+# pinned gitleaks 8.30.1 on 2026-08-26, that is not true:
+#
+#   - the tracked tree scanned with the path list removed: identical result;
+#   - all three commits in the repository's history that ever touched either
+#     template, scanned individually with the path list removed: 0 findings.
+#
+# So the exemption bought nothing and cost the only thing that matters — a real
+# credential pasted into a file called `.env.example` would have been ignored.
+# Deleted rather than kept "just in case". A path exemption is the widest kind
+# there is, and this file now has none.
+[allowlist]
+description = "Two value exemptions. No path is exempt, and no rule is switched off."
+# `npm run check:ci-plan` pins every non-comment line of this file (L24a), not
+# just these two values. Listing forbidden keys was tried and abandoned, and so
+# was whitelisting the allowed ones: measured against gitleaks 8.30.1,
+# `disabledRules`, `stopwords`, `paths` and `[[allowlists]]` each hide a finding
+# from both scans, and TOML will spell any of them as `"disabledRules"`,
+# `'disabledRules'` or an inline table, which a key whitelist does not see.
+# Editing anything below therefore means editing that test too, with the
+# measurement that justifies it. Comments are free — gitleaks ignores them, and
+# the reasoning belongs here beside the values.
+# Every entry below is a value that *cannot* be a credential, and says why.
+# Because neither exempts a file nor disables a rule, a real secret in the same
+# file — even on the same line — is still reported. Both were re-verified against
+# gitleaks 8.30.1 when the scanner was pinned: removing them makes exactly the
+# three known non-findings reappear (`src/lib/firebase/config.js` once,
+# `BlogPostsView.contract.test.jsx` twice) and nothing else changes.
 #
 # ## 1. The Firebase placeholder key
 #
@@ -24,9 +47,10 @@ paths = [
 # string is matched exactly, so a real `AIza...` key in the same file would
 # still be reported.
 #
-# It needs allowlisting because gitleaks scans the *diff*: the literal has been
-# on `main` since the placeholder branch was introduced, but any commit that
-# moves the line re-adds it and trips `generic-api-key` on entropy alone.
+# It needs allowlisting because the commit-range scan reads diffs: the literal
+# has been on `main` since the placeholder branch was introduced, but any commit
+# that moves the line re-adds it and trips `gcp-api-key`/`generic-api-key` on
+# entropy alone. The tree scan sees it on every run for the same reason.
 #
 # ## 2. A blog publication slot id — a date and a theme name
 #
@@ -42,9 +66,9 @@ paths = [
 # does not, so pinning today's literals would leave the next theme name to fail
 # the build for the same non-reason. The pattern is anchored and lowercase-only,
 # so a secret has to be *exactly* a date followed by a hyphenated slug to match —
-# no credential format can be. Verified both ways against gitleaks 8.24.3, the
-# version CI pins: the two findings clear, and a key with a slot-id-shaped
-# substring embedded in it is still reported.
+# no credential format can be. `scripts/test-secret-scan.mjs` proves both halves:
+# the placeholder shape is allowed, and a real-shaped key sitting next to it in
+# the same file is still detected.
 regexes = [
   '''AIzaSyE2EPlaceholderKey1234567890123''',
   '''^\d{4}-\d{2}-\d{2}_[a-z][a-z0-9-]*$''',

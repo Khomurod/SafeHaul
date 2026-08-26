@@ -1126,5 +1126,233 @@ console.log('\nK. Guards that stay guards');
         'both faces plus the SIL OFL licence that permits redistributing them');
 }
 
+console.log('\nL. The secret scanner is scoped, pinned, and still mandatory');
+{
+    /*
+     * Recorded 2026-08-26, after run #159.
+     *
+     * `gitleaks/gitleaks-action@v2` chose the scan range from the event and, on
+     * `workflow_dispatch`, passed no range at all — so a manual verification of
+     * an already-merged commit scanned all 256 commits, reported eight known
+     * legacy values from 2025-12..2026-03, failed `secret-scan`, failed
+     * `release-validation` and skipped both deploys.
+     *
+     * These assertions exist because that was invisible from inside this
+     * repository: the range lived in someone else's JavaScript. They pin the
+     * three properties that must not quietly come back — the range is ours, the
+     * scanner is pinned, and the full sweep cannot gate a release.
+     */
+    const secretScanJob = workflow.slice(
+        workflow.indexOf('  secret-scan:'),
+        workflow.indexOf('  callable-contract:'),
+    );
+    assert('L1. secret-scan uses no third-party scanning action',
+        !/^\s*(-\s*)?uses:\s*gitleaks\//m.test(secretScanJob),
+        'the action decided the range from the event; on workflow_dispatch that meant all history');
+    assert('L2. secret-scan runs this repository\'s own scanner',
+        /run:\s*node scripts\/secret-scan\.mjs/.test(secretScanJob),
+        'the range must be selected by scripts/secret-scan.mjs, which is tested');
+    assert('L3. secret-scan still checks out full history',
+        /fetch-depth:\s*0/.test(secretScanJob),
+        'a merge needs both parents\' ancestry present to resolve base..head');
+    assert('L4. secret-scan carries no `if:`, so it cannot be conditioned away',
+        !/^\s{4}if:/m.test(secretScanJob),
+        'it is in ALWAYS_REQUIRED_JOBS; an `if:` that evaluates false would read as "nothing failed"');
+    assert('L5. secret-scan is still required on every release',
+        ALWAYS_REQUIRED_JOBS.includes('secret-scan'),
+        'release-validation demands success from it, never a skip');
+    assert('L6. release-validation still refuses when secret-scan fails',
+        evaluateValidation({
+            planResult: 'success',
+            jobResults: { ...allJobs('success'), 'secret-scan': 'failure' },
+            lanePlan: plan(() => ({ selected: true, attested: false })),
+        }).ok === false,
+        'a scanner failure must never be interpretable as a pass');
+    assert('L7. release-validation also refuses when secret-scan is merely skipped',
+        evaluateValidation({
+            planResult: 'success',
+            jobResults: { ...allJobs('success'), 'secret-scan': 'skipped' },
+            lanePlan: plan(() => ({ selected: true, attested: false })),
+        }).ok === false,
+        'the deploy jobs sit behind this verdict, so a missing scan is a refusal');
+
+    const scanner = readFileSync(resolvePath(here, './secret-scan.mjs'), 'utf8');
+    assert('L8. the gitleaks version is pinned to an exact release, not "latest"',
+        /GITLEAKS_VERSION\s*=\s*'\d+\.\d+\.\d+'/.test(scanner)
+        // Asserted on the download URL, not on the prose: the docblock explains
+        // that the action resolved "latest", and that explanation must be allowed
+        // to say so.
+        && /releases\/download\/v\$\{GITLEAKS_VERSION\}/.test(scanner)
+        && !/releases\/latest/.test(scanner),
+        'the action resolved "latest" at run time, so the gate\'s scanner changed underneath it');
+    assert('L9. and pinned by digest as well as by tag',
+        /GITLEAKS_SHA256\s*=\s*'[0-9a-f]{64}'/.test(scanner),
+        'a tag can be moved; the digest is what makes a security gate reproducible');
+    assert('L10. the scanner scans both the commit range and the resulting tree',
+        /mode:\s*'git'/.test(scanner) && /mode:\s*'dir'/.test(scanner),
+        'the range catches add-then-delete; the tree catches what is present now');
+
+    /*
+     * The full-history sweep still exists — it just cannot block a deploy. If it
+     * ever gains a push or pull_request trigger, or turns up in
+     * release-validation's `needs`, the 2026-08-26 failure is back.
+     */
+    const auditPath = resolvePath(here, '../.github/workflows/secret-history-audit.yml');
+    assert('L11. the deliberate full-history audit exists',
+        existsSync(auditPath),
+        'legacy findings must stay visible somewhere, or removing them from the gate hides them');
+    if (existsSync(auditPath)) {
+        const audit = readFileSync(auditPath, 'utf8');
+        const triggers = audit.slice(audit.indexOf('\non:'), audit.indexOf('\njobs:'));
+        assert('L12. the audit runs on a schedule and on demand only',
+            /schedule:/.test(triggers) && /workflow_dispatch:/.test(triggers)
+            && !/^\s*push:/m.test(triggers) && !/^\s*pull_request:/m.test(triggers),
+            'a full-history sweep on push or pull_request is the failure this change removed');
+        assert('L13. the audit scans all refs',
+            /--all/.test(audit) || /'--all'/.test(readFileSync(resolvePath(here, './secret-history-audit.mjs'), 'utf8')),
+            'a secret parked on an unmerged branch is still in the repository');
+    }
+    const validationJob = workflow.slice(workflow.indexOf('  release-validation:'));
+    assert('L14. release-validation does not depend on the history audit',
+        !/secret-history-audit/.test(validationJob),
+        'the audit reports; it must never be able to block a release');
+
+    /*
+     * The manual/force-push baseline is "the newest ancestor whose own
+     * secret-scan passed", which the scanner asks GitHub for by check NAME. A
+     * rename would mean "nothing was ever validated" — a refusal, so it fails
+     * closed, but for a reason nobody would guess from the message.
+     */
+    assert('L17. the scanner asks about the same check name the workflow declares',
+        /^ {2}secret-scan:$/m.test(workflow)
+        && /SECRET_SCAN_CHECK_NAME = 'secret-scan'/.test(scanner),
+        'the job name in main.yml and SECRET_SCAN_CHECK_NAME must be the same string');
+    assert('L18. and the job can read checks in order to ask',
+        /checks:\s*read/.test(secretScanJob),
+        'without checks:read the lookup returns nothing and every manual run refuses');
+    assert('L19. an unusable baseline is never widened to a full scan',
+        !/--all/.test(scanner),
+        'the full sweep belongs to the audit workflow; this one refuses instead');
+    /*
+     * A push's own `before` is the tip of the PREVIOUS push, whose scan may have
+     * failed — trusting it puts that failed increment behind the range, and a
+     * credential added and deleted inside it then passes and deploys (reproduced,
+     * 2026-08-26). Every event but a pull request anchors at a validated commit.
+     */
+    assert('L20. a push never anchors at its own `before`',
+        !/'push-before'/.test(scanner),
+        'that baseline is only as trustworthy as a scan that may have failed');
+    /*
+     * A baseline also needs the run's own `release-validation` to have passed,
+     * because that is what proves `callable-contract` — the scanner's own tests —
+     * passed with it. A commit that BREAKS the scanner is exactly the commit
+     * whose `secret-scan` goes green while those tests do not.
+     */
+    assert('L21. a baseline needs a validated release, not just a green scan',
+        /RELEASE_VALIDATION_CHECK_NAME = 'Verify the release is fully validated'/.test(scanner)
+        && /name: Verify the release is fully validated/.test(workflow),
+        'the constant and the release-validation job name in main.yml must be the same string');
+
+    /*
+     * The escape hatch is not a bypass: the refusal messages tell an operator to
+     * set SECRET_SCAN_BASE, so the obvious wrong move is to paste in the tip that
+     * just failed — the one commit whose broken scanner reported success. An
+     * override has to carry a validated release like any inferred base.
+     */
+    assert('L24. SECRET_SCAN_BASE is checked as hard as an inferred base',
+        /does not carry a fully validated release/.test(scanner)
+        && /isValidatedRelease/.test(scanner),
+        'an override names a release known to be good; it does not invent one');
+
+    const gitleaksConfig = readFileSync(resolvePath(here, '../.gitleaks.toml'), 'utf8');
+    assert('L15. the default rule set is still extended, not replaced',
+        /useDefault\s*=\s*true/.test(gitleaksConfig),
+        'switching rules off is the widest exemption there is');
+    assert('L16. no path is exempted from scanning',
+        !/^\s*paths\s*=/m.test(gitleaksConfig),
+        'a path exemption would ignore a real credential pasted into that file; '
+        + 'the two `.env.example` entries were measured to be unnecessary and deleted');
+
+    /*
+     * L16 stops the widest exemption; this stops the same move made with a
+     * regex instead of a path. `regexes` is unbounded — one entry of `.*` would
+     * make both scans pass over anything — so the exemptions are pinned by
+     * value. Adding one is then a visible, reviewable edit to this list rather
+     * than a line in a config nobody re-reads, which is the whole point.
+     *
+     * Both entries are documented in `.gitleaks.toml` with what they are, why
+     * they cannot be a credential, and how that was verified.
+     */
+    const EXPECTED_VALUE_EXEMPTIONS = [
+        String.raw`AIzaSyE2EPlaceholderKey1234567890123`,
+        String.raw`^\d{4}-\d{2}-\d{2}_[a-z][a-z0-9-]*$`,
+    ];
+    const declared = [...gitleaksConfig.matchAll(/^\s*'''(.*)'''\s*,?\s*$/gm)].map((m) => m[1]);
+    assert('L22. the value exemptions are exactly the two that were reviewed',
+        declared.length === EXPECTED_VALUE_EXEMPTIONS.length
+        && declared.every((value, index) => value === EXPECTED_VALUE_EXEMPTIONS[index]),
+        `found ${JSON.stringify(declared)} — a new exemption has to be added here too, `
+        + 'with the measurement that justifies it');
+    assert('L23. and none of them can match an arbitrary value',
+        declared.every((value) => !/^\^?\.[*+]\$?$/.test(value) && value.length > 8),
+        'a catch-all regex in the allowlist is a rule exemption wearing a value exemption\'s clothes');
+
+    /*
+     * L22 pins the VALUES; this pins the whole file, because neither listing
+     * forbidden keys nor pattern-matching the allowed ones survives contact with
+     * TOML. Measured against gitleaks 8.30.1, every one of these reaches the
+     * scanner and hides the same synthetic key:
+     *
+     *   [extend] disabledRules = [...]                 range 0, tree 0
+     *   [allowlist] stopwords  = [...]                 range 0, tree 0
+     *   [[allowlists]] (the plural form)               range 0, tree 0
+     *   [allowlist] paths      = [...]                 range 0, tree 0
+     *   [allowlist] commits    = [...]                 range 0 (tree still saw it)
+     *   "disabledRules" = [...]   (a quoted key)       range 0
+     *   'disabledRules' = [...]   (single-quoted)      range 0
+     *   extend = { disabledRules = [...] }  (inline)   range 0
+     *
+     * A key whitelist matched on bare identifiers missed the last three, which is
+     * exactly the sort of near-miss this file must not have. So the config's
+     * non-comment content is pinned line for line: any edit at all — a new key in
+     * any syntax, a new table, a reopened string — fails here until this list is
+     * updated with the measurement that justifies it. Comments stay free, because
+     * gitleaks ignores them and the reasoning belongs next to the values.
+     */
+    const CONFIG_CONTENT = [
+        'title = "SafeHaul"',
+        '[extend]',
+        'useDefault = true',
+        '[allowlist]',
+        'description = "Two value exemptions. No path is exempt, and no rule is switched off."',
+        'regexes = [',
+        String.raw`  '''AIzaSyE2EPlaceholderKey1234567890123''',`,
+        String.raw`  '''^\d{4}-\d{2}-\d{2}_[a-z][a-z0-9-]*$''',`,
+        ']',
+    ];
+    const configContent = gitleaksConfig
+        .split('\n')
+        .map((line) => line.replace(/\s+$/, ''))
+        .filter((line) => line.trim() !== '' && !line.trim().startsWith('#'));
+    assert('L24a. the scanner config is exactly the file that was reviewed',
+        JSON.stringify(configContent) === JSON.stringify(CONFIG_CONTENT),
+        `the non-comment content differs:\n  expected ${JSON.stringify(CONFIG_CONTENT)}\n  `
+        + `found    ${JSON.stringify(configContent)}`);
+
+    /*
+     * Two exemptions that need no config change at all, both measured:
+     * `gitleaks:allow` in a source comment is honoured by DEFAULT, and a
+     * `.gitleaksignore` suppresses findings by fingerprint and cannot be
+     * neutralised by pointing `--gitleaks-ignore-path` elsewhere.
+     */
+    assert('L25. a `gitleaks:allow` comment cannot silence a finding',
+        /--ignore-gitleaks-allow/.test(scanner),
+        'without that flag, any change could exempt its own credential with one comment');
+    assert('L26. and no .gitleaksignore is tracked, nor scanned around',
+        !existsSync(resolvePath(here, '../.gitleaksignore'))
+        && /\.gitleaksignore/.test(scanner),
+        'the scanner refuses when one is present; there must also not be one here');
+}
+
 console.log(failures === 0 ? '\nAll CI plan and gate checks passed.' : `\n${failures} check(s) failed.`);
 process.exit(failures === 0 ? 0 : 1);
