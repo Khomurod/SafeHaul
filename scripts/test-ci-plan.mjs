@@ -1217,6 +1217,23 @@ console.log('\nL. The secret scanner is scoped, pinned, and still mandatory');
         !/secret-history-audit/.test(validationJob),
         'the audit reports; it must never be able to block a release');
 
+    /*
+     * The manual/force-push baseline is "the newest ancestor whose own
+     * secret-scan passed", which the scanner asks GitHub for by check NAME. A
+     * rename would mean "nothing was ever validated" — a refusal, so it fails
+     * closed, but for a reason nobody would guess from the message.
+     */
+    assert('L17. the scanner asks about the same check name the workflow declares',
+        /^ {2}secret-scan:$/m.test(workflow)
+        && /SECRET_SCAN_CHECK_NAME = 'secret-scan'/.test(scanner),
+        'the job name in main.yml and SECRET_SCAN_CHECK_NAME must be the same string');
+    assert('L18. and the job can read checks in order to ask',
+        /checks:\s*read/.test(secretScanJob),
+        'without checks:read the lookup returns nothing and every manual run refuses');
+    assert('L19. an unusable baseline is never widened to a full scan',
+        !/--all/.test(scanner),
+        'the full sweep belongs to the audit workflow; this one refuses instead');
+
     const gitleaksConfig = readFileSync(resolvePath(here, '../.gitleaks.toml'), 'utf8');
     assert('L15. the default rule set is still extended, not replaced',
         /useDefault\s*=\s*true/.test(gitleaksConfig),

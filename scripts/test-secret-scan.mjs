@@ -34,7 +34,9 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync, copyFileSync, existsSync } from 'node:fs';
+import {
+    copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve as resolvePath } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -43,11 +45,12 @@ import {
     GITLEAKS_VERSION,
     ScanPlanError,
     ensureGitleaks,
+    findLastValidatedAncestor,
     gitRunner,
     performScans,
     resolveScanPlan,
 } from './secret-scan.mjs';
-import { evaluateAudit } from './secret-history-audit.mjs';
+import { evaluateAudit, fingerprintOf } from './secret-history-audit.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const REPO_CONFIG = resolvePath(here, '../.gitleaks.toml');
@@ -208,6 +211,9 @@ console.log('A. Range selection — what each event compares against');
     const e = repo.commit('E — base branch moved on after the fork');
 
     const git = repo.gitOps();
+    /** Stands in for "GitHub says this commit's own secret-scan passed". */
+    const validated = (sha) => () => sha;
+    const nothingValidated = () => null;
 
     // 5. A pull request scans only its own ancestry.
     const pr = resolveScanPlan({
@@ -237,34 +243,28 @@ console.log('A. Range selection — what each event compares against');
         push.base === b && push.source === 'push-before',
         `${push.source}: ${String(push.base).slice(0, 8)}`);
 
-    // 10. A push with no usable "before" falls back to a bounded range, never to everything.
-    const created = resolveScanPlan({
-        eventName: 'push',
-        payload: { before: '0'.repeat(40), after: d },
-        headSha: d,
-        defaultBranchRef: 'main',
-        git,
-    });
-    assert('A5. a branch-creation push (before = all zeros) falls back to the default-branch merge base',
-        created.base === b && created.source === 'push-default-branch-merge-base',
-        `${created.source}: ${String(created.base).slice(0, 8)}`);
-
     // 8 + 9. Manual re-verification of an already-merged commit.
-    const dispatch = resolveScanPlan({ eventName: 'workflow_dispatch', headSha: e, git });
-    assert('A6 (req 8). workflow_dispatch compares against the previous first-parent state',
-        dispatch.base === b && dispatch.source === 'previous-first-parent',
+    const dispatch = resolveScanPlan({
+        eventName: 'workflow_dispatch', headSha: e, lastValidatedBase: validated(b), git,
+    });
+    assert('A5 (req 8). workflow_dispatch compares against the last VALIDATED commit',
+        dispatch.base === b && dispatch.source === 'last-validated-commit',
         `${dispatch.source}: ${String(dispatch.base).slice(0, 8)}`);
-    assert('A7 (req 8). and never against the whole history',
+    assert('A6 (req 8, 23). and never against the whole history',
         dispatch.logOpts.includes('..') && !dispatch.logOpts.includes('--all'),
         dispatch.logOpts);
 
-    const again = resolveScanPlan({ eventName: 'workflow_dispatch', headSha: e, git });
-    assert('A8 (req 9). repeating the same manual run produces the identical range',
+    const again = resolveScanPlan({
+        eventName: 'workflow_dispatch', headSha: e, lastValidatedBase: validated(b), git,
+    });
+    assert('A7 (req 9). repeating the same manual run produces the identical range',
         again.logOpts === dispatch.logOpts,
         `${dispatch.logOpts} vs ${again.logOpts}`);
 
-    assert('A9. schedule is treated like a manual re-verification, not a full sweep',
-        resolveScanPlan({ eventName: 'schedule', headSha: e, git }).logOpts === dispatch.logOpts,
+    assert('A8. schedule is treated like a manual re-verification, not a full sweep',
+        resolveScanPlan({
+            eventName: 'schedule', headSha: e, lastValidatedBase: validated(b), git,
+        }).logOpts === dispatch.logOpts,
         'the full sweep is the separate audit workflow, which gates nothing');
 
     // 7. A merge must not be able to hide a second parent.
@@ -276,19 +276,79 @@ console.log('A. Range selection — what each event compares against');
         headSha: merge,
         git,
     });
-    assert('A10 (req 7). a merge push scans everything the merge introduced',
+    assert('A9 (req 7). a merge push scans everything the merge introduced',
         mergePush.base === e,
         `${String(mergePush.base).slice(0, 8)}`);
-    assert('A11 (req 7). no range ever uses --first-parent or --no-merges',
-        [pr, push, created, dispatch, mergePush]
+    assert('A10 (req 7). no range ever uses --first-parent or --no-merges',
+        [pr, push, dispatch, mergePush]
             .every((p) => !/--first-parent|--no-merges/.test(p.logOpts)),
         'those two flags are what let a secret ride in on a second parent');
-    assert('A12 (req 7). every range passes -m so merge commits are diffed against each parent',
-        [pr, push, created, dispatch, mergePush].every((p) => p.logOpts.startsWith('-m ')),
+    assert('A11 (req 7). every range passes -m so merge commits are diffed against each parent',
+        [pr, push, dispatch, mergePush].every((p) => p.logOpts.startsWith('-m ')),
         'without -m, git prints no patch for a merge and a conflict resolution is invisible');
 
-    const dispatchOnMerge = resolveScanPlan({ eventName: 'workflow_dispatch', headSha: merge, git });
-    assert('A13 (req 8). dispatching on a merge commit compares against the previous branch tip',
+    /*
+     * Found in review on 2026-08-26 (P1).
+     *
+     * A manual re-run used to compare against `head^1`, on the reasoning that
+     * every earlier commit was scanned by the event that introduced it. That
+     * assumes the earlier scan PASSED. After a push whose scan FAILED, a manual
+     * re-run would scan only the newest commit — so a credential added earlier in
+     * that push and deleted before its tip is in neither the range nor the tree,
+     * and `workflow_dispatch` deploys. The baseline is the last VALIDATED commit
+     * now, and no validated commit means refusal.
+     */
+    throws('A12 (req 10). a manual run with no validated ancestor REFUSES',
+        () => resolveScanPlan({
+            eventName: 'workflow_dispatch', headSha: e, lastValidatedBase: nothingValidated, git,
+        }),
+        'this is the re-run-after-a-failed-push case; scanning one commit would step over it');
+
+    /*
+     * Also found in review on 2026-08-26 (P1).
+     *
+     * A force-push to the default branch leaves `before` non-ancestral, and the
+     * old fallback took the merge base with the default branch — which IS the
+     * head after a force-push, giving the empty range `head..head`. A credential
+     * added and removed inside the rewritten commits passed both scans.
+     */
+    throws('A13 (req 10). a force-push whose baseline collapses to the head REFUSES',
+        () => resolveScanPlan({
+            eventName: 'push',
+            // A force-push: `before` is not an ancestor of the new head, so the
+            // event gives no usable baseline...
+            payload: { before: '0'.repeat(40), after: e },
+            headSha: e,
+            // ...and the fallback resolves to the head itself, which is exactly
+            // what `mergeBase(origin/main, head)` produced after a force-push to
+            // the default branch.
+            lastValidatedBase: () => e,
+            git,
+        }),
+        'a base equal to the head means an empty range, which validates nothing');
+    throws('A14 (req 10). a force-push with no validated ancestor REFUSES rather than widening',
+        () => resolveScanPlan({
+            eventName: 'push',
+            payload: { before: '0'.repeat(40), after: e },
+            headSha: e,
+            lastValidatedBase: nothingValidated,
+            git,
+        }));
+    const forcePushed = resolveScanPlan({
+        eventName: 'push',
+        payload: { before: '0'.repeat(40), after: e },
+        headSha: e,
+        lastValidatedBase: validated(b),
+        git,
+    });
+    assert('A15. a force-push falls back to the last validated commit when there is one',
+        forcePushed.base === b && forcePushed.source === 'last-validated-commit',
+        `${forcePushed.source}: ${String(forcePushed.base).slice(0, 8)}`);
+
+    const dispatchOnMerge = resolveScanPlan({
+        eventName: 'workflow_dispatch', headSha: merge, lastValidatedBase: validated(e), git,
+    });
+    assert('A16 (req 8). dispatching on a merge commit scans everything since the validated one',
         dispatchOnMerge.base === e,
         `expected ${e.slice(0, 8)}, got ${String(dispatchOnMerge.base).slice(0, 8)}`);
 }
@@ -330,19 +390,23 @@ if (binary) {
         repo.remove('legacy.env');
         repo.commit('ancient: and is removed again');
         repo.write('src/app.js', 'export const answer = 42;');
-        const validated = repo.commit('a previous, already-validated release');
+        const validatedCommit = repo.commit('a previous, already-validated release');
         repo.write('src/app.js', 'export const answer = 43;');
         const head = repo.commit('the change under test — nothing sensitive');
 
         const git = repo.gitOps();
-        const dispatch = resolveScanPlan({ eventName: 'workflow_dispatch', headSha: head, git });
+        // Stands in for "GitHub reports this commit's own secret-scan passed".
+        const validated = () => validatedCommit;
+        const dispatch = resolveScanPlan({
+            eventName: 'workflow_dispatch', headSha: head, lastValidatedBase: validated, git,
+        });
         const manual = scan(repo, dispatch, binary);
         assert('B1 (req 1, 9). a manual run passes when the only secrets are in ancient history',
             manual.ok,
             `range=${manual.range.findings.length} tree=${manual.tree.findings.length} — ${manual.problems.join('; ')}`);
         assert('B2 (req 8, 23). that manual run scanned 1 commit, not the whole history',
-            dispatch.base === validated,
-            `base was ${String(dispatch.base).slice(0, 8)}, expected ${validated.slice(0, 8)}`);
+            dispatch.base === validatedCommit,
+            `base was ${String(dispatch.base).slice(0, 8)}, expected ${validatedCommit.slice(0, 8)}`);
 
         // The same repository, scanned the way the old action did on dispatch.
         const everything = scan(repo, {
@@ -352,7 +416,9 @@ if (binary) {
             !everything.ok && everything.range.findings.length > 0,
             'this is exactly run #159: legacy findings failing an unrelated release');
         assert('B4 (req 9). repeating the manual run gives the same clean verdict',
-            scan(repo, resolveScanPlan({ eventName: 'workflow_dispatch', headSha: head, git }), binary).ok,
+            scan(repo, resolveScanPlan({
+                eventName: 'workflow_dispatch', headSha: head, lastValidatedBase: validated, git,
+            }), binary).ok,
             'a re-verification must not rediscover history it already accepted');
 
         assert('B5. the ancient secret is still visible to the deliberate audit',
@@ -531,12 +597,12 @@ console.log('\nC. Failing safe — a base that cannot be trusted is never widene
             headSha: second,
             git,
         }));
-    throws('C3 (req 10). a push with no before and no reachable default branch refuses',
+    throws('C3 (req 10). a push with no before and nothing validated refuses',
         () => resolveScanPlan({
             eventName: 'push',
             payload: { before: '0'.repeat(40) },
             headSha: second,
-            defaultBranchRef: 'origin/does-not-exist',
+            lastValidatedBase: () => null,
             git,
         }));
     throws('C4 (req 10). an unknown event refuses rather than guessing',
@@ -545,6 +611,11 @@ console.log('\nC. Failing safe — a base that cannot be trusted is never widene
         () => resolveScanPlan({ eventName: 'workflow_dispatch', headSha: 'HEAD', git }));
     throws('C6 (req 10). a head that is not in the clone refuses',
         () => resolveScanPlan({ eventName: 'workflow_dispatch', headSha: 'a'.repeat(40), git }));
+    throws('C6b (req 10). a validated base that is the head itself refuses (empty range)',
+        () => resolveScanPlan({
+            eventName: 'workflow_dispatch', headSha: second, lastValidatedBase: () => second, git,
+        }),
+        'an empty range compares nothing, which must never read as clean');
 
     // The override is an escape hatch, not a bypass.
     throws('C7. SECRET_SCAN_BASE that is not an ancestor of head refuses',
@@ -566,16 +637,91 @@ console.log('\nC. Failing safe — a base that cannot be trusted is never widene
         overridden.base === first && overridden.source === 'explicit-base-override',
         `${overridden.source}: ${String(overridden.base).slice(0, 8)}`);
 
-    // A repository with a single commit has no "previous state" to compare to.
+    // A repository whose single commit has never been validated has no baseline,
+    // and says so rather than inventing one.
     const fresh = makeRepo();
     fresh.write('only.txt', 'x');
     const root = fresh.commit('root');
-    const rootPlan = resolveScanPlan({
-        eventName: 'workflow_dispatch', headSha: root, git: fresh.gitOps(),
+    throws('C10 (req 10). a commit with no validated ancestor refuses, whatever its position',
+        () => resolveScanPlan({
+            eventName: 'workflow_dispatch', headSha: root, lastValidatedBase: () => null, git: fresh.gitOps(),
+        }),
+        'including a root commit — "nothing to compare against" is a refusal, not a full scan');
+}
+
+/* ========================================================================== */
+console.log('\nE. Finding the last validated commit');
+/* ========================================================================== */
+
+{
+    /*
+     * The baseline for a manual run and for a force-push is "the newest ancestor
+     * whose own secret-scan passed". Git cannot answer that, so GitHub is asked —
+     * and the answers that are NOT "yes" all have to fail closed, distinguishably.
+     */
+    const repo = makeRepo();
+    repo.write('f.txt', '1');
+    const first = repo.commit('first');
+    repo.write('f.txt', '2');
+    const second = repo.commit('second');
+    repo.write('f.txt', '3');
+    const third = repo.commit('third');
+
+    const reply = (byCommit) => async (url) => {
+        const sha = url.split('/commits/')[1].split('/')[0];
+        const conclusion = byCommit[sha];
+        return {
+            ok: true,
+            json: async () => ({
+                check_runs: conclusion
+                    ? [{ name: 'secret-scan', status: 'completed', conclusion }]
+                    : [],
+            }),
+        };
+    };
+    const opts = { headSha: third, cwd: repo.dir, repository: 'o/r', token: 't' };
+
+    const found = await findLastValidatedAncestor({
+        ...opts, fetchImpl: reply({ [second]: 'success', [first]: 'success' }),
     });
-    assert('C10. a root commit is scanned as exactly itself, not as "everything"',
-        rootPlan.source === 'root-commit' && rootPlan.logOpts.includes('--max-count=1'),
-        rootPlan.logOpts);
+    assert('E1. it returns the NEWEST validated ancestor',
+        found.sha === second,
+        `${String(found.sha).slice(0, 8)} — walking must stop at the first success`);
+
+    const skipped = await findLastValidatedAncestor({
+        ...opts, fetchImpl: reply({ [second]: 'failure', [first]: 'success' }),
+    });
+    assert('E2 (req 10). an ancestor whose scan FAILED is not a baseline',
+        skipped.sha === first,
+        'this is the whole point: a failed push must not become the thing we compare against');
+
+    const none = await findLastValidatedAncestor({ ...opts, fetchImpl: reply({}) });
+    assert('E3 (req 10). nothing validated yields no baseline, and the caller refuses',
+        none.sha === null && none.error === null && none.checked === 2,
+        JSON.stringify(none));
+
+    const broken = await findLastValidatedAncestor({
+        ...opts,
+        fetchImpl: async () => { throw new Error('network down'); },
+    });
+    assert('E4 (req 10). a lookup that could not run reports WHY, and still yields no baseline',
+        broken.sha === null && /network down/.test(broken.error || ''),
+        JSON.stringify(broken));
+    assert('E5. "could not ask" is never mistaken for "nothing to find"',
+        broken.error !== null && none.error === null,
+        'the two fail identically but need different fixes, so they read differently');
+
+    const denied = await findLastValidatedAncestor({
+        ...opts, fetchImpl: async () => ({ ok: false, status: 403 }),
+    });
+    assert('E6 (req 10). a 403 is a refusal, not an empty answer',
+        denied.sha === null && /403/.test(denied.error || ''),
+        JSON.stringify(denied));
+
+    const untokened = await findLastValidatedAncestor({ ...opts, token: '', fetchImpl: reply({}) });
+    assert('E7. with no token it does not pretend to know',
+        untokened.sha === null && /GITHUB_TOKEN/.test(untokened.error || ''),
+        JSON.stringify(untokened));
 }
 
 /* ========================================================================== */
@@ -589,22 +735,77 @@ assert('D2 (req 14). and pinned by content as well as by tag',
     /^[0-9a-f]{64}$/.test(GITLEAKS_SHA256),
     'a tag can be moved; the digest is what makes the scanner reproducible');
 
+const FP = (n) => `${'a'.repeat(39)}${n}:legacy/.env:gcp-api-key:1`;
+const legacy = { findings: 2, gitleaksVersion: '8.30.1', fingerprints: [FP(1), FP(2)] };
+
 assert('D3 (req 10). the audit refuses to enforce without a recorded baseline',
-    evaluateAudit(null, { findings: 3, gitleaksVersion: GITLEAKS_VERSION }).ok === false,
+    evaluateAudit(null, { findings: 3, gitleaksVersion: GITLEAKS_VERSION, fingerprints: [] }).ok === false,
     'no baseline means nothing to compare against, which is not the same as "clean"');
-assert('D4 (req 10). a history that grew fails the audit',
-    evaluateAudit({ findings: 67, gitleaksVersion: '8.30.1' }, { findings: 68, gitleaksVersion: '8.30.1' }).verdict === 'regressed',
-    'something entered history that the inventory does not know about');
+assert('D4 (req 10). a baseline with a count but no identities is refused',
+    evaluateAudit(
+        { findings: 2, gitleaksVersion: '8.30.1' },
+        { findings: 2, gitleaksVersion: '8.30.1', fingerprints: [FP(1), FP(2)] },
+    ).verdict === 'no-identities',
+    'counting alone cannot tell a replaced finding from an unchanged one');
 assert('D5. an unchanged history passes and says so',
-    evaluateAudit({ findings: 67, gitleaksVersion: '8.30.1' }, { findings: 67, gitleaksVersion: '8.30.1' }).ok,
+    evaluateAudit(legacy, { ...legacy }).verdict === 'unchanged',
     'the known legacy findings are recorded, not re-litigated on every run');
-assert('D6. a cleaned history passes, and asks for the baseline to be updated',
-    evaluateAudit({ findings: 67, gitleaksVersion: '8.30.1' }, { findings: 2, gitleaksVersion: '8.30.1' }).verdict === 'improved',
+assert('D6 (req 10). a NEW finding fails the audit',
+    evaluateAudit(legacy, {
+        findings: 3, gitleaksVersion: '8.30.1', fingerprints: [FP(1), FP(2), FP(3)],
+    }).verdict === 'regressed',
+    'something entered history that the inventory does not know about');
+
+/*
+ * The case counting missed, found in review on 2026-08-26 (P2).
+ *
+ * One legacy finding disappears — a stale branch deleted — and a new secret
+ * appears on another unmerged branch. The total is identical, and a count
+ * comparison calls that `unchanged`. It matters because the blocking gate only
+ * runs for `main` and pull requests targeting it, so an unmerged branch is this
+ * audit's to catch.
+ */
+{
+    const swapped = evaluateAudit(legacy, {
+        findings: 2, gitleaksVersion: '8.30.1', fingerprints: [FP(1), FP(9)],
+    });
+    assert('D7 (req 10). a new finding that REPLACES a vanished one still fails',
+        swapped.ok === false && swapped.verdict === 'regressed',
+        `verdict was ${swapped.verdict} — the totals match, so only identities can see this`);
+    assert('D8. and it names what appeared and what went, by location only',
+        swapped.added.length === 1 && swapped.added[0] === FP(9)
+        && swapped.removed.length === 1 && swapped.removed[0] === FP(2),
+        JSON.stringify({ added: swapped.added, removed: swapped.removed }));
+}
+
+assert('D9. a cleaned history passes, and asks for the baseline to be updated',
+    evaluateAudit(legacy, { findings: 1, gitleaksVersion: '8.30.1', fingerprints: [FP(1)] }).verdict === 'improved',
     'fewer findings must not read as a failure');
-assert('D7. a scanner upgrade reports instead of failing',
-    evaluateAudit({ findings: 67, gitleaksVersion: '8.24.3' }, { findings: 90, gitleaksVersion: '8.30.1' }).ok
-    && evaluateAudit({ findings: 67, gitleaksVersion: '8.24.3' }, { findings: 90, gitleaksVersion: '8.30.1' }).verdict === 'version-changed',
+assert('D10. a scanner upgrade reports instead of failing',
+    evaluateAudit(
+        { ...legacy, gitleaksVersion: '8.24.3' },
+        { findings: 90, gitleaksVersion: '8.30.1', fingerprints: [FP(5)] },
+    ).verdict === 'version-changed',
     'rule sets differ between versions; a bump is not a breach');
+
+assert('D11. a fingerprint is a location, and carries no part of a value',
+    fingerprintOf({ Commit: 'abc', File: 'x/.env', RuleID: 'gcp-api-key', StartLine: 3, Secret: 'AIzaTOPSECRET' })
+        === 'abc:x/.env:gcp-api-key:3',
+    'the baseline records these, so they must never be able to leak the finding');
+
+/*
+ * The recorded inventory is what the audit enforces against, so its shape is
+ * asserted here rather than trusted.
+ */
+{
+    const recorded = JSON.parse(readFileSync(resolvePath(here, '../.github/secret-history-baseline.json'), 'utf8'));
+    assert('D12. the recorded baseline lists an identity for every finding it counts',
+        Array.isArray(recorded.fingerprints) && recorded.fingerprints.length === recorded.findings,
+        `${recorded.fingerprints?.length} identities for ${recorded.findings} findings`);
+    assert('D13. and no recorded identity contains anything that looks like a secret',
+        recorded.fingerprints.every((id) => /^[0-9a-f]{40}:[^:]+:[a-z0-9-]+:\d+$/.test(id)),
+        'a fingerprint is commit:file:rule:line and nothing else');
+}
 
 for (const dir of scratch) rmSync(dir, { recursive: true, force: true });
 

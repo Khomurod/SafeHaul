@@ -52,6 +52,8 @@ export function evaluateAudit(baseline, observed) {
             verdict: 'no-baseline',
             message: `${BASELINE_PATH} is missing or has no numeric "findings", so this audit has `
                 + 'nothing to compare against. Record the current inventory before relying on it.',
+            added: [],
+            removed: [],
         };
     }
     if (baseline.gitleaksVersion !== observed.gitleaksVersion) {
@@ -60,34 +62,86 @@ export function evaluateAudit(baseline, observed) {
             verdict: 'version-changed',
             message: `the baseline was recorded with gitleaks ${baseline.gitleaksVersion} and this `
                 + `audit ran ${observed.gitleaksVersion}. Rule sets differ between versions, so the `
-                + `count is reported rather than enforced: ${observed.findings} finding(s) now, `
-                + `${baseline.findings} recorded. Re-record the baseline once the new count is reviewed.`,
+                + `inventory is reported rather than enforced: ${observed.findings} finding(s) now, `
+                + `${baseline.findings} recorded. Re-record the baseline once the new set is reviewed.`,
+            added: [],
+            removed: [],
         };
     }
-    if (observed.findings > baseline.findings) {
+
+    /*
+     * Identities, not a total.
+     *
+     * Comparing counts alone was wrong, and review on 2026-08-26 said why: a
+     * legacy finding that disappears — a stale branch deleted, say — leaves room
+     * for a NEW secret to take its place at the same total, and the audit would
+     * call that `unchanged`. It matters most exactly where this audit is the only
+     * scanner looking: the blocking gate runs for `main` and for pull requests
+     * targeting it, so a secret parked on an unmerged branch is this workflow's
+     * to catch.
+     *
+     * A gitleaks fingerprint is `commit:file:rule:startline` — a location, with
+     * no part of the value in it — so recording the set is safe and makes the
+     * baseline say WHICH findings are known rather than merely how many.
+     */
+    const recorded = new Set(Array.isArray(baseline.fingerprints) ? baseline.fingerprints : []);
+    const seen = new Set(observed.fingerprints || []);
+    if (recorded.size === 0) {
+        return {
+            ok: false,
+            verdict: 'no-identities',
+            message: `${BASELINE_PATH} records a count but no "fingerprints", so a new finding could `
+                + 'replace a vanished one without changing the total. Re-record the baseline.',
+            added: [...seen],
+            removed: [],
+        };
+    }
+
+    const added = [...seen].filter((id) => !recorded.has(id)).sort();
+    const removed = [...recorded].filter((id) => !seen.has(id)).sort();
+
+    if (added.length > 0) {
         return {
             ok: false,
             verdict: 'regressed',
-            message: `history now holds ${observed.findings} finding(s) where ${baseline.findings} were `
-                + 'recorded. Something was added to history that is not in the inventory — review the '
-                + 'attached report before doing anything else.',
+            message: `${added.length} finding(s) are in history that the inventory does not know `
+                + `about${removed.length ? `, and ${removed.length} recorded one(s) are gone` : ''}. `
+                + 'Something was added to history — review the attached report before doing anything '
+                + 'else. Values are redacted; the identities below are commit/file/rule/line only.',
+            added,
+            removed,
         };
     }
-    if (observed.findings < baseline.findings) {
+    if (removed.length > 0) {
         return {
             ok: true,
             verdict: 'improved',
-            message: `history now holds ${observed.findings} finding(s), fewer than the ${baseline.findings} `
-                + `recorded. If history was cleaned deliberately, update ${BASELINE_PATH} and `
+            message: `${removed.length} recorded finding(s) are no longer in history and nothing new `
+                + `appeared. If that was deliberate, update ${BASELINE_PATH} and `
                 + 'docs/SECRET_HISTORY_AUDIT.md to match.',
+            added,
+            removed,
         };
     }
     return {
         ok: true,
         verdict: 'unchanged',
-        message: `history holds the ${observed.findings} recorded finding(s) — see `
+        message: `history holds exactly the ${recorded.size} recorded finding(s) — see `
             + 'docs/SECRET_HISTORY_AUDIT.md for what they are and what remains for the owner.',
+        added,
+        removed,
     };
+}
+
+/**
+ * The identity of a finding: where it is, never what it is.
+ *
+ * gitleaks already computes this as `Fingerprint`; it is recomputed from the
+ * parts when absent so the audit never depends on an optional field.
+ */
+export function fingerprintOf(finding) {
+    if (finding.Fingerprint) return finding.Fingerprint;
+    return `${finding.Commit || 'worktree'}:${finding.File}:${finding.RuleID}:${finding.StartLine}`;
 }
 
 /** Counts by rule and by file, with no values anywhere. */
@@ -128,9 +182,11 @@ async function main() {
     const baseline = existsSync(BASELINE_PATH)
         ? JSON.parse(readFileSync(BASELINE_PATH, 'utf8'))
         : null;
+    const fingerprints = scan.findings.map(fingerprintOf).sort();
     const verdict = evaluateAudit(baseline, {
         findings: scan.findings.length,
         gitleaksVersion: GITLEAKS_VERSION,
+        fingerprints,
     });
     const { byRule, byFile } = summarise(scan.findings);
 
@@ -145,6 +201,12 @@ async function main() {
         '',
         verdict.message,
         '',
+        ...(verdict.added?.length
+            ? ['### Not in the inventory', '', ...verdict.added.map((id) => `- \`${id}\``), '']
+            : []),
+        ...(verdict.removed?.length
+            ? ['### Recorded, no longer present', '', ...verdict.removed.map((id) => `- \`${id}\``), '']
+            : []),
         '### By rule',
         '',
         '| rule | findings |',
@@ -172,6 +234,9 @@ async function main() {
                 gitleaksVersion: GITLEAKS_VERSION,
                 findings: scan.findings.length,
                 verdict: verdict.verdict,
+                added: verdict.added,
+                removed: verdict.removed,
+                fingerprints,
                 byRule,
                 byFile,
                 // Redacted: rule, path, line, commit, date. Never a value.

@@ -109,6 +109,18 @@ const ZERO_SHA = '0'.repeat(40);
 /** Events whose baseline is the previous state of the branch being verified. */
 const REVERIFICATION_EVENTS = Object.freeze(['workflow_dispatch', 'schedule', 'repository_dispatch']);
 
+/**
+ * The check name this scanner looks for when asking "was that commit validated?".
+ *
+ * It must equal the job's name in `main.yml`; `check:ci-plan` §L asserts that,
+ * because a rename here would silently mean "nothing was ever validated" — which
+ * fails closed, but for a reason nobody would guess.
+ */
+export const SECRET_SCAN_CHECK_NAME = 'secret-scan';
+
+/** How far back to look for a validated ancestor before giving up. */
+export const VALIDATED_ANCESTOR_WALK = 50;
+
 /** A base that could not be determined. Always fatal, never a wider scan. */
 export class ScanPlanError extends Error {}
 
@@ -137,8 +149,8 @@ export function resolveScanPlan({
     eventName,
     payload = {},
     headSha,
-    defaultBranchRef = 'origin/main',
     baseOverride = '',
+    lastValidatedBase = () => null,
     git,
 }) {
     if (!headSha || !/^[0-9a-f]{40}$/i.test(headSha)) {
@@ -151,13 +163,10 @@ export function resolveScanPlan({
         );
     }
 
-    // An explicit base always wins, and is still validated. This exists for the
-    // one gap the induction below cannot cover: a push that landed without ever
-    // running CI (an API merge does not create a workflow run), leaving more than
-    // one increment unscanned. It is checked exactly as hard as an inferred base.
+    // An explicit base always wins, and is still validated exactly as hard as an
+    // inferred one.
     if (baseOverride) {
-        const base = requireAncestor(git, baseOverride, headSha, 'SECRET_SCAN_BASE');
-        return plan(base, headSha, 'explicit-base-override');
+        return plan(requireUsableBase(git, baseOverride, headSha, 'SECRET_SCAN_BASE'), headSha, 'explicit-base-override');
     }
 
     if (eventName === 'pull_request' || eventName === 'pull_request_target') {
@@ -184,6 +193,12 @@ export function resolveScanPlan({
                 + 'no history, so "what this change adds" is undefined. Refusing to guess.',
             );
         }
+        if (mergeBase === headSha) {
+            throw new ScanPlanError(
+                `the merge base of this pull request equals its head (${short(headSha)}), so the range `
+                + 'would be empty and nothing would be compared. Refusing.',
+            );
+        }
         return plan(mergeBase, headSha, 'pull-request-merge-base');
     }
 
@@ -191,49 +206,73 @@ export function resolveScanPlan({
         const before = payload?.before;
         // `before` is the branch's previous tip and is the right answer for an
         // ordinary push, INCLUDING a merge: everything the merge introduced is
-        // reachable from the new head and not from the old one. It is not
-        // trustworthy for a branch that was just created (all zeros) or
-        // force-pushed (not an ancestor), so both are detected rather than
-        // assumed away.
-        if (before && before !== ZERO_SHA && git.exists(before) && git.isAncestor(before, headSha)) {
+        // reachable from the new head and not from the old one.
+        //
+        // It is NOT trustworthy for a branch that was just created (all zeros)
+        // or force-pushed (not an ancestor of the new head), and there is no
+        // sound way to derive the range from git in those cases:
+        //
+        //   - the old fallback took the merge base with the default branch,
+        //     which on a force-push TO the default branch is `mergeBase(head,
+        //     head)` — the head itself. That scans the empty range `head..head`,
+        //     so a credential added and removed inside the rewritten commits
+        //     passed both scans. Found in review on 2026-08-26, and it is why
+        //     `plan()` now refuses any base equal to the head.
+        //
+        // What replaces it is the last commit CI actually validated, below.
+        if (before && before !== ZERO_SHA && before !== headSha
+            && git.exists(before) && git.isAncestor(before, headSha)) {
             return plan(before, headSha, 'push-before');
         }
-
-        // New or rewritten branch: fall back to where it diverged from the
-        // default branch, which is still a bounded, meaningful range.
-        const defaultSha = git.resolve(defaultBranchRef);
-        if (defaultSha) {
-            const mergeBase = git.mergeBase(defaultSha, headSha);
-            if (mergeBase) return plan(mergeBase, headSha, 'push-default-branch-merge-base');
+        const validated = lastValidatedBase();
+        if (validated) {
+            return plan(
+                requireUsableBase(git, validated, headSha, 'the last validated commit'),
+                headSha,
+                'last-validated-commit',
+            );
         }
         throw new ScanPlanError(
-            `this push gives no usable baseline (before=${describeSha(before)}) and no merge base `
-            + `with ${defaultBranchRef} could be found. Refusing to fall back to a full-history scan.`,
+            `this push gives no usable baseline (before=${describeSha(before)}), and no earlier commit `
+            + 'on this history has a successful secret scan to compare against. Re-run with '
+            + 'SECRET_SCAN_BASE set to a commit you know was scanned. Refusing to fall back to a '
+            + 'full-history scan, or to an empty one.',
         );
     }
 
     if (REVERIFICATION_EVENTS.includes(eventName)) {
-        // A manual or scheduled run re-verifies a commit that is already on the
-        // branch. Its baseline is the state the branch was in before that commit
-        // — the first parent — which for a merge is the previous branch tip.
-        //
-        // Sound because every commit reached the branch through an event that
-        // scanned its own range, so the only unscanned increment is this one; and
-        // because the tree scan below re-checks the whole current tree regardless
-        // of range. Where that induction is broken (a push that never ran CI),
-        // `SECRET_SCAN_BASE` above is the deliberate, auditable repair.
-        const parent = git.firstParent(headSha);
-        if (parent) return plan(parent, headSha, 'previous-first-parent');
-
-        // A root commit has no "before". Its whole history IS the one commit, so
-        // scanning it is precise rather than a fallback to everything.
-        return {
-            base: null,
-            head: headSha,
-            source: 'root-commit',
-            logOpts: `-m --max-count=1 ${headSha}`,
-            describe: `the root commit ${short(headSha)} (no parent to compare against)`,
-        };
+        /*
+         * A manual or scheduled run re-verifies a commit that is already on the
+         * branch, so its baseline is "the last thing CI actually validated".
+         *
+         * This used to be `head^1`, on the reasoning that every earlier commit
+         * was scanned by the event that introduced it. Review on 2026-08-26
+         * found the hole in that: it assumes the earlier scan *passed*. A push
+         * whose scan FAILED, followed by a manual re-run, would scan only the
+         * last commit — so a credential added in an earlier commit of that push
+         * and deleted before its tip is in neither the range nor the tree, and
+         * the manual run is green. `workflow_dispatch` deploys, so that is a
+         * bypass of the gate rather than a gap in a report.
+         *
+         * The baseline is therefore the newest ancestor whose own `secret-scan`
+         * concluded success — which is exactly "the last validated commit" — and
+         * when there is none, this refuses and asks for an explicit base. It
+         * never widens to a full-history scan, and never narrows to an empty one.
+         */
+        const validated = lastValidatedBase();
+        if (validated) {
+            return plan(
+                requireUsableBase(git, validated, headSha, 'the last validated commit'),
+                headSha,
+                'last-validated-commit',
+            );
+        }
+        throw new ScanPlanError(
+            `no ancestor of ${short(headSha)} has a successful secret scan on record, so there is no `
+            + 'validated baseline to compare against. This is what a re-run after a FAILED push looks '
+            + 'like, and scanning only the newest commit would step over the failure. Set '
+            + 'SECRET_SCAN_BASE to a commit you know was scanned, or fix the failing run.',
+        );
     }
 
     throw new ScanPlanError(
@@ -242,12 +281,18 @@ export function resolveScanPlan({
     );
 }
 
-function requireAncestor(git, candidate, headSha, label) {
+function requireUsableBase(git, candidate, headSha, label) {
     if (!/^[0-9a-f]{7,40}$/i.test(candidate)) {
         throw new ScanPlanError(`${label} is not a commit SHA: ${JSON.stringify(candidate)}`);
     }
     if (!git.exists(candidate)) {
         throw new ScanPlanError(`${label}=${short(candidate)} is not a commit in this clone.`);
+    }
+    if (candidate === headSha) {
+        throw new ScanPlanError(
+            `${label}=${short(candidate)} is the head itself, so the range would be empty and `
+            + 'nothing would be compared. Refusing.',
+        );
     }
     if (!git.isAncestor(candidate, headSha)) {
         throw new ScanPlanError(
@@ -270,6 +315,12 @@ function requireAncestor(git, candidate, headSha, label) {
  * what let a secret ride in on a second parent.
  */
 function plan(base, head, source) {
+    if (base === head) {
+        throw new ScanPlanError(
+            `the computed base equals the head (${short(head)}), so the range is empty and nothing `
+            + `would be compared (source: ${source}). Refusing.`,
+        );
+    }
     return {
         base,
         head,
@@ -277,6 +328,12 @@ function plan(base, head, source) {
         logOpts: `-m ${base}..${head}`,
         describe: `${short(base)}..${short(head)} (${source})`,
     };
+}
+
+/** The same test the push branch applies, so main() knows when to ask GitHub. */
+export function isUsablePushBefore(before, headSha, git) {
+    return Boolean(before) && before !== ZERO_SHA && before !== headSha
+        && git.exists(before) && git.isAncestor(before, headSha);
 }
 
 const short = (sha) => String(sha || '').slice(0, 8);
@@ -310,6 +367,72 @@ export const gitRunner = (cwd) => ({
         return result.ok && result.stdout.trim() ? result.stdout.trim() : null;
     },
 });
+
+/**
+ * The newest ancestor of `headSha` whose own `secret-scan` check succeeded.
+ *
+ * This is what "the last validated commit" means, and it is asked of GitHub
+ * because git cannot answer it: a commit's history says nothing about whether CI
+ * ever passed on it. Walking first-parent is deliberate and conservative — for a
+ * merge it lands on the previous branch tip rather than on the merged branch's
+ * head, which makes the range wider, never narrower.
+ *
+ * Returns `null` when nothing qualifies, and the callers treat that as a refusal
+ * rather than a licence to scan less. Network failures are also `null` for the
+ * same reason: an unanswerable question is not a "yes".
+ *
+ * @returns {Promise<string|null>}
+ */
+export async function findLastValidatedAncestor({
+    headSha, cwd, repository, token, fetchImpl = fetch, walk = VALIDATED_ANCESTOR_WALK,
+}) {
+    if (!repository || !token) {
+        return { sha: null, checked: 0, error: 'no GITHUB_REPOSITORY/GITHUB_TOKEN to ask with' };
+    }
+    const listed = run('git', ['rev-list', '--first-parent', '--max-count', String(walk + 1), headSha], cwd);
+    if (!listed.ok) {
+        return { sha: null, checked: 0, error: `git rev-list failed: ${listed.stderr.trim()}` };
+    }
+    const ancestors = listed.stdout.split('\n').map((line) => line.trim()).filter(Boolean).slice(1);
+
+    let checked = 0;
+    for (const candidate of ancestors) {
+        checked += 1;
+        let response;
+        try {
+            response = await fetchImpl(
+                `https://api.github.com/repos/${repository}/commits/${candidate}/check-runs`
+                + `?check_name=${encodeURIComponent(SECRET_SCAN_CHECK_NAME)}&per_page=100`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        Accept: 'application/vnd.github+json',
+                        'X-GitHub-Api-Version': '2022-11-28',
+                    },
+                },
+            );
+        } catch (error) {
+            // An unanswerable question is not a "yes". Reported rather than
+            // swallowed, because "no validated ancestor" and "could not ask" fail
+            // the same way and need very different fixes.
+            return { sha: null, checked, error: `request failed: ${error?.message || error}` };
+        }
+        if (!response?.ok) {
+            return { sha: null, checked, error: `GitHub answered ${response?.status}` };
+        }
+        let body;
+        try {
+            body = await response.json();
+        } catch (error) {
+            return { sha: null, checked, error: `unreadable response: ${error?.message || error}` };
+        }
+        const runs = Array.isArray(body?.check_runs) ? body.check_runs : [];
+        if (runs.some((entry) => entry?.status === 'completed' && entry?.conclusion === 'success')) {
+            return { sha: candidate, checked, error: null };
+        }
+    }
+    return { sha: null, checked, error: null };
+}
 
 function run(command, args, cwd) {
     const result = spawnSync(command, args, { cwd, encoding: 'utf8' });
@@ -526,7 +649,24 @@ async function main() {
     const headSha = process.env.GITHUB_SHA && git.exists(process.env.GITHUB_SHA)
         ? process.env.GITHUB_SHA
         : git.resolve('HEAD');
-    const defaultBranch = process.env.GITHUB_DEFAULT_BRANCH || 'main';
+    // Looked up once, only if the event's own baseline turns out to be unusable,
+    // and awaited before the (synchronous) plan is resolved.
+    let validatedBase;
+    const needsValidatedBase = REVERIFICATION_EVENTS.includes(eventName)
+        || (eventName === 'push' && !isUsablePushBefore(payload?.before, headSha, git));
+    let lookupError = null;
+    if (needsValidatedBase && !(process.env.SECRET_SCAN_BASE || '').trim()) {
+        const lookup = await findLastValidatedAncestor({
+            headSha,
+            cwd,
+            repository: process.env.GITHUB_REPOSITORY,
+            token: process.env.GITHUB_TOKEN,
+        });
+        validatedBase = lookup.sha;
+        lookupError = lookup.error;
+        console.log(`validated  : ${validatedBase ? short(validatedBase) : 'none found'}`
+            + ` (asked about ${lookup.checked} ancestor(s)${lookup.error ? `; ${lookup.error}` : ''})`);
+    }
 
     let scanPlan;
     try {
@@ -534,13 +674,17 @@ async function main() {
             eventName,
             payload,
             headSha,
-            defaultBranchRef: git.resolve(`origin/${defaultBranch}`) ? `origin/${defaultBranch}` : defaultBranch,
             baseOverride: (process.env.SECRET_SCAN_BASE || '').trim(),
+            lastValidatedBase: () => validatedBase || null,
             git,
         });
     } catch (error) {
         fail(
             `${error.message}\n\n`
+            + (lookupError
+                ? `The baseline lookup could not complete: ${lookupError}. That is why no validated `
+                  + 'ancestor was found — it is not evidence that none exists.\n\n'
+                : '')
             + 'This job fails closed on purpose. It will not widen to a full-history scan, '
             + 'which is what reported known 2025-2026 legacy findings against unrelated releases. '
             + 'See docs/SECRET_HISTORY_AUDIT.md.',

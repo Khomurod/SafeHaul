@@ -29,7 +29,7 @@ for every unrelated release to be unshippable.
 
 The sweep now lives in `.github/workflows/secret-history-audit.yml` — weekly and
 on demand, **not** in `release-validation`'s `needs`, so it reports without
-gating. It fails only when the count exceeds
+gating. It fails only when a finding appears that is **not** in
 `.github/secret-history-baseline.json`, i.e. when something *new* enters history.
 
 ## The inventory
@@ -113,11 +113,19 @@ reason to take the disruption — and it is deliberately not automated.
 
 ## Keeping this file honest
 
-- The audit workflow's count is compared against
-  `.github/secret-history-baseline.json` on every run. A **higher** count fails
-  the audit: something entered history that is not inventoried here.
+- The audit compares **identities**, not a total. Every known finding is
+  recorded in `.github/secret-history-baseline.json` as
+  `commit:file:rule:startline` — a location, containing no part of any value —
+  and a finding that is not in that list fails the audit.
+
+  It used to compare counts, and review on 2026-08-26 showed why that was not
+  enough: one legacy finding disappearing (a stale branch deleted) leaves room
+  for a *new* secret to take its place at the same total, and the audit would
+  have called that `unchanged`. That matters most here, because the blocking
+  scanner only runs for `main` and pull requests targeting it — a secret parked
+  on an unmerged branch is this audit's to catch.
 - When history is cleaned, or the pinned gitleaks version changes and the new
-  count has been reviewed, update the baseline **and** this file in the same
+  set has been reviewed, update the baseline **and** this file in the same
   change. A version change reports rather than fails, because rule sets differ
   between gitleaks releases.
 - When a credential above is rotated, say so here with the date. A rotated

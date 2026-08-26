@@ -28,11 +28,11 @@ on:
       secret_scan_base:
         description: >-
           Optional baseline commit for secret-scan. Leave empty and the scan
-          compares against the previous first-parent state, which is the right
-          answer whenever every earlier commit arrived through a run of this
-          pipeline. Set it to the last commit you know was scanned if several
-          pushes landed without a run (an API merge creates no run). It must be
-          an ancestor of the ref being run, and it is validated.
+          compares against the newest ancestor whose own secret-scan passed,
+          which it asks GitHub for. Set it when there is no such commit — a
+          branch CI has never scanned, or a run you need to reproduce against a
+          specific point. It must be an ancestor of the ref being run, and it is
+          validated exactly as hard as an inferred base.
         required: false
         type: string
 
@@ -120,6 +120,10 @@ jobs:
     # release pipeline", rule 4) records the rule.
     permissions:
       contents: read
+      # Read-only, and only for one question: did an earlier commit's own
+      # `secret-scan` conclude success? That is what a manual re-verification
+      # compares against, because git cannot say whether CI ever passed.
+      checks: read
     steps:
       # Full history: the scanner resolves base..head itself, and a merge needs
       # both parents' ancestry to be present.
@@ -135,7 +139,9 @@ jobs:
           # Empty on push and pull_request; only a dispatch can set it.
           SECRET_SCAN_BASE: ${{ inputs.secret_scan_base }}
           SECRET_SCAN_REPORT_DIR: ${{ runner.temp }}/secret-scan
-          GITHUB_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          # Used only to ask which ancestor was last validated. The scan itself
+          # reads the event payload off disk and needs no token.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node scripts/secret-scan.mjs
       # Redacted by construction: rule, file, line and commit only, never a value.
       - name: Upload the redacted secret-scan report

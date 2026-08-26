@@ -265,8 +265,24 @@ Three lessons, in order of how expensive they were:
   that cannot determine a base exits non-zero and says so. There is no fallback
   that widens the scan.
 
+Review of the first implementation added two more, and both are the same shape —
+a baseline that looked sound and was not:
+
+- **"Every earlier commit was scanned" assumes it was scanned *successfully*.**
+  Comparing a manual re-run against `head^1` meant that after a push whose scan
+  FAILED, a re-run scanned only the newest commit — so a credential added earlier
+  in that push and deleted before its tip was in neither the range nor the tree.
+  `workflow_dispatch` deploys, so that was a bypass. The baseline is the newest
+  ancestor whose own `secret-scan` passed, asked of GitHub because git cannot
+  know it, and no such ancestor means refusal.
+- **A fallback can collapse to nothing.** Falling back to the merge base with the
+  default branch is `mergeBase(head, head)` after a force-push *to* the default
+  branch — the head itself, an empty range, everything passing. Any base equal to
+  the head is refused now, wherever it came from.
+
 `check:ci-plan` §L pins all of it: no third-party scanning action, a pinned
 version *and* digest, both scans present, `secret-scan` still unskippable, no
-path exemptions in `.gitleaks.toml`, and the audit workflow unable to reach
+path exemptions in `.gitleaks.toml`, the check name the lookup asks about
+matching the job that produces it, and the audit workflow unable to reach
 `release-validation`.
 <!-- /safehaul-design-system -->
