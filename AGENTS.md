@@ -239,4 +239,34 @@ Before merging a pipeline change: run `npm run check:ci-plan`, and afterwards
 **watch the real main run to completion**, because a pull request never deploys and
 therefore cannot exercise the path you just changed. That asymmetry is why these
 bugs reached `main` green.
+
+**4. A security gate must own its own scope.** Added 2026-08-26, after run #159.
+`gitleaks/gitleaks-action@v2` picked the scan range out of the event payload, and
+the rule for `workflow_dispatch` was *no range at all* — so a manual
+re-verification of an already-merged commit scanned all 256 commits, reported the
+eight legacy values that have been in this repository's history since 2025-12,
+failed `secret-scan`, failed `release-validation`, and skipped both deploys. The
+same action used `--no-merges --first-parent` elsewhere, which was measured to
+**miss a secret merged in from a side branch entirely**, and resolved its scanner
+version by asking GitHub for the *latest* release at run time.
+
+Three lessons, in order of how expensive they were:
+
+- **A range chosen by someone else's code is a range you cannot test.**
+  `scripts/secret-scan.mjs` selects it here, per event, and
+  `scripts/test-secret-scan.mjs` drives every event against throwaway
+  repositories — including proving that the old strategy missed what the new one
+  catches.
+- **"Scan everything" is not the safe default it looks like.** It cannot
+  distinguish a new leak from a known old one, so it fails every release equally
+  and teaches everyone to ignore it. Scope the gate to the change; inventory the
+  history separately (`secret-history-audit`, which gates nothing).
+- **A gate that fails open on a bad input is worse than no gate.** Every path
+  that cannot determine a base exits non-zero and says so. There is no fallback
+  that widens the scan.
+
+`check:ci-plan` §L pins all of it: no third-party scanning action, a pinned
+version *and* digest, both scans present, `secret-scan` still unskippable, no
+path exemptions in `.gitleaks.toml`, and the audit workflow unable to reach
+`release-validation`.
 <!-- /safehaul-design-system -->

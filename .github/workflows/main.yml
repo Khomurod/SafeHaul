@@ -24,6 +24,17 @@ on:
   pull_request:
     branches: [ "main" ]
   workflow_dispatch:
+    inputs:
+      secret_scan_base:
+        description: >-
+          Optional baseline commit for secret-scan. Leave empty and the scan
+          compares against the previous first-parent state, which is the right
+          answer whenever every earlier commit arrived through a run of this
+          pipeline. Set it to the last commit you know was scanned if several
+          pushes landed without a run (an API merge creates no run). It must be
+          an ancestor of the ref being run, and it is validated.
+        required: false
+        type: string
 
 # Superseded pull-request runs are cancelled — pushing a fixup should not leave a
 # stale 10-minute suite occupying runners.
@@ -95,21 +106,45 @@ jobs:
   # ---------------------------------------------------------------------------
   secret-scan:
     runs-on: ubuntu-latest
-    # NEVER skippable, and never provable by a tree hash: Gitleaks scans commit
+    # NEVER skippable, and never provable by a tree hash: this job scans commit
     # HISTORY, and two commits with an identical tree can have entirely different
     # history. A merge introduces new commits, so it needs a new scan.
+    #
+    # It used to be `gitleaks/gitleaks-action@v2`, which chose the range from the
+    # event and got it wrong three different ways — on `workflow_dispatch` it
+    # passed no range at all and scanned every commit in the repository, so run
+    # #159 on `8c3315d` failed on 67 findings from 2025-12..2026-03 and skipped
+    # both deploys. `scripts/secret-scan.mjs` owns the range instead, pins the
+    # scanner by version and digest, and fails closed when it cannot determine a
+    # base. Its docblock records what was measured; AGENTS.md ("Changing the
+    # release pipeline", rule 4) records the rule.
     permissions:
       contents: read
-      pull-requests: read
     steps:
-      # Full history so Gitleaks can resolve base..head (merge pushes need both parents' ancestry).
+      # Full history: the scanner resolves base..head itself, and a merge needs
+      # both parents' ancestry to be present.
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-      - name: Run Gitleaks
-        uses: gitleaks/gitleaks-action@v2
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v5
+        with:
+          node-version: 20.x
+      - name: Scan what this change introduces, and the tree it produces
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Empty on push and pull_request; only a dispatch can set it.
+          SECRET_SCAN_BASE: ${{ inputs.secret_scan_base }}
+          SECRET_SCAN_REPORT_DIR: ${{ runner.temp }}/secret-scan
+          GITHUB_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: node scripts/secret-scan.mjs
+      # Redacted by construction: rule, file, line and commit only, never a value.
+      - name: Upload the redacted secret-scan report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: secret-scan-report
+          path: ${{ runner.temp }}/secret-scan
+          if-no-files-found: ignore
 
   callable-contract:
     runs-on: ubuntu-latest
@@ -136,6 +171,15 @@ jobs:
       # fail-closed verdict.
       - name: Verify the CI plan and release-validation gate
         run: npm run check:ci-plan
+
+      # The secret scanner's SCOPE is the thing that broke, so its scope has a
+      # test: which commits each event compares against, and which secrets that
+      # range does and does not catch. It runs the real pinned gitleaks over
+      # throwaway repositories, and it belongs here rather than in a skippable
+      # lane for the same reason as the two checks above — a security gate whose
+      # own tests CI may skip is not a gate.
+      - name: Verify the secret scanner's range selection and detection
+        run: npm run test:secret-scan
 
       # The shared AI platform is only worth having if it cannot be bypassed,
       # and this guard is what stops a feature growing its own vendor call. It

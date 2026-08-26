@@ -1058,8 +1058,16 @@ these.
 CI also runs `check:callable-contract`, `check:ai-boundary`, `check:ci-plan`,
 `check:release-scripts`, `check:deploy-script`, `check:function-exports`,
 `check:ui-contract`, `check:table-layout`, `check:visual-contract`,
-`test:stories`, `test:visual`, and a Gitleaks secret scan. Every one of those is
+`test:stories`, `test:visual`, `test:secret-scan`, and a secret scan
+(`scripts/secret-scan.mjs`, a pinned Gitleaks CLI). Every one of those is
 blocking; `typecheck` is the only lane that is not (see below).
+
+The secret scan compares **what the change introduced** — the commit range for
+this event, plus the resulting source tree — and never the whole repository
+history. The full-history sweep is a separate, non-blocking workflow
+(`secret-history-audit`), because the history's known legacy findings were
+failing unrelated releases; see `docs/SECRET_HISTORY_AUDIT.md`, which also lists
+the credentials that still need owner rotation.
 
 CI runs Playwright as a 4-way shard matrix with `workers: 1` and `retries: 2`
 per shard.

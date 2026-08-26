@@ -1126,5 +1126,106 @@ console.log('\nK. Guards that stay guards');
         'both faces plus the SIL OFL licence that permits redistributing them');
 }
 
+console.log('\nL. The secret scanner is scoped, pinned, and still mandatory');
+{
+    /*
+     * Recorded 2026-08-26, after run #159.
+     *
+     * `gitleaks/gitleaks-action@v2` chose the scan range from the event and, on
+     * `workflow_dispatch`, passed no range at all — so a manual verification of
+     * an already-merged commit scanned all 256 commits, reported eight known
+     * legacy values from 2025-12..2026-03, failed `secret-scan`, failed
+     * `release-validation` and skipped both deploys.
+     *
+     * These assertions exist because that was invisible from inside this
+     * repository: the range lived in someone else's JavaScript. They pin the
+     * three properties that must not quietly come back — the range is ours, the
+     * scanner is pinned, and the full sweep cannot gate a release.
+     */
+    const secretScanJob = workflow.slice(
+        workflow.indexOf('  secret-scan:'),
+        workflow.indexOf('  callable-contract:'),
+    );
+    assert('L1. secret-scan uses no third-party scanning action',
+        !/^\s*(-\s*)?uses:\s*gitleaks\//m.test(secretScanJob),
+        'the action decided the range from the event; on workflow_dispatch that meant all history');
+    assert('L2. secret-scan runs this repository\'s own scanner',
+        /run:\s*node scripts\/secret-scan\.mjs/.test(secretScanJob),
+        'the range must be selected by scripts/secret-scan.mjs, which is tested');
+    assert('L3. secret-scan still checks out full history',
+        /fetch-depth:\s*0/.test(secretScanJob),
+        'a merge needs both parents\' ancestry present to resolve base..head');
+    assert('L4. secret-scan carries no `if:`, so it cannot be conditioned away',
+        !/^\s{4}if:/m.test(secretScanJob),
+        'it is in ALWAYS_REQUIRED_JOBS; an `if:` that evaluates false would read as "nothing failed"');
+    assert('L5. secret-scan is still required on every release',
+        ALWAYS_REQUIRED_JOBS.includes('secret-scan'),
+        'release-validation demands success from it, never a skip');
+    assert('L6. release-validation still refuses when secret-scan fails',
+        evaluateValidation({
+            planResult: 'success',
+            jobResults: { ...allJobs('success'), 'secret-scan': 'failure' },
+            lanePlan: plan(() => ({ selected: true, attested: false })),
+        }).ok === false,
+        'a scanner failure must never be interpretable as a pass');
+    assert('L7. release-validation also refuses when secret-scan is merely skipped',
+        evaluateValidation({
+            planResult: 'success',
+            jobResults: { ...allJobs('success'), 'secret-scan': 'skipped' },
+            lanePlan: plan(() => ({ selected: true, attested: false })),
+        }).ok === false,
+        'the deploy jobs sit behind this verdict, so a missing scan is a refusal');
+
+    const scanner = readFileSync(resolvePath(here, './secret-scan.mjs'), 'utf8');
+    assert('L8. the gitleaks version is pinned to an exact release, not "latest"',
+        /GITLEAKS_VERSION\s*=\s*'\d+\.\d+\.\d+'/.test(scanner)
+        // Asserted on the download URL, not on the prose: the docblock explains
+        // that the action resolved "latest", and that explanation must be allowed
+        // to say so.
+        && /releases\/download\/v\$\{GITLEAKS_VERSION\}/.test(scanner)
+        && !/releases\/latest/.test(scanner),
+        'the action resolved "latest" at run time, so the gate\'s scanner changed underneath it');
+    assert('L9. and pinned by digest as well as by tag',
+        /GITLEAKS_SHA256\s*=\s*'[0-9a-f]{64}'/.test(scanner),
+        'a tag can be moved; the digest is what makes a security gate reproducible');
+    assert('L10. the scanner scans both the commit range and the resulting tree',
+        /mode:\s*'git'/.test(scanner) && /mode:\s*'dir'/.test(scanner),
+        'the range catches add-then-delete; the tree catches what is present now');
+
+    /*
+     * The full-history sweep still exists — it just cannot block a deploy. If it
+     * ever gains a push or pull_request trigger, or turns up in
+     * release-validation's `needs`, the 2026-08-26 failure is back.
+     */
+    const auditPath = resolvePath(here, '../.github/workflows/secret-history-audit.yml');
+    assert('L11. the deliberate full-history audit exists',
+        existsSync(auditPath),
+        'legacy findings must stay visible somewhere, or removing them from the gate hides them');
+    if (existsSync(auditPath)) {
+        const audit = readFileSync(auditPath, 'utf8');
+        const triggers = audit.slice(audit.indexOf('\non:'), audit.indexOf('\njobs:'));
+        assert('L12. the audit runs on a schedule and on demand only',
+            /schedule:/.test(triggers) && /workflow_dispatch:/.test(triggers)
+            && !/^\s*push:/m.test(triggers) && !/^\s*pull_request:/m.test(triggers),
+            'a full-history sweep on push or pull_request is the failure this change removed');
+        assert('L13. the audit scans all refs',
+            /--all/.test(audit) || /'--all'/.test(readFileSync(resolvePath(here, './secret-history-audit.mjs'), 'utf8')),
+            'a secret parked on an unmerged branch is still in the repository');
+    }
+    const validationJob = workflow.slice(workflow.indexOf('  release-validation:'));
+    assert('L14. release-validation does not depend on the history audit',
+        !/secret-history-audit/.test(validationJob),
+        'the audit reports; it must never be able to block a release');
+
+    const gitleaksConfig = readFileSync(resolvePath(here, '../.gitleaks.toml'), 'utf8');
+    assert('L15. the default rule set is still extended, not replaced',
+        /useDefault\s*=\s*true/.test(gitleaksConfig),
+        'switching rules off is the widest exemption there is');
+    assert('L16. no path is exempted from scanning',
+        !/^\s*paths\s*=/m.test(gitleaksConfig),
+        'a path exemption would ignore a real credential pasted into that file; '
+        + 'the two `.env.example` entries were measured to be unnecessary and deleted');
+}
+
 console.log(failures === 0 ? '\nAll CI plan and gate checks passed.' : `\n${failures} check(s) failed.`);
 process.exit(failures === 0 ? 0 : 1);
