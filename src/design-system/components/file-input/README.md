@@ -97,14 +97,12 @@ user who tabbed away during the upload keeps their place.
   accepted file unmounts the alert in the commit that created it — found in
   review on 2026-08-26 and reproduced. `onReject` fires **after** `onChange`, so
   a call site can clear stale state in its own handler and still receive the
-  message that arrived with this drop. When it is passed, `FileInput` announces
-  nothing of its own, so the same sentence is never said twice — but it keeps
-  `aria-invalid` and keeps the message as a silent, visually hidden
-  `aria-describedby` target. The live region moves to the call site; the field's
-  error contract stays where the field is. Dropping it altogether was the first
-  attempt, and it left a screen-reader user who tabbed back to the picker with a
-  valid-looking control and no reason attached, because the consumer's alert has
-  no id the input can point at.
+  message that arrived with this drop. **`FileInput` still shows its own message
+  whenever it is mounted**; a call site that takes `onReject` shows it only while
+  the picker is *gone*. Those are exact complements, so there is never a second
+  copy and never a render where the visible text disagrees with the input's
+  `aria-invalid` — and no transition has to be enumerated to keep them in step,
+  which is what three earlier attempts got wrong.
 - **`loading` implies `disabled`**, so a second file cannot replace the first
   mid-upload.
 - **`disabled` dims the label with the control**, not separately.

@@ -191,11 +191,11 @@ export function EnvelopeSidebar({
 
                 {/*
                   Outlives the picker, which is the point — see `dropRejection`.
-                  Passing `onReject` makes this the owner of the message, so
-                  `FileInput` renders none of its own and there is never a second
-                  copy.
+                  Shown only once `file` exists — which is exactly when the
+                  picker above is gone, so this and `FileInput`'s own message are
+                  complements and never both on screen.
                 */}
-                {dropRejection && (
+                {dropRejection && file && (
                     <p className="mt-ds-2 text-ds-xs text-ds-status-danger-fg [overflow-wrap:anywhere]" role="alert">
                         {dropRejection}
                     </p>

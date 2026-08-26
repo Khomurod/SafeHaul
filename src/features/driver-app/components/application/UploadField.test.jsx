@@ -5,7 +5,7 @@
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
+import { act, render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import UploadField from './UploadField';
 
 const file = (name = 'cdl.pdf') => new File(['x'], name, { type: 'application/pdf' });
@@ -160,20 +160,85 @@ describe('UploadField rejected-drop feedback', () => {
     for (const f of files) transfer.items.add(f);
     fireEvent.drop(input().closest('label'), { dataTransfer: transfer });
   };
+  const selfie = () => new File(['x'], 'selfie.png', { type: 'image/png' });
+  const held = () => {
+    let release;
+    const promise = new Promise((resolve) => { release = resolve; });
+    return { promise, release };
+  };
+  const messageShowing = () => screen
+    .queryAllByRole('alert')
+    .some((a) => /selfie\.png was not added/.test(a.textContent));
 
-  it('keeps the message after the accepted file removes the picker', async () => {
-    renderField({ accept: 'application/pdf' });
-    dropOn(file('cdl.pdf'), new File(['x'], 'selfie.png', { type: 'image/png' }));
+  it('keeps the message while the accepted file uploads', async () => {
+    // The picker is gone during the upload, so this field's copy is what carries
+    // the message — the case the whole `onReject` path exists for.
+    const { unmount } = renderField({ accept: 'application/pdf', onUpload: vi.fn(() => held().promise) });
+    dropOn(file('cdl.pdf'), selfie());
 
-    // The picker is gone — the upload took its place — and the message is not.
     await waitFor(() => expect(input()).toBeNull());
-    expect(screen.getByRole('alert'))
-      .toHaveTextContent('selfie.png was not added. It is not an accepted file type.');
+    expect(messageShowing()).toBe(true);
+
+    unmount();
+  });
+
+  it('keeps it after the parent takes the value, because the picker stays gone', async () => {
+    const upload = held();
+    const { rerender } = renderField({
+      accept: 'application/pdf',
+      onUpload: vi.fn(() => upload.promise),
+    });
+    dropOn(file('cdl.pdf'), selfie());
+    await waitFor(() => expect(input()).toBeNull());
+
+    await act(async () => {
+      upload.release({ name: 'cdl.pdf', url: 'https://example.com/cdl.pdf' });
+    });
+    rerender(
+      <UploadField
+        label="Upload CDL (Front)"
+        name="cdl-front"
+        value={{ name: 'cdl.pdf', url: 'https://example.com/cdl.pdf' }}
+        accept="application/pdf"
+        onUpload={vi.fn()}
+        onChange={vi.fn()}
+      />,
+    );
+
+    expect(input()).toBeNull();
+    expect(messageShowing()).toBe(true);
+  });
+
+  it('drops it when a failed upload brings the picker back', async () => {
+    renderField({
+      accept: 'application/pdf',
+      onUpload: vi.fn(async () => { throw new Error('network'); }),
+    });
+    dropOn(file('cdl.pdf'), selfie());
+
+    await waitFor(() => expect(input()).not.toBeNull());
+    expect(messageShowing()).toBe(false);
+    expect(input()).not.toHaveAttribute('aria-invalid');
+  });
+
+  it('drops it when a success brings the picker back, without waiting for the reset', async () => {
+    /*
+     * The third transition a review found by enumeration, and the reason the rule
+     * became a derived one: `setStatus('success')` makes the picker visible again
+     * immediately when the parent has not taken the value, a full second before
+     * the reset timer. Nothing has to be timed now — the message is simply not
+     * rendered while a picker is on screen.
+     */
+    renderField({ accept: 'application/pdf' });
+    dropOn(file('cdl.pdf'), selfie());
+
+    await waitFor(() => expect(input()).not.toBeNull());
+    expect(messageShowing()).toBe(false);
   });
 
   it('still uploads the file it accepted', async () => {
     const { onUpload } = renderField({ accept: 'application/pdf' });
-    dropOn(file('cdl.pdf'), new File(['x'], 'selfie.png', { type: 'image/png' }));
+    dropOn(file('cdl.pdf'), selfie());
 
     await waitFor(() => expect(onUpload).toHaveBeenCalledTimes(1));
     // `onUpload(name, file)` — the field's own signature.
@@ -181,80 +246,25 @@ describe('UploadField rejected-drop feedback', () => {
   });
 
   it('shows exactly one message for an all-refused drop', () => {
-    // The picker stays on screen here, but this field owns the message because
-    // it passes `onReject` — so there is one alert, not two.
+    // The picker stays on screen, so IT shows the message and this field's copy
+    // is gated off. One alert, and it is the one attached to the live input.
     renderField({ accept: 'application/pdf' });
-    dropOn(new File(['x'], 'selfie.png', { type: 'image/png' }));
+    dropOn(selfie());
 
     const alerts = screen.getAllByRole('alert');
     expect(alerts).toHaveLength(1);
     expect(alerts[0]).toHaveTextContent('selfie.png was not added');
-    expect(input()).not.toBeNull();
+    expect(input()).toHaveAttribute('aria-invalid', 'true');
   });
 
   it('clears the message when a later drop is accepted in full', async () => {
     renderField({ accept: 'application/pdf' });
-    dropOn(new File(['x'], 'selfie.png', { type: 'image/png' }));
-    expect(screen.getByRole('alert')).toHaveTextContent('selfie.png was not added');
+    dropOn(selfie());
+    expect(messageShowing()).toBe(true);
 
     dropOn(file('cdl.pdf'));
 
-    await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
-  });
-
-  it('never shows two copies of the message during the transition', async () => {
-    renderField({ accept: 'application/pdf' });
-    dropOn(file('cdl.pdf'), new File(['x'], 'selfie.png', { type: 'image/png' }));
-
-    await waitFor(() => expect(input()).toBeNull());
-    expect(screen.getAllByRole('alert')).toHaveLength(1);
-  });
-
-  it('drops the message when a failed upload brings the picker back', async () => {
-    /*
-     * The picker is unmounted while the upload runs, so a failure mounts a NEW
-     * one with no rejection of its own — no `aria-invalid`, nothing in its
-     * description — while this field was still showing the old message. Visible
-     * text and field semantics out of step. Found in review on 2026-08-26.
-     */
-    renderField({
-      accept: 'application/pdf',
-      onUpload: vi.fn(async () => { throw new Error('network'); }),
-    });
-    dropOn(file('cdl.pdf'), new File(['x'], 'selfie.png', { type: 'image/png' }));
-
-    /*
-     * The picker returns and it returns with nothing to say — in the SAME commit.
-     *
-     * This used to wait for both conditions separately, because clearing from an
-     * effect left one render where the two disagreed. Asserting them together the
-     * moment the picker is back is the proof that window is gone.
-     */
-    await waitFor(() => expect(input()).not.toBeNull());
-    expect(screen.queryAllByRole('alert').some((a) => /selfie\.png/.test(a.textContent)))
-      .toBe(false);
-    expect(input()).not.toHaveAttribute('aria-invalid');
-  });
-
-  it('keeps the message while the upload is still running', async () => {
-    // The complement: the picker has NOT come back, so nothing is out of step
-    // and the message is still the useful thing on screen.
-    //
-    // The upload is held open and the field is UNMOUNTED before the test ends.
-    // Letting it settle instead runs the success path, whose `setTimeout`
-    // outlives the test; leaving it pending leaks state updates into whatever
-    // runs next. Both show up as act() warnings, which this file's own output
-    // was already producing before these tests existed.
-    const { unmount } = renderField({
-      accept: 'application/pdf',
-      onUpload: vi.fn(() => new Promise(() => {})),
-    });
-    dropOn(file('cdl.pdf'), new File(['x'], 'selfie.png', { type: 'image/png' }));
-
-    await waitFor(() => expect(input()).toBeNull());
-    expect(screen.getByRole('alert')).toHaveTextContent('selfie.png was not added');
-
-    unmount();
+    await waitFor(() => expect(messageShowing()).toBe(false));
   });
 
   it('says nothing when every dropped file is accepted', () => {

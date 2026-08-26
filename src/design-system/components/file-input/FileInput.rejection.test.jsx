@@ -253,30 +253,13 @@ describe('FileInput rejected-drop feedback', () => {
       );
     });
 
-    it('announces nothing of its own once onReject is passed', () => {
-      // Ownership transfers with the callback. Rendering a second live region
-      // would put the same sentence on screen twice while the picker is still
-      // mounted, and announce it twice.
-      render(
-        <FileInput
-          label="Document"
-          accept="application/pdf"
-          onChange={vi.fn()}
-          onReject={vi.fn()}
-        />,
-      );
-      dropOn(labelOf(), png('logo.png'));
-
-      expect(screen.queryByRole('alert')).toBeNull();
-    });
-
-    it('but keeps the field invalid and described, because the input is still there', () => {
+    it('still shows the message itself while it is mounted, onReject or not', () => {
       /*
-       * Found in review on 2026-08-26. Handing the message over used to discard
-       * `aria-invalid` and the description with it, and the consumer's own alert
-       * has no id this input could point at — so a screen-reader user who tabbed
-       * back to the picker that had just refused their file found a
-       * valid-looking control with no reason attached.
+       * The rule that replaced three attempts at deciding who owns it: a mounted
+       * picker shows its own state. A call site that removes the picker shows
+       * the message only while the picker is GONE, so the two are exact
+       * complements and can never both be on screen — and no transition has to
+       * be enumerated for them to stay in step.
        */
       render(
         <FileInput
@@ -288,20 +271,10 @@ describe('FileInput rejected-drop feedback', () => {
       );
       dropOn(labelOf(), png('logo.png'));
 
+      expect(screen.getByRole('alert')).toHaveTextContent('logo.png was not added');
       const input = inputOf();
       expect(input).toHaveAttribute('aria-invalid', 'true');
       expect(input).toHaveAccessibleDescription(/logo\.png was not added/);
-    });
-
-    it('keeps that description silent, so it is read on focus and not on arrival', () => {
-      render(
-        <FileInput label="Document" accept="application/pdf" onChange={vi.fn()} onReject={vi.fn()} />,
-      );
-      dropOn(labelOf(), png('logo.png'));
-
-      const described = document.getElementById(inputOf().getAttribute('aria-describedby').trim());
-      expect(described).toHaveClass('ds-visually-hidden');
-      expect(described).not.toHaveAttribute('role');
     });
 
     it('clears the invalid state with the message', () => {
@@ -314,9 +287,26 @@ describe('FileInput rejected-drop feedback', () => {
       dropOn(labelOf(), pdf('contract.pdf'));
 
       expect(inputOf()).not.toHaveAttribute('aria-invalid');
+      expect(screen.queryByRole('alert')).toBeNull();
     });
 
-    it('renders its own message when onReject is absent', () => {
+    it('starts clean when it is mounted again, because a fresh picker refused nothing', () => {
+      // What makes the complement safe: a returning picker has no message of its
+      // own, so the call site's copy disappearing with it is the whole story.
+      const { unmount } = render(
+        <FileInput label="Document" accept="application/pdf" onChange={vi.fn()} />,
+      );
+      dropOn(labelOf(), png('logo.png'));
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+      unmount();
+
+      render(<FileInput label="Document" accept="application/pdf" onChange={vi.fn()} />);
+
+      expect(screen.queryByRole('alert')).toBeNull();
+      expect(inputOf()).not.toHaveAttribute('aria-invalid');
+    });
+
+    it('renders its own message when onReject is absent, too', () => {
       render(<FileInput label="Document" accept="application/pdf" onChange={vi.fn()} />);
       dropOn(labelOf(), png('logo.png'));
 

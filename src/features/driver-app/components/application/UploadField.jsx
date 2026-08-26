@@ -116,29 +116,14 @@ const UploadField = ({
             // Notify Parent
             onChange(name, result);
 
-            // Reset status after a moment to show the "File Card". If the
-            // parent did not take the value, this is the other way the picker
-            // comes back, so the message goes here too.
+            // Reset status after a moment to show the "File Card"
             setTimeout(() => {
-                setDropRejection(null);
                 setStatus('idle');
             }, 1000);
 
         } catch (err) {
             clearInterval(progressInterval);
             console.error("Upload failed in component:", err);
-            /*
-             * Clear the drop message in the SAME update as the failure.
-             *
-             * A failed upload brings the picker back, and a returning picker is
-             * a fresh one with no rejection of its own — no `aria-invalid`,
-             * nothing in its description. Clearing this from an effect instead
-             * left one committed render where the new input said it was fine
-             * while the old message was still on screen; review on 2026-08-26
-             * caught it, and the test that had to wait through two commits was
-             * the evidence. Same batch, no window.
-             */
-            setDropRejection(null);
             setStatus('error');
             setErrorMsg(err?.message || "Upload failed. Please try again.");
             setProgress(0);
@@ -320,13 +305,20 @@ const UploadField = ({
             {/*
               A refused drop, in a region that OUTLIVES the picker.
 
-              Passing `onReject` makes this field the owner of the message, so
-              `FileInput` renders none of its own and there is never a second
-              copy to collide with. It has to live out here rather than beside
-              the picker: a mixed drop puts the field into `uploading`, which
-              removes the picker, and anything rendered inside it goes too.
+              Shown only while the picker is GONE, which is the exact complement
+              of when `FileInput` shows its own — so there is never a second copy,
+              and never a render where one of them disagrees with the input's
+              `aria-invalid`.
+
+              Deriving it from the current render rather than clearing it on each
+              transition is what finally made this correct. Three reviews found
+              three different transitions that remount the picker — a failed
+              upload, the success reset, `confirmClear` — and each fix enumerated
+              one more. There is nothing to enumerate here: a mounted picker
+              shows its own state, and this shows the message only when there is
+              no picker to disagree with.
             */}
-            {dropRejection && (
+            {dropRejection && !pickerVisible && (
                 <p
                     role="alert"
                     className="flex items-start gap-ds-2 text-ds-xs text-ds-status-danger-fg [overflow-wrap:anywhere]"

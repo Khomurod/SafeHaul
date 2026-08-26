@@ -1223,14 +1223,20 @@ rule has to decide.
   its idle state — so a *mixed* drop hands them the accepted file, they
   re-render, and the alert is unmounted in the commit that created it. Reproduced
   before it was fixed. `onReject` fires after `onChange` (so a call site clearing
-  stale state does not wipe the message that just arrived) and transfers the
-  *announcement*: when it is passed, `FileInput` renders no live region, so the
-  same sentence is never said twice. It keeps `aria-invalid` and a silent,
-  visually hidden `aria-describedby` target, because the consumer's own alert has
-  no id the input could reference — discarding those was the first attempt and it
-  left a screen-reader user who tabbed back to the picker with a valid-looking
-  control and no reason attached. Both call sites now surface the message in a
-  region that outlives the picker.
+  stale state does not wipe the message that just arrived), and both call sites
+  surface it in a region that outlives the picker.
+
+  **Who shows it is derived, not decided**, and that took three review rounds to
+  get right. `FileInput` shows its own message whenever it is mounted; a call
+  site that removes the picker shows the message only while the picker is *gone*.
+  Exact complements, so there is never a second copy and never a render where the
+  visible text disagrees with the input's `aria-invalid`. The three attempts
+  before it each failed the same way: an ownership flag left the mounted input
+  with no invalid state, then clearing the message on each transition that
+  remounts the picker meant enumerating them — and a review found a missed one
+  every time (a failed upload, the success reset, `confirmClear`). There is
+  nothing to enumerate now, because a mounted picker showing its own state cannot
+  disagree with itself.
 
   The rules live in `dropAcceptance.js` (`matchesAccept`, `resolveDroppedFiles`),
   pure and directly tested. The component's suite was split by behaviour in the
@@ -1243,7 +1249,7 @@ rule has to decide.
   | `FileInput.drop.test.jsx` | 9 | how a dropped file reaches the input at all, and what a disabled panel still owes the page |
   | `FileInput.rejection.test.jsx` | 24 | the message, the `role="alert"` choice, `aria-invalid`, clearing, the `onReject` ownership rule and an axe check |
   | `FileInput.upload.test.jsx` | 6 | the polite upload region and focus restoration |
-  | `UploadField.test.jsx` | 8 | the transition: message kept while uploading, dropped when a failed upload brings the picker back |
+  | `UploadField.test.jsx` | 8 | the transition: message kept while uploading and after the parent takes the value, dropped whenever the picker comes back |
   | `EnvelopeSidebar.drop.test.jsx` | 4 | the same transition where the parent re-renders with the chosen file |
 
 ---

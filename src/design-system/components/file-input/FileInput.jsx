@@ -102,17 +102,6 @@ export const FileInput = forwardRef(function FileInput({
    * turned away — `onChange` only ever carries the ones that survived.
    */
   const [rejection, setRejection] = useState(null);
-  /*
-   * `onReject` transfers ownership of the message.
-   *
-   * A call site that passes it has said "I will show this", and it has to,
-   * because it is the one that removes the picker. If this component also
-   * rendered its own copy the two would overlap — both on screen at once while
-   * the picker is still mounted, both announced — and "sometimes one, sometimes
-   * two" is a worse contract than either. So exactly one of them owns it, and
-   * the presence of the callback is what decides which.
-   */
-  const ownsRejectionMessage = typeof onReject !== 'function';
 
   /*
    * Three sources, one description.
@@ -389,22 +378,18 @@ export const FileInput = forwardRef(function FileInput({
         - **Visible as well as announced.** WCAG 3.3.1 wants the error in text,
           and the sighted user who dropped a PDF on an image field needs to know
           it went nowhere just as much.
-        - **`onReject` transfers the ANNOUNCEMENT, not the semantics.** When a
-          call site takes the message, this element stays — visually hidden and
-          with no role, so nothing is said twice — because it is still what
-          `aria-describedby` points at. Dropping it took `aria-invalid` and the
-          description with it, and the consumer's own alert has no id this input
-          could reference: a screen-reader user who tabbed back to a picker that
-          had just refused their file found a valid-looking control with no
-          reason attached. Found in review on 2026-08-26. The live region moves;
-          the field's error contract does not.
+        - **Rendered whenever this component is mounted**, and that is the whole
+          rule. A call site that removes the picker shows the message itself
+          (see `onReject`) and shows it only while the picker is *gone*, so the
+          two are exact complements and can never both be on screen. Deciding it
+          any other way took three attempts and three review findings: an
+          ownership flag left the mounted input without `aria-invalid`, and
+          clearing on each transition that remounts the picker meant enumerating
+          them, which missed one every time. This needs no enumeration, because
+          a mounted picker showing its own state cannot disagree with itself.
       */}
       {rejection && (
-        <span
-          className={ownsRejectionMessage ? 'ds-file-input__error' : 'ds-visually-hidden'}
-          id={errorId}
-          role={ownsRejectionMessage ? 'alert' : undefined}
-        >
+        <span className="ds-file-input__error" id={errorId} role="alert">
           {rejection}
         </span>
       )}
