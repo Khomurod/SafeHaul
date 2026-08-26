@@ -766,6 +766,7 @@ semantics of an expression form it had only guessed at:
 | `jsx-label-on-throwing-primitive` matched `[^>]*?` | prop ordering decided whether a **runtime crash** reached CI |
 | the tether's own AST walk trusted a quasi beside an interpolation | `` `ds-native-table${'-broken'}` `` counted as compliant |
 | the same walk trusted every `CallExpression` | `selectClass('ds-native-table', 'other')` counted as compliant |
+| the walk read the FIRST `className` and ignored what followed | `<table className="ds-native-table" {...props}>` counted as compliant, though a later spread overrides it |
 
 Four different fixes, one unchanged question. Each version asked *"does this text
 appear somewhere?"* when the question is *"does this element carry this
@@ -823,6 +824,27 @@ branches, a template literal with the token before *or* after a space, an
 arrow-function attribute ahead of the class, and a genuine `sr-only`. The
 allowlist counts came out identical at 235 across 40 files, which is the check
 that swapping the engine changed nothing it should not have.
+
+**Round seven, and why it was fixed rather than reverted.** I had committed on the
+pull request that a seventh finding on this rule would mean reverting it rather
+than patching again — the reasoning being that six failures on one guard is
+evidence of bad scoping, not of a good next patch. The seventh arrived:
+`<table className="ds-native-table" {...props}>` passed, because the walk read the
+first `className` and ignored a later spread that overrides it at runtime.
+
+It was fixed, and the departure from that commitment is deliberate rather than
+convenient. **The attribute axis is closed in a way the expression axis is not.**
+An opening element's attributes are exactly `JSXAttribute | JSXSpreadAttribute` —
+two node types, no third way to set a prop — so "find the last thing that can set
+the class list and require it to be provable" is complete over the grammar. That
+is a different kind of statement from the expression fixes, each of which was a
+guess about one form among an open-ended set. Reverting would also have knowingly
+restored four already-demonstrated bypasses, which is worse for the repository
+than the commitment was worth.
+
+The commitment still stands for the *expression* axis: a further bypass there
+means the walk is the wrong shape, and the rule goes back to the simple per-table
+class check with the problem recorded as open.
 
 **The rest of the file still matches text**, and that is the remaining debt. It
 was not converted wholesale because this script gates every other check in the

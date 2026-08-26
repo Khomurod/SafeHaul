@@ -751,11 +751,34 @@ function tablesOffContract(source, contractToken, hiddenTokens) {
         if (node.type === 'JSXOpeningElement' && node.name?.type === 'JSXIdentifier'
             && node.name.name === 'table') {
             total += 1;
-            const className = node.attributes.find((attribute) => (
-                attribute.type === 'JSXAttribute'
-                && (attribute.name?.name === 'className' || attribute.name?.name === 'class')
-            ));
-            if (!certainlyTokenised(className?.value)) {
+            /*
+             * The LAST attribute that can set the class list is the one that
+             * decides it. JSX applies attributes in order, so a later duplicate
+             * or a later spread overrides an earlier `className` at runtime:
+             *
+             *     <table className="ds-native-table" {...props}>
+             *     <table className="ds-native-table" className={other}>
+             *
+             * Taking the first match and ignoring what follows was the seventh
+             * demonstrated bypass of this rule, reproduced in `AssignmentTable`.
+             *
+             * Unlike the expression space, this one is CLOSED: an opening
+             * element's attributes are exactly `JSXAttribute | JSXSpreadAttribute`
+             * and there is no third way to set a prop. So "find the last setter
+             * and require it to be a provable class" is complete over the
+             * grammar rather than another guess. A spread BEFORE the class is
+             * fine — the class still wins — and this allows it.
+             */
+            let lastSetter = null;
+            for (const attribute of node.attributes) {
+                if (attribute.type === 'JSXSpreadAttribute') {
+                    lastSetter = { spread: true };
+                } else if (attribute.type === 'JSXAttribute'
+                    && (attribute.name?.name === 'className' || attribute.name?.name === 'class')) {
+                    lastSetter = { value: attribute.value };
+                }
+            }
+            if (lastSetter?.spread || !certainlyTokenised(lastSetter?.value)) {
                 offContract.push(node.loc?.start?.line ?? 0);
             }
         }
