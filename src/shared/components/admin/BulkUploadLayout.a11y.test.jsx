@@ -274,9 +274,15 @@ describe('BulkUploadLayout — non-blocking feedback', () => {
         })} />);
 
         expect(screen.queryByRole('alert')).toBeNull();
-        expect(screen.getByRole('status')).toHaveTextContent(
-            'Scan complete. No misformatted records found.',
-        );
+        /*
+         * Two polite regions in this tree since 2026-08-26: the upload picker's
+         * own, which `FileInput` renders present-and-empty until an upload
+         * starts, and this notice. The claim under test is that the message is
+         * announced *politely* rather than as an alert, so it is asserted across
+         * the polite regions rather than against a single match.
+         */
+        expect(screen.getAllByRole('status').map((region) => region.textContent))
+            .toContain('Scan complete. No misformatted records found.');
     });
 });
 

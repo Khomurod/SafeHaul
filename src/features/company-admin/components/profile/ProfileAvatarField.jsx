@@ -19,10 +19,16 @@ import { FieldMessage, FileInput } from '@/design-system/components';
  *
  * `FileInput` needed `loading` to take it, which is the right place for it: an
  * upload picker is exactly the control that has to say it is busy AND refuse a
- * second file while the first is in flight. The `role="status"` region and the
- * focus-return effect are gone with it — `aria-busy` on the input and the label
- * text carry the state, and focus never leaves the control now, because the
- * control is no longer replaced by a disabled button.
+ * second file while the first is in flight. The `role="status"` region this
+ * component used to own moved there with it and is no longer written here: one
+ * region, in the primitive whose prop `loading` is, announcing "Uploading
+ * Profile photo…" for every picker in the product rather than for the two that
+ * remembered to. It briefly went missing in between — this docblock claimed
+ * `aria-busy` and the label text carried the state, and neither is announced —
+ * which a review on 2026-08-26 caught. `FileInput` owns the focus consequence of
+ * `loading` too, and restores focus only when the picker is what focus was on as
+ * the file arrived — so a keyboard upload gets it back and a dragged-and-dropped
+ * one does not have focus moved for it.
  */
 export function ProfileAvatarField({
     photoURL,

@@ -95,21 +95,35 @@ describe('ProfileAvatarField', () => {
     });
 
     /*
-     * `aria-busy` and the label text carry the state now, in place of the
-     * `role="status"` region. The focus-return effect went with the migration and
-     * is not missed: it existed because the trigger was a `Button` that briefly
-     * *disabled*, dropping focus. The control is not replaced now — the same
-     * label stays in the DOM throughout — so there is nothing to return focus to.
+     * The upload is disabled, busy, AND announced.
+     *
+     * This test used to assert that `aria-busy` and the button text had replaced
+     * the `role="status"` region this component owned before the `FileInput`
+     * migration. That was the wrong assertion to write: neither of those is
+     * announced — `aria-busy` sits on an input the upload has just disabled and
+     * taken focus from, and the button text is ordinary content. Rewriting the
+     * test to match the new markup is what let a real regression through, and a
+     * review on 2026-08-26 caught it. The region lives in `FileInput` now, so it
+     * is asserted here as behaviour this screen still has rather than as markup
+     * this file owns.
      */
-    it('says it is busy and refuses a second file while an upload is in flight', () => {
+    it('says it is busy, announces the upload, and refuses a second file', () => {
         const { container } = setup({ photoURL: PHOTO_URL, uploading: true });
         const input = container.querySelector('input[type="file"]');
         expect(container.querySelector('.ds-file-input__button-label')).toHaveTextContent('Uploading…');
         expect(input).toBeDisabled();
         expect(input).toHaveAttribute('aria-busy', 'true');
+        expect(screen.getByRole('status')).toHaveTextContent('Uploading Profile photo…');
     });
 
-    it('keeps focus on the control across an upload, rather than restoring it', () => {
+    it('says nothing in the status region while no upload is running', () => {
+        const { container } = setup({ photoURL: PHOTO_URL });
+        // Present but empty: the region has to exist before it fills for the fill
+        // to be announced.
+        expect(container.querySelector('[role="status"]')).toBeEmptyDOMElement();
+    });
+
+    it('keeps the same control element mounted across an upload', () => {
         const onFileSelect = vi.fn();
         const { container, rerender } = render(
             <ProfileAvatarField photoURL={PHOTO_URL} initials="AB" uploading={false} onFileSelect={onFileSelect} />,
@@ -121,7 +135,10 @@ describe('ProfileAvatarField', () => {
         rerender(
             <ProfileAvatarField photoURL={PHOTO_URL} initials="AB" uploading={false} onFileSelect={onFileSelect} />,
         );
-        // Same element throughout: nothing was unmounted, so nothing lost focus.
+        // Same element throughout: the picker is not swapped for a disabled
+        // button any more, so an upload does not tear the control down. Whether
+        // focus comes back when `loading` disables it is `FileInput`'s contract,
+        // asserted in its own suite.
         expect(container.querySelector('input[type="file"]')).toBe(before);
         expect(before).not.toBeDisabled();
     });

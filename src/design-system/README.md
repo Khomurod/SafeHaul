@@ -208,6 +208,15 @@ this one true rather than aspirational.
   leaves focus on `<body>` unless something moves it — announcement alone does
   not move the reading position).
 
+  `FileInput`'s `loading` gained the same treatment on 2026-08-26, and for the
+  same reason: the avatar and company-logo pickers had each written a
+  `role="status"` region and a focus-return effect by hand, the migration
+  deleted both, and `aria-busy` on an input that `loading` disables and unfocuses
+  replaces neither. The region and the focus consequence belong to the prop that
+  causes them, so both live in the component now — with the rule that a restore
+  is armed only when the picker itself was focused as the file arrived, because
+  its own drop handler dispatches the same `change` event the keyboard does.
+
 The primitive APIs are usable for migrated consumers, but their broader
 component-family roadmap items remain in progress until catalog examples and
 durable visual baselines are owner-approved.
