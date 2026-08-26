@@ -330,12 +330,28 @@ And a fourth round found it in the definition of "validated" itself:
   carry a validated release like any inferred base: it names a release known to
   be good, it does not invent one.
 
-One more of the same family, found by reading rather than by review: `.gitleaks.toml`
-comes from the branch under test, so a change could weaken the gate instead of
-passing it. L16 already forbids a path exemption; L22/L23 now pin the two value
-exemptions by value and reject a catch-all, so widening the allowlist means
-editing `check:ci-plan` too — deliberate friction, in a file that gates the
-release.
+`.gitleaks.toml` comes from the branch under test, so weakening the gate is an
+alternative to passing it — and enumerating the ways is a losing game. Measured
+against gitleaks 8.30.1, each of these hides the same synthetic key from BOTH
+scans while leaving the pinned values untouched: `[extend] disabledRules`,
+`[allowlist] stopwords`, the plural `[[allowlists]]` form, and `[allowlist]
+paths`; `[allowlist] commits` hides it from the range scan alone. So the config
+is **whitelisted**: exactly two tables, exactly four keys, and the two exemption
+values pinned (L16, L22-L24b). Anything else — including a key gitleaks has not
+shipped yet — fails and has to be argued for in a diff.
+
+Two more exemptions need no config change at all, and both were measured:
+
+- **`gitleaks:allow` in a source comment is honoured by DEFAULT.** The same key is
+  reported in a plain file and silently ignored in one carrying that comment, in
+  both scans. A change could exempt its own credential with one line of code.
+  The scanner passes `--ignore-gitleaks-allow` (L25); the repository has no such
+  comment today.
+- **`.gitleaksignore` suppresses findings by fingerprint**, and pointing
+  `--gitleaks-ignore-path` at a directory without one does **not** restore them —
+  so it cannot be neutralised from the command line. The scanner refuses when one
+  is present, in the checkout or in the exported tree, rather than scanning
+  around it (L26).
 
 `check:ci-plan` §L pins all of it: no third-party scanning action, a pinned
 version *and* digest, both scans present, `secret-scan` still unskippable, no

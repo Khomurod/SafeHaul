@@ -1296,6 +1296,45 @@ console.log('\nL. The secret scanner is scoped, pinned, and still mandatory');
     assert('L23. and none of them can match an arbitrary value',
         declared.every((value) => !/^\^?\.[*+]\$?$/.test(value) && value.length > 8),
         'a catch-all regex in the allowlist is a rule exemption wearing a value exemption\'s clothes');
+
+    /*
+     * L22 pins the values; this pins the SHAPE, because listing forbidden keys
+     * is a losing game. Measured against gitleaks 8.30.1, each of these hides
+     * the same synthetic key from BOTH scans while leaving the two expected
+     * regexes untouched:
+     *
+     *   [extend] disabledRules = [...]        range 0, tree 0
+     *   [allowlist] stopwords = [...]         range 0, tree 0
+     *   [[allowlists]] (the plural form)      range 0, tree 0
+     *   [allowlist] commits = [...]           range 0 (the tree scan still saw it)
+     *
+     * So the config is whitelisted instead: exactly these tables and exactly
+     * these keys. Anything else — including a key gitleaks has not shipped yet —
+     * fails here and has to be argued for in a diff.
+     */
+    const tables = [...gitleaksConfig.matchAll(/^\s*(\[+[^\]]+\]+)\s*$/gm)].map((m) => m[1]);
+    assert('L24a. the config declares only the two tables that were reviewed',
+        JSON.stringify(tables) === JSON.stringify(['[extend]', '[allowlist]']),
+        `found ${JSON.stringify(tables)} — [[allowlists]] and [[rules]] can each exempt everything`);
+    const keys = [...gitleaksConfig.matchAll(/^\s*([A-Za-z_][A-Za-z0-9_-]*)\s*=/gm)].map((m) => m[1]);
+    assert('L24b. and only the four keys that were reviewed',
+        JSON.stringify(keys.sort()) === JSON.stringify(['description', 'regexes', 'title', 'useDefault']),
+        `found ${JSON.stringify(keys)} — disabledRules, stopwords, commits and paths each hide `
+        + 'findings while leaving the pinned values in place');
+
+    /*
+     * Two exemptions that need no config change at all, both measured:
+     * `gitleaks:allow` in a source comment is honoured by DEFAULT, and a
+     * `.gitleaksignore` suppresses findings by fingerprint and cannot be
+     * neutralised by pointing `--gitleaks-ignore-path` elsewhere.
+     */
+    assert('L25. a `gitleaks:allow` comment cannot silence a finding',
+        /--ignore-gitleaks-allow/.test(scanner),
+        'without that flag, any change could exempt its own credential with one comment');
+    assert('L26. and no .gitleaksignore is tracked, nor scanned around',
+        !existsSync(resolvePath(here, '../.gitleaksignore'))
+        && /\.gitleaksignore/.test(scanner),
+        'the scanner refuses when one is present; there must also not be one here');
 }
 
 console.log(failures === 0 ? '\nAll CI plan and gate checks passed.' : `\n${failures} check(s) failed.`);

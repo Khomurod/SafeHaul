@@ -23,11 +23,14 @@ useDefault = true
 # there is, and this file now has none.
 [allowlist]
 description = "Two value exemptions. No path is exempt, and no rule is switched off."
-# The list below is pinned by `npm run check:ci-plan` (L22/L23), because
-# `regexes` is otherwise unbounded — a single `.*` here would be a rule
-# exemption wearing a value exemption's clothes, and it would make both scans
-# pass over anything. Adding an entry therefore means editing that test too,
-# with the measurement that justifies it. That is deliberate friction.
+# `npm run check:ci-plan` pins this file's SHAPE as well as these two values:
+# exactly the tables and keys below, nothing else (L16, L22-L24b). Listing
+# forbidden keys was tried and abandoned — measured against gitleaks 8.30.1,
+# `disabledRules`, `stopwords`, `paths` and the plural `[[allowlists]]` form each
+# hide a finding from both scans, and `commits` hides it from the range scan.
+# Adding anything here therefore means editing that test too, with the
+# measurement that justifies it. That is deliberate friction, in a file that
+# gates the release.
 # Every entry below is a value that *cannot* be a credential, and says why.
 # Because neither exempts a file nor disables a rule, a real secret in the same
 # file — even on the same line — is still reported. Both were re-verified against

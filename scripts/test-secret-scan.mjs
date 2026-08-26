@@ -500,6 +500,35 @@ if (binary) {
     }
 
     /*
+     * 2b. A `gitleaks:allow` comment must not silence anything.
+     *
+     * Found while answering a review finding about config-level exemptions, and
+     * it is the widest one: gitleaks honours `gitleaks:allow` in a source comment
+     * BY DEFAULT, so a change could exempt its own credential with a line of
+     * code and no config edit at all. `--ignore-gitleaks-allow` turns it off.
+     */
+    {
+        const repo = makeRepo().useRepoConfig();
+        repo.write('src/app.js', 'export const answer = 42;');
+        const base = repo.commit('clean base');
+        repo.write('src/plain.js', `export const a = '${FAKE_GCP_KEY}';`);
+        repo.write('src/annotated.js', `export const b = '${FAKE_GCP_KEY}'; // gitleaks:allow`);
+        const head = repo.commit('one plain, one annotated');
+        const result = scan(repo, resolveScanPlan({
+            eventName: 'push',
+            payload: { before: base, after: head },
+            headSha: head,
+            lastValidatedBase: () => base,
+            git: repo.gitOps(),
+        }), binary);
+        const annotated = (findings) => findings.filter((f) => /annotated\.js$/.test(f.File)).length;
+        assert('B20 (req 12). a `gitleaks:allow` comment does not silence a finding',
+            !result.ok && annotated(result.range.findings) > 0 && annotated(result.tree.findings) > 0,
+            `range=${annotated(result.range.findings)} tree=${annotated(result.tree.findings)} `
+            + '— the default behaviour reports neither, which would let any change exempt itself');
+    }
+
+    /*
      * 3b. The same shape one push later — found in review on 2026-08-26 (P1).
      *
      * Push A adds the credential and deletes it again, so its scan fails and the
@@ -821,6 +850,32 @@ console.log('\nC. Failing safe — a base that cannot be trusted is never widene
         assert('C15 (req 21). and the two-part scan refuses the job when either half errored',
             !scanned.ok && scanned.problems.some((problem) => /did not complete/.test(problem)),
             scanned.problems.join('; '));
+    }
+
+    /*
+     * A `.gitleaksignore` suppresses findings by fingerprint, gitleaks reads it
+     * from the scan root by default, and pointing `--gitleaks-ignore-path`
+     * elsewhere does not undo that (measured). So the job refuses when one is
+     * present rather than scanning around it.
+     */
+    if (binary) {
+        const repo2 = makeRepo().useRepoConfig();
+        repo2.write('src/app.js', 'export const answer = 42;');
+        const b2 = repo2.commit('clean base');
+        repo2.write('src/leak.js', `export const k = '${FAKE_GCP_KEY}';`);
+        const h2 = repo2.commit('adds a secret');
+        // The fingerprints that would be suppressed are irrelevant: the file's
+        // presence is the refusal, so its contents are never consulted.
+        repo2.write('.gitleaksignore', 'whatever\n');
+        repo2.commit('and an ignore file to hide it');
+        const h3 = repo2.head();
+        const withIgnore = scan(repo2, {
+            base: b2, head: h3, source: 'test', logOpts: `-m ${b2}..${h3}`,
+        }, binary);
+        assert('C21 (req 12). a .gitleaksignore in the tree refuses the job',
+            !withIgnore.ok && withIgnore.problems.some((p) => /gitleaksignore/.test(p)),
+            withIgnore.problems.join('; ') || 'no problem was recorded');
+        void h2;
     }
 
     /*

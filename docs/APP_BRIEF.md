@@ -1075,7 +1075,10 @@ resolved to its full SHA and must exist, be an ancestor of the head and not be
 the head itself; the `SECRET_SCAN_BASE` dispatch input must additionally carry a
 validated release of its own, so it names a known-good release rather than
 inventing one. A base that cannot be determined **fails the job**, and there is
-no fallback that widens the scan or empties it. The invariant that buys: because
+no fallback that widens the scan or empties it. Exemptions are pinned rather
+than trusted: `.gitleaks.toml` may declare only the reviewed tables, keys and
+values, `gitleaks:allow` comments are switched off, and a `.gitleaksignore`
+fails the job instead of silencing it. The invariant that buys: because
 a deploy requires this job, nothing reaches Testing unless every commit since the
 last fully validated release was scanned by a scanner that passed its own tests. The full-history sweep is a separate, non-blocking workflow
 (`secret-history-audit`), because the history's known legacy findings were

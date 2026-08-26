@@ -645,6 +645,17 @@ export function runGitleaksScan({ binary, mode, target, logOpts, config, reportP
         : ['dir', target];
     args.push(
         '--redact', '--no-banner', '--no-color',
+        /*
+         * `gitleaks:allow` in a source comment silences a finding, and gitleaks
+         * honours it by DEFAULT. Measured on 8.30.1: the same synthetic key is
+         * reported in a plain file and not reported in one carrying that comment,
+         * in both the commit-range and the tree scan; with this flag both are
+         * reported. Anyone able to write a line of code could otherwise exempt
+         * their own credential without touching a config file, which is not a
+         * decision this gate leaves to the change under test. SafeHaul's
+         * exemptions live in `.gitleaks.toml`, where `check:ci-plan` pins them.
+         */
+        '--ignore-gitleaks-allow',
         '--report-format', 'json', '--report-path', reportPath,
     );
     if (config) args.push('--config', config);
@@ -710,6 +721,27 @@ export function runGitleaksScan({ binary, mode, target, logOpts, config, reportP
  * @returns {{ok: boolean, range: object, tree: object, problems: string[]}}
  */
 export function performScans({ binary, cwd, plan: scanPlan, config, workDir }) {
+    /*
+     * `.gitleaksignore` lists fingerprints to suppress, and gitleaks reads it
+     * from the scan root by default (`--gitleaks-ignore-path .`). Measured on
+     * 8.30.1: adding a finding's fingerprint to it removes that finding, and
+     * pointing the flag at a directory without one does NOT restore it — so the
+     * file cannot be neutralised from the command line. It is refused instead.
+     * There is no such file in this repository, and its only purpose would be to
+     * hide what this job exists to report.
+     */
+    const strayIgnores = [['the checkout', cwd]]
+        .filter(([, dir]) => existsSync(join(dir, '.gitleaksignore')));
+    if (strayIgnores.length > 0) {
+        return {
+            ok: false,
+            range: { ok: false, errored: true, findings: [], output: '', detail: 'not run' },
+            tree: { ok: false, errored: true, findings: [], output: '', detail: 'not run' },
+            problems: strayIgnores.map(([where]) => `a .gitleaksignore is present in ${where}; `
+                + 'it suppresses findings by fingerprint and this gate will not scan around one'),
+        };
+    }
+
     const range = runGitleaksScan({
         binary,
         mode: 'git',
@@ -752,6 +784,15 @@ export function performScans({ binary, cwd, plan: scanPlan, config, workDir }) {
             range,
             tree: { ok: false, errored: true, findings: [], output: archived.stderr || '', detail: 'git archive failed' },
             problems: [`could not export the tree at ${short(scanPlan.head)}: ${archived.stderr || 'unknown error'}`],
+        };
+    }
+    if (existsSync(join(treeDir, '.gitleaksignore'))) {
+        return {
+            ok: false,
+            range,
+            tree: { ok: false, errored: true, findings: [], output: '', detail: 'not run' },
+            problems: [`a .gitleaksignore is tracked at ${short(scanPlan.head)}; it suppresses `
+                + 'findings by fingerprint and this gate will not scan around one'],
         };
     }
     const tree = runGitleaksScan({
