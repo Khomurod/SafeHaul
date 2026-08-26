@@ -47,6 +47,7 @@ import {
     ensureGitleaks,
     findLastValidatedAncestor,
     gitRunner,
+    isValidatedRelease,
     performScans,
     resolveScanPlan,
     runGitleaksScan,
@@ -565,7 +566,8 @@ if (binary) {
             collapsed.ok && collapsed.range.findings.length === 0,
             'which is exactly why the resolver refuses to build it (C11)');
         const honest = scan(repo, resolveScanPlan({
-            eventName: 'workflow_dispatch', headSha: head, baseOverride: base, git: repo.gitOps(),
+            eventName: 'workflow_dispatch', headSha: head, baseOverride: base,
+            isValidatedRelease: () => true, git: repo.gitOps(),
         }), binary);
         assert('B19 (req 10). the honest range over the same commits FAILS',
             !honest.ok && honest.range.findings.length > 0 && honest.tree.findings.length === 0,
@@ -733,14 +735,19 @@ console.log('\nC. Failing safe — a base that cannot be trusted is never widene
             repo.write('b.txt', 'b');
             const off = repo.commit('off to one side');
             repo.checkout('main');
-            resolveScanPlan({ eventName: 'workflow_dispatch', headSha: second, baseOverride: off, git });
+            resolveScanPlan({
+                eventName: 'workflow_dispatch', headSha: second, baseOverride: off,
+                isValidatedRelease: () => true, git,
+            });
         });
     throws('C8. SECRET_SCAN_BASE that is not a SHA at all refuses',
         () => resolveScanPlan({
-            eventName: 'workflow_dispatch', headSha: second, baseOverride: 'main~3', git,
+            eventName: 'workflow_dispatch', headSha: second, baseOverride: 'main~3',
+            isValidatedRelease: () => true, git,
         }));
     const overridden = resolveScanPlan({
-        eventName: 'workflow_dispatch', headSha: second, baseOverride: first, git,
+        eventName: 'workflow_dispatch', headSha: second, baseOverride: first,
+        isValidatedRelease: () => true, git,
     });
     assert('C9. a valid SECRET_SCAN_BASE is honoured and recorded as the source',
         overridden.base === first && overridden.source === 'explicit-base-override',
@@ -757,11 +764,13 @@ console.log('\nC. Failing safe — a base that cannot be trusted is never widene
      */
     throws('C11 (req 10). an ABBREVIATED SHA of the head refuses, like the full one',
         () => resolveScanPlan({
-            eventName: 'workflow_dispatch', headSha: second, baseOverride: second.slice(0, 8), git,
+            eventName: 'workflow_dispatch', headSha: second, baseOverride: second.slice(0, 8),
+            isValidatedRelease: () => true, git,
         }),
         'short and long names of one commit must both be recognised as the head');
     const abbreviated = resolveScanPlan({
-        eventName: 'workflow_dispatch', headSha: second, baseOverride: first.slice(0, 10), git,
+        eventName: 'workflow_dispatch', headSha: second, baseOverride: first.slice(0, 10),
+        isValidatedRelease: () => true, git,
     });
     assert('C12. an abbreviated base that IS an ancestor is honoured, and canonicalised',
         abbreviated.base === first && abbreviated.logOpts === `-m ${first}..${second}`,
@@ -813,6 +822,35 @@ console.log('\nC. Failing safe — a base that cannot be trusted is never widene
             !scanned.ok && scanned.problems.some((problem) => /did not complete/.test(problem)),
             scanned.problems.join('; '));
     }
+
+    /*
+     * Found in review on 2026-08-26 (P1).
+     *
+     * The override used to clear only the structural bar — a real SHA, an
+     * ancestor, not the head — while the refusal above *tells an operator to set
+     * it*. So the natural repair for "nothing is validated" was to paste in the
+     * tip that had just failed: the one commit whose broken scanner reported
+     * success while its own tests did not. It has to clear the same bar as an
+     * inferred base.
+     */
+    throws('C18 (req 10). an override that is not a validated release refuses',
+        () => resolveScanPlan({
+            eventName: 'workflow_dispatch',
+            headSha: second,
+            baseOverride: first,
+            isValidatedRelease: () => false,
+            git,
+        }),
+        'an override names a release known to be good; it does not invent one');
+    assert('C19. the same override IS honoured once it carries a validated release',
+        resolveScanPlan({
+            eventName: 'workflow_dispatch',
+            headSha: second,
+            baseOverride: first,
+            isValidatedRelease: (sha) => sha === first,
+            git,
+        }).base === first,
+        'and the predicate is asked about the RESOLVED commit, not the string typed');
 
     /*
      * The same guarantee one step further, found in review on 2026-08-26 (P1).
@@ -1017,6 +1055,44 @@ console.log('\nE. Finding the last validated commit');
     assert('E6 (req 10). a 403 is a refusal, not an empty answer',
         denied.sha === null && /403/.test(denied.error || ''),
         JSON.stringify(denied));
+
+    /*
+     * The same question asked about ONE commit, which is what validates a
+     * `SECRET_SCAN_BASE` override (C18/C19). Every answer that is not an
+     * unambiguous "yes" has to come back false, with a reason where there is one.
+     */
+    const overrideOk = await isValidatedRelease({
+        sha: second, repository: 'o/r', token: 't', fetchImpl: reply({ [second]: 'success' }),
+    });
+    assert('E8. an override commit carrying a validated release answers yes',
+        overrideOk.validated === true && overrideOk.error === null,
+        JSON.stringify(overrideOk));
+
+    const overrideHalf = await isValidatedRelease({
+        sha: second,
+        repository: 'o/r',
+        token: 't',
+        fetchImpl: reply({ [second]: { scan: 'success', validation: 'failure' } }),
+    });
+    assert('E9 (req 10). one whose release was not validated answers no',
+        overrideHalf.validated === false,
+        'this is the commit an operator would reach for after a failed run, and the one '
+        + 'that must not be accepted');
+
+    const overrideBroken = await isValidatedRelease({
+        sha: second,
+        repository: 'o/r',
+        token: 't',
+        fetchImpl: async () => { throw new Error('network down'); },
+    });
+    assert('E10 (req 10). and a lookup that could not run answers no, with the reason',
+        overrideBroken.validated === false && /network down/.test(overrideBroken.error || ''),
+        JSON.stringify(overrideBroken));
+
+    const overrideUntokened = await isValidatedRelease({ sha: second, repository: 'o/r', token: '' });
+    assert('E11. with no token it does not pretend to know that either',
+        overrideUntokened.validated === false && /GITHUB_TOKEN/.test(overrideUntokened.error || ''),
+        JSON.stringify(overrideUntokened));
 
     const untokened = await findLastValidatedAncestor({ ...opts, token: '', fetchImpl: reply({}) });
     assert('E7. with no token it does not pretend to know',

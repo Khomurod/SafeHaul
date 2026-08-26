@@ -1253,6 +1253,17 @@ console.log('\nL. The secret scanner is scoped, pinned, and still mandatory');
         && /name: Verify the release is fully validated/.test(workflow),
         'the constant and the release-validation job name in main.yml must be the same string');
 
+    /*
+     * The escape hatch is not a bypass: the refusal messages tell an operator to
+     * set SECRET_SCAN_BASE, so the obvious wrong move is to paste in the tip that
+     * just failed — the one commit whose broken scanner reported success. An
+     * override has to carry a validated release like any inferred base.
+     */
+    assert('L24. SECRET_SCAN_BASE is checked as hard as an inferred base',
+        /does not carry a fully validated release/.test(scanner)
+        && /isValidatedRelease/.test(scanner),
+        'an override names a release known to be good; it does not invent one');
+
     const gitleaksConfig = readFileSync(resolvePath(here, '../.gitleaks.toml'), 'utf8');
     assert('L15. the default rule set is still extended, not replaced',
         /useDefault\s*=\s*true/.test(gitleaksConfig),

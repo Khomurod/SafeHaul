@@ -322,6 +322,14 @@ And a fourth round found it in the definition of "validated" itself:
   scanner passed its own tests. It is the same check the production-promotion
   gate already requires by name.
 
+- **An escape hatch is a bypass if nobody checks it.** `SECRET_SCAN_BASE` cleared
+  only the structural bar — a real SHA, an ancestor, not the head — while the
+  refusal messages *tell an operator to set it*. The natural repair for "nothing
+  is validated" was therefore to paste in the tip that had just failed, which is
+  the one commit whose broken scanner reported success. An override now has to
+  carry a validated release like any inferred base: it names a release known to
+  be good, it does not invent one.
+
 One more of the same family, found by reading rather than by review: `.gitleaks.toml`
 comes from the branch under test, so a change could weaken the gate instead of
 passing it. L16 already forbids a path exemption; L22/L23 now pin the two value

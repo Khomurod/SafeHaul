@@ -171,6 +171,7 @@ export function resolveScanPlan({
     headSha,
     baseOverride = '',
     lastValidatedBase = () => null,
+    isValidatedRelease = () => false,
     git,
 }) {
     if (!headSha || !/^[0-9a-f]{40}$/i.test(headSha)) {
@@ -183,10 +184,35 @@ export function resolveScanPlan({
         );
     }
 
-    // An explicit base always wins, and is still validated exactly as hard as an
-    // inferred one.
+    /*
+     * An explicit base wins, and clears exactly the same bar as an inferred one.
+     *
+     * Found in review on 2026-08-26 (P1): it used to clear only the structural
+     * bar — a real SHA, an ancestor, not the head — and the refusal message
+     * above *tells an operator to set it*. So the natural repair for "nothing is
+     * validated" was to paste in the tip that had just failed, which is the one
+     * commit whose broken scanner reported success while its own tests did not.
+     * The increment behind it would be skipped again, and a dispatch deploys.
+     *
+     * The override is therefore a pointer to a release known to be good, not a
+     * free choice of baseline. Where that leaves it useful: the automatic walk
+     * looks back a bounded number of commits, and naming an older validated
+     * release reaches past that. Where it is deliberately no longer useful:
+     * making a branch with no validated release scannable by picking a base out
+     * of the air.
+     */
     if (baseOverride) {
-        return plan(requireUsableBase(git, baseOverride, headSha, 'SECRET_SCAN_BASE'), headSha, 'explicit-base-override');
+        const base = requireUsableBase(git, baseOverride, headSha, 'SECRET_SCAN_BASE');
+        if (!isValidatedRelease(base)) {
+            throw new ScanPlanError(
+                `SECRET_SCAN_BASE=${short(base)} does not carry a fully validated release: `
+                + `"${SECRET_SCAN_CHECK_NAME}" and "${RELEASE_VALIDATION_CHECK_NAME}" must both have `
+                + 'succeeded in one run on it. An override is a pointer to a release known to be '
+                + 'good, not a way to choose a baseline that was never verified — that is exactly '
+                + 'the commit whose failure this job exists to catch.',
+            );
+        }
+        return plan(base, headSha, 'explicit-base-override');
     }
 
     if (eventName === 'pull_request' || eventName === 'pull_request_target') {
@@ -452,17 +478,7 @@ export async function findLastValidatedAncestor({
         checked += 1;
         let response;
         try {
-            response = await fetchImpl(
-                `https://api.github.com/repos/${repository}/commits/${candidate}/check-runs`
-                + '?status=completed&per_page=100',
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                        Accept: 'application/vnd.github+json',
-                        'X-GitHub-Api-Version': '2022-11-28',
-                    },
-                },
-            );
+            response = await fetchImpl(checkRunsUrl(repository, candidate), checkRunsHeaders(token));
         } catch (error) {
             // An unanswerable question is not a "yes". Reported rather than
             // swallowed, because "no validated ancestor" and "could not ask" fail
@@ -478,32 +494,79 @@ export async function findLastValidatedAncestor({
         } catch (error) {
             return { sha: null, checked, error: `unreadable response: ${error?.message || error}` };
         }
-        /*
-         * Both checks, and both from the SAME check suite — one workflow run.
-         *
-         * Taking them from different runs would accept "some run scanned it" plus
-         * "some other run validated it", which is not the same claim as "one run
-         * scanned it with a scanner that had passed its own tests". Grouping by
-         * suite costs a Map and removes the ambiguity.
-         */
-        const runs = Array.isArray(body?.check_runs) ? body.check_runs : [];
-        const succeededBySuite = new Map();
-        for (const entry of runs) {
-            const suite = entry?.check_suite?.id;
-            if (suite === undefined || suite === null) continue;
-            if (entry?.status !== 'completed' || entry?.conclusion !== 'success') continue;
-            if (!succeededBySuite.has(suite)) succeededBySuite.set(suite, new Set());
-            succeededBySuite.get(suite).add(entry.name);
-        }
-        const validated = [...succeededBySuite.values()].some(
-            (names) => names.has(SECRET_SCAN_CHECK_NAME) && names.has(RELEASE_VALIDATION_CHECK_NAME),
-        );
-        if (validated) {
+        if (carriesValidatedRelease(body)) {
             return { sha: candidate, checked, error: null };
         }
     }
     return { sha: null, checked, error: null };
 }
+
+/**
+ * Does one commit carry a fully validated release?
+ *
+ * Both checks, and both from the SAME check suite — one workflow run. Taking
+ * them from different runs would accept "some run scanned it" plus "some other
+ * run validated it", which is not the same claim as "one run scanned it with a
+ * scanner that had passed its own tests". Grouping by suite costs a Map and
+ * removes the ambiguity.
+ *
+ * @param {{check_runs?: Array<object>}} body a check-runs API response
+ */
+export function carriesValidatedRelease(body) {
+    const runs = Array.isArray(body?.check_runs) ? body.check_runs : [];
+    const succeededBySuite = new Map();
+    for (const entry of runs) {
+        const suite = entry?.check_suite?.id;
+        if (suite === undefined || suite === null) continue;
+        if (entry?.status !== 'completed' || entry?.conclusion !== 'success') continue;
+        if (!succeededBySuite.has(suite)) succeededBySuite.set(suite, new Set());
+        succeededBySuite.get(suite).add(entry.name);
+    }
+    return [...succeededBySuite.values()].some(
+        (names) => names.has(SECRET_SCAN_CHECK_NAME) && names.has(RELEASE_VALIDATION_CHECK_NAME),
+    );
+}
+
+/**
+ * The same question asked about ONE named commit, for `SECRET_SCAN_BASE`.
+ *
+ * An override has to clear the bar an inferred base clears, or it is a way to
+ * choose an unverified baseline by hand — see `resolveScanPlan`. A lookup that
+ * could not run answers `false` and says why, because an unanswerable question
+ * is not a "yes".
+ *
+ * @returns {Promise<{validated: boolean, error: string|null}>}
+ */
+export async function isValidatedRelease({ sha, repository, token, fetchImpl = fetch }) {
+    if (!repository || !token) {
+        return { validated: false, error: 'no GITHUB_REPOSITORY/GITHUB_TOKEN to ask with' };
+    }
+    let response;
+    try {
+        response = await fetchImpl(checkRunsUrl(repository, sha), checkRunsHeaders(token));
+    } catch (error) {
+        return { validated: false, error: `request failed: ${error?.message || error}` };
+    }
+    if (!response?.ok) return { validated: false, error: `GitHub answered ${response?.status}` };
+    let body;
+    try {
+        body = await response.json();
+    } catch (error) {
+        return { validated: false, error: `unreadable response: ${error?.message || error}` };
+    }
+    return { validated: carriesValidatedRelease(body), error: null };
+}
+
+const checkRunsUrl = (repository, sha) => `https://api.github.com/repos/${repository}`
+    + `/commits/${sha}/check-runs?status=completed&per_page=100`;
+
+const checkRunsHeaders = (token) => ({
+    headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+    },
+});
 
 function run(command, args, cwd) {
     const result = spawnSync(command, args, { cwd, encoding: 'utf8' });
@@ -747,20 +810,33 @@ async function main() {
     const headSha = process.env.GITHUB_SHA && git.exists(process.env.GITHUB_SHA)
         ? process.env.GITHUB_SHA
         : git.resolve('HEAD');
-    // Looked up once, only if the event's own baseline turns out to be unusable,
-    // and awaited before the (synchronous) plan is resolved.
+    /*
+     * Everything GitHub has to be asked is asked here, before the (synchronous)
+     * plan is resolved: whether a named override carries a validated release, or
+     * failing that, which ancestor does.
+     */
+    const repository = process.env.GITHUB_REPOSITORY;
+    const token = process.env.GITHUB_TOKEN;
+    const override = (process.env.SECRET_SCAN_BASE || '').trim();
     let validatedBase;
-    // Every event except a pull request compares against a validated commit, so
-    // every one of them has to ask. A pull request has its merge base, which is
-    // what the change proposes and needs nothing from GitHub.
-    const needsValidatedBase = REVERIFICATION_EVENTS.includes(eventName) || eventName === 'push';
+    let overrideValidated = false;
     let lookupError = null;
-    if (needsValidatedBase && !(process.env.SECRET_SCAN_BASE || '').trim()) {
+
+    if (override) {
+        // Resolved here too, so the question is asked about the commit the plan
+        // will actually use rather than about whatever form was typed.
+        const resolved = git.resolve(override) || override;
+        const check = await isValidatedRelease({ sha: resolved, repository, token });
+        overrideValidated = check.validated;
+        lookupError = check.error;
+        console.log(`override   : ${short(resolved)} — ${overrideValidated ? 'validated release' : 'NOT a validated release'}`
+            + `${check.error ? ` (${check.error})` : ''}`);
+    } else if (REVERIFICATION_EVENTS.includes(eventName) || eventName === 'push') {
+        // Every event except a pull request compares against a validated commit.
+        // A pull request has its merge base, which is what the change proposes
+        // and needs nothing from GitHub.
         const lookup = await findLastValidatedAncestor({
-            headSha,
-            cwd,
-            repository: process.env.GITHUB_REPOSITORY,
-            token: process.env.GITHUB_TOKEN,
+            headSha, cwd, repository, token,
         });
         validatedBase = lookup.sha;
         lookupError = lookup.error;
@@ -774,16 +850,17 @@ async function main() {
             eventName,
             payload,
             headSha,
-            baseOverride: (process.env.SECRET_SCAN_BASE || '').trim(),
+            baseOverride: override,
             lastValidatedBase: () => validatedBase || null,
+            isValidatedRelease: () => overrideValidated,
             git,
         });
     } catch (error) {
         fail(
             `${error.message}\n\n`
             + (lookupError
-                ? `The baseline lookup could not complete: ${lookupError}. That is why no validated `
-                  + 'ancestor was found — it is not evidence that none exists.\n\n'
+                ? `The baseline lookup could not complete: ${lookupError}. That is why nothing came `
+                  + 'back validated — it is not evidence that nothing is.\n\n'
                 : '')
             + 'This job fails closed on purpose. It will not widen to a full-history scan, '
             + 'which is what reported known 2025-2026 legacy findings against unrelated releases. '

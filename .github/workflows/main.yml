@@ -30,11 +30,11 @@ on:
           Optional baseline commit for secret-scan. Leave empty and the scan
           compares against the newest ancestor carrying a fully validated
           release — one run where both secret-scan and "Verify the release is
-          fully validated" passed — which it asks GitHub for. Set it when there
-          is no such commit: a branch CI has never released, or a run you need to
-          reproduce against a specific point. It is resolved to its full SHA and
-          must be an ancestor of the ref being run and not the ref itself:
-          validated exactly as hard as an inferred base.
+          fully validated" passed — which it asks GitHub for. Set it to reach
+          PAST that automatic walk: an older release you know was validated. It
+          is resolved to its full SHA, must be an ancestor of the ref being run
+          and not the ref itself, and must itself carry a validated release. It
+          names a release known to be good; it cannot invent one.
         required: false
         type: string
 
