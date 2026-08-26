@@ -1233,11 +1233,18 @@ rule has to decide.
   region that outlives the picker.
 
   The rules live in `dropAcceptance.js` (`matchesAccept`, `resolveDroppedFiles`),
-  pure and directly tested: 23 assertions for `accept`'s three syntaxes, case
-  folding, mixed drops and every message shape, plus 20 in `FileInput.test.jsx`
-  for the wiring, the aria contract, the ownership rule, clearing and the
-  accessibility check, and 8 across `UploadField` and `EnvelopeSidebar` for the
-  transition itself.
+  pure and directly tested. The component's suite was split by behaviour in the
+  same change, because adding this took it past the 500-line standard:
+
+  | file | tests | pins |
+  | --- | ---: | --- |
+  | `dropAcceptance.test.js` | 27 | `accept`'s three syntaxes, case folding both ways, every message shape, and that `accepted`/`rejected` account for each dropped file exactly once |
+  | `FileInput.test.jsx` | 19 | the core contract: label, variants, description, aria |
+  | `FileInput.drop.test.jsx` | 9 | how a dropped file reaches the input at all, and what a disabled panel still owes the page |
+  | `FileInput.rejection.test.jsx` | 24 | the message, the `role="alert"` choice, `aria-invalid`, clearing, the `onReject` ownership rule and an axe check |
+  | `FileInput.upload.test.jsx` | 6 | the polite upload region and focus restoration |
+  | `UploadField.test.jsx` | 8 | the transition: message kept while uploading, dropped when a failed upload brings the picker back |
+  | `EnvelopeSidebar.drop.test.jsx` | 4 | the same transition where the parent re-renders with the chosen file |
 
 ---
 

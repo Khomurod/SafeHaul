@@ -1,4 +1,4 @@
-import React, { useEffect, useId, useRef, useState } from 'react';
+import React, { useId, useRef, useState } from 'react';
 import { X, CheckCircle, RefreshCw, FileText, Image as ImageIcon, AlertCircle } from 'lucide-react';
 import {
     Button, FileInput, IconButton, IconButtonLink, ProgressBar,
@@ -80,27 +80,6 @@ const UploadField = ({
     const isImage = fileName?.match(/\.(jpg|jpeg|png|gif|webp)$/i) || (typeof value === 'string');
     const pickerVisible = !hasValue && status !== 'uploading';
 
-    /*
-     * A returning picker is a fresh one, and it starts with nothing to say.
-     *
-     * The picker is unmounted while an upload runs, so a failed upload brings a
-     * NEW `FileInput` back — with no rejection of its own, hence no
-     * `aria-invalid` and nothing in its description, while this field was still
-     * showing the message from the drop that started it. Visible text and field
-     * semantics out of step, which is the same defect twice. Found in review on
-     * 2026-08-26.
-     *
-     * Clearing on the way back keeps them together, and it is the honest state:
-     * an empty picker asking for a file again has not refused anything yet. The
-     * cases where the message must survive do not come through here — an
-     * all-refused drop never hides the picker, and a successful upload never
-     * brings it back.
-     */
-    const pickerWasVisible = useRef(pickerVisible);
-    useEffect(() => {
-        if (pickerVisible && !pickerWasVisible.current) setDropRejection(null);
-        pickerWasVisible.current = pickerVisible;
-    }, [pickerVisible]);
 
     const handleFileSelect = async (e) => {
         const file = e.target.files?.[0];
@@ -137,14 +116,29 @@ const UploadField = ({
             // Notify Parent
             onChange(name, result);
 
-            // Reset status after a moment to show the "File Card"
+            // Reset status after a moment to show the "File Card". If the
+            // parent did not take the value, this is the other way the picker
+            // comes back, so the message goes here too.
             setTimeout(() => {
+                setDropRejection(null);
                 setStatus('idle');
             }, 1000);
 
         } catch (err) {
             clearInterval(progressInterval);
             console.error("Upload failed in component:", err);
+            /*
+             * Clear the drop message in the SAME update as the failure.
+             *
+             * A failed upload brings the picker back, and a returning picker is
+             * a fresh one with no rejection of its own — no `aria-invalid`,
+             * nothing in its description. Clearing this from an effect instead
+             * left one committed render where the new input said it was fine
+             * while the old message was still on screen; review on 2026-08-26
+             * caught it, and the test that had to wait through two commits was
+             * the evidence. Same batch, no window.
+             */
+            setDropRejection(null);
             setStatus('error');
             setErrorMsg(err?.message || "Upload failed. Please try again.");
             setProgress(0);

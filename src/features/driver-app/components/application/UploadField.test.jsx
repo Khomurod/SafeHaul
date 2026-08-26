@@ -224,17 +224,15 @@ describe('UploadField rejected-drop feedback', () => {
     dropOn(file('cdl.pdf'), new File(['x'], 'selfie.png', { type: 'image/png' }));
 
     /*
-     * The upload fails, the picker returns, and it returns with nothing to say.
+     * The picker returns and it returns with nothing to say — in the SAME commit.
      *
-     * Both conditions are awaited together: the picker reappearing and the
-     * message clearing are separate commits, and asserting the second the moment
-     * the first is true made this test fail about one run in three.
+     * This used to wait for both conditions separately, because clearing from an
+     * effect left one render where the two disagreed. Asserting them together the
+     * moment the picker is back is the proof that window is gone.
      */
-    await waitFor(() => {
-      expect(input()).not.toBeNull();
-      expect(screen.queryAllByRole('alert').some((a) => /selfie\.png/.test(a.textContent)))
-        .toBe(false);
-    });
+    await waitFor(() => expect(input()).not.toBeNull());
+    expect(screen.queryAllByRole('alert').some((a) => /selfie\.png/.test(a.textContent)))
+      .toBe(false);
     expect(input()).not.toHaveAttribute('aria-invalid');
   });
 
