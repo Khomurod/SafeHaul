@@ -118,6 +118,25 @@ const REVERIFICATION_EVENTS = Object.freeze(['workflow_dispatch', 'schedule', 'r
  */
 export const SECRET_SCAN_CHECK_NAME = 'secret-scan';
 
+/**
+ * The other check a baseline has to carry, and the reason is the scanner itself.
+ *
+ * "Its `secret-scan` passed" is not enough, found in review on 2026-08-26 (P1):
+ * a commit could BREAK this scanner so that `secret-scan` passes wrongly, while
+ * `callable-contract` — which runs `npm run test:secret-scan` — fails and blocks
+ * that release. The broken commit would still look validated, and the next push,
+ * with the scanner fixed, would anchor there and never look at the increment the
+ * broken scanner waved through.
+ *
+ * `Verify the release is fully validated` is the answer already in the
+ * repository: it refuses unless every `ALWAYS_REQUIRED_JOBS` entry concluded
+ * success, and those are `secret-scan` and `callable-contract`. So a commit
+ * carrying it was scanned by a scanner that passed its own tests. It is the same
+ * check `functions/releaseManagement/eligibility.js` requires by name before a
+ * production promotion, which is the company it belongs in.
+ */
+export const RELEASE_VALIDATION_CHECK_NAME = 'Verify the release is fully validated';
+
 /** How far back to look for a validated ancestor before giving up. */
 export const VALIDATED_ANCESTOR_WALK = 50;
 
@@ -242,11 +261,12 @@ export function resolveScanPlan({
             );
         }
         throw new ScanPlanError(
-            `no ancestor of ${short(headSha)} has a successful secret scan on record `
-            + `(before=${describeSha(before)}), so there is no validated baseline to compare against. `
-            + 'Trusting `before` here is what lets the increment behind a FAILED scan through. Set '
-            + 'SECRET_SCAN_BASE to a commit you know was scanned, or fix the failing run. Refusing to '
-            + 'fall back to a full-history scan, or to an empty one.',
+            `no ancestor of ${short(headSha)} carries a fully validated release `
+            + `(before=${describeSha(before)}), so there is no baseline to compare against. A baseline `
+            + `needs both "${SECRET_SCAN_CHECK_NAME}" and "${RELEASE_VALIDATION_CHECK_NAME}" to have `
+            + 'succeeded in one run. Trusting `before` here is what lets the increment behind a FAILED '
+            + 'scan through. Set SECRET_SCAN_BASE to a commit you know was scanned, or fix the failing '
+            + 'run. Refusing to fall back to a full-history scan, or to an empty one.',
         );
     }
 
@@ -264,8 +284,8 @@ export function resolveScanPlan({
          * the manual run is green. `workflow_dispatch` deploys, so that is a
          * bypass of the gate rather than a gap in a report.
          *
-         * The baseline is therefore the newest ancestor whose own `secret-scan`
-         * concluded success — which is exactly "the last validated commit" — and
+         * The baseline is therefore the newest ancestor carrying a fully validated
+         * release — which is exactly "the last validated commit" — and
          * when there is none, this refuses and asks for an explicit base. It
          * never widens to a full-history scan, and never narrows to an empty one.
          */
@@ -278,10 +298,11 @@ export function resolveScanPlan({
             );
         }
         throw new ScanPlanError(
-            `no ancestor of ${short(headSha)} has a successful secret scan on record, so there is no `
-            + 'validated baseline to compare against. This is what a re-run after a FAILED push looks '
-            + 'like, and scanning only the newest commit would step over the failure. Set '
-            + 'SECRET_SCAN_BASE to a commit you know was scanned, or fix the failing run.',
+            `no ancestor of ${short(headSha)} carries a fully validated release, so there is no `
+            + `baseline to compare against. A baseline needs both "${SECRET_SCAN_CHECK_NAME}" and `
+            + `"${RELEASE_VALIDATION_CHECK_NAME}" to have succeeded in one run. This is what a re-run `
+            + 'after a FAILED push looks like, and scanning only the newest commit would step over the '
+            + 'failure. Set SECRET_SCAN_BASE to a commit you know was scanned, or fix the failing run.',
         );
     }
 
@@ -385,9 +406,14 @@ export const gitRunner = (cwd) => ({
 });
 
 /**
- * The newest ancestor of `headSha` whose own `secret-scan` check succeeded.
+ * The newest ancestor of `headSha` that carries a fully validated release.
  *
- * This is what "the last validated commit" means, and it is asked of GitHub
+ * "Validated" means one workflow run in which BOTH `secret-scan` and
+ * `Verify the release is fully validated` concluded success — the second because
+ * a scanner that passed while its own tests failed has validated nothing (see
+ * RELEASE_VALIDATION_CHECK_NAME).
+ *
+ * It is asked of GitHub
  * because git cannot answer it: a commit's history says nothing about whether CI
  * ever passed on it. Walking first-parent is deliberate and conservative — for a
  * merge it lands on the previous branch tip rather than on the merged branch's
@@ -428,7 +454,7 @@ export async function findLastValidatedAncestor({
         try {
             response = await fetchImpl(
                 `https://api.github.com/repos/${repository}/commits/${candidate}/check-runs`
-                + `?check_name=${encodeURIComponent(SECRET_SCAN_CHECK_NAME)}&per_page=100`,
+                + '?status=completed&per_page=100',
                 {
                     headers: {
                         Authorization: `Bearer ${token}`,
@@ -452,8 +478,27 @@ export async function findLastValidatedAncestor({
         } catch (error) {
             return { sha: null, checked, error: `unreadable response: ${error?.message || error}` };
         }
+        /*
+         * Both checks, and both from the SAME check suite — one workflow run.
+         *
+         * Taking them from different runs would accept "some run scanned it" plus
+         * "some other run validated it", which is not the same claim as "one run
+         * scanned it with a scanner that had passed its own tests". Grouping by
+         * suite costs a Map and removes the ambiguity.
+         */
         const runs = Array.isArray(body?.check_runs) ? body.check_runs : [];
-        if (runs.some((entry) => entry?.status === 'completed' && entry?.conclusion === 'success')) {
+        const succeededBySuite = new Map();
+        for (const entry of runs) {
+            const suite = entry?.check_suite?.id;
+            if (suite === undefined || suite === null) continue;
+            if (entry?.status !== 'completed' || entry?.conclusion !== 'success') continue;
+            if (!succeededBySuite.has(suite)) succeededBySuite.set(suite, new Set());
+            succeededBySuite.get(suite).add(entry.name);
+        }
+        const validated = [...succeededBySuite.values()].some(
+            (names) => names.has(SECRET_SCAN_CHECK_NAME) && names.has(RELEASE_VALIDATION_CHECK_NAME),
+        );
+        if (validated) {
             return { sha: candidate, checked, error: null };
         }
     }

@@ -553,7 +553,7 @@ const LANDING_SETTINGS_ENTRIES = [
 // ---------------------------------------------------------------------------
 
 const GITHUB_SECRET_KEYS = [
-    ['GITHUB_TOKEN', 'GitHub Actions', SENSITIVITY.SENSITIVE, 'Ephemeral token GitHub mints per workflow run; used by the CI planner to read attestations, by the release-health reporter, by the promotion workflow, and by the secret scan to ask (read-only) which ancestor commit last passed its own secret-scan.'],
+    ['GITHUB_TOKEN', 'GitHub Actions', SENSITIVITY.SENSITIVE, 'Ephemeral token GitHub mints per workflow run; used by the CI planner to read attestations, by the release-health reporter, by the promotion workflow, and by the secret scan to ask (read-only) which ancestor commit last carried a fully validated release.'],
 ];
 
 const GITHUB_ENTRIES = GITHUB_SECRET_KEYS.map(([key, integration, sensitivity, description]) => ({
@@ -672,7 +672,7 @@ const OPS_ENTRIES = [
     // are SafeHaul configuration now. See scripts/secret-scan.mjs.
     ['GITHUB_EVENT_NAME', 'Workflow event name', 'Event that triggered the run (push, pull_request, workflow_dispatch). Decides which baseline the secret scan compares against.', ['scripts/secret-scan.mjs', '.github/workflows/main.yml']],
     ['GITHUB_EVENT_PATH', 'Workflow event payload path', 'Path to the JSON payload of the triggering event. The secret scan reads the pull request base SHA and the push before-SHA from it.', ['scripts/secret-scan.mjs']],
-    ['GITHUB_REPOSITORY', 'Workflow repository slug', 'owner/repo of the run, supplied by GitHub Actions. The secret scan uses it to ask which ancestor commit was last validated.', ['scripts/secret-scan.mjs']],
+    ['GITHUB_REPOSITORY', 'Workflow repository slug', 'owner/repo of the run, supplied by GitHub Actions. The secret scan uses it to ask which ancestor commit last carried a fully validated release, which is the baseline it compares against.', ['scripts/secret-scan.mjs']],
     ['GITHUB_STEP_SUMMARY', 'Job summary file', 'File GitHub renders as the job summary. The secret scan and the history audit write their redacted verdicts there.', ['scripts/secret-scan.mjs', 'scripts/secret-history-audit.mjs']],
     ['SECRET_SCAN_BASE', 'Secret-scan baseline override', 'Optional commit to use as the secret-scan baseline, exposed as a workflow_dispatch input. Validated: it must be a hexadecimal commit SHA (abbreviated is fine, it is resolved to its full form before anything compares it), exist in the clone, be an ancestor of the head being scanned, and not be the head itself. Exists for the case where no ancestor has a passing secret-scan to compare against, which is otherwise a refusal.', ['scripts/secret-scan.mjs', '.github/workflows/main.yml']],
     ['SECRET_SCAN_REPORT_DIR', 'Secret-scan report directory', 'Directory the secret scan writes its redacted findings report to for upload as an artifact. Rule, file, line and commit only — never a value.', ['scripts/secret-scan.mjs', '.github/workflows/main.yml']],

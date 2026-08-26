@@ -309,6 +309,19 @@ the range:
   which is the point: the guarantee must not rest on one version's exit-code
   habits. Driven by a stub scanner in `test-secret-scan.mjs` C16/C17.
 
+And a fourth round found it in the definition of "validated" itself:
+
+- **A green `secret-scan` does not mean the scanner works.** The commit that
+  BREAKS the scanner is exactly the commit whose `secret-scan` passes wrongly
+  while `callable-contract` — which runs the scanner's own tests — fails. That
+  commit looked like a valid baseline, so the next push, with the scanner fixed,
+  anchored there and never looked at what the broken scanner waved through. A
+  baseline now needs **`secret-scan` and `Verify the release is fully validated`
+  to have succeeded in the same workflow run**; the second refuses unless every
+  `ALWAYS_REQUIRED_JOBS` entry passed, which is what makes it proof that the
+  scanner passed its own tests. It is the same check the production-promotion
+  gate already requires by name.
+
 `check:ci-plan` §L pins all of it: no third-party scanning action, a pinned
 version *and* digest, both scans present, `secret-scan` still unskippable, no
 path exemptions in `.gitleaks.toml`, the check name the lookup asks about

@@ -1242,6 +1242,16 @@ console.log('\nL. The secret scanner is scoped, pinned, and still mandatory');
     assert('L20. a push never anchors at its own `before`',
         !/'push-before'/.test(scanner),
         'that baseline is only as trustworthy as a scan that may have failed');
+    /*
+     * A baseline also needs the run's own `release-validation` to have passed,
+     * because that is what proves `callable-contract` — the scanner's own tests —
+     * passed with it. A commit that BREAKS the scanner is exactly the commit
+     * whose `secret-scan` goes green while those tests do not.
+     */
+    assert('L21. a baseline needs a validated release, not just a green scan',
+        /RELEASE_VALIDATION_CHECK_NAME = 'Verify the release is fully validated'/.test(scanner)
+        && /name: Verify the release is fully validated/.test(workflow),
+        'the constant and the release-validation job name in main.yml must be the same string');
 
     const gitleaksConfig = readFileSync(resolvePath(here, '../.gitleaks.toml'), 'utf8');
     assert('L15. the default rule set is still extended, not replaced',

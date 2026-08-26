@@ -28,12 +28,13 @@ on:
       secret_scan_base:
         description: >-
           Optional baseline commit for secret-scan. Leave empty and the scan
-          compares against the newest ancestor whose own secret-scan passed,
-          which it asks GitHub for. Set it when there is no such commit — a
-          branch CI has never scanned, or a run you need to reproduce against a
-          specific point. It is resolved to its full SHA and must be an ancestor
-          of the ref being run and not the ref itself: validated exactly as hard
-          as an inferred base.
+          compares against the newest ancestor carrying a fully validated
+          release — one run where both secret-scan and "Verify the release is
+          fully validated" passed — which it asks GitHub for. Set it when there
+          is no such commit: a branch CI has never released, or a run you need to
+          reproduce against a specific point. It is resolved to its full SHA and
+          must be an ancestor of the ref being run and not the ref itself:
+          validated exactly as hard as an inferred base.
         required: false
         type: string
 
@@ -121,9 +122,10 @@ jobs:
     # release pipeline", rule 4) records the rule.
     permissions:
       contents: read
-      # Read-only, and only for one question: did an earlier commit's own
-      # `secret-scan` conclude success? That is what a manual re-verification
-      # compares against, because git cannot say whether CI ever passed.
+      # Read-only, and only for one question: did an earlier commit carry a
+      # fully validated release — both `secret-scan` and `release-validation`
+      # green in one run? That is what everything but a pull request compares
+      # against, because git cannot say whether CI ever passed.
       checks: read
     steps:
       # Full history: the scanner resolves base..head itself, and a merge needs

@@ -50,6 +50,8 @@ import {
     performScans,
     resolveScanPlan,
     runGitleaksScan,
+    RELEASE_VALIDATION_CHECK_NAME,
+    SECRET_SCAN_CHECK_NAME,
 } from './secret-scan.mjs';
 import { evaluateAudit, fingerprintOf } from './secret-history-audit.mjs';
 
@@ -883,9 +885,16 @@ console.log('\nE. Finding the last validated commit');
 
 {
     /*
-     * The baseline for a manual run and for a force-push is "the newest ancestor
-     * whose own secret-scan passed". Git cannot answer that, so GitHub is asked —
+     * The baseline is "the newest ancestor carrying a fully validated release":
+     * one workflow run in which BOTH `secret-scan` and `Verify the release is
+     * fully validated` succeeded. Git cannot answer that, so GitHub is asked —
      * and the answers that are NOT "yes" all have to fail closed, distinguishably.
+     *
+     * The second check is there because of a review finding on 2026-08-26: a
+     * commit could break this scanner so `secret-scan` passes wrongly while
+     * `callable-contract` (which runs these very tests) fails. `release-validation`
+     * refuses unless both of those succeeded, so requiring it means a baseline was
+     * scanned by a scanner that had passed its own tests.
      */
     const repo = makeRepo();
     repo.write('f.txt', '1');
@@ -895,17 +904,37 @@ console.log('\nE. Finding the last validated commit');
     repo.write('f.txt', '3');
     const third = repo.commit('third');
 
+    /**
+     * A commit's check runs, as GitHub reports them.
+     *
+     * `byCommit[sha]` is either a conclusion shared by both checks, or an object
+     * naming each one's conclusion and, optionally, the suite it belongs to.
+     */
     const reply = (byCommit) => async (url) => {
         const sha = url.split('/commits/')[1].split('/')[0];
-        const conclusion = byCommit[sha];
-        return {
-            ok: true,
-            json: async () => ({
-                check_runs: conclusion
-                    ? [{ name: 'secret-scan', status: 'completed', conclusion }]
-                    : [],
-            }),
-        };
+        const entry = byCommit[sha];
+        if (!entry) return { ok: true, json: async () => ({ check_runs: [] }) };
+        const spec = typeof entry === 'string'
+            ? { scan: entry, validation: entry }
+            : entry;
+        const runs = [];
+        if (spec.scan) {
+            runs.push({
+                name: SECRET_SCAN_CHECK_NAME,
+                status: 'completed',
+                conclusion: spec.scan,
+                check_suite: { id: spec.scanSuite ?? 1 },
+            });
+        }
+        if (spec.validation) {
+            runs.push({
+                name: RELEASE_VALIDATION_CHECK_NAME,
+                status: 'completed',
+                conclusion: spec.validation,
+                check_suite: { id: spec.validationSuite ?? 1 },
+            });
+        }
+        return { ok: true, json: async () => ({ check_runs: runs }) };
     };
     const opts = { headSha: third, cwd: repo.dir, repository: 'o/r', token: 't' };
 
@@ -922,6 +951,49 @@ console.log('\nE. Finding the last validated commit');
     assert('E2 (req 10). an ancestor whose scan FAILED is not a baseline',
         skipped.sha === first,
         'this is the whole point: a failed push must not become the thing we compare against');
+
+    /*
+     * Found in review on 2026-08-26 (P1). `secret-scan` green is not enough: the
+     * commit that broke the scanner is exactly the commit whose scan passes while
+     * `callable-contract` — the scanner's own tests — fails, and
+     * `release-validation` is what records that.
+     */
+    const selfTestsFailed = await findLastValidatedAncestor({
+        ...opts,
+        fetchImpl: reply({
+            [second]: { scan: 'success', validation: 'failure' },
+            [first]: 'success',
+        }),
+    });
+    assert('E2b (req 10). nor is one whose scan passed while its release was NOT validated',
+        selfTestsFailed.sha === first,
+        `${String(selfTestsFailed.sha).slice(0, 8)} — a scanner that passed while its own tests `
+        + 'failed has validated nothing');
+
+    const validationOnly = await findLastValidatedAncestor({
+        ...opts,
+        fetchImpl: reply({
+            [second]: { scan: 'failure', validation: 'success' },
+            [first]: 'success',
+        }),
+    });
+    assert('E2c (req 10). and neither check alone is enough',
+        validationOnly.sha === first,
+        `${String(validationOnly.sha).slice(0, 8)}`);
+
+    const differentRuns = await findLastValidatedAncestor({
+        ...opts,
+        fetchImpl: reply({
+            [second]: {
+                scan: 'success', validation: 'success', scanSuite: 11, validationSuite: 22,
+            },
+            [first]: 'success',
+        }),
+    });
+    assert('E2d. two successes from two different runs are not one validated release',
+        differentRuns.sha === first,
+        `${String(differentRuns.sha).slice(0, 8)} — "some run scanned it" plus "some other run `
+        + 'validated it" is a weaker claim than the one being made');
 
     const none = await findLastValidatedAncestor({ ...opts, fetchImpl: reply({}) });
     assert('E3 (req 10). nothing validated yields no baseline, and the caller refuses',
