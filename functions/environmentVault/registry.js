@@ -553,7 +553,7 @@ const LANDING_SETTINGS_ENTRIES = [
 // ---------------------------------------------------------------------------
 
 const GITHUB_SECRET_KEYS = [
-    ['GITHUB_TOKEN', 'GitHub Actions', SENSITIVITY.SENSITIVE, 'Ephemeral token GitHub mints per workflow run; used by the Gitleaks secret scan.'],
+    ['GITHUB_TOKEN', 'GitHub Actions', SENSITIVITY.SENSITIVE, 'Ephemeral token GitHub mints per workflow run; used by the CI planner to read attestations, by the release-health reporter, and by the promotion workflow. The secret scan stopped needing it on 2026-08-26, when the range moved into scripts/secret-scan.mjs.'],
 ];
 
 const GITHUB_ENTRIES = GITHUB_SECRET_KEYS.map(([key, integration, sensitivity, description]) => ({
@@ -667,6 +667,17 @@ const OPS_ENTRIES = [
     // group, which are plain settings.
     ['GOOGLE_ACCESS_TOKEN', 'Google deploy access token', 'Short-lived OAuth access token minted by Workload Identity Federation during the deploy workflow, used to read the deployed Firebase Hosting version ID. Never stored or retrievable.', ['scripts/read-hosting-release.mjs', '.github/workflows/main.yml'], { sensitivity: SENSITIVITY.SENSITIVE }],
     ['RELEASE_SHA', 'Release commit SHA', 'Commit a release is being recorded for. Passed explicitly because a production promotion is dispatched from main but releases the candidate commit, so GITHUB_SHA would name the wrong thing.', ['scripts/record-release.mjs', '.github/workflows/main.yml', '.github/workflows/promote-production.yml']],
+    // The secret scanner reads the event itself rather than trusting an action
+    // to infer a range from it, so the three variables GitHub uses to describe a
+    // run are SafeHaul configuration now. See scripts/secret-scan.mjs.
+    ['GITHUB_EVENT_NAME', 'Workflow event name', 'Event that triggered the run (push, pull_request, workflow_dispatch). Decides which baseline the secret scan compares against.', ['scripts/secret-scan.mjs', '.github/workflows/main.yml']],
+    ['GITHUB_EVENT_PATH', 'Workflow event payload path', 'Path to the JSON payload of the triggering event. The secret scan reads the pull request base SHA and the push before-SHA from it.', ['scripts/secret-scan.mjs']],
+    ['GITHUB_DEFAULT_BRANCH', 'Repository default branch', 'Default branch name, passed by the workflow. Used only as the fallback baseline when a push carries no usable before-SHA (a newly created or force-pushed branch).', ['scripts/secret-scan.mjs', '.github/workflows/main.yml']],
+    ['GITHUB_STEP_SUMMARY', 'Job summary file', 'File GitHub renders as the job summary. The secret scan and the history audit write their redacted verdicts there.', ['scripts/secret-scan.mjs', 'scripts/secret-history-audit.mjs']],
+    ['SECRET_SCAN_BASE', 'Secret-scan baseline override', 'Optional commit to use as the secret-scan baseline, exposed as a workflow_dispatch input. Validated: it must exist and be an ancestor of the head being scanned. Exists for the case where several pushes landed without a workflow run, so the previous first-parent state is not the last scanned state.', ['scripts/secret-scan.mjs', '.github/workflows/main.yml']],
+    ['SECRET_SCAN_REPORT_DIR', 'Secret-scan report directory', 'Directory the secret scan writes its redacted findings report to for upload as an artifact. Rule, file, line and commit only — never a value.', ['scripts/secret-scan.mjs', '.github/workflows/main.yml']],
+    ['SECRET_HISTORY_REPORT_DIR', 'History audit report directory', 'Directory the full-history audit writes its redacted inventory to for upload as an artifact.', ['scripts/secret-history-audit.mjs', '.github/workflows/secret-history-audit.yml']],
+    ['GITLEAKS_BIN', 'Gitleaks binary override', 'Path to an already-present gitleaks binary. Lets the test suite and a developer run the real scanner without re-downloading it; CI leaves it unset so the pinned, digest-verified release is fetched.', ['scripts/secret-scan.mjs']],
 ].map(([key, displayName, description, consumers, overrides = {}]) => ({
     key,
     displayName,
