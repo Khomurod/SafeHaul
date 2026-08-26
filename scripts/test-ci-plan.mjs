@@ -1261,6 +1261,30 @@ console.log('\nL. The secret scanner is scoped, pinned, and still mandatory');
         !/^\s*paths\s*=/m.test(gitleaksConfig),
         'a path exemption would ignore a real credential pasted into that file; '
         + 'the two `.env.example` entries were measured to be unnecessary and deleted');
+
+    /*
+     * L16 stops the widest exemption; this stops the same move made with a
+     * regex instead of a path. `regexes` is unbounded — one entry of `.*` would
+     * make both scans pass over anything — so the exemptions are pinned by
+     * value. Adding one is then a visible, reviewable edit to this list rather
+     * than a line in a config nobody re-reads, which is the whole point.
+     *
+     * Both entries are documented in `.gitleaks.toml` with what they are, why
+     * they cannot be a credential, and how that was verified.
+     */
+    const EXPECTED_VALUE_EXEMPTIONS = [
+        String.raw`AIzaSyE2EPlaceholderKey1234567890123`,
+        String.raw`^\d{4}-\d{2}-\d{2}_[a-z][a-z0-9-]*$`,
+    ];
+    const declared = [...gitleaksConfig.matchAll(/^\s*'''(.*)'''\s*,?\s*$/gm)].map((m) => m[1]);
+    assert('L22. the value exemptions are exactly the two that were reviewed',
+        declared.length === EXPECTED_VALUE_EXEMPTIONS.length
+        && declared.every((value, index) => value === EXPECTED_VALUE_EXEMPTIONS[index]),
+        `found ${JSON.stringify(declared)} — a new exemption has to be added here too, `
+        + 'with the measurement that justifies it');
+    assert('L23. and none of them can match an arbitrary value',
+        declared.every((value) => !/^\^?\.[*+]\$?$/.test(value) && value.length > 8),
+        'a catch-all regex in the allowlist is a rule exemption wearing a value exemption\'s clothes');
 }
 
 console.log(failures === 0 ? '\nAll CI plan and gate checks passed.' : `\n${failures} check(s) failed.`);

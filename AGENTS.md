@@ -322,6 +322,13 @@ And a fourth round found it in the definition of "validated" itself:
   scanner passed its own tests. It is the same check the production-promotion
   gate already requires by name.
 
+One more of the same family, found by reading rather than by review: `.gitleaks.toml`
+comes from the branch under test, so a change could weaken the gate instead of
+passing it. L16 already forbids a path exemption; L22/L23 now pin the two value
+exemptions by value and reject a catch-all, so widening the allowlist means
+editing `check:ci-plan` too — deliberate friction, in a file that gates the
+release.
+
 `check:ci-plan` §L pins all of it: no third-party scanning action, a pinned
 version *and* digest, both scans present, `secret-scan` still unskippable, no
 path exemptions in `.gitleaks.toml`, the check name the lookup asks about
