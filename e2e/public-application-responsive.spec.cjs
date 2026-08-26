@@ -71,7 +71,7 @@ async function undersizedControls(page, minimum = MIN_TARGET) {
        * visually hidden but still focusable, wrapped in a `<label>` styled as the
        * visible control — so the input measures 1x1 and the LABEL is the pointer
        * target. Measure the label. Skipping the control outright, the way the
-       * `ds-visually-hidden` line below does, would stop asserting that a target
+       * hidden-utility line below does, would stop asserting that a target
        * exists at all, and the whole point of that contract is that one does.
        */
       const target = el.classList.contains('ds-file-input__native')
@@ -79,7 +79,15 @@ async function undersizedControls(page, minimum = MIN_TARGET) {
         : el;
       const r = target.getBoundingClientRect();
       if (r.width === 0 || r.height === 0) continue;
-      if (el.classList.contains('ds-visually-hidden')) continue;
+      /*
+       * Both hidden utilities, not just the design system's one. `sr-only` and
+       * `ds-visually-hidden` emit the same clip rule, so an author picking either
+       * means the same thing — but a hidden control clips to 1x1 rather than 0x0,
+       * so naming only one of them made this guard flag a control nobody can see.
+       * `lead-intake.spec.cjs` already skipped both; the three sweeps that named
+       * one were the inconsistency, found 2026-08-25.
+       */
+      if (el.classList.contains('ds-visually-hidden') || el.classList.contains('sr-only')) continue;
       if (el.type === 'checkbox' || el.type === 'radio') continue;
       if (r.height < min - 0.5 || r.width < min - 0.5) {
         out.push(`${el.tagName}${el.id ? '#' + el.id : ''} ${Math.round(r.width)}x${Math.round(r.height)}`);
@@ -111,7 +119,8 @@ async function undersizedText(page) {
     for (const el of document.querySelectorAll('body *')) {
       if (!el.textContent || !el.textContent.trim()) continue;
       if (el.children.length > 0) continue;              // leaf text nodes only
-      if (el.classList.contains('ds-visually-hidden')) continue;
+      // Both hidden utilities — see the note in `undersizedControls`.
+      if (el.classList.contains('ds-visually-hidden') || el.classList.contains('sr-only')) continue;
       const size = Number.parseFloat(getComputedStyle(el).fontSize);
       if (size && size < 12) out.push(`${el.tagName} ${size}px "${el.textContent.trim().slice(0, 30)}"`);
     }

@@ -13,7 +13,11 @@
  *
  * On 2026-08-25 that was measured. **Seven of the eleven approved native tables
  * referenced no `--ds-table-*` role at all**, and the four that did referenced
- * one or two. They looked right because `bg-ds-surface-subtle` and
+ * one or two. ("Eleven" throughout this file is the count of approved *files*;
+ * three of them hold more than one `<table>`, for fifteen in total — fourteen
+ * visible, all on this contract, plus one `sr-only` table that has no appearance
+ * and is exempt. `check:ui-contract` counts tables rather than files, so a
+ * three-table file cannot satisfy the rule with one class.) They looked right because `bg-ds-surface-subtle` and
  * `text-ds-content-secondary` happen to be what the header roles resolve to —
  * a coincidence, not a contract, and one that a change to either role would
  * break silently.

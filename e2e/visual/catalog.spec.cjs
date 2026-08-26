@@ -114,6 +114,23 @@ const SUBJECTS = [
     ['patterns-compact-data-table--density-comparison', 'pattern-table-density'],
     ['patterns-native-table--editable-matrix', 'pattern-native-table'],
     ['patterns-native-table--density-comparison', 'pattern-native-table-density'],
+    /*
+     * Added 2026-08-25 to close an asymmetry: `DataTable`'s empty state has had a
+     * baseline since the lane was written, and the native-table contract — which
+     * eleven feature files now read — had none for either state worth seeing.
+     *
+     * One honest limit on the frozen column. At 1440px the table fits, so nothing
+     * scrolls under the sticky cell and the desktop shot shows only its surfaces,
+     * divider and header corner. The 412px shot is the one that exercises the
+     * contract, because there the overflow comes from the viewport rather than
+     * from a scroll action — and a screenshot that depends on a scroll completing
+     * is the timing-dependent input `.storybook/preview.css` warns about. So the
+     * overlap is proven at one width deterministically instead of at two widths
+     * flakily, and `check:visual-contract` measures the cell's background,
+     * `position` and `left` at both.
+     */
+    ['patterns-native-table--empty-row', 'pattern-native-table-empty'],
+    ['patterns-native-table--sticky-first-column', 'pattern-native-table-sticky'],
     ['patterns-filter-panel--default', 'pattern-filter-panel'],
     ['patterns-filter-panel--no-matching-results', 'pattern-filter-no-results'],
     ['patterns-title-deletion-list--default', 'pattern-deletion-list'],

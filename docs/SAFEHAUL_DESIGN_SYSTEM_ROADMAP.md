@@ -214,6 +214,18 @@ component itself as well.
   padding had already drifted to three values (24px, 20px, 16px) against a
   contract of 20px.
 
+  **"Eleven" is a count of files, and it is worth being exact about, because the
+  guard is not.** Eleven feature files carry an approved `raw-table` exception,
+  and between them they hold **fifteen** `<table>` elements, because three files
+  carry more than one: `FeaturesView` ×2, `ModernDriverTable` ×2 and
+  `AnalyticsView` ×3. Fourteen of the fifteen are visible and every one of them
+  applies `ds-native-table`. The fifteenth is `AnalyticsView`'s `sr-only` table —
+  the text equivalent of the chart above it — and it deliberately does not, because
+  it has no appearance to put on contract. The
+  distinction mattered on 2026-08-25: the first version of the tether check asked
+  whether the *file* mentioned the class, which a three-table file satisfies with
+  one, so it counts tables now. See the guardrail table in section 7.
+
   `ds-native-table` (`components/data-table/nativeTable.css`) is that contract:
   header surface and foreground, divider, row background, hover, cell padding and
   row height from the same roles `DataTable` reads, including the narrower inline
@@ -605,10 +617,10 @@ weaken or delete one without replacing the guarantee.
 | `src/design-system/tests/tokens.test.js` | The semantic token contract and its contrast pairings, in both directions |
 | `src/tests/noBlockingBrowserDialogs.test.js` | No `confirm(` / `alert(` anywhere under `src/`, with or without a `window.` prefix. It walks every non-test file, strips comments and string literals, and is proven to catch a real call rather than passing vacuously |
 | `npm run test:stories` (`src/tests/designSystemStories.a11y.test.jsx`) | Every catalog story renders and passes axe |
-| `npm run check:table-layout` (`scripts/check-table-layout.mjs`) | Measures the built catalog in a real browser at 412px and 1440px: a cell must contain its content (`scrollWidth > clientWidth` is a violation unless the column opts into `truncate`), and no region may reserve a gutter it never scrolls into. Covers `DataTable` **and** the `ds-native-table` contract — until 2026-08-25 no native table was measured anywhere, so the eleven tables that are not `DataTable` had no layout guard at all. Honours `PW_CHROMIUM_EXECUTABLE`, so it runs in a sandbox whose Chromium is not the pinned build — a guard that cannot run gets skipped |
-| `npm run check:ui-contract` (`scripts/check-ui-contract.mjs`) | The design-system contract, zero-tolerance. Raw palette classes, raw hex, sub-12px text, off-scale type, **Tailwind radii and shadows** (whose names collide with the `--ds-*` ones one step off), hand-built overlays, raw tables, hand-styled buttons/fields/anchors, **hand-rolled tablists, raw file inputs and hand-written `target="_blank"`** — in JSX, in stories and in CSS. Measured against `src/design-system/ui-contract.allowlist.json`: anything unlisted fails, so does a count *lower* than recorded, so does an entry that does not say why it is allowed, and so does an approved native table that does not apply `ds-native-table` |
+| `npm run check:table-layout` (`scripts/check-table-layout.mjs`) | Measures the built catalog in a real browser at 412px and 1440px: a cell must contain its content (`scrollWidth > clientWidth` is a violation unless the column opts into `truncate`), and no region may reserve a gutter it never scrolls into. Covers `DataTable` **and** the `ds-native-table` contract — until 2026-08-25 no native table was measured anywhere, so the fifteen tables across eleven files that are not `DataTable` had no layout guard at all. Honours `PW_CHROMIUM_EXECUTABLE`, so it runs in a sandbox whose Chromium is not the pinned build — a guard that cannot run gets skipped |
+| `npm run check:ui-contract` (`scripts/check-ui-contract.mjs`) | The design-system contract, zero-tolerance. Raw palette classes, raw hex, sub-12px text, off-scale type, **Tailwind radii and shadows** (whose names collide with the `--ds-*` ones one step off), hand-built overlays, raw tables, hand-styled buttons/fields/anchors, **hand-rolled tablists, raw file inputs and hand-written `target="_blank"`** — in JSX, in stories and in CSS. Measured against `src/design-system/ui-contract.allowlist.json`: anything unlisted fails, so does a count *lower* than recorded, so does an entry that does not say why it is allowed, and so does an approved native table that does not apply `ds-native-table` — counted **per `<table>`**, not per file, because the first version of that rule was satisfied by one class in a file with three tables, and one of the eleven approved files has exactly that. A table that is never seen (`sr-only` / `ds-visually-hidden`) is exempt, since it has no appearance to put on contract |
 | `npm run check:visual-contract` (`scripts/check-visual-contract.mjs`) | Computed geometry in a real browser at both widths — control heights, cell padding, radii, resolved token colours — against a committed snapshot. This is the blocking visual guard, because the numbers are portable across machines and a failure names what moved (`button[md].height: 44px -> 40px`). 56 measurements as of 2026-08-25, the last four being a frozen table column's background: a `sticky` cell that loses its own surface lets the scrolled columns paint through it, and that regression is now `rgb(255, 255, 255) -> rgba(0, 0, 0, 0)` in a diff rather than something found on a screen |
-| `npm run test:visual` (`e2e/visual/`) | Pixel baselines for **67 catalog subjects and 15 application screens**, at 1440px and 412px, committed to the repository. **Blocking as of 2026-08-25** — see below |
+| `npm run test:visual` (`e2e/visual/`) | Pixel baselines for **71 catalog subjects and 15 application screens**, at 1440px and 412px, committed to the repository. **Blocking as of 2026-08-25** — see below |
 | `npm run test:e2e -- --grep "@a11y"` (`e2e/a11y.spec.cjs` and friends) | Real-browser axe on the mobile-critical journeys, plus the keyboard behaviour axe cannot see: roving `tabIndex`, arrow/Home/End on a tab strip, `aria-pressed` on a segmented group, a focusable file input named by its field, and that every control a Tab press reaches shows the product's focus ring rather than the browser's black one. **Blocking as of 2026-08-25**, inside the `frontend-e2e` lane |
 | **A review step, not automated** — see below | A *hand-composed pattern*: correct primitives arranged into a shape the design system already owns. No class-list or tag-name rule can see one, and this is how fifteen page states and ten confirmation dialogs accumulated beside the patterns that own them. The two searches that find them are `StatusMedallion` used outside `src/design-system`, and a locally declared component whose name ends in `Dialog` — and the second search has to be that broad, because the first pass of it looked for `*Confirm*Dialog*` and missed four confirmations named after what they delete |
 
@@ -823,6 +835,37 @@ does not follow is a user's **default font size** preference. The whole
 `--ds-*` contract is px-based, type included, so this is a property of the design
 system rather than of these 512 call sites, and moving it to `rem` would be its
 own campaign with its own visual review. Recorded, not scheduled.
+
+### `sr-only` and `ds-visually-hidden` are the same rule, and both stay
+
+The final audit of 2026-08-25 found two ways to hide text from sight while
+leaving it to a screen reader: Tailwind's `sr-only` (34 files) and the design
+system's `.ds-visually-hidden` (35 files). Same decision as the spacing scales
+above, for the same reason and with one consequence that was **not** harmless.
+
+`.ds-visually-hidden` in `utilities.css` is the classic clip rule —
+`position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0` — which is
+byte-for-byte what Tailwind's `sr-only` emits. Neither is ever seen, both
+compute identically, so there is no appearance to diverge and nothing for a
+visual guard to catch. Rewriting 34 files to rename a class nobody can see is
+diff for its own sake.
+
+**What was not harmless: the guards disagreed about which name means hidden.**
+`lead-intake.spec.cjs` skipped both. `driver-dossier.spec.cjs` and both sweeps in
+`public-application-responsive.spec.cjs` named only `ds-visually-hidden` — so the
+*same* hidden control was exempt on one screen and a failure on another,
+depending on which of two identical utilities the feature happened to use. It
+matters because a hidden control clips to **1×1, not 0×0**, so the
+zero-size `continue` above does not catch it and the target-size sweep would have
+reported a 1×1 control as undersized. No screen was failing on the day this was
+found; the two that could have been were one `sr-only` control away from a false
+failure that looks exactly like a real one. All four sites name both utilities
+now, and `check:ui-contract`'s native-table exemption is written the same way.
+
+The lesson is the one this file keeps relearning at a smaller scale: two spellings
+of one idea are tolerable in *appearance* and dangerous in a *rule*, because a
+rule has to decide.
 
 ### Still open
 

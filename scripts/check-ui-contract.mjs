@@ -676,7 +676,24 @@ function main() {
      *
      * `ds-native-table` is that contract, so requiring the class is how the
      * second half of the permission becomes enforceable.
+     *
+     * ## Per table, not per file
+     *
+     * The first version of this asked whether the *file* mentioned
+     * `ds-native-table` anywhere, which a file with three tables satisfies by
+     * putting the class on one of them. `AnalyticsView.jsx` is exactly that
+     * shape — three approved `<table>` elements — so the weaker check was one
+     * edit away from passing a hand-styled table again, which is the finding
+     * this rule was written for. It counts tables now.
+     *
+     * The one carve-out is a table that is never seen: `AnalyticsView` renders a
+     * `sr-only` table as the text equivalent of a chart, and a visually hidden
+     * table has no header surface, no divider and no cell padding to get wrong.
+     * Requiring the visual contract on it would be asking for appearance from
+     * something with none. Both hidden utilities count, because they emit the
+     * same clip rule — see the note in roadmap section 5.
      */
+    const HIDDEN_UTILITIES = ['sr-only', 'ds-visually-hidden'];
     const untethered = [];
     for (const [file, allowed] of Object.entries(allowlist.files ?? {})) {
         if (typeof allowed['raw-table'] !== 'number') continue;
@@ -684,7 +701,14 @@ function main() {
         // native one.
         if (file.startsWith('design-system/')) continue;
         const source = readFileSync(path.join(srcRoot(), file), 'utf8');
-        if (!source.includes('ds-native-table')) untethered.push(file);
+        const openTags = source.match(/<table\b[^>]*>/g) ?? [];
+        const offContract = openTags.filter((tag) => (
+            !tag.includes('ds-native-table')
+            && !HIDDEN_UTILITIES.some((utility) => tag.includes(utility))
+        ));
+        if (offContract.length > 0) {
+            untethered.push(`${file} (${offContract.length} of ${openTags.length})`);
+        }
     }
 
     /*
@@ -749,10 +773,12 @@ function main() {
     if (untethered.length > 0) {
         console.error('\nThese approved native tables do not apply the native-table contract:\n');
         for (const file of untethered) console.error(`  ${file}`);
-        console.error('\nAdd `ds-native-table` to the `<table>`. A native table is approved for an');
-        console.error('editable matrix or per-row interactive rows — it is not a licence to style a');
-        console.error('table by hand, and the class is what makes the header, divider, density and');
-        console.error('cell padding come from the same `--ds-table-*` roles `DataTable` reads.\n');
+        console.error('\nAdd `ds-native-table` to every `<table>` in the file. A native table is');
+        console.error('approved for an editable matrix or per-row interactive rows — it is not a');
+        console.error('licence to style a table by hand, and the class is what makes the header,');
+        console.error('divider, density and cell padding come from the same `--ds-table-*` roles');
+        console.error('`DataTable` reads. A table that is never seen (`sr-only` /');
+        console.error('`ds-visually-hidden`) is exempt: it has no appearance to put on contract.\n');
         process.exit(1);
     }
 

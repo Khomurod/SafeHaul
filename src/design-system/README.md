@@ -281,7 +281,7 @@ for weeks.
 | `npm run check:table-layout` | yes | A cell narrower than its content, in a real browser at 412px and 1440px — in `DataTable` **and** in the `ds-native-table` contract |
 | `npm run check:visual-contract` | yes | A change to computed geometry — control heights, cell padding, radii, resolved colours |
 | `npm run test:stories` | yes | A story that fails to render, or fails axe |
-| `npm run test:visual` | **yes** | A change to how anything *looks*, across 67 catalog subjects and 15 real screens at both widths |
+| `npm run test:visual` | **yes** | A change to how anything *looks*, across 71 catalog subjects and 15 real screens at both widths |
 | `npm run test:e2e -- --grep "@a11y"` | **yes** | Real-browser axe on the mobile-critical journeys, plus the keyboard behaviour axe cannot see: roving `tabIndex`, arrow/Home/End on a tab strip, `aria-pressed` on a segmented group, a file input named by its field, and that every control a Tab press reaches shows the product's focus ring rather than the browser's |
 
 **A ninth guard is a person, and saying so is better than pretending.** None of
