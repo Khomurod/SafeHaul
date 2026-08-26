@@ -11,12 +11,35 @@
  * functional specs already use, so the data is deterministic fixture data and no
  * credentials are involved.
  *
- * Blocking in CI, as of 2026-08-25. Every one of these twenty baselines used to
- * fail on GitHub's runners, on every run, invisibly: the application fetched
+ * Blocking in CI, as of 2026-08-25. All twenty baselines that existed then used
+ * to fail on GitHub's runners, on every run, invisibly: the application fetched
  * Inter from rsms.me and the runner never received it, so each screenshot was a
  * whole page of substituted glyphs. The font is served from the repository now
  * (`design-system/tokens/typeface.css`), which is what makes these comparable
  * across machines. See the header of `catalog.spec.cjs`.
+ *
+ * ## Which screens, and why not all of them
+ *
+ * Fifteen screens, thirty baselines. The list is chosen, not exhaustive, and the
+ * rule is: **a screen earns a baseline when a design-system change could break it
+ * in a way no other guard would catch.** So it holds one of each workspace shape
+ * (a dashboard of cards, a dense table, a settings form, a tabbed workspace, a
+ * wizard), plus every screen a driver or an employer sees without logging in —
+ * the public application, the signing room, the verification portal, the
+ * change-review portal — because those have no operator to notice a regression
+ * and report it.
+ *
+ * Deliberately absent, so the gap is a decision rather than an oversight:
+ *
+ *  - `/` — the landing page has its own approved specification in `DESIGN.md`
+ *    and is out of this campaign's scope.
+ *  - `/interest/:slug` — a compatibility redirect with no UI of its own.
+ *  - `/sandbox/*` and `/e2e/voe-preview` — harness routes, not product.
+ *  - The `/company` and `/super-admin` sub-views beyond the ones listed. These
+ *    are the real remaining gap and it is a matter of cost: each baseline is two
+ *    committed PNGs and two more comparisons on every run. A sub-view that
+ *    reuses a shape already covered here gains little; one that introduces a new
+ *    shape should be added, and adding it is two lines.
  *
  * Update baselines with:  npm run test:visual:update
  */
