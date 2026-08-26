@@ -296,6 +296,19 @@ before they were fixed:
   disclosure. Bases are resolved to their full SHA *before* anything compares
   them.
 
+A third round found the same principle inside the scanner wrapper rather than
+the range:
+
+- **A readable report is not proof that the scan finished.** A nonzero exit that
+  still wrote a parseable EMPTY report set `ok` false and `errored` false, and
+  the caller only looked at `errored` and the finding count — so no problem was
+  recorded and the gate reported success over a scanner that had failed. Nonzero
+  with nothing to show for it is now an incomplete scan, and the caller also
+  refuses any scan that did not report success. gitleaks 8.30.1 could not be
+  made to do this (every probed failure exits 0 or writes no report at all),
+  which is the point: the guarantee must not rest on one version's exit-code
+  habits. Driven by a stub scanner in `test-secret-scan.mjs` C16/C17.
+
 `check:ci-plan` §L pins all of it: no third-party scanning action, a pinned
 version *and* digest, both scans present, `secret-scan` still unskippable, no
 path exemptions in `.gitleaks.toml`, the check name the lookup asks about

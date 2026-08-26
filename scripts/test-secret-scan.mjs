@@ -35,7 +35,7 @@
 
 import { execFileSync } from 'node:child_process';
 import {
-    copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync,
+    chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve as resolvePath } from 'node:path';
@@ -810,6 +810,59 @@ console.log('\nC. Failing safe — a base that cannot be trusted is never widene
         assert('C15 (req 21). and the two-part scan refuses the job when either half errored',
             !scanned.ok && scanned.problems.some((problem) => /did not complete/.test(problem)),
             scanned.problems.join('; '));
+    }
+
+    /*
+     * The same guarantee one step further, found in review on 2026-08-26 (P1).
+     *
+     * A readable report is not proof that the scan finished: a nonzero exit that
+     * still wrote a parseable EMPTY report used to set `errored` false with no
+     * findings, so `performScans` recorded no problem and the gate passed over a
+     * scanner that had failed. Driven here with a stub scanner, because gitleaks
+     * 8.30.1 does not do it — which is exactly why the branch must not depend on
+     * that staying true.
+     */
+    {
+        const stubDir = mkdtempSync(join(tmpdir(), 'safehaul-stub-scanner-'));
+        scratch.push(stubDir);
+        const stub = join(stubDir, 'gitleaks-stub');
+        writeFileSync(stub, [
+            '#!/usr/bin/env node',
+            '// Writes an empty, perfectly parseable report and then fails.',
+            "const { writeFileSync } = require('node:fs');",
+            "const at = process.argv.indexOf('--report-path');",
+            "if (at !== -1) writeFileSync(process.argv[at + 1], '[]');",
+            'process.exit(7);',
+        ].join('\n'));
+        chmodSync(stub, 0o755);
+
+        const failed = runGitleaksScan({
+            binary: stub,
+            mode: 'git',
+            target: repo.dir,
+            logOpts: `-m ${first}..${second}`,
+            reportPath: join(stubDir, 'empty.json'),
+        });
+        assert('C16 (req 21). a nonzero exit with an EMPTY report is an incomplete scan, not a clean one',
+            failed.errored && !failed.ok,
+            `ok=${failed.ok} errored=${failed.errored} detail=${failed.detail}`);
+
+        // The work directory has to exist before the call, or the stub cannot
+        // write its report and the case degrades into C13's (no report at all)
+        // — which passes for the wrong reason.
+        const runDir = join(stubDir, 'run');
+        mkdirSync(runDir, { recursive: true });
+        const scanned = performScans({
+            binary: stub,
+            cwd: repo.dir,
+            plan: {
+                base: first, head: second, source: 'test', logOpts: `-m ${first}..${second}`,
+            },
+            workDir: runDir,
+        });
+        assert('C17 (req 21). and the job refuses rather than deploying on it',
+            !scanned.ok && scanned.problems.length > 0,
+            scanned.problems.join('; ') || 'no problem was recorded, so the release gate saw success');
     }
 
     // A repository whose single commit has never been validated has no baseline,
