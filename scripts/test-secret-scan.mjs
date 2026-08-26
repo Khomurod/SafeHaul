@@ -49,6 +49,7 @@ import {
     gitRunner,
     performScans,
     resolveScanPlan,
+    runGitleaksScan,
 } from './secret-scan.mjs';
 import { evaluateAudit, fingerprintOf } from './secret-history-audit.mjs';
 
@@ -763,6 +764,53 @@ console.log('\nC. Failing safe — a base that cannot be trusted is never widene
     assert('C12. an abbreviated base that IS an ancestor is honoured, and canonicalised',
         abbreviated.base === first && abbreviated.logOpts === `-m ${first}..${second}`,
         `${abbreviated.logOpts} — the range must name commits in full, not as typed`);
+
+    /*
+     * A scanner that did not run has proven nothing, and must never read as
+     * clean. gitleaks exits 1 both for "leaks found" and for "something went
+     * wrong", so the two are told apart by whether a parseable report exists —
+     * and both fail the job.
+     */
+    if (binary) {
+        const work = mkdtempSync(join(tmpdir(), 'safehaul-secret-scan-err-'));
+        scratch.push(work);
+        const brokenConfig = runGitleaksScan({
+            binary,
+            mode: 'git',
+            target: repo.dir,
+            logOpts: `-m ${first}..${second}`,
+            config: join(work, 'this-config-does-not-exist.toml'),
+            reportPath: join(work, 'a.json'),
+        });
+        assert('C13 (req 21). a scanner that could not run reports an ERROR, never "clean"',
+            brokenConfig.errored && !brokenConfig.ok && brokenConfig.findings.length === 0,
+            `ok=${brokenConfig.ok} errored=${brokenConfig.errored} — 0 findings and exit 1 must not `
+            + 'be read as "nothing found"');
+
+        const brokenTarget = runGitleaksScan({
+            binary,
+            mode: 'git',
+            target: join(work, 'not-a-repository'),
+            logOpts: `-m ${first}..${second}`,
+            reportPath: join(work, 'b.json'),
+        });
+        assert('C14 (req 21). and so does one pointed at something that is not a repository',
+            brokenTarget.errored && !brokenTarget.ok,
+            `ok=${brokenTarget.ok} errored=${brokenTarget.errored}`);
+
+        const scanned = performScans({
+            binary,
+            cwd: repo.dir,
+            plan: {
+                base: first, head: second, source: 'test', logOpts: `-m ${first}..${second}`,
+            },
+            config: join(work, 'this-config-does-not-exist.toml'),
+            workDir: join(work, 'run'),
+        });
+        assert('C15 (req 21). and the two-part scan refuses the job when either half errored',
+            !scanned.ok && scanned.problems.some((problem) => /did not complete/.test(problem)),
+            scanned.problems.join('; '));
+    }
 
     // A repository whose single commit has never been validated has no baseline,
     // and says so rather than inventing one.
