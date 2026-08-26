@@ -668,49 +668,77 @@ function tablesOffContract(source, contractToken, hiddenTokens) {
         errorRecovery: false,
     });
 
-    const hasToken = (text, token) => String(text).split(/\s+/).includes(token);
-    const anyToken = (text) => (
-        hasToken(text, contractToken) || hiddenTokens.some((token) => hasToken(text, token))
+    /* A token counts only as a whole class, delimited by whitespace or an edge. */
+    const tokenIn = (text) => {
+        const classes = String(text).split(/\s+/).filter(Boolean);
+        return classes.includes(contractToken) || hiddenTokens.some((t) => classes.includes(t));
+    };
+
+    /*
+     * The same, for one chunk of a template literal — where a token can be
+     * extended by an interpolation sitting against it.
+     *
+     *     `ds-native-table ${density}`   token followed by a space: safe
+     *     `ds-native-table${suffix}`     token runs into the hole: NOT safe
+     *
+     * Round five of this rule was exactly that: the quasi split to
+     * ['ds-native-table'] and looked certain while one branch of the
+     * interpolation rendered `ds-native-table-broken`. A token touching a quasi
+     * edge only counts when that edge is the edge of the whole template rather
+     * than an interpolation, so an open edge is padded with a non-space to make
+     * the token un-whole.
+     */
+    const tokenInQuasi = (raw, openAtStart, openAtEnd) => tokenIn(
+        `${openAtStart ? 'x' : ' '}${raw}${openAtEnd ? 'x' : ' '}`,
     );
 
-    /** True only when every path through `node` yields a class list with a token. */
+    /*
+     * True only when every path through `node` yields a class list containing a
+     * token. Anything this cannot PROVE is a violation.
+     *
+     * ## Why the accepted set is deliberately small
+     *
+     * The first version of this walk also trusted `CallExpression`,
+     * `ArrayExpression` and `+` concatenation, reasoning that their parts are all
+     * joined. Round six showed that was my reasoning rather than JavaScript's:
+     * `selectClass('ds-native-table', 'other')` is a call whose arguments are
+     * NOT all joined, and nothing in the syntax says which kind of call it is.
+     * Whitelisting known combiners would work, but this repository contains no
+     * `clsx`, `classnames` or `cx`, and all fifteen real `<table>` classNames are
+     * plain string literals — so each of those branches was accommodating a form
+     * that does not exist, and each guess at its semantics became a false pass.
+     *
+     * They are gone. What remains is the set whose meaning is unambiguous, which
+     * covers every real call site. A form outside it fails loudly, and extending
+     * the set then means adding a branch WITH a test rather than an assumption.
+     */
     const certainlyTokenised = (node) => {
         if (!node) return false;
         switch (node.type) {
             case 'StringLiteral':
-                return anyToken(node.value);
+                return tokenIn(node.value);
             case 'JSXExpressionContainer':
-                return certainlyTokenised(node.expression);
-            case 'TemplateLiteral':
-                // A static chunk carrying the token is present whatever the
-                // interpolations evaluate to.
-                return node.quasis.some((quasi) => anyToken(quasi.value.cooked ?? quasi.value.raw));
-            case 'ConditionalExpression':
-                // The one round four found: BOTH branches, or it is not certain.
-                return certainlyTokenised(node.consequent) && certainlyTokenised(node.alternate);
-            case 'LogicalExpression':
-                // `a || b` and `a ?? b` yield one side or the other, so both must
-                // carry it. `a && b` yields a falsy `a` when a is falsy — no class
-                // at all — so it can never be certain.
-                if (node.operator === '&&') return false;
-                return certainlyTokenised(node.left) && certainlyTokenised(node.right);
-            case 'BinaryExpression':
-                // Concatenation keeps both sides, so either carrying it is enough.
-                if (node.operator !== '+') return false;
-                return certainlyTokenised(node.left) || certainlyTokenised(node.right);
-            case 'CallExpression':
-                // `cx(...)` / `clsx(...)` / `[...].join(' ')` — every argument is
-                // joined, so one certain argument is enough.
-                return node.arguments.some((argument) => certainlyTokenised(argument));
-            case 'ArrayExpression':
-                return node.elements.some((element) => certainlyTokenised(element));
             case 'ParenthesizedExpression':
             case 'TSAsExpression':
             case 'TSNonNullExpression':
                 return certainlyTokenised(node.expression);
+            case 'TemplateLiteral':
+                return node.quasis.some((quasi, index) => tokenInQuasi(
+                    quasi.value.cooked ?? quasi.value.raw,
+                    index > 0,
+                    index < node.quasis.length - 1,
+                ));
+            case 'ConditionalExpression':
+                return certainlyTokenised(node.consequent) && certainlyTokenised(node.alternate);
+            case 'LogicalExpression':
+                // `a || b` and `a ?? b` yield one side or the other, so both must
+                // carry it. `a && b` yields a falsy `a` — no class at all — so it
+                // can never be certain.
+                if (node.operator === '&&') return false;
+                return certainlyTokenised(node.left) && certainlyTokenised(node.right);
             default:
-                // Identifier, MemberExpression, object form, anything else: not
-                // provable, therefore not allowed.
+                // Identifier, member expression, any call, array, concatenation,
+                // object form, anything else: not provable, therefore not allowed.
                 return false;
         }
     };

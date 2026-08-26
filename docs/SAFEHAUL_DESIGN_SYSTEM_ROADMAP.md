@@ -744,12 +744,14 @@ dispatch are conditional. Three tests — uploading, disabled, idle — assert o
 
 ### `check:ui-contract` reads JSX as text — the root cause, and the one rule that no longer does
 
-Recorded on 2026-08-25 as the durable fix for a class of defect that has now
-produced **five** findings, so the next person patching this file has the reason
-in front of them rather than rediscovering it.
+Recorded on 2026-08-25 after this class of defect produced **seven** findings in
+six review rounds, so the next person working on this file has the reason in
+front of them rather than rediscovering it.
 
-Every one of these was the same root cause — a rule reasoning about JSX by
-matching characters in it:
+The first five were the same root cause — a rule reasoning about JSX by matching
+characters in it. The last two are the more interesting ones: they are in the AST
+walk that replaced the matching, and both were the *walk* claiming to know the
+semantics of an expression form it had only guessed at:
 
 | Defect | How it failed |
 |---|---|
@@ -758,6 +760,8 @@ matching characters in it:
 | the tether matched classes with `includes()` | `ds-native-table-broken` counted as compliant, `not-sr-only` as hidden |
 | the tether searched the whole attribute slice | a `data-testid` naming the contract counted as the contract |
 | `jsx-label-on-throwing-primitive` matched `[^>]*?` | prop ordering decided whether a **runtime crash** reached CI |
+| the tether's own AST walk trusted a quasi beside an interpolation | `` `ds-native-table${'-broken'}` `` counted as compliant |
+| the same walk trusted every `CallExpression` | `selectClass('ds-native-table', 'other')` counted as compliant |
 
 Four different fixes, one unchanged question. Each version asked *"does this text
 appear somewhere?"* when the question is *"does this element carry this
@@ -781,14 +785,40 @@ requiring the token on every path a render can take. Anything unprovable is a
 violation, a bare `className={x}` included: a guard that assumes the best about an
 identifier is the guard that let four bypasses through.
 
-Fourteen cases, all mutation-verified: the four proven bypasses fail; three holes
-that were reachable and had never been reported (a bare identifier, `a && 'cls'`,
-and no `className` at all) now fail too; and seven legitimate forms still pass —
-a plain class, a conditional with the token in **both** branches, a template
-literal with a static chunk, `cx('ds-native-table', …)`, concatenation, an
-arrow-function attribute before the class, and a genuine `sr-only`. The allowlist
-counts came out identical at 235 across 40 files, which is the check that the
-engine swap changed nothing it should not have.
+**And then the walk itself was wrong, twice — rounds five and six.** Worth
+recording, because it is the more interesting failure:
+
+    className={`ds-native-table${enabled ? '' : '-broken'}`}
+    className={selectClass('ds-native-table', 'other')}
+
+The first passed because a quasi splitting to `['ds-native-table']` looks
+certain while an interpolation sitting against it can extend the token. The
+second passed because the walk trusted every `CallExpression` on the reasoning
+that a call's arguments are all joined — which was *my* reasoning, not
+JavaScript's. `selectClass` returns one of them.
+
+Both had the same cause: **every permissive branch was a guess at an expression
+form's semantics, and each guess accommodated a form that does not exist here.**
+This repository contains no `clsx`, `classnames` or `cx`, and all fifteen real
+`<table>` classNames are plain string literals. The branches were added to avoid
+hypothetical false failures and produced real false passes instead.
+
+So the accepted set shrank to what is unambiguous: a string literal, a
+conditional where **both** branches carry it, `||`/`??` where both sides do, and
+a template literal where the token is **bounded** — followed or preceded by
+whitespace inside its own chunk, or against the edge of the whole template rather
+than an interpolation. `&&` can never be certain. Calls, arrays, concatenation,
+the object form and a bare identifier are all *not provable, therefore not
+allowed*, and they fail loudly. Extending the set now means adding a branch with
+a test rather than an assumption.
+
+Eighteen cases, all mutation-verified: **all six proven bypasses fail**; five
+further unprovable forms fail by construction; and seven legitimate forms pass —
+a plain class, a class among others, a conditional carrying the token in both
+branches, a template literal with the token before *or* after a space, an
+arrow-function attribute ahead of the class, and a genuine `sr-only`. The
+allowlist counts came out identical at 235 across 40 files, which is the check
+that swapping the engine changed nothing it should not have.
 
 **The rest of the file still matches text**, and that is the remaining debt. It
 was not converted wholesale because this script gates every other check in the
