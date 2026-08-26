@@ -23,14 +23,15 @@ useDefault = true
 # there is, and this file now has none.
 [allowlist]
 description = "Two value exemptions. No path is exempt, and no rule is switched off."
-# `npm run check:ci-plan` pins this file's SHAPE as well as these two values:
-# exactly the tables and keys below, nothing else (L16, L22-L24b). Listing
-# forbidden keys was tried and abandoned — measured against gitleaks 8.30.1,
-# `disabledRules`, `stopwords`, `paths` and the plural `[[allowlists]]` form each
-# hide a finding from both scans, and `commits` hides it from the range scan.
-# Adding anything here therefore means editing that test too, with the
-# measurement that justifies it. That is deliberate friction, in a file that
-# gates the release.
+# `npm run check:ci-plan` pins every non-comment line of this file (L24a), not
+# just these two values. Listing forbidden keys was tried and abandoned, and so
+# was whitelisting the allowed ones: measured against gitleaks 8.30.1,
+# `disabledRules`, `stopwords`, `paths` and `[[allowlists]]` each hide a finding
+# from both scans, and TOML will spell any of them as `"disabledRules"`,
+# `'disabledRules'` or an inline table, which a key whitelist does not see.
+# Editing anything below therefore means editing that test too, with the
+# measurement that justifies it. Comments are free — gitleaks ignores them, and
+# the reasoning belongs here beside the values.
 # Every entry below is a value that *cannot* be a credential, and says why.
 # Because neither exempts a file nor disables a rule, a real secret in the same
 # file — even on the same line — is still reported. Both were re-verified against

@@ -335,10 +335,15 @@ alternative to passing it — and enumerating the ways is a losing game. Measure
 against gitleaks 8.30.1, each of these hides the same synthetic key from BOTH
 scans while leaving the pinned values untouched: `[extend] disabledRules`,
 `[allowlist] stopwords`, the plural `[[allowlists]]` form, and `[allowlist]
-paths`; `[allowlist] commits` hides it from the range scan alone. So the config
-is **whitelisted**: exactly two tables, exactly four keys, and the two exemption
-values pinned (L16, L22-L24b). Anything else — including a key gitleaks has not
-shipped yet — fails and has to be argued for in a diff.
+paths`; `[allowlist] commits` hides it from the range scan alone.
+
+Whitelisting the *keys* was the first attempt and it was not enough: TOML spells
+one key several ways, and `"disabledRules" = [...]`, `'disabledRules' = [...]`
+and `extend = { disabledRules = [...] }` all reach the scanner while a regex over
+bare identifiers sees four innocent keys. **The config's non-comment content is
+pinned line for line instead** (L24a) — any edit in any syntax fails until the
+test is updated with the measurement that justifies it. Comments stay free,
+because gitleaks ignores them and the reasoning belongs beside the values.
 
 Two more exemptions need no config change at all, and both were measured:
 

@@ -1298,29 +1298,46 @@ console.log('\nL. The secret scanner is scoped, pinned, and still mandatory');
         'a catch-all regex in the allowlist is a rule exemption wearing a value exemption\'s clothes');
 
     /*
-     * L22 pins the values; this pins the SHAPE, because listing forbidden keys
-     * is a losing game. Measured against gitleaks 8.30.1, each of these hides
-     * the same synthetic key from BOTH scans while leaving the two expected
-     * regexes untouched:
+     * L22 pins the VALUES; this pins the whole file, because neither listing
+     * forbidden keys nor pattern-matching the allowed ones survives contact with
+     * TOML. Measured against gitleaks 8.30.1, every one of these reaches the
+     * scanner and hides the same synthetic key:
      *
-     *   [extend] disabledRules = [...]        range 0, tree 0
-     *   [allowlist] stopwords = [...]         range 0, tree 0
-     *   [[allowlists]] (the plural form)      range 0, tree 0
-     *   [allowlist] commits = [...]           range 0 (the tree scan still saw it)
+     *   [extend] disabledRules = [...]                 range 0, tree 0
+     *   [allowlist] stopwords  = [...]                 range 0, tree 0
+     *   [[allowlists]] (the plural form)               range 0, tree 0
+     *   [allowlist] paths      = [...]                 range 0, tree 0
+     *   [allowlist] commits    = [...]                 range 0 (tree still saw it)
+     *   "disabledRules" = [...]   (a quoted key)       range 0
+     *   'disabledRules' = [...]   (single-quoted)      range 0
+     *   extend = { disabledRules = [...] }  (inline)   range 0
      *
-     * So the config is whitelisted instead: exactly these tables and exactly
-     * these keys. Anything else — including a key gitleaks has not shipped yet —
-     * fails here and has to be argued for in a diff.
+     * A key whitelist matched on bare identifiers missed the last three, which is
+     * exactly the sort of near-miss this file must not have. So the config's
+     * non-comment content is pinned line for line: any edit at all — a new key in
+     * any syntax, a new table, a reopened string — fails here until this list is
+     * updated with the measurement that justifies it. Comments stay free, because
+     * gitleaks ignores them and the reasoning belongs next to the values.
      */
-    const tables = [...gitleaksConfig.matchAll(/^\s*(\[+[^\]]+\]+)\s*$/gm)].map((m) => m[1]);
-    assert('L24a. the config declares only the two tables that were reviewed',
-        JSON.stringify(tables) === JSON.stringify(['[extend]', '[allowlist]']),
-        `found ${JSON.stringify(tables)} — [[allowlists]] and [[rules]] can each exempt everything`);
-    const keys = [...gitleaksConfig.matchAll(/^\s*([A-Za-z_][A-Za-z0-9_-]*)\s*=/gm)].map((m) => m[1]);
-    assert('L24b. and only the four keys that were reviewed',
-        JSON.stringify(keys.sort()) === JSON.stringify(['description', 'regexes', 'title', 'useDefault']),
-        `found ${JSON.stringify(keys)} — disabledRules, stopwords, commits and paths each hide `
-        + 'findings while leaving the pinned values in place');
+    const CONFIG_CONTENT = [
+        'title = "SafeHaul"',
+        '[extend]',
+        'useDefault = true',
+        '[allowlist]',
+        'description = "Two value exemptions. No path is exempt, and no rule is switched off."',
+        'regexes = [',
+        String.raw`  '''AIzaSyE2EPlaceholderKey1234567890123''',`,
+        String.raw`  '''^\d{4}-\d{2}-\d{2}_[a-z][a-z0-9-]*$''',`,
+        ']',
+    ];
+    const configContent = gitleaksConfig
+        .split('\n')
+        .map((line) => line.replace(/\s+$/, ''))
+        .filter((line) => line.trim() !== '' && !line.trim().startsWith('#'));
+    assert('L24a. the scanner config is exactly the file that was reviewed',
+        JSON.stringify(configContent) === JSON.stringify(CONFIG_CONTENT),
+        `the non-comment content differs:\n  expected ${JSON.stringify(CONFIG_CONTENT)}\n  `
+        + `found    ${JSON.stringify(configContent)}`);
 
     /*
      * Two exemptions that need no config change at all, both measured:
