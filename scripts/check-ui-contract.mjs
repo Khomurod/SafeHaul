@@ -48,6 +48,7 @@
  * markup gets switched off, which is worse than no check.
  */
 
+import { parse } from '@babel/parser';
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -630,6 +631,115 @@ function loadAllowlist() {
     }
 }
 
+/**
+ * Does a `<table>` in this file certainly carry `ds-native-table`, on every path
+ * it can render by?
+ *
+ * ## Why this one rule parses, when the rest of the file matches text
+ *
+ * Four review rounds. Round one matched the tag with `[^>]*` and truncated at the
+ * `>` in `=>`. Round two matched the class with `includes()`, so
+ * `ds-native-table-broken` counted. Round three searched the whole attribute
+ * slice, so a `data-testid` counted. Round four found the one a string cannot
+ * answer at all:
+ *
+ *     <table className={enabled ? 'ds-native-table' : 'other'}>
+ *
+ * The token IS in that text. The rendered table is off-contract half the time.
+ * No amount of careful string matching decides that, because the question is not
+ * "does this text appear" but "is this true on every branch" — and that is a
+ * question about structure. So this rule asks the parser.
+ *
+ * The rest of the file still matches text, and roadmap section 7 records that as
+ * the remaining debt with the reason it was not converted wholesale here: this
+ * script gates every other check, and the allowlist's counts all have to come out
+ * identical. This is the one rule where a bypass was proven four times.
+ *
+ * ## What counts as "certainly"
+ *
+ * Anything that cannot be shown to carry the token on every path is a violation,
+ * including a bare identifier. That is deliberate: a guard that assumes the best
+ * about `className={x}` is the guard that let all four bypasses through.
+ */
+function tablesOffContract(source, contractToken, hiddenTokens) {
+    const ast = parse(source, {
+        sourceType: 'module',
+        plugins: ['jsx'],
+        errorRecovery: false,
+    });
+
+    const hasToken = (text, token) => String(text).split(/\s+/).includes(token);
+    const anyToken = (text) => (
+        hasToken(text, contractToken) || hiddenTokens.some((token) => hasToken(text, token))
+    );
+
+    /** True only when every path through `node` yields a class list with a token. */
+    const certainlyTokenised = (node) => {
+        if (!node) return false;
+        switch (node.type) {
+            case 'StringLiteral':
+                return anyToken(node.value);
+            case 'JSXExpressionContainer':
+                return certainlyTokenised(node.expression);
+            case 'TemplateLiteral':
+                // A static chunk carrying the token is present whatever the
+                // interpolations evaluate to.
+                return node.quasis.some((quasi) => anyToken(quasi.value.cooked ?? quasi.value.raw));
+            case 'ConditionalExpression':
+                // The one round four found: BOTH branches, or it is not certain.
+                return certainlyTokenised(node.consequent) && certainlyTokenised(node.alternate);
+            case 'LogicalExpression':
+                // `a || b` and `a ?? b` yield one side or the other, so both must
+                // carry it. `a && b` yields a falsy `a` when a is falsy — no class
+                // at all — so it can never be certain.
+                if (node.operator === '&&') return false;
+                return certainlyTokenised(node.left) && certainlyTokenised(node.right);
+            case 'BinaryExpression':
+                // Concatenation keeps both sides, so either carrying it is enough.
+                if (node.operator !== '+') return false;
+                return certainlyTokenised(node.left) || certainlyTokenised(node.right);
+            case 'CallExpression':
+                // `cx(...)` / `clsx(...)` / `[...].join(' ')` — every argument is
+                // joined, so one certain argument is enough.
+                return node.arguments.some((argument) => certainlyTokenised(argument));
+            case 'ArrayExpression':
+                return node.elements.some((element) => certainlyTokenised(element));
+            case 'ParenthesizedExpression':
+            case 'TSAsExpression':
+            case 'TSNonNullExpression':
+                return certainlyTokenised(node.expression);
+            default:
+                // Identifier, MemberExpression, object form, anything else: not
+                // provable, therefore not allowed.
+                return false;
+        }
+    };
+
+    const offContract = [];
+    let total = 0;
+    const walk = (node) => {
+        if (!node || typeof node !== 'object') return;
+        if (Array.isArray(node)) { node.forEach(walk); return; }
+        if (node.type === 'JSXOpeningElement' && node.name?.type === 'JSXIdentifier'
+            && node.name.name === 'table') {
+            total += 1;
+            const className = node.attributes.find((attribute) => (
+                attribute.type === 'JSXAttribute'
+                && (attribute.name?.name === 'className' || attribute.name?.name === 'class')
+            ));
+            if (!certainlyTokenised(className?.value)) {
+                offContract.push(node.loc?.start?.line ?? 0);
+            }
+        }
+        for (const key of Object.keys(node)) {
+            if (key === 'loc' || key === 'leadingComments' || key === 'trailingComments') continue;
+            walk(node[key]);
+        }
+    };
+    walk(ast.program);
+    return { offContract, total };
+}
+
 function main() {
     const update = process.argv.includes('--update');
     const allowlist = loadAllowlist();
@@ -731,71 +841,21 @@ function main() {
      * something with none. Both hidden utilities count, because they emit the
      * same clip rule — see the note in roadmap section 5.
      *
-     * It reads tags through `openTagAttributes` rather than a `<table\b[^>]*>`
-     * regex, and the reason is written out at that function: `[^>]*` stops at the
-     * first `>`, **including the one in `=>`**, so a table whose open tag carries
-     * an arrow-function attribute before its `className` would have its
-     * attributes truncated and be reported as off-contract when it is not. That
-     * is the same defect this campaign found in the styled-control rules, where
-     * it had hidden three quarters of the violations. Writing the shorter regex
-     * here would have reintroduced it one commit after fixing it.
+     * ## And it parses, rather than matching text
+     *
+     * This rule went through four review rounds, each closing a bypass the
+     * previous fix left: a `[^>]*` tag match truncating at the `>` in `=>`, an
+     * `includes()` class match accepting `ds-native-table-broken`, a whole-slice
+     * search accepting a `data-testid` that named the contract, and finally
+     * `className={enabled ? 'ds-native-table' : 'other'}` — where the token IS in
+     * the text and the rendered table is off-contract half the time.
+     *
+     * That last one is why it now asks `@babel/parser`. No amount of careful
+     * string matching answers it, because the question is not "does this text
+     * appear" but "is this true on every branch", which is a question about
+     * structure. See `tablesOffContract`.
      */
     const HIDDEN_UTILITIES = ['sr-only', 'ds-visually-hidden'];
-    /*
-     * Whole class tokens, not substrings.
-     *
-     * `attributes.includes('sr-only')` is true of `not-sr-only`, and
-     * `includes('ds-native-table')` is true of `ds-native-table-broken` — so a
-     * visible off-contract table could claim to be hidden, and a table with a
-     * typo'd class could claim to be compliant. Neither would be caught, because
-     * the raw-table count still matches the allowlist and `offContract` comes
-     * back empty. Found in review on 2026-08-25, one commit after the same file
-     * learned not to use a loose match for the tag itself.
-     *
-     * A class list is whitespace-delimited, so the boundary is whitespace, a
-     * quote, or a brace — never a hyphen, which is what both bypasses relied on.
-     *
-     * ## And only inside `className`
-     *
-     * Token boundaries alone were still not enough, which the next review round
-     * caught: searching the whole attribute slice meant
-     * `<table data-testid="ds-native-table" className="other">` counted as
-     * compliant and `<table aria-label="sr-only" className="other">` counted as
-     * hidden. Both were reproduced before this was changed. So the value has to be
-     * extracted first — a `data-testid` naming the contract is not the contract.
-     *
-     * That makes three rounds on this one check: a loose tag match, then a loose
-     * class match, then the right class in the wrong attribute. The shape of the
-     * mistake never changed — each version asked "does this text appear
-     * somewhere?" when the question is "does this element carry this class?"
-     */
-    const classValue = (attributes) => {
-        const at = attributes.search(/\bclass(?:Name)?\s*=/);
-        if (at === -1) return '';
-        let i = attributes.indexOf('=', at) + 1;
-        while (i < attributes.length && /\s/.test(attributes[i])) i += 1;
-        const opener = attributes[i];
-        if (opener === '"' || opener === "'") {
-            const end = attributes.indexOf(opener, i + 1);
-            return end === -1 ? attributes.slice(i + 1) : attributes.slice(i + 1, end);
-        }
-        if (opener !== '{') return '';
-        // A braced expression: take it whole, so a conditional or a `cx()` call
-        // that mentions the class still counts as applying it.
-        let depth = 0;
-        for (let j = i; j < attributes.length; j += 1) {
-            if (attributes[j] === '{') depth += 1;
-            else if (attributes[j] === '}') {
-                depth -= 1;
-                if (depth === 0) return attributes.slice(i + 1, j);
-            }
-        }
-        return attributes.slice(i + 1);
-    };
-
-    const hasClassToken = (attributes, token) => (
-        new RegExp(`(^|[\\s"'\`{}])${token}($|[\\s"'\`{}])`).test(classValue(attributes))
-    );
     const untethered = [];
     for (const [file, allowed] of Object.entries(allowlist.files ?? {})) {
         if (typeof allowed['raw-table'] !== 'number') continue;
@@ -803,13 +863,20 @@ function main() {
         // native one.
         if (file.startsWith('design-system/')) continue;
         const source = readFileSync(path.join(srcRoot(), file), 'utf8');
-        const openTags = openTagAttributes(source, 'table');
-        const offContract = openTags.filter((attributes) => (
-            !hasClassToken(attributes, 'ds-native-table')
-            && !HIDDEN_UTILITIES.some((utility) => hasClassToken(attributes, utility))
-        ));
-        if (offContract.length > 0) {
-            untethered.push(`${file} (${offContract.length} of ${openTags.length})`);
+        let result;
+        try {
+            result = tablesOffContract(source, 'ds-native-table', HIDDEN_UTILITIES);
+        } catch (error) {
+            // A parse failure is a failure. Falling back to a text match here is
+            // how the four bypasses this rule now parses for would come back.
+            untethered.push(`${file} (could not be parsed: ${error.message})`);
+            continue;
+        }
+        if (result.offContract.length > 0) {
+            untethered.push(
+                `${file} (${result.offContract.length} of ${result.total}, `
+                + `line${result.offContract.length > 1 ? 's' : ''} ${result.offContract.join(', ')})`,
+            );
         }
     }
 

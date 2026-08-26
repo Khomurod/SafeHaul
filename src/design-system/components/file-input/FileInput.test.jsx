@@ -284,6 +284,71 @@ describe('FileInput shapes', () => {
     expect(fireEvent.drop(label, { dataTransfer: transfer })).toBe(false);
   });
 
+  /*
+   * The native picker filters by `accept` in its own dialog, so a call site that
+   * passes `accept="image/*"` has never had to check what it received. Assigning
+   * `files` programmatically inherits none of that — so before 2026-08-25 a PDF
+   * dropped on the company-logo control was uploaded and persisted as the logo,
+   * leaving a broken image. `BrandingSection` passes `image/*`,
+   * `CompanyProfileTab` uploads whatever arrives, and Storage permits PDFs in
+   * `company_assets`; nothing else in that chain would have stopped it.
+   */
+  it('refuses a dropped file the accept list does not allow', () => {
+    const onChange = vi.fn();
+    render(<FileInput label="Company logo" accept="image/*" onChange={onChange} />);
+    const label = document.querySelector('input[type="file"]').closest('label');
+
+    const transfer = new DataTransfer();
+    transfer.items.add(new File(['%PDF'], 'scan.pdf', { type: 'application/pdf' }));
+    fireEvent.drop(label, { dataTransfer: transfer });
+
+    expect(onChange).not.toHaveBeenCalled();
+    expect(document.querySelector('input[type="file"]').files).toHaveLength(0);
+  });
+
+  it('accepts a dropped file the accept list does allow', () => {
+    const onChange = vi.fn();
+    render(<FileInput label="Company logo" accept="image/*" onChange={onChange} />);
+    const label = document.querySelector('input[type="file"]').closest('label');
+
+    const transfer = new DataTransfer();
+    transfer.items.add(new File(['png'], 'logo.png', { type: 'image/png' }));
+    fireEvent.drop(label, { dataTransfer: transfer });
+
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange.mock.calls[0][0].target.files[0].name).toBe('logo.png');
+  });
+
+  it('keeps only the accepted files out of a mixed drop', () => {
+    const onChange = vi.fn();
+    render(<FileInput label="Attachments" accept=".csv" multiple onChange={onChange} />);
+    const label = document.querySelector('input[type="file"]').closest('label');
+
+    const transfer = new DataTransfer();
+    transfer.items.add(new File(['x'], 'notes.txt', { type: 'text/plain' }));
+    transfer.items.add(new File(['a,b'], 'rows.csv', { type: 'text/csv' }));
+    fireEvent.drop(label, { dataTransfer: transfer });
+
+    const files = onChange.mock.calls[0][0].target.files;
+    expect(Array.from(files).map((file) => file.name)).toEqual(['rows.csv']);
+  });
+
+  it('takes the first ACCEPTED file when the field is single-file', () => {
+    const onChange = vi.fn();
+    render(<FileInput label="Company logo" accept="image/*" onChange={onChange} />);
+    const label = document.querySelector('input[type="file"]').closest('label');
+
+    // The rejected file is FIRST, so a handler that sliced before filtering would
+    // take the PDF and then discard it, reporting nothing at all.
+    const transfer = new DataTransfer();
+    transfer.items.add(new File(['%PDF'], 'scan.pdf', { type: 'application/pdf' }));
+    transfer.items.add(new File(['png'], 'logo.png', { type: 'image/png' }));
+    fireEvent.drop(label, { dataTransfer: transfer });
+
+    const files = onChange.mock.calls[0][0].target.files;
+    expect(Array.from(files).map((file) => file.name)).toEqual(['logo.png']);
+  });
+
   it('refuses an unsupported variant rather than falling back to the button', () => {
     expect(() => render(<FileInput label="x" variant="tile" onChange={vi.fn()} />))
       .toThrow(/Unsupported FileInput variant/i);

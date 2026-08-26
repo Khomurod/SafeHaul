@@ -52,6 +52,34 @@ import './FileInput.css';
  */
 const VARIANTS = new Set(['button', 'dropzone']);
 
+/**
+ * Does a file satisfy an `accept` attribute, the way the native picker would?
+ *
+ * `accept` is a comma-separated list of three shapes and all three appear in this
+ * product: an extension (`.pdf`), a MIME type (`application/pdf`), and a wildcard
+ * MIME (`image/*`). An empty or absent `accept` accepts everything, which is the
+ * attribute's own meaning.
+ *
+ * Deliberately compares lower-cased: a file called `LOGO.PNG` is a PNG, and a
+ * browser reporting `IMAGE/PNG` is reporting an image.
+ */
+function matchesAccept(file, accept) {
+  const patterns = String(accept ?? '')
+    .split(',')
+    .map((pattern) => pattern.trim().toLowerCase())
+    .filter(Boolean);
+  if (patterns.length === 0) return true;
+
+  const type = String(file?.type ?? '').toLowerCase();
+  const name = String(file?.name ?? '').toLowerCase();
+
+  return patterns.some((pattern) => {
+    if (pattern.startsWith('.')) return name.endsWith(pattern);
+    if (pattern.endsWith('/*')) return type.startsWith(pattern.slice(0, -1));
+    return type === pattern;
+  });
+}
+
 export const FileInput = forwardRef(function FileInput({
   label,
   labelHidden = false,
@@ -172,21 +200,37 @@ export const FileInput = forwardRef(function FileInput({
   const handleDrop = useCallback((event) => {
     event.preventDefault();
     if (inert || loading) return;
-    const dropped = event.dataTransfer?.files;
-    if (!dropped || dropped.length === 0) return;
+    const dropped = Array.from(event.dataTransfer?.files ?? []);
+    if (dropped.length === 0) return;
     const node = inputRef.current;
     if (!node) return;
-    node.files = multiple || dropped.length === 1
-      ? dropped
-      : (() => {
-        // A single-file field takes the first of several, the same as the
-        // native picker does when `multiple` is absent.
-        const one = new DataTransfer();
-        one.items.add(dropped[0]);
-        return one.files;
-      })();
+
+    /*
+     * `accept` has to be enforced here, because assigning `files` skips the one
+     * place it was being enforced.
+     *
+     * The native picker filters by `accept` in its own dialog, so a call site
+     * that passes `accept="image/*"` has never had to check the type it got. The
+     * company logo is exactly that: `BrandingSection` passes `image/*`, and
+     * `CompanyProfileTab`'s handler uploads and persists whatever arrives with no
+     * validation of its own — and Storage permits PDFs in `company_assets`. So
+     * before this filter, dropping a PDF on the logo control saved it as the
+     * logo and left a broken image on the company profile.
+     *
+     * Found in review on 2026-08-25, one round after the drop handling itself was
+     * added. Programmatic assignment inherits none of the picker's behaviour, and
+     * `accept` was the piece of it that mattered.
+     */
+    const allowed = dropped.filter((file) => matchesAccept(file, accept));
+    if (allowed.length === 0) return;
+
+    const transfer = new DataTransfer();
+    // A single-file field takes the first ACCEPTED file, which is what the native
+    // picker does when `multiple` is absent.
+    for (const file of multiple ? allowed : allowed.slice(0, 1)) transfer.items.add(file);
+    node.files = transfer.files;
     node.dispatchEvent(new Event('change', { bubbles: true }));
-  }, [inert, loading, multiple]);
+  }, [accept, inert, loading, multiple]);
 
   useEffect(() => {
     if (loading || !restoreFocusOnIdle.current) return;

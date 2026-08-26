@@ -742,7 +742,7 @@ dispatch are conditional. Three tests — uploading, disabled, idle — assert o
 `fireEvent`'s return value, which is `false` exactly when a handler called
 `preventDefault`, so the guarantee is asserted rather than read off the source.
 
-### Open: `check:ui-contract` reads JSX as text, and that is the root cause
+### `check:ui-contract` reads JSX as text — the root cause, and the one rule that no longer does
 
 Recorded on 2026-08-25 as the durable fix for a class of defect that has now
 produced **five** findings, so the next person patching this file has the reason
@@ -767,19 +767,39 @@ we have thrown at it — but it is still a parser written by accident, one revie
 finding at a time, and the honest expectation is that a sixth case exists that
 nobody has thought of.
 
-**The durable fix is to parse.** A real JSX parse (Babel is already a dependency
-via Vite) would let every rule ask about a node and its attributes instead of
-about a string, and would retire the whole class. It is deliberately **not**
-attempted here: this file gates every other check in the repository, the
-allowlist's 235 counts across 40 files would all have to come out identical, and
-swapping the engine underneath it at the end of a campaign with a review open is
-how a guard stops being trustworthy. It wants its own change, its own review, and
-a run where the before-and-after counts are compared file by file.
+**The native-table tether now parses. Done 2026-08-25, on the fourth finding.**
+The paragraph above originally said the parse was deferred; a fourth review round
+then found the bypass no string match can close:
 
-Until then the rule for anyone touching this file: **if a check needs a third fix,
-change what it asks rather than how carefully it looks** — and check whether the
-same shape exists in the sibling rules, because twice now it did and nobody swept
-for it.
+    <table className={enabled ? 'ds-native-table' : 'other'}>
+
+The token **is** in that text. The rendered table is off-contract half the time.
+The question is not "does this text appear" but "is this true on every branch",
+and that is a question about structure — so `tablesOffContract` asks
+`@babel/parser` for the `<table>` nodes and walks the `className` expression,
+requiring the token on every path a render can take. Anything unprovable is a
+violation, a bare `className={x}` included: a guard that assumes the best about an
+identifier is the guard that let four bypasses through.
+
+Fourteen cases, all mutation-verified: the four proven bypasses fail; three holes
+that were reachable and had never been reported (a bare identifier, `a && 'cls'`,
+and no `className` at all) now fail too; and seven legitimate forms still pass —
+a plain class, a conditional with the token in **both** branches, a template
+literal with a static chunk, `cx('ds-native-table', …)`, concatenation, an
+arrow-function attribute before the class, and a genuine `sr-only`. The allowlist
+counts came out identical at 235 across 40 files, which is the check that the
+engine swap changed nothing it should not have.
+
+**The rest of the file still matches text**, and that is the remaining debt. It
+was not converted wholesale because this script gates every other check in the
+repository and each rule's counts would have to be re-proven one at a time; the
+tether was converted because a bypass had been demonstrated in it four times, and
+a fourth patch would have been the wrong answer to the same question.
+
+The rule for anyone touching this file: **if a check needs a third fix, change
+what it asks rather than how carefully it looks** — and check whether the same
+shape exists in the sibling rules, because twice now it did and nobody swept for
+it.
 
 ### The one guard that is a person, and why it is not a script
 
