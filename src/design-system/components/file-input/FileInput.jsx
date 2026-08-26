@@ -149,17 +149,31 @@ export const FileInput = forwardRef(function FileInput({
    *
    * `dragover` must preventDefault or the browser refuses the drop; that is the
    * whole reason the handler pair exists rather than just `onDrop`.
+   *
+   * ## Both handlers cancel the event FIRST, disabled or not
+   *
+   * The first version of this returned early when `inert || loading`, before
+   * calling `preventDefault`. That handed the drop back to the browser, whose
+   * default action for a dropped file is to navigate to it — so dropping a second
+   * file onto a panel that was mid-upload could replace the page and discard a
+   * half-filled form. On the public driver application that is somebody's work
+   * gone, which makes it the most expensive thing a disabled control could do.
+   *
+   * Found in review on 2026-08-25. The rule is: cancelling the browser's default
+   * is what a drop target owes the page whether or not it can accept the file.
+   * Only the assignment and the `change` dispatch are conditional.
    */
   const handleDragOver = useCallback((event) => {
-    if (inert || loading) return;
+    // Unconditional: see above. A panel that looks like a drop target must not
+    // let the browser navigate away from the form, even while it is busy.
     event.preventDefault();
-  }, [inert, loading]);
+  }, []);
 
   const handleDrop = useCallback((event) => {
+    event.preventDefault();
     if (inert || loading) return;
     const dropped = event.dataTransfer?.files;
     if (!dropped || dropped.length === 0) return;
-    event.preventDefault();
     const node = inputRef.current;
     if (!node) return;
     node.files = multiple || dropped.length === 1

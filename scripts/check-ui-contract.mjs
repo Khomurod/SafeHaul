@@ -339,7 +339,8 @@ const RULES = [
          * Put the icon next to the control instead of inside its label.
          */
         name: 'jsx-label-on-throwing-primitive',
-        pattern: /<(?:FormField|FieldDisplay|Checkbox|Radio|Switch|IconButton|IconButtonLink|FileInput|ProgressBar)\b[^>]*?\blabel=\{\s*[(<]/gs,
+        // counted by `countJsxLabelsOnThrowingPrimitives`, which needs the tag scanner
+        pattern: null,
         remedy: 'These primitives throw on a label that is not a non-empty string, so JSX here '
             + 'is a runtime crash the moment the branch renders. Pass the words as a string and '
             + 'put the icon beside the control, not inside its label.',
@@ -529,7 +530,44 @@ function countFileInputs(code) {
     ).length;
 }
 
-const COUNTERS = { 'raw-file-input': countFileInputs };
+/**
+ * The primitives that validate `label` and throw on anything but a non-empty
+ * string. Kept beside the counter that reads them so the two cannot drift.
+ */
+const THROWS_ON_NON_STRING_LABEL = [
+    'FormField', 'FieldDisplay', 'Checkbox', 'Radio', 'Switch',
+    'IconButton', 'IconButtonLink', 'FileInput', 'ProgressBar',
+];
+
+/**
+ * A JSX `label={...}` on a primitive that throws unless the label is a string.
+ *
+ * A counter rather than a regex for the same reason `countFileInputs` is one, and
+ * the reason bit twice here: this rule used
+ * `<(?:FormField|...)\b[^>]*?\blabel=\{` until a review on 2026-08-25, and
+ * `[^>]*?` stops at the first `>` — including the one in `=>`. So
+ *
+ *     <FormField label={<span>Date</span>} onClick={() => go()}>   -> caught
+ *     <FormField onClick={() => go()} label={<span>Date</span>}>   -> INVISIBLE
+ *
+ * and prop ordering alone decided whether a rule guarding a **runtime crash**
+ * could see it. Measured before the fix: 1 violation against 0 for the same
+ * element written the ordinary React way.
+ */
+function countJsxLabelsOnThrowingPrimitives(code) {
+    let total = 0;
+    for (const element of THROWS_ON_NON_STRING_LABEL) {
+        total += openTagAttributes(code, element).filter(
+            (attributes) => /\blabel\s*=\s*\{\s*[(<]/.test(attributes),
+        ).length;
+    }
+    return total;
+}
+
+const COUNTERS = {
+    'raw-file-input': countFileInputs,
+    'jsx-label-on-throwing-primitive': countJsxLabelsOnThrowingPrimitives,
+};
 
 /**
  * @param {string} source
@@ -716,9 +754,47 @@ function main() {
      *
      * A class list is whitespace-delimited, so the boundary is whitespace, a
      * quote, or a brace — never a hyphen, which is what both bypasses relied on.
+     *
+     * ## And only inside `className`
+     *
+     * Token boundaries alone were still not enough, which the next review round
+     * caught: searching the whole attribute slice meant
+     * `<table data-testid="ds-native-table" className="other">` counted as
+     * compliant and `<table aria-label="sr-only" className="other">` counted as
+     * hidden. Both were reproduced before this was changed. So the value has to be
+     * extracted first — a `data-testid` naming the contract is not the contract.
+     *
+     * That makes three rounds on this one check: a loose tag match, then a loose
+     * class match, then the right class in the wrong attribute. The shape of the
+     * mistake never changed — each version asked "does this text appear
+     * somewhere?" when the question is "does this element carry this class?"
      */
+    const classValue = (attributes) => {
+        const at = attributes.search(/\bclass(?:Name)?\s*=/);
+        if (at === -1) return '';
+        let i = attributes.indexOf('=', at) + 1;
+        while (i < attributes.length && /\s/.test(attributes[i])) i += 1;
+        const opener = attributes[i];
+        if (opener === '"' || opener === "'") {
+            const end = attributes.indexOf(opener, i + 1);
+            return end === -1 ? attributes.slice(i + 1) : attributes.slice(i + 1, end);
+        }
+        if (opener !== '{') return '';
+        // A braced expression: take it whole, so a conditional or a `cx()` call
+        // that mentions the class still counts as applying it.
+        let depth = 0;
+        for (let j = i; j < attributes.length; j += 1) {
+            if (attributes[j] === '{') depth += 1;
+            else if (attributes[j] === '}') {
+                depth -= 1;
+                if (depth === 0) return attributes.slice(i + 1, j);
+            }
+        }
+        return attributes.slice(i + 1);
+    };
+
     const hasClassToken = (attributes, token) => (
-        new RegExp(`(^|[\\s"'\`{}])${token}($|[\\s"'\`{}])`).test(attributes)
+        new RegExp(`(^|[\\s"'\`{}])${token}($|[\\s"'\`{}])`).test(classValue(attributes))
     );
     const untethered = [];
     for (const [file, allowed] of Object.entries(allowlist.files ?? {})) {

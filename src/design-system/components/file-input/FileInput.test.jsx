@@ -254,6 +254,36 @@ describe('FileInput shapes', () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 
+  /*
+   * Ignoring the file is not the same as ignoring the event.
+   *
+   * The first version of the drop handlers returned early when disabled, before
+   * calling `preventDefault` — which handed the drop back to the browser, whose
+   * default action for a dropped file is to navigate to it. Dropping a second
+   * file on a panel mid-upload could therefore replace the page and take a
+   * half-filled application with it. Refusing the file and cancelling the event
+   * are separate obligations, and a disabled drop target still owes the page the
+   * second one.
+   *
+   * `fireEvent` returns false when a handler called `preventDefault`, which is
+   * what makes this assertable rather than a matter of reading the source.
+   */
+  it.each([
+    ['while uploading', { loading: true }],
+    ['while disabled', { disabled: true }],
+    ['when idle', {}],
+  ])('cancels the browser default drop action %s', (_label, props) => {
+    render(<FileInput label="Recipient list" variant="dropzone" {...props} />);
+    const label = document.querySelector('input[type="file"]').closest('label');
+
+    const transfer = new DataTransfer();
+    transfer.items.add(new File(['x'], 'dropped.csv', { type: 'text/csv' }));
+
+    // false === some handler called preventDefault, so the browser will not act.
+    expect(fireEvent.dragOver(label, { dataTransfer: transfer })).toBe(false);
+    expect(fireEvent.drop(label, { dataTransfer: transfer })).toBe(false);
+  });
+
   it('refuses an unsupported variant rather than falling back to the button', () => {
     expect(() => render(<FileInput label="x" variant="tile" onChange={vi.fn()} />))
       .toThrow(/Unsupported FileInput variant/i);

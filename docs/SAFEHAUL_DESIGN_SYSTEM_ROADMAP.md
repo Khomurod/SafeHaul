@@ -692,6 +692,56 @@ and `ds-native-table-broken` counted as compliant, and neither would have failed
 anything. Both bypasses were reproduced before the fix and are part of a six-case
 mutation matrix now.
 
+### Three rounds on one check, and the same mistake each time
+
+The review of `31b14db` returned three more findings, and two of them were the
+previous round's fixes being incomplete. Recorded together because the pattern is
+the lesson.
+
+**The native-table tether took three rounds.** Round one matched the tag with
+`<table\b[^>]*>`, which stops at the `>` inside `=>`. Round two matched the class
+with `includes()`, so `ds-native-table-broken` counted as compliant and
+`not-sr-only` counted as hidden. Round three searched the whole attribute slice,
+so `<table data-testid="ds-native-table" className="other">` counted as compliant
+and `<table aria-label="sr-only" className="other">` counted as hidden. Each
+version was reproduced before being fixed, and the matrix is nine cases now.
+
+**The shape of the mistake never changed.** Every version asked *"does this text
+appear somewhere?"* when the question is *"does this element carry this class?"* A
+guard built on substring presence will keep finding new ways to be wrong, because
+the thing it is checking is not the thing it is asking about. That is worth more
+than the three fixes: **when a check fails review twice, the next fix should
+change what it asks, not how carefully it looks.**
+
+**The same `[^>]*` was still in the rule that guards a runtime crash.**
+`jsx-label-on-throwing-primitive` catches a JSX `label={...}` on a primitive that
+*throws* on a non-string label — a crash the moment the branch renders, which is
+how `DashboardToolbar`'s filter panel carried one for ten migration slices. It was
+still a regex, so:
+
+    <FormField label={<span>Date</span>} onClick={() => go()}>   -> caught
+    <FormField onClick={() => go()} label={<span>Date</span>}>   -> INVISIBLE
+
+Prop ordering decided whether a crashing branch passed CI, and the second form is
+the ordinary React one. It reads open tags through `openTagAttributes` now, like
+the styled-control rules and the tether. The lesson recorded when that scanner was
+written — that `[^>]*` had hidden three quarters of the violations — was true of
+more rules than the ones fixed that day, and nobody swept the file for the rest.
+There are none left; `grep '\[^>\]\*'` over the script returns only prose.
+
+**A disabled drop target still owes the page a `preventDefault`.** `FileInput`'s
+new drop handlers returned early when `inert || loading` — before cancelling the
+event. That handed the drop back to the browser, whose default action for a
+dropped file is to navigate to it, so dropping a second file onto a panel that was
+mid-upload could replace the page and take a half-filled application with it. On
+the public driver application that is somebody's work gone.
+
+Refusing the file and cancelling the event are separate obligations. Both handlers
+cancel first now, unconditionally, and only the assignment and the `change`
+dispatch are conditional. Three tests — uploading, disabled, idle — assert on
+`fireEvent`'s return value, which is `false` exactly when a handler called
+`preventDefault`, so the guarantee is asserted rather than read off the source.
+
 ### The one guard that is a person, and why it is not a script
 
 Every other row in that table is a command. One is not, and saying so plainly is
