@@ -742,6 +742,45 @@ dispatch are conditional. Three tests — uploading, disabled, idle — assert o
 `fireEvent`'s return value, which is `false` exactly when a handler called
 `preventDefault`, so the guarantee is asserted rather than read off the source.
 
+### Open: `check:ui-contract` reads JSX as text, and that is the root cause
+
+Recorded on 2026-08-25 as the durable fix for a class of defect that has now
+produced **five** findings, so the next person patching this file has the reason
+in front of them rather than rediscovering it.
+
+Every one of these was the same root cause — a rule reasoning about JSX by
+matching characters in it:
+
+| Defect | How it failed |
+|---|---|
+| `hand-styled-button\|field\|anchor` matched `<(button)\b([^>]*)>` | `[^>]*` stops at the `>` in `=>`; hid **49 violations in 32 files**, showing 12 in 8 |
+| the native-table tether matched `<table\b[^>]*>` | same truncation, this time producing false *failures* |
+| the tether matched classes with `includes()` | `ds-native-table-broken` counted as compliant, `not-sr-only` as hidden |
+| the tether searched the whole attribute slice | a `data-testid` naming the contract counted as the contract |
+| `jsx-label-on-throwing-primitive` matched `[^>]*?` | prop ordering decided whether a **runtime crash** reached CI |
+
+Four different fixes, one unchanged question. Each version asked *"does this text
+appear somewhere?"* when the question is *"does this element carry this
+attribute?"* `openTagAttributes` plus the `className` extractor is a decent
+hand-rolled parser for an open tag and the nine-case matrix says it handles what
+we have thrown at it — but it is still a parser written by accident, one review
+finding at a time, and the honest expectation is that a sixth case exists that
+nobody has thought of.
+
+**The durable fix is to parse.** A real JSX parse (Babel is already a dependency
+via Vite) would let every rule ask about a node and its attributes instead of
+about a string, and would retire the whole class. It is deliberately **not**
+attempted here: this file gates every other check in the repository, the
+allowlist's 235 counts across 40 files would all have to come out identical, and
+swapping the engine underneath it at the end of a campaign with a review open is
+how a guard stops being trustworthy. It wants its own change, its own review, and
+a run where the before-and-after counts are compared file by file.
+
+Until then the rule for anyone touching this file: **if a check needs a third fix,
+change what it asks rather than how carefully it looks** — and check whether the
+same shape exists in the sibling rules, because twice now it did and nobody swept
+for it.
+
 ### The one guard that is a person, and why it is not a script
 
 Every other row in that table is a command. One is not, and saying so plainly is
