@@ -210,6 +210,55 @@ describe('UploadField rejected-drop feedback', () => {
     expect(screen.getAllByRole('alert')).toHaveLength(1);
   });
 
+  it('drops the message when a failed upload brings the picker back', async () => {
+    /*
+     * The picker is unmounted while the upload runs, so a failure mounts a NEW
+     * one with no rejection of its own — no `aria-invalid`, nothing in its
+     * description — while this field was still showing the old message. Visible
+     * text and field semantics out of step. Found in review on 2026-08-26.
+     */
+    renderField({
+      accept: 'application/pdf',
+      onUpload: vi.fn(async () => { throw new Error('network'); }),
+    });
+    dropOn(file('cdl.pdf'), new File(['x'], 'selfie.png', { type: 'image/png' }));
+
+    /*
+     * The upload fails, the picker returns, and it returns with nothing to say.
+     *
+     * Both conditions are awaited together: the picker reappearing and the
+     * message clearing are separate commits, and asserting the second the moment
+     * the first is true made this test fail about one run in three.
+     */
+    await waitFor(() => {
+      expect(input()).not.toBeNull();
+      expect(screen.queryAllByRole('alert').some((a) => /selfie\.png/.test(a.textContent)))
+        .toBe(false);
+    });
+    expect(input()).not.toHaveAttribute('aria-invalid');
+  });
+
+  it('keeps the message while the upload is still running', async () => {
+    // The complement: the picker has NOT come back, so nothing is out of step
+    // and the message is still the useful thing on screen.
+    //
+    // The upload is held open and the field is UNMOUNTED before the test ends.
+    // Letting it settle instead runs the success path, whose `setTimeout`
+    // outlives the test; leaving it pending leaks state updates into whatever
+    // runs next. Both show up as act() warnings, which this file's own output
+    // was already producing before these tests existed.
+    const { unmount } = renderField({
+      accept: 'application/pdf',
+      onUpload: vi.fn(() => new Promise(() => {})),
+    });
+    dropOn(file('cdl.pdf'), new File(['x'], 'selfie.png', { type: 'image/png' }));
+
+    await waitFor(() => expect(input()).toBeNull());
+    expect(screen.getByRole('alert')).toHaveTextContent('selfie.png was not added');
+
+    unmount();
+  });
+
   it('says nothing when every dropped file is accepted', () => {
     renderField({ accept: 'application/pdf' });
     dropOn(file('cdl.pdf'));

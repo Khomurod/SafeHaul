@@ -1,4 +1,4 @@
-import React, { useId, useRef, useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import { X, CheckCircle, RefreshCw, FileText, Image as ImageIcon, AlertCircle } from 'lucide-react';
 import {
     Button, FileInput, IconButton, IconButtonLink, ProgressBar,
@@ -79,6 +79,28 @@ const UploadField = ({
     const fileUrl = value?.url || (typeof value === 'string' ? value : null);
     const isImage = fileName?.match(/\.(jpg|jpeg|png|gif|webp)$/i) || (typeof value === 'string');
     const pickerVisible = !hasValue && status !== 'uploading';
+
+    /*
+     * A returning picker is a fresh one, and it starts with nothing to say.
+     *
+     * The picker is unmounted while an upload runs, so a failed upload brings a
+     * NEW `FileInput` back — with no rejection of its own, hence no
+     * `aria-invalid` and nothing in its description, while this field was still
+     * showing the message from the drop that started it. Visible text and field
+     * semantics out of step, which is the same defect twice. Found in review on
+     * 2026-08-26.
+     *
+     * Clearing on the way back keeps them together, and it is the honest state:
+     * an empty picker asking for a file again has not refused anything yet. The
+     * cases where the message must survive do not come through here — an
+     * all-refused drop never hides the picker, and a successful upload never
+     * brings it back.
+     */
+    const pickerWasVisible = useRef(pickerVisible);
+    useEffect(() => {
+        if (pickerVisible && !pickerWasVisible.current) setDropRejection(null);
+        pickerWasVisible.current = pickerVisible;
+    }, [pickerVisible]);
 
     const handleFileSelect = async (e) => {
         const file = e.target.files?.[0];
