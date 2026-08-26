@@ -254,8 +254,8 @@ const UploadField = ({
               This was a `Button` styled as a dashed panel driving a hidden input
               with `tabIndex={-1}`, under the roadmap's "no approved file-input
               contract" exception, which closed on 2026-08-21. The primitive is a
-              real focusable input behind a real `<label>`, so the whole panel is
-              also the browser's native drag-and-drop target — which this field
+              real focusable input behind a real `<label>`, and `FileInput`'s
+              `onDrop` makes the whole panel a real drop target — which this field
               never had.
 
               `labelHidden`, because the field's visible `ds-label` above carries

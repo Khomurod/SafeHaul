@@ -149,8 +149,8 @@ describe('UploadField accessibility and required rules', () => {
    * The picker is the design system's `FileInput variant="dropzone"` since
    * 2026-08-25. It was a `Button` driving a `tabIndex={-1}` hidden input; it is
    * now a real focusable input behind a real `<label>`, which is the primitive's
-   * one structural rule and gives the panel the browser's own drag-and-drop
-   * target for free.
+   * one structural rule; `FileInput`'s `onDrop` is what makes the panel a real
+   * drop target.
    *
    * So the trigger is not a `<button>` any more, the input IS in the tab order,
    * and the visible copy is unchanged. The accessible name moved from "the frozen

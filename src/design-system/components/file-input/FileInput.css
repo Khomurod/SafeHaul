@@ -92,9 +92,12 @@
  * envelope creator. Three of them put a `Button` inside the panel and drove a
  * hidden input from it.
  *
- * As a `<label>` the panel is better than any of those in a way nobody has to
- * remember: the whole panel is both the click target AND the browser's native
- * drag-and-drop target for the input it labels, with no event handler at all.
+ * As a `<label>` the whole panel is the click target for the input it labels,
+ * which none of the hand-built versions managed. It is a drop target too, but not
+ * for free: this comment claimed "with no event handler at all" until 2026-08-25,
+ * and that was wrong — a label forwards a click to its control, never a drop, so
+ * a file dropped on the panel landed on the label and was discarded. `FileInput`
+ * has an explicit `onDrop` now; see the note beside it.
  */
 .ds-file-input[data-variant='dropzone'] .ds-file-input__control {
   flex-direction: column;

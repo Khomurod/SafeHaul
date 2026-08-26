@@ -147,8 +147,8 @@ export function EnvelopeSidebar({
                     /*
                       `FileInput variant="dropzone"`. It was a hidden input plus a
                       `Button` that clicked it; the primitive is a real focusable
-                      input behind a real `<label>`, which also makes the panel the
-                      browser's own drag-and-drop target for a PDF. The frozen copy
+                      input behind a real `<label>`, and `FileInput`'s `onDrop`
+                      makes the panel a real drop target for a PDF. The frozen copy
                       is unchanged: "Upload a PDF first" is the description and
                       "Choose File" the control's own words.
                     */

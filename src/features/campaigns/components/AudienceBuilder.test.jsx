@@ -406,8 +406,8 @@ describe('AudienceBuilder — migrated presentation', () => {
      * The picker is the design system's `FileInput variant="dropzone"` since
      * 2026-08-25. The accept list is byte-for-byte the same; what changed is that
      * the visible affordance is the `<label>` wrapping the input rather than a
-     * sibling `Button` calling `.click()` on it, so the whole panel is also the
-     * browser's own drag-and-drop target.
+     * sibling `Button` calling `.click()` on it, and `FileInput`'s `onDrop`
+     * makes the whole panel a real drop target.
      */
     it('uses one labelled file input with the exact accept list', () => {
         renderBuilder({ filters: { leadType: 'import', excludedLeadIds: [] } });

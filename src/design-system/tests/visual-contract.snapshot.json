@@ -120,7 +120,7 @@
     "paddingTop": "12px",
     "paddingBottom": "12px",
     "backgroundColor": "rgba(0, 0, 0, 0)",
-    "height": "63.5px"
+    "height": "72px"
   },
   "mobile · a frozen column is opaque · stickyTable.headerCell": {
     "backgroundColor": "rgb(241, 245, 249)",
@@ -289,7 +289,7 @@
     "paddingTop": "12px",
     "paddingBottom": "12px",
     "backgroundColor": "rgba(0, 0, 0, 0)",
-    "height": "60.5px"
+    "height": "72px"
   },
   "desktop · a frozen column is opaque · stickyTable.headerCell": {
     "backgroundColor": "rgb(241, 245, 249)",

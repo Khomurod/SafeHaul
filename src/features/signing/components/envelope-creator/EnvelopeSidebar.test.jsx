@@ -210,7 +210,7 @@ describe('EnvelopeSidebar — upload state', () => {
      * 2026-08-25 — a real focusable input behind a real `<label>`, instead of a
      * hidden `tabIndex={-1}` input clicked by a `Button`. The frozen copy and the
      * accept list are unchanged; what changed is that the panel itself is the
-     * control, so it is also the browser's own drag-and-drop target for a PDF.
+     * control, and `FileInput`'s `onDrop` accepts a PDF dropped onto it.
      */
     it('prompts for a PDF and exposes a reachable file input before upload', () => {
         const { container } = renderSidebar({ file: null });

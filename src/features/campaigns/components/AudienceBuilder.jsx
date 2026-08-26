@@ -294,9 +294,9 @@ export function AudienceBuilder({ companyId, filters, onChange, campaignScopeKey
                                               input driven by a `Button`, under a comment saying
                                               the design system had no file-input primitive —
                                               untrue from 2026-08-21. The accept list is
-                                              unchanged, and the whole panel is now the
-                                              browser's own drag-and-drop target for the input
-                                              it labels, which it was not before.
+                                              unchanged, and `FileInput`'s `onDrop` makes the
+                                              whole panel a real drop target for the input it
+                                              labels, which it was not before.
                                             */
                                             <FileInput
                                                 ref={fileInputRef}

@@ -122,7 +122,27 @@
  */
 .ds-native-table > tbody > tr > td,
 .ds-native-table > tbody > tr > th {
-  min-height: var(--ds-native-table-row-height);
+  /*
+   * `height`, not `min-height`, and the distinction is the whole rule.
+   *
+   * CSS 2.1 makes `min-height` on a `table-cell` box explicitly undefined, and
+   * browsers ignore it — while `height` on a table cell is treated as a MINIMUM,
+   * which is exactly the behaviour wanted here: a short row gets the contract's
+   * row height, and a row with two stacked lines still grows past it.
+   *
+   * So the density role was a no-op on every body cell from the day this file was
+   * written, and the rows were whatever their content happened to make them. The
+   * `thead` rule above always used `height`, which is why headers matched
+   * `DataTable` at 48px and bodies did not.
+   *
+   * Found in review on 2026-08-25 — and worth being blunt about: the guard had
+   * already caught it. `visual-contract.snapshot.json` recorded
+   * `nativeTable.cell` at 60.5px desktop / 63.5px mobile beside `DataTable`'s
+   * body cell at 72px, in the same file, and I read that as "56 measurements
+   * recorded" without noticing the two numbers disagreed. A guard that captures
+   * the defect is only half of one; somebody has to read what it captured.
+   */
+  height: var(--ds-native-table-row-height);
   padding: var(--ds-native-table-cell-padding-block) var(--ds-table-cell-padding-inline);
   /*
    * `vertical-align` is deliberately NOT set. A table cell defaults to `middle`

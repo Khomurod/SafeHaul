@@ -168,7 +168,7 @@ describe('FileInput shapes', () => {
     const input = screen.getByLabelText('Recipient list');
     expect(input).toHaveAccessibleDescription('CSV, XLS or XLSX files');
     // Inside the label, which is what makes the whole panel the click target and
-    // the browser's native drag-and-drop target for this input.
+    // a real drop target for this input, via `FileInput`'s `onDrop`.
     const control = container.querySelector('.ds-file-input__control');
     expect(control.querySelector('.ds-file-input__description')).not.toBeNull();
     expect(container.querySelector('.ds-file-input')).toHaveAttribute('data-variant', 'dropzone');
@@ -205,6 +205,53 @@ describe('FileInput shapes', () => {
     );
     expect(screen.getByLabelText('Profile photo'))
       .toHaveAccessibleDescription('Accepts image files under 2 MB.');
+  });
+
+  /*
+   * The behaviour the docblocks claimed for months and did not have.
+   *
+   * A `<label>` forwards *activation* to the control it labels, which is a click
+   * and not a drop, and the input is clipped to 1x1 — so before 2026-08-25 a file
+   * dropped on the dashed panel landed on the label and was discarded. Four
+   * upload panels advertised a dropzone that ignored drops.
+   *
+   * The assertion that matters is not "onDrop ran" but "the consumer got its
+   * file the same way it always does": every call site reads
+   * `event.target.files`, so the handler puts the dropped list on the real input
+   * and dispatches `change` from it. If that ever regresses to a hand-made event
+   * object, `event.target.files` goes undefined at four call sites and this test
+   * is what says so.
+   */
+  it('accepts a file dropped on the panel and reports it as a change from the input', () => {
+    const onChange = vi.fn();
+    render(<FileInput label="Recipient list" variant="dropzone" onChange={onChange} />);
+
+    const input = document.querySelector('input[type="file"]');
+    const label = input.closest('label');
+    const file = new File(['a,b\n1,2'], 'recipients.csv', { type: 'text/csv' });
+
+    const transfer = new DataTransfer();
+    transfer.items.add(file);
+    fireEvent.dragOver(label, { dataTransfer: transfer });
+    fireEvent.drop(label, { dataTransfer: transfer });
+
+    expect(onChange).toHaveBeenCalledTimes(1);
+    const event = onChange.mock.calls[0][0];
+    expect(event.target).toBe(input);
+    expect(event.target.files).toHaveLength(1);
+    expect(event.target.files[0].name).toBe('recipients.csv');
+  });
+
+  it('ignores a drop while it is uploading, as it ignores a second pick', () => {
+    const onChange = vi.fn();
+    render(<FileInput label="Recipient list" variant="dropzone" loading onChange={onChange} />);
+
+    const input = document.querySelector('input[type="file"]');
+    const transfer = new DataTransfer();
+    transfer.items.add(new File(['x'], 'second.csv', { type: 'text/csv' }));
+    fireEvent.drop(input.closest('label'), { dataTransfer: transfer });
+
+    expect(onChange).not.toHaveBeenCalled();
   });
 
   it('refuses an unsupported variant rather than falling back to the button', () => {

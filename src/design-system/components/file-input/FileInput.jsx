@@ -21,7 +21,7 @@ import './FileInput.css';
  *
  * With a real input and a real label: Tab reaches it, Space and Enter open the
  * picker, the label is its accessible name, and the browser's own
- * file-type validation and drag-and-drop target come for free.
+ * file-type validation come for free; dropped files are handled explicitly.
  *
  * ## What this is not
  *
@@ -38,9 +38,11 @@ import './FileInput.css';
  * API covered one of the product's three real shapes.
  *
  * - `variant="dropzone"` is the full-width dashed panel that four uploads use.
- *   As a `<label>` it is better than what it replaces in two ways nobody has to
- *   remember: the whole panel is the click target *and* the browser's own
- *   drag-and-drop target, without a single event handler.
+ *   As a `<label>` the whole panel is the click target, and `onDrop` below makes
+ *   it a real drop target. An earlier version of this line claimed the label gave
+ *   the second one "without a single event handler" — it does not, a label
+ *   forwards clicks and not drops, and the panels ignored dropped files until
+ *   2026-08-25. See `handleDrop`.
  * - `loading` is what the avatar and company-logo pickers needed. Both used
  *   `Button loading` plus a hidden input, because an upload picker is exactly the
  *   control that has to say it is busy.
@@ -125,6 +127,53 @@ export const FileInput = forwardRef(function FileInput({
     onChange?.(event);
   }, [onChange]);
 
+  /*
+   * Dropped files, routed through the real input.
+   *
+   * This used to claim the `<label>` made the panel "the browser's own
+   * drag-and-drop target ... without a single event handler". That was wrong, and
+   * a review of this branch caught it: a `<label>` forwards *activation* to the
+   * control it labels — a click — and a drop is not activation. The input itself
+   * is a drop target, but it is clipped to 1x1, so a drop on the panel landed on
+   * the label or one of its spans and nothing happened. Four upload panels wore a
+   * dashed dropzone border and silently ignored what was dropped on them.
+   *
+   * The fix assigns the dropped `FileList` to the input and dispatches `change`
+   * from it, rather than calling `onChange` with a hand-made object. That matters
+   * for consumers: every one of them reads `event.target.files`, and this way the
+   * event they get is a real `change` from the real input with real files on it,
+   * so nothing at any call site had to change. Both halves were measured in
+   * Chromium before being relied on — `input.files` is assignable from a
+   * script-built `DataTransfer`, and a dispatched bubbling `change` reaches
+   * listeners with the files already in place.
+   *
+   * `dragover` must preventDefault or the browser refuses the drop; that is the
+   * whole reason the handler pair exists rather than just `onDrop`.
+   */
+  const handleDragOver = useCallback((event) => {
+    if (inert || loading) return;
+    event.preventDefault();
+  }, [inert, loading]);
+
+  const handleDrop = useCallback((event) => {
+    if (inert || loading) return;
+    const dropped = event.dataTransfer?.files;
+    if (!dropped || dropped.length === 0) return;
+    event.preventDefault();
+    const node = inputRef.current;
+    if (!node) return;
+    node.files = multiple || dropped.length === 1
+      ? dropped
+      : (() => {
+        // A single-file field takes the first of several, the same as the
+        // native picker does when `multiple` is absent.
+        const one = new DataTransfer();
+        one.items.add(dropped[0]);
+        return one.files;
+      })();
+    node.dispatchEvent(new Event('change', { bubbles: true }));
+  }, [inert, loading, multiple]);
+
   useEffect(() => {
     if (loading || !restoreFocusOnIdle.current) return;
     restoreFocusOnIdle.current = false;
@@ -181,6 +230,8 @@ export const FileInput = forwardRef(function FileInput({
         htmlFor={inputId}
         data-disabled={inert || undefined}
         data-loading={loading || undefined}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
       >
         {loading
           ? <Loader2 className="ds-file-input__spinner" aria-hidden="true" />

@@ -25,14 +25,14 @@ A **real `<input type="file">`**, visually hidden but still focusable, with a
 
 With a real input and a real label, Tab reaches it, Space and Enter open the
 picker, the label is its accessible name, and the browser's own file-type
-filtering and drag-and-drop target come for free.
+filtering come for free; dropped files are handled explicitly by `onDrop`.
 
 ## Three shapes
 
 | Prop | For |
 |---|---|
 | default | A picker beside other controls — a settings field, a per-row upload |
-| `variant="dropzone"` | The full-width dashed panel. `BulkUploadLayout`, the driver application's `UploadField`, the campaign recipient import and the e-doc envelope creator had each built this by hand. As a `<label>`, the whole panel is both the click target *and* the browser's native drag-and-drop target for the input it names — none of the four hand-built versions had the second |
+| `variant="dropzone"` | The full-width dashed panel. `BulkUploadLayout`, the driver application's `UploadField`, the campaign recipient import and the e-doc envelope creator had each built this by hand. As a `<label>` the whole panel is the click target, and `onDrop` accepts a file dropped anywhere on it — none of the four hand-built versions had the second, and neither did this until 2026-08-25: the docs claimed the label supplied it, but a label forwards a click to its control and never a drop, so dropped files were silently discarded |
 | `loading` | An upload in flight: it spins, says so with `aria-busy`, and refuses a second file. The avatar and company-logo pickers used `Button loading` plus a hidden input for exactly this |
 | `labelHidden` | A picker whose field is already named on screen — a photo preview beside it. Same prop and meaning as `Checkbox`'s |
 

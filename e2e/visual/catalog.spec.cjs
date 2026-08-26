@@ -146,7 +146,29 @@ const WIDTHS = [
 ];
 
 test.describe('@visual design-system catalog', () => {
-    test.describe.configure({ mode: 'serial', timeout: 120_000 });
+    /*
+     * NOT `mode: 'serial'`, and that is the point.
+     *
+     * It was serial until 2026-08-25, and serial mode has one consequence that
+     * matters more than anything it was buying: **when a test in a serial group
+     * fails, Playwright skips every remaining test in the group.** With 142 of
+     * this lane's 174 tests in this one group, a change touching several
+     * components reported exactly one failure and silently skipped the rest — so
+     * a re-record looked like "one baseline moved", and a genuinely broken
+     * catalog produced a diff artifact holding a single image. Measured: a
+     * one-line CSS change moved several subjects, and the run reported
+     * `1 failed / 81 did not run` at every worker count, including `--workers=1`
+     * and `--max-failures=0`.
+     *
+     * That is also why the twenty `app.spec.cjs` font failures were all visible
+     * in CI while this file's were not: that describe was never serial.
+     *
+     * Nothing here needed serial. `beforeAll` runs once per worker, so each
+     * worker gets its own catalog server on its own random port (`listen(0)`),
+     * and the subjects are independent screenshots with no shared state and no
+     * ordering between them.
+     */
+    test.describe.configure({ timeout: 120_000 });
 
     let catalog;
     let available;

@@ -703,6 +703,23 @@ function main() {
      * here would have reintroduced it one commit after fixing it.
      */
     const HIDDEN_UTILITIES = ['sr-only', 'ds-visually-hidden'];
+    /*
+     * Whole class tokens, not substrings.
+     *
+     * `attributes.includes('sr-only')` is true of `not-sr-only`, and
+     * `includes('ds-native-table')` is true of `ds-native-table-broken` — so a
+     * visible off-contract table could claim to be hidden, and a table with a
+     * typo'd class could claim to be compliant. Neither would be caught, because
+     * the raw-table count still matches the allowlist and `offContract` comes
+     * back empty. Found in review on 2026-08-25, one commit after the same file
+     * learned not to use a loose match for the tag itself.
+     *
+     * A class list is whitespace-delimited, so the boundary is whitespace, a
+     * quote, or a brace — never a hyphen, which is what both bypasses relied on.
+     */
+    const hasClassToken = (attributes, token) => (
+        new RegExp(`(^|[\\s"'\`{}])${token}($|[\\s"'\`{}])`).test(attributes)
+    );
     const untethered = [];
     for (const [file, allowed] of Object.entries(allowlist.files ?? {})) {
         if (typeof allowed['raw-table'] !== 'number') continue;
@@ -712,8 +729,8 @@ function main() {
         const source = readFileSync(path.join(srcRoot(), file), 'utf8');
         const openTags = openTagAttributes(source, 'table');
         const offContract = openTags.filter((attributes) => (
-            !attributes.includes('ds-native-table')
-            && !HIDDEN_UTILITIES.some((utility) => attributes.includes(utility))
+            !hasClassToken(attributes, 'ds-native-table')
+            && !HIDDEN_UTILITIES.some((utility) => hasClassToken(attributes, utility))
         ));
         if (offContract.length > 0) {
             untethered.push(`${file} (${offContract.length} of ${openTags.length})`);
