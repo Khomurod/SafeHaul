@@ -661,7 +661,7 @@ function loadAllowlist() {
  * including a bare identifier. That is deliberate: a guard that assumes the best
  * about `className={x}` is the guard that let all four bypasses through.
  */
-function tablesOffContract(source, contractToken, hiddenTokens) {
+function tablesOffContract(source, contractToken) {
     const ast = parse(source, {
         sourceType: 'module',
         plugins: ['jsx'],
@@ -669,10 +669,7 @@ function tablesOffContract(source, contractToken, hiddenTokens) {
     });
 
     /* A token counts only as a whole class, delimited by whitespace or an edge. */
-    const tokenIn = (text) => {
-        const classes = String(text).split(/\s+/).filter(Boolean);
-        return classes.includes(contractToken) || hiddenTokens.some((t) => classes.includes(t));
-    };
+    const tokenIn = (text) => String(text).split(/\s+/).filter(Boolean).includes(contractToken);
 
     /*
      * The same, for one chunk of a template literal — where a token can be
@@ -885,12 +882,23 @@ function main() {
      * edit away from passing a hand-styled table again, which is the finding
      * this rule was written for. It counts tables now.
      *
-     * The one carve-out is a table that is never seen: `AnalyticsView` renders a
-     * `sr-only` table as the text equivalent of a chart, and a visually hidden
-     * table has no header surface, no divider and no cell padding to get wrong.
-     * Requiring the visual contract on it would be asking for appearance from
-     * something with none. Both hidden utilities count, because they emit the
-     * same clip rule — see the note in roadmap section 5.
+     * ## No carve-out for a hidden table, since round eight
+     *
+     * There used to be one: `AnalyticsView`'s `sr-only` chart-equivalent table was
+     * exempt, on the reasoning that something invisible has no appearance to put
+     * on contract. The reasoning was fine and the *inference* was not — deciding
+     * "is this hidden?" from a class list means deciding it across Tailwind's
+     * whole variant space, and `className="sr-only xl:not-sr-only"` is hidden on a
+     * phone and visible on a desktop. That pattern is already in this repository
+     * (`DossierHeader.jsx`), so it was not hypothetical.
+     *
+     * Rather than guard an open-ended axis, the axis is gone: **every** approved
+     * `<table>` must carry the class, the hidden one included. Measured in a real
+     * browser with the built stylesheet before doing it — `sr-only` keeps
+     * `position:absolute` and `clip:rect(0,0,0,0)`, so the element stays invisible
+     * whatever the contract does to its box (10x20 -> 47x39, `visible: false`
+     * both ways). An invisible table carrying a visual contract costs nothing;
+     * inferring invisibility from classes cost four rounds of review.
      *
      * ## And it parses, rather than matching text
      *
@@ -906,7 +914,6 @@ function main() {
      * appear" but "is this true on every branch", which is a question about
      * structure. See `tablesOffContract`.
      */
-    const HIDDEN_UTILITIES = ['sr-only', 'ds-visually-hidden'];
     const untethered = [];
     for (const [file, allowed] of Object.entries(allowlist.files ?? {})) {
         if (typeof allowed['raw-table'] !== 'number') continue;
@@ -916,7 +923,7 @@ function main() {
         const source = readFileSync(path.join(srcRoot(), file), 'utf8');
         let result;
         try {
-            result = tablesOffContract(source, 'ds-native-table', HIDDEN_UTILITIES);
+            result = tablesOffContract(source, 'ds-native-table');
         } catch (error) {
             // A parse failure is a failure. Falling back to a text match here is
             // how the four bypasses this rule now parses for would come back.
@@ -997,8 +1004,9 @@ function main() {
         console.error('approved for an editable matrix or per-row interactive rows — it is not a');
         console.error('licence to style a table by hand, and the class is what makes the header,');
         console.error('divider, density and cell padding come from the same `--ds-table-*` roles');
-        console.error('`DataTable` reads. A table that is never seen (`sr-only` /');
-        console.error('`ds-visually-hidden`) is exempt: it has no appearance to put on contract.\n');
+        console.error('`DataTable` reads. There is no exemption for a hidden table: deciding');
+        console.error('whether a class list is hidden at every breakpoint is not decidable, so');
+        console.error('the invisible one carries the class too. It costs nothing.\n');
         process.exit(1);
     }
 

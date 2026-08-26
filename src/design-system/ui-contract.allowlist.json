@@ -222,7 +222,7 @@
     "features/super-admin/views/AnalyticsView.jsx": {
       "raw-table": 3,
       "reasons": {
-        "raw-table": "roadmap \u00a75 \u2014 three <table> elements: two visible native tables with per-row actions, which apply ds-native-table and so read the --ds-table-* header, divider and density roles, plus one sr-only table that is the text equivalent of the chart above it. DataTable is a display-table contract and does not cover per-row actions in two linked tables sharing one scroll region. The hidden table is deliberately off the visual contract \u2014 it has no appearance \u2014 and check:ui-contract exempts it by that class rather than by file, so a real table cannot hide behind it."
+        "raw-table": "roadmap \u00a75 \u2014 three <table> elements: two visible native tables with per-row actions, which apply ds-native-table and so read the --ds-table-* header, divider and density roles, plus one sr-only table that is the text equivalent of the chart above it. DataTable is a display-table contract and does not cover per-row actions in two linked tables sharing one scroll region. All three carry ds-native-table, the hidden one included: the guard has no hidden-table exemption, because deciding whether a class list is hidden at every breakpoint is not decidable (sr-only xl:not-sr-only is hidden on a phone and visible on a desktop, and that pattern is already in this repo). Measured first \u2014 sr-only keeps position:absolute and clip:rect(0,0,0,0), so the contract changes the box and nothing visible."
       }
     },
     "shared/components/layout/Stepper.jsx": {

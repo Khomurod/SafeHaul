@@ -117,8 +117,15 @@ function ActivityTrendChart({ data }) {
                 </svg>
             </div>
 
-            {/* The same figures in a form assistive technology can actually read. */}
-            <table className="sr-only">
+            {/* The same figures in a form assistive technology can actually read.
+                Carries `ds-native-table` like every other approved table: the
+                guard has no hidden-table exemption, because deciding whether a
+                class list is hidden at *every* breakpoint is not decidable
+                (`sr-only xl:not-sr-only` is hidden on a phone and visible on a
+                desktop). Measured before doing it — `sr-only` keeps
+                `position:absolute` and `clip:rect(0,0,0,0)`, so the contract
+                changes this table's box and nothing a user can see. */}
+            <table className="sr-only ds-native-table">
                 <caption>Daily activity trend</caption>
                 <thead>
                     <tr><th scope="col">Date</th><th scope="col">Actions</th></tr>

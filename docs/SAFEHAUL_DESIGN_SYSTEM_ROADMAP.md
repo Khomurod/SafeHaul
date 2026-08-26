@@ -748,8 +748,8 @@ dispatch are conditional. Three tests — uploading, disabled, idle — assert o
 
 ### `check:ui-contract` reads JSX as text — the root cause, and the one rule that no longer does
 
-Recorded on 2026-08-25 after this class of defect produced **seven** findings in
-six review rounds, so the next person working on this file has the reason in
+Recorded on 2026-08-25 after this class of defect produced **eight** findings in
+seven review rounds, so the next person working on this file has the reason in
 front of them rather than rediscovering it.
 
 The first five were the same root cause — a rule reasoning about JSX by matching
@@ -767,6 +767,7 @@ semantics of an expression form it had only guessed at:
 | the tether's own AST walk trusted a quasi beside an interpolation | `` `ds-native-table${'-broken'}` `` counted as compliant |
 | the same walk trusted every `CallExpression` | `selectClass('ds-native-table', 'other')` counted as compliant |
 | the walk read the FIRST `className` and ignored what followed | `<table className="ds-native-table" {...props}>` counted as compliant, though a later spread overrides it |
+| the hidden-table carve-out inferred "invisible" from a class list | `className="sr-only xl:not-sr-only"` is hidden on a phone and visible on a desktop — a pattern already in `DossierHeader.jsx` |
 
 Four different fixes, one unchanged question. Each version asked *"does this text
 appear somewhere?"* when the question is *"does this element carry this
@@ -841,6 +842,28 @@ is a different kind of statement from the expression fixes, each of which was a
 guess about one form among an open-ended set. Reverting would also have knowingly
 restored four already-demonstrated bypasses, which is worse for the repository
 than the commitment was worth.
+
+**Round eight removed an axis instead of guarding it.** The hidden-table carve-out
+— `AnalyticsView`'s `sr-only` chart-equivalent was exempt, on the sound reasoning
+that something invisible has no appearance to get wrong — turned out to rest on an
+undecidable inference. Deciding "is this hidden?" from a class list means deciding
+it across Tailwind's whole variant space, and `sr-only xl:not-sr-only` is hidden on
+a phone and visible on a desktop. That combination is already in this repository,
+so it was never hypothetical.
+
+The fix was not to guard the variant space. **The carve-out is gone: every approved
+`<table>` carries `ds-native-table`, the invisible one included.** Measured in a
+real browser against the built stylesheet before doing it, because the obvious
+worry is that the contract would un-hide it — `sr-only` keeps `position:absolute`
+and `clip:rect(0,0,0,0)`, so the box grows from 10×20 to 47×39 and stays
+`visible: false` either way. An invisible table carrying a visual contract costs
+nothing; inferring invisibility from classes cost a review round.
+
+That is the pattern across all eight: **every fix that held removed a judgement
+the guard was making, and every fix that failed added one.** The expression set
+shrank, the attribute axis was closed by enumeration, and the hidden axis was
+deleted. What remains asks one question with no discretion in it — does the last
+attribute that can set the class list provably contain `ds-native-table`.
 
 The commitment still stands for the *expression* axis: a further bypass there
 means the walk is the wrong shape, and the rule goes back to the simple per-table
