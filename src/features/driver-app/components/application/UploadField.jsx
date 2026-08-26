@@ -56,6 +56,17 @@ const UploadField = ({
     const [status, setStatus] = useState('idle'); // idle, uploading, success, error
     const [progress, setProgress] = useState(0);
     const [errorMsg, setErrorMsg] = useState(null);
+    /*
+     * What a drop refused, kept HERE rather than in the picker.
+     *
+     * `FileInput` renders its own rejection alert, but this field removes the
+     * picker the moment a file arrives — so on a mixed drop (one file accepted,
+     * another refused) that alert is unmounted in the commit that created it and
+     * the applicant never learns a file was turned away. Found in review on
+     * 2026-08-26. `onReject` fires after `onChange`, so the clear below runs
+     * first and this wins.
+     */
+    const [dropRejection, setDropRejection] = useState(null);
     // Replaces the bare `confirm("Are you sure you want to remove this file?")`.
     const [pendingClear, setPendingClear] = useState(false);
     const fileInputRef = useRef(null);
@@ -67,6 +78,7 @@ const UploadField = ({
     const fileName = value?.name || (typeof value === 'string' ? 'Uploaded File' : null);
     const fileUrl = value?.url || (typeof value === 'string' ? value : null);
     const isImage = fileName?.match(/\.(jpg|jpeg|png|gif|webp)$/i) || (typeof value === 'string');
+    const pickerVisible = !hasValue && status !== 'uploading';
 
     const handleFileSelect = async (e) => {
         const file = e.target.files?.[0];
@@ -76,6 +88,9 @@ const UploadField = ({
         setStatus('uploading');
         setProgress(10); // Start progress
         setErrorMsg(null);
+        // Retires a rejection from an EARLIER drop. One that arrived with this
+        // drop is re-set by `onReject` immediately after this handler returns.
+        setDropRejection(null);
 
         // Fake progress for UX (since Firebase uploadBytes doesn't give granular progress easily without stream)
         const progressInterval = setInterval(() => {
@@ -270,7 +285,7 @@ const UploadField = ({
               there is a file to retry or clear, which is the state where the ref
               is live.
             */}
-            {(!hasValue && status !== 'uploading') && (
+            {pickerVisible && (
                 <FileInput
                     ref={fileInputRef}
                     label={label}
@@ -282,7 +297,27 @@ const UploadField = ({
                     accept={accept}
                     required={required && !hasValue}
                     onChange={handleFileSelect}
+                    onReject={({ message }) => setDropRejection(message)}
                 />
+            )}
+
+            {/*
+              A refused drop, in a region that OUTLIVES the picker.
+
+              Passing `onReject` makes this field the owner of the message, so
+              `FileInput` renders none of its own and there is never a second
+              copy to collide with. It has to live out here rather than beside
+              the picker: a mixed drop puts the field into `uploading`, which
+              removes the picker, and anything rendered inside it goes too.
+            */}
+            {dropRejection && (
+                <p
+                    role="alert"
+                    className="flex items-start gap-ds-2 text-ds-xs text-ds-status-danger-fg [overflow-wrap:anywhere]"
+                >
+                    <AlertCircle size={14} aria-hidden="true" className="mt-0.5 shrink-0" />
+                    {dropRejection}
+                </p>
             )}
 
             {/* Replaces the bare `confirm("Are you sure you want to remove this file?")`. */}

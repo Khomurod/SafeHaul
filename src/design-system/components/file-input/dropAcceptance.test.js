@@ -66,13 +66,13 @@ describe('resolveDroppedFiles', () => {
   it('passes a single accepted file through with nothing to say', () => {
     const png = file('logo.png', 'image/png');
     expect(resolveDroppedFiles({ files: [png], accept: 'image/*' }))
-      .toEqual({ accepted: [png], message: null });
+      .toEqual({ accepted: [png], rejected: [], message: null });
   });
 
   it('accepts everything when accept is absent', () => {
     const any = file('mystery.bin', '');
     expect(resolveDroppedFiles({ files: [any] }))
-      .toEqual({ accepted: [any], message: null });
+      .toEqual({ accepted: [any], rejected: [], message: null });
   });
 
   it('names the one file it refused', () => {
@@ -179,8 +179,17 @@ describe('resolveDroppedFiles', () => {
     });
   });
 
+  it('hands back the refused files themselves, for a caller that wants them', () => {
+    const png = file('logo.png', 'image/png');
+    const pdf = file('resume.pdf', 'application/pdf');
+    const { rejected } = resolveDroppedFiles({ files: [png, pdf], accept: 'image/*', multiple: true });
+    expect(rejected).toEqual([pdf]);
+  });
+
   it('reports nothing for an empty drop', () => {
-    expect(resolveDroppedFiles({ files: [] })).toEqual({ accepted: [], message: null });
-    expect(resolveDroppedFiles({ files: undefined })).toEqual({ accepted: [], message: null });
+    expect(resolveDroppedFiles({ files: [] }))
+      .toEqual({ accepted: [], rejected: [], message: null });
+    expect(resolveDroppedFiles({ files: undefined }))
+      .toEqual({ accepted: [], rejected: [], message: null });
   });
 });

@@ -144,6 +144,80 @@ describe('UploadField upload lifecycle', () => {
   });
 });
 
+/**
+ * A mixed drop, where the picker is removed by the very file that succeeded.
+ *
+ * `FileInput` renders its own rejection alert, but this field renders the picker
+ * only while there is nothing to show — so the accepted file unmounts the alert
+ * in the commit that created it, and the applicant never learns that a second
+ * file was turned away. Found in review on 2026-08-26.
+ */
+describe('UploadField rejected-drop feedback', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  const dropOn = (...files) => {
+    const transfer = new DataTransfer();
+    for (const f of files) transfer.items.add(f);
+    fireEvent.drop(input().closest('label'), { dataTransfer: transfer });
+  };
+
+  it('keeps the message after the accepted file removes the picker', async () => {
+    renderField({ accept: 'application/pdf' });
+    dropOn(file('cdl.pdf'), new File(['x'], 'selfie.png', { type: 'image/png' }));
+
+    // The picker is gone — the upload took its place — and the message is not.
+    await waitFor(() => expect(input()).toBeNull());
+    expect(screen.getByRole('alert'))
+      .toHaveTextContent('selfie.png was not added. It is not an accepted file type.');
+  });
+
+  it('still uploads the file it accepted', async () => {
+    const { onUpload } = renderField({ accept: 'application/pdf' });
+    dropOn(file('cdl.pdf'), new File(['x'], 'selfie.png', { type: 'image/png' }));
+
+    await waitFor(() => expect(onUpload).toHaveBeenCalledTimes(1));
+    // `onUpload(name, file)` — the field's own signature.
+    expect(onUpload.mock.calls[0][1].name).toBe('cdl.pdf');
+  });
+
+  it('shows exactly one message for an all-refused drop', () => {
+    // The picker stays on screen here, but this field owns the message because
+    // it passes `onReject` — so there is one alert, not two.
+    renderField({ accept: 'application/pdf' });
+    dropOn(new File(['x'], 'selfie.png', { type: 'image/png' }));
+
+    const alerts = screen.getAllByRole('alert');
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0]).toHaveTextContent('selfie.png was not added');
+    expect(input()).not.toBeNull();
+  });
+
+  it('clears the message when a later drop is accepted in full', async () => {
+    renderField({ accept: 'application/pdf' });
+    dropOn(new File(['x'], 'selfie.png', { type: 'image/png' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('selfie.png was not added');
+
+    dropOn(file('cdl.pdf'));
+
+    await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
+  });
+
+  it('never shows two copies of the message during the transition', async () => {
+    renderField({ accept: 'application/pdf' });
+    dropOn(file('cdl.pdf'), new File(['x'], 'selfie.png', { type: 'image/png' }));
+
+    await waitFor(() => expect(input()).toBeNull());
+    expect(screen.getAllByRole('alert')).toHaveLength(1);
+  });
+
+  it('says nothing when every dropped file is accepted', () => {
+    renderField({ accept: 'application/pdf' });
+    dropOn(file('cdl.pdf'));
+
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+});
+
 describe('UploadField accessibility and required rules', () => {
   /*
    * The picker is the design system's `FileInput variant="dropzone"` since

@@ -75,6 +75,7 @@ export const FileInput = forwardRef(function FileInput({
   loadingStatus,
   variant = 'button',
   onChange,
+  onReject,
   id,
   buttonLabel = 'Choose file',
   className = '',
@@ -100,6 +101,18 @@ export const FileInput = forwardRef(function FileInput({
    * turned away — `onChange` only ever carries the ones that survived.
    */
   const [rejection, setRejection] = useState(null);
+  /*
+   * `onReject` transfers ownership of the message.
+   *
+   * A call site that passes it has said "I will show this", and it has to,
+   * because it is the one that removes the picker. If this component also
+   * rendered its own copy the two would overlap — both on screen at once while
+   * the picker is still mounted, both announced — and "sometimes one, sometimes
+   * two" is a worse contract than either. So exactly one of them owns it, and
+   * the presence of the callback is what decides which.
+   */
+  const ownsRejectionMessage = typeof onReject !== 'function';
+  const shownRejection = ownsRejectionMessage ? rejection : null;
 
   /*
    * Three sources, one description.
@@ -118,7 +131,7 @@ export const FileInput = forwardRef(function FileInput({
    * new selection clears it, so the description never keeps a stale complaint.
    */
   const errorId = `${inputId}-error`;
-  const describedBy = [descriptionId, rejection ? errorId : null, callerDescribedBy]
+  const describedBy = [descriptionId, shownRejection ? errorId : null, callerDescribedBy]
     .filter(Boolean)
     .join(' ') || undefined;
 
@@ -296,7 +309,9 @@ export const FileInput = forwardRef(function FileInput({
      * decision — what survives, and what the user has to be told. The accepted
      * files go down the existing path untouched; the message is state, below.
      */
-    const { accepted, message } = resolveDroppedFiles({ files: dropped, accept, multiple });
+    const { accepted, rejected, message } = resolveDroppedFiles({
+      files: dropped, accept, multiple,
+    });
 
     if (accepted.length > 0) {
       const transfer = new DataTransfer();
@@ -310,8 +325,30 @@ export const FileInput = forwardRef(function FileInput({
        */
       node.dispatchEvent(new Event('change', { bubbles: true }));
     }
+
+    /*
+     * `onReject` exists because this component cannot promise its own message
+     * survives.
+     *
+     * Several call sites render the picker only while there is no file —
+     * `EnvelopeSidebar` is `{!file ? <FileInput/> : …}`, `UploadField` renders it
+     * only in its idle state — so a mixed drop hands them a file, they
+     * re-render, and the alert below is unmounted in the very commit that
+     * created it. Found in review on 2026-08-26 and reproduced: the message
+     * never reached the screen, while the all-refused case (which calls no
+     * `onChange`, so nothing unmounts) worked.
+     *
+     * It fires AFTER the change for the same reason `setRejection` does: a
+     * consumer clearing stale state in its `onChange` would otherwise clear the
+     * message that arrived with this very drop. This way the callback lands
+     * last and wins, and a call site needs one `useState` and no ordering trick.
+     *
+     * Where the picker stays mounted the alert below is still the whole answer
+     * and no call site has to do anything.
+     */
+    if (message) onReject?.({ message, rejected, accepted });
     setRejection(message);
-  }, [accept, inert, loading, multiple]);
+  }, [accept, inert, loading, multiple, onReject]);
 
   useEffect(() => {
     if (loading || !restoreFocusOnIdle.current) return;
@@ -391,7 +428,7 @@ export const FileInput = forwardRef(function FileInput({
           aria-labelledby={labelId}
           aria-describedby={describedBy}
           aria-busy={loading || undefined}
-          aria-invalid={rejection ? true : undefined}
+          aria-invalid={shownRejection ? true : undefined}
           className="ds-file-input__native"
         />
       </label>
@@ -419,10 +456,12 @@ export const FileInput = forwardRef(function FileInput({
         - **Visible as well as announced.** WCAG 3.3.1 wants the error in text,
           and the sighted user who dropped a PDF on an image field needs to know
           it went nowhere just as much.
+        - **Not rendered at all when `onReject` is passed**, because then the
+          call site owns the message — see `ownsRejectionMessage`.
       */}
-      {rejection && (
+      {shownRejection && (
         <span className="ds-file-input__error" id={errorId} role="alert">
-          {rejection}
+          {shownRejection}
         </span>
       )}
       {/*

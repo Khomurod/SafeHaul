@@ -654,6 +654,117 @@ describe('FileInput rejected-drop feedback', () => {
     expect(screen.queryByRole('alert')).toBeNull();
   });
 
+  describe('when the consumer replaces the picker', () => {
+    /*
+     * Found in review on 2026-08-26 and reproduced before it was fixed.
+     *
+     * `EnvelopeSidebar` renders `{!file ? <FileInput/> : …}` and `UploadField`
+     * renders the picker only in its idle state, so a MIXED drop hands them a
+     * file, they re-render, and the component's own alert is unmounted in the
+     * commit that created it. The all-refused case was never affected: no file
+     * arrives, so nothing unmounts.
+     */
+    const Swapping = ({ onReject }) => {
+      const [file, setFile] = React.useState(null);
+      return file
+        ? <p>Uploading {file.name}</p>
+        : (
+          <FileInput
+            label="Document"
+            accept="application/pdf"
+            onChange={(event) => setFile(event.target.files[0])}
+            onReject={onReject}
+          />
+        );
+    };
+
+    it('still reports the refused file through onReject', () => {
+      const onReject = vi.fn();
+      render(<Swapping onReject={onReject} />);
+      dropOn(labelOf(), pdf('contract.pdf'), png('logo.png'));
+
+      expect(screen.getByText(/Uploading contract\.pdf/)).toBeInTheDocument();
+      expect(onReject).toHaveBeenCalledTimes(1);
+      expect(onReject.mock.calls[0][0].message)
+        .toBe('logo.png was not added. It is not an accepted file type.');
+      expect(onReject.mock.calls[0][0].rejected.map((f) => f.name)).toEqual(['logo.png']);
+      expect(onReject.mock.calls[0][0].accepted.map((f) => f.name)).toEqual(['contract.pdf']);
+    });
+
+    it('fires onReject AFTER onChange, so a consumer clearing stale state loses nothing', () => {
+      // The ordering the fix depends on: a call site that resets its own message
+      // in onChange must not wipe the one that arrived with this very drop.
+      const order = [];
+      render(
+        <FileInput
+          label="Document"
+          accept="application/pdf"
+          onChange={() => order.push('change')}
+          onReject={() => order.push('reject')}
+        />,
+      );
+      dropOn(labelOf(), pdf('contract.pdf'), png('logo.png'));
+
+      expect(order).toEqual(['change', 'reject']);
+    });
+
+    it('does not call onReject when every dropped file is accepted', () => {
+      const onReject = vi.fn();
+      render(
+        <FileInput
+          label="Document"
+          accept="application/pdf"
+          multiple
+          onChange={vi.fn()}
+          onReject={onReject}
+        />,
+      );
+      dropOn(labelOf(), pdf('a.pdf'), pdf('b.pdf'));
+
+      expect(onReject).not.toHaveBeenCalled();
+    });
+
+    it('reports an all-refused drop through onReject too', () => {
+      const onReject = vi.fn();
+      render(
+        <FileInput label="Document" accept="application/pdf" onChange={vi.fn()} onReject={onReject} />,
+      );
+      dropOn(labelOf(), png('logo.png'));
+
+      expect(onReject).toHaveBeenCalledTimes(1);
+      expect(onReject.mock.calls[0][0].message).toBe(
+        'logo.png was not added. It is not an accepted file type.',
+      );
+    });
+
+    it('renders NO message of its own once onReject is passed', () => {
+      // Ownership transfers with the callback. Rendering both would put two
+      // copies on screen while the picker is still mounted and announce the same
+      // sentence twice — "sometimes one, sometimes two" is the worst contract of
+      // the three.
+      render(
+        <FileInput
+          label="Document"
+          accept="application/pdf"
+          onChange={vi.fn()}
+          onReject={vi.fn()}
+        />,
+      );
+      dropOn(labelOf(), png('logo.png'));
+
+      expect(screen.queryByRole('alert')).toBeNull();
+      expect(inputOf()).not.toHaveAttribute('aria-invalid');
+    });
+
+    it('renders its own message when onReject is absent', () => {
+      render(<FileInput label="Document" accept="application/pdf" onChange={vi.fn()} />);
+      dropOn(labelOf(), png('logo.png'));
+
+      expect(screen.getByRole('alert')).toHaveTextContent('logo.png was not added');
+      expect(inputOf()).toHaveAttribute('aria-invalid', 'true');
+    });
+  });
+
   it('has no accessibility violations while showing a rejection', async () => {
     const { container } = render(
       <FileInput label="Company logo" accept="image/*" variant="dropzone" onChange={vi.fn()} />,

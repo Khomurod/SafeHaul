@@ -91,6 +91,15 @@ user who tabbed away during the upload keeps their place.
 - **A mixed drop is explicit about both ways a file can vanish.** Accepted files
   go down the normal path untouched; refused ones are named (up to three, counted
   after that), and a single-file field says that only the first was taken.
+- **`onReject` transfers ownership of that message**, and a call site that
+  removes the picker needs it. `EnvelopeSidebar` renders the picker only while
+  `!file` and `UploadField` only in its idle state, so on a *mixed* drop the
+  accepted file unmounts the alert in the commit that created it — found in
+  review on 2026-08-26 and reproduced. `onReject` fires **after** `onChange`, so
+  a call site can clear stale state in its own handler and still receive the
+  message that arrived with this drop. When it is passed, `FileInput` renders no
+  message of its own: exactly one component owns it, so the same sentence is
+  never announced twice.
 - **`loading` implies `disabled`**, so a second file cannot replace the first
   mid-upload.
 - **`disabled` dims the label with the control**, not separately.

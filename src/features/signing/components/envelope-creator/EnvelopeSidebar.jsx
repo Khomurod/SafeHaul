@@ -125,6 +125,17 @@ export function EnvelopeSidebar({
 
     // All three start open: the rail is a workflow, and collapsing by default
     // would hide the upload control that everything else depends on.
+    /*
+     * What a drop refused, kept HERE rather than in the picker.
+     *
+     * The picker below renders only while `!file`, so a mixed drop — a PDF this
+     * accepts plus something it does not — hands `handleFileChange` the PDF, the
+     * branch flips, and `FileInput`'s own rejection alert is unmounted in the
+     * commit that created it. Found in review on 2026-08-26. `onReject` fires
+     * after `onChange`, so this lands last and survives the swap.
+     */
+    const [dropRejection, setDropRejection] = useState(null);
+
     const [openSections, setOpenSections] = useState(
         () => initialOpenSections || { setup: true, add: true, placed: true },
     );
@@ -161,7 +172,13 @@ export function EnvelopeSidebar({
                         buttonLabel="Choose File"
                         description="Upload a PDF first"
                         accept="application/pdf"
-                        onChange={handleFileChange}
+                        onChange={(event) => {
+                            // Retires a rejection from an earlier drop; one that
+                            // arrived with THIS drop is re-set immediately after.
+                            setDropRejection(null);
+                            handleFileChange(event);
+                        }}
+                        onReject={({ message }) => setDropRejection(message)}
                     />
                 ) : (
                     <div className="flex items-center gap-ds-2 rounded-ds-lg border border-ds-border bg-ds-surface-subtle p-ds-2">
@@ -170,6 +187,18 @@ export function EnvelopeSidebar({
                             {file.name}
                         </span>
                     </div>
+                )}
+
+                {/*
+                  Outlives the picker, which is the point — see `dropRejection`.
+                  Passing `onReject` makes this the owner of the message, so
+                  `FileInput` renders none of its own and there is never a second
+                  copy.
+                */}
+                {dropRejection && (
+                    <p className="mt-ds-2 text-ds-xs text-ds-status-danger-fg [overflow-wrap:anywhere]" role="alert">
+                        {dropRejection}
+                    </p>
                 )}
 
                 {/* Recipient Info (only in request mode) */}

@@ -1217,10 +1217,23 @@ rule has to decide.
   `change`, because that handler clears any standing rejection — the other order
   let a mixed drop erase the message it had just earned.
 
+  A third question arrived with the review of the fix, and it is the one that
+  mattered most: **the component cannot promise its own message survives.**
+  `EnvelopeSidebar` renders the picker only while `!file`, `UploadField` only in
+  its idle state — so a *mixed* drop hands them the accepted file, they
+  re-render, and the alert is unmounted in the commit that created it. Reproduced
+  before it was fixed. `onReject` fires after `onChange` (so a call site clearing
+  stale state does not wipe the message that just arrived) and transfers
+  ownership: when it is passed, `FileInput` renders nothing itself, so the same
+  sentence is never announced twice. Both call sites now surface it in a region
+  that outlives the picker.
+
   The rules live in `dropAcceptance.js` (`matchesAccept`, `resolveDroppedFiles`),
-  pure and directly tested: 22 assertions for `accept`'s three syntaxes, case
-  folding, mixed drops and every message shape, plus 16 in `FileInput.test.jsx`
-  for the wiring, the aria contract, clearing and the accessibility check.
+  pure and directly tested: 23 assertions for `accept`'s three syntaxes, case
+  folding, mixed drops and every message shape, plus 20 in `FileInput.test.jsx`
+  for the wiring, the aria contract, the ownership rule, clearing and the
+  accessibility check, and 8 across `UploadField` and `EnvelopeSidebar` for the
+  transition itself.
 
 ---
 

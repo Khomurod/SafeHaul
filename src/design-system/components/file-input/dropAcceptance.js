@@ -89,8 +89,10 @@ function describeRejected(rejected) {
  *   file be chosen in the first place.
  *
  * @param {{files: File[], accept?: string, multiple?: boolean}} options
- * @returns {{accepted: File[], message: string|null}} `message` is null when
- *   every dropped file made it through, so a clean drop clears any earlier one.
+ * @returns {{accepted: File[], rejected: File[], message: string|null}} `message`
+ *   is null when every dropped file made it through, so a clean drop clears any
+ *   earlier one. `rejected` carries the files themselves for a call site that
+ *   wants to say more than the default sentence does.
  */
 export function resolveDroppedFiles({ files, accept, multiple = false }) {
   const dropped = Array.from(files ?? []);
@@ -111,5 +113,5 @@ export function resolveDroppedFiles({ files, accept, multiple = false }) {
       : 'This field takes one file, so only the first was added.');
   }
 
-  return { accepted, message: clauses.length > 0 ? clauses.join(' ') : null };
+  return { accepted, rejected, message: clauses.length > 0 ? clauses.join(' ') : null };
 }
