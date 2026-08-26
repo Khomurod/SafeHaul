@@ -138,12 +138,13 @@ export class ScanPlanError extends Error {}
  * @param {string} options.eventName            GITHUB_EVENT_NAME
  * @param {object} options.payload              parsed GITHUB_EVENT_PATH contents
  * @param {string} options.headSha              commit actually checked out
- * @param {string} [options.defaultBranchRef]   e.g. `origin/main`, for the push fallback
  * @param {string} [options.baseOverride]       SECRET_SCAN_BASE, an owner escape hatch
+ * @param {() => (string|null)} [options.lastValidatedBase]
+ *        the newest ancestor whose own secret-scan passed, looked up before this is
+ *        called; `null` when there is none, which every caller treats as a refusal
  * @param {{exists:(s:string)=>boolean, isAncestor:(a:string,b:string)=>boolean,
- *          mergeBase:(a:string,b:string)=>(string|null), firstParent:(s:string)=>(string|null),
- *          resolve:(r:string)=>(string|null)}} options.git
- * @returns {{base: string|null, head: string, source: string, logOpts: string, describe: string}}
+ *          mergeBase:(a:string,b:string)=>(string|null)}} options.git
+ * @returns {{base: string, head: string, source: string, logOpts: string, describe: string}}
  */
 export function resolveScanPlan({
     eventName,
@@ -357,10 +358,6 @@ export const gitRunner = (cwd) => ({
     mergeBase: (a, b) => {
         const result = run('git', ['merge-base', a, b], cwd);
         return result.ok ? result.stdout.trim() : null;
-    },
-    firstParent: (sha) => {
-        const result = run('git', ['rev-parse', '--verify', '--quiet', `${sha}^1`], cwd);
-        return result.ok && result.stdout.trim() ? result.stdout.trim() : null;
     },
     resolve: (ref) => {
         const result = run('git', ['rev-parse', '--verify', '--quiet', `${ref}^{commit}`], cwd);
@@ -694,14 +691,14 @@ async function main() {
 
     console.log(`event      : ${eventName}`);
     console.log(`head       : ${scanPlan.head}`);
-    console.log(`base       : ${scanPlan.base || '(root commit)'}`);
+    console.log(`base       : ${scanPlan.base}`);
     console.log(`range      : ${scanPlan.describe}`);
     console.log(`log-opts   : ${scanPlan.logOpts}`);
     console.log(`gitleaks   : ${GITLEAKS_VERSION} (pinned, digest-verified)`);
 
-    const commitCount = scanPlan.base
-        ? run('git', ['rev-list', '--count', `${scanPlan.base}..${scanPlan.head}`], cwd).stdout.trim()
-        : '1';
+    const commitCount = run(
+        'git', ['rev-list', '--count', `${scanPlan.base}..${scanPlan.head}`], cwd,
+    ).stdout.trim();
     console.log(`commits    : ${commitCount}`);
 
     const binary = ensureGitleaks();
