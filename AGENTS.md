@@ -82,6 +82,46 @@ backend behavior, integrations, permissions, routes, feature flags, or
 business workflows unless the task separately justifies and approves that
 change.
 
+## Source size: 400 to think, 500 to stop
+
+`npm run check:source-size` counts physical lines in every handwritten source
+file and fails when one is over the limit. `npm run test:source-size` tests the
+checker. Both run in `callable-contract`, which is in `ALWAYS_REQUIRED_JOBS`, so
+no tree-hash proof can skip them.
+
+- **400 lines** asks a file to justify its shape in review. A cohesive 420-line
+  module is fine; one doing three jobs is not.
+- **500 physical lines** is the hard maximum, and it applies to tests and tooling
+  exactly as to runtime code. A test nobody can read is a test nobody maintains.
+
+Physical lines, deliberately — not "lines of code". Stripping comments would
+reward deleting the explanations this repository runs on, and counting statements
+would reward putting three on one line. The metric measures how much there is to
+read.
+
+An audit on 2026-08-26 found **68 files over the limit**, including a 2203-line
+test, a 1476-line component owning the public application, and four tooling
+scripts over 1000. None of it was decided; it accumulated because nothing said
+no. Those files are recorded in `.github/source-size-backlog.json`, which is a
+**campaign and not an allowlist** — the checker enforces the difference. A file
+not listed may never exceed the limit; a listed file may never grow; a listed
+file that comes back under must be removed, and the check fails until it is. An
+entry for a path that no longer exists fails too, so a rename cannot carry an
+exemption with it. When the last entry goes, so does the file.
+
+Two things the checker does that are worth keeping if it is ever rewritten. It
+reads `git ls-files` rather than walking directories, so a large file cannot
+escape by being moved and gitignored build output is structurally unreachable
+rather than excluded by a pattern somebody could widen. And it asserts on every
+run that each of `src`, `functions`, `scripts`, `e2e`, `landing` and
+`.storybook` still yields files — because the way a size checker fails is
+silently, and a report that has stopped covering a directory reads exactly like
+progress.
+
+The only excluded file is `public/pdf.worker.min.mjs`: vendored, minified
+Mozilla PDF.js, committed because it is served directly. Every exclusion has to
+carry that kind of reason, and a test asserts they do.
+
 ## Local test-runner process safety
 
 These rules exist because each of the failures below actually happened and cost

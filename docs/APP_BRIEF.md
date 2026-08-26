@@ -1085,6 +1085,12 @@ last fully validated release was scanned by a scanner that passed its own tests.
 failing unrelated releases; see `docs/SECRET_HISTORY_AUDIT.md`, which also lists
 the credentials that still need owner rotation.
 
+CI also enforces a **source-size standard**: 400 physical lines asks a file to
+justify its shape, 500 is the hard maximum, and it applies to tests and tooling
+as much as to runtime code. `npm run check:source-size` prints the inventory and
+fails on a new offender; the 67 files already over the limit are recorded in
+`.github/source-size-backlog.json`, which can only shrink. See `AGENTS.md`.
+
 CI runs Playwright as a 4-way shard matrix with `workers: 1` and `retries: 2`
 per shard.
 

@@ -190,6 +190,19 @@ jobs:
       - name: Verify the secret scanner's range selection and detection
         run: npm run test:secret-scan
 
+      # Physical line counts across every handwritten source file, and the guard
+      # that stops a new one arriving over the limit. It lives in this job for
+      # the same reason as the checks above: `callable-contract` is in
+      # `ALWAYS_REQUIRED_JOBS`, so no tree-hash proof can skip it, and a size
+      # standard CI may skip is not a standard. Its own tests run first — a
+      # scanner that has silently stopped looking reports a shorter list, and a
+      # shorter list reads as progress.
+      - name: Verify the source-size guard
+        run: npm run test:source-size
+
+      - name: Check source sizes
+        run: npm run check:source-size
+
       # The shared AI platform is only worth having if it cannot be bypassed,
       # and this guard is what stops a feature growing its own vendor call. It
       # was written, documented in four places as `npm run check:ai-boundary`,
