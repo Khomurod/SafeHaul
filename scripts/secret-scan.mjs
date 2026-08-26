@@ -74,7 +74,8 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
-    appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync,
+    appendFileSync, chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync,
+    rmSync, writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -337,6 +338,17 @@ export function ensureGitleaks({ cacheDir = join(tmpdir(), 'safehaul-gitleaks') 
     const binary = join(cacheDir, `gitleaks-${GITLEAKS_VERSION}`);
     if (existsSync(binary)) return binary;
 
+    // The pinned digest belongs to one asset: the linux x64 build CI runs. Say
+    // so plainly rather than downloading something the digest cannot match, or
+    // (worse) relaxing the check to make another platform work.
+    if (process.platform !== 'linux' || process.arch !== 'x64') {
+        throw new Error(
+            `no pinned gitleaks build for ${process.platform}/${process.arch}. `
+            + 'CI runs linux x64; elsewhere, install gitleaks '
+            + `${GITLEAKS_VERSION} yourself and point GITLEAKS_BIN at it.`,
+        );
+    }
+
     mkdirSync(cacheDir, { recursive: true });
     const archive = join(cacheDir, `gitleaks-${GITLEAKS_VERSION}.tar.gz`);
     execFileSync('curl', ['-sSL', '--retry', '3', '--max-time', '180', '-o', archive, GITLEAKS_URL], {
@@ -354,8 +366,8 @@ export function ensureGitleaks({ cacheDir = join(tmpdir(), 'safehaul-gitleaks') 
     }
 
     execFileSync('tar', ['xzf', archive, '-C', cacheDir, 'gitleaks'], { stdio: 'inherit' });
-    execFileSync('mv', [join(cacheDir, 'gitleaks'), binary]);
-    execFileSync('chmod', ['+x', binary]);
+    renameSync(join(cacheDir, 'gitleaks'), binary);
+    chmodSync(binary, 0o755);
     return binary;
 }
 
@@ -432,9 +444,28 @@ export function performScans({ binary, cwd, plan: scanPlan, config, workDir }) {
     // makes `dist/` and `storybook-static/` into findings.
     const treeDir = join(workDir, 'tree');
     mkdirSync(treeDir, { recursive: true });
-    const archived = spawnSync('sh', ['-c',
-        `git archive ${scanPlan.head} | tar -x -C ${JSON.stringify(treeDir)}`,
-    ], { cwd, encoding: 'utf8' });
+    // Written to a file and extracted separately rather than piped through a
+    // shell: no quoting to get wrong, and a failure in either half is visible
+    // instead of being swallowed by the pipe's exit status.
+    const tarball = join(workDir, 'tree.tar');
+    const archived = spawnSync(
+        'git',
+        ['archive', '--format=tar', `--output=${tarball}`, scanPlan.head],
+        { cwd, encoding: 'utf8' },
+    );
+    if (archived.status === 0) {
+        const extracted = spawnSync('tar', ['-xf', tarball, '-C', treeDir], { encoding: 'utf8' });
+        if (extracted.status !== 0) {
+            return {
+                ok: false,
+                range,
+                tree: {
+                    ok: false, errored: true, findings: [], output: extracted.stderr || '', detail: 'tar extract failed',
+                },
+                problems: [`could not unpack the tree at ${short(scanPlan.head)}: ${extracted.stderr || 'unknown error'}`],
+            };
+        }
+    }
     if (archived.status !== 0) {
         return {
             ok: false,
