@@ -18,6 +18,23 @@
 }
 
 /*
+ * What a drop refused, in the same voice as a field error elsewhere —
+ * `.ds-field-message[data-tone='error']` uses this token and this size, and a
+ * rejection is that message in a control that has no `FormField` around it.
+ *
+ * Mounted only while it has something to say, so an idle picker reserves no
+ * space for it. `role="alert"` announces on insertion, which is exactly the
+ * case this needs; hiding an always-mounted one with `display: none` was tried
+ * and takes it out of the accessibility tree, which is worse than not having it.
+ */
+.ds-file-input__error {
+  color: var(--ds-color-status-danger-fg);
+  font-size: var(--ds-font-size-xs);
+  line-height: var(--ds-line-height-body);
+  overflow-wrap: anywhere;
+}
+
+/*
  * The label is the visible control, and it takes the shared control height so a
  * file picker is the same size as the Button next to it.
  */

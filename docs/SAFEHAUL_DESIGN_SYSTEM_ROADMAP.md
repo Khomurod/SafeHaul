@@ -1188,18 +1188,69 @@ rule has to decide.
   `=>`, so any control whose `className` followed an arrow-function attribute — the
   common React ordering — was invisible to it. 49 hand-styled controls existed
   where it reported 12. The larger number is the honest one.
-- `[ ]` **A dropped file the `accept` list refuses is rejected silently.**
-  `FileInput.handleDrop` filters dropped files by `accept` (2026-08-25, after a
-  PDF dropped on the company-logo control was saved as the logo) and returns
-  without telling anyone when nothing survives the filter — no message, no
-  announcement, and the panel looks exactly as it did. The native picker never
-  had this problem because its own dialog will not offer a file it cannot accept.
-  Found on 2026-08-26 while giving `loading` a live region, and **deliberately not
-  attempted in that change**: the region now exists to carry such a message, but
-  choosing the copy, deciding whether a rejection is polite or assertive, and
-  agreeing whether a mixed drop that keeps one file of three should say so are a
-  separate decision with its own tests. Recorded here rather than left as a
-  surprise for whoever drops the wrong file next.
+- `[x]` **A dropped file the `accept` list refuses is rejected silently.**
+  **Closed 2026-08-26.** `FileInput.handleDrop` filtered dropped files by
+  `accept` (2026-08-25, after a PDF dropped on the company-logo control was saved
+  as the logo) and returned without telling anyone — no message, no announcement,
+  and the panel looked exactly as it did. The native picker never had this
+  problem because its own dialog will not offer a file it cannot accept.
+
+  The three questions this item was holding open were answered as follows.
+
+  - **Polite or assertive: assertive.** `FormControls`' `FieldMessage` renders an
+    error as `role="alert"` and everything else politely, and this system has one
+    rule for errors. A rejection is the direct answer to something the user just
+    did, with nothing competing to be heard. The `loading` region stays polite,
+    because an upload starting is information rather than a correction.
+  - **A mixed drop says so.** `resolveDroppedFiles` names what was refused and,
+    on a single-file field, says that only the first was taken — the other way a
+    drop could quietly swallow a file, and one the picker never had either.
+  - **The copy** names files while there are three or fewer and counts them after
+    that, because a screen reader reading nine filenames is worse than being told
+    there were nine.
+
+  Two things were measured rather than assumed. `role="alert"` is mounted only
+  while it has something to say: the always-mounted-and-hidden shape was written
+  first, and `display: none` takes a live region out of the accessibility tree
+  altogether, so the region a screen reader was meant to be watching is not there
+  to watch. And the message is recorded *after* the accepted files dispatch their
+  `change`, because that handler clears any standing rejection — the other order
+  let a mixed drop erase the message it had just earned.
+
+  A third question arrived with the review of the fix, and it is the one that
+  mattered most: **the component cannot promise its own message survives.**
+  `EnvelopeSidebar` renders the picker only while `!file`, `UploadField` only in
+  its idle state — so a *mixed* drop hands them the accepted file, they
+  re-render, and the alert is unmounted in the commit that created it. Reproduced
+  before it was fixed. `onReject` fires after `onChange` (so a call site clearing
+  stale state does not wipe the message that just arrived), and both call sites
+  surface it in a region that outlives the picker.
+
+  **Who shows it is derived, not decided**, and that took three review rounds to
+  get right. `FileInput` shows its own message whenever it is mounted; a call
+  site that removes the picker shows the message only while the picker is *gone*.
+  Exact complements, so there is never a second copy and never a render where the
+  visible text disagrees with the input's `aria-invalid`. The three attempts
+  before it each failed the same way: an ownership flag left the mounted input
+  with no invalid state, then clearing the message on each transition that
+  remounts the picker meant enumerating them — and a review found a missed one
+  every time (a failed upload, the success reset, `confirmClear`). There is
+  nothing to enumerate now, because a mounted picker showing its own state cannot
+  disagree with itself.
+
+  The rules live in `dropAcceptance.js` (`matchesAccept`, `resolveDroppedFiles`),
+  pure and directly tested. The component's suite was split by behaviour in the
+  same change, because adding this took it past the 500-line standard:
+
+  | file | tests | pins |
+  | --- | ---: | --- |
+  | `dropAcceptance.test.js` | 27 | `accept`'s three syntaxes, case folding both ways, every message shape, and that `accepted`/`rejected` account for each dropped file exactly once |
+  | `FileInput.test.jsx` | 19 | the core contract: label, variants, description, aria |
+  | `FileInput.drop.test.jsx` | 9 | how a dropped file reaches the input at all, and what a disabled panel still owes the page |
+  | `FileInput.rejection.test.jsx` | 24 | the message, the `role="alert"` choice, `aria-invalid`, clearing, the `onReject` ownership rule and an axe check |
+  | `FileInput.upload.test.jsx` | 6 | the polite upload region and focus restoration |
+  | `UploadField.test.jsx` | 8 | the transition: message kept while uploading and after the parent takes the value, dropped whenever the picker comes back |
+  | `EnvelopeSidebar.drop.test.jsx` | 4 | the same transition where the parent re-renders with the chosen file |
 
 ---
 

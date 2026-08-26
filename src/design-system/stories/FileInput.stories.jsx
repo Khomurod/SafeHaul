@@ -165,6 +165,34 @@ export const Dropzone = {
 };
 
 /**
+ * A drop the `accept` list refuses.
+ *
+ * The picker enforces `accept` on dropped files itself — the native dialog does
+ * it for a picked one, and a drop inherits none of that — and since 2026-08-26 it
+ * says so instead of returning in silence. The message is a `role="alert"`,
+ * matching this system's rule that errors are assertive and everything else is
+ * polite, and while it stands the input is `aria-invalid` and the message joins
+ * its description. Any later selection clears all three.
+ *
+ * Drop a PDF on the panel below to see it. The state is real, not staged: this
+ * story renders the ordinary component.
+ */
+export const RejectsWhatItCannotAccept = {
+  render: () => (
+    <Card>
+      <FileInput
+        label="Company logo"
+        variant="dropzone"
+        buttonLabel="Click to upload, or drop a file here"
+        description="PNG, JPG or SVG"
+        accept="image/*"
+        onChange={fn()}
+      />
+    </Card>
+  ),
+};
+
+/**
  * `loading` — an upload in flight. It says so twice: visibly, with the spinner and
  * the label, and to a screen reader, in a polite live region that is hidden here
  * but present in the DOM of both pickers below.

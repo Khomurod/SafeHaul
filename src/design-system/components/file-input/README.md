@@ -58,10 +58,15 @@ behaviour here is a real regression a review caught on 2026-08-25. It lives in
 the component now, because `loading` is the component's prop and this is the
 component's consequence.
 
-It is a **restore**, not a grab: the flag is set on `change` — the one moment the
-input is certainly focused, since the event comes from it — and focus is only
-returned if nothing meaningful holds it when `loading` clears. A user who tabbed
-away during the upload keeps their place.
+It is a **restore**, not a grab, and it asks a narrower question than it first
+did. An earlier version armed the flag on every `change`, reasoning that the
+event comes from the input so the input must be focused. True of the picker,
+false of a drop: `handleDrop` dispatches `change` *from* the input and a drop
+moves no focus at all, so a mouse user who dragged a logo onto the panel had
+focus jump into a clipped 1x1 input when the upload finished. The flag is now
+armed only when this input *is* `document.activeElement` as the file arrives, and
+focus is returned only if nothing meaningful holds it when `loading` clears. A
+user who tabbed away during the upload keeps their place.
 
 ## Rules the tests pin
 
@@ -76,6 +81,28 @@ away during the upload keeps their place.
   "Accepts image files under 2 MB" stopped being announced — and nothing looked
   wrong, which is what makes a silently discarded accessibility attribute the
   worst kind of override.
+- **A drop the `accept` list refuses says so.** The native picker will not offer
+  a file it cannot accept; a drop inherits none of that, so `handleDrop` enforces
+  `accept` itself — and, since 2026-08-26, reports what it refused instead of
+  returning in silence. The message is a `role="alert"`, matching `FieldMessage`'s
+  rule that errors are assertive and everything else polite, and it is visible as
+  well as announced. While it stands the input is `aria-invalid` and the message
+  joins its `aria-describedby`; any later selection clears all three.
+- **A mixed drop is explicit about both ways a file can vanish.** Accepted files
+  go down the normal path untouched; refused ones are named (up to three, counted
+  after that), and a single-file field says that only the first was taken.
+- **`onReject` transfers ownership of that message**, and a call site that
+  removes the picker needs it. `EnvelopeSidebar` renders the picker only while
+  `!file` and `UploadField` only in its idle state, so on a *mixed* drop the
+  accepted file unmounts the alert in the commit that created it — found in
+  review on 2026-08-26 and reproduced. `onReject` fires **after** `onChange`, so
+  a call site can clear stale state in its own handler and still receive the
+  message that arrived with this drop. **`FileInput` still shows its own message
+  whenever it is mounted**; a call site that takes `onReject` shows it only while
+  the picker is *gone*. Those are exact complements, so there is never a second
+  copy and never a render where the visible text disagrees with the input's
+  `aria-invalid` — and no transition has to be enumerated to keep them in step,
+  which is what three earlier attempts got wrong.
 - **`loading` implies `disabled`**, so a second file cannot replace the first
   mid-upload.
 - **`disabled` dims the label with the control**, not separately.
