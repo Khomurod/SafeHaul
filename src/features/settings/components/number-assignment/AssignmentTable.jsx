@@ -7,11 +7,14 @@ import { AssignmentRow } from './AssignmentRow';
  * Recruiter assignment matrix.
  *
  * Presentation only — row data and callbacks pass straight through to
- * `AssignmentRow`, unchanged. This stays a real `<table>` rather than the
+ * `AssignmentRow`, unchanged. This stays a real native table rather than the
  * approved `DataTable`: every cell here is an editable per-row form control
  * plus a verify action, which is outside `DataTable`'s proven display-table
  * contract (see the 2026-07-23 deep-audit referenced in
- * `NumberAssignmentManager.jsx`). What's fixed instead: column headers now
+ * `NumberAssignmentManager.jsx`). It carries `ds-native-table` as of 2026-08-25,
+ * so its header, divider, density and cell padding come from the same
+ * `--ds-table-*` roles `DataTable` reads instead of from three hand-picked
+ * paddings. What's fixed instead: column headers now
  * carry `scope="col"`, a `<caption>` names the table for assistive tech, and
  * the table sits in a labelled, keyboard-focusable horizontal-scroll region
  * (mirroring the approved `DataTable`'s own mobile-overflow pattern) instead
@@ -33,18 +36,18 @@ export function AssignmentTable({ users, ...rowProps }) {
                 tabIndex={0}
                 className="overflow-x-auto"
             >
-                <table className="w-full min-w-[720px] border-collapse text-left">
+                <table className="ds-native-table min-w-[720px]">
                     <caption className="sr-only">Recruiter number assignments</caption>
-                    <thead className="bg-ds-surface-subtle text-ds-xs font-bold uppercase text-ds-content-muted">
+                    <thead className="text-ds-content-muted">
                         <tr>
-                            <th scope="col" className="border-b border-ds-border-subtle px-ds-6 py-ds-3">Team Member</th>
-                            <th scope="col" className="border-b border-ds-border-subtle px-ds-6 py-ds-3">Role</th>
-                            <th scope="col" className="border-b border-ds-border-subtle px-ds-6 py-ds-3">Assigned Number</th>
-                            <th scope="col" className="border-b border-ds-border-subtle px-ds-6 py-ds-3">Connection</th>
-                            <th scope="col" className="w-10 border-b border-ds-border-subtle px-ds-6 py-ds-3 text-center">Status</th>
+                            <th scope="col">Team Member</th>
+                            <th scope="col">Role</th>
+                            <th scope="col">Assigned Number</th>
+                            <th scope="col">Connection</th>
+                            <th scope="col" className="w-10 text-center">Status</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-ds-border-subtle">
+                    <tbody>
                         {users.map(user => (
                             <AssignmentRow key={user.id} user={user} {...rowProps} />
                         ))}

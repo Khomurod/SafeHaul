@@ -1,10 +1,12 @@
-import React, { useId, useRef, useState } from 'react';
+import React, { useId, useState } from 'react';
 import {
     BarChart3, Download, Users, Phone,
     Zap, TrendingUp, ArrowUpRight, User
 } from 'lucide-react';
 import { useAnalytics } from '@features/analytics';
-import { Badge, Button, Card, MetricCard } from '@/design-system/components';
+import {
+    Badge, Button, Card, MetricCard, TabList, TabPanel,
+} from '@/design-system/components';
 import { ResponsiveGrid, Stack } from '@/design-system/layouts';
 
 /**
@@ -115,8 +117,15 @@ function ActivityTrendChart({ data }) {
                 </svg>
             </div>
 
-            {/* The same figures in a form assistive technology can actually read. */}
-            <table className="sr-only">
+            {/* The same figures in a form assistive technology can actually read.
+                Carries `ds-native-table` like every other approved table: the
+                guard has no hidden-table exemption, because deciding whether a
+                class list is hidden at *every* breakpoint is not decidable
+                (`sr-only xl:not-sr-only` is hidden on a phone and visible on a
+                desktop). Measured before doing it — `sr-only` keeps
+                `position:absolute` and `clip:rect(0,0,0,0)`, so the contract
+                changes this table's box and nothing a user can see. */}
+            <table className="sr-only ds-native-table">
                 <caption>Daily activity trend</caption>
                 <thead>
                     <tr><th scope="col">Date</th><th scope="col">Actions</th></tr>
@@ -142,7 +151,6 @@ const DATE_RANGES = ['7d', '30d', '90d'];
 export function AnalyticsView() {
     const { loading, stats, dateRange, setDateRange } = useAnalytics();
     const [activeTab, setActiveTab] = useState('overview');
-    const tabRefs = useRef({});
     const tabsId = useId();
 
     const handleExport = () => {
@@ -173,20 +181,6 @@ export function AnalyticsView() {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-    };
-
-    // Roving focus: a tablist must respond to Arrow/Home/End, not just clicks.
-    const onTabKeyDown = (event) => {
-        const index = TABS.findIndex((t) => t.id === activeTab);
-        let next = null;
-        if (event.key === 'ArrowRight') next = TABS[(index + 1) % TABS.length];
-        if (event.key === 'ArrowLeft') next = TABS[(index - 1 + TABS.length) % TABS.length];
-        if (event.key === 'Home') next = TABS[0];
-        if (event.key === 'End') next = TABS[TABS.length - 1];
-        if (!next) return;
-        event.preventDefault();
-        setActiveTab(next.id);
-        tabRefs.current[next.id]?.focus();
     };
 
     if (loading) {
@@ -248,43 +242,19 @@ export function AnalyticsView() {
 
             {/* 3. Tabs & Content */}
             <Card padding="none" className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                <div
-                    role="tablist"
-                    aria-label="Analytics views"
-                    onKeyDown={onTabKeyDown}
-                    className="flex overflow-x-auto border-b border-ds-border-subtle px-ds-6 pt-ds-2"
-                >
-                    {TABS.map((tab) => {
-                        const selected = activeTab === tab.id;
-                        return (
-                            <button
-                                key={tab.id}
-                                type="button"
-                                role="tab"
-                                id={`${tabsId}-tab-${tab.id}`}
-                                aria-selected={selected}
-                                aria-controls={`${tabsId}-panel-${tab.id}`}
-                                tabIndex={selected ? 0 : -1}
-                                ref={(node) => { tabRefs.current[tab.id] = node; }}
-                                onClick={() => setActiveTab(tab.id)}
-                                className={`whitespace-nowrap border-b-2 px-ds-4 py-ds-3 text-ds-sm font-bold transition-colors focus-visible:outline-none focus-visible:shadow-ds-focus ${
-                                    selected
-                                        ? 'border-ds-action-primary text-ds-content-link'
-                                        : 'border-transparent text-ds-content-muted hover:text-ds-content'
-                                }`}
-                            >
-                                {tab.label}
-                            </button>
-                        );
-                    })}
-                </div>
+                <TabList
+                    ariaLabel="Analytics views"
+                    idBase={tabsId}
+                    tabs={TABS}
+                    activeTab={activeTab}
+                    onChange={setActiveTab}
+                    className="overflow-x-auto px-ds-6 pt-ds-2"
+                />
 
-                <div
-                    role="tabpanel"
-                    id={`${tabsId}-panel-${activeTab}`}
-                    aria-labelledby={`${tabsId}-tab-${activeTab}`}
-                    tabIndex={0}
-                    className="flex-1 overflow-auto bg-ds-canvas p-ds-6 focus-visible:outline-none focus-visible:shadow-ds-focus"
+                <TabPanel
+                    idBase={tabsId}
+                    tabId={activeTab}
+                    className="flex-1 overflow-auto bg-ds-canvas p-ds-6"
                 >
 
                     {activeTab === 'overview' && (
@@ -349,23 +319,23 @@ export function AnalyticsView() {
 
                     {activeTab === 'companies' && (
                         <Card padding="none" className="overflow-x-auto">
-                            <table className="w-full border-collapse text-left">
+                            <table className="ds-native-table" data-density="compact" data-row-hover>
                                 <caption className="sr-only">Company performance for the selected period</caption>
-                                <thead className="bg-ds-table-header-bg text-ds-xs font-bold uppercase text-ds-table-header-fg">
+                                <thead className="bg-ds-table-header-bg text-ds-table-header-fg">
                                     <tr>
-                                        <th scope="col" className="border-b border-ds-border-subtle px-ds-6 py-ds-4">Company</th>
-                                        <th scope="col" className="border-b border-ds-border-subtle px-ds-6 py-ds-4 text-center">Calls Made</th>
-                                        <th scope="col" className="border-b border-ds-border-subtle px-ds-6 py-ds-4 text-center">Total Actions</th>
-                                        <th scope="col" className="border-b border-ds-border-subtle px-ds-6 py-ds-4 text-right">Engagement</th>
+                                        <th scope="col">Company</th>
+                                        <th scope="col" className="text-center">Calls Made</th>
+                                        <th scope="col" className="text-center">Total Actions</th>
+                                        <th scope="col" className="text-right">Engagement</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-ds-border-subtle">
+                                <tbody>
                                     {stats.companyPerformance.map((comp) => (
-                                        <tr key={comp.companyId} className="transition-colors hover:bg-ds-surface-subtle">
-                                            <th scope="row" className="px-ds-6 py-ds-4 text-left font-medium text-ds-content">{comp.companyName}</th>
-                                            <td className="px-ds-6 py-ds-4 text-center tabular-nums text-ds-content-secondary">{comp.callsMade}</td>
-                                            <td className="px-ds-6 py-ds-4 text-center tabular-nums text-ds-content-secondary">{comp.actions}</td>
-                                            <td className="px-ds-6 py-ds-4 text-right">
+                                        <tr key={comp.companyId} className="transition-colors">
+                                            <th scope="row" className="font-medium text-ds-content">{comp.companyName}</th>
+                                            <td className="text-center tabular-nums">{comp.callsMade}</td>
+                                            <td className="text-center tabular-nums">{comp.actions}</td>
+                                            <td className="text-right">
                                                 <Badge tone={comp.callsMade > 20 ? 'success' : 'warning'} icon={ArrowUpRight}>
                                                     {comp.callsMade > 20 ? 'High' : 'Low'}
                                                 </Badge>
@@ -374,7 +344,7 @@ export function AnalyticsView() {
                                     ))}
                                     {stats.companyPerformance.length === 0 && (
                                         <tr>
-                                            <td colSpan="4" className="p-ds-6 text-center italic text-ds-content-muted">No data found for this period.</td>
+                                            <td colSpan="4" className="text-center italic text-ds-content-muted">No data found for this period.</td>
                                         </tr>
                                     )}
                                 </tbody>
@@ -384,23 +354,23 @@ export function AnalyticsView() {
 
                     {activeTab === 'users' && (
                         <Card padding="none" className="overflow-x-auto">
-                            <table className="w-full border-collapse text-left">
+                            <table className="ds-native-table" data-density="compact" data-row-hover>
                                 <caption className="sr-only">Recruiter performance for the selected period</caption>
-                                <thead className="bg-ds-table-header-bg text-ds-xs font-bold uppercase text-ds-table-header-fg">
+                                <thead className="bg-ds-table-header-bg text-ds-table-header-fg">
                                     <tr>
-                                        <th scope="col" className="border-b border-ds-border-subtle px-ds-6 py-ds-4">Recruiter Name</th>
-                                        <th scope="col" className="border-b border-ds-border-subtle px-ds-6 py-ds-4">Company</th>
-                                        <th scope="col" className="border-b border-ds-border-subtle px-ds-6 py-ds-4 text-center">Calls Made</th>
-                                        <th scope="col" className="border-b border-ds-border-subtle px-ds-6 py-ds-4 text-right">Last Active</th>
+                                        <th scope="col">Recruiter Name</th>
+                                        <th scope="col">Company</th>
+                                        <th scope="col" className="text-center">Calls Made</th>
+                                        <th scope="col" className="text-right">Last Active</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-ds-border-subtle">
+                                <tbody>
                                     {stats.userPerformance.map((user) => (
-                                        <tr key={user.userId} className="transition-colors hover:bg-ds-surface-subtle">
-                                            <th scope="row" className="px-ds-6 py-ds-4 text-left font-bold text-ds-content">{user.userName}</th>
-                                            <td className="px-ds-6 py-ds-4 text-ds-content-secondary">{user.companyName}</td>
-                                            <td className="px-ds-6 py-ds-4 text-center font-mono font-bold tabular-nums text-ds-content-link">{user.callsMade}</td>
-                                            <td className="px-ds-6 py-ds-4 text-right text-ds-sm text-ds-content-muted">
+                                        <tr key={user.userId} className="transition-colors">
+                                            <th scope="row" className="text-ds-content">{user.userName}</th>
+                                            <td>{user.companyName}</td>
+                                            <td className="text-center font-mono tabular-nums text-ds-content-link">{user.callsMade}</td>
+                                            <td className="text-right text-ds-sm text-ds-content-muted">
                                                 {user.lastActive?.toDate
                                                     ? user.lastActive.toDate().toLocaleString()
                                                     : 'Unknown'}
@@ -409,14 +379,14 @@ export function AnalyticsView() {
                                     ))}
                                     {stats.userPerformance.length === 0 && (
                                         <tr>
-                                            <td colSpan="4" className="p-ds-6 text-center italic text-ds-content-muted">No activity found for this period.</td>
+                                            <td colSpan="4" className="text-center italic text-ds-content-muted">No activity found for this period.</td>
                                         </tr>
                                     )}
                                 </tbody>
                             </table>
                         </Card>
                     )}
-                </div>
+                </TabPanel>
             </Card>
         </Stack>
     );

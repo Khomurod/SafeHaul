@@ -1,11 +1,11 @@
 import React, { useState, useMemo, useEffect, useId } from 'react';
 import { getFieldValue } from '@shared/utils/helpers.js';
-import { Building, FileText, Edit2, Trash2, Search, ChevronLeft, ChevronRight, Crown, Shield, MessageSquare, Phone, Database, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import { Building, FileText, Edit2, Trash2, Search, ChevronLeft, ChevronRight, Crown, Shield, MessageSquare, Phone, Database, CheckCircle, XCircle } from 'lucide-react';
 import { db } from '@lib/firebase';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { SafeHaulLoader } from '@shared/components/SafeHaulLoader';
 import { Badge, Button, Card, IconButton, Input, Select } from '@/design-system/components';
-import { Modal } from '@design-system/patterns';
+import { ConfirmDialog } from '@design-system/patterns';
 
 /**
  * Super Admin companies table. Also serves the SMS Integrations hub via
@@ -210,24 +210,24 @@ export function CompaniesView({
                     tabIndex={0}
                     className="min-h-0 flex-1 overflow-auto bg-ds-canvas focus-visible:outline-none focus-visible:shadow-ds-focus"
                 >
-                <table className="w-full border-collapse text-left">
+                <table className="ds-native-table" data-row-hover>
                     <caption className="sr-only">{title}</caption>
-                    <thead className="sticky top-0 z-10 bg-ds-surface-subtle shadow-ds-xs">
+                    <thead className="sticky top-0 z-10 shadow-ds-xs">
                         <tr>
-                            <th scope="col" className="border-b border-ds-border-subtle px-ds-6 py-ds-3 text-ds-xs font-bold uppercase tracking-wider text-ds-content-secondary">Company Name</th>
-                            <th scope="col" className="border-b border-ds-border-subtle px-ds-6 py-ds-3 text-ds-xs font-bold uppercase tracking-wider text-ds-content-secondary">Slug / ID</th>
-                            <th scope="col" className="border-b border-ds-border-subtle px-ds-6 py-ds-3 text-ds-xs font-bold uppercase tracking-wider text-ds-content-secondary">{isIntegrationMode ? "SMS Number" : "Plan"}</th>
-                            <th scope="col" className="border-b border-ds-border-subtle px-ds-6 py-ds-3 text-center text-ds-xs font-bold uppercase tracking-wider text-ds-content-secondary">Status</th>
-                            <th scope="col" className="border-b border-ds-border-subtle px-ds-6 py-ds-3 text-right text-ds-xs font-bold uppercase tracking-wider text-ds-content-secondary">Actions</th>
+                            <th scope="col">Company Name</th>
+                            <th scope="col">Slug / ID</th>
+                            <th scope="col">{isIntegrationMode ? "SMS Number" : "Plan"}</th>
+                            <th scope="col" className="text-center">Status</th>
+                            <th scope="col" className="text-right">Actions</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-ds-border-subtle bg-ds-surface">
+                    <tbody>
                         {listLoading ? (
-                            <tr><td colSpan="5" role="status" className="p-ds-10 text-center text-ds-content-muted"><SafeHaulLoader size="h-10 w-10" className="mx-auto mb-ds-2" />Loading companies...</td></tr>
+                            <tr><td colSpan="5" className="py-ds-10 text-center text-ds-content-muted"><div role="status"><SafeHaulLoader size="h-10 w-10" className="mx-auto mb-ds-2" />Loading companies...</div></td></tr>
                         ) : statsError.companies ? (
-                            <tr><td colSpan="5" role="alert" className="p-ds-10 text-center text-ds-status-danger-fg">Error loading companies.</td></tr>
+                            <tr><td colSpan="5" className="py-ds-10 text-center text-ds-status-danger-fg"><div role="alert">Error loading companies.</div></td></tr>
                         ) : filteredCompanyList.length === 0 ? (
-                            <tr><td colSpan="5" className="p-ds-10 text-center text-ds-content-muted">No companies found.</td></tr>
+                            <tr><td colSpan="5" className="py-ds-10 text-center text-ds-content-muted"><div role="status">No companies found.</div></td></tr>
                         ) : (
                             paginatedData.map(company => {
                                 const isActive = company.isActive !== false;
@@ -236,9 +236,9 @@ export function CompaniesView({
                                     <tr
                                         key={company.id}
                                         onClick={() => openCompany(company)}
-                                        className="cursor-pointer transition-colors hover:bg-ds-surface-subtle"
+                                        className="cursor-pointer transition-colors"
                                     >
-                                        <th scope="row" className="px-ds-6 py-ds-4 text-left align-middle font-normal">
+                                        <th scope="row">
                                             <div className="flex items-center gap-ds-3">
                                                 <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-ds-md border border-ds-border-subtle bg-ds-surface-subtle text-ds-heading-md font-bold text-ds-content-muted">
                                                     {company.companyLogoUrl ? (
@@ -247,23 +247,29 @@ export function CompaniesView({
                                                         companyName.charAt(0)
                                                     )}
                                                 </span>
-                                                {/* A real button so keyboard users can open a company at all. */}
-                                                <button
-                                                    type="button"
+                                                {/*
+                                                  A real button so keyboard users can open a
+                                                  company at all — and `Button variant="link"`
+                                                  since 2026-08-25, rather than a seventh
+                                                  hand-written "action that reads as text".
+                                                */}
+                                                <Button
+                                                    variant="link"
+                                                    justify="start"
+                                                    className="truncate"
                                                     onClick={rowAction(() => openCompany(company))}
-                                                    className="truncate rounded-ds-sm text-left font-semibold text-ds-content hover:underline focus-visible:outline-none focus-visible:shadow-ds-focus"
                                                 >
                                                     {companyName}
-                                                </button>
+                                                </Button>
                                             </div>
                                         </th>
-                                        <td className="px-ds-6 py-ds-4 align-middle">
+                                        <td>
                                             <span className="flex flex-col">
                                                 <span className="w-fit rounded-ds-sm bg-ds-status-info-bg px-2 py-0.5 font-mono text-ds-sm text-ds-status-info-fg">/{getFieldValue(company.appSlug)}</span>
                                                 <span className="mt-1 font-mono text-ds-xs text-ds-content-muted">{company.id}</span>
                                             </span>
                                         </td>
-                                        <td className="px-ds-6 py-ds-4 align-middle">
+                                        <td>
                                             {isIntegrationMode ? (
                                                 <span className="flex flex-col items-start gap-1">
                                                     {company.defaultPhoneNumber ? (
@@ -281,7 +287,7 @@ export function CompaniesView({
                                                 <Badge tone="neutral" icon={Shield}>Free Plan</Badge>
                                             )}
                                         </td>
-                                        <td className="px-ds-6 py-ds-4 text-center align-middle">
+                                        <td className="text-center">
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
@@ -300,7 +306,7 @@ export function CompaniesView({
                                                 </span>
                                             </Button>
                                         </td>
-                                        <td className="px-ds-6 py-ds-4 text-right align-middle">
+                                        <td className="text-right">
                                             <div className="flex justify-end gap-ds-2">
                                                 {isIntegrationMode ? (
                                                     <Button variant="primary" size="sm" onClick={rowAction(() => onEdit(company))}>
@@ -416,41 +422,28 @@ export function CompaniesView({
  * Replaces the blocking `window.confirm` that guarded activate/deactivate. The
  * wording is preserved verbatim, including the ALL-CAPS action verb, because it
  * is what Super Admins have been reading before a portal-access change.
+ *
+ * The approved `ConfirmDialog` since 2026-08-25; hand-composed before that, with
+ * the warning icon *inside* the heading rather than a medallion. The two tones
+ * reproduce the two confirm variants exactly — the tone map pairs `danger` with a
+ * danger-styled confirm and `info` with a primary one — so deactivating is still
+ * red and re-activating is still blue, and the icon now differs between them
+ * (a warning versus a question) rather than being a warning for both.
  */
 function ToggleActiveDialog({ pending, onCancel, onConfirm }) {
-    const titleId = useId();
-    const descriptionId = useId();
     const { companyName, currentStatus } = pending;
     const action = currentStatus ? 'deactivate' : 'activate';
 
     return (
-        <Modal
-            onClose={onCancel}
-            labelledBy={titleId}
-            describedBy={descriptionId}
-            closeOnBackdrop={false}
-            className="w-full max-w-lg overflow-hidden rounded-ds-xl border border-ds-border-subtle bg-ds-surface shadow-ds-lg"
-        >
-            <div className="p-ds-5">
-                <h2 id={titleId} className="flex items-center gap-ds-2 text-ds-heading-sm font-bold text-ds-content">
-                    <AlertTriangle className="text-ds-status-warning-fg" aria-hidden="true" />
-                    {action.toUpperCase()} "{companyName}"?
-                </h2>
-                <p id={descriptionId} className="mt-ds-3 text-ds-sm text-ds-content-secondary">
-                    {currentStatus
-                        ? 'This company will be blocked from logging in and using the portal.'
-                        : 'This company will regain access to the portal.'}
-                </p>
-            </div>
-            <div className="flex justify-end gap-ds-3 border-t border-ds-border-subtle bg-ds-surface-subtle p-ds-4">
-                <Button variant="secondary" onClick={onCancel}>Cancel</Button>
-                <Button
-                    variant={currentStatus ? 'danger' : 'primary'}
-                    onClick={() => onConfirm({ companyId: pending.companyId, action, currentStatus })}
-                >
-                    {currentStatus ? 'Deactivate' : 'Activate'}
-                </Button>
-            </div>
-        </Modal>
+        <ConfirmDialog
+            tone={currentStatus ? 'danger' : 'info'}
+            title={`${action.toUpperCase()} "${companyName}"?`}
+            description={currentStatus
+                ? 'This company will be blocked from logging in and using the portal.'
+                : 'This company will regain access to the portal.'}
+            confirmLabel={currentStatus ? 'Deactivate' : 'Activate'}
+            onCancel={onCancel}
+            onConfirm={() => onConfirm({ companyId: pending.companyId, action, currentStatus })}
+        />
     );
 }

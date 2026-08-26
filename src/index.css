@@ -1,4 +1,13 @@
-@import url('https://rsms.me/inter/inter.css');
+/*
+ * The application's CSS entry point.
+ *
+ * It used to open with `@import url('https://rsms.me/inter/inter.css')`, so the
+ * product's typeface arrived from a third party at runtime — and on GitHub's
+ * runners it did not arrive at all, which is why all twenty application visual
+ * baselines failed on every CI run behind `continue-on-error`. Inter is now
+ * served from this repository; see `design-system/tokens/typeface.css` for the
+ * whole reasoning and the licence.
+ */
 @import './design-system/index.css';
 
 @tailwind base;

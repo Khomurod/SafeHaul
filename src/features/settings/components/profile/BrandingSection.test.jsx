@@ -37,39 +37,43 @@ describe('BrandingSection', () => {
         expect(screen.getByRole('img', { name: 'No company logo set' })).toBeInTheDocument();
     });
 
+    /*
+     * The picker is the design system's `FileInput` since 2026-08-25, so the
+     * input is named by its FIELD and the visible affordance is the `<label>`
+     * wrapping it rather than a `Button` that calls `.click()` on it. Same
+     * migration, same reasoning, as `ProfileAvatarField`.
+     */
     it('exposes a labelled file input with accepted types and a described trigger in edit mode', () => {
         const { container } = setup({ companyLogoUrl: LOGO_URL, isEditing: true });
 
         const input = container.querySelector('input[type="file"]');
-        expect(input).toHaveAccessibleName('Upload company logo');
+        expect(input).toHaveAccessibleName('Company logo');
         expect(input).toHaveAttribute('accept', 'image/*');
-
-        const describedBy = input.getAttribute('aria-describedby');
-        expect(document.getElementById(describedBy)).toHaveTextContent(/Accepts image files/i);
+        expect(input).toHaveAccessibleDescription(/Accepts image files/i);
         expect(screen.getByText(/A logo is set\. Uploading a new image replaces it\./i))
             .toBeInTheDocument();
 
-        expect(screen.getByRole('button', { name: 'Change logo' })).toBeEnabled();
+        expect(container.querySelector('.ds-file-input__button-label')).toHaveTextContent('Change logo');
+        expect(input).toBeEnabled();
     });
 
     it('labels the trigger as Upload logo when no logo exists', () => {
-        setup({ companyLogoUrl: '', isEditing: true });
-        expect(screen.getByRole('button', { name: 'Upload logo' })).toBeInTheDocument();
+        const { container } = setup({ companyLogoUrl: '', isEditing: true });
+        expect(container.querySelector('.ds-file-input__button-label')).toHaveTextContent('Upload logo');
         expect(screen.getByText(/No logo uploaded yet\./)).toBeInTheDocument();
     });
 
-    it('opens the file picker from the keyboard-accessible button (no nested interactive elements)', () => {
+    it('reaches the picker through a real label, with no nested interactive elements', () => {
         const { container } = setup({ companyLogoUrl: LOGO_URL, isEditing: true });
 
         const input = container.querySelector('input[type="file"]');
-        const clickSpy = vi.spyOn(input, 'click');
+        const label = input.closest('label');
+        expect(label).not.toBeNull();
+        expect(label).toHaveAttribute('for', input.id);
+        expect(container.querySelectorAll('button')).toHaveLength(0);
 
-        fireEvent.click(screen.getByRole('button', { name: 'Change logo' }));
-        expect(clickSpy).toHaveBeenCalledTimes(1);
-
-        expect(container.querySelectorAll('button')).toHaveLength(1);
-        expect(input.closest('button')).toBeNull();
-        expect(input.closest('label')).toBeNull();
+        input.focus();
+        expect(document.activeElement).toBe(input);
     });
 
     it('forwards the native change event verbatim on file selection', () => {
@@ -83,19 +87,27 @@ describe('BrandingSection', () => {
         expect(onLogoUpload.mock.calls[0][0].target.files[0]).toBe(file);
     });
 
-    it('announces uploading and disables the controls while an upload is in flight', () => {
+    /*
+     * `aria-busy` plus the label text replace the `role="status"` region. The
+     * focus-restoring effect went too: it existed because the trigger was a
+     * `Button` that briefly disabled and dropped focus, and the same label element
+     * now stays mounted throughout.
+     */
+    it('says it is busy and refuses a second file while an upload is in flight', () => {
         const { container } = setup({ companyLogoUrl: LOGO_URL, isEditing: true, logoUploading: true });
 
-        expect(screen.getByRole('status')).toHaveTextContent('Uploading company logo…');
-        expect(screen.getByRole('button', { name: 'Uploading…' })).toBeDisabled();
-        expect(container.querySelector('input[type="file"]')).toBeDisabled();
+        const input = container.querySelector('input[type="file"]');
+        expect(container.querySelector('.ds-file-input__button-label')).toHaveTextContent('Uploading…');
+        expect(input).toBeDisabled();
+        expect(input).toHaveAttribute('aria-busy', 'true');
     });
 
-    it('returns focus to the trigger after an upload settles', () => {
+    it('keeps focus on the control across an upload, rather than restoring it', () => {
         const onLogoUpload = vi.fn();
-        const { rerender } = render(
+        const { container, rerender } = render(
             <BrandingSection companyLogoUrl={LOGO_URL} isEditing logoUploading={false} onLogoUpload={onLogoUpload} />,
         );
+        const before = container.querySelector('input[type="file"]');
         rerender(
             <BrandingSection companyLogoUrl={LOGO_URL} isEditing logoUploading onLogoUpload={onLogoUpload} />,
         );
@@ -103,7 +115,9 @@ describe('BrandingSection', () => {
             <BrandingSection companyLogoUrl={LOGO_URL} isEditing logoUploading={false} onLogoUpload={onLogoUpload} />,
         );
 
-        expect(screen.getByRole('button', { name: 'Change logo' })).toHaveFocus();
+        // Same element throughout: nothing was unmounted, so nothing lost focus.
+        expect(container.querySelector('input[type="file"]')).toBe(before);
+        expect(before).not.toBeDisabled();
     });
 
     it('has no accessibility violations in display or edit mode', async () => {

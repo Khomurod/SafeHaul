@@ -1,10 +1,10 @@
-import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
 import { AlertCircle, AlertTriangle, CheckCircle, History, Play } from 'lucide-react';
-import { Badge, Button, Card, ProgressBar, StatusMedallion } from '@/design-system/components';
+import { Badge, Button, Card, ProgressBar } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
-import { Modal } from '@design-system/patterns';
+import { ConfirmDialog } from '@design-system/patterns';
 
 /**
  * TEMPORARY operator action: finish the historical application reconstruction.
@@ -405,56 +405,54 @@ export function HistoricalMigrationPanel() {
  * not be touched.
  */
 function MigrateConfirmDialog({ remaining, missingPdfs = 0, companies, onCancel, onConfirm }) {
-    const titleId = useId();
-    const descriptionId = useId();
     const repairOnly = remaining === 0 && missingPdfs > 0;
 
     return (
-        <Modal
-            onClose={onCancel}
-            labelledBy={titleId}
-            describedBy={descriptionId}
-            closeOnBackdrop={false}
-            className="w-full max-w-lg overflow-hidden rounded-ds-xl border border-ds-border-subtle bg-ds-surface shadow-ds-lg"
+        <ConfirmDialog
+            /*
+             * The approved pattern since 2026-08-25. This was a hand-composed
+             * `Modal` body reproducing the medallion/heading/description/footer it
+             * owns — one of six in the product, which between them had two
+             * confirm-button variants for the same amber medallion and one dialog
+             * with no medallion at all. The tone map decides that once: `warning`
+             * pairs with a danger-styled confirm, which is the right pairing for an
+             * action that writes permanent, immutable records across every company.
+             * The confirm button therefore changes from primary to danger here.
+             */
+            tone="warning"
+            title={repairOnly
+                ? `Rebuild ${missingPdfs} missing official PDF${missingPdfs === 1 ? '' : 's'}?`
+                : `Create preserved records for ${remaining} application${remaining === 1 ? '' : 's'}?`}
+            description={(
+                <>
+                    {repairOnly
+                        ? 'This rebuilds each missing document from the record that is already '
+                          + 'stored — never from a fresh read of the application — across '
+                        : 'This writes a permanent, immutable submission record and an official PDF for '
+                          + 'each one, across '}
+                    {companies.length} compan{companies.length === 1 ? 'y' : 'ies'}.
+                    Records are create-only: once written they cannot be edited or replaced.
+                </>
+            )}
+            confirmLabel={repairOnly
+                ? `Rebuild ${missingPdfs} PDF${missingPdfs === 1 ? '' : 's'}`
+                : `Migrate ${remaining} application${remaining === 1 ? '' : 's'}`}
+            onCancel={onCancel}
+            onConfirm={onConfirm}
         >
-            <div className="p-ds-5">
-                <StatusMedallion tone="warning" className="mx-auto mb-ds-3"><AlertTriangle /></StatusMedallion>
-                <h2 id={titleId} className="text-center text-ds-heading-sm font-bold text-ds-content">
-                    {repairOnly
-                        ? `Rebuild ${missingPdfs} missing official PDF${missingPdfs === 1 ? '' : 's'}?`
-                        : `Create preserved records for ${remaining} application${remaining === 1 ? '' : 's'}?`}
-                </h2>
-                <div id={descriptionId} className="mt-ds-3 space-y-ds-3 text-ds-sm text-ds-content-secondary">
-                    <p>
-                        {repairOnly
-                            ? 'This rebuilds each missing document from the record that is already '
-                              + 'stored — never from a fresh read of the application — across '
-                            : 'This writes a permanent, immutable submission record and an official PDF for '
-                              + 'each one, across '}
-                        {companies.length} compan{companies.length === 1 ? 'y' : 'ies'}.
-                        Records are create-only: once written they cannot be edited or replaced.
-                    </p>
-                    <ul className="list-disc space-y-1 pl-5">
-                        <li>Unfinished drafts and outreach leads are left completely untouched.</li>
-                        <li>Applications that already have a record keep it, and their PDF is not rewritten.</li>
-                        <li>
-                            Nothing is invented. Missing dates, signatures and agreement wording are
-                            recorded as unavailable, and no Clearinghouse consent is ever claimed.
-                        </li>
-                        <li>Every record is marked as reconstructed wherever it appears.</li>
-                    </ul>
-                    <p>It may take several minutes. You can run it again safely if it stops early.</p>
-                </div>
+            <div className="space-y-ds-3 text-ds-sm text-ds-content-secondary">
+                <ul className="list-disc space-y-1 pl-5">
+                    <li>Unfinished drafts and outreach leads are left completely untouched.</li>
+                    <li>Applications that already have a record keep it, and their PDF is not rewritten.</li>
+                    <li>
+                        Nothing is invented. Missing dates, signatures and agreement wording are
+                        recorded as unavailable, and no Clearinghouse consent is ever claimed.
+                    </li>
+                    <li>Every record is marked as reconstructed wherever it appears.</li>
+                </ul>
+                <p>It may take several minutes. You can run it again safely if it stops early.</p>
             </div>
-            <div className="flex justify-end gap-ds-3 border-t border-ds-border-subtle bg-ds-surface-subtle p-ds-4">
-                <Button variant="secondary" onClick={onCancel}>Cancel</Button>
-                <Button variant="primary" onClick={onConfirm}>
-                    {repairOnly
-                        ? `Rebuild ${missingPdfs} PDF${missingPdfs === 1 ? '' : 's'}`
-                        : `Migrate ${remaining} application${remaining === 1 ? '' : 's'}`}
-                </Button>
-            </div>
-        </Modal>
+        </ConfirmDialog>
     );
 }
 

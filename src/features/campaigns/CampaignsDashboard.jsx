@@ -16,15 +16,18 @@ import { ConfirmDialog } from '@design-system/patterns';
 import { useData } from '@/context/DataContext';
 import { PaywallMessage } from '@shared/components/feedback/PaywallMessage';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
-import { Button, MetricCard } from '@/design-system/components';
+import { Button, MetricCard, TabList, TabPanel } from '@/design-system/components';
 import { PageContainer, PageHeader, ResponsiveGrid, Section, Stack } from '@/design-system/layouts';
 
-// Feature-owned tab model. The design system has no tab primitive yet, so the
-// dashboard renders an accessible WAI-ARIA tablist here. Values are the frozen
-// activeTab contract ('drafts' | 'history'); labels/icons are presentation only.
+// The ids are the frozen `activeTab` contract ('drafts' | 'history'); labels and
+// icons are presentation only. The strip itself is the design system's `TabList`
+// since 2026-08-25 — it was a hand-rolled tablist with a comment saying "the
+// design system has no tab primitive yet", which stopped being true on
+// 2026-08-21. It also stops being the product's fourth tab appearance: a
+// page-level view switcher looks like every other page-level view switcher.
 const CAMPAIGN_TABS = [
-    { value: 'drafts', label: 'Drafts', icon: LayoutGrid },
-    { value: 'history', label: 'Past Sequences', icon: History },
+    { id: 'drafts', label: 'Drafts', icon: LayoutGrid },
+    { id: 'history', label: 'Past Sequences', icon: History },
 ];
 
 export function CampaignsDashboard({ companyId }) {
@@ -44,7 +47,6 @@ export function CampaignsDashboard({ companyId }) {
     const [cancelling, setCancelling] = useState(false);
     const [pendingDelete, setPendingDelete] = useState(null);
     const [deleting, setDeleting] = useState(false);
-    const tablistRef = useRef(null);
     const { showSuccess, showError } = useToast();
     const isE2ECampaignMock = isE2ETestMode && getE2EQueryParam('e2eCampaign', '') === 'mock';
     const e2eNow = {
@@ -138,22 +140,6 @@ export function CampaignsDashboard({ companyId }) {
 
     // The active tab decides which frozen list feeds the card grid.
     const visibleCampaigns = activeTab === 'drafts' ? campaigns : sessions;
-
-    // Roving-tabindex keyboard support for the accessible tablist. Arrow/Home/End
-    // move focus and activate; presentation only, no change to activeTab values.
-    const handleTabKeyDown = (event, index) => {
-        let nextIndex = null;
-        if (event.key === 'ArrowRight') nextIndex = (index + 1) % CAMPAIGN_TABS.length;
-        else if (event.key === 'ArrowLeft') nextIndex = (index - 1 + CAMPAIGN_TABS.length) % CAMPAIGN_TABS.length;
-        else if (event.key === 'Home') nextIndex = 0;
-        else if (event.key === 'End') nextIndex = CAMPAIGN_TABS.length - 1;
-        if (nextIndex === null) return;
-
-        event.preventDefault();
-        const nextTab = CAMPAIGN_TABS[nextIndex];
-        setActiveTab(nextTab.value);
-        tablistRef.current?.querySelector(`#campaigns-tab-${nextTab.value}`)?.focus();
-    };
 
     // 2. Create New Campaign Draft
     const handleNewCampaign = async () => {
@@ -307,46 +293,15 @@ export function CampaignsDashboard({ companyId }) {
                     </Section>
 
                     <Section aria-label="Campaign list">
-                        <div
-                            ref={tablistRef}
-                            role="tablist"
-                            aria-label="Campaign views"
-                            className="inline-flex gap-ds-1 rounded-ds-lg border border-ds-border-subtle bg-ds-surface p-ds-1"
-                        >
-                            {CAMPAIGN_TABS.map((tab, index) => {
-                                const selected = activeTab === tab.value;
-                                const Icon = tab.icon;
-                                return (
-                                    <button
-                                        key={tab.value}
-                                        type="button"
-                                        role="tab"
-                                        id={`campaigns-tab-${tab.value}`}
-                                        aria-selected={selected}
-                                        aria-controls="campaigns-tabpanel"
-                                        tabIndex={selected ? 0 : -1}
-                                        onClick={() => setActiveTab(tab.value)}
-                                        onKeyDown={(event) => handleTabKeyDown(event, index)}
-                                        className={`flex items-center gap-ds-2 rounded-ds-md px-ds-4 py-ds-2 text-ds-sm font-semibold uppercase tracking-wide transition-colors focus-visible:outline-none focus-visible:shadow-ds-focus ${
-                                            selected
-                                                ? 'bg-ds-action-primary text-ds-content-inverse shadow-ds-sm'
-                                                : 'text-ds-content-muted hover:bg-ds-surface-subtle hover:text-ds-content'
-                                        }`}
-                                    >
-                                        <Icon size={16} aria-hidden="true" />
-                                        <span>{tab.label}</span>
-                                    </button>
-                                );
-                            })}
-                        </div>
+                        <TabList
+                            ariaLabel="Campaign views"
+                            idBase="campaigns"
+                            tabs={CAMPAIGN_TABS}
+                            activeTab={activeTab}
+                            onChange={setActiveTab}
+                        />
 
-                        <div
-                            id="campaigns-tabpanel"
-                            role="tabpanel"
-                            aria-labelledby={`campaigns-tab-${activeTab}`}
-                            tabIndex={0}
-                            className="mt-ds-6 focus-visible:outline-none"
-                        >
+                        <TabPanel idBase="campaigns" tabId={activeTab} className="mt-ds-6">
                             {loading ? (
                                 <div
                                     role="status"
@@ -387,7 +342,7 @@ export function CampaignsDashboard({ companyId }) {
                                     ))}
                                 </ResponsiveGrid>
                             )}
-                        </div>
+                        </TabPanel>
                     </Section>
                 </Stack>
             </PageContainer>

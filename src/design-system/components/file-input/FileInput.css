@@ -82,3 +82,66 @@
   outline-offset: 2px;
   box-shadow: var(--ds-focus-ring);
 }
+
+/*
+ * The dropzone shape.
+ *
+ * Four uploads in the product were a dashed panel with an icon, a headline and a
+ * line of accepted types, each built by hand: `BulkUploadLayout`, the public
+ * application's `UploadField`, the campaign recipient-list import and the e-doc
+ * envelope creator. Three of them put a `Button` inside the panel and drove a
+ * hidden input from it.
+ *
+ * As a `<label>` the whole panel is the click target for the input it labels,
+ * which none of the hand-built versions managed. It is a drop target too, but not
+ * for free: this comment claimed "with no event handler at all" until 2026-08-25,
+ * and that was wrong — a label forwards a click to its control, never a drop, so
+ * a file dropped on the panel landed on the label and was discarded. `FileInput`
+ * has an explicit `onDrop` now; see the note beside it.
+ */
+.ds-file-input[data-variant='dropzone'] .ds-file-input__control {
+  flex-direction: column;
+  width: 100%;
+  min-height: 0;
+  gap: var(--ds-space-2);
+  border-style: dashed;
+  border-width: 2px;
+  border-radius: var(--ds-radius-lg);
+  padding: var(--ds-space-8) var(--ds-space-4);
+  background: var(--ds-color-surface);
+  text-align: center;
+}
+
+.ds-file-input[data-variant='dropzone'] .ds-file-input__control > svg {
+  width: 40px;
+  height: 40px;
+  color: var(--ds-color-content-muted);
+}
+
+.ds-file-input[data-variant='dropzone'] .ds-file-input__control:hover:not([data-disabled]) {
+  border-color: var(--ds-color-action-primary);
+  background: var(--ds-color-surface-subtle);
+}
+
+/*
+ * `loading`.
+ *
+ * The two pickers this replaces used `Button loading` plus a hidden input, so
+ * the spin and the disabled state came from `Button`. Here they come from the
+ * component, and `prefers-reduced-motion` stops the spin for the same reason
+ * `PageState`'s medallion does — the busy state is announced by `aria-busy` and
+ * carried by the label text, so the motion is decoration.
+ */
+.ds-file-input__spinner {
+  animation: ds-file-input-spin 1s linear infinite;
+}
+
+@keyframes ds-file-input-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-file-input__spinner {
+    animation: none;
+  }
+}

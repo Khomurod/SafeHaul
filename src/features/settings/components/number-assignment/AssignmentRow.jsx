@@ -66,17 +66,17 @@ export function AssignmentRow({
 
     return (
         <tr className="transition-colors hover:bg-ds-surface-hover">
-            <th scope="row" className="border-r border-ds-border-subtle px-ds-6 py-ds-4 text-left text-ds-sm font-medium text-ds-content">
+            <th scope="row" className="border-r border-ds-border-subtle text-ds-sm font-medium text-ds-content">
                 {memberName}
                 <div className="font-normal text-ds-xs text-ds-content-muted">{user.email}</div>
                 {user._unlinkedAssignment && (
                     <Badge tone="warning" icon={AlertCircle}>Not in current team</Badge>
                 )}
             </th>
-            <td className="px-ds-6 py-ds-4 text-ds-xs uppercase tracking-wider text-ds-content-muted">
+            <td className="text-ds-xs uppercase tracking-wider text-ds-content-muted">
                 {user.role?.replace('_', ' ')}
             </td>
-            <td className="px-ds-6 py-ds-4">
+            <td>
                 <div className="flex flex-col items-start gap-ds-1">
                     <Select
                         aria-label={`Assigned number for ${memberName}`}
@@ -114,7 +114,7 @@ export function AssignmentRow({
                     )}
                 </div>
             </td>
-            <td className="px-ds-6 py-ds-4">
+            <td>
                 {isAssigned ? (
                     <div className="flex items-center gap-ds-2">
                         <IconButton
@@ -143,7 +143,7 @@ export function AssignmentRow({
                     <span className="text-ds-content-muted" aria-hidden="true">-</span>
                 )}
             </td>
-            <td className="px-ds-6 py-ds-4 text-center">
+            <td className="text-center">
                 <span aria-hidden="true" className={`mx-auto block h-2 w-2 rounded-ds-full ${dotClassName}`} />
                 <span className="sr-only">{dotText}</span>
             </td>

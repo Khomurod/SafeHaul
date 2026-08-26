@@ -223,8 +223,16 @@ describe('FeaturesView — accessibility', () => {
         expect((await axe(container)).violations).toEqual([]);
     });
 
-    it('keeps the frozen empty-list copy', () => {
+    it('keeps the frozen empty-list copy, and announces it', () => {
         renderView({ companyList: [] });
-        expect(screen.getByText('No companies found.')).toBeInTheDocument();
+        const empty = screen.getByText('No companies found.');
+        expect(empty).toBeInTheDocument();
+        /*
+         * Filtering the matrix down to nothing replaced the whole table body and
+         * announced nothing (2026-08-25). The role goes in a wrapper inside the
+         * cell, never on the `<td>` — on the cell it replaces the cell role.
+         */
+        expect(empty).toHaveAttribute('role', 'status');
+        expect(empty.closest('td')).not.toHaveAttribute('role');
     });
 });

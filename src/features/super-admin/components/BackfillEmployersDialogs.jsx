@@ -1,7 +1,6 @@
 import React, { useId } from 'react';
-import { AlertTriangle, Wrench } from 'lucide-react';
 import { Button } from '@/design-system/components';
-import { Modal } from '@design-system/patterns';
+import { ConfirmDialog, Modal } from '@design-system/patterns';
 
 /**
  * Confirmation and result dialogs for the employer-field backfill maintenance
@@ -15,33 +14,29 @@ import { Modal } from '@design-system/patterns';
  * provides. The maintenance action itself is unchanged — the confirmation still
  * gates it, and the same four counters are still reported.
  */
+/*
+ * The approved `ConfirmDialog` since 2026-08-25. Hand-composed before that, and
+ * the odd one out even among the ten hand-composed confirmations: it had no
+ * medallion, putting the warning icon *inside* the heading instead, so the same
+ * kind of question looked different here than anywhere else. It also lost what
+ * the pattern adds — initial focus on Cancel rather than on a live-data rename,
+ * and a synchronous guard against a double activation.
+ *
+ * The confirm label drops its `Wrench` icon: no other confirm in the product has
+ * one, and the pattern's `confirmLabel` is words. Backdrop dismissal is off, which
+ * this dialog did not set — a stray click beside a live-data rename should not
+ * decide anything.
+ */
 export function BackfillEmployersConfirmDialog({ onConfirm, onCancel }) {
-    const titleId = useId();
-    const descriptionId = useId();
-
     return (
-        <Modal onClose={onCancel} labelledBy={titleId} describedBy={descriptionId}>
-            <div className="p-ds-5">
-                <h2
-                    id={titleId}
-                    className="flex items-center gap-ds-2 text-ds-heading-sm font-bold text-ds-content"
-                >
-                    <AlertTriangle className="text-ds-status-warning-fg" aria-hidden="true" />
-                    Run employer field backfill?
-                </h2>
-                <p id={descriptionId} className="mt-ds-3 text-ds-sm text-ds-content-secondary">
-                    This will rename old employer field names in existing applications across every
-                    company. It runs against live data and may take a few minutes.
-                </p>
-            </div>
-            <div className="flex justify-end gap-ds-3 border-t border-ds-border-subtle bg-ds-surface-subtle p-ds-4">
-                <Button variant="secondary" onClick={onCancel}>Cancel</Button>
-                <Button variant="primary" onClick={onConfirm}>
-                    <Wrench size={16} aria-hidden="true" />
-                    Run backfill
-                </Button>
-            </div>
-        </Modal>
+        <ConfirmDialog
+            tone="warning"
+            title="Run employer field backfill?"
+            description="This will rename old employer field names in existing applications across every company. It runs against live data and may take a few minutes."
+            confirmLabel="Run backfill"
+            onCancel={onCancel}
+            onConfirm={onConfirm}
+        />
     );
 }
 

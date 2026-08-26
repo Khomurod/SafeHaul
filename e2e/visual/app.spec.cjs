@@ -11,10 +11,37 @@
  * functional specs already use, so the data is deterministic fixture data and no
  * credentials are involved.
  *
- * Non-blocking in CI for the same reason as the catalog lane — see the comment
- * at the top of `catalog.spec.cjs`.
+ * Blocking in CI, as of 2026-08-25. All twenty baselines that existed then used
+ * to fail on GitHub's runners, on every run, invisibly: the application fetched
+ * Inter from rsms.me and the runner never received it, so each screenshot was a
+ * whole page of substituted glyphs. The font is served from the repository now
+ * (`design-system/tokens/typeface.css`), which is what makes these comparable
+ * across machines. See the header of `catalog.spec.cjs`.
  *
- * Update baselines with:  npx playwright test --project=visual --update-snapshots
+ * ## Which screens, and why not all of them
+ *
+ * Fifteen screens, thirty baselines. The list is chosen, not exhaustive, and the
+ * rule is: **a screen earns a baseline when a design-system change could break it
+ * in a way no other guard would catch.** So it holds one of each workspace shape
+ * (a dashboard of cards, a dense table, a settings form, a tabbed workspace, a
+ * wizard), plus every screen a driver or an employer sees without logging in —
+ * the public application, the signing room, the verification portal, the
+ * change-review portal — because those have no operator to notice a regression
+ * and report it.
+ *
+ * Deliberately absent, so the gap is a decision rather than an oversight:
+ *
+ *  - `/` — the landing page has its own approved specification in `DESIGN.md`
+ *    and is out of this campaign's scope.
+ *  - `/interest/:slug` — a compatibility redirect with no UI of its own.
+ *  - `/sandbox/*` and `/e2e/voe-preview` — harness routes, not product.
+ *  - The `/company` and `/super-admin` sub-views beyond the ones listed. These
+ *    are the real remaining gap and it is a matter of cost: each baseline is two
+ *    committed PNGs and two more comparisons on every run. A sub-view that
+ *    reuses a shape already covered here gains little; one that introduces a new
+ *    shape should be added, and adding it is two lines.
+ *
+ * Update baselines with:  npm run test:visual:update
  */
 const { test, expect } = require('@playwright/test');
 const { freezeClock, settle, SHOT } = require('./settle.cjs');
@@ -59,7 +86,23 @@ const SCREENS = [
     {
         name: 'super-admin',
         url: '/super-admin?e2eAuth=super_admin',
-        ready: (page) => page.getByRole('heading', { level: 1 }).first(),
+        /*
+         * The totals, not the banner heading — and this is why `ready` is worth
+         * choosing carefully rather than defaulting to `<h1>`.
+         *
+         * `<h1>Super Admin</h1>` is in the banner and present on first paint, so
+         * the old predicate let the screenshot race the three metric cards. The
+         * committed baseline had caught them mid-load showing `•••`; a run on
+         * 2026-08-25 caught them resolved showing `0`, and the lane failed on a
+         * diff of three glyphs with nothing wrong in the product. That is exactly
+         * the failure a blocking lane cannot have: one flake teaches everyone to
+         * disbelieve the next real regression.
+         *
+         * `DashboardView` announces the transition itself, so waiting on that
+         * announcement pins the screenshot to the *settled* state rather than to
+         * whichever side of the race the machine happened to be on.
+         */
+        ready: (page) => page.getByText('Platform totals loaded.'),
     },
     {
         name: 'login',
@@ -74,6 +117,54 @@ const SCREENS = [
     {
         name: 'verification-portal',
         url: '/verify/e2e-token-1?e2eVerify=mock',
+        ready: (page) => page.getByRole('heading', { level: 1 }).first(),
+    },
+    /*
+     * Added 2026-08-25. The ten screens above were the ones the lane started
+     * with; these five are the rest of the areas a user actually spends time in,
+     * and every one of them was unmeasured while the lane was advisory:
+     *
+     *  - the signing room is where a legally operative signature is made;
+     *  - the change-review portal is a public token route with no navigation
+     *    around it, so nothing else on the screen would reveal a broken state;
+     *  - Started (unfinished) and the two lead lists are three more tables, and
+     *    tables are where this campaign found most of its geometry defects;
+     *  - Import Leads carries the `FileInput` dropzone that four uploads
+     *    migrated onto, so its appearance is now a shared contract rather than
+     *    one screen's decision.
+     */
+    {
+        name: 'signing-room',
+        url: '/sign/e2e-company/e2e-request?token=e2e-token&e2eSign=mock',
+        ready: (page) => page.getByRole('heading', { level: 1 }).first(),
+    },
+    {
+        name: 'change-review-portal',
+        url: '/review-change/e2e-token-1?e2eReview=mock',
+        ready: (page) => page.getByRole('heading', { level: 1 }).first(),
+    },
+    {
+        name: 'company-unfinished',
+        /*
+         * `e2eUnfinished=mock`, added 2026-08-25 because this screen was the one
+         * in this list whose content came from a real callable. With no
+         * credentials the call fails, and *how* it fails decides what renders:
+         * the committed baseline was a loading skeleton captured in one
+         * environment, and CI captured something 30% different. Every other
+         * route here already uses a fixture harness; this one now does too.
+         */
+        url: '/company/drivers/unfinished?e2eAuth=company_admin&e2eUnfinished=mock',
+        // A fixture row, not the `<h1>` — the heading paints before the data.
+        ready: (page) => page.getByText('Dana Whitfield'),
+    },
+    {
+        name: 'company-leads',
+        url: '/company/drivers/leads/company?e2eAuth=company_admin',
+        ready: (page) => page.getByRole('heading', { level: 1 }).first(),
+    },
+    {
+        name: 'company-import-leads',
+        url: '/company/import-leads?e2eAuth=company_admin',
         ready: (page) => page.getByRole('heading', { level: 1 }).first(),
     },
 ];

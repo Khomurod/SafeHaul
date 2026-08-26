@@ -128,12 +128,20 @@ describe('BulkUploadLayout — named controls (defects 3, 5, 6)', () => {
 });
 
 describe('BulkUploadLayout — keyboard-reachable file input (defect 4)', () => {
+    /*
+     * The picker is `FileInput variant="dropzone"` since 2026-08-25, so the
+     * clipping class is the design system's own rather than Tailwind's `sr-only`.
+     * The property under test is unchanged and is the whole point of the rule:
+     * `display: none` and `visibility: hidden` both take the input out of the tab
+     * order, and the picker with it.
+     */
     it('keeps the file input in the tab order rather than display:none', () => {
         render(<BulkUploadLayout {...makeProps()} />);
 
         const input = document.querySelector('input[type="file"]');
         expect(input).not.toHaveClass('hidden');
-        expect(input).toHaveClass('sr-only');
+        expect(input).not.toHaveAttribute('hidden');
+        expect(input).toHaveClass('ds-file-input__native');
 
         input.focus();
         expect(document.activeElement).toBe(input);

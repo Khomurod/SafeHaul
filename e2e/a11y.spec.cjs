@@ -27,11 +27,16 @@ async function seriousViolations(page) {
         .map((v) => `${v.id} [${v.impact}] x${v.nodes.length}`);
 }
 
-// Tagged @a11y so CI can run it as a dedicated, initially NON-BLOCKING lane
-// (continue-on-error) and exclude it from the deploy-gating e2e run until it is
-// confirmed green in CI — this spec can't be run in the sandbox (browser download
-// blocked), so it must not block deploys on unverified, possibly pre-existing
-// violations. Flip to blocking once green.
+// Tagged @a11y for grouping only. These specs run inside the BLOCKING
+// `frontend-e2e` lane as of 2026-08-25.
+//
+// They used to be excluded from it with `--grep-invert "@a11y"` and run in a
+// separate `continue-on-error` job, because when they were written the browser
+// could not be downloaded in the sandbox and they had never been proven. They
+// have been green in CI ever since — 11/11 on every run of the campaign that
+// wrote the "flip to blocking once green" note. An accessibility gate nobody has
+// to pass is a report, not a gate. `scripts/test-ci-plan.mjs` (K2) asserts no
+// workflow step excludes them again.
 test.describe('@a11y mobile-critical journeys (no serious/critical violations)', () => {
     // The public-application journey walks nine steps and runs a dozen axe scans,
     // so the default 30 s per-test budget is not enough.
@@ -145,5 +150,129 @@ test.describe('@a11y mobile-critical journeys (no serious/critical violations)',
         await expect(page.getByRole('dialog', { name: /Draw your signature/i })).toBeVisible();
 
         expect(await seriousViolations(page)).toEqual([]);
+    });
+});
+
+/**
+ * The surfaces that changed hands on 2026-08-25, and the keyboard behaviour axe
+ * cannot see.
+ *
+ * axe is a static check on a rendered tree: it can tell you a tab has no
+ * accessible name, and it cannot tell you the arrow keys do nothing. Eleven tab
+ * strips, four toggle groups and nine file pickers moved onto design-system
+ * primitives in that campaign; these assert the parts of that move a screenshot
+ * and an axe scan both miss.
+ */
+test.describe('@a11y migrated design-system surfaces', () => {
+    test.describe.configure({ timeout: 120_000 });
+
+    test('company workspace tab strips: axe, roving tabIndex, and the arrow keys', async ({ page }) => {
+        await page.goto('/company/e-docs?e2eAuth=company_admin&e2eEdoc=mock');
+        const strip = page.getByRole('tablist', { name: 'Documents workspace views' });
+        await expect(strip).toBeVisible({ timeout: 30_000 });
+
+        expect(await seriousViolations(page)).toEqual([]);
+
+        // Roving tabIndex: one stop for the whole strip, not one per tab.
+        const tabs = strip.getByRole('tab');
+        const count = await tabs.count();
+        expect(count).toBeGreaterThan(1);
+        let tabbable = 0;
+        for (let i = 0; i < count; i += 1) {
+            if (await tabs.nth(i).getAttribute('tabindex') === '0') tabbable += 1;
+        }
+        expect(tabbable).toBe(1);
+
+        // Selection is `aria-selected`, and the name is only the label — no
+        // "(selected)" suffix, which is what every exact-name query depends on.
+        const selected = strip.getByRole('tab', { selected: true });
+        await expect(selected).toHaveAccessibleName('Overview');
+
+        // The arrow keys move AND select, and focus follows.
+        await selected.focus();
+        await page.keyboard.press('ArrowRight');
+        await expect(strip.getByRole('tab', { selected: true })).toHaveAccessibleName('Sent Documents');
+        await expect(page.locator(':focus')).toHaveAccessibleName('Sent Documents');
+        await page.keyboard.press('End');
+        await expect(strip.getByRole('tab', { selected: true })).toHaveAccessibleName('Application Forms');
+        await page.keyboard.press('Home');
+        await expect(strip.getByRole('tab', { selected: true })).toHaveAccessibleName('Overview');
+    });
+
+    test('the profile photo picker is reachable and named by its field', async ({ page }) => {
+        await page.goto('/company/profile?e2eAuth=company_admin');
+        await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 30_000 });
+
+        expect(await seriousViolations(page)).toEqual([]);
+
+        /*
+         * The structural rule the `FileInput` contract exists for, on a screen
+         * that always has one. Two of the nine pickers it replaced were a hidden
+         * input with no keyboard path to the picker at all; two more, including
+         * this one, named the TRIGGER rather than the field.
+         */
+        const picker = page.locator('input[type="file"]').first();
+        await expect(picker).toHaveCount(1);
+        await expect(picker).not.toHaveAttribute('hidden', /.*/);
+        expect(await picker.getAttribute('tabindex')).not.toBe('-1');
+        await expect(picker).toHaveAccessibleName('Profile photo');
+        await picker.focus();
+        await expect(picker).toBeFocused();
+    });
+
+    test('the change-review decision group announces its selection', async ({ page }) => {
+        await page.goto('/review-change/e2e-token-1?e2eReview=mock');
+        const group = page.getByRole('group').first();
+        await expect(group).toBeVisible({ timeout: 30_000 });
+
+        expect(await seriousViolations(page)).toEqual([]);
+
+        // `SegmentedControl` is deliberately `role="group"` + `aria-pressed`
+        // rather than a radiogroup, so the state must be on the option.
+        const options = group.getByRole('button');
+        await expect(options.first()).toHaveAttribute('aria-pressed', /true|false/);
+        await options.first().click();
+        await expect(options.first()).toHaveAttribute('aria-pressed', 'true');
+    });
+
+    test('every focusable control on the candidate list shows a focus ring', async ({ page }) => {
+        await page.goto('/company/drivers/applications?e2eAuth=company_admin');
+        await expect(page.getByRole('table').first()).toBeVisible({ timeout: 30_000 });
+
+        expect(await seriousViolations(page)).toEqual([]);
+
+        /*
+         * The 2026-08-25 walkthrough found seven call sites rendering the
+         * browser's black UA outline instead of the product's blue ring, because
+         * `focus-visible:shadow-ds-focus` draws a box-shadow and does not replace
+         * `outline`. `utilities.css` fixes that globally; this proves it on a real
+         * screen, by tabbing and asserting SOMETHING visible marks focus.
+         */
+        const unmarked = [];
+        for (let i = 0; i < 20; i += 1) {
+            await page.keyboard.press('Tab');
+            const bad = await page.evaluate(() => {
+                const el = document.activeElement;
+                if (!el || el === document.body) return null;
+                const s = getComputedStyle(el);
+                const hasRing = s.boxShadow !== 'none' || s.outlineStyle !== 'none';
+                // The UA default is `auto 1px rgb(16, 16, 16)` — near-black in a
+                // product whose focus colour is blue, and the exact signature of
+                // a call site that forgot the ring.
+                const uaBlack = /rgb\(16, 16, 16\)/.test(s.outlineColor) && s.boxShadow === 'none';
+                if (hasRing && !uaBlack) return null;
+                const name = (el.getAttribute('aria-label') || el.textContent || '')
+                    .replace(/\s+/g, ' ').trim().slice(0, 40);
+                return `${el.tagName} "${name}" outline=${s.outlineStyle} ${s.outlineColor} shadow=${s.boxShadow}`;
+            });
+            if (bad) unmarked.push(bad);
+        }
+        /*
+         * Naming them matters. This assertion found twelve of them at once — the
+         * whole company sidebar navigation, rendering the UA black outline — and
+         * a bare `toBe(true)` would have said only that something, somewhere,
+         * on some Tab press, was wrong.
+         */
+        expect(unmarked, 'every focused control must show the product focus ring').toEqual([]);
     });
 });

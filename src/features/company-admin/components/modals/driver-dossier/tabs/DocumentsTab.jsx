@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { FileText, Eye, Download, X } from 'lucide-react';
 import { formatDate } from '@shared/utils/helpers';
-import { Modal } from '@design-system/patterns';
+import { EmptyState, Modal } from '@design-system/patterns';
 import { Card, IconButton, IconButtonLink } from '@/design-system/components';
 
 /**
@@ -30,6 +30,9 @@ import { Card, IconButton, IconButtonLink } from '@/design-system/components';
  * - The close and download controls in the lightbox had no accessible names.
  * - The list was a bare grid of `<div>`s; it is now a real list, so assistive
  *   technology announces how many documents there are.
+ * - The empty panel was a hand-composed icon-and-copy block (2026-08-25). It is
+ *   the approved `EmptyState`; the frozen copy is unchanged and is now the
+ *   state's heading rather than a loose paragraph.
  */
 
 const STANDARD_DOCUMENTS = [
@@ -69,10 +72,12 @@ export function DocumentsTab({ fileUrls = {}, appData }) {
 
     if (allDocs.length === 0) {
         return (
-            <div className="flex flex-col items-center justify-center py-ds-12 text-ds-content-secondary">
-                <FileText size={48} className="mb-ds-4 text-ds-content-muted" aria-hidden="true" />
-                <p>No documents found for this applicant.</p>
-            </div>
+            <EmptyState
+                surface="bare"
+                icon={FileText}
+                headingLevel={3}
+                title="No documents found for this applicant."
+            />
         );
     }
 

@@ -77,7 +77,27 @@ function renderMemberships(props = {}) {
 }
 
 beforeEach(() => {
-    vi.clearAllMocks();
+    /*
+     * `resetAllMocks`, not `clearAllMocks`, and the difference is a real CI
+     * failure rather than a preference.
+     *
+     * `clearAllMocks` resets call records but **leaves queued
+     * `mockResolvedValueOnce` values in place**. Ten of the tests below queue one.
+     * If any of them finishes before its component's load effect consumes it —
+     * which is exactly the timing that varies under a loaded CI runner — the
+     * value survives into the NEXT test and outranks the defaults set here.
+     *
+     * That is what failed on 2026-08-26: "offers only companies the user is not
+     * already in" relies on the default membership in `co-1` being filtered out
+     * of the select, got a leaked `{ docs: [] }` instead, and reported
+     * `['', 'co-1', 'co-2', 'co-3']`. It passed in isolation and passed a full
+     * local run of all 4470 tests, because the leak needs the timing to slip.
+     *
+     * `resetAllMocks` drops once-queues as well as call records. Every
+     * implementation this file relies on is re-established immediately below, so
+     * nothing else changes.
+     */
+    vi.resetAllMocks();
     updateUser.mockResolvedValue(undefined);
     sendPasswordResetEmail.mockResolvedValue(undefined);
     deletePortalUser.mockResolvedValue({ data: { success: true } });

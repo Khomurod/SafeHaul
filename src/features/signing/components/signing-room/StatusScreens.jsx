@@ -1,9 +1,10 @@
 import React, { useId } from 'react';
 import {
-    Loader2, CheckCircle, AlertTriangle, ShieldCheck, FileText, Ban,
+    CheckCircle, AlertTriangle, ShieldCheck, FileText, Ban,
 } from 'lucide-react';
 import { Button, Card, StatusMedallion } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
+import { ErrorState, LoadingState, PageState } from '@design-system/patterns';
 
 /**
  * Full-page status screens for the public signing room.
@@ -16,6 +17,21 @@ import { Stack } from '@/design-system/layouts';
  *
  * The circular status disc is the approved `StatusMedallion`; this feature keeps
  * only the domain → tone/icon decision, not the shape or spacing.
+ *
+ * **2026-08-25: the four status screens are the approved page-state pattern.**
+ * They had been hand-composed `Card` + `StatusMedallion` + heading + body +
+ * actions — which is what `PageState` is, built later and never applied here. The
+ * cost was measured: across these four and the five in `PublicApplyScreens`, one
+ * kind of screen had `heading-sm` and `heading-md` titles, default and `lg`
+ * medallions, icons at 28/32/40/48px, and three different gaps under the
+ * medallion. Five appearances for one thing. The pattern owns all of that now, so
+ * the feature keeps the words, the tone, the icon and the actions — and the
+ * screens cannot drift apart again.
+ *
+ * `EsignConsentScreen` deliberately stays hand-composed: it is a consent *form*
+ * with a nested `<h2>` disclosure region, a bulleted legal notice and a two-way
+ * decision, none of which a page state can hold. It is not one of the three
+ * states, and forcing it into the pattern would mean weakening the pattern.
  *
  * Accessibility: each screen is now a `<main>` landmark with a single `<h1>`, so
  * a signer landing on one hears what it is instead of an unlabelled page. The
@@ -38,15 +54,20 @@ function StatusPage({ children, labelledBy }) {
 }
 
 export function SigningLoadingScreen() {
+    const headingId = `signing-loading-${useId().replace(/:/g, '')}`;
     return (
-        <main className="flex h-screen items-center justify-center bg-ds-canvas">
+        <StatusPage labelledBy={headingId}>
             {/* The live region is an inner element: `role="status"` is not a valid
-                role for `<main>`, so the landmark and the announcement are split. */}
-            <div role="status" className="flex items-center gap-ds-3">
-                <Loader2 className="animate-spin text-ds-action-primary" size={40} aria-hidden="true" />
-                <p className="font-medium text-ds-content-secondary">Loading secure document...</p>
-            </div>
-        </main>
+                role for `<main>`, so the landmark and the announcement are split —
+                which is why the state's heading needs an id for the landmark to
+                point at. */}
+            <LoadingState
+                surface="bare"
+                headingLevel={1}
+                titleId={headingId}
+                title="Loading secure document..."
+            />
+        </StatusPage>
     );
 }
 
@@ -54,11 +75,23 @@ export function SigningErrorScreen({ error }) {
     const headingId = `signing-error-${useId().replace(/:/g, '')}`;
     return (
         <StatusPage labelledBy={headingId}>
-            <Card padding="lg" className="max-w-md text-center" role="alert">
-                <StatusMedallion tone="danger" className="mx-auto mb-ds-4"><AlertTriangle size={32} /></StatusMedallion>
-                <h1 id={headingId} className="mb-ds-2 text-ds-heading-sm font-bold text-ds-content">Access Denied</h1>
-                <p className="text-ds-content-secondary [overflow-wrap:anywhere]">{error}</p>
-            </Card>
+            {/*
+             * The width lives on a wrapper rather than on `className`. A page
+             * state's `className` reaches the state element itself — that is how
+             * `LoadingState` adds its spin class — while its remaining props reach
+             * the `Card`. Constraining the surface is therefore the wrapper's job,
+             * which is the same shape `ErrorBoundary` already uses.
+             */}
+            <div className="w-full max-w-md">
+                <ErrorState
+                    icon={AlertTriangle}
+                    headingLevel={1}
+                    titleId={headingId}
+                    title="Access Denied"
+                    /* A signing error can carry an unbroken URL or token. */
+                    description={<span className="[overflow-wrap:anywhere]">{error}</span>}
+                />
+            </div>
         </StatusPage>
     );
 }
@@ -68,16 +101,20 @@ export function SigningVoidedScreen() {
     const headingId = `signing-voided-${useId().replace(/:/g, '')}`;
     return (
         <StatusPage labelledBy={headingId}>
-            <Card padding="lg" className="max-w-md text-center" role="alert">
-                <StatusMedallion tone="danger" size="lg" className="mx-auto mb-ds-6"><Ban size={48} /></StatusMedallion>
-                <h1 id={headingId} className="mb-ds-2 text-ds-heading-md font-bold text-ds-content">Document Voided</h1>
-                <p className="mb-ds-6 text-ds-content-secondary">
-                    This document has been voided by the sender and is no longer accessible.
-                </p>
-                <Button variant="ghost" onClick={() => window.close()}>
-                    Close Window
-                </Button>
-            </Card>
+            <div className="w-full max-w-md">
+                <ErrorState
+                    icon={Ban}
+                    headingLevel={1}
+                    titleId={headingId}
+                    title="Document Voided"
+                    description="This document has been voided by the sender and is no longer accessible."
+                    actions={(
+                        <Button variant="ghost" onClick={() => window.close()}>
+                            Close Window
+                        </Button>
+                    )}
+                />
+            </div>
         </StatusPage>
     );
 }
@@ -86,30 +123,39 @@ export function SigningSuccessScreen({ recipientName, onReturnToDocuments }) {
     const headingId = `signing-success-${useId().replace(/:/g, '')}`;
     return (
         <StatusPage labelledBy={headingId}>
-            <Card
-                padding="lg"
-                className="max-w-md text-center motion-safe:animate-in motion-safe:zoom-in-95 motion-safe:duration-300"
-            >
-                <StatusMedallion tone="success" size="lg" className="mx-auto mb-ds-6"><CheckCircle size={48} /></StatusMedallion>
-                <h1 id={headingId} className="mb-ds-2 text-ds-heading-md font-bold text-ds-content">Document Signed!</h1>
-                <p className="mb-ds-6 text-ds-content-secondary">
-                    Thank you, <strong>{recipientName}</strong>. The document has been securely sealed and sent to the sender.
-                </p>
-                {onReturnToDocuments ? (
-                    <Stack gap="sm">
-                        <Button variant="primary" fullWidth onClick={onReturnToDocuments}>
-                            Return to Required Documents
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => window.close()}>
+            {/* The entrance animation is on the wrapper, so the card surface
+                animates with its content as it did before. */}
+            <div className="w-full max-w-md motion-safe:animate-in motion-safe:zoom-in-95 motion-safe:duration-300">
+                <PageState
+                    tone="success"
+                    icon={CheckCircle}
+                    announce="polite"
+                    headingLevel={1}
+                    titleId={headingId}
+                    title="Document Signed!"
+                    description={(
+                        <>
+                            Thank you, <strong>{recipientName}</strong>. The document has been securely sealed and sent to the sender.
+                        </>
+                    )}
+                    actions={onReturnToDocuments ? (
+                        /* Stacked, not side by side: the primary action is the one
+                           that continues the driver's list of required documents. */
+                        <Stack gap="sm" className="w-full">
+                            <Button variant="primary" fullWidth onClick={onReturnToDocuments}>
+                                Return to Required Documents
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => window.close()}>
+                                Close Window
+                            </Button>
+                        </Stack>
+                    ) : (
+                        <Button variant="ghost" onClick={() => window.close()}>
                             Close Window
                         </Button>
-                    </Stack>
-                ) : (
-                    <Button variant="ghost" onClick={() => window.close()}>
-                        Close Window
-                    </Button>
-                )}
-            </Card>
+                    )}
+                />
+            </div>
         </StatusPage>
     );
 }

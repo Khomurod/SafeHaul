@@ -103,6 +103,28 @@ const PROBES = [
         properties: ['width', 'height'],
     },
     {
+        /*
+         * The gap between a glyph and its label — the other half of the rule.
+         *
+         * The design system owns this as well as the icon size: `.ds-button` sets
+         * `gap: var(--ds-space-2)` and `.ds-button__content` inherits it. Only
+         * the icon size was measured until 2026-08-25, so a re-tuned gap would
+         * have surfaced as a pixel diff on `button-with-icons` — which says a
+         * screenshot changed — rather than as `columnGap: 8px -> 12px`, which
+         * says what moved. Its own probe rather than extra properties on the one
+         * above, because asking an `svg` for its `columnGap` records `normal`
+         * three times and calls it a measurement.
+         */
+        story: 'foundations-control-scale--icon-normalisation',
+        label: 'the gap between a glyph and its label is the system\'s too',
+        selectors: {
+            'gap in button[md]': ".ds-button[data-size='md'] .ds-button__content",
+            'gap in button[sm]': ".ds-button[data-size='sm'] .ds-button__content",
+            'gap in button[lg]': ".ds-button[data-size='lg'] .ds-button__content",
+        },
+        properties: ['columnGap'],
+    },
+    {
         story: 'components-card--padding',
         fallbackStory: 'components-card--default',
         label: 'the surface geometry every card shares',
@@ -115,6 +137,44 @@ const PROBES = [
         label: 'badges hug their label and never stretch',
         selectors: { badge: '.ds-badge' },
         properties: ['height', 'fontSize', 'borderRadius', 'width'],
+    },
+    {
+        /*
+         * The native-table contract, measured because the roadmap approves a
+         * native `<table>` for editable matrices and per-row interactive rows —
+         * and because on 2026-08-25 seven of the eleven that use that permission
+         * turned out to reference no `--ds-table-*` role at all, with three
+         * different inline cell paddings between them. These are the numbers that
+         * make the two kinds of table one table.
+         */
+        story: 'patterns-native-table--editable-matrix',
+        label: 'a native table is the same table as DataTable',
+        selectors: {
+            // The surface is on the ROW; a header cell is transparent, so
+            // measuring the cell's background would record nothing useful.
+            'nativeTable.headerRow': '.ds-native-table thead tr',
+            'nativeTable.headerCell': '.ds-native-table thead th',
+            'nativeTable.cell': '.ds-native-table tbody td',
+        },
+        properties: ['paddingLeft', 'paddingRight', 'paddingTop', 'paddingBottom', 'backgroundColor', 'height'],
+    },
+    {
+        /*
+         * The frozen first column, measured because it is the one cell in a native
+         * table that must NOT be transparent. The surface is painted on the row,
+         * so a `position: sticky` cell with no background of its own lets the
+         * scrolled columns paint straight through it — which is what happened to
+         * the Super Admin feature matrix when its hand-picked `bg-ds-surface` was
+         * removed in favour of the contract, and what a review on 2026-08-25
+         * caught. An `rgba(0, 0, 0, 0)` here is the regression.
+         */
+        story: 'patterns-native-table--sticky-first-column',
+        label: 'a frozen column is opaque',
+        selectors: {
+            'stickyTable.headerCell': '.ds-native-table thead th.sticky',
+            'stickyTable.rowHeader': '.ds-native-table tbody th.sticky',
+        },
+        properties: ['backgroundColor', 'position', 'left'],
     },
     {
         story: 'components-datatable--default',

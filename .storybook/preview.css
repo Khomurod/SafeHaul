@@ -1,18 +1,22 @@
 /*
  * Catalog stylesheet.
  *
- * This mirrors `src/index.css` — the application's real CSS entry — with two
- * deliberate differences:
+ * This mirrors `src/index.css` — the application's real CSS entry — with one
+ * deliberate difference: it does not carry the application's `.agreement-box` /
+ * `.legal-prose` component layers. Those are feature typography for the public
+ * driver application, not design-system contracts, and the catalog must not
+ * imply they are approved primitives.
  *
- * 1. It does not `@import url('https://rsms.me/inter/inter.css')`. The catalog
- *    must build and render with no network access, and a webfont that may or may
- *    not have loaded is exactly the kind of timing-dependent difference that
- *    makes a catalog untrustworthy. The local fallback stack below is the same
- *    one the application already falls back to.
- * 2. It does not carry the application's `.agreement-box` / `.legal-prose`
- *    component layers. Those are feature typography for the public driver
- *    application, not design-system contracts, and the catalog must not imply
- *    they are approved primitives.
+ * It used to differ in a second way, and that one turned out to matter. The
+ * catalog omitted the application's `@import url('https://rsms.me/inter/…')`,
+ * because "a webfont that may or may not have loaded is exactly the kind of
+ * timing-dependent difference that makes a catalog untrustworthy" — correct, and
+ * the same objection applied to the application, which is where it did the
+ * damage. Inter is now served from `design-system/fonts/` and reaches the
+ * catalog through `design-system/index.css` like any other token, with no
+ * network access. So the catalog renders in the product's real typeface, and
+ * `check:table-layout` and `check:visual-contract` measure the metrics the
+ * product actually has instead of whatever `sans-serif` the runner resolved to.
  *
  * Everything else — the token contract and the Tailwind bridge — is loaded in
  * the same order as the application, from the same files and the same

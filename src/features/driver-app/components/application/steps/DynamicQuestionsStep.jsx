@@ -34,7 +34,7 @@
  */
 
 import React from 'react';
-import { Shield, UploadCloud } from 'lucide-react';
+import { Shield } from 'lucide-react';
 import DateTripletField from '@shared/components/form/DateTripletField';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import { StepNavigation } from './components/StepNavigation';
@@ -43,7 +43,7 @@ import {
     Card,
     Checkbox,
     ChoiceGroup,
-    FieldMessage,
+    FileInput,
     FormField,
     Input,
     Radio,
@@ -247,26 +247,22 @@ export function DynamicQuestionsStep({
 
             case 'fileUpload':
                 return (
+                    /*
+                      `FileInput variant="dropzone"`. This was a hand-built version
+                      of the same thing under a comment saying the design system had
+                      no file-input contract, which stopped being true on
+                      2026-08-21 — and it had a real defect the primitive cannot
+                      have: TWO `<label for>` elements pointed at the one input, so
+                      its accessible name was the question text AND the drop-zone
+                      copy concatenated. `FileInput` renders one label.
+                    */
                     <div className="grid gap-ds-2">
-                        <label htmlFor={`file-${key}`} className="ds-label">
-                            <span>{label}</span>
-                            {field.required && (
-                                <>
-                                    <span className="ds-label__required-mark" aria-hidden="true">*</span>
-                                    <span className="ds-visually-hidden"> required</span>
-                                </>
-                            )}
-                        </label>
-                        {field.helpText && <FieldMessage tone="help">{field.helpText}</FieldMessage>}
-                        {/* DOCUMENTED EXCEPTION — label-wrapped file input.
-                            The design system has no approved file-input contract yet
-                            (Phase 4 records it as open). A native `<input type=file>`
-                            triggered by its own `<label>` is keyboard-reachable and
-                            correctly named, so no local button is introduced. */}
-                        <input
-                            type="file"
+                        <FileInput
                             id={`file-${key}`}
-                            className="ds-visually-hidden"
+                            label={label}
+                            variant="dropzone"
+                            buttonLabel="Click to upload file"
+                            description={field.helpText || 'PDF, PNG, JPG accepted'}
                             required={field.required && !value}
                             accept={field.accept || "image/*,application/pdf"}
                             onChange={(e) => {
@@ -277,19 +273,11 @@ export function DynamicQuestionsStep({
                                 handleChange(key, file?.name || '');
                             }}
                         />
-                        <label
-                            htmlFor={`file-${key}`}
-                            className="flex cursor-pointer flex-col items-center rounded-ds-md border-2 border-dashed border-ds-border bg-ds-surface-subtle p-ds-6 text-center hover:border-ds-focus"
-                        >
-                            <UploadCloud size={28} className="mb-ds-2 text-ds-action-primary" aria-hidden="true" />
-                            <span className="text-ds-sm font-medium text-ds-content-link">Click to upload file</span>
-                            <span className="mt-ds-1 text-ds-xs text-ds-content-secondary">PDF, PNG, JPG accepted</span>
-                            {value && (
-                                <span role="status" className="mt-ds-2 text-ds-xs font-medium text-ds-status-success-fg">
-                                    ✓ Selected: {typeof value === 'string' ? value : value.name}
-                                </span>
-                            )}
-                        </label>
+                        {value && (
+                            <span role="status" className="text-center text-ds-xs font-medium text-ds-status-success-fg">
+                                ✓ Selected: {typeof value === 'string' ? value : value.name}
+                            </span>
+                        )}
                     </div>
                 );
 

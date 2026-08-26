@@ -152,8 +152,21 @@ export const CompanySidebar = ({
       <NavLink
         to={item.path}
         onClick={onNavigate}
+        /*
+          `focus-visible:outline-none focus-visible:shadow-ds-focus` — the
+          product's focus ring.
+
+          Without it these twelve links rendered the browser's own
+          `auto 1px rgb(16, 16, 16)`: a black ring, in a product whose focus
+          colour is blue, on the most-tabbed element there is. The 2026-08-25
+          walkthrough fixed seven call sites with this defect and missed the whole
+          primary navigation of the company workspace; a keyboard walk in
+          `e2e/a11y.spec.cjs` is what found it, because axe cannot see the
+          difference between one focus ring and another.
+        */
         className={({ isActive }) => `
           min-h-10 flex items-center gap-3 px-3 py-2 rounded-ds-md transition-colors duration-200 group relative
+          focus-visible:outline-none focus-visible:shadow-ds-focus
           ${isActive
             ? 'bg-ds-status-info-bg text-ds-status-info-fg border-l-2 border-ds-action-primary'
             : 'text-ds-content-secondary hover:text-ds-content hover:bg-ds-surface-subtle border-l-2 border-transparent'}
@@ -203,16 +216,23 @@ export const CompanySidebar = ({
                 {currentCompanyProfile?.companyName || currentCompanyProfile?.name || 'Company'}
               </span>
               {isCompanyAdmin ? (
-                <button
-                  type="button"
+                /*
+                  `Button variant="link"` — an action that reads as inline text.
+                  It was a hand-written one: `text-ds-content-link` plus
+                  `hover:underline` plus its own focus ring, which is the sixth
+                  copy of a treatment the variant was added on 2026-08-25 to own.
+                */
+                <Button
+                  variant="link"
+                  justify="start"
+                  className="truncate"
                   onClick={() => {
                     navigate('/company/settings');
                     onNavigate?.();
                   }}
-                  className="text-ds-xs text-ds-content-link hover:underline text-left truncate focus-visible:outline-none focus-visible:shadow-ds-focus rounded-ds-sm"
                 >
                   Company Settings
-                </button>
+                </Button>
               ) : (
                 <span className="text-ds-xs text-ds-content-muted truncate">Team Member</span>
               )}

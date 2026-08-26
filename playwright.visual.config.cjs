@@ -42,6 +42,17 @@ module.exports = {
                 ...devices['Desktop Chrome'],
                 ...chromiumLaunchOverride,
                 deviceScaleFactor: 1,
+                /*
+                 * Pinned, because a pixel baseline must not depend on the host.
+                 * `Started (unfinished)` renders a timestamp through
+                 * `toLocaleString()` with no arguments, which takes the runtime's
+                 * locale and zone — "6/14/2026, 4:45:00 PM" in one place and
+                 * "14/06/2026, 21:45" in another, a different column width and a
+                 * reflowed table. The clock is already frozen by `settle.cjs`;
+                 * this freezes how it is *written*.
+                 */
+                locale: 'en-US',
+                timezoneId: 'UTC',
             },
         },
     ],

@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
-import { Plus, Eye, EyeOff, Save, Shield } from 'lucide-react';
+import { Plus, Eye, EyeOff, HelpCircle, Save, Shield } from 'lucide-react';
 import { Button, Card, Badge, FieldMessage } from '@/design-system/components';
+import { EmptyState } from '@design-system/patterns';
 import { QuestionEditor } from './QuestionEditor';
 import { INITIAL_QUESTION_STATE } from './QuestionConfig';
 
@@ -161,14 +162,17 @@ export function CustomQuestionsBuilder({ questions = [], onChange, onSave, loadi
 
             <div className="min-h-[200px] space-y-ds-4">
                 {questions.length === 0 && (
-                    <div className="rounded-ds-xl border-2 border-dashed border-ds-border-subtle py-ds-12 text-center">
-                        <p className="font-medium text-ds-content-muted">No questions yet.</p>
-                        <div className="mt-ds-4 flex justify-center">
+                    <EmptyState
+                        surface="bare"
+                        icon={HelpCircle}
+                        headingLevel={3}
+                        title="No questions yet."
+                        actions={(
                             <Button variant="ghost" size="sm" onClick={addQuestion}>
                                 <Plus size={16} aria-hidden="true" /> Add your first question
                             </Button>
-                        </div>
-                    </div>
+                        )}
+                    />
                 )}
 
                 {questions.map((question, index) => (

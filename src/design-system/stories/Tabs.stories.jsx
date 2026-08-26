@@ -10,20 +10,25 @@ const TABS = [
   { id: 'archive', label: 'Archive', icon: Archive },
 ];
 
-function Example({ orientation = 'horizontal', tabs = TABS, initial = 'documents' }) {
+function Example({
+  orientation = 'horizontal', tabs = TABS, initial = 'documents', variant, fitted,
+}) {
   const [active, setActive] = useState(initial);
+  const idBase = `sb-${orientation}-${variant || 'underline'}-${fitted ? 'fitted' : 'hug'}`;
   const strip = (
     <TabList
       ariaLabel="Workspace views"
-      idBase={`sb-${orientation}`}
+      idBase={idBase}
       tabs={tabs}
       activeTab={active}
       onChange={setActive}
       orientation={orientation}
+      {...(variant ? { variant } : {})}
+      {...(fitted ? { fitted } : {})}
     />
   );
   const panel = (
-    <TabPanel idBase={`sb-${orientation}`} tabId={active}>
+    <TabPanel idBase={idBase} tabId={active}>
       <div style={{ padding: 'var(--ds-space-4)' }}>
         Content for <strong>{tabs.find((t) => t.id === active)?.label}</strong>.
       </div>
@@ -76,12 +81,39 @@ const meta = {
           'cheap and reversible — and is what all nine copies already did, so migrating them',
           'changes no behaviour.',
           '',
+          '### Two shapes, and why they are props',
+          '',
+          'Eleven hand-rolled strips carried at least three appearances between them. A',
+          'primitive expressing only the page-level underline would have left the others',
+          'hand-rolled — which is how a primitive ends up with no consumers, as this one did',
+          'for the four days between being built and being adopted.',
+          '',
+          '| Shape | For |',
+          '| --- | --- |',
+          '| `underline` (default) | A page-level view switcher |',
+          '| `variant="pill"` | A secondary strip INSIDE a panel, where an underline would read as a second page-level strip |',
+          '| `fitted` | A strip that must span a narrow container — a popover — instead of leaving a ragged gap |',
+          '',
+          'They differ in the selected treatment and nothing else: same height, same icon',
+          'size, same keyboard model. `pill` with `orientation="vertical"` throws rather than',
+          'being silently ignored — nothing wants it, and a quietly-dropped prop is how a',
+          'component starts lying about what it supports.',
+          '',
           '### Accessibility',
           '',
-          '- Selection is carried by `aria-selected` **and** by visually-hidden "(selected)"',
-          '  text, never by the underline colour alone.',
+          '- Selection is carried by `aria-selected`, which is the whole mechanism the ARIA',
+          '  tab pattern specifies. It used to *also* append a visually-hidden "(selected)" so',
+          '  that selection was "not colour alone"; that made the selected tab announce its',
+          '  state twice and put state inside its accessible NAME, so every exact-match query',
+          '  for a tab had to know about it. The visual half of that concern lives in CSS now:',
+          '  a `forced-colors` rule keeps the selected tab distinguished by a border that is',
+          '  present against ones that are not, rather than by hue.',
+          '- `aria-controls` is set on the SELECTED tab only. The design system renders one',
+          '  panel, so pointing every tab at a panel id that does not exist was a dangling',
+          '  IDREF — and the ARIA pattern makes the attribute optional in exactly that case.',
           '- The panel is `tabIndex={0}` by the pattern, so a keyboard user moving off the',
-          '  strip lands in the content they just switched to.',
+          '  strip lands in the content they just switched to. It forwards its ref, because',
+          '  the driver dossier hands it to `Modal`\'s `initialFocusRef`.',
           '- `ariaLabel` is required. "tab list" is not a name.',
           '',
           '### Not a tab strip',
@@ -123,6 +155,25 @@ export const ManyTabs = {
       tabs={Array.from({ length: 9 }, (_, i) => ({ id: `t${i}`, label: `Section ${i + 1}` }))}
       initial="t0"
     />
+  ),
+};
+
+/**
+ * `variant="pill"` — a secondary strip inside a panel. The campaign audience
+ * builder's import-method chooser is the live consumer.
+ */
+export const PillVariant = { render: () => <Example variant="pill" /> };
+
+/**
+ * `fitted` — the tabs share the strip's width. For a narrow panel, where tabs
+ * hugging their labels leave a ragged gap. The notification popover is the live
+ * consumer.
+ */
+export const Fitted = {
+  render: () => (
+    <div style={{ maxWidth: 360 }}>
+      <Example fitted tabs={TABS.slice(0, 2)} />
+    </div>
   ),
 };
 

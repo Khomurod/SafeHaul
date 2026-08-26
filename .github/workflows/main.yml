@@ -286,9 +286,18 @@ jobs:
       # that hazard is two suites contending for one server on one machine.
       # `workers: 1` and `retries: 2` are untouched.
       #
-      # Excludes the @a11y axe lane here; it runs in the non-blocking e2e-a11y job.
-      - name: Frontend E2E Tests (Chromium)
-        run: npm run test:e2e -- --project=chromium --grep-invert "@a11y" --shard=${{ matrix.shard }}/4
+      # The @axe accessibility specs run HERE, in this blocking lane, since
+      # 2026-08-25. They used to be excluded with `--grep-invert "@a11y"` and run
+      # in a separate `continue-on-error` job, whose own comment said to fold them
+      # back in "once confirmed green in CI". They were: 11/11 passed on the last
+      # run of the campaign that wrote that comment, and on every run before it.
+      #
+      # An accessibility gate nobody has to pass is a report, not a gate — and the
+      # roadmap requires accessibility to be enforced. `scripts/test-ci-plan.mjs`
+      # (K2) asserts no workflow step excludes `@a11y`, so it cannot drift back
+      # out.
+      - name: Frontend E2E Tests (Chromium, including the axe specs)
+        run: npm run test:e2e -- --project=chromium --shard=${{ matrix.shard }}/4
 
   storybook-build:
     name: Build the design-system catalog
@@ -383,25 +392,33 @@ jobs:
       - name: Visual contract (geometry)
         run: npm run check:visual-contract
 
-      # Pixel baselines. Deliberately NOT blocking, and this is not laziness:
-      # the catalog does not load Inter, so text rasterises with whatever the
-      # runner's `sans-serif` resolves to, and a baseline recorded on one machine
-      # can differ on another for reasons that are not design-system changes.
-      # The first test in `catalog.spec.cjs` measures text metrics and fails
-      # loudly when that happens, so the cause is one legible failure rather than
-      # 78 mystery diffs.
+      # Pixel baselines. BLOCKING since 2026-08-25, and the history is the reason
+      # it has to stay that way.
       #
-      # The lane still does its job: the diff is uploaded below and a real visual
-      # change shows up in review. Make it blocking once the metrics test has
-      # been green on this runner for a few weeks, and record that decision in
-      # the roadmap.
-      - name: Visual regression (pixel baselines, reported not enforced)
+      # It ran with `continue-on-error: true` on the stated grounds that the
+      # catalog did not load Inter, so text rasterised with whatever the runner's
+      # `sans-serif` resolved to. The CI record said something else: the 130
+      # catalog baselines passed here every time, and all 20 APPLICATION
+      # baselines failed every time, because the application fetched Inter from
+      # rsms.me and this runner never received it. The lane had never once been
+      # green, its 52MB diff artifact was uploaded and ignored, and the warning
+      # annotation below said "a pixel baseline changed" on every single run.
+      #
+      # A lane that always fails teaches everyone to ignore it, which is worse
+      # than no lane. The font is served from the repository now, so there is no
+      # machine-dependent input left and this is enforced.
+      #
+      # `scripts/test-ci-plan.mjs` (K1) asserts this step carries no
+      # `continue-on-error`, so it cannot quietly go back to advisory.
+      - name: Visual regression (pixel baselines)
         id: visual-regression
-        continue-on-error: true
         run: npm run test:visual
 
+      # The step above fails the job now, so this needs `always()` to run at all —
+      # and the artifact is more valuable than ever, because a red lane is now a
+      # blocked merge and the diff is how you triage it.
       - name: Upload the visual diff
-        if: steps.visual-regression.outcome == 'failure'
+        if: always() && steps.visual-regression.outcome == 'failure'
         uses: actions/upload-artifact@v4
         with:
           name: visual-regression-diff
@@ -412,9 +429,9 @@ jobs:
           if-no-files-found: warn
 
       - name: Say so when the visual lane moved
-        if: steps.visual-regression.outcome == 'failure'
+        if: always() && steps.visual-regression.outcome == 'failure'
         run: |
-          echo "::warning title=Visual baselines moved::A pixel baseline changed. Download the"\
+          echo "::error title=Visual baselines moved::A pixel baseline changed. Download the"\
                "visual-regression-diff artifact. If the change is intended, run"\
                "'npm run test:visual:update' and commit the baselines."
 
@@ -479,42 +496,13 @@ jobs:
 
   # ---------------------------------------------------------------------------
   # Non-blocking baselines — advisory, never in the required set
+  #
+  # `e2e-a11y` used to live here and no longer does: its axe specs run inside the
+  # blocking `frontend-e2e` lane as of 2026-08-25. `typecheck` is the only
+  # advisory lane left, and it is advisory for a different reason — it is a
+  # ratchet over pre-existing `checkJs` findings in modules this campaign does not
+  # touch, not a gate someone decided to switch off.
   # ---------------------------------------------------------------------------
-  e2e-a11y:
-    runs-on: ubuntu-latest
-    needs: plan
-    if: needs.plan.outputs.run_frontend_e2e == 'true'
-    # E3: automated accessibility gate (@axe-core/playwright) on the mobile-critical
-    # journeys. Initially NON-BLOCKING (continue-on-error) and intentionally absent
-    # from the release-validation lane set, because it could not be verified in the
-    # dev sandbox (browser download blocked). Once confirmed green in CI, fold these
-    # tests back into the blocking frontend-e2e lane (drop the --grep-invert) and
-    # remove this job.
-    steps:
-      - uses: actions/checkout@v5
-      - name: Use Node.js 20.x
-        uses: actions/setup-node@v5
-        with:
-          node-version: 20.x
-          cache: 'npm'
-      - name: Install Dependencies
-        run: npm ci
-      - name: Cache the Playwright browser
-        id: playwright-cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
-      - name: Install Playwright Browser
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: npx playwright install --with-deps chromium
-      - name: Install Playwright OS dependencies
-        if: steps.playwright-cache.outputs.cache-hit == 'true'
-        run: npx playwright install-deps chromium
-      - name: E2E accessibility (axe) — non-blocking baseline
-        run: npm run test:e2e -- --project=chromium --grep "@a11y"
-        continue-on-error: true
-
   typecheck:
     runs-on: ubuntu-latest
     needs: plan

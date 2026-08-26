@@ -1,0 +1,229 @@
+/*
+ * The approved NATIVE-table contract: `ds-native-table`.
+ *
+ * ## Why this exists
+ *
+ * The roadmap approves a native `<table>` for an editable matrix or a grid with
+ * per-row interactive controls, because `DataTable` is a display-table contract
+ * and does not cover those. It has always been explicit about the other half of
+ * that permission:
+ *
+ *     "A native table is not a licence to style a table by hand. Each of these
+ *      uses --ds-table-header-bg, --ds-table-header-fg and the density roles."
+ *
+ * On 2026-08-25 that was measured. **Seven of the eleven approved native tables
+ * referenced no `--ds-table-*` role at all**, and the four that did referenced
+ * one or two. ("Eleven" throughout this file is the count of approved *files*;
+ * three of them hold more than one `<table>`, for fifteen in total — fourteen
+ * visible, all on this contract, plus one `sr-only` table that has no appearance
+ * and is exempt. `check:ui-contract` counts tables rather than files, so a
+ * three-table file cannot satisfy the rule with one class.) They looked right because `bg-ds-surface-subtle` and
+ * `text-ds-content-secondary` happen to be what the header roles resolve to —
+ * a coincidence, not a contract, and one that a change to either role would
+ * break silently.
+ *
+ * Cell padding had already drifted for the same reason: `px-ds-6` (24px) in
+ * `CompaniesView`, `px-ds-5` (20px) and `px-ds-4` (16px) in `ModernDriverTable`,
+ * against a `--ds-table-cell-padding-inline` of 20px. Three inline paddings for
+ * one thing, in a product whose design system decides that once.
+ *
+ * ## What it is
+ *
+ * One class on the `<table>`. Header, divider, row background, hover, cell
+ * padding and row height come from the same `--ds-table-*` roles `DataTable`
+ * reads, so the two kinds of table are the same table visually and a re-tuned
+ * role moves both. It deliberately does **not** supply selection, sorting,
+ * pagination, empty/error states or a scroll container: those are what makes
+ * `DataTable` a contract rather than a stylesheet, and a native table is chosen
+ * precisely when the feature owns the row's interaction.
+ *
+ * `density="compact"` on the table element mirrors `DataTable`'s prop.
+ *
+ * `check:ui-contract` requires every file with an approved `raw-table` exception
+ * to reference this class, so "we kept a native table" can no longer quietly mean
+ * "we styled a table by hand".
+ *
+ * ## The state row
+ *
+ * A native table still owns its own loading/error/empty row. There is no styling
+ * here for it, because it needs none — one `<td colSpan>` and the cell padding
+ * above are enough — but there IS a rule, and three of the eleven broke it:
+ *
+ *     <tr><td colSpan={n}><div role="status">No companies found.</div></td></tr>
+ *
+ * The live-region role goes on a wrapper INSIDE the cell, never on the `<td>`.
+ * `role="status"` on a cell replaces the cell role, and a row whose only child is
+ * not a cell is a row assistive technology may drop from the table altogether.
+ * `CompaniesView` and `UsersView` had it on the cell; `FeaturesView` had no role
+ * at all, so filtering the matrix down to nothing was silent. `DataTable` and
+ * `ModernDriverTable` had already been doing it correctly, which is what made the
+ * other three visible as defects rather than as a choice.
+ */
+
+.ds-native-table {
+  --ds-native-table-row-height: var(--ds-table-row-height-comfortable);
+  --ds-native-table-cell-padding-block: var(--ds-table-cell-padding-block-comfortable);
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--ds-color-content);
+  font-size: var(--ds-font-size-sm);
+}
+
+.ds-native-table[data-density='compact'] {
+  --ds-native-table-row-height: var(--ds-table-row-height-compact);
+  --ds-native-table-cell-padding-block: var(--ds-table-cell-padding-block-compact);
+}
+
+.ds-native-table > thead > tr {
+  height: var(--ds-table-header-height);
+  border-bottom: 1px solid var(--ds-table-divider);
+  background: var(--ds-table-header-bg);
+}
+
+.ds-native-table > thead > tr > th {
+  padding: 0 var(--ds-table-cell-padding-inline);
+  color: var(--ds-table-header-fg);
+  font-size: var(--ds-font-size-xs);
+  font-weight: var(--ds-font-weight-bold);
+  letter-spacing: 0.05em;
+  text-align: start;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/*
+ * A header cell may still say it is centred or end-aligned — a status column and
+ * an actions column both do — so the utility wins over the default above.
+ */
+.ds-native-table > thead > tr > th.text-center { text-align: center; }
+.ds-native-table > thead > tr > th.text-right { text-align: end; }
+
+.ds-native-table > tbody > tr {
+  border-bottom: 1px solid var(--ds-table-divider);
+  background: var(--ds-table-row-bg);
+}
+
+.ds-native-table > tbody > tr:last-child {
+  border-bottom: 0;
+}
+
+/*
+ * Hover only where a row is interactive. A matrix of form controls has no row
+ * activation, and a hover tint on it suggests one that is not there.
+ */
+.ds-native-table[data-row-hover] > tbody > tr:hover {
+  background: var(--ds-table-row-hover-bg);
+}
+
+/*
+ * `th[scope="row"]` is a data cell too — a row header — and needs the same
+ * padding as its siblings or the first column sits closer to the edge than the
+ * rest. Two of the eleven tables use one.
+ */
+.ds-native-table > tbody > tr > td,
+.ds-native-table > tbody > tr > th {
+  /*
+   * `height`, not `min-height`, and the distinction is the whole rule.
+   *
+   * CSS 2.1 makes `min-height` on a `table-cell` box explicitly undefined, and
+   * browsers ignore it — while `height` on a table cell is treated as a MINIMUM,
+   * which is exactly the behaviour wanted here: a short row gets the contract's
+   * row height, and a row with two stacked lines still grows past it.
+   *
+   * So the density role was a no-op on every body cell from the day this file was
+   * written, and the rows were whatever their content happened to make them. The
+   * `thead` rule above always used `height`, which is why headers matched
+   * `DataTable` at 48px and bodies did not.
+   *
+   * Found in review on 2026-08-25 — and worth being blunt about: the guard had
+   * already caught it. `visual-contract.snapshot.json` recorded
+   * `nativeTable.cell` at 60.5px desktop / 63.5px mobile beside `DataTable`'s
+   * body cell at 72px, in the same file, and I read that as "56 measurements
+   * recorded" without noticing the two numbers disagreed. A guard that captures
+   * the defect is only half of one; somebody has to read what it captured.
+   */
+  height: var(--ds-native-table-row-height);
+  padding: var(--ds-native-table-cell-padding-block) var(--ds-table-cell-padding-inline);
+  /*
+   * `vertical-align` is deliberately NOT set. A table cell defaults to `middle`
+   * anyway, and setting it here would out-specify an `align-top` utility on a
+   * cell whose content is two stacked lines — which four of these tables have.
+   */
+}
+
+.ds-native-table > tbody > tr > th {
+  font-weight: inherit;
+  text-align: start;
+}
+
+/* A cell may still say it is centred or end-aligned. */
+.ds-native-table > tbody > tr > td.text-center,
+.ds-native-table > tbody > tr > th.text-center { text-align: center; }
+.ds-native-table > tbody > tr > td.text-right,
+.ds-native-table > tbody > tr > th.text-right { text-align: end; }
+
+/*
+ * A STICKY cell needs its own background, and this is the one thing the contract
+ * has to say that `DataTable` never had to.
+ *
+ * The row paints `--ds-table-row-bg`, not the cell. A `position: sticky` cell
+ * stays put while the row scrolls horizontally underneath it — so with a
+ * transparent background the other columns' text paints straight through the
+ * frozen first column. `FeaturesView`'s feature matrix is 20+ columns wide and
+ * freezes the company name; it had `bg-ds-surface` by hand before the contract
+ * arrived, that class was removed with the rest of the hand-picked styling, and a
+ * review on 2026-08-25 caught the consequence.
+ *
+ * The header and body take their own surfaces so a frozen column reads as part of
+ * the row it belongs to, and the hover tint follows for a table that has one:
+ * without that the frozen cell is the one part of a hovered row that does not
+ * highlight.
+ */
+.ds-native-table > thead > tr > th.sticky {
+  background: var(--ds-table-header-bg);
+}
+
+.ds-native-table > tbody > tr > th.sticky,
+.ds-native-table > tbody > tr > td.sticky {
+  background: var(--ds-table-row-bg);
+}
+
+.ds-native-table[data-row-hover] > tbody > tr:hover > th.sticky,
+.ds-native-table[data-row-hover] > tbody > tr:hover > td.sticky {
+  background: var(--ds-table-row-hover-bg);
+}
+
+/*
+ * `tfoot` carries a pager or a totals row. Same divider, same padding, and the
+ * header surface so it reads as chrome rather than as one more row of data.
+ */
+.ds-native-table > tfoot > tr {
+  border-top: 1px solid var(--ds-table-divider);
+  background: var(--ds-table-header-bg);
+}
+
+.ds-native-table > tfoot > tr > td,
+.ds-native-table > tfoot > tr > th {
+  padding: var(--ds-native-table-cell-padding-block) var(--ds-table-cell-padding-inline);
+}
+
+/*
+ * Narrower inline padding on a phone, matching `DataTable` exactly.
+ *
+ * `DataTable` has done this since it was written — 16px instead of 20px under
+ * 768px — because 20px on each side of a cell is a lot of a 412px screen. The
+ * whole point of this file is that the two contracts are one table, so a native
+ * table that kept 20px here would diverge from `DataTable` on the width where it
+ * matters most. `check:visual-contract` measures both at 412px and 1440px, which
+ * is how this was noticed rather than assumed.
+ */
+@media (max-width: 767px) {
+  .ds-native-table > thead > tr > th,
+  .ds-native-table > tbody > tr > td,
+  .ds-native-table > tbody > tr > th,
+  .ds-native-table > tfoot > tr > td,
+  .ds-native-table > tfoot > tr > th {
+    padding-right: var(--ds-space-4);
+    padding-left: var(--ds-space-4);
+  }
+}

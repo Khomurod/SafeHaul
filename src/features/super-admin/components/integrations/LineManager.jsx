@@ -6,7 +6,7 @@ import { doc, onSnapshot } from 'firebase/firestore';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import { Badge, Button, Card, IconButton } from '@/design-system/components';
 import { SafeHaulLoader } from '@shared/components/SafeHaulLoader';
-import { Modal } from '@design-system/patterns';
+import { ConfirmDialog } from '@design-system/patterns';
 import { AddLineModal } from './AddLineModal';
 
 /**
@@ -139,26 +139,26 @@ export function LineManager({ companyId, companyName }) {
                     tabIndex={0}
                     className="overflow-auto focus-visible:outline-none focus-visible:shadow-ds-focus"
                 >
-                    <table className="w-full border-collapse text-left">
+                    <table className="ds-native-table">
                         <caption id={tableRegionId} className="sr-only">Provisioned phone lines</caption>
-                        <thead className="bg-ds-surface-subtle text-ds-xs font-bold uppercase tracking-wider text-ds-content-secondary">
+                        <thead>
                             <tr>
-                                <th scope="col" className="px-ds-6 py-ds-3">Phone Number</th>
-                                <th scope="col" className="px-ds-6 py-ds-3">Label</th>
-                                <th scope="col" className="px-ds-6 py-ds-3 text-center">Status</th>
-                                <th scope="col" className="px-ds-6 py-ds-3 text-center">Default</th>
-                                <th scope="col" className="px-ds-6 py-ds-3 text-right">Actions</th>
+                                <th scope="col">Phone Number</th>
+                                <th scope="col">Label</th>
+                                <th scope="col" className="text-center">Status</th>
+                                <th scope="col" className="text-center">Default</th>
+                                <th scope="col" className="text-right">Actions</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-ds-border-subtle">
+                        <tbody>
                             {inventory.map((line) => (
-                                <tr key={line.phoneNumber} className="transition-colors hover:bg-ds-surface-subtle">
-                                    <th scope="row" className="px-ds-6 py-ds-4 text-left align-middle">
+                                <tr key={line.phoneNumber} className="transition-colors">
+                                    <th scope="row">
                                         <span className="font-mono text-ds-sm font-medium text-ds-content">
                                             {line.phoneNumber}
                                         </span>
                                     </th>
-                                    <td className="px-ds-6 py-ds-4 align-middle">
+                                    <td>
                                         <span className="text-ds-sm text-ds-content-secondary">
                                             {line.label || '-'}
                                         </span>
@@ -168,21 +168,21 @@ export function LineManager({ companyId, companyName }) {
                                             </span>
                                         )}
                                     </td>
-                                    <td className="px-ds-6 py-ds-4 text-center align-middle">
+                                    <td className="text-center">
                                         {line.status === 'active' ? (
                                             <Badge tone="success" icon={CheckCircle}>Active</Badge>
                                         ) : (
                                             <Badge tone="warning" icon={AlertCircle}>{line.status || 'Unknown'}</Badge>
                                         )}
                                     </td>
-                                    <td className="px-ds-6 py-ds-4 text-center align-middle">
+                                    <td className="text-center">
                                         {line.phoneNumber === defaultNumber ? (
                                             <Badge tone="info" icon={User}>Default</Badge>
                                         ) : (
                                             <span className="text-ds-content-muted" aria-hidden="true">—</span>
                                         )}
                                     </td>
-                                    <td className="px-ds-6 py-ds-4 text-right align-middle">
+                                    <td className="text-right">
                                         <IconButton
                                             label={`Remove line ${line.phoneNumber}`}
                                             variant="ghost"
@@ -234,32 +234,26 @@ export function LineManager({ companyId, companyName }) {
 /**
  * Replaces the blocking `window.confirm` that guarded line removal. The warning
  * wording is preserved verbatim.
+ *
+ * The approved `ConfirmDialog` since 2026-08-25; hand-composed before that, and
+ * without a medallion, so this destructive question looked different from the
+ * ones that had one. The pattern also puts initial focus on Cancel rather than on
+ * "Remove line" and guards `onConfirm` against a double activation.
  */
 function RemoveLineDialog({ line, onCancel, onConfirm }) {
-    const titleId = useId();
-    const descriptionId = useId();
-
     return (
-        <Modal
-            onClose={onCancel}
-            labelledBy={titleId}
-            describedBy={descriptionId}
-            closeOnBackdrop={false}
-            className="w-full max-w-lg overflow-hidden rounded-ds-xl border border-ds-border-subtle bg-ds-surface shadow-ds-lg"
-        >
-            <div className="p-ds-5">
-                <h2 id={titleId} className="text-ds-heading-sm font-bold text-ds-content">
-                    Remove phone line?
-                </h2>
-                <p id={descriptionId} className="mt-ds-3 text-ds-sm text-ds-content-secondary">
+        <ConfirmDialog
+            tone="danger"
+            title="Remove phone line?"
+            description={(
+                <>
                     Are you sure you want to remove <strong className="font-mono text-ds-content">{line.phoneNumber}</strong>? Any users assigned to this line will be unassigned.
-                </p>
-            </div>
-            <div className="flex justify-end gap-ds-3 border-t border-ds-border-subtle bg-ds-surface-subtle p-ds-4">
-                <Button variant="secondary" onClick={onCancel}>Cancel</Button>
-                <Button variant="danger" onClick={onConfirm}>Remove line</Button>
-            </div>
-        </Modal>
+                </>
+            )}
+            confirmLabel="Remove line"
+            onCancel={onCancel}
+            onConfirm={onConfirm}
+        />
     );
 }
 

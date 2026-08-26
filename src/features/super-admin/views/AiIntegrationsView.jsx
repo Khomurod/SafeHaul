@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useMemo, useState } from 'react';
 import { ListChecks, RefreshCw, ScrollText, Trash2 } from 'lucide-react';
 
 import {
@@ -10,6 +10,9 @@ import {
     FormField,
     Input,
     MetricCard,
+    TabList,
+    TabPanel,
+    tabIds,
 } from '@/design-system/components';
 import { ResponsiveGrid, Stack } from '@/design-system/layouts';
 import { useToast } from '@shared/components/feedback';
@@ -106,7 +109,6 @@ export function AiIntegrationsView() {
     const [diagnosingPins, setDiagnosingPins] = useState(false);
     const [credentialAccess, setCredentialAccess] = useState(null);
     const [checkingCredentialAccess, setCheckingCredentialAccess] = useState(false);
-    const tabRefs = useRef({});
     const tabsId = useId();
 
     const load = useCallback(async () => {
@@ -289,20 +291,6 @@ export function AiIntegrationsView() {
             setBusyId(null);
         }
     }, [load, runGuarded, showError, showSuccess]);
-
-    // Roving focus: a tablist must answer Arrow/Home/End, not only clicks.
-    const onTabKeyDown = (event) => {
-        const index = TABS.findIndex((tab) => tab.id === activeTab);
-        let next = null;
-        if (event.key === 'ArrowRight') next = TABS[(index + 1) % TABS.length];
-        if (event.key === 'ArrowLeft') next = TABS[(index - 1 + TABS.length) % TABS.length];
-        if (event.key === 'Home') next = TABS[0];
-        if (event.key === 'End') next = TABS[TABS.length - 1];
-        if (!next) return;
-        event.preventDefault();
-        setActiveTab(next.id);
-        tabRefs.current[next.id]?.focus();
-    };
 
     /**
      * Asks each vendor whether the models the registry pins still exist.
@@ -655,46 +643,16 @@ export function AiIntegrationsView() {
                 </p>
             </div>
 
-            <div
-                role="tablist"
-                aria-label="AI Integrations sections"
-                onKeyDown={onTabKeyDown}
-                className="flex overflow-x-auto border-b border-ds-border-subtle"
-            >
-                {TABS.map((tab) => {
-                    const selected = activeTab === tab.id;
-                    const Icon = tab.icon;
-                    return (
-                        <button
-                            key={tab.id}
-                            type="button"
-                            role="tab"
-                            id={`${tabsId}-tab-${tab.id}`}
-                            aria-selected={selected}
-                            aria-controls={`${tabsId}-panel-${tab.id}`}
-                            tabIndex={selected ? 0 : -1}
-                            ref={(node) => { tabRefs.current[tab.id] = node; }}
-                            onClick={() => setActiveTab(tab.id)}
-                            className={`flex items-center gap-ds-2 whitespace-nowrap border-b-2 px-ds-4 py-ds-3 text-ds-sm font-bold transition-colors focus-visible:outline-none focus-visible:shadow-ds-focus ${
-                                selected
-                                    ? 'border-ds-action-primary text-ds-content-link'
-                                    : 'border-transparent text-ds-content-secondary hover:text-ds-content'
-                            }`}
-                        >
-                            <Icon size={16} aria-hidden="true" />
-                            {tab.label}
-                        </button>
-                    );
-                })}
-            </div>
+            <TabList
+                ariaLabel="AI Integrations sections"
+                idBase={tabsId}
+                tabs={TABS}
+                activeTab={activeTab}
+                onChange={setActiveTab}
+                className="overflow-x-auto"
+            />
 
-            <div
-                role="tabpanel"
-                id={`${tabsId}-panel-${activeTab}`}
-                aria-labelledby={`${tabsId}-tab-${activeTab}`}
-                tabIndex={0}
-                className="focus-visible:outline-none focus-visible:shadow-ds-focus"
-            >
+            <TabPanel idBase={tabsId} tabId={activeTab}>
             {activeTab === 'logs' && <AiLogsPanel providers={providers} />}
 
             {activeTab === 'providers' && (
@@ -963,7 +921,13 @@ export function AiIntegrationsView() {
                         size="sm"
                         onClick={() => {
                             setActiveTab('logs');
-                            tabRefs.current.logs?.focus();
+                            /*
+                              Focus follows the switch, so a keyboard user is not
+                              left on a button whose panel just changed under them.
+                              `tabIds` is the design system's own id contract, which
+                              is why the strip no longer needs a ref map here.
+                            */
+                            document.getElementById(tabIds(tabsId, 'logs').tabId)?.focus();
                         }}
                     >
                         <ScrollText size={14} aria-hidden="true" /> Open logs
@@ -972,7 +936,7 @@ export function AiIntegrationsView() {
             </Card>
             </Stack>
             )}
-            </div>
+            </TabPanel>
 
             {credentialModal && (
                 <AiCredentialModal

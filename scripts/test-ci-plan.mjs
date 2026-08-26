@@ -25,7 +25,7 @@
  *      window, not silently drop the functions it changed.
  */
 
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve as resolvePath } from 'node:path';
 import { createRequire } from 'node:module';
@@ -1044,6 +1044,86 @@ console.log('\nI. Workflow wiring');
             (scripts[name] || '').includes('--config=playwright.visual.config.cjs'),
             `${name} = ${JSON.stringify(scripts[name])}`);
     }
+}
+
+
+/* ========================================================================== */
+console.log('\nK. Guards that stay guards');
+/* ==========================================================================
+ * Every check in this group exists because the repository had a lane that
+ * reported instead of enforcing, and nobody could tell.
+ *
+ * The visual lane ran with `continue-on-error: true` on the stated grounds that
+ * pixel baselines are not portable across machines. The CI record said otherwise:
+ * `20 failed / 132 passed` on every run, the twenty being every application
+ * screen, because the application fetched its typeface from a third party that
+ * the runner could not reach. The lane had never once been green, it uploaded a
+ * 52MB diff artifact nobody opened, and its warning annotation fired every time.
+ *
+ * The accessibility lane ran with `continue-on-error: true` under a comment
+ * saying to fold it into the blocking lane "once confirmed green in CI". It had
+ * been green — 11/11 — for weeks.
+ *
+ * A lane that cannot fail teaches everyone to ignore it, which is worse than no
+ * lane at all. These assert that neither can quietly go back.
+ * ========================================================================== */
+{
+    const workflowRaw = readFileSync(resolvePath(here, '../.github/workflows/main.yml'), 'utf8');
+    /*
+     * Comment lines go first. This pipeline documents at length what it used to do
+     * wrong, so the very strings these assertions forbid appear in prose right
+     * above the steps that no longer contain them — and a guard that fires on its
+     * own explanation is a guard someone deletes.
+     */
+    const workflowText = workflowRaw
+        .split('\n')
+        .filter((line) => !/^\s*#/.test(line))
+        .join('\n');
+
+    /** The `- name: … / …` step block a given step name introduces. */
+    const stepBlock = (name) => {
+        const start = workflowText.indexOf(`- name: ${name}`);
+        if (start < 0) return null;
+        const rest = workflowText.slice(start + 1);
+        const next = rest.indexOf('\n      - name:');
+        return next < 0 ? rest : rest.slice(0, next);
+    };
+
+    const visualStep = stepBlock('Visual regression (pixel baselines)');
+    assert('K1. the visual-regression step exists', visualStep !== null,
+        'renaming it would make the continue-on-error assertion below vacuous');
+    assert('K1. the visual-regression step is blocking',
+        visualStep !== null && !/continue-on-error:\s*true/.test(visualStep),
+        'a pixel-baseline lane that cannot fail is a report, not a guard');
+
+    assert('K2. no workflow step excludes the accessibility specs',
+        !/--grep-invert[^\n]*@a11y/.test(workflowText),
+        'the axe specs belong in the blocking lane, not behind a grep-invert');
+    assert('K2b. no workflow step runs the accessibility specs with continue-on-error',
+        !/@a11y[\s\S]{0,200}?continue-on-error:\s*true/.test(workflowText),
+        'an accessibility gate nobody has to pass is a report, not a gate');
+
+    /*
+     * The application must not fetch its typeface at runtime. That is what broke
+     * the visual lane for the whole of its existence, and it degrades the product
+     * for anyone whose network cannot reach the CDN.
+     */
+    const appCss = readFileSync(resolvePath(here, '../src/index.css'), 'utf8');
+    const catalogCss = readFileSync(resolvePath(here, '../.storybook/preview.css'), 'utf8');
+    const withoutComments = (css) => css.replace(/\/\*[\s\S]*?\*\//g, '');
+    for (const [label, css] of [['src/index.css', appCss], ['.storybook/preview.css', catalogCss]]) {
+        assert(`K3. ${label} loads no remote stylesheet or font`,
+            !/@import\s+url\(\s*['"]?https?:/.test(withoutComments(css)),
+            'the typeface is served from src/design-system/fonts; a remote @import is what '
+            + 'made every application baseline fail on the runner');
+    }
+
+    const fontDir = resolvePath(here, '../src/design-system/fonts');
+    assert('K3b. the typeface is in the repository',
+        existsSync(resolvePath(fontDir, 'InterVariable.woff2'))
+        && existsSync(resolvePath(fontDir, 'InterVariable-Italic.woff2'))
+        && existsSync(resolvePath(fontDir, 'LICENSE.txt')),
+        'both faces plus the SIL OFL licence that permits redistributing them');
 }
 
 console.log(failures === 0 ? '\nAll CI plan and gate checks passed.' : `\n${failures} check(s) failed.`);

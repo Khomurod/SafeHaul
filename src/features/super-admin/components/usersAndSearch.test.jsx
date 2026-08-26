@@ -93,6 +93,29 @@ describe('UsersView — frozen role and membership mapping', () => {
         rerender(<UsersView listLoading={false} statsError={NO_ERRORS} userList={[]} allCompaniesMap={COMPANIES_MAP} onEdit={vi.fn()} onDelete={vi.fn()} />);
         expect(screen.getByText('No users found.')).toBeInTheDocument();
     });
+
+    /*
+     * Same pair of defects as `CompaniesView` — the live-region role was on the
+     * `<td>`, which replaces the cell role, and the empty row had no role at all.
+     * See the longer note there; this is the second of the three native tables
+     * that had it.
+     */
+    it('announces each state from inside the cell, never on the cell itself', () => {
+        const { rerender } = renderUsers({ listLoading: true });
+        const loading = screen.getByText('Loading users...');
+        expect(loading).toHaveAttribute('role', 'status');
+        expect(loading.closest('td')).not.toHaveAttribute('role');
+
+        rerender(<UsersView listLoading={false} statsError={{ ...NO_ERRORS, users: true }} userList={[]} allCompaniesMap={COMPANIES_MAP} onEdit={vi.fn()} onDelete={vi.fn()} />);
+        const error = screen.getByText('Error loading users.');
+        expect(error).toHaveAttribute('role', 'alert');
+        expect(error.closest('td')).not.toHaveAttribute('role');
+
+        rerender(<UsersView listLoading={false} statsError={NO_ERRORS} userList={[]} allCompaniesMap={COMPANIES_MAP} onEdit={vi.fn()} onDelete={vi.fn()} />);
+        const empty = screen.getByText('No users found.');
+        expect(empty).toHaveAttribute('role', 'status');
+        expect(empty.closest('td')).not.toHaveAttribute('role');
+    });
 });
 
 describe('UsersView — accessible names (defect)', () => {

@@ -115,10 +115,14 @@ The reverse directions are prohibited and enforced by
   set a size to make a control match its neighbour — the default already does.
   `lg` is for the primary action of a public, mobile-first, single-task screen.
   A thing that is not a control must not read a control height.
-- **Icon size inside a control belongs to the design system.** `Button` sizes any
-  contained `svg` from the step's icon token, which outranks the width/height
-  attributes an icon library renders. Passing `size={24}` to a glyph in a button
-  does nothing, deliberately.
+- **Icon size inside a control belongs to the design system, and so does the
+  space beside it.** `Button` sizes any contained `svg` from the step's icon
+  token, which outranks the width/height attributes an icon library renders —
+  passing `size={24}` to a glyph in a button does nothing, deliberately. The gap
+  between that glyph and its label is `--ds-space-2` on `.ds-button`, inherited by
+  `.ds-button__content`, so a call site does not set it either.
+  `check:visual-contract` measures both halves at all three sizes; until
+  2026-08-25 it measured only the icon.
 - **Status is never colour alone** — always text or icon plus tone.
 - **A state must announce itself.** Loading and empty are `role="status"`
   (polite); errors are `role="alert"`. Use `EmptyState` / `ErrorState` /
@@ -205,19 +209,65 @@ component itself as well.
   adopting it would nest two and reproduce the dead-gutter defect
   `check:table-layout` exists to catch.
 
-  **A native table is not a licence to style a table by hand.** Each of these
-  uses `--ds-table-header-bg`, `--ds-table-header-fg` and the density roles, and
-  `check:ui-contract` records each with the reason above rather than exempting
-  the file wholesale.
-- **`CallOutcomeModalUI`'s outcome grid stays a `role="group"` of raw
-  `<button aria-pressed>` cards** until it migrates to the `SegmentedControl`
-  built on 2026-08-21 — which keeps exactly that semantic, deliberately, rather
-  than becoming a radiogroup. Same for the dossier summary toggle and the PEV
-  FMCSA rows. All their colours are approved tokens.
-- **File inputs stay local** in `DQFileTab`, `BulkUploadLayout`, the public
-  application and the PEV result upload — **until each migrates to the
-  `FileInput` primitive built on 2026-08-21.** The contract now exists, so a
-  *new* hand-built picker is a violation rather than an exception.
+  **A native table is not a licence to style a table by hand.** That sentence has
+  been here since the pattern was approved, and on 2026-08-25 it was measured for
+  the first time: **seven of the eleven referenced no `--ds-table-*` role at
+  all**, and the four that did referenced one or two. They looked right because
+  `bg-ds-surface-subtle` happens to be what the header role resolves to — a
+  coincidence a re-tuned role would have broken in silence — and their inline cell
+  padding had already drifted to three values (24px, 20px, 16px) against a
+  contract of 20px.
+
+  **"Eleven" is a count of files, and it is worth being exact about, because the
+  guard is not.** Eleven feature files carry an approved `raw-table` exception,
+  and between them they hold **fifteen** `<table>` elements, because three files
+  carry more than one: `FeaturesView` ×2, `ModernDriverTable` ×2 and
+  `AnalyticsView` ×3. Fourteen of the fifteen are visible and every one of them
+  applies `ds-native-table`. The fifteenth is `AnalyticsView`'s `sr-only` table —
+  the text equivalent of the chart above it — and it deliberately does not, because
+  it has no appearance to put on contract. The
+  distinction mattered on 2026-08-25: the first version of the tether check asked
+  whether the *file* mentioned the class, which a three-table file satisfies with
+  one, so it counts tables now. See the guardrail table in section 7.
+
+  `ds-native-table` (`components/data-table/nativeTable.css`) is that contract — using `height` on body cells rather than `min-height`, which CSS leaves undefined on a table-cell box and browsers ignore, so the density role was a no-op until 2026-08-25:
+  header surface and foreground, divider, row background, hover, cell padding and
+  row height from the same roles `DataTable` reads, including the narrower inline
+  padding under 768px that `DataTable` has always had. All eleven apply it,
+  `check:ui-contract` fails any approved `raw-table` file that does not, and
+  `check:table-layout` measures native tables in a real browser — until then **no
+  native table was measured anywhere**, so the guard written because a Delete
+  button rendered as "Dele" on a phone had been looking only at the catalog's four
+  `DataTable`s.
+- ~~**`CallOutcomeModalUI`'s outcome grid stays a `role="group"` of raw
+  `<button aria-pressed>` cards.**~~ **RETIRED 2026-08-25.** It is
+  `SegmentedControl`, as are the dossier summary toggle, the e-doc
+  delivery-method toggle and the change-review decision group. The primitive
+  keeps exactly that semantic — `role="group"` + `aria-pressed`, deliberately not
+  a radiogroup — so nothing about how these announce changed.
+
+  **The PEV FMCSA rows were listed here and do not fit, which was an error in
+  this file.** An FMCSA suggestion row is a three-line record summary — legal
+  name, USDOT and location, then whether FMCSA listed contact details — and
+  `SegmentedControl` takes a string `label`. It cannot express one, however well
+  the semantics match. That is the SelectableCard/Listbox gap below, and the
+  allowlist entry says so.
+- ~~**File inputs stay local.**~~ **RETIRED 2026-08-25.** Seven of the nine
+  migrated to `FileInput`: `BulkUploadLayout`, the driver application's
+  `UploadField`, the dynamic-questions upload, `BrandingSection`,
+  `ProfileAvatarField`, the campaign recipient import and the e-doc envelope
+  creator. `DQFileTab` and `EditCompanyModal` were already on it.
+
+  Migrating them is what revealed why the primitive had two consumers rather than
+  nine: it covered **one of the product's three shapes**. `variant="dropzone"`,
+  `loading` and `labelHidden` exist now, and the roadmap's lesson is the general
+  one — *a primitive that fits a third of its call sites does not get adopted.*
+
+  Two remain, and both are **programmatic** pickers rather than under-served
+  ones: `PEVTab`'s per-employer result upload (the affordance is a table row
+  action) and `IntakeChooser`'s CDL scan (the affordance is one of two intake
+  choice cards). `FileInput` is a visible control by contract, so neither is a
+  gap in it.
 - ~~**Styled `<a>` navigations stay local.**~~ **RETIRED 2026-08-21.**
   `Link`, `ButtonLink` and `IconButtonLink` exist
   (`components/link`). The remaining feature-owned anchors are being migrated to
@@ -256,10 +306,31 @@ component itself as well.
   alignment with the PDF underneath. All of them keep an accessible name, a
   focus-visible ring and `--ds-*` tones. Retiring them needs a compact
   icon-button step and a geometry-free field in the design system.
+- ~~**Hand-rolled tab strips.**~~ **RETIRED 2026-08-25.** All eleven adopted
+  `TabList` / `TabPanel`. `check:ui-contract`'s `hand-rolled-tablist` rule is what
+  keeps the twelfth from being written — the primitive shipped on 2026-08-21 and
+  had **zero** consumers four days later, which is what a roadmap line buys
+  without a guard.
+
+  Two shapes were added so the primitive could fit its call sites rather than
+  half of them: `variant="pill"` for a secondary strip inside a panel, and
+  `fitted` for a strip that must span a narrow popover. Two defects in the
+  primitive itself were fixed on the way: `aria-controls` pointed every tab at a
+  panel that does not exist, and selection was appended to the accessible *name*
+  as a hidden "(selected)" — now a `forced-colors` rule, which is where a
+  colour-only concern belongs.
+
+  One deliberate behaviour change: the dossier's vertical rail answered both
+  arrow axes and now answers only the one its `aria-orientation` announces. That
+  is the ARIA pattern, and the primitive's reason is specific — a vertical strip
+  that also ate Left/Right would take the horizontal scroll keys from the region
+  around it.
+- ~~**`EnvelopeSidebar`'s `RailSection` disclosure header.**~~ **RETIRED
+  2026-08-25.** It is `Disclosure`, the consumer that primitive was built for.
 - **`EnvelopeSidebar`'s field-palette tiles stay raw `<button>`s.** They are
   colour-coded per field type — domain-to-visual mapping the feature owns, and
-  `Button` has no API for it. Same family as the PEV FMCSA rows and the
-  call-outcome grid: there is no approved SelectableCard/Listbox primitive.
+  `Button` has no API for it. Same family as the PEV FMCSA rows: there is no
+  approved SelectableCard/Listbox primitive.
 - **`LoginScreen`'s hero wash and `IntegrationsTab`'s Facebook tile keep raw
   hexes.** The hero's three blobs are artwork: blurred over 256–384px,
   `aria-hidden`, no information in them. Everything on that panel that carries
@@ -282,22 +353,60 @@ one keeps a feature-owned control in the tree with a documented exception, and
 each exception retires when the primitive lands. **Do not delete an entry here
 while its call site still cites it.**
 
-**Five of these closed on 2026-08-21.** The primitives now exist; the call sites
-listed against them are migrated family by family in the PRs that follow, and
-until a call site moves, its exception still stands. Delete a row only when its
-last consumer has migrated.
+**The five that closed on 2026-08-21 have all of their call sites migrated as of
+2026-08-25**, so their rows are gone from this table rather than sitting here
+"built" with nothing using them. That gap between building and adopting is the
+lesson worth keeping:
+
+> `TabList`, `SegmentedControl`, `Disclosure` and `FileInput` shipped on
+> 2026-08-21 with **zero, zero, zero and two** consumers, and eleven tab strips,
+> four toggle groups and nine raw file inputs still in the tree — every one under
+> a comment saying "the design system has no such primitive yet". Four days
+> later nothing had moved, because **a roadmap line saying "these will migrate" is
+> not a guard.** `check:ui-contract` has a rule per family now.
+
+And a second lesson, from doing the migrations: `FileInput` covered **one of the
+product's three shapes**, `TabList` one of its three, and `SegmentedControl`
+could not express a multi-line row at all. *A primitive that fits a third of its
+call sites does not get adopted, and the missing third looks like neglect from
+the outside.* Check the shapes before declaring a family closed.
+
+A third, found the same day and worse than either: **`PageState` and
+`ConfirmDialog` had consumers, and duplicates kept being written anyway.**
+Fifteen hand-composed states and ten hand-composed confirmations, several of
+them added *after* the pattern existed, one of them a local component with the
+same name as the approved export. Neither family had a `check:ui-contract` rule,
+because a hand-composed pattern is not a raw HTML element — it is correct
+primitives in a shape the design system already owns, which no class-list or
+tag-name rule can see. What closed it was reading the tree for the *composition*
+rather than for the element: every file outside the design system that used
+`StatusMedallion`, and every local component whose name ends in `Dialog`. That
+search is written into the guardrail table in §7 as a **review** step, honestly
+labelled, because it is not automated and pretending otherwise is how the gap
+opened.
+
+**The first version of that search was too narrow, which is worth recording
+because it is the same mistake one level up.** It looked for a local
+`*Confirm*Dialog*`, found six, and missed four more named after what they delete
+— `RemoveLineDialog`, `DeleteRecordDialog`, `DeleteFileDialog`,
+`ToggleActiveDialog`. A search for the *word* "confirm" finds the dialogs that
+call themselves confirmations; a search for the *shape* finds the rest. The
+procedure in §7 is the broad one.
 
 | Primitive | Status | Cited by |
 |---|---|---|
-| **Tabs** (`components/tabs`) | **Built.** `TabList` / `TabPanel`, plus `tabIds` so a strip and a panel living in different components cannot drift apart | Nine hand-rolled tablists — `DocumentsManager`, `AnalyticsView`, `CreateView`, `AiIntegrationsView`, `CampaignsDashboard`, `AudienceBuilder` (x2), `DossierSidebar`, `EditorInspector`, `NotificationBell`. Seven had each written the same `handleTabKeyDown` |
-| **Disclosure** (`components/disclosure`) | **Built.** Trigger inside a heading; content unmounted when closed, not hidden | `EnvelopeSidebar`'s `RailSection`. `AiLogsPanel` never needed it — a log row's detail opens in the approved `Modal` via `DataTable`'s `onRowActivate`, so no inline expander was hand-rolled |
-| **Segmented control** (`components/segmented`) | **Built** as `role="group"` + `aria-pressed`, deliberately *not* a radiogroup — the README says why | `CallOutcomeModalUI`'s outcome grid, the dossier summary/full toggle, the PEV FMCSA rows, `EnvelopeSidebar`'s delivery-method toggle |
-| **Switch** (`components/switch`) | **Built**, promoted from Company Settings' `ToggleSwitch`, which was already correct | `FeaturesView`, which used a `Checkbox` and so announced the wrong role for a control that saves immediately |
-| **File input** (`components/file-input`) | **Built.** A real focusable `<input type="file">` behind a `<label>` | `DQFileTab`, `BulkUploadLayout`, the public application's upload, the PEV result upload. Two of the four were a `<div onClick>` driving a `display: none` input, which has no keyboard path to the picker at all |
-| **Toned `Button` variant** | **Still open** | `EnvelopeSidebar.jsx`'s eight field-palette buttons. `Button` exposes only primary/secondary/ghost/danger and has no semantic status tone; the tone is load-bearing because `ResizableDraggableField` colour-codes each placed overlay by field type, so these buttons are the legend for what appears on the PDF. They already use `--ds-*` status tokens, a 44px activation height, a focus ring and unique names |
-| **Inline editable value** | **Open**, found 2026-08-21 | `ManageTeamModal`'s two per-member goal editors — a borderless numeric field inside a labelled chip. `Input` is a 44px bordered full-width control and would destroy the chip; overriding it back would be worse. Both are tokenised, labelled and carry the shared focus ring |
-| **Tinted chip link** | **Open**, found 2026-08-21 | `CallOutcomeModalUI`'s phone chip — a status-tinted pill that is also a `tel:` link. `Link` is underlined text and `ButtonLink` is button-shaped; neither is an inline tinted chip. `Badge` is the right shape but is not interactive |
-| **Menu / overflow menu** | **Not being built** | `TemplateLibraryPanel.jsx`, where every template action is a visible button. At that size that is a better answer than an overflow menu, not a workaround — so the primitive is not being written speculatively |
+| **Toned `Button` variant** | **Still open** | `EnvelopeSidebar.jsx`'s eight field-palette buttons. `Button` exposes only primary/secondary/ghost/danger/link and has no semantic status tone; the tone is load-bearing because `ResizableDraggableField` colour-codes each placed overlay by field type, so these buttons are the legend for what appears on the PDF. They already use `--ds-*` status tokens, a 44px activation height, a focus ring and unique names |
+| **Inline editable value** | **Open**, found 2026-08-21 | `ManageTeamModal`'s two per-member goal editors and `InlineLeaderboard`'s two date-range fields — a borderless field inside a labelled chip. `Input` is a 44px bordered full-width control and would destroy the chip; overriding it back would be worse. All four are tokenised, labelled and carry the shared focus ring |
+| **Tinted chip link** | **Open**, found 2026-08-21 | `CallOutcomeModalUI`'s phone chip and the candidate list's per-row call chip — a status-tinted pill that is also a `tel:` link. `Link` is underlined text and `ButtonLink` is button-shaped; neither is an inline tinted chip. `Badge` is the right shape but is not interactive |
+| **SelectableCard / Listbox** | **Open**, widened 2026-08-25 | A row of *record content* that behaves as a single-select option: the PEV FMCSA suggestion rows (three lines each), `EnvelopeSidebar`'s field-palette tiles, `VirtualLeadList`'s exclusion rows, `CompanyChooserModal`'s company rows, `PageThumbnailRail`'s page thumbnails. `SegmentedControl` takes a string label and cannot express any of them, which is why it did not retire the FMCSA rows as this file previously claimed |
+| **Filter chip** | **Open**, first consumer named 2026-08-25 | `AudienceBuilder`'s application-status chips are **multi**-select over a `status` array, and 12px rather than the 44px control height; `SegmentedControl` is single-select by contract and would triple their height inside a filter panel. `CompanyCandidatesListPage`'s pipeline strip is the single-select sibling |
+| **Compact icon-button step** | **Open** | Below `sm` (36px). The candidate list's 24px column-sort toggles, the corner badges on a PDF field box whose minimum size is 8px, `AiSuggestionOverlay`'s accept/reject pair |
+| **Card-section disclosure** | **Open**, found 2026-08-25 | `Disclosure` has exactly one appearance — a rail-section header at 12px, bold, uppercase — because that is the shape its consumer needed. `EmailSettingsTab`'s SMTP setup guide is a `heading-sm` card section with a description line, and one consumer does not justify a second variant |
+| **Section rail with per-item status** | **Open**, found 2026-08-25 | `CampaignEditor`'s section rail. `SectionNavigation` is the near miss: it hardcodes `aria-current="page"` where this is a wizard step, and has no trailing slot for the complete/incomplete indicator that is the rail's whole purpose |
+| **Bottom app bar** | **Not being built** | `EditorMobileBar`'s items are equal-width stacked icon-over-label targets at 56px, the platform convention for a bottom bar and deliberately taller than the 44px control step. One consumer |
+| **Status notice / callout** | **Open**, measured 2026-08-25 | *The largest remaining composition gap, and the one to do next.* A tinted bordered block with an icon and a sentence — "your application was submitted but these documents are outstanding", "this company will be blocked from logging in", a queue error. There is no primitive: `FieldMessage` is scoped to a form field, `Badge` is a chip, `PageState` is a whole slot. So the shape is rebuilt each time. Searching for its token signature (`bg-ds-status-*-bg` beside `border-ds-status-*-border`) returns **109 lines across 87 files**, and that number is honest about what it includes: some are separately recorded exceptions — the PDF field overlays in `SignerField`, the field-type colour legend in `fieldDefinitions`, the badge-tone maps in the candidate list — so the true count of notices is lower and was not enumerated one by one. Every one uses `--ds-*` roles, so this is *composition* drift rather than palette drift, which is why no rule sees it. Deliberately **not** attempted on 2026-08-25: a primitive for it must be built against a shape audit of the real call sites, and building it without migrating them is the mistake §8 records |
+| **Avatar / initial disc** | **Open**, measured 2026-08-25 | A circular tinted disc holding an initial, an index number or a count — `aria-hidden` and decorative in every case. Eight of them across the dossier sidebar, the notes and activity tabs, the Super Admin user list, Analytics, the candidate list and the login hero, at **five different diameters** (20, 32, 36, 48/64 and 64px). `StatusMedallion` is the near miss: it is a status disc sized sm/md/lg holding an *icon*, and its tone carries meaning, where these carry a character |
+| **Menu / overflow menu** | **Not being built** | `TemplateLibraryPanel.jsx`, where every template action is a visible button. At that size that is a better answer than an overflow menu, not a workaround. `CampaignCard`'s card menu is the other candidate, and its entries are `role="menuitem"`, which `Button` cannot be |
 
 ---
 
@@ -465,16 +574,35 @@ enforcement permanently blocking.
     `xl` rather than `md` because it holds a `Badge` (which does not wrap) plus
     trailing detail text; `DataTable.stories.jsx` covers that arrangement so
     `check:table-layout` measures it in a real browser.
-- `[!]` **Select visual-baseline hosting and review ownership.** The catalog
-  tool is decided — Storybook (see §7). What remains open is who hosts the built
-  catalog, who approves a baseline change, and which service stores baselines.
-  Chromatic was excluded by scope, not evaluated and rejected.
+- `[x]` **Select visual-baseline hosting. RESOLVED — the baselines live in this
+  repository.** `playwright.config.cjs` sets `snapshotPathTemplate` so each
+  baseline sits beside the spec that records it, committed and reviewed as part of
+  the diff. No external service, no credentials, and a baseline change shows up in
+  code review like any other change. Chromatic was excluded by scope, not
+  evaluated and rejected — and it is not needed for this. Who *approves* a
+  baseline change is the same person who approves the pull request it arrives in;
+  the lane is blocking as of 2026-08-25, so there is always one.
 - `[!]` **Approve semantic brand/action colours** before declaring visible
   component families fully approved. Compatibility-first consumers preserve the
   current blue-led UI and the SafeHaul navy/mint brand assets; product/design
   review is still required.
 - `[!]` Confirm WCAG 2.2 AA as the permanent standard.
-- `[!]` Decide whether Inter remains externally hosted.
+- `[x]` **Decide whether Inter remains externally hosted. RESOLVED 2026-08-25 —
+  it is served from this repository.** Not a preference in the end. The
+  application opened with `@import url('https://rsms.me/inter/inter.css')`, and
+  GitHub's runners did not get it: every one of the twenty application visual
+  baselines failed on every CI run, invisibly, behind `continue-on-error`. The
+  recorded diff was every glyph offset with every box unchanged.
+
+  Two consequences reached past CI. Anyone whose network cannot reach that host
+  saw the whole product in a fallback font, and every user's IP was disclosed to a
+  third party in order to render text.
+
+  `src/design-system/fonts/` holds the two variable faces under SIL OFL 1.1.
+  This sends **fewer** bytes than the CDN did — the name `Inter` mapped to the
+  *static* faces there, one file per weight, and this product uses four — in two
+  requests rather than eight. `scripts/test-ci-plan.mjs` K3 fails on a remote
+  `@import` in either stylesheet.
 - `[!]` **Approve replacement wording for the customer named in operator copy.**
   `StatsBackfillPanel`'s All-Companies help text reads "Only run after verifying
   Ray Star LLC results." Preserved verbatim; the repository establishes no
@@ -489,14 +617,306 @@ weaken or delete one without replacing the guarantee.
 
 | Guard | What it enforces |
 |---|---|
-| `src/design-system/tests/architecture.test.js` | No imports from features, application context, Firebase **or `shared`** into `src/design-system`. The `shared` half became enforceable on 2026-08-21, when `Modal`/`ConfirmDialog` moved out of it |
+| `src/design-system/tests/architecture.test.js` | No imports from features, application context, Firebase **or `shared`** into `src/design-system` — in stylesheets as well as modules. The `shared` half became enforceable on 2026-08-21, when `Modal`/`ConfirmDialog` moved out of it; the CSS half was added on 2026-08-25, after `index.css` had spent the whole campaign importing a token file from `shared` while this table claimed the rule was enforced |
 | `src/design-system/tests/tokens.test.js` | The semantic token contract and its contrast pairings, in both directions |
 | `src/tests/noBlockingBrowserDialogs.test.js` | No `confirm(` / `alert(` anywhere under `src/`, with or without a `window.` prefix. It walks every non-test file, strips comments and string literals, and is proven to catch a real call rather than passing vacuously |
 | `npm run test:stories` (`src/tests/designSystemStories.a11y.test.jsx`) | Every catalog story renders and passes axe |
-| `npm run check:table-layout` (`scripts/check-table-layout.mjs`) | Measures the built catalog in a real browser at 412px and 1440px: a cell must contain its content (`scrollWidth > clientWidth` is a violation unless the column opts into `truncate`), and no region may reserve a gutter it never scrolls into. Honours `PW_CHROMIUM_EXECUTABLE`, so it runs in a sandbox whose Chromium is not the pinned build — a guard that cannot run gets skipped |
-| `npm run check:ui-contract` (`scripts/check-ui-contract.mjs`) | The design-system contract, zero-tolerance. Raw palette classes, raw hex, sub-12px text, off-scale type, **Tailwind radii and shadows** (whose names collide with the `--ds-*` ones one step off), hand-built overlays, raw tables and hand-styled buttons/fields/anchors, measured against `src/design-system/ui-contract.allowlist.json`. Anything unlisted fails; so does a count *lower* than recorded, and so does an allowlist entry that does not say why it is allowed |
-| `npm run check:visual-contract` (`scripts/check-visual-contract.mjs`) | Computed geometry in a real browser at both widths — control heights, cell padding, radii, resolved token colours — against a committed snapshot. This is the blocking visual guard, because the numbers are portable across machines and a failure names what moved (`button[md].height: 44px -> 40px`) |
-| `npm run test:visual` (`e2e/visual/`) | Pixel baselines for 29 catalog subjects and 10 application screens, at 1440px and 412px, committed to the repository. **Reported, not enforced** — see below |
+| `npm run check:table-layout` (`scripts/check-table-layout.mjs`) | Measures the built catalog in a real browser at 412px and 1440px: a cell must contain its content (`scrollWidth > clientWidth` is a violation unless the column opts into `truncate`), and no region may reserve a gutter it never scrolls into. Covers `DataTable` **and** the `ds-native-table` contract — until 2026-08-25 no native table was measured anywhere, so the fifteen tables across eleven files that are not `DataTable` had no layout guard at all. Honours `PW_CHROMIUM_EXECUTABLE`, so it runs in a sandbox whose Chromium is not the pinned build — a guard that cannot run gets skipped |
+| `npm run check:ui-contract` (`scripts/check-ui-contract.mjs`) | The design-system contract, zero-tolerance. Raw palette classes, raw hex, sub-12px text, off-scale type, **Tailwind radii and shadows** (whose names collide with the `--ds-*` ones one step off), hand-built overlays, raw tables, hand-styled buttons/fields/anchors, **hand-rolled tablists, raw file inputs and hand-written `target="_blank"`** — in JSX, in stories and in CSS. Measured against `src/design-system/ui-contract.allowlist.json`: anything unlisted fails, so does a count *lower* than recorded, so does an entry that does not say why it is allowed, and so does an approved native table that does not apply `ds-native-table` — counted **per `<table>`**, not per file, because the first version of that rule was satisfied by one class in a file with three tables, and one of the eleven approved files has exactly that. A table that is never seen (`sr-only` / `ds-visually-hidden`) is exempt, since it has no appearance to put on contract |
+| `npm run check:visual-contract` (`scripts/check-visual-contract.mjs`) | Computed geometry in a real browser at both widths — control heights, cell padding, radii, resolved token colours — against a committed snapshot. This is the blocking visual guard, because the numbers are portable across machines and a failure names what moved (`button[md].height: 44px -> 40px`). 62 measurements as of 2026-08-25. Four of the recent ones are a frozen table column's background — a `sticky` cell that loses its own surface lets the scrolled columns paint through it, and that regression is now `rgb(255, 255, 255) -> rgba(0, 0, 0, 0)` in a diff rather than something found on a screen. The last six are the **gap between a glyph and its label**, which the design system owns (`.ds-button` sets `gap: var(--ds-space-2)`, `.ds-button__content` inherits it) and nothing measured: the icon *size* had a probe and the spacing beside it did not, so a re-tuned gap would have surfaced as a pixel diff on `button-with-icons` — a screenshot changed — instead of `columnGap: 8px -> 12px`, which says what moved. Mutation-proven with exactly that diff |
+| `npm run test:visual` (`e2e/visual/`) | Pixel baselines for **71 catalog subjects and 15 application screens**, at 1440px and 412px, committed to the repository. **Blocking as of 2026-08-25** — see below. The catalog describe is deliberately **not** `mode: 'serial'`: it was until 2026-08-25, and a serial group stops at its first failure, so 142 of the lane's 174 tests could report one regression and skip the rest |
+| `npm run test:e2e -- --grep "@a11y"` (`e2e/a11y.spec.cjs` and friends) | Real-browser axe on the mobile-critical journeys, plus the keyboard behaviour axe cannot see: roving `tabIndex`, arrow/Home/End on a tab strip, `aria-pressed` on a segmented group, a focusable file input named by its field, and that every control a Tab press reaches shows the product's focus ring rather than the browser's black one. **Blocking as of 2026-08-25**, inside the `frontend-e2e` lane |
+| **A review step, not automated** — see below | A *hand-composed pattern*: correct primitives arranged into a shape the design system already owns. No class-list or tag-name rule can see one, and this is how fifteen page states and ten confirmation dialogs accumulated beside the patterns that own them. The two searches that find them are `StatusMedallion` used outside `src/design-system`, and a locally declared component whose name ends in `Dialog` — and the second search has to be that broad, because the first pass of it looked for `*Confirm*Dialog*` and missed four confirmations named after what they delete |
+
+### A guard that reports one failure out of eight
+
+Four defects came out of the review of the final head on 2026-08-25, and the
+worst of them was in a guard rather than in the product. They are recorded
+together because they share one shape: **a check that runs, goes red, and tells
+you less than the truth.**
+
+**`mode: 'serial'` on the catalog lane hid every failure after the first.**
+`catalog.spec.cjs` held 142 of the pixel lane's 174 tests in one serial
+`describe`, and Playwright skips the remainder of a serial group once a test in
+it fails. A one-line CSS change moved eight subjects; the run reported
+`1 failed / 81 did not run`, at every worker count, with `--max-failures=0`, and
+after two full re-runs producing identical numbers. Removing serial mode turned
+the same tree into `8 failed` — seven regressions had been invisible. Nothing
+needed serial: `beforeAll` runs once per worker, each worker gets its own catalog
+server on its own random port, and the subjects are independent screenshots. This
+is also why the twenty `app.spec.cjs` font failures were all visible in CI while
+this file's never would have been — that describe was never serial.
+
+The lesson is not "serial mode is bad". It is that **a red guard has to be
+readable**, and one nobody had yet seen fail in anger was reporting an eighth of
+what it knew. The font failure that started this campaign was invisible because
+`continue-on-error` swallowed it; this one would have been visible and wrong.
+
+**The native-table row height was a no-op, and the guard had already said so.**
+`ds-native-table` set `min-height` on its body cells. CSS 2.1 leaves `min-height`
+on a `table-cell` box undefined and browsers ignore it, so the density role never
+applied and rows were whatever their content made them — while `thead` used
+`height` and therefore matched `DataTable` at 48px. `height` on a table cell is
+treated as a *minimum*, which is the wanted behaviour: short rows get the
+contract height, two-line rows still grow.
+
+Worth being blunt about the discovery: `visual-contract.snapshot.json` had
+recorded `nativeTable.cell` at 60.5px desktop / 63.5px mobile directly beside
+`DataTable`'s body cell at 72px, in the same committed file, and it was read as
+"56 measurements recorded" without anyone noticing the two numbers disagreed. The
+probe is literally named *a native table is the same table as DataTable*. **A
+guard that captures the defect is half a guard; somebody has to read what it
+captured.** Both now measure 72px.
+
+**The dropzone ignored dropped files, and eight comments said otherwise.** The
+`FileInput` docblock, its CSS, its story and five call sites all claimed the
+`<label>` made the panel "the browser's own drag-and-drop target ... without a
+single event handler". A label forwards *activation* — a click — to the control it
+labels, never a drop, and the input is clipped to 1×1, so a file dropped on any of
+the four dashed upload panels landed on the label and was discarded. Not a
+regression: none of them had a drop handler before the migration either. The false
+claim was new, though, and an affordance that looks droppable and is not is worse
+than one that does not.
+
+`FileInput` has an explicit `onDrop` now, and the implementation detail is the
+point: it assigns the dropped `FileList` to the real input and dispatches `change`
+from it, rather than calling `onChange` with a hand-made object — so every call
+site keeps reading `event.target.files` and none of them changed. Both browser
+behaviours it depends on were measured in Chromium before being relied on, after a
+first attempt to verify by synthetic `DragEvent` proved that a scripted drop
+cannot populate a file input at all and was therefore the wrong instrument. Two
+tests, mutation-proven three ways — removing the handler, substituting a hand-made
+event (which fails with `{ files: [...] }` is not the input, so the test guards the
+contract rather than the call count), and dropping the loading guard.
+
+**The tether matched substrings, not class tokens.** One commit after
+`check:ui-contract` learned not to match a tag with `[^>]*`, its new native-table
+check was matching classes with `includes()` — so `not-sr-only` counted as hidden
+and `ds-native-table-broken` counted as compliant, and neither would have failed
+anything. Both bypasses were reproduced before the fix and are part of a six-case
+mutation matrix now.
+
+### Three rounds on one check, and the same mistake each time
+
+The review of `31b14db` returned three more findings, and two of them were the
+previous round's fixes being incomplete. Recorded together because the pattern is
+the lesson.
+
+**The native-table tether took three rounds.** Round one matched the tag with
+`<table\b[^>]*>`, which stops at the `>` inside `=>`. Round two matched the class
+with `includes()`, so `ds-native-table-broken` counted as compliant and
+`not-sr-only` counted as hidden. Round three searched the whole attribute slice,
+so `<table data-testid="ds-native-table" className="other">` counted as compliant
+and `<table aria-label="sr-only" className="other">` counted as hidden. Each
+version was reproduced before being fixed, and the matrix is nine cases now.
+
+**The shape of the mistake never changed.** Every version asked *"does this text
+appear somewhere?"* when the question is *"does this element carry this class?"* A
+guard built on substring presence will keep finding new ways to be wrong, because
+the thing it is checking is not the thing it is asking about. That is worth more
+than the three fixes: **when a check fails review twice, the next fix should
+change what it asks, not how carefully it looks.**
+
+**The same `[^>]*` was still in the rule that guards a runtime crash.**
+`jsx-label-on-throwing-primitive` catches a JSX `label={...}` on a primitive that
+*throws* on a non-string label — a crash the moment the branch renders, which is
+how `DashboardToolbar`'s filter panel carried one for ten migration slices. It was
+still a regex, so:
+
+    <FormField label={<span>Date</span>} onClick={() => go()}>   -> caught
+    <FormField onClick={() => go()} label={<span>Date</span>}>   -> INVISIBLE
+
+Prop ordering decided whether a crashing branch passed CI, and the second form is
+the ordinary React one. It reads open tags through `openTagAttributes` now, like
+the styled-control rules and the tether. The lesson recorded when that scanner was
+written — that `[^>]*` had hidden three quarters of the violations — was true of
+more rules than the ones fixed that day, and nobody swept the file for the rest.
+There are none left; `grep '\[^>\]\*'` over the script returns only prose.
+
+**A disabled drop target still owes the page a `preventDefault`.** `FileInput`'s
+new drop handlers returned early when `inert || loading` — before cancelling the
+event. That handed the drop back to the browser, whose default action for a
+dropped file is to navigate to it, so dropping a second file onto a panel that was
+mid-upload could replace the page and take a half-filled application with it. On
+the public driver application that is somebody's work gone.
+
+Refusing the file and cancelling the event are separate obligations. Both handlers
+cancel first now, unconditionally, and only the assignment and the `change`
+dispatch are conditional. Three tests — uploading, disabled, idle — assert on
+`fireEvent`'s return value, which is `false` exactly when a handler called
+`preventDefault`, so the guarantee is asserted rather than read off the source.
+
+### `check:ui-contract` reads JSX as text — the root cause, and the one rule that no longer does
+
+Recorded on 2026-08-25 after this class of defect produced **eight** findings in
+seven review rounds, so the next person working on this file has the reason in
+front of them rather than rediscovering it.
+
+The first five were the same root cause — a rule reasoning about JSX by matching
+characters in it. The last two are the more interesting ones: they are in the AST
+walk that replaced the matching, and both were the *walk* claiming to know the
+semantics of an expression form it had only guessed at:
+
+| Defect | How it failed |
+|---|---|
+| `hand-styled-button\|field\|anchor` matched `<(button)\b([^>]*)>` | `[^>]*` stops at the `>` in `=>`; hid **49 violations in 32 files**, showing 12 in 8 |
+| the native-table tether matched `<table\b[^>]*>` | same truncation, this time producing false *failures* |
+| the tether matched classes with `includes()` | `ds-native-table-broken` counted as compliant, `not-sr-only` as hidden |
+| the tether searched the whole attribute slice | a `data-testid` naming the contract counted as the contract |
+| `jsx-label-on-throwing-primitive` matched `[^>]*?` | prop ordering decided whether a **runtime crash** reached CI |
+| the tether's own AST walk trusted a quasi beside an interpolation | `` `ds-native-table${'-broken'}` `` counted as compliant |
+| the same walk trusted every `CallExpression` | `selectClass('ds-native-table', 'other')` counted as compliant |
+| the walk read the FIRST `className` and ignored what followed | `<table className="ds-native-table" {...props}>` counted as compliant, though a later spread overrides it |
+| the hidden-table carve-out inferred "invisible" from a class list | `className="sr-only xl:not-sr-only"` is hidden on a phone and visible on a desktop — a pattern already in `DossierHeader.jsx` |
+
+Four different fixes, one unchanged question. Each version asked *"does this text
+appear somewhere?"* when the question is *"does this element carry this
+attribute?"* `openTagAttributes` plus the `className` extractor is a decent
+hand-rolled parser for an open tag and the nine-case matrix says it handles what
+we have thrown at it — but it is still a parser written by accident, one review
+finding at a time, and the honest expectation is that a sixth case exists that
+nobody has thought of.
+
+**The native-table tether now parses. Done 2026-08-25, on the fourth finding.**
+The paragraph above originally said the parse was deferred; a fourth review round
+then found the bypass no string match can close:
+
+    <table className={enabled ? 'ds-native-table' : 'other'}>
+
+The token **is** in that text. The rendered table is off-contract half the time.
+The question is not "does this text appear" but "is this true on every branch",
+and that is a question about structure — so `tablesOffContract` asks
+`@babel/parser` for the `<table>` nodes and walks the `className` expression,
+requiring the token on every path a render can take. Anything unprovable is a
+violation, a bare `className={x}` included: a guard that assumes the best about an
+identifier is the guard that let four bypasses through.
+
+**And then the walk itself was wrong, twice — rounds five and six.** Worth
+recording, because it is the more interesting failure:
+
+    className={`ds-native-table${enabled ? '' : '-broken'}`}
+    className={selectClass('ds-native-table', 'other')}
+
+The first passed because a quasi splitting to `['ds-native-table']` looks
+certain while an interpolation sitting against it can extend the token. The
+second passed because the walk trusted every `CallExpression` on the reasoning
+that a call's arguments are all joined — which was *my* reasoning, not
+JavaScript's. `selectClass` returns one of them.
+
+Both had the same cause: **every permissive branch was a guess at an expression
+form's semantics, and each guess accommodated a form that does not exist here.**
+This repository contains no `clsx`, `classnames` or `cx`, and all fifteen real
+`<table>` classNames are plain string literals. The branches were added to avoid
+hypothetical false failures and produced real false passes instead.
+
+So the accepted set shrank to what is unambiguous: a string literal, a
+conditional where **both** branches carry it, `||`/`??` where both sides do, and
+a template literal where the token is **bounded** — followed or preceded by
+whitespace inside its own chunk, or against the edge of the whole template rather
+than an interpolation. `&&` can never be certain. Calls, arrays, concatenation,
+the object form and a bare identifier are all *not provable, therefore not
+allowed*, and they fail loudly. Extending the set now means adding a branch with
+a test rather than an assumption.
+
+Eighteen cases, all mutation-verified: **all six proven bypasses fail**; five
+further unprovable forms fail by construction; and seven legitimate forms pass —
+a plain class, a class among others, a conditional carrying the token in both
+branches, a template literal with the token before *or* after a space, an
+arrow-function attribute ahead of the class, and a genuine `sr-only`. The
+allowlist counts came out identical at 235 across 40 files, which is the check
+that swapping the engine changed nothing it should not have.
+
+**Round seven, and why it was fixed rather than reverted.** I had committed on the
+pull request that a seventh finding on this rule would mean reverting it rather
+than patching again — the reasoning being that six failures on one guard is
+evidence of bad scoping, not of a good next patch. The seventh arrived:
+`<table className="ds-native-table" {...props}>` passed, because the walk read the
+first `className` and ignored a later spread that overrides it at runtime.
+
+It was fixed, and the departure from that commitment is deliberate rather than
+convenient. **The attribute axis is closed in a way the expression axis is not.**
+An opening element's attributes are exactly `JSXAttribute | JSXSpreadAttribute` —
+two node types, no third way to set a prop — so "find the last thing that can set
+the class list and require it to be provable" is complete over the grammar. That
+is a different kind of statement from the expression fixes, each of which was a
+guess about one form among an open-ended set. Reverting would also have knowingly
+restored four already-demonstrated bypasses, which is worse for the repository
+than the commitment was worth.
+
+**Round eight removed an axis instead of guarding it.** The hidden-table carve-out
+— `AnalyticsView`'s `sr-only` chart-equivalent was exempt, on the sound reasoning
+that something invisible has no appearance to get wrong — turned out to rest on an
+undecidable inference. Deciding "is this hidden?" from a class list means deciding
+it across Tailwind's whole variant space, and `sr-only xl:not-sr-only` is hidden on
+a phone and visible on a desktop. That combination is already in this repository,
+so it was never hypothetical.
+
+The fix was not to guard the variant space. **The carve-out is gone: every approved
+`<table>` carries `ds-native-table`, the invisible one included.** Measured in a
+real browser against the built stylesheet before doing it, because the obvious
+worry is that the contract would un-hide it — `sr-only` keeps `position:absolute`
+and `clip:rect(0,0,0,0)`, so the box grows from 10×20 to 47×39 and stays
+`visible: false` either way. An invisible table carrying a visual contract costs
+nothing; inferring invisibility from classes cost a review round.
+
+That is the pattern across all eight: **every fix that held removed a judgement
+the guard was making, and every fix that failed added one.** The expression set
+shrank, the attribute axis was closed by enumeration, and the hidden axis was
+deleted. What remains asks one question with no discretion in it — does the last
+attribute that can set the class list provably contain `ds-native-table`.
+
+The commitment still stands for the *expression* axis: a further bypass there
+means the walk is the wrong shape, and the rule goes back to the simple per-table
+class check with the problem recorded as open.
+
+**The rest of the file still matches text**, and that is the remaining debt. It
+was not converted wholesale because this script gates every other check in the
+repository and each rule's counts would have to be re-proven one at a time; the
+tether was converted because a bypass had been demonstrated in it four times, and
+a fourth patch would have been the wrong answer to the same question.
+
+The rule for anyone touching this file: **if a check needs a third fix, change
+what it asks rather than how carefully it looks** — and check whether the same
+shape exists in the sibling rules, because twice now it did and nobody swept for
+it.
+
+### The one guard that is a person, and why it is not a script
+
+Every other row in that table is a command. One is not, and saying so plainly is
+better than a rule that looks automated and is not.
+
+A **hand-composed pattern** is a dialog or a page state built out of the right
+primitives — `Modal`, `Card`, `StatusMedallion`, `Button`, `--ds-*` tokens
+throughout — arranged into a composition that `patterns/modal` or
+`patterns/page-state` already owns. Every static rule in `check:ui-contract`
+looks for the *wrong ingredient*: a raw palette class, a hex, a bare `<table>`, a
+`<button>` with a class list. A hand-composed pattern has no wrong ingredient. It
+passes every rule, and on 2026-08-25 twenty-five of them did.
+
+Two searches find them, and both belong in a review of any UI change:
+
+```
+grep -rl StatusMedallion src/features src/shared     # a medallion outside the DS
+grep -rnE '(function|const)\s+\w*Dialog\w*\s*[=(]' src --include=*.jsx
+```
+
+Neither is a clean automated rule, and after 2026-08-25 both are mostly
+legitimate hits. `StatusMedallion` is used in eight files outside this directory,
+and every one is a composition the patterns genuinely do not cover:
+
+| File | Why it is not a page state or a confirmation |
+|---|---|
+| `signing-room/StatusScreens.jsx` | `EsignConsentScreen` — a consent *form* with a nested `<h2>` disclosure region, a bulleted legal notice and a two-way decision |
+| `modals/FeatureLockedModal.jsx` | A marketing interstitial: a *badged* medallion, a "Coming Soon" `Badge` between heading and body, and two CTAs one of which leaves the product |
+| `FeatureDeactivationWarning.jsx` | An interstitial notice listing scheduled deactivations, with one action and a dismiss — no confirm/cancel pair guarding anything |
+| `SandboxActionPanel.jsx`, `NumberAssignmentManager.jsx`, `DQFileTab.jsx`, `BulkUploadLayout.jsx` | A medallion inside ordinary page content, not in a dialog or a state at all |
+
+A local `*Dialog` component is likewise often a correct wrapper around
+`ConfirmDialog` — `ReleaseConfirmDialog`, `RemoveMembershipDialog` and
+`RunAllConfirmDialog` are all wrappers now. A check that fires on correct code
+gets switched off; that lesson is already recorded twice in this file. So this
+stays a review step with a written procedure and a list of known-good hits,
+rather than becoming a rule nobody trusts.
 
 ### Why `check:table-layout` is a browser check, and must stay one
 
@@ -515,34 +935,101 @@ guard** — prove any replacement fails before you trust it passing.
 
 **Honest limitation:** the guard covers the catalog, not the application. A
 feature screen with no story is not measured. `e2e/visual/app.spec.cjs` closes
-part of that gap — it screenshots ten real screens at both widths — but it
-checks appearance, not overflow, and it is advisory. A feature that changes a
-column's content still needs measuring on its own screen.
+part of that gap — it screenshots 15 real screens at both widths, and since
+2026-08-25 it is blocking — but it checks appearance, not overflow. A feature
+that changes a column's content still needs measuring on its own screen.
 
-### Why the pixel lane is reported and not enforced
+### The pixel lane is blocking, and why it was not
 
-The catalog deliberately does not load Inter — the application imports it from
-`rsms.me` and the catalog omits it — so text rasterises with whatever the
-runner's `sans-serif` resolves to. A baseline recorded on one machine can differ
-on another for reasons that have nothing to do with the design system, and a
-lane that cries wolf gets ignored or switched off.
+This section used to say the lane could not be enforced because "the catalog
+deliberately does not load Inter, so text rasterises with whatever the runner's
+`sans-serif` resolves to", and prescribed watching the font tripwire "for a few
+weeks" before flipping it.
 
-So the pixel lane runs, uploads its diff artifact and raises a warning
-annotation, in the same shape the repository already uses for `typecheck` and
-the axe lane. The **first test in `catalog.spec.cjs` is the tripwire**: it
-measures the rendered width of a pangram, not `fontFamily` (which still names
-Inter whether or not Inter loaded), so a font substitution is one legible
-failure instead of 78 mystery diffs.
+**The CI record contradicted that in both directions.** On 2026-08-25 someone
+finally read it: every run reported `20 failed / 132 passed`. All **130 catalog**
+baselines passed on GitHub's runners — the machine-portability fear never
+materialised — and all **20 application** baselines failed, every time, because
+the *application* fetched Inter from `rsms.me` and the runner did not get it. The
+half with the tripwire was the half that was fine. The half that was broken had
+no tripwire at all.
 
-**To make it blocking:** watch that metrics test stay green on the CI runner for
-a few weeks, then remove `continue-on-error` from the step and record the date
-here. Do not weaken `check:visual-contract` to compensate for pixel noise — the
-geometry guard is the portable one and is the reason the pixel lane can afford
-to be advisory.
+So the lane had never once been green. It uploaded a 52MB diff artifact nobody
+opened and raised its "a pixel baseline changed" annotation on every single run.
+**A lane that always fails teaches everyone to ignore it, which is worse than no
+lane** — and it is why "make it blocking after a few weeks of green" was never
+going to happen: there was no green to wait for.
+
+The fix was to remove the machine-dependent input rather than to tolerate it. The
+typeface is served from `src/design-system/fonts/` (§6), the catalog loads the
+same file as the application, `continue-on-error` is gone, and
+`scripts/test-ci-plan.mjs` K1/K3 assert both halves of that so neither can drift
+back.
+
+The tripwire is still the first test in `catalog.spec.cjs` and it asserts
+something real now: `document.fonts.check('400 16px Inter')`, so a missing font is
+one sentence rather than 150 diffs, plus the pangram metrics to catch a different
+*build* of Inter. Deliberately **not** `getComputedStyle().fontFamily`, which
+names Inter whether or not Inter loaded — that is exactly how this hid.
+
+Do not weaken `check:visual-contract` to compensate for pixel noise. The geometry
+guard is the one that says *what* changed (`button[md].height: 44px -> 40px`), and
+the two answer different questions.
 
 Both visual lanes freeze the clock at a fixed instant. Without that the company
 dashboard's date range stamps today's date into its baseline, and it would have
 failed the morning after it was recorded.
+
+**A review of this campaign's own diff found the one thing the contract had not
+said**, which is worth recording next to the guards it prompted. `ds-native-table`
+paints the row surface on the `<tr>`, and the Super Admin feature matrix freezes
+its first column with `sticky left-0`. Its hand-picked `bg-ds-surface` was removed
+in favour of the contract — and the contract had no rule for a sticky cell, so the
+frozen company names became transparent and the twenty scrolled columns painted
+through them. The contract owns it now (header surface, row surface, and the hover
+tint so a frozen cell does not stay unhighlighted in a hovered row), a
+`StickyFirstColumn` story puts it in the catalog, and `check:visual-contract`
+measures its background at both widths. Verified by removing the rule and watching
+the guard report `rgb(255, 255, 255) -> rgba(0, 0, 0, 0)`.
+
+**Making a lane blocking is what finds its flakes, and one of them surfaced the
+same day.** The `super-admin` subject waited on `<h1>Super Admin</h1>`, which is
+in the banner and painted immediately — so the screenshot raced the three
+dashboard metric cards. The committed baseline had caught them mid-load showing
+`•••`; the first run after the lane went blocking caught them resolved showing
+`0`, and the lane failed on a three-glyph diff with nothing wrong in the product.
+
+The fix is the same principle as the font: **remove the non-deterministic input,
+do not widen the tolerance.** `DashboardView` announces "Platform totals loaded.",
+so the subject waits for that and the screenshot is pinned to the settled state.
+Re-recorded, then run three more times to prove it. Raising `maxDiffPixels`
+would have hidden it — and hidden the next real regression in those cards too.
+
+The general rule for a subject in either lane: **`ready` must name the last thing
+that arrives on the screen, not the first.** A `<h1>` in a banner is almost never
+that.
+
+**And the same lane found a worse one on the first CI run where it was allowed to
+finish.** `Started (unfinished)` was the one screen in the list whose content came
+from a *real* `listApplicationDrafts` callable rather than a fixture harness. With
+no credentials the call fails — and *how* it fails decides what renders, so the
+committed baseline was a loading skeleton captured in one environment while CI
+captured something 30% different. A screenshot of a screen whose content depends
+on a network failure is not a baseline. It has a `?e2eUnfinished=mock` harness
+now, like every other route in the lane, and the baseline shows three fixture
+drafts: a complete contact, one with no name typed yet, one with no contact
+details.
+
+Two rules follow from it, both cheap and both now in place:
+
+- **Every route in the pixel lane must reach a settled state from fixture data.**
+  The lane's own header already said so; one screen did not, and nothing checked.
+- **`playwright.visual.config.cjs` pins `locale: 'en-US'` and
+  `timezoneId: 'UTC'`.** That screen writes a timestamp through
+  `toLocaleString()` with no arguments, which takes the *runtime's* locale and
+  zone: "6/14/2026, 4:45:00 PM" on one machine, "14/06/2026, 21:45" on another —
+  a different column width and a reflowed table. `settle.cjs` already freezes the
+  clock; this freezes how it is written.
 
 ### Two scales, the same names, one step apart
 
@@ -605,13 +1092,50 @@ does not follow is a user's **default font size** preference. The whole
 system rather than of these 512 call sites, and moving it to `rem` would be its
 own campaign with its own visual review. Recorded, not scheduled.
 
+### `sr-only` and `ds-visually-hidden` are the same rule, and both stay
+
+The final audit of 2026-08-25 found two ways to hide text from sight while
+leaving it to a screen reader: Tailwind's `sr-only` (34 files) and the design
+system's `.ds-visually-hidden` (35 files). Same decision as the spacing scales
+above, for the same reason and with one consequence that was **not** harmless.
+
+`.ds-visually-hidden` in `utilities.css` is the classic clip rule —
+`position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0` — which is
+byte-for-byte what Tailwind's `sr-only` emits. Neither is ever seen, both
+compute identically, so there is no appearance to diverge and nothing for a
+visual guard to catch. Rewriting 34 files to rename a class nobody can see is
+diff for its own sake.
+
+**What was not harmless: the guards disagreed about which name means hidden.**
+`lead-intake.spec.cjs` skipped both. `driver-dossier.spec.cjs` and both sweeps in
+`public-application-responsive.spec.cjs` named only `ds-visually-hidden` — so the
+*same* hidden control was exempt on one screen and a failure on another,
+depending on which of two identical utilities the feature happened to use. It
+matters because a hidden control clips to **1×1, not 0×0**, so the
+zero-size `continue` above does not catch it and the target-size sweep would have
+reported a 1×1 control as undersized. No screen was failing on the day this was
+found; the two that could have been were one `sr-only` control away from a false
+failure that looks exactly like a real one. All four sites name both utilities
+now, and `check:ui-contract`'s native-table exemption is written the same way.
+
+The lesson is the one this file keeps relearning at a smaller scale: two spellings
+of one idea are tolerable in *appearance* and dangerous in a *rule*, because a
+rule has to decide.
+
 ### Still open
 
 - `[x]` **Ratcheting rules for arbitrary colours and unsupported type sizes.**
   Done 2026-08-21 — `check:ui-contract`.
 - `[x]` **Ratcheting rules for raw tables, duplicate buttons, local modals and
   local form controls, with machine-readable approved locations.** Done
-  2026-08-21. The machine-readable locations are
+  2026-08-21, with one honest limit found on 2026-08-25: "local modals" is
+  enforced as *hand-built overlay construction*, which is what `fixed inset-0`
+  catches. A **hand-composed confirmation inside the approved `Modal`** — the
+  medallion, heading, description and Cancel/Confirm footer that `ConfirmDialog`
+  owns — has no wrong ingredient and passes every rule. Six of those had
+  accumulated. That gap is a review step now, written down in the guardrail table
+  above rather than left implied. The machine-readable locations are
   `src/design-system/ui-contract.allowlist.json`, where every tolerated
   violation carries a `reasons` entry naming the exception that justifies it.
   The `debt` alternative was removed on 2026-08-25 when the last of it cleared.
@@ -619,20 +1143,31 @@ own campaign with its own visual review. Recorded, not scheduled.
   `.github/pull_request_template.md`, with an explicit "never tick an unrun
   check" instruction and a section confirming no backend, permission, route or
   workflow behaviour changed.
-- `[ ]` Make the pixel lane blocking once its font tripwire has held on CI.
+- `[x]` **Make the pixel lane blocking. DONE 2026-08-25.** The prescription in
+  this line — watch the font tripwire for a few weeks, then flip it — could never
+  have worked, because the tripwire guards the *catalog* and the catalog half was
+  already green. What was red was the twenty application-screen baselines, every
+  run, hidden by `continue-on-error: true`. See "The pixel lane is blocking, and
+  why it was not" above: the cause was the externally-hosted typeface, and the
+  lane went blocking the day that was fixed rather than after a waiting period
+  that was measuring the wrong thing.
 - `[x]` **Drive the tolerated-violation inventory to zero debt and make the
   check zero-tolerance. DONE 2026-08-25.** 660 violations across 59 files at the
-  start. The file is now `src/design-system/ui-contract.allowlist.json`: 213
-  violations across 26 files, every one carrying a `reasons` entry, and the
+  start. The file is now `src/design-system/ui-contract.allowlist.json`: 235
+  violations across 40 files, every one carrying a `reasons` entry, and the
   `debt` escape hatch removed. The check fails on anything unlisted, on a count
   higher *or lower* than recorded, and on an entry whose rule has no reason —
   the last of those is what stops "add it to the allowlist" from being a way to
   make any failure go away.
 
-  The count went *up* from 193 in the same slice, which is the guard getting
-  stricter rather than the tree getting worse: two new rules now catch Tailwind
-  radii and shadows, and the twenty they found were all in the two files that
-  were already fully exempt.
+  **The recorded count has gone up twice, and both times that was the guard
+  improving rather than the tree getting worse.** 193 → 213 when two new rules
+  caught Tailwind radii and shadows, and the twenty they found were all in files
+  that were already fully exempt. 213 across 26 files → **235 across 40** when the
+  scanner was fixed on 2026-08-25: its open-tag regex terminated at the `>` inside
+  `=>`, so any control whose `className` followed an arrow-function attribute — the
+  common React ordering — was invisible to it. 49 hand-styled controls existed
+  where it reported 12. The larger number is the honest one.
 
 ---
 
@@ -668,18 +1203,61 @@ owner decision in §6:
 | Company Settings → SMS / number assignment | Editable-matrix responsive strategy; entanglement with the out-of-scope secret-entry `LineManager` |
 | Company Settings → Integrations (Facebook) | The `request.auth.uid` tenant-binding defect |
 
-Component families that are **complete**: dialogs (every active overlay uses
-`Modal`, which now lives in `design-system/patterns/modal`), toast/notification,
-and — as of 2026-08-21 — the **empty/error/loading states**
-(`patterns/page-state`) and **navigation links** (`components/link`). Families
-still in progress — inputs, select/textarea, icons, loading primitives beyond
-`ProgressBar` — are tracked by the guardrail work in §7 rather than by a list of
-screens, because the screens are done and what remains is preventing regression.
+Component families that are **complete** — meaning the primitive exists *and*
+every consumer that can use it does:
 
-The state and link primitives exist but their **consumers are not all migrated
-yet**: feature-owned empty/error states and styled `<a>` elements remain in the
-tree and are being replaced family by family. A primitive existing is not the
-same as the exception being gone.
+| Family | Owned by | Closed |
+|---|---|---|
+| Dialog shell | `patterns/modal` | 2026-08-21 |
+| Confirmation dialog | `patterns/modal` → `ConfirmDialog` | 2026-08-25 |
+| Toast / notification | `components/toast` | earlier |
+| Empty / error / loading state | `patterns/page-state` | 2026-08-25 |
+| Navigation and external links | `components/link` | 2026-08-25 |
+| Tab strip | `components/tabs` | 2026-08-25 |
+| Single-select toggle group | `components/segmented` | 2026-08-25 |
+| File picker | `components/file-input` | 2026-08-25 |
+| Table (display and native) | `components/data-table` + `ds-native-table` | 2026-08-25 |
+
+Families still in progress — inputs, select/textarea, icons, loading primitives
+beyond `ProgressBar` — are tracked by the guardrail work in §7 rather than by a
+list of screens, because the screens are done and what remains is preventing
+regression.
+
+**"A primitive existing is not the same as the exception being gone."** That
+sentence sat in this section for four days while being untrue of five of the
+families above, and on 2026-08-25 it was measured rather than repeated:
+
+- `TabList`/`TabPanel` had **0 consumers** and 11 hand-rolled `role="tablist"`
+  strips, in at least three visual treatments, two of them with no ARIA at all.
+- `SegmentedControl` had **0 consumers** and five hand-rolled toggle groups, one
+  of them 40px tall — off the 36/44/52 control scale entirely.
+- `FileInput` had 2 consumers and **9 raw `<input type="file">`**, none of them
+  recorded as exceptions.
+- `PageState` had 5 consumers and **15 hand-composed states**: nine full-page
+  status screens in the signing room and the public application (between them two
+  title sizes, two medallion sizes, icons at 28/32/40/48px and three different
+  gaps under the medallion — five appearances for one thing), two more page-level
+  states (a document-load failure and a permissions boundary), and four
+  panel-level empties, two of which announced nothing when a filter emptied the
+  list. Three native-table empty rows announced nothing either, while `DataTable`
+  and `ModernDriverTable` both announced their own — and two of those three put
+  the live-region role on the `<td>`, which replaces the cell role.
+- `ConfirmDialog` had consumers *and* **ten hand-composed duplicates**, one of
+  them a local component with the same name shadowing the import, three with no
+  medallion at all, and one — the permanent record delete in the Unified Driver
+  Database, the most destructive action in the product — carrying its severity in
+  the *heading's colour* with no medallion, which is status by colour alone. Each had lost the same three capabilities: initial focus on
+  Cancel rather than on the destructive action, the synchronous double-activation
+  guard, and Escape/backdrop dismissal disabled while the action is in flight. The
+  first two apply at every one of the six — on "Delete this user?" they are not
+  cosmetic. The third does not, and the migrated files say so rather than
+  implying it: all six close the dialog before starting the work and report
+  progress on the page behind it, so `loading` is deliberately not passed.
+
+Every one of those is migrated. The lesson is recorded in §5: **building a
+primitive and adopting it are two pieces of work, and only the first one is
+visible in a diff.** A campaign that ships a primitive with no consumers has
+added a fourth way to do the thing, not removed three.
 
 **Campaigns, migrated 2026-08-24.** `AudienceBuilder`, `VirtualLeadList`,
 `ContentComposer` and `DeviceMockup` carried 55 raw palette classes between them
@@ -740,7 +1318,7 @@ rather than leaning on the "inline in a sentence" exemption for the uses that ar
 not in a sentence. `IconButton` refuses the variant outright, because there the
 same rule would produce a 44×16px target.
 
-Three other things were put right, none of them cosmetic:
+Two other things were put right, neither of them cosmetic:
 
 - **The Super Admin feature matrix announced the wrong role.** Its cells were
   `Checkbox`, which announces a value you set and then submit; toggling one
@@ -748,9 +1326,6 @@ Three other things were put right, none of them cosmetic:
   the roadmap recorded when `Switch` was promoted, and the local
   `settings/questions/ToggleSwitch` it was promoted from is deleted, with its two
   call sites moved across.
-- **The onboarding tour's close button had no accessible name** — the single
-  control that ends the tour announced as "button" — and its progress dots were
-  colour alone. Both fixed.
 - **The login hero used five text opacities**, one of which (`text-white/50`)
   measured roughly 3.6:1 on its background, below AA for body text. They are now
   the two on-inverse content roles, which are AA-asserted.
@@ -760,7 +1335,16 @@ Three other things were put right, none of them cosmetic:
 The component catalog is Storybook (`npm run storybook`,
 `npm run build-storybook`). Stories render only hand-written fixture data from
 `src/design-system/stories/fixtures.js`; **no production data may appear in a
-story.** Approved visual-regression baselines are still open — see §6.
+story.** Visual-regression baselines live in this repository beside the spec that
+records them, and the lane is blocking — §6 and §7.
+
+Stories are scanned by `check:ui-contract` as of 2026-08-25, for the rules that
+read a class list. They used to be skipped as "catalog furniture already covered
+by `test:stories`", which does not hold: that runs axe, not this, and a story is
+the design system's own published example of how to build something. The
+markup-shaped rules are left off deliberately — a story legitimately
+*demonstrates* a native table, and a story's prose *discusses* the patterns the
+rules forbid.
 
 ---
 

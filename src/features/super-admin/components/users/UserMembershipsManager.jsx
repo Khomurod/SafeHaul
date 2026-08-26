@@ -5,12 +5,12 @@ import {
   updateMembershipRole,
   deleteMembership
 } from '@features/auth/services/userService';
-import { Trash2, Plus, AlertCircle, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Trash2, Plus, AlertCircle, RefreshCw } from 'lucide-react';
 import {
-  Button, Card, FieldMessage, FormField, IconButton, Select, StatusMedallion,
+  Card, FieldMessage, FormField, IconButton, Select,
 } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
-import { Modal } from '@design-system/patterns';
+import { ConfirmDialog } from '@design-system/patterns';
 
 /**
  * Multi-tenant access editor inside the Super Admin Edit User dialog.
@@ -146,31 +146,24 @@ function MembershipItem({ membership, companyName, onUpdate, onRemove }) {
 /**
  * Replaces the blocking `window.confirm` on removing company access. The
  * question is preserved verbatim.
+ *
+ * 2026-08-25: this was a hand-composed confirmation inside the approved `Modal`
+ * — the medallion, heading, description and Cancel/Confirm footer that
+ * `ConfirmDialog` owns, rebuilt here. It is the approved pattern now, which also
+ * puts initial focus on Cancel rather than on "Remove access" and guards
+ * `onConfirm` against a double activation. `loading` is not passed: `confirmRemove`
+ * closes the dialog before the delete starts, and the row shows the progress.
  */
 function RemoveMembershipDialog({ companyName, onCancel, onConfirm }) {
-  const titleId = useId();
-  const descriptionId = useId();
-
   return (
-    <Modal
-      onClose={onCancel}
-      labelledBy={titleId}
-      describedBy={descriptionId}
-      closeOnBackdrop={false}
-      className="w-full max-w-lg overflow-hidden rounded-ds-xl border border-ds-border-subtle bg-ds-surface shadow-ds-lg"
-    >
-      <div className="p-ds-5 text-center">
-        <StatusMedallion tone="danger" className="mx-auto mb-ds-3"><AlertTriangle /></StatusMedallion>
-        <h2 id={titleId} className="text-ds-heading-sm font-bold text-ds-content">Remove company access?</h2>
-        <p id={descriptionId} className="mt-ds-3 text-ds-sm text-ds-content-secondary">
-          {`Remove access to ${companyName}?`}
-        </p>
-      </div>
-      <div className="flex justify-end gap-ds-3 border-t border-ds-border-subtle bg-ds-surface-subtle p-ds-4">
-        <Button variant="secondary" onClick={onCancel}>Cancel</Button>
-        <Button variant="danger" onClick={onConfirm}>Remove access</Button>
-      </div>
-    </Modal>
+    <ConfirmDialog
+      tone="danger"
+      title="Remove company access?"
+      description={`Remove access to ${companyName}?`}
+      confirmLabel="Remove access"
+      onCancel={onCancel}
+      onConfirm={onConfirm}
+    />
   );
 }
 

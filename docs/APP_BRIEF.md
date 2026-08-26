@@ -896,7 +896,7 @@ evidence in the same task, and never mark an item complete without the
 functional, visual, mobile, accessibility, documentation and diff checks
 actually having run.
 
-**These rules are now checked, not just written.** Six automated guards stand
+**These rules are now checked, not just written.** Seven automated guards stand
 behind them, and they exist because for most of 2026 a substantial, well-adopted
 design system coexisted with 660 raw palette classes, off-scale type and
 sub-12px text — all of which passed review, lint, 234 test files and CI, because
@@ -904,12 +904,23 @@ nothing looked:
 
 | Command | Blocking | Catches |
 |---|---|---|
-| `npm test` (`design-system/tests/`) | yes | An import across a layer boundary; a broken token contract or a pairing below AA |
-| `npm run check:ui-contract` | yes | A raw colour, off-scale type, sub-12px text, a Tailwind radius or shadow, a hand-built overlay, a raw table, a hand-styled control |
-| `npm run check:table-layout` | yes | A cell narrower than its content, in a real browser at 412px and 1440px |
-| `npm run check:visual-contract` | yes | A change to computed geometry — control heights, cell padding, radii, resolved colours |
+| `npm test` (`design-system/tests/`) | yes | An import across a layer boundary — in stylesheets as well as modules; a broken token contract or a pairing below AA |
+| `npm run check:ui-contract` | yes | A raw colour, off-scale type, sub-12px text, a Tailwind radius or shadow, a hand-built overlay, a raw table, a hand-styled control, a hand-rolled tablist, a raw file input, a hand-written `target="_blank"` — in JSX, in stories and in CSS |
+| `npm run check:table-layout` | yes | A cell narrower than its content, in a real browser at 412px and 1440px — for `DataTable` and the `ds-native-table` contract |
+| `npm run check:visual-contract` | yes | A change to computed geometry — control heights, cell padding, radii, resolved colours, and a frozen table column losing its opaque background |
 | `npm run test:stories` | yes | A story that fails to render, or fails axe |
-| `npm run test:visual` | reported | A change to how anything *looks*, across the catalog and ten real screens at both widths |
+| `npm run test:visual` | **yes**, since 2026-08-25 | A change to how anything *looks*, across 71 catalog subjects and 15 real screens at both widths |
+| `npm run test:e2e -- --grep "@a11y"` | **yes**, since 2026-08-25 | Real-browser axe on the mobile-critical journeys, plus keyboard behaviour: roving `tabIndex`, arrow/Home/End, and that every control a Tab press reaches shows the product's focus ring |
+
+Two of those became blocking on 2026-08-25, and the pixel lane is the one worth
+knowing about: it had **never once been green in CI**, failing all 20
+application-screen baselines on every run while `continue-on-error: true`
+swallowed it. The cause was not the baselines — it was that the product's
+typeface was fetched from `rsms.me` at runtime and does not arrive on GitHub's
+runners. Inter is now served from `src/design-system/fonts/` (SIL OFL 1.1), which
+also means the application no longer renders in a fallback font for anyone whose
+network cannot reach that host, and no user's IP is disclosed to a third party to
+render text.
 
 `check:ui-contract` is zero-tolerance against
 `src/design-system/ui-contract.allowlist.json`, which records every violation
@@ -918,6 +929,14 @@ the product deliberately keeps **and why**. An entry without a reason fails.
 Note that Tailwind's radius and shadow scales share their names with the
 `--ds-*` ones and sit one step off them — `rounded-lg` is 8px where
 `rounded-ds-lg` is 12px. Convert by value, never by name.
+
+**One thing no guard catches**, recorded here because it accumulated twenty-five
+call sites: a *hand-composed pattern*. A status screen built from `Card` +
+`StatusMedallion` + heading + body + actions, or a `Modal` with its own
+Cancel/Confirm footer, is made entirely of approved primitives — so it passes
+every rule above while being a second implementation of `patterns/page-state` or
+`ConfirmDialog`. Use the pattern; roadmap §7 records the review step that finds
+these.
 
 ---
 
@@ -1037,8 +1056,10 @@ Note that Tailwind's radius and shadow scales share their names with the
 `npm run test:e2e` (Playwright) · `npm run test:rules` ·
 `npm run typecheck` · `npm run storybook` / `npm run test:stories`.
 CI also runs `check:callable-contract`, `check:ai-boundary`, `check:ci-plan`,
-`check:release-scripts`, `check:deploy-script`, `check:table-layout`, and a
-Gitleaks secret scan.
+`check:release-scripts`, `check:deploy-script`, `check:function-exports`,
+`check:ui-contract`, `check:table-layout`, `check:visual-contract`,
+`test:stories`, `test:visual`, and a Gitleaks secret scan. Every one of those is
+blocking; `typecheck` is the only lane that is not (see below).
 
 CI runs Playwright as a 4-way shard matrix with `workers: 1` and `retries: 2`
 per shard.

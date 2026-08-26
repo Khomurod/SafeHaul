@@ -253,7 +253,10 @@ describe('CompanyProfileTab information compatibility slice', () => {
             expect(serviceMocks.saveCompanySettings).not.toHaveBeenCalled();
             expect(screen.getByRole('img', { name: 'Company logo' }))
                 .toHaveAttribute('src', company.companyLogoUrl);
-            expect(screen.getByRole('button', { name: 'Change logo' })).toBeEnabled();
+            // The picker is `FileInput` since 2026-08-25: a label, not a button.
+            expect(input).toBeEnabled();
+            expect(document.querySelector('.ds-file-input__button-label'))
+                .toHaveTextContent('Change logo');
             consoleError.mockRestore();
         });
 
@@ -269,9 +272,11 @@ describe('CompanyProfileTab information compatibility slice', () => {
             });
 
             await waitFor(() => {
-                expect(screen.getByRole('button', { name: 'Uploading…' })).toBeDisabled();
+                expect(document.querySelector('.ds-file-input__button-label'))
+                    .toHaveTextContent('Uploading…');
             });
             expect(input).toBeDisabled();
+            expect(input).toHaveAttribute('aria-busy', 'true');
 
             resolveUpload(NEW_LOGO_URL);
             await waitFor(() => {
@@ -281,8 +286,7 @@ describe('CompanyProfileTab information compatibility slice', () => {
 
         it('hides the logo upload control from members without edit permission', () => {
             renderProfile({ claims: { roles: { 'company-1': 'company_member' } } });
-            expect(screen.queryByRole('button', { name: /change logo|upload logo/i }))
-                .not.toBeInTheDocument();
+            expect(document.querySelector('.ds-file-input')).toBeNull();
             expect(document.querySelector('input[type="file"]')).toBeNull();
         });
     });

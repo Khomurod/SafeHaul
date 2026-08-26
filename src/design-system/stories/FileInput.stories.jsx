@@ -11,7 +11,8 @@ const meta = {
       description: {
         component: [
           '**Status: Approved.** Added 2026-08-21, closing the gap that kept four upload',
-          'controls feature-owned.',
+          'controls feature-owned. Extended on 2026-08-25 to the three shapes the product',
+          'actually has — see below. Nine raw file inputs are migrated onto it.',
           '',
           '### The one structural rule',
           '',
@@ -25,7 +26,7 @@ const meta = {
           '',
           'With a real input and a real label: Tab reaches it, Space and Enter open the',
           'picker, the label is its accessible name, and the browser\'s own file-type',
-          'filtering and drag-and-drop target come for free.',
+          'filtering come for free; dropped files are handled explicitly by `onDrop`.',
           '',
           '### It is a picker, not an uploader',
           '',
@@ -33,9 +34,29 @@ const meta = {
           'The public application\'s upload field composes exactly this and owns all of that',
           'around it.',
           '',
+          '### Three shapes',
+          '',
+          '| Prop | For |',
+          '| --- | --- |',
+          '| default | A picker beside other controls. A settings field, a per-row upload |',
+          '| `variant="dropzone"` | The full-width dashed panel four uploads use. As a `<label>` the whole panel is the click target, and `onDrop` accepts a file dropped anywhere on it — a label forwards a click to its control but never a drop, so the handler is what makes the dashed border honest |',
+          '| `loading` | An upload in flight. Spins, says so with `aria-busy`, and refuses a second file — which is why the two avatar pickers used `Button loading` plus a hidden input before this existed |',
+          '| `labelHidden` | A picker whose field is already named on screen, such as a photo preview beside it. Same prop, same meaning, as `Checkbox` |',
+          '',
+          'Four days after this component shipped it had two consumers and nine raw',
+          '`<input type="file">` controls were still in the tree, each under a comment saying',
+          'no file-input contract existed. Migrating them is what showed why: the contract',
+          'existed and its API covered one of three shapes. **A primitive that fits a third',
+          'of its call sites does not get adopted.**',
+          '',
           '### Accessibility',
           '',
           '- `label` is required and names what is being uploaded.',
+          '- A caller\'s `aria-describedby` is **added** to the component\'s own, not replaced',
+          '  by it. It used to sit after the prop spread, so a caller\'s help-text id was',
+          '  silently dropped — found by migrating the profile-photo picker, whose "Accepts',
+          '  image files under 2 MB" stopped being announced while everything still looked',
+          '  right.',
           '- `description` becomes `aria-describedby`, so a screen-reader user hears the',
           '  accepted types **before** opening the picker rather than discovering them from a',
           '  rejection afterwards.',
@@ -101,6 +122,66 @@ export const BesideAButton = {
           <Button variant="secondary">Cancel</Button>
         </Inline>
       </Stack>
+    </Card>
+  ),
+};
+
+/**
+ * `variant="dropzone"` — the full-width dashed panel. Four uploads had built this
+ * by hand; as a `<label>` the whole panel is also the browser's own
+ * drag-and-drop target for the input it names.
+ */
+export const Dropzone = {
+  render: () => (
+    <Card>
+      <FileInput
+        label="Recipient list"
+        variant="dropzone"
+        buttonLabel="Click to upload a file"
+        description="CSV, XLS or XLSX files"
+        accept=".csv,.xlsx,.xls"
+        onChange={fn()}
+      />
+    </Card>
+  ),
+};
+
+/** `loading` — an upload in flight. It says so, and refuses a second file. */
+export const Loading = {
+  render: () => (
+    <Card>
+      <Stack>
+        <FileInput label="Profile photo" buttonLabel="Uploading…" loading onChange={fn()} />
+        <FileInput
+          label="Company logo"
+          variant="dropzone"
+          buttonLabel="Uploading…"
+          description="PNG, JPG or SVG"
+          loading
+          onChange={fn()}
+        />
+      </Stack>
+    </Card>
+  ),
+};
+
+/** `labelHidden` — the field is already named on screen by what sits beside it. */
+export const LabelHidden = {
+  render: () => (
+    <Card>
+      <Inline gap="md">
+        <span
+          aria-hidden="true"
+          style={{
+            width: 64,
+            height: 64,
+            borderRadius: 'var(--ds-radius-full)',
+            background: 'var(--ds-color-surface-subtle)',
+            border: '1px solid var(--ds-color-border)',
+          }}
+        />
+        <FileInput label="Profile photo" labelHidden buttonLabel="Change photo" onChange={fn()} />
+      </Inline>
     </Card>
   ),
 };

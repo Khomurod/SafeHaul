@@ -30,7 +30,8 @@ import { usePdfZoomGestures } from '@features/signing/hooks/usePdfZoomGestures';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 import { useIsMobile } from '@shared/hooks';
 import { useToast } from '@shared/components/feedback';
-import { Button, Card, IconButton, StatusMedallion } from '@/design-system/components';
+import { Button, IconButton } from '@/design-system/components';
+import { ErrorState } from '@design-system/patterns';
 import { Document, Page, pdfjs } from 'react-pdf';
 import {
     Loader2, CheckCircle, ChevronDown, AlertTriangle, ZoomIn, ZoomOut, RefreshCw,
@@ -544,26 +545,28 @@ export default function SigningRoom() {
             >
                 {docError ? (
                     <div className="flex h-full items-center justify-center p-ds-6">
-                        <Card padding="lg" className="max-w-sm text-center" role="alert">
-                            <StatusMedallion tone="danger" className="mx-auto mb-ds-3">
-                                <AlertTriangle size={32} />
-                            </StatusMedallion>
-                            <h2 className="mb-ds-1 font-bold text-ds-content">Couldn&apos;t load the document</h2>
-                            <p className="mb-ds-4 text-ds-sm text-ds-content-secondary">
-                                Check your connection and try again. Your entered values are saved on this device.
-                            </p>
-                            <Button
-                                variant="primary"
-                                onClick={() => {
-                                    setDocError(null);
-                                    setNumPages(null);
-                                    setRenderedPages(new Set());
-                                    setDocReloadKey((k) => k + 1);
-                                }}
-                            >
-                                <RefreshCw size={16} aria-hidden="true" /> Try again
-                            </Button>
-                        </Card>
+                        {/* The approved page-state pattern since 2026-08-25; this was
+                            a hand-composed Card + medallion + heading + retry. */}
+                        <div className="w-full max-w-sm">
+                            <ErrorState
+                                icon={AlertTriangle}
+                                title="Couldn't load the document"
+                                description="Check your connection and try again. Your entered values are saved on this device."
+                                actions={(
+                                    <Button
+                                        variant="primary"
+                                        onClick={() => {
+                                            setDocError(null);
+                                            setNumPages(null);
+                                            setRenderedPages(new Set());
+                                            setDocReloadKey((k) => k + 1);
+                                        }}
+                                    >
+                                        <RefreshCw size={16} aria-hidden="true" /> Try again
+                                    </Button>
+                                )}
+                            />
+                        </div>
                     </div>
                 ) : (
                     <div className="px-2 py-4 md:px-5 md:py-8 pb-28 md:pb-8">

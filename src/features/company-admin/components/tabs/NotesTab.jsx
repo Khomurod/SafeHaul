@@ -7,6 +7,7 @@ import { logActivity } from '@shared/utils/activityLogger';
 import { sanitizeUserContent } from '@shared/utils/sanitizeUserContent';
 import { Badge, Button, Card, FieldMessage, FormField, Textarea } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
+import { EmptyState, LoadingState } from '@design-system/patterns';
 
 /**
  * Internal notes for one application or lead, plus anonymised shared history from
@@ -47,6 +48,12 @@ import { Stack } from '@/design-system/layouts';
  *     duplicating the visible badge; it is removed rather than relied on.
  *  8. Legacy palette throughout (purple-50/100/200/600/800, gray-*, blue-600) and
  *     a hand-rolled inline `<svg>` shield replaced by the approved Lucide icon.
+ *  9. **The loading and empty panels were two different shapes** — a line of
+ *     small text and a dashed bordered block — in the same slot (2026-08-25).
+ *     They are the approved `LoadingState` and `EmptyState`, which is the
+ *     pattern's own rule: the three states of one slot look alike, and the empty
+ *     one is announced when the notes finish loading instead of appearing
+ *     silently.
  */
 export function NotesTab({ companyId, applicationId, collectionName = 'applications' }) {
     const [notes, setNotes] = useState([]);
@@ -206,14 +213,14 @@ export function NotesTab({ companyId, applicationId, collectionName = 'applicati
             {/* Notes List */}
             <Stack gap="md">
                 {loading ? (
-                    <p role="status" className="py-ds-10 text-center text-ds-sm text-ds-content-secondary">
-                        Loading notes...
-                    </p>
+                    <LoadingState surface="bare" headingLevel={3} title="Loading notes..." />
                 ) : notes.length === 0 ? (
-                    <div className="rounded-ds-lg border border-dashed border-ds-border py-ds-10 text-center">
-                        <MessageSquare className="mx-auto mb-ds-2 text-ds-content-secondary" size={32} aria-hidden="true" />
-                        <p className="text-ds-sm text-ds-content-secondary">No notes yet.</p>
-                    </div>
+                    <EmptyState
+                        surface="bare"
+                        icon={MessageSquare}
+                        headingLevel={3}
+                        title="No notes yet."
+                    />
                 ) : (
                     notes.map(note => (
                         <article key={note.id} className="flex gap-ds-3">

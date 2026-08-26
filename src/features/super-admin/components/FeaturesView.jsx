@@ -259,28 +259,28 @@ export function FeaturesView({ companyList, onDataUpdate }) {
                     tabIndex={0}
                     className="min-h-0 flex-1 overflow-auto bg-ds-canvas focus-visible:outline-none focus-visible:shadow-ds-focus"
                 >
-                        <table className="w-full border-collapse text-left">
+                        <table className="ds-native-table">
                             <caption className="sr-only">Feature overrides by company</caption>
-                            <thead className="sticky top-0 z-20 bg-ds-surface-subtle shadow-ds-xs">
+                            <thead className="sticky top-0 z-20 shadow-ds-xs">
                                 <tr>
-                                    <th scope="col" className="sticky left-0 z-30 border-b border-ds-border-subtle bg-ds-surface-subtle px-ds-6 py-ds-3 text-ds-xs font-bold uppercase tracking-wider text-ds-content-secondary">Company Name</th>
+                                    <th scope="col" className="sticky left-0 z-30">Company Name</th>
                                     {ALL_FEATURES.map(f => (
-                                        <th key={f.key} scope="col" className="whitespace-nowrap border-b border-ds-border-subtle px-ds-6 py-ds-3 text-center text-ds-xs font-bold uppercase tracking-wider text-ds-content-secondary">
+                                        <th key={f.key} scope="col" className="whitespace-nowrap text-center">
                                             {f.label}
                                         </th>
                                     ))}
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-ds-border-subtle bg-ds-surface">
+                            <tbody>
                                 {filteredList.length === 0 ? (
                                     <tr>
-                                        <td colSpan={ALL_FEATURES.length + 1} className="p-ds-10 text-center text-ds-content-muted">
-                                            No companies found.
+                                        <td colSpan={ALL_FEATURES.length + 1} className="text-center text-ds-content-muted">
+                                            <div role="status">No companies found.</div>
                                         </td>
                                     </tr>
                                 ) : filteredList.map(company => (
-                                    <tr key={company.id} className="transition-colors hover:bg-ds-surface-subtle">
-                                        <th scope="row" className="sticky left-0 z-10 border-r border-ds-border-subtle bg-ds-surface px-ds-6 py-ds-4 text-left font-medium text-ds-content">
+                                    <tr key={company.id} className="transition-colors">
+                                        <th scope="row" className="sticky left-0 z-10 border-r border-ds-border-subtle font-medium text-ds-content">
                                             {company.companyName}
                                         </th>
                                         {ALL_FEATURES.map(f => {
@@ -288,7 +288,7 @@ export function FeaturesView({ companyList, onDataUpdate }) {
                                             const schedule = company.featureSchedules?.[f.key];
 
                                             return (
-                                                <td key={f.key} className="min-w-[160px] space-y-ds-2 px-ds-6 py-ds-4 text-center">
+                                                <td key={f.key} className="min-w-[160px] space-y-ds-2 text-center">
                                                     <div className="flex items-center justify-center gap-ds-2">
                                                         <Switch
                                                             label={`${f.label} for ${company.companyName}`}
@@ -456,23 +456,23 @@ function AlertStatsDialog({ info, stats, loading, onClose }) {
                     <p className="rounded-ds-lg bg-ds-surface-subtle p-ds-8 text-center text-ds-content-muted">No alert interactions recorded yet.</p>
                 ) : (
                     <div className="overflow-x-auto">
-                        <table className="w-full border-collapse overflow-hidden rounded-ds-lg border border-ds-border-subtle bg-ds-surface text-left">
+                        <table className="ds-native-table overflow-hidden rounded-ds-lg border border-ds-border-subtle">
                             <caption className="sr-only">Alert interactions by user</caption>
-                            <thead className="bg-ds-surface-subtle">
+                            <thead>
                                 <tr>
-                                    <th scope="col" className="border-b border-ds-border-subtle px-ds-4 py-ds-2 text-ds-sm font-bold text-ds-content-secondary">User Email</th>
-                                    <th scope="col" className="border-b border-ds-border-subtle px-ds-4 py-ds-2 text-center text-ds-sm font-bold text-ds-content-secondary">Views</th>
-                                    <th scope="col" className="border-b border-ds-border-subtle px-ds-4 py-ds-2 text-center text-ds-sm font-bold text-ds-content-secondary">Dismisses (X)</th>
-                                    <th scope="col" className="border-b border-ds-border-subtle px-ds-4 py-ds-2 text-center text-ds-sm font-bold text-ds-content-secondary">Contact Sales Clicks</th>
+                                    <th scope="col" className="text-ds-sm">User Email</th>
+                                    <th scope="col" className="text-center text-ds-sm">Views</th>
+                                    <th scope="col" className="text-center text-ds-sm">Dismisses (X)</th>
+                                    <th scope="col" className="text-center text-ds-sm">Contact Sales Clicks</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-ds-border-subtle">
+                            <tbody>
                                 {stats.map((stat, idx) => (
-                                    <tr key={idx} className="hover:bg-ds-surface-subtle">
-                                        <th scope="row" className="px-ds-4 py-ds-2 text-left text-ds-sm font-normal text-ds-content">{stat.email}</th>
-                                        <td className="px-ds-4 py-ds-2 text-center text-ds-sm tabular-nums">{stat.views}</td>
-                                        <td className="px-ds-4 py-ds-2 text-center text-ds-sm tabular-nums">{stat.dismisses}</td>
-                                        <td className="px-ds-4 py-ds-2 text-center text-ds-sm font-bold tabular-nums text-ds-content-link">{stat.salesClicks}</td>
+                                    <tr key={idx}>
+                                        <th scope="row" className="text-ds-sm font-normal text-ds-content">{stat.email}</th>
+                                        <td className="text-center text-ds-sm tabular-nums">{stat.views}</td>
+                                        <td className="text-center text-ds-sm tabular-nums">{stat.dismisses}</td>
+                                        <td className="text-center text-ds-sm tabular-nums text-ds-content-link">{stat.salesClicks}</td>
                                     </tr>
                                 ))}
                             </tbody>

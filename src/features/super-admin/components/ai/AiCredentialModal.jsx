@@ -1,5 +1,5 @@
 import React, { useId, useRef, useState } from 'react';
-import { Button, Card, FieldMessage, FormField, Input } from '@/design-system/components';
+import { Button, Card, FieldMessage, FormField, Input, Link } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { Modal } from '@design-system/patterns';
 
@@ -80,14 +80,17 @@ export function AiCredentialModal({ provider, field, mode, onSubmit, onCancel })
                         </p>
                         {provider.docsUrl && (
                             <p className="mt-2 text-ds-sm">
-                                <a
-                                    href={provider.docsUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-ds-content underline"
-                                >
+                                {/*
+                                  `Link external` rather than a hand-written
+                                  `target="_blank"`. The primitive is the only form
+                                  that ANNOUNCES the new tab — writing target and
+                                  rel by hand gets the tab and the tabnabbing fix
+                                  and silently drops the announcement, which is the
+                                  WCAG 3.2.5 failure the primitive exists for.
+                                */}
+                                <Link href={provider.docsUrl} external tone="quiet">
                                     {provider.displayName} documentation
-                                </a>
+                                </Link>
                             </p>
                         )}
                     </Card>

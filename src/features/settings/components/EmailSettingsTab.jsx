@@ -13,6 +13,7 @@ import {
     FormField,
     FormSection,
     Input,
+    Link,
     Textarea,
 } from '@/design-system/components';
 
@@ -365,7 +366,7 @@ export function EmailSettingsTab({ currentCompanyProfile }) {
                                 Gmail / Google Workspace
                             </h4>
                             <ol className="space-y-ds-2 text-ds-body text-ds-content-secondary list-decimal list-inside">
-                                <li>Go to your <a href="https://myaccount.google.com/" target="_blank" rel="noopener noreferrer" className="text-ds-content-link underline">Google Account</a></li>
+                                <li>Go to your <Link href="https://myaccount.google.com/" external>Google Account</Link></li>
                                 <li>Navigate to <strong>Security</strong> → <strong>2-Step Verification</strong> (you must enable this first)</li>
                                 <li>Scroll down and click <strong>App passwords</strong></li>
                                 <li>Select app: <strong>Mail</strong>, Select device: <strong>Other (Custom name)</strong></li>
@@ -412,7 +413,7 @@ export function EmailSettingsTab({ currentCompanyProfile }) {
                                 SendGrid (Recommended for High Volume)
                             </h4>
                             <ol className="space-y-ds-2 text-ds-body text-ds-content-secondary list-decimal list-inside">
-                                <li>Sign up for a free SendGrid account at <a href="https://sendgrid.com/" target="_blank" rel="noopener noreferrer" className="text-ds-content-link underline">sendgrid.com</a></li>
+                                <li>Sign up for a free SendGrid account at <Link href="https://sendgrid.com/" external>sendgrid.com</Link></li>
                                 <li>Go to <strong>Settings</strong> → <strong>API Keys</strong></li>
                                 <li>Click <strong>Create API Key</strong></li>
                                 <li>Name: "SafeHaul SMTP", Permissions: <strong>Full Access</strong> (or Mail Send only)</li>

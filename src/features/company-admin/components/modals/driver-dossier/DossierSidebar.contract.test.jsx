@@ -42,9 +42,7 @@ const TAB_ORDER = [
 describe('DossierSidebar navigation contract', () => {
   it('keeps the six navigation items in their frozen order with frozen labels', () => {
     renderSidebar();
-    const labels = screen
-      .getAllByRole('tab')
-      .map((el) => el.textContent.replace(/\s*\(selected\)\s*/, '').trim());
+    const labels = screen.getAllByRole('tab').map((el) => el.textContent.trim());
     expect(labels).toEqual(TAB_ORDER.map(([, label]) => label));
   });
 
@@ -62,14 +60,35 @@ describe('DossierSidebar navigation contract', () => {
 });
 
 describe('DossierSidebar tab semantics', () => {
-  it('exposes a named tablist wiring every tab to the shared panel', () => {
-    renderSidebar({ tabPanelId: 'panel-1', tabIdFor: (t) => `tab-${t}` });
+  /*
+   * The strip is the design system's `TabList` since 2026-08-25, so the ids come
+   * from one `idBase` shared with `DriverProfileModal` (which renders the panel)
+   * rather than from two id-builder functions passed across the prop boundary.
+   *
+   * `aria-controls` is on the SELECTED tab only. The panel for an unselected tab
+   * is not in the DOM — the modal renders one — and the ARIA tab pattern makes
+   * the attribute optional in exactly that case. Pointing every tab at a panel
+   * id that does not exist, which is what this used to assert, is a dangling
+   * IDREF.
+   */
+  it('exposes a named tablist whose ids derive from the shared id base', () => {
+    renderSidebar({ idBase: 'dossier-x', activeTab: 'application' });
 
     expect(screen.getByRole('tablist', { name: 'Driver dossier sections' })).toBeInTheDocument();
-    screen.getAllByRole('tab').forEach((tab) => {
-      expect(tab).toHaveAttribute('aria-controls', 'panel-1');
-    });
-    expect(screen.getByRole('tab', { name: /^Application/ })).toHaveAttribute('id', 'tab-application');
+    expect(screen.getByRole('tab', { name: 'Application' }))
+      .toHaveAttribute('id', 'dossier-x-tab-application');
+    expect(screen.getByRole('tab', { selected: true }))
+      .toHaveAttribute('aria-controls', 'dossier-x-panel-application');
+    for (const tab of screen.getAllByRole('tab')) {
+      if (tab.getAttribute('aria-selected') === 'true') continue;
+      expect(tab).not.toHaveAttribute('aria-controls');
+    }
+  });
+
+  it('describes the axis the user is actually looking at', () => {
+    // jsdom reports the desktop layout, where the rail is a vertical column.
+    renderSidebar();
+    expect(screen.getByRole('tablist')).toHaveAttribute('aria-orientation', 'vertical');
   });
 
   it('keeps only the selected tab in the tab order (roving tabindex)', () => {
@@ -95,12 +114,25 @@ describe('DossierSidebar tab keyboard model', () => {
 
   it.each([
     ['ArrowDown', 'application', 'documents'],
-    ['ArrowRight', 'application', 'documents'],
     ['ArrowUp', 'documents', 'application'],
-    ['ArrowLeft', 'documents', 'application'],
   ])('%s from %s selects %s', (key, from, expected) => {
     const props = press(key, from);
     expect(props.setActiveTab).toHaveBeenCalledWith(expected);
+  });
+
+  /*
+   * Deliberate narrowing, recorded because it IS a behaviour change.
+   *
+   * The hand-rolled handler answered both axes at every width. `TabList` answers
+   * the axis its `aria-orientation` announces, which is what the ARIA tab pattern
+   * specifies and what the primitive documents: a vertical strip that also
+   * consumed Left/Right would take the horizontal scroll keys away from the
+   * region it sits inside. On a phone this rail IS horizontal, and there
+   * Left/Right are the keys that move.
+   */
+  it('leaves the cross-axis arrows to the page on a vertical rail', () => {
+    const props = press('ArrowRight', 'application');
+    expect(props.setActiveTab).not.toHaveBeenCalled();
   });
 
   it('wraps forward from the last tab to the first', () => {

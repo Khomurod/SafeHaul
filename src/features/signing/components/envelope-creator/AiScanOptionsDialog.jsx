@@ -1,7 +1,7 @@
 import React, { useId, useRef, useState } from 'react';
 import { Sparkles, X } from 'lucide-react';
 import { Modal } from '@design-system/patterns';
-import { Button, ChoiceGroup, IconButton, Radio } from '@/design-system/components';
+import { Button, ChoiceGroup, IconButton, Input, Radio } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { parsePageRange } from '@features/signing/utils/pageRange';
 
@@ -85,7 +85,15 @@ export function AiScanOptionsDialog({ activePage, numPages, onClose, onStart }) 
                             >
                                 Page numbers
                             </label>
-                            <input
+                            {/*
+                              The approved `Input`, since 2026-08-25. It was a
+                              hand-built field with its own border, radius, inline
+                              padding and 44px min-height — a second field contract
+                              that happened to resolve to the same numbers, and one
+                              the contract scanner could not see because its
+                              `className` came after an arrow function.
+                            */}
+                            <Input
                                 id={rangeId}
                                 type="text"
                                 inputMode="numeric"
@@ -94,7 +102,6 @@ export function AiScanOptionsDialog({ activePage, numPages, onClose, onStart }) 
                                 aria-describedby={rangeHelpId}
                                 aria-invalid={rangeInvalid || undefined}
                                 placeholder="1, 3, 5-8"
-                                className="min-h-11 w-full rounded-ds-md border border-ds-border bg-ds-surface px-ds-3 text-ds-sm text-ds-content focus-visible:outline-none focus-visible:shadow-ds-focus"
                             />
                             <p id={rangeHelpId} className="mt-ds-1 text-ds-xs text-ds-content-secondary">
                                 {selectedPages.length > 0

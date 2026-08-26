@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { AlertTriangle, Loader2 } from 'lucide-react';
 import { Card, StatusMedallion } from '@design-system/components';
 import './PageState.css';
@@ -51,11 +51,37 @@ function liveRegionProps(announce) {
  * @param {React.ReactNode} [props.description] Plain words: what happened, and what next.
  * @param {React.ReactNode} [props.actions] The way forward. A state with no way
  *   forward is not a state, it is a wall — see the README before omitting it.
+ * @param {React.ReactNode} [props.children] A small amount of extra content
+ *   between the description and the actions: a confirmation reference, a
+ *   checklist of what is still outstanding. Not a second layout — anything that
+ *   needs its own structure is a page, not a state.
+ * @param {boolean} [props.focusOnMount] Move focus to the heading when the state
+ *   appears. For a state that REPLACES the control the user just activated — a
+ *   submitted form, a completed handoff — where focus would otherwise fall to
+ *   `<body>` and a keyboard or screen-reader user would not be told the thing
+ *   they did had worked. Announcement alone does not move the reading position.
+ * @param {string} [props.className] Goes on the **state** element, never on the
+ *   surface — so with the default `surface="card"` it lands *inside* the card.
+ *   A width or margin belongs on a wrapper `<div>` around `PageState`, which is
+ *   the shape `ErrorBoundary` has always used. Getting this wrong is not
+ *   hypothetical: nine of the fifteen screens migrated on 2026-08-25 first
+ *   passed `className="max-w-md"` here, which constrained the text inside a
+ *   full-width card instead of narrowing the card, and it looks close enough to
+ *   right that only reading the diff caught it. Every remaining prop goes to the
+ *   surface instead (the `Card` for `card`, the state element for `bare` and
+ *   `inverse`), which is where a caller's `id` or `aria-labelledby` belongs.
  * @param {'polite'|'assertive'|'off'} [props.announce] Defaults to assertive for
  *   `danger`, polite otherwise. `off` is for a state rendered as ordinary page
  *   content on navigation rather than appearing in response to something.
  * @param {1|2|3|4|5|6} [props.headingLevel=2] Match the surrounding outline. A
  *   state inside a section that already has an `<h2>` needs `3`.
+ * @param {string} [props.titleId] An `id` for the heading, so a surrounding
+ *   landmark or dialog can point `aria-labelledby` at it. A full-page state IS
+ *   the name of its `<main>`, and `role="status"` is not a valid role for
+ *   `<main>`, so the landmark and the live region have to be separate elements —
+ *   which leaves the landmark with nothing to be named by unless the heading has
+ *   an id. Without this the alternative is duplicating the title into an
+ *   `aria-label`, i.e. two copies of one string.
  * @param {'card'|'bare'|'inverse'} [props.surface='card'] `bare` when it already
  *   sits inside a `Card` — nesting two card surfaces is the defect that
  *   produces. `inverse` for a state rendered on a dark console surface
@@ -69,12 +95,25 @@ export function PageState({
   title,
   description,
   actions,
+  children,
   announce,
+  focusOnMount = false,
   headingLevel = 2,
+  titleId,
   surface = 'card',
   className = '',
   ...props
 }) {
+  /*
+   * Hooks first, above the validation throws. A `throw` is not a conditional
+   * return — a render that throws does not complete — but keeping every hook
+   * ahead of every guard is the rule that never needs that argument made.
+   */
+  const headingRef = useRef(null);
+  useEffect(() => {
+    if (focusOnMount) headingRef.current?.focus();
+  }, [focusOnMount]);
+
   if (!TONES.has(tone)) {
     throw new TypeError(`Unsupported PageState tone: ${tone}`);
   }
@@ -107,8 +146,16 @@ export function PageState({
           <Icon aria-hidden="true" />
         </StatusMedallion>
       )}
-      <Heading className="ds-page-state__title">{title}</Heading>
+      <Heading
+        id={titleId}
+        ref={headingRef}
+        tabIndex={focusOnMount ? -1 : undefined}
+        className="ds-page-state__title"
+      >
+        {title}
+      </Heading>
       {description && <p className="ds-page-state__description">{description}</p>}
+      {children && <div className="ds-page-state__content">{children}</div>}
       {actions && <div className="ds-page-state__actions">{actions}</div>}
     </div>
   );

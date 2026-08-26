@@ -3,6 +3,7 @@ import { httpsCallable } from 'firebase/functions';
 import { RefreshCw } from 'lucide-react';
 
 import { functions } from '@lib/firebase';
+import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 import { useData } from '@/context/DataContext';
 import { Badge, Button, Card, DataTable, FieldMessage } from '@/design-system/components';
 import { PageContainer, PageHeader, Stack } from '@/design-system/layouts';
@@ -33,6 +34,47 @@ import { PageContainer, PageHeader, Stack } from '@/design-system/layouts';
  * send it and this screen could not display it. There is no Social Security
  * Number to withhold — drafts never store one.
  */
+
+/*
+ * Fixture drafts for the `?e2eUnfinished=mock` harness, following the same shape
+ * as `ReviewChangePortal`'s: gated on `VITE_E2E_TEST_MODE`, which a production
+ * build never sets.
+ *
+ * It exists because this screen is in the blocking pixel lane and its content
+ * came from a real `listApplicationDrafts` callable. With no credentials the call
+ * fails, and *how* it fails decides what renders — so the committed baseline was
+ * a loading skeleton in one environment and CI captured something 30% different.
+ * A screenshot of a screen whose content depends on a network failure is not a
+ * baseline.
+ *
+ * The three rows are the cases worth seeing: a complete contact, a draft with no
+ * name typed yet, and one with no contact details at all. Timestamps are fixed
+ * and sit before the lane's frozen clock.
+ */
+const MOCK_DRAFTS = Object.freeze([
+    Object.freeze({
+        id: 'draft-1',
+        firstName: 'Dana',
+        lastName: 'Whitfield',
+        email: 'dana.whitfield@example.test',
+        phone: '(555) 010-2233',
+        lastSemanticStep: 'license',
+        updatedAt: '2026-06-14T16:45:00.000Z',
+    }),
+    Object.freeze({
+        id: 'draft-2',
+        email: 'starter@example.test',
+        lastSemanticStep: 'contact',
+        updatedAt: '2026-06-12T09:05:00.000Z',
+    }),
+    Object.freeze({
+        id: 'draft-3',
+        firstName: 'Marcus',
+        lastName: 'Iyer',
+        lastSemanticStep: 'employment',
+        updatedAt: '2026-06-09T21:30:00.000Z',
+    }),
+]);
 
 /** The wizard's own step names, in order, so "how far did they get" reads plainly. */
 const STEP_LABELS = Object.freeze({
@@ -70,12 +112,21 @@ export function UnfinishedApplicationsPage() {
     const { currentCompanyProfile } = useData();
     const companyId = currentCompanyProfile?.id;
 
+    const isMock = isE2ETestMode && getE2EQueryParam('e2eUnfinished', '') === 'mock';
+
     const [drafts, setDrafts] = useState([]);
     const [retentionDays, setRetentionDays] = useState(30);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
     const load = useCallback(async () => {
+        if (isMock) {
+            setDrafts(MOCK_DRAFTS);
+            setRetentionDays(30);
+            setError(null);
+            setLoading(false);
+            return;
+        }
         if (!companyId) return;
         setLoading(true);
         setError(null);
@@ -90,7 +141,7 @@ export function UnfinishedApplicationsPage() {
         } finally {
             setLoading(false);
         }
-    }, [companyId]);
+    }, [companyId, isMock]);
 
     useEffect(() => { load(); }, [load]);
 

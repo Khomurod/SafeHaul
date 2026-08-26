@@ -101,28 +101,28 @@ export function UsersView({
                     tabIndex={0}
                     className="min-h-0 flex-1 overflow-auto bg-ds-canvas focus-visible:outline-none focus-visible:shadow-ds-focus"
                 >
-                <table className="w-full border-collapse text-left">
+                <table className="ds-native-table" data-row-hover>
                     <caption className="sr-only">All platform users</caption>
                     <thead className="sticky top-0 z-10 bg-ds-table-header-bg shadow-ds-xs">
                         <tr>
-                            <th scope="col" className="border-b border-ds-border-subtle px-ds-6 py-ds-3 text-ds-xs font-bold uppercase tracking-wider text-ds-content-secondary">User</th>
-                            <th scope="col" className="border-b border-ds-border-subtle px-ds-6 py-ds-3 text-ds-xs font-bold uppercase tracking-wider text-ds-content-secondary">Role &amp; Access</th>
-                            <th scope="col" className="border-b border-ds-border-subtle px-ds-6 py-ds-3 text-right text-ds-xs font-bold uppercase tracking-wider text-ds-content-secondary">Actions</th>
+                            <th scope="col">User</th>
+                            <th scope="col">Role &amp; Access</th>
+                            <th scope="col" className="text-right">Actions</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-ds-border-subtle bg-ds-surface">
+                    <tbody>
                         {listLoading ? (
-                            <tr><td colSpan="3" role="status" className="p-ds-10 text-center text-ds-content-muted"><SafeHaulLoader size="h-10 w-10" className="mx-auto mb-ds-2" />Loading users...</td></tr>
+                            <tr><td colSpan="3" className="text-center text-ds-content-muted"><div role="status"><SafeHaulLoader size="h-10 w-10" className="mx-auto mb-ds-2" />Loading users...</div></td></tr>
                         ) : statsError.users ? (
-                            <tr><td colSpan="3" role="alert" className="p-ds-10 text-center text-ds-status-danger-fg">Error loading users.</td></tr>
+                            <tr><td colSpan="3" className="text-center text-ds-status-danger-fg"><div role="alert">Error loading users.</div></td></tr>
                         ) : filteredUserList.length === 0 ? (
-                            <tr><td colSpan="3" className="p-ds-10 text-center text-ds-content-muted">No users found.</td></tr>
+                            <tr><td colSpan="3" className="text-center text-ds-content-muted"><div role="status">No users found.</div></td></tr>
                         ) : (
                             paginatedData.map(user => {
                                 const userName = getFieldValue(user.name);
                                 return (
-                                    <tr key={user.id} className="transition-colors hover:bg-ds-surface-subtle">
-                                        <th scope="row" className="px-ds-6 py-ds-4 text-left align-middle font-normal">
+                                    <tr key={user.id} className="transition-colors">
+                                        <th scope="row" className="font-normal">
                                             <div className="flex items-center gap-ds-3">
                                                 <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-ds-full border border-ds-status-accent-border bg-ds-status-accent-bg text-ds-sm font-bold text-ds-status-accent-fg">
                                                     {userName.charAt(0).toUpperCase()}
@@ -133,7 +133,7 @@ export function UsersView({
                                                 </span>
                                             </div>
                                         </th>
-                                        <td className="px-ds-6 py-ds-4 align-middle">
+                                        <td>
                                             <div className="flex flex-wrap gap-ds-2">
                                                 {user.globalRole === 'super_admin' ? (
                                                     <Badge tone="danger" icon={ShieldCheck}>Super Admin</Badge>
@@ -148,7 +148,7 @@ export function UsersView({
                                                 )}
                                             </div>
                                         </td>
-                                        <td className="px-ds-6 py-ds-4 text-right align-middle">
+                                        <td className="text-right">
                                             <div className="flex justify-end gap-ds-2">
                                                 <IconButton
                                                     label={`Edit ${userName}`}

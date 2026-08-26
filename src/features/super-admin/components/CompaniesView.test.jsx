@@ -125,6 +125,36 @@ describe('CompaniesView — frozen callback contracts', () => {
         rerender(<CompaniesView listLoading={false} statsError={NO_ERRORS} companyList={[]} onViewApps={vi.fn()} onEdit={vi.fn()} onDelete={vi.fn()} loadMore={vi.fn()} hasMore={false} />);
         expect(screen.getByText('No companies found.')).toBeInTheDocument();
     });
+
+    /*
+     * Two defects in one row, found 2026-08-25.
+     *
+     * The loading and error rows put their live-region role on the `<td>`, which
+     * REPLACES the cell role: a row whose only child is not a cell is a row
+     * assistive technology may drop from the table altogether. And the empty row
+     * carried no role at all, so filtering the list down to nothing replaced the
+     * whole table and announced nothing.
+     *
+     * `ModernDriverTable` and `DataTable` both already put the role in a wrapper
+     * inside the cell. This asserts the same shape here, in both directions —
+     * the role is on the wrapper, and it is not on the cell.
+     */
+    it('announces each state from inside the cell, never on the cell itself', () => {
+        const { rerender } = renderView({ listLoading: true });
+        const loading = screen.getByText('Loading companies...');
+        expect(loading).toHaveAttribute('role', 'status');
+        expect(loading.closest('td')).not.toHaveAttribute('role');
+
+        rerender(<CompaniesView listLoading={false} statsError={{ ...NO_ERRORS, companies: true }} companyList={[]} onViewApps={vi.fn()} onEdit={vi.fn()} onDelete={vi.fn()} loadMore={vi.fn()} hasMore={false} />);
+        const error = screen.getByText('Error loading companies.');
+        expect(error).toHaveAttribute('role', 'alert');
+        expect(error.closest('td')).not.toHaveAttribute('role');
+
+        rerender(<CompaniesView listLoading={false} statsError={NO_ERRORS} companyList={[]} onViewApps={vi.fn()} onEdit={vi.fn()} onDelete={vi.fn()} loadMore={vi.fn()} hasMore={false} />);
+        const empty = screen.getByText('No companies found.');
+        expect(empty).toHaveAttribute('role', 'status');
+        expect(empty.closest('td')).not.toHaveAttribute('role');
+    });
 });
 
 describe('CompaniesView — stale enrichment defect', () => {

@@ -53,7 +53,18 @@ test.describe('Campaign audience builder slice', () => {
     await expect(page.getByRole('tab', { name: /Upload List/ })).toHaveAttribute('aria-selected', 'true');
 
     await expect(page.getByRole('tablist', { name: 'Import method' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Choose file' })).toBeVisible();
+    /*
+     * The picker is the approved `FileInput` dropzone as of 2026-08-25, so the
+     * trigger is a `<label>` and not a button: one focusable file input, named by
+     * its field, with "Choose file" as the label's visible words. "One trigger"
+     * is still the point of this test — a hidden input driven by a separate
+     * button was two things claiming to be the control.
+     */
+    const upload = page.getByLabel('Upload a recipient list');
+    await expect(upload).toHaveAttribute('type', 'file');
+    await expect(upload).toHaveAccessibleName('Upload a recipient list');
+    await expect(page.getByText('Choose file')).toBeVisible();
+    await expect(page.locator('input[type="file"]')).toHaveCount(1);
     // Upload mode defaults the exclusion window to 7 days.
     await expect(page.getByLabel('Exclude Previously Messaged')).toHaveValue('7');
 

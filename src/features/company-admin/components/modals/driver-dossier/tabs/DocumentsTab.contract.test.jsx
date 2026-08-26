@@ -99,6 +99,20 @@ describe('DocumentsTab empty state', () => {
     render(<DocumentsTab />);
     expect(screen.getByText('No documents found for this applicant.')).toBeInTheDocument();
   });
+
+  /*
+   * It is the approved `EmptyState` as of 2026-08-25, not a hand-composed
+   * icon-and-copy block. The frozen copy is the state's heading, which is what
+   * makes it reachable by heading navigation as well as announced.
+   */
+  it('uses the approved page-state pattern, with the copy as its heading', () => {
+    render(<DocumentsTab fileUrls={{}} appData={{}} />);
+    const state = screen.getByRole('status');
+    expect(state).toHaveClass('ds-page-state');
+    expect(
+      screen.getByRole('heading', { name: 'No documents found for this applicant.', level: 3 }),
+    ).toBeInTheDocument();
+  });
 });
 
 describe('DocumentsTab dates', () => {

@@ -5,11 +5,18 @@ import './Disclosure.css';
 /**
  * A collapsible section: a header that expands and collapses its own content.
  *
- * `EnvelopeSidebar`'s `RailSection` and `AiLogsPanel` both needed this, and the
- * roadmap recorded why `Button` could not supply it: the trigger must fill the
- * rail edge to edge, carry a rotating affordance, and sit *inside a heading* so
- * the section appears in the document outline. `Button`'s padding and inline
- * layout express none of those.
+ * `EnvelopeSidebar`'s `RailSection` is the consumer, and the roadmap recorded
+ * why `Button` could not supply it: the trigger must fill the rail edge to edge,
+ * carry a rotating affordance, and sit *inside a heading* so the section appears
+ * in the document outline. `Button`'s padding and inline layout express none of
+ * those.
+ *
+ * An earlier version of this line also named `AiLogsPanel`. It does not use
+ * this: the roadmap's 2026-08-17 decision put that panel on `DataTable` at
+ * `density="compact"` with its per-run detail in a dialog, because its rows are
+ * read comparatively and collapsing them destroys that. Corrected 2026-08-25 —
+ * a primitive that lists a consumer it does not have is the same defect as a
+ * roadmap that lists a component as missing when it exists.
  *
  * ## Why not `<details>`/`<summary>`
  *

@@ -86,6 +86,15 @@
     "width": "18px",
     "height": "18px"
   },
+  "mobile · the gap between a glyph and its label is the system's too · gap in button[md]": {
+    "columnGap": "8px"
+  },
+  "mobile · the gap between a glyph and its label is the system's too · gap in button[sm]": {
+    "columnGap": "8px"
+  },
+  "mobile · the gap between a glyph and its label is the system's too · gap in button[lg]": {
+    "columnGap": "8px"
+  },
   "mobile · the surface geometry every card shares · card": {
     "borderRadius": "12px",
     "padding": "0px",
@@ -96,7 +105,41 @@
     "height": "24px",
     "fontSize": "12px",
     "borderRadius": "9999px",
-    "width": "59.34px"
+    "width": "61px"
+  },
+  "mobile · a native table is the same table as DataTable · nativeTable.headerRow": {
+    "paddingLeft": "0px",
+    "paddingRight": "0px",
+    "paddingTop": "0px",
+    "paddingBottom": "0px",
+    "backgroundColor": "rgb(241, 245, 249)",
+    "height": "48px"
+  },
+  "mobile · a native table is the same table as DataTable · nativeTable.headerCell": {
+    "paddingLeft": "16px",
+    "paddingRight": "16px",
+    "paddingTop": "0px",
+    "paddingBottom": "0px",
+    "backgroundColor": "rgba(0, 0, 0, 0)",
+    "height": "48px"
+  },
+  "mobile · a native table is the same table as DataTable · nativeTable.cell": {
+    "paddingLeft": "16px",
+    "paddingRight": "16px",
+    "paddingTop": "12px",
+    "paddingBottom": "12px",
+    "backgroundColor": "rgba(0, 0, 0, 0)",
+    "height": "72px"
+  },
+  "mobile · a frozen column is opaque · stickyTable.headerCell": {
+    "backgroundColor": "rgb(241, 245, 249)",
+    "position": "sticky",
+    "left": "0px"
+  },
+  "mobile · a frozen column is opaque · stickyTable.rowHeader": {
+    "backgroundColor": "rgb(255, 255, 255)",
+    "position": "sticky",
+    "left": "0px"
   },
   "mobile · table density: row height and cell padding · headerCell": {
     "height": "48px",
@@ -132,7 +175,7 @@
   "mobile · the three page states are the same shape as each other · description": {
     "padding": "0px",
     "fontSize": "14px",
-    "maxWidth": "327.02px"
+    "maxWidth": "378px"
   },
   "desktop · the control scale, and the pairing it exists for · input[md]": {
     "height": "44px",
@@ -221,6 +264,15 @@
     "width": "18px",
     "height": "18px"
   },
+  "desktop · the gap between a glyph and its label is the system's too · gap in button[md]": {
+    "columnGap": "8px"
+  },
+  "desktop · the gap between a glyph and its label is the system's too · gap in button[sm]": {
+    "columnGap": "8px"
+  },
+  "desktop · the gap between a glyph and its label is the system's too · gap in button[lg]": {
+    "columnGap": "8px"
+  },
   "desktop · the surface geometry every card shares · card": {
     "borderRadius": "12px",
     "padding": "0px",
@@ -231,7 +283,41 @@
     "height": "24px",
     "fontSize": "12px",
     "borderRadius": "9999px",
-    "width": "59.34px"
+    "width": "61px"
+  },
+  "desktop · a native table is the same table as DataTable · nativeTable.headerRow": {
+    "paddingLeft": "0px",
+    "paddingRight": "0px",
+    "paddingTop": "0px",
+    "paddingBottom": "0px",
+    "backgroundColor": "rgb(241, 245, 249)",
+    "height": "48px"
+  },
+  "desktop · a native table is the same table as DataTable · nativeTable.headerCell": {
+    "paddingLeft": "20px",
+    "paddingRight": "20px",
+    "paddingTop": "0px",
+    "paddingBottom": "0px",
+    "backgroundColor": "rgba(0, 0, 0, 0)",
+    "height": "48px"
+  },
+  "desktop · a native table is the same table as DataTable · nativeTable.cell": {
+    "paddingLeft": "20px",
+    "paddingRight": "20px",
+    "paddingTop": "12px",
+    "paddingBottom": "12px",
+    "backgroundColor": "rgba(0, 0, 0, 0)",
+    "height": "72px"
+  },
+  "desktop · a frozen column is opaque · stickyTable.headerCell": {
+    "backgroundColor": "rgb(241, 245, 249)",
+    "position": "sticky",
+    "left": "0px"
+  },
+  "desktop · a frozen column is opaque · stickyTable.rowHeader": {
+    "backgroundColor": "rgb(255, 255, 255)",
+    "position": "sticky",
+    "left": "0px"
   },
   "desktop · table density: row height and cell padding · headerCell": {
     "height": "48px",
@@ -267,6 +353,6 @@
   "desktop · the three page states are the same shape as each other · description": {
     "padding": "0px",
     "fontSize": "14px",
-    "maxWidth": "327.02px"
+    "maxWidth": "378px"
   }
 }

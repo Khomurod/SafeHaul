@@ -1,10 +1,10 @@
 import React, { useId, useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
-import { Play, CheckCircle, AlertCircle, AlertTriangle } from 'lucide-react';
-import { Button, Card, FormField, Input, StatusMedallion } from '@/design-system/components';
+import { Play, CheckCircle, AlertCircle } from 'lucide-react';
+import { Button, Card, FormField, Input } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
-import { Modal } from '@design-system/patterns';
+import { ConfirmDialog } from '@design-system/patterns';
 
 /**
  * Performance-stats backfill maintenance panel.
@@ -237,23 +237,23 @@ export default function StatsBackfillPanel() {
                                     Preview (First {result.preview.length} Days)
                                 </h5>
                                 <div className="max-h-64 overflow-auto rounded-ds-lg border border-ds-border-subtle bg-ds-surface">
-                                    <table className="w-full text-ds-sm">
+                                    <table className="ds-native-table" data-density="compact">
                                         <caption className="sr-only">Backfill preview by day</caption>
                                         <thead className="sticky top-0 bg-ds-table-header-bg">
                                             <tr>
-                                                <th scope="col" className="px-ds-3 py-ds-2 text-left text-ds-xs font-semibold text-ds-content-secondary">Date</th>
-                                                <th scope="col" className="px-ds-3 py-ds-2 text-right text-ds-xs font-semibold text-ds-content-secondary">Dials</th>
-                                                <th scope="col" className="px-ds-3 py-ds-2 text-right text-ds-xs font-semibold text-ds-content-secondary">Connected</th>
-                                                <th scope="col" className="px-ds-3 py-ds-2 text-right text-ds-xs font-semibold text-ds-content-secondary">Users</th>
+                                                <th scope="col" className="font-semibold">Date</th>
+                                                <th scope="col" className="text-right font-semibold">Dials</th>
+                                                <th scope="col" className="text-right font-semibold">Connected</th>
+                                                <th scope="col" className="text-right font-semibold">Users</th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-ds-border-subtle">
+                                        <tbody>
                                             {result.preview.map((day, idx) => (
-                                                <tr key={idx} className="hover:bg-ds-surface-subtle">
-                                                    <th scope="row" className="px-ds-3 py-ds-2 text-left font-mono text-ds-xs font-normal text-ds-content">{day.dateKey}</th>
-                                                    <td className="px-ds-3 py-ds-2 text-right font-semibold tabular-nums text-ds-content">{day.totalDials}</td>
-                                                    <td className="px-ds-3 py-ds-2 text-right tabular-nums text-ds-status-success-fg">{day.connected}</td>
-                                                    <td className="px-ds-3 py-ds-2 text-right tabular-nums text-ds-content-secondary">{day.userCount}</td>
+                                                <tr key={idx}>
+                                                    <th scope="row" className="font-mono font-normal text-ds-content">{day.dateKey}</th>
+                                                    <td className="text-right font-semibold tabular-nums text-ds-content">{day.totalDials}</td>
+                                                    <td className="text-right tabular-nums text-ds-status-success-fg">{day.connected}</td>
+                                                    <td className="text-right tabular-nums">{day.userCount}</td>
                                                 </tr>
                                             ))}
                                         </tbody>
@@ -279,33 +279,27 @@ export default function StatsBackfillPanel() {
  * Confirmation for the platform-wide writing backfill. There was previously no
  * guard of any kind on this action.
  */
+/**
+ * The approved `ConfirmDialog` since 2026-08-25; this was a hand-composed `Modal`
+ * body reproducing the structure that pattern owns. It gains initial focus on
+ * Cancel rather than on a nine-minute irreversible write, and a synchronous guard
+ * against a double activation of that write.
+ */
 function RunAllConfirmDialog({ onCancel, onConfirm }) {
-    const titleId = useId();
-    const descriptionId = useId();
-
     return (
-        <Modal
-            onClose={onCancel}
-            labelledBy={titleId}
-            describedBy={descriptionId}
-            closeOnBackdrop={false}
-            className="w-full max-w-lg overflow-hidden rounded-ds-xl border border-ds-border-subtle bg-ds-surface shadow-ds-lg"
-        >
-            <div className="p-ds-5 text-center">
-                <StatusMedallion tone="danger" className="mx-auto mb-ds-3"><AlertTriangle /></StatusMedallion>
-                <h2 id={titleId} className="text-ds-heading-sm font-bold text-ds-content">
-                    Run the backfill for every company?
-                </h2>
-                <p id={descriptionId} className="mt-ds-3 text-ds-sm text-ds-content-secondary">
+        <ConfirmDialog
+            tone="danger"
+            title="Run the backfill for every company?"
+            description={(
+                <>
                     This writes <code>stats_daily</code> for every company on the platform, overwriting
                     existing figures. It can take up to nine minutes and cannot be undone. Run the
                     dry-run first if you have not already.
-                </p>
-            </div>
-            <div className="flex justify-end gap-ds-3 border-t border-ds-border-subtle bg-ds-surface-subtle p-ds-4">
-                <Button variant="secondary" onClick={onCancel}>Cancel</Button>
-                <Button variant="danger" onClick={onConfirm}>Run for all companies</Button>
-            </div>
-        </Modal>
+                </>
+            )}
+            confirmLabel="Run for all companies"
+            onCancel={onCancel}
+            onConfirm={onConfirm}
+        />
     );
 }

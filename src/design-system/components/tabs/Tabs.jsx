@@ -1,4 +1,4 @@
-import React, { useCallback, useRef } from 'react';
+import React, { forwardRef, useCallback, useRef } from 'react';
 import './Tabs.css';
 
 /**
@@ -37,6 +37,22 @@ export function tabIds(idBase, tabId) {
 
 const ORIENTATIONS = new Set(['horizontal', 'vertical']);
 
+/**
+ * The two strip shapes the product actually uses.
+ *
+ * `underline` is the page-level strip. `pill` is the secondary strip that sits
+ * *inside* a panel — the campaign audience builder's import-method chooser is
+ * one — where an underline would compete with the page strip above it for the
+ * same meaning. Both are the same control: same roving `tabIndex`, same keyboard
+ * model, same height, same icon size. Only the selected treatment differs.
+ *
+ * This exists because the alternative was worse. Eleven hand-rolled strips
+ * carried at least three treatments between them, and a primitive that could
+ * express only one of them would have left the others hand-rolled — which is
+ * how a primitive ends up with no consumers.
+ */
+const VARIANTS = new Set(['underline', 'pill']);
+
 /** Arrow keys follow the strip's orientation; Home/End always work. */
 const KEYS_BY_ORIENTATION = {
   horizontal: { previous: 'ArrowLeft', next: 'ArrowRight' },
@@ -51,6 +67,10 @@ const KEYS_BY_ORIENTATION = {
  * @param {string} props.activeTab
  * @param {(id: string) => void} props.onChange
  * @param {'horizontal'|'vertical'} [props.orientation='horizontal']
+ * @param {'underline'|'pill'} [props.variant='underline']
+ * @param {boolean} [props.fitted] Tabs share the strip's width equally. For a
+ *   strip that spans a narrow panel — a notification popover — where tabs
+ *   hugging their labels leaves a ragged gap.
  */
 export function TabList({
   ariaLabel,
@@ -59,6 +79,8 @@ export function TabList({
   activeTab,
   onChange,
   orientation = 'horizontal',
+  variant = 'underline',
+  fitted = false,
   className = '',
   ...props
 }) {
@@ -70,6 +92,15 @@ export function TabList({
   }
   if (!ORIENTATIONS.has(orientation)) {
     throw new TypeError(`Unsupported TabList orientation: ${orientation}`);
+  }
+  if (!VARIANTS.has(variant)) {
+    throw new TypeError(`Unsupported TabList variant: ${variant}`);
+  }
+  if (variant === 'pill' && orientation === 'vertical') {
+    // Not a limitation worth designing around: nothing in the product wants it,
+    // and a silently-ignored combination is how a component starts lying about
+    // what it supports.
+    throw new TypeError('TabList does not support variant="pill" with orientation="vertical".');
   }
 
   const buttonRefs = useRef({});
@@ -105,6 +136,8 @@ export function TabList({
       onKeyDown={handleKeyDown}
       className={`ds-tab-list ${className}`.trim()}
       data-orientation={orientation}
+      data-variant={variant}
+      data-fitted={fitted || undefined}
     >
       {tabs.map((tab) => {
         const isSelected = tab.id === activeTab;
@@ -117,7 +150,17 @@ export function TabList({
             role="tab"
             id={tabIds(idBase, tab.id).tabId}
             aria-selected={isSelected}
-            aria-controls={tabIds(idBase, tab.id).panelId}
+            /*
+              Only the selected tab points at a panel.
+              The ARIA tab pattern makes `aria-controls` optional exactly when the
+              unselected panels are not in the DOM, which is this design system's
+              convention — `TabPanel` renders the active panel and features render
+              one at a time. Setting it on every tab produced a dangling reference
+              for every unselected one, and it also made the primitive unusable for
+              the consumers that share a single panel between tabs (the
+              notification popover is one), which is a real shape and not a mistake.
+            */
+            aria-controls={isSelected ? tabIds(idBase, tab.id).panelId : undefined}
             /* Roving tabIndex: one stop for the whole strip, then arrow keys. */
             tabIndex={isSelected ? 0 : -1}
             onClick={() => onChange?.(tab.id)}
@@ -128,11 +171,21 @@ export function TabList({
             <span className="ds-tab__label">{tab.label}</span>
             {tab.badge}
             {/*
-              Selection is carried by `aria-selected` and by this text, never by
-              the underline colour alone — the underline is invisible to a
-              colour-blind reader and absent in forced-colours mode.
+              Selection is carried by `aria-selected`, which is what the ARIA tab
+              pattern specifies and what every screen reader announces.
+
+              It used to ALSO append a visually-hidden " (selected)", to keep
+              selection from being colour alone. That was the wrong fix for a real
+              concern. It made the selected tab announce its state twice — "Documents
+              (selected), selected, tab" — and it put a state string inside the
+              accessible NAME, which is the one thing a name must not contain,
+              since every exact-match query for the tab then has to know about it.
+
+              The concern it was aimed at is handled where it belongs, in
+              `Tabs.css`: the selected tab is distinguished by a border that is
+              *visible* against one that is not, and a `forced-colors` rule keeps
+              that true when the user's system replaces every colour.
             */}
-            {isSelected && <span className="ds-visually-hidden"> (selected)</span>}
           </button>
         );
       })}
@@ -147,12 +200,20 @@ export function TabList({
  * focusable so that a keyboard user moving off the strip lands in the content
  * it just switched to, rather than being dropped at the next focusable control
  * somewhere below it.
+ *
+ * It forwards its ref because the panel is a real focus target and callers need
+ * to reach it: the driver dossier hands it to `Modal`'s `initialFocusRef`, so
+ * opening the dialog lands the user in the content rather than on its close
+ * button.
  */
-export function TabPanel({ idBase, tabId, className = '', children, ...props }) {
+export const TabPanel = forwardRef(function TabPanel(
+  { idBase, tabId, className = '', children, ...props }, ref,
+) {
   const ids = tabIds(idBase, tabId);
   return (
     <div
       {...props}
+      ref={ref}
       role="tabpanel"
       id={ids.panelId}
       aria-labelledby={ids.tabId}
@@ -162,4 +223,4 @@ export function TabPanel({ idBase, tabId, className = '', children, ...props }) 
       {children}
     </div>
   );
-}
+});

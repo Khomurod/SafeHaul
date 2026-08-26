@@ -75,15 +75,42 @@ test.describe('E-Doc Documents workspace', () => {
     await expect(tab(page, 'Overview')).toHaveAttribute('aria-selected', 'true');
   });
 
-  test('connects each tab to the rendered panel', async ({ page }) => {
+  /*
+   * Rewritten 2026-08-25 with the approved `TabList`, and the change is
+   * deliberate rather than incidental.
+   *
+   * This workspace renders **one** panel — the selected tab's — so the three
+   * unselected tabs have no panel in the document to control. The old markup
+   * pointed all four at the single panel's id, which is three references to
+   * something that is not theirs; the primitive sets `aria-controls` on the
+   * selected tab only, because an `aria-controls` naming an element that does
+   * not exist is worse than its absence (the APG says as much for a lazily
+   * rendered panel).
+   *
+   * So the contract is: the selected tab points at the rendered panel, the panel
+   * points back at it, and the others point at nothing. Asserting all three
+   * halves is what stops this being read as a regression later.
+   */
+  test('connects the selected tab to the one rendered panel, and only that tab', async ({ page }) => {
     await openDocuments(page);
     const panel = page.getByRole('tabpanel');
     const panelId = await panel.getAttribute('id');
+    expect(panelId).toBeTruthy();
 
-    for (const name of ['Overview', 'Sent Documents', 'Templates', 'Application Forms']) {
-      await expect(tab(page, name)).toHaveAttribute('aria-controls', panelId);
-    }
+    await expect(tab(page, 'Overview')).toHaveAttribute('aria-controls', panelId);
     await expect(panel).toHaveAttribute('aria-labelledby', String(await tab(page, 'Overview').getAttribute('id')));
+
+    for (const name of ['Sent Documents', 'Templates', 'Application Forms']) {
+      await expect(tab(page, name)).toHaveAttribute('aria-selected', 'false');
+      await expect(tab(page, name)).not.toHaveAttribute('aria-controls', /./);
+    }
+
+    // …and the association follows the selection rather than being fixed to one
+    // tab: activating another makes it the one that points at the panel.
+    await tab(page, 'Templates').click();
+    const nextPanelId = await page.getByRole('tabpanel').getAttribute('id');
+    await expect(tab(page, 'Templates')).toHaveAttribute('aria-controls', nextPanelId);
+    await expect(tab(page, 'Overview')).not.toHaveAttribute('aria-controls', /./);
   });
 
   test('offers exactly three ways to start a new document', async ({ page }) => {

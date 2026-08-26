@@ -7,13 +7,17 @@
  *     records that a flat 80ms wait produced a silently clean result. Fonts
  *     ready, then two painted frames.
  *
- *  2. **Fail loudly on a font difference, once.** The catalog deliberately does
- *     not load Inter — `src/index.css` imports it from rsms.me and the catalog
- *     omits that — so text rasterises with whatever the runner's `sans-serif`
- *     resolves to. If that differs between the machine that recorded a baseline
- *     and the machine checking it, *every* screenshot differs, for a reason that
- *     has nothing to do with the design system. One assertion naming the font is
- *     a diagnosis; two hundred pixel diffs are a mystery.
+ *  2. **Fail loudly on a font difference, once.** Text is most of every
+ *     screenshot, so if the runner rasterises with different glyphs then *every*
+ *     baseline differs for a reason that has nothing to do with the design
+ *     system. One assertion naming the font is a diagnosis; two hundred pixel
+ *     diffs are a mystery.
+ *
+ *     This used to be an unavoidable hazard rather than a guard: the application
+ *     fetched Inter from rsms.me and the catalog omitted it, so neither half had
+ *     a font it controlled. Inter is served from `design-system/fonts/` now, so
+ *     the assertion below is a real invariant — the font either loaded from the
+ *     repository or something is broken.
  */
 /**
  * The instant every baseline is captured at.
@@ -42,12 +46,19 @@ async function settle(page) {
 /**
  * A fingerprint of the font that actually rasterised.
  *
- * Not `getComputedStyle().fontFamily` — that returns the *declared* stack, which
- * still names Inter whether or not Inter loaded, so asserting on it would give
- * false confidence. What decides whether two machines produce the same pixels is
- * the font's **metrics**, so this measures the rendered width of a fixed string
- * at a fixed size. If that number moves, the baselines are being compared
- * against different glyphs and every other difference in the run is noise.
+ * Two independent readings, because they fail differently.
+ *
+ * `interLoaded` comes from `document.fonts.check()`, which answers "can this
+ * text be rendered with a face that is actually loaded" — so it distinguishes
+ * "Inter is missing" from every other cause in one sentence. Deliberately not
+ * `getComputedStyle().fontFamily`: that returns the *declared* stack, which
+ * names Inter whether or not Inter loaded, and asserting on it is how a font
+ * substitution goes unnoticed for a whole campaign.
+ *
+ * `width` is the metrics reading: the rendered width of a fixed pangram at a
+ * fixed size. It catches the case `check()` cannot — a *different build* of
+ * Inter, whose glyphs differ while the family name matches. Together they mean
+ * a font problem is one legible failure rather than 150 pixel diffs.
  */
 async function fontFingerprint(page) {
     return page.evaluate(() => {
@@ -60,7 +71,7 @@ async function fontFingerprint(page) {
         const width = Math.round(probe.getBoundingClientRect().width * 100) / 100;
         const family = getComputedStyle(probe).fontFamily;
         probe.remove();
-        return { family, width };
+        return { family, width, interLoaded: document.fonts.check('400 16px Inter') };
     });
 }
 

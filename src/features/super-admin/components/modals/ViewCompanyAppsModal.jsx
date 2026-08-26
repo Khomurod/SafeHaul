@@ -1,9 +1,9 @@
 import React, { useId, useState, useEffect, useMemo } from 'react';
 import { loadApplications } from '@features/applications/services/applicationService';
-import { X, Search, FileText, Calendar, User, AlertCircle } from 'lucide-react';
-import { Badge, Button, IconButton, Input, StatusMedallion } from '@/design-system/components';
+import { X, Search, FileText, Calendar, User } from 'lucide-react';
+import { Badge, Button, IconButton, Input } from '@/design-system/components';
 import { SafeHaulLoader } from '@shared/components/SafeHaulLoader';
-import { Modal } from '@design-system/patterns';
+import { EmptyState, ErrorState, Modal } from '@design-system/patterns';
 
 /**
  * Read-only list of a company's driver applications, opened from the Super Admin
@@ -24,7 +24,11 @@ import { Modal } from '@design-system/patterns';
  *  - The filter `<input>` had no label, only a placeholder.
  *  - The unnamed icon-only close control.
  *  - Loading and error states were not announced (`role="status"` / `role="alert"`
- *    now).
+ *    now). The empty state still was not, until 2026-08-25: filtering the list to
+ *    nothing replaced the whole table with "No matches found." and announced
+ *    nothing. The error and empty panels are the approved `ErrorState` and
+ *    `EmptyState`, which own that announcement; the brand loader stays, because
+ *    `LoadingState`'s spinner is not it.
  *  - **Status was communicated by colour alone.** The old markup passed the
  *    status through `getStatusColor(...).replace('bg-', ...).replace('text-', ...)`,
  *    a brittle string rewrite that produced a colour-only pill built from legacy
@@ -182,51 +186,55 @@ export function ViewCompanyAppsModal({ companyId, companyName, onClose }) {
           )}
 
           {error && (
-              <div role="alert" className="flex h-64 flex-col items-center justify-center px-ds-6 text-center text-ds-status-danger-fg">
-                  <StatusMedallion tone="danger" className="mb-ds-2"><AlertCircle /></StatusMedallion>
-                  <p>{error}</p>
-              </div>
+              <ErrorState
+                surface="bare"
+                headingLevel={3}
+                title="Unable to load applications"
+                description={error}
+              />
           )}
 
           {!loading && !error && filteredApplications.length === 0 && (
-            <div className="flex h-64 flex-col items-center justify-center text-ds-content-muted">
-                <User size={48} aria-hidden="true" className="mb-ds-2 opacity-20" />
-                <p>{search ? "No matches found." : "No applications submitted yet."}</p>
-            </div>
+            <EmptyState
+              surface="bare"
+              icon={User}
+              headingLevel={3}
+              title={search ? "No matches found." : "No applications submitted yet."}
+            />
           )}
 
           {!loading && !error && filteredApplications.length > 0 && (
-              <table className="w-full border-collapse text-left">
+              <table className="ds-native-table" data-density="compact">
                   <caption className="sr-only">
                     Driver applications for {companyName}
                   </caption>
-                  <thead className="sticky top-0 z-10 bg-ds-table-header-bg text-ds-xs font-bold uppercase text-ds-table-header-fg shadow-ds-xs">
+                  <thead className="sticky top-0 z-10 bg-ds-table-header-bg text-ds-table-header-fg shadow-ds-xs">
                       <tr>
-                          <th scope="col" className="border-b border-ds-border-subtle px-ds-6 py-ds-3">Driver Name</th>
-                          <th scope="col" className="border-b border-ds-border-subtle px-ds-6 py-ds-3">Contact</th>
-                          <th scope="col" className="border-b border-ds-border-subtle px-ds-6 py-ds-3 text-center">Status</th>
-                          <th scope="col" className="border-b border-ds-border-subtle px-ds-6 py-ds-3 text-right">Date</th>
+                          <th scope="col">Driver Name</th>
+                          <th scope="col">Contact</th>
+                          <th scope="col" className="text-center">Status</th>
+                          <th scope="col" className="text-right">Date</th>
                       </tr>
                   </thead>
-                  <tbody className="divide-y divide-ds-border-subtle bg-ds-surface">
+                  <tbody>
                       {filteredApplications.map(app => (
-                        <tr key={app.id} className="transition-colors hover:bg-ds-surface-subtle">
-                            <td className="px-ds-6 py-ds-4">
+                        <tr key={app.id} className="transition-colors">
+                            <td>
                                 <span className="block font-bold text-ds-content">
                                     {getDriverName(app)}
                                 </span>
                                 <span className="font-mono text-ds-xs text-ds-content-muted">{app.id}</span>
                             </td>
-                            <td className="px-ds-6 py-ds-4 text-ds-sm text-ds-content-secondary">
+                            <td className="text-ds-sm">
                                 <div>{getDriverEmail(app)}</div>
                                 <div className="text-ds-xs text-ds-content-muted">{getDriverPhone(app)}</div>
                             </td>
-                            <td className="px-ds-6 py-ds-4 text-center">
+                            <td className="text-center">
                                 <Badge tone={STATUS_TONES[app.status] || 'neutral'}>
                                     {app.status || 'New Application'}
                                 </Badge>
                             </td>
-                            <td className="px-ds-6 py-ds-4 text-right text-ds-sm text-ds-content-muted">
+                            <td className="text-right text-ds-sm text-ds-content-muted">
                                 <div className="flex items-center justify-end gap-1">
                                     <Calendar size={12} aria-hidden="true" />
                                     {app.submittedAt?.seconds

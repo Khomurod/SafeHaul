@@ -11,7 +11,14 @@ const SETTINGS_URL = '/company/settings?e2eAuth=company_admin';
 async function openQuestions(page) {
   await page.goto(SETTINGS_URL);
   await expect(page.getByTestId('company-information')).toBeVisible();
-  await page.getByRole('button', { name: 'Application Form Questions' }).click();
+  /*
+   * A `tab`, not a `button`, since 2026-08-25: this strip had tab *behaviour*
+   * with no ARIA at all and is the approved `TabList` now, so the control
+   * announces as a tab in a tablist and the panel it shows is a `tabpanel`.
+   * That is the point of the migration — the old markup told assistive
+   * technology nothing about the relationship this test is here to check.
+   */
+  await page.getByRole('tab', { name: 'Application Form Questions' }).click();
   await expect(page.getByRole('heading', { name: 'Standard DOT Questions', exact: true })).toBeVisible();
 }
 

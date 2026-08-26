@@ -51,13 +51,30 @@ test.describe('E-Doc envelope creator sidebar', () => {
     await expect(group.getByRole('button', { name: 'Email' })).toHaveAttribute('aria-pressed', 'false');
   });
 
+  /*
+   * The picker is the approved `FileInput` dropzone since 2026-08-25, so its
+   * accessible name is the FIELD ("Choose a PDF file") and "Choose File" is the
+   * label's visible words. A file input maps to the `button` role, which is how
+   * assistive technology sees it and why the name has to be the field rather
+   * than the trigger's text. The frozen copy on screen is unchanged.
+   */
+  const picker = (page) => page.getByRole('button', { name: 'Choose a PDF file', exact: true });
+
   test('keeps the upload trigger reachable from the keyboard', async ({ page }) => {
     await openSidebar(page);
     await expect(page.getByText('Upload a PDF first')).toBeVisible();
+    await expect(page.getByText('Choose File')).toBeVisible();
 
-    const choose = page.getByRole('button', { name: 'Choose File' });
+    const choose = picker(page);
     await choose.focus();
     await expect(choose).toBeFocused();
+    // The ring is drawn on the label through `:focus-within`, because the input
+    // itself is clipped to 1x1 — so that is where it has to be measured.
+    const ring = await choose.evaluate((el) => {
+      const s = getComputedStyle(el.closest('label'));
+      return s.boxShadow !== 'none' || s.outlineStyle !== 'none';
+    });
+    expect(ring).toBe(true);
   });
 
   test('groups the rail into Setup, Add Fields and Fields', async ({ page }) => {
@@ -74,13 +91,13 @@ test.describe('E-Doc envelope creator sidebar', () => {
     const sidebar = page.getByRole('complementary', { name: 'Envelope setup' });
     const setup = sidebar.getByRole('button', { name: /^Setup/ });
 
-    await expect(page.getByRole('button', { name: 'Choose File' })).toBeVisible();
+    await expect(picker(page)).toBeVisible();
     await setup.click();
     await expect(setup).toHaveAttribute('aria-expanded', 'false');
-    await expect(page.getByRole('button', { name: 'Choose File' })).toHaveCount(0);
+    await expect(picker(page)).toHaveCount(0);
 
     await setup.click();
-    await expect(page.getByRole('button', { name: 'Choose File' })).toBeVisible();
+    await expect(picker(page)).toBeVisible();
   });
 
   test('does not overflow the document at desktop and tablet', async ({ page }, testInfo) => {
@@ -94,7 +111,7 @@ test.describe('E-Doc envelope creator sidebar', () => {
         documentWidth: document.documentElement.scrollWidth,
       }));
       expect(geometry.documentWidth).toBeLessThanOrEqual(geometry.viewport);
-      await expect(page.getByRole('button', { name: 'Choose File' })).toBeVisible();
+      await expect(picker(page)).toBeVisible();
     }
   });
 

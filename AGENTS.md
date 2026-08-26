@@ -128,6 +128,27 @@ real time. None were code defects; all were tooling mistakes.
    `scripts/test-ci-plan.mjs` (J1–J5) pins both halves; run `npm run check:ci-plan`
    after touching either the configs or those scripts.
 
+6. **`vi.clearAllMocks()` does not clear queued `mockResolvedValueOnce` values.**
+   It resets call records; once-queues survive it. So a test that queues one and
+   whose component never consumes it — because the test finished before the load
+   effect fired, which is exactly the timing that slips on a loaded CI runner —
+   leaks that value into the *next* test, where it outranks the defaults set in
+   `beforeEach`.
+
+   This cost a real CI failure on 2026-08-26: `EditUserBodies.contract.test.jsx`
+   reported `['', 'co-1', 'co-2', 'co-3']` for a select that filters out companies
+   the user already belongs to. It passed in isolation and passed a full local run
+   of all 4470 tests, because the leak needs the timing to slip. Proven with a
+   four-case throwaway spec: under `clearAllMocks` the leaked value comes back,
+   under `resetAllMocks` it does not.
+
+   Use `vi.resetAllMocks()` in `beforeEach` when a file queues any `*Once` value,
+   and re-establish the implementations immediately after — which such a
+   `beforeEach` is already doing, so nothing else changes. **At least twelve test
+   files here still pair `clearAllMocks` with `Once` queues**; only the one that
+   actually failed has been converted, so treat this as a live hazard rather than
+   a closed one.
+
 Also avoid editing files that are in the module graph while a Playwright suite is
 running: the dev server hot-reloads and the in-flight tests can fail spuriously.
 

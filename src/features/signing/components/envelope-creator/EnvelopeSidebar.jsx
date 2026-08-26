@@ -1,6 +1,8 @@
 import React, { useId, useRef, useState } from 'react';
-import { X, Mail, MessageSquare, Copy, Send, Check, Sparkles, ChevronDown, FileText } from 'lucide-react';
-import { Button, IconButton } from '@/design-system/components';
+import { X, Mail, MessageSquare, Copy, Send, Sparkles, FileText } from 'lucide-react';
+import {
+    Button, Disclosure, FileInput, IconButton, SegmentedControl,
+} from '@/design-system/components';
 import { FormField, Input } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { FIELD_CATEGORIES } from './fieldDefinitions';
@@ -52,58 +54,36 @@ function Kbd({ children }) {
 /**
  * One rail section.
  *
- * DOCUMENTED TEMPORARY EXCEPTION — the disclosure header is a raw `<button>`
- * rather than the approved `Button`. It must fill the rail edge-to-edge, carry a
- * rotating affordance and sit inside a heading; the approved Button's padding
- * and inline layout cannot express that. It uses only semantic `--ds-*` tokens,
- * a 44 px activation height and a focus-visible ring. The missing capability —
- * a Disclosure/Accordion primitive — is recorded in the roadmap.
+ * The design system's `Disclosure` since 2026-08-25. It was a raw `<button>`
+ * inside an `<h3>`, recorded as a temporary exception because "the approved
+ * Button's padding and inline layout cannot express" an edge-to-edge trigger with
+ * a rotating affordance inside a heading — all true, and the reason `Disclosure`
+ * was built on 2026-08-21 naming this component as its consumer. The exception
+ * outlived its own fix by four days.
+ *
+ * `Disclosure` unmounts a closed panel where this kept it with `hidden`. That is
+ * the primitive's deliberate choice and it is safe here: the recipient fields are
+ * lifted state, so a collapsed section loses no typed value — and a stale focus
+ * target inside a `hidden` panel is reachable by find-in-page and by
+ * screen-reader browse mode, which is what the primitive avoids.
  */
 function RailSection({ id, title, count, countLabel, open, onToggle, children }) {
-    const panelId = `${id}-panel`;
-    const headingId = `${id}-heading`;
-
     return (
-        <section aria-labelledby={headingId} className="border-b border-ds-border">
-            <h3 id={headingId} className="m-0">
-                <button
-                    type="button"
-                    aria-expanded={open}
-                    aria-controls={panelId}
-                    onClick={onToggle}
-                    className="flex min-h-11 w-full items-center justify-between gap-ds-2 px-ds-4 py-ds-2 text-left transition-colors hover:bg-ds-surface-subtle focus-visible:outline-none focus-visible:shadow-ds-focus"
-                >
-                    <span className="flex min-w-0 items-center gap-ds-2">
-                        <span className="text-ds-xs font-bold uppercase tracking-wider text-ds-content-secondary">
-                            {title}
-                        </span>
-                        {count > 0 && (
-                            <>
-                                <span
-                                    aria-hidden="true"
-                                    className="rounded-ds-sm bg-ds-status-neutral-bg px-ds-1 text-ds-xs font-semibold text-ds-content-secondary"
-                                >
-                                    {count}
-                                </span>
-                                <span className="ds-visually-hidden">{countLabel}</span>
-                            </>
-                        )}
-                    </span>
-                    <ChevronDown
-                        size={16}
-                        aria-hidden="true"
-                        className={`shrink-0 text-ds-content-secondary transition-transform motion-reduce:transition-none ${
-                            open ? 'rotate-180' : ''
-                        }`}
-                    />
-                </button>
-            </h3>
-            {/* The wrapping <section aria-labelledby> is already the labelled
-                region; giving the panel one too would be a duplicate landmark. */}
-            <div id={panelId} hidden={!open} className="px-ds-4 pb-ds-4">
-                {children}
-            </div>
-        </section>
+        <Disclosure
+            id={id}
+            title={title}
+            open={open}
+            onToggle={onToggle}
+            className="border-b border-ds-border"
+            meta={count > 0 ? (
+                <>
+                    <span aria-hidden="true">{count}</span>
+                    <span className="ds-visually-hidden">{countLabel}</span>
+                </>
+            ) : undefined}
+        >
+            {children}
+        </Disclosure>
     );
 }
 
@@ -141,7 +121,6 @@ export function EnvelopeSidebar({
     const recipientHeadingId = `envelope-recipient-heading-${rawId}`;
     const deliveryLabelId = `envelope-delivery-label-${rawId}`;
     const placedHeadingId = `envelope-placed-heading-${rawId}`;
-    const uploadHelpId = `envelope-upload-help-${rawId}`;
     const fileInputRef = useRef(null);
 
     // All three start open: the rail is a workflow, and collapsing by default
@@ -165,32 +144,25 @@ export function EnvelopeSidebar({
                 {/* Document. The upload lives with the rest of the setup because
                     it is the first decision, not part of the field palette. */}
                 {!file ? (
-                    <div className="rounded-ds-xl border-2 border-dashed border-ds-border bg-ds-surface-subtle p-ds-4 text-center">
-                        <p id={uploadHelpId} className="mb-ds-2 text-ds-sm font-medium text-ds-content-secondary">
-                            Upload a PDF first
-                        </p>
-                        {/* Visually hidden rather than display:none so the control stays
-                            reachable; the approved Button is the visible trigger. */}
-                        <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept="application/pdf"
-                            onChange={handleFileChange}
-                            className="ds-visually-hidden"
-                            tabIndex={-1}
-                            aria-label="Choose a PDF file"
-                            aria-describedby={uploadHelpId}
-                            id="pdf-upload"
-                        />
-                        <Button
-                            type="button"
-                            size="sm"
-                            aria-describedby={uploadHelpId}
-                            onClick={() => fileInputRef.current?.click()}
-                        >
-                            Choose File
-                        </Button>
-                    </div>
+                    /*
+                      `FileInput variant="dropzone"`. It was a hidden input plus a
+                      `Button` that clicked it; the primitive is a real focusable
+                      input behind a real `<label>`, and `FileInput`'s `onDrop`
+                      makes the panel a real drop target for a PDF. The frozen copy
+                      is unchanged: "Upload a PDF first" is the description and
+                      "Choose File" the control's own words.
+                    */
+                    <FileInput
+                        ref={fileInputRef}
+                        id="pdf-upload"
+                        label="Choose a PDF file"
+                        labelHidden
+                        variant="dropzone"
+                        buttonLabel="Choose File"
+                        description="Upload a PDF first"
+                        accept="application/pdf"
+                        onChange={handleFileChange}
+                    />
                 ) : (
                     <div className="flex items-center gap-ds-2 rounded-ds-lg border border-ds-border bg-ds-surface-subtle p-ds-2">
                         <FileText size={16} aria-hidden="true" className="shrink-0 text-ds-content-secondary" />
@@ -243,26 +215,17 @@ export function EnvelopeSidebar({
                         {/* Two-state toggle group built from the approved Button, matching the
                             creator shell's mode toggle: variant carries the visual state and
                             aria-pressed plus the check icon carry it non-visually. */}
-                        <div role="group" aria-labelledby={deliveryLabelId} className="grid grid-cols-2 gap-ds-1">
-                            {DELIVERY_OPTIONS.map(opt => {
-                                const OptionIcon = opt.icon;
-                                const isSelected = deliveryMethod === opt.key;
-                                return (
-                                    <Button
-                                        key={opt.key}
-                                        variant={isSelected ? 'primary' : 'secondary'}
-                                        size="sm"
-                                        aria-pressed={isSelected}
-                                        onClick={() => setDeliveryMethod(opt.key)}
-                                    >
-                                        {isSelected
-                                            ? <Check size={12} aria-hidden="true" />
-                                            : <OptionIcon size={12} aria-hidden="true" />}
-                                        {opt.label}
-                                    </Button>
-                                );
-                            })}
-                        </div>
+                        <SegmentedControl
+                            ariaLabelledBy={deliveryLabelId}
+                            columns={2}
+                            value={deliveryMethod}
+                            onChange={setDeliveryMethod}
+                            options={DELIVERY_OPTIONS.map(opt => ({
+                                value: opt.key,
+                                label: opt.label,
+                                icon: opt.icon,
+                            }))}
+                        />
                     </div>
                 )}
             </RailSection>

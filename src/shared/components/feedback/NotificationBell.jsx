@@ -3,7 +3,7 @@ import { Bell, Check, Phone } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '@shared/hooks/useNotifications';
 import { NotificationItem } from './NotificationItem';
-import { Badge, Button, IconButton } from '@/design-system/components';
+import { Badge, Button, IconButton, TabList, TabPanel } from '@/design-system/components';
 
 /**
  * Notification bell and dropdown.
@@ -25,9 +25,11 @@ import { Badge, Button, IconButton } from '@/design-system/components';
  *     open (`aria-expanded`).
  *  2. **`text-[10px]` on the unread count badge.**
  *  3. **The tab strip was colour-only** — a blue-vs-orange bottom border with no
- *     `role="tab"`, no `aria-selected` and no arrow-key movement. It is now a real
- *     WAI-ARIA tab interface with roving focus, matching `AnalyticsView` and
- *     `CreateView`.
+ *     `role="tab"`, no `aria-selected` and no arrow-key movement. It became a
+ *     hand-built WAI-ARIA tab interface in 2026-07, and is now the design
+ *     system's `TabList` (2026-08-25), so the keyboard model is not a fourth copy
+ *     of the same arithmetic. `fitted` is what keeps the two tabs half-width
+ *     each, which a narrow popover needs.
  *  4. **`animate-pulse` ran indefinitely** on the bell whenever a callback was
  *     due, with no reduced-motion guard. The urgent state is now carried by tone
  *     and by the announced name.
@@ -48,7 +50,6 @@ export function NotificationBell({ userId }) {
     const [isOpen, setIsOpen] = useState(false);
     const [activeTab, setActiveTab] = useState('general');
     const dropdownRef = useRef(null);
-    const tabRefs = useRef({});
     const navigate = useNavigate();
     const tabsId = useId();
     const listLabelId = useId();
@@ -96,20 +97,6 @@ export function NotificationBell({ userId }) {
         }
     };
 
-    // Roving focus: a tablist must respond to Arrow/Home/End, not just clicks.
-    const onTabKeyDown = (event) => {
-        const index = TABS.findIndex((t) => t.id === activeTab);
-        let next = null;
-        if (event.key === 'ArrowRight') next = TABS[(index + 1) % TABS.length];
-        if (event.key === 'ArrowLeft') next = TABS[(index - 1 + TABS.length) % TABS.length];
-        if (event.key === 'Home') next = TABS[0];
-        if (event.key === 'End') next = TABS[TABS.length - 1];
-        if (!next) return;
-        event.preventDefault();
-        setActiveTab(next.id);
-        tabRefs.current[next.id]?.focus();
-    };
-
     const unreadFor = (tabId) => (tabId === 'callbacks' ? unreadCallbacks : unreadGeneral);
     const bellLabel = upcomingCount > 0
         ? `Notifications: ${totalUnread} unread, ${upcomingCount} callback due`
@@ -143,43 +130,26 @@ export function NotificationBell({ userId }) {
             {isOpen && (
                 <div className="absolute right-0 z-[9999] mt-2 w-80 overflow-hidden rounded-ds-lg border border-ds-border-subtle bg-ds-surface shadow-ds-lg sm:w-96">
 
-                    <div
-                        role="tablist"
-                        aria-label="Notification categories"
-                        onKeyDown={onTabKeyDown}
-                        className="flex border-b border-ds-border-subtle bg-ds-surface-subtle"
-                    >
-                        {TABS.map((tab) => {
-                            const selected = activeTab === tab.id;
+                    <TabList
+                        ariaLabel="Notification categories"
+                        idBase={tabsId}
+                        activeTab={activeTab}
+                        onChange={setActiveTab}
+                        fitted
+                        className="bg-ds-surface-subtle"
+                        tabs={TABS.map((tab) => {
                             const unread = unreadFor(tab.id);
-                            return (
-                                <button
-                                    key={tab.id}
-                                    type="button"
-                                    role="tab"
-                                    id={`${tabsId}-tab-${tab.id}`}
-                                    aria-selected={selected}
-                                    aria-controls={`${tabsId}-panel`}
-                                    tabIndex={selected ? 0 : -1}
-                                    ref={(node) => { tabRefs.current[tab.id] = node; }}
-                                    onClick={() => setActiveTab(tab.id)}
-                                    className={`flex flex-1 items-center justify-center gap-ds-2 border-b-2 py-ds-3 text-ds-xs font-bold uppercase tracking-wide transition-colors focus-visible:outline-none focus-visible:shadow-ds-focus ${
-                                        selected
-                                            ? 'border-ds-action-primary bg-ds-surface text-ds-content-link'
-                                            : 'border-transparent text-ds-content-secondary hover:text-ds-content'
-                                    }`}
-                                >
-                                    {tab.label}
-                                    {unread > 0 && (
-                                        <Badge tone={tab.id === 'callbacks' ? 'warning' : 'neutral'}>
-                                            {unread}
-                                            <span className="sr-only"> unread</span>
-                                        </Badge>
-                                    )}
-                                </button>
-                            );
+                            return {
+                                ...tab,
+                                badge: unread > 0 ? (
+                                    <Badge tone={tab.id === 'callbacks' ? 'warning' : 'neutral'}>
+                                        {unread}
+                                        <span className="sr-only"> unread</span>
+                                    </Badge>
+                                ) : null,
+                            };
                         })}
-                    </div>
+                    />
 
                     <div className="flex items-center justify-between border-b border-ds-border-subtle bg-ds-surface px-ds-4 py-ds-2">
                         <span id={listLabelId} className="text-ds-xs font-medium text-ds-content-secondary">
@@ -192,12 +162,16 @@ export function NotificationBell({ userId }) {
                         )}
                     </div>
 
-                    <div
-                        role="tabpanel"
-                        id={`${tabsId}-panel`}
-                        aria-labelledby={`${tabsId}-tab-${activeTab}`}
-                        tabIndex={0}
-                        className="max-h-[400px] overflow-y-auto focus-visible:outline-none focus-visible:shadow-ds-focus"
+                    {/*
+                      One panel, re-labelled by whichever tab is active — the two
+                      categories share a scroll region rather than each owning one.
+                      `TabList` sets `aria-controls` only on the selected tab, so
+                      this shape needs no dangling references to work.
+                    */}
+                    <TabPanel
+                        idBase={tabsId}
+                        tabId={activeTab}
+                        className="max-h-[400px] overflow-y-auto"
                     >
                         {activeTab === 'callbacks' ? (
                             callbacks.length === 0 ? (
@@ -234,7 +208,7 @@ export function NotificationBell({ userId }) {
                                 </ul>
                             )
                         )}
-                    </div>
+                    </TabPanel>
                 </div>
             )}
         </div>

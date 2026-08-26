@@ -5,6 +5,13 @@
 // The real avatar upload and Auth reauthentication are NOT triggered here (they
 // need Firebase Storage/Auth); their exact contracts are covered by the vitest
 // suite. Only artificial, non-production values are ever entered.
+//
+// The avatar assertions were rewritten on 2026-08-25 for the approved
+// `FileInput`. The control used to be a `Button` driving a hidden input, so they
+// looked for a *button* and asserted the input was NOT inside a label. The
+// picker contract is the opposite by design: a real focusable input inside a
+// `<label>` styled as the visible control, with the accessible name on the field.
+// Same intent, the contract's shape. See `design-system/components/file-input`.
 const { test, expect } = require('@playwright/test');
 const AxeBuilder = require('@axe-core/playwright').default;
 
@@ -22,11 +29,19 @@ test.describe('Company account profile & security compatibility slice', () => {
   test('exposes a labelled image-only avatar upload trigger', async ({ page }) => {
     await openProfile(page);
 
-    const input = page.locator('input[type="file"]');
+    const input = page.getByRole('button', { name: 'Profile photo', exact: true });
     await expect(input).toHaveAttribute('accept', 'image/*');
-    await expect(input).toHaveAttribute('aria-label', 'Upload profile photo');
+    await expect(input).toHaveAttribute('type', 'file');
+    // Announced as the field, not as the trigger — "Profile photo", not
+    // "Upload photo". The trigger's words stay visible on the label.
+    await expect(input).toHaveAccessibleName('Profile photo');
     await expect(page.getByText(/Accepts image files under 2 MB/i)).toBeVisible();
-    await expect(page.getByRole('button', { name: /change photo|upload photo/i })).toBeVisible();
+    await expect(page.getByText(/change photo|upload photo/i)).toBeVisible();
+    // The size limit is the input's description, so it is heard before the
+    // picker opens rather than discovered from a rejection afterwards.
+    const describedBy = await input.getAttribute('aria-describedby');
+    expect(describedBy).toBeTruthy();
+    await expect(page.locator(`#${describedBy.split(' ').pop()}`)).toContainText(/under 2 MB/i);
   });
 
   test('keeps the avatar trigger keyboard-focusable with visible focus and no nesting', async ({ page }, testInfo) => {
@@ -34,25 +49,41 @@ test.describe('Company account profile & security compatibility slice', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await openProfile(page);
 
-    const trigger = page.getByRole('button', { name: /change photo|upload photo/i });
-    await trigger.focus();
-    await expect(trigger).toBeFocused();
+    const input = page.getByRole('button', { name: 'Profile photo', exact: true });
+    await input.focus();
+    await expect(input).toBeFocused();
 
-    const focusPresentation = await trigger.evaluate((el) => {
-      const s = getComputedStyle(el);
-      return { boxShadow: s.boxShadow, outline: s.outlineStyle };
+    /*
+     * The ring is drawn on the label through `:focus-within`, because the input
+     * itself is clipped to 1x1 and an outline on it would be invisible. The label
+     * is also the pointer target, so it is the thing that must be big enough.
+     */
+    const focusPresentation = await input.evaluate((el) => {
+      const label = el.closest('label');
+      const s = getComputedStyle(label);
+      return { boxShadow: s.boxShadow, outline: s.outlineStyle, target: label.getBoundingClientRect().height };
     });
     expect(focusPresentation.boxShadow !== 'none' || focusPresentation.outline !== 'none').toBe(true);
+    expect(focusPresentation.target).toBeGreaterThanOrEqual(24);
 
     const nesting = await page.evaluate(() => {
       const input = document.querySelector('input[type="file"]');
+      const label = input.closest('label');
       return {
+        // Still forbidden: an input inside a button is the shape that broke the
+        // keyboard path in the controls this replaced.
         insideButton: !!input.closest('button'),
-        insideLabel: !!input.closest('label'),
+        // Its own label is the contract; a second interactive element sharing
+        // that label is not.
+        insideLabel: !!label,
+        otherInteractiveInLabel: label
+          ? label.querySelectorAll('button, a[href], select, textarea, input:not([type=file])').length
+          : 0,
       };
     });
     expect(nesting.insideButton).toBe(false);
-    expect(nesting.insideLabel).toBe(false);
+    expect(nesting.insideLabel).toBe(true);
+    expect(nesting.otherInteractiveInLabel).toBe(0);
   });
 
   test('applies correct autocomplete to the password fields', async ({ page }) => {

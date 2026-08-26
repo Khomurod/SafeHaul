@@ -4,6 +4,49 @@
   border-bottom: 1px solid var(--ds-color-border);
 }
 
+/*
+ * `fitted`: the tabs share the strip's width equally.
+ *
+ * For a strip that spans a narrow panel, where tabs hugging their labels leave a
+ * ragged gap on the right. `flex-wrap: nowrap` goes with it — a fitted strip that
+ * wrapped would put a full-width tab on its own second row.
+ */
+.ds-tab-list[data-fitted] {
+  flex-wrap: nowrap;
+}
+
+.ds-tab-list[data-fitted] .ds-tab {
+  flex: 1 1 0;
+  justify-content: center;
+  min-width: 0;
+}
+
+/*
+ * `pill`: a secondary strip that sits inside a panel. No bottom rule on the
+ * strip, because it is not separating itself from page content — the panel
+ * already does that — and an underline here would read as a second page-level
+ * strip.
+ */
+.ds-tab-list[data-variant='pill'] {
+  border-bottom: 0;
+  gap: var(--ds-space-2);
+}
+
+.ds-tab-list[data-variant='pill'] .ds-tab {
+  border-bottom: 0;
+  border-radius: var(--ds-radius-md);
+}
+
+.ds-tab-list[data-variant='pill'] .ds-tab[data-selected] {
+  background: var(--ds-color-status-info-bg);
+  color: var(--ds-color-status-info-fg);
+}
+
+.ds-tab-list[data-variant='pill'] .ds-tab:hover:not([data-selected]) {
+  background: var(--ds-color-surface-subtle);
+  color: var(--ds-color-content);
+}
+
 .ds-tab-list[data-orientation='vertical'] {
   flex-direction: column;
   flex-wrap: nowrap;
@@ -91,5 +134,45 @@
 @media (prefers-reduced-motion: reduce) {
   .ds-tab {
     transition: none;
+  }
+}
+
+/*
+ * Forced-colours mode, where the user's system replaces every colour the design
+ * system chose.
+ *
+ * Without this the selected tab is indistinguishable: `border-bottom-color` is
+ * `transparent` when unselected and the action colour when selected, and forced
+ * colours paint BOTH as `CanvasText` — so every tab grows the same underline and
+ * the selection disappears. That was the real concern behind the visually-hidden
+ * " (selected)" this component used to append to its accessible name; the name
+ * was the wrong place to fix it, since a screen reader already has
+ * `aria-selected` and a sighted forced-colours user gets nothing from a hidden
+ * string.
+ *
+ * `Canvas` on the unselected border makes it blend into the background, so the
+ * distinction is a border that is *visible* against one that is not — a
+ * difference in presence rather than in hue, which is what WCAG 1.4.1 asks for.
+ */
+@media (forced-colors: active) {
+  .ds-tab {
+    border-bottom-color: Canvas;
+  }
+
+  .ds-tab[data-selected] {
+    border-bottom-color: Highlight;
+  }
+
+  .ds-tab-list[data-orientation='vertical'] .ds-tab {
+    border-inline-start-color: Canvas;
+  }
+
+  .ds-tab-list[data-orientation='vertical'] .ds-tab[data-selected] {
+    border-inline-start-color: Highlight;
+  }
+
+  .ds-tab-list[data-variant='pill'] .ds-tab[data-selected] {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
   }
 }
