@@ -692,6 +692,15 @@ function main() {
      * Requiring the visual contract on it would be asking for appearance from
      * something with none. Both hidden utilities count, because they emit the
      * same clip rule — see the note in roadmap section 5.
+     *
+     * It reads tags through `openTagAttributes` rather than a `<table\b[^>]*>`
+     * regex, and the reason is written out at that function: `[^>]*` stops at the
+     * first `>`, **including the one in `=>`**, so a table whose open tag carries
+     * an arrow-function attribute before its `className` would have its
+     * attributes truncated and be reported as off-contract when it is not. That
+     * is the same defect this campaign found in the styled-control rules, where
+     * it had hidden three quarters of the violations. Writing the shorter regex
+     * here would have reintroduced it one commit after fixing it.
      */
     const HIDDEN_UTILITIES = ['sr-only', 'ds-visually-hidden'];
     const untethered = [];
@@ -701,10 +710,10 @@ function main() {
         // native one.
         if (file.startsWith('design-system/')) continue;
         const source = readFileSync(path.join(srcRoot(), file), 'utf8');
-        const openTags = source.match(/<table\b[^>]*>/g) ?? [];
-        const offContract = openTags.filter((tag) => (
-            !tag.includes('ds-native-table')
-            && !HIDDEN_UTILITIES.some((utility) => tag.includes(utility))
+        const openTags = openTagAttributes(source, 'table');
+        const offContract = openTags.filter((attributes) => (
+            !attributes.includes('ds-native-table')
+            && !HIDDEN_UTILITIES.some((utility) => attributes.includes(utility))
         ));
         if (offContract.length > 0) {
             untethered.push(`${file} (${offContract.length} of ${openTags.length})`);
