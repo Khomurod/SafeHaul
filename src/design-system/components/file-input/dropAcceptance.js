@@ -91,21 +91,35 @@ function describeRejected(rejected) {
  * @param {{files: File[], accept?: string, multiple?: boolean}} options
  * @returns {{accepted: File[], rejected: File[], message: string|null}} `message`
  *   is null when every dropped file made it through, so a clean drop clears any
- *   earlier one. `rejected` carries the files themselves for a call site that
- *   wants to say more than the default sentence does.
+ *   earlier one. `rejected` carries every file the drop did not deliver — those
+ *   `accept` refused AND those a single-file field had no room for — so a call
+ *   site wanting to say more than the default sentence has all of them.
  */
 export function resolveDroppedFiles({ files, accept, multiple = false }) {
   const dropped = Array.from(files ?? []);
   const allowed = dropped.filter((file) => matchesAccept(file, accept));
-  const rejected = dropped.filter((file) => !matchesAccept(file, accept));
 
   // A single-file field takes the first ACCEPTED file, which is what the native
   // picker does when `multiple` is absent.
   const accepted = multiple ? allowed : allowed.slice(0, 1);
   const surplus = allowed.length - accepted.length;
 
+  /*
+   * Everything the drop did NOT deliver, in the order it was dropped.
+   *
+   * Deliberately not "the files `accept` refused": a single-file field discards
+   * the second acceptable file too, and a caller told "only the first was added"
+   * and handed an empty list has been told two contradictory things. Review on
+   * 2026-08-26 caught exactly that. `rejected` means *what you dropped and did
+   * not get*, whichever of the two reasons applies.
+   */
+  const keptFiles = new Set(accepted);
+  const rejected = dropped.filter((file) => !keptFiles.has(file));
+
+  const refusedByType = dropped.filter((file) => !matchesAccept(file, accept));
+
   const clauses = [];
-  if (rejected.length > 0) clauses.push(describeRejected(rejected));
+  if (refusedByType.length > 0) clauses.push(describeRejected(refusedByType));
   if (surplus > 0) {
     const kept = nameOf(accepted[0]);
     clauses.push(kept

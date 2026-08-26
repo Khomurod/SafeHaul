@@ -1223,10 +1223,14 @@ rule has to decide.
   its idle state — so a *mixed* drop hands them the accepted file, they
   re-render, and the alert is unmounted in the commit that created it. Reproduced
   before it was fixed. `onReject` fires after `onChange` (so a call site clearing
-  stale state does not wipe the message that just arrived) and transfers
-  ownership: when it is passed, `FileInput` renders nothing itself, so the same
-  sentence is never announced twice. Both call sites now surface it in a region
-  that outlives the picker.
+  stale state does not wipe the message that just arrived) and transfers the
+  *announcement*: when it is passed, `FileInput` renders no live region, so the
+  same sentence is never said twice. It keeps `aria-invalid` and a silent,
+  visually hidden `aria-describedby` target, because the consumer's own alert has
+  no id the input could reference — discarding those was the first attempt and it
+  left a screen-reader user who tabbed back to the picker with a valid-looking
+  control and no reason attached. Both call sites now surface the message in a
+  region that outlives the picker.
 
   The rules live in `dropAcceptance.js` (`matchesAccept`, `resolveDroppedFiles`),
   pure and directly tested: 23 assertions for `accept`'s three syntaxes, case

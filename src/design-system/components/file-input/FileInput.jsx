@@ -112,7 +112,6 @@ export const FileInput = forwardRef(function FileInput({
    * the presence of the callback is what decides which.
    */
   const ownsRejectionMessage = typeof onReject !== 'function';
-  const shownRejection = ownsRejectionMessage ? rejection : null;
 
   /*
    * Three sources, one description.
@@ -131,7 +130,7 @@ export const FileInput = forwardRef(function FileInput({
    * new selection clears it, so the description never keeps a stale complaint.
    */
   const errorId = `${inputId}-error`;
-  const describedBy = [descriptionId, shownRejection ? errorId : null, callerDescribedBy]
+  const describedBy = [descriptionId, rejection ? errorId : null, callerDescribedBy]
     .filter(Boolean)
     .join(' ') || undefined;
 
@@ -428,7 +427,7 @@ export const FileInput = forwardRef(function FileInput({
           aria-labelledby={labelId}
           aria-describedby={describedBy}
           aria-busy={loading || undefined}
-          aria-invalid={shownRejection ? true : undefined}
+          aria-invalid={rejection ? true : undefined}
           className="ds-file-input__native"
         />
       </label>
@@ -456,12 +455,23 @@ export const FileInput = forwardRef(function FileInput({
         - **Visible as well as announced.** WCAG 3.3.1 wants the error in text,
           and the sighted user who dropped a PDF on an image field needs to know
           it went nowhere just as much.
-        - **Not rendered at all when `onReject` is passed**, because then the
-          call site owns the message — see `ownsRejectionMessage`.
+        - **`onReject` transfers the ANNOUNCEMENT, not the semantics.** When a
+          call site takes the message, this element stays — visually hidden and
+          with no role, so nothing is said twice — because it is still what
+          `aria-describedby` points at. Dropping it took `aria-invalid` and the
+          description with it, and the consumer's own alert has no id this input
+          could reference: a screen-reader user who tabbed back to a picker that
+          had just refused their file found a valid-looking control with no
+          reason attached. Found in review on 2026-08-26. The live region moves;
+          the field's error contract does not.
       */}
-      {shownRejection && (
-        <span className="ds-file-input__error" id={errorId} role="alert">
-          {shownRejection}
+      {rejection && (
+        <span
+          className={ownsRejectionMessage ? 'ds-file-input__error' : 'ds-visually-hidden'}
+          id={errorId}
+          role={ownsRejectionMessage ? 'alert' : undefined}
+        >
+          {rejection}
         </span>
       )}
       {/*

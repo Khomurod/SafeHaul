@@ -737,11 +737,10 @@ describe('FileInput rejected-drop feedback', () => {
       );
     });
 
-    it('renders NO message of its own once onReject is passed', () => {
-      // Ownership transfers with the callback. Rendering both would put two
-      // copies on screen while the picker is still mounted and announce the same
-      // sentence twice — "sometimes one, sometimes two" is the worst contract of
-      // the three.
+    it('announces nothing of its own once onReject is passed', () => {
+      // Ownership transfers with the callback. Rendering a second live region
+      // would put the same sentence on screen twice while the picker is still
+      // mounted, and announce it twice.
       render(
         <FileInput
           label="Document"
@@ -753,6 +752,51 @@ describe('FileInput rejected-drop feedback', () => {
       dropOn(labelOf(), png('logo.png'));
 
       expect(screen.queryByRole('alert')).toBeNull();
+    });
+
+    it('but keeps the field invalid and described, because the input is still there', () => {
+      /*
+       * Found in review on 2026-08-26. Handing the message over used to discard
+       * `aria-invalid` and the description with it, and the consumer's own alert
+       * has no id this input could point at — so a screen-reader user who tabbed
+       * back to the picker that had just refused their file found a
+       * valid-looking control with no reason attached.
+       */
+      render(
+        <FileInput
+          label="Document"
+          accept="application/pdf"
+          onChange={vi.fn()}
+          onReject={vi.fn()}
+        />,
+      );
+      dropOn(labelOf(), png('logo.png'));
+
+      const input = inputOf();
+      expect(input).toHaveAttribute('aria-invalid', 'true');
+      expect(input).toHaveAccessibleDescription(/logo\.png was not added/);
+    });
+
+    it('keeps that description silent, so it is read on focus and not on arrival', () => {
+      render(
+        <FileInput label="Document" accept="application/pdf" onChange={vi.fn()} onReject={vi.fn()} />,
+      );
+      dropOn(labelOf(), png('logo.png'));
+
+      const described = document.getElementById(inputOf().getAttribute('aria-describedby').trim());
+      expect(described).toHaveClass('ds-visually-hidden');
+      expect(described).not.toHaveAttribute('role');
+    });
+
+    it('clears the invalid state with the message', () => {
+      render(
+        <FileInput label="Document" accept="application/pdf" onChange={vi.fn()} onReject={vi.fn()} />,
+      );
+      dropOn(labelOf(), png('logo.png'));
+      expect(inputOf()).toHaveAttribute('aria-invalid', 'true');
+
+      dropOn(labelOf(), pdf('contract.pdf'));
+
       expect(inputOf()).not.toHaveAttribute('aria-invalid');
     });
 

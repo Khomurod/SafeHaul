@@ -179,11 +179,47 @@ describe('resolveDroppedFiles', () => {
     });
   });
 
-  it('hands back the refused files themselves, for a caller that wants them', () => {
+  describe('the files it hands back', () => {
     const png = file('logo.png', 'image/png');
     const pdf = file('resume.pdf', 'application/pdf');
-    const { rejected } = resolveDroppedFiles({ files: [png, pdf], accept: 'image/*', multiple: true });
-    expect(rejected).toEqual([pdf]);
+
+    it('carries the ones accept refused', () => {
+      const { rejected } = resolveDroppedFiles({
+        files: [png, pdf], accept: 'image/*', multiple: true,
+      });
+      expect(rejected).toEqual([pdf]);
+    });
+
+    it('carries a surplus file a single-file field had no room for', () => {
+      /*
+       * Found in review on 2026-08-26: the message said "only one.png was added"
+       * while `rejected` was empty, which tells a caller two contradictory
+       * things. `rejected` means what you dropped and did not get, whichever of
+       * the two reasons applies.
+       */
+      const second = file('banner.png', 'image/png');
+      const { accepted, rejected } = resolveDroppedFiles({
+        files: [png, second], accept: 'image/*',
+      });
+      expect(accepted).toEqual([png]);
+      expect(rejected).toEqual([second]);
+    });
+
+    it('carries both kinds together, in the order they were dropped', () => {
+      const second = file('banner.png', 'image/png');
+      const { rejected } = resolveDroppedFiles({
+        files: [png, pdf, second], accept: 'image/*',
+      });
+      expect(rejected).toEqual([pdf, second]);
+    });
+
+    it('accounts for every dropped file exactly once', () => {
+      const second = file('banner.png', 'image/png');
+      const dropped = [png, pdf, second];
+      const { accepted, rejected } = resolveDroppedFiles({ files: dropped, accept: 'image/*' });
+      expect([...accepted, ...rejected]).toHaveLength(dropped.length);
+      expect(new Set([...accepted, ...rejected]).size).toBe(dropped.length);
+    });
   });
 
   it('reports nothing for an empty drop', () => {
