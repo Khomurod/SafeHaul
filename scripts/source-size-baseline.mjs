@@ -149,6 +149,27 @@ export function resolveBaselineRef({
           + 'exactly how a refused increment gets laundered into a deploy',
       };
     }
+    /*
+     * And it may not reach BEHIND the base the run would have chosen for itself.
+     *
+     * `lastValidatedBase` is the NEWEST validated ancestor, so it is the strictest
+     * comparison available; an override older than it widens the window back to a
+     * looser recorded count, and a file regrown to that older ceiling passes. Same
+     * laundering shape as the three above, one step further out. When the
+     * automatic lookup found nothing — which is the refusal an override exists to
+     * answer — there is nothing to be behind and this does not fire.
+     */
+    const automatic = lastValidatedBase();
+    if (automatic && automatic !== usable.ref
+      && git(['merge-base', '--is-ancestor', usable.ref, automatic], cwd).ok) {
+      return {
+        ref: null,
+        source: 'SOURCE_SIZE_BASE',
+        error: `${override} is older than ${automatic.slice(0, 8)}, which this run would have used `
+          + 'on its own. An override fills in when no validated ancestor can be found; it does not '
+          + 'reach past one to a looser ceiling',
+      };
+    }
     return { ref: usable.ref, source: 'SOURCE_SIZE_BASE', error: null };
   }
 
@@ -319,7 +340,17 @@ export async function resolveValidatedBaseline({
     log(`override   : ${usable.ref.slice(0, 8)} — `
       + `${check.validated ? 'validated release' : 'NOT a validated release'}`
       + `${check.error ? ` (${check.error})` : ''}`);
-    return { ...none, overrideValidated: () => check.validated, error: check.error };
+    /*
+     * Asked even though the override wins, because `resolveBaselineRef` needs to
+     * know whether the override is reaching behind a stricter base that was there
+     * for the taking. One extra request on a manual run only.
+     */
+    const behind = await lookupAncestor({ headSha, cwd, repository, token });
+    return {
+      lastValidatedBase: () => behind.sha,
+      overrideValidated: () => check.validated,
+      error: check.error || behind.error,
+    };
   }
 
   const asksGitHub = eventName && eventName !== 'pull_request' && eventName !== 'pull_request_target'
@@ -360,6 +391,34 @@ export function checkBacklogDirection({
     };
   }
   if (previous.absent) {
+    /*
+     * No backlog at the base means the change under test INTRODUCES it, so every
+     * entry is legitimately new and there is nothing to compare. That is true of
+     * the campaign's own pull request and of the push that merges it.
+     *
+     * It is a claim about history, though, and an operator can make it falsely:
+     * point `SOURCE_SIZE_BASE` at any validated commit from before the campaign —
+     * the main commit this branch is based on will do — and the current backlog is
+     * trusted wholesale, so an added entry plus an oversized file passes and
+     * `workflow_dispatch` on main deploys it. Reproduced on 2026-08-27 with an
+     * invented `{"src/invented.js": 9000}`: zero problems.
+     *
+     * The inferred bases cannot make that claim falsely, which is why the refusal
+     * is scoped to the override rather than to the situation. A pull request's
+     * base is a definition, and the automatic base is the NEWEST validated
+     * ancestor — so once one backlog-bearing commit is validated, no later run can
+     * land here. An operator choosing a base is the only way back.
+     */
+    const entries = Object.keys(current).length;
+    if (source === 'SOURCE_SIZE_BASE' && entries > 0) {
+      return {
+        problems: [`${ref.slice(0, 8)} predates ${path}, so an override naming it would have the `
+          + `current backlog's ${entries} ${entries === 1 ? 'entry' : 'entries'} accepted without `
+          + 'comparison. An override names a commit the campaign already ran on; it cannot reach '
+          + 'behind its start'],
+        describe: `no backlog at ${ref.slice(0, 8)} (${source}) — refused as an override`,
+      };
+    }
     return { problems: [], describe: `no backlog at ${ref.slice(0, 8)} (${source}) — the campaign starts here` };
   }
 

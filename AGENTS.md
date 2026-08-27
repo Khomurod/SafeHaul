@@ -161,8 +161,29 @@ were measured on 2026-08-27, each of which let a refused increment reach a deplo
   head, carrying a validated release — which is what this file already said about
   the secret scanner's override.
 
+A fourth review round found the same escape hatch open two notches wider, and
+both were reproduced before they were fixed. **The override may not reach behind
+the campaign's own start**: `SOURCE_SIZE_BASE` pointed at a fully validated
+pre-campaign commit — the main commit a campaign branch is based on will do —
+made `git show` fail, which read as "no backlog here, the campaign starts with
+this change", so the current backlog was trusted wholesale and an invented
+`{"src/invented.js": 9000}` with a matching 9000-line file reported zero
+problems. **And it may not reach behind the base the run would have picked
+anyway**: the automatic base is the *newest* validated ancestor and therefore the
+strictest, so naming an older validated release restores its looser recorded
+count and its looser measured size, and a file regrown to that older ceiling
+passes.
+
+The pre-campaign pass itself has to survive — it is how the campaign's own pull
+request and the push that merges it get measured — so the refusal is scoped to a
+base an operator *chose*. The inferred routes cannot make that claim falsely: a
+pull request's base is a definition, and the automatic base being the newest
+validated ancestor means that once one backlog-bearing commit is validated, no
+later run can land behind it.
+
 `callable-contract` therefore carries `checks: read` and the default token, and
-the dispatch dialog offers `source_size_base` for naming an older good release. Entries
+the dispatch dialog offers `source_size_base` for naming a good release when the
+automatic lookup finds none. Entries
 leaving and counts falling are the campaign working and need no ceremony. CI
 passes `--require-baseline`, which turns "could not find a base" into a refusal
 rather than a skipped comparison; that is why `callable-contract` checks out with

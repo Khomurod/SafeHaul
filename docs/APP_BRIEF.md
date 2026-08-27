@@ -1092,7 +1092,10 @@ JS/TS, CSS, HTML and Firestore rules — not only the scripts.
 `npm run check:source-size` prints the inventory and fails on a new offender; the
 70 files already over the limit are recorded in
 `.github/source-size-backlog.json`, which can only shrink and is itself compared
-against git so a change cannot add its own exemption. Workflows, JSON and
+against git so a change cannot add its own exemption. The commit it compares
+against is a pull request's own base, or the newest ancestor GitHub says carried
+a fully validated release — never the branch's own history, and never a
+manually-named commit older than either. Workflows, JSON and
 Markdown are deliberately unmeasured, with reasons recorded in the checker. See
 `AGENTS.md`.
 

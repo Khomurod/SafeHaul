@@ -331,6 +331,90 @@ assert('H17. nothing is compared until the shape is sound',
   rmSync(dir, { recursive: true, force: true });
 }
 
+{
+  /*
+   * An override cannot claim the campaign has not started yet.
+   *
+   * Found in review on 2026-08-27 and reproduced against this repository: point
+   * `SOURCE_SIZE_BASE` at a fully validated commit from BEFORE
+   * `.github/source-size-backlog.json` existed — the main commit this branch is
+   * based on qualifies — and `git show` fails, which the branch read as "the
+   * campaign starts here" and returned no problems at all. The current backlog is
+   * then trusted wholesale, so an invented `{"src/invented.js": 9000}` with a
+   * matching 9000-line file passed, and `workflow_dispatch` on main deploys.
+   *
+   * The pre-campaign pass itself has to survive, though: it is how the campaign's
+   * own pull request and the push that merges it get measured. So the refusal is
+   * scoped to the base an operator chose, and H28 is the half that proves the
+   * legitimate route still works.
+   */
+  const dir = mkdtempSync(join(tmpdir(), 'safehaul-size-precampaign-'));
+  const git = (...args) => execFileSync('git', args, { cwd: dir, encoding: 'utf8' }).trim();
+  git('init', '-q', '-b', 'main');
+  git('config', 'user.email', 'tests@safehaul.invalid');
+  git('config', 'user.name', 'SafeHaul tests');
+  git('config', 'commit.gpgsign', 'false');
+  writeFileSync(resolve(dir, 'a.txt'), 'before the campaign\n');
+  git('add', '-A'); git('commit', '-q', '-m', 'pre-campaign');
+  const preCampaign = git('rev-parse', 'HEAD');
+  mkdirSync(resolve(dir, '.github'), { recursive: true });
+  writeFileSync(resolve(dir, BACKLOG_PATH), `${JSON.stringify({ files: { 'big.js': 900 } }, null, 2)}\n`);
+  git('add', '-A'); git('commit', '-q', '-m', 'start the campaign');
+  writeFileSync(resolve(dir, 'a.txt'), 'later\n');
+  git('add', '-A'); git('commit', '-q', '-m', 'and carry on');
+
+  const invented = { 'big.js': 900, 'src/invented.js': 9000 };
+  const chosen = checkBacklogDirection({
+    current: invented, path: BACKLOG_PATH, requireBaseline: true, cwd: dir,
+    env: { GITHUB_EVENT_NAME: 'workflow_dispatch', SOURCE_SIZE_BASE: preCampaign },
+    overrideValidated: () => true,
+  });
+  assert('H27. an override reaching back past the backlog is refused',
+    chosen.problems.some((problem) => /predates .*source-size-backlog\.json/.test(problem)),
+    `${chosen.describe} — ${chosen.problems.join('; ') || 'nothing reported'}`);
+
+  git('checkout', '-q', '-b', 'campaign', preCampaign);
+  mkdirSync(resolve(dir, '.github'), { recursive: true });
+  writeFileSync(resolve(dir, BACKLOG_PATH), `${JSON.stringify({ files: { 'big.js': 900 } }, null, 2)}\n`);
+  git('add', '-A'); git('commit', '-q', '-m', 'the campaign, as a pull request');
+  const introducing = checkBacklogDirection({
+    current: { 'big.js': 900 }, path: BACKLOG_PATH, requireBaseline: true, cwd: dir,
+    env: { GITHUB_PR_BASE_SHA: preCampaign },
+  });
+  assert('H28. but the pull request that introduces the backlog still passes',
+    introducing.problems.length === 0 && /campaign starts here/.test(introducing.describe),
+    `${introducing.describe} — ${introducing.problems.join('; ') || 'nothing reported'}`);
+  rmSync(dir, { recursive: true, force: true });
+}
+
+{
+  /*
+   * And it cannot reach behind the base the run would have chosen for itself.
+   *
+   * The automatic base is the NEWEST validated ancestor, so it is the strictest
+   * comparison available. An older validated commit carries a looser recorded
+   * count and a looser measured size, so a file regrown to that older ceiling
+   * passes — the same laundering shape as `SOURCE_SIZE_BASE=HEAD`, one step out.
+   * The override exists to answer "nothing validated was found", which is exactly
+   * when H30 lets it through.
+   */
+  const env = (base) => ({ GITHUB_EVENT_NAME: 'workflow_dispatch', SOURCE_SIZE_BASE: base });
+  const head = execFileSync('git', ['rev-parse', 'HEAD~2'], { encoding: 'utf8' }).trim();
+
+  const behind = resolveBaselineRef({
+    env: env('HEAD~3'), overrideValidated: () => true, lastValidatedBase: () => head,
+  });
+  assert('H29. an override older than the automatic base is refused',
+    behind.ref === null && /is older than/.test(behind.error || ''), JSON.stringify(behind));
+
+  const nothingFound = resolveBaselineRef({
+    env: env('HEAD~3'), overrideValidated: () => true, lastValidatedBase: () => null,
+  });
+  assert('H30. and accepted when the automatic lookup found nothing to be behind',
+    nothingFound.ref !== null && nothingFound.source === 'SOURCE_SIZE_BASE',
+    JSON.stringify(nothingFound));
+}
+
 console.log(failures === 0
   ? '\nAll source-size baseline checks passed.'
   : `\n${failures} check(s) failed.`);
