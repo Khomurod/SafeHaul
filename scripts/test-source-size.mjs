@@ -108,22 +108,32 @@ assert('A6. isExcluded matches the whole path, not a suffix',
 
 {
   /*
-   * Every format under the covered roots has an answer — measured, deliberately
-   * unmeasured, or not source at all.
+   * Every tracked format has an answer — measured, deliberately unmeasured, or
+   * not source at all.
    *
    * Found in review on 2026-08-27: `.mdx` was in NO list. A Storybook page could
    * have grown to any length while every assertion above stayed satisfied by
-   * unrelated files, because "is this extension covered" was never asked — only
+   * unrelated files, because "is this format covered" was never asked — only
    * "are these extensions still listed". That is the same shape as A6b, which
    * exists because deleting a required root would have gone unnoticed too.
    *
+   * The FIRST version of this test scoped the inventory to `REQUIRED_ROOTS`, and
+   * review caught that too. Those roots answer "has the scan stopped covering a
+   * directory", which is a different question; the checker itself reads
+   * `git ls-files` over everything and measures `eslint.config.js`,
+   * `index.html` and the rest, so its coverage claim is about the whole tree.
+   * Borrowing the roots left `.gitleaks.toml` unclassified and let a 900-line
+   * `build.py` at the repository root pass both this and the size scan.
+   * Reproduced before fixing, and it is the same mistake in miniature that this
+   * whole PR is about: a check must not take its scope from something narrower
+   * than the claim it is making.
+   *
    * Asserted against the real tracked tree rather than a fixture, because the
    * hazard is a format ARRIVING, and a fixture only ever contains what its author
-   * thought of. The message names the extension and the file, so the fix is
-   * either one line in a list or a decision recorded beside it.
+   * thought of. The message names the format and a file, so the fix is either one
+   * line in a list or a decision recorded beside it.
    */
-  const roots = REQUIRED_ROOTS.map((root) => root);
-  const tracked = execFileSync('git', ['ls-files', '-z', '--', ...roots],
+  const tracked = execFileSync('git', ['ls-files', '-z'],
     { cwd: repoRoot, encoding: 'utf8' }).split('\0').filter(Boolean);
   const unclassified = new Map();
   for (const path of tracked) {
@@ -136,7 +146,7 @@ assert('A6. isExcluded matches the whole path, not a suffix',
     if (ACCOUNTED_FORMATS.includes(extension)) continue;
     if (!unclassified.has(extension)) unclassified.set(extension, path);
   }
-  assert('A7. no tracked format under the covered roots is unclassified',
+  assert('A7. no tracked format anywhere in the repository is unclassified',
     unclassified.size === 0,
     [...unclassified].map(([ext, path]) => `${ext} (e.g. ${path})`).join(', ')
       + ' — add it to SOURCE_EXTENSIONS, UNMEASURED_FORMATS or NOT_SOURCE_FORMATS');

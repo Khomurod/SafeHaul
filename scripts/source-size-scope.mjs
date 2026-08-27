@@ -82,6 +82,19 @@ export const UNMEASURED_FORMATS = Object.freeze([
       + 'and pinned structurally by check:ci-plan rather than by length.',
   },
   {
+    extension: '.toml',
+    reason: 'Configuration data. The one tracked file, .gitleaks.toml, is pinned line for '
+      + 'line by npm run check:ci-plan (L24a) so that weakening the secret gate is not an '
+      + 'alternative to passing it — a stricter guarantee than a length cap, and the same '
+      + 'reason .yml is here.',
+  },
+  {
+    extension: '.firebaserc',
+    reason: 'Firebase project aliases: JSON data under a dotfile name, so the .json reason '
+      + 'applies. A long one would mean many deploy targets, not a module that has outgrown '
+      + 'a responsibility.',
+  },
+  {
     extension: '.mdx',
     reason: 'Documentation with a Storybook wrapper. The one tracked file, '
       + 'src/design-system/stories/Introduction.mdx, is 176 lines of prose around a single '
@@ -101,16 +114,28 @@ export const UNMEASURED_FORMATS = Object.freeze([
  * unrelated files. The gap was not that the reason was wrong — there was no
  * reason, because there was no entry.
  *
- * So the three lists are now exhaustive over the roots this standard covers, and
- * a test asserts it: an extension appearing under `src`, `functions`, `scripts`,
- * `e2e`, `landing` or `.storybook` must be measured, deliberately unmeasured, or
- * named here. A new format cannot arrive unclassified.
+ * So the three lists are now exhaustive over the WHOLE tracked tree, and a test
+ * (`A7`) asserts it: every tracked file's format must be measured, deliberately
+ * unmeasured, or named here. A new format cannot arrive unclassified.
+ *
+ * "Whole tree", not "the required roots", is the second correction — review made
+ * it on 2026-08-27 after the first version scoped the inventory to
+ * `REQUIRED_ROOTS`. Those roots exist to prove the scan has not silently stopped
+ * covering a directory, which is a different question, and borrowing them here
+ * left `.gitleaks.toml` unclassified and would have let a 900-line `build.py` at
+ * the repository root pass both the inventory and the size scan. Reproduced. The
+ * checker reads `git ls-files` over everything, so its coverage claim is about
+ * everything, and this list has to be too.
  */
 export const NOT_SOURCE_FORMATS = Object.freeze([
   {
     extension: '.png',
     reason: 'Raster images — binary, and the 179 tracked ones are screenshots and visual '
       + 'baselines. A line count of a PNG is a count of accidental newline bytes.',
+  },
+  {
+    extension: '.ico',
+    reason: 'The favicon. A binary icon container, and public/favicon.ico is the only one.',
   },
   {
     extension: '.svg',

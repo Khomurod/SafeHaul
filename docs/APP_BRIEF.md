@@ -1099,8 +1099,8 @@ manually-named commit that does not contain either. Where there is no earlier
 backlog at all, each entry must name a file the base already carried at that
 size, so a bootstrap cannot exempt debt it created. Workflows, JSON, Markdown and
 the one MDX story are deliberately unmeasured, with reasons recorded in the
-checker, and a test refuses any tracked format under the covered roots that is in
-none of its lists. See `AGENTS.md`.
+checker, and a test refuses any tracked format anywhere in the repository that is
+in none of its lists. See `AGENTS.md`.
 
 CI runs Playwright as a 4-way shard matrix with `workers: 1` and `retries: 2`
 per shard.

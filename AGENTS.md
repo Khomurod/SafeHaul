@@ -237,15 +237,27 @@ rather than the `.jsx` case), and `.yml`/`.yaml` (the workflows).
 different failure from a wrong reason: a Storybook page could have grown to any
 length while every coverage assertion stayed satisfied by unrelated files,
 because nothing asked "is this extension covered" — only "are these extensions
-still listed". So the lists are now exhaustive over the covered roots and a test
-(`A7`) asserts it against the real tracked tree: an extension under `src`,
-`functions`, `scripts`, `e2e`, `landing` or `.storybook` must be measured,
+still listed". So the lists are now exhaustive over the whole tracked
+tree and a test (`A7`) asserts it: every tracked file's format must be measured,
 deliberately unmeasured, or named in `NOT_SOURCE_FORMATS` with its reason —
-images, webfonts, a font licence, `robots.txt`, `.env.example` and two ignore
-files. A new format cannot arrive unclassified, and the failure names the
-extension and an example path. Dotfiles count as their own format: `.gcloudignore`
-has its dot at index 0, and the first version of that test read it as "no
-extension", which is a second way for a format to escape.
+images, webfonts, a favicon, a font licence, `robots.txt`, `.env.example` and two
+ignore files. A new format cannot arrive unclassified, and the failure names the
+format and an example path.
+
+**"Whole tree" is itself a correction**, and it is this section's own lesson in
+miniature. The first version scoped that inventory to `REQUIRED_ROOTS`, which
+answer a different question — has the scan stopped covering a directory — while
+the checker reads `git ls-files` over everything and measures `eslint.config.js`,
+`index.html` and `playwright.config.cjs` besides. Borrowing the roots left
+`.gitleaks.toml` unclassified and let a 900-line `build.py` at the repository
+root pass both the inventory and the size scan. Reproduced. **A check must not
+take its scope from something narrower than the claim it is making** — the same
+sentence as "a gate must not take its scope from the branch it is gating", one
+step over.
+
+Dotfiles count as their own format: `.gcloudignore` has its dot at index 0, and
+the first version of that test read it as "no extension", which is a second way
+for a format to escape.
 That last one is a **known limitation, not a clean exclusion**:
 `.github/workflows/main.yml` is 1148 lines, `.github/` is outside the roots this
 standard covers, and its structure is pinned job by job by `npm run check:ci-plan`
