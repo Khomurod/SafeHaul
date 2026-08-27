@@ -29,7 +29,7 @@
     "check:release-scripts": "node scripts/test-release-promotion.mjs",
     "check:ci-plan": "node scripts/test-ci-plan.mjs",
     "check:source-size": "node scripts/source-size.mjs",
-    "test:source-size": "node scripts/test-source-size.mjs && node scripts/test-source-size-baseline.mjs",
+    "test:source-size": "node scripts/test-source-size.mjs && node scripts/test-source-size-baseline.mjs && node scripts/test-source-size-ci.mjs",
     "test:secret-scan": "node scripts/test-secret-scan.mjs",
     "audit:secret-history": "node scripts/secret-history-audit.mjs",
     "check:release-health": "node scripts/check-release-health.mjs",

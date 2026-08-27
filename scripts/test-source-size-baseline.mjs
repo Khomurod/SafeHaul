@@ -25,10 +25,10 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { BACKLOG_PATH } from './source-size.mjs';
+import { checkBacklogDirection, resolveBaselineRef } from './source-size-baseline.mjs';
 import {
-  backlogShapeProblems, checkBacklogDirection, compareBacklog, compareBacklogSizes,
-  resolveBaselineRef,
-} from './source-size-baseline.mjs';
+  backlogShapeProblems, compareBacklog, compareBacklogSizes,
+} from './source-size-direction.mjs';
 import { countLines } from './source-size.mjs';
 
 let failures = 0;
@@ -70,14 +70,32 @@ assert('H4. and so is lowering one',
   compareBacklog({ 'src/a.js': 900 }, { 'src/a.js': 600 }).length === 0);
 
 {
-  // An explicit ref wins, and a ref that does not resolve is reported rather
-  // than quietly falling through to a weaker baseline.
-  const good = resolveBaselineRef({ env: { SOURCE_SIZE_BASE: 'HEAD' } });
-  assert('H5. SOURCE_SIZE_BASE is used when it names a real commit',
-    good.ref !== null && good.source === 'SOURCE_SIZE_BASE', JSON.stringify(good));
-  const bad = resolveBaselineRef({ env: { SOURCE_SIZE_BASE: 'not-a-ref-at-all' } });
-  assert('H6. and a ref that does not exist is an error, not a fallback',
-    bad.ref === null && bad.source === 'SOURCE_SIZE_BASE', JSON.stringify(bad));
+  /*
+   * The override clears the same bar as an inferred base, and every clause of it
+   * was a bypass before 2026-08-27: it accepted anything that resolved, so
+   * `SOURCE_SIZE_BASE=HEAD` on a manual run reported "compared against <head>"
+   * and passed — reopening the exact laundering path the refusal exists to close.
+   * Measured through the CLI, not reasoned about.
+   */
+  const env = (base) => ({ GITHUB_EVENT_NAME: 'workflow_dispatch', SOURCE_SIZE_BASE: base });
+  const validated = () => true;
+
+  const head = resolveBaselineRef({ env: env('HEAD'), overrideValidated: validated });
+  assert('H5. an override naming the head itself is refused',
+    head.ref === null && /the head itself/.test(head.error || ''), JSON.stringify(head));
+
+  const unknown = resolveBaselineRef({ env: env('not-a-ref-at-all'), overrideValidated: validated });
+  assert('H6. and one that does not resolve is an error, not a fallback',
+    unknown.ref === null && unknown.source === 'SOURCE_SIZE_BASE', JSON.stringify(unknown));
+
+  const unvalidated = resolveBaselineRef({ env: env('HEAD~1') });
+  assert('H6b. and a real ancestor that carries no validated release is refused',
+    unvalidated.ref === null && /does not carry a fully validated release/.test(unvalidated.error || ''),
+    JSON.stringify(unvalidated));
+
+  const ok = resolveBaselineRef({ env: env('HEAD~1'), overrideValidated: validated });
+  assert('H6c. a validated ancestor is accepted, so the refusal has a way through',
+    ok.ref !== null && ok.source === 'SOURCE_SIZE_BASE', JSON.stringify(ok));
 }
 
 {
@@ -181,28 +199,42 @@ assert('H4. and so is lowering one',
     `${onMain.source} -> ${onMain.ref}`);
 
   /*
-   * ...but NOT for a manual or scheduled run, and that distinction is the whole
-   * point. `workflow_dispatch` on `refs/heads/main` deploys, and `HEAD~1` after a
-   * multi-commit push is INSIDE that push — so `1200 → 1300 → tip` let a dispatch
-   * compare 1300 against 1300 and pass a regrowth the push run refused. Found in
-   * review on 2026-08-27.
+   * ...but only with NO event at all, which is a developer at a terminal. Every
+   * real event compares against the newest ancestor carrying a validated release,
+   * and refuses when there is none.
+   *
+   * Two measured reasons, both from 2026-08-27. `HEAD~1` after a multi-commit
+   * push is inside that push, so a dispatch of `main` compared 1300 against 1300
+   * and passed a regrowth the push refused — and a dispatch of `main` DEPLOYS.
+   * And a push's own `before` is the previous push's tip, so when THAT push
+   * failed this check, the next one measures from the failure and ships what was
+   * refused. `scripts/resolve-deploy-base.mjs` moved off `before` for the same
+   * reason after a function silently failed to deploy for two merges.
    */
-  for (const eventName of ['workflow_dispatch', 'schedule', 'repository_dispatch']) {
-    const dispatched = resolveBaselineRef({ env: { GITHUB_EVENT_NAME: eventName }, cwd: dir });
-    assert(`H24. a ${eventName} on the default branch refuses rather than using HEAD~1`,
-      dispatched.ref === null && /no change to measure against/.test(dispatched.error || ''),
-      `${dispatched.source} -> ${dispatched.ref} (${dispatched.error})`);
+  for (const eventName of ['push', 'workflow_dispatch', 'schedule', 'repository_dispatch']) {
+    const fired = resolveBaselineRef({ env: { GITHUB_EVENT_NAME: eventName }, cwd: dir });
+    assert(`H24. a ${eventName} with nothing validated behind it refuses`,
+      fired.ref === null && /no ancestor of this commit carries a fully validated release/
+        .test(fired.error || ''),
+      `${fired.source} -> ${fired.ref} (${fired.error})`);
   }
 
-  assert('H25. and an operator naming a base is still honoured on those events',
-    resolveBaselineRef({
-      env: { GITHUB_EVENT_NAME: 'workflow_dispatch', SOURCE_SIZE_BASE: 'HEAD~1' }, cwd: dir,
-    }).source === 'SOURCE_SIZE_BASE',
-    'the refusal says to set SOURCE_SIZE_BASE, so it has to work when they do');
+  {
+    const validatedSha = git('rev-parse', 'HEAD~1');
+    const found = resolveBaselineRef({
+      env: { GITHUB_EVENT_NAME: 'push' }, cwd: dir, lastValidatedBase: () => validatedSha,
+    });
+    assert('H25. and uses the validated ancestor when there is one',
+      found.ref === validatedSha && found.source === 'the last validated commit',
+      `${found.source} -> ${found.ref}`);
 
-  assert('H26. a push to the default branch still gets HEAD~1',
-    resolveBaselineRef({ env: { GITHUB_EVENT_NAME: 'push' }, cwd: dir }).source === 'HEAD~1',
-    'a push carries its own `before` in CI; HEAD~1 is the local equivalent');
+    const bogus = resolveBaselineRef({
+      env: { GITHUB_EVENT_NAME: 'push' }, cwd: dir, lastValidatedBase: () => git('rev-parse', 'HEAD'),
+    });
+    assert('H26. a "validated" answer that is the head itself is still refused',
+      bogus.ref === null && /the head itself/.test(bogus.error || ''),
+      'the lookup is trusted for WHICH commit, never for whether it can be compared');
+  }
   rmSync(dir, { recursive: true, force: true });
 }
 

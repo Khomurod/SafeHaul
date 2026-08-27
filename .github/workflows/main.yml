@@ -27,13 +27,13 @@ on:
     inputs:
       source_size_base:
         description: >-
-          Optional baseline commit for the source-size guard. A manual run of
-          `main` DEPLOYS, and `HEAD~1` after a multi-commit push is inside that
-          push — so it would pass a backlogged file's regrowth that the push run
-          itself refused. The guard therefore refuses a manual run of the default
-          branch unless this names a commit you know the check passed on. Runs of
-          a feature branch need nothing here: they compare against the fork point
-          with `main`.
+          Optional baseline commit for the source-size guard. Leave it empty and
+          the guard compares against the newest ancestor carrying a fully
+          validated release, which it asks GitHub for. Set it to reach past that
+          walk by naming an older release you know was good — it must be an
+          ancestor, must not be the head, and must itself carry a validated
+          release, because an override that clears a lower bar than an inferred
+          base is a way to launder a refused increment into a deploy.
         required: false
         default: ''
       secret_scan_base:
@@ -168,6 +168,12 @@ jobs:
 
   callable-contract:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # The source-size guard asks which ancestor last carried a fully validated
+      # release, which is a check-runs query. Read-only, and the same grant
+      # `secret-scan` carries for the same lookup.
+      checks: read
     # Always runs. It is ~20 seconds and it is the self-test for the release
     # system itself — the promotion gate, and the CI planner and validation gate
     # that decide what may be skipped. Making the checks that guard the
@@ -226,19 +232,20 @@ jobs:
       - name: Check source sizes
         run: npm run check:source-size -- --require-baseline
         env:
-          # The base this change is measured against, taken from the event rather
-          # than inferred: a pull request's own base commit, or the tip the push
-          # replaced. Empty on workflow_dispatch, where the script falls back to
-          # HEAD~1 — which the full checkout above makes available.
-          # A pull request's own base commit, the tip a push replaced, or — for a
-          # manual run, which has neither and which deploys when it is `main` —
-          # whatever the operator named. Empty on a manual run of `main` makes the
-          # guard refuse, deliberately: see the input's description above.
-          SOURCE_SIZE_BASE: >-
-            ${{ github.event.pull_request.base.sha
-                || github.event.before
-                || github.event.inputs.source_size_base
-                || '' }}
+          # Asking "which ancestor last carried a fully validated release" needs a
+          # token and `checks: read`, declared on this job above. It is the same
+          # question `scripts/secret-scan.mjs` and `scripts/resolve-deploy-base.mjs`
+          # both ask, for the same reason: `github.event.before` is only as good as
+          # the run that happened on it, and after a FAILED push it IS the failure.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # A pull request measures against what it was proposed against — a
+          # definition, so it needs no validated-release proof. Every other event
+          # asks GitHub.
+          GITHUB_PR_BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
+          # An operator naming a base on a manual run. It clears the same bar as an
+          # inferred one — an ancestor, not the head, carrying a validated release —
+          # because an escape hatch nobody checks is a bypass.
+          SOURCE_SIZE_BASE: ${{ github.event.inputs.source_size_base || '' }}
 
       # The shared AI platform is only worth having if it cannot be bypassed,
       # and this guard is what stops a feature growing its own vendor call. It

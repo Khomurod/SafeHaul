@@ -48,7 +48,8 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { backlogShapeProblems, checkBacklogDirection } from './source-size-baseline.mjs';
+import { checkBacklogDirection, resolveValidatedBaseline } from './source-size-baseline.mjs';
+import { backlogShapeProblems } from './source-size-direction.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '..');
@@ -310,7 +311,7 @@ export function summarise(files) {
   return byCategory;
 }
 
-function main() {
+async function main() {
   const args = process.argv.slice(2);
   const top = Number(args.find((a) => a.startsWith('--top='))?.split('=')[1] || 30);
   const useBacklog = !args.includes('--no-backlog');
@@ -332,9 +333,20 @@ function main() {
   const verdict = evaluate(files, backlog);
   const byCategory = summarise(files);
 
+  const headSha = execFileSync('git', ['rev-parse', 'HEAD^{commit}'], { cwd: repoRoot, encoding: 'utf8' }).trim();
+  const { lastValidatedBase, overrideValidated, error: lookupError } = useBacklog
+    ? await resolveValidatedBaseline({ headSha, cwd: repoRoot, log: console.log })
+    : { lastValidatedBase: () => null, overrideValidated: () => false, error: null };
+
   const direction = useBacklog
     ? checkBacklogDirection({
-      current: backlog, measured: files, countLines, path: BACKLOG_PATH, requireBaseline,
+      current: backlog,
+      measured: files,
+      countLines,
+      path: BACKLOG_PATH,
+      requireBaseline,
+      lastValidatedBase,
+      overrideValidated,
     })
     : { problems: [], describe: 'backlog ignored (--no-backlog)' };
 
@@ -360,6 +372,12 @@ function main() {
   console.log(`backlog    : ${direction.describe}`);
 
   const problems = [...verdict.problems, ...direction.problems];
+  if (problems.length > 0 && lookupError) {
+    // "Nothing came back validated" and "the lookup could not run" fail the same
+    // way and need very different fixes, so the refusal says which it was.
+    problems.push(`the baseline lookup could not complete: ${lookupError}. That is why nothing `
+      + 'came back validated — it is not evidence that nothing is.');
+  }
   if (problems.length > 0) {
     console.error(`\nsource-size REFUSED:\n${problems.map((p) => `  - ${p}`).join('\n')}`);
     process.exit(1);
@@ -367,4 +385,9 @@ function main() {
   console.log('\nsource-size OK.');
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) main();
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  main().catch((error) => {
+    console.error(`source-size REFUSED\n\n${error?.stack || error}`);
+    process.exit(1);
+  });
+}

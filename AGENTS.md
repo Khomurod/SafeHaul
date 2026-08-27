@@ -139,16 +139,30 @@ nicety: `HEAD~1` alone compares a commit against the one before it *inside the
 same change*, so a branch whose first commit legitimately records a backlog entry
 stands accused of adding one.
 
-**A manual or scheduled run of `main` refuses unless it is given a base**, and
-that is the third instance of one lesson. `workflow_dispatch` on `refs/heads/main`
-deploys, and it reaches the `HEAD~1` fallback only on the default branch — where
-`HEAD~1` after a multi-commit push is *inside* that push. Measured: `1200 → 1300 →
-tip` let a dispatch compare 1300 against 1300 and pass a regrowth the push run had
-refused, so pressing "Run workflow" laundered a red push into a green deploy. This
-is the same hole `scripts/secret-scan.mjs` was built to close, where anchoring a
-re-verification at `head^1` assumed the earlier scan had passed. The dispatch
-dialog offers a `source_size_base` input for it; a run of a feature branch needs
-nothing, since it compares against the fork point. Entries
+**Which commit is the base turned out to be the whole problem**, and this
+repository has now answered it three times. A pull request measures against what
+it was proposed against — a definition, needing no proof. **Every other event asks
+GitHub for the newest ancestor carrying a fully validated release**, exactly as
+`scripts/secret-scan.mjs` does and for the reason `scripts/resolve-deploy-base.mjs`
+learned after a function silently failed to deploy for two merges. Three things
+were measured on 2026-08-27, each of which let a refused increment reach a deploy:
+
+- **`github.event.before` is only as good as the run that happened on it.** After
+  a push that FAILED this check, `before` IS the failure, so the next push
+  measures from it, the tampered backlog looks unchanged, and `deploy-testing`
+  ships what was refused.
+- **`HEAD~1` after a multi-commit push is inside that push.** `workflow_dispatch`
+  on `refs/heads/main` deploys, and `1200 → 1300 → tip` let a dispatch compare
+  1300 against 1300 and pass a regrowth the push run had refused.
+- **An escape hatch is a bypass if nobody checks it.** The override existed so a
+  manual run had an honest way past the refusal, and it accepted anything that
+  resolved: `SOURCE_SIZE_BASE=HEAD` reported "compared against \<head\>" and
+  passed. It now clears the same bar as an inferred base — an ancestor, not the
+  head, carrying a validated release — which is what this file already said about
+  the secret scanner's override.
+
+`callable-contract` therefore carries `checks: read` and the default token, and
+the dispatch dialog offers `source_size_base` for naming an older good release. Entries
 leaving and counts falling are the campaign working and need no ceremony. CI
 passes `--require-baseline`, which turns "could not find a base" into a refusal
 rather than a skipped comparison; that is why `callable-contract` checks out with

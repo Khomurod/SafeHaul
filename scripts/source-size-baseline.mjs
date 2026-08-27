@@ -28,14 +28,38 @@
  * ## Where the previous version comes from
  *
  * Git, at the base of the change, because that is the one copy the change cannot
- * edit. The ref is chosen explicitly rather than inferred from a payload:
+ * edit. Which commit that is, though, is a question this repository has now
+ * answered three times, and got wrong the first two:
  *
- *   1. `SOURCE_SIZE_BASE`, if set — an operator naming a ref.
- *   2. `GITHUB_BASE_REF` on a pull request — the merge base with that branch, so
- *      the comparison is what this change proposes and never the base branch's
- *      own later history.
- *   3. `HEAD^`, which is the previous tip on a push and the previous commit
- *      locally.
+ *   1. `SOURCE_SIZE_BASE`, if set — an operator naming a commit. It clears
+ *      exactly the same bar as an inferred base: a real commit, an ancestor of
+ *      the head, not the head itself, and carrying a fully validated release.
+ *   2. a pull request's own base commit (`GITHUB_PR_BASE_SHA`, or the merge base
+ *      with `GITHUB_BASE_REF`) — what the change was proposed against, which is a
+ *      definition rather than a baseline anyone chose, so it needs no validation
+ *      proof. Requiring one would refuse every pull request opened while `main`
+ *      is red.
+ *   3. every other event — the newest ancestor carrying a fully validated
+ *      release, asked of GitHub, because git cannot know whether CI ever passed
+ *      on a commit.
+ *   4. locally, with no event at all — the fork point with the default branch,
+ *      then `HEAD~1`. Convenience only; CI never reaches it.
+ *
+ * **A push's own `before` is NOT in that list, and that is the second lesson.**
+ * `before` is the tip of the previous push, and when that push FAILED this check,
+ * comparing against it makes the tampered backlog and the regrown file look
+ * unchanged — so the next push passes and `deploy-testing` ships the increment
+ * that was refused. `scripts/secret-scan.mjs` has this written up for the
+ * identical reason, and `scripts/resolve-deploy-base.mjs` moved off `before` after
+ * a function silently failed to deploy for two merges. Using it here was a
+ * mistake, found in review on 2026-08-27.
+ *
+ * **And an escape hatch is a bypass if nobody checks it — the third.** The
+ * override existed so a manual run of `main` had an honest way past the refusal,
+ * and it accepted anything that resolved: `SOURCE_SIZE_BASE=HEAD` on a dispatch
+ * reported "compared against <head>" and passed, reopening the laundering path the
+ * refusal was added to close. Measured. It now clears the same bar as an inferred
+ * base, which is what AGENTS.md already says about the secret scanner's override.
  *
  * The backlog's path is a parameter rather than an import, so this module knows
  * nothing about `scripts/source-size.mjs` and that one can import it statically
@@ -52,8 +76,17 @@ import { spawnSync } from 'node:child_process';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-/** Events that re-verify a commit already on the branch rather than proposing one. */
-const REVERIFICATION_EVENTS = Object.freeze(['workflow_dispatch', 'schedule', 'repository_dispatch']);
+/*
+ * "The newest ancestor carrying a fully validated release" is a release-system
+ * question, not a secret-scanning one; it lives in the scanner because that is
+ * where it was first needed. Reusing it rather than inventing a second notion of
+ * "validated" is deliberate — two definitions would disagree eventually, and this
+ * one is already tested against stubbed check-runs responses.
+ */
+export { findLastValidatedAncestor, isValidatedRelease } from './secret-scan.mjs';
+import { findLastValidatedAncestor, isValidatedRelease } from './secret-scan.mjs';
+
+import { compareBacklog, compareBacklogSizes } from './source-size-direction.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '..');
@@ -64,70 +97,80 @@ function git(args, cwd) {
 }
 
 /**
- * Is every recorded count actually a count?
+ * The structural bar an explicit base must clear, before anything compares it.
  *
- * Found in review on 2026-08-27, and it is the original hole wearing a different
- * hat. Every rule here and in `evaluate` compares numbers with `>`, and JavaScript
- * coerces a non-numeric value to `NaN` — for which every comparison is false. So
- * `{"src/big.js": "unbounded"}` made a 9000-line file pass BOTH the hard limit and
- * the may-not-grow rule, with no error anywhere. Reproduced before fixing.
- *
- * A malformed entry is refused rather than ignored: "this is not a line count" is
- * a problem in its own right, and treating it as absent would silently apply the
- * hard limit instead, which reads as a different failure than it is.
+ * Lifted from `scripts/secret-scan.mjs`'s `requireUsableBase`, and for the reason
+ * recorded there: an abbreviated SHA is a different string and the same commit, so
+ * everything downstream must compare the RESOLVED form. `SOURCE_SIZE_BASE=HEAD`
+ * cleared the old check and produced a comparison of the head against itself.
  */
-export function backlogShapeProblems(backlog, label = 'the backlog') {
-  const problems = [];
-  for (const [path, lines] of Object.entries(backlog ?? {})) {
-    if (!Number.isInteger(lines) || lines < 0) {
-      problems.push(`${label} records ${path} as ${JSON.stringify(lines)}, which is not a line `
-        + 'count. Every rule here compares counts with `>`, and a non-number coerces to NaN — for '
-        + 'which every comparison is false, so a malformed entry would exempt the file from the '
-        + 'hard limit AND from the may-not-grow rule. Use a whole number of lines.');
-    }
+export function requireUsableBase(candidate, headSha, cwd = repoRoot) {
+  if (!/^[0-9a-f]{7,40}$/i.test(candidate) && !/^[A-Za-z0-9_./~^-]+$/.test(candidate)) {
+    return { ref: null, error: `${JSON.stringify(candidate)} is not a commit reference` };
   }
-  return problems;
+  const resolved = git(['rev-parse', '--verify', '--quiet', `${candidate}^{commit}`], cwd);
+  const ref = resolved.ok ? resolved.stdout.trim() : '';
+  if (!ref) return { ref: null, error: `${candidate} is not a commit in this clone` };
+  if (ref === headSha) {
+    return {
+      ref: null,
+      error: `${candidate} resolves to the head itself (${ref.slice(0, 8)}), so nothing would be `
+        + 'compared. That is the manual-run laundering path this refuses to reopen',
+    };
+  }
+  if (!git(['merge-base', '--is-ancestor', ref, headSha], cwd).ok) {
+    return { ref: null, error: `${candidate} is not an ancestor of ${headSha.slice(0, 8)}` };
+  }
+  return { ref, error: null };
 }
 
 /**
- * The two directions that are forbidden, as a pure function so every case has a
- * test that needs no repository.
+ * The commit this change is measured against, and how it was chosen.
  *
- * Removals and reductions produce nothing: they are the campaign working.
+ * `lastValidatedBase` and `overrideValidated` are injected because they are async
+ * questions for GitHub, asked by the caller before this runs — which keeps every
+ * branch here synchronous and drivable from a test without a network.
  */
-export function compareBacklog(previous, current, label = 'the backlog') {
-  const problems = [
-    ...backlogShapeProblems(previous, `${label} at the baseline`),
-    ...backlogShapeProblems(current, label),
-  ];
-  // A malformed count makes every comparison below meaningless rather than false,
-  // so nothing is compared until the shape is sound.
-  if (problems.length > 0) return problems;
-  for (const [path, lines] of Object.entries(current)) {
-    if (!(path in previous)) {
-      problems.push(`${label} adds ${path}. The backlog records what was already over the `
-        + 'limit when the standard arrived; a new entry is a new oversized file being given '
-        + 'permission, which is the one thing it may never do. Split the file instead.');
-      continue;
-    }
-    if (lines > previous[path]) {
-      problems.push(`${label} raises ${path} from ${previous[path]} to ${lines}. A recorded `
-        + 'count is a ceiling, not a running total — raising it to match a file that grew '
-        + 'defeats the rule that the file may not grow.');
-    }
-  }
-  return problems;
-}
-
-/** The ref to compare against, and how it was chosen. */
-export function resolveBaselineRef({ env = process.env, cwd = repoRoot } = {}) {
+export function resolveBaselineRef({
+  env = process.env, cwd = repoRoot,
+  lastValidatedBase = () => null, overrideValidated = () => false,
+} = {}) {
+  const headSha = git(['rev-parse', 'HEAD^{commit}'], cwd).stdout.trim();
   const override = (env.SOURCE_SIZE_BASE || '').trim();
   if (override) {
-    const resolved = git(['rev-parse', '--verify', '--quiet', `${override}^{commit}`], cwd);
-    if (!resolved.ok || !resolved.stdout.trim()) {
-      return { ref: null, source: 'SOURCE_SIZE_BASE', error: `${override} is not a commit here` };
+    const usable = requireUsableBase(override, headSha, cwd);
+    if (!usable.ref) return { ref: null, source: 'SOURCE_SIZE_BASE', error: usable.error };
+    if (!overrideValidated(usable.ref)) {
+      return {
+        ref: null,
+        source: 'SOURCE_SIZE_BASE',
+        error: `${override} does not carry a fully validated release. An override names a commit `
+          + 'this check is known to have passed on; it is not a free choice of baseline, which is '
+          + 'exactly how a refused increment gets laundered into a deploy',
+      };
     }
-    return { ref: resolved.stdout.trim(), source: 'SOURCE_SIZE_BASE', error: null };
+    return { ref: usable.ref, source: 'SOURCE_SIZE_BASE', error: null };
+  }
+
+  /*
+   * A pull request's own base commit, straight from the event.
+   *
+   * Deliberately NOT routed through `SOURCE_SIZE_BASE`, which now demands a
+   * validated release: a pull request's base is whatever the target branch's tip
+   * happens to be, and requiring it to be validated would refuse every pull
+   * request opened while `main` is red. What this change proposes is measured
+   * against what it was proposed against — that is the definition, not a
+   * baseline anyone chose.
+   */
+  const prBase = (env.GITHUB_PR_BASE_SHA || '').trim();
+  if (prBase) {
+    const usable = requireUsableBase(prBase, headSha, cwd);
+    if (usable.ref) {
+      const merged = git(['merge-base', usable.ref, 'HEAD'], cwd);
+      const base = merged.ok ? merged.stdout.trim() : usable.ref;
+      return { ref: base, source: "the pull request's base", error: null };
+    }
+    return { ref: null, source: "the pull request's base", error: usable.error };
   }
 
   const baseRef = (env.GITHUB_BASE_REF || '').trim();
@@ -144,66 +187,51 @@ export function resolveBaselineRef({ env = process.env, cwd = repoRoot } = {}) {
   }
 
   /*
-   * `HEAD~1`, and the `^{commit}` peel is on the PARENT deliberately.
+   * Every other EVENT compares against the newest ancestor carrying a fully
+   * validated release.
    *
-   * The first version of this asked for `HEAD^{commit}`, which is not the parent
-   * at all — it is "peel HEAD to a commit object", so it resolved to HEAD itself
-   * and every push compared the backlog against its own commit. Trivially equal,
-   * and therefore a check that could never fail. Caught by printing the resolved
-   * SHA and noticing it was the head.
+   * Not `github.event.before`: that is the previous push's tip, and when that push
+   * FAILED this check, comparing against it makes the tampered backlog and the
+   * regrown file look unchanged — so the next push passes and `deploy-testing`
+   * ships the increment that was refused. Not `HEAD~1` either, which after a
+   * multi-commit push is inside that push. Both were measured.
+   *
+   * In the healthy case this changes nothing: the previous tip passed, so it IS
+   * the last validated commit. It widens only where something was left
+   * unverified, which is where widening is the point.
    */
+  const eventName = (env.GITHUB_EVENT_NAME || '').trim();
+  if (eventName) {
+    const validated = lastValidatedBase();
+    if (validated) {
+      const usable = requireUsableBase(validated, headSha, cwd);
+      if (usable.ref) {
+        return { ref: usable.ref, source: 'the last validated commit', error: null };
+      }
+      return { ref: null, source: 'the last validated commit', error: usable.error };
+    }
+    return {
+      ref: null,
+      source: `${eventName} with nothing validated behind it`,
+      error: 'no ancestor of this commit carries a fully validated release, so there is no '
+        + 'baseline to compare against. That is what a re-run after a FAILED push looks like, and '
+        + 'measuring from the failed tip would step over exactly what it refused. Set '
+        + 'SOURCE_SIZE_BASE to a commit you know this check passed on, or fix the failing run',
+    };
+  }
+
   /*
-   * The fork point, for a branch being verified without a pull-request event.
-   *
-   * `merge-base` answers "where did this branch leave the default branch", which
-   * is the same question `GITHUB_BASE_REF` answers above. This is load-bearing
-   * rather than a nicety: a `workflow_dispatch` run of a feature branch used to
-   * fall through to `HEAD~1`, which compares a commit against the one before it
-   * INSIDE the same change — so a branch that legitimately records a backlog
-   * entry in one commit stands accused of adding one. Measured on this very
-   * branch, whose first commit records the whole backlog: it refused three
-   * entries that its base does not have at all.
-   *
-   * When HEAD is ON the default branch the merge base is HEAD itself, which would
-   * compare the backlog against its own commit — so that case falls through.
+   * No event at all, so this is a developer running the checker. The fork point
+   * with the default branch answers "what does my branch change"; `HEAD~1` is what
+   * remains on the default branch itself. Convenience only — CI always sets
+   * GITHUB_EVENT_NAME, so it never reaches here.
    */
   for (const candidate of ['origin/main', 'origin/HEAD']) {
     const forkPoint = git(['merge-base', candidate, 'HEAD'], cwd);
     const base = forkPoint.ok ? forkPoint.stdout.trim() : '';
     if (!base) continue;
-    if (base === git(['rev-parse', 'HEAD^{commit}'], cwd).stdout.trim()) break;
+    if (base === headSha) break;
     return { ref: base, source: `merge-base with ${candidate}`, error: null };
-  }
-
-  /*
-   * A manual or scheduled run of the default branch has no honest `HEAD~1`.
-   *
-   * Found in review on 2026-08-27 and reproduced. `workflow_dispatch` on
-   * `refs/heads/main` DEPLOYS (see `deploy-testing`'s `if:`), and a dispatch
-   * lands here only when the fork point is the head — i.e. on the default
-   * branch. `HEAD~1` is then the commit before the tip, which after a
-   * multi-commit push is INSIDE the push: measured `1200 → 1300 → unrelated
-   * tip`, where the dispatch compared 1300 against 1300 and passed, while the
-   * push run anchored at 1200 refused the regrowth. So a red push could be
-   * laundered into a green deploy by pressing "Run workflow".
-   *
-   * This is the same hole `scripts/secret-scan.mjs` was built to close — it used
-   * to anchor a re-verification at `head^1` on the reasoning that every earlier
-   * commit was already scanned, which assumes the earlier scan PASSED. Refusing
-   * is the answer there and it is the answer here: a re-verification that cannot
-   * say what it is comparing against has not verified anything. The operator
-   * names the base, and `main.yml` offers `source_size_base` for it.
-   */
-  const eventName = (env.GITHUB_EVENT_NAME || '').trim();
-  if (REVERIFICATION_EVENTS.includes(eventName)) {
-    return {
-      ref: null,
-      source: `${eventName} on the default branch`,
-      error: 'a manual or scheduled run has no change to measure against, and HEAD~1 after a '
-        + 'multi-commit push is inside that push — so it would pass a regrowth the push itself '
-        + 'refused. Set SOURCE_SIZE_BASE (the workflow offers a `source_size_base` input) to the '
-        + 'last commit you know this check passed on',
-    };
   }
 
   const parent = git(['rev-parse', '--verify', '--quiet', 'HEAD~1^{commit}'], cwd);
@@ -213,7 +241,7 @@ export function resolveBaselineRef({ env = process.env, cwd = repoRoot } = {}) {
   return {
     ref: null,
     source: 'HEAD~1',
-    error: parent.stderr.trim() || 'HEAD has no parent in this clone (a shallow or first commit)',
+    error: 'HEAD has no parent in this clone (a shallow or first commit)',
   };
 }
 
@@ -253,47 +281,64 @@ export function readSizesAt(ref, paths, { cwd = repoRoot, countLines } = {}) {
 }
 
 /**
- * A backlogged file may not be bigger than it was at the base of this change.
- *
- * The recorded count alone does not give this. Review on 2026-08-27: a file that
- * shrinks while its dated count stays put can be regrown to anything at or below
- * the snapshot — `1358 → 1200 → 1300` passes twice — so campaign progress was
- * reversible despite the may-never-grow rule.
- *
- * Comparing against the file's actual size at the base ratchets automatically and
- * needs no bookkeeping, which is why the recorded count stays what it says it is:
- * a dated record of where the campaign started, not a live ceiling somebody has
- * to remember to lower. The two rules together mean a backlogged file may never
- * exceed EITHER its 2026-08-26 size or its size on the branch it came from.
- */
-export function compareBacklogSizes(previousSizes, measured, backlog) {
-  const problems = [];
-  for (const file of measured) {
-    if (!(file.path in backlog)) continue;
-    const before = previousSizes[file.path];
-    if (before === undefined || file.lines === null) continue;
-    if (file.lines > before) {
-      problems.push(`${file.path} is ${file.lines} lines, up from ${before} at the base of this `
-        + 'change. A file in the backlog may not grow — not past its recorded count, and not past '
-        + 'the size it had on the branch this change came from.');
-    }
-  }
-  return problems;
-}
-
-/**
  * Compare, or refuse.
  *
  * @returns {{problems: string[], describe: string}} `problems` is empty when the
  *   backlog only shrank, and non-empty both when it grew and when the comparison
  *   could not be made in a run that required it.
  */
+/**
+ * Ask GitHub what it has to be asked, before the synchronous resolution runs.
+ *
+ * Kept here rather than in the CLI because "which commit is a trustworthy base"
+ * is this module's question in both its halves — the structural bar and the
+ * validated-release proof. The CLI just reports what comes back.
+ *
+ * A pull request needs none of this: its base is what the change was proposed
+ * against, which git already knows.
+ *
+ * @returns {Promise<{lastValidatedBase: () => string|null,
+ *                    overrideValidated: () => boolean, error: string|null}>}
+ */
+export async function resolveValidatedBaseline({
+  env = process.env, cwd = repoRoot, headSha, log = () => {},
+  lookupAncestor = findLastValidatedAncestor, lookupOne = isValidatedRelease,
+} = {}) {
+  const repository = env.GITHUB_REPOSITORY;
+  const token = env.GITHUB_TOKEN;
+  const eventName = (env.GITHUB_EVENT_NAME || '').trim();
+  const override = (env.SOURCE_SIZE_BASE || '').trim();
+  const none = { lastValidatedBase: () => null, overrideValidated: () => false, error: null };
+
+  if (override) {
+    const usable = requireUsableBase(override, headSha, cwd);
+    // A structurally unusable override is refused by `resolveBaselineRef` with a
+    // better message than "not validated"; do not spend a request on it.
+    if (!usable.ref) return none;
+    const check = await lookupOne({ sha: usable.ref, repository, token });
+    log(`override   : ${usable.ref.slice(0, 8)} — `
+      + `${check.validated ? 'validated release' : 'NOT a validated release'}`
+      + `${check.error ? ` (${check.error})` : ''}`);
+    return { ...none, overrideValidated: () => check.validated, error: check.error };
+  }
+
+  const asksGitHub = eventName && eventName !== 'pull_request' && eventName !== 'pull_request_target'
+    && !(env.GITHUB_PR_BASE_SHA || '').trim();
+  if (!asksGitHub) return none;
+
+  const lookup = await lookupAncestor({ headSha, cwd, repository, token });
+  log(`validated  : ${lookup.sha ? lookup.sha.slice(0, 8) : 'none found'}`
+    + ` (asked about ${lookup.checked} ancestor(s)${lookup.error ? `; ${lookup.error}` : ''})`);
+  return { ...none, lastValidatedBase: () => lookup.sha, error: lookup.error };
+}
+
 export function checkBacklogDirection({
   current, measured = [], countLines, path, requireBaseline = false,
   env = process.env, cwd = repoRoot,
+  lastValidatedBase = () => null, overrideValidated = () => false,
   resolveRef = resolveBaselineRef, readAt = readBacklogAt, readSizes = readSizesAt,
 } = {}) {
-  const { ref, source, error } = resolveRef({ env, cwd });
+  const { ref, source, error } = resolveRef({ env, cwd, lastValidatedBase, overrideValidated });
   if (!ref) {
     const why = `no baseline to compare the backlog against (${source}: ${error})`;
     if (requireBaseline) {

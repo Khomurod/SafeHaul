@@ -11,7 +11,7 @@
 
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
-import { dirname, resolve, resolve as resolvePath } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   BACKLOG_PATH,
@@ -310,82 +310,6 @@ assert('F6. and every format left out says why it is not source',
   && UNMEASURED_FORMATS.every((f) => f.extension.startsWith('.') && f.reason.length > 40)
   && UNMEASURED_FORMATS.every((f) => !SOURCE_EXTENSIONS.includes(f.extension)),
   'what a coverage claim does NOT look at is the half that goes stale silently');
-
-/* ========================================================================== */
-console.log('\nG. The standard is enforced in CI, and cannot go blind');
-/* ========================================================================== */
-{
-    const workflow = readFileSync(resolvePath(repoRoot, '.github/workflows/main.yml'), 'utf8');
-    const pkg = JSON.parse(readFileSync(resolvePath(repoRoot, 'package.json'), 'utf8'));
-    const checker = readFileSync(resolvePath(here, 'source-size.mjs'), 'utf8');
-
-    /*
-     * An audit on 2026-08-26 counted 68 handwritten files over 500 physical
-     * lines, none of it decided — it accumulated because nothing ever said no.
-     * These pin the saying-no.
-     */
-    assert('G1. the size check runs in CI',
-        /npm run check:source-size/.test(workflow),
-        'a standard CI does not run is a suggestion');
-    assert('G2. and so do the guard\'s own tests',
-        /npm run test:source-size/.test(workflow),
-        'a checker that has stopped looking reports a shorter list, which reads as progress');
-    /*
-     * Both steps live in `callable-contract`, which `scripts/ci-plan.mjs` lists
-     * in ALWAYS_REQUIRED_JOBS — so no tree-hash proof can skip them. A size
-     * standard CI is allowed to skip is not a standard.
-     */
-    const afterHeading = workflow.slice(workflow.indexOf('\n  callable-contract:') + 1);
-    const nextJob = afterHeading.search(/\n {2}[a-z][a-z0-9-]*:\n/);
-    const jobBody = nextJob === -1 ? afterHeading : afterHeading.slice(0, nextJob);
-    const ciPlan = readFileSync(resolvePath(repoRoot, 'scripts/ci-plan.mjs'), 'utf8');
-    assert('G3. both live in a job that can never be skipped',
-        /Check source sizes/.test(jobBody)
-        && /Verify the source-size guard/.test(jobBody)
-        && /ALWAYS_REQUIRED_JOBS[^\n]*'callable-contract'/.test(ciPlan),
-        'a tree-hash proof must not be able to skip the size gate')
-    assert('G4. both are real npm scripts',
-        typeof pkg.scripts['check:source-size'] === 'string'
-        && typeof pkg.scripts['test:source-size'] === 'string');
-    assert('G5. the limits are the agreed ones',
-        /HARD_LIMIT = 500/.test(checker) && /WARN_LIMIT = 400/.test(checker),
-        'changing a limit is a decision, not a refactor');
-    assert('G6. the scan reads git, so moving a file cannot hide it',
-        /ls-files/.test(checker) && !/readdirSync/.test(checker),
-        'a directory walk can be steered by a path pattern; the tracked set cannot');
-    assert('G7. the backlog can only shrink',
-        /only shrinks/.test(checker) && /may not grow/.test(checker),
-        'an exemption list that can grow is an allowlist');
-
-    /*
-     * And the rule above is enforced against a copy the branch cannot edit, or it
-     * is not enforced at all. `--require-baseline` is the difference; a flag CI
-     * does not pass is decorative, which is the same shape of bug as a scanner
-     * flag nobody checks for.
-     */
-    assert('G8. CI proves the backlog did not grow, rather than trusting it',
-        /check:source-size -- --require-baseline/.test(jobBody),
-        'without the flag the guard skips the comparison when it cannot find a base');
-    assert('G9. and that job has the history the proof needs',
-        /- uses: actions\/checkout@v5\n\s+with:\n\s+fetch-depth: 0/.test(jobBody),
-        'a depth-1 checkout has no previous backlog to compare against, so the '
-        + 'guard would refuse every run');
-    assert('G10. the base comes from the event, not from a guess',
-        /SOURCE_SIZE_BASE:/.test(jobBody)
-        && /github\.event\.pull_request\.base\.sha/.test(jobBody)
-        && /github\.event\.before/.test(jobBody),
-        'a pull request compares against its own base commit; a push against the tip it replaced');
-    /*
-     * A manual run of `main` deploys and has neither of those, and `HEAD~1` there
-     * is inside the last push — so the guard refuses it. That refusal needs a
-     * documented way through, or the next operator to hit it will reach for
-     * something worse.
-     */
-    assert('G11. and a manual run has an input to name one with',
-        /source_size_base:/.test(workflow)
-        && /github\.event\.inputs\.source_size_base/.test(jobBody),
-        'the refusal tells an operator to set SOURCE_SIZE_BASE; the dispatch dialog must offer it');
-}
 
 console.log(failures === 0
   ? '\nAll source-size checks passed.'
