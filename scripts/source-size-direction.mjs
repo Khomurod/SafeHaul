@@ -130,7 +130,12 @@ export function compareBacklogSizes(previousSizes, measured, backlog) {
  * to keep in step for nothing.
  */
 export function bootstrapProblems(sizesAtBase, current, ref, label = 'the backlog') {
-  const problems = [];
+  // Same reason `compareBacklog` opens this way: `lines > before` is false for a
+  // NaN, so `{"big.js": "unbounded"}` would sail past the second rule below with
+  // nothing reported. `evaluate` also refuses it, but a rule that only holds
+  // because some other caller checks first is not a rule this module has.
+  const problems = backlogShapeProblems(current, label);
+  if (problems.length > 0) return problems;
   const at = ref.slice(0, 8);
   for (const [path, lines] of Object.entries(current ?? {})) {
     const before = sizesAtBase[path];

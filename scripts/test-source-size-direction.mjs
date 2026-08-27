@@ -191,7 +191,13 @@ assert('H17. nothing is compared until the shape is sound',
     bootstrapProblems({ 'old.js': 900 }, { 'old.js': 700 }, at).length === 0,
     'the ratchet governs how big the file may be; the count only records where it started');
 
-  assert('H40. an empty backlog reports nothing rather than throwing',
+  assert('H40. a count that is not a count is refused here too',
+    bootstrapProblems({ 'big.js': 480 }, { 'big.js': 'unbounded' }, at)
+      .every((problem) => /not a line count/.test(problem))
+    && bootstrapProblems({ 'big.js': 480 }, { 'big.js': 'unbounded' }, at).length > 0,
+    'NaN makes `lines > before` false, so the second rule would pass over it silently');
+
+  assert('H45. an empty backlog reports nothing rather than throwing',
     bootstrapProblems({}, {}, at).length === 0 && bootstrapProblems({}, null, at).length === 0);
 }
 
