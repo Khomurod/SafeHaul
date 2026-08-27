@@ -29,11 +29,12 @@ on:
         description: >-
           Optional baseline commit for the source-size guard. Leave it empty and
           the guard compares against the newest ancestor carrying a fully
-          validated release, which it asks GitHub for. Set it to reach past that
-          walk by naming an older release you know was good — it must be an
-          ancestor, must not be the head, and must itself carry a validated
-          release, because an override that clears a lower bar than an inferred
-          base is a way to launder a refused increment into a deploy.
+          validated release, which it asks GitHub for. Set it only when that walk
+          finds nothing and you can name a release you know was good. It clears a
+          HIGHER bar than an inferred base, because an escape hatch nobody checks
+          is a bypass: an ancestor, not the head, itself carrying a validated
+          release, containing the base the walk would have chosen, and not from
+          before the source-size backlog existed.
         required: false
         default: ''
       secret_scan_base:
@@ -242,9 +243,11 @@ jobs:
           # definition, so it needs no validated-release proof. Every other event
           # asks GitHub.
           GITHUB_PR_BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
-          # An operator naming a base on a manual run. It clears the same bar as an
-          # inferred one — an ancestor, not the head, carrying a validated release —
-          # because an escape hatch nobody checks is a bypass.
+          # An operator naming a base on a manual run, for when the walk finds
+          # nothing. It clears a HIGHER bar than an inferred base — an ancestor, not
+          # the head, carrying a validated release, containing whatever the walk
+          # would have chosen, and not from before the backlog existed — because an
+          # escape hatch nobody checks is a bypass, measured four times now.
           SOURCE_SIZE_BASE: ${{ github.event.inputs.source_size_base || '' }}
 
       # The shared AI platform is only worth having if it cannot be bypassed,
