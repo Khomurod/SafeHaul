@@ -29,11 +29,16 @@
  *
  * Git, at the base of the change, because that is the one copy the change cannot
  * edit. Which commit that is, though, is a question this repository has now
- * answered three times, and got wrong the first two:
+ * answered five times, and got wrong the first four:
  *
- *   1. `SOURCE_SIZE_BASE`, if set — an operator naming a commit. It clears
- *      exactly the same bar as an inferred base: a real commit, an ancestor of
- *      the head, not the head itself, and carrying a fully validated release.
+ *   1. `SOURCE_SIZE_BASE`, if set — an operator naming a commit. It clears a
+ *      HIGHER bar than an inferred base, because each thing it was allowed to do
+ *      turned out to be a bypass. It must be a real commit, an ancestor of the
+ *      head, not the head itself, carrying a fully validated release, containing
+ *      whatever base the automatic walk would have chosen, and not from before
+ *      the backlog existed. Every clause was measured, and none of them is
+ *      redundant: dropping any one restores a way to compare against a looser
+ *      ceiling and deploy an increment this check refused.
  *   2. a pull request's own base commit (`GITHUB_PR_BASE_SHA`, or the merge base
  *      with `GITHUB_BASE_REF`) — what the change was proposed against, which is a
  *      definition rather than a baseline anyone chose, so it needs no validation
@@ -54,12 +59,26 @@
  * a function silently failed to deploy for two merges. Using it here was a
  * mistake, found in review on 2026-08-27.
  *
- * **And an escape hatch is a bypass if nobody checks it — the third.** The
- * override existed so a manual run of `main` had an honest way past the refusal,
- * and it accepted anything that resolved: `SOURCE_SIZE_BASE=HEAD` on a dispatch
- * reported "compared against <head>" and passed, reopening the laundering path the
- * refusal was added to close. Measured. It now clears the same bar as an inferred
- * base, which is what AGENTS.md already says about the secret scanner's override.
+ * **And an escape hatch is a bypass if nobody checks it — the third, and it took
+ * four rounds to close.** The override existed so a manual run of `main` had an
+ * honest way past the refusal, and it accepted anything that resolved:
+ * `SOURCE_SIZE_BASE=HEAD` on a dispatch reported "compared against <head>" and
+ * passed, reopening the laundering path the refusal was added to close. Requiring
+ * a validated release closed that and left three more, each measured:
+ *
+ *   - an older validated release restores its looser recorded count and looser
+ *     measured size, so a file regrown to that ceiling passes;
+ *   - on a merge commit, a validated second-parent tip is an ancestor of the head
+ *     and of NEITHER the first-parent base nor its reverse, so asking "is the
+ *     override older" answered no and let it through — the override must
+ *     *contain* the automatic base, which refuses older and incomparable alike;
+ *   - a commit from before the backlog existed makes `git show` fail, which reads
+ *     as "the campaign starts here" and trusts the current backlog wholesale.
+ *
+ * That last one is refused here for its clearer diagnostic, but it is NOT what
+ * makes a bootstrap safe — see `bootstrapProblems`, which judges every entry
+ * against the base whoever chose it. The inferred route reached a pre-campaign
+ * base too, and no rule about operators would have caught it.
  *
  * Whether a commit carries a validated release is the one part git cannot answer,
  * so it needs the check-runs API; `scripts/source-size-validated.mjs` asks, and

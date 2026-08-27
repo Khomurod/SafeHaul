@@ -157,9 +157,10 @@ were measured on 2026-08-27, each of which let a refused increment reach a deplo
 - **An escape hatch is a bypass if nobody checks it.** The override existed so a
   manual run had an honest way past the refusal, and it accepted anything that
   resolved: `SOURCE_SIZE_BASE=HEAD` reported "compared against \<head\>" and
-  passed. It now clears the same bar as an inferred base — an ancestor, not the
-  head, carrying a validated release — which is what this file already said about
-  the secret scanner's override.
+  passed. That round made it clear the same bar as an inferred base — an
+  ancestor, not the head, carrying a validated release — which is what this file
+  already said about the secret scanner's override. Two more rounds found that
+  bar too low; the override's contract today is the one stated below, not this.
 
 A fourth review round found the same escape hatch open two notches wider, and
 both were reproduced before they were fixed. **The override may not reach behind

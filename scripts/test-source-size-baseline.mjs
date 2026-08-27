@@ -45,11 +45,12 @@ console.log('\nH. The backlog cannot be edited into an allowlist');
 
 {
   /*
-   * The override clears the same bar as an inferred base, and every clause of it
-   * was a bypass before 2026-08-27: it accepted anything that resolved, so
-   * `SOURCE_SIZE_BASE=HEAD` on a manual run reported "compared against <head>"
-   * and passed — reopening the exact laundering path the refusal exists to close.
-   * Measured through the CLI, not reasoned about.
+   * The override clears a HIGHER bar than an inferred base, and every clause of
+   * it is here because the absence of that clause was a measured bypass. The
+   * first: it accepted anything that resolved, so `SOURCE_SIZE_BASE=HEAD` on a
+   * manual run reported "compared against <head>" and passed, reopening the exact
+   * laundering path the refusal exists to close. H29/H33/H34 cover the three that
+   * came after. None of them is redundant with another.
    */
   const env = (base) => ({ GITHUB_EVENT_NAME: 'workflow_dispatch', SOURCE_SIZE_BASE: base });
   const validated = () => true;
