@@ -48,7 +48,8 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { checkBacklogDirection, resolveValidatedBaseline } from './source-size-baseline.mjs';
+import { checkBacklogDirection } from './source-size-baseline.mjs';
+import { resolveValidatedBaseline } from './source-size-validated.mjs';
 import { backlogShapeProblems } from './source-size-direction.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -334,7 +335,9 @@ async function main() {
   const byCategory = summarise(files);
 
   const headSha = execFileSync('git', ['rev-parse', 'HEAD^{commit}'], { cwd: repoRoot, encoding: 'utf8' }).trim();
-  const { lastValidatedBase, overrideValidated, error: lookupError } = useBacklog
+  const {
+    lastValidatedBase, overrideValidated, automaticLookupComplete, error: lookupError,
+  } = useBacklog
     ? await resolveValidatedBaseline({ headSha, cwd: repoRoot, log: console.log })
     : { lastValidatedBase: () => null, overrideValidated: () => false, error: null };
 
@@ -347,6 +350,7 @@ async function main() {
       requireBaseline,
       lastValidatedBase,
       overrideValidated,
+      automaticLookupComplete,
     })
     : { problems: [], describe: 'backlog ignored (--no-backlog)' };
 

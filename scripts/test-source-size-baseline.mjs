@@ -24,12 +24,10 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { BACKLOG_PATH } from './source-size.mjs';
+import { BACKLOG_PATH, countLines } from './source-size.mjs';
 import { checkBacklogDirection, resolveBaselineRef } from './source-size-baseline.mjs';
-import {
-  backlogShapeProblems, compareBacklog, compareBacklogSizes,
-} from './source-size-direction.mjs';
-import { countLines } from './source-size.mjs';
+import { resolveValidatedBaseline } from './source-size-validated.mjs';
+
 
 let failures = 0;
 function assert(name, condition, detail = '') {
@@ -44,30 +42,6 @@ function assert(name, condition, detail = '') {
 /* ========================================================================== */
 console.log('\nH. The backlog cannot be edited into an allowlist');
 /* ========================================================================== */
-
-/*
- * The rules in `evaluate` are enforced against the backlog in the BRANCH UNDER
- * TEST, which that branch may edit — so on its own the checker would accept a new
- * 900-line file that arrived together with its own backlog entry. Found in review
- * on 2026-08-27. What is pinned is therefore the direction of change, against the
- * copy in git that the branch cannot rewrite.
- */
-
-assert('H1. an entry that was not there before is refused',
-  compareBacklog({ 'src/old.js': 900 }, { 'src/old.js': 900, 'src/new.js': 900 })
-    .some((p) => /adds src\/new\.js/.test(p)),
-  'adding a file and its own exemption in one change is the bypass this closes');
-
-assert('H2. a recorded count that went UP is refused',
-  compareBacklog({ 'src/big.js': 900 }, { 'src/big.js': 1200 })
-    .some((p) => /raises src\/big\.js from 900 to 1200/.test(p)),
-  'raising the ceiling to match a file that grew defeats the may-not-grow rule');
-
-assert('H3. removing an entry is the campaign working, not a problem',
-  compareBacklog({ 'src/a.js': 900, 'src/b.js': 700 }, { 'src/b.js': 700 }).length === 0);
-
-assert('H4. and so is lowering one',
-  compareBacklog({ 'src/a.js': 900 }, { 'src/a.js': 600 }).length === 0);
 
 {
   /*
@@ -238,115 +212,24 @@ assert('H4. and so is lowering one',
   rmSync(dir, { recursive: true, force: true });
 }
 
-/*
- * A count that is not a count. Found in review on 2026-08-27 and reproduced: every
- * rule compares with `>`, a non-number coerces to NaN, and every comparison
- * against NaN is false — so a malformed entry exempted a 9000-line file from the
- * hard limit AND from the may-not-grow rule, silently.
- */
-assert('H15. a recorded count that is not a number is refused',
-  backlogShapeProblems({ 'src/big.js': 'unbounded' }).length === 1
-  && backlogShapeProblems({ 'src/big.js': null }).length === 1
-  && backlogShapeProblems({ 'src/big.js': 900.5 }).length === 1
-  && backlogShapeProblems({ 'src/big.js': -1 }).length === 1,
-  'NaN comparisons are false, so a malformed entry exempts rather than fails');
-
-assert('H16. and a whole number of lines is fine',
-  backlogShapeProblems({ 'src/big.js': 900, 'src/other.js': 0 }).length === 0);
-
-assert('H17. nothing is compared until the shape is sound',
-  compareBacklog({ 'src/big.js': 900 }, { 'src/big.js': 'unbounded' })
-    .every((problem) => /not a line count/.test(problem)),
-  'reporting "it did not grow" about a value that is not a size would be a lie');
-
 {
   /*
-   * The per-file ratchet, and the scenario that made it necessary: a backlogged
-   * file that shrinks while its dated count stays put could be REGROWN to
-   * anything at or below the snapshot. Review on 2026-08-27 named the sequence —
-   * 1358 -> 1200 -> 1300 passes the recorded-count rule twice — which made
-   * campaign progress reversible despite the may-never-grow invariant.
-   */
-  const backlog = { 'src/big.js': 1358 };
-  const grew = compareBacklogSizes({ 'src/big.js': 1200 }, [
-    { path: 'src/big.js', lines: 1300, category: 'runtime' },
-  ], backlog);
-  assert('H18. a backlogged file bigger than at the base is refused',
-    grew.length === 1 && /up from 1200 at the base/.test(grew[0]),
-    `${grew.join('; ') || 'nothing reported'} — 1300 is under the recorded 1358, so the `
-    + 'recorded count alone lets this through');
-
-  assert('H19. and shrinking further is not a problem',
-    compareBacklogSizes({ 'src/big.js': 1200 }, [
-      { path: 'src/big.js', lines: 1100, category: 'runtime' },
-    ], backlog).length === 0);
-
-  assert('H20. an unbacklogged file is not ratcheted — the hard limit governs it',
-    compareBacklogSizes({ 'src/small.js': 100 }, [
-      { path: 'src/small.js', lines: 300, category: 'runtime' },
-    ], backlog).length === 0,
-    'a 300-line file growing from 100 is ordinary work, not a campaign regression');
-
-  assert('H21. a file absent at the base cannot have grown',
-    compareBacklogSizes({}, [
-      { path: 'src/big.js', lines: 9000, category: 'runtime' },
-    ], backlog).length === 0,
-    'that case is an ADDED backlog entry, which compareBacklog catches instead');
-
-  assert('H22. an unreadable measurement is skipped rather than treated as growth',
-    compareBacklogSizes({ 'src/big.js': 1200 }, [
-      { path: 'src/big.js', lines: null, category: 'runtime' },
-    ], backlog).length === 0);
-}
-
-{
-  // The ratchet through git, on a real repository: the pure comparison above
-  // cannot catch a wrong ref or a mis-read blob.
-  const dir = mkdtempSync(join(tmpdir(), 'safehaul-size-ratchet-'));
-  const git = (...args) => execFileSync('git', args, { cwd: dir, encoding: 'utf8' }).trim();
-  git('init', '-q', '-b', 'main');
-  git('config', 'user.email', 'tests@safehaul.invalid');
-  git('config', 'user.name', 'SafeHaul tests');
-  git('config', 'commit.gpgsign', 'false');
-  mkdirSync(resolve(dir, '.github'), { recursive: true });
-  const backlog = { 'big.js': 1358 };
-  writeFileSync(resolve(dir, BACKLOG_PATH), `${JSON.stringify({ files: backlog }, null, 2)}\n`);
-  writeFileSync(resolve(dir, 'big.js'), `${'x\n'.repeat(1200)}`);
-  git('add', '-A'); git('commit', '-q', '-m', 'shrunk to 1200, record left at 1358');
-  writeFileSync(resolve(dir, 'big.js'), `${'x\n'.repeat(1300)}`);
-  git('add', '-A'); git('commit', '-q', '-m', 'regrown to 1300');
-
-  const verdict = checkBacklogDirection({
-    current: backlog,
-    measured: [{ path: 'big.js', lines: 1300, category: 'runtime' }],
-    countLines,
-    path: BACKLOG_PATH,
-    requireBaseline: true,
-    env: {},
-    cwd: dir,
-  });
-  assert('H23. and the whole chain refuses the regrowth through git',
-    verdict.problems.some((problem) => /big\.js is 1300 lines, up from 1200/.test(problem)),
-    `${verdict.describe} — ${verdict.problems.join('; ') || 'nothing reported'}`);
-  rmSync(dir, { recursive: true, force: true });
-}
-
-{
-  /*
-   * An override cannot claim the campaign has not started yet.
+   * A base that predates the backlog, from both directions.
    *
-   * Found in review on 2026-08-27 and reproduced against this repository: point
+   * Review on 2026-08-27, reproduced against this repository: point
    * `SOURCE_SIZE_BASE` at a fully validated commit from BEFORE
-   * `.github/source-size-backlog.json` existed — the main commit this branch is
-   * based on qualifies — and `git show` fails, which the branch read as "the
-   * campaign starts here" and returned no problems at all. The current backlog is
-   * then trusted wholesale, so an invented `{"src/invented.js": 9000}` with a
-   * matching 9000-line file passed, and `workflow_dispatch` on main deploys.
+   * `.github/source-size-backlog.json` existed and `git show` fails, which read as
+   * "the campaign starts here" and reported nothing at all — so an invented
+   * `{"src/invented.js": 9000}` with a matching file passed, and a dispatch on
+   * main deploys. The next round showed the same door open with NO override: after
+   * a bootstrap push that failed some unrelated job, the newest validated ancestor
+   * is still pre-campaign, so the following push inherits the same free pass.
    *
-   * The pre-campaign pass itself has to survive, though: it is how the campaign's
-   * own pull request and the push that merges it get measured. So the refusal is
-   * scoped to the base an operator chose, and H28 is the half that proves the
-   * legitimate route still works.
+   * Both are refused, and the legitimate route has to keep working — it is how the
+   * campaign's own pull request and the push that merges it get measured. The
+   * override is a category error and says so; everything else is judged entry by
+   * entry against the base, which `bootstrapProblems` covers in
+   * `scripts/test-source-size-direction.mjs`.
    */
   const dir = mkdtempSync(join(tmpdir(), 'safehaul-size-precampaign-'));
   const git = (...args) => execFileSync('git', args, { cwd: dir, encoding: 'utf8' }).trim();
@@ -354,18 +237,27 @@ assert('H17. nothing is compared until the shape is sound',
   git('config', 'user.email', 'tests@safehaul.invalid');
   git('config', 'user.name', 'SafeHaul tests');
   git('config', 'commit.gpgsign', 'false');
-  writeFileSync(resolve(dir, 'a.txt'), 'before the campaign\n');
-  git('add', '-A'); git('commit', '-q', '-m', 'pre-campaign');
+  // Debt that pre-dates the campaign, which is the only kind an entry may record.
+  writeFileSync(resolve(dir, 'big.js'), 'x\n'.repeat(900));
+  git('add', '-A'); git('commit', '-q', '-m', 'pre-campaign, already over the limit');
   const preCampaign = git('rev-parse', 'HEAD');
   mkdirSync(resolve(dir, '.github'), { recursive: true });
-  writeFileSync(resolve(dir, BACKLOG_PATH), `${JSON.stringify({ files: { 'big.js': 900 } }, null, 2)}\n`);
-  git('add', '-A'); git('commit', '-q', '-m', 'start the campaign');
-  writeFileSync(resolve(dir, 'a.txt'), 'later\n');
-  git('add', '-A'); git('commit', '-q', '-m', 'and carry on');
+  const writeBacklog = (files) => writeFileSync(
+    resolve(dir, BACKLOG_PATH), `${JSON.stringify({ files }, null, 2)}\n`,
+  );
+  writeBacklog({ 'big.js': 900 });
+  git('add', '-A'); git('commit', '-q', '-m', 'bootstrap the campaign — this push FAILED');
+  writeFileSync(resolve(dir, 'invented.js'), 'x\n'.repeat(9000));
+  writeBacklog({ 'big.js': 900, 'invented.js': 9000 });
+  git('add', '-A'); git('commit', '-q', '-m', 'fix the unrelated job, and slip a file in');
 
-  const invented = { 'big.js': 900, 'src/invented.js': 9000 };
+  const invented = { 'big.js': 900, 'invented.js': 9000 };
+  const measured = [
+    { path: 'big.js', lines: 900, category: 'runtime' },
+    { path: 'invented.js', lines: 9000, category: 'runtime' },
+  ];
   const chosen = checkBacklogDirection({
-    current: invented, path: BACKLOG_PATH, requireBaseline: true, cwd: dir,
+    current: invented, measured, countLines, path: BACKLOG_PATH, requireBaseline: true, cwd: dir,
     env: { GITHUB_EVENT_NAME: 'workflow_dispatch', SOURCE_SIZE_BASE: preCampaign },
     overrideValidated: () => true,
   });
@@ -373,39 +265,61 @@ assert('H17. nothing is compared until the shape is sound',
     chosen.problems.some((problem) => /predates .*source-size-backlog\.json/.test(problem)),
     `${chosen.describe} — ${chosen.problems.join('; ') || 'nothing reported'}`);
 
+  const failedBootstrap = checkBacklogDirection({
+    current: invented, measured, countLines, path: BACKLOG_PATH, requireBaseline: true, cwd: dir,
+    env: { GITHUB_EVENT_NAME: 'push' },
+    lastValidatedBase: () => preCampaign,
+  });
+  assert('H31. and so is an INFERRED pre-campaign base after a failed bootstrap',
+    failedBootstrap.problems.some((problem) => /invented\.js.*does not exist/.test(problem)),
+    `${failedBootstrap.describe} — ${failedBootstrap.problems.join('; ') || 'nothing reported'}`);
+
+  const honest = checkBacklogDirection({
+    current: { 'big.js': 900 }, measured: [measured[0]], countLines,
+    path: BACKLOG_PATH, requireBaseline: true, cwd: dir,
+    env: { GITHUB_EVENT_NAME: 'push' },
+    lastValidatedBase: () => preCampaign,
+  });
+  assert('H32. while the same route passes a bootstrap recording debt that was there',
+    honest.problems.length === 0,
+    `${honest.describe} — ${honest.problems.join('; ') || 'nothing reported'}`);
+
   git('checkout', '-q', '-b', 'campaign', preCampaign);
   mkdirSync(resolve(dir, '.github'), { recursive: true });
-  writeFileSync(resolve(dir, BACKLOG_PATH), `${JSON.stringify({ files: { 'big.js': 900 } }, null, 2)}\n`);
+  writeBacklog({ 'big.js': 900 });
   git('add', '-A'); git('commit', '-q', '-m', 'the campaign, as a pull request');
   const introducing = checkBacklogDirection({
-    current: { 'big.js': 900 }, path: BACKLOG_PATH, requireBaseline: true, cwd: dir,
+    current: { 'big.js': 900 }, measured: [measured[0]], countLines,
+    path: BACKLOG_PATH, requireBaseline: true, cwd: dir,
     env: { GITHUB_PR_BASE_SHA: preCampaign },
   });
-  assert('H28. but the pull request that introduces the backlog still passes',
-    introducing.problems.length === 0 && /campaign starts here/.test(introducing.describe),
+  assert('H28. and the pull request that introduces the backlog still passes',
+    introducing.problems.length === 0 && /every entry checked against it/.test(introducing.describe),
     `${introducing.describe} — ${introducing.problems.join('; ') || 'nothing reported'}`);
   rmSync(dir, { recursive: true, force: true });
 }
 
 {
   /*
-   * And it cannot reach behind the base the run would have chosen for itself.
+   * And an override cannot reach past the base the run would have chosen itself.
    *
    * The automatic base is the NEWEST validated ancestor, so it is the strictest
-   * comparison available. An older validated commit carries a looser recorded
+   * comparison available: an older validated commit carries a looser recorded
    * count and a looser measured size, so a file regrown to that older ceiling
-   * passes — the same laundering shape as `SOURCE_SIZE_BASE=HEAD`, one step out.
-   * The override exists to answer "nothing validated was found", which is exactly
-   * when H30 lets it through.
+   * passes. Review then found two more shapes of the same thing, both reproduced —
+   * a merge commit whose second-parent tip is an ancestor of NEITHER the head's
+   * first-parent base nor of the head's exclusion of it, and a lookup that failed
+   * rather than answered. The override exists to answer "nothing validated was
+   * found", which is the one case H30 lets through.
    */
   const env = (base) => ({ GITHUB_EVENT_NAME: 'workflow_dispatch', SOURCE_SIZE_BASE: base });
-  const head = execFileSync('git', ['rev-parse', 'HEAD~2'], { encoding: 'utf8' }).trim();
+  const newer = execFileSync('git', ['rev-parse', 'HEAD~2'], { encoding: 'utf8' }).trim();
 
   const behind = resolveBaselineRef({
-    env: env('HEAD~3'), overrideValidated: () => true, lastValidatedBase: () => head,
+    env: env('HEAD~3'), overrideValidated: () => true, lastValidatedBase: () => newer,
   });
   assert('H29. an override older than the automatic base is refused',
-    behind.ref === null && /is older than/.test(behind.error || ''), JSON.stringify(behind));
+    behind.ref === null && /does not contain/.test(behind.error || ''), JSON.stringify(behind));
 
   const nothingFound = resolveBaselineRef({
     env: env('HEAD~3'), overrideValidated: () => true, lastValidatedBase: () => null,
@@ -413,6 +327,93 @@ assert('H17. nothing is compared until the shape is sound',
   assert('H30. and accepted when the automatic lookup found nothing to be behind',
     nothingFound.ref !== null && nothingFound.source === 'SOURCE_SIZE_BASE',
     JSON.stringify(nothingFound));
+
+  const incomplete = resolveBaselineRef({
+    env: env('HEAD~3'),
+    overrideValidated: () => true,
+    lastValidatedBase: () => null,
+    automaticLookupComplete: () => false,
+  });
+  assert('H33. "could not ask" is not "there is none" — an incomplete lookup refuses',
+    incomplete.ref === null && /did not complete/.test(incomplete.error || ''),
+    'one 502 on the second request used to reopen the older-ceiling bypass silently');
+
+  /*
+   * The merge case, which needs real divergent history: a validated tip on the
+   * second parent is an ancestor of the head and NOT of the first-parent base, so
+   * asking "is the override older" answers no and lets it through.
+   */
+  const dir = mkdtempSync(join(tmpdir(), 'safehaul-size-merge-'));
+  const git = (...args) => execFileSync('git', args, { cwd: dir, encoding: 'utf8' }).trim();
+  git('init', '-q', '-b', 'main');
+  git('config', 'user.email', 'tests@safehaul.invalid');
+  git('config', 'user.name', 'SafeHaul tests');
+  git('config', 'commit.gpgsign', 'false');
+  writeFileSync(resolve(dir, 'a.txt'), '1\n'); git('add', '-A'); git('commit', '-q', '-m', 'root');
+  git('checkout', '-q', '-b', 'side');
+  writeFileSync(resolve(dir, 'b.txt'), 's\n'); git('add', '-A'); git('commit', '-q', '-m', 'side');
+  const sideTip = git('rev-parse', 'HEAD');
+  git('checkout', '-q', 'main');
+  writeFileSync(resolve(dir, 'a.txt'), '2\n'); git('add', '-A'); git('commit', '-q', '-m', 'main');
+  const mainTip = git('rev-parse', 'HEAD');
+  git('merge', '-q', '--no-ff', '-m', 'merge side', 'side');
+
+  const sideways = resolveBaselineRef({
+    env: env(sideTip), cwd: dir, overrideValidated: () => true, lastValidatedBase: () => mainTip,
+  });
+  assert('H34. an override incomparable with the automatic base is refused too',
+    sideways.ref === null && /does not contain/.test(sideways.error || ''), JSON.stringify(sideways));
+
+  const forward = resolveBaselineRef({
+    env: env('HEAD'), cwd: dir, overrideValidated: () => true, lastValidatedBase: () => mainTip,
+  });
+  assert('H35. and the head-itself refusal still fires before any of this',
+    forward.ref === null && /the head itself/.test(forward.error || ''), JSON.stringify(forward));
+  rmSync(dir, { recursive: true, force: true });
+}
+
+{
+  /*
+   * What the lookup REPORTS, as opposed to what `resolveBaselineRef` does with
+   * it. H33 proves an incomplete answer refuses; these prove the answer is
+   * produced honestly, which is the half that would have gone untested — returning
+   * `automaticLookupComplete: () => true` unconditionally passes every case above.
+   */
+  const headSha = execFileSync('git', ['rev-parse', 'HEAD~3'], { encoding: 'utf8' }).trim();
+  const override = { GITHUB_EVENT_NAME: 'workflow_dispatch', SOURCE_SIZE_BASE: 'HEAD~4' };
+  const yes = async () => ({ validated: true, error: null });
+
+  const broke = await resolveValidatedBaseline({
+    env: override, headSha, lookupOne: yes,
+    lookupAncestor: async () => ({ sha: null, checked: 3, error: 'GitHub answered 502' }),
+  });
+  assert('H41. a lookup that failed reports itself incomplete',
+    broke.automaticLookupComplete() === false && /502/.test(broke.error || ''),
+    JSON.stringify({ complete: broke.automaticLookupComplete(), error: broke.error }));
+
+  const asked = await resolveValidatedBaseline({
+    env: override, headSha, lookupOne: yes,
+    lookupAncestor: async () => ({ sha: null, checked: 3, error: null }),
+  });
+  assert('H42. and one that found nothing reports itself complete',
+    asked.automaticLookupComplete() === true && asked.lastValidatedBase() === null,
+    'otherwise the override would have no way through at all');
+
+  let askedAncestor = false;
+  const push = await resolveValidatedBaseline({
+    env: { GITHUB_EVENT_NAME: 'push' }, headSha, lookupOne: yes,
+    lookupAncestor: async () => { askedAncestor = true; return { sha: 'abc', checked: 1, error: null }; },
+  });
+  assert('H43. an event with no override asks for the newest validated ancestor',
+    askedAncestor && push.lastValidatedBase() === 'abc' && push.overrideValidated() === false);
+
+  askedAncestor = false;
+  const pr = await resolveValidatedBaseline({
+    env: { GITHUB_EVENT_NAME: 'pull_request' }, headSha, lookupOne: yes,
+    lookupAncestor: async () => { askedAncestor = true; return { sha: 'abc', checked: 1, error: null }; },
+  });
+  assert('H44. and a pull request asks nothing — its base is a definition',
+    !askedAncestor && pr.lastValidatedBase() === null, 'requiring proof would refuse every PR opened while main is red');
 }
 
 console.log(failures === 0

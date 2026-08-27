@@ -174,12 +174,32 @@ strictest, so naming an older validated release restores its looser recorded
 count and its looser measured size, and a file regrown to that older ceiling
 passes.
 
-The pre-campaign pass itself has to survive — it is how the campaign's own pull
-request and the push that merges it get measured — so the refusal is scoped to a
-base an operator *chose*. The inferred routes cannot make that claim falsely: a
-pull request's base is a definition, and the automatic base being the newest
-validated ancestor means that once one backlog-bearing commit is validated, no
-later run can land behind it.
+A fifth round showed why "an operator chose it" was the wrong place to hang that
+first refusal, and the answer is the most useful thing in this section. **The
+inferred route reaches a pre-campaign base too**, with no override at all: when
+the push that bootstraps the backlog fails some unrelated required job it never
+becomes a validated release, so the NEXT push's newest validated ancestor is
+still pre-campaign — and it could add a 9,000-line file with its own entry, pass,
+and deploy once the unrelated failure was fixed. Reproduced.
+
+What makes a bootstrap legitimate is not who picked the base. It is that every
+entry records debt **the base already carried**, which is a fact about a commit
+the change under test cannot edit, so it is checkable and now checked: the file
+must exist at the base, and its recorded count may not exceed its size there. The
+campaign's own pull request passes that (all 70 entries are unchanged files from
+`c0057e2`); a file the change itself creates, or one that grew through the limit
+on the branch, does not. The override refusal stays as well, because reaching
+behind the campaign's start is a category error and deserves to read like one.
+
+Two more of the same shape came out of that round, both reproduced. **A lookup
+that failed is not an answer of "none":** one 502 on the second request left
+`lastValidatedBase` null, which read as "nothing to be behind", and since the CLI
+only mentions a lookup error alongside some other problem, the older-ceiling
+comparison exited 0. And **"is the override older" is the wrong question** — on a
+merge commit a validated second-parent tip is an ancestor of the head and of
+neither the first-parent base nor its reverse, so an override cut before a
+backlog reduction sailed through. The override must now *contain* the automatic
+base, which refuses older and incomparable alike.
 
 `callable-contract` therefore carries `checks: read` and the default token, and
 the dispatch dialog offers `source_size_base` for naming a good release when the

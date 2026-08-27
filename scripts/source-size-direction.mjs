@@ -96,3 +96,55 @@ export function compareBacklogSizes(previousSizes, measured, backlog) {
   }
   return problems;
 }
+
+/**
+ * The one moment the backlog has no previous copy, and what can still be checked.
+ *
+ * When `git show` finds no backlog at the base, the change under test is
+ * INTRODUCING it, so every entry is new and `compareBacklog` has nothing to
+ * compare. The first version of this treated that as "the campaign starts here"
+ * and returned no problems at all — which review on 2026-08-27 showed was a
+ * bypass reachable two ways, both reproduced:
+ *
+ *   - an operator naming a validated pre-campaign commit in `SOURCE_SIZE_BASE`;
+ *   - and, with no override at all, the push AFTER a bootstrap that failed some
+ *     unrelated required job. That bootstrap never became a validated release, so
+ *     the next push's newest validated ancestor is still pre-campaign — and it
+ *     could add a 9000-line file with its own entry, pass, and deploy once the
+ *     unrelated failure was fixed.
+ *
+ * The second one is why the refusal cannot live in "was the base chosen by an
+ * operator". What makes a bootstrap legitimate is not who picked the base: it is
+ * that every entry records debt **that was already there**. That is a fact about
+ * the base commit, which the change under test cannot edit, so it can be checked:
+ *
+ *   1. the file must exist at the base — an entry for a file this change creates
+ *      is a new exemption wearing the campaign's clothes;
+ *   2. its recorded count may not exceed its size at the base — otherwise a file
+ *      that grew THROUGH the limit on this branch could be recorded at its new
+ *      size and inherit the exemption.
+ *
+ * Deliberately no reference to the hard limit here. An entry naming a file that
+ * is comfortably under it is already refused by `evaluate`'s "a listed file that
+ * comes back under must be removed", so restating the limit would add a constant
+ * to keep in step for nothing.
+ */
+export function bootstrapProblems(sizesAtBase, current, ref, label = 'the backlog') {
+  const problems = [];
+  const at = ref.slice(0, 8);
+  for (const [path, lines] of Object.entries(current ?? {})) {
+    const before = sizesAtBase[path];
+    if (before === undefined) {
+      problems.push(`${label} records ${path}, which does not exist at ${at} — the base this `
+        + 'bootstrap is measured against. The campaign records debt that was already there, so an '
+        + 'entry for a file the change itself adds is a new exemption, not a record of one.');
+      continue;
+    }
+    if (lines > before) {
+      problems.push(`${label} records ${path} at ${lines} lines, but it was ${before} at ${at}. `
+        + 'An entry may only record how big a file already was; recording the size it grew to '
+        + 'would let a file cross the limit and be exempted in the same change.');
+    }
+  }
+  return problems;
+}

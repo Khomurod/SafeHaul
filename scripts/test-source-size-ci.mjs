@@ -15,8 +15,9 @@
  * Run by `npm run test:source-size`.
  */
 
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, resolve as resolvePath } from 'node:path';
+import { ALWAYS_REQUIRED_JOBS } from './ci-plan.mjs';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -52,31 +53,43 @@ console.log('\nG. The standard is enforced in CI, and cannot go blind');
         /npm run test:source-size/.test(workflow),
         'a checker that has stopped looking reports a shorter list, which reads as progress');
     /*
-     * Both steps live in `callable-contract`, which `scripts/ci-plan.mjs` lists
-     * in ALWAYS_REQUIRED_JOBS — so no tree-hash proof can skip them. A size
-     * standard CI is allowed to skip is not a standard.
+     * Both steps live in `callable-contract`, which ALWAYS_REQUIRED_JOBS lists —
+     * so no tree-hash proof can skip them. A size standard CI is allowed to skip
+     * is not a standard.
+     *
+     * Asserted on the imported VALUE rather than by grepping `ci-plan.mjs`, which
+     * is what the first version did: a regex over one file's text stops meaning
+     * anything the moment the constant is split into another module, and it would
+     * have failed silently-green in the direction that matters. Where the value
+     * lives is that module's business; that it contains this job is ours.
      */
     const afterHeading = workflow.slice(workflow.indexOf('\n  callable-contract:') + 1);
     const nextJob = afterHeading.search(/\n {2}[a-z][a-z0-9-]*:\n/);
     const jobBody = nextJob === -1 ? afterHeading : afterHeading.slice(0, nextJob);
-    const ciPlan = readFileSync(resolvePath(repoRoot, 'scripts/ci-plan.mjs'), 'utf8');
     assert('G3. both live in a job that can never be skipped',
         /Check source sizes/.test(jobBody)
         && /Verify the source-size guard/.test(jobBody)
-        && /ALWAYS_REQUIRED_JOBS[^\n]*'callable-contract'/.test(ciPlan),
+        && ALWAYS_REQUIRED_JOBS.includes('callable-contract'),
         'a tree-hash proof must not be able to skip the size gate')
     assert('G4. both are real npm scripts',
         typeof pkg.scripts['check:source-size'] === 'string'
         && typeof pkg.scripts['test:source-size'] === 'string');
     /*
-     * `test:source-size` chains three suites now, and a chain is a place a link
-     * goes missing quietly: dropping one leaves the command green while a third
-     * of the guard's own tests stop running. Asserted by file, not by count.
+     * `test:source-size` chains several suites now, and a chain is a place a link
+     * goes missing quietly: dropping one leaves the command green while part of
+     * the guard's own tests stop running.
+     *
+     * The list comes off DISK rather than being written out here, because a
+     * hand-written list is the same hazard one level up — splitting a suite and
+     * forgetting to chain the half that moved would leave this assertion passing
+     * over a file nobody runs. That is the lesson `REQUIRED_ROOTS` records in
+     * `scripts/source-size.mjs`, applied to the guard's own tests.
      */
+    const suites = readdirSync(resolvePath(repoRoot, 'scripts'))
+        .filter((file) => /^test-source-size(-[a-z]+)?\.mjs$/.test(file));
     assert('G4b. and the test script still runs every suite the guard has',
-        ['test-source-size.mjs', 'test-source-size-baseline.mjs', 'test-source-size-ci.mjs']
-            .every((file) => pkg.scripts['test:source-size'].includes(file)),
-        pkg.scripts['test:source-size']);
+        suites.length >= 4 && suites.every((file) => pkg.scripts['test:source-size'].includes(file)),
+        `${suites.join(', ')} vs ${pkg.scripts['test:source-size']}`);
     assert('G5. the limits are the agreed ones',
         /HARD_LIMIT = 500/.test(checker) && /WARN_LIMIT = 400/.test(checker),
         'changing a limit is a decision, not a refactor');

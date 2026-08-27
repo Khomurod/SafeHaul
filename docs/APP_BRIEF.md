@@ -1095,7 +1095,9 @@ JS/TS, CSS, HTML and Firestore rules — not only the scripts.
 against git so a change cannot add its own exemption. The commit it compares
 against is a pull request's own base, or the newest ancestor GitHub says carried
 a fully validated release — never the branch's own history, and never a
-manually-named commit older than either. Workflows, JSON and
+manually-named commit that does not contain either. Where there is no earlier
+backlog at all, each entry must name a file the base already carried at that
+size, so a bootstrap cannot exempt debt it created. Workflows, JSON and
 Markdown are deliberately unmeasured, with reasons recorded in the checker. See
 `AGENTS.md`.
 

@@ -61,6 +61,11 @@
  * refusal was added to close. Measured. It now clears the same bar as an inferred
  * base, which is what AGENTS.md already says about the secret scanner's override.
  *
+ * Whether a commit carries a validated release is the one part git cannot answer,
+ * so it needs the check-runs API; `scripts/source-size-validated.mjs` asks, and
+ * hands the answers here as plain functions. That is what keeps every branch
+ * below synchronous and drivable from a test with no network.
+ *
  * The backlog's path is a parameter rather than an import, so this module knows
  * nothing about `scripts/source-size.mjs` and that one can import it statically
  * without the two forming a cycle.
@@ -76,20 +81,15 @@ import { spawnSync } from 'node:child_process';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-/*
- * "The newest ancestor carrying a fully validated release" is a release-system
- * question, not a secret-scanning one; it lives in the scanner because that is
- * where it was first needed. Reusing it rather than inventing a second notion of
- * "validated" is deliberate — two definitions would disagree eventually, and this
- * one is already tested against stubbed check-runs responses.
- */
-export { findLastValidatedAncestor, isValidatedRelease } from './secret-scan.mjs';
-import { findLastValidatedAncestor, isValidatedRelease } from './secret-scan.mjs';
 
-import { compareBacklog, compareBacklogSizes } from './source-size-direction.mjs';
+import {
+  bootstrapProblems, compareBacklog, compareBacklogSizes,
+} from './source-size-direction.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '..');
+/** Shared with `source-size-validated.mjs`, which defaults `cwd` the same way. */
+export const repoRootPath = repoRoot;
 
 function git(args, cwd) {
   const result = spawnSync('git', args, { cwd, encoding: 'utf8' });
@@ -134,6 +134,7 @@ export function requireUsableBase(candidate, headSha, cwd = repoRoot) {
 export function resolveBaselineRef({
   env = process.env, cwd = repoRoot,
   lastValidatedBase = () => null, overrideValidated = () => false,
+  automaticLookupComplete = () => true,
 } = {}) {
   const headSha = git(['rev-parse', 'HEAD^{commit}'], cwd).stdout.trim();
   const override = (env.SOURCE_SIZE_BASE || '').trim();
@@ -158,16 +159,38 @@ export function resolveBaselineRef({
      * laundering shape as the three above, one step further out. When the
      * automatic lookup found nothing — which is the refusal an override exists to
      * answer — there is nothing to be behind and this does not fire.
+     *
+     * "Not behind" is `automatic` being an ancestor of the override, NOT the
+     * reverse. Asking the reverse only refuses a strictly older override, and
+     * review on 2026-08-27 pointed out the third case: on a merge commit, a
+     * validated tip of the second parent and the first-parent automatic base are
+     * both ancestors of HEAD and ancestors of NEITHER each other, so an override
+     * cut before a backlog reduction sailed through. Reproduced. Requiring the
+     * override to CONTAIN the automatic base refuses older and incomparable alike.
+     *
+     * And a lookup that did not complete is not an answer of "none". Left as one,
+     * a single 502 on the second request reopened the older-ceiling bypass — the
+     * CLI only reports a lookup error alongside some other problem, so a clean
+     * comparison against the older base exited 0. Refuse instead.
      */
-    const automatic = lastValidatedBase();
-    if (automatic && automatic !== usable.ref
-      && git(['merge-base', '--is-ancestor', usable.ref, automatic], cwd).ok) {
+    if (!automaticLookupComplete()) {
       return {
         ref: null,
         source: 'SOURCE_SIZE_BASE',
-        error: `${override} is older than ${automatic.slice(0, 8)}, which this run would have used `
-          + 'on its own. An override fills in when no validated ancestor can be found; it does not '
-          + 'reach past one to a looser ceiling',
+        error: `the lookup for this run's own baseline did not complete, so whether ${override} `
+          + 'reaches behind it is unknown. "Could not ask" is not "there is none": a transient '
+          + 'failure must not be the thing that widens the comparison',
+      };
+    }
+    const automatic = lastValidatedBase();
+    if (automatic && automatic !== usable.ref
+      && !git(['merge-base', '--is-ancestor', automatic, usable.ref], cwd).ok) {
+      return {
+        ref: null,
+        source: 'SOURCE_SIZE_BASE',
+        error: `${override} does not contain ${automatic.slice(0, 8)}, which this run would have `
+          + 'used on its own. An override fills in when no validated ancestor can be found; it '
+          + 'does not reach past one — behind it or beside it — to a looser ceiling',
       };
     }
     return { ref: usable.ref, source: 'SOURCE_SIZE_BASE', error: null };
@@ -308,68 +331,16 @@ export function readSizesAt(ref, paths, { cwd = repoRoot, countLines } = {}) {
  *   backlog only shrank, and non-empty both when it grew and when the comparison
  *   could not be made in a run that required it.
  */
-/**
- * Ask GitHub what it has to be asked, before the synchronous resolution runs.
- *
- * Kept here rather than in the CLI because "which commit is a trustworthy base"
- * is this module's question in both its halves — the structural bar and the
- * validated-release proof. The CLI just reports what comes back.
- *
- * A pull request needs none of this: its base is what the change was proposed
- * against, which git already knows.
- *
- * @returns {Promise<{lastValidatedBase: () => string|null,
- *                    overrideValidated: () => boolean, error: string|null}>}
- */
-export async function resolveValidatedBaseline({
-  env = process.env, cwd = repoRoot, headSha, log = () => {},
-  lookupAncestor = findLastValidatedAncestor, lookupOne = isValidatedRelease,
-} = {}) {
-  const repository = env.GITHUB_REPOSITORY;
-  const token = env.GITHUB_TOKEN;
-  const eventName = (env.GITHUB_EVENT_NAME || '').trim();
-  const override = (env.SOURCE_SIZE_BASE || '').trim();
-  const none = { lastValidatedBase: () => null, overrideValidated: () => false, error: null };
-
-  if (override) {
-    const usable = requireUsableBase(override, headSha, cwd);
-    // A structurally unusable override is refused by `resolveBaselineRef` with a
-    // better message than "not validated"; do not spend a request on it.
-    if (!usable.ref) return none;
-    const check = await lookupOne({ sha: usable.ref, repository, token });
-    log(`override   : ${usable.ref.slice(0, 8)} — `
-      + `${check.validated ? 'validated release' : 'NOT a validated release'}`
-      + `${check.error ? ` (${check.error})` : ''}`);
-    /*
-     * Asked even though the override wins, because `resolveBaselineRef` needs to
-     * know whether the override is reaching behind a stricter base that was there
-     * for the taking. One extra request on a manual run only.
-     */
-    const behind = await lookupAncestor({ headSha, cwd, repository, token });
-    return {
-      lastValidatedBase: () => behind.sha,
-      overrideValidated: () => check.validated,
-      error: check.error || behind.error,
-    };
-  }
-
-  const asksGitHub = eventName && eventName !== 'pull_request' && eventName !== 'pull_request_target'
-    && !(env.GITHUB_PR_BASE_SHA || '').trim();
-  if (!asksGitHub) return none;
-
-  const lookup = await lookupAncestor({ headSha, cwd, repository, token });
-  log(`validated  : ${lookup.sha ? lookup.sha.slice(0, 8) : 'none found'}`
-    + ` (asked about ${lookup.checked} ancestor(s)${lookup.error ? `; ${lookup.error}` : ''})`);
-  return { ...none, lastValidatedBase: () => lookup.sha, error: lookup.error };
-}
-
 export function checkBacklogDirection({
   current, measured = [], countLines, path, requireBaseline = false,
   env = process.env, cwd = repoRoot,
   lastValidatedBase = () => null, overrideValidated = () => false,
+  automaticLookupComplete = () => true,
   resolveRef = resolveBaselineRef, readAt = readBacklogAt, readSizes = readSizesAt,
 } = {}) {
-  const { ref, source, error } = resolveRef({ env, cwd, lastValidatedBase, overrideValidated });
+  const { ref, source, error } = resolveRef({
+    env, cwd, lastValidatedBase, overrideValidated, automaticLookupComplete,
+  });
   if (!ref) {
     const why = `no baseline to compare the backlog against (${source}: ${error})`;
     if (requireBaseline) {
@@ -392,34 +363,35 @@ export function checkBacklogDirection({
   }
   if (previous.absent) {
     /*
-     * No backlog at the base means the change under test INTRODUCES it, so every
-     * entry is legitimately new and there is nothing to compare. That is true of
-     * the campaign's own pull request and of the push that merges it.
-     *
-     * It is a claim about history, though, and an operator can make it falsely:
-     * point `SOURCE_SIZE_BASE` at any validated commit from before the campaign —
-     * the main commit this branch is based on will do — and the current backlog is
-     * trusted wholesale, so an added entry plus an oversized file passes and
-     * `workflow_dispatch` on main deploys it. Reproduced on 2026-08-27 with an
-     * invented `{"src/invented.js": 9000}`: zero problems.
-     *
-     * The inferred bases cannot make that claim falsely, which is why the refusal
-     * is scoped to the override rather than to the situation. A pull request's
-     * base is a definition, and the automatic base is the NEWEST validated
-     * ancestor — so once one backlog-bearing commit is validated, no later run can
-     * land here. An operator choosing a base is the only way back.
+     * Nothing to compare against, so this change is INTRODUCING the backlog —
+     * true of the campaign's own pull request and of the push that merges it.
+     * What makes that legitimate is not who chose the base but whether each entry
+     * records debt the base already carried, which `bootstrapProblems` checks and
+     * its comment explains. An override reaching back past the campaign's start is
+     * refused before that, because it is a category error and deserves to read
+     * like one rather than like a list of unjustified entries.
      */
+    const at = `no backlog at ${ref.slice(0, 8)} (${source})`;
     const entries = Object.keys(current).length;
     if (source === 'SOURCE_SIZE_BASE' && entries > 0) {
       return {
         problems: [`${ref.slice(0, 8)} predates ${path}, so an override naming it would have the `
-          + `current backlog's ${entries} ${entries === 1 ? 'entry' : 'entries'} accepted without `
-          + 'comparison. An override names a commit the campaign already ran on; it cannot reach '
-          + 'behind its start'],
-        describe: `no backlog at ${ref.slice(0, 8)} (${source}) — refused as an override`,
+          + `current backlog's ${entries} ${entries === 1 ? 'entry' : 'entries'} judged against a `
+          + 'commit the campaign never ran on. An override cannot reach behind its start'],
+        describe: `${at} — refused as an override`,
       };
     }
-    return { problems: [], describe: `no backlog at ${ref.slice(0, 8)} (${source}) — the campaign starts here` };
+    if (entries === 0) return { problems: [], describe: `${at}, and nothing recorded yet` };
+    if (!countLines) {
+      // Without it the base cannot be measured, so every entry would be taken on
+      // trust — the exact thing this branch was found doing.
+      const why = `${at}, and no way to measure it`;
+      return { problems: requireBaseline ? [`${why}, so the entries cannot be justified`] : [], describe: why };
+    }
+    const sizes = readSizes(ref, Object.keys(current), { cwd, countLines });
+    const problems = bootstrapProblems(sizes, current, ref, path);
+    if (problems.length === 0) problems.push(...compareBacklogSizes(sizes, measured, current));
+    return { problems, describe: `${at} — every entry checked against it` };
   }
 
   const problems = compareBacklog(previous.files, current, path);
