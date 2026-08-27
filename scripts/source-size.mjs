@@ -54,126 +54,24 @@ import { backlogShapeProblems } from './source-size-direction.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '..');
-
-/** Physical lines, hard maximum, for every handwritten source file. */
-export const HARD_LIMIT = 500;
-/** Above this a file is asked to justify its shape in review. */
-export const WARN_LIMIT = 400;
-
-export const BACKLOG_PATH = '.github/source-size-backlog.json';
-
-/**
- * The handwritten source languages in this repository.
- *
- * Not only JavaScript, and that gap was real: review on 2026-08-27 pointed out
- * that six JS/TS extensions left `landing/assets/css/styles.css` at 3447 lines,
- * `landing/index.html` at 1682 and `src/firestore.rules` at 693 unmeasured while
- * every required-root assertion still passed. A stylesheet and a security-rules
- * file are handwritten source that people have to read; measuring only the
- * scripts made the claim "every handwritten source file" untrue.
- *
- * Several of these have no file in the repository today — `.mts`, `.cts`,
- * `.svelte`, `.vue`. They are here for the same reason `.ts` was before any
- * TypeScript existed: a guard has to hold when the thing it guards changes, and
- * the failure mode of an extension list is a new language arriving unmeasured.
+/*
+ * Imported AND re-exported: the run below uses these, and the tests and the
+ * baseline modules import them from here. A split must not move a published name,
+ * so the entry keeps its whole surface even though the declaration now lives in
+ * `source-size-scope.mjs`.
  */
-export const SOURCE_EXTENSIONS = Object.freeze([
-  '.cjs', '.cts', '.js', '.jsx', '.mjs', '.mts', '.ts', '.tsx',
-  '.css', '.scss', '.html', '.rules', '.svelte', '.vue',
-]);
+import {
+  ACCOUNTED_FORMATS, BACKLOG_PATH, classify, EXCLUDED, HARD_LIMIT, isExcluded,
+  isSourcePath, NOT_SOURCE_FORMATS, REQUIRED_ROOTS, SOURCE_EXTENSIONS,
+  UNMEASURED_FORMATS, WARN_LIMIT,
+} from './source-size-scope.mjs';
 
-/**
- * Formats deliberately NOT measured, each with the reason it is not source.
- *
- * Stated rather than implied, because "what this does not look at" is the half of
- * a coverage claim that goes stale silently. Adding an entry here needs an
- * argument; adding an extension above needs none.
- */
-export const UNMEASURED_FORMATS = Object.freeze([
-  {
-    extension: '.json',
-    reason: 'Data and lockfiles. The largest are generated — package-lock.json is '
-      + '19462 lines — and a long handwritten data table is a table, not a module that '
-      + 'has outgrown a responsibility.',
-  },
-  {
-    extension: '.md',
-    reason: 'Documentation is meant to be long. docs/APP_BRIEF.md is 1154 lines because '
-      + 'it is the orientation document, and shortening it to pass a code metric would '
-      + 'be a straight loss.',
-  },
-  {
-    extension: '.yml',
-    reason: 'Workflows. .github/ is outside the roots this standard covers, and '
-      + '.github/workflows/main.yml (1148 lines) is governed by npm run check:ci-plan, '
-      + 'which asserts its structure job by job rather than by length. Recorded as a '
-      + 'known limitation in AGENTS.md rather than silently omitted.',
-  },
-  {
-    extension: '.yaml',
-    reason: 'Workflows, for the same reason as .yml: outside the roots this standard covers, '
-      + 'and pinned structurally by check:ci-plan rather than by length.',
-  },
-]);
+export {
+  ACCOUNTED_FORMATS, BACKLOG_PATH, classify, EXCLUDED, HARD_LIMIT, isExcluded,
+  isSourcePath, NOT_SOURCE_FORMATS, REQUIRED_ROOTS, SOURCE_EXTENSIONS,
+  UNMEASURED_FORMATS, WARN_LIMIT,
+};
 
-/**
- * The only paths excluded, each with the reason it is not handwritten source.
- *
- * Build output never reaches this list because the scan reads `git ls-files`,
- * and `dist/`, `storybook-static/`, `coverage/` and `node_modules/` are all
- * gitignored — they cannot be tracked, so they cannot be scanned. What remains
- * is the one vendored artifact that IS committed.
- */
-export const EXCLUDED = Object.freeze([
-  {
-    path: 'public/pdf.worker.min.mjs',
-    reason: 'Vendored, minified Mozilla PDF.js worker. Third-party build output, '
-      + 'committed because it is served directly; not handwritten and not ours to split.',
-  },
-]);
-
-/**
- * Directories that must yield source files, or the scan has silently stopped
- * looking somewhere it matters.
- *
- * This is the guard against the failure mode that makes a size checker useless:
- * a glob quietly stops matching, the report gets shorter, and everybody reads
- * the shorter report as progress. Each of these is asserted non-empty on every
- * run.
- */
-export const REQUIRED_ROOTS = Object.freeze([
-  'src',
-  'functions',
-  'scripts',
-  'e2e',
-  'landing',
-  '.storybook',
-]);
-
-const TEST_PATTERNS = [/\.(test|spec)\.[cm]?[jt]sx?$/, /(^|\/)(tests?|__tests__|e2e)\//];
-const TOOLING_PATTERNS = [/^scripts\//, /^\.storybook\//, /^[^/]*\.config\.[cm]?js$/];
-
-/**
- * Runtime, test or tooling.
- *
- * The category changes what a number MEANS — a 480-line test suite and a
- * 480-line React component are different problems — but not whether the limit
- * applies. Tests and tooling are handwritten code that people have to read.
- */
-export function classify(path) {
-  if (TEST_PATTERNS.some((pattern) => pattern.test(path))) return 'test';
-  if (TOOLING_PATTERNS.some((pattern) => pattern.test(path))) return 'tooling';
-  return 'runtime';
-}
-
-export function isSourcePath(path) {
-  return SOURCE_EXTENSIONS.some((extension) => path.endsWith(extension));
-}
-
-const excludedPaths = new Set(EXCLUDED.map((entry) => entry.path));
-export function isExcluded(path) {
-  return excludedPaths.has(path);
-}
 
 /**
  * Every tracked source file, from git rather than a directory walk.

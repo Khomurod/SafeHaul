@@ -18,6 +18,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, resolve as resolvePath } from 'node:path';
 import { ALWAYS_REQUIRED_JOBS } from './ci-plan.mjs';
+import { HARD_LIMIT, WARN_LIMIT } from './source-size.mjs';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -90,9 +91,17 @@ console.log('\nG. The standard is enforced in CI, and cannot go blind');
     assert('G4b. and the test script still runs every suite the guard has',
         suites.length >= 4 && suites.every((file) => pkg.scripts['test:source-size'].includes(file)),
         `${suites.join(', ')} vs ${pkg.scripts['test:source-size']}`);
+    /*
+     * Asserted on the imported VALUES, not by grepping the checker's text — the
+     * same correction G3 needed, and for the same reason: the regex broke the
+     * moment the constants moved to `source-size-scope.mjs`, and a text search
+     * that finds nothing reports "the limit is wrong" when the limit is fine.
+     * Reading them through `source-size.mjs` also pins the re-export, so the
+     * split cannot quietly drop a published name.
+     */
     assert('G5. the limits are the agreed ones',
-        /HARD_LIMIT = 500/.test(checker) && /WARN_LIMIT = 400/.test(checker),
-        'changing a limit is a decision, not a refactor');
+        HARD_LIMIT === 500 && WARN_LIMIT === 400,
+        `changing a limit is a decision, not a refactor (saw ${WARN_LIMIT}/${HARD_LIMIT})`);
     assert('G6. the scan reads git, so moving a file cannot hide it',
         /ls-files/.test(checker) && !/readdirSync/.test(checker),
         'a directory walk can be steered by a path pattern; the tracked set cannot');

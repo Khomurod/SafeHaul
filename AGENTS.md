@@ -229,7 +229,23 @@ family. Restricting it to six JS/TS extensions is what left
 What is deliberately **not** measured is listed in `UNMEASURED_FORMATS` with a
 reason each, because the half of a coverage claim that goes stale silently is the
 half about what it does not look at: `.json` (data and generated lockfiles),
-`.md` (documentation is meant to be long), and `.yml`/`.yaml` (the workflows).
+`.md` (documentation is meant to be long), `.mdx` (one Storybook introduction —
+176 lines of prose around a single import and one `<Meta>` tag, so the `.md` case
+rather than the `.jsx` case), and `.yml`/`.yaml` (the workflows).
+
+**`.mdx` was in no list at all** until review found it on 2026-08-27, which is a
+different failure from a wrong reason: a Storybook page could have grown to any
+length while every coverage assertion stayed satisfied by unrelated files,
+because nothing asked "is this extension covered" — only "are these extensions
+still listed". So the lists are now exhaustive over the covered roots and a test
+(`A7`) asserts it against the real tracked tree: an extension under `src`,
+`functions`, `scripts`, `e2e`, `landing` or `.storybook` must be measured,
+deliberately unmeasured, or named in `NOT_SOURCE_FORMATS` with its reason —
+images, webfonts, a font licence, `robots.txt`, `.env.example` and two ignore
+files. A new format cannot arrive unclassified, and the failure names the
+extension and an example path. Dotfiles count as their own format: `.gcloudignore`
+has its dot at index 0, and the first version of that test read it as "no
+extension", which is a second way for a format to escape.
 That last one is a **known limitation, not a clean exclusion**:
 `.github/workflows/main.yml` is 1148 lines, `.github/` is outside the roots this
 standard covers, and its structure is pinned job by job by `npm run check:ci-plan`

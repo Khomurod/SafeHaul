@@ -17,6 +17,8 @@ import {
   BACKLOG_PATH,
   EXCLUDED,
   HARD_LIMIT,
+  ACCOUNTED_FORMATS,
+  NOT_SOURCE_FORMATS,
   REQUIRED_ROOTS,
   SOURCE_EXTENSIONS,
   UNMEASURED_FORMATS,
@@ -103,6 +105,49 @@ assert('A6b. the directories that must never go unscanned are pinned by name',
 assert('A6. isExcluded matches the whole path, not a suffix',
   isExcluded('public/pdf.worker.min.mjs') && !isExcluded('src/public/pdf.worker.min.mjs'),
   'a copy elsewhere is a different file and is measured');
+
+{
+  /*
+   * Every format under the covered roots has an answer — measured, deliberately
+   * unmeasured, or not source at all.
+   *
+   * Found in review on 2026-08-27: `.mdx` was in NO list. A Storybook page could
+   * have grown to any length while every assertion above stayed satisfied by
+   * unrelated files, because "is this extension covered" was never asked — only
+   * "are these extensions still listed". That is the same shape as A6b, which
+   * exists because deleting a required root would have gone unnoticed too.
+   *
+   * Asserted against the real tracked tree rather than a fixture, because the
+   * hazard is a format ARRIVING, and a fixture only ever contains what its author
+   * thought of. The message names the extension and the file, so the fix is
+   * either one line in a list or a decision recorded beside it.
+   */
+  const roots = REQUIRED_ROOTS.map((root) => root);
+  const tracked = execFileSync('git', ['ls-files', '-z', '--', ...roots],
+    { cwd: repoRoot, encoding: 'utf8' }).split('\0').filter(Boolean);
+  const unclassified = new Map();
+  for (const path of tracked) {
+    const name = path.slice(path.lastIndexOf('/') + 1);
+    // `>= 0`, not `> 0`: a dotfile IS its own format. `.gcloudignore` has its dot
+    // at index 0, and `dot > 0` reported it as "(no extension)" — which is a
+    // second way for a format to be unclassifiable rather than unclassified.
+    const dot = name.lastIndexOf('.');
+    const extension = dot >= 0 ? name.slice(dot) : '(no extension)';
+    if (ACCOUNTED_FORMATS.includes(extension)) continue;
+    if (!unclassified.has(extension)) unclassified.set(extension, path);
+  }
+  assert('A7. no tracked format under the covered roots is unclassified',
+    unclassified.size === 0,
+    [...unclassified].map(([ext, path]) => `${ext} (e.g. ${path})`).join(', ')
+      + ' — add it to SOURCE_EXTENSIONS, UNMEASURED_FORMATS or NOT_SOURCE_FORMATS');
+  assert('A7b. and every non-source entry says why it is not source',
+    NOT_SOURCE_FORMATS.every((entry) => entry.extension.startsWith('.')
+      && typeof entry.reason === 'string' && entry.reason.length > 20),
+    'an exclusion without a reason is the allowlist this campaign refuses');
+  assert('A7c. the three lists do not overlap',
+    new Set(ACCOUNTED_FORMATS).size === ACCOUNTED_FORMATS.length,
+    'a format in two lists has two answers, and one of them is stale');
+}
 
 /* ========================================================================== */
 console.log('\nB. Counting');
