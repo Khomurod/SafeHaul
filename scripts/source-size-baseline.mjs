@@ -117,6 +117,29 @@ export function resolveBaselineRef({ env = process.env, cwd = repoRoot } = {}) {
    * and therefore a check that could never fail. Caught by printing the resolved
    * SHA and noticing it was the head.
    */
+  /*
+   * The fork point, for a branch being verified without a pull-request event.
+   *
+   * `merge-base` answers "where did this branch leave the default branch", which
+   * is the same question `GITHUB_BASE_REF` answers above. This is load-bearing
+   * rather than a nicety: a `workflow_dispatch` run of a feature branch used to
+   * fall through to `HEAD~1`, which compares a commit against the one before it
+   * INSIDE the same change — so a branch that legitimately records a backlog
+   * entry in one commit stands accused of adding one. Measured on this very
+   * branch, whose first commit records the whole backlog: it refused three
+   * entries that its base does not have at all.
+   *
+   * When HEAD is ON the default branch the merge base is HEAD itself, which would
+   * compare the backlog against its own commit — so that case falls through.
+   */
+  for (const candidate of ['origin/main', 'origin/HEAD']) {
+    const forkPoint = git(['merge-base', candidate, 'HEAD'], cwd);
+    const base = forkPoint.ok ? forkPoint.stdout.trim() : '';
+    if (!base) continue;
+    if (base === git(['rev-parse', 'HEAD^{commit}'], cwd).stdout.trim()) break;
+    return { ref: base, source: `merge-base with ${candidate}`, error: null };
+  }
+
   const parent = git(['rev-parse', '--verify', '--quiet', 'HEAD~1^{commit}'], cwd);
   if (parent.ok && parent.stdout.trim()) {
     return { ref: parent.stdout.trim(), source: 'HEAD~1', error: null };

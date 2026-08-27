@@ -118,7 +118,11 @@ recorded count raised to match. Review found that on 2026-08-27, and it is the
 same lesson `scripts/secret-scan.mjs` was built on: **a gate must not take its
 scope from the branch it is gating.** So `scripts/source-size-baseline.mjs` reads
 the previous version out of git — a pull request's own base commit, the tip a push
-replaced, or `HEAD~1` — and refuses any entry added or any count raised. Entries
+replaced, where a feature branch left the default branch, or `HEAD~1` — and
+refuses any entry added or any count raised. That fork-point step is not a
+nicety: `HEAD~1` alone compares a commit against the one before it *inside the
+same change*, so a branch whose first commit legitimately records a backlog entry
+stands accused of adding one. Entries
 leaving and counts falling are the campaign working and need no ceremony. CI
 passes `--require-baseline`, which turns "could not find a base" into a refusal
 rather than a skipped comparison; that is why `callable-contract` checks out with

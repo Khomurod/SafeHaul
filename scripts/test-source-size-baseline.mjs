@@ -133,6 +133,53 @@ assert('H4. and so is lowering one',
   rmSync(dir, { recursive: true, force: true });
 }
 
+{
+  /*
+   * Which baseline a branch with no pull-request context gets.
+   *
+   * `HEAD~1` was the only fallback at first, and on a feature branch that
+   * compares a commit against the one before it INSIDE the same change — so a
+   * branch whose first commit legitimately records the backlog was accused of
+   * adding entries its base does not have. Reproduced on the branch that
+   * introduced this file. The fork point is the right answer there, and `HEAD~1`
+   * is right only once the fork point IS the head, which is what being on the
+   * default branch means.
+   */
+  const dir = mkdtempSync(join(tmpdir(), 'safehaul-size-forkpoint-'));
+  const git = (...args) => execFileSync('git', args, { cwd: dir, encoding: 'utf8' }).trim();
+  git('init', '-q', '-b', 'main');
+  git('config', 'user.email', 'tests@safehaul.invalid');
+  git('config', 'user.name', 'SafeHaul tests');
+  git('config', 'commit.gpgsign', 'false');
+  writeFileSync(resolve(dir, 'a.txt'), 'a\n');
+  git('add', '-A'); git('commit', '-q', '-m', 'first');
+  writeFileSync(resolve(dir, 'a.txt'), 'b\n');
+  git('add', '-A'); git('commit', '-q', '-m', 'second');
+  const forkPoint = git('rev-parse', 'HEAD');
+  // A local `origin/main`, which is what a checkout has and a bare init does not.
+  git('update-ref', 'refs/remotes/origin/main', forkPoint);
+  git('checkout', '-q', '-b', 'feature');
+  writeFileSync(resolve(dir, 'a.txt'), 'c\n');
+  git('add', '-A'); git('commit', '-q', '-m', 'on the branch');
+  writeFileSync(resolve(dir, 'a.txt'), 'd\n');
+  git('add', '-A'); git('commit', '-q', '-m', 'and again');
+
+  const onBranch = resolveBaselineRef({ env: {}, cwd: dir });
+  assert('H12. a feature branch compares against where it left the default branch',
+    onBranch.ref === forkPoint && /merge-base/.test(onBranch.source),
+    `${onBranch.source} -> ${onBranch.ref} (fork point is ${forkPoint})`);
+  assert('H13. and NOT against its own previous commit, which is inside the change',
+    onBranch.ref !== git('rev-parse', 'HEAD~1'),
+    'HEAD~1 on a branch accuses the branch of its own legitimate work');
+
+  git('checkout', '-q', 'main');
+  const onMain = resolveBaselineRef({ env: {}, cwd: dir });
+  assert('H14. on the default branch the fork point is the head, so HEAD~1 is used',
+    onMain.source === 'HEAD~1' && onMain.ref === git('rev-parse', 'HEAD~1'),
+    `${onMain.source} -> ${onMain.ref}`);
+  rmSync(dir, { recursive: true, force: true });
+}
+
 console.log(failures === 0
   ? '\nAll source-size baseline checks passed.'
   : `\n${failures} check(s) failed.`);
