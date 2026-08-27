@@ -26,8 +26,10 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { BACKLOG_PATH } from './source-size.mjs';
 import {
-  checkBacklogDirection, compareBacklog, resolveBaselineRef,
+  backlogShapeProblems, checkBacklogDirection, compareBacklog, compareBacklogSizes,
+  resolveBaselineRef,
 } from './source-size-baseline.mjs';
+import { countLines } from './source-size.mjs';
 
 let failures = 0;
 function assert(name, condition, detail = '') {
@@ -177,6 +179,99 @@ assert('H4. and so is lowering one',
   assert('H14. on the default branch the fork point is the head, so HEAD~1 is used',
     onMain.source === 'HEAD~1' && onMain.ref === git('rev-parse', 'HEAD~1'),
     `${onMain.source} -> ${onMain.ref}`);
+  rmSync(dir, { recursive: true, force: true });
+}
+
+/*
+ * A count that is not a count. Found in review on 2026-08-27 and reproduced: every
+ * rule compares with `>`, a non-number coerces to NaN, and every comparison
+ * against NaN is false — so a malformed entry exempted a 9000-line file from the
+ * hard limit AND from the may-not-grow rule, silently.
+ */
+assert('H15. a recorded count that is not a number is refused',
+  backlogShapeProblems({ 'src/big.js': 'unbounded' }).length === 1
+  && backlogShapeProblems({ 'src/big.js': null }).length === 1
+  && backlogShapeProblems({ 'src/big.js': 900.5 }).length === 1
+  && backlogShapeProblems({ 'src/big.js': -1 }).length === 1,
+  'NaN comparisons are false, so a malformed entry exempts rather than fails');
+
+assert('H16. and a whole number of lines is fine',
+  backlogShapeProblems({ 'src/big.js': 900, 'src/other.js': 0 }).length === 0);
+
+assert('H17. nothing is compared until the shape is sound',
+  compareBacklog({ 'src/big.js': 900 }, { 'src/big.js': 'unbounded' })
+    .every((problem) => /not a line count/.test(problem)),
+  'reporting "it did not grow" about a value that is not a size would be a lie');
+
+{
+  /*
+   * The per-file ratchet, and the scenario that made it necessary: a backlogged
+   * file that shrinks while its dated count stays put could be REGROWN to
+   * anything at or below the snapshot. Review on 2026-08-27 named the sequence —
+   * 1358 -> 1200 -> 1300 passes the recorded-count rule twice — which made
+   * campaign progress reversible despite the may-never-grow invariant.
+   */
+  const backlog = { 'src/big.js': 1358 };
+  const grew = compareBacklogSizes({ 'src/big.js': 1200 }, [
+    { path: 'src/big.js', lines: 1300, category: 'runtime' },
+  ], backlog);
+  assert('H18. a backlogged file bigger than at the base is refused',
+    grew.length === 1 && /up from 1200 at the base/.test(grew[0]),
+    `${grew.join('; ') || 'nothing reported'} — 1300 is under the recorded 1358, so the `
+    + 'recorded count alone lets this through');
+
+  assert('H19. and shrinking further is not a problem',
+    compareBacklogSizes({ 'src/big.js': 1200 }, [
+      { path: 'src/big.js', lines: 1100, category: 'runtime' },
+    ], backlog).length === 0);
+
+  assert('H20. an unbacklogged file is not ratcheted — the hard limit governs it',
+    compareBacklogSizes({ 'src/small.js': 100 }, [
+      { path: 'src/small.js', lines: 300, category: 'runtime' },
+    ], backlog).length === 0,
+    'a 300-line file growing from 100 is ordinary work, not a campaign regression');
+
+  assert('H21. a file absent at the base cannot have grown',
+    compareBacklogSizes({}, [
+      { path: 'src/big.js', lines: 9000, category: 'runtime' },
+    ], backlog).length === 0,
+    'that case is an ADDED backlog entry, which compareBacklog catches instead');
+
+  assert('H22. an unreadable measurement is skipped rather than treated as growth',
+    compareBacklogSizes({ 'src/big.js': 1200 }, [
+      { path: 'src/big.js', lines: null, category: 'runtime' },
+    ], backlog).length === 0);
+}
+
+{
+  // The ratchet through git, on a real repository: the pure comparison above
+  // cannot catch a wrong ref or a mis-read blob.
+  const dir = mkdtempSync(join(tmpdir(), 'safehaul-size-ratchet-'));
+  const git = (...args) => execFileSync('git', args, { cwd: dir, encoding: 'utf8' }).trim();
+  git('init', '-q', '-b', 'main');
+  git('config', 'user.email', 'tests@safehaul.invalid');
+  git('config', 'user.name', 'SafeHaul tests');
+  git('config', 'commit.gpgsign', 'false');
+  mkdirSync(resolve(dir, '.github'), { recursive: true });
+  const backlog = { 'big.js': 1358 };
+  writeFileSync(resolve(dir, BACKLOG_PATH), `${JSON.stringify({ files: backlog }, null, 2)}\n`);
+  writeFileSync(resolve(dir, 'big.js'), `${'x\n'.repeat(1200)}`);
+  git('add', '-A'); git('commit', '-q', '-m', 'shrunk to 1200, record left at 1358');
+  writeFileSync(resolve(dir, 'big.js'), `${'x\n'.repeat(1300)}`);
+  git('add', '-A'); git('commit', '-q', '-m', 'regrown to 1300');
+
+  const verdict = checkBacklogDirection({
+    current: backlog,
+    measured: [{ path: 'big.js', lines: 1300, category: 'runtime' }],
+    countLines,
+    path: BACKLOG_PATH,
+    requireBaseline: true,
+    env: {},
+    cwd: dir,
+  });
+  assert('H23. and the whole chain refuses the regrowth through git',
+    verdict.problems.some((problem) => /big\.js is 1300 lines, up from 1200/.test(problem)),
+    `${verdict.describe} — ${verdict.problems.join('; ') || 'nothing reported'}`);
   rmSync(dir, { recursive: true, force: true });
 }
 

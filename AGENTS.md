@@ -116,7 +116,22 @@ edit — so on its own the checker would have accepted a new 900-line file that
 arrived together with `{"src/new.js": 900}`, or a listed file grown with its
 recorded count raised to match. Review found that on 2026-08-27, and it is the
 same lesson `scripts/secret-scan.mjs` was built on: **a gate must not take its
-scope from the branch it is gating.** So `scripts/source-size-baseline.mjs` reads
+scope from the branch it is gating.**
+
+Two more shapes of the same hole came out of that review, both reproduced first:
+
+- **A count that is not a count.** Every rule compares with `>`, a non-number
+  coerces to `NaN`, and every comparison against `NaN` is false — so
+  `{"src/big.js": "unbounded"}` exempted a 9000-line file from the hard limit
+  *and* from the may-not-grow rule, silently. A malformed entry is now refused,
+  and nothing is compared until the shape is sound.
+- **A ceiling that does not follow the file down.** A backlogged file that shrinks
+  while its dated count stays put could be regrown to anything at or below the
+  snapshot: `1358 → 1200 → 1300` passed twice. So each backlogged file is also
+  measured at the base of the change, and **may never exceed either its
+  2026-08-26 size or the size it had on the branch it came from.** That ratchets
+  automatically, which is why the recorded count stays a dated record rather than
+  a live ceiling somebody has to remember to lower. So `scripts/source-size-baseline.mjs` reads
 the previous version out of git — a pull request's own base commit, the tip a push
 replaced, where a feature branch left the default branch, or `HEAD~1` — and
 refuses any entry added or any count raised. That fork-point step is not a

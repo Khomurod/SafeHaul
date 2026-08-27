@@ -61,13 +61,45 @@ function git(args, cwd) {
 }
 
 /**
+ * Is every recorded count actually a count?
+ *
+ * Found in review on 2026-08-27, and it is the original hole wearing a different
+ * hat. Every rule here and in `evaluate` compares numbers with `>`, and JavaScript
+ * coerces a non-numeric value to `NaN` — for which every comparison is false. So
+ * `{"src/big.js": "unbounded"}` made a 9000-line file pass BOTH the hard limit and
+ * the may-not-grow rule, with no error anywhere. Reproduced before fixing.
+ *
+ * A malformed entry is refused rather than ignored: "this is not a line count" is
+ * a problem in its own right, and treating it as absent would silently apply the
+ * hard limit instead, which reads as a different failure than it is.
+ */
+export function backlogShapeProblems(backlog, label = 'the backlog') {
+  const problems = [];
+  for (const [path, lines] of Object.entries(backlog ?? {})) {
+    if (!Number.isInteger(lines) || lines < 0) {
+      problems.push(`${label} records ${path} as ${JSON.stringify(lines)}, which is not a line `
+        + 'count. Every rule here compares counts with `>`, and a non-number coerces to NaN — for '
+        + 'which every comparison is false, so a malformed entry would exempt the file from the '
+        + 'hard limit AND from the may-not-grow rule. Use a whole number of lines.');
+    }
+  }
+  return problems;
+}
+
+/**
  * The two directions that are forbidden, as a pure function so every case has a
  * test that needs no repository.
  *
  * Removals and reductions produce nothing: they are the campaign working.
  */
 export function compareBacklog(previous, current, label = 'the backlog') {
-  const problems = [];
+  const problems = [
+    ...backlogShapeProblems(previous, `${label} at the baseline`),
+    ...backlogShapeProblems(current, label),
+  ];
+  // A malformed count makes every comparison below meaningless rather than false,
+  // so nothing is compared until the shape is sound.
+  if (problems.length > 0) return problems;
   for (const [path, lines] of Object.entries(current)) {
     if (!(path in previous)) {
       problems.push(`${label} adds ${path}. The backlog records what was already over the `
@@ -169,6 +201,53 @@ export function readBacklogAt(ref, { cwd = repoRoot, path } = {}) {
 }
 
 /**
+ * How big each of these files was at `ref`.
+ *
+ * `countLines` is injected rather than imported so this module stays free of any
+ * dependency on `scripts/source-size.mjs` — which imports it, and would otherwise
+ * form a cycle. Files absent at `ref` are simply omitted: a path that did not
+ * exist there cannot have grown, and a backlog entry for one is caught as an
+ * addition instead.
+ */
+export function readSizesAt(ref, paths, { cwd = repoRoot, countLines } = {}) {
+  const sizes = {};
+  for (const path of paths) {
+    const shown = git(['show', `${ref}:${path}`], cwd);
+    if (shown.ok) sizes[path] = countLines(shown.stdout);
+  }
+  return sizes;
+}
+
+/**
+ * A backlogged file may not be bigger than it was at the base of this change.
+ *
+ * The recorded count alone does not give this. Review on 2026-08-27: a file that
+ * shrinks while its dated count stays put can be regrown to anything at or below
+ * the snapshot — `1358 → 1200 → 1300` passes twice — so campaign progress was
+ * reversible despite the may-never-grow rule.
+ *
+ * Comparing against the file's actual size at the base ratchets automatically and
+ * needs no bookkeeping, which is why the recorded count stays what it says it is:
+ * a dated record of where the campaign started, not a live ceiling somebody has
+ * to remember to lower. The two rules together mean a backlogged file may never
+ * exceed EITHER its 2026-08-26 size or its size on the branch it came from.
+ */
+export function compareBacklogSizes(previousSizes, measured, backlog) {
+  const problems = [];
+  for (const file of measured) {
+    if (!(file.path in backlog)) continue;
+    const before = previousSizes[file.path];
+    if (before === undefined || file.lines === null) continue;
+    if (file.lines > before) {
+      problems.push(`${file.path} is ${file.lines} lines, up from ${before} at the base of this `
+        + 'change. A file in the backlog may not grow — not past its recorded count, and not past '
+        + 'the size it had on the branch this change came from.');
+    }
+  }
+  return problems;
+}
+
+/**
  * Compare, or refuse.
  *
  * @returns {{problems: string[], describe: string}} `problems` is empty when the
@@ -176,8 +255,9 @@ export function readBacklogAt(ref, { cwd = repoRoot, path } = {}) {
  *   could not be made in a run that required it.
  */
 export function checkBacklogDirection({
-  current, path, requireBaseline = false, env = process.env, cwd = repoRoot,
-  resolveRef = resolveBaselineRef, readAt = readBacklogAt,
+  current, measured = [], countLines, path, requireBaseline = false,
+  env = process.env, cwd = repoRoot,
+  resolveRef = resolveBaselineRef, readAt = readBacklogAt, readSizes = readSizesAt,
 } = {}) {
   const { ref, source, error } = resolveRef({ env, cwd });
   if (!ref) {
@@ -204,8 +284,16 @@ export function checkBacklogDirection({
     return { problems: [], describe: `no backlog at ${ref.slice(0, 8)} (${source}) — the campaign starts here` };
   }
 
-  return {
-    problems: compareBacklog(previous.files, current, path),
-    describe: `compared against ${ref.slice(0, 8)} (${source})`,
-  };
+  const problems = compareBacklog(previous.files, current, path);
+  /*
+   * The per-file ratchet needs a sound backlog to know which paths to ask about,
+   * so it runs only once the direction check is happy.
+   */
+  if (problems.length === 0 && countLines) {
+    const backlogged = Object.keys(current);
+    problems.push(...compareBacklogSizes(
+      readSizes(ref, backlogged, { cwd, countLines }), measured, current,
+    ));
+  }
+  return { problems, describe: `compared against ${ref.slice(0, 8)} (${source})` };
 }

@@ -51,10 +51,25 @@ assert('A1. every executable extension this repository uses is measured',
   ['.js', '.jsx', '.mjs', '.cjs', '.ts', '.tsx'].every((e) => SOURCE_EXTENSIONS.includes(e)),
   SOURCE_EXTENSIONS.join(', '));
 
-assert('A2. and the list is not quietly narrowed',
-  SOURCE_EXTENSIONS.length >= 14,
-  `${SOURCE_EXTENSIONS.length} extensions — adding one is fine, dropping one is how coverage `
-  + 'disappears, and the count only ever going up is what makes that visible');
+/*
+ * Pinned by NAME, not by count.
+ *
+ * A length assertion was the first version and review on 2026-08-27 showed it does
+ * not hold: coverage can be EXCHANGED rather than narrowed. Removing `.scss` and
+ * adding anything else keeps the length at 14, and A1, F5 and F6 stay green while
+ * a whole language quietly stops being scanned. Adding an extension is still free;
+ * removing one now has to be a deliberate edit here.
+ */
+const PINNED_EXTENSIONS = [
+  '.cjs', '.cts', '.js', '.jsx', '.mjs', '.mts', '.ts', '.tsx',
+  '.css', '.scss', '.html', '.rules', '.svelte', '.vue',
+];
+{
+  const missing = PINNED_EXTENSIONS.filter((e) => !SOURCE_EXTENSIONS.includes(e));
+  assert('A2. every measured language stays measured, each pinned by name',
+    missing.length === 0,
+    `no longer scanned: ${missing.join(', ')} — coverage may be added, never exchanged`);
+}
 
 assert('A3. a source path is recognised by extension, not by directory',
   isSourcePath('anywhere/at/all/thing.jsx') && isSourcePath('anywhere/styles.css')
@@ -157,6 +172,18 @@ const withRoots = (...extra) => [...roots, ...extra];
 {
   const { ok } = evaluate(withRoots(file('src/big.js', 900)), { 'src/big.js': 900 });
   assert('D5. a backlogged file at its recorded size passes', ok);
+}
+{
+  /*
+   * The bypass this closes, at the place it landed: `evaluate` compares with `>`,
+   * and `9000 > 'unbounded'` is false because the string coerces to NaN — so a
+   * malformed entry exempted the file from the hard limit as well as from the
+   * may-not-grow rule. Reproduced on 2026-08-27 before being fixed.
+   */
+  const { ok, problems } = evaluate(withRoots(file('src/big.js', 9000)), { 'src/big.js': 'unbounded' });
+  assert('D5b. a recorded count that is not a number is refused, not ignored',
+    !ok && problems.every((p) => /not a line count/.test(p)),
+    `${problems.join('; ') || 'nothing reported'} — without this a 9000-line file passes clean`);
 }
 {
   const { ok, problems } = evaluate(withRoots(file('src/big.js', 901)), { 'src/big.js': 900 });

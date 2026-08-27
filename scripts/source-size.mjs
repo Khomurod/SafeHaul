@@ -48,7 +48,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { checkBacklogDirection } from './source-size-baseline.mjs';
+import { backlogShapeProblems, checkBacklogDirection } from './source-size-baseline.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '..');
@@ -246,7 +246,13 @@ export function measure({ cwd = repoRoot, run = defaultGit, read } = {}) {
  * repository to point it at.
  */
 export function evaluate(files, backlog = {}) {
-  const problems = [];
+  /*
+   * A recorded count that is not a number makes every comparison below FALSE
+   * rather than failing, so the shape is checked before anything is compared. See
+   * `backlogShapeProblems`.
+   */
+  const problems = backlogShapeProblems(backlog, BACKLOG_PATH);
+  if (problems.length > 0) return { ok: false, problems };
   const measured = new Map(files.map((file) => [file.path, file.lines]));
 
   for (const file of files) {
@@ -327,7 +333,9 @@ function main() {
   const byCategory = summarise(files);
 
   const direction = useBacklog
-    ? checkBacklogDirection({ current: backlog, path: BACKLOG_PATH, requireBaseline })
+    ? checkBacklogDirection({
+      current: backlog, measured: files, countLines, path: BACKLOG_PATH, requireBaseline,
+    })
     : { problems: [], describe: 'backlog ignored (--no-backlog)' };
 
   console.log(`Scanned ${files.length} handwritten source files `
