@@ -69,6 +69,22 @@ assert('A5. every exclusion carries a reason',
   EXCLUDED.every((e) => typeof e.reason === 'string' && e.reason.length > 40),
   'an exclusion without an argument is an allowlist entry');
 
+/*
+ * The roots are pinned, not merely iterated.
+ *
+ * Every other assertion about them derives from the list itself — D10 counts
+ * `REQUIRED_ROOTS.length - 1`, E2 loops over it — so deleting `landing` from it
+ * would remove that directory's blindness guard and leave the whole suite green.
+ * It is the same shape as the backlog hole review found on 2026-08-27: a guard
+ * whose scope comes from the branch under test is not a guard. Adding a root is
+ * free; removing one has to be a deliberate edit here.
+ */
+assert('A6b. the directories that must never go unscanned are pinned by name',
+  ['src', 'functions', 'scripts', 'e2e', 'landing', '.storybook']
+    .every((root) => REQUIRED_ROOTS.includes(root))
+  && REQUIRED_ROOTS.length === 6,
+  REQUIRED_ROOTS.join(', '));
+
 assert('A6. isExcluded matches the whole path, not a suffix',
   isExcluded('public/pdf.worker.min.mjs') && !isExcluded('src/public/pdf.worker.min.mjs'),
   'a copy elsewhere is a different file and is measured');
