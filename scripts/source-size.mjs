@@ -48,6 +48,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { checkBacklogDirection } from './source-size-baseline.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '..');
@@ -60,13 +61,58 @@ export const WARN_LIMIT = 400;
 export const BACKLOG_PATH = '.github/source-size-backlog.json';
 
 /**
- * Executable source extensions actually used by this repository.
+ * The handwritten source languages in this repository.
  *
- * `.ts`/`.tsx` are here even though the app is JavaScript today: the point of a
- * guard is to hold when the thing it guards changes, and a TypeScript file
- * arriving must not arrive unmeasured.
+ * Not only JavaScript, and that gap was real: review on 2026-08-27 pointed out
+ * that six JS/TS extensions left `landing/assets/css/styles.css` at 3447 lines,
+ * `landing/index.html` at 1682 and `src/firestore.rules` at 693 unmeasured while
+ * every required-root assertion still passed. A stylesheet and a security-rules
+ * file are handwritten source that people have to read; measuring only the
+ * scripts made the claim "every handwritten source file" untrue.
+ *
+ * Several of these have no file in the repository today — `.mts`, `.cts`,
+ * `.svelte`, `.vue`. They are here for the same reason `.ts` was before any
+ * TypeScript existed: a guard has to hold when the thing it guards changes, and
+ * the failure mode of an extension list is a new language arriving unmeasured.
  */
-export const SOURCE_EXTENSIONS = Object.freeze(['.cjs', '.js', '.jsx', '.mjs', '.ts', '.tsx']);
+export const SOURCE_EXTENSIONS = Object.freeze([
+  '.cjs', '.cts', '.js', '.jsx', '.mjs', '.mts', '.ts', '.tsx',
+  '.css', '.scss', '.html', '.rules', '.svelte', '.vue',
+]);
+
+/**
+ * Formats deliberately NOT measured, each with the reason it is not source.
+ *
+ * Stated rather than implied, because "what this does not look at" is the half of
+ * a coverage claim that goes stale silently. Adding an entry here needs an
+ * argument; adding an extension above needs none.
+ */
+export const UNMEASURED_FORMATS = Object.freeze([
+  {
+    extension: '.json',
+    reason: 'Data and lockfiles. The largest are generated — package-lock.json is '
+      + '19462 lines — and a long handwritten data table is a table, not a module that '
+      + 'has outgrown a responsibility.',
+  },
+  {
+    extension: '.md',
+    reason: 'Documentation is meant to be long. docs/APP_BRIEF.md is 1154 lines because '
+      + 'it is the orientation document, and shortening it to pass a code metric would '
+      + 'be a straight loss.',
+  },
+  {
+    extension: '.yml',
+    reason: 'Workflows. .github/ is outside the roots this standard covers, and '
+      + '.github/workflows/main.yml (1148 lines) is governed by npm run check:ci-plan, '
+      + 'which asserts its structure job by job rather than by length. Recorded as a '
+      + 'known limitation in AGENTS.md rather than silently omitted.',
+  },
+  {
+    extension: '.yaml',
+    reason: 'Workflows, for the same reason as .yml: outside the roots this standard covers, '
+      + 'and pinned structurally by check:ci-plan rather than by length.',
+  },
+]);
 
 /**
  * The only paths excluded, each with the reason it is not handwritten source.
@@ -138,18 +184,26 @@ export function isExcluded(path) {
  */
 export function listSourceFiles({ cwd = repoRoot, run = defaultGit } = {}) {
   return run(cwd)
-    .split('\n')
-    .map((line) => line.trim())
     .filter(Boolean)
     .filter(isSourcePath)
     .filter((path) => !isExcluded(path))
     .sort();
 }
 
+/**
+ * Every tracked path, as the NUL-delimited list git actually produced.
+ *
+ * The `-z` is the whole point, and it used to be thrown away: the separators were
+ * turned into newlines and the result split on newlines again. Review on
+ * 2026-08-27 found what that costs. A tracked path may contain a newline, and one
+ * called `src/ignored<LF>src/small.js` then parses as two paths — a discarded
+ * fragment plus a second copy of a small file — so a 600-line file is never read
+ * and the run passes. Nothing splits on newlines here now, and no path is
+ * trimmed either, since a leading or trailing space is a legal part of a name.
+ */
 function defaultGit(cwd) {
   return execFileSync('git', ['ls-files', '-z'], { cwd, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
-    .split('\0')
-    .join('\n');
+    .split('\0');
 }
 
 /** Physical lines: what `wc -l` counts, plus a trailing unterminated line. */
@@ -254,6 +308,14 @@ function main() {
   const args = process.argv.slice(2);
   const top = Number(args.find((a) => a.startsWith('--top='))?.split('=')[1] || 30);
   const useBacklog = !args.includes('--no-backlog');
+  /*
+   * CI passes this, and it is what makes the backlog a record rather than an
+   * allowlist: the three rules in `evaluate` are enforced against the backlog IN
+   * THE BRANCH UNDER TEST, which that branch may edit. `--require-baseline`
+   * refuses unless the previous version can be read out of git and shown not to
+   * have grown. See scripts/source-size-baseline.mjs.
+   */
+  const requireBaseline = args.includes('--require-baseline');
 
   const files = measure();
   const backlogFile = resolve(repoRoot, BACKLOG_PATH);
@@ -263,6 +325,10 @@ function main() {
 
   const verdict = evaluate(files, backlog);
   const byCategory = summarise(files);
+
+  const direction = useBacklog
+    ? checkBacklogDirection({ current: backlog, path: BACKLOG_PATH, requireBaseline })
+    : { problems: [], describe: 'backlog ignored (--no-backlog)' };
 
   console.log(`Scanned ${files.length} handwritten source files `
     + `(${SOURCE_EXTENSIONS.join(', ')}), excluding ${EXCLUDED.length} vendored artifact(s).\n`);
@@ -283,9 +349,11 @@ function main() {
   const remaining = files.filter((f) => f.lines !== null && f.lines > HARD_LIMIT).length;
   console.log(`\n${remaining} file(s) over ${HARD_LIMIT} lines; `
     + `${Object.keys(backlog).length} recorded in the backlog.`);
+  console.log(`backlog    : ${direction.describe}`);
 
-  if (!verdict.ok) {
-    console.error(`\nsource-size REFUSED:\n${verdict.problems.map((p) => `  - ${p}`).join('\n')}`);
+  const problems = [...verdict.problems, ...direction.problems];
+  if (problems.length > 0) {
+    console.error(`\nsource-size REFUSED:\n${problems.map((p) => `  - ${p}`).join('\n')}`);
     process.exit(1);
   }
   console.log('\nsource-size OK.');

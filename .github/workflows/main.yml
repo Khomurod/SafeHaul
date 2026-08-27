@@ -162,7 +162,13 @@ jobs:
     # that decide what may be skipped. Making the checks that guard the
     # optimisation skippable by the optimisation would be circular.
     steps:
+      # Full history: the source-size guard proves the backlog did not grow by
+      # reading its previous version out of git, and a depth-1 checkout has no
+      # previous version to read. Without this the guard refuses (which is the
+      # designed behaviour) rather than passing on an unverified backlog.
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
       - name: Use Node.js 20.x
         uses: actions/setup-node@v5
         with:
@@ -200,8 +206,20 @@ jobs:
       - name: Verify the source-size guard
         run: npm run test:source-size
 
+      # `--require-baseline` is what stops the backlog being edited into an
+      # allowlist. The three backlog rules are enforced against the backlog in
+      # the branch under test, which that branch may edit, so the guard also
+      # reads the previous version out of git and refuses any entry added or any
+      # recorded count raised. A run that cannot find that previous version
+      # refuses too, here — there is no skip path where tampering is the concern.
       - name: Check source sizes
-        run: npm run check:source-size
+        run: npm run check:source-size -- --require-baseline
+        env:
+          # The base this change is measured against, taken from the event rather
+          # than inferred: a pull request's own base commit, or the tip the push
+          # replaced. Empty on workflow_dispatch, where the script falls back to
+          # HEAD~1 — which the full checkout above makes available.
+          SOURCE_SIZE_BASE: ${{ github.event.pull_request.base.sha || github.event.before || '' }}
 
       # The shared AI platform is only worth having if it cannot be bypassed,
       # and this guard is what stops a feature growing its own vendor call. It

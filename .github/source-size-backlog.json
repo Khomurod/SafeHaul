@@ -1,8 +1,10 @@
 {
   "$comment": [
     "Files that were already over the 500-line maximum when the standard arrived",
-    "on 2026-08-26, with the line count each had. This is a CAMPAIGN, not an",
-    "allowlist, and scripts/source-size.mjs enforces the difference:",
+    "on 2026-08-26, with the line count each had \u2014 plus three found on 2026-08-27,",
+    "when the scan stopped being JavaScript-only and began measuring CSS, HTML and",
+    "Firestore rules too. This is a CAMPAIGN, not an allowlist, and",
+    "scripts/source-size.mjs enforces the difference:",
     "",
     "  - a file NOT listed here may never exceed the limit;",
     "  - a file listed here may never GROW past its recorded count;",
@@ -10,6 +12,13 @@
     "    and the check fails until it is, so this file can only shrink;",
     "  - an entry for a path that no longer exists fails too, so a rename",
     "    cannot quietly carry an exemption with it.",
+    "",
+    "And this file is not taken on trust either. Every rule above is enforced",
+    "against the copy in the branch under test, which that branch may edit, so",
+    "scripts/source-size-baseline.mjs also reads the previous version out of git",
+    "and refuses any entry ADDED or any count RAISED. CI passes",
+    "--require-baseline, which makes an unavailable baseline a refusal rather",
+    "than a skipped comparison.",
     "",
     "When the last entry goes, delete this file. Nothing here is permitted to",
     "stay large; every line is work that has not been done yet."
@@ -44,7 +53,9 @@
     "functions/test/unit/environmentVault.callables.test.js": 588,
     "functions/test/unit/guestApplication.snapshot.test.js": 637,
     "functions/test/unit/releaseManagement.callables.test.js": 577,
+    "landing/assets/css/styles.css": 3447,
     "landing/assets/js/main.js": 860,
+    "landing/index.html": 1682,
     "scripts/check-ui-contract.mjs": 1030,
     "scripts/ci-plan.mjs": 523,
     "scripts/deploy-functions-incremental.mjs": 525,
@@ -86,6 +97,7 @@
     "src/features/super-admin/views/EnvironmentIntegrationsView.jsx": 563,
     "src/features/super-admin/views/LandingPageSettingsView.jsx": 536,
     "src/features/super-admin/views/UnifiedDriverList.jsx": 656,
+    "src/firestore.rules": 693,
     "src/tests/firestore.rules.security.test.js": 1106
   }
 }

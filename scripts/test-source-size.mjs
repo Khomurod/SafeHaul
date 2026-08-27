@@ -19,6 +19,7 @@ import {
   HARD_LIMIT,
   REQUIRED_ROOTS,
   SOURCE_EXTENSIONS,
+  UNMEASURED_FORMATS,
   WARN_LIMIT,
   classify,
   countLines,
@@ -51,11 +52,13 @@ assert('A1. every executable extension this repository uses is measured',
   SOURCE_EXTENSIONS.join(', '));
 
 assert('A2. and the list is not quietly narrowed',
-  SOURCE_EXTENSIONS.length === 6,
-  `${SOURCE_EXTENSIONS.length} extensions — adding one is fine, dropping one is how coverage disappears`);
+  SOURCE_EXTENSIONS.length >= 14,
+  `${SOURCE_EXTENSIONS.length} extensions — adding one is fine, dropping one is how coverage `
+  + 'disappears, and the count only ever going up is what makes that visible');
 
 assert('A3. a source path is recognised by extension, not by directory',
-  isSourcePath('anywhere/at/all/thing.jsx') && !isSourcePath('src/styles.css'),
+  isSourcePath('anywhere/at/all/thing.jsx') && isSourcePath('anywhere/styles.css')
+  && !isSourcePath('src/data.json'),
   'moving a file must not change whether it is measured');
 
 assert('A4. only the documented artifacts are excluded',
@@ -229,12 +232,41 @@ assert('F1. the warning threshold sits below the hard limit',
 {
   // Injected `run`, so this covers the filtering without a repository.
   const listed = listSourceFiles({
-    run: () => ['src/a.jsx', 'src/b.css', 'public/pdf.worker.min.mjs', 'deep/nested/c.ts'].join('\n'),
+    run: () => ['src/a.jsx', 'src/b.json', 'public/pdf.worker.min.mjs', 'deep/nested/c.ts', ''],
   });
   assert('F2. filters to source, drops the excluded, keeps files wherever they live',
     JSON.stringify(listed) === JSON.stringify(['deep/nested/c.ts', 'src/a.jsx']),
     JSON.stringify(listed));
+
+  /*
+   * The list arrives NUL-delimited from git and stays an array. It used to be
+   * re-encoded through newline-delimited text, and review on 2026-08-27 found
+   * what that costs: a tracked path may contain a newline, and one of those
+   * parses as two paths — a fragment that gets filtered out, plus a second name
+   * that can alias a small file — so the large file is never read and the run
+   * passes. The name below is one path.
+   */
+  const withNewline = listSourceFiles({ run: () => ['src/ignored\nsrc/small.js', 'src/small.js'] });
+  assert('F3. a path containing a newline is one path, not two',
+    withNewline.length === 2 && withNewline.includes('src/ignored\nsrc/small.js'),
+    JSON.stringify(withNewline));
+
+  // A leading or trailing space is a legal part of a filename, so nothing is
+  // trimmed either — trimming would look up the wrong file and report it missing.
+  const spaced = listSourceFiles({ run: () => [' src/spaced.js'] });
+  assert('F4. and a name with a leading space is not silently rewritten',
+    JSON.stringify(spaced) === JSON.stringify([' src/spaced.js']), JSON.stringify(spaced));
 }
+
+assert('F5. the languages this repository writes by hand are all measured',
+  ['.css', '.html', '.rules'].every((e) => SOURCE_EXTENSIONS.includes(e)),
+  'a 3447-line stylesheet and a 693-line rules file were invisible until 2026-08-27');
+
+assert('F6. and every format left out says why it is not source',
+  UNMEASURED_FORMATS.length > 0
+  && UNMEASURED_FORMATS.every((f) => f.extension.startsWith('.') && f.reason.length > 40)
+  && UNMEASURED_FORMATS.every((f) => !SOURCE_EXTENSIONS.includes(f.extension)),
+  'what a coverage claim does NOT look at is the half that goes stale silently');
 
 /* ========================================================================== */
 console.log('\nG. The standard is enforced in CI, and cannot go blind');
@@ -281,6 +313,24 @@ console.log('\nG. The standard is enforced in CI, and cannot go blind');
     assert('G7. the backlog can only shrink',
         /only shrinks/.test(checker) && /may not grow/.test(checker),
         'an exemption list that can grow is an allowlist');
+
+    /*
+     * And the rule above is enforced against a copy the branch cannot edit, or it
+     * is not enforced at all. `--require-baseline` is the difference; a flag CI
+     * does not pass is decorative, which is the same shape of bug as a scanner
+     * flag nobody checks for.
+     */
+    assert('G8. CI proves the backlog did not grow, rather than trusting it',
+        /check:source-size -- --require-baseline/.test(jobBody),
+        'without the flag the guard skips the comparison when it cannot find a base');
+    assert('G9. and that job has the history the proof needs',
+        /- uses: actions\/checkout@v5\n\s+with:\n\s+fetch-depth: 0/.test(jobBody),
+        'a depth-1 checkout has no previous backlog to compare against, so the '
+        + 'guard would refuse every run');
+    assert('G10. the base comes from the event, not from a guess',
+        /SOURCE_SIZE_BASE: \$\{\{ github\.event\.pull_request\.base\.sha \|\| github\.event\.before/
+            .test(jobBody),
+        'a pull request compares against its own base commit; a push against the tip it replaced');
 }
 
 console.log(failures === 0

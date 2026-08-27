@@ -99,28 +99,69 @@ reward deleting the explanations this repository runs on, and counting statement
 would reward putting three on one line. The metric measures how much there is to
 read.
 
-An audit on 2026-08-26 found **68 files over the limit**, including a 2203-line
-test, a 1476-line component owning the public application, and four tooling
-scripts over 1000. None of it was decided; it accumulated because nothing said
-no. Those files are recorded in `.github/source-size-backlog.json`, which is a
-**campaign and not an allowlist** — the checker enforces the difference. A file
-not listed may never exceed the limit; a listed file may never grow; a listed
-file that comes back under must be removed, and the check fails until it is. An
-entry for a path that no longer exists fails too, so a rename cannot carry an
-exemption with it. When the last entry goes, so does the file.
+An audit on 2026-08-26 found **70 files over the limit**, including a 2203-line
+test, a 1476-line component owning the public application, four tooling scripts
+over 1000, a 3447-line stylesheet and a 1682-line HTML page. None of it was
+decided; it accumulated because nothing said no. Those files are recorded in
+`.github/source-size-backlog.json`, which is a **campaign and not an allowlist** —
+the checker enforces the difference. A file not listed may never exceed the
+limit; a listed file may never grow; a listed file that comes back under must be
+removed, and the check fails until it is. An entry for a path that no longer
+exists fails too, so a rename cannot carry an exemption with it. When the last
+entry goes, so does the file.
 
-Two things the checker does that are worth keeping if it is ever rewritten. It
-reads `git ls-files` rather than walking directories, so a large file cannot
+**And the backlog itself is compared against git, not trusted.** Every rule above
+is enforced against the backlog *in the branch under test*, which that branch may
+edit — so on its own the checker would have accepted a new 900-line file that
+arrived together with `{"src/new.js": 900}`, or a listed file grown with its
+recorded count raised to match. Review found that on 2026-08-27, and it is the
+same lesson `scripts/secret-scan.mjs` was built on: **a gate must not take its
+scope from the branch it is gating.** So `scripts/source-size-baseline.mjs` reads
+the previous version out of git — a pull request's own base commit, the tip a push
+replaced, or `HEAD~1` — and refuses any entry added or any count raised. Entries
+leaving and counts falling are the campaign working and need no ceremony. CI
+passes `--require-baseline`, which turns "could not find a base" into a refusal
+rather than a skipped comparison; that is why `callable-contract` checks out with
+`fetch-depth: 0`. Locally the comparison is skipped with a printed reason, because
+a fresh clone must still be able to run the checker.
+
+Three things the checker does that are worth keeping if it is ever rewritten. It
+reads `git ls-files -z` rather than walking directories, so a large file cannot
 escape by being moved and gitignored build output is structurally unreachable
-rather than excluded by a pattern somebody could widen. And it asserts on every
-run that each of `src`, `functions`, `scripts`, `e2e`, `landing` and
-`.storybook` still yields files — because the way a size checker fails is
-silently, and a report that has stopped covering a directory reads exactly like
-progress.
+rather than excluded by a pattern somebody could widen — and it keeps the
+NUL-delimited list intact, because a tracked path may contain a newline and
+splitting on newlines turns one such path into two, hiding the real file behind a
+fragment. It asserts on every run that each of `src`, `functions`, `scripts`,
+`e2e`, `landing` and `.storybook` still yields files — because the way a size
+checker fails is silently, and a report that has stopped covering a directory
+reads exactly like progress. And it measures **languages, not just JavaScript**:
+`.css`, `.scss`, `.html`, `.rules`, `.vue` and `.svelte` alongside the JS/TS
+family. Restricting it to six JS/TS extensions is what left
+`landing/assets/css/styles.css` (3447 lines), `landing/index.html` (1682) and
+`src/firestore.rules` (693) invisible while every required-root assertion passed.
+
+What is deliberately **not** measured is listed in `UNMEASURED_FORMATS` with a
+reason each, because the half of a coverage claim that goes stale silently is the
+half about what it does not look at: `.json` (data and generated lockfiles),
+`.md` (documentation is meant to be long), and `.yml`/`.yaml` (the workflows).
+That last one is a **known limitation, not a clean exclusion**:
+`.github/workflows/main.yml` is 1148 lines, `.github/` is outside the roots this
+standard covers, and its structure is pinned job by job by `npm run check:ci-plan`
+rather than by length.
 
 The only excluded file is `public/pdf.worker.min.mjs`: vendored, minified
 Mozilla PDF.js, committed because it is served directly. Every exclusion has to
 carry that kind of reason, and a test asserts they do.
+
+**Three of the recorded files may not be splittable, and that is an owner
+decision rather than a silent exemption.** `src/firestore.rules` has no include
+mechanism — Firestore rules are one file per deployment target — so splitting it
+would mean a build step that concatenates, which puts the deployed policy one
+step further from the file a reviewer reads. `landing/index.html` and
+`landing/assets/css/styles.css` belong to a static site with no build step, so
+splitting either means introducing one. All three are recorded and measured; none
+is exempt; the question of whether to introduce a build step for the landing site
+or a concatenation step for the rules has not been asked yet.
 
 ## Local test-runner process safety
 

@@ -1087,9 +1087,14 @@ the credentials that still need owner rotation.
 
 CI also enforces a **source-size standard**: 400 physical lines asks a file to
 justify its shape, 500 is the hard maximum, and it applies to tests and tooling
-as much as to runtime code. `npm run check:source-size` prints the inventory and
-fails on a new offender; the 67 files already over the limit are recorded in
-`.github/source-size-backlog.json`, which can only shrink. See `AGENTS.md`.
+as much as to runtime code. It measures every handwritten source language —
+JS/TS, CSS, HTML and Firestore rules — not only the scripts.
+`npm run check:source-size` prints the inventory and fails on a new offender; the
+70 files already over the limit are recorded in
+`.github/source-size-backlog.json`, which can only shrink and is itself compared
+against git so a change cannot add its own exemption. Workflows, JSON and
+Markdown are deliberately unmeasured, with reasons recorded in the checker. See
+`AGENTS.md`.
 
 CI runs Playwright as a 4-way shard matrix with `workers: 1` and `retries: 2`
 per shard.
