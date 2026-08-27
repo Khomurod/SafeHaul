@@ -371,9 +371,20 @@ console.log('\nG. The standard is enforced in CI, and cannot go blind');
         'a depth-1 checkout has no previous backlog to compare against, so the '
         + 'guard would refuse every run');
     assert('G10. the base comes from the event, not from a guess',
-        /SOURCE_SIZE_BASE: \$\{\{ github\.event\.pull_request\.base\.sha \|\| github\.event\.before/
-            .test(jobBody),
+        /SOURCE_SIZE_BASE:/.test(jobBody)
+        && /github\.event\.pull_request\.base\.sha/.test(jobBody)
+        && /github\.event\.before/.test(jobBody),
         'a pull request compares against its own base commit; a push against the tip it replaced');
+    /*
+     * A manual run of `main` deploys and has neither of those, and `HEAD~1` there
+     * is inside the last push — so the guard refuses it. That refusal needs a
+     * documented way through, or the next operator to hit it will reach for
+     * something worse.
+     */
+    assert('G11. and a manual run has an input to name one with',
+        /source_size_base:/.test(workflow)
+        && /github\.event\.inputs\.source_size_base/.test(jobBody),
+        'the refusal tells an operator to set SOURCE_SIZE_BASE; the dispatch dialog must offer it');
 }
 
 console.log(failures === 0

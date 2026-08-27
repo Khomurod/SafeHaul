@@ -179,6 +179,30 @@ assert('H4. and so is lowering one',
   assert('H14. on the default branch the fork point is the head, so HEAD~1 is used',
     onMain.source === 'HEAD~1' && onMain.ref === git('rev-parse', 'HEAD~1'),
     `${onMain.source} -> ${onMain.ref}`);
+
+  /*
+   * ...but NOT for a manual or scheduled run, and that distinction is the whole
+   * point. `workflow_dispatch` on `refs/heads/main` deploys, and `HEAD~1` after a
+   * multi-commit push is INSIDE that push — so `1200 → 1300 → tip` let a dispatch
+   * compare 1300 against 1300 and pass a regrowth the push run refused. Found in
+   * review on 2026-08-27.
+   */
+  for (const eventName of ['workflow_dispatch', 'schedule', 'repository_dispatch']) {
+    const dispatched = resolveBaselineRef({ env: { GITHUB_EVENT_NAME: eventName }, cwd: dir });
+    assert(`H24. a ${eventName} on the default branch refuses rather than using HEAD~1`,
+      dispatched.ref === null && /no change to measure against/.test(dispatched.error || ''),
+      `${dispatched.source} -> ${dispatched.ref} (${dispatched.error})`);
+  }
+
+  assert('H25. and an operator naming a base is still honoured on those events',
+    resolveBaselineRef({
+      env: { GITHUB_EVENT_NAME: 'workflow_dispatch', SOURCE_SIZE_BASE: 'HEAD~1' }, cwd: dir,
+    }).source === 'SOURCE_SIZE_BASE',
+    'the refusal says to set SOURCE_SIZE_BASE, so it has to work when they do');
+
+  assert('H26. a push to the default branch still gets HEAD~1',
+    resolveBaselineRef({ env: { GITHUB_EVENT_NAME: 'push' }, cwd: dir }).source === 'HEAD~1',
+    'a push carries its own `before` in CI; HEAD~1 is the local equivalent');
   rmSync(dir, { recursive: true, force: true });
 }
 

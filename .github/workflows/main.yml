@@ -25,6 +25,17 @@ on:
     branches: [ "main" ]
   workflow_dispatch:
     inputs:
+      source_size_base:
+        description: >-
+          Optional baseline commit for the source-size guard. A manual run of
+          `main` DEPLOYS, and `HEAD~1` after a multi-commit push is inside that
+          push — so it would pass a backlogged file's regrowth that the push run
+          itself refused. The guard therefore refuses a manual run of the default
+          branch unless this names a commit you know the check passed on. Runs of
+          a feature branch need nothing here: they compare against the fork point
+          with `main`.
+        required: false
+        default: ''
       secret_scan_base:
         description: >-
           Optional baseline commit for secret-scan. Leave empty and the scan
@@ -219,7 +230,15 @@ jobs:
           # than inferred: a pull request's own base commit, or the tip the push
           # replaced. Empty on workflow_dispatch, where the script falls back to
           # HEAD~1 — which the full checkout above makes available.
-          SOURCE_SIZE_BASE: ${{ github.event.pull_request.base.sha || github.event.before || '' }}
+          # A pull request's own base commit, the tip a push replaced, or — for a
+          # manual run, which has neither and which deploys when it is `main` —
+          # whatever the operator named. Empty on a manual run of `main` makes the
+          # guard refuse, deliberately: see the input's description above.
+          SOURCE_SIZE_BASE: >-
+            ${{ github.event.pull_request.base.sha
+                || github.event.before
+                || github.event.inputs.source_size_base
+                || '' }}
 
       # The shared AI platform is only worth having if it cannot be bypassed,
       # and this guard is what stops a feature growing its own vendor call. It

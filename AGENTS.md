@@ -137,7 +137,18 @@ replaced, where a feature branch left the default branch, or `HEAD~1` — and
 refuses any entry added or any count raised. That fork-point step is not a
 nicety: `HEAD~1` alone compares a commit against the one before it *inside the
 same change*, so a branch whose first commit legitimately records a backlog entry
-stands accused of adding one. Entries
+stands accused of adding one.
+
+**A manual or scheduled run of `main` refuses unless it is given a base**, and
+that is the third instance of one lesson. `workflow_dispatch` on `refs/heads/main`
+deploys, and it reaches the `HEAD~1` fallback only on the default branch — where
+`HEAD~1` after a multi-commit push is *inside* that push. Measured: `1200 → 1300 →
+tip` let a dispatch compare 1300 against 1300 and pass a regrowth the push run had
+refused, so pressing "Run workflow" laundered a red push into a green deploy. This
+is the same hole `scripts/secret-scan.mjs` was built to close, where anchoring a
+re-verification at `head^1` assumed the earlier scan had passed. The dispatch
+dialog offers a `source_size_base` input for it; a run of a feature branch needs
+nothing, since it compares against the fork point. Entries
 leaving and counts falling are the campaign working and need no ceremony. CI
 passes `--require-baseline`, which turns "could not find a base" into a refusal
 rather than a skipped comparison; that is why `callable-contract` checks out with

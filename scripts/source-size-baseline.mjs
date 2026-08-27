@@ -52,6 +52,9 @@ import { spawnSync } from 'node:child_process';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+/** Events that re-verify a commit already on the branch rather than proposing one. */
+const REVERIFICATION_EVENTS = Object.freeze(['workflow_dispatch', 'schedule', 'repository_dispatch']);
+
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '..');
 
@@ -170,6 +173,37 @@ export function resolveBaselineRef({ env = process.env, cwd = repoRoot } = {}) {
     if (!base) continue;
     if (base === git(['rev-parse', 'HEAD^{commit}'], cwd).stdout.trim()) break;
     return { ref: base, source: `merge-base with ${candidate}`, error: null };
+  }
+
+  /*
+   * A manual or scheduled run of the default branch has no honest `HEAD~1`.
+   *
+   * Found in review on 2026-08-27 and reproduced. `workflow_dispatch` on
+   * `refs/heads/main` DEPLOYS (see `deploy-testing`'s `if:`), and a dispatch
+   * lands here only when the fork point is the head — i.e. on the default
+   * branch. `HEAD~1` is then the commit before the tip, which after a
+   * multi-commit push is INSIDE the push: measured `1200 → 1300 → unrelated
+   * tip`, where the dispatch compared 1300 against 1300 and passed, while the
+   * push run anchored at 1200 refused the regrowth. So a red push could be
+   * laundered into a green deploy by pressing "Run workflow".
+   *
+   * This is the same hole `scripts/secret-scan.mjs` was built to close — it used
+   * to anchor a re-verification at `head^1` on the reasoning that every earlier
+   * commit was already scanned, which assumes the earlier scan PASSED. Refusing
+   * is the answer there and it is the answer here: a re-verification that cannot
+   * say what it is comparing against has not verified anything. The operator
+   * names the base, and `main.yml` offers `source_size_base` for it.
+   */
+  const eventName = (env.GITHUB_EVENT_NAME || '').trim();
+  if (REVERIFICATION_EVENTS.includes(eventName)) {
+    return {
+      ref: null,
+      source: `${eventName} on the default branch`,
+      error: 'a manual or scheduled run has no change to measure against, and HEAD~1 after a '
+        + 'multi-commit push is inside that push — so it would pass a regrowth the push itself '
+        + 'refused. Set SOURCE_SIZE_BASE (the workflow offers a `source_size_base` input) to the '
+        + 'last commit you know this check passed on',
+    };
   }
 
   const parent = git(['rev-parse', '--verify', '--quiet', 'HEAD~1^{commit}'], cwd);
