@@ -573,10 +573,10 @@ the STATIC half unfalsifiable. The specifier scan remains for the half a graph
 cannot contain: a dynamic `import()` inside a function body does not resolve
 until it runs. It refuses computed specifiers as a class, tolerates comments in
 any of the four line terminators ECMA-262 defines, resolves `?query` and
-`#fragment` as URLs, refuses the gateways to an aliased loader — `module` named
-by import, by require, or by `process.getBuiltinModule`, plus `eval` and
-`Function` — because an alias's call site is not spelled `import`, and accepts
-only a specifier it can account for — a Node
+`#fragment` as URLs, refuses the gateways to an aliased loader — `module` and
+`vm` named by import or by require, `getBuiltinModule` and `binding` however they
+are spelled, plus `eval` and `Function` — because an alias's call site is not
+spelled `import`, and accepts only a specifier it can account for — a Node
 builtin, which is not a file here, or a relative one, which containment resolves.
 That last is also a class rather than a list: being one string literal was the
 whole test until an absolute path, a `file:` URL and a bare package name each
@@ -584,12 +584,16 @@ passed it while the containment scan, which reads only `./` and `../`, never
 looked at them.
 
 **That is not a proof, and pretending otherwise would be the failure this file
-keeps recording.** Eight review rounds on 2026-08-27/28 each found another
+keeps recording.** Nine review rounds on 2026-08-27/28 each found another
 spelling — a double quote, a concatenation, a comment before the parenthesis, a
 U+2028 line terminator, a URL suffix, a `createRequire` alias, a literal that was
-not relative, `process.getBuiltinModule` holding a builtin without importing it.
-Five were closed as classes; the alias round showed that following one needs
-data-flow analysis, which
+not relative, `process.getBuiltinModule` holding a builtin without importing it,
+a destructure holding it with no dot to anchor on. Six were closed as classes.
+**A gateway is matched by its NAME, and that took three rounds to learn**:
+anchoring on `process.` missed an aliased receiver, anchoring on the dot missed a
+destructure, and a rename still has to spell the property — so the property name
+is what survives every form and is what is matched. The alias round showed that
+following one needs data-flow analysis, which
 a parser alone does not give, and `callable-contract` deliberately runs with no
 `npm ci` so there is no parser there anyway. `globalThis['ev' + 'al']` is still
 not matched, and neither is `process['getBuiltin' + 'Module']` — a gateway is

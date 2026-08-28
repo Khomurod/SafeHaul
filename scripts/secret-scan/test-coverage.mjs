@@ -143,6 +143,26 @@ const here = dirname(fileURLToPath(import.meta.url));
             "const p = globalThis.process;\n"
             + "const load = p.getBuiltinModule('module').createRequire(import.meta.url);\n"
             + "export function deferred() { return load('../else' + 'where.cjs'); }", false],
+        // Reported 2026-08-28: destructuring spells the same route with no dot for
+        // a matcher to anchor on. The renamed form came out of the same probe and
+        // is a row of its own, because a rename is what a name-based match has to
+        // survive — the property name is still on the left of the colon.
+        ['destructured getBuiltinModule',
+            "const { getBuiltinModule } = process;\n"
+            + "const load = getBuiltinModule('module').createRequire(import.meta.url);\n"
+            + "export function d() { return load('../else' + 'where.cjs'); }", false],
+        ['renamed destructure of getBuiltinModule',
+            "const { getBuiltinModule: g } = process;\n"
+            + "const load = g('module').createRequire(import.meta.url);\n"
+            + "export function d() { return load('../else' + 'where.cjs'); }", false],
+        ['destructured process.binding',
+            "const { binding } = process;\nexport function d() { return binding('module'); }", false],
+        // `vm` evaluates a string in this realm, and a string is where
+        // `process.getBuiltinModule('module')` can be written — measured reaching
+        // the loader in one step. It is a builtin, so refusing its specifier is
+        // the same closed rule that covers `module`.
+        ["import of node:vm", "import { runInThisContext } from 'node:vm';\nexport const d = runInThisContext;", false],
+        ["import of bare vm", "import { runInThisContext } from 'vm';\nexport const d = runInThisContext;", false],
         ['eval reaching a loader', "eval(\"import('../elsewhere.mjs')\");", false],
         // Without `new` it is the same constructor. This was refused only because
         // the containment scan happened to resolve a relative path inside the

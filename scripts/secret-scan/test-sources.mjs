@@ -150,23 +150,36 @@ const LOADER_GATEWAY = new RegExp([
     // matching only the prefixed form let `from 'module'` through — reported and
     // reproduced on 2026-08-28, loading an outside CJS module through the alias.
     // Two spellings is the whole set the resolver accepts, so this closes it.
-    String.raw`from\s*['"\x60](?:node:)?module['"\x60]`,
-    String.raw`(?:import|require)\s*\(\s*['"\x60](?:node:)?module['"\x60]`,
+    // `module` hands out `createRequire`; `vm` evaluates a string in this realm,
+    // and a string is where `process.getBuiltinModule('module')` can be written.
+    // Measured: `vm.runInThisContext` cannot import on its own — it wants a
+    // dynamic-import callback — but it reaches the loader through that string in
+    // one step. Both are BUILTINS, so naming them is the only way to hold them,
+    // and both specifier spellings are refused exactly as for `module`.
+    String.raw`from\s*['"\x60](?:node:)?(?:module|vm)['"\x60]`,
+    String.raw`(?:import|require)\s*\(\s*['"\x60](?:node:)?(?:module|vm)['"\x60]`,
     // Importing it is not the only way to hold it. `process.getBuiltinModule`
     // returns a builtin without any specifier the checks above can read, so
     // `process.getBuiltinModule('module').createRequire(import.meta.url)` reached
     // the same alias while the scan accepted the file and the graph showed only
     // the entry. Reported and reproduced on 2026-08-28.
     //
-    // Matched on the METHOD rather than on `process.`, because the receiver is
-    // incidental: `const p = globalThis.process; p.getBuiltinModule('module')`
-    // is the same route and was reproduced alongside it. The bracketed spelling
-    // is the same name written differently, so it is the same rule.
-    String.raw`\.\s*getBuiltinModule\s*\(`,
+    // Matched as a bare IDENTIFIER, which took three rounds to get right. Anchoring
+    // on `process.` missed `const p = globalThis.process; p.getBuiltinModule(…)`;
+    // anchoring on the dot missed `const { getBuiltinModule } = process`, reported
+    // and reproduced, and `const { getBuiltinModule: g } = process`, which came out
+    // of the same probe. The property name survives every one of those, including
+    // the rename — it is what the destructure has to spell — so the name is what
+    // this matches. The bracketed form is the one spelling with no identifier in
+    // it, so it keeps its own pattern.
+    String.raw`\bgetBuiltinModule\b`,
     String.raw`\[\s*['"\x60]getBuiltinModule['"\x60]\s*\]`,
-    // The legacy internals door. It does not currently hand out `module` — asked,
-    // and it throws — but it is the same kind of thing and costs nothing to shut.
-    String.raw`\.\s*binding\s*\(`,
+    // The legacy internals door. It does not currently hand out `module` — asked
+    // twice, dotted and destructured, and it throws both ways — but it is the same
+    // kind of thing and costs nothing to shut. Matched as a CALL rather than as a
+    // bare name: `binding` is an ordinary English word, and refusing it everywhere
+    // would fail a covered file for a sentence rather than for a gateway.
+    String.raw`\bbinding\s*\(`,
     // Without `new` too: `Function("...")()` calls the same constructor. It was
     // refused only incidentally, by the containment check happening to resolve a
     // relative path inside the string, which is luck rather than a rule.
