@@ -96,7 +96,21 @@ const RELATIVE_SPECIFIER = /['"`](\.\.?\/[^'"`\n]*)['"`]/g;
  * partial argument that fails the literal test below and is refused. That is the
  * direction to fail in.
  */
-const BETWEEN = '(?:\\s|/\\*[\\s\\S]*?\\*/|//[^\\n]*\\n)*';
+/*
+ * Whitespace or a comment, between the keyword and its parenthesis.
+ *
+ * The line-comment branch ends at a LINE TERMINATOR, and ECMA-262 defines
+ * exactly four: LF, CR, LS (U+2028) and PS (U+2029). Writing it as `[^\n]` was
+ * wrong for the last two, and review on 2026-08-28 reproduced the consequence —
+ * `import //\u2028('../else' + 'where.mjs')` let the branch consume through the
+ * call, so a deferred computed import escaped the scan while a probe could not
+ * see it either, because the function is never called.
+ *
+ * The set is closed by the specification, so this is the whole class rather than
+ * one more spelling; the trailing terminator is optional because a comment may
+ * end the file.
+ */
+const BETWEEN = '(?:\\s|/\\*[\\s\\S]*?\\*/|//[^\\n\\r\\u2028\\u2029]*)*';
 const MODULE_CALL = new RegExp(`\\b(?:import|require)${BETWEEN}\\(([^)]*)\\)`, 'g');
 
 /**

@@ -371,6 +371,16 @@ console.log('\nL. The scanner is ours, pinned by content, and cannot be exempted
         ["import('../else' + 'where.mjs')", "await import('../else' + 'where.mjs');", false],
         // Both reported on 2026-08-28, both reproduced loading the outside module.
         ['import /* c */ (computed)', "await import /* c */ ('../else' + 'where.mjs');", false],
+        // ECMA-262 defines exactly four line terminators; `[^\n]` covered two of
+        // them, and a comment ended by the other two consumed through the call.
+        // Reported 2026-08-28 with U+2028; all four are rows so the class stays shut.
+        ['import //<U+2028>(computed)', "await import //\u2028('../else' + 'where.mjs');", false],
+        ['import //<U+2029>(computed)', "await import //\u2029('../else' + 'where.mjs');", false],
+        ['import //<CR>(computed)', "await import //\r('../else' + 'where.mjs');", false],
+        ['import //<LF>(computed)', "await import //\n('../else' + 'where.mjs');", false],
+        // And the deferred case the probe structurally cannot see: a function body
+        // does not resolve until it runs, so the scan is the only thing covering it.
+        ['deferred computed in a function', "export async function load() {\n  return await import('../else' + 'where.mjs');\n}", false],
         // An ESM specifier is a URL, so `?query` and `#frag` still name the file.
         // Resolving the raw text found nothing and SKIPPED it, which let an outside
         // module escape; these two are the escape, and must be refused.
