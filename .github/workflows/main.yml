@@ -889,7 +889,11 @@ jobs:
       - name: Stamp the release manifest
         run: node scripts/write-release-manifest.mjs dist "$GITHUB_SHA"
 
-      - name: Deploy app and landing-page Hosting sites
+      # The second target's alias and site ID still say `landing`: a Firebase
+      # Hosting site cannot be renamed, and `landing_version_id` below is a field
+      # in the persisted release record that the Production promotion gate reads.
+      # It serves `web/` — the blog's assets and the privacy page.
+      - name: Deploy the app and public Hosting sites
         run: npx firebase deploy --only "hosting:$FIREBASE_HOSTING_TARGET,hosting:$FIREBASE_LANDING_TARGET" --project "$FIREBASE_PROJECT_ID" --non-interactive
 
       # Capture the immutable Hosting version IDs this deploy just created.

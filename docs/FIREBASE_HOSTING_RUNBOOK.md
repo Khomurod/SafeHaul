@@ -12,13 +12,18 @@ nothing.
 
 ## What deploys where
 
-| Channel | Application | Landing page | How it updates |
+| Channel | Application | Public site | How it updates |
 |---|---|---|---|
 | Testing | `truckerapp-system.web.app` | `safehaul-landing-testing.web.app` | automatically, on every merge to `main` |
 | Production | `app.safehaul.io` | `safehaul.io`, `www.safehaul.io` | only by explicit promotion of a tested release |
 
-The application builds into `dist/`. The marketing site is the static `landing/`
-folder. `.firebaserc` maps four named deploy targets to four Firebase Hosting
+The application builds into `dist/`. The public site is the static `web/` folder
+— the blog's stylesheets and assets plus a standalone privacy page. The marketing
+site that used to live in `landing/` was removed; the Hosting **targets** kept
+their `landing-*` aliases because a Firebase Hosting site cannot be renamed, and
+because `landing_version_id` is a field in the persisted release record that the
+Production promotion gate reads. **The names are historical; what they serve is
+`web/`.** `.firebaserc` maps four named deploy targets to four Firebase Hosting
 sites, all inside the single Firebase project `truckerapp-system`.
 
 **Testing is not a sandbox.** It runs against the same real Firestore, Auth,
@@ -42,7 +47,7 @@ feature branch → PR → full CI → merge to main
 
 1. Open a PR into `main`. Required CI must be green.
 2. Merge. `deploy-testing` in `.github/workflows/main.yml` builds the commit,
-   deploys the Testing application and Testing landing site, and records a
+   deploys the Testing application and Testing public site, and records a
    GitHub Deployment for environment `testing` that pins the immutable Firebase
    Hosting version IDs it just created. **That record is created as
    `in_progress`, not `success`** — see the eligibility point below.
@@ -263,12 +268,12 @@ named `@version` and errors out. `firebase hosting:clone --help` and the CLI's o
 error message both give the two accepted forms: `<site>:<channel>` or
 `<site>@<version>`.
 
-The **landing page is deployed from the approved SHA rather than cloned**, on
-purpose. The two landing targets have deliberately different Hosting config: the
+The **public site is deployed from the approved SHA rather than cloned**, on
+purpose. The two public targets have deliberately different Hosting config: the
 testing site sends `X-Robots-Tag: noindex, nofollow` to stay out of search
 results. Cloning it onto `safehaul.io` would carry that header across and
-de-index the marketing site. `landing/` is static, so deploying from the pinned
-commit is still exactly reproducible.
+de-index the live site. `web/` is static, so deploying from the pinned commit is
+still exactly reproducible.
 
 ## Rolling back Production
 
@@ -326,10 +331,16 @@ split it into a compatible staged rollout: expand → promote → contract.
 For a new marketing URL, prefer a path (`safehaul.io/example`). Reserve
 subdomains for genuinely separate applications or environments.
 
-## Landing lead form security
+## Landing lead form security — **retired**
 
-`landing/assets/js/main.js` posts to `/api/landing-lead`. Firebase Hosting
-rewrites that URL to the `submitLandingLead` Cloud Function. The function:
+> **The form and its route are gone.** `landing/assets/js/main.js` posted to
+> `/api/landing-lead`, and both the page and the Hosting rewrite were removed with
+> the marketing site. `submitLandingLead` itself is retired separately, preserving
+> every captured lead. **Any rebuilt lead capture is to be built fresh** — do not
+> revive this endpoint. The properties below are kept as the bar a replacement
+> must clear, and the credential warning below still applies to any token.
+
+The retired function:
 
 - accepts only approved SafeHaul origins and JSON POSTs;
 - validates lengths, email, company-size and goal values;
@@ -340,7 +351,8 @@ rewrites that URL to the `submitLandingLead` Cloud Function. The function:
   Google Secret Manager.
 
 Never place Telegram credentials in HTML, browser JavaScript, `.env` files that
-are committed, GitHub secrets, or GitHub Actions. The old Landing-page
+are committed, GitHub secrets, or GitHub Actions. **This rule does not retire with
+the form.** The old Landing-page
 repository exposed its bot token publicly; rotate that token through BotFather
 after the Firebase endpoint is verified. Adding a new Secret Manager version is
 not enough unless the token itself is newly generated.
@@ -415,25 +427,31 @@ must not own `safehaul.io` or deploy anything.
 
 ## News & Insights routes
 
-The landing targets now serve the automated blog as well as the marketing pages.
-Rewrites on **both** `landing-testing` and `landing-production`, in this order:
+The public targets serve the automated blog and the privacy page. Rewrites on
+**both** `landing-testing` and `landing-production` (historical aliases), in this
+order:
 
-1. `/api/landing-lead` -> `submitLandingLead`
-2. `/news` -> `serveBlogPublic`
-3. `/news/**` -> `serveBlogPublic`
-4. `/api/news/**` -> `serveBlogPublic`
-5. `/sitemap.xml` -> `serveBlogPublic`
-6. `**` -> `/index.html`
+1. `/news` -> `serveBlogPublic`
+2. `/news/**` -> `serveBlogPublic`
+3. `/api/news/**` -> `serveBlogPublic`
+4. `/sitemap.xml` -> `serveBlogPublic`
 
-`/robots.txt` is **not** a rewrite — it is the static `landing/robots.txt`, and
+Plus one **redirect**, which Hosting applies before rewrites: `/` -> `/news`.
+`/api/landing-lead` led this list until the form was removed, and a `**` ->
+`/index.html` catch-all followed it until the homepage it pointed at was removed;
+`web/` contains no `index.html`, so the redirect is what keeps the apex from
+404ing.
+
+`/robots.txt` is **not** a rewrite — it is the static `web/robots.txt`, and
 Hosting serves a real file in preference to any rewrite. (An earlier revision of
 this list claimed a `serveBlogPublic` rewrite for it; `firebase.json` has never
 had one. The behaviour was always correct; the documentation was not.)
 
-**The order matters.** The `**` catch-all must stay last: placed above the
-specific rules it swallows them and returns the marketing homepage for every
-article URL, sitemap request and card fetch. The landing-lead rule stays first so
-it is unaffected.
+**The order matters, if a catch-all ever comes back.** A `**` rule placed above
+the specific ones swallows them and returns the wrong page for every article URL
+and sitemap request. `src/tests/hostingConfig.test.js` keeps that assertion
+conditionally — it does not require a catch-all, but it fails one that is not
+last.
 
 This also fixes a pre-existing soft-404: `safehaul.io/sitemap.xml` previously
 returned the homepage with HTTP 200. It is now a real response generated from
@@ -441,7 +459,7 @@ published articles. `/robots.txt` was already a real static file.
 
 Nothing about the app targets (`testing`, `production`) changed, so
 `app.safehaul.io` is unaffected. No new subdomain is introduced, so **no Dynadot
-change is required** — `/news` is a path on the existing landing site.
+change is required** — `/news` is a path on the existing public site.
 
 Verification after a production deploy:
 

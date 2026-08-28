@@ -1,7 +1,7 @@
 {
   "$comment": [
     "Files that were already over the 500-line maximum when the standard arrived",
-    "on 2026-08-26, with the line count each had — plus three found on 2026-08-27,",
+    "on 2026-08-26, with the line count each had \u2014 plus three found on 2026-08-27,",
     "when the scan stopped being JavaScript-only and began measuring CSS, HTML and",
     "Firestore rules too. This is a CAMPAIGN, not an allowlist, and",
     "scripts/source-size.mjs enforces the difference:",
@@ -53,9 +53,6 @@
     "functions/test/unit/environmentVault.callables.test.js": 588,
     "functions/test/unit/guestApplication.snapshot.test.js": 637,
     "functions/test/unit/releaseManagement.callables.test.js": 577,
-    "landing/assets/css/styles.css": 3447,
-    "landing/assets/js/main.js": 860,
-    "landing/index.html": 1682,
     "scripts/check-ui-contract.mjs": 1030,
     "scripts/ci-plan.mjs": 523,
     "scripts/deploy-functions-incremental.mjs": 525,

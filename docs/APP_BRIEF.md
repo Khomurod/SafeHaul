@@ -92,7 +92,7 @@ Single Firebase project **`truckerapp-system`**, region **`us-central1`**.
 | Cloud Functions | `functions/` | Node 20, **mixed v1 and v2** (both production-stable; full v2 migration planned, not urgent) |
 | Firestore rules | `src/firestore.rules` | Deployed from here, not the repo root |
 | Storage rules | `src/storage.rules` | |
-| Public site | `web/` | Hand-written CSS, **no build step, no framework**. Serves the assets for the server-rendered blog and redirects `/` to `/news`. The marketing site that used to live in `landing/` is being retired: it is no longer served, and `landing/` is deleted in the follow-up. See [`DESIGN.md`](../DESIGN.md) |
+| Public site | `web/` | Hand-written CSS, **no build step, no framework**. Serves the server-rendered blog's assets and a standalone privacy page, and redirects `/` to `/news`. The marketing site that lived in `landing/` was removed; see [`DESIGN.md`](../DESIGN.md) |
 | Design system | `src/design-system/` | Business-neutral visual contract; see §11 |
 
 **Three communication patterns**, used deliberately:
@@ -861,22 +861,22 @@ currently populates them from a recipient's reply; see §12.
   keypress would permanently delete the work an applicant came back for. Start over
   is its own explicit destructive confirmation, and Escape at either stage deletes
   nothing.
-- **The landing site stays dependency-free.** No framework, no build step, and no
-  application or design-system imports — asserted by
-  `src/tests/landingNewsSection.test.js`. This holds for every surface, homepage
-  included.
+- **The public site stays dependency-free.** No framework, no build step, and no
+  application or design-system imports. `web/privacy.html` ships no `<script>` at
+  all, asserted by `src/tests/hostingConfig.test.js`.
 - **Marketing claims must trace to the capability registry.**
   `functions/ai/knowledge/safehaulCapabilities.js` is the source of truth, and
-  `npm run check:landing-claims` enforces it as part of `npm run lint`. Never
+  `npm run check:public-claims` enforces it as part of `npm run lint`. Never
   claim DOT/FMCSA compliance, MVR/PSP/Clearinghouse checks, document-expiry
   monitoring, a job board, or any named carrier endorsement.
-- **A `landing/` change runs the `frontend_unit` CI lane.** The marketing site has
+- **A `web/` change runs the `frontend_unit` CI lane.** The public site has
   no build step, so "static content is not tested" is an easy assumption — and
-  `scripts/ci-plan.mjs` used to encode it, mapping `landing/` to no lane at all.
-  A landing-only commit therefore passed CI green while shipping a homepage that
-  claimed MVR checks, captured no lead, and failed `npm run lint`. The two
-  landing suites live in `src/tests/` and run in that lane; `A5`/`A5b` in
-  `scripts/test-ci-plan.mjs` pin it.
+  `scripts/ci-plan.mjs` used to encode it, mapping the old `landing/` to no lane
+  at all. A static-only commit therefore passed CI green while shipping a homepage
+  that claimed MVR checks, captured no lead, and failed `npm run lint`. That site
+  is gone and `web/` replaced it — the directory changed, the lesson did not.
+  `src/tests/hostingConfig.test.js` covers it in that lane; `A5`/`A5b` in
+  `scripts/test-ci-plan.mjs` pin the mapping.
 
 ---
 
@@ -997,9 +997,10 @@ these.
   function's own comment says a real deployment would need one. A recipient's STOP
   reply therefore reaches the company's own provider, not SafeHaul, and a number
   arrives on the blacklist only when something writes it there directly. There is
-  no admin interface for that either. The marketing site sold this as "opt-out
-  handling"; the claims gate is a phrase list and cannot see a claim that is
-  merely too generous, so `src/tests/landingPage.test.js` pins it instead.
+  no admin interface for that either. The removed marketing site sold this as
+  "opt-out handling"; the claims gate is a phrase list and cannot see a claim that
+  is merely too generous, which is why that page was pinned by a test while it
+  existed.
   **The corrected copy is on `main` and the Testing target, and not yet on
   `safehaul.io`** — verified 2026-08-13, the live production page is still the
   pre-correction build and still carries the bullet. Production never deploys
@@ -1056,7 +1057,7 @@ these.
 
 ## 13. Testing and operational expectations
 
-**Commands:** `npm run lint` (frontend + backend + landing claims) ·
+**Commands:** `npm run lint` (frontend + backend + public-site claims) ·
 `npm test` (Vitest) · `npm run test:coverage` (ratchet gate) ·
 `npm run test:e2e` (Playwright) · `npm run test:rules` ·
 `npm run typecheck` · `npm run storybook` / `npm run test:stories`.
@@ -1118,12 +1119,11 @@ workflow) and currently reports pre-existing errors in
 `src/config/applicationDefinition.js`. A red typecheck is not a broken build;
 do not assume a pre-existing one is yours.
 
-**The marketing site has three of its own gates**, and only the middle one runs
-in CI: `npm run check:landing-claims` (part of `npm run lint`),
-`src/tests/landingPage.test.js` + `src/tests/landingNewsSection.test.js` (the
-`frontend_unit` lane, which a `landing/` change now selects), and
-`npm run check:landing-a11y`, which needs a real Chromium and is run by hand.
-Run all three before pushing a change to `landing/`.
+**The public site has two gates, both in CI**: `npm run check:public-claims`
+(part of `npm run lint`, and it refuses a run that finds no HTML in `web/` rather
+than passing vacantly), and `src/tests/hostingConfig.test.js` in the
+`frontend_unit` lane, which a `web/` change selects. The hand-run accessibility
+audit and the screenshot capture went with the marketing site they served.
 
 **Local test-runner safety.** Four rules — run one Playwright suite at a time,
 never use a broad `pkill`, collect a long suite's real exit status before
@@ -1160,7 +1160,7 @@ completion** — a PR never deploys, so it cannot exercise the path you changed.
 | Operations, alerting, retention | [`docs/production-readiness-runbook.md`](./production-readiness-runbook.md) |
 | Historical record reconstruction | [`docs/application-record-reconstruction-runbook.md`](./application-record-reconstruction-runbook.md) |
 | Design-system standard and open decisions | [`docs/SAFEHAUL_DESIGN_SYSTEM_ROADMAP.md`](./SAFEHAUL_DESIGN_SYSTEM_ROADMAP.md) |
-| Marketing-site visual specification | [`DESIGN.md`](../DESIGN.md) / [`landing/README.md`](../landing/README.md) |
+| Public-site visual specification | [`DESIGN.md`](../DESIGN.md) |
 | Manual signing-room device QA | [`docs/qa/edoc-mobile-document-first-qa.md`](./qa/edoc-mobile-document-first-qa.md) |
 
 **Note on `README.md`:** it is the getting-started guide and documentation map —

@@ -211,7 +211,12 @@ export const REQUIRED_ROOTS = Object.freeze([
   'functions',
   'scripts',
   'e2e',
-  'landing',
+  // Was `landing` until the marketing site was removed. `web/` replaced it as
+  // the public Hosting root and carries the blog's stylesheets and the privacy
+  // page, so the assertion still guards a real directory rather than being
+  // dropped -- a root that stops yielding files is how a size scan shrinks
+  // silently, which is the whole reason this list exists.
+  'web',
   '.storybook',
 ]);
 

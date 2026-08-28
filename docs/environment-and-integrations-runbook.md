@@ -254,7 +254,6 @@ exists because Telegram puts the token in the *request URL*, so
 | `DEPLOY_GIT_HEAD` | SafeHaul platform | public | `not-retrievable` | reveal / — / — | No |
 | `FIREBASE_STORAGE_EMULATOR_HOST` | SafeHaul platform | public | `not-retrievable` | reveal / — / — | No |
 | `FIRESTORE_EMULATOR_HOST` | SafeHaul platform | public | `not-retrievable` | reveal / — / — | No |
-| `LANDING_A11Y_PORT` | SafeHaul platform | public | `not-retrievable` | reveal / — / — | No |
 | `GITHUB_PUSH_BEFORE` | SafeHaul platform | public | `not-retrievable` | reveal / — / — | No |
 | `GITHUB_SHA` | SafeHaul platform | public | `not-retrievable` | reveal / — / — | No |
 | `npm_execpath` | SafeHaul platform | public | `not-retrievable` | reveal / — / — | No |

@@ -7,12 +7,9 @@
     "dev": "vite",
     "prebuild": "node -e \"const fs=require('fs');fs.copyFileSync('node_modules/pdfjs-dist/build/pdf.worker.min.mjs','public/pdf.worker.min.mjs');console.log('\u2705 PDF worker synced from node_modules')\"",
     "build": "vite build",
-    "lint": "npm run lint:frontend && npm run lint:backend && npm run check:landing-claims",
+    "lint": "npm run lint:frontend && npm run lint:backend && npm run check:public-claims",
     "lint:frontend": "eslint .",
     "lint:backend": "cd functions && npm run lint",
-    "check:landing-claims": "node scripts/check-landing-claims.mjs",
-    "check:landing-a11y": "node scripts/check-landing-a11y.mjs",
-    "capture:landing-screenshots": "node scripts/capture-landing-screenshots.mjs",
     "preview": "vite preview",
     "test": "vitest",
     "test:rules": "vitest --run src/tests/firestore.rules.security.test.js src/tests/storage.rules.security.test.js",
@@ -43,7 +40,8 @@
     "check:ui-contract": "node scripts/check-ui-contract.mjs",
     "check:visual-contract": "node scripts/check-visual-contract.mjs",
     "test:visual": "playwright test --config=playwright.visual.config.cjs",
-    "test:visual:update": "playwright test --config=playwright.visual.config.cjs --update-snapshots"
+    "test:visual:update": "playwright test --config=playwright.visual.config.cjs --update-snapshots",
+    "check:public-claims": "node scripts/check-public-claims.mjs"
   },
   "dependencies": {
     "@sentry/react": "^10.32.1",

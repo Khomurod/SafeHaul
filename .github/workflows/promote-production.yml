@@ -48,7 +48,7 @@ jobs:
     concurrency:
       # cancel-in-progress is deliberately FALSE. Cancelling a half-finished
       # production release is far worse than making a second click wait: it could
-      # leave the application promoted and the landing page not. Queue instead.
+      # leave the application promoted and the public site not. Queue instead.
       group: firebase-hosting-production
       cancel-in-progress: false
     permissions:
@@ -67,7 +67,7 @@ jobs:
       APP_PRODUCTION_SITE: safehaul-app-production
 
     steps:
-      # Checked out at the CANDIDATE SHA, not at main. The landing page is
+      # Checked out at the CANDIDATE SHA, not at main. The public site is
       # deployed from this tree, so the checkout is part of the release contract.
       - uses: actions/checkout@v5
         with:
@@ -143,15 +143,15 @@ jobs:
             "$APP_PRODUCTION_SITE:live" \
             --project "$FIREBASE_PROJECT_ID" --non-interactive
 
-      # THE LANDING PAGE: deployed from the same SHA, NOT cloned.
+      # THE PUBLIC SITE: deployed from the same SHA, NOT cloned.
       #
-      # The two landing targets have deliberately different Hosting config: the
+      # The two public targets have deliberately different Hosting config: the
       # testing site sends `X-Robots-Tag: noindex, nofollow` so it stays out of
       # search results. Cloning it onto safehaul.io would carry that header over
-      # and de-index the marketing site. So the landing page is deployed from the
+      # and de-index the testing site. So the public site is deployed from the
       # approved commit using the production target's own config. It is static
-      # content under `landing/`, so the result is fully determined by the SHA.
-      - name: Promote the landing page (from the approved SHA)
+      # content under `web/`, so the result is fully determined by the SHA.
+      - name: Promote the public site (from the approved SHA)
         if: steps.release.outputs.already_live != 'true'
         run: |
           npx firebase deploy --only hosting:landing-production \

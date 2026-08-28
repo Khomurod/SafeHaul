@@ -15,7 +15,7 @@ sources and an approved capability package.
 - [Content safety](#content-safety)
 - [Firestore model](#firestore-model)
 - [Public routes and SEO](#public-routes-and-seo)
-- [Landing page section](#landing-page-section)
+- [The removed landing strip](#the-removed-landing-strip)
 - [Deletion behaviour](#deletion-behaviour)
 - [Super Admin operation](#super-admin-operation)
 - [Testing](#testing)
@@ -118,8 +118,8 @@ officially supported. It never replaces saved source evidence.
 
 `functions/ai/knowledge/safehaulCapabilities.js` is the **only** thing the
 generator may know about SafeHaul. It was verified against source files —
-deliberately *not* against the landing page, which at the time made several claims
-the code did not support. `npm run check:landing-claims` now runs the same
+deliberately *not* against the marketing homepage, which at the time made several claims
+the code did not support. `npm run check:public-claims` now runs the same
 checker over the shipped marketing HTML, so the page follows the package rather
 than the other way round.
 
@@ -260,7 +260,7 @@ search asks only for commercially-usable, modifiable work.
 
 When no provider is configured, or none returns a verifiable licence, articles use
 the approved local fallback
-(`landing/assets/images/news-fallback.svg`) — SafeHaul-owned, 1200×630 so it also
+(`web/assets/images/news-fallback.svg`) — SafeHaul-owned, 1200×630 so it also
 serves as the social card, and referencing no external resource. **The daily
 article count is never a reason to publish an image we do not have the right to
 use.**
@@ -330,17 +330,18 @@ Hosting rewrites:
 | `/news/{slug}` | Full article HTML with metadata and JSON-LD |
 | `/news/feed.xml` | Atom feed (latest 20) |
 | `/sitemap.xml` | Static pages plus every published article |
-| `/api/news/latest?limit=3` | JSON cards for the static landing page |
+| `/api/news/latest?limit=3` | JSON cards. Its consumer was the removed landing strip; kept for a rebuild |
 
 `/robots.txt` is **not** in that table. Hosting resolves it before it consults
 rewrites, so a rewrite to the function was deployed and never fired — both
-landing sites returned an empty `404`. It is now the static file
-`landing/robots.txt`. The function keeps a `/robots.txt` branch as a backstop for
+public sites returned an empty `404`. It is now the static file
+`web/robots.txt`. The function keeps a `/robots.txt` branch as a backstop for
 a direct hit on its own URL; `src/tests/hostingConfig.test.js` pins the two to
 the same content and fails if the dead rewrite is reintroduced.
 
-Both landing targets deploy the same `landing/` directory and therefore the same
-permissive `robots.txt`, so `landing-testing` carries an
+Both public targets deploy the same `web/` directory and therefore the same
+permissive `robots.txt`, so `landing-testing` (the alias is historical — a
+Firebase Hosting site cannot be renamed) carries an
 `X-Robots-Tag: noindex, nofollow` response header. A per-site header is the only
 way to keep the test site from competing with production as duplicate content.
 
@@ -357,10 +358,12 @@ the product, and a plain statement that the article is not legal advice.
 
 ### Rewrite ordering
 
-On both landing targets, in order: `/api/landing-lead`, then `/news`,
-`/news/**`, `/api/news/**`, `/sitemap.xml`, then the `**` catch-all. **The
-specific rules must stay before the catch-all** or it swallows them and returns
-the marketing homepage. Hosting's documented priority is reserved namespaces →
+On both public targets, in order: `/news`, `/news/**`, `/api/news/**`,
+`/sitemap.xml`. `/api/landing-lead` led this list until the page that posted to it
+was removed, and a `**` catch-all followed it until the homepage it pointed at was
+removed too; `/` is now a redirect to `/news`. **If a catch-all is ever added back
+it must stay last** or it swallows the specific rules and returns the wrong page —
+`hostingConfig.test.js` keeps that assertion, conditionally, for that reason. Hosting's documented priority is reserved namespaces →
 redirects → exact-match static content → rewrites, and within `rewrites` the
 first matching source wins. `src/tests/hostingConfig.test.js` asserts the order.
 
@@ -402,7 +405,7 @@ query; an invalid slug gets the same 404 as an unknown one, so probing tells an
 attacker nothing. A 404 is `noindex, follow` so a removed article is not indexed
 at its old URL. Non-GET methods get 405. No generation metadata, provider name or
 model is ever exposed. Responses set an explicit content type, a short cache
-policy and the same hardening headers as the landing site.
+policy and the same hardening headers as the rest of the public site.
 
 ## Presentation
 
@@ -434,27 +437,27 @@ uses `h2` (under the page's own `h1`) while the landing strip uses `h3`. Without
 the `h2` rule the index inherited the global display scale and the cards became
 billboards.
 
-## Landing page section
+## The removed landing strip
 
-`landing/index.html` carries a **SafeHaul News & Insights** section, a navigation
-link and a footer link. The landing site keeps its isolated static architecture:
-no application code, no React, no design-system import. The section reuses the
-page's own `:root` brand tokens and the same card idiom as the features section.
+**This is history, kept because a rebuild will want it.** `landing/index.html`
+carried a **SafeHaul News & Insights** section, a navigation link and a footer
+link. That page went with the rest of the marketing site; `/api/news/latest` still
+serves, with no consumer.
 
-Cards are fetched at runtime from `/api/news/latest` rather than committed,
-because articles are published after deployment and the landing site has no build
-step that could regenerate them. Every fetched value is inserted with
-`textContent` or `setAttribute`, never `innerHTML` — the endpoint already escapes
-its output, but the page must not depend on that. A failed fetch degrades to a
-link rather than an error, and the placeholder means the section is never empty
-and never shifts layout.
+What the strip got right, and a rebuild should copy: cards were fetched at runtime
+rather than committed, because articles publish after deployment and a static site
+has no build step to regenerate them. Every fetched value was inserted with
+`textContent` or `setAttribute`, **never `innerHTML`** — the endpoint already
+escapes its output, but the page must not depend on that. A failed fetch degraded
+to a link rather than an error, and a placeholder meant the section was never
+empty and never shifted layout.
 
 ## Deletion behaviour
 
 Deleting an article tombstones it: `status` becomes `deleted` and `deletedAt` is
 stamped, but the row survives.
 
-**Immediately public-invisible** — the landing cards, `/news`, the article page
+**Immediately public-invisible** — `/news`, the article page
 (404 + noindex), the sitemap and the feed all filter on `status`, so a single
 write removes it from every surface at once.
 
@@ -535,11 +538,12 @@ recorded as a verdict and not as an unqualified success; a published article
 carries its generation and verification transaction ids; and the deletion path
 records that the slot stays filled.
 
-`src/tests/landingNewsSection.test.js` — 24 tests over the shipped landing files:
-section and links present, no committed cards, no React or app code pulled in, no
-`innerHTML`, alt text always set, graceful degradation, brand tokens reused,
-breakpoints at 1024/768/480, visible focus, no body text under 11px, and the
-fallback SVG's accessible name and self-containment.
+`src/tests/landingNewsSection.test.js` covered the strip with 24 tests — links
+present, no committed cards, no React or app code pulled in, no `innerHTML`, alt
+text always set, graceful degradation, brand tokens reused, breakpoints at
+1024/768/480, visible focus, no body text under 11px, and the fallback SVG's
+accessible name and self-containment. **It went with the page it tested.** The
+list is kept as the specification a rebuilt strip should be held to.
 
 ## Limitations
 
@@ -554,7 +558,7 @@ Stated honestly rather than omitted:
   A source that starts failing is recorded per run but does not raise an alert.
 - **No visual-regression baselines** for the article or index pages; the roadmap
   item for screenshot baselines is still open, so layout is reviewed by eye.
-- **The landing card strip needs JavaScript.** With JS disabled the section shows
+- **The removed landing card strip needed JavaScript.** With JS disabled it showed
   its placeholder and the link to `/news`, which is itself server-rendered and
   fully crawlable.
 - **First-publication verification is a production step.** Nothing in CI proves

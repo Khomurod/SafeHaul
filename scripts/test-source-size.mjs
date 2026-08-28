@@ -97,7 +97,7 @@ assert('A5. every exclusion carries a reason',
  * free; removing one has to be a deliberate edit here.
  */
 assert('A6b. the directories that must never go unscanned are pinned by name',
-  ['src', 'functions', 'scripts', 'e2e', 'landing', '.storybook']
+  ['src', 'functions', 'scripts', 'e2e', 'web', '.storybook']
     .every((root) => REQUIRED_ROOTS.includes(root))
   && REQUIRED_ROOTS.length === 6,
   REQUIRED_ROOTS.join(', '));

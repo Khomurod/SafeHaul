@@ -357,14 +357,16 @@ component itself as well.
   meaning now uses the named brand roles. `#1877F2` is Facebook's mark, not a
   SafeHaul role, and must not move when this product's palette does.
 
-- **The `landing/` marketing site is out of scope, and deliberately so.** It is
-  hand-written HTML/CSS/vanilla JS with no build step, no framework and no
-  Tailwind, and it has its own approved visual specification in `DESIGN.md` — a
-  paper/graphite/ink language with Archivo display type, quite different from
-  the application's on purpose. "Public pages" in this campaign means the
-  public *application* routes (`/apply/:slug`, `/verify/:token`,
-  `/review-change/:token`, `/sign/...`, `/login`), all of which are migrated.
-  A future audit should not read `landing/` as unmigrated product.
+- **The `web/` public site is out of scope, and deliberately so.** The
+  marketing site that used to live in `landing/` has been removed; what remains
+  is hand-written CSS with no build step, no framework and no Tailwind, dressing
+  the server-rendered blog and a standalone privacy page. It keeps its own
+  approved visual specification in `DESIGN.md` — a paper/graphite/ink language
+  with Archivo display type, quite different from the application's on purpose.
+  "Public pages" in this campaign means the public *application* routes
+  (`/apply/:slug`, `/verify/:token`, `/review-change/:token`, `/sign/...`,
+  `/login`), all of which are migrated. A future audit should not read `web/` as
+  unmigrated product.
 
 ### Missing primitives that live code is waiting on
 

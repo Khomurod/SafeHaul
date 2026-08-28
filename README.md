@@ -57,7 +57,7 @@ Super Admin operations and the business rules behind them — is in the
 Every product claim must trace to an `available` or `partial` entry in
 [`functions/ai/knowledge/safehaulCapabilities.js`](functions/ai/knowledge/safehaulCapabilities.js),
 which is the **source of truth for what SafeHaul can honestly say about
-itself**. `npm run check:landing-claims` enforces it as part of `npm run lint`.
+itself**. `npm run check:public-claims` enforces it as part of `npm run lint`.
 
 Notably absent, and never to be claimed as shipped: document-expiry monitoring
 or renewal reminders · MVR, PSP or FMCSA Clearinghouse **checks** (the
@@ -143,7 +143,7 @@ SafeHaul/
 │   ├── integrations/        # SMS adapters, Facebook Lead Ads
 │   ├── releaseManagement/   # Production promotion / rollback
 │   └── shared/              # Constants, snapshot + PDF preservation
-├── landing/                 # Marketing site (no build step, no framework)
+├── web/                     # Public site: blog assets + privacy page (no build step)
 ├── docs/                    # App Brief + specialized docs and runbooks
 ├── e2e/                     # Playwright specs
 └── scripts/                 # CI validators and operational scripts
@@ -301,7 +301,7 @@ Pushes to `main` deploy the **Testing** channel automatically once CI passes.
 **Production never deploys automatically** — it updates only by explicit
 promotion of an already-tested Hosting version, through Super Admin → Releases.
 
-| Channel | Application | Landing page | Updates |
+| Channel | Application | Public site | Updates |
 |---|---|---|---|
 | Testing | `truckerapp-system.web.app` | `safehaul-landing-testing.web.app` | automatically, on merge to `main` |
 | Production | `app.safehaul.io` | `safehaul.io`, `www.safehaul.io` | only by explicit promotion |
@@ -330,7 +330,7 @@ cd functions && npm test  # Cloud Functions tests (Jest)
 npm run test:rules        # Security-rules tests
 npm run test:e2e          # End-to-end (Playwright)
 npm run test:stories      # Design-system catalog: render every story + axe
-npm run lint              # Frontend + backend + landing claims
+npm run lint              # Frontend + backend + public-site claims
 npm run typecheck
 ```
 
@@ -358,7 +358,7 @@ CI additionally runs `check:callable-contract`, `check:ai-boundary`,
 | Working process, MCP tool policy, test-runner and pipeline rules | [AGENTS.md](AGENTS.md) · [CLAUDE.md](CLAUDE.md) |
 | Communication patterns, SMS routing, bulk worker | [ARCHITECTURE.md](ARCHITECTURE.md) |
 | Product positioning and capability claims | [PRODUCT.md](PRODUCT.md) |
-| Marketing-site visual specification | [DESIGN.md](DESIGN.md) · [landing/README.md](landing/README.md) |
+| Public-site visual specification | [DESIGN.md](DESIGN.md) |
 | Collections, fields, access summary | [docs/firestore-data-model.md](docs/firestore-data-model.md) |
 | Callable ↔ frontend map | [docs/callable-frontend-map.md](docs/callable-frontend-map.md) |
 | Feature flags | [docs/feature-flags.md](docs/feature-flags.md) |
