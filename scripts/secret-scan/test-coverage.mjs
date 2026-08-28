@@ -202,30 +202,51 @@ const here = dirname(fileURLToPath(import.meta.url));
      * graph.
      */
     /*
-     * What excuses an unloaded module, driven case by case.
+     * Nothing excuses an unloaded module, and that is the fix rather than a
+     * limitation.
      *
-     * Review on 2026-08-28 found L33's first version excusing an orphan because a
-     * covered file merely MENTIONED its path in a comment. The cause was reusing
-     * the permissive containment matcher for a question whose safety direction is
-     * the opposite: over-matching there costs a redundant check, over-matching
-     * here vouches for dead source. These three pin the distinction, because the
-     * fix is only correct if the middle row still passes.
+     * L33's first version let a covered file "name" a module to excuse it, so a
+     * lazily imported one would not read as an orphan. Three review rounds found
+     * three ways through that excuse: a path in a COMMENT, a COMMENTED-OUT
+     * import, and two orphans importing each other — a flat set of named targets
+     * is not reachability from a root. All three were the same mistake: deciding
+     * lexically what Node already computes exactly.
+     *
+     * The scanner has no dynamic import at all (measured: zero across all five
+     * covered files), so the excuse was machinery for a case that does not occur
+     * here, and every bug in it was pure cost. These rows pin that all four ways
+     * of mentioning a module — a real lazy import included — leave it an orphan,
+     * because only being LOADED counts.
      */
-    for (const [label, snippet, expectOrphan] of [
-        ['a comment mentioning the path', "// Documentation mentions './orphan.mjs'.", true],
-        ['a deferred import of it', "export async function s() { return import('./orphan.mjs'); }", false],
-        ['a static import of it', "import './orphan.mjs';", false],
+    for (const [label, snippet, mutual] of [
+        ['a comment mentioning the path', "// Documentation mentions './orphan.mjs'.", false],
+        ['a commented-out import', "// Historical example: import './orphan.mjs';", false],
+        ['a deferred import', "export async function s() { return import('./orphan.mjs'); }", false],
+        ['another orphan importing it', '// nothing here references either orphan', true],
     ]) {
         const dir = mkdtempSync(joinPath(tmpdir(), 'safehaul-orphan-'));
-        writeFileSync(joinPath(dir, 'orphan.mjs'), 'export const v = 1;\n');
+        writeFileSync(joinPath(dir, 'orphan.mjs'),
+            mutual ? "import './second.mjs';\nexport const v = 1;\n" : 'export const v = 1;\n');
+        if (mutual) writeFileSync(joinPath(dir, 'second.mjs'), "import './orphan.mjs';\nexport const w = 1;\n");
         writeFileSync(joinPath(dir, 'entry.mjs'), `${snippet}\nexport const x = 1;\n`);
         const orphaned = unreachableCovered(joinPath(dir, 'entry.mjs'), dir)
             .some((f) => f.endsWith('orphan.mjs'));
-        assert(`L34. ${expectOrphan ? 'does not excuse' : 'excuses'} an unloaded module for ${label}`,
-            orphaned === expectOrphan,
-            expectOrphan
-                ? 'a path in a comment is not an import; excusing it lets dead source keep the checks green'
-                : 'a real import makes the module reachable even when it never reaches the graph');
+        assert(`L34. ${label} does not make an unloaded module reachable`, orphaned,
+            'only being loaded counts; anything lexical is a way for dead source to vouch for itself');
+        rmSync(dir, { recursive: true, force: true });
+    }
+
+    /*
+     * And the converse, so the check is a subtraction rather than a blanket
+     * refusal: a module the entry really imports is not an orphan.
+     */
+    {
+        const dir = mkdtempSync(joinPath(tmpdir(), 'safehaul-live-'));
+        writeFileSync(joinPath(dir, 'used.mjs'), 'export const v = 1;\n');
+        writeFileSync(joinPath(dir, 'entry.mjs'), "import './used.mjs';\nexport const x = 1;\n");
+        assert('L34b. but a module the entry actually imports is not an orphan',
+            unreachableCovered(joinPath(dir, 'entry.mjs'), dir).length === 0,
+            'otherwise the check would refuse the scanner as it stands');
         rmSync(dir, { recursive: true, force: true });
     }
 

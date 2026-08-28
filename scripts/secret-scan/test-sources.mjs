@@ -271,58 +271,6 @@ export function implementationSource(entry = ENTRY, directory = here) {
 }
 
 /**
- * Relative specifiers in an actual import position — deliberately STRICT.
- *
- * `RELATIVE_SPECIFIER` above is permissive on purpose, and reusing it here was a
- * real defect: review on 2026-08-28 reproduced a covered file containing only
- * `// Documentation mentions './orphan.mjs'`, which excused an orphan carrying
- * the pinned flags from L33 while nothing imported it.
- *
- * The two uses pull in OPPOSITE safety directions, which is the whole lesson:
- *
- *   - containment asks "does this reach outside the covered set", so
- *     over-matching costs a redundant check that passes and under-matching
- *     misses an escape — permissive is correct;
- *   - this asks "is an unloaded module excused", so over-matching EXCUSES an
- *     orphan and under-matching only produces a loud false refusal a contributor
- *     can see and fix — strict is correct.
- *
- * One matcher cannot serve both, and using one for both is how a comment in a
- * docblock came to vouch for dead source.
- */
-const QUOTE = "['\"\\x60]";
-const REL = "(\\.\\.?/[^'\"\\x60\\n]*)";
-const IMPORT_POSITION = new RegExp([
-    `\\bfrom${BETWEEN}${QUOTE}${REL}`,
-    `\\bimport${BETWEEN}${QUOTE}${REL}`,
-    `\\b(?:import|require)${BETWEEN}\\(${BETWEEN}${QUOTE}${REL}`,
-].join('|'), 'g');
-
-/**
- * Every module a covered file actually imports, however lazily.
- *
- * Tells an ORPHAN from a module that is merely loaded late: a deferred
- * `import('./lazy.mjs')` inside a function body never appears in the graph, but
- * the file imports it, so it is reachable. Anything imported by nothing and
- * loaded by nothing is dead source the assertions would still read.
- */
-function namedSpecifiers(covered) {
-    const named = new Set();
-    for (const file of covered) {
-        const source = readFileSync(file, 'utf8');
-        for (const match of source.matchAll(IMPORT_POSITION)) {
-            const specifier = match[1] || match[2] || match[3];
-            if (!specifier) continue;
-            const target = resolve(dirname(file), specifier.replace(/[?#].*$/, ''));
-            try {
-                if (statSync(target).isFile()) named.add(target);
-            } catch { /* names no file: a comment, or a fixture path */ }
-        }
-    }
-    return named;
-}
-
-/**
  * Covered modules the scanner does not actually use.
  *
  * The other direction, and review on 2026-08-28 was right that it was missing.
@@ -330,18 +278,31 @@ function namedSpecifiers(covered) {
  * everything read also loaded". A refactor that stops importing a module but
  * leaves the file in place produces an orphan whose stale source keeps being
  * concatenated into `implementationSource()` — so L9, L10, L19 and L25 could stay
- * green on a pinned flag or scan mode that the entry no longer executes. That is
- * the same shape as every other finding here: an assertion true of something
- * other than what runs.
+ * green on a pinned flag or scan mode that the entry no longer executes.
  *
- * Reproduced with a module carrying the version, the digest, both scan modes and
- * the flags, imported by nothing: every §L check stayed green.
+ * ## Why this is a subtraction and nothing more
+ *
+ * The first version excused a module that some covered file "named", so that a
+ * lazily imported one would not read as an orphan. That excuse produced three
+ * separate vulnerabilities in three review rounds: a path in a COMMENT excused an
+ * orphan; a COMMENTED-OUT import excused one; and two orphans importing each
+ * other excused each other, because a flat set of named targets is not
+ * reachability from a root.
+ *
+ * All three came from the same mistake — deciding reachability lexically when
+ * Node already computes it exactly. The scanner has no dynamic import at all
+ * (measured: zero `import(` or `require(` across all five covered files), so the
+ * excuse was machinery for a case that does not occur, and every bug it had was
+ * therefore pure cost.
+ *
+ * So there is no excuse now: a covered module Node does not load is an orphan.
+ * If the scanner ever needs a lazy import, this fails loudly and the check has to
+ * be taught — which is the safe direction, and the one a contributor can see.
  */
 export function unreachableCovered(entry = ENTRY, directory = here) {
-    const covered = implementationFiles(entry, directory);
     const loaded = new Set(loadedGraph(entry));
-    const named = namedSpecifiers(covered);
-    return covered.filter((file) => file !== entry && !loaded.has(file) && !named.has(file));
+    return implementationFiles(entry, directory)
+        .filter((file) => file !== entry && !loaded.has(file));
 }
 
 /**
