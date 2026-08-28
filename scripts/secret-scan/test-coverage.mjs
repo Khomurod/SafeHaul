@@ -194,6 +194,14 @@ const here = dirname(fileURLToPath(import.meta.url));
             "const key = ['con', 'structor'].join(''); const build = process.env[key][key];\n"
             + "const source = \"return im\" + \"port('../else' + 'where.mjs')\";\n"
             + 'export function deferred() { return build(source)(); }', false],
+        ['constructor chain after a parenthesized process expression',
+            "const build = (process.cwd()).constructor.constructor;\n"
+            + "const source = \"return im\" + \"port('../else' + 'where.mjs')\";\n"
+            + 'export function deferred() { return build(source)(); }', false],
+        ['computed chain after nested parenthesized process expression',
+            "const key = ['con', 'structor'].join(''); const build = (((process.env.X)))[key][key];\n"
+            + "const source = \"return im\" + \"port('../else' + 'where.mjs')\";\n"
+            + 'export function deferred() { return build(source)(); }', false],
         ['the scanner\'s approved process members',
             'void process.arch; void process.argv[1]; process.cwd(); void process.env.X; '
             + 'if (false) process.exit(1); void process.platform;', true],

@@ -117,14 +117,15 @@ const RELATIVE_SPECIFIER = /['"`](\.\.?\/[^'"`\n]*)['"`]/g;
 const BETWEEN = '(?:\\s|/\\*[\\s\\S]*?\\*/|//[^\\n\\r\\u2028\\u2029]*)*';
 const MODULE_CALL = new RegExp(`\\b(?:import|require)${BETWEEN}\\(([^)]*)\\)`, 'g');
 
-/** The complete process expressions the scanner currently executes. */
-const APPROVED_PROCESS_ACCESS = [
-    String.raw`(?:arch|platform)\b(?!\s*[.\[])`,
-    String.raw`argv\s*\[\s*1\s*\](?!\s*[.\[])`,
-    String.raw`cwd\s*\(\s*\)(?!\s*[.\[])`,
-    String.raw`env\s*\.\s*[A-Z][A-Z0-9_]*\b(?!\s*[.\[])`,
-    String.raw`exit\s*\(\s*1\s*\)(?!\s*[.\[])`,
+/** The process value expressions the scanner currently executes. */
+const PROCESS_VALUE_ACCESS = [
+    String.raw`(?:arch|platform)\b`,
+    String.raw`argv\s*\[\s*1\s*\]`,
+    String.raw`cwd\s*\(\s*\)`,
+    String.raw`env\s*\.\s*[A-Z][A-Z0-9_]*\b`,
+    String.raw`exit\s*\(\s*1\s*\)`,
 ].join('|');
+const APPROVED_PROCESS_ACCESS = `(?:${PROCESS_VALUE_ACCESS})(?!\\s*[.\\[])`;
 
 /**
  * Gateways to a module loader that is not spelled `import` or `require`.
@@ -160,6 +161,9 @@ const LOADER_GATEWAY = new RegExp([
     // This is an allowlist of complete expressions, not just member prefixes: an
     // approved value still exposes Function through a constructor chain.
     String.raw`\bprocess\b(?!\s*\.\s*(?:` + APPROVED_PROCESS_ACCESS + '))',
+    // Grouping must not hide that same chain from the terminal lookahead above.
+    String.raw`\bprocess\s*\.\s*(?:` + PROCESS_VALUE_ACCESS + ')' + BETWEEN
+        + String.raw`\)+` + BETWEEN + String.raw`\??\s*[.\[]`,
     String.raw`\bglobal(?:This)?\b`,
     // Node documents this as a way to obtain `module.createRequire` without an
     // import. Match the API name wherever it appears rather than one property-
