@@ -172,7 +172,7 @@ function renderJsonLd(post) {
     }</script>`;
 }
 
-/** The shared page shell. The landing site's own stylesheet is reused. */
+/** The shared page shell. Styled by the five sheets in web/assets/css. */
 function renderPage({ title, description, canonical, bodyHtml, extraHead = '', ogImage = null, ogType = 'website' }) {
     return `<!DOCTYPE html>
 <html lang="en">
@@ -195,24 +195,38 @@ ${ogImage ? `<meta name="twitter:image" content="${escapeHtml(ogImage)}">` : ''}
 <link rel="alternate" type="application/atom+xml" title="${escapeHtml(SECTION_NAME)}" href="${ORIGIN}/news/feed.xml">
 <meta name="theme-color" content="#14161A">
 <link rel="icon" type="image/svg+xml" href="/assets/images/logo.svg">
-<!-- Both faces are self-hosted; see landing/index.html for why. These pages share
-     landing/assets/css/styles.css, so they must preload what that stylesheet declares
-     and must carry the same cache-buster as the static pages — a stale one here means a
-     returning visitor gets the previous stylesheet on /news and the current one on /. -->
+<!-- Both faces are self-hosted, and web/assets/css/news-foundation.css declares
+     them, so they are preloaded here.
+
+     THESE FIVE FILES ARE ONE STYLESHEET AND THIS ORDER IS THE CASCADE. They were
+     cut out of the retired marketing site's single 3447-line sheet at its own
+     section boundaries and are still in its source order, so the cascade is what
+     it always was. news-responsive.css is last because it is nothing but
+     overrides. Re-order these tags and a late override starts losing to an early
+     rule it used to beat. The version query must move on all five together — a
+     stale one on any of them serves a visitor a mixed stylesheet. -->
 <link rel="preload" href="/assets/fonts/archivo-variable.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/assets/fonts/geist-mono-variable.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/assets/css/styles.css?v=8">
+<link rel="stylesheet" href="/assets/css/news-foundation.css?v=1">
+<link rel="stylesheet" href="/assets/css/news-chrome.css?v=1">
+<link rel="stylesheet" href="/assets/css/news-article.css?v=1">
+<link rel="stylesheet" href="/assets/css/news-footer.css?v=1">
+<link rel="stylesheet" href="/assets/css/news-responsive.css?v=1">
 ${extraHead}
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to main content</a>
 <!--
-  Same navbar markup and the same six links as the homepage, so the two surfaces
-  are one navigation rather than two that resemble each other.
+  EVERY LINK HERE MUST RESOLVE ON THIS SITE. The navigation used to carry the
+  marketing site's six links — / , /#features, /#why-safehaul, /#pricing and
+  /#faq — and those pages no longer exist. A public article whose own header is
+  full of 404s reads as an abandoned site, so the navigation was cut back to what
+  is still here rather than pointed at a homepage that is gone. /news is home
+  now, which is why the logo links to it.
 
   DELIBERATELY WITHOUT A MOBILE TOGGLE. These pages ship no JavaScript of their
   own, and a toggle button with nothing wired to it is a control that does not
-  work. Stylesheet section 20 keeps this navigation reachable below 900px with a
+  work. news-responsive.css keeps this navigation reachable below 900px with a
   :not(:has(.mobile-menu-toggle)) rule on .navbar, which lays the links out as a
   horizontally scrolling row instead of a hidden panel. That rule and this
   omission are one decision: change either and the blog loses its navigation on
@@ -220,21 +234,16 @@ ${extraHead}
 -->
 <nav id="navbar" class="navbar">
   <div class="nav-container">
-    <a href="/" class="logo-link" aria-label="SafeHaul home">
+    <a href="/news" class="logo-link" aria-label="SafeHaul News &amp; Insights">
       <img src="/assets/images/logo.svg" alt="" class="logo" width="152" height="132">
       <span class="logo-text">SafeHaul</span>
     </a>
     <div class="nav-links">
-      <a href="/#features" class="nav-link">Platform</a>
-      <a href="/#why-safehaul" class="nav-link">Why SafeHaul</a>
-      <a href="/#pricing" class="nav-link">Pricing</a>
       <a href="/news" class="nav-link" aria-current="page">News &amp; Insights</a>
-      <a href="/#faq" class="nav-link">FAQ</a>
       <a href="#footer" class="nav-link">Contact</a>
     </div>
     <div class="nav-cta">
-      <a href="https://app.safehaul.io" rel="noopener" class="btn btn-ghost">Log in</a>
-      <a href="/#get-started" class="btn btn-primary">Get started</a>
+      <a href="https://app.safehaul.io" rel="noopener" class="btn btn-primary">Log in</a>
     </div>
   </div>
 </nav>
@@ -244,29 +253,28 @@ ${bodyHtml}
 <footer id="footer" class="footer-section">
   <div class="footer-grid">
     <div class="footer-brand">
-      <a href="/" class="logo-link" aria-label="SafeHaul home">
+      <a href="/news" class="logo-link" aria-label="SafeHaul News &amp; Insights">
         <img src="/assets/images/logo-mono.svg" alt="" class="footer-logo" width="152" height="132">
         <span class="logo-text">SafeHaul</span>
       </a>
       <p>Driver hiring and DOT compliance software for trucking carriers.</p>
     </div>
-    <nav class="footer-links" aria-label="Product">
-      <h2 class="footer-heading">Product</h2>
-      <a href="/#features">Platform</a>
-      <a href="/#pricing">Pricing</a>
-      <a href="/#why-safehaul">Why SafeHaul</a>
-      <a href="https://app.safehaul.io" rel="noopener">Log in</a>
-    </nav>
+    <!--
+      The Product column is gone with the pages it linked, and so is the Privacy
+      Policy link: privacy.html was part of the marketing site and was removed
+      with it, by owner decision recorded in
+      docs/source-size-refactor/TRACKER.md. Do not re-add that link without
+      re-adding a page for it to reach.
+    -->
     <nav class="footer-links" aria-label="Resources">
       <h2 class="footer-heading">Resources</h2>
       <a href="/news">News &amp; Insights</a>
       <a href="/news/feed.xml">Article feed</a>
-      <a href="/privacy.html">Privacy Policy</a>
+      <a href="https://app.safehaul.io" rel="noopener">Log in</a>
     </nav>
     <div class="footer-contact">
       <h2 class="footer-heading">Contact</h2>
       <a href="mailto:info@safehaul.io">info@safehaul.io</a>
-      <a href="/#get-started">Talk to us</a>
     </div>
   </div>
   <div class="footer-bottom">
@@ -319,7 +327,7 @@ ${renderBlocksToHtml(post.contentBlocks)}
     <h2>About SafeHaul</h2>
     <p>SafeHaul is a hiring and compliance platform for US trucking carriers, covering
     driver applications, qualification documents, electronic signatures and previous-employment
-    verification. <a href="/#features">See what SafeHaul does</a>.</p>
+    verification. <a href="https://app.safehaul.io" rel="noopener">Sign in to SafeHaul</a>.</p>
   </aside>
   <p class="news-disclaimer"><em>This article is general information, not legal advice.
   Confirm how any regulation applies to your operation.</em></p>
@@ -344,9 +352,10 @@ ${renderBlocksToHtml(post.contentBlocks)}
 /**
  * One article as a ruled entry rather than a boxed card.
  *
- * The class names are shared with the homepage strip that `landing/assets/js/main.js`
- * builds by hand, and several of them are test-enforced, so they are fixed even
- * where the styling changed underneath them. Intrinsic dimensions are declared
+ * The class names were shared with a homepage strip that `landing/assets/js/main.js`
+ * built by hand; that site is gone, but several of them are test-enforced and
+ * `web/assets/css/news-article.css` is written against them, so they are still
+ * fixed even where the styling changed underneath them. Intrinsic dimensions are declared
  * because every pipeline image is 1200×630 and a card that resizes as its image
  * arrives moves the entry below it.
  */
@@ -532,8 +541,8 @@ async function handlePublicBlogRequest(req, res) {
 
         // Not the live path. Firebase Hosting resolves `/robots.txt` before it
         // consults `rewrites` — a rewrite to this function was deployed and
-        // never fired, returning an empty 404 on both landing sites. The served
-        // file is the static `landing/robots.txt`, and a test pins the two to
+        // never fired, returning an empty 404 on both public sites. The served
+        // file is the static `web/robots.txt`, and a test pins the two to
         // the same bytes. This branch stays as the backstop for a direct hit on
         // the function's own URL, where no static file exists.
         if (path === '/robots.txt') {

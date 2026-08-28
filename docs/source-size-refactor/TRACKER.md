@@ -141,7 +141,8 @@ use `—` until it exists.**
 | `SO-2` | NOT STARTED | R2 | `src/features/companies/hooks/useCompanyDashboard.js` (runtime) | 528 | 528 | — | — | — | — | — | — | — | 1 |
 | `RU-1` | **READY** (after `LD-R`) | R3 | `src/tests/firestore.rules.security.test.js` (test) — split **and strengthen** | 1106 | 1106 | — | — | — | — | — | — | — | 1 |
 | `RU-2` | **BLOCKED** by `RU-1` | R4 | `src/firestore.rules` (runtime) — no build step; stop and ask if unsafe | 693 | 693 | — | — | — | — | — | — | — | 1 |
-| `LD-R` | **READY** | R4 | remove `landing/`; rehome `/news` onto its own Hosting target | 5989 | — | — | — | — | — | — | — | — | 3 |
+| `LD-R1` | **IN PROGRESS** | R4 | stand up `web/`; blog serves from its own stylesheets | — | — | `claude/safehual-source-size-refactor-j4apre` | — | — | — | — | — | — | 0 |
+| `LD-R2` | **BLOCKED** by `LD-R1` | R4 | delete `landing/`, its scripts, tests and workflow steps | 5989 | — | — | — | — | — | — | — | — | 3 |
 | `LD-1` | **SUPERSEDED** by `LD-R` | R4 | `landing/assets/css/styles.css` | 3447 | 3447 | — | — | — | — | — | — | — | 1 |
 | `LD-2` | **SUPERSEDED** by `LD-R` | R4 | `landing/index.html` | 1682 | 1682 | — | — | — | — | — | — | — | 1 |
 | `LD-3` | **SUPERSEDED** by `LD-R` | R4 | `landing/assets/js/main.js` | 860 | 860 | — | — | — | — | — | — | — | 1 |
@@ -433,10 +434,75 @@ include a rendered check: fetch a real blog index page and a real article page,
 confirm the stylesheets, both font faces and every image resolve, and compare the
 rendering against the same pages served from the landing target.
 
+### Owner rulings folded in (2026-08-28)
+
+- **Blog navigation:** strip to blog-only links. The shell used to emit 13 links
+  into the marketing site (`/`, `/#features`, `/#pricing`, `/#why-safehaul`,
+  `/#get-started`, `/#faq`); all would have 404'd. Nav is now News & Insights,
+  Contact and Log in; the logo points at `/news`.
+- **`privacy.html`: remove it with the rest.** Raised as a compliance risk — it
+  was SafeHaul's only public privacy policy, the app has no privacy route, and a
+  reachable privacy URL is commonly required by OAuth consent screens, app-store
+  listings and privacy law. **The owner ruled to remove it after that was
+  stated.** Recorded here as an accepted decision, not an oversight. The footer's
+  Privacy link went with it, since the page will not exist.
+
+### Infrastructure finding that reshaped the split
+
+The Hosting **sites** are `safehaul-landing-{testing,production}` and a site
+cannot be renamed or created from this repository. So the blog does **not** get
+new targets — the existing targets keep their `landing-*` aliases and change what
+they serve, from `landing/` to `web/`. No infrastructure action is needed.
+
+### `LD-R1` — work completed
+
+- **`web/`** created: five stylesheets, both self-hosted font faces, `logo.svg`,
+  `logo-mono.svg`, `news-fallback.svg`, `robots.txt`.
+- **The stylesheets were extracted, not rewritten.** A script parsed the 3447-line
+  original, kept every rule whose selector names one of the blog's 43 emitted
+  classes (plus element/`:root` rules), recursed into media queries, trimmed
+  grouped selectors to the parts the blog uses, and kept only the one `@keyframes`
+  still referenced. Cut at the original's own section boundaries **in source
+  order**, so the cascade is unchanged.
+- `firebase.json`: both targets `public: landing` → `web`; `/api/landing-lead`
+  rewrite removed; `**` catch-all removed (it pointed at an `index.html` that
+  `web/` does not contain); `/` → `/news` redirect added so the apex does not 404.
+- `publicApi.js`: five `<link>` tags, nav and footer stripped to links that
+  resolve, stale comments corrected.
+- `hostingConfig.test.js` updated **without weakening it** — the catch-all
+  ordering assertion is kept conditionally (the hazard returns if anyone re-adds
+  one), and two new contracts were added: the lead route must stay absent, and the
+  root redirect must exist.
+
+| Check | Result |
+|---|---|
+| functions suite | **1636/1636**, 103 suites |
+| `src/tests/` | **716 passed**, 64 skipped |
+| `hostingConfig` + both landing suites | 83 passed |
+| `check:source-size` | 68/68 unchanged — every new file is under 500 |
+| `test:source-size` (incl. A7 format coverage) | pass |
+| `check:ci-plan` | pass |
+| `npm run lint` | pass |
+| Rendered asset check | every `/assets/**` URL the shell emits resolves in `web/`; no `/#…` or `/privacy.html` left |
+| **Chromium render, 1440 and 412** | 5 sheets load (135 rules), Archivo applies, tokens resolve, cards grid, **no horizontal scroll at 412**, 0 failed/4xx requests |
+
+**One real bug was caught by the visual check and fixed:** backticks inside the
+HTML comments I added terminated the JS template literal. A second apparent
+problem — the card grid rendering in a 200px column — was my preview harness
+putting `.news-rail` after `.news-grid`; the real markup emits the rail first and
+the CSS is faithful. Both are recorded because "the render looked wrong" is
+otherwise indistinguishable between the two.
+
+### `news-article.css` has little headroom
+
+476 lines against the 500 limit. It is section 16 of the original — the only
+section written for these pages rather than borrowed — so it is cohesive, but a
+substantial addition to the blog's article styling will need it split further.
+
 ### Current stopping point
 
-Not started. Dependency map and the two-PR split above are verified against
-`c023e3f`.
+`LD-R1` implemented and verified locally; not yet committed to a PR at the time
+this line was written. `LD-R2` has not begun.
 
 ---
 

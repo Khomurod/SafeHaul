@@ -1,0 +1,476 @@
+/*
+ * SafeHaul /news — index and article
+ *
+ * Extracted from the retired marketing site's `landing/assets/css/styles.css`
+ * (3447 lines) when the landing page was removed and the blog kept. Only the
+ * rules the server-rendered pages in `functions/blog/publicApi.js` actually
+ * reach are here: its markup emits 43 classes, and every rule below is one of
+ * those, an element/`:root` rule, or a media-query override of one.
+ *
+ * THE FIVE FILES ARE ONE STYLESHEET, AND THE LINK ORDER IS THE CASCADE.
+ * They were cut at the original file's own section boundaries and are still in
+ * its source order — foundation, chrome, article, footer, responsive — so the
+ * cascade is byte-for-byte the order it was. Re-order the `<link>` tags in the
+ * shell, or move a rule between files, and a late override can start losing to
+ * an early rule it used to beat. The split exists because the source-size
+ * standard caps a file at 500 lines, not because these are independent.
+ *
+ * Section 16, the only section written for these pages rather than borrowed.
+ */
+
+/* ========================================================================= */
+/* 16. SafeHaul News & Insights                                              */
+/*                                                                           */
+/* SHARED WITH THE SERVER-RENDERED BLOG. `/news` and `/news/{slug}` link this */
+/* stylesheet and use every `.news-*` selector below. Removing one here       */
+/* silently unstyles a published article. Nothing in this section may assume  */
+/* the homepage's markup exists.                                             */
+/* ========================================================================= */
+
+.news-section {
+    padding-block: var(--section);
+}
+
+.news-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 32px;
+    align-items: start;
+    border-top: 2px solid var(--graphite);
+    padding-top: 32px;
+}
+
+/*
+ * The waiting and failed states hold the section's shape. A line of text across
+ * a dead band is what a marketing page does when nobody thought about the
+ * failure case.
+ */
+.news-empty {
+    grid-column: 1 / -1;
+    display: grid;
+    justify-items: start;
+    gap: 8px;
+    padding: 26px 0 4px;
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 0.8125rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    max-width: none;
+}
+
+.news-empty br {
+    display: none;
+}
+
+.news-empty .news-read-more {
+    margin-top: 0;
+    padding-top: 0;
+    text-decoration: underline;
+}
+
+/* A ruled entry, not a boxed card. */
+.news-card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-bottom: 4px;
+    border-top: 1px solid var(--rule);
+    padding-top: 18px;
+}
+
+.news-card-image {
+    display: block;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    background: var(--paper-2);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-panel);
+}
+
+.news-card-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.news-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    flex: 1;
+}
+
+.news-eyebrow {
+    font-size: 0.6875rem;
+    letter-spacing: 0.06em;
+    color: var(--attend);
+    max-width: none;
+}
+
+.news-card h2,
+.news-card h3 {
+    font-size: 1.125rem;
+    line-height: 1.25;
+    font-variation-settings: 'wdth' 100, 'wght' 580;
+    letter-spacing: -0.01em;
+}
+
+@media (hover: hover) and (pointer: fine) {
+
+    .news-card h2 a:hover,
+    .news-card h3 a:hover {
+        text-decoration: underline;
+    }
+}
+
+.news-card-excerpt {
+    font-size: 0.9375rem;
+    color: var(--ink-2);
+}
+
+.news-meta {
+    font-size: 0.6875rem;
+    letter-spacing: 0.05em;
+    color: var(--ink-3);
+    max-width: none;
+}
+
+.news-read-more {
+    margin-top: auto;
+    padding-top: 6px;
+    font-family: var(--font-display);
+    font-size: 0.875rem;
+    font-variation-settings: 'wdth' 100, 'wght' 600;
+    color: var(--draft);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .news-read-more:hover {
+        text-decoration: underline;
+    }
+}
+
+.news-card a:focus-visible {
+    outline: 2px solid var(--draft);
+    outline-offset: 2px;
+}
+
+/* --- Article index ------------------------------------------------------ */
+
+/* The blog pages have no inner wrapper of their own — `serveBlogPublic` emits
+   the section straight into <main> — so each holds its own measure. */
+.news-index,
+.news-article {
+    padding-inline: max(var(--gutter), calc((100% - var(--measure)) / 2));
+}
+
+.news-index {
+    padding-block: 56px var(--section);
+}
+
+.news-index-header {
+    padding-bottom: 26px;
+    margin-bottom: 40px;
+    border-bottom: 2px solid var(--graphite);
+}
+
+.news-index-header h1 {
+    font-size: clamp(2.25rem, 4vw, 3.25rem);
+    margin-bottom: 12px;
+    max-width: 24ch;
+}
+
+.news-index-header p {
+    font-size: 1.0625rem;
+    color: var(--ink-2);
+}
+
+/*
+ * The asymmetric index layout is built AROUND `.news-grid`, not instead of it:
+ * a test asserts `.news-grid` still collapses to two columns at 1024 and one at
+ * 768, so its column behaviour must survive. The rail is a sibling.
+ */
+.news-index-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 200px) minmax(0, 1fr);
+    gap: clamp(28px, 4vw, 56px);
+    align-items: start;
+}
+
+.news-rail {
+    position: sticky;
+    top: 92px;
+    border-top: 2px solid var(--graphite);
+    padding-top: 14px;
+}
+
+.news-rail h2 {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 0.75rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: 14px;
+}
+
+.news-rail ul {
+    display: grid;
+    gap: 9px;
+}
+
+.news-rail li {
+    display: grid;
+    grid-template-columns: 2rem minmax(0, 1fr);
+    gap: 8px;
+    font-size: 0.875rem;
+    color: var(--ink-2);
+}
+
+.news-rail .n {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 0.6875rem;
+    letter-spacing: 0.06em;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink-3);
+    padding-top: 3px;
+}
+
+/* The index's own grid starts without the homepage strip's ruled top, because
+   the header rule above it already does that job. */
+.news-index .news-grid {
+    border-top: none;
+    padding-top: 0;
+}
+
+/* The first entry on the index gets the larger figure. */
+.news-index .news-grid > .news-card:first-child {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    gap: clamp(20px, 3vw, 40px);
+    align-items: start;
+    border-top: 2px solid var(--graphite);
+    padding-bottom: 26px;
+    margin-bottom: 6px;
+}
+
+.news-index .news-grid > .news-card:first-child .news-card-image {
+    order: 2;
+}
+
+.news-index .news-grid > .news-card:first-child h2 {
+    font-size: clamp(1.375rem, 2.2vw, 1.75rem);
+    line-height: 1.18;
+}
+
+/* --- Article page ------------------------------------------------------- */
+
+.news-article {
+    padding-block: 48px var(--section);
+    /* At full width a metadata column sits in the right margin, the way a
+       specification carries its revision block. */
+    display: grid;
+    grid-template-columns: minmax(0, 68ch);
+    justify-content: start;
+    row-gap: 0;
+    column-gap: clamp(32px, 4vw, 64px);
+}
+
+.news-back {
+    margin-bottom: 24px;
+    color: var(--ink-3);
+}
+
+.news-back a {
+    color: var(--draft);
+}
+
+.news-back a:hover {
+    text-decoration: underline;
+}
+
+.news-article-header {
+    padding-bottom: 24px;
+    margin-bottom: 30px;
+    border-bottom: 2px solid var(--graphite);
+}
+
+.news-article-header h1 {
+    font-size: clamp(2rem, 3.6vw, 3rem);
+    margin-bottom: 16px;
+}
+
+.news-article-header .news-meta {
+    color: var(--ink-3);
+    font-size: 0.75rem;
+}
+
+.news-article-meta {
+    display: none;
+}
+
+.news-figure {
+    margin: 32px 0;
+    /* Figures are allowed to break the measure — a drawing is not prose. */
+    width: 100%;
+}
+
+.news-figure img {
+    width: 100%;
+    border: 1px solid var(--rule-strong);
+    border-radius: var(--radius-panel);
+}
+
+.news-credit {
+    padding-top: 9px;
+    color: var(--ink-3);
+    font-size: 0.6875rem;
+    letter-spacing: 0.05em;
+}
+
+.news-credit a {
+    text-decoration: underline;
+}
+
+.news-body {
+    font-size: 1.0625rem;
+    color: var(--ink-2);
+}
+
+.news-body > * + * {
+    margin-top: 22px;
+}
+
+.news-body h2 {
+    font-size: 1.625rem;
+    margin-top: 44px;
+    padding-top: 20px;
+    border-top: 1px solid var(--rule);
+}
+
+.news-body h3 {
+    font-size: 1.1875rem;
+    margin-top: 30px;
+}
+
+.news-body ul,
+.news-body ol {
+    padding-left: 22px;
+}
+
+.news-body ol {
+    list-style: decimal;
+}
+
+.news-body ul {
+    list-style: square;
+}
+
+.news-body li + li {
+    margin-top: 8px;
+}
+
+.news-body blockquote {
+    padding: 2px 0 2px 20px;
+    border-left: 2px solid var(--graphite);
+    font-size: 1.125rem;
+    color: var(--ink);
+}
+
+.news-body a {
+    color: var(--draft);
+    text-decoration: underline;
+}
+
+/* Sources are a numbered mono apparatus, the way a specification cites. */
+.news-sources {
+    margin-top: 48px;
+    padding-top: 22px;
+    border-top: 2px solid var(--graphite);
+}
+
+.news-sources h2 {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 0.75rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: 14px;
+}
+
+.news-sources ol,
+.news-sources ul {
+    list-style: none;
+    counter-reset: source;
+    display: grid;
+    gap: 10px;
+}
+
+/*
+ * A hanging indent, NOT a grid.
+ *
+ * `renderSourceList` emits `<li><a>title</a> — publisher, date</li>`. Making the
+ * li a two-column grid put the anchor in column two and then auto-placed the bare
+ * text node that follows it into column one — a 2.25rem-wide cell — so every
+ * publisher name wrapped one word per line. The number has to stay in the same
+ * text flow as the citation it numbers.
+ */
+.news-sources li {
+    counter-increment: source;
+    font-size: 0.875rem;
+    color: var(--ink-3);
+    padding-bottom: 10px;
+    padding-left: 2.5rem;
+    text-indent: -2.5rem;
+    border-bottom: 1px solid var(--rule);
+}
+
+.news-sources li::before {
+    content: counter(source, decimal-leading-zero);
+    display: inline-block;
+    width: 2.5rem;
+    text-indent: 0;
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 0.6875rem;
+    letter-spacing: 0.06em;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink-3);
+}
+
+.news-sources a {
+    word-break: break-word;
+    color: var(--draft);
+    text-decoration: underline;
+}
+
+.news-about {
+    margin-top: 40px;
+    padding-top: 22px;
+    border-top: 1px solid var(--rule);
+}
+
+.news-about h2 {
+    font-size: 1.125rem;
+    margin-bottom: 8px;
+}
+
+.news-about p {
+    font-size: 0.9375rem;
+}
+
+.news-about a {
+    color: var(--draft);
+    text-decoration: underline;
+}
+
+.news-disclaimer {
+    margin-top: 22px;
+    font-size: 0.875rem;
+    color: var(--ink-3);
+}

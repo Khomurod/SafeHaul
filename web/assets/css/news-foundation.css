@@ -1,0 +1,395 @@
+/*
+ * SafeHaul /news — tokens, reset, typography
+ *
+ * Extracted from the retired marketing site's `landing/assets/css/styles.css`
+ * (3447 lines) when the landing page was removed and the blog kept. Only the
+ * rules the server-rendered pages in `functions/blog/publicApi.js` actually
+ * reach are here: its markup emits 43 classes, and every rule below is one of
+ * those, an element/`:root` rule, or a media-query override of one.
+ *
+ * THE FIVE FILES ARE ONE STYLESHEET, AND THE LINK ORDER IS THE CASCADE.
+ * They were cut at the original file's own section boundaries and are still in
+ * its source order — foundation, chrome, article, footer, responsive — so the
+ * cascade is byte-for-byte the order it was. Re-order the `<link>` tags in the
+ * shell, or move a rule between files, and a late override can start losing to
+ * an early rule it used to beat. The split exists because the source-size
+ * standard caps a file at 500 lines, not because these are independent.
+ *
+ * Sections 1-4 of the original: the custom properties everything else reads,
+ * the reset and browser surfaces, the type scale, and the utilities the blog
+ * uses. Nothing here may reference a token it does not define — a `var()` whose
+ * custom property was left behind in the marketing sheet fails silently to an
+ * invalid value, which is the failure mode this extraction was checked for.
+ */
+
+/* ========================================================================= */
+/* 1. TOKENS                                                                 */
+/* ========================================================================= */
+
+:root {
+    /* Grounds. Cool-neutral, about 2% warm. Not cream, not parchment. */
+    --paper: #F7F7F5;
+    --paper-2: #EDEEEC;
+    --paper-3: #E4E6E3;
+
+    /* Graphite — ink, primary action, inverted grounds. */
+    --graphite: #14161A;
+    --graphite-2: #1E2126;
+    --graphite-3: #2A2E34;
+
+    /* Ink on paper. Ratios measured against --paper. */
+    --ink: #14161A;
+    /* headings                                                       17.0:1 */
+    --ink-2: #4B5157;
+    /* body copy                                                        7.4:1 */
+    --ink-3: #6B7278;
+    /* captions, metadata                                               4.55:1 */
+    /*
+     * `--ink-3` IS THE FLOOR, AND ONLY ON `--paper`.
+     *
+     * 4.55:1 against #F7F7F5 leaves 0.05 of headroom, which the recessed grounds
+     * spend: on `--paper-2` the same ink measures 4.19:1 and fails. Anything
+     * quiet that sits on `--paper-2` or `--paper-3` uses `--ink-2` (6.9:1 there)
+     * instead. `check:landing-a11y` caught this on the activity board's header
+     * row; it cannot catch it on a hover state, so the hover rules below darken
+     * their own text by hand.
+     */
+
+    /* Ink on graphite. */
+    --ink-on-dark: #F1F3F2;
+    /* headings                                                         ~16:1 */
+    --ink-on-dark-2: #A8B0B6;
+    /* body                                                             8.3:1 */
+    --ink-on-dark-3: #838C93;
+    /* captions                                                         5.4:1 */
+
+    /* Rules. */
+    --rule: #DADCD9;
+    --rule-strong: #C3C7C3;
+    --rule-on-dark: #333940;
+
+    /* The drawn line and the three meanings. Colour NEVER decorates. */
+    --draft: #2C4A9A;
+    /* drawn lines, leaders, links, focus ring                           7.7:1 */
+    --draft-soft: rgba(44, 74, 154, 0.10);
+    --clear: #0F5F4C;
+    /* verified, complete                                                7.1:1 */
+    --clear-soft: rgba(15, 95, 76, 0.10);
+    --attend: #A93226;
+    /* attention, required                                               6.2:1 */
+    --attend-soft: rgba(169, 50, 38, 0.10);
+
+    /* Type. Archivo carries structure; Geist Mono carries anything typed. */
+    --font-display: 'Archivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --font-body: 'Archivo', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --font-mono: 'Geist Mono', ui-monospace, 'Cascadia Mono', 'SFMono-Regular', monospace;
+    --font-size-base: 16px;
+
+    /* Layout. */
+    --measure: 1180px;
+    --gutter: 24px;
+    --section: 112px;
+    --section-tight: 76px;
+    --radius-control: 2px;
+    --radius-panel: 3px;
+
+    /* Elevation. Flat by default; shadows only for genuinely floating things. */
+    --shade-1: 0 1px 2px rgba(20, 22, 26, 0.06);
+    --shade-2: 0 8px 24px -12px rgba(20, 22, 26, 0.24), 0 2px 6px -2px rgba(20, 22, 26, 0.08);
+    --shade-3: 0 32px 64px -24px rgba(20, 22, 26, 0.34), 0 8px 20px -12px rgba(20, 22, 26, 0.18);
+
+    /* Motion. One grammar: parts seat into position. */
+    --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+    --ease-seat: cubic-bezier(0.16, 0.84, 0.30, 1);
+    --t-fast: 0.14s;
+    --t-base: 0.22s;
+    --t-slow: 0.32s;
+
+    /* Figure interior surfaces. Named here so a figure never hard-codes a hex:
+       the plate faces of an axonometric need three values off one ground. */
+    --fig-face: #FDFDFC;
+    --fig-face-lit: #FFFFFF;
+    --fig-side-a: var(--paper-2);
+    --fig-side-b: var(--paper-3);
+}
+
+/* ========================================================================= */
+/* 2. RESET, BASE AND BROWSER SURFACES                                       */
+/* ========================================================================= */
+
+*,
+*::before,
+*::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* `swap` on every face, because a marketing page that renders nothing while a
+   font loads has already lost the visitor it was measuring. */
+@font-face {
+    font-family: 'Archivo';
+    font-display: swap;
+    font-style: normal;
+    font-weight: 400 800;
+    font-stretch: 75% 125%;
+    src: url('/assets/fonts/archivo-variable.woff2') format('woff2-variations');
+}
+
+@font-face {
+    font-family: 'Geist Mono';
+    font-style: normal;
+    font-weight: 100 900;
+    font-display: swap;
+    src: url('/assets/fonts/geist-mono-variable.woff2') format('woff2-variations');
+}
+
+html {
+    font-size: var(--font-size-base);
+    scroll-behavior: smooth;
+    /* Anchored sections must clear the sticky bar. */
+    scroll-padding-top: 96px;
+    -webkit-text-size-adjust: 100%;
+    color-scheme: light;
+    accent-color: var(--graphite);
+    caret-color: var(--graphite);
+}
+
+body {
+    font-family: var(--font-body);
+    font-variation-settings: 'wdth' 100, 'wght' 400;
+    color: var(--ink-2);
+    background: var(--paper);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* Stops a wide table or figure turning the whole page into a side-scroller
+       on a narrow phone. */
+    overflow-x: hidden;
+}
+
+/* The parts nobody draws still belong to the design. */
+::selection {
+    background: var(--graphite);
+    color: var(--paper);
+}
+
+* {
+    scrollbar-color: var(--rule-strong) var(--paper-2);
+    scrollbar-width: thin;
+}
+
+*::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+}
+
+*::-webkit-scrollbar-track {
+    background: var(--paper-2);
+}
+
+*::-webkit-scrollbar-thumb {
+    background: var(--rule-strong);
+    border: 3px solid transparent;
+    background-clip: content-box;
+    border-radius: 2px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+    background: var(--ink-3);
+    background-clip: content-box;
+}
+
+/*
+ * `hidden` must win over a component's own display value.
+ *
+ * The browser default is only `[hidden] { display: none }`, which any later rule
+ * with a display outranks — and several below set `display: grid` or
+ * `display: flex` on elements this page toggles with the `hidden` attribute.
+ * Without this, `element.hidden = true` silently does nothing: the two-step form
+ * showed both steps at once and the success panel sat underneath them.
+ */
+[hidden] {
+    display: none !important;
+}
+
+img,
+svg {
+    display: block;
+    max-width: 100%;
+    height: auto;
+}
+
+ul {
+    list-style: none;
+}
+
+a {
+    color: inherit;
+    text-decoration: none;
+    text-underline-offset: 0.18em;
+    text-decoration-thickness: 1px;
+    transition: color var(--t-fast) ease, background-color var(--t-fast) ease,
+        border-color var(--t-fast) ease;
+}
+
+button {
+    font: inherit;
+    color: inherit;
+    background: none;
+    border: none;
+    cursor: pointer;
+}
+
+/* One visible focus treatment for everything interactive, on both grounds.
+   `--draft` is the drawn line, and a focus ring is the most literal drawn line
+   on the page. */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible,
+[tabindex]:focus-visible {
+    outline: 2px solid var(--draft);
+    outline-offset: 2px;
+    border-radius: var(--radius-control);
+}
+
+/* On graphite, `--draft` measures 2.2:1 against the ground. The ring inverts to
+   paper rather than being drawn in a colour nobody can see. */
+.footer-section a:focus-visible,
+.footer-section button:focus-visible {
+    outline-color: var(--ink-on-dark);
+}
+
+/* ========================================================================= */
+/* 3. TYPOGRAPHY                                                             */
+/*                                                                           */
+/* Archivo is re-voiced from the outgoing site: the display register was      */
+/* `wdth 88 / wght 800`, which reads as a filing-drawer plate. Documentation  */
+/* sets its display at normal width and a working weight.                    */
+/* ========================================================================= */
+
+h1,
+h2,
+h3,
+h4 {
+    font-family: var(--font-display);
+    color: var(--ink);
+    text-wrap: balance;
+}
+
+h1 {
+    font-size: clamp(2.75rem, 4.6vw, 4.25rem);
+    font-variation-settings: 'wdth' 100, 'wght' 620;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+}
+
+h2 {
+    font-size: clamp(1.75rem, 2.6vw, 2.5rem);
+    font-variation-settings: 'wdth' 100, 'wght' 600;
+    line-height: 1.12;
+    letter-spacing: -0.016em;
+}
+
+h3 {
+    font-size: 1.1875rem;
+    font-variation-settings: 'wdth' 100, 'wght' 600;
+    line-height: 1.3;
+    letter-spacing: -0.008em;
+}
+
+p {
+    max-width: 68ch;
+}
+
+/*
+ * The engineered label: what a technical document types or numbers.
+ *
+ * One declaration for every such role on the site, so the typed voice cannot
+ * drift per component. Prose is never in this list.
+ */
+.footer-heading,
+.news-eyebrow,
+.news-meta,
+.news-credit,
+.news-back {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 0.75rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+/* Numbers are set, not written: tabular so a column of them lines up. */
+.news-meta {
+    font-variant-numeric: tabular-nums;
+}
+
+.skip-link {
+    position: absolute;
+    top: -60px;
+    left: 12px;
+    z-index: 2000;
+    padding: 12px 20px;
+    background: var(--graphite);
+    color: var(--ink-on-dark);
+    font-family: var(--font-mono);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 0.8125rem;
+    border-radius: 0 0 var(--radius-control) var(--radius-control);
+    transition: top var(--t-fast) ease;
+}
+
+.skip-link:focus {
+    top: 0;
+}
+
+/*
+ * The reveal.
+ *
+ * `data-reveal` goes on a SECTION; `main.js` sets `data-revealed="true"` on it
+ * once and then stops observing. What animates is the section's direct children,
+ * staggered 60ms apart — the title block, then the content under it.
+ *
+ * Staggering children of one observed parent rather than observing each element
+ * is deliberate. Nesting `data-reveal` inside `data-reveal` looked equivalent and
+ * was not: a section taller than the viewport takes the immediate-reveal path in
+ * `main.js`, its nested figure kept waiting for an intersection of its own, and
+ * Figure 2 rendered at `opacity: 0` on a real page. One observer per section
+ * cannot produce that state.
+ *
+ * Everything is visible with JavaScript off, because a marketing page that hides
+ * its own copy behind a script has no copy.
+ */
+@media (prefers-reduced-motion: no-preference) {
+    [data-reveal]:not([data-revealed="true"]) > * {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    [data-reveal] > * {
+        transition: opacity var(--t-slow) var(--ease-out), transform var(--t-slow) var(--ease-out);
+    }
+
+    [data-reveal] > *:nth-child(2) {
+        transition-delay: 60ms;
+    }
+
+    [data-reveal] > *:nth-child(3) {
+        transition-delay: 120ms;
+    }
+
+    [data-reveal] > *:nth-child(n+4) {
+        transition-delay: 180ms;
+    }
+
+    [data-revealed="true"] > * {
+        opacity: 1;
+        transform: none;
+    }
+}

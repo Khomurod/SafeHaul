@@ -1,0 +1,292 @@
+/*
+ * SafeHaul /news — responsive, reduced motion, print
+ *
+ * Extracted from the retired marketing site's `landing/assets/css/styles.css`
+ * (3447 lines) when the landing page was removed and the blog kept. Only the
+ * rules the server-rendered pages in `functions/blog/publicApi.js` actually
+ * reach are here: its markup emits 43 classes, and every rule below is one of
+ * those, an element/`:root` rule, or a media-query override of one.
+ *
+ * THE FIVE FILES ARE ONE STYLESHEET, AND THE LINK ORDER IS THE CASCADE.
+ * They were cut at the original file's own section boundaries and are still in
+ * its source order — foundation, chrome, article, footer, responsive — so the
+ * cascade is byte-for-byte the order it was. Re-order the `<link>` tags in the
+ * shell, or move a rule between files, and a late override can start losing to
+ * an early rule it used to beat. The split exists because the source-size
+ * standard caps a file at 500 lines, not because these are independent.
+ *
+ * Sections 20-21, and therefore LAST: these are overrides, and they only work
+ * from the end. See the navigation note in `news-chrome.css`.
+ */
+
+/* ========================================================================= */
+/* 20. RESPONSIVE                                                            */
+/* ========================================================================= */
+
+@media (max-width: 1180px) {
+
+    .news-index-layout {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .news-rail {
+        position: static;
+    }
+}
+
+@media (max-width: 1024px) {
+    .news-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .news-index .news-grid > .news-card:first-child .news-card-image {
+        order: 0;
+    }
+
+    .news-index .news-grid > .news-card:first-child {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .footer-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (max-width: 900px) {
+    .nav-container {
+        position: relative;
+        gap: 10px;
+        min-height: 62px;
+    }
+
+    .nav-links {
+        display: none;
+        position: absolute;
+        top: calc(100% + 1px);
+        left: 0;
+        right: 0;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0;
+        padding: 6px var(--gutter) 14px;
+        background: var(--paper);
+        border-bottom: 2px solid var(--graphite);
+        box-shadow: var(--shade-2);
+    }
+
+    .nav-links.active {
+        display: flex;
+    }
+
+    .nav-links .nav-link {
+        padding-inline: 4px;
+        border-bottom: 1px solid var(--rule);
+        font-size: 1rem;
+    }
+
+    /* Lying on its side, the current-page rule moves to the leading edge. */
+    .nav-links .nav-link::after {
+        left: -6px;
+        right: auto;
+        top: 12px;
+        bottom: 12px;
+        width: 2px;
+        height: auto;
+        transform: scaleY(0);
+        transform-origin: top center;
+    }
+
+    .nav-links .nav-link[aria-current="true"]::after,
+    .nav-links .nav-link[aria-current="page"]::after {
+        transform: scaleY(1);
+    }
+
+    /*
+     * The blog header emits this same navbar WITHOUT a toggle. Without this it
+     * would have no navigation at all below 900px. `:has()` is the only way to
+     * tell the two headers apart in a stylesheet they share; where it is
+     * unsupported the panel simply stays hidden, exactly as before.
+     */
+    .navbar:not(:has(.mobile-menu-toggle)) .nav-links {
+        display: flex;
+        position: static;
+        flex-direction: row;
+        padding: 0;
+        background: none;
+        border: none;
+        box-shadow: none;
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+
+    .navbar:not(:has(.mobile-menu-toggle)) .nav-links .nav-link {
+        border-bottom: none;
+        white-space: nowrap;
+        font-size: 0.875rem;
+    }
+
+    .navbar:not(:has(.mobile-menu-toggle)) .nav-links .nav-link::after {
+        left: 12px;
+        right: 12px;
+        top: auto;
+        bottom: 10px;
+        width: auto;
+        height: 2px;
+        transform: scaleX(0);
+        transform-origin: left center;
+    }
+
+    .navbar:not(:has(.mobile-menu-toggle)) .nav-links .nav-link[aria-current="page"]::after,
+    .navbar:not(:has(.mobile-menu-toggle)) .nav-links .nav-link[aria-current="true"]::after {
+        transform: scaleX(1);
+    }
+
+    .nav-cta .btn-ghost {
+        display: none;
+    }
+
+    .nav-cta .btn-primary {
+        white-space: nowrap;
+        padding-inline: 15px;
+        font-size: 0.875rem;
+    }
+}
+
+/*
+ * `.news-grid` comes FIRST in the block below, and is a literal `1fr`.
+ *
+ * `landingNewsSection.test.js` greps for `grid-template-columns: 1fr` within 400
+ * characters of this breakpoint, so anything verbose in front of it — including a
+ * comment like this one — silently moves the declaration out of range and fails a
+ * test that is actually satisfied. It stays `1fr` rather than `minmax(0, 1fr)`
+ * because nothing inside a news card carries a min-width; the collapse fix
+ * belongs where a figure can force a track wider, not here.
+ */
+@media (max-width: 768px) {
+    .news-grid {
+        grid-template-columns: 1fr;
+    }
+
+    :root {
+        --section: 76px;
+        --section-tight: 56px;
+    }
+
+    .footer-grid {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 28px;
+    }
+}
+
+@media (max-width: 480px) {
+
+    .hero-buttons .btn {
+        width: 100%;
+    }
+}
+
+/* At full measure an article carries its revision block in the right margin. */
+@media (min-width: 1200px) {
+    .news-article {
+        grid-template-columns: minmax(0, 68ch) minmax(0, 200px);
+    }
+
+    .news-article > * {
+        grid-column: 1;
+    }
+
+    .news-article-meta {
+        display: block;
+        grid-column: 2;
+        grid-row: 2 / span 20;
+        position: sticky;
+        top: 92px;
+        align-self: start;
+        border-top: 2px solid var(--graphite);
+        padding-top: 14px;
+    }
+
+    .news-article-meta dl {
+        display: grid;
+        gap: 12px;
+    }
+
+    .news-article-meta dt {
+        font-family: var(--font-mono);
+        font-weight: 500;
+        font-size: 0.6875rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--ink-3);
+    }
+
+    .news-article-meta dd {
+        font-size: 0.875rem;
+        color: var(--ink-2);
+        margin-top: 2px;
+    }
+}
+
+/* ========================================================================= */
+/* 21. REDUCED MOTION AND PRINT                                              */
+/* ========================================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+        scroll-behavior: auto !important;
+    }
+
+    html {
+        scroll-behavior: auto;
+    }
+
+    /* Opacity transitions may stay; every transform is removed. Nothing on the
+       page depends on a transform to be legible. */
+    [data-reveal] > *,
+.btn:active {
+        transform: none !important;
+        opacity: 1 !important;
+    }
+}
+
+@media print {
+
+    .navbar,
+.skip-link {
+        display: none !important;
+    }
+
+    body {
+        background: #fff;
+        color: #000;
+    }
+
+    .footer-section {
+        background: #fff;
+        color: #000;
+        border-top: 1px solid #000;
+    }
+
+    .footer-section .logo-text,
+.footer-links a,
+.footer-contact a {
+        color: #000;
+    }
+
+    .news-figure img {
+        filter: none;
+        opacity: 1;
+    }
+
+    /* logo-mono.svg is drawn in --ink-on-dark for the graphite footer. On paper
+       that is invisible, so the reversed mark is reversed back. */
+    .footer-logo {
+        filter: invert(1);
+    }
+}

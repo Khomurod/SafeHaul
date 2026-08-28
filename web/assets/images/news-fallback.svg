@@ -1,0 +1,111 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630" role="img"
+    aria-label="SafeHaul News and Insights">
+    <!--
+      The fallback illustration for an article with no image of its own, and the
+      Open Graph card the blog pipeline falls back to.
+
+      Deliberately wordless. This file is consumed as an <img> src, where a web
+      font never loads, so any lettering here would render in whatever the
+      platform substitutes — a system face wearing the design's clothes. The
+      accessible name is carried by role/aria-label above and by the alt text the
+      card script sets from the article title.
+
+      Redrawn for "Specification": paper ground, graphite line art, one section
+      view of a ruled sheet with a dimension apparatus and a verified mark. The
+      values are literal hex rather than design tokens, because a standalone
+      <img> document cannot see the embedding page's custom properties.
+
+      Note for anyone editing: a standalone .svg is parsed as XML, not HTML, so a
+      comment here may not contain a double hyphen. Naming a CSS custom property
+      in one silently breaks the whole file — the browser just shows a
+      broken-image icon and reports nothing.
+
+      Nothing external is referenced: no embedded raster, no linked href, no
+      remote url. `src/tests/landingNewsSection.test.js` enforces that with a
+      literal text search, because a public page must not leak a request to draw
+      a placeholder — so do not name the forbidden attributes here either, even
+      to say they are absent.
+    -->
+
+    <!-- paper ground -->
+    <rect width="1200" height="630" fill="#F7F7F5" />
+
+    <!-- the drawing sheet's own border and title-block rule -->
+    <rect x="40" y="40" width="1120" height="550" fill="none" stroke="#DADCD9" stroke-width="2" />
+    <path d="M40 508H1160" fill="none" stroke="#14161A" stroke-width="3" />
+
+    <!-- title block: three ruled compartments, the way a drawing sheet carries
+         its own metadata. Wordless by design; the compartments read as fields. -->
+    <g fill="none" stroke="#C3C7C3" stroke-width="2">
+        <path d="M420 508V590" />
+        <path d="M800 508V590" />
+    </g>
+    <g fill="#C3C7C3">
+        <rect x="76" y="536" width="228" height="10" />
+        <rect x="76" y="562" width="150" height="10" />
+        <rect x="456" y="536" width="196" height="10" />
+        <rect x="456" y="562" width="118" height="10" />
+        <rect x="836" y="536" width="164" height="10" />
+    </g>
+    <rect x="836" y="562" width="96" height="10" fill="#14161A" />
+
+    <!-- the subject: a ruled sheet in section, with the assembled block below -->
+    <g>
+        <!-- the exploded part -->
+        <rect x="196" y="118" width="470" height="150" fill="#FDFDFC" stroke="#14161A" stroke-width="2" />
+        <rect x="228" y="118" width="2" height="150" fill="#C3C7C3" />
+        <g fill="#DADCD9">
+            <rect x="256" y="150" width="378" height="11" />
+            <rect x="256" y="184" width="378" height="11" />
+            <rect x="256" y="218" width="252" height="11" />
+        </g>
+
+        <!-- the assembly it seats into -->
+        <rect x="196" y="326" width="470" height="150" fill="#FFFFFF" stroke="#14161A" stroke-width="3" />
+        <g fill="none" stroke="#C3C7C3" stroke-width="2">
+            <path d="M196 364H666" />
+            <path d="M196 401H666" />
+            <path d="M196 438H666" />
+        </g>
+        <g fill="#14161A">
+            <rect x="216" y="341" width="26" height="6" />
+            <rect x="216" y="378" width="26" height="6" />
+            <rect x="216" y="415" width="26" height="6" />
+            <rect x="216" y="452" width="26" height="6" />
+        </g>
+
+        <!-- the assembly axis: a dash-dot centre line, the drafting convention -->
+        <path d="M431 82V512" fill="none" stroke="#2C4A9A" stroke-width="2" stroke-dasharray="26 7 4 7"
+            opacity="0.55" />
+
+        <!-- the dimension between part and assembly -->
+        <g fill="none" stroke="#DADCD9" stroke-width="2">
+            <path d="M188 268H112" />
+            <path d="M188 326H112" />
+        </g>
+        <path d="M132 268V326" fill="none" stroke="#C3C7C3" stroke-width="2" />
+        <g fill="none" stroke="#C3C7C3" stroke-width="2">
+            <path d="M125 275 139 261" />
+            <path d="M125 333 139 319" />
+        </g>
+
+        <!-- the leader and the verified mark -->
+        <path d="M666 401H770" fill="none" stroke="#2C4A9A" stroke-width="2" />
+        <path d="M666 393V409" fill="none" stroke="#2C4A9A" stroke-width="3" />
+        <circle cx="806" cy="401" r="34" fill="#F7F7F5" stroke="#0F5F4C" stroke-width="3" />
+        <path d="M791 402 800 411 822 386" fill="none" stroke="#0F5F4C" stroke-width="4" stroke-linecap="square"
+            stroke-linejoin="miter" />
+
+        <!-- callout balloons on the part -->
+        <path d="M666 193H770" fill="none" stroke="#2C4A9A" stroke-width="2" />
+        <path d="M666 185V201" fill="none" stroke="#2C4A9A" stroke-width="3" />
+        <circle cx="806" cy="193" r="26" fill="#F7F7F5" stroke="#2C4A9A" stroke-width="2" />
+        <circle cx="806" cy="193" r="8" fill="#2C4A9A" />
+
+        <!-- registration ticks in the drawing area's corners -->
+        <g fill="none" stroke="#C3C7C3" stroke-width="2">
+            <path d="M96 82H72V106" />
+            <path d="M1104 82H1128V106" />
+        </g>
+    </g>
+</svg>
