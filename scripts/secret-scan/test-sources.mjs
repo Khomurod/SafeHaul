@@ -133,12 +133,23 @@ const MODULE_CALL = new RegExp(`\\b(?:import|require)${BETWEEN}\\(([^)]*)\\)`, '
  * The covered files use none of them, so this costs nothing and the scanner keeps
  * loading modules the one way the checks above can read.
  *
+ * The scanner also has no reason to contain a Unicode escape or computed member
+ * access on `process` / `globalThis`. Refusing those source structures closes two
+ * ways JavaScript can spell this gateway without ever containing its API name:
+ * `process.getBuiltin\u004dodule` and `process['getBuiltin' + 'Module']`.
+ *
  * It is not a proof, and AGENTS.md records why rather than implying otherwise: a
  * determined author with commit access can still reach a loader, and no static
  * check living in the same repository defeats an author who can also edit the
  * check. What this closes is the accidental and the disguised-but-legible.
  */
 const LOADER_GATEWAY = new RegExp([
+    // Identifier escapes transform before property lookup, so a source-text
+    // search cannot safely interpret them. None are needed by the scanner.
+    String.raw`\\u(?:[0-9a-fA-F]{4}|\{[0-9a-fA-F]{1,6}\})`,
+    // Computed access can assemble an ambient loader property from fragments.
+    // The implementation uses ordinary dotted process access and no globalThis.
+    String.raw`(?:\bprocess|\bglobalThis)\s*\[`,
     // Node documents this as a way to obtain `module.createRequire` without an
     // import. Match the API name wherever it appears rather than one property-
     // access spelling: direct, globalThis-qualified, bracket-literal and

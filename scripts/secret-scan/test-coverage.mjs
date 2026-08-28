@@ -152,6 +152,12 @@ const here = dirname(fileURLToPath(import.meta.url));
             "const { getBuiltinModule } = process;\n"
             + "const load = getBuiltinModule('module').createRequire(import.meta.url);\n"
             + "export function deferred() { return load('../else' + 'where.cjs'); }", false],
+        ['unicode-escaped getBuiltinModule loader gateway',
+            "const load = process.getBuiltin\\u004dodule('module').createRequire(import.meta.url);\n"
+            + "export function deferred() { return load('../else' + 'where.cjs'); }", false],
+        ['computed-bracket getBuiltinModule loader gateway',
+            "const load = process['getBuiltin' + 'Module']('module').createRequire(import.meta.url);\n"
+            + "export function deferred() { return load('../else' + 'where.cjs'); }", false],
         ['eval reaching a loader', "eval(\"import('../elsewhere.mjs')\");", false],
         ['new Function reaching a loader', "new Function(\"return import('../elsewhere.mjs')\")();", false],
         // An ESM specifier is a URL, so `?query` and `#frag` still name the file.
