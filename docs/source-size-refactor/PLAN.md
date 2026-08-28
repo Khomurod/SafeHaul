@@ -47,7 +47,8 @@ session's notes.
 
 | Fact | Value | How verified |
 |---|---|---|
-| Latest `main` | `a08a2340d7211330a879db9cbd840e30447aa346` | `git rev-parse origin/main` after `git fetch` |
+| Campaign-start `main` | `a08a2340d7211330a879db9cbd840e30447aa346` | `git rev-parse origin/main` after `git fetch` |
+| `main` after the first rulings | `c023e3f4206cf41e28b8cf8a1c41e2372e2b392d` | #51 and #52 merged 2026-08-28; backlog unchanged at 68 |
 | `main` is | merge of PR #49, "Split the secret scanner and its tests by responsibility" | `git log --oneline origin/main` |
 | Files over 500 lines | **68** | `npm run check:source-size` |
 | Backlog entries | **68** | `.github/source-size-backlog.json` → `files` |
@@ -196,14 +197,14 @@ accident:
 | 1 | CI / tooling | `T-1`…`T-5` | 5 | R1–R4 |
 | 2 | Public-apply coverage audit | `PA-0` | — | R1 |
 | 3 | Functions tests | `FT-1`…`FT-10` | 10 | R1 |
-| 4 | Frontend tests | `SA-2,7,9` `CA-3,5,7,10,11,12,13` `SG-2,3,5,6,7` `SO-1` `RU-1` `PA-3` | 18 | R1 |
+| 4 | Frontend tests | `SA-2,7,9` `CA-3,5,7,10,11,12,13` `SG-2,3,5,6,7` `SO-1` `PA-3` | 17 | R1 |
 | 5 | Functions runtime | `FR-1`…`FR-14` | 14 | R3 |
 | 6 | Super-admin UI | `SA-1,3,4,5,6,8` | 6 | R2 |
 | 7 | Company-admin UI | `CA-1,2,4,6,8,9` | 6 | R2 |
-| 8 | Landing JS | `LD-3` | 1 | R2 |
+| 8 | Remove the landing site, rehome `/news` | `LD-R` (was `LD-1`/`LD-2`/`LD-3`) | 3 retired | R4 |
 | 9 | Signing / e-docs | `SG-1`, `SG-4` | 2 | R3–R4 |
 | 10 | Public application | `PA-1`, `PA-2` | 2 | R4 |
-| 11 | Owner-decision items | `RU-2`, `LD-1`, `LD-2` | 3 | R4 / owner |
+| 11 | Firestore rules — tests first, then the file | `RU-1` → `RU-2` | 2 | R4 |
 | 12 | Close-out | `Z-1` | — | R1 |
 | | `SO-2` (`useCompanyDashboard.js`) | `SO-2` | 1 | R2 |
 
@@ -213,28 +214,81 @@ must **not** happen is stacking high-risk work on an unmerged PR.
 
 ---
 
-## 7. Owner decisions this campaign cannot make alone
+## 7. Owner rulings
 
-`AGENTS.md` already records that three files may not be splittable, and calls
-that an owner decision rather than a silent exemption. This plan carries that
-forward unchanged:
+The campaign opened with four questions it could not answer alone. The owner
+ruled on 2026-08-28; the rulings are binding and are recorded here rather than
+only in the tracker, because they changed the plan's shape.
 
-| File | Lines | The decision |
-|---|---|---|
-| `src/firestore.rules` | 693 | Firestore rules have no include mechanism — one file per deployment target. Splitting means a build step that concatenates, which puts the deployed policy one step further from the file a reviewer reads. |
-| `landing/index.html` | 1682 | The landing site has no build step. Splitting means introducing one. |
-| `landing/assets/css/styles.css` | 3447 | Same. This is the single largest file in the campaign. |
+### 7.1 `SEC-1` — the secret scanner
 
-All three are recorded and measured; none is exempt. **The question of whether
-to introduce a build step has not been asked yet, and this campaign must not
-answer it by default.** `RU-2`, `LD-1` and `LD-2` stay `BLOCKED — OWNER
-DECISION` until the owner rules.
+**Ruling: proceed with PR #51 and close PR #50.** Done — #51 merged at `dd240a2`,
+#50 closed with the reasoning recorded on the PR and in the tracker.
 
-Note `LD-3` (`landing/assets/js/main.js`, 860 lines) is *not* in that set: plain
-`<script>` tags can be split across files with no build step, so it proceeds
-normally.
+A follow-up should still port #50's *class*-closing pieces (escape refusal, the
+comment-aware separator on `module` imports, `Function`/`eval` matched as bare
+identifiers, and the `implementationFiles()` path normalisation that fixes a real
+Windows portability bug) — but **not** its `process` allowlist, which caused #50's
+CI failure and produced four consecutive P1s, one still open.
 
----
+### 7.2 The landing site — remove it, keep `/news`
+
+**Ruling: remove the SafeHaul landing page completely.** There is to be no public
+landing site until it is rebuilt from scratch. Remove landing-only HTML, CSS, JS
+and assets, and all obsolete Firebase, CI and deployment references, **preserving
+anything shared or required elsewhere**. This *retires* the landing backlog items
+rather than refactoring them.
+
+**And: keep `/news` live.** This is the constraint that shapes the work, because
+the public blog is not independent of the landing site today:
+
+- `/news`, `/news/**`, `/api/news/**` and `/sitemap.xml` reach `serveBlogPublic`
+  only through **rewrites on the two landing Hosting targets**;
+- every server-rendered blog page links `/assets/css/styles.css` — that *is*
+  `landing/assets/css/styles.css`, the 3447-line `LD-1` file;
+- blog pages also use `/assets/images/logo.svg`, `logo-mono.svg`,
+  `news-fallback.svg` and preload both self-hosted font faces from `/assets/fonts/`;
+- the served `robots.txt` is the static `landing/robots.txt`, and a test pins the
+  two together.
+
+So the blog needs its **own** Hosting target and its **own** minimal stylesheet and
+asset set, extracted from the landing ones rather than deleted with them. The
+owner accepted the consequence: `LD-1` is not retired outright — a much smaller
+descendant of `styles.css` survives to serve the blog, and it must come in **under
+500 lines** like any other new file, since a file the campaign creates may never be
+backlogged.
+
+This replaces `LD-1`, `LD-2` and `LD-3` with a single removal-and-rehome unit,
+`LD-R`. It is a **behaviour-changing** unit — the only one in the campaign — and
+therefore does not carry the campaign's usual "behaviour must be identical" rule.
+What it must not change is the blog's own content, routes or output.
+
+### 7.3 `RU-2` — Firestore rules
+
+**Ruling: do not introduce a concatenation or build step.** Instead:
+
+1. **First** split and *strengthen* the Firestore security tests
+   (`RU-1`, `src/tests/firestore.rules.security.test.js`, 1106 lines).
+2. **Then** refactor `src/firestore.rules` (693 lines) below 500 while
+   **preserving permissions exactly**.
+3. **If that cannot be done safely, stop and request an owner decision.**
+
+Step 3 is part of the ruling, not an escape hatch: the rules file is a security
+boundary, and "I could not make it smaller without changing what it permits" is a
+legitimate outcome to report rather than something to force. Rules have no include
+mechanism, so the reduction has to come from the file's own structure — shared
+helper functions, collapsing duplicated matchers — never from relaxing a matcher
+or widening a condition to save lines.
+
+`RU-1` must be genuinely strengthened, not merely divided: the tests are what
+make step 2 safe, and splitting them without adding coverage would leave the
+refactor resting on exactly the assurance it had before.
+
+### 7.4 Keep this plan and the tracker current
+
+**Ruling: update `PLAN.md` and `TRACKER.md` immediately when rulings land, and
+continue the campaign.** Documentation updates travel in the same commit as the
+work they describe; they are not a task deferred to the end.
 
 ## 8. Test strategy
 
