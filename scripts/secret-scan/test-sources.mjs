@@ -145,9 +145,9 @@ const MODULE_CALL = new RegExp(`\\b(?:import|require)${BETWEEN}\\(([^)]*)\\)`, '
  * check. What this closes is the accidental and the disguised-but-legible.
  */
 const LOADER_GATEWAY = new RegExp([
-    // Identifier escapes transform before property lookup, so a source-text
-    // search cannot safely interpret them. None are needed by the scanner.
-    String.raw`\\u(?:[0-9a-fA-F]{4}|\{[0-9a-fA-F]{1,6}\})`,
+    // Source escapes transform before identifier/property/module lookup, so a
+    // raw-text search cannot safely interpret them. None are needed here.
+    String.raw`\\(?:u(?:[0-9a-fA-F]{4}|\{[0-9a-fA-F]{1,6}\})|x[0-9a-fA-F]{2})`,
     // This is an allowlist of the scanner's entire ambient process surface, not a
     // list of known-bad properties. A bare/aliased/destructured/imported/indexed
     // process can reach properties whose spelling the source scan cannot see.
@@ -162,8 +162,9 @@ const LOADER_GATEWAY = new RegExp([
     // matching only the prefixed form let `from 'module'` through — reported and
     // reproduced on 2026-08-28, loading an outside CJS module through the alias.
     // Two spellings is the whole set the resolver accepts, so this closes it.
-    String.raw`from\s*['"\x60](?:node:)?module['"\x60]`,
-    String.raw`import\s*\(\s*['"\x60](?:node:)?module['"\x60]`,
+    String.raw`\bfrom` + BETWEEN + String.raw`['"\x60](?:node:)?module['"\x60]`,
+    String.raw`\bimport` + BETWEEN + String.raw`\(` + BETWEEN
+        + String.raw`['"\x60](?:node:)?module['"\x60]`,
     // Match the identities, not one call spelling: each can be aliased first,
     // and `Function(source)` does not need the `new` keyword.
     String.raw`\bFunction\b`,

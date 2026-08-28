@@ -135,6 +135,18 @@ const here = dirname(fileURLToPath(import.meta.url));
         ['createRequire alias via bare "module"',
             "import { createRequire } from 'module';\nconst load = createRequire(import.meta.url);\n"
             + "export function deferred() { return load('../else' + 'where.cjs'); }", false],
+        ['createRequire alias with a comment before node:module',
+            "import { createRequire } from /* hidden */ 'node:module';\n"
+            + "const load = createRequire(import.meta.url);\n"
+            + "export function deferred() { return load('../else' + 'where.cjs'); }", false],
+        ['dynamic node:module import with a comment before its parenthesis',
+            "const { createRequire } = await import /* hidden */ ('node:module');\n"
+            + "const load = createRequire(import.meta.url);\n"
+            + "export function deferred() { return load('../else' + 'where.cjs'); }", false],
+        ['createRequire alias through a hex-escaped node:module',
+            "import { createRequire } from 'node:\\x6dodule';\n"
+            + "const load = createRequire(import.meta.url);\n"
+            + "export function deferred() { return load('../else' + 'where.cjs'); }", false],
         // `process.getBuiltinModule('module')` reaches the same loader without an
         // import declaration, so the graph probe cannot see it and the two
         // `node:module` spellings above do not cover it. Keep the API name

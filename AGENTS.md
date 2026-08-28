@@ -584,12 +584,14 @@ passed it while the containment scan, which reads only `./` and `../`, never
 looked at them.
 
 **That is not a proof, and pretending otherwise would be the failure this file
-keeps recording.** Eleven review rounds on 2026-08-27/28 each found another
+keeps recording.** Twelve review rounds on 2026-08-27/28 each found another
 spelling — a double quote, a concatenation, a comment before the parenthesis, a
 U+2028 line terminator, a URL suffix, a `createRequire` alias, a literal that was
 not relative, a `process.getBuiltinModule` gateway, then a Unicode-escaped name,
 a computed bracket key, computed destructuring and a hex-escaped key that
-disguised that gateway. Unicode escapes are refused as a source structure. More
+disguised that gateway, then comment-separated and hex-escaped `node:module`
+imports. Unicode and hex escapes are refused as source structures; loader-import
+patterns use the same comment-aware separator as ordinary module calls. More
 importantly, `process` is now a closed surface: only dotted access to `arch`,
 `argv`, `cwd`, `env`, `exit` and `platform` is accepted, while aliases,
 destructuring, indexing, imports and bare values are refused regardless of how a
