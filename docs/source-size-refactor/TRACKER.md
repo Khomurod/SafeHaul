@@ -398,9 +398,45 @@ suite. Plus: a rendered blog page must be fetched and confirmed styled, with the
 fonts and images resolving — a green unit suite cannot see a broken stylesheet
 link.
 
+### `LD-R` is two PRs, and the order is the safety property
+
+Measured on `c023e3f`: the blog's 43 emitted classes pull in tokens (§1), reset and
+base (§2), typography (§3), buttons (§5), navigation (§6), the news section (§16),
+the footer (§18) and parts of responsive (§20) — **roughly 1400 lines** before any
+trimming, and §16 alone is 539. So the blog stylesheet cannot be one file under
+500; it splits into a few cohesive ones (tokens+base, components, news layout),
+all linked from the shell. Several `<link>` tags is normal for a server-rendered
+page, and `@import` is not an acceptable substitute.
+
+**`LD-R1` — give the blog its own legs, remove nothing.**
+Its own stylesheet set, its own copies of the fonts, logos, news fallback art and
+`robots.txt`, and its own Hosting targets carrying the `serveBlogPublic` rewrites.
+The landing site stays exactly as it is and keeps working. Fully reversible, and
+it *proves* the blog stands alone before anything is deleted.
+
+**`LD-R2` — remove the landing site.**
+Only once `LD-R1` is merged and `/news` is confirmed serving correctly from its
+own target. Deletes the landing HTML/CSS/JS and landing-only assets, both landing
+Hosting targets, the `/api/landing-lead` rewrite, the landing deploy steps in both
+workflows, and the three landing scripts with their npm entries (including the
+`check:landing-claims` reference inside `npm run lint`, which breaks lint if
+missed). Retires `LD-1`, `LD-2`, `LD-3`.
+
+Doing it in this order means no moment exists where `/news` has lost the landing
+assets but not yet gained its own. Doing it in one PR would create exactly that
+window, and a unit suite cannot see a broken stylesheet link.
+
+### Verification that a test suite cannot give you
+
+CSS extraction regresses visually in ways unit tests do not catch. `LD-R1` must
+include a rendered check: fetch a real blog index page and a real article page,
+confirm the stylesheets, both font faces and every image resolve, and compare the
+rendering against the same pages served from the landing target.
+
 ### Current stopping point
 
-Not started. Dependency map above is verified against `c023e3f`.
+Not started. Dependency map and the two-PR split above are verified against
+`c023e3f`.
 
 ---
 
