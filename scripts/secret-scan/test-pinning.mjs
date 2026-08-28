@@ -381,6 +381,13 @@ console.log('\nL. The scanner is ours, pinned by content, and cannot be exempted
         // And the deferred case the probe structurally cannot see: a function body
         // does not resolve until it runs, so the scan is the only thing covering it.
         ['deferred computed in a function', "export async function load() {\n  return await import('../else' + 'where.mjs');\n}", false],
+        // Reported 2026-08-28: an aliased loader's call site is not spelled import
+        // or require, so it is the gateway that has to be refused, not the call.
+        ['createRequire alias',
+            "import { createRequire } from 'node:module';\nconst load = createRequire(import.meta.url);\n"
+            + "export function deferred() { return load('../else' + 'where.cjs'); }", false],
+        ['eval reaching a loader', "eval(\"import('../elsewhere.mjs')\");", false],
+        ['new Function reaching a loader', "new Function(\"return import('../elsewhere.mjs')\")();", false],
         // An ESM specifier is a URL, so `?query` and `#frag` still name the file.
         // Resolving the raw text found nothing and SKIPPED it, which let an outside
         // module escape; these two are the escape, and must be refused.

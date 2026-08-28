@@ -566,6 +566,29 @@ scanner again would leave a regex passing over a file the flag had moved out of.
 L27 and L28 assert the closure is neither narrower nor wider than the
 implementation.
 
+**What "the scanner's source" is, and what it is not.** The covered set is the
+entry plus every non-test module in `scripts/secret-scan/` — a directory listing,
+so no import syntax can omit a file. `loadedGraph()` then asks Node's own
+resolver what the entry loads and refuses anything outside that set, which makes
+the STATIC half unfalsifiable. The specifier scan remains for the half a graph
+cannot contain: a dynamic `import()` inside a function body does not resolve
+until it runs. It refuses computed specifiers as a class, tolerates comments in
+any of the four line terminators ECMA-262 defines, resolves `?query` and
+`#fragment` as URLs, and refuses the gateways to an aliased loader
+(`node:module`, `eval`, `new Function`) because an alias's call site is not
+spelled `import`.
+
+**That is not a proof, and pretending otherwise would be the failure this file
+keeps recording.** Six review rounds on 2026-08-27/28 each found another spelling
+— a double quote, a concatenation, a comment before the parenthesis, a U+2028
+line terminator, a URL suffix, a `createRequire` alias. Three were closed as
+classes; the sixth showed that following an alias needs data-flow analysis, which
+a parser alone does not give, and `callable-contract` deliberately runs with no
+`npm ci` so there is no parser there anyway. `globalThis['ev' + 'al']` is still
+not matched. What these checks close is the accidental and the
+disguised-but-legible; an author who can edit the scanner can also edit the
+assertions, and code review is the control for that.
+
 `check:ci-plan` §L keeps the wiring: no third-party scanning action, the job runs
 this repository's scanner, full history is checked out, no `if:` can condition it
 away, `secret-scan` is still unskippable and still fails the release when it

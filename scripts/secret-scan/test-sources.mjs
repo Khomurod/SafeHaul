@@ -114,6 +114,33 @@ const BETWEEN = '(?:\\s|/\\*[\\s\\S]*?\\*/|//[^\\n\\r\\u2028\\u2029]*)*';
 const MODULE_CALL = new RegExp(`\\b(?:import|require)${BETWEEN}\\(([^)]*)\\)`, 'g');
 
 /**
+ * Gateways to a module loader that is not spelled `import` or `require`.
+ *
+ * Reported 2026-08-28 and reproduced: `const load = createRequire(import.meta.url)`
+ * followed by `load('../else' + 'where.cjs')` escapes both halves. The call site
+ * is `load(...)`, so `MODULE_CALL` never sees it, and a deferred call never
+ * reaches the probe. Following the alias would need data-flow analysis, which a
+ * parser alone does not give.
+ *
+ * Refusing the GATEWAY needs none of that: an indirect loader cannot be obtained
+ * without naming where it comes from. `node:module` is where `createRequire`
+ * lives, and `eval` / `new Function` are the other two routes from a string to a
+ * loader. The covered files use none of them, so this costs nothing and the
+ * scanner keeps loading modules the one way the checks above can read.
+ *
+ * It is not a proof, and AGENTS.md records why rather than implying otherwise: a
+ * determined author with commit access can still reach a loader, and no static
+ * check living in the same repository defeats an author who can also edit the
+ * check. What this closes is the accidental and the disguised-but-legible.
+ */
+const LOADER_GATEWAY = new RegExp([
+    String.raw`from\s*['"\x60]node:module['"\x60]`,
+    String.raw`import\s*\(\s*['"\x60]node:module['"\x60]`,
+    String.raw`new\s+Function\s*\(`,
+    String.raw`\beval\s*\(`,
+].join('|'));
+
+/**
  * One quoted string and nothing else — the only argument that can be verified.
  *
  * The `${` clause is not decoration: a template literal reads as a single quoted
@@ -188,6 +215,16 @@ export function implementationFiles(entry = ENTRY, directory = here) {
 
     for (const file of covered) {
         const source = readFileSync(file, 'utf8');
+        const gateway = source.match(LOADER_GATEWAY);
+        if (gateway) {
+            throw new Error(
+                `${file.replace(/^.*\/scripts\//, 'scripts/')} reaches a module loader through `
+                + `${gateway[0].trim()}. An aliased loader's call site is not spelled import or `
+                + 'require, so neither the specifier scan nor the graph probe can see what it '
+                + 'loads. The scanner has no need for one; if it grows one, these assertions have '
+                + 'to be taught to follow it first.',
+            );
+        }
         for (const [, argument] of source.matchAll(MODULE_CALL)) {
             if (SINGLE_LITERAL.test(argument) && !INTERPOLATED.test(argument)) continue;
             throw new Error(
