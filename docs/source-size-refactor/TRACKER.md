@@ -15,34 +15,37 @@ it currently is*.
 
 | | |
 |---|---|
-| **Last updated** | 2026-08-28 |
-| **Verified main SHA** | `a08a2340d7211330a879db9cbd840e30447aa346` |
-| **Oversized files** | **68** (measured, not copied) |
+| **Last updated** | 2026-08-28 (after the owner's first rulings) |
+| **Verified main SHA** | `c023e3f4206cf41e28b8cf8a1c41e2372e2b392d` |
+| **Oversized files** | **68** (re-measured after #51 and #52 merged) |
 | **Backlog entries** | **68** |
-| **Active work item** | `SEC-1` — reconcile PR #50 / PR #51 |
-| **Active branch** | `claude/safehual-source-size-refactor-j4apre` (planning only) |
-| **This branch's PR** | **#52** — planning infrastructure. A tracker commit cannot contain its own SHA, so the value here is always one commit behind: read the real head with `git rev-parse origin/claude/safehual-source-size-refactor-j4apre`. |
-| **Active PR** | **#52** (this planning PR). #50 and #51 are the items under reconciliation. |
-| **PR head SHAs** | #50 → `9386b371ec6a83840aabf9604238693c733cb925` · #51 → `20c75500a235fe7beb1a12ab9b8cf03cf9466922` |
-| **Review status** | #50: **unresolved P1 on its exact head**, reproduced independently. #51: current head **not reviewed** — Codex quota exhausted. |
-| **CI status** | **#52: green** at `c5e5cf5` — `Plan this run`, `secret-scan` and `callable-contract` all passed; test lanes skipped by the tree-hash proof because the change touches no code. (Two earlier failures on `d290c19` and `0d6d051` were superseded commits cancelled by the concurrency group — `PLAN_RESULT: cancelled`, every lane `cancelled` — not a defect.) · #50: **RED** (`test-functions` fails). #51: **fully green**. |
-| **Working tree at session end** | clean; planning docs committed and pushed as #52 |
-| **Blockers** | 1. Codex review quota exhausted — blocks step 10 of PR discipline. 2. `SEC-1` needs an owner ruling (below). 3. `RU-2`, `LD-1`, `LD-2` need a build-step ruling. |
+| **Active work item** | `LD-R` — remove the landing site, rehome `/news` |
+| **Active branch** | `claude/safehual-source-size-refactor-j4apre` (restarted from `c023e3f`) |
+| **Active PR** | none yet for `LD-R`. #52 merged at `c023e3f`; #51 merged at `dd240a2`; #50 closed. |
+| **PR head SHA** | — (a tracker commit cannot contain its own SHA; read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre`) |
+| **Review status** | Codex quota still exhausted. #52 merged on owner engagement with its contents, docs-only. |
+| **CI status** | `main` green at `c023e3f`. |
+| **Working tree at session end** | see the last per-item section |
+| **Blockers** | Codex review quota exhausted — merges need human review. No owner decision outstanding. |
 
 ### Exact next action
 
-**Do not start a backlog item until `SEC-1` is resolved.**
+`SEC-1` is **COMPLETE**. All four owner rulings are recorded in `PLAN.md` § 7.
 
-Put the `SEC-1` recommendation (below) to the owner and get a ruling. The
-recommendation is: **merge #51, close #50, and port #50's four
-non-arms-race pieces in one small follow-up PR.** Every claim behind that
-recommendation was reproduced in this repository and is recorded in the `SEC-1`
-section — a later session should not have to re-derive it, but *should* re-verify
-the CI and review state on GitHub, which can have moved.
+**Current unit is `LD-R`** — remove the landing site and rehome `/news`. This is
+the campaign's only deliberately behaviour-changing unit. Read the `LD-R` section
+below before touching anything: the public blog is **not** independent of the
+landing site today, and the ruling is to keep `/news` live, so this is a removal
+*and* a rehome, not a delete.
 
-Once `SEC-1` is settled, the first implementation unit is **`T-1`
-(`scripts/test-ci-plan.mjs`, 1223 lines)** — see § `T-1` for why it is first and
-what makes it R4 despite being tooling.
+The trap, stated once: deleting `landing/` alone takes `/news` down silently.
+`/news` has no Hosting entry of its own — it reaches `serveBlogPublic` only
+through rewrites on the two landing targets — and every rendered blog page links
+`/assets/css/styles.css`, which *is* the 3447-line `LD-1` file.
+
+After `LD-R`: `RU-1` (strengthen and split the rules tests) then `RU-2` (shrink
+`firestore.rules` below 500 preserving permissions exactly, stopping to ask if it
+cannot be done safely).
 
 ---
 
@@ -72,7 +75,7 @@ use `—` until it exists.**
 
 | ID | Status | Risk | Target | Before | Current | Branch | PR | Head | Review | CI | Merge | Post-merge | Removed |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| `SEC-1` | **READY** | R4 | reconcile PR #50 / #51 | — | — | — | #50, #51 | see handoff | see below | #50 RED, #51 green | — | — | 0 |
+| `SEC-1` | **COMPLETE** | R4 | reconcile PR #50 / #51 | — | — | `claude/secret-scan-loader-gateway` | #51 merged, #50 closed | `20c7550` | owner ruling | green | `dd240a2` | main green at `c023e3f` | 0 |
 | `T-1` | NOT STARTED | R4 | `scripts/test-ci-plan.mjs` (tooling) | 1223 | 1223 | — | — | — | — | — | — | — | 1 |
 | `T-2` | NOT STARTED | R2 | `scripts/check-ui-contract.mjs` (tooling) | 1030 | 1030 | — | — | — | — | — | — | — | 1 |
 | `T-3` | NOT STARTED | R2 | `scripts/test-release-promotion.mjs` (tooling) | 584 | 584 | — | — | — | — | — | — | — | 1 |
@@ -136,11 +139,12 @@ use `—` until it exists.**
 | `PA-3` | NOT STARTED | R1 | `src/features/driver-app/components/application/applicationDraftStorage.test.js` (test) | 511 | 511 | — | — | — | — | — | — | — | 1 |
 | `SO-1` | NOT STARTED | R1 | `src/features/campaigns/components/LaunchPad.test.jsx` (test) | 539 | 539 | — | — | — | — | — | — | — | 1 |
 | `SO-2` | NOT STARTED | R2 | `src/features/companies/hooks/useCompanyDashboard.js` (runtime) | 528 | 528 | — | — | — | — | — | — | — | 1 |
-| `RU-1` | NOT STARTED | R2 | `src/tests/firestore.rules.security.test.js` (test) | 1106 | 1106 | — | — | — | — | — | — | — | 1 |
-| `RU-2` | NOT STARTED | R4 | `src/firestore.rules` (runtime) | 693 | 693 | — | — | — | — | — | — | — | 1 |
-| `LD-1` | NOT STARTED | R2 | `landing/assets/css/styles.css` (runtime) | 3447 | 3447 | — | — | — | — | — | — | — | 1 |
-| `LD-2` | NOT STARTED | R2 | `landing/index.html` (runtime) | 1682 | 1682 | — | — | — | — | — | — | — | 1 |
-| `LD-3` | NOT STARTED | R2 | `landing/assets/js/main.js` (runtime) | 860 | 860 | — | — | — | — | — | — | — | 1 |
+| `RU-1` | **READY** (after `LD-R`) | R3 | `src/tests/firestore.rules.security.test.js` (test) — split **and strengthen** | 1106 | 1106 | — | — | — | — | — | — | — | 1 |
+| `RU-2` | **BLOCKED** by `RU-1` | R4 | `src/firestore.rules` (runtime) — no build step; stop and ask if unsafe | 693 | 693 | — | — | — | — | — | — | — | 1 |
+| `LD-R` | **READY** | R4 | remove `landing/`; rehome `/news` onto its own Hosting target | 5989 | — | — | — | — | — | — | — | — | 3 |
+| `LD-1` | **SUPERSEDED** by `LD-R` | R4 | `landing/assets/css/styles.css` | 3447 | 3447 | — | — | — | — | — | — | — | 1 |
+| `LD-2` | **SUPERSEDED** by `LD-R` | R4 | `landing/index.html` | 1682 | 1682 | — | — | — | — | — | — | — | 1 |
+| `LD-3` | **SUPERSEDED** by `LD-R` | R4 | `landing/assets/js/main.js` | 860 | 860 | — | — | — | — | — | — | — | 1 |
 | `PA-0` | NOT STARTED | R1 | public-apply characterization coverage audit | — | — | — | — | — | — | — | — | — | 0 |
 | `Z-1` | NOT STARTED | R1 | delete backlog file; final rescan; brief update | — | — | — | — | — | — | — | — | — | 0 |
 
@@ -294,39 +298,199 @@ Finally, `AGENTS.md` should record the residual (optional chains, computed names
 constructor chains, arbitrary data flow) as *stated* rather than implied — which
 is the convention that file already follows.
 
-### Current stopping point
+### Final result — COMPLETE
 
-Analysis complete and reproduced. **No code written, no PR touched.** The next
-session should confirm the owner's ruling, re-verify #50/#51 state on GitHub
-(CI and review state can have moved), and then execute the ruling.
+Owner ruled 2026-08-28: **proceed with #51, close #50.** Executed.
+
+- **#51 merged** at `dd240a2` (head `20c7550`, `mergeable_state: clean`, all 18
+  checks green including `Verify the release is fully validated`).
+- **#50 closed**, with a comment recording the reproduction evidence: its CI
+  failure was caused by its own fixtures colliding with the environment-registry
+  scan, and its optional-chain P1 reproduces on its exact head.
+- `main` is `c023e3f` and green; backlog unchanged at 68/68.
+
+**Carried forward — not lost.** A follow-up should port #50's *class*-closing
+pieces: escape refusal (`\uXXXX`, `\xXX`), the comment-aware separator on `module`
+imports, `Function`/`eval` matched as bare identifiers rather than one call
+spelling, and the `implementationFiles()` path normalisation that fixes a real
+Windows portability bug. **Not** the `process` allowlist. This is not yet a work
+unit; it is recorded here so it is not forgotten.
+
+**Residual risk, accepted and stated:** computed property names, constructor
+chains, optional chains and arbitrary data flow remain outside this source scan.
+`AGENTS.md`'s own threat model assigns them to code review.
 
 ### PR / merge information
 
-Nothing merged. #50 and #51 both open at the heads recorded above.
+#51 merged at `dd240a2`. #50 closed. Branch `claude/secret-scan-loader-gateway`.
 
 ---
 
-## `T-1` — `scripts/test-ci-plan.mjs` (1223 lines)
+## `LD-R` — Remove the landing site, rehome `/news`
 
-**Status:** `NOT STARTED` · **Risk:** R4 · **Blocked by:** `SEC-1`
+**Status:** `READY` · **Risk:** R4 · **Retires:** `LD-1`, `LD-2`, `LD-3` (3 backlog entries, 5989 lines)
 
-Recorded here ahead of time only because it is the designated first
-implementation unit; the detailed split design is written when it starts.
+### Goal
 
-**Why first:** it is the largest tooling file, and PR #49 already split the
-secret scanner and its tests by responsibility — so a proven, reviewed precedent
-for this exact shape of work exists in `scripts/secret-scan/`.
+Owner ruling: remove the SafeHaul landing page completely — no public landing site
+until it is rebuilt from scratch — **while keeping `/news` live**.
 
-**Why R4 despite being tooling:** it is half of a two-part contract. `ci-plan.mjs`
-and `test-ci-plan.mjs` pin each other, and this file's assertions (E6b/E6c on the
-`!cancelled()` pair, E6d/E6e on reporter jobs, J1–J5 on Playwright projects,
-§L on the secret scanner's wiring) are what stop the release pipeline from
-silently shipping nothing. A weakened assertion here fails silently, which is the
-failure mode `AGENTS.md` says a checker has.
+**This is the campaign's only deliberately behaviour-changing unit.** The usual
+"behaviour must be identical" rule does not apply to the marketing site, which is
+being retired on purpose. It *does* still apply to the blog: its content, routes,
+and rendered output must not change.
 
-**Mandatory:** `npm run check:ci-plan` must pass. The recorded backlog count is
-1358 while the file measures 1223 — the effective ceiling is the lower of the two,
-so there is no headroom to spend.
+### The dependency map — read this before deleting anything
+
+Deleting `landing/` alone takes `/news` down **silently**. Verified on `c023e3f`:
+
+| What | Where | Why it matters |
+|---|---|---|
+| `/news`, `/news/**`, `/api/news/**`, `/sitemap.xml` | rewrites on **both** landing Hosting targets in `firebase.json` | The blog has **no Hosting entry of its own**. Remove the targets and the blog is unreachable. |
+| `/assets/css/styles.css?v=8` | `functions/blog/publicApi.js` page shell | This *is* `landing/assets/css/styles.css` — the 3447-line `LD-1` file. Every rendered blog page links it. |
+| `/assets/images/logo.svg`, `logo-mono.svg`, `news-fallback.svg` | same shell + card rendering | Blog header, footer and per-post fallback art. |
+| `/assets/fonts/archivo-variable.woff2`, `geist-mono-variable.woff2` | preloaded in the shell | Self-hosted; the shell preloads exactly what the stylesheet declares. |
+| `robots.txt` | served as the static `landing/robots.txt` | A test pins the served file to the static one. |
+| shared card class names | `landing/assets/js/main.js` ↔ `publicApi.js` (`publicApi.js:347`) | The homepage strip and the blog index share classes. Only the blog side survives. |
+
+### Planned split
+
+1. **New Hosting targets for the blog** — `news-testing` / `news-production`,
+   carrying the `serveBlogPublic` rewrites and the security headers the landing
+   targets had (including `X-Robots-Tag: noindex` on testing only, which is why
+   the two targets deliberately differ).
+2. **A minimal blog stylesheet**, extracted from `styles.css` — only the rules the
+   server-rendered shell and cards actually use. **It must come in under 500
+   lines**: a file this campaign creates may never be backlogged.
+3. **Keep** the fonts, `logo.svg`, `logo-mono.svg`, `news-fallback.svg` and
+   `robots.txt`, relocated out of `landing/`.
+4. **Delete** `index.html`, `privacy.html`, `main.js`, the full `styles.css`,
+   `og-card.png`, `screenshots/`, `company_logos/`, `landing/README.md`.
+5. **Remove** the two landing Hosting targets, the `/api/landing-lead` rewrite,
+   the landing deploy steps in `main.yml` and `promote-production.yml`, and the
+   `check:landing-claims` / `check:landing-a11y` / `capture:landing-screenshots`
+   scripts and their npm entries. `check:landing-claims` is wired into
+   `npm run lint` — that reference must go too or lint breaks.
+6. **Delete** the landing-only tests `src/tests/landingPage.test.js` and
+   `src/tests/landingNewsSection.test.js`; **update** `src/tests/hostingConfig.test.js`,
+   which pins the Hosting config and the sitemap origin.
+
+### Explicitly NOT in this unit — flagged, not deleted
+
+The **lead-capture subsystem** is landing-adjacent but holds retained data:
+`submitLandingLead`, `functions/landing/{callables,config,leads,telegram}.js`,
+the `landing_leads` and `platform_settings` collections and their rules, and
+`src/features/super-admin/views/LandingPageSettingsView.jsx` (536 lines — `SA-8`)
+with its service and contract test.
+
+With no landing page, `submitLandingLead` has no caller — but **historical leads
+remain readable only through that view**. Deleting it destroys the only access
+path to data the business may still want. The `/api/landing-lead` *rewrite* goes
+(it is an obsolete deployment reference, which the ruling covers); the callable,
+the collection, the rules and the view **stay**, recorded as a trash candidate for
+an owner decision. See the trash register.
+
+### Tests required
+
+`npm test`, `npm run test:e2e` (chromium), `npm run check:ci-plan`,
+`npm run check:source-size`, `npm run lint`, `npm run build`, and the functions
+suite. Plus: a rendered blog page must be fetched and confirmed styled, with the
+fonts and images resolving — a green unit suite cannot see a broken stylesheet
+link.
+
+### `LD-R` is two PRs, and the order is the safety property
+
+Measured on `c023e3f`: the blog's 43 emitted classes pull in tokens (§1), reset and
+base (§2), typography (§3), buttons (§5), navigation (§6), the news section (§16),
+the footer (§18) and parts of responsive (§20) — **roughly 1400 lines** before any
+trimming, and §16 alone is 539. So the blog stylesheet cannot be one file under
+500; it splits into a few cohesive ones (tokens+base, components, news layout),
+all linked from the shell. Several `<link>` tags is normal for a server-rendered
+page, and `@import` is not an acceptable substitute.
+
+**`LD-R1` — give the blog its own legs, remove nothing.**
+Its own stylesheet set, its own copies of the fonts, logos, news fallback art and
+`robots.txt`, and its own Hosting targets carrying the `serveBlogPublic` rewrites.
+The landing site stays exactly as it is and keeps working. Fully reversible, and
+it *proves* the blog stands alone before anything is deleted.
+
+**`LD-R2` — remove the landing site.**
+Only once `LD-R1` is merged and `/news` is confirmed serving correctly from its
+own target. Deletes the landing HTML/CSS/JS and landing-only assets, both landing
+Hosting targets, the `/api/landing-lead` rewrite, the landing deploy steps in both
+workflows, and the three landing scripts with their npm entries (including the
+`check:landing-claims` reference inside `npm run lint`, which breaks lint if
+missed). Retires `LD-1`, `LD-2`, `LD-3`.
+
+Doing it in this order means no moment exists where `/news` has lost the landing
+assets but not yet gained its own. Doing it in one PR would create exactly that
+window, and a unit suite cannot see a broken stylesheet link.
+
+### Verification that a test suite cannot give you
+
+CSS extraction regresses visually in ways unit tests do not catch. `LD-R1` must
+include a rendered check: fetch a real blog index page and a real article page,
+confirm the stylesheets, both font faces and every image resolve, and compare the
+rendering against the same pages served from the landing target.
+
+### Current stopping point
+
+Not started. Dependency map and the two-PR split above are verified against
+`c023e3f`.
+
+---
+
+## `RU-1` → `RU-2` — Firestore rules
+
+**Status:** `RU-1` `READY` (after `LD-R`) · `RU-2` `BLOCKED` by `RU-1` · **Risk:** R3 → R4
+
+### Goal
+
+Owner ruling: **no concatenation or build step.** Strengthen and split the
+security tests first, then shrink `src/firestore.rules` (693 lines) below 500
+**preserving permissions exactly**. If that cannot be done safely, **stop and
+request an owner decision** — that is part of the ruling, not an escape hatch.
+
+### Behaviour that MUST remain unchanged
+
+Every permission, for every role, on every collection. Tenant isolation. The
+server-only collections (`platform_settings`, `landing_leads` are `read, write: if
+false`). No matcher relaxed, no condition widened, no `allow` broadened — the
+reduction must come from the file's own structure: shared helper functions and
+collapsing genuinely duplicated matchers.
+
+### `RU-1` must strengthen, not merely divide
+
+The tests are what make `RU-2` safe. Splitting 1106 lines into three files without
+adding coverage leaves the refactor resting on exactly the assurance it had
+before. Required: identify collections and roles with thin or absent negative
+coverage and add it **before** the rules file is touched.
+
+### Current stopping point
+
+Not started. `RU-2` must not begin until `RU-1` is merged.
+
+---
+
+## `T-1` — `scripts/test-ci-plan.mjs` (1223 lines) — note kept for later
+
+**Status:** `NOT STARTED` · **Risk:** R4
+
+Was the designated first unit before the owner's rulings reordered the campaign;
+now queued behind `LD-R` and the rules work. The reasoning is kept because it is
+not obvious from the file:
+
+- **Why it is R4 despite being tooling:** it is half of a two-part contract.
+  `ci-plan.mjs` and `test-ci-plan.mjs` pin each other, and this file's assertions
+  (E6b/E6c on the `!cancelled()` pair, E6d/E6e on reporter jobs, J1–J5 on
+  Playwright projects, §L on the secret scanner's wiring) are what stop the
+  release pipeline from silently shipping nothing. A weakened assertion here
+  fails **silently**.
+- **Precedent exists:** PR #49 split the secret scanner and its tests by
+  responsibility. Same shape of work, already reviewed.
+- **No headroom:** recorded at 1358, measures 1223. The effective ceiling is the
+  lower of the two.
+- **Mandatory:** `npm run check:ci-plan` must pass.
 
 ---
 
@@ -346,18 +510,27 @@ because it looks old.
 
 | Path | Reason | Refs searched | Confidence | Recommendation | Decision |
 |---|---|---|---|---|---|
-| — | — | — | — | — | — |
+| `src/features/super-admin/views/LandingPageSettingsView.jsx` (536, = `SA-8`) + `services/landingSettings.js` + its contract test + `functions/landing/*` + `landing_leads` / `platform_settings` | Manages settings for, and captures leads from, a landing page that `LD-R` removes. `submitLandingLead` will have no caller once the page and its rewrite are gone. | `firebase.json` rewrites; `functions/index.js` exports; `ViewRouter.jsx`; `config/views.js`; `firestore.rules` 626–642; the callables `getLandingPageSettings`, `updateLandingTelegramConfig`, `setLandingTelegramEnabled`, `sendLandingTelegramTest`, `listLandingLeads`, `retryLandingLeadDelivery` | **High** that it becomes unreachable-by-users; **low** that it is safe to delete | **Keep for now.** Historical leads are readable *only* through this view — deleting it destroys the sole access path to retained business data. Revisit when the landing page is rebuilt. | **OWNER DECISION — open** |
 
 ---
 
-# OWNER DECISIONS PENDING
+# OWNER DECISIONS — RULED 2026-08-28
 
-| # | Decision | Blocks | Detail |
+All four opening questions have been answered. Full text in `PLAN.md` § 7.
+
+| # | Decision | Ruling | State |
 |---|---|---|---|
-| 1 | `SEC-1`: which secret-scan implementation reaches `main` | whole campaign | Recommendation and full evidence in the `SEC-1` section. |
-| 2 | Codex review quota is exhausted | PR discipline step 10 | Until quota returns, merges need **human** review. "The bot declined" is not review. Record which kind each unit got. |
-| 3 | Introduce a build step for the landing site? | `LD-1` (3447), `LD-2` (1682) | No build step exists. Splitting either requires introducing one. `AGENTS.md` records this as unasked. |
-| 4 | Introduce a concatenation step for Firestore rules? | `RU-2` (693) | Rules have no include mechanism. Concatenating puts the deployed policy one step further from the file a reviewer reads. |
+| 1 | `SEC-1`: which secret-scan implementation reaches `main` | Proceed with **#51**, close **#50** | **Done** — #51 merged `dd240a2`, #50 closed with reasoning |
+| 2 | The landing site | **Remove it completely.** No public landing site until rebuilt from scratch. Retire the backlog items rather than refactor them. | `LD-R` is `READY` |
+| 2a | Follow-on: `/news` depends on the landing site | **Keep `/news` live** — its own Hosting target, its own minimal stylesheet and assets extracted from the landing ones | Folded into `LD-R` |
+| 3 | `RU-2`: a build step for Firestore rules | **No concatenation or build step.** Strengthen and split the tests first, then shrink the rules file preserving permissions exactly. **Stop and ask if it cannot be done safely.** | `RU-1` → `RU-2` |
+| 4 | Keeping the plan and tracker current | **Update both immediately when rulings land**, then continue | Standing rule; this update is it |
+
+### Still open, not a blocker
+
+**Codex review quota is exhausted.** Step 10 of the PR discipline cannot be met by
+the bot. Until it returns, a work unit merges only with **human** review, and this
+tracker records which kind each one got. "The bot declined" is not review.
 
 ---
 
