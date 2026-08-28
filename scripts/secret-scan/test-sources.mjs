@@ -68,6 +68,7 @@ import { spawnSync } from 'node:child_process';
 import {
     mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync,
 } from 'node:fs';
+import { builtinModules } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join as joinPath, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -159,6 +160,37 @@ const SINGLE_LITERAL = /^\s*(['"`])(?:(?!\1)[^\\])*\1\s*$/;
 const INTERPOLATED = /\$\{/;
 
 /**
+ * A literal specifier this can actually account for.
+ *
+ * Being one string literal was the whole test until review on 2026-08-28 pointed
+ * out that a literal need not be RELATIVE. `import('file:///tmp/x.mjs')`,
+ * `import('/tmp/x.mjs')` and `import('some-package')` are each a single literal,
+ * so each passed; `RELATIVE_SPECIFIER` then never looked at them, because it only
+ * matches `./` and `../`; and a deferred call inside a function body never
+ * reaches the probe. Reproduced against all three — the outside module really
+ * loads, carrying whatever pinned behaviour was moved into it.
+ *
+ * The answer is not another form to refuse but the shape of the question. Two
+ * kinds of specifier can be accounted for: a Node builtin, which is not a file in
+ * this repository and so cannot hold scanner source, and a relative one, which
+ * the containment scan below resolves and checks. Everything else — absolute
+ * paths, every URL scheme, bare packages, `#` import-map entries — is refused as
+ * one class rather than enumerated one round at a time.
+ *
+ * `builtinModules` is asked of Node rather than transcribed, so the list cannot
+ * drift; the `node:` prefix is accepted on its own because it can only ever name
+ * a builtin. This costs the scanner nothing: it loads `node:*` and `./*.mjs` and
+ * has no dynamic import at all.
+ *
+ * Static `import ... from` is deliberately not subject to this. It resolves when
+ * the module loads, so the probe sees it and L32 already covers it; this rule
+ * exists for the deferred call the probe structurally cannot see.
+ */
+const isAccountableSpecifier = (specifier) => specifier.startsWith('node:')
+    || builtinModules.includes(specifier)
+    || /^\.\.?\//.test(specifier);
+
+/**
  * What Node ACTUALLY loads, asked of Node.
  *
  * Three review rounds in a row found another specifier spelling that a regex
@@ -194,12 +226,24 @@ export function loadedGraph(entry = ENTRY) {
     const record = joinPath(mkdtempSync(joinPath(tmpdir(), 'safehaul-probe-')), 'graph.txt');
     writeFileSync(record, '');
     try {
+        // The record's path travels by `register`'s own `data` channel, which
+        // hands it to the hooks' `initialize` before anything resolves. It was an
+        // environment variable until the functions inventory guard refused it,
+        // rightly: every environment variable this repository reads is inventoried
+        // as SafeHaul configuration, and a temp file a harness hands its own child
+        // process is not.
+        //
+        // Percent-encoded because this is a URL and the paths are interpolated
+        // into it: a `#` anywhere in TMPDIR would otherwise truncate the script
+        // at a fragment, and the probe would fail for a reason nothing explains.
+        const bootstrap = 'import { register } from \'node:module\'; '
+            + `register(${JSON.stringify(hooks)}, { data: ${JSON.stringify(record)} });`;
         const probed = spawnSync(process.execPath, [
             '--import',
-            `data:text/javascript,import { register } from 'node:module'; register(${JSON.stringify(hooks)});`,
+            `data:text/javascript,${encodeURIComponent(bootstrap)}`,
             '--input-type=module',
             '-e', `await import(${JSON.stringify(pathToFileURL(entry).href)});`,
-        ], { encoding: 'utf8', env: { ...process.env, SAFEHAUL_PROBE_RECORD: record } });
+        ], { encoding: 'utf8' });
         if (probed.status !== 0) {
             throw new Error(
                 'the module-graph probe could not run, so what the scanner loads is unknown: '
@@ -239,14 +283,26 @@ export function implementationFiles(entry = ENTRY, directory = here) {
             );
         }
         for (const [, argument] of source.matchAll(MODULE_CALL)) {
-            if (SINGLE_LITERAL.test(argument) && !INTERPOLATED.test(argument)) continue;
+            const where = file.replace(/^.*\/scripts\//, 'scripts/');
+            if (!SINGLE_LITERAL.test(argument) || INTERPOLATED.test(argument)) {
+                throw new Error(
+                    `${where} loads a module with a computed `
+                    + `specifier: import(${argument.trim()}). Containment is decided by reading `
+                    + 'specifiers, and a concatenated or variable one names a file this cannot see — '
+                    + 'the fragment it does see resolves to nothing and would be skipped, so the real '
+                    + 'module escapes and the \u00a7L assertions read source that no longer contains '
+                    + 'what they check. Use one string literal.',
+                );
+            }
+            const specifier = argument.trim().slice(1, -1);
+            if (isAccountableSpecifier(specifier)) continue;
             throw new Error(
-                `${file.replace(/^.*\/scripts\//, 'scripts/')} loads a module with a computed `
-                + `specifier: import(${argument.trim()}). Containment is decided by reading `
-                + 'specifiers, and a concatenated or variable one names a file this cannot see — '
-                + 'the fragment it does see resolves to nothing and would be skipped, so the real '
-                + 'module escapes and the \u00a7L assertions read source that no longer contains '
-                + 'what they check. Use one string literal.',
+                `${where} loads a module with a specifier that is neither a Node builtin nor `
+                + `relative: import('${specifier}'). A literal is not enough on its own — an `
+                + 'absolute path, a URL or a bare package name is one literal, is never resolved '
+                + 'by the containment scan, and inside a function body is never reached by the '
+                + 'graph probe either, so the module it names escapes both halves of this check. '
+                + 'Load scanner source with a relative specifier so containment can read it.',
             );
         }
         for (const [, specifier] of source.matchAll(RELATIVE_SPECIFIER)) {

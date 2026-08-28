@@ -24,15 +24,39 @@
  * returned before the hook does, so there is no window to lose a record in and
  * nothing for exit sequencing to get wrong.
  *
+ * ## Why `initialize` and not an environment variable
+ *
+ * The first version took the record's path from the environment. That is a
+ * global for something that belongs to one registration, and `functions/test/
+ * unit/environmentRegistry.inventory.test.js` was right to refuse it: every
+ * environment variable this repository reads is inventoried as SafeHaul
+ * configuration, and a temporary file that a test harness hands its own child
+ * process is not configuration — registering it would have put fiction in a
+ * Super Admin screen to make a test pass.
+ *
+ * That guard reads text rather than syntax, so naming a variable in PROSE
+ * invents one. Writing this paragraph the first time added a key called `X` and
+ * failed the guard on its own explanation. Deliberate, and the right trade: a
+ * scan that also sees comments cannot be talked out of a real one.
+ *
+ * `register()` has a channel for exactly this. `data` is handed to `initialize`
+ * before any resolution happens, so the path arrives by the route the platform
+ * designed for it and no process-wide name is invented.
+ *
  * Named `test-` so it is not itself part of the covered set.
  */
 
 import { appendFileSync } from 'node:fs';
 
-const RECORD = process.env.SAFEHAUL_PROBE_RECORD;
+/** Where to append resolved URLs, handed over by `register(..., { data })`. */
+let record = null;
+
+export function initialize(data) {
+    record = data;
+}
 
 export async function resolve(specifier, context, next) {
     const result = await next(specifier, context);
-    if (RECORD && result.url.startsWith('file:')) appendFileSync(RECORD, `${result.url}\n`);
+    if (record && result.url.startsWith('file:')) appendFileSync(record, `${result.url}\n`);
     return result;
 }

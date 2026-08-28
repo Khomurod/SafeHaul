@@ -140,6 +140,24 @@ const here = dirname(fileURLToPath(import.meta.url));
         ["from '../elsewhere.mjs#frag'", "import { a } from '../elsewhere.mjs#frag';", false],
         // And the suffix must not break a legitimate inside-the-set import.
         ["import('./ok.mjs?scanner')", "await import('./ok.mjs?scanner');", true],
+        // Reported 2026-08-28: being ONE LITERAL was the whole test, and a literal
+        // need not be relative. Each of these three is a single literal, so each
+        // passed; the containment scan reads only `./` and `../`, so none was
+        // resolved; and a deferred call in a function body never reaches the
+        // probe. Reproduced against all three — the outside module really loads.
+        ["deferred import('file:///...')",
+            "export function later() { return import('file:///tmp/elsewhere.mjs'); }", false],
+        ["deferred import('/abs/path')",
+            "export function later() { return import('/tmp/elsewhere.mjs'); }", false],
+        ["deferred import('bare-package')",
+            "export function later() { return import('some-package'); }", false],
+        // The refusal is a class, not a list, so the two accountable kinds have to
+        // stay legal or it would be a rule against the scanner's own source: a
+        // builtin is not a file in this repository, and a relative specifier is
+        // resolved and contained by the scan below.
+        ["deferred import('node:fs')", "export function later() { return import('node:fs'); }", true],
+        ["deferred import('fs')", "export function later() { return import('fs'); }", true],
+        ["deferred import('./ok.mjs')", "export function later() { return import('./ok.mjs'); }", true],
     ];
     for (const [label, source, shouldPass] of specifierCases) {
         const dir = mkdtempSync(joinPath(tmpdir(), 'safehaul-spec-'));
