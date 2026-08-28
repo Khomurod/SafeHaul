@@ -24,6 +24,7 @@
  * | `secret-scan/test-failsafe.mjs`  | is an untrustworthy base ever widened?    |
  * | `secret-scan/test-validated.mjs` | what counts as a validated baseline?      |
  * | `secret-scan/test-pinning.mjs`   | is the scanner pinned, and the audit apart? |
+ * | `secret-scan/test-coverage.mjs`  | is that the source the scanner runs?      |
  *
  * They share `secret-scan/test-support.mjs` — the assertion counter, the derived
  * synthetic secrets, the throwaway repositories and the pinned binary — and each
@@ -50,6 +51,7 @@ for (const section of [
     './secret-scan/test-failsafe.mjs',
     './secret-scan/test-validated.mjs',
     './secret-scan/test-pinning.mjs',
+    './secret-scan/test-coverage.mjs',
 ]) {
     // Sequential, deliberately — see above: a section that awaits must finish
     // before the next one starts, or its output lands after a later section's.

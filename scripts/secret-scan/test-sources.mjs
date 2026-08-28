@@ -271,18 +271,48 @@ export function implementationSource(entry = ENTRY, directory = here) {
 }
 
 /**
- * Every literal relative specifier named anywhere in the covered files.
+ * Relative specifiers in an actual import position — deliberately STRICT.
  *
- * Used to tell an ORPHAN from a module that is merely loaded late: a deferred
+ * `RELATIVE_SPECIFIER` above is permissive on purpose, and reusing it here was a
+ * real defect: review on 2026-08-28 reproduced a covered file containing only
+ * `// Documentation mentions './orphan.mjs'`, which excused an orphan carrying
+ * the pinned flags from L33 while nothing imported it.
+ *
+ * The two uses pull in OPPOSITE safety directions, which is the whole lesson:
+ *
+ *   - containment asks "does this reach outside the covered set", so
+ *     over-matching costs a redundant check that passes and under-matching
+ *     misses an escape — permissive is correct;
+ *   - this asks "is an unloaded module excused", so over-matching EXCUSES an
+ *     orphan and under-matching only produces a loud false refusal a contributor
+ *     can see and fix — strict is correct.
+ *
+ * One matcher cannot serve both, and using one for both is how a comment in a
+ * docblock came to vouch for dead source.
+ */
+const QUOTE = "['\"\\x60]";
+const REL = "(\\.\\.?/[^'\"\\x60\\n]*)";
+const IMPORT_POSITION = new RegExp([
+    `\\bfrom${BETWEEN}${QUOTE}${REL}`,
+    `\\bimport${BETWEEN}${QUOTE}${REL}`,
+    `\\b(?:import|require)${BETWEEN}\\(${BETWEEN}${QUOTE}${REL}`,
+].join('|'), 'g');
+
+/**
+ * Every module a covered file actually imports, however lazily.
+ *
+ * Tells an ORPHAN from a module that is merely loaded late: a deferred
  * `import('./lazy.mjs')` inside a function body never appears in the graph, but
- * the file names it, so it is reachable. Anything named by neither is dead source
- * that the assertions would still read.
+ * the file imports it, so it is reachable. Anything imported by nothing and
+ * loaded by nothing is dead source the assertions would still read.
  */
 function namedSpecifiers(covered) {
     const named = new Set();
     for (const file of covered) {
         const source = readFileSync(file, 'utf8');
-        for (const [, specifier] of source.matchAll(RELATIVE_SPECIFIER)) {
+        for (const match of source.matchAll(IMPORT_POSITION)) {
+            const specifier = match[1] || match[2] || match[3];
+            if (!specifier) continue;
             const target = resolve(dirname(file), specifier.replace(/[?#].*$/, ''));
             try {
                 if (statSync(target).isFile()) named.add(target);
