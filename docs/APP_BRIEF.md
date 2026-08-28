@@ -92,7 +92,7 @@ Single Firebase project **`truckerapp-system`**, region **`us-central1`**.
 | Cloud Functions | `functions/` | Node 20, **mixed v1 and v2** (both production-stable; full v2 migration planned, not urgent) |
 | Firestore rules | `src/firestore.rules` | Deployed from here, not the repo root |
 | Storage rules | `src/storage.rules` | |
-| Marketing site | `landing/` | Hand-written HTML/CSS/vanilla JS, **no build step, no framework**. Homepage, privacy page and the server-rendered blog all share `assets/css/styles.css`; see [`DESIGN.md`](../DESIGN.md) |
+| Public site | `web/` | Hand-written CSS, **no build step, no framework**. Serves the assets for the server-rendered blog and redirects `/` to `/news`. The marketing site that used to live in `landing/` is being retired: it is no longer served, and `landing/` is deleted in the follow-up. See [`DESIGN.md`](../DESIGN.md) |
 | Design system | `src/design-system/` | Business-neutral visual contract; see §11 |
 
 **Three communication patterns**, used deliberately:
@@ -812,12 +812,17 @@ currently populates them from a recipient's reply; see §12.
 - **Callable names are a contract.** `scripts/check-callable-contract.mjs` fails
   CI if the SPA calls a name `functions/index.js` does not export. See
   [`docs/callable-frontend-map.md`](./callable-frontend-map.md).
-- **The privacy page shares a stylesheet with the server-rendered blog.**
-  `/news`, `/news/{slug}` and `/news/feed.xml` are rendered by `serveBlogPublic`
-  and use `landing/assets/css/styles.css` (section 16), as do
-  `landing/privacy.html` and `landing/index.html`, so that file cannot be
-  rewritten without carrying the blog's styles along. Sections 6, 16 and 18 dress
-  the navbar, cards and footer the blog function emits, so nothing in them may
+- **The blog owns its stylesheet now.** `/news`, `/news/{slug}` and
+  `/news/feed.xml` are rendered by `serveBlogPublic` and styled by five files in
+  `web/assets/css/`, cut out of the retired marketing site's single 3447-line
+  sheet at its own section boundaries and kept in its source order. **They are
+  one stylesheet and the `<link>` order in the shell is the cascade** — moving a
+  rule between them, or re-ordering the tags, can make a late override start
+  losing to an early rule it used to beat. Historical note, because it explains
+  the shape: the marketing homepage and privacy page shared that single file with
+  the blog, which is why removing the landing site could not be a deletion.
+  The old sections 6, 16 and 18 dress the navbar, cards and footer the blog
+  function emits, so nothing in them may
   assume the homepage's markup exists.
 
 ---

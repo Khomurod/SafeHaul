@@ -1,0 +1,211 @@
+/*
+ * SafeHaul /news — buttons and navigation
+ *
+ * Extracted from the retired marketing site's `landing/assets/css/styles.css`
+ * (3447 lines) when the landing page was removed and the blog kept. Only the
+ * rules the server-rendered pages in `functions/blog/publicApi.js` actually
+ * reach are here: its markup emits 43 classes, and every rule below is one of
+ * those, an element/`:root` rule, or a media-query override of one.
+ *
+ * THE FIVE FILES ARE ONE STYLESHEET, AND THE LINK ORDER IS THE CASCADE.
+ * They were cut at the original file's own section boundaries and are still in
+ * its source order — foundation, chrome, article, footer, responsive — so the
+ * cascade is byte-for-byte the order it was. Re-order the `<link>` tags in the
+ * shell, or move a rule between files, and a late override can start losing to
+ * an early rule it used to beat. The split exists because the source-size
+ * standard caps a file at 500 lines, not because these are independent.
+ *
+ * Sections 5-6. The blog ships no JavaScript of its own, so the navigation has
+ * DELIBERATELY NO MOBILE TOGGLE; `news-responsive.css` keeps it reachable below
+ * 900px with a `:not(:has(.mobile-menu-toggle))` rule that lays the links out as
+ * a scrolling row. That omission and that rule are one decision — change either
+ * and the blog loses its navigation on a phone.
+ */
+
+/* ========================================================================= */
+/* 5. BUTTONS                                                                */
+/* ========================================================================= */
+
+.btn {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 11px 24px;
+    font-family: var(--font-display);
+    font-size: 0.9375rem;
+    font-variation-settings: 'wdth' 100, 'wght' 620;
+    letter-spacing: -0.004em;
+    border: 1px solid transparent;
+    border-radius: var(--radius-control);
+    cursor: pointer;
+    text-align: center;
+    transition: background-color var(--t-fast) ease, border-color var(--t-fast) ease,
+        color var(--t-fast) ease, transform 0.12s var(--ease-seat);
+}
+
+.btn:active {
+    transform: scale(0.98);
+}
+
+/* The Black-Action Rule: the primary action is near-black, not a brand colour.
+   There is no brand colour on this site. */
+.btn-primary {
+    background: var(--graphite);
+    border-color: var(--graphite);
+    color: var(--paper);
+}
+
+.btn-ghost {
+    background: transparent;
+    border-color: transparent;
+    color: var(--ink);
+    padding-inline: 12px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .btn-primary:hover {
+        background: var(--graphite-3);
+        border-color: var(--graphite-3);
+    }
+
+    .btn-ghost:hover {
+        background: var(--paper-3);
+    }
+}
+
+/* On a graphite ground the action inverts rather than losing its edge. */
+.trust-section .btn-primary,
+.cta-section .btn-primary,
+.footer-section .btn-primary {
+    background: var(--paper);
+    border-color: var(--paper);
+    color: var(--graphite);
+}
+
+@media (hover: hover) and (pointer: fine) {
+
+    .trust-section .btn-primary:hover,
+    .cta-section .btn-primary:hover,
+    .footer-section .btn-primary:hover {
+        background: var(--ink-on-dark-2);
+        border-color: var(--ink-on-dark-2);
+    }
+}
+
+/* ========================================================================= */
+/* 6. NAVIGATION                                                             */
+/*                                                                           */
+/* SHARED WITH THE BLOG, which emits this same navbar markup minus the mobile */
+/* toggle. Nothing here may require the toggle to exist.                     */
+/* ========================================================================= */
+
+.navbar {
+    position: sticky;
+    top: 0;
+    z-index: 900;
+    background: var(--paper);
+    border-bottom: 1px solid var(--rule);
+    transition: border-color var(--t-base) ease, box-shadow var(--t-base) ease;
+}
+
+/* Scrolled, the bar becomes a drawn edge: 2px graphite, the same weight every
+   section rule uses. */
+.navbar[data-scrolled="true"] {
+    border-bottom: 2px solid var(--graphite);
+    box-shadow: var(--shade-1);
+}
+
+.nav-container {
+    max-width: var(--measure);
+    margin-inline: auto;
+    padding: 0 var(--gutter);
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    min-height: 68px;
+}
+
+.logo-link {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin-right: auto;
+}
+
+/*
+ * Sized by HEIGHT, not width.
+ *
+ * The mark is 152 × 132, and the outgoing site put it in a 28 × 28 box, where
+ * `contain` scaled it to 28 wide and left it towering over the wordmark's 14px
+ * cap height. Setting the height relates the two optically; the width follows
+ * the artwork's own ratio.
+ */
+.logo {
+    height: 22px;
+    width: auto;
+}
+
+.logo-text {
+    font-family: var(--font-display);
+    font-size: 1.1875rem;
+    font-variation-settings: 'wdth' 100, 'wght' 640;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+}
+
+.nav-links {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+/* No pills. A link is a word with a drawn underline when it is the current one. */
+.nav-link {
+    position: relative;
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 10px 12px;
+    font-family: var(--font-display);
+    font-size: 0.875rem;
+    font-variation-settings: 'wdth' 100, 'wght' 500;
+    letter-spacing: -0.004em;
+    color: var(--ink-2);
+}
+
+.nav-link::after {
+    content: '';
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    height: 2px;
+    background: var(--graphite);
+    transform: scaleX(0);
+    transform-origin: left center;
+    transition: transform var(--t-fast) var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .nav-link:hover {
+        color: var(--ink);
+    }
+}
+
+.nav-link[aria-current="true"],
+.nav-link[aria-current="page"] {
+    color: var(--ink);
+}
+
+.nav-link[aria-current="true"]::after,
+.nav-link[aria-current="page"]::after {
+    transform: scaleX(1);
+}
+
+.nav-cta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}

@@ -1,0 +1,114 @@
+/*
+ * SafeHaul /privacy.html — policy page styling
+ *
+ * Extracted from the retired marketing site's styles.css, in its SOURCE ORDER,
+ * exactly as the five news-*.css files were. These rules were spread across the
+ * original's sections 3, 4 and 16; they are collected here because only the
+ * privacy page uses them, and news-article.css has no headroom left.
+ *
+ * LINKED AFTER news-chrome.css AND BEFORE news-footer.css. Every selector here
+ * names .privacy-hero, .policy-content or .policy-section, so it cannot collide
+ * with the blog's rules — but it must still sit after the foundation's generic
+ * element rules, which it overrides, and that is what the link order gives it.
+ */
+
+/*
+ * The engineered label: what a technical document types or numbers.
+ *
+ * One declaration for every such role on the site, so the typed voice cannot
+ * drift per component. Prose is never in this list.
+ */
+.privacy-hero p {
+    font-family: var(--font-mono);
+    font-weight: 500;
+    font-size: 0.75rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+/*
+ * Section grounds run edge to edge and hold their own measure. Giving the
+ * section a max-width instead leaves the graphite bands floating as panels with
+ * cut vertical edges, which is a rectangle on a background rather than a ground.
+ */
+.privacy-hero,
+.policy-section {
+    padding-inline: max(var(--gutter), calc((100% - var(--measure)) / 2));
+}
+
+/* ========================================================================= */
+/* 16b. PRIVACY POLICY                                                       */
+/*                                                                           */
+/* `privacy.html` shares this stylesheet and uses its own four class names.   */
+/* It is the same object as an article: one sheet of the specification.       */
+/* ========================================================================= */
+
+.privacy-hero {
+    padding-block: 52px 32px;
+}
+
+.privacy-hero h1 {
+    font-size: clamp(2.25rem, 4vw, 3.25rem);
+    margin-bottom: 14px;
+}
+
+.privacy-hero p {
+    color: var(--ink-3);
+    padding-top: 12px;
+    border-top: 2px solid var(--graphite);
+    max-width: none;
+}
+
+.policy-section {
+    padding-block: 40px var(--section);
+}
+
+.policy-content {
+    max-width: 72ch;
+    color: var(--ink-2);
+}
+
+.policy-content section + section {
+    margin-top: 40px;
+    padding-top: 32px;
+    border-top: 1px solid var(--rule);
+}
+
+.policy-content h2 {
+    font-size: 1.5rem;
+    margin-bottom: 14px;
+}
+
+.policy-content h3 {
+    font-size: 1.0625rem;
+    margin: 26px 0 10px;
+}
+
+.policy-content p,
+.policy-content li {
+    font-size: 1.0625rem;
+}
+
+.policy-content p + p {
+    margin-top: 16px;
+}
+
+.policy-content ul,
+.policy-content ol {
+    margin-top: 14px;
+    padding-left: 22px;
+    list-style: square;
+}
+
+.policy-content ol {
+    list-style: decimal;
+}
+
+.policy-content li + li {
+    margin-top: 8px;
+}
+
+.policy-content a {
+    color: var(--draft);
+    text-decoration: underline;
+}

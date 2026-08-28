@@ -22,15 +22,19 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const root = process.cwd();
 const config = JSON.parse(readFileSync(resolve(root, 'firebase.json'), 'utf8'));
-const robotsTxt = readFileSync(resolve(root, 'landing/robots.txt'), 'utf8');
+const robotsTxt = readFileSync(resolve(root, 'web/robots.txt'), 'utf8');
 const publicApi = readFileSync(resolve(root, 'functions/blog/publicApi.js'), 'utf8');
 
-const LANDING_TARGETS = ['landing-testing', 'landing-production'];
+// The target ALIASES are still `landing-*` because they map to the Firebase
+// Hosting sites `safehaul-landing-{testing,production}`, and a site cannot be
+// renamed. The marketing page they were named for is gone; what they serve now
+// is `web/` — the blog's assets and the `serveBlogPublic` rewrites.
+const PUBLIC_TARGETS = ['landing-testing', 'landing-production'];
 
 function target(name) {
     const found = config.hosting.find((entry) => entry.target === name);
@@ -43,40 +47,56 @@ function sources(name) {
 }
 
 describe('firebase.json — landing rewrite order', () => {
-    it.each(LANDING_TARGETS)('%s puts every specific rewrite before the catch-all', (name) => {
+    it.each(PUBLIC_TARGETS)('%s rewrites every news route', (name) => {
         const list = sources(name);
-        const catchAll = list.indexOf('**');
-
-        expect(catchAll, 'the catch-all rewrite is missing').toBeGreaterThan(-1);
-        expect(catchAll, 'the catch-all must be last').toBe(list.length - 1);
-
-        for (const source of ['/news', '/news/**', '/api/news/**', '/sitemap.xml', '/api/landing-lead']) {
-            const position = list.indexOf(source);
-            expect(position, `${source} is not rewritten`).toBeGreaterThan(-1);
-            expect(position).toBeLessThan(catchAll);
+        for (const source of ['/news', '/news/**', '/api/news/**', '/sitemap.xml']) {
+            expect(list.indexOf(source), `${source} is not rewritten`).toBeGreaterThan(-1);
         }
     });
 
-    it.each(LANDING_TARGETS)('%s routes /news before /news/**', (name) => {
+    it.each(PUBLIC_TARGETS)('%s keeps any catch-all last', (name) => {
+        // The catch-all went with the marketing homepage: it pointed at an
+        // `/index.html` that `web/` does not contain, so it could only ever have
+        // produced a 404 with extra steps. The ASSERTION stays, conditional,
+        // because the original hazard was never the catch-all existing — it was
+        // a news rewrite sitting after one and therefore never firing. If anyone
+        // adds a catch-all back, it has to be last for the same reason as before.
+        const list = sources(name);
+        const catchAll = list.indexOf('**');
+        if (catchAll === -1) return;
+        expect(catchAll, 'the catch-all must be last').toBe(list.length - 1);
+    });
+
+    it.each(PUBLIC_TARGETS)('%s routes /news before /news/**', (name) => {
         // `/news/**` does not match `/news` itself, so both are needed; the
         // exact match first keeps the index page independent of glob semantics.
         const list = sources(name);
         expect(list.indexOf('/news')).toBeLessThan(list.indexOf('/news/**'));
     });
 
-    it.each(LANDING_TARGETS)('%s sends the news routes to serveBlogPublic', (name) => {
+    it.each(PUBLIC_TARGETS)('%s sends the news routes to serveBlogPublic', (name) => {
         for (const rewrite of target(name).rewrites) {
-            if (rewrite.source === '**' || rewrite.source === '/api/landing-lead') continue;
+            if (rewrite.source === '**') continue;
             expect(rewrite.function?.functionId).toBe('serveBlogPublic');
             expect(rewrite.function?.region).toBe('us-central1');
         }
     });
 
-    it.each(LANDING_TARGETS)('%s leaves the existing lead endpoint first and intact', (name) => {
-        // A pre-existing endpoint. News routing must not have reordered it.
-        const first = target(name).rewrites[0];
-        expect(first.source).toBe('/api/landing-lead');
-        expect(first.function.functionId).toBe('submitLandingLead');
+    it.each(PUBLIC_TARGETS)('%s no longer exposes the marketing lead endpoint', (name) => {
+        // `/api/landing-lead` existed for a form on the marketing homepage. That
+        // page is gone, so the public route is dead configuration pointing at a
+        // callable nothing can reach. The `submitLandingLead` FUNCTION and the
+        // leads it already captured are deliberately untouched — only the public
+        // route is removed — so this asserts the route, not the function.
+        expect(sources(name)).not.toContain('/api/landing-lead');
+    });
+
+    it.each(PUBLIC_TARGETS)('%s sends a bare visit to the articles', (name) => {
+        // Without a homepage, `/` has nothing to serve. Hosting applies redirects
+        // before rewrites, so this is what stops the apex domain 404ing.
+        const redirect = target(name).redirects?.find((entry) => entry.source === '/');
+        expect(redirect, 'the root redirect is missing').toBeDefined();
+        expect(redirect.destination).toBe('/news');
     });
 
     it('does not add news rewrites to the application targets', () => {
@@ -89,7 +109,7 @@ describe('firebase.json — landing rewrite order', () => {
 });
 
 describe('firebase.json — /robots.txt is served statically, never rewritten', () => {
-    it.each(LANDING_TARGETS)('%s does not rewrite /robots.txt', (name) => {
+    it.each(PUBLIC_TARGETS)('%s does not rewrite /robots.txt', (name) => {
         // Hosting resolves this path before rewrites. A rewrite here is dead
         // configuration that produces an empty 404, not a robots file.
         expect(sources(name)).not.toContain('/robots.txt');
@@ -104,13 +124,34 @@ describe('firebase.json — /robots.txt is served statically, never rewritten', 
         expect(robotsTxt).toContain('Sitemap: https://safehaul.io/sitemap.xml');
     });
 
-    it('is not excluded from the landing deploy artifact', () => {
-        for (const name of LANDING_TARGETS) {
+    it('is not excluded from the public deploy artifact', () => {
+        for (const name of PUBLIC_TARGETS) {
             const entry = target(name);
-            expect(entry.public).toBe('landing');
+            expect(entry.public).toBe('web');
             // `**/.*` only hides dotfiles; robots.txt must not be listed.
             expect(entry.ignore).not.toContain('robots.txt');
         }
+    });
+
+    it('ships the standalone privacy policy', () => {
+        // The marketing site is gone; this page is not. It is the only public
+        // statement of how SafeHaul handles personal data, and a reachable
+        // privacy URL is relied on by OAuth consent screens, app-store listings
+        // and privacy law -- so losing it silently is a compliance failure, not
+        // a broken link. The blog footer links it, and this asserts the file the
+        // link resolves to actually deploys.
+        expect(existsSync(resolve(root, 'web/privacy.html'))).toBe(true);
+        const privacy = readFileSync(resolve(root, 'web/privacy.html'), 'utf8');
+        expect(privacy).toContain('<title>Privacy Policy — SafeHaul</title>');
+        expect(privacy).toContain('rel="canonical" href="https://safehaul.io/privacy.html"');
+        // It carries no script: there is no build step and nothing to wire one to.
+        expect(privacy).not.toMatch(/<script/i);
+        // And it must not link back into the removed marketing site.
+        expect(privacy).not.toMatch(/href="\/#/);
+    });
+
+    it('links the privacy policy from the blog footer', () => {
+        expect(publicApi).toContain('href="/privacy.html"');
     });
 
     it('matches the body the function backstop returns', () => {
@@ -130,7 +171,7 @@ describe('firebase.json — the testing landing site must not be indexed', () =>
     }
 
     it('marks landing-testing noindex, so it cannot compete with production', () => {
-        // Both landing sites deploy the same `landing/` directory, so they ship
+        // Both public sites deploy the same `web/` directory, so they ship
         // the same permissive robots.txt. A header is the only per-site control,
         // and without it the test site is duplicate content for the real one.
         expect(headerValue('landing-testing', 'X-Robots-Tag')).toBe('noindex, nofollow');
@@ -141,7 +182,7 @@ describe('firebase.json — the testing landing site must not be indexed', () =>
     });
 
     it('keeps the existing security headers on both landing sites', () => {
-        for (const name of LANDING_TARGETS) {
+        for (const name of PUBLIC_TARGETS) {
             expect(headerValue(name, 'X-Content-Type-Options')).toBe('nosniff');
             expect(headerValue(name, 'X-Frame-Options')).toBe('DENY');
             expect(headerValue(name, 'Referrer-Policy')).toBe('strict-origin-when-cross-origin');

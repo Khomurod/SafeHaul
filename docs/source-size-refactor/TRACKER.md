@@ -15,37 +15,40 @@ it currently is*.
 
 | | |
 |---|---|
-| **Last updated** | 2026-08-28 (after the owner's first rulings) |
-| **Verified main SHA** | `c023e3f4206cf41e28b8cf8a1c41e2372e2b392d` |
-| **Oversized files** | **68** (re-measured after #51 and #52 merged) |
+| **Last updated** | 2026-08-28, after the second landing ruling |
+| **Verified main SHA** | `386f8a85ca2e1f83e4f1ac3ad0f7b136e665cb3d` (#53 merged) |
+| **Oversized files** | **68** · unchanged; `LD-R2` takes it to 65, `LD-R3` likely to 64 |
 | **Backlog entries** | **68** |
-| **Active work item** | `LD-R` — remove the landing site, rehome `/news` |
-| **Active branch** | `claude/safehual-source-size-refactor-j4apre` (restarted from `c023e3f`) |
-| **Active PR** | none yet for `LD-R`. #52 merged at `c023e3f`; #51 merged at `dd240a2`; #50 closed. |
-| **PR head SHA** | — (a tracker commit cannot contain its own SHA; read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre`) |
-| **Review status** | Codex quota still exhausted. #52 merged on owner engagement with its contents, docs-only. |
-| **CI status** | `main` green at `c023e3f`. |
+| **Active work item** | `LD-R1` — done, in review. `LD-R2` next. |
+| **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
+| **Active PR** | **#54** (`LD-R1`). #53, #52, #51 merged; #50 closed. |
+| **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
+| **Review status** | Codex quota still exhausted. Merges need human review. |
+| **CI status** | #54: the size refusal is FIXED and `callable-contract` passes. Earlier "failures" on `f93c925`/`dee9688` were **concurrency cancellations** from rapid pushes, not defects — check for `cancelled` lanes before investigating one. |
 | **Working tree at session end** | see the last per-item section |
-| **Blockers** | Codex review quota exhausted — merges need human review. No owner decision outstanding. |
+| **Blockers** | none blocking `LD-R2`. `LD-R3` has one open owner question (nav placement of the leads archive). |
 
 ### Exact next action
 
-`SEC-1` is **COMPLETE**. All four owner rulings are recorded in `PLAN.md` § 7.
+1. **Merge #54** once its head is green (`LD-R1`).
+2. **Start `LD-R2`** — restart the branch from the new `main`, then work the
+   removal surface mapped in the `LD-R2` section. **Read that section first:** two
+   interlocks break the build if the deletion is taken at face value — `landing`
+   is a `REQUIRED_ROOT` in `source-size-scope.mjs`, and `ci-plan.mjs` maps
+   `landing/` to the lane holding its tests. Neither is optional.
+3. Then `LD-R3` (lead subsystem), which has its own mapped section and one open
+   owner question.
 
-**Current unit is `LD-R`** — remove the landing site and rehome `/news`. This is
-the campaign's only deliberately behaviour-changing unit. Read the `LD-R` section
-below before touching anything: the public blog is **not** independent of the
-landing site today, and the ruling is to keep `/news` live, so this is a removal
-*and* a rehome, not a delete.
+**Two process rules learned the hard way in this session, both worth keeping:**
 
-The trap, stated once: deleting `landing/` alone takes `/news` down silently.
-`/news` has no Hosting entry of its own — it reaches `serveBlogPublic` only
-through rewrites on the two landing targets — and every rendered blog page links
-`/assets/css/styles.css`, which *is* the 3447-line `LD-1` file.
-
-After `LD-R`: `RU-1` (strengthen and split the rules tests) then `RU-2` (shrink
-`firestore.rules` below 500 preserving permissions exactly, stopping to ask if it
-cannot be done safely).
+- **Read the verdict line, not the count.** `npm run check:source-size | grep
+  'file(s) over'` prints the inventory and *drops* `source-size REFUSED:`. A
+  green-looking summary is not a pass.
+- **Do not push in quick succession.** Each push cancels the previous run under
+  the concurrency group, and the reporter job then correctly refuses a run whose
+  lanes were cancelled — which arrives as a CI *failure* notification that is not
+  a defect. Batch commits, push once. When a failure appears, check whether the
+  lanes say `cancelled` before investigating.
 
 ---
 
@@ -141,7 +144,9 @@ use `—` until it exists.**
 | `SO-2` | NOT STARTED | R2 | `src/features/companies/hooks/useCompanyDashboard.js` (runtime) | 528 | 528 | — | — | — | — | — | — | — | 1 |
 | `RU-1` | **READY** (after `LD-R`) | R3 | `src/tests/firestore.rules.security.test.js` (test) — split **and strengthen** | 1106 | 1106 | — | — | — | — | — | — | — | 1 |
 | `RU-2` | **BLOCKED** by `RU-1` | R4 | `src/firestore.rules` (runtime) — no build step; stop and ask if unsafe | 693 | 693 | — | — | — | — | — | — | — | 1 |
-| `LD-R` | **READY** | R4 | remove `landing/`; rehome `/news` onto its own Hosting target | 5989 | — | — | — | — | — | — | — | — | 3 |
+| `LD-R1` | **IN PROGRESS** | R4 | stand up `web/`; blog serves from its own stylesheets | — | — | `claude/safehual-source-size-refactor-j4apre` | — | — | — | — | — | — | 0 |
+| `LD-R2` | **READY** after `LD-R1` | R4 | delete `landing/`, its scripts, tests and workflow steps | 5989 | — | — | — | — | — | — | — | — | 3 |
+| `LD-R3` | **READY** after `LD-R2` | R3 | retire lead capture/Telegram/settings; add read-only Historical Website Leads + CSV | — | — | — | — | — | — | — | — | — | 0 (frees `SA-8`) |
 | `LD-1` | **SUPERSEDED** by `LD-R` | R4 | `landing/assets/css/styles.css` | 3447 | 3447 | — | — | — | — | — | — | — | 1 |
 | `LD-2` | **SUPERSEDED** by `LD-R` | R4 | `landing/index.html` | 1682 | 1682 | — | — | — | — | — | — | — | 1 |
 | `LD-3` | **SUPERSEDED** by `LD-R` | R4 | `landing/assets/js/main.js` | 860 | 860 | — | — | — | — | — | — | — | 1 |
@@ -433,10 +438,258 @@ include a rendered check: fetch a real blog index page and a real article page,
 confirm the stylesheets, both font faces and every image resolve, and compare the
 rendering against the same pages served from the landing target.
 
+### Owner rulings folded in (2026-08-28)
+
+- **Blog navigation:** strip to blog-only links. The shell used to emit 13 links
+  into the marketing site (`/`, `/#features`, `/#pricing`, `/#why-safehaul`,
+  `/#get-started`, `/#faq`); all would have 404'd. Nav is now News & Insights,
+  Contact and Log in; the logo points at `/news`.
+- **`privacy.html`: REVERSED — preserved, not removed.** The first ruling removed
+  it with the marketing site; the second ruling keeps it as a simple standalone
+  page for public users. This is what the compliance concern argued for. Both
+  answers are recorded, in order, so a later reader who finds the removal in the
+  history can see it was reconsidered deliberately rather than lost and restored
+  by accident. It now lives at `web/privacy.html`, carries no JavaScript, and is
+  linked from the blog footer again.
+- **Lead subsystem: retire the machinery, keep the records.** Active capture
+  (`submitLandingLead`), Telegram delivery and configuration, resend/test-send and
+  the Landing Page Settings screen are all retired. **No lead data is deleted.**
+  A minimal read-only *Historical Website Leads* Super Admin view with CSV export
+  replaces the settings screen. Future capture is to be rebuilt fresh. This became
+  `LD-R3` — a read-only view with CSV export is a feature, not a deletion, and
+  folding it into a removal PR would make both harder to review.
+
+### Infrastructure finding that reshaped the split
+
+The Hosting **sites** are `safehaul-landing-{testing,production}` and a site
+cannot be renamed or created from this repository. So the blog does **not** get
+new targets — the existing targets keep their `landing-*` aliases and change what
+they serve, from `landing/` to `web/`. No infrastructure action is needed.
+
+### `LD-R1` — work completed
+
+- **`web/`** created: five stylesheets, both self-hosted font faces, `logo.svg`,
+  `logo-mono.svg`, `news-fallback.svg`, `robots.txt`.
+- **The stylesheets were extracted, not rewritten.** A script parsed the 3447-line
+  original, kept every rule whose selector names one of the blog's 43 emitted
+  classes (plus element/`:root` rules), recursed into media queries, trimmed
+  grouped selectors to the parts the blog uses, and kept only the one `@keyframes`
+  still referenced. Cut at the original's own section boundaries **in source
+  order**, so the cascade is unchanged.
+- `firebase.json`: both targets `public: landing` → `web`; `/api/landing-lead`
+  rewrite removed; `**` catch-all removed (it pointed at an `index.html` that
+  `web/` does not contain); `/` → `/news` redirect added so the apex does not 404.
+- `publicApi.js`: five `<link>` tags, nav and footer stripped to links that
+  resolve, stale comments corrected.
+- `hostingConfig.test.js` updated **without weakening it** — the catch-all
+  ordering assertion is kept conditionally (the hazard returns if anyone re-adds
+  one), and two new contracts were added: the lead route must stay absent, and the
+  root redirect must exist.
+
+| Check | Result |
+|---|---|
+| functions suite | **1636/1636**, 103 suites |
+| `src/tests/` | **716 passed**, 64 skipped |
+| `hostingConfig` + both landing suites | 83 passed |
+| `check:source-size` | 68/68 unchanged — every new file is under 500 |
+| `test:source-size` (incl. A7 format coverage) | pass |
+| `check:ci-plan` | pass |
+| `npm run lint` | pass |
+| Rendered asset check | every `/assets/**` URL the shell emits resolves in `web/`; no `/#…` or `/privacy.html` left |
+| **Chromium render, 1440 and 412** | 5 sheets load (135 rules), Archivo applies, tokens resolve, cards grid, **no horizontal scroll at 412**, 0 failed/4xx requests |
+
+**One real bug was caught by the visual check and fixed:** backticks inside the
+HTML comments I added terminated the JS template literal. A second apparent
+problem — the card grid rendering in a 200px column — was my preview harness
+putting `.news-rail` after `.news-grid`; the real markup emits the rail first and
+the CSS is faithful. Both are recorded because "the render looked wrong" is
+otherwise indistinguishable between the two.
+
+### `news-article.css` has little headroom
+
+476 lines against the 500 limit. It is section 16 of the original — the only
+section written for these pages rather than borrowed — so it is cohesive, but a
+substantial addition to the blog's article styling will need it split further.
+
+### `LD-R1` — the privacy page (added after the second ruling)
+
+`web/privacy.html` is the old `landing/privacy.html` content on the blog's shell:
+no JavaScript, no build step, nav and footer carrying only links that resolve, and
+its own `policy.css` (114 lines) holding the `.privacy-hero` / `.policy-content` /
+`.policy-section` rules that were spread across the original's sections 3, 4 and
+16. It is linked **after `news-chrome.css` and before `news-footer.css`**, which is
+where those rules sat relative to everything else. `news-article.css` is not
+linked on this page and `policy.css` is not linked on blog pages; neither needs the
+other, and keeping them apart is what left `news-article.css` its 24 lines of
+headroom.
+
+**Proven identical, not merely inspected.** Both the old page (served from
+`landing/`) and the new one were rendered in Chromium and their computed styles
+compared element by element — `h1`, hero paragraph, `h2`, `h3`, `p`, `li`, `ul`,
+links and the content wrapper, on font, size, line-height, margins, colour and
+width, plus section count and text length. **Every probe matched.**
+
+One real defect was caught doing it: extracting only `<main>` dropped the
+`.privacy-hero` header, leaving the page with **no `h1`**. Restored, and the
+heading order is now h1 → h2 → h3 with exactly one h1.
+
+Two new contracts were added to `hostingConfig.test.js`: the policy page must
+exist, keep its canonical URL, carry no `<script>` and contain no link back into
+the removed marketing site; and the blog footer must link to it. A privacy link
+that 404s is worse than no link, so the file and the link are asserted together.
+
+### The gate caught me, and the reason is worth keeping
+
+CI refused `LD-R1`'s first head: **`functions/blog/publicApi.js` was 642 lines,
+up from the 631 recorded.** A backlogged file may not grow, and the comments I
+added to the shell had grown it. Correct refusal — the ratchet doing exactly its
+job, on the campaign's own work.
+
+**It had been failing locally the whole time and I did not see it.** After the
+first few runs I narrowed the command to `npm run check:source-size | grep 'file(s)
+over'`, which prints the inventory line and *drops the verdict* — `source-size
+REFUSED:` never reached me. A green-looking summary is not a pass. **Read the
+verdict line, not the count.**
+
+Fixed by tightening the three comments to their operative sentences; the file is
+back to **exactly 631**. That is compliant but leaves zero headroom, so the next
+edit to `publicApi.js` trips the same rule until `FR-8` splits it.
+
+### `LD-R2` — the complete removal surface, mapped on `386f8a8`
+
+**Retires `LD-1`, `LD-2`, `LD-3`: backlog 68 → 65.**
+
+**Delete**
+- `landing/` entire tree (18 files) — `index.html`, `privacy.html`, `main.js`,
+  `styles.css`, both fonts, all images, `robots.txt`, `README.md`.
+  Everything `/news` and `/privacy.html` still need already lives in `web/`.
+- `scripts/check-landing-a11y.mjs`, `scripts/capture-landing-screenshots.mjs`.
+- `src/tests/landingPage.test.js`, `src/tests/landingNewsSection.test.js` — both
+  read only `landing/` files, which is why they still pass in `LD-R1`.
+- `.github/source-size-backlog.json`: the three `landing/` entries.
+- `package.json`: `check:landing-a11y`, `capture:landing-screenshots`.
+
+**Keep, repointed — NOT deleted**
+- `scripts/check-landing-claims.mjs` → `check-public-claims.mjs`, scanning `web/`.
+  It runs the *same* `checkClaims()` export the article pipeline runs, against
+  shipped HTML, and it is fail-closed ("no HTML found — that is not a pass").
+  `web/privacy.html` contains exactly the MVR/PSP language it guards. Deleting a
+  live product-truth gate because its name says "landing" would be the campaign
+  removing a safety property by accident. Stays wired into `npm run lint`.
+
+**Two interlocks that break the build if missed — both verified**
+1. **`scripts/source-size-scope.mjs` — `REQUIRED_ROOTS` contains `landing`**, and
+   every root is asserted non-empty on every run. Delete `landing/` without
+   changing this and **`check:source-size` fails**. Change it to `web`.
+2. **`scripts/ci-plan.mjs` maps `landing/` → `frontend_unit`**, with a comment
+   recording the outage that mapping was written for: a landing-only commit once
+   selected no lanes, CI went green, and `main` shipped a broken homepage.
+   `scripts/test-ci-plan.mjs` pins it in **A5**, **A5b** and the line-158 case.
+   Repoint all of them at `web/`. *(Checked: unmapped paths fall through to
+   `null` → full suite, so `web/` is currently over-tested rather than
+   under-tested. `LD-R1` did not open a gap.)*
+
+**RENAME NOTHING IN THE RELEASE PLUMBING.** This is the trap in `LD-R2`, and the
+obvious instinct — "remove every reference to landing" — walks straight into it.
+
+`landingVersionId` is not a variable name. It is a **field in the persisted
+release-record payload**, written by `scripts/record-release.mjs`, read by
+`scripts/resolve-testing-release.mjs`, and — the part that matters — read by the
+**production promotion gate**:
+
+```js
+// functions/releaseManagement/eligibility.js:353
+if (!deployment.payload.landingVersionId) continue;
+```
+
+Every release record already in Firestore carries that field. A renamed reader
+would find it absent on all of them, `continue` past every one, and resolve no
+eligible release — so **nothing could be promoted to Production, and it would
+fail by silently skipping rather than by erroring.** Renaming it is a data
+migration, not a rename, and this campaign has no mandate for one.
+
+So these all **stay exactly as they are**: `landingVersionId`,
+`LANDING_VERSION_ID`, `landing_version_id`, `FIREBASE_LANDING_TARGET`, the
+`landing-testing` / `landing-production` target aliases, and the
+`safehaul-landing-*` Hosting site IDs. They are stable identifiers threading
+through the release record and the promotion gate. `scripts/test-release-promotion.mjs`
+and `functions/test/unit/releaseManagement.callables.test.js` pin the payload
+shape, which is the safety net proving this.
+
+**Workflows — the deploy steps STAY, only their wording changes.** The Hosting
+targets keep their `landing-*` aliases because a Firebase **site** cannot be
+renamed, and they now serve `web/`. Update the step names and comments in
+`.github/workflows/main.yml` (lines ~836, ~892, ~907, ~921) and
+`.github/workflows/promote-production.yml` (~51, ~70, ~146-157, ~173) so they
+stop describing a marketing site. **Do not remove a deploy step** — that would
+stop `/news` and the privacy page shipping.
+
+**Documentation — 11 files mention the landing site**
+`PRODUCT.md` (14), `docs/APP_BRIEF.md` (20), `docs/news-and-insights.md` (22),
+`docs/FIREBASE_HOSTING_RUNBOOK.md` (19), `DESIGN.md` (10),
+`docs/environment-and-integrations-runbook.md` (8), `README.md` (6),
+`AGENTS.md` (5), `docs/SAFEHAUL_DESIGN_SYSTEM_ROADMAP.md` (2),
+`docs/firestore-data-model.md` (1), `src/design-system/stories/README.md` (1).
+`AGENTS.md` matters most: its source-size section names
+`landing/assets/css/styles.css` and `landing/index.html` as files that may not be
+splittable without a build step. That question is now **answered by deletion**,
+and the section should say so rather than leaving a stale open question.
+
+### `LD-R3` — the lead subsystem, mapped on `386f8a8`
+
+Owner ruling: **retire the machinery, keep every record.** Nothing below deletes
+lead data, and `landing_leads` keeps its `allow read, write: if false` rule — the
+documents hold third-party contact details plus a completion-token hash, so they
+stay server-only and reach the screen through a callable, exactly as now.
+
+**Callables — six go, one stays**
+
+| Callable | Fate |
+|---|---|
+| `submitLandingLead` | **delete** — active capture; no page can reach it |
+| `getLandingPageSettings` | **delete** — settings screen |
+| `updateLandingTelegramConfig` | **delete** — Telegram configuration |
+| `setLandingTelegramEnabled` | **delete** — Telegram configuration |
+| `sendLandingTelegramTest` | **delete** — test-send |
+| `retryLandingLeadDelivery` | **delete** — resend |
+| `listLandingLeads` | **KEEP** — the read-only view needs it |
+
+**Backend files** (1446 lines today)
+- `functions/landingLead.js` (357) — delete, that *is* active capture.
+- `functions/landing/telegram.js` (178) — delete, delivery.
+- `functions/landing/config.js` (285) — delete, Telegram credential config.
+- `functions/landing/leads.js` (307) — reduce to read-only listing.
+- `functions/landing/callables.js` (319) — reduce to `listLandingLeads`, plus
+  whatever the CSV export needs.
+
+Check `functions/environmentVault/registry.js` for Telegram configuration keys —
+it appears in the landing reference sweep, and a registry entry for a key nothing
+reads any more fails `environmentRegistry.inventory.test.js` from the other
+direction ("registers no key that SafeHaul does not reference").
+
+**Frontend**
+- `src/features/super-admin/views/LandingPageSettingsView.jsx` (**536 = `SA-8`**)
+  → replaced by a much smaller read-only *Historical Website Leads* view with CSV
+  export. **This likely retires `SA-8` from the backlog as well**, so `LD-R3` is
+  worth one more entry than it first appears: 65 → 64.
+- `services/landingSettings.js` — reduce to the one surviving call.
+- `LandingPageSettingsView.contract.test.jsx` — replaced, not deleted: the new
+  view needs its own contract test, and the old one is the template for it.
+- `config/views.js` and `ViewRouter.jsx` — retitle and re-point the nav entry.
+
+**CSV export** is client-side from the rows `listLandingLeads` already returns —
+no new callable, no new export endpoint, and nothing that could widen what leaves
+the server.
+
+**Open question for the owner when this starts:** whether the archive keeps its
+own Super Admin nav entry, or moves somewhere less prominent given nobody needs
+it daily.
+
 ### Current stopping point
 
-Not started. Dependency map and the two-PR split above are verified against
-`c023e3f`.
+`LD-R1` complete and verified; PR #54 open, awaiting a green head after the size
+fix. `LD-R2` **not started** — surface fully mapped above, safe to begin once
+#54 merges.
 
 ---
 

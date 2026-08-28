@@ -263,6 +263,37 @@ This replaces `LD-1`, `LD-2` and `LD-3` with a single removal-and-rehome unit,
 therefore does not carry the campaign's usual "behaviour must be identical" rule.
 What it must not change is the blog's own content, routes or output.
 
+### 7.2a Second landing ruling (2026-08-28, later the same day)
+
+Two of the first ruling's consequences came back for decisions once the work
+exposed them, and one **reverses** an earlier answer. Both are binding.
+
+**The privacy policy is preserved, not removed.** The first ruling took it out
+with the marketing site; this one keeps it, as a *simple standalone Privacy Policy
+accessible to public users*. It is served from `web/privacy.html`, styled by the
+same extracted sheets plus a small `policy.css`, carries no JavaScript, and is
+linked from the blog footer. This is the outcome the compliance concern argued
+for — a public privacy URL is relied on by OAuth consent screens, app-store
+listings and privacy law — and the reversal is recorded rather than quietly
+applied, because a later reader finding the removal in the history deserves to
+see it was reconsidered on purpose.
+
+**The lead subsystem is retired but its data is kept.** Specifically:
+
+- **Retire** active lead capture (`submitLandingLead`), Telegram delivery and
+  configuration, resend and test-send, and the Landing Page Settings screen.
+- **Preserve** every historical lead record. **Do not delete lead data.**
+- **Replace** the settings screen, if a replacement is needed, with a *minimal
+  read-only "Historical Website Leads" Super Admin view with CSV export*.
+- Any future landing-page lead capture is to be **rebuilt fresh**, not revived
+  from what is left here.
+
+This resolves the trash-register entry that was blocking `LD-R2`: the answer is
+neither "delete it" nor "keep it all" but "keep the records, retire the
+machinery". It is enough work to be its own unit, `LD-R3`, because a read-only
+view with CSV export is a feature rather than a deletion, and folding it into a
+removal PR would make both harder to review.
+
 ### 7.3 `RU-2` — Firestore rules
 
 **Ruling: do not introduce a concatenation or build step.** Instead:

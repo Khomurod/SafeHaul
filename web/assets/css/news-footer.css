@@ -1,0 +1,114 @@
+/*
+ * SafeHaul /news — footer
+ *
+ * Extracted from the retired marketing site's `landing/assets/css/styles.css`
+ * (3447 lines) when the landing page was removed and the blog kept. Only the
+ * rules the server-rendered pages in `functions/blog/publicApi.js` actually
+ * reach are here: its markup emits 43 classes, and every rule below is one of
+ * those, an element/`:root` rule, or a media-query override of one.
+ *
+ * THE FIVE FILES ARE ONE STYLESHEET, AND THE LINK ORDER IS THE CASCADE.
+ * They were cut at the original file's own section boundaries and are still in
+ * its source order — foundation, chrome, article, footer, responsive — so the
+ * cascade is byte-for-byte the order it was. Re-order the `<link>` tags in the
+ * shell, or move a rule between files, and a late override can start losing to
+ * an early rule it used to beat. The split exists because the source-size
+ * standard caps a file at 500 lines, not because these are independent.
+ *
+ * Section 18.
+ */
+
+/* ========================================================================= */
+/* 18. FOOTER                                                                */
+/*                                                                           */
+/* SHARED WITH THE BLOG. Nothing here may assume the homepage's markup.       */
+/* ========================================================================= */
+
+.footer-section {
+    background: var(--graphite);
+    color: var(--ink-on-dark-2);
+    padding-block: 64px 0;
+    padding-inline: max(var(--gutter), calc((100% - var(--measure)) / 2));
+    border-top: 1px solid var(--rule-on-dark);
+}
+
+.footer-grid {
+    display: grid;
+    grid-template-columns: 1.5fr repeat(3, 1fr);
+    gap: 40px;
+    padding-bottom: 48px;
+}
+
+.footer-brand p {
+    margin-top: 14px;
+    font-size: 0.9375rem;
+    max-width: 34ch;
+    color: var(--ink-on-dark-2);
+}
+
+.footer-section .logo-text {
+    color: var(--ink-on-dark);
+}
+
+/* The reversed mark, same optical sizing as the navbar's. */
+.footer-logo {
+    height: 22px;
+    width: auto;
+}
+
+.footer-links,
+.footer-contact {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-start;
+}
+
+.footer-heading {
+    color: var(--ink-on-dark-3);
+    padding-bottom: 10px;
+    margin-bottom: 4px;
+    border-bottom: 1px solid var(--rule-on-dark);
+    align-self: stretch;
+}
+
+.footer-links a,
+.footer-contact a,
+.footer-contact .link-button {
+    font-size: 0.9375rem;
+    color: var(--ink-on-dark-2);
+}
+
+@media (hover: hover) and (pointer: fine) {
+
+    .footer-links a:hover,
+    .footer-contact a:hover,
+    .footer-contact .link-button:hover {
+        color: var(--ink-on-dark);
+    }
+}
+
+.footer-bottom {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 14px;
+    padding-block: 20px 28px;
+    border-top: 1px solid var(--rule-on-dark);
+    font-size: 0.875rem;
+}
+
+.footer-bottom a {
+    text-decoration: underline;
+}
+
+.footer-bottom a:hover {
+    color: var(--ink-on-dark);
+}
+
+/* Quieter than the rest of the footer, and still 5.4:1 on graphite. Secondary
+   is not an excuse to be unreadable. */
+.footer-disclaimer {
+    max-width: 58ch;
+    color: var(--ink-on-dark-3);
+}
