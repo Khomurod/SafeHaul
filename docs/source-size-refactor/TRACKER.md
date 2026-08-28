@@ -605,6 +605,56 @@ stop `/news` and the privacy page shipping.
 splittable without a build step. That question is now **answered by deletion**,
 and the section should say so rather than leaving a stale open question.
 
+### `LD-R3` — the lead subsystem, mapped on `386f8a8`
+
+Owner ruling: **retire the machinery, keep every record.** Nothing below deletes
+lead data, and `landing_leads` keeps its `allow read, write: if false` rule — the
+documents hold third-party contact details plus a completion-token hash, so they
+stay server-only and reach the screen through a callable, exactly as now.
+
+**Callables — six go, one stays**
+
+| Callable | Fate |
+|---|---|
+| `submitLandingLead` | **delete** — active capture; no page can reach it |
+| `getLandingPageSettings` | **delete** — settings screen |
+| `updateLandingTelegramConfig` | **delete** — Telegram configuration |
+| `setLandingTelegramEnabled` | **delete** — Telegram configuration |
+| `sendLandingTelegramTest` | **delete** — test-send |
+| `retryLandingLeadDelivery` | **delete** — resend |
+| `listLandingLeads` | **KEEP** — the read-only view needs it |
+
+**Backend files** (1446 lines today)
+- `functions/landingLead.js` (357) — delete, that *is* active capture.
+- `functions/landing/telegram.js` (178) — delete, delivery.
+- `functions/landing/config.js` (285) — delete, Telegram credential config.
+- `functions/landing/leads.js` (307) — reduce to read-only listing.
+- `functions/landing/callables.js` (319) — reduce to `listLandingLeads`, plus
+  whatever the CSV export needs.
+
+Check `functions/environmentVault/registry.js` for Telegram configuration keys —
+it appears in the landing reference sweep, and a registry entry for a key nothing
+reads any more fails `environmentRegistry.inventory.test.js` from the other
+direction ("registers no key that SafeHaul does not reference").
+
+**Frontend**
+- `src/features/super-admin/views/LandingPageSettingsView.jsx` (**536 = `SA-8`**)
+  → replaced by a much smaller read-only *Historical Website Leads* view with CSV
+  export. **This likely retires `SA-8` from the backlog as well**, so `LD-R3` is
+  worth one more entry than it first appears: 65 → 64.
+- `services/landingSettings.js` — reduce to the one surviving call.
+- `LandingPageSettingsView.contract.test.jsx` — replaced, not deleted: the new
+  view needs its own contract test, and the old one is the template for it.
+- `config/views.js` and `ViewRouter.jsx` — retitle and re-point the nav entry.
+
+**CSV export** is client-side from the rows `listLandingLeads` already returns —
+no new callable, no new export endpoint, and nothing that could widen what leaves
+the server.
+
+**Open question for the owner when this starts:** whether the archive keeps its
+own Super Admin nav entry, or moves somewhere less prominent given nobody needs
+it daily.
+
 ### Current stopping point
 
 `LD-R1` complete and verified; PR #54 open, awaiting a green head after the size
