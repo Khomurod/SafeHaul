@@ -25,7 +25,7 @@ it currently is*.
 | **Active PR** | **#52** (this planning PR). #50 and #51 are the items under reconciliation. |
 | **PR head SHAs** | #50 → `9386b371ec6a83840aabf9604238693c733cb925` · #51 → `20c75500a235fe7beb1a12ab9b8cf03cf9466922` |
 | **Review status** | #50: **unresolved P1 on its exact head**, reproduced independently. #51: current head **not reviewed** — Codex quota exhausted. |
-| **CI status** | #50: **RED** (`test-functions` fails). #51: **fully green**, all 18 checks including `Verify the release is fully validated`. |
+| **CI status** | **#52: green** at `c5e5cf5` — `Plan this run`, `secret-scan` and `callable-contract` all passed; test lanes skipped by the tree-hash proof because the change touches no code. (Two earlier failures on `d290c19` and `0d6d051` were superseded commits cancelled by the concurrency group — `PLAN_RESULT: cancelled`, every lane `cancelled` — not a defect.) · #50: **RED** (`test-functions` fails). #51: **fully green**. |
 | **Working tree at session end** | clean; planning docs committed and pushed as #52 |
 | **Blockers** | 1. Codex review quota exhausted — blocks step 10 of PR discipline. 2. `SEC-1` needs an owner ruling (below). 3. `RU-2`, `LD-1`, `LD-2` need a build-step ruling. |
 
