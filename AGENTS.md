@@ -553,9 +553,50 @@ Two more exemptions need no config change at all, and both were measured:
   is present, in the checkout or in the exported tree, rather than scanning
   around it (L26).
 
-`check:ci-plan` §L pins all of it: no third-party scanning action, a pinned
-version *and* digest, both scans present, `secret-scan` still unskippable, no
-path exemptions in `.gitleaks.toml`, the check name the lookup asks about
-matching the job that produces it, and the audit workflow unable to reach
+All of it is pinned, in two places since 2026-08-27 — when the scanner outgrew
+one file and its assertions followed it.
+
+`test:secret-scan` §L reads the scanner's own source: a pinned version *and*
+digest, both scans present, `--ignore-gitleaks-allow` passed, `--all` never,
+no push anchored at its own `before`, an override held to the same bar as an
+inferred base, and `.gitleaks.toml` pinned line for line. It reads that source
+as **a set it derives** (`scripts/secret-scan/test-sources.mjs`), not as a path —
+otherwise splitting the scanner again would leave a regex passing over a file the
+flag had moved out of. L27 and L28 assert that set is neither narrower nor wider
+than the implementation.
+
+**What "the scanner's source" is, and what it is not.** The covered set is the
+entry plus every non-test module in `scripts/secret-scan/` — a directory listing,
+so no import syntax can omit a file. `loadedGraph()` then asks Node's own
+resolver what the entry loads and refuses anything outside that set, which makes
+the STATIC half unfalsifiable. The specifier scan remains for the half a graph
+cannot contain: a dynamic `import()` inside a function body does not resolve
+until it runs. It refuses computed specifiers as a class, tolerates comments in
+any of the four line terminators ECMA-262 defines, resolves `?query` and
+`#fragment` as URLs, refuses the gateways to an aliased loader (`node:module` in
+either spelling, `eval`, `new Function`) because an alias's call site is not
+spelled `import`, and accepts only a specifier it can account for — a Node
+builtin, which is not a file here, or a relative one, which containment resolves.
+That last is also a class rather than a list: being one string literal was the
+whole test until an absolute path, a `file:` URL and a bare package name each
+passed it while the containment scan, which reads only `./` and `../`, never
+looked at them.
+
+**That is not a proof, and pretending otherwise would be the failure this file
+keeps recording.** Seven review rounds on 2026-08-27/28 each found another
+spelling — a double quote, a concatenation, a comment before the parenthesis, a
+U+2028 line terminator, a URL suffix, a `createRequire` alias, a literal that was
+not relative. Four were closed as classes; the alias round showed that following
+one needs data-flow analysis, which
+a parser alone does not give, and `callable-contract` deliberately runs with no
+`npm ci` so there is no parser there anyway. `globalThis['ev' + 'al']` is still
+not matched. What these checks close is the accidental and the
+disguised-but-legible; an author who can edit the scanner can also edit the
+assertions, and code review is the control for that.
+
+`check:ci-plan` §L keeps the wiring: no third-party scanning action, the job runs
+this repository's scanner, full history is checked out, no `if:` can condition it
+away, `secret-scan` is still unskippable and still fails the release when it
+fails *or* is skipped, and the full-history audit cannot reach
 `release-validation`.
 <!-- /safehaul-design-system -->

@@ -1,7 +1,7 @@
 {
   "$comment": [
     "Files that were already over the 500-line maximum when the standard arrived",
-    "on 2026-08-26, with the line count each had \u2014 plus three found on 2026-08-27,",
+    "on 2026-08-26, with the line count each had — plus three found on 2026-08-27,",
     "when the scan stopped being JavaScript-only and began measuring CSS, HTML and",
     "Firestore rules too. This is a CAMPAIGN, not an allowlist, and",
     "scripts/source-size.mjs enforces the difference:",
@@ -59,10 +59,8 @@
     "scripts/check-ui-contract.mjs": 1030,
     "scripts/ci-plan.mjs": 523,
     "scripts/deploy-functions-incremental.mjs": 525,
-    "scripts/secret-scan.mjs": 1012,
     "scripts/test-ci-plan.mjs": 1358,
     "scripts/test-release-promotion.mjs": 584,
-    "scripts/test-secret-scan.mjs": 1246,
     "src/features/campaigns/components/LaunchPad.test.jsx": 539,
     "src/features/companies/hooks/useCompanyDashboard.js": 528,
     "src/features/company-admin/components/modals/PEVRequestModal.test.jsx": 545,

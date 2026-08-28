@@ -28,14 +28,14 @@ import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, write
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ensureGitleaks, GITLEAKS_VERSION, runGitleaksScan } from './secret-scan.mjs';
+import { ensureGitleaks, GITLEAKS_VERSION, runGitleaksScan } from './secret-scan/gitleaks.mjs';
 
 export const BASELINE_PATH = '.github/secret-history-baseline.json';
 
 /**
  * Compare an audit against what the repository already knows about itself.
  *
- * Pure, so `scripts/test-secret-scan.mjs` can cover every verdict.
+ * Pure, so `scripts/secret-scan/test-pinning.mjs` can cover every verdict.
  *
  * The count is only meaningful for the gitleaks version it was recorded with:
  * a version bump changes the default rules, so a mismatch there reports rather

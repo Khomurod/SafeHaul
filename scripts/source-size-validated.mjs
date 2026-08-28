@@ -22,8 +22,8 @@
  * "validated" is deliberate — two definitions would disagree eventually, and this
  * one is already tested against stubbed check-runs responses.
  */
-export { findLastValidatedAncestor, isValidatedRelease } from './secret-scan.mjs';
-import { findLastValidatedAncestor, isValidatedRelease } from './secret-scan.mjs';
+export { findLastValidatedAncestor, isValidatedRelease } from './secret-scan/validated.mjs';
+import { findLastValidatedAncestor, isValidatedRelease } from './secret-scan/validated.mjs';
 
 
 import { requireUsableBase, repoRootPath } from './source-size-baseline.mjs';
