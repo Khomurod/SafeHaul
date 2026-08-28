@@ -552,10 +552,64 @@ Fixed by tightening the three comments to their operative sentences; the file is
 back to **exactly 631**. That is compliant but leaves zero headroom, so the next
 edit to `publicApi.js` trips the same rule until `FR-8` splits it.
 
+### `LD-R2` — the complete removal surface, mapped on `386f8a8`
+
+**Retires `LD-1`, `LD-2`, `LD-3`: backlog 68 → 65.**
+
+**Delete**
+- `landing/` entire tree (18 files) — `index.html`, `privacy.html`, `main.js`,
+  `styles.css`, both fonts, all images, `robots.txt`, `README.md`.
+  Everything `/news` and `/privacy.html` still need already lives in `web/`.
+- `scripts/check-landing-a11y.mjs`, `scripts/capture-landing-screenshots.mjs`.
+- `src/tests/landingPage.test.js`, `src/tests/landingNewsSection.test.js` — both
+  read only `landing/` files, which is why they still pass in `LD-R1`.
+- `.github/source-size-backlog.json`: the three `landing/` entries.
+- `package.json`: `check:landing-a11y`, `capture:landing-screenshots`.
+
+**Keep, repointed — NOT deleted**
+- `scripts/check-landing-claims.mjs` → `check-public-claims.mjs`, scanning `web/`.
+  It runs the *same* `checkClaims()` export the article pipeline runs, against
+  shipped HTML, and it is fail-closed ("no HTML found — that is not a pass").
+  `web/privacy.html` contains exactly the MVR/PSP language it guards. Deleting a
+  live product-truth gate because its name says "landing" would be the campaign
+  removing a safety property by accident. Stays wired into `npm run lint`.
+
+**Two interlocks that break the build if missed — both verified**
+1. **`scripts/source-size-scope.mjs` — `REQUIRED_ROOTS` contains `landing`**, and
+   every root is asserted non-empty on every run. Delete `landing/` without
+   changing this and **`check:source-size` fails**. Change it to `web`.
+2. **`scripts/ci-plan.mjs` maps `landing/` → `frontend_unit`**, with a comment
+   recording the outage that mapping was written for: a landing-only commit once
+   selected no lanes, CI went green, and `main` shipped a broken homepage.
+   `scripts/test-ci-plan.mjs` pins it in **A5**, **A5b** and the line-158 case.
+   Repoint all of them at `web/`. *(Checked: unmapped paths fall through to
+   `null` → full suite, so `web/` is currently over-tested rather than
+   under-tested. `LD-R1` did not open a gap.)*
+
+**Workflows — the deploy steps STAY, only their wording changes.** The Hosting
+targets keep their `landing-*` aliases because a Firebase **site** cannot be
+renamed, and they now serve `web/`. Update the step names and comments in
+`.github/workflows/main.yml` (lines ~836, ~892, ~907, ~921) and
+`.github/workflows/promote-production.yml` (~51, ~70, ~146-157, ~173) so they
+stop describing a marketing site. **Do not remove a deploy step** — that would
+stop `/news` and the privacy page shipping.
+
+**Documentation — 11 files mention the landing site**
+`PRODUCT.md` (14), `docs/APP_BRIEF.md` (20), `docs/news-and-insights.md` (22),
+`docs/FIREBASE_HOSTING_RUNBOOK.md` (19), `DESIGN.md` (10),
+`docs/environment-and-integrations-runbook.md` (8), `README.md` (6),
+`AGENTS.md` (5), `docs/SAFEHAUL_DESIGN_SYSTEM_ROADMAP.md` (2),
+`docs/firestore-data-model.md` (1), `src/design-system/stories/README.md` (1).
+`AGENTS.md` matters most: its source-size section names
+`landing/assets/css/styles.css` and `landing/index.html` as files that may not be
+splittable without a build step. That question is now **answered by deletion**,
+and the section should say so rather than leaving a stale open question.
+
 ### Current stopping point
 
-`LD-R1` complete and verified; PR #54 open, awaiting a green head after the
-size fix. `LD-R2` not started — its full removal surface is mapped below.
+`LD-R1` complete and verified; PR #54 open, awaiting a green head after the size
+fix. `LD-R2` **not started** — surface fully mapped above, safe to begin once
+#54 merges.
 
 ---
 
