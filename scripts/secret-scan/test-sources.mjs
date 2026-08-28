@@ -65,8 +65,11 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import {
+    mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join as joinPath, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -188,20 +191,26 @@ const INTERPOLATED = /\$\{/;
  */
 export function loadedGraph(entry = ENTRY) {
     const hooks = pathToFileURL(resolve(here, 'test-probe-hooks.mjs')).href;
-    const probed = spawnSync(process.execPath, [
-        '--import',
-        `data:text/javascript,import { register } from 'node:module'; register(${JSON.stringify(hooks)});`,
-        '--input-type=module',
-        '-e', `await import(${JSON.stringify(pathToFileURL(entry).href)});`,
-    ], { encoding: 'utf8' });
-    if (probed.status !== 0) {
-        throw new Error(
-            'the module-graph probe could not run, so what the scanner loads is unknown: '
-            + `${(probed.stderr || probed.error?.message || '').trim().split('\n').slice(-3).join(' ')}`,
-        );
+    const record = joinPath(mkdtempSync(joinPath(tmpdir(), 'safehaul-probe-')), 'graph.txt');
+    writeFileSync(record, '');
+    try {
+        const probed = spawnSync(process.execPath, [
+            '--import',
+            `data:text/javascript,import { register } from 'node:module'; register(${JSON.stringify(hooks)});`,
+            '--input-type=module',
+            '-e', `await import(${JSON.stringify(pathToFileURL(entry).href)});`,
+        ], { encoding: 'utf8', env: { ...process.env, SAFEHAUL_PROBE_RECORD: record } });
+        if (probed.status !== 0) {
+            throw new Error(
+                'the module-graph probe could not run, so what the scanner loads is unknown: '
+                + `${(probed.stderr || probed.error?.message || '').trim().split('\n').slice(-3).join(' ')}`,
+            );
+        }
+        return readFileSync(record, 'utf8').split('\n').filter(Boolean)
+            .map((url) => fileURLToPath(url.replace(/[?#].*$/, '')));
+    } finally {
+        rmSync(dirname(record), { recursive: true, force: true });
     }
-    return [...probed.stdout.matchAll(/^GRAPH (\S+)$/gm)]
-        .map(([, url]) => fileURLToPath(url.replace(/[?#].*$/, '')));
 }
 
 /**
