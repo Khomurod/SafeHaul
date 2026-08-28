@@ -561,7 +561,7 @@ digest, both scans present, `--ignore-gitleaks-allow` passed, `--all` never,
 no push anchored at its own `before`, an override held to the same bar as an
 inferred base, and `.gitleaks.toml` pinned line for line. It reads that source
 as **the transitive closure of the entry's imports**
-(`scripts/secret-scan/sources.mjs`), not as a path — otherwise splitting the
+(`scripts/secret-scan/test-sources.mjs`), not as a path — otherwise splitting the
 scanner again would leave a regex passing over a file the flag had moved out of.
 L27 and L28 assert the closure is neither narrower nor wider than the
 implementation.

@@ -9,12 +9,18 @@
  * at run time.
  */
 
-import { existsSync, readFileSync } from 'node:fs';
-import { resolve as resolvePath } from 'node:path';
+import {
+    existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join as joinPath, resolve as resolvePath } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { assert, repoRoot } from './test-support.mjs';
 import { GITLEAKS_SHA256, GITLEAKS_VERSION } from './gitleaks.mjs';
-import { implementationFiles, implementationSource } from './sources.mjs';
+import { implementationFiles, implementationSource } from './test-sources.mjs';
 import { evaluateAudit, fingerprintOf } from '../secret-history-audit.mjs';
+
+const here = dirname(fileURLToPath(import.meta.url));
 
 /* ========================================================================== */
 console.log('\nD. The pinned scanner, and the separate history audit');
@@ -295,10 +301,69 @@ console.log('\nL. The scanner is ours, pinned by content, and cannot be exempted
      * is in the output instead of being inferred from three unrelated failures.
      */
     const files = implementationFiles().map((file) => file.replace(/^.*\/scripts\//, ''));
-    assert('L27. the source these checks read is the whole scanner, not just its entry',
-        ['secret-scan.mjs', 'secret-scan/git.mjs', 'secret-scan/gitleaks.mjs',
-            'secret-scan/range.mjs', 'secret-scan/validated.mjs'].every((f) => files.includes(f)),
-        files.join(', '));
+    /*
+     * Asserted against the DIRECTORY, not against a written list of five names.
+     * Review on 2026-08-27 made the difference matter: a hard-coded list keeps
+     * passing when a sixth module joins the scanner, so the one file a pinned flag
+     * had just moved into could be the one nothing reads. Reading the directory
+     * means a new module is covered the moment it exists.
+     */
+    const onDisk = readdirSync(resolvePath(here, '.'))
+        .filter((name) => name.endsWith('.mjs') && !name.startsWith('test-'))
+        .map((name) => `secret-scan/${name}`);
+    assert('L27. the source these checks read is every module the scanner is made of',
+        ['secret-scan.mjs', ...onDisk].every((f) => files.includes(f))
+        && files.length === onDisk.length + 1,
+        `closure ${files.join(', ')} vs directory ${onDisk.join(', ')}`);
+    /*
+     * The syntax that used to slip through, driven against a throwaway scanner.
+     *
+     * The first version followed the entry's imports with a regex that recognised
+     * only single-quoted `from '...'` and `import('...')`. Review reproduced an
+     * entry using four other forms and got a closure of two files out of five —
+     * meaning a pinned flag could live in an omitted module while every assertion
+     * above kept passing over source that no longer contained it.
+     *
+     * Collection is a directory listing now, so none of these forms can omit
+     * anything; this proves it for each of them rather than trusting the argument.
+     */
+    const fixture = mkdtempSync(joinPath(tmpdir(), 'safehaul-closure-'));
+    const forms = {
+        'double-quoted.mjs': 'import { a } from "./double-quoted.mjs";',
+        'side-effect.mjs': "import './side-effect.mjs';",
+        'reexport.mjs': "export * from './reexport.mjs';",
+        'dynamic-double.mjs': 'await import("./dynamic-double.mjs");',
+        'backtick.mjs': 'await import(`./backtick.mjs`);',
+        'multi-line.mjs': "import {\n  b,\n} from './multi-line.mjs';",
+    };
+    writeFileSync(joinPath(fixture, 'entry.mjs'), Object.values(forms).join('\n'));
+    for (const name of Object.keys(forms)) writeFileSync(joinPath(fixture, name), 'export const a = 1;\n');
+    const reached = implementationFiles(joinPath(fixture, 'entry.mjs'), fixture)
+        .map((f) => f.slice(fixture.length + 1));
+    assert('L29. no module-loading syntax can drop a file out of the covered set',
+        Object.keys(forms).every((name) => reached.includes(name)),
+        `missed ${Object.keys(forms).filter((n) => !reached.includes(n)).join(', ') || 'nothing'}`);
+
+    /*
+     * And the other direction: a module living outside the covered directory is a
+     * refusal, not a silent omission. That is what keeps the listing honest — the
+     * scanner cannot grow a limb that nothing reads.
+     */
+    const outside = mkdtempSync(joinPath(tmpdir(), 'safehaul-outside-'));
+    mkdirSync(joinPath(outside, 'covered'));
+    writeFileSync(joinPath(outside, 'elsewhere.mjs'), 'export const x = 1;\n');
+    writeFileSync(joinPath(outside, 'covered', 'entry.mjs'), "import { x } from '../elsewhere.mjs';\n");
+    let refused = false;
+    try {
+        implementationFiles(joinPath(outside, 'covered', 'entry.mjs'), joinPath(outside, 'covered'));
+    } catch (error) {
+        refused = /do not read/.test(error.message);
+    }
+    assert('L30. a scanner module outside the covered directory is refused, not skipped',
+        refused, 'silently omitting it is how the pinning assertions would go quiet');
+    rmSync(fixture, { recursive: true, force: true });
+    rmSync(outside, { recursive: true, force: true });
+
     assert('L28. and it stops at the implementation, so the tests\' own fixtures cannot skew it',
         !files.some((file) => /(^|\/)test-/.test(file)),
         `${files.join(', ')} — test-failsafe.mjs runs a scan with --all on purpose, to prove `
