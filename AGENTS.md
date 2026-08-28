@@ -574,8 +574,9 @@ cannot contain: a dynamic `import()` inside a function body does not resolve
 until it runs. It refuses computed specifiers as a class, tolerates comments in
 any of the four line terminators ECMA-262 defines, resolves `?query` and
 `#fragment` as URLs, refuses the gateways to an aliased loader (`node:module` in
-either spelling, `eval`, `new Function`) because an alias's call site is not
-spelled `import`, and accepts only a specifier it can account for — a Node
+either spelling, `process.getBuiltinModule`, `eval`, `new Function`) because an
+alias's call site is not spelled `import`, and accepts only a specifier it can
+account for — a Node
 builtin, which is not a file here, or a relative one, which containment resolves.
 That last is also a class rather than a list: being one string literal was the
 whole test until an absolute path, a `file:` URL and a bare package name each
@@ -583,11 +584,11 @@ passed it while the containment scan, which reads only `./` and `../`, never
 looked at them.
 
 **That is not a proof, and pretending otherwise would be the failure this file
-keeps recording.** Seven review rounds on 2026-08-27/28 each found another
+keeps recording.** Eight review rounds on 2026-08-27/28 each found another
 spelling — a double quote, a concatenation, a comment before the parenthesis, a
 U+2028 line terminator, a URL suffix, a `createRequire` alias, a literal that was
-not relative. Four were closed as classes; the alias round showed that following
-one needs data-flow analysis, which
+not relative, a `process.getBuiltinModule` gateway. Five were closed as classes;
+the alias round showed that following one needs data-flow analysis, which
 a parser alone does not give, and `callable-contract` deliberately runs with no
 `npm ci` so there is no parser there anyway. `globalThis['ev' + 'al']` is still
 not matched. What these checks close is the accidental and the

@@ -128,9 +128,10 @@ const MODULE_CALL = new RegExp(`\\b(?:import|require)${BETWEEN}\\(([^)]*)\\)`, '
  *
  * Refusing the GATEWAY needs none of that: an indirect loader cannot be obtained
  * without naming where it comes from. `node:module` is where `createRequire`
- * lives, and `eval` / `new Function` are the other two routes from a string to a
- * loader. The covered files use none of them, so this costs nothing and the
- * scanner keeps loading modules the one way the checks above can read.
+ * lives, `process.getBuiltinModule` can obtain the same API without an import,
+ * and `eval` / `new Function` are the other two routes from a string to a loader.
+ * The covered files use none of them, so this costs nothing and the scanner keeps
+ * loading modules the one way the checks above can read.
  *
  * It is not a proof, and AGENTS.md records why rather than implying otherwise: a
  * determined author with commit access can still reach a loader, and no static
@@ -138,6 +139,11 @@ const MODULE_CALL = new RegExp(`\\b(?:import|require)${BETWEEN}\\(([^)]*)\\)`, '
  * check. What this closes is the accidental and the disguised-but-legible.
  */
 const LOADER_GATEWAY = new RegExp([
+    // Node documents this as a way to obtain `module.createRequire` without an
+    // import. Match the API name wherever it appears rather than one property-
+    // access spelling: direct, globalThis-qualified, bracket-literal and
+    // destructured forms all reach the same loader, and the scanner needs none.
+    String.raw`\bgetBuiltinModule\b`,
     // Both spellings. A Node builtin is importable bare or `node:`-prefixed, and
     // matching only the prefixed form let `from 'module'` through — reported and
     // reproduced on 2026-08-28, loading an outside CJS module through the alias.

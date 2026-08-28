@@ -39,7 +39,11 @@ const here = dirname(fileURLToPath(import.meta.url));
      * modules rather than in the entry. These two say so directly, so the reason
      * is in the output instead of being inferred from three unrelated failures.
      */
-    const files = implementationFiles().map((file) => file.replace(/^.*\/scripts\//, ''));
+    // `implementationFiles` returns native paths. Normalise before comparing
+    // with the repository-style names below so the same guard is usable on
+    // Windows rather than failing before it reaches the security assertions.
+    const files = implementationFiles().map((file) => file.replaceAll('\\', '/')
+        .replace(/^.*\/scripts\//, ''));
     /*
      * Asserted against the DIRECTORY, not against a written list of five names.
      * Review on 2026-08-27 made the difference matter: a hard-coded list keeps
@@ -130,6 +134,23 @@ const here = dirname(fileURLToPath(import.meta.url));
         // because two spellings is the entire set the resolver accepts.
         ['createRequire alias via bare "module"',
             "import { createRequire } from 'module';\nconst load = createRequire(import.meta.url);\n"
+            + "export function deferred() { return load('../else' + 'where.cjs'); }", false],
+        // `process.getBuiltinModule('module')` reaches the same loader without an
+        // import declaration, so the graph probe cannot see it and the two
+        // `node:module` spellings above do not cover it. Keep the API name
+        // forbidden in every ordinary spelling; the scanner has no need for it.
+        ['process.getBuiltinModule loader gateway',
+            "const load = process.getBuiltinModule('module').createRequire(import.meta.url);\n"
+            + "export function deferred() { return load('../else' + 'where.cjs'); }", false],
+        ['globalThis.process.getBuiltinModule loader gateway',
+            "const load = globalThis.process.getBuiltinModule('module').createRequire(import.meta.url);\n"
+            + "export function deferred() { return load('../else' + 'where.cjs'); }", false],
+        ['bracket-literal getBuiltinModule loader gateway',
+            "const load = process['getBuiltinModule']('module').createRequire(import.meta.url);\n"
+            + "export function deferred() { return load('../else' + 'where.cjs'); }", false],
+        ['destructured getBuiltinModule loader gateway',
+            "const { getBuiltinModule } = process;\n"
+            + "const load = getBuiltinModule('module').createRequire(import.meta.url);\n"
             + "export function deferred() { return load('../else' + 'where.cjs'); }", false],
         ['eval reaching a loader', "eval(\"import('../elsewhere.mjs')\");", false],
         ['new Function reaching a loader', "new Function(\"return import('../elsewhere.mjs')\")();", false],
