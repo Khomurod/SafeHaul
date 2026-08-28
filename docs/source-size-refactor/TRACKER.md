@@ -142,7 +142,8 @@ use `—` until it exists.**
 | `RU-1` | **READY** (after `LD-R`) | R3 | `src/tests/firestore.rules.security.test.js` (test) — split **and strengthen** | 1106 | 1106 | — | — | — | — | — | — | — | 1 |
 | `RU-2` | **BLOCKED** by `RU-1` | R4 | `src/firestore.rules` (runtime) — no build step; stop and ask if unsafe | 693 | 693 | — | — | — | — | — | — | — | 1 |
 | `LD-R1` | **IN PROGRESS** | R4 | stand up `web/`; blog serves from its own stylesheets | — | — | `claude/safehual-source-size-refactor-j4apre` | — | — | — | — | — | — | 0 |
-| `LD-R2` | **BLOCKED** by `LD-R1` | R4 | delete `landing/`, its scripts, tests and workflow steps | 5989 | — | — | — | — | — | — | — | — | 3 |
+| `LD-R2` | **READY** after `LD-R1` | R4 | delete `landing/`, its scripts, tests and workflow steps | 5989 | — | — | — | — | — | — | — | — | 3 |
+| `LD-R3` | **READY** after `LD-R2` | R3 | retire lead capture/Telegram/settings; add read-only Historical Website Leads + CSV | — | — | — | — | — | — | — | — | — | 0 (frees `SA-8`) |
 | `LD-1` | **SUPERSEDED** by `LD-R` | R4 | `landing/assets/css/styles.css` | 3447 | 3447 | — | — | — | — | — | — | — | 1 |
 | `LD-2` | **SUPERSEDED** by `LD-R` | R4 | `landing/index.html` | 1682 | 1682 | — | — | — | — | — | — | — | 1 |
 | `LD-3` | **SUPERSEDED** by `LD-R` | R4 | `landing/assets/js/main.js` | 860 | 860 | — | — | — | — | — | — | — | 1 |
@@ -440,12 +441,20 @@ rendering against the same pages served from the landing target.
   into the marketing site (`/`, `/#features`, `/#pricing`, `/#why-safehaul`,
   `/#get-started`, `/#faq`); all would have 404'd. Nav is now News & Insights,
   Contact and Log in; the logo points at `/news`.
-- **`privacy.html`: remove it with the rest.** Raised as a compliance risk — it
-  was SafeHaul's only public privacy policy, the app has no privacy route, and a
-  reachable privacy URL is commonly required by OAuth consent screens, app-store
-  listings and privacy law. **The owner ruled to remove it after that was
-  stated.** Recorded here as an accepted decision, not an oversight. The footer's
-  Privacy link went with it, since the page will not exist.
+- **`privacy.html`: REVERSED — preserved, not removed.** The first ruling removed
+  it with the marketing site; the second ruling keeps it as a simple standalone
+  page for public users. This is what the compliance concern argued for. Both
+  answers are recorded, in order, so a later reader who finds the removal in the
+  history can see it was reconsidered deliberately rather than lost and restored
+  by accident. It now lives at `web/privacy.html`, carries no JavaScript, and is
+  linked from the blog footer again.
+- **Lead subsystem: retire the machinery, keep the records.** Active capture
+  (`submitLandingLead`), Telegram delivery and configuration, resend/test-send and
+  the Landing Page Settings screen are all retired. **No lead data is deleted.**
+  A minimal read-only *Historical Website Leads* Super Admin view with CSV export
+  replaces the settings screen. Future capture is to be rebuilt fresh. This became
+  `LD-R3` — a read-only view with CSV export is a feature, not a deletion, and
+  folding it into a removal PR would make both harder to review.
 
 ### Infrastructure finding that reshaped the split
 
@@ -499,10 +508,36 @@ otherwise indistinguishable between the two.
 section written for these pages rather than borrowed — so it is cohesive, but a
 substantial addition to the blog's article styling will need it split further.
 
+### `LD-R1` — the privacy page (added after the second ruling)
+
+`web/privacy.html` is the old `landing/privacy.html` content on the blog's shell:
+no JavaScript, no build step, nav and footer carrying only links that resolve, and
+its own `policy.css` (114 lines) holding the `.privacy-hero` / `.policy-content` /
+`.policy-section` rules that were spread across the original's sections 3, 4 and
+16. It is linked **after `news-chrome.css` and before `news-footer.css`**, which is
+where those rules sat relative to everything else. `news-article.css` is not
+linked on this page and `policy.css` is not linked on blog pages; neither needs the
+other, and keeping them apart is what left `news-article.css` its 24 lines of
+headroom.
+
+**Proven identical, not merely inspected.** Both the old page (served from
+`landing/`) and the new one were rendered in Chromium and their computed styles
+compared element by element — `h1`, hero paragraph, `h2`, `h3`, `p`, `li`, `ul`,
+links and the content wrapper, on font, size, line-height, margins, colour and
+width, plus section count and text length. **Every probe matched.**
+
+One real defect was caught doing it: extracting only `<main>` dropped the
+`.privacy-hero` header, leaving the page with **no `h1`**. Restored, and the
+heading order is now h1 → h2 → h3 with exactly one h1.
+
+Two new contracts were added to `hostingConfig.test.js`: the policy page must
+exist, keep its canonical URL, carry no `<script>` and contain no link back into
+the removed marketing site; and the blog footer must link to it. A privacy link
+that 404s is worse than no link, so the file and the link are asserted together.
+
 ### Current stopping point
 
-`LD-R1` implemented and verified locally; not yet committed to a PR at the time
-this line was written. `LD-R2` has not begun.
+`LD-R1` complete and verified; PR #54 open. `LD-R2` not started.
 
 ---
 

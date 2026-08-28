@@ -22,7 +22,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const root = process.cwd();
@@ -131,6 +131,27 @@ describe('firebase.json — /robots.txt is served statically, never rewritten', 
             // `**/.*` only hides dotfiles; robots.txt must not be listed.
             expect(entry.ignore).not.toContain('robots.txt');
         }
+    });
+
+    it('ships the standalone privacy policy', () => {
+        // The marketing site is gone; this page is not. It is the only public
+        // statement of how SafeHaul handles personal data, and a reachable
+        // privacy URL is relied on by OAuth consent screens, app-store listings
+        // and privacy law -- so losing it silently is a compliance failure, not
+        // a broken link. The blog footer links it, and this asserts the file the
+        // link resolves to actually deploys.
+        expect(existsSync(resolve(root, 'web/privacy.html'))).toBe(true);
+        const privacy = readFileSync(resolve(root, 'web/privacy.html'), 'utf8');
+        expect(privacy).toContain('<title>Privacy Policy — SafeHaul</title>');
+        expect(privacy).toContain('rel="canonical" href="https://safehaul.io/privacy.html"');
+        // It carries no script: there is no build step and nothing to wire one to.
+        expect(privacy).not.toMatch(/<script/i);
+        // And it must not link back into the removed marketing site.
+        expect(privacy).not.toMatch(/href="\/#/);
+    });
+
+    it('links the privacy policy from the blog footer', () => {
+        expect(publicApi).toContain('href="/privacy.html"');
     });
 
     it('matches the body the function backstop returns', () => {

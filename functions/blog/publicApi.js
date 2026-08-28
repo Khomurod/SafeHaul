@@ -260,16 +260,18 @@ ${bodyHtml}
       <p>Driver hiring and DOT compliance software for trucking carriers.</p>
     </div>
     <!--
-      The Product column is gone with the pages it linked, and so is the Privacy
-      Policy link: privacy.html was part of the marketing site and was removed
-      with it, by owner decision recorded in
-      docs/source-size-refactor/TRACKER.md. Do not re-add that link without
-      re-adding a page for it to reach.
+      The Product column is gone with the marketing pages it linked. The Privacy
+      Policy link is NOT: that page outlived the site it used to live in and is
+      served standalone from web/privacy.html, because it is the only public
+      statement of how SafeHaul handles personal data. Owner decision, recorded in
+      docs/source-size-refactor/TRACKER.md. If it is ever removed again, remove
+      this link in the same change -- a policy link that 404s is worse than none.
     -->
     <nav class="footer-links" aria-label="Resources">
       <h2 class="footer-heading">Resources</h2>
       <a href="/news">News &amp; Insights</a>
       <a href="/news/feed.xml">Article feed</a>
+      <a href="/privacy.html">Privacy Policy</a>
       <a href="https://app.safehaul.io" rel="noopener">Log in</a>
     </nav>
     <div class="footer-contact">
