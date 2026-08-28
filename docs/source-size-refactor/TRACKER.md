@@ -15,37 +15,40 @@ it currently is*.
 
 | | |
 |---|---|
-| **Last updated** | 2026-08-28 (after the owner's first rulings) |
-| **Verified main SHA** | `c023e3f4206cf41e28b8cf8a1c41e2372e2b392d` |
-| **Oversized files** | **68** (re-measured after #51 and #52 merged) |
+| **Last updated** | 2026-08-28, after the second landing ruling |
+| **Verified main SHA** | `386f8a85ca2e1f83e4f1ac3ad0f7b136e665cb3d` (#53 merged) |
+| **Oversized files** | **68** · unchanged; `LD-R2` takes it to 65, `LD-R3` likely to 64 |
 | **Backlog entries** | **68** |
-| **Active work item** | `LD-R` — remove the landing site, rehome `/news` |
-| **Active branch** | `claude/safehual-source-size-refactor-j4apre` (restarted from `c023e3f`) |
-| **Active PR** | none yet for `LD-R`. #52 merged at `c023e3f`; #51 merged at `dd240a2`; #50 closed. |
-| **PR head SHA** | — (a tracker commit cannot contain its own SHA; read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre`) |
-| **Review status** | Codex quota still exhausted. #52 merged on owner engagement with its contents, docs-only. |
-| **CI status** | `main` green at `c023e3f`. |
+| **Active work item** | `LD-R1` — done, in review. `LD-R2` next. |
+| **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
+| **Active PR** | **#54** (`LD-R1`). #53, #52, #51 merged; #50 closed. |
+| **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
+| **Review status** | Codex quota still exhausted. Merges need human review. |
+| **CI status** | #54: the size refusal is FIXED and `callable-contract` passes. Earlier "failures" on `f93c925`/`dee9688` were **concurrency cancellations** from rapid pushes, not defects — check for `cancelled` lanes before investigating one. |
 | **Working tree at session end** | see the last per-item section |
-| **Blockers** | Codex review quota exhausted — merges need human review. No owner decision outstanding. |
+| **Blockers** | none blocking `LD-R2`. `LD-R3` has one open owner question (nav placement of the leads archive). |
 
 ### Exact next action
 
-`SEC-1` is **COMPLETE**. All four owner rulings are recorded in `PLAN.md` § 7.
+1. **Merge #54** once its head is green (`LD-R1`).
+2. **Start `LD-R2`** — restart the branch from the new `main`, then work the
+   removal surface mapped in the `LD-R2` section. **Read that section first:** two
+   interlocks break the build if the deletion is taken at face value — `landing`
+   is a `REQUIRED_ROOT` in `source-size-scope.mjs`, and `ci-plan.mjs` maps
+   `landing/` to the lane holding its tests. Neither is optional.
+3. Then `LD-R3` (lead subsystem), which has its own mapped section and one open
+   owner question.
 
-**Current unit is `LD-R`** — remove the landing site and rehome `/news`. This is
-the campaign's only deliberately behaviour-changing unit. Read the `LD-R` section
-below before touching anything: the public blog is **not** independent of the
-landing site today, and the ruling is to keep `/news` live, so this is a removal
-*and* a rehome, not a delete.
+**Two process rules learned the hard way in this session, both worth keeping:**
 
-The trap, stated once: deleting `landing/` alone takes `/news` down silently.
-`/news` has no Hosting entry of its own — it reaches `serveBlogPublic` only
-through rewrites on the two landing targets — and every rendered blog page links
-`/assets/css/styles.css`, which *is* the 3447-line `LD-1` file.
-
-After `LD-R`: `RU-1` (strengthen and split the rules tests) then `RU-2` (shrink
-`firestore.rules` below 500 preserving permissions exactly, stopping to ask if it
-cannot be done safely).
+- **Read the verdict line, not the count.** `npm run check:source-size | grep
+  'file(s) over'` prints the inventory and *drops* `source-size REFUSED:`. A
+  green-looking summary is not a pass.
+- **Do not push in quick succession.** Each push cancels the previous run under
+  the concurrency group, and the reporter job then correctly refuses a run whose
+  lanes were cancelled — which arrives as a CI *failure* notification that is not
+  a defect. Batch commits, push once. When a failure appears, check whether the
+  lanes say `cancelled` before investigating.
 
 ---
 
