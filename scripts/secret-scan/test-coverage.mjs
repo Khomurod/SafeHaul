@@ -186,9 +186,17 @@ const here = dirname(fileURLToPath(import.meta.url));
             "const ambient = process;\nconst key = ['getBuiltin', 'Module'].join('');\n"
             + "const load = ambient[key]('module').createRequire(import.meta.url);\n"
             + "export function deferred() { return load('../else' + 'where.cjs'); }", false],
+        ['constructor chain after an approved process member',
+            "const build = process.env.constructor.constructor;\n"
+            + "const source = \"return im\" + \"port('../else' + 'where.mjs')\";\n"
+            + 'export function deferred() { return build(source)(); }', false],
+        ['computed constructor chain after an approved process member',
+            "const key = ['con', 'structor'].join(''); const build = process.env[key][key];\n"
+            + "const source = \"return im\" + \"port('../else' + 'where.mjs')\";\n"
+            + 'export function deferred() { return build(source)(); }', false],
         ['the scanner\'s approved process members',
-            'void process.arch; void process.argv; process.cwd(); void process.env.X; '
-            + 'void process.exit; void process.platform;', true],
+            'void process.arch; void process.argv[1]; process.cwd(); void process.env.X; '
+            + 'if (false) process.exit(1); void process.platform;', true],
         ['eval reaching a loader', "eval(\"import('../elsewhere.mjs')\");", false],
         ['aliased eval reaching a loader',
             "const execute = eval; const source = \"im\" + \"port('../else' + 'where.mjs')\";\n"

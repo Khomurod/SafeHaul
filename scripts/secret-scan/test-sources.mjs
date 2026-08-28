@@ -117,6 +117,15 @@ const RELATIVE_SPECIFIER = /['"`](\.\.?\/[^'"`\n]*)['"`]/g;
 const BETWEEN = '(?:\\s|/\\*[\\s\\S]*?\\*/|//[^\\n\\r\\u2028\\u2029]*)*';
 const MODULE_CALL = new RegExp(`\\b(?:import|require)${BETWEEN}\\(([^)]*)\\)`, 'g');
 
+/** The complete process expressions the scanner currently executes. */
+const APPROVED_PROCESS_ACCESS = [
+    String.raw`(?:arch|platform)\b(?!\s*[.\[])`,
+    String.raw`argv\s*\[\s*1\s*\](?!\s*[.\[])`,
+    String.raw`cwd\s*\(\s*\)(?!\s*[.\[])`,
+    String.raw`env\s*\.\s*[A-Z][A-Z0-9_]*\b(?!\s*[.\[])`,
+    String.raw`exit\s*\(\s*1\s*\)(?!\s*[.\[])`,
+].join('|');
+
 /**
  * Gateways to a module loader that is not spelled `import` or `require`.
  *
@@ -135,9 +144,9 @@ const MODULE_CALL = new RegExp(`\\b(?:import|require)${BETWEEN}\\(([^)]*)\\)`, '
  *
  * The scanner also has no reason to contain a Unicode escape, `globalThis`, or
  * Node's `global`. More importantly, its ambient `process` access is a closed
- * syntax: only the six dotted members the current implementation uses are
- * accepted. That prevents aliasing, destructuring, passing, importing or indexing
- * the process object, so the spelling of a computed loader key is irrelevant.
+ * syntax: only the complete terminal expressions the current implementation uses
+ * are accepted. That prevents aliasing, destructuring, passing, importing,
+ * indexing or chaining beyond an approved value.
  *
  * It is not a proof, and AGENTS.md records why rather than implying otherwise: a
  * determined author with commit access can still reach a loader, and no static
@@ -148,10 +157,9 @@ const LOADER_GATEWAY = new RegExp([
     // Source escapes transform before identifier/property/module lookup, so a
     // raw-text search cannot safely interpret them. None are needed here.
     String.raw`\\(?:u(?:[0-9a-fA-F]{4}|\{[0-9a-fA-F]{1,6}\})|x[0-9a-fA-F]{2})`,
-    // This is an allowlist of the scanner's entire ambient process surface, not a
-    // list of known-bad properties. A bare/aliased/destructured/imported/indexed
-    // process can reach properties whose spelling the source scan cannot see.
-    String.raw`\bprocess\b(?!\s*\.\s*(?:arch|argv|cwd|env|exit|platform)\b)`,
+    // This is an allowlist of complete expressions, not just member prefixes: an
+    // approved value still exposes Function through a constructor chain.
+    String.raw`\bprocess\b(?!\s*\.\s*(?:` + APPROVED_PROCESS_ACCESS + '))',
     String.raw`\bglobal(?:This)?\b`,
     // Node documents this as a way to obtain `module.createRequire` without an
     // import. Match the API name wherever it appears rather than one property-

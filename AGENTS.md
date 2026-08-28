@@ -584,18 +584,20 @@ passed it while the containment scan, which reads only `./` and `../`, never
 looked at them.
 
 **That is not a proof, and pretending otherwise would be the failure this file
-keeps recording.** Twelve review rounds on 2026-08-27/28 each found another
+keeps recording.** Thirteen review rounds on 2026-08-27/28 each found another
 spelling — a double quote, a concatenation, a comment before the parenthesis, a
 U+2028 line terminator, a URL suffix, a `createRequire` alias, a literal that was
 not relative, a `process.getBuiltinModule` gateway, then a Unicode-escaped name,
 a computed bracket key, computed destructuring and a hex-escaped key that
 disguised that gateway, then comment-separated and hex-escaped `node:module`
-imports. Unicode and hex escapes are refused as source structures; loader-import
-patterns use the same comment-aware separator as ordinary module calls. More
-importantly, `process` is now a closed surface: only dotted access to `arch`,
-`argv`, `cwd`, `env`, `exit` and `platform` is accepted, while aliases,
-destructuring, indexing, imports and bare values are refused regardless of how a
-property name is constructed; `global` and `globalThis` are refused too. The
+imports, then constructor chaining beyond an approved `process.env` prefix.
+Unicode and hex escapes are refused as source structures; loader-import patterns
+use the same comment-aware separator as ordinary module calls. More
+importantly, `process` is now a closed set of complete expressions: only terminal
+`arch`/`platform`, numeric `argv[1]`, `cwd()`, one uppercase `env` key and
+`exit(1)` are accepted, with no following member or index. Aliases, destructuring,
+imports and bare values are refused regardless of how a property name is
+constructed; `global` and `globalThis` are refused too. The
 alias round showed that following one needs data-flow analysis, which
 a parser alone does not give, and `callable-contract` deliberately runs with no
 `npm ci` so there is no parser there anyway. Arbitrary data-flow and reflection
