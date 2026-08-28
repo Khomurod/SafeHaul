@@ -64,9 +64,10 @@
  * read — the convention that keeps `test-failsafe.mjs` out keeps this out too.
  */
 
+import { spawnSync } from 'node:child_process';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -95,7 +96,8 @@ const RELATIVE_SPECIFIER = /['"`](\.\.?\/[^'"`\n]*)['"`]/g;
  * partial argument that fails the literal test below and is refused. That is the
  * direction to fail in.
  */
-const MODULE_CALL = /\b(?:import|require)\s*\(([^)]*)\)/g;
+const BETWEEN = '(?:\\s|/\\*[\\s\\S]*?\\*/|//[^\\n]*\\n)*';
+const MODULE_CALL = new RegExp(`\\b(?:import|require)${BETWEEN}\\(([^)]*)\\)`, 'g');
 
 /**
  * One quoted string and nothing else — the only argument that can be verified.
@@ -107,6 +109,55 @@ const MODULE_CALL = /\b(?:import|require)\s*\(([^)]*)\)/g;
  */
 const SINGLE_LITERAL = /^\s*(['"`])(?:(?!\1)[^\\])*\1\s*$/;
 const INTERPOLATED = /\$\{/;
+
+/**
+ * What Node ACTUALLY loads, asked of Node.
+ *
+ * Three review rounds in a row found another specifier spelling that a regex
+ * could not read: a double-quoted import, a concatenation, a comment between
+ * `import` and its parenthesis, a `?query` suffix. Each fix was correct and each
+ * time the next spelling was waiting, because a regex is an inference about the
+ * grammar and the grammar is larger than the inference.
+ *
+ * So the static half of the question is no longer inferred. A child process
+ * imports the entry with a resolution hook registered, and reports every file
+ * Node resolves — `next()` IS Node's resolver, so every form the language allows
+ * is handled by definition rather than by enumeration. Importing the entry is
+ * side-effect free: it guards its own CLI behind `process.argv[1]`, and the suite
+ * already imports these modules for their constants.
+ *
+ * This does not replace the specifier scan, and the reason is worth stating: a
+ * dynamic `import()` inside a function body does not resolve until that function
+ * runs, so the graph shows what loading the entry loads, not what it might load
+ * later. The scan still refuses computed specifiers for exactly that gap.
+ *
+ * A probe that cannot run is a refusal, not a skip. "Could not ask" has been the
+ * wrong answer to every question in this repository.
+ *
+ * It is exported separately rather than folded into `implementationFiles` because
+ * importing a module RUNS it, and the fixtures that prove the specifier scan
+ * refuses a computed import are deliberately broken — `import(variable)` throws.
+ * A probe over those would report "could not run" for the fixture's own reason and
+ * say nothing about the scanner. So the scan is what fixtures exercise, and the
+ * probe is asked once, of the real thing.
+ */
+export function loadedGraph(entry = ENTRY) {
+    const hooks = pathToFileURL(resolve(here, 'test-probe-hooks.mjs')).href;
+    const probed = spawnSync(process.execPath, [
+        '--import',
+        `data:text/javascript,import { register } from 'node:module'; register(${JSON.stringify(hooks)});`,
+        '--input-type=module',
+        '-e', `await import(${JSON.stringify(pathToFileURL(entry).href)});`,
+    ], { encoding: 'utf8' });
+    if (probed.status !== 0) {
+        throw new Error(
+            'the module-graph probe could not run, so what the scanner loads is unknown: '
+            + `${(probed.stderr || probed.error?.message || '').trim().split('\n').slice(-3).join(' ')}`,
+        );
+    }
+    return [...probed.stdout.matchAll(/^GRAPH (\S+)$/gm)]
+        .map(([, url]) => fileURLToPath(url.replace(/[?#].*$/, '')));
+}
 
 /**
  * The entry and every implementation module beside it, in a stable order.
@@ -135,7 +186,10 @@ export function implementationFiles(entry = ENTRY, directory = here) {
             );
         }
         for (const [, specifier] of source.matchAll(RELATIVE_SPECIFIER)) {
-            const target = resolve(dirname(file), specifier);
+            // `./x.mjs?scanner` and `./x.mjs#frag` load ./x.mjs — ESM specifiers are
+            // URLs. Resolving the raw text found no file and skipped it, which is
+            // how a module escaped containment with a query suffix. Measured.
+            const target = resolve(dirname(file), specifier.replace(/[?#].*$/, ''));
             let real;
             try {
                 real = statSync(target).isFile() ? target : null;
@@ -163,4 +217,16 @@ export function implementationFiles(entry = ENTRY, directory = here) {
 /** Those files' contents, concatenated, for the assertions that read the source. */
 export function implementationSource(entry = ENTRY, directory = here) {
     return implementationFiles(entry, directory).map((file) => readFileSync(file, 'utf8')).join('\n');
+}
+
+/**
+ * Anything Node loads for the real scanner that the assertions would not read.
+ *
+ * Empty is the only acceptable answer. A non-empty list means the scanner has a
+ * limb outside `scripts/secret-scan/`, so the §L regexes are reading less than
+ * what runs.
+ */
+export function uncoveredLoads(entry = ENTRY, directory = here) {
+    const covered = new Set(implementationFiles(entry, directory));
+    return loadedGraph(entry).filter((file) => !covered.has(file));
 }

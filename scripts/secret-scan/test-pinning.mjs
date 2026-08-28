@@ -17,7 +17,7 @@ import { dirname, join as joinPath, resolve as resolvePath } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { assert, repoRoot } from './test-support.mjs';
 import { GITLEAKS_SHA256, GITLEAKS_VERSION } from './gitleaks.mjs';
-import { implementationFiles, implementationSource } from './test-sources.mjs';
+import { implementationFiles, implementationSource, uncoveredLoads } from './test-sources.mjs';
 import { evaluateAudit, fingerprintOf } from '../secret-history-audit.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -369,6 +369,15 @@ console.log('\nL. The scanner is ours, pinned by content, and cannot be exempted
         ['import(`./${name}.mjs`)', 'await import(`./${name}.mjs`);', false],
         ["require('./a' + b)", "require('./a' + b);", false],
         ["import('../else' + 'where.mjs')", "await import('../else' + 'where.mjs');", false],
+        // Both reported on 2026-08-28, both reproduced loading the outside module.
+        ['import /* c */ (computed)', "await import /* c */ ('../else' + 'where.mjs');", false],
+        // An ESM specifier is a URL, so `?query` and `#frag` still name the file.
+        // Resolving the raw text found nothing and SKIPPED it, which let an outside
+        // module escape; these two are the escape, and must be refused.
+        ["import('../elsewhere.mjs?scanner')", "await import('../elsewhere.mjs?scanner');", false],
+        ["from '../elsewhere.mjs#frag'", "import { a } from '../elsewhere.mjs#frag';", false],
+        // And the suffix must not break a legitimate inside-the-set import.
+        ["import('./ok.mjs?scanner')", "await import('./ok.mjs?scanner');", true],
     ];
     for (const [label, source, shouldPass] of specifierCases) {
         const dir = mkdtempSync(joinPath(tmpdir(), 'safehaul-spec-'));
@@ -409,6 +418,21 @@ console.log('\nL. The scanner is ours, pinned by content, and cannot be exempted
         refused, 'silently omitting it is how the pinning assertions would go quiet');
     rmSync(fixture, { recursive: true, force: true });
     rmSync(outside, { recursive: true, force: true });
+
+    /*
+     * And the static half asked of Node rather than inferred.
+     *
+     * Three rounds running, review found a specifier spelling a regex could not
+     * read — a double quote, a concatenation, a comment before the parenthesis, a
+     * `?query` suffix. Each fix was right and the next spelling was already
+     * waiting, because a regex is an inference about the grammar and the grammar
+     * is bigger. This asks Node's own resolver what it loads, so no spelling can
+     * be wrong about it. The scan above still covers what a probe cannot see: a
+     * dynamic import inside a function body does not resolve until it runs.
+     */
+    assert('L32. everything Node loads for the scanner is source these checks read',
+        uncoveredLoads().length === 0,
+        `${uncoveredLoads().join(', ')} is executed but not read`);
 
     assert('L28. and it stops at the implementation, so the tests\' own fixtures cannot skew it',
         !files.some((file) => /(^|\/)test-/.test(file)),
