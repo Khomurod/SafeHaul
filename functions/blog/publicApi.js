@@ -195,16 +195,12 @@ ${ogImage ? `<meta name="twitter:image" content="${escapeHtml(ogImage)}">` : ''}
 <link rel="alternate" type="application/atom+xml" title="${escapeHtml(SECTION_NAME)}" href="${ORIGIN}/news/feed.xml">
 <meta name="theme-color" content="#14161A">
 <link rel="icon" type="image/svg+xml" href="/assets/images/logo.svg">
-<!-- Both faces are self-hosted, and web/assets/css/news-foundation.css declares
-     them, so they are preloaded here.
-
-     THESE FIVE FILES ARE ONE STYLESHEET AND THIS ORDER IS THE CASCADE. They were
-     cut out of the retired marketing site's single 3447-line sheet at its own
-     section boundaries and are still in its source order, so the cascade is what
-     it always was. news-responsive.css is last because it is nothing but
-     overrides. Re-order these tags and a late override starts losing to an early
-     rule it used to beat. The version query must move on all five together — a
-     stale one on any of them serves a visitor a mixed stylesheet. -->
+<!-- Both faces are self-hosted and news-foundation.css declares them, so they
+     are preloaded here. THESE FIVE FILES ARE ONE STYLESHEET AND THIS ORDER IS THE
+     CASCADE: they were cut out of the retired marketing site's 3447-line sheet at
+     its own section boundaries, in its source order, so re-ordering these tags
+     makes a late override lose to an early rule it used to beat. The version
+     query moves on all five together or a visitor gets a mixed stylesheet. -->
 <link rel="preload" href="/assets/fonts/archivo-variable.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/assets/fonts/geist-mono-variable.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/assets/css/news-foundation.css?v=1">
@@ -217,20 +213,16 @@ ${extraHead}
 <body>
 <a class="skip-link" href="#main">Skip to main content</a>
 <!--
-  EVERY LINK HERE MUST RESOLVE ON THIS SITE. The navigation used to carry the
-  marketing site's six links — / , /#features, /#why-safehaul, /#pricing and
-  /#faq — and those pages no longer exist. A public article whose own header is
-  full of 404s reads as an abandoned site, so the navigation was cut back to what
-  is still here rather than pointed at a homepage that is gone. /news is home
-  now, which is why the logo links to it.
+  EVERY LINK HERE MUST RESOLVE ON THIS SITE. This used to carry the marketing
+  site's six links (/, /#features, /#why-safehaul, /#pricing, /#faq); those pages
+  are gone, and an article whose header is full of 404s reads as an abandoned
+  site. /news is home now, which is why the logo points there.
 
-  DELIBERATELY WITHOUT A MOBILE TOGGLE. These pages ship no JavaScript of their
-  own, and a toggle button with nothing wired to it is a control that does not
-  work. news-responsive.css keeps this navigation reachable below 900px with a
-  :not(:has(.mobile-menu-toggle)) rule on .navbar, which lays the links out as a
-  horizontally scrolling row instead of a hidden panel. That rule and this
-  omission are one decision: change either and the blog loses its navigation on
-  a phone.
+  DELIBERATELY WITHOUT A MOBILE TOGGLE: these pages ship no JavaScript, and a
+  toggle wired to nothing is a control that does not work. news-responsive.css
+  keeps the links reachable below 900px with a :not(:has(.mobile-menu-toggle))
+  rule on .navbar. That rule and this omission are one decision — change either
+  and the blog loses its navigation on a phone.
 -->
 <nav id="navbar" class="navbar">
   <div class="nav-container">
@@ -259,14 +251,11 @@ ${bodyHtml}
       </a>
       <p>Driver hiring and DOT compliance software for trucking carriers.</p>
     </div>
-    <!--
-      The Product column is gone with the marketing pages it linked. The Privacy
-      Policy link is NOT: that page outlived the site it used to live in and is
-      served standalone from web/privacy.html, because it is the only public
-      statement of how SafeHaul handles personal data. Owner decision, recorded in
-      docs/source-size-refactor/TRACKER.md. If it is ever removed again, remove
-      this link in the same change -- a policy link that 404s is worse than none.
-    -->
+    <!-- The Product column went with the marketing pages it linked. The Privacy
+      Policy link did NOT: that page outlived the site, is served standalone from
+      web/privacy.html, and is the only public statement of how SafeHaul handles
+      personal data. Remove it and this link in the same change — a policy link
+      that 404s is worse than no link at all. -->
     <nav class="footer-links" aria-label="Resources">
       <h2 class="footer-heading">Resources</h2>
       <a href="/news">News &amp; Insights</a>

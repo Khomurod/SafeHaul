@@ -535,9 +535,27 @@ exist, keep its canonical URL, carry no `<script>` and contain no link back into
 the removed marketing site; and the blog footer must link to it. A privacy link
 that 404s is worse than no link, so the file and the link are asserted together.
 
+### The gate caught me, and the reason is worth keeping
+
+CI refused `LD-R1`'s first head: **`functions/blog/publicApi.js` was 642 lines,
+up from the 631 recorded.** A backlogged file may not grow, and the comments I
+added to the shell had grown it. Correct refusal — the ratchet doing exactly its
+job, on the campaign's own work.
+
+**It had been failing locally the whole time and I did not see it.** After the
+first few runs I narrowed the command to `npm run check:source-size | grep 'file(s)
+over'`, which prints the inventory line and *drops the verdict* — `source-size
+REFUSED:` never reached me. A green-looking summary is not a pass. **Read the
+verdict line, not the count.**
+
+Fixed by tightening the three comments to their operative sentences; the file is
+back to **exactly 631**. That is compliant but leaves zero headroom, so the next
+edit to `publicApi.js` trips the same rule until `FR-8` splits it.
+
 ### Current stopping point
 
-`LD-R1` complete and verified; PR #54 open. `LD-R2` not started.
+`LD-R1` complete and verified; PR #54 open, awaiting a green head after the
+size fix. `LD-R2` not started — its full removal surface is mapped below.
 
 ---
 
