@@ -1090,9 +1090,12 @@ justify its shape, 500 is the hard maximum, and it applies to tests and tooling
 as much as to runtime code. It measures every handwritten source language —
 JS/TS, CSS, HTML and Firestore rules — not only the scripts.
 `npm run check:source-size` prints the inventory and fails on a new offender; the
-70 files already over the limit are recorded in
+68 files still over the limit are recorded in
 `.github/source-size-backlog.json`, which can only shrink and is itself compared
-against git so a change cannot add its own exemption. The commit it compares
+against git so a change cannot add its own exemption. Retiring those 68 is a
+running campaign: `docs/source-size-refactor/PLAN.md` holds the plan and
+`docs/source-size-refactor/TRACKER.md` the current state, and the tracker is the
+file to read before continuing that work. The commit it compares
 against is a pull request's own base, or the newest ancestor GitHub says carried
 a fully validated release — never the branch's own history, and never a
 manually-named commit that does not contain either. Where there is no earlier
