@@ -131,7 +131,44 @@ const here = dirname(fileURLToPath(import.meta.url));
         ['createRequire alias via bare "module"',
             "import { createRequire } from 'module';\nconst load = createRequire(import.meta.url);\n"
             + "export function deferred() { return load('../else' + 'where.cjs'); }", false],
+        // Importing is not the only way to hold a builtin. Reported 2026-08-28 and
+        // reproduced: `getBuiltinModule` returns `module` with no specifier for the
+        // checks above to read, so the alias came out of it and the outside module
+        // really loaded. The receiver is incidental, so the alias spelling is a row
+        // of its own — matching `process.` would have missed it.
+        ['process.getBuiltinModule reaching a loader',
+            "const load = process.getBuiltinModule('module').createRequire(import.meta.url);\n"
+            + "export function deferred() { return load('../else' + 'where.cjs'); }", false],
+        ['getBuiltinModule through an aliased process',
+            "const p = globalThis.process;\n"
+            + "const load = p.getBuiltinModule('module').createRequire(import.meta.url);\n"
+            + "export function deferred() { return load('../else' + 'where.cjs'); }", false],
+        // Reported 2026-08-28: destructuring spells the same route with no dot for
+        // a matcher to anchor on. The renamed form came out of the same probe and
+        // is a row of its own, because a rename is what a name-based match has to
+        // survive — the property name is still on the left of the colon.
+        ['destructured getBuiltinModule',
+            "const { getBuiltinModule } = process;\n"
+            + "const load = getBuiltinModule('module').createRequire(import.meta.url);\n"
+            + "export function d() { return load('../else' + 'where.cjs'); }", false],
+        ['renamed destructure of getBuiltinModule',
+            "const { getBuiltinModule: g } = process;\n"
+            + "const load = g('module').createRequire(import.meta.url);\n"
+            + "export function d() { return load('../else' + 'where.cjs'); }", false],
+        ['destructured process.binding',
+            "const { binding } = process;\nexport function d() { return binding('module'); }", false],
+        // `vm` evaluates a string in this realm, and a string is where
+        // `process.getBuiltinModule('module')` can be written — measured reaching
+        // the loader in one step. It is a builtin, so refusing its specifier is
+        // the same closed rule that covers `module`.
+        ["import of node:vm", "import { runInThisContext } from 'node:vm';\nexport const d = runInThisContext;", false],
+        ["import of bare vm", "import { runInThisContext } from 'vm';\nexport const d = runInThisContext;", false],
         ['eval reaching a loader', "eval(\"import('../elsewhere.mjs')\");", false],
+        // Without `new` it is the same constructor. This was refused only because
+        // the containment scan happened to resolve a relative path inside the
+        // string, which is luck; it is a rule now.
+        ['Function without new reaching a loader',
+            "export function d() { return Function(\"return import('file:///tmp/x.mjs')\")(); }", false],
         ['new Function reaching a loader', "new Function(\"return import('../elsewhere.mjs')\")();", false],
         // An ESM specifier is a URL, so `?query` and `#frag` still name the file.
         // Resolving the raw text found nothing and SKIPPED it, which let an outside
