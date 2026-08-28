@@ -589,6 +589,33 @@ edit to `publicApi.js` trips the same rule until `FR-8` splits it.
    `null` → full suite, so `web/` is currently over-tested rather than
    under-tested. `LD-R1` did not open a gap.)*
 
+**RENAME NOTHING IN THE RELEASE PLUMBING.** This is the trap in `LD-R2`, and the
+obvious instinct — "remove every reference to landing" — walks straight into it.
+
+`landingVersionId` is not a variable name. It is a **field in the persisted
+release-record payload**, written by `scripts/record-release.mjs`, read by
+`scripts/resolve-testing-release.mjs`, and — the part that matters — read by the
+**production promotion gate**:
+
+```js
+// functions/releaseManagement/eligibility.js:353
+if (!deployment.payload.landingVersionId) continue;
+```
+
+Every release record already in Firestore carries that field. A renamed reader
+would find it absent on all of them, `continue` past every one, and resolve no
+eligible release — so **nothing could be promoted to Production, and it would
+fail by silently skipping rather than by erroring.** Renaming it is a data
+migration, not a rename, and this campaign has no mandate for one.
+
+So these all **stay exactly as they are**: `landingVersionId`,
+`LANDING_VERSION_ID`, `landing_version_id`, `FIREBASE_LANDING_TARGET`, the
+`landing-testing` / `landing-production` target aliases, and the
+`safehaul-landing-*` Hosting site IDs. They are stable identifiers threading
+through the release record and the promotion gate. `scripts/test-release-promotion.mjs`
+and `functions/test/unit/releaseManagement.callables.test.js` pin the payload
+shape, which is the safety net proving this.
+
 **Workflows — the deploy steps STAY, only their wording changes.** The Hosting
 targets keep their `landing-*` aliases because a Firebase **site** cannot be
 renamed, and they now serve `web/`. Update the step names and comments in
