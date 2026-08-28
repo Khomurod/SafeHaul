@@ -125,6 +125,12 @@ const here = dirname(fileURLToPath(import.meta.url));
         ['createRequire alias',
             "import { createRequire } from 'node:module';\nconst load = createRequire(import.meta.url);\n"
             + "export function deferred() { return load('../else' + 'where.cjs'); }", false],
+        // A builtin is importable bare or `node:`-prefixed, and matching only the
+        // prefixed form let this through. Reported 2026-08-28; both are rows now
+        // because two spellings is the entire set the resolver accepts.
+        ['createRequire alias via bare "module"',
+            "import { createRequire } from 'module';\nconst load = createRequire(import.meta.url);\n"
+            + "export function deferred() { return load('../else' + 'where.cjs'); }", false],
         ['eval reaching a loader', "eval(\"import('../elsewhere.mjs')\");", false],
         ['new Function reaching a loader', "new Function(\"return import('../elsewhere.mjs')\")();", false],
         // An ESM specifier is a URL, so `?query` and `#frag` still name the file.

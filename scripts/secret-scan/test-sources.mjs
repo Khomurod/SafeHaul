@@ -134,8 +134,12 @@ const MODULE_CALL = new RegExp(`\\b(?:import|require)${BETWEEN}\\(([^)]*)\\)`, '
  * check. What this closes is the accidental and the disguised-but-legible.
  */
 const LOADER_GATEWAY = new RegExp([
-    String.raw`from\s*['"\x60]node:module['"\x60]`,
-    String.raw`import\s*\(\s*['"\x60]node:module['"\x60]`,
+    // Both spellings. A Node builtin is importable bare or `node:`-prefixed, and
+    // matching only the prefixed form let `from 'module'` through — reported and
+    // reproduced on 2026-08-28, loading an outside CJS module through the alias.
+    // Two spellings is the whole set the resolver accepts, so this closes it.
+    String.raw`from\s*['"\x60](?:node:)?module['"\x60]`,
+    String.raw`import\s*\(\s*['"\x60](?:node:)?module['"\x60]`,
     String.raw`new\s+Function\s*\(`,
     String.raw`\beval\s*\(`,
 ].join('|'));
