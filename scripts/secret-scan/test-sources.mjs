@@ -134,9 +134,10 @@ const MODULE_CALL = new RegExp(`\\b(?:import|require)${BETWEEN}\\(([^)]*)\\)`, '
  * loading modules the one way the checks above can read.
  *
  * The scanner also has no reason to contain a Unicode escape or computed member
- * access on `process` / `globalThis`. Refusing those source structures closes two
- * ways JavaScript can spell this gateway without ever containing its API name:
- * `process.getBuiltin\u004dodule` and `process['getBuiltin' + 'Module']`.
+ * access on `process` / `globalThis`. Static identifier-string concatenations are
+ * folded before this scan, wherever their expression appears, so both
+ * `process['getBuiltin' + 'Module']` and computed destructuring expose the same
+ * API name. Unicode escapes are refused because they transform before lookup.
  *
  * It is not a proof, and AGENTS.md records why rather than implying otherwise: a
  * determined author with commit access can still reach a loader, and no static
@@ -164,6 +165,33 @@ const LOADER_GATEWAY = new RegExp([
     String.raw`new\s+Function\s*\(`,
     String.raw`\beval\s*\(`,
 ].join('|'));
+
+/**
+ * Expose a property name assembled from plain identifier-string fragments.
+ *
+ * The expression can sit after an object (`process['a' + 'b']`) or before it in
+ * destructuring (`{ ['a' + 'b']: get } = process`), so anchoring the check to the
+ * ambient object misses one direction. Folding the statically known expression
+ * first is position-independent. Repeating closes any number of fragments.
+ */
+const IDENTIFIER_STRING_CONCAT = new RegExp(
+    `(['"\\x60])([A-Za-z_$][A-Za-z0-9_$]*)\\1${BETWEEN}\\+${BETWEEN}`
+    + `(['"\\x60])([A-Za-z_$][A-Za-z0-9_$]*)\\3`,
+    'g',
+);
+
+function foldIdentifierStringConcats(source) {
+    let folded = source;
+    let previous;
+    do {
+        previous = folded;
+        folded = folded.replace(
+            IDENTIFIER_STRING_CONCAT,
+            (_match, quote, left, _rightQuote, right) => `${quote}${left}${right}${quote}`,
+        );
+    } while (folded !== previous);
+    return folded;
+}
 
 /**
  * One quoted string and nothing else — the only argument that can be verified.
@@ -289,7 +317,7 @@ export function implementationFiles(entry = ENTRY, directory = here) {
 
     for (const file of covered) {
         const source = readFileSync(file, 'utf8');
-        const gateway = source.match(LOADER_GATEWAY);
+        const gateway = foldIdentifierStringConcats(source).match(LOADER_GATEWAY);
         if (gateway) {
             throw new Error(
                 `${file.replace(/^.*\/scripts\//, 'scripts/')} reaches a module loader through `

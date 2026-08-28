@@ -584,14 +584,17 @@ passed it while the containment scan, which reads only `./` and `../`, never
 looked at them.
 
 **That is not a proof, and pretending otherwise would be the failure this file
-keeps recording.** Nine review rounds on 2026-08-27/28 each found another
+keeps recording.** Ten review rounds on 2026-08-27/28 each found another
 spelling — a double quote, a concatenation, a comment before the parenthesis, a
 U+2028 line terminator, a URL suffix, a `createRequire` alias, a literal that was
-not relative, a `process.getBuiltinModule` gateway, then a Unicode-escaped name
-and a computed bracket key that disguised that gateway. The last two are refused
-as source structures — the scanner needs neither Unicode escapes nor computed
-access on `process` / `globalThis`. The alias round showed that following one
-needs data-flow analysis, which
+not relative, a `process.getBuiltinModule` gateway, then a Unicode-escaped name,
+a computed bracket key and computed destructuring that disguised that gateway.
+Unicode escapes are refused as a source structure; static identifier-string
+fragments are folded before the gateway scan wherever their expression appears,
+so both computed-access and computed-destructuring positions expose the same
+name. The scanner needs neither Unicode escapes nor computed access on
+`process` / `globalThis`. The alias round showed that following one needs
+data-flow analysis, which
 a parser alone does not give, and `callable-contract` deliberately runs with no
 `npm ci` so there is no parser there anyway. `globalThis['ev' + 'al']` is still
 not matched. What these checks close is the accidental and the
