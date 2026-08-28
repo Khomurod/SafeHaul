@@ -25,6 +25,18 @@ on:
     branches: [ "main" ]
   workflow_dispatch:
     inputs:
+      source_size_base:
+        description: >-
+          Optional baseline commit for the source-size guard. Leave it empty and
+          the guard compares against the newest ancestor carrying a fully
+          validated release, which it asks GitHub for. Set it only when that walk
+          finds nothing and you can name a release you know was good. It clears a
+          HIGHER bar than an inferred base, because an escape hatch nobody checks
+          is a bypass: an ancestor, not the head, itself carrying a validated
+          release, containing the base the walk would have chosen, and not from
+          before the source-size backlog existed.
+        required: false
+        default: ''
       secret_scan_base:
         description: >-
           Optional baseline commit for secret-scan. Leave empty and the scan
@@ -157,12 +169,24 @@ jobs:
 
   callable-contract:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # The source-size guard asks which ancestor last carried a fully validated
+      # release, which is a check-runs query. Read-only, and the same grant
+      # `secret-scan` carries for the same lookup.
+      checks: read
     # Always runs. It is ~20 seconds and it is the self-test for the release
     # system itself — the promotion gate, and the CI planner and validation gate
     # that decide what may be skipped. Making the checks that guard the
     # optimisation skippable by the optimisation would be circular.
     steps:
+      # Full history: the source-size guard proves the backlog did not grow by
+      # reading its previous version out of git, and a depth-1 checkout has no
+      # previous version to read. Without this the guard refuses (which is the
+      # designed behaviour) rather than passing on an unverified backlog.
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
       - name: Use Node.js 20.x
         uses: actions/setup-node@v5
         with:
@@ -189,6 +213,42 @@ jobs:
       # own tests CI may skip is not a gate.
       - name: Verify the secret scanner's range selection and detection
         run: npm run test:secret-scan
+
+      # Physical line counts across every handwritten source file, and the guard
+      # that stops a new one arriving over the limit. It lives in this job for
+      # the same reason as the checks above: `callable-contract` is in
+      # `ALWAYS_REQUIRED_JOBS`, so no tree-hash proof can skip it, and a size
+      # standard CI may skip is not a standard. Its own tests run first — a
+      # scanner that has silently stopped looking reports a shorter list, and a
+      # shorter list reads as progress.
+      - name: Verify the source-size guard
+        run: npm run test:source-size
+
+      # `--require-baseline` is what stops the backlog being edited into an
+      # allowlist. The three backlog rules are enforced against the backlog in
+      # the branch under test, which that branch may edit, so the guard also
+      # reads the previous version out of git and refuses any entry added or any
+      # recorded count raised. A run that cannot find that previous version
+      # refuses too, here — there is no skip path where tampering is the concern.
+      - name: Check source sizes
+        run: npm run check:source-size -- --require-baseline
+        env:
+          # Asking "which ancestor last carried a fully validated release" needs a
+          # token and `checks: read`, declared on this job above. It is the same
+          # question `scripts/secret-scan.mjs` and `scripts/resolve-deploy-base.mjs`
+          # both ask, for the same reason: `github.event.before` is only as good as
+          # the run that happened on it, and after a FAILED push it IS the failure.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # A pull request measures against what it was proposed against — a
+          # definition, so it needs no validated-release proof. Every other event
+          # asks GitHub.
+          GITHUB_PR_BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
+          # An operator naming a base on a manual run, for when the walk finds
+          # nothing. It clears a HIGHER bar than an inferred base — an ancestor, not
+          # the head, carrying a validated release, containing whatever the walk
+          # would have chosen, and not from before the backlog existed — because an
+          # escape hatch nobody checks is a bypass, measured four times now.
+          SOURCE_SIZE_BASE: ${{ github.event.inputs.source_size_base || '' }}
 
       # The shared AI platform is only worth having if it cannot be bypassed,
       # and this guard is what stops a feature growing its own vendor call. It

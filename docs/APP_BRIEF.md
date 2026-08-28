@@ -1085,6 +1085,23 @@ last fully validated release was scanned by a scanner that passed its own tests.
 failing unrelated releases; see `docs/SECRET_HISTORY_AUDIT.md`, which also lists
 the credentials that still need owner rotation.
 
+CI also enforces a **source-size standard**: 400 physical lines asks a file to
+justify its shape, 500 is the hard maximum, and it applies to tests and tooling
+as much as to runtime code. It measures every handwritten source language —
+JS/TS, CSS, HTML and Firestore rules — not only the scripts.
+`npm run check:source-size` prints the inventory and fails on a new offender; the
+70 files already over the limit are recorded in
+`.github/source-size-backlog.json`, which can only shrink and is itself compared
+against git so a change cannot add its own exemption. The commit it compares
+against is a pull request's own base, or the newest ancestor GitHub says carried
+a fully validated release — never the branch's own history, and never a
+manually-named commit that does not contain either. Where there is no earlier
+backlog at all, each entry must name a file the base already carried at that
+size, so a bootstrap cannot exempt debt it created. Workflows, JSON, Markdown and
+the one MDX story are deliberately unmeasured, with reasons recorded in the
+checker, and a test refuses any tracked format anywhere in the repository that is
+in none of its lists. See `AGENTS.md`.
+
 CI runs Playwright as a 4-way shard matrix with `workers: 1` and `retries: 2`
 per shard.
 

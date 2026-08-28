@@ -82,6 +82,201 @@ backend behavior, integrations, permissions, routes, feature flags, or
 business workflows unless the task separately justifies and approves that
 change.
 
+## Source size: 400 to think, 500 to stop
+
+`npm run check:source-size` counts physical lines in every handwritten source
+file and fails when one is over the limit. `npm run test:source-size` tests the
+checker. Both run in `callable-contract`, which is in `ALWAYS_REQUIRED_JOBS`, so
+no tree-hash proof can skip them.
+
+- **400 lines** asks a file to justify its shape in review. A cohesive 420-line
+  module is fine; one doing three jobs is not.
+- **500 physical lines** is the hard maximum, and it applies to tests and tooling
+  exactly as to runtime code. A test nobody can read is a test nobody maintains.
+
+Physical lines, deliberately — not "lines of code". Stripping comments would
+reward deleting the explanations this repository runs on, and counting statements
+would reward putting three on one line. The metric measures how much there is to
+read.
+
+An audit on 2026-08-26 found **70 files over the limit**, including a 2203-line
+test, a 1476-line component owning the public application, four tooling scripts
+over 1000, a 3447-line stylesheet and a 1682-line HTML page. None of it was
+decided; it accumulated because nothing said no. Those files are recorded in
+`.github/source-size-backlog.json`, which is a **campaign and not an allowlist** —
+the checker enforces the difference. A file not listed may never exceed the
+limit; a listed file may never grow; a listed file that comes back under must be
+removed, and the check fails until it is. An entry for a path that no longer
+exists fails too, so a rename cannot carry an exemption with it. When the last
+entry goes, so does the file.
+
+**And the backlog itself is compared against git, not trusted.** Every rule above
+is enforced against the backlog *in the branch under test*, which that branch may
+edit — so on its own the checker would have accepted a new 900-line file that
+arrived together with `{"src/new.js": 900}`, or a listed file grown with its
+recorded count raised to match. Review found that on 2026-08-27, and it is the
+same lesson `scripts/secret-scan.mjs` was built on: **a gate must not take its
+scope from the branch it is gating.**
+
+Two more shapes of the same hole came out of that review, both reproduced first:
+
+- **A count that is not a count.** Every rule compares with `>`, a non-number
+  coerces to `NaN`, and every comparison against `NaN` is false — so
+  `{"src/big.js": "unbounded"}` exempted a 9000-line file from the hard limit
+  *and* from the may-not-grow rule, silently. A malformed entry is now refused,
+  and nothing is compared until the shape is sound.
+- **A ceiling that does not follow the file down.** A backlogged file that shrinks
+  while its dated count stays put could be regrown to anything at or below the
+  snapshot: `1358 → 1200 → 1300` passed twice. So each backlogged file is also
+  measured at the base of the change, and **may never exceed either its
+  2026-08-26 size or the size it had on the branch it came from.** That ratchets
+  automatically, which is why the recorded count stays a dated record rather than
+  a live ceiling somebody has to remember to lower. So `scripts/source-size-baseline.mjs` reads
+the previous version out of git — a pull request's own base commit, the tip a push
+replaced, where a feature branch left the default branch, or `HEAD~1` — and
+refuses any entry added or any count raised. That fork-point step is not a
+nicety: `HEAD~1` alone compares a commit against the one before it *inside the
+same change*, so a branch whose first commit legitimately records a backlog entry
+stands accused of adding one.
+
+**Which commit is the base turned out to be the whole problem**, and this
+repository has now answered it three times. A pull request measures against what
+it was proposed against — a definition, needing no proof. **Every other event asks
+GitHub for the newest ancestor carrying a fully validated release**, exactly as
+`scripts/secret-scan.mjs` does and for the reason `scripts/resolve-deploy-base.mjs`
+learned after a function silently failed to deploy for two merges. Three things
+were measured on 2026-08-27, each of which let a refused increment reach a deploy:
+
+- **`github.event.before` is only as good as the run that happened on it.** After
+  a push that FAILED this check, `before` IS the failure, so the next push
+  measures from it, the tampered backlog looks unchanged, and `deploy-testing`
+  ships what was refused.
+- **`HEAD~1` after a multi-commit push is inside that push.** `workflow_dispatch`
+  on `refs/heads/main` deploys, and `1200 → 1300 → tip` let a dispatch compare
+  1300 against 1300 and pass a regrowth the push run had refused.
+- **An escape hatch is a bypass if nobody checks it.** The override existed so a
+  manual run had an honest way past the refusal, and it accepted anything that
+  resolved: `SOURCE_SIZE_BASE=HEAD` reported "compared against \<head\>" and
+  passed. That round made it clear the same bar as an inferred base — an
+  ancestor, not the head, carrying a validated release — which is what this file
+  already said about the secret scanner's override. Two more rounds found that
+  bar too low; the override's contract today is the one stated below, not this.
+
+A fourth review round found the same escape hatch open two notches wider, and
+both were reproduced before they were fixed. **The override may not reach behind
+the campaign's own start**: `SOURCE_SIZE_BASE` pointed at a fully validated
+pre-campaign commit — the main commit a campaign branch is based on will do —
+made `git show` fail, which read as "no backlog here, the campaign starts with
+this change", so the current backlog was trusted wholesale and an invented
+`{"src/invented.js": 9000}` with a matching 9000-line file reported zero
+problems. **And it may not reach behind the base the run would have picked
+anyway**: the automatic base is the *newest* validated ancestor and therefore the
+strictest, so naming an older validated release restores its looser recorded
+count and its looser measured size, and a file regrown to that older ceiling
+passes.
+
+A fifth round showed why "an operator chose it" was the wrong place to hang that
+first refusal, and the answer is the most useful thing in this section. **The
+inferred route reaches a pre-campaign base too**, with no override at all: when
+the push that bootstraps the backlog fails some unrelated required job it never
+becomes a validated release, so the NEXT push's newest validated ancestor is
+still pre-campaign — and it could add a 9,000-line file with its own entry, pass,
+and deploy once the unrelated failure was fixed. Reproduced.
+
+What makes a bootstrap legitimate is not who picked the base. It is that every
+entry records debt **the base already carried**, which is a fact about a commit
+the change under test cannot edit, so it is checkable and now checked: the file
+must exist at the base, and its recorded count may not exceed its size there. The
+campaign's own pull request passes that (all 70 entries are unchanged files from
+`c0057e2`); a file the change itself creates, or one that grew through the limit
+on the branch, does not. The override refusal stays as well, because reaching
+behind the campaign's start is a category error and deserves to read like one.
+
+Two more of the same shape came out of that round, both reproduced. **A lookup
+that failed is not an answer of "none":** one 502 on the second request left
+`lastValidatedBase` null, which read as "nothing to be behind", and since the CLI
+only mentions a lookup error alongside some other problem, the older-ceiling
+comparison exited 0. And **"is the override older" is the wrong question** — on a
+merge commit a validated second-parent tip is an ancestor of the head and of
+neither the first-parent base nor its reverse, so an override cut before a
+backlog reduction sailed through. The override must now *contain* the automatic
+base, which refuses older and incomparable alike.
+
+`callable-contract` therefore carries `checks: read` and the default token, and
+the dispatch dialog offers `source_size_base` for naming a good release when the
+automatic lookup finds none. Entries
+leaving and counts falling are the campaign working and need no ceremony. CI
+passes `--require-baseline`, which turns "could not find a base" into a refusal
+rather than a skipped comparison; that is why `callable-contract` checks out with
+`fetch-depth: 0`. Locally the comparison is skipped with a printed reason, because
+a fresh clone must still be able to run the checker.
+
+Three things the checker does that are worth keeping if it is ever rewritten. It
+reads `git ls-files -z` rather than walking directories, so a large file cannot
+escape by being moved and gitignored build output is structurally unreachable
+rather than excluded by a pattern somebody could widen — and it keeps the
+NUL-delimited list intact, because a tracked path may contain a newline and
+splitting on newlines turns one such path into two, hiding the real file behind a
+fragment. It asserts on every run that each of `src`, `functions`, `scripts`,
+`e2e`, `landing` and `.storybook` still yields files — because the way a size
+checker fails is silently, and a report that has stopped covering a directory
+reads exactly like progress. And it measures **languages, not just JavaScript**:
+`.css`, `.scss`, `.html`, `.rules`, `.vue` and `.svelte` alongside the JS/TS
+family. Restricting it to six JS/TS extensions is what left
+`landing/assets/css/styles.css` (3447 lines), `landing/index.html` (1682) and
+`src/firestore.rules` (693) invisible while every required-root assertion passed.
+
+What is deliberately **not** measured is listed in `UNMEASURED_FORMATS` with a
+reason each, because the half of a coverage claim that goes stale silently is the
+half about what it does not look at: `.json` (data and generated lockfiles),
+`.md` (documentation is meant to be long), `.mdx` (one Storybook introduction —
+176 lines of prose around a single import and one `<Meta>` tag, so the `.md` case
+rather than the `.jsx` case), and `.yml`/`.yaml` (the workflows).
+
+**`.mdx` was in no list at all** until review found it on 2026-08-27, which is a
+different failure from a wrong reason: a Storybook page could have grown to any
+length while every coverage assertion stayed satisfied by unrelated files,
+because nothing asked "is this extension covered" — only "are these extensions
+still listed". So the lists are now exhaustive over the whole tracked
+tree and a test (`A7`) asserts it: every tracked file's format must be measured,
+deliberately unmeasured, or named in `NOT_SOURCE_FORMATS` with its reason —
+images, webfonts, a favicon, a font licence, `robots.txt`, `.env.example` and two
+ignore files. A new format cannot arrive unclassified, and the failure names the
+format and an example path.
+
+**"Whole tree" is itself a correction**, and it is this section's own lesson in
+miniature. The first version scoped that inventory to `REQUIRED_ROOTS`, which
+answer a different question — has the scan stopped covering a directory — while
+the checker reads `git ls-files` over everything and measures `eslint.config.js`,
+`index.html` and `playwright.config.cjs` besides. Borrowing the roots left
+`.gitleaks.toml` unclassified and let a 900-line `build.py` at the repository
+root pass both the inventory and the size scan. Reproduced. **A check must not
+take its scope from something narrower than the claim it is making** — the same
+sentence as "a gate must not take its scope from the branch it is gating", one
+step over.
+
+Dotfiles count as their own format: `.gcloudignore` has its dot at index 0, and
+the first version of that test read it as "no extension", which is a second way
+for a format to escape.
+That last one is a **known limitation, not a clean exclusion**:
+`.github/workflows/main.yml` is 1148 lines, `.github/` is outside the roots this
+standard covers, and its structure is pinned job by job by `npm run check:ci-plan`
+rather than by length.
+
+The only excluded file is `public/pdf.worker.min.mjs`: vendored, minified
+Mozilla PDF.js, committed because it is served directly. Every exclusion has to
+carry that kind of reason, and a test asserts they do.
+
+**Three of the recorded files may not be splittable, and that is an owner
+decision rather than a silent exemption.** `src/firestore.rules` has no include
+mechanism — Firestore rules are one file per deployment target — so splitting it
+would mean a build step that concatenates, which puts the deployed policy one
+step further from the file a reviewer reads. `landing/index.html` and
+`landing/assets/css/styles.css` belong to a static site with no build step, so
+splitting either means introducing one. All three are recorded and measured; none
+is exempt; the question of whether to introduce a build step for the landing site
+or a concatenation step for the rules has not been asked yet.
+
 ## Local test-runner process safety
 
 These rules exist because each of the failures below actually happened and cost
