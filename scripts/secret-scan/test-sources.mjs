@@ -33,9 +33,22 @@
  * Imports are still read, but only to prove CONTAINMENT: every relative
  * specifier in the covered files must resolve to a file that is already covered.
  * If a future split moves part of the scanner outside this directory, that fails
- * loudly instead of dropping out of the closure. A specifier that cannot be
- * resolved fails too, rather than being skipped. Both directions of that check
- * are fail-closed, which is the property the old version lacked.
+ * loudly instead of dropping out of the closure.
+ *
+ * A specifier that resolves to nothing is skipped rather than refused, because
+ * the scan is deliberately permissive and a path named in a comment resolves to
+ * nothing. Review on 2026-08-27 showed what that costs on its own: an entry
+ * containing a CONCATENATED specifier executes the real module while the scan
+ * captures only the first fragment, which resolves to nothing and is skipped —
+ * so the module escapes containment entirely. Reproduced, and Node really does
+ * load it.
+ *
+ * The fragment is not the thing to catch; the concatenation is. A static import
+ * specifier is a string literal by the language's own grammar, so the only way to
+ * name a module unanalysably is a dynamic `import()` or a `require()` with an
+ * argument that is not one literal. Those are refused outright — the scanner uses
+ * neither today, so the rule costs nothing and closes the whole class rather than
+ * the one spelling of it.
  *
  * Test files are excluded by name, and that is not a loophole: they deliberately
  * contain the shapes the assertions forbid — `test-failsafe.mjs` runs a scan with
@@ -76,6 +89,26 @@ const isImplementation = (name) => name.endsWith('.mjs') && !name.startsWith('te
 const RELATIVE_SPECIFIER = /['"`](\.\.?\/[^'"`\n]*)['"`]/g;
 
 /**
+ * Every dynamic `import()` / `require()` call, with whatever it was handed.
+ *
+ * `[^)]*` stops at the first `)`, so a specifier containing one produces a
+ * partial argument that fails the literal test below and is refused. That is the
+ * direction to fail in.
+ */
+const MODULE_CALL = /\b(?:import|require)\s*\(([^)]*)\)/g;
+
+/**
+ * One quoted string and nothing else — the only argument that can be verified.
+ *
+ * The `${` clause is not decoration: a template literal reads as a single quoted
+ * string to the pattern above, so `` import(`./${name}.mjs`) `` passed it while
+ * being every bit as computed as a concatenation. Caught by driving the forms one
+ * at a time rather than reasoning about the regex.
+ */
+const SINGLE_LITERAL = /^\s*(['"`])(?:(?!\1)[^\\])*\1\s*$/;
+const INTERPOLATED = /\$\{/;
+
+/**
  * The entry and every implementation module beside it, in a stable order.
  *
  * @throws if a relative specifier in a covered file resolves outside the covered
@@ -90,6 +123,17 @@ export function implementationFiles(entry = ENTRY, directory = here) {
 
     for (const file of covered) {
         const source = readFileSync(file, 'utf8');
+        for (const [, argument] of source.matchAll(MODULE_CALL)) {
+            if (SINGLE_LITERAL.test(argument) && !INTERPOLATED.test(argument)) continue;
+            throw new Error(
+                `${file.replace(/^.*\/scripts\//, 'scripts/')} loads a module with a computed `
+                + `specifier: import(${argument.trim()}). Containment is decided by reading `
+                + 'specifiers, and a concatenated or variable one names a file this cannot see — '
+                + 'the fragment it does see resolves to nothing and would be skipped, so the real '
+                + 'module escapes and the \u00a7L assertions read source that no longer contains '
+                + 'what they check. Use one string literal.',
+            );
+        }
         for (const [, specifier] of source.matchAll(RELATIVE_SPECIFIER)) {
             const target = resolve(dirname(file), specifier);
             let real;

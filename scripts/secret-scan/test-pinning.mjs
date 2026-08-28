@@ -345,6 +345,52 @@ console.log('\nL. The scanner is ours, pinned by content, and cannot be exempted
         `missed ${Object.keys(forms).filter((n) => !reached.includes(n)).join(', ') || 'nothing'}`);
 
     /*
+     * A specifier this cannot read is a refusal, not a skip.
+     *
+     * Review found the hole the directory listing did not close: containment is
+     * decided by READING specifiers, and a concatenated one executes the real
+     * module while the scan sees only the first fragment — which resolves to
+     * nothing and was skipped as if it were a path in a comment. Reproduced: an
+     * entry doing `import('../else' + 'where.mjs')` produced a closure of one
+     * file, and Node loaded the escaped module perfectly happily.
+     *
+     * The fragment is not the thing to catch. A static import specifier is a
+     * literal by the language's grammar, so the only unanalysable form is a
+     * dynamic call with a computed argument — refused as a class rather than by
+     * spelling. Each row was driven separately; the template-with-interpolation
+     * case is why: it reads as one quoted string and passed the first version.
+     */
+    const specifierCases = [
+        ["import('./ok.mjs')", "await import('./ok.mjs');", true],
+        ['import("./ok.mjs")', 'await import("./ok.mjs");', true],
+        ['import(`./ok.mjs`)', 'await import(`./ok.mjs`);', true],
+        ["static from './ok.mjs'", "import { a } from './ok.mjs';", true],
+        ['import(variable)', 'await import(specifier);', false],
+        ['import(`./${name}.mjs`)', 'await import(`./${name}.mjs`);', false],
+        ["require('./a' + b)", "require('./a' + b);", false],
+        ["import('../else' + 'where.mjs')", "await import('../else' + 'where.mjs');", false],
+    ];
+    for (const [label, source, shouldPass] of specifierCases) {
+        const dir = mkdtempSync(joinPath(tmpdir(), 'safehaul-spec-'));
+        mkdirSync(joinPath(dir, 'covered'));
+        writeFileSync(joinPath(dir, 'elsewhere.mjs'), 'export const y = 1;\n');
+        writeFileSync(joinPath(dir, 'covered', 'ok.mjs'), 'export const a = 1;\n');
+        writeFileSync(joinPath(dir, 'covered', 'e.mjs'), `${source}\n`);
+        let accepted = true;
+        try {
+            implementationFiles(joinPath(dir, 'covered', 'e.mjs'), joinPath(dir, 'covered'));
+        } catch {
+            accepted = false;
+        }
+        assert(`L31. ${shouldPass ? 'reads' : 'refuses'} ${label}`,
+            accepted === shouldPass,
+            shouldPass
+                ? 'a plain literal is verifiable and must not be refused'
+                : 'a computed specifier names a module this cannot see, so it must not be skipped');
+        rmSync(dir, { recursive: true, force: true });
+    }
+
+    /*
      * And the other direction: a module living outside the covered directory is a
      * refusal, not a silent omission. That is what keeps the listing honest — the
      * scanner cannot grow a limb that nothing reads.
