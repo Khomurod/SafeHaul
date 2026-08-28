@@ -553,9 +553,22 @@ Two more exemptions need no config change at all, and both were measured:
   is present, in the checkout or in the exported tree, rather than scanning
   around it (L26).
 
-`check:ci-plan` §L pins all of it: no third-party scanning action, a pinned
-version *and* digest, both scans present, `secret-scan` still unskippable, no
-path exemptions in `.gitleaks.toml`, the check name the lookup asks about
-matching the job that produces it, and the audit workflow unable to reach
+All of it is pinned, in two places since 2026-08-27 — when the scanner outgrew
+one file and its assertions followed it.
+
+`test:secret-scan` §L reads the scanner's own source: a pinned version *and*
+digest, both scans present, `--ignore-gitleaks-allow` passed, `--all` never,
+no push anchored at its own `before`, an override held to the same bar as an
+inferred base, and `.gitleaks.toml` pinned line for line. It reads that source
+as **the transitive closure of the entry's imports**
+(`scripts/secret-scan/sources.mjs`), not as a path — otherwise splitting the
+scanner again would leave a regex passing over a file the flag had moved out of.
+L27 and L28 assert the closure is neither narrower nor wider than the
+implementation.
+
+`check:ci-plan` §L keeps the wiring: no third-party scanning action, the job runs
+this repository's scanner, full history is checked out, no `if:` can condition it
+away, `secret-scan` is still unskippable and still fails the release when it
+fails *or* is skipped, and the full-history audit cannot reach
 `release-validation`.
 <!-- /safehaul-design-system -->

@@ -677,7 +677,7 @@ const OPS_ENTRIES = [
     ['SECRET_SCAN_BASE', 'Secret-scan baseline override', 'Optional commit to use as the secret-scan baseline, exposed as a workflow_dispatch input. Validated: it must be a hexadecimal commit SHA (abbreviated is fine, it is resolved to its full form before anything compares it), exist in the clone, be an ancestor of the head being scanned, not be the head itself, and itself carry a fully validated release. Exists to reach past the automatic walk by naming an older release known to be good.', ['scripts/secret-scan.mjs', '.github/workflows/main.yml']],
     ['SECRET_SCAN_REPORT_DIR', 'Secret-scan report directory', 'Directory the secret scan writes its redacted findings report to for upload as an artifact. Rule, file, line and commit only — never a value.', ['scripts/secret-scan.mjs', '.github/workflows/main.yml']],
     ['SECRET_HISTORY_REPORT_DIR', 'History audit report directory', 'Directory the full-history audit writes its redacted inventory to for upload as an artifact.', ['scripts/secret-history-audit.mjs', '.github/workflows/secret-history-audit.yml']],
-    ['GITLEAKS_BIN', 'Gitleaks binary override', 'Path to an already-present gitleaks binary. Lets the test suite and a developer run the real scanner without re-downloading it; CI leaves it unset so the pinned, digest-verified release is fetched.', ['scripts/secret-scan.mjs']],
+    ['GITLEAKS_BIN', 'Gitleaks binary override', 'Path to an already-present gitleaks binary. Lets the test suite and a developer run the real scanner without re-downloading it; CI leaves it unset so the pinned, digest-verified release is fetched.', ['scripts/secret-scan/gitleaks.mjs']],
 ].map(([key, displayName, description, consumers, overrides = {}]) => ({
     key,
     displayName,
