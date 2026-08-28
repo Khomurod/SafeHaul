@@ -131,7 +131,24 @@ const here = dirname(fileURLToPath(import.meta.url));
         ['createRequire alias via bare "module"',
             "import { createRequire } from 'module';\nconst load = createRequire(import.meta.url);\n"
             + "export function deferred() { return load('../else' + 'where.cjs'); }", false],
+        // Importing is not the only way to hold a builtin. Reported 2026-08-28 and
+        // reproduced: `getBuiltinModule` returns `module` with no specifier for the
+        // checks above to read, so the alias came out of it and the outside module
+        // really loaded. The receiver is incidental, so the alias spelling is a row
+        // of its own — matching `process.` would have missed it.
+        ['process.getBuiltinModule reaching a loader',
+            "const load = process.getBuiltinModule('module').createRequire(import.meta.url);\n"
+            + "export function deferred() { return load('../else' + 'where.cjs'); }", false],
+        ['getBuiltinModule through an aliased process',
+            "const p = globalThis.process;\n"
+            + "const load = p.getBuiltinModule('module').createRequire(import.meta.url);\n"
+            + "export function deferred() { return load('../else' + 'where.cjs'); }", false],
         ['eval reaching a loader', "eval(\"import('../elsewhere.mjs')\");", false],
+        // Without `new` it is the same constructor. This was refused only because
+        // the containment scan happened to resolve a relative path inside the
+        // string, which is luck; it is a rule now.
+        ['Function without new reaching a loader',
+            "export function d() { return Function(\"return import('file:///tmp/x.mjs')\")(); }", false],
         ['new Function reaching a loader', "new Function(\"return import('../elsewhere.mjs')\")();", false],
         // An ESM specifier is a URL, so `?query` and `#frag` still name the file.
         // Resolving the raw text found nothing and SKIPPED it, which let an outside
