@@ -271,6 +271,50 @@ export function implementationSource(entry = ENTRY, directory = here) {
 }
 
 /**
+ * Every literal relative specifier named anywhere in the covered files.
+ *
+ * Used to tell an ORPHAN from a module that is merely loaded late: a deferred
+ * `import('./lazy.mjs')` inside a function body never appears in the graph, but
+ * the file names it, so it is reachable. Anything named by neither is dead source
+ * that the assertions would still read.
+ */
+function namedSpecifiers(covered) {
+    const named = new Set();
+    for (const file of covered) {
+        const source = readFileSync(file, 'utf8');
+        for (const [, specifier] of source.matchAll(RELATIVE_SPECIFIER)) {
+            const target = resolve(dirname(file), specifier.replace(/[?#].*$/, ''));
+            try {
+                if (statSync(target).isFile()) named.add(target);
+            } catch { /* names no file: a comment, or a fixture path */ }
+        }
+    }
+    return named;
+}
+
+/**
+ * Covered modules the scanner does not actually use.
+ *
+ * The other direction, and review on 2026-08-28 was right that it was missing.
+ * `uncoveredLoads` asks "is everything loaded also read"; this asks "is
+ * everything read also loaded". A refactor that stops importing a module but
+ * leaves the file in place produces an orphan whose stale source keeps being
+ * concatenated into `implementationSource()` — so L9, L10, L19 and L25 could stay
+ * green on a pinned flag or scan mode that the entry no longer executes. That is
+ * the same shape as every other finding here: an assertion true of something
+ * other than what runs.
+ *
+ * Reproduced with a module carrying the version, the digest, both scan modes and
+ * the flags, imported by nothing: every §L check stayed green.
+ */
+export function unreachableCovered(entry = ENTRY, directory = here) {
+    const covered = implementationFiles(entry, directory);
+    const loaded = new Set(loadedGraph(entry));
+    const named = namedSpecifiers(covered);
+    return covered.filter((file) => file !== entry && !loaded.has(file) && !named.has(file));
+}
+
+/**
  * Anything Node loads for the real scanner that the assertions would not read.
  *
  * Empty is the only acceptable answer. A non-empty list means the scanner has a

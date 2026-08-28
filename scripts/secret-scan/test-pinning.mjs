@@ -17,7 +17,9 @@ import { dirname, join as joinPath, resolve as resolvePath } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { assert, repoRoot } from './test-support.mjs';
 import { GITLEAKS_SHA256, GITLEAKS_VERSION } from './gitleaks.mjs';
-import { implementationFiles, implementationSource, uncoveredLoads } from './test-sources.mjs';
+import {
+    implementationFiles, implementationSource, unreachableCovered, uncoveredLoads,
+} from './test-sources.mjs';
 import { evaluateAudit, fingerprintOf } from '../secret-history-audit.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -450,6 +452,22 @@ console.log('\nL. The scanner is ours, pinned by content, and cannot be exempted
     assert('L32. everything Node loads for the scanner is source these checks read',
         uncoveredLoads().length === 0,
         `${uncoveredLoads().join(', ')} is executed but not read`);
+
+    /*
+     * And the other direction, which review on 2026-08-28 found missing. L32 asks
+     * "is everything loaded also read"; this asks "is everything read also
+     * loaded". A refactor that stops importing a module but leaves the file in
+     * place produces an orphan whose stale source keeps being concatenated, so a
+     * pinned flag or scan mode the entry no longer executes would still satisfy
+     * L9, L10, L19 and L25. Reproduced with exactly such a module: every check
+     * stayed green. A module named by a literal specifier counts as reachable
+     * even when it is imported lazily, because a function body never reaches the
+     * graph.
+     */
+    assert('L33. and everything these checks read is source the scanner loads',
+        unreachableCovered().length === 0,
+        `${unreachableCovered().join(', ')} is read but never loaded — an orphan's flags would `
+        + 'keep the pinning assertions green over source that no longer runs');
 
     assert('L28. and it stops at the implementation, so the tests\' own fixtures cannot skew it',
         !files.some((file) => /(^|\/)test-/.test(file)),
