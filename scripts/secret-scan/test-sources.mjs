@@ -129,15 +129,15 @@ const MODULE_CALL = new RegExp(`\\b(?:import|require)${BETWEEN}\\(([^)]*)\\)`, '
  * Refusing the GATEWAY needs none of that: an indirect loader cannot be obtained
  * without naming where it comes from. `node:module` is where `createRequire`
  * lives, `process.getBuiltinModule` can obtain the same API without an import,
- * and `eval` / `new Function` are the other two routes from a string to a loader.
+ * and `eval` / `Function` are the other two routes from a string to a loader.
  * The covered files use none of them, so this costs nothing and the scanner keeps
  * loading modules the one way the checks above can read.
  *
- * The scanner also has no reason to contain a Unicode escape or computed member
- * access on `process` / `globalThis`. Static identifier-string concatenations are
- * folded before this scan, wherever their expression appears, so both
- * `process['getBuiltin' + 'Module']` and computed destructuring expose the same
- * API name. Unicode escapes are refused because they transform before lookup.
+ * The scanner also has no reason to contain a Unicode escape, `globalThis`, or
+ * Node's `global`. More importantly, its ambient `process` access is a closed
+ * syntax: only the six dotted members the current implementation uses are
+ * accepted. That prevents aliasing, destructuring, passing, importing or indexing
+ * the process object, so the spelling of a computed loader key is irrelevant.
  *
  * It is not a proof, and AGENTS.md records why rather than implying otherwise: a
  * determined author with commit access can still reach a loader, and no static
@@ -148,9 +148,11 @@ const LOADER_GATEWAY = new RegExp([
     // Identifier escapes transform before property lookup, so a source-text
     // search cannot safely interpret them. None are needed by the scanner.
     String.raw`\\u(?:[0-9a-fA-F]{4}|\{[0-9a-fA-F]{1,6}\})`,
-    // Computed access can assemble an ambient loader property from fragments.
-    // The implementation uses ordinary dotted process access and no globalThis.
-    String.raw`(?:\bprocess|\bglobalThis)\s*\[`,
+    // This is an allowlist of the scanner's entire ambient process surface, not a
+    // list of known-bad properties. A bare/aliased/destructured/imported/indexed
+    // process can reach properties whose spelling the source scan cannot see.
+    String.raw`\bprocess\b(?!\s*\.\s*(?:arch|argv|cwd|env|exit|platform)\b)`,
+    String.raw`\bglobal(?:This)?\b`,
     // Node documents this as a way to obtain `module.createRequire` without an
     // import. Match the API name wherever it appears rather than one property-
     // access spelling: direct, globalThis-qualified, bracket-literal and
@@ -162,36 +164,11 @@ const LOADER_GATEWAY = new RegExp([
     // Two spellings is the whole set the resolver accepts, so this closes it.
     String.raw`from\s*['"\x60](?:node:)?module['"\x60]`,
     String.raw`import\s*\(\s*['"\x60](?:node:)?module['"\x60]`,
-    String.raw`new\s+Function\s*\(`,
-    String.raw`\beval\s*\(`,
+    // Match the identities, not one call spelling: each can be aliased first,
+    // and `Function(source)` does not need the `new` keyword.
+    String.raw`\bFunction\b`,
+    String.raw`\beval\b`,
 ].join('|'));
-
-/**
- * Expose a property name assembled from plain identifier-string fragments.
- *
- * The expression can sit after an object (`process['a' + 'b']`) or before it in
- * destructuring (`{ ['a' + 'b']: get } = process`), so anchoring the check to the
- * ambient object misses one direction. Folding the statically known expression
- * first is position-independent. Repeating closes any number of fragments.
- */
-const IDENTIFIER_STRING_CONCAT = new RegExp(
-    `(['"\\x60])([A-Za-z_$][A-Za-z0-9_$]*)\\1${BETWEEN}\\+${BETWEEN}`
-    + `(['"\\x60])([A-Za-z_$][A-Za-z0-9_$]*)\\3`,
-    'g',
-);
-
-function foldIdentifierStringConcats(source) {
-    let folded = source;
-    let previous;
-    do {
-        previous = folded;
-        folded = folded.replace(
-            IDENTIFIER_STRING_CONCAT,
-            (_match, quote, left, _rightQuote, right) => `${quote}${left}${right}${quote}`,
-        );
-    } while (folded !== previous);
-    return folded;
-}
 
 /**
  * One quoted string and nothing else — the only argument that can be verified.
@@ -317,7 +294,7 @@ export function implementationFiles(entry = ENTRY, directory = here) {
 
     for (const file of covered) {
         const source = readFileSync(file, 'utf8');
-        const gateway = foldIdentifierStringConcats(source).match(LOADER_GATEWAY);
+        const gateway = source.match(LOADER_GATEWAY);
         if (gateway) {
             throw new Error(
                 `${file.replace(/^.*\/scripts\//, 'scripts/')} reaches a module loader through `

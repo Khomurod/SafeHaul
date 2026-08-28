@@ -574,7 +574,7 @@ cannot contain: a dynamic `import()` inside a function body does not resolve
 until it runs. It refuses computed specifiers as a class, tolerates comments in
 any of the four line terminators ECMA-262 defines, resolves `?query` and
 `#fragment` as URLs, refuses the gateways to an aliased loader (`node:module` in
-either spelling, `process.getBuiltinModule`, `eval`, `new Function`) because an
+either spelling, `process.getBuiltinModule`, `eval`, `Function`) because an
 alias's call site is not spelled `import`, and accepts only a specifier it can
 account for — a Node
 builtin, which is not a file here, or a relative one, which containment resolves.
@@ -584,21 +584,21 @@ passed it while the containment scan, which reads only `./` and `../`, never
 looked at them.
 
 **That is not a proof, and pretending otherwise would be the failure this file
-keeps recording.** Ten review rounds on 2026-08-27/28 each found another
+keeps recording.** Eleven review rounds on 2026-08-27/28 each found another
 spelling — a double quote, a concatenation, a comment before the parenthesis, a
 U+2028 line terminator, a URL suffix, a `createRequire` alias, a literal that was
 not relative, a `process.getBuiltinModule` gateway, then a Unicode-escaped name,
-a computed bracket key and computed destructuring that disguised that gateway.
-Unicode escapes are refused as a source structure; static identifier-string
-fragments are folded before the gateway scan wherever their expression appears,
-so both computed-access and computed-destructuring positions expose the same
-name. The scanner needs neither Unicode escapes nor computed access on
-`process` / `globalThis`. The alias round showed that following one needs
-data-flow analysis, which
+a computed bracket key, computed destructuring and a hex-escaped key that
+disguised that gateway. Unicode escapes are refused as a source structure. More
+importantly, `process` is now a closed surface: only dotted access to `arch`,
+`argv`, `cwd`, `env`, `exit` and `platform` is accepted, while aliases,
+destructuring, indexing, imports and bare values are refused regardless of how a
+property name is constructed; `global` and `globalThis` are refused too. The
+alias round showed that following one needs data-flow analysis, which
 a parser alone does not give, and `callable-contract` deliberately runs with no
-`npm ci` so there is no parser there anyway. `globalThis['ev' + 'al']` is still
-not matched. What these checks close is the accidental and the
-disguised-but-legible; an author who can edit the scanner can also edit the
+`npm ci` so there is no parser there anyway. Arbitrary data-flow and reflection
+remain outside this source scan. What these checks close is the accidental and
+the disguised-but-legible; an author who can edit the scanner can also edit the
 assertions, and code review is the control for that.
 
 `check:ci-plan` §L keeps the wiring: no third-party scanning action, the job runs

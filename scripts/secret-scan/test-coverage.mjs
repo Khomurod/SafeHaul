@@ -166,7 +166,23 @@ const here = dirname(fileURLToPath(import.meta.url));
             "const { [\"get\" /* split */ + 'Builtin' + `Module`]: get } = process;\n"
             + "const load = get('module').createRequire(import.meta.url);\n"
             + "export function deferred() { return load('../else' + 'where.cjs'); }", false],
+        ['hex-escaped computed-destructuring loader gateway',
+            "const { ['getBuiltin\\x4dodule']: get } = process;\n"
+            + "const load = get('module').createRequire(import.meta.url);\n"
+            + "export function deferred() { return load('../else' + 'where.cjs'); }", false],
+        ['non-literal key through an aliased process object',
+            "const ambient = process;\nconst key = ['getBuiltin', 'Module'].join('');\n"
+            + "const load = ambient[key]('module').createRequire(import.meta.url);\n"
+            + "export function deferred() { return load('../else' + 'where.cjs'); }", false],
+        ['the scanner\'s approved process members',
+            'void process.arch; void process.argv; process.cwd(); void process.env.X; '
+            + 'void process.exit; void process.platform;', true],
         ['eval reaching a loader', "eval(\"import('../elsewhere.mjs')\");", false],
+        ['aliased eval reaching a loader',
+            "const execute = eval; const source = \"im\" + \"port('../else' + 'where.mjs')\";\n"
+            + 'execute(source);', false],
+        ['Function reaching a loader without new',
+            "const source = \"return im\" + \"port('../else' + 'where.mjs')\"; Function(source)();", false],
         ['new Function reaching a loader', "new Function(\"return import('../elsewhere.mjs')\")();", false],
         // An ESM specifier is a URL, so `?query` and `#frag` still name the file.
         // Resolving the raw text found nothing and SKIPPED it, which let an outside

@@ -44,7 +44,7 @@
  * Historical findings are not hidden — they are inventoried by
  * `.github/workflows/secret-history-audit.yml` and classified in
  * `docs/SECRET_HISTORY_AUDIT.md`, which is where legacy leaks belong: a
- * deliberate security process, not a gate every unrelated release trips over.
+ * deliberate security procedure, not a gate every unrelated release trips over.
  *
  * This module is pure apart from the injected `git`, which is why every branch
  * below has a test.
