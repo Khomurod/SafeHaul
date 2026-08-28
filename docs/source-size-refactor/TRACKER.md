@@ -21,7 +21,7 @@ it currently is*.
 | **Backlog entries** | **68** |
 | **Active work item** | `SEC-1` — reconcile PR #50 / PR #51 |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` (planning only) |
-| **This branch's PR** | **#52** — planning infrastructure, head `d290c1969d6ba86c3595cdfe78c73647db0751d1` |
+| **This branch's PR** | **#52** — planning infrastructure. A tracker commit cannot contain its own SHA, so the value here is always one commit behind: read the real head with `git rev-parse origin/claude/safehual-source-size-refactor-j4apre`. |
 | **Active PR** | **#52** (this planning PR). #50 and #51 are the items under reconciliation. |
 | **PR head SHAs** | #50 → `9386b371ec6a83840aabf9604238693c733cb925` · #51 → `20c75500a235fe7beb1a12ab9b8cf03cf9466922` |
 | **Review status** | #50: **unresolved P1 on its exact head**, reproduced independently. #51: current head **not reviewed** — Codex quota exhausted. |
