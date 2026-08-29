@@ -779,10 +779,53 @@ one. Six of the new tests cover exactly that.
 | `check:source-size` | **64 over limit / 64 recorded** |
 | `test:source-size` · `check:ci-plan` · `lint` | pass, **0 lint errors** |
 
+### The visual gate caught a real bug, and the fix has a second half
+
+CI went red on `Build the design-system catalog`: **a pixel baseline changed.**
+It was not a baseline that needed re-recording — it was a **defect I had
+introduced**, and only this lane could see it.
+
+The nav config named `icon: 'Inbox'`, and `SuperAdminSidebar` resolves icon names
+through an explicit `ICONS` map that did not import it. `ICONS['Inbox']` was
+`undefined`, which **does not throw** — the icon rendered as nothing, the row
+collapsed to zero width, and the label wrapped **one character per line**, making
+the page 119px taller. Unit tests passed, lint passed, typecheck passed, the build
+passed. Only a full-page screenshot getting taller caught it.
+
+Fixed by importing `Inbox`, and hardened so it cannot recur silently: an
+unrecognised icon name now **throws**, and `SuperAdminSidebar.icons.test.jsx`
+asserts every configured entry resolves. That test was proven to fail on the exact
+bug (`InboxTypo` → 1 failed) before being kept.
+
+**Do not blanket-run `test:visual:update` to clear this lane.** Doing so here
+would have committed the broken navigation as the new expected appearance.
+
+### Baselines cannot be re-recorded in this container — and the reason is exact
+
+After the fix the two `super-admin` baselines still differ by ~3%, which is the
+intended label and icon change. They cannot be regenerated here:
+
+- **CI runs Chromium 147 (Playwright revision 1217).** This container has 1194
+  (141.0.7390.37); installing pulled 1200 (143), never 1217.
+- Proof it is environmental, not the change: **every `company-*` visual test fails
+  locally at the same ~3%**, and this branch touches no file that renders a
+  company screen — only `src/features/super-admin/`, `functions/`, rules and
+  tests.
+- So a locally-recorded PNG would be *wrong for CI*, and would replace
+  CI-correct baselines with container-correct ones. **The locally regenerated
+  files were reverted rather than committed.**
+
+**The correct path, which uses CI's own rendering:** push the fix, let the visual
+lane fail on the two intended diffs, then take the `super-admin-*-actual.png`
+files out of the `visual-regression-diff` artifact CI uploads and commit those as
+the baselines. The artifact exists for exactly this. It costs one extra CI cycle
+and is the only way to record a baseline this container cannot render.
+
 ### Current stopping point
 
-`LD-R3` complete locally, all gates green, PR not yet opened. Next backlog item is
-`T-1` — surface fully mapped above, safe to begin once
+`LD-R3` code complete; PR #56 open. The icon defect is fixed and pushed. **The two
+`super-admin` baselines are still to be taken from CI's diff artifact** — that is
+the next action. Then `T-1` — surface fully mapped above, safe to begin once
 #54 merges.
 
 ---
