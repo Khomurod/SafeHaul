@@ -15,30 +15,33 @@ it currently is*.
 
 | | |
 |---|---|
-| **Last updated** | 2026-08-29, `FT-1` pushed and in review as #59 |
-| **Verified main SHA** | `77be09ccb4b0de3ed41a4f7617dfdef5adaee940` (#58 / `T-2` merged) |
-| **Oversized files** | **62 on `main`, 61 on this branch** (was 68) — landing ×3, `SA-8`, `T-1`, `T-2` are merged; `FT-1` is in #59 |
-| **Backlog entries** | **62 on `main`, 61 on this branch** — counted as JSON keys, not `grep -c`, which over-counts by one on the wrapper line |
-| **Active work item** | `FT-1` — pushed. Awaiting green CI on #59, then merge, then `FT-2`. |
+| **Last updated** | 2026-08-29, `FT-1` merged as #59; `FT-2` on the branch, PR pending |
+| **Verified main SHA** | `3c579aaea02d3bb2bee353705b5593d4ce129c8e` (#59 / `FT-1` merged) |
+| **Oversized files** | **61 on `main`, 60 on this branch** (was 68 when the tracker opened) |
+| **Backlog entries** | **61 on `main`, 60 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
+| **Active work item** | `FT-2` — committed on the branch, PR not yet opened. |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | **[#59](https://github.com/Khomurod/SafeHaul/pull/59)** (`FT-1`). #58 and everything before it merged; #50 closed. |
+| **Active PR** | none open. [#59](https://github.com/Khomurod/SafeHaul/pull/59) (`FT-1`) and everything before it merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
-| **CI status** | #54: the size refusal is FIXED and `callable-contract` passes. Earlier "failures" on `f93c925`/`dee9688` were **concurrency cancellations** from rapid pushes, not defects — check for `cancelled` lanes before investigating one. |
+| **CI status** | Run #271 on `cddc00d` succeeded outright, which is what #59 merged on. The one red round on it was **lint, not tests** — see the `FT-1` section. A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
 | **Working tree at session end** | see the last per-item section |
 | **Blockers** | none. The nav-placement question was delegated and decided — see `PLAN.md` § 7.2b. |
 
 ### Exact next action
 
-1. **Merge [#59](https://github.com/Khomurod/SafeHaul/pull/59)** once its head is
-   green (`FT-1`).
-2. **Start `FT-2`** — `functions/test/unit/applicationDrafts.test.js`, 1476 lines.
-   Same pattern as `FT-1`; read that section before starting, it is written as a
-   recipe rather than a report.
-3. Then the eight remaining `FT-*` files, then `FR-1`
-   (`functions/environmentVault/registry.js`, 1120) which begins the R3 runtime
-   work, then `RU-1` → `RU-2` (Firestore rules) under the owner's ruling in
-   `PLAN.md` § 7.3.
+1. **Push the branch and open the `FT-2` PR.** The branch has been restarted from
+   `main` at `3c579aa` and carries one commit. This is the standing per-unit
+   ritual, because every unit reuses one branch name: once its PR merges, restart
+   from the new `main` (`git fetch origin main && git checkout -B
+   claude/safehual-source-size-refactor-j4apre origin/main`), re-apply, and open a
+   *new* PR. A merged pull request cannot carry new work.
+2. Then `FT-3` (`aiRouter.test.js`, 1203) and the seven `FT-*` files after it —
+   the `FT-2` section below is written as a recipe, and its two mechanical notes
+   are the ones that cost time.
+3. Then `FR-1` (`functions/environmentVault/registry.js`, 1120), which begins the
+   R3 runtime work, then `RU-1` → `RU-2` (Firestore rules) under the owner's
+   ruling in `PLAN.md` § 7.3.
 
 **Four process rules learned the hard way in this session, all worth keeping:**
 
@@ -80,8 +83,16 @@ it currently is*.
 |---|---|---|
 | Over-limit files at campaign start (2026-08-26 audit, incl. 2026-08-27 additions) | 70 | — |
 | Retired before this tracker existed (PR #49) | 2 | — |
-| **Remaining now** | **61** | **45,358** |
-| Retired by this campaign so far | **7** | **10,274** |
+| **Remaining now** | **60** | **43,810** |
+| Retired by this campaign so far | **8** | — |
+
+**How to reproduce those two numbers**, because an earlier revision of this table
+carried a Lines figure nobody could: the count is `.files` keys in
+`.github/source-size-backlog.json`, and the Lines figure is the *measured* size
+today of exactly those paths — not the recorded counts, which are a dated record
+and drift downward as files shrink (two of the sixty are already below theirs).
+`npm run check:source-size` prints only the largest thirty, so summing its
+listing under-reports by a wide margin.
 
 ---
 
@@ -99,8 +110,8 @@ use `—` until it exists.**
 | `T-3` | NOT STARTED | R2 | `scripts/test-release-promotion.mjs` (tooling) | 584 | 584 | — | — | — | — | — | — | — | 1 |
 | `T-4` | NOT STARTED | R3 | `scripts/deploy-functions-incremental.mjs` (tooling) | 525 | 525 | — | — | — | — | — | — | — | 1 |
 | `T-5` | NOT STARTED | R4 | `scripts/ci-plan.mjs` (tooling) | 523 | 523 | — | — | — | — | — | — | — | 1 |
-| `FT-1` | **PR OPEN** | R1 | `blogPipeline.test.js` → 6 suites + support | 1496 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#59](https://github.com/Khomurod/SafeHaul/pull/59) | — | — | local green | — | — | **1 ✓** |
-| `FT-2` | NOT STARTED | R1 | `functions/test/unit/applicationDrafts.test.js` (test) | 1476 | 1476 | — | — | — | — | — | — | — | 1 |
+| `FT-1` | **MERGED** | R1 | `blogPipeline.test.js` → 6 suites + support | 1496 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#59](https://github.com/Khomurod/SafeHaul/pull/59) | — | — | local green | — | — | **1 ✓** |
+| `FT-2` | **PR PENDING** | R1 | `applicationDrafts.test.js` → 6 suites + support | 1476 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
 | `FT-3` | NOT STARTED | R1 | `functions/test/unit/aiRouter.test.js` (test) | 1203 | 1203 | — | — | — | — | — | — | — | 1 |
 | `FT-4` | NOT STARTED | R1 | `functions/test/unit/aiProviders.test.js` (test) | 940 | 940 | — | — | — | — | — | — | — | 1 |
 | `FT-5` | NOT STARTED | R1 | `functions/test/unit/aiCredentials.test.js` (test) | 817 | 817 | — | — | — | — | — | — | — | 1 |
@@ -973,7 +984,7 @@ knowing before reading a diff from it.
 
 ## `FT-1` — `blogPipeline.test.js` → 6 suites + support
 
-**Status:** `PR OPEN` — [#59](https://github.com/Khomurod/SafeHaul/pull/59) · **Risk:** R1 · **1496 → deleted, 6 suites of 168–303**
+**Status:** `MERGED` — [#59](https://github.com/Khomurod/SafeHaul/pull/59), main `3c579aa` · **Risk:** R1 · **1496 → deleted, 6 suites of 168–303**
 
 | file | subject | lines |
 |---|---|---|
@@ -1064,9 +1075,92 @@ identical to the pre-split baseline, 1597/1597 across 107 suites, root
 
 ### Current stopping point
 
-`FT-1` is pushed and open as [#59](https://github.com/Khomurod/SafeHaul/pull/59).
-Next: `FT-2` (`applicationDrafts.test.js`, 1476) — same pattern, and
-`functions/test/unit/` has eight more after it — safe to begin once #59 merges.
+`FT-1` merged as [#59](https://github.com/Khomurod/SafeHaul/pull/59); main is
+`3c579aa`. Run #271 succeeded outright on the merged head.
+
+---
+
+## `FT-2` — `applicationDrafts.test.js` → 6 suites + support
+
+**Status:** `PR PENDING` — committed on the branch · **Risk:** R1 · **1476 → deleted, 6 suites of 176–380**
+
+| file | subject | lines |
+|---|---|---|
+| `applicationDrafts.resume-tokens.test.js` | resume tokens: stale, rotated, absent, replayed | 380 |
+| `applicationDrafts.support.js` | the Firestore double, fixtures, `resetDraftState` | 287 |
+| `applicationDrafts.lifecycle.test.js` | restoring, starting over, the browser write counter | 237 |
+| `applicationDrafts.identity-bar.test.js` | the identity bar, the refusal budget, legitimate callers | 229 |
+| `applicationDrafts.finding.test.js` | finding a resumable application | 203 |
+| `applicationDrafts.guards.test.js` | refuses-to-store, browser ids, missing HMAC key, company view | 178 |
+| `applicationDrafts.saving.test.js` | what a first save writes, and refuses to write | 176 |
+
+The `FT-1` pattern applied unchanged: one-line `jest.mock` registrations per file
+(Jest hoists them per file), factory bodies in `.support.js`, dotted sibling names
+so **not one `../../` require in the moved test bodies had to change**, and the
+support file kept out of `testMatch` by being `.support.js`.
+
+### One 555-line describe had to be split across two files
+
+`describe('changing a draft that already exists')` was 20 flat `it`s and 555
+lines — over the hard limit on its own, with no nested describes to cut at. It is
+now **the same describe name in two files**, `identity-bar` and `resume-tokens`,
+each holding a contiguous run of the original `it`s in the original order.
+
+That keeps the invariant that matters: **a test's full name is
+`<describe> <it>`, and neither half changed.** Introducing a nested describe to
+group them would have renamed 20 tests. Splitting the file did not rename one.
+
+### Three checks, of which the third is the one that would have caught a mistake
+
+1. **All 66 full test names identical**, before and after — captured from Jest's
+   own `--json` `fullName`, sorted, diffed. This is what proves the two-file
+   describe split is invisible.
+2. **The full functions suite: 1597/1597 across 112 suites**, up from 107.
+3. **Every body line accounted for.** A multiset diff of the original's
+   `describe` region against the concatenated bodies of the six new files reports
+   exactly four differences, all of them intended: the one rewritten hook call,
+   and the duplicated `describe(...)` header and its `});` for the split section.
+   No test line was lost, reordered into a different test, or altered.
+
+`resetDraftState` was also diffed line-for-line against the original `beforeEach`
+body, and `saveFirstPage`'s payload against the original — the `FT-1` slip was
+exactly this, and it passed 112 tests while wrong.
+
+### Two mechanical notes for `FT-3`
+
+**The support file must require the modules under test lazily.** It is loaded
+from a hoisted `jest.mock` factory, which runs *while* the suite is requiring
+`../../applicationDrafts` — so a top-level `require` there reaches that module
+mid-construction. `keyFor` and `saveFirstPage` therefore `require` inside their
+own bodies.
+
+**A `let` cannot be exported and reassigned from a test.** The original set
+`mockBeforeNextTransaction = () => {...}` directly; support exports
+`runBeforeNextTransaction(hook)` instead. That is the only line of test body this
+split changed, and it is called out in the multiset diff above.
+
+**Dead harness state was left alone:** `mockFailWritesOn` is read by both
+Firestore doubles and set by no test in the file — it has been inert since before
+this campaign. Removing it is a behaviour question, not a size one, so it moved
+across unchanged.
+
+### How the unused requires were found this time
+
+Not by grep. Every suite was generated carrying **both** `drafts` and `draft`
+requires and the full set of support imports; `npm run lint` named the four that
+were dead, and only those four were deleted. A probe confirmed the same lint also
+flags an unused *destructured* name, so a clean run proves the import lists carry
+nothing dead. That is the direct fix for the false positives that reached CI in
+`T-2` and `FT-1`.
+
+| Check | Result |
+|---|---|
+| 66 full test names, before vs after | **identical** |
+| body lines, original vs split | **4 intended differences, nothing lost** |
+| functions suite | 1597/1597, 112 suites |
+| root `npm run lint` | pass (includes `lint:backend`) |
+| `check:source-size` | **60 over limit / 60 recorded**, verdict `OK` |
+| `check:ci-plan` · `test:source-size` | pass |
 
 ---
 
