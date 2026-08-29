@@ -218,12 +218,13 @@ rather than excluded by a pattern somebody could widen — and it keeps the
 NUL-delimited list intact, because a tracked path may contain a newline and
 splitting on newlines turns one such path into two, hiding the real file behind a
 fragment. It asserts on every run that each of `src`, `functions`, `scripts`,
-`e2e`, `landing` and `.storybook` still yields files — because the way a size
+`e2e`, `web` and `.storybook` still yields files — because the way a size
 checker fails is silently, and a report that has stopped covering a directory
 reads exactly like progress. And it measures **languages, not just JavaScript**:
 `.css`, `.scss`, `.html`, `.rules`, `.vue` and `.svelte` alongside the JS/TS
 family. Restricting it to six JS/TS extensions is what left
-`landing/assets/css/styles.css` (3447 lines), `landing/index.html` (1682) and
+`landing/assets/css/styles.css` (3447 lines, since removed), `landing/index.html`
+(1682, since removed) and
 `src/firestore.rules` (693) invisible while every required-root assertion passed.
 
 What is deliberately **not** measured is listed in `UNMEASURED_FORMATS` with a
@@ -267,15 +268,28 @@ The only excluded file is `public/pdf.worker.min.mjs`: vendored, minified
 Mozilla PDF.js, committed because it is served directly. Every exclusion has to
 carry that kind of reason, and a test asserts they do.
 
-**Three of the recorded files may not be splittable, and that is an owner
-decision rather than a silent exemption.** `src/firestore.rules` has no include
-mechanism — Firestore rules are one file per deployment target — so splitting it
-would mean a build step that concatenates, which puts the deployed policy one
-step further from the file a reviewer reads. `landing/index.html` and
-`landing/assets/css/styles.css` belong to a static site with no build step, so
-splitting either means introducing one. All three are recorded and measured; none
-is exempt; the question of whether to introduce a build step for the landing site
-or a concatenation step for the rules has not been asked yet.
+**Three of the recorded files looked unsplittable, and the question was put to
+the owner rather than left as a silent exemption. Two of the three are now
+answered, and neither answer was "split it".**
+
+`landing/index.html` (1682) and `landing/assets/css/styles.css` (3447) belonged to
+a static marketing site with no build step, so splitting either meant introducing
+one. **The owner removed the site instead.** The blog it shared that stylesheet
+with survived, so the removal could not be a deletion: `/news` had no Hosting
+entry of its own and every rendered page linked that 3447-line sheet. The rules it
+actually used were extracted into five files under `web/assets/css/`, cut at the
+original's own section boundaries and kept in its source order so the cascade did
+not move, and the privacy page was preserved standalone. **A third option — delete
+the thing rather than split it or build it — is worth remembering when a file
+looks unsplittable.**
+
+`src/firestore.rules` (693) is still open. Firestore rules have no include
+mechanism, one file per deployment target, so splitting means a build step that
+concatenates and puts the deployed policy one step further from the file a
+reviewer reads. The owner has ruled **no build step**: strengthen and split the
+security tests first, then reduce the file itself while preserving permissions
+exactly — and if that cannot be done safely, stop and say so rather than force it.
+It is recorded and measured; it is not exempt.
 
 ## Local test-runner process safety
 

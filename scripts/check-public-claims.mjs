@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Holds the marketing site to the product's own verified capability package.
+ * Holds the public site to the product's own verified capability package.
  *
  * ## Why this exists
  *
@@ -13,7 +13,11 @@
  * plans, advertised a job board that does not exist in the codebase, described
  * document-expiry monitoring and renewal reminders that were never built, and
  * listed App Check, which had been deliberately removed with the residual risk
- * formally accepted. The automated blog was already forbidden from repeating
+ * formally accepted. That marketing site has since been removed entirely, but
+ * this check was NOT removed with it: `web/privacy.html` survived the removal
+ * and discusses MVRs, PSP reports and Clearinghouse results by name, which is
+ * exactly the language this guards. A gate that reads as obsolete because of the
+ * directory in its name is not obsolete. The automated blog was already forbidden from repeating
  * any of it — but nothing stopped the marketing page from saying it in the
  * first place.
  *
@@ -21,7 +25,7 @@
  * runs on the shipped HTML. It is the identical `checkClaims()` export, not a
  * copy, which is what stops the two drifting apart.
  *
- * Usage: `node scripts/check-landing-claims.mjs` (wired into `npm run lint`).
+ * Usage: `node scripts/check-public-claims.mjs` (wired into `npm run lint`).
  */
 
 import { readFileSync, readdirSync } from 'node:fs';
@@ -31,7 +35,7 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const LANDING_DIR = path.join(ROOT, 'landing');
+const PUBLIC_DIR = path.join(ROOT, 'web');
 
 const { checkClaims, PROHIBITED_CLAIMS } = require(
     path.join(ROOT, 'functions/ai/knowledge/safehaulCapabilities.js'),
@@ -55,28 +59,28 @@ function visibleText(html) {
         .replace(/\s+/g, ' ');
 }
 
-const pages = readdirSync(LANDING_DIR).filter((file) => file.endsWith('.html'));
+const pages = readdirSync(PUBLIC_DIR).filter((file) => file.endsWith('.html'));
 
 if (pages.length === 0) {
-    console.error('check:landing-claims — no HTML found in landing/. That is not a pass.');
+    console.error('check:public-claims — no HTML found in web/. That is not a pass.');
     process.exit(1);
 }
 
 let failures = 0;
 
 for (const page of pages) {
-    const html = readFileSync(path.join(LANDING_DIR, page), 'utf8');
+    const html = readFileSync(path.join(PUBLIC_DIR, page), 'utf8');
     const result = checkClaims(visibleText(html));
 
     if (result.ok) {
-        console.log(`ok      landing/${page}`);
+        console.log(`ok      web/${page}`);
         continue;
     }
 
     failures += result.violations.length;
     for (const violation of result.violations) {
         const reason = PROHIBITED_CLAIMS.find((entry) => entry.claim === violation.claim)?.reason;
-        console.error(`FAIL    landing/${page}: ${violation.claim}`);
+        console.error(`FAIL    web/${page}: ${violation.claim}`);
         if (reason) console.error(`        reason: ${reason}`);
     }
 }

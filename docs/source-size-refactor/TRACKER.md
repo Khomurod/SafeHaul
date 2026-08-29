@@ -16,12 +16,12 @@ it currently is*.
 | | |
 |---|---|
 | **Last updated** | 2026-08-28, after the second landing ruling |
-| **Verified main SHA** | `386f8a85ca2e1f83e4f1ac3ad0f7b136e665cb3d` (#53 merged) |
-| **Oversized files** | **68** · unchanged; `LD-R2` takes it to 65, `LD-R3` likely to 64 |
-| **Backlog entries** | **68** |
-| **Active work item** | `LD-R1` — done, in review. `LD-R2` next. |
+| **Verified main SHA** | `1e399de83d71aea4086de4fa5574fd0dae6b311d` (#54 / `LD-R1` merged) |
+| **Oversized files** | **65** (was 68) — `LD-R2` retired the three landing entries; `LD-R3` likely takes it to 64 |
+| **Backlog entries** | **65** |
+| **Active work item** | `LD-R2` — done locally, PR pending. `LD-R3` next. |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | **#54** (`LD-R1`). #53, #52, #51 merged; #50 closed. |
+| **Active PR** | `LD-R2` not yet opened. #54, #53, #52, #51 merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
 | **CI status** | #54: the size refusal is FIXED and `callable-contract` passes. Earlier "failures" on `f93c925`/`dee9688` were **concurrency cancellations** from rapid pushes, not defects — check for `cancelled` lanes before investigating one. |
@@ -65,8 +65,8 @@ it currently is*.
 |---|---|---|
 | Over-limit files at campaign start (2026-08-26 audit, incl. 2026-08-27 additions) | 70 | — |
 | Retired before this tracker existed (PR #49) | 2 | — |
-| **Remaining now** | **68** | **55,632** |
-| Retired by this campaign so far | 0 | 0 |
+| **Remaining now** | **65** | **49,643** |
+| Retired by this campaign so far | **3** | **5,989** |
 
 ---
 
@@ -144,12 +144,12 @@ use `—` until it exists.**
 | `SO-2` | NOT STARTED | R2 | `src/features/companies/hooks/useCompanyDashboard.js` (runtime) | 528 | 528 | — | — | — | — | — | — | — | 1 |
 | `RU-1` | **READY** (after `LD-R`) | R3 | `src/tests/firestore.rules.security.test.js` (test) — split **and strengthen** | 1106 | 1106 | — | — | — | — | — | — | — | 1 |
 | `RU-2` | **BLOCKED** by `RU-1` | R4 | `src/firestore.rules` (runtime) — no build step; stop and ask if unsafe | 693 | 693 | — | — | — | — | — | — | — | 1 |
-| `LD-R1` | **IN PROGRESS** | R4 | stand up `web/`; blog serves from its own stylesheets | — | — | `claude/safehual-source-size-refactor-j4apre` | — | — | — | — | — | — | 0 |
-| `LD-R2` | **READY** after `LD-R1` | R4 | delete `landing/`, its scripts, tests and workflow steps | 5989 | — | — | — | — | — | — | — | — | 3 |
+| `LD-R1` | **COMPLETE** | R4 | stand up `web/`; blog serves from its own stylesheets | — | — | `claude/safehual-source-size-refactor-j4apre` | #54 | `78a7e4a` | owner ruling | green | `1e399de` | main green | 0 |
+| `LD-R2` | **IN PROGRESS** | R4 | delete `landing/`, its scripts, tests and workflow steps | 5989 | **0 — deleted** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **3 ✓** |
 | `LD-R3` | **READY** after `LD-R2` | R3 | retire lead capture/Telegram/settings; add read-only Historical Website Leads + CSV | — | — | — | — | — | — | — | — | — | 0 (frees `SA-8`) |
-| `LD-1` | **SUPERSEDED** by `LD-R` | R4 | `landing/assets/css/styles.css` | 3447 | 3447 | — | — | — | — | — | — | — | 1 |
-| `LD-2` | **SUPERSEDED** by `LD-R` | R4 | `landing/index.html` | 1682 | 1682 | — | — | — | — | — | — | — | 1 |
-| `LD-3` | **SUPERSEDED** by `LD-R` | R4 | `landing/assets/js/main.js` | 860 | 860 | — | — | — | — | — | — | — | 1 |
+| `LD-1` | **COMPLETE** (deleted by `LD-R2`) | R4 | `landing/assets/css/styles.css` | 3447 | **gone** | — | — | — | — | — | — | — | 1 ✓ |
+| `LD-2` | **COMPLETE** (deleted by `LD-R2`) | R4 | `landing/index.html` | 1682 | **gone** | — | — | — | — | — | — | — | 1 ✓ |
+| `LD-3` | **COMPLETE** (deleted by `LD-R2`) | R4 | `landing/assets/js/main.js` | 860 | **gone** | — | — | — | — | — | — | — | 1 ✓ |
 | `PA-0` | NOT STARTED | R1 | public-apply characterization coverage audit | — | — | — | — | — | — | — | — | — | 0 |
 | `Z-1` | NOT STARTED | R1 | delete backlog file; final rescan; brief update | — | — | — | — | — | — | — | — | — | 0 |
 
@@ -685,10 +685,51 @@ the server.
 own Super Admin nav entry, or moves somewhere less prominent given nobody needs
 it daily.
 
+### `LD-R2` — done locally
+
+Deleted: `landing/` (18 files), `check-landing-a11y.mjs`,
+`capture-landing-screenshots.mjs`, `landingPage.test.js`,
+`landingNewsSection.test.js`, three npm scripts, three backlog entries.
+**41 files changed, +288 / −7771.**
+
+Both interlocks moved with the directory: `REQUIRED_ROOTS` `landing` → `web`
+(and `A6b`, which pins that list by name, follows it), and the `ci-plan.mjs`
+lane mapping plus `A5`/`A5b`. The claims checker is
+`scripts/check-public-claims.mjs`, scanning `web/`, still in `npm run lint`.
+Release plumbing renamed: **nothing**.
+
+`functions/environmentVault/registry.js` lost `LANDING_A11Y_PORT` — the inventory
+test caught it from the *unreferenced* direction the moment the script reading it
+was deleted, exactly as the `LD-R3` notes predicted. 1188 → 1187 lines.
+
+Eleven documents corrected. `AGENTS.md`'s open question about a build step for the
+landing site is now answered, and the answer was neither of the two it offered:
+**delete the thing.** That is recorded there as a general lesson for a file that
+looks unsplittable.
+
+| Check | Result |
+|---|---|
+| functions | **1636/1636**, 103 suites |
+| `src/tests/` | 658 passed, 64 skipped (the two landing suites are gone) |
+| `check:source-size` | **65 over limit / 65 recorded** — the `REQUIRED_ROOTS` interlock held |
+| `test:source-size` | pass, `A6b` included |
+| `check:ci-plan` | pass |
+| `npm run lint` | pass — claims checker green on `web/privacy.html` |
+| `npm run build` | pass |
+| `npm run typecheck` | 14 errors, **identical on `origin/main`** — pre-existing, not this change |
+| Static serve of `web/` | privacy, robots, both stylesheets, logo and font all 200 |
+
+**One process note.** Comparing typecheck against `main` with
+`git checkout origin/main -- .` re-staged the deleted files into the index while
+the working tree lacked them, and `check:source-size` **refused** — "the index and
+the working tree disagree, so no size for it can be trusted". Correct refusal, and
+a good check to have. `git add -A` resolved it. Verify the index after any
+`git checkout <ref> -- .` used for comparison.
+
 ### Current stopping point
 
-`LD-R1` complete and verified; PR #54 open, awaiting a green head after the size
-fix. `LD-R2` **not started** — surface fully mapped above, safe to begin once
+`LD-R2` committed locally at `bf5f780`, all gates green, PR not yet opened.
+`LD-R3` **not started** — surface fully mapped above, safe to begin once
 #54 merges.
 
 ---

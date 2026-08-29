@@ -61,25 +61,37 @@ spacing:
   sectionTight: "76px"
 ---
 
-# SafeHaul marketing site — "Specification"
+# SafeHaul public site — "Specification"
 
 > The site is set as engineering documentation for a system that has to be
 > inspected.
 
-**Scope, verified 2026-08-13.** This is the design contract for
-`landing/assets/css/styles.css`, which dresses **all three public surfaces** —
-`landing/index.html`, `landing/privacy.html`, and the server-rendered blog
-(`/news`, `/news/{slug}`, `/news/feed.xml`). Every rule below binds all three.
+**Scope, updated when the marketing site was removed.** This is the design
+contract for the stylesheets in `web/assets/css/`, which dress the two public
+surfaces that remain: the server-rendered blog (`/news`, `/news/{slug}`,
+`/news/feed.xml`) and the standalone privacy page (`/privacy.html`). Every rule
+below binds both.
 
-The homepage briefly did not follow it: `index.html` was replaced with a separate
-build on its own `landing/assets/css/landing.css`, which broke the claims gate,
-the lead capture, the News strip and the accessibility hardening before being
-restored to this system. Measured against "What this world refuses" below, that
+**It used to bind a third.** `landing/index.html` was the marketing homepage, and
+`landing/assets/css/styles.css` was one 3447-line file dressing all three. The
+homepage has been removed by owner decision; the stylesheet was not simply deleted
+with it, because the blog had no styling of its own. The rules the surviving pages
+actually use were extracted into five files — `news-foundation`, `news-chrome`,
+`news-article`, `news-footer`, `news-responsive` — cut at this specification's own
+section boundaries and kept in the original's source order, plus `policy.css` for
+the privacy page. **They are one stylesheet split for length, and the `<link>`
+order is the cascade.**
+
+The homepage also briefly did not follow this specification: it was once replaced
+with a separate build on its own `landing/assets/css/landing.css`, which broke the
+claims gate, the lead capture, the News strip and the accessibility hardening
+before being restored. Measured against "What this world refuses" below, that
 stylesheet carried gradients, five `backdrop-filter` glass panels, radii up to
 550px, seven coloured shadows, stock photography, an ROI calculator with invented
 savings figures — and an `@import` of Google Fonts, undoing the self-hosting these
-two faces exist for. [`landing/README.md`](landing/README.md) records what that
-cost and what now prevents it.
+two faces exist for. The episode is kept here because the lesson outlived the
+page: a public surface that leaves this system breaks gates nobody was thinking
+about.
 
 The product's whole mechanism is four scattered artifacts becoming one
 inspectable assembly. That is literally what an exploded parts diagram depicts,
@@ -90,8 +102,9 @@ figure numbers, sources as a numbered apparatus.
 Not a blueprint (no cyanotype, no white-on-blue), not paperwork, not nostalgia.
 Modern documentation, on paper, in graphite.
 
-Implemented in `landing/assets/css/styles.css` in 21 numbered sections. That
-file is also the blog's stylesheet — see "Two surfaces, one stylesheet" below.
+Originally implemented in one file of 21 numbered sections; now in the five
+`web/assets/css/news-*.css` files plus `policy.css`, still in that order — see
+"Two surfaces, one stylesheet" below.
 
 ## The five rules
 
@@ -144,7 +157,7 @@ no headroom:
 
 **`--ink-3` is the floor, and only on `--paper`.** The recessed grounds spend its
 0.05 of headroom, so anything quiet sitting on `--paper-2` or `--paper-3` uses
-`--ink-2` instead. `npm run check:landing-a11y` caught this on the activity
+`--ink-2` instead. The accessibility audit caught this on the activity
 board's header row. It cannot catch it on a hover state, so the `.spec-row:hover`
 rule darkens its own index by hand — that one is reasoned, not measured by the
 gate.
@@ -215,7 +228,7 @@ mono numerals, leader lines that break at right angles rather than curving.
 
 ### Text inside a figure is page copy
 
-`scripts/check-landing-claims.mjs` strips tags and keeps text nodes, so every
+`scripts/check-public-claims.mjs` strips tags and keeps text nodes, so every
 `<text>` and `<title>` in a figure is checked against the capability allowlist.
 Keep figure lettering factual.
 
@@ -261,7 +274,7 @@ recorded so it is not "fixed" later by someone who does not know why.
 
 ## The lockup
 
-`landing/assets/images/logo.svg` — the four original shapes, geometry untouched,
+`web/assets/images/logo.svg` — the four original shapes, geometry untouched,
 recoloured from #17130e / #b03a24 to `--graphite` #14161A and `--attend` #A93226.
 The viewBox carries 2 units of padding so the optical gap beside the wordmark is
 part of the file rather than something every call site has to remember.
@@ -296,20 +309,24 @@ The phone exhibit is **cropped to the top of the screen**, and its caption says
 so. A 390 × 844 capture shown whole ran 650px tall and left its story's other
 column 300px short; shrunk to fit, its own interface became unreadable.
 
-Never screenshot production. `npm run capture:landing-screenshots` runs against
-the fixture tenant. Production screenshots once leaked real driver names and
-phone numbers onto a public page.
+Never screenshot production. The capture script ran against the fixture tenant,
+and went with the marketing site whose exhibits it produced. **The rule outlives
+it:** production screenshots once leaked real driver names and phone numbers onto
+a public page.
 
 ## Two surfaces, one stylesheet
 
 `/news`, `/news/{slug}` and `/news/feed.xml` are server-rendered by
-`functions/blog/publicApi.js` and **share this stylesheet**. Section 16 dresses
-them; sections 6 and 18 dress the navbar and footer that function emits. Nothing
-in 6, 16 or 18 may assume the homepage's markup exists.
+`functions/blog/publicApi.js`; `/privacy.html` is static. They **share these
+stylesheets**. The old section 16 dresses the blog and is now
+`news-article.css`; sections 6 and 18 dress the navbar and footer that function
+emits and are now `news-chrome.css` and `news-footer.css`; the privacy page's own
+three classes are `policy.css`. Nothing in any of them may assume the removed
+homepage's markup exists — which is no longer a discipline to keep, but a fact.
 
 The blog ships **no JavaScript of its own and therefore no mobile-menu toggle** —
 a toggle button with nothing wired to it is a control that does not work.
-Stylesheet section 20 keeps its navigation reachable below 900px with a
+`news-responsive.css` keeps its navigation reachable below 900px with a
 `:not(:has(.mobile-menu-toggle))` rule that lays the links out as a horizontally
 scrolling row. That rule and that omission are **one decision**: change either
 and the blog loses its navigation on a phone.
@@ -318,8 +335,10 @@ and the blog loses its navigation on a phone.
 must stay literal and stay within 400 characters of the 768px breakpoint — a test
 greps for exactly that.
 
-**The two deploys ship together.** Hosting alone serves the new stylesheet
-against old blog markup.
+**The two deploys ship together.** Hosting alone serves the new stylesheets
+against old blog markup, and the Cloud Function alone serves new markup against
+old stylesheets. Both halves of that are now more likely, not less: the markup and
+the stylesheets live in different deploy artifacts.
 
 ## What this world refuses
 
@@ -337,7 +356,6 @@ popularity claim is a statistic, and there is no number behind it.
 
 The candour is a brand asset. The FAQ answer beginning *"No software can do that,
 and anyone who says otherwise is selling you something"* is worth more than any
-testimonial, and it is test-enforced: `src/tests/landingPage.test.js` requires the
-phrase *no software can do that* in the page's visible text, so deleting the
-answer fails the build. It went with the homepage replacement and came back with
-it.
+testimonial. It lived on the homepage, and went with it. Nothing on the public
+site says it now — worth knowing if the marketing site is ever rebuilt, because
+the phrase was test-enforced precisely so it could not be quietly dropped.
