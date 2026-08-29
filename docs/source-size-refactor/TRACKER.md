@@ -15,13 +15,13 @@ it currently is*.
 
 | | |
 |---|---|
-| **Last updated** | 2026-08-29, `FT-1` merged as #59; `FT-2` on the branch, PR pending |
+| **Last updated** | 2026-08-29, `FT-1` merged as #59; `FT-2` open as #60 |
 | **Verified main SHA** | `3c579aaea02d3bb2bee353705b5593d4ce129c8e` (#59 / `FT-1` merged) |
 | **Oversized files** | **61 on `main`, 60 on this branch** (was 68 when the tracker opened) |
 | **Backlog entries** | **61 on `main`, 60 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
-| **Active work item** | `FT-2` — committed on the branch, PR not yet opened. |
+| **Active work item** | `FT-2` — open as #60, awaiting CI and review. |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | none open. [#59](https://github.com/Khomurod/SafeHaul/pull/59) (`FT-1`) and everything before it merged; #50 closed. |
+| **Active PR** | **[#60](https://github.com/Khomurod/SafeHaul/pull/60)** (`FT-2`). [#59](https://github.com/Khomurod/SafeHaul/pull/59) and everything before it merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
 | **CI status** | Run #271 on `cddc00d` succeeded outright, which is what #59 merged on. The one red round on it was **lint, not tests** — see the `FT-1` section. A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
@@ -30,12 +30,12 @@ it currently is*.
 
 ### Exact next action
 
-1. **Push the branch and open the `FT-2` PR.** The branch has been restarted from
-   `main` at `3c579aa` and carries one commit. This is the standing per-unit
-   ritual, because every unit reuses one branch name: once its PR merges, restart
-   from the new `main` (`git fetch origin main && git checkout -B
-   claude/safehual-source-size-refactor-j4apre origin/main`), re-apply, and open a
-   *new* PR. A merged pull request cannot carry new work.
+1. **Merge [#60](https://github.com/Khomurod/SafeHaul/pull/60)** (`FT-2`) once its
+   head is green, then run the standing per-unit ritual: every unit reuses one
+   branch name, so once its PR merges, restart from the new `main`
+   (`git fetch origin main && git checkout -B
+   claude/safehual-source-size-refactor-j4apre origin/main`), re-apply the next
+   unit, and open a *new* PR. A merged pull request cannot carry new work.
 2. Then `FT-3` (`aiRouter.test.js`, 1203) and the seven `FT-*` files after it —
    the `FT-2` section below is written as a recipe, and its two mechanical notes
    are the ones that cost time.
@@ -111,7 +111,7 @@ use `—` until it exists.**
 | `T-4` | NOT STARTED | R3 | `scripts/deploy-functions-incremental.mjs` (tooling) | 525 | 525 | — | — | — | — | — | — | — | 1 |
 | `T-5` | NOT STARTED | R4 | `scripts/ci-plan.mjs` (tooling) | 523 | 523 | — | — | — | — | — | — | — | 1 |
 | `FT-1` | **MERGED** | R1 | `blogPipeline.test.js` → 6 suites + support | 1496 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#59](https://github.com/Khomurod/SafeHaul/pull/59) | — | — | local green | — | — | **1 ✓** |
-| `FT-2` | **PR PENDING** | R1 | `applicationDrafts.test.js` → 6 suites + support | 1476 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
+| `FT-2` | **PR OPEN** | R1 | `applicationDrafts.test.js` → 6 suites + support | 1476 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#60](https://github.com/Khomurod/SafeHaul/pull/60) | — | — | local green | — | — | **1 ✓** |
 | `FT-3` | NOT STARTED | R1 | `functions/test/unit/aiRouter.test.js` (test) | 1203 | 1203 | — | — | — | — | — | — | — | 1 |
 | `FT-4` | NOT STARTED | R1 | `functions/test/unit/aiProviders.test.js` (test) | 940 | 940 | — | — | — | — | — | — | — | 1 |
 | `FT-5` | NOT STARTED | R1 | `functions/test/unit/aiCredentials.test.js` (test) | 817 | 817 | — | — | — | — | — | — | — | 1 |
@@ -1082,7 +1082,7 @@ identical to the pre-split baseline, 1597/1597 across 107 suites, root
 
 ## `FT-2` — `applicationDrafts.test.js` → 6 suites + support
 
-**Status:** `PR PENDING` — committed on the branch · **Risk:** R1 · **1476 → deleted, 6 suites of 176–380**
+**Status:** `PR OPEN` — [#60](https://github.com/Khomurod/SafeHaul/pull/60) · **Risk:** R1 · **1476 → deleted, 6 suites of 176–380**
 
 | file | subject | lines |
 |---|---|---|
