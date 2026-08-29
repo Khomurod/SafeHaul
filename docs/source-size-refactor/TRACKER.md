@@ -16,12 +16,12 @@ it currently is*.
 | | |
 |---|---|
 | **Last updated** | 2026-08-28, after the second landing ruling |
-| **Verified main SHA** | `78e157723c48ad57b84e35898326f6eeba4b8daa` (#55 / `LD-R2` merged) |
-| **Oversized files** | **64** (was 68) — `LD-R2` retired three landing entries, `LD-R3` retired `SA-8` |
-| **Backlog entries** | **64** |
-| **Active work item** | `LD-R3` — done locally, PR pending. `T-1` next. |
+| **Verified main SHA** | `f7c89d411b82649c449108f43c94ba05d3f6e3f9` (#56 / `LD-R3` merged) |
+| **Oversized files** | **63** (was 68) — landing ×3, `SA-8`, `T-1` |
+| **Backlog entries** | **63** |
+| **Active work item** | `T-1` — done locally, PR pending. |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | `LD-R3` not yet opened. #55, #54, #53, #52, #51 merged; #50 closed. |
+| **Active PR** | `T-1` not yet opened. #56, #55, #54, #53, #52, #51 merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
 | **CI status** | #54: the size refusal is FIXED and `callable-contract` passes. Earlier "failures" on `f93c925`/`dee9688` were **concurrency cancellations** from rapid pushes, not defects — check for `cancelled` lanes before investigating one. |
@@ -65,8 +65,8 @@ it currently is*.
 |---|---|---|
 | Over-limit files at campaign start (2026-08-26 audit, incl. 2026-08-27 additions) | 70 | — |
 | Retired before this tracker existed (PR #49) | 2 | — |
-| **Remaining now** | **64** | **49,107** |
-| Retired by this campaign so far | **4** | **6,525** |
+| **Remaining now** | **63** | **47,884** |
+| Retired by this campaign so far | **5** | **7,748** |
 
 ---
 
@@ -79,7 +79,7 @@ use `—` until it exists.**
 | ID | Status | Risk | Target | Before | Current | Branch | PR | Head | Review | CI | Merge | Post-merge | Removed |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | `SEC-1` | **COMPLETE** | R4 | reconcile PR #50 / #51 | — | — | `claude/secret-scan-loader-gateway` | #51 merged, #50 closed | `20c7550` | owner ruling | green | `dd240a2` | main green at `c023e3f` | 0 |
-| `T-1` | NOT STARTED | R4 | `scripts/test-ci-plan.mjs` (tooling) | 1223 | 1223 | — | — | — | — | — | — | — | 1 |
+| `T-1` | **IN PROGRESS** | R4 | `scripts/test-ci-plan.mjs` → entry + 7 sections + support | 1223 | **62** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
 | `T-2` | NOT STARTED | R2 | `scripts/check-ui-contract.mjs` (tooling) | 1030 | 1030 | — | — | — | — | — | — | — | 1 |
 | `T-3` | NOT STARTED | R2 | `scripts/test-release-promotion.mjs` (tooling) | 584 | 584 | — | — | — | — | — | — | — | 1 |
 | `T-4` | NOT STARTED | R3 | `scripts/deploy-functions-incremental.mjs` (tooling) | 525 | 525 | — | — | — | — | — | — | — | 1 |
@@ -146,7 +146,7 @@ use `—` until it exists.**
 | `RU-2` | **BLOCKED** by `RU-1` | R4 | `src/firestore.rules` (runtime) — no build step; stop and ask if unsafe | 693 | 693 | — | — | — | — | — | — | — | 1 |
 | `LD-R1` | **COMPLETE** | R4 | stand up `web/`; blog serves from its own stylesheets | — | — | `claude/safehual-source-size-refactor-j4apre` | #54 | `78a7e4a` | owner ruling | green | `1e399de` | main green | 0 |
 | `LD-R2` | **COMPLETE** | R4 | delete `landing/`, its scripts, tests and workflow steps | 5989 | **0 — deleted** | `claude/safehual-source-size-refactor-j4apre` | #55 | `57fe54f` | owner ruling | green | `78e1577` | main green | **3 ✓** |
-| `LD-R3` | **IN PROGRESS** | R3 | retire lead capture/Telegram/settings; read-only Website Leads + CSV | — | — | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓ (`SA-8`)** |
+| `LD-R3` | **COMPLETE** | R3 | retire lead capture/Telegram/settings; read-only Website Leads + CSV | — | — | — | #56 | `ec2f6eb` | owner ruling | green | `f7c89d4` | main green | **1 ✓ (`SA-8`)** |
 | `LD-1` | **COMPLETE** (deleted by `LD-R2`) | R4 | `landing/assets/css/styles.css` | 3447 | **gone** | — | — | — | — | — | — | — | 1 ✓ |
 | `LD-2` | **COMPLETE** (deleted by `LD-R2`) | R4 | `landing/index.html` | 1682 | **gone** | — | — | — | — | — | — | — | 1 ✓ |
 | `LD-3` | **COMPLETE** (deleted by `LD-R2`) | R4 | `landing/assets/js/main.js` | 860 | **gone** | — | — | — | — | — | — | — | 1 ✓ |
@@ -848,10 +848,66 @@ unzip vr.zip && cp test-results/<...>/<name>-actual.png e2e/visual/__screenshots
 5. **Dimensions are unchanged** — 1440×1105 and 412×1681 before and after — so the
    diff is a label and an icon inside the same layout, not a structural shift.
 
+---
+
+## `T-1` — `scripts/test-ci-plan.mjs` → entry + 7 sections
+
+**Status:** done locally, PR pending · **Risk:** R4 · **1223 → 62**
+
+Split on the pattern PR #49 established for the secret scanner: a thin entry with
+a section table, sections in `scripts/ci-plan/`, and a shared `test-support.mjs`
+holding the assertion counter.
+
+| file | sections | lines |
+|---|---|---|
+| `scripts/test-ci-plan.mjs` (entry) | — | **62** |
+| `ci-plan/test-support.mjs` | shared | 67 |
+| `ci-plan/test-selection.mjs` | A, B, C | 213 |
+| `ci-plan/test-gate.mjs` | D | 150 |
+| `ci-plan/test-wiring.mjs` | E | 291 |
+| `ci-plan/test-deploy-base.mjs` | F | 154 |
+| `ci-plan/test-shipped.mjs` | G, H | 114 |
+| `ci-plan/test-workflow.mjs` | I, J | 144 |
+| `ci-plan/test-guards.mjs` | K, L | 186 |
+
+**Behaviour preserved, and proven rather than asserted:** the output is
+**byte-for-byte identical** before and after — same 251 assertions, same order,
+same text. That diff is the whole proof, and it is why the section banners stayed
+in the sections rather than moving to the entry.
+
+**Three things worth knowing if this is ever touched again:**
+
+1. **The counter is shared on purpose.** `assert` lives in `test-support.mjs`
+   because a per-section counter would let a section fail while the run exited 0.
+2. **Sections are imported one `await` at a time.** Static imports evaluate in
+   order, but a module using top-level `await` suspends and lets the next run, so
+   its output lands inside a later section's. Measured when the secret scanner was
+   split; the same hazard applies here, and these banners are how a failing run is
+   read.
+3. **`here` means `scripts/`, not `scripts/ci-plan/`.** The sections resolve
+   repository paths relative to where the original file lived, so support exports
+   the parent. `createRequire` in `test-wiring.mjs` is the one exception — it
+   resolves from its own module URL, so its path is `../../`. The two look
+   inconsistent and both are correct; there is a comment saying so.
+
+**Two dead symbols were dropped**, not carried: `ALL` (defined, never used) and
+the `no-await-in-loop` disable (the rule is not enabled). ESLint warnings on this
+code went from 2 to 1, and the remaining one is a `no-new-func` directive that was
+already unused in the original — carried over verbatim, not introduced.
+
+| Check | Result |
+|---|---|
+| Output diff vs the original | **identical**, 251 assertions |
+| `check:ci-plan` | pass |
+| `test:source-size` · `test:secret-scan` | pass |
+| functions | 1597/1597, 102 suites |
+| `check:source-size` | **63 over limit / 63 recorded** |
+| ESLint on the new files | 0 errors, 1 pre-existing warning |
+
 ### Current stopping point
 
-`LD-R3` complete; PR #56 open with the icon fix and both baselines from CI.
-Next backlog item is `T-1` — surface fully mapped above, safe to begin once
+`T-1` complete locally, PR pending. Next backlog item by size is
+`scripts/check-ui-contract.mjs` (`T-2`, 1030) — surface fully mapped above, safe to begin once
 #54 merges.
 
 ---
