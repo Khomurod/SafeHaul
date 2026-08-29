@@ -623,22 +623,18 @@ service cloud.firestore {
     match /blog_posts/{postId} { allow read, write: if false; } // server-only (News & Insights)
     match /blog_runs/{runId} { allow read, write: if false; } // server-only (publication run ledger)
 
-    // --- LANDING PAGE (server-only) ---
-    // Platform-level settings for the marketing site, including the encrypted
-    // Telegram bot token and destination chat used for lead delivery. Closed to
-    // every client including Super Admins, by the same reasoning as the
-    // environment vault: a credential a browser can fetch is a credential that
-    // can leave the browser. Super Admin → Landing Page Settings reads a masked
-    // projection through `getLandingPageSettings` and writes through
-    // `updateLandingTelegramConfig`, both of which require exact super_admin,
-    // recent authentication and a rate-limit budget, and neither of which can
-    // return the token.
-    match /platform_settings/{settingId} { allow read, write: if false; } // server-only (landing settings)
+    // --- RETIRED MARKETING SITE (server-only) ---
+    // Both collections outlived the site that filled them. The rules are
+    // UNCHANGED and must stay `if false`: the documents hold encrypted Telegram
+    // credentials and third-party contact details plus a completion-token hash,
+    // and a credential or a lead a browser can fetch is one that can leave the
+    // browser. Nothing reads platform_settings any more; Super Admin → Website
+    // Leads reads the archive through `listLandingLeads`, which requires exact
+    // super_admin, recent authentication and a rate-limit budget. Any rebuilt
+    // lead capture is to be built fresh — do not relax either rule for it.
+    match /platform_settings/{settingId} { allow read, write: if false; } // server-only (retired landing settings)
 
-    // Captured marketing leads. Written by `submitLandingLead` before delivery
-    // is attempted, so an outage cannot destroy one. Client-closed because the
-    // documents hold third-party contact details plus a completion token hash;
-    // the settings screen lists them through `listLandingLeads`.
+    // Leads captured by the removed marketing form, deliberately preserved.
     match /landing_leads/{leadId} { allow read, write: if false; } // server-only (landing leads)
 
     // --- SYSTEM SETTINGS ---

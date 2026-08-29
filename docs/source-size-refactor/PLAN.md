@@ -294,6 +294,36 @@ machinery". It is enough work to be its own unit, `LD-R3`, because a read-only
 view with CSV export is a feature rather than a deletion, and folding it into a
 removal PR would make both harder to review.
 
+### 7.2b Delegated decision: where the lead archive lives (2026-08-28)
+
+The owner delegated this one — *"you choose the best option, document it"* — so
+the reasoning is recorded here rather than left in a commit message.
+
+**Decision: it keeps a Super Admin navigation entry, retitled "Website Leads",
+in the `ops` group.**
+
+The alternative was to move it somewhere less prominent, on the reasoning that
+nobody needs an archive daily. That reasoning is true and still loses, because
+**this screen is the only path to the data.** A `landing_leads` document is
+`allow read, write: if false` — no client can reach it, and the collection is
+Admin-SDK only — so if the screen is hard to find, the leads are indistinguishable
+from leads that were deleted. The specific failure that invites is somebody
+concluding the data is gone and cleaning up the collection, which is exactly the
+outcome the ruling to preserve it was guarding against.
+
+Three supporting details:
+
+- The slot already existed (`LANDING_PAGE`, group `ops`), so keeping it is the
+  smaller change as well as the safer one. The id becomes `website-leads`;
+  verified first that no deep link, URL or stored preference persists a view id,
+  so renaming breaks no bookmark.
+- The screen says in its own copy that it is a read-only archive and that new
+  leads will not arrive there, so its prominence cannot be mistaken for the
+  feature still being live.
+- The CSV export sits beside it, which is what makes "less prominent" cheap to
+  reverse later: once an operator has the CSV, the screen matters less. That is a
+  decision for whoever rebuilds lead capture, not for this campaign.
+
 ### 7.3 `RU-2` — Firestore rules
 
 **Ruling: do not introduce a concatenation or build step.** Instead:

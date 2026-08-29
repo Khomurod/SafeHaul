@@ -335,8 +335,9 @@ subdomains for genuinely separate applications or environments.
 
 > **The form and its route are gone.** `landing/assets/js/main.js` posted to
 > `/api/landing-lead`, and both the page and the Hosting rewrite were removed with
-> the marketing site. `submitLandingLead` itself is retired separately, preserving
-> every captured lead. **Any rebuilt lead capture is to be built fresh** — do not
+> the marketing site. `submitLandingLead` has since been retired too, **preserving
+> every captured lead** — they are read through `listLandingLeads` from Super Admin
+> → Website Leads. **Any rebuilt lead capture is to be built fresh** — do not
 > revive this endpoint. The properties below are kept as the bar a replacement
 > must clear, and the credential warning below still applies to any token.
 
@@ -347,8 +348,10 @@ The retired function:
 - quietly drops honeypot spam;
 - enforces a fail-closed per-IP rate limit;
 - sends a plain-text Telegram message without logging lead details; and
-- reads `LANDING_TELEGRAM_BOT_TOKEN` and `LANDING_TELEGRAM_CHAT_ID` only from
-  Google Secret Manager.
+- read `LANDING_TELEGRAM_BOT_TOKEN` and `LANDING_TELEGRAM_CHAT_ID` only from
+  Google Secret Manager. Both are now unbound and out of the vault registry; the
+  stored ciphertext in `platform_settings/landing_page` was not deleted, so
+  **rotate the bot token through BotFather** if that has not happened yet.
 
 Never place Telegram credentials in HTML, browser JavaScript, `.env` files that
 are committed, GitHub secrets, or GitHub Actions. **This rule does not retire with

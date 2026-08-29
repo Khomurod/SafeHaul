@@ -193,8 +193,6 @@ describe('environment registry — coverage of each required area', () => {
             // The shared router reads it only when SAFEHAUL_AI_GROQ_APIKEY is
             // absent; see docs/ai-platform.md.
             'GROQ_API_KEY',
-            'LANDING_TELEGRAM_BOT_TOKEN',
-            'LANDING_TELEGRAM_CHAT_ID',
             'PROCESS_BULK_BATCH_URL',
             // The GitHub App the Super Admin Release Management screen uses to
             // start a production promotion. Inventoried like every other

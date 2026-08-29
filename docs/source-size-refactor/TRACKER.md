@@ -16,17 +16,17 @@ it currently is*.
 | | |
 |---|---|
 | **Last updated** | 2026-08-28, after the second landing ruling |
-| **Verified main SHA** | `1e399de83d71aea4086de4fa5574fd0dae6b311d` (#54 / `LD-R1` merged) |
-| **Oversized files** | **65** (was 68) — `LD-R2` retired the three landing entries; `LD-R3` likely takes it to 64 |
-| **Backlog entries** | **65** |
-| **Active work item** | `LD-R2` — done locally, PR pending. `LD-R3` next. |
+| **Verified main SHA** | `78e157723c48ad57b84e35898326f6eeba4b8daa` (#55 / `LD-R2` merged) |
+| **Oversized files** | **64** (was 68) — `LD-R2` retired three landing entries, `LD-R3` retired `SA-8` |
+| **Backlog entries** | **64** |
+| **Active work item** | `LD-R3` — done locally, PR pending. `T-1` next. |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | `LD-R2` not yet opened. #54, #53, #52, #51 merged; #50 closed. |
+| **Active PR** | `LD-R3` not yet opened. #55, #54, #53, #52, #51 merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
 | **CI status** | #54: the size refusal is FIXED and `callable-contract` passes. Earlier "failures" on `f93c925`/`dee9688` were **concurrency cancellations** from rapid pushes, not defects — check for `cancelled` lanes before investigating one. |
 | **Working tree at session end** | see the last per-item section |
-| **Blockers** | none blocking `LD-R2`. `LD-R3` has one open owner question (nav placement of the leads archive). |
+| **Blockers** | none. The nav-placement question was delegated and decided — see `PLAN.md` § 7.2b. |
 
 ### Exact next action
 
@@ -65,8 +65,8 @@ it currently is*.
 |---|---|---|
 | Over-limit files at campaign start (2026-08-26 audit, incl. 2026-08-27 additions) | 70 | — |
 | Retired before this tracker existed (PR #49) | 2 | — |
-| **Remaining now** | **65** | **49,643** |
-| Retired by this campaign so far | **3** | **5,989** |
+| **Remaining now** | **64** | **49,107** |
+| Retired by this campaign so far | **4** | **6,525** |
 
 ---
 
@@ -115,7 +115,7 @@ use `—` until it exists.**
 | `SA-5` | NOT STARTED | R2 | `src/features/super-admin/components/CreateView.jsx` (runtime) | 573 | 573 | — | — | — | — | — | — | — | 1 |
 | `SA-6` | NOT STARTED | R2 | `src/features/super-admin/views/EnvironmentIntegrationsView.jsx` (runtime) | 563 | 563 | — | — | — | — | — | — | — | 1 |
 | `SA-7` | NOT STARTED | R1 | `src/features/super-admin/views/EnvironmentIntegrationsView.contract.test.jsx` (test) | 709 | 709 | — | — | — | — | — | — | — | 1 |
-| `SA-8` | NOT STARTED | R2 | `src/features/super-admin/views/LandingPageSettingsView.jsx` (runtime) | 536 | 536 | — | — | — | — | — | — | — | 1 |
+| `SA-8` | **COMPLETE** (replaced by `LD-R3`) | R2 | `LandingPageSettingsView.jsx` → `WebsiteLeadsView.jsx` | 536 | **231** | — | — | — | — | — | — | — | 1 ✓ |
 | `SA-9` | NOT STARTED | R1 | `src/features/super-admin/views/BlogPostsView.contract.test.jsx` (test) | 570 | 570 | — | — | — | — | — | — | — | 1 |
 | `CA-1` | NOT STARTED | R2 | `src/features/company-admin/components/modals/driver-dossier/tabs/ApplicationTab.jsx` (runtime) | 752 | 752 | — | — | — | — | — | — | — | 1 |
 | `CA-2` | NOT STARTED | R2 | `src/features/company-admin/views/DocumentsManager.jsx` (runtime) | 735 | 735 | — | — | — | — | — | — | — | 1 |
@@ -145,8 +145,8 @@ use `—` until it exists.**
 | `RU-1` | **READY** (after `LD-R`) | R3 | `src/tests/firestore.rules.security.test.js` (test) — split **and strengthen** | 1106 | 1106 | — | — | — | — | — | — | — | 1 |
 | `RU-2` | **BLOCKED** by `RU-1` | R4 | `src/firestore.rules` (runtime) — no build step; stop and ask if unsafe | 693 | 693 | — | — | — | — | — | — | — | 1 |
 | `LD-R1` | **COMPLETE** | R4 | stand up `web/`; blog serves from its own stylesheets | — | — | `claude/safehual-source-size-refactor-j4apre` | #54 | `78a7e4a` | owner ruling | green | `1e399de` | main green | 0 |
-| `LD-R2` | **IN PROGRESS** | R4 | delete `landing/`, its scripts, tests and workflow steps | 5989 | **0 — deleted** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **3 ✓** |
-| `LD-R3` | **READY** after `LD-R2` | R3 | retire lead capture/Telegram/settings; add read-only Historical Website Leads + CSV | — | — | — | — | — | — | — | — | — | 0 (frees `SA-8`) |
+| `LD-R2` | **COMPLETE** | R4 | delete `landing/`, its scripts, tests and workflow steps | 5989 | **0 — deleted** | `claude/safehual-source-size-refactor-j4apre` | #55 | `57fe54f` | owner ruling | green | `78e1577` | main green | **3 ✓** |
+| `LD-R3` | **IN PROGRESS** | R3 | retire lead capture/Telegram/settings; read-only Website Leads + CSV | — | — | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓ (`SA-8`)** |
 | `LD-1` | **COMPLETE** (deleted by `LD-R2`) | R4 | `landing/assets/css/styles.css` | 3447 | **gone** | — | — | — | — | — | — | — | 1 ✓ |
 | `LD-2` | **COMPLETE** (deleted by `LD-R2`) | R4 | `landing/index.html` | 1682 | **gone** | — | — | — | — | — | — | — | 1 ✓ |
 | `LD-3` | **COMPLETE** (deleted by `LD-R2`) | R4 | `landing/assets/js/main.js` | 860 | **gone** | — | — | — | — | — | — | — | 1 ✓ |
@@ -726,10 +726,132 @@ the working tree disagree, so no size for it can be trusted". Correct refusal, a
 a good check to have. `git add -A` resolved it. Verify the index after any
 `git checkout <ref> -- .` used for comparison.
 
+### `LD-R3` — done locally
+
+**Six callables retired, one kept.** `submitLandingLead`, `getLandingPageSettings`,
+`updateLandingTelegramConfig`, `setLandingTelegramEnabled`, `sendLandingTelegramTest`
+and `retryLandingLeadDelivery` are gone; `listLandingLeads` survives because the
+archive screen has to read the records. **No lead data is deleted**, and
+`landing_leads` keeps `allow read, write: if false` — the rule text is unchanged,
+only its comment.
+
+| | before | after |
+|---|---|---|
+| `functions/landingLead.js` | 357 | deleted |
+| `functions/landing/telegram.js` | 178 | deleted |
+| `functions/landing/config.js` | 285 | deleted |
+| `functions/landing/leads.js` | 307 | **72** |
+| `functions/landing/callables.js` | 319 | **81** |
+| `LandingPageSettingsView.jsx` | 536 (`SA-8`) | **`WebsiteLeadsView.jsx`, 231** |
+| `services/landingSettings.js` | 117 | **`websiteLeads.js`, 41** |
+
+**Nav placement was delegated to me and decided:** it keeps a Super Admin entry,
+retitled *Website Leads*, in `ops`. Full reasoning in `PLAN.md` § 7.2b — the short
+version is that this screen is the only path to the data, so a screen nobody can
+find is indistinguishable from data that was deleted, which invites exactly the
+cleanup the preservation ruling was guarding against. Verified first that no deep
+link or stored preference persists a view id, so renaming `landing-page` →
+`website-leads` breaks no bookmark.
+
+**CSV export is client-side** from the rows `listLandingLeads` already returns —
+no new callable, no export endpoint, nothing that can leave the server through a
+path the existing audit record does not cover. It escapes formula-leading
+characters (`=`, `+`, `-`, `@`, tab) with a leading apostrophe: every field was
+typed by a member of the public, and a spreadsheet runs a cell that starts with
+one. Six of the new tests cover exactly that.
+
+**Four guards fired during this work, all correctly:**
+
+1. `environmentRegistry.inventory` — the retired Telegram keys became
+   *unreferenced*, from the direction the `LD-R3` notes predicted.
+2. `secretBindingGenerations` — four now-unbound secrets became stale
+   expectations. "A stale entry would quietly license a future binding nobody
+   granted."
+3. `check:source-size` — `SA-8` fell under the limit, so its backlog entry had to
+   go: *"a renamed or deleted file does not carry its exemption with it."*
+4. `no-irregular-whitespace` — the literal BOM in the CSV export. Escaped to
+   `\uFEFF`; it is there so Excel reads UTF-8 rather than the local codepage.
+
+| Check | Result |
+|---|---|
+| functions | **1597/1597**, 102 suites |
+| frontend, all of `src/` | **4489 passed**, 64 skipped, 244 files |
+| `check:source-size` | **64 over limit / 64 recorded** |
+| `test:source-size` · `check:ci-plan` · `lint` | pass, **0 lint errors** |
+
+### The visual gate caught a real bug, and the fix has a second half
+
+CI went red on `Build the design-system catalog`: **a pixel baseline changed.**
+It was not a baseline that needed re-recording — it was a **defect I had
+introduced**, and only this lane could see it.
+
+The nav config named `icon: 'Inbox'`, and `SuperAdminSidebar` resolves icon names
+through an explicit `ICONS` map that did not import it. `ICONS['Inbox']` was
+`undefined`, which **does not throw** — the icon rendered as nothing, the row
+collapsed to zero width, and the label wrapped **one character per line**, making
+the page 119px taller. Unit tests passed, lint passed, typecheck passed, the build
+passed. Only a full-page screenshot getting taller caught it.
+
+Fixed by importing `Inbox`, and hardened so it cannot recur silently: an
+unrecognised icon name now **throws**, and `SuperAdminSidebar.icons.test.jsx`
+asserts every configured entry resolves. That test was proven to fail on the exact
+bug (`InboxTypo` → 1 failed) before being kept.
+
+**Do not blanket-run `test:visual:update` to clear this lane.** Doing so here
+would have committed the broken navigation as the new expected appearance.
+
+### Baselines cannot be re-recorded in this container — and the reason is exact
+
+After the fix the two `super-admin` baselines still differ by ~3%, which is the
+intended label and icon change. They cannot be regenerated here:
+
+- **CI runs Chromium 147 (Playwright revision 1217).** This container has 1194
+  (141.0.7390.37); installing pulled 1200 (143), never 1217.
+- Proof it is environmental, not the change: **every `company-*` visual test fails
+  locally at the same ~3%**, and this branch touches no file that renders a
+  company screen — only `src/features/super-admin/`, `functions/`, rules and
+  tests.
+- So a locally-recorded PNG would be *wrong for CI*, and would replace
+  CI-correct baselines with container-correct ones. **The locally regenerated
+  files were reverted rather than committed.**
+
+**The correct path, which uses CI's own rendering:** push the fix, let the visual
+lane fail on the two intended diffs, then take the `super-admin-*-actual.png`
+files out of the `visual-regression-diff` artifact CI uploads and commit those as
+the baselines. The artifact exists for exactly this. It costs one extra CI cycle
+and is the only way to record a baseline this container cannot render.
+
+### Baselines taken from CI's artifact — the method, since it will be needed again
+
+Done, and worth writing down because this container can never record a baseline.
+The `visual-regression-diff` artifact CI uploads on failure contains, per failing
+screen, `-expected`, `-actual` and `-diff` PNGs **rendered by CI's own Chromium**.
+The `-actual` files are therefore exactly what a correct baseline should be.
+
+```
+gh api /repos/<owner>/<repo>/actions/artifacts/<id>/zip > vr.zip   # id from list_workflow_run_artifacts
+unzip vr.zip && cp test-results/<...>/<name>-actual.png e2e/visual/__screenshots__/app.spec.cjs/<name>.png
+```
+
+**Four things checked before trusting an actual, all of which passed:**
+
+1. **The artifact is from the fixed head**, not the broken one — otherwise the
+   defect gets baked in as the expectation. (`head_sha` on the artifact.)
+2. **Only the intended screens failed.** CI produced actuals for `super-admin`
+   desktop and mobile and nothing else, confirming the icon fix held and no other
+   screen moved.
+3. **The three attempts are byte-identical** (`sha256` across the run and both
+   retries). A screen that renders differently on retry is flaky, and no attempt
+   of it should be blessed.
+4. **CI's `-expected` matches the committed baseline byte for byte**, proving the
+   right file is being replaced and no unrelated drift is being masked.
+5. **Dimensions are unchanged** — 1440×1105 and 412×1681 before and after — so the
+   diff is a label and an icon inside the same layout, not a structural shift.
+
 ### Current stopping point
 
-`LD-R2` committed locally at `bf5f780`, all gates green, PR not yet opened.
-`LD-R3` **not started** — surface fully mapped above, safe to begin once
+`LD-R3` complete; PR #56 open with the icon fix and both baselines from CI.
+Next backlog item is `T-1` — surface fully mapped above, safe to begin once
 #54 merges.
 
 ---

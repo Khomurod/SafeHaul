@@ -67,10 +67,6 @@ const EXPECTED = Object.freeze({
     // the App Engine account granted access first.
     BULK_WORKER_SECRET: ['v2'],
     PROCESS_BULK_BATCH_URL: ['v2'],
-    TELEGRAM_BOT_TOKEN: ['v2'],
-    TELEGRAM_CHAT_ID: ['v2'],
-    LANDING_TELEGRAM_BOT_TOKEN: ['v2'],
-    LANDING_TELEGRAM_CHAT_ID: ['v2'],
     FACEBOOK_APP_ID: ['v2'],
     FACEBOOK_APP_SECRET: ['v2'],
     FACEBOOK_VERIFY_TOKEN: ['v2'],

@@ -85,9 +85,9 @@ describe('firebase.json — landing rewrite order', () => {
     it.each(PUBLIC_TARGETS)('%s no longer exposes the marketing lead endpoint', (name) => {
         // `/api/landing-lead` existed for a form on the marketing homepage. That
         // page is gone, so the public route is dead configuration pointing at a
-        // callable nothing can reach. The `submitLandingLead` FUNCTION and the
-        // leads it already captured are deliberately untouched — only the public
-        // route is removed — so this asserts the route, not the function.
+        // callable nothing could reach. `submitLandingLead` has since been retired
+        // with the rest of the capture machinery; the leads it captured are
+        // deliberately preserved and read through `listLandingLeads`.
         expect(sources(name)).not.toContain('/api/landing-lead');
     });
 

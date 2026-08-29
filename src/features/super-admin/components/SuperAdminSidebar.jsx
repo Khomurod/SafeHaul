@@ -13,13 +13,19 @@ import {
   KeyRound,
   Sparkles,
   Globe,
+  Inbox,
   Newspaper,
   Rocket,
 } from "lucide-react";
 import { SectionNavigation } from '@/design-system/components';
 import { SUPER_ADMIN_NAV_ITEMS } from '../config/views';
 
-const ICONS = {
+/**
+ * Exported so a test can assert every configured icon name resolves. The nav
+ * config and this map are two halves of one contract, and nothing else pairs
+ * them.
+ */
+export const NAV_ICONS = {
   LayoutDashboard,
   Building,
   Users,
@@ -34,6 +40,7 @@ const ICONS = {
   Sparkles,
   Newspaper,
   Globe,
+  Inbox,
   Rocket,
 };
 
@@ -86,7 +93,15 @@ export function SuperAdminSidebar({
         group = { id: item.group, label: GROUP_LABELS[item.group] || item.group, items: [] };
         byGroup.push(group);
       }
-      group.items.push({ id: item.id, label: item.label, icon: ICONS[item.icon] });
+      // An unrecognised icon name used to resolve to `undefined` and render
+      // nothing, which does not fail — it collapses the row to zero width and
+      // breaks the label one character per line. Caught by the visual gate on
+      // 2026-08-29 after a new entry named an icon this map did not import.
+      // Failing loudly here costs nothing and is findable; the silent version
+      // was neither.
+      const Icon = NAV_ICONS[item.icon];
+      if (!Icon) throw new Error(`SuperAdminSidebar: no icon named "${item.icon}" — add it to NAV_ICONS.`);
+      group.items.push({ id: item.id, label: item.label, icon: Icon });
     });
     return byGroup;
   }, []);
