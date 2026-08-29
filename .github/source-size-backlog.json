@@ -53,7 +53,6 @@
     "functions/test/unit/environmentVault.callables.test.js": 588,
     "functions/test/unit/guestApplication.snapshot.test.js": 637,
     "functions/test/unit/releaseManagement.callables.test.js": 577,
-    "scripts/check-ui-contract.mjs": 1030,
     "scripts/ci-plan.mjs": 523,
     "scripts/deploy-functions-incremental.mjs": 525,
     "scripts/test-release-promotion.mjs": 584,
