@@ -178,7 +178,7 @@ automated multi-step drip sequences.
 
 **Super admin operations.** Companies, users, unified driver DB, global feature
 flags, SMS integrations, Environment & Integrations vault, AI providers, blog,
-landing-page settings, form builder, system health, stats backfill, releases.
+website-lead archive, form builder, system health, stats backfill, releases.
 
 ---
 

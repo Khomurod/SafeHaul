@@ -463,9 +463,9 @@ describeFirestore('firestore.rules security regressions', () => {
     const anonDb = testEnv.unauthenticatedContext().firestore();
 
     for (const db of [superDb, anonDb]) {
-      // Super Admin is deliberately included. The screen reads a masked
-      // projection through `getLandingPageSettings`, which cannot return the
-      // token; a direct read would hand over the ciphertext.
+      // Super Admin is deliberately included. Nothing reads this collection now —
+      // its screen retired with the marketing site — but the documents still hold
+      // encrypted Telegram credentials, so a direct read hands over the ciphertext.
       await assertFails(getDoc(doc(db, 'platform_settings', 'landing_page')));
       await assertFails(setDoc(doc(db, 'platform_settings', 'landing_page'), { telegram: { enabled: false } }));
     }

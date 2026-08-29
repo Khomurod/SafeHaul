@@ -187,32 +187,35 @@ That test reads the real `secrets: [...]` declarations and fails when a secret
 gains a generation its expectation does not list. Do not widen the expectation to
 make it pass — the entry is a claim that the IAM grant exists.
 
-### 3b. Operator-managed landing credentials (`source: firestore-encrypted`)
+### 3b. Retired: operator-managed landing credentials
 
-| Key | Integration | Sensitivity | Value availability | Reveal / Edit / Delete | Deploy needed |
-| --- | --- | --- | --- | --- | --- |
-| `landing.telegram_bot_token` | Telegram (landing leads) | critical | `not-retrievable` | reveal / — / — | No |
-| `landing.telegram_chat_id` | Telegram (landing leads) | sensitive | `not-retrievable` | reveal / — / — | No |
+**This section is history.** `landing.telegram_bot_token` and
+`landing.telegram_chat_id` were operator-managed Telegram credentials, encrypted
+with `SMS_ENCRYPTION_KEY` into `platform_settings/landing_page` and changed from
+Super Admin → Landing Page Settings. The marketing site is gone and lead delivery
+is retired, so the vault no longer registers them, `functions/landing/config.js`
+no longer exists, and the two `LANDING_TELEGRAM_*` Secret Manager rows are
+unbound and removed from the registry as well.
 
-These supersede the two `LANDING_TELEGRAM_*` Secret Manager rows above, which
-remain as the deploy-time fallback. They are encrypted with `SMS_ENCRYPTION_KEY`
-into `platform_settings/landing_page` and changed from **Super Admin → Landing
-Page Settings** without a deploy.
+**The stored ciphertext was not deleted.** `platform_settings/landing_page` may
+still hold it, and the Firestore rule is still `allow read, write: if false`, so
+nothing can reach it. **Rotate the bot token through BotFather** if it has not
+been rotated already — a credential nothing reads is still a credential that
+exists.
 
-They are `not-retrievable` **by design**, and this is the one place in the vault
-where that is a decision rather than a limitation of the source. Every other
-Firestore-backed credential here can be revealed; a Telegram bot token cannot,
-because a token that can be read back adds an exfiltration route and buys
-nothing — an operator who has lost it generates a fresh one from BotFather in
-seconds. The settings screen shows a SHA-256 fingerprint, the bot's public
-username and the last four characters of the chat id instead: enough to confirm
-which credentials are live, not enough to reconstruct them.
+Two things here are worth carrying into any rebuilt integration, because both
+were learned rather than assumed:
 
-`functions/test/unit/landingSettings.test.js` asserts that no callable returns
-the token, that the stored form is not the plaintext, and — with a source-level
-scan of `functions/landing/` — that no log line can carry it. That last check
-exists because Telegram puts the token in the *request URL*, so
-`console.error(error)` on a failed `fetch` is a credential leak.
+- **A bot token was `not-retrievable` by design**, uniquely in this vault. Every
+  other Firestore-backed credential can be revealed; a token that can be read
+  back adds an exfiltration route and buys nothing, because an operator who has
+  lost it generates a fresh one from BotFather in seconds. The screen showed a
+  SHA-256 fingerprint, the bot's public username and the last four characters of
+  the chat id instead.
+- **Telegram puts the token in the request URL**, so `console.error(error)` on a
+  failed `fetch` is a credential leak. The retired suite enforced that with a
+  source-level scan of `functions/landing/`, not just an assertion about
+  callables.
 
 ### 4. GitHub automatic workflow token (`source: github-actions-secret`)
 

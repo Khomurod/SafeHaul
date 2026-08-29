@@ -474,24 +474,6 @@ const SECRET_MANAGER_ENTRIES = [
         sensitivity: SENSITIVITY.SENSITIVE,
         consumers: ['functions/integrations/facebook.js'],
     },
-    {
-        key: 'LANDING_TELEGRAM_BOT_TOKEN',
-        displayName: 'Landing-page Telegram bot token',
-        description: 'Authenticates the server-side safehaul.io sales lead notifier to Telegram. It must never be shipped to browser code.',
-        category: CATEGORIES.GLOBAL_INTEGRATION,
-        integration: 'Telegram (landing leads)',
-        sensitivity: SENSITIVITY.CRITICAL,
-        consumers: ['functions/landingLead.js'],
-    },
-    {
-        key: 'LANDING_TELEGRAM_CHAT_ID',
-        displayName: 'Landing-page Telegram chat ID',
-        description: 'Destination chat for validated sales leads submitted through safehaul.io.',
-        category: CATEGORIES.GLOBAL_INTEGRATION,
-        integration: 'Telegram (landing leads)',
-        sensitivity: SENSITIVITY.SENSITIVE,
-        consumers: ['functions/landingLead.js'],
-    },
 ].map((entry) => ({
     ...entry,
     scope: 'global',
@@ -499,50 +481,6 @@ const SECRET_MANAGER_ENTRIES = [
     availability: AVAILABILITY.SERVER_RUNTIME,
     requiresDeployment: true,
     ...PROTECTED,
-}));
-
-// ---------------------------------------------------------------------------
-// 3b. Operator-managed landing-page credentials (Firestore, encrypted)
-//
-// The Telegram credentials above are the deploy-time fallback. These two rows
-// are the operator-managed copy that supersedes them: encrypted with
-// SMS_ENCRYPTION_KEY into `platform_settings/landing_page`, and changed from
-// Super Admin → Landing Page Settings without a deploy.
-//
-// They are listed as `not-retrievable` on purpose. Every other Firestore-backed
-// credential in this vault can be revealed, but a bot token that can be read
-// back is an exfiltration route that buys nothing: an operator who needs the
-// token gets a fresh one from BotFather. The settings screen shows a SHA-256
-// fingerprint and the bot's public username instead, which is enough to confirm
-// which credentials are live.
-// ---------------------------------------------------------------------------
-
-const LANDING_SETTINGS_ENTRIES = [
-    {
-        key: 'landing.telegram_bot_token',
-        displayName: 'Landing-page Telegram bot token (managed)',
-        description: 'Operator-managed Telegram bot token for safehaul.io lead delivery. Encrypted at rest in platform_settings/landing_page and never returned to a browser.',
-        integration: 'Telegram (landing leads)',
-        sensitivity: SENSITIVITY.CRITICAL,
-        consumers: ['functions/landing/config.js', 'functions/landingLead.js'],
-    },
-    {
-        key: 'landing.telegram_chat_id',
-        displayName: 'Landing-page Telegram chat ID (managed)',
-        description: 'Operator-managed destination chat for validated sales leads. Encrypted at rest alongside the bot token.',
-        integration: 'Telegram (landing leads)',
-        sensitivity: SENSITIVITY.SENSITIVE,
-        consumers: ['functions/landing/config.js', 'functions/landingLead.js'],
-    },
-].map((entry) => ({
-    ...entry,
-    category: CATEGORIES.GLOBAL_INTEGRATION,
-    scope: 'global',
-    source: SOURCES.FIRESTORE_ENCRYPTED,
-    availability: AVAILABILITY.NOT_RETRIEVABLE,
-    unavailableReason: 'Managed in Super Admin → Landing Page Settings, which shows a fingerprint rather than the value.',
-    requiresDeployment: false,
-    ...readOnly(REASONS.SOURCE_NO_EDIT),
 }));
 
 // ---------------------------------------------------------------------------
@@ -1070,7 +1008,6 @@ const GLOBAL_ENTRIES = Object.freeze(
         ...BROWSER_ENTRIES,
         ...FUNCTIONS_ENTRIES,
         ...SECRET_MANAGER_ENTRIES,
-        ...LANDING_SETTINGS_ENTRIES,
         ...GITHUB_ENTRIES,
         ...FIREBASE_ENTRIES,
         ...OPS_ENTRIES,
@@ -1098,10 +1035,6 @@ const UNREFERENCED_BY_DESIGN = Object.freeze({
     ...Object.fromEntries(AI_CREDENTIAL_ENTRIES.map((entry) => [
         entry.key,
         'AI provider credential. The Secret Manager name is derived from functions/ai/registry/providers.js at runtime, so it appears in no file as a literal.',
-    ])),
-    ...Object.fromEntries(LANDING_SETTINGS_ENTRIES.map((entry) => [
-        entry.key,
-        'Encrypted field on platform_settings/landing_page, not an environment variable, so the corpus scan for process.env and defineSecret cannot see it. Read through functions/landing/config.js.',
     ])),
 });
 

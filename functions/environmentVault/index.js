@@ -40,8 +40,10 @@ const vaultOptions = {
         'GROQ_API_KEY',
         'BULK_WORKER_SECRET',
         'PROCESS_BULK_BATCH_URL',
-        'LANDING_TELEGRAM_BOT_TOKEN',
-        'LANDING_TELEGRAM_CHAT_ID',
+        // LANDING_TELEGRAM_BOT_TOKEN and LANDING_TELEGRAM_CHAT_ID were bound here
+        // so this screen could report on them. The registry no longer lists them —
+        // marketing-site lead delivery is retired — so binding them would request
+        // secrets nothing reads.
     ],
 };
 

@@ -90,7 +90,6 @@
     "src/features/super-admin/views/BlogPostsView.contract.test.jsx": 570,
     "src/features/super-admin/views/EnvironmentIntegrationsView.contract.test.jsx": 709,
     "src/features/super-admin/views/EnvironmentIntegrationsView.jsx": 563,
-    "src/features/super-admin/views/LandingPageSettingsView.jsx": 536,
     "src/features/super-admin/views/UnifiedDriverList.jsx": 656,
     "src/firestore.rules": 693,
     "src/tests/firestore.rules.security.test.js": 1106
