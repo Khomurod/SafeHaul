@@ -15,13 +15,13 @@ it currently is*.
 
 | | |
 |---|---|
-| **Last updated** | 2026-08-28, after the second landing ruling |
-| **Verified main SHA** | `9e7e24daaf49417a5ebe6108ca99cbf5504dc68c` (#57 / `T-1` merged) |
-| **Oversized files** | **62** (was 68) — landing ×3, `SA-8`, `T-1`, `T-2` |
-| **Backlog entries** | **62** |
-| **Active work item** | `T-2` — done locally, PR pending. |
+| **Last updated** | 2026-08-29, `FT-1` pushed and in review as #59 |
+| **Verified main SHA** | `77be09ccb4b0de3ed41a4f7617dfdef5adaee940` (#58 / `T-2` merged) |
+| **Oversized files** | **62 on `main`, 61 on this branch** (was 68) — landing ×3, `SA-8`, `T-1`, `T-2` are merged; `FT-1` is in #59 |
+| **Backlog entries** | **62 on `main`, 61 on this branch** — counted as JSON keys, not `grep -c`, which over-counts by one on the wrapper line |
+| **Active work item** | `FT-1` — pushed. Awaiting green CI on #59, then merge, then `FT-2`. |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | `T-2` not yet opened. #57, #56, #55, #54, #53, #52, #51 merged; #50 closed. |
+| **Active PR** | **[#59](https://github.com/Khomurod/SafeHaul/pull/59)** (`FT-1`). #58 and everything before it merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
 | **CI status** | #54: the size refusal is FIXED and `callable-contract` passes. Earlier "failures" on `f93c925`/`dee9688` were **concurrency cancellations** from rapid pushes, not defects — check for `cancelled` lanes before investigating one. |
@@ -30,16 +30,17 @@ it currently is*.
 
 ### Exact next action
 
-1. **Merge #54** once its head is green (`LD-R1`).
-2. **Start `LD-R2`** — restart the branch from the new `main`, then work the
-   removal surface mapped in the `LD-R2` section. **Read that section first:** two
-   interlocks break the build if the deletion is taken at face value — `landing`
-   is a `REQUIRED_ROOT` in `source-size-scope.mjs`, and `ci-plan.mjs` maps
-   `landing/` to the lane holding its tests. Neither is optional.
-3. Then `LD-R3` (lead subsystem), which has its own mapped section and one open
-   owner question.
+1. **Merge [#59](https://github.com/Khomurod/SafeHaul/pull/59)** once its head is
+   green (`FT-1`).
+2. **Start `FT-2`** — `functions/test/unit/applicationDrafts.test.js`, 1476 lines.
+   Same pattern as `FT-1`; read that section before starting, it is written as a
+   recipe rather than a report.
+3. Then the eight remaining `FT-*` files, then `FR-1`
+   (`functions/environmentVault/registry.js`, 1120) which begins the R3 runtime
+   work, then `RU-1` → `RU-2` (Firestore rules) under the owner's ruling in
+   `PLAN.md` § 7.3.
 
-**Two process rules learned the hard way in this session, both worth keeping:**
+**Four process rules learned the hard way in this session, all worth keeping:**
 
 - **Read the verdict line, not the count.** `npm run check:source-size | grep
   'file(s) over'` prints the inventory and *drops* `source-size REFUSED:`. A
@@ -49,6 +50,20 @@ it currently is*.
   lanes were cancelled — which arrives as a CI *failure* notification that is not
   a defect. Batch commits, push once. When a failure appears, check whether the
   lanes say `cancelled` before investigating.
+- **A text scan cannot tell code from a comment or a string.** Trimming now-unused
+  requires after a split by asking `\bname\b` of the file body has produced a
+  false negative **three times** — `plan` in `T-2` matched a comment, and in
+  `FT-1` `media` matched a *test name string* and `research` matched the file's
+  *header comment*. Each time the dead require survived, and each time the only
+  thing that caught it was a linter. Let the linter decide what is unused; do not
+  pre-judge it with grep.
+- **`functions/` test files are linted by `functions/`'s own ESLint, not the
+  root's.** `npx eslint` from the repository root reports them as *"File
+  ignored"*, which reads exactly like a pass. The lane that actually checks them
+  is `npm run lint:backend` (= `cd functions && npm run lint`), which the root
+  `npm run lint` includes. **Run root `npm run lint`, never bare `npx eslint`, to
+  clear a `functions/` change.** Verified by planting a deliberate unused require
+  and confirming root `npm run lint` reports it.
 
 ---
 
@@ -65,8 +80,8 @@ it currently is*.
 |---|---|---|
 | Over-limit files at campaign start (2026-08-26 audit, incl. 2026-08-27 additions) | 70 | — |
 | Retired before this tracker existed (PR #49) | 2 | — |
-| **Remaining now** | **62** | **46,854** |
-| Retired by this campaign so far | **6** | **8,778** |
+| **Remaining now** | **61** | **45,358** |
+| Retired by this campaign so far | **7** | **10,274** |
 
 ---
 
@@ -80,11 +95,11 @@ use `—` until it exists.**
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | `SEC-1` | **COMPLETE** | R4 | reconcile PR #50 / #51 | — | — | `claude/secret-scan-loader-gateway` | #51 merged, #50 closed | `20c7550` | owner ruling | green | `dd240a2` | main green at `c023e3f` | 0 |
 | `T-1` | **COMPLETE** | R4 | `scripts/test-ci-plan.mjs` → entry + 7 sections + support | 1223 | **62** | — | #57 | `32673f5` | — | green | `9e7e24d` | main green | **1 ✓** |
-| `T-2` | **IN PROGRESS** | R2 | `scripts/check-ui-contract.mjs` → entry + 6 modules | 1030 | **306** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
+| `T-2` | **COMPLETE** | R2 | `scripts/check-ui-contract.mjs` → entry + 6 modules | 1030 | **306** | — | #58 | `b1452ec` | — | green | `77be09c` | main green | **1 ✓** |
 | `T-3` | NOT STARTED | R2 | `scripts/test-release-promotion.mjs` (tooling) | 584 | 584 | — | — | — | — | — | — | — | 1 |
 | `T-4` | NOT STARTED | R3 | `scripts/deploy-functions-incremental.mjs` (tooling) | 525 | 525 | — | — | — | — | — | — | — | 1 |
 | `T-5` | NOT STARTED | R4 | `scripts/ci-plan.mjs` (tooling) | 523 | 523 | — | — | — | — | — | — | — | 1 |
-| `FT-1` | NOT STARTED | R1 | `functions/test/unit/blogPipeline.test.js` (test) | 1496 | 1496 | — | — | — | — | — | — | — | 1 |
+| `FT-1` | **PR OPEN** | R1 | `blogPipeline.test.js` → 6 suites + support | 1496 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#59](https://github.com/Khomurod/SafeHaul/pull/59) | — | — | local green | — | — | **1 ✓** |
 | `FT-2` | NOT STARTED | R1 | `functions/test/unit/applicationDrafts.test.js` (test) | 1476 | 1476 | — | — | — | — | — | — | — | 1 |
 | `FT-3` | NOT STARTED | R1 | `functions/test/unit/aiRouter.test.js` (test) | 1203 | 1203 | — | — | — | — | — | — | — | 1 |
 | `FT-4` | NOT STARTED | R1 | `functions/test/unit/aiProviders.test.js` (test) | 940 | 940 | — | — | — | — | — | — | — | 1 |
@@ -954,12 +969,104 @@ knowing before reading a diff from it.
 | `check:ci-plan` · `test:source-size` | pass |
 | ESLint on the new files | **0 problems** |
 
+---
+
+## `FT-1` — `blogPipeline.test.js` → 6 suites + support
+
+**Status:** `PR OPEN` — [#59](https://github.com/Khomurod/SafeHaul/pull/59) · **Risk:** R1 · **1496 → deleted, 6 suites of 168–303**
+
+| file | subject | lines |
+|---|---|---|
+| `blogPipeline.scheduling.test.js` | slots, idempotency, duplicate prevention | 303 |
+| `blogPipeline.topics.test.js` | topic selection, lead enrichment, item relevance | 263 |
+| `blogPipeline.ledger.test.js` | the run ledger, Super Admin callables | 256 |
+| `blogPipeline.rendering.test.js` | the public rendering surface | 250 |
+| `blogPipeline.support.js` | mock factories, fixtures, `resetBlogState` | 252 |
+| `blogPipeline.sourcing.test.js` | sourcing requirements, claim verification | 220 |
+| `blogPipeline.content.test.js` | sanitization, image licensing | 168 |
+
+**Proven, not asserted:** the 112 test *names* are identical before and after
+(only per-test timings differ). The full functions suite is 1597/1597 across 107
+suites, up from 102 — six new files replacing one.
+
+### The pattern this establishes for the other nine `FT-*` files
+
+**`jest.mock` is hoisted per file and cannot register from a helper.** So each
+suite keeps its own one-line
+`jest.mock(path, () => require('./blogPipeline.support').xMock())` and the *body*
+lives in support — which is what stops six copies of a 60-line Firestore double
+drifting apart.
+
+**The split files stay in `functions/test/unit/`**, named
+`blogPipeline.<subject>.test.js`, rather than moving to a subdirectory. That means
+**no relative path in any test body changed** — the `../../` requires are
+untouched. Matches the repo's existing dotted-qualifier naming
+(`atsContactSms.transition.test.js`). Doing this in a subdirectory would have
+meant rewriting every require in 1400 lines of moved code for no gain.
+
+**Support is `.support.js`, not `.test.js`**, so Jest's default `testMatch` does
+not pick it up as an empty suite.
+
+**Jest gives each test file its own module registry**, so every suite gets a fresh
+`mockPosts` and `mockLedger`. That is isolation the single file did not have.
+
+### The `Once` hazard was checked, not assumed
+
+`AGENTS.md` warns that `clearAllMocks` does not drain a `*Once` queue and that
+**splitting a file changes test ordering — the timing that makes such a leak
+surface.** This suite queues **no `*Once` value anywhere** (verified by grep before
+splitting), so `resetBlogState` keeps `clearAllMocks` exactly as before. The
+support file says so, and says to switch to `resetAllMocks` if one is ever added.
+
+**One slip worth recording:** my first extraction of the `beforeEach` body dropped
+its `jest.clearAllMocks()` line. Caught by diffing `resetBlogState` against the
+original body rather than by a failing test — 112 tests still passed without it.
+
+| Check | Result |
+|---|---|
+| 112 test names, before vs after | **identical** |
+| functions suite | 1597/1597, 107 suites |
+| `check:source-size` | **61 over limit / 61 recorded** |
+| `check:ci-plan` · `test:source-size` | pass |
+
+### CI came back red once, and it was lint, not a test
+
+`test-functions` failed on the first push of #59 with two `no-unused-vars`:
+
+```
+functions/test/unit/blogPipeline.ledger.test.js
+  25:7  error  'media' is assigned a value but never used
+functions/test/unit/blogPipeline.topics.test.js
+  26:7  error  'research' is assigned a value but never used
+```
+
+Both are the **same false-positive class as `plan` in `T-2`**, third occurrence.
+After splitting, each suite needs only some of the original's requires, and I
+trimmed the rest by asking `\bname\b` of the file body — which matched `media`
+inside the *test name string* `it('lists media providers with no plaintext
+credential', ...)` and `research` inside the file's own *header comment*. A text
+scan has no idea what is code. The fix is two deleted lines; the lesson is that
+**the linter decides what is unused, not grep.**
+
+It reached CI because I had cleared the split with `npx eslint` **from the
+repository root**, which reports every `functions/` test file as *"File
+ignored"* — indistinguishable from a pass in the output. `functions/` has its
+own ESLint configuration and is reached by `npm run lint:backend`
+(= `cd functions && npm run lint`), which root `npm run lint` includes. Verified
+afterwards by planting a deliberate unused require: root `npm run lint` reports
+it, bare `npx eslint` does not. **Clear a `functions/` change with root
+`npm run lint`.**
+
+Re-verified after the fix: `functions` lint 0 problems, the 112 test names still
+identical to the pre-split baseline, 1597/1597 across 107 suites, root
+`npm run lint` clean, `check:source-size` 61/61, `check:ci-plan` and
+`test:source-size` pass.
+
 ### Current stopping point
 
-`T-2` complete locally, PR pending. Next by size is
-`functions/environmentVault/registry.js` (1120, `FR-1`) — but it is R3 runtime, so
-`FT-1` (`blogPipeline.test.js`, 1496) is the larger and lower-risk next move — surface fully mapped above, safe to begin once
-#54 merges.
+`FT-1` is pushed and open as [#59](https://github.com/Khomurod/SafeHaul/pull/59).
+Next: `FT-2` (`applicationDrafts.test.js`, 1476) — same pattern, and
+`functions/test/unit/` has eight more after it — safe to begin once #59 merges.
 
 ---
 
