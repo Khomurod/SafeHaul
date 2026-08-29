@@ -49,7 +49,6 @@
     "functions/test/unit/aiProviders.test.js": 940,
     "functions/test/unit/aiRouter.test.js": 1203,
     "functions/test/unit/applicationDrafts.test.js": 1476,
-    "functions/test/unit/blogPipeline.test.js": 1496,
     "functions/test/unit/environmentVault.callables.test.js": 588,
     "functions/test/unit/guestApplication.snapshot.test.js": 637,
     "functions/test/unit/releaseManagement.callables.test.js": 577,

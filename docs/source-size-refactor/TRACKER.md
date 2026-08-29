@@ -16,12 +16,12 @@ it currently is*.
 | | |
 |---|---|
 | **Last updated** | 2026-08-28, after the second landing ruling |
-| **Verified main SHA** | `9e7e24daaf49417a5ebe6108ca99cbf5504dc68c` (#57 / `T-1` merged) |
-| **Oversized files** | **62** (was 68) — landing ×3, `SA-8`, `T-1`, `T-2` |
-| **Backlog entries** | **62** |
-| **Active work item** | `T-2` — done locally, PR pending. |
+| **Verified main SHA** | `77be09ccb4b0de3ed41a4f7617dfdef5adaee940` (#58 / `T-2` merged) |
+| **Oversized files** | **61** (was 68) — landing ×3, `SA-8`, `T-1`, `T-2`, `FT-1` |
+| **Backlog entries** | **61** |
+| **Active work item** | `FT-1` — done locally, PR pending. |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | `T-2` not yet opened. #57, #56, #55, #54, #53, #52, #51 merged; #50 closed. |
+| **Active PR** | `FT-1` not yet opened. #58 and everything before it merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
 | **CI status** | #54: the size refusal is FIXED and `callable-contract` passes. Earlier "failures" on `f93c925`/`dee9688` were **concurrency cancellations** from rapid pushes, not defects — check for `cancelled` lanes before investigating one. |
@@ -65,8 +65,8 @@ it currently is*.
 |---|---|---|
 | Over-limit files at campaign start (2026-08-26 audit, incl. 2026-08-27 additions) | 70 | — |
 | Retired before this tracker existed (PR #49) | 2 | — |
-| **Remaining now** | **62** | **46,854** |
-| Retired by this campaign so far | **6** | **8,778** |
+| **Remaining now** | **61** | **45,358** |
+| Retired by this campaign so far | **7** | **10,274** |
 
 ---
 
@@ -80,11 +80,11 @@ use `—` until it exists.**
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | `SEC-1` | **COMPLETE** | R4 | reconcile PR #50 / #51 | — | — | `claude/secret-scan-loader-gateway` | #51 merged, #50 closed | `20c7550` | owner ruling | green | `dd240a2` | main green at `c023e3f` | 0 |
 | `T-1` | **COMPLETE** | R4 | `scripts/test-ci-plan.mjs` → entry + 7 sections + support | 1223 | **62** | — | #57 | `32673f5` | — | green | `9e7e24d` | main green | **1 ✓** |
-| `T-2` | **IN PROGRESS** | R2 | `scripts/check-ui-contract.mjs` → entry + 6 modules | 1030 | **306** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
+| `T-2` | **COMPLETE** | R2 | `scripts/check-ui-contract.mjs` → entry + 6 modules | 1030 | **306** | — | #58 | `b1452ec` | — | green | `77be09c` | main green | **1 ✓** |
 | `T-3` | NOT STARTED | R2 | `scripts/test-release-promotion.mjs` (tooling) | 584 | 584 | — | — | — | — | — | — | — | 1 |
 | `T-4` | NOT STARTED | R3 | `scripts/deploy-functions-incremental.mjs` (tooling) | 525 | 525 | — | — | — | — | — | — | — | 1 |
 | `T-5` | NOT STARTED | R4 | `scripts/ci-plan.mjs` (tooling) | 523 | 523 | — | — | — | — | — | — | — | 1 |
-| `FT-1` | NOT STARTED | R1 | `functions/test/unit/blogPipeline.test.js` (test) | 1496 | 1496 | — | — | — | — | — | — | — | 1 |
+| `FT-1` | **IN PROGRESS** | R1 | `blogPipeline.test.js` → 6 suites + support | 1496 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
 | `FT-2` | NOT STARTED | R1 | `functions/test/unit/applicationDrafts.test.js` (test) | 1476 | 1476 | — | — | — | — | — | — | — | 1 |
 | `FT-3` | NOT STARTED | R1 | `functions/test/unit/aiRouter.test.js` (test) | 1203 | 1203 | — | — | — | — | — | — | — | 1 |
 | `FT-4` | NOT STARTED | R1 | `functions/test/unit/aiProviders.test.js` (test) | 940 | 940 | — | — | — | — | — | — | — | 1 |
@@ -954,11 +954,70 @@ knowing before reading a diff from it.
 | `check:ci-plan` · `test:source-size` | pass |
 | ESLint on the new files | **0 problems** |
 
+---
+
+## `FT-1` — `blogPipeline.test.js` → 6 suites + support
+
+**Status:** done locally, PR pending · **Risk:** R1 · **1496 → deleted, 6 suites of 168–303**
+
+| file | subject | lines |
+|---|---|---|
+| `blogPipeline.scheduling.test.js` | slots, idempotency, duplicate prevention | 303 |
+| `blogPipeline.topics.test.js` | topic selection, lead enrichment, item relevance | 263 |
+| `blogPipeline.ledger.test.js` | the run ledger, Super Admin callables | 256 |
+| `blogPipeline.rendering.test.js` | the public rendering surface | 250 |
+| `blogPipeline.support.js` | mock factories, fixtures, `resetBlogState` | 252 |
+| `blogPipeline.sourcing.test.js` | sourcing requirements, claim verification | 220 |
+| `blogPipeline.content.test.js` | sanitization, image licensing | 168 |
+
+**Proven, not asserted:** the 112 test *names* are identical before and after
+(only per-test timings differ). The full functions suite is 1597/1597 across 107
+suites, up from 102 — six new files replacing one.
+
+### The pattern this establishes for the other nine `FT-*` files
+
+**`jest.mock` is hoisted per file and cannot register from a helper.** So each
+suite keeps its own one-line
+`jest.mock(path, () => require('./blogPipeline.support').xMock())` and the *body*
+lives in support — which is what stops six copies of a 60-line Firestore double
+drifting apart.
+
+**The split files stay in `functions/test/unit/`**, named
+`blogPipeline.<subject>.test.js`, rather than moving to a subdirectory. That means
+**no relative path in any test body changed** — the `../../` requires are
+untouched. Matches the repo's existing dotted-qualifier naming
+(`atsContactSms.transition.test.js`). Doing this in a subdirectory would have
+meant rewriting every require in 1400 lines of moved code for no gain.
+
+**Support is `.support.js`, not `.test.js`**, so Jest's default `testMatch` does
+not pick it up as an empty suite.
+
+**Jest gives each test file its own module registry**, so every suite gets a fresh
+`mockPosts` and `mockLedger`. That is isolation the single file did not have.
+
+### The `Once` hazard was checked, not assumed
+
+`AGENTS.md` warns that `clearAllMocks` does not drain a `*Once` queue and that
+**splitting a file changes test ordering — the timing that makes such a leak
+surface.** This suite queues **no `*Once` value anywhere** (verified by grep before
+splitting), so `resetBlogState` keeps `clearAllMocks` exactly as before. The
+support file says so, and says to switch to `resetAllMocks` if one is ever added.
+
+**One slip worth recording:** my first extraction of the `beforeEach` body dropped
+its `jest.clearAllMocks()` line. Caught by diffing `resetBlogState` against the
+original body rather than by a failing test — 112 tests still passed without it.
+
+| Check | Result |
+|---|---|
+| 112 test names, before vs after | **identical** |
+| functions suite | 1597/1597, 107 suites |
+| `check:source-size` | **61 over limit / 61 recorded** |
+| `check:ci-plan` · `test:source-size` | pass |
+
 ### Current stopping point
 
-`T-2` complete locally, PR pending. Next by size is
-`functions/environmentVault/registry.js` (1120, `FR-1`) — but it is R3 runtime, so
-`FT-1` (`blogPipeline.test.js`, 1496) is the larger and lower-risk next move — surface fully mapped above, safe to begin once
+`FT-1` complete locally, PR pending. Next: `FT-2` (`applicationDrafts.test.js`,
+1476) — same pattern, and `functions/test/unit/` has eight more after it — surface fully mapped above, safe to begin once
 #54 merges.
 
 ---
