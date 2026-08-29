@@ -46,7 +46,6 @@
     "functions/test/bulkActions.test.js": 523,
     "functions/test/unit/aiCredentials.test.js": 817,
     "functions/test/unit/aiHealthCheck.test.js": 645,
-    "functions/test/unit/aiProviders.test.js": 940,
     "functions/test/unit/environmentVault.callables.test.js": 588,
     "functions/test/unit/guestApplication.snapshot.test.js": 637,
     "functions/test/unit/releaseManagement.callables.test.js": 577,
