@@ -144,8 +144,15 @@ describe('CSV export — a public field must not become a formula', () => {
         URL.createObjectURL = (blob) => { captured = blob; return 'blob:stub'; };
         URL.revokeObjectURL = () => {};
         render(<WebsiteLeadsView />);
-        await screen.findByRole('button', { name: /Export CSV/i });
-        screen.getByRole('button', { name: /Export CSV/i }).click();
+        // Waiting for the button is NOT waiting for the export to be possible.
+        // It renders immediately, `disabled` until the leads arrive, and
+        // `exportCsv` early-returns on an empty list — so a click that lands
+        // first does nothing at all and `captured` never fills. On a fast run
+        // the load resolves before the query does and it passes anyway, which
+        // is what made this an intermittent CI failure rather than a red test.
+        const button = await screen.findByRole('button', { name: /Export CSV/i });
+        await waitFor(() => expect(button.disabled).toBe(false));
+        button.click();
         await waitFor(() => expect(captured).not.toBe(''));
         URL.createObjectURL = originalCreate;
         return captured.text();

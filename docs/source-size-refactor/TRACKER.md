@@ -24,7 +24,7 @@ it currently is*.
 | **Active PR** | **[#60](https://github.com/Khomurod/SafeHaul/pull/60)** (`FT-2`). [#59](https://github.com/Khomurod/SafeHaul/pull/59) and everything before it merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
-| **CI status** | Run #271 on `cddc00d` succeeded outright, which is what #59 merged on. The one red round on it was **lint, not tests** — see the `FT-1` section. A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
+| **CI status** | #60 went red once on `frontend-quality` — a **race in a test `LD-R3` wrote**, reproduced and fixed, see below. A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
 | **Working tree at session end** | see the last per-item section |
 | **Blockers** | none. The nav-placement question was delegated and decided — see `PLAN.md` § 7.2b. |
 
@@ -1077,6 +1077,41 @@ identical to the pre-split baseline, 1597/1597 across 107 suites, root
 
 `FT-1` merged as [#59](https://github.com/Khomurod/SafeHaul/pull/59); main is
 `3c579aa`. Run #271 succeeded outright on the merged head.
+
+---
+
+## Interlude — the `WebsiteLeadsView` CSV export race (found on #60)
+
+`frontend-quality` failed on a `FT-2` head that touches only `functions/test/`,
+which is the shape of an unrelated failure. It was: a **real race in a test
+`LD-R3` wrote**, and it will fail any PR whose runner is loaded enough.
+
+`exportedCsv` did this:
+
+```js
+render(<WebsiteLeadsView />);
+await screen.findByRole('button', { name: /Export CSV/i });
+screen.getByRole('button', { name: /Export CSV/i }).click();
+await waitFor(() => expect(captured).not.toBe(''));
+```
+
+**Waiting for the button is not waiting for the export to be possible.** The
+button renders immediately and is `disabled={loading || leads.length === 0}`, and
+`exportCsv` opens with `if (!leads.length) return;`. So a click that lands before
+the leads arrive does nothing at all, `captured` never fills, and `waitFor` times
+out. On a fast run the mocked load resolves before the query does and it passes —
+which is exactly why it was intermittent rather than simply red.
+
+**Reproduced before fixing, and the fix proven against the reproduction.** Adding
+a 50 ms delay to the mocked callable turned all seven export cases red locally;
+with the helper waiting for the button to be *enabled* they pass at 50 ms and
+still at 400 ms; the probe delay was then removed and the file is 14/14 clean.
+
+Worth keeping as a class: **`findByRole` matches a disabled button**, so awaiting
+it proves the element exists and nothing about whether it will do anything. When
+a control is gated on loaded data, wait for the data or for the enabled state —
+the other tests in this same file wait on `findByText('Dana Fixture')`, which is
+why only the export helper was exposed.
 
 ---
 
