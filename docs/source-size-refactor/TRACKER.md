@@ -821,11 +821,37 @@ files out of the `visual-regression-diff` artifact CI uploads and commit those a
 the baselines. The artifact exists for exactly this. It costs one extra CI cycle
 and is the only way to record a baseline this container cannot render.
 
+### Baselines taken from CI's artifact — the method, since it will be needed again
+
+Done, and worth writing down because this container can never record a baseline.
+The `visual-regression-diff` artifact CI uploads on failure contains, per failing
+screen, `-expected`, `-actual` and `-diff` PNGs **rendered by CI's own Chromium**.
+The `-actual` files are therefore exactly what a correct baseline should be.
+
+```
+gh api /repos/<owner>/<repo>/actions/artifacts/<id>/zip > vr.zip   # id from list_workflow_run_artifacts
+unzip vr.zip && cp test-results/<...>/<name>-actual.png e2e/visual/__screenshots__/app.spec.cjs/<name>.png
+```
+
+**Four things checked before trusting an actual, all of which passed:**
+
+1. **The artifact is from the fixed head**, not the broken one — otherwise the
+   defect gets baked in as the expectation. (`head_sha` on the artifact.)
+2. **Only the intended screens failed.** CI produced actuals for `super-admin`
+   desktop and mobile and nothing else, confirming the icon fix held and no other
+   screen moved.
+3. **The three attempts are byte-identical** (`sha256` across the run and both
+   retries). A screen that renders differently on retry is flaky, and no attempt
+   of it should be blessed.
+4. **CI's `-expected` matches the committed baseline byte for byte**, proving the
+   right file is being replaced and no unrelated drift is being masked.
+5. **Dimensions are unchanged** — 1440×1105 and 412×1681 before and after — so the
+   diff is a label and an icon inside the same layout, not a structural shift.
+
 ### Current stopping point
 
-`LD-R3` code complete; PR #56 open. The icon defect is fixed and pushed. **The two
-`super-admin` baselines are still to be taken from CI's diff artifact** — that is
-the next action. Then `T-1` — surface fully mapped above, safe to begin once
+`LD-R3` complete; PR #56 open with the icon fix and both baselines from CI.
+Next backlog item is `T-1` — surface fully mapped above, safe to begin once
 #54 merges.
 
 ---
