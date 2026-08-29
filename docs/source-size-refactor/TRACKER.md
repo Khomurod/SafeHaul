@@ -16,12 +16,12 @@ it currently is*.
 | | |
 |---|---|
 | **Last updated** | 2026-08-28, after the second landing ruling |
-| **Verified main SHA** | `f7c89d411b82649c449108f43c94ba05d3f6e3f9` (#56 / `LD-R3` merged) |
-| **Oversized files** | **63** (was 68) — landing ×3, `SA-8`, `T-1` |
-| **Backlog entries** | **63** |
-| **Active work item** | `T-1` — done locally, PR pending. |
+| **Verified main SHA** | `9e7e24daaf49417a5ebe6108ca99cbf5504dc68c` (#57 / `T-1` merged) |
+| **Oversized files** | **62** (was 68) — landing ×3, `SA-8`, `T-1`, `T-2` |
+| **Backlog entries** | **62** |
+| **Active work item** | `T-2` — done locally, PR pending. |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | `T-1` not yet opened. #56, #55, #54, #53, #52, #51 merged; #50 closed. |
+| **Active PR** | `T-2` not yet opened. #57, #56, #55, #54, #53, #52, #51 merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
 | **CI status** | #54: the size refusal is FIXED and `callable-contract` passes. Earlier "failures" on `f93c925`/`dee9688` were **concurrency cancellations** from rapid pushes, not defects — check for `cancelled` lanes before investigating one. |
@@ -65,8 +65,8 @@ it currently is*.
 |---|---|---|
 | Over-limit files at campaign start (2026-08-26 audit, incl. 2026-08-27 additions) | 70 | — |
 | Retired before this tracker existed (PR #49) | 2 | — |
-| **Remaining now** | **63** | **47,884** |
-| Retired by this campaign so far | **5** | **7,748** |
+| **Remaining now** | **62** | **46,854** |
+| Retired by this campaign so far | **6** | **8,778** |
 
 ---
 
@@ -79,8 +79,8 @@ use `—` until it exists.**
 | ID | Status | Risk | Target | Before | Current | Branch | PR | Head | Review | CI | Merge | Post-merge | Removed |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | `SEC-1` | **COMPLETE** | R4 | reconcile PR #50 / #51 | — | — | `claude/secret-scan-loader-gateway` | #51 merged, #50 closed | `20c7550` | owner ruling | green | `dd240a2` | main green at `c023e3f` | 0 |
-| `T-1` | **IN PROGRESS** | R4 | `scripts/test-ci-plan.mjs` → entry + 7 sections + support | 1223 | **62** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
-| `T-2` | NOT STARTED | R2 | `scripts/check-ui-contract.mjs` (tooling) | 1030 | 1030 | — | — | — | — | — | — | — | 1 |
+| `T-1` | **COMPLETE** | R4 | `scripts/test-ci-plan.mjs` → entry + 7 sections + support | 1223 | **62** | — | #57 | `32673f5` | — | green | `9e7e24d` | main green | **1 ✓** |
+| `T-2` | **IN PROGRESS** | R2 | `scripts/check-ui-contract.mjs` → entry + 6 modules | 1030 | **306** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
 | `T-3` | NOT STARTED | R2 | `scripts/test-release-promotion.mjs` (tooling) | 584 | 584 | — | — | — | — | — | — | — | 1 |
 | `T-4` | NOT STARTED | R3 | `scripts/deploy-functions-incremental.mjs` (tooling) | 525 | 525 | — | — | — | — | — | — | — | 1 |
 | `T-5` | NOT STARTED | R4 | `scripts/ci-plan.mjs` (tooling) | 523 | 523 | — | — | — | — | — | — | — | 1 |
@@ -904,10 +904,61 @@ already unused in the original — carried over verbatim, not introduced.
 | `check:source-size` | **63 over limit / 63 recorded** |
 | ESLint on the new files | 0 errors, 1 pre-existing warning |
 
+---
+
+## `T-2` — `scripts/check-ui-contract.mjs` → entry + 6 modules
+
+**Status:** done locally, PR pending · **Risk:** R2 · **1030 → 306**
+
+| file | owns | lines |
+|---|---|---|
+| `scripts/check-ui-contract.mjs` (entry) | `main`, reporting, `--update` | **306** |
+| `ui-contract/rules.mjs` | the three rule tables | 274 |
+| `ui-contract/tables.mjs` | the native-table exception | 137 |
+| `ui-contract/counting.mjs` | tag scanning, `countViolations` | 131 |
+| `ui-contract/source-text.mjs` | `rulesFor`, comment stripping | 119 |
+| `ui-contract/paths.mjs` | lazy roots, the file walk | 89 |
+| `ui-contract/scan.mjs` | the walk, the allowlist read | 60 |
+
+**Behaviour preserved and proven:** the run output is identical, the ratchet test
+passes 37/37, and `--update` produces the same allowlist rewrite as before.
+
+**Three things this file's header warned about, and one it did not:**
+
+1. **Paths must stay lazy.** `countViolations` and `stripComments` are imported by
+   `src/tests/uiContract.ratchet.test.js`, and **Vitest rewrites `import.meta.url`
+   to a non-file URL** — computing paths at module scope made the whole module
+   throw on import. `paths.mjs` keeps every path behind a function call and says
+   so. This is the opposite of what `T-1`'s support module does, deliberately.
+2. **The entry must re-export.** That test imports from
+   `scripts/check-ui-contract.mjs`, so moving the functions without re-exporting
+   would break the guard's own failure test — a guard whose failure test is broken
+   is a guard nobody is checking.
+3. **`repoRoot()` went from `..` to `../..`.** Same class as `T-1`'s `here`.
+4. **The apparent `rules` ↔ `counting` cycle was comments.** Two rule entries say
+   "counted by `countFileInputs`" in prose while declaring `pattern: null` and
+   being dispatched by name. The real graph is acyclic; a naive extraction that
+   trusted a text scan would have introduced an import cycle that did not exist.
+
+**`--update` rewrites the allowlist on every run**, normalising `\u00a7` to `§`.
+Verified this happens identically on the pre-split file, so it is pre-existing and
+not a regression — but it means `--update` is never a no-op, which is worth
+knowing before reading a diff from it.
+
+| Check | Result |
+|---|---|
+| `check:ui-contract` output | identical — 469 files, 235 violations, 40 files |
+| `uiContract.ratchet.test.js` | 37/37 |
+| `--update` allowlist result | identical to pre-split |
+| `check:source-size` | **62 over limit / 62 recorded** |
+| `check:ci-plan` · `test:source-size` | pass |
+| ESLint on the new files | **0 problems** |
+
 ### Current stopping point
 
-`T-1` complete locally, PR pending. Next backlog item by size is
-`scripts/check-ui-contract.mjs` (`T-2`, 1030) — surface fully mapped above, safe to begin once
+`T-2` complete locally, PR pending. Next by size is
+`functions/environmentVault/registry.js` (1120, `FR-1`) — but it is R3 runtime, so
+`FT-1` (`blogPipeline.test.js`, 1496) is the larger and lower-risk next move — surface fully mapped above, safe to begin once
 #54 merges.
 
 ---
