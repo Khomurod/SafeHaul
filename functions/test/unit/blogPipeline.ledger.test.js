@@ -22,7 +22,6 @@ jest.mock('../../blog/media/credentials', () => require('./blogPipeline.support'
 
 const generate = require('../../blog/pipeline/generate');
 const store = require('../../blog/store');
-const media = require('../../blog/media/imageProviders');
 const { publishDueSlots } = require('../../blog/scheduler');
 const runLedger = require('../../blog/runLedger');
 const {

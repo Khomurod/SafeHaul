@@ -23,7 +23,6 @@ jest.mock('../../blog/media/credentials', () => require('./blogPipeline.support'
 const themes = require('../../blog/pipeline/themes');
 const generate = require('../../blog/pipeline/generate');
 const store = require('../../blog/store');
-const research = require('../../blog/research/fetchSources');
 const {
     mockSelectTopic, researchFetch, resetBlogState,
 } = require('./blogPipeline.support');
