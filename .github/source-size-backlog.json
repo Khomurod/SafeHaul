@@ -45,7 +45,6 @@
     "functions/shared/pdf/documentBuilder.js": 599,
     "functions/test/bulkActions.test.js": 523,
     "functions/test/unit/environmentVault.callables.test.js": 588,
-    "functions/test/unit/guestApplication.snapshot.test.js": 637,
     "functions/test/unit/releaseManagement.callables.test.js": 577,
     "scripts/ci-plan.mjs": 523,
     "scripts/deploy-functions-incremental.mjs": 525,

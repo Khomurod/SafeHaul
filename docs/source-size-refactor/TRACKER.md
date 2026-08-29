@@ -15,13 +15,13 @@ it currently is*.
 
 | | |
 |---|---|
-| **Last updated** | 2026-08-31, `FT-5` merged as #63; `FT-6` on the branch |
-| **Verified main SHA** | `4f8f8eac1af36310a7cf516f617c3369fe2d0e92` (#63 / `FT-5` merged) |
-| **Oversized files** | **57 on `main`, 56 on this branch** (was 68 when the tracker opened) |
-| **Backlog entries** | **57 on `main`, 56 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
-| **Active work item** | `FT-6` — on the branch, PR pending. **`FT-7` through `FT-10` and `FR-1` are all built, verified and committed** on local branches, queued behind it. |
+| **Last updated** | 2026-08-31, `FT-6` merged as #64; `FT-7` on the branch |
+| **Verified main SHA** | `8e14ee5c565f8dbb777353b443b100f5620489b1` (#64 / `FT-6` merged) |
+| **Oversized files** | **56 on `main`, 55 on this branch** (was 68 when the tracker opened) |
+| **Backlog entries** | **56 on `main`, 55 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
+| **Active work item** | `FT-7` — on the branch, PR pending. **`FT-8` through `FT-10`, `FR-1` and `FR-2` are all built, verified and committed** on local branches, queued behind it. |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | none open yet for `FT-6`. [#63](https://github.com/Khomurod/SafeHaul/pull/63) and everything before it merged; #50 closed. |
+| **Active PR** | none open yet for `FT-7`. [#64](https://github.com/Khomurod/SafeHaul/pull/64) and everything before it merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
 | **CI status** | #61, #62 and #63 all merged fully green, first try. The only red round in this stretch was #60's `frontend-quality` — a **race in a test `LD-R3` wrote**, reproduced and fixed, see the interlude below. A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
@@ -30,10 +30,10 @@ it currently is*.
 
 ### Exact next action
 
-1. **Push and open the `FT-6` PR**, then merge it when green.
-2. **`FT-7` through `FT-10` and `FR-1` are already built, verified and committed** —
-   on the local branches `local/ft-7` … `local/ft-10` and `local/fr-1`, each
-   stacked on the one before.
+1. **Push and open the `FT-7` PR**, then merge it when green.
+2. **`FT-8` through `FT-10`, `FR-1` and `FR-2` are already built, verified and
+   committed** — on the local branches `local/ft-8` … `local/ft-10`, `local/fr-1`
+   and `local/fr-2`, each stacked on the one before.
    Promote them one at a time with the standing per-unit ritual, because every
    unit reuses one branch name: once a PR merges, restart from the new `main`
    (`git fetch origin main && git checkout -B
@@ -126,8 +126,8 @@ use `—` until it exists.**
 | `FT-3` | **MERGED** | R1 | `aiRouter.test.js` → 4 suites + support | 1203 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#61](https://github.com/Khomurod/SafeHaul/pull/61) | — | — | local green | — | — | **1 ✓** |
 | `FT-4` | **MERGED** | R1 | `aiProviders.test.js` → 4 suites + support | 940 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#62](https://github.com/Khomurod/SafeHaul/pull/62) | — | — | local green | — | — | **1 ✓** |
 | `FT-5` | **MERGED** | R1 | `aiCredentials.test.js` → 3 suites + support | 817 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#63](https://github.com/Khomurod/SafeHaul/pull/63) | — | — | local green | — | — | **1 ✓** |
-| `FT-6` | **IN PROGRESS** | R1 | `aiHealthCheck.test.js` → 3 suites + support | 645 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
-| `FT-7` | NOT STARTED | R1 | `functions/test/unit/guestApplication.snapshot.test.js` (test) | 637 | 637 | — | — | — | — | — | — | — | 1 |
+| `FT-6` | **MERGED** | R1 | `aiHealthCheck.test.js` → 3 suites + support | 645 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#64](https://github.com/Khomurod/SafeHaul/pull/64) | — | — | local green | — | — | **1 ✓** |
+| `FT-7` | **IN PROGRESS** | R1 | `guestApplication.snapshot.test.js` → 3 suites + support | 637 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
 | `FT-8` | NOT STARTED | R1 | `functions/test/unit/environmentVault.callables.test.js` (test) | 588 | 588 | — | — | — | — | — | — | — | 1 |
 | `FT-9` | NOT STARTED | R1 | `functions/test/unit/releaseManagement.callables.test.js` (test) | 577 | 577 | — | — | — | — | — | — | — | 1 |
 | `FT-10` | NOT STARTED | R1 | `functions/test/bulkActions.test.js` (test) | 523 | 523 | — | — | — | — | — | — | — | 1 |
@@ -1392,7 +1392,7 @@ same class of bug as `FT-3`'s `resetModules` problem, reached without any
 
 ## `FT-6` — `aiHealthCheck.test.js` → 3 suites + support
 
-**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R1 ·
+**Status:** `MERGED` — [#64](https://github.com/Khomurod/SafeHaul/pull/64), main `8e14ee5` · **Risk:** R1 ·
 **645 → deleted, 3 suites of 175–253**
 
 | file | subject | lines |
@@ -1423,6 +1423,52 @@ comparison — the assertion is one line and it is now in the script.
 | functions suite | 1597/1597 |
 | root `npm run lint` | pass |
 | `check:source-size` | **56 over limit / 56 recorded**, verdict `OK` |
+| `check:ci-plan` · `test:source-size` | pass |
+
+---
+
+## `FT-7` — `guestApplication.snapshot.test.js` → 3 suites + support
+
+**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R1 ·
+**637 → deleted, 3 suites of 151–173**
+
+| file | subject | lines |
+|---|---|---|
+| `guestApplication.snapshot.support.js` | the in-memory Firestore, `mockApplicationDoc`, fixtures | 239 |
+| `…durability.test.js` | a snapshot failure must not lose the application | 173 |
+| `…freeze.test.js` | what a submission freezes, and the questions as the driver saw them | 173 |
+| `…pdf.test.js` | preserving the application PDF, and repeating sections | 151 |
+
+Body-line diff: **nothing lost**, four added blank lines at file boundaries. All
+34 full test names identical. Functions suite 1597/1597.
+
+### Match the file's own indentation, not the campaign's
+
+This one is **two-space indented** where the other nine `FT-*` files are
+four-space. The generated preambles and the support file follow it. A split that
+reindents is a split whose diff nobody can read, and the point of the exercise is
+files people can read.
+
+### The linter placed a require better than I would have
+
+`assertStorableValue` is required in the original preamble and used **only inside
+`mockApplicationDoc`**, which moved to support. Generating every suite with the
+full import set and letting `lint:backend` prune left the require in support,
+where its single consumer now lives, and out of all three suites. Same for
+`decodeStoredSnapshot` and `findNestedArrayPaths`, which go the other way: unused
+in support, kept only by the one suite that calls them.
+
+That is the generate-then-prune method paying for itself a third time. Deciding by
+hand where each of five requires belonged across four files would have been four
+chances to be wrong.
+
+| Check | Result |
+|---|---|
+| 34 full test names, before vs after | **identical** |
+| body lines, original vs split | **nothing lost**, 4 added blank lines |
+| functions suite | 1597/1597 |
+| root `npm run lint` | pass |
+| `check:source-size` | **55 over limit / 55 recorded**, verdict `OK` |
 | `check:ci-plan` · `test:source-size` | pass |
 
 ---
