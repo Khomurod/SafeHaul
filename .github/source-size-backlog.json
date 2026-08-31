@@ -29,7 +29,6 @@
     "hard": 500
   },
   "files": {
-    "functions/ai/credentials/store.js": 505,
     "scripts/ci-plan.mjs": 523,
     "scripts/deploy-functions-incremental.mjs": 525,
     "scripts/test-release-promotion.mjs": 584,
