@@ -15,13 +15,13 @@ it currently is*.
 
 | | |
 |---|---|
-| **Last updated** | 2026-08-31, `FR-8` merged as #76; `FR-9` on the branch |
-| **Verified main SHA** | `72b9f06147a4a5b7f7e35ca79d8caafcb36ba134` (#76 / `FR-8` merged) |
-| **Oversized files** | **44 on `main`, 43 on this branch** (was 68 when the tracker opened) |
-| **Backlog entries** | **44 on `main`, 43 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
-| **Active work item** | `FR-9` — on the branch, PR pending. Built one-at-a-time from `main`, per `PLAN.md` § 6; nothing is stacked behind it. |
+| **Last updated** | 2026-08-31, `FR-9` merged as #77; `FR-10` on the branch |
+| **Verified main SHA** | `cbd2753bdc44b27bee729ba68bc6324a735e6ba9` (#77 / `FR-9` merged) |
+| **Oversized files** | **43 on `main`, 42 on this branch** (was 68 when the tracker opened) |
+| **Backlog entries** | **43 on `main`, 42 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
+| **Active work item** | `FR-10` — on the branch, PR pending. Built one-at-a-time from `main`, per `PLAN.md` § 6; nothing is stacked behind it. |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | none open yet for `FR-9`. [#76](https://github.com/Khomurod/SafeHaul/pull/76) and everything before it merged; #50 closed. |
+| **Active PR** | none open yet for `FR-10`. [#77](https://github.com/Khomurod/SafeHaul/pull/77) and everything before it merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
 | **CI status** | #61, #62 and #63 all merged fully green, first try. The only red round in this stretch was #60's `frontend-quality` — a **race in a test `LD-R3` wrote**, reproduced and fixed, see the interlude below. A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
@@ -30,8 +30,8 @@ it currently is*.
 
 ### Exact next action
 
-1. **Push and open the `FR-9` PR**, then merge it when green.
-2. **Nothing is pre-built behind `FR-9`.** The stacking deviation recorded below
+1. **Push and open the `FR-10` PR**, then merge it when green.
+2. **Nothing is pre-built behind `FR-10`.** The stacking deviation recorded below
    is fully unwound once it merges.
    **Their sections below were published with `FT-10`, deliberately ahead of their
    code.** The reason is worth keeping: for several units the "rebuild it from the
@@ -54,7 +54,7 @@ it currently is*.
    conflicts.
    **If those local branches are gone** (a fresh container), the work is not lost:
    rebuild each from its `FR-*` section below, which is written as a recipe.
-3. **After `FR-9`: `FR-10`–`FR-14`**, one at a time from `main`, then
+3. **After `FR-10`: `FR-11`–`FR-14`**, one at a time from `main`, then
    `RU-1` → `RU-2` (Firestore rules) under the owner's ruling in `PLAN.md` § 7.3.
 
 **Four process rules learned the hard way in this session, all worth keeping:**
@@ -142,8 +142,8 @@ use `—` until it exists.**
 | `FR-6` | **MERGED** | R3 | `sessionController.js` → 265 + 2 modules; new IDOR-branch tests | 651 | **265** | `claude/safehual-source-size-refactor-j4apre` | [#74](https://github.com/Khomurod/SafeHaul/pull/74) | — | 2026-08-31 | green | ✓ | ✓ | **1 ✓** |
 | `FR-7` | **MERGED** | R4 | `applicationDocument.js` → 176 + 3 modules | 643 | **176** | `claude/safehual-source-size-refactor-j4apre` | [#75](https://github.com/Khomurod/SafeHaul/pull/75) | — | 2026-08-31 | green | ✓ | ✓ | **1 ✓** |
 | `FR-8` | **MERGED** | R3 | `publicApi.js` → 186 + 3 modules | 631 | **186** | `claude/safehual-source-size-refactor-j4apre` | [#76](https://github.com/Khomurod/SafeHaul/pull/76) | — | 2026-08-31 | green | ✓ | ✓ | **1 ✓** |
-| `FR-9` | **IN PROGRESS** | R3 | `providers.js` → 154 + the provider table | 628 | **154** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
-| `FR-10` | NOT STARTED | R3 | `functions/hrAdmin.js` (runtime) | 607 | 607 | — | — | — | — | — | — | — | 1 |
+| `FR-9` | **MERGED** | R3 | `providers.js` → 154 + the provider table | 628 | **154** | `claude/safehual-source-size-refactor-j4apre` | [#77](https://github.com/Khomurod/SafeHaul/pull/77) | — | 2026-08-31 | green | ✓ | ✓ | **1 ✓** |
+| `FR-10` | **IN PROGRESS** | R3 | `hrAdmin.js` → 18-line entry + 4 modules | 607 | **18** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
 | `FR-11` | NOT STARTED | R4 | `functions/shared/pdf/documentBuilder.js` (runtime) | 599 | 599 | — | — | — | — | — | — | — | 1 |
 | `FR-12` | NOT STARTED | R3 | `functions/releaseManagement/index.js` (runtime) | 517 | 517 | — | — | — | — | — | — | — | 1 |
 | `FR-13` | NOT STARTED | R3 | `functions/bulkActions/workers/batchWorker.js` (runtime) | 511 | 511 | — | — | — | — | — | — | — | 1 |
@@ -2161,7 +2161,7 @@ the `__test` surface. What it serves moves out by output kind.
 
 ## `FR-9` — `ai/registry/providers.js` → the table, plus what is derived from it
 
-**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R3 ·
+**Status:** `MERGED` — [#77](https://github.com/Khomurod/SafeHaul/pull/77), main `cbd2753` · **Risk:** R3 ·
 **628 → 154, plus the 497-line provider table**
 
 `FR-1`'s shape again: a declarative registry. The 400-line `PROVIDER_LIST`
@@ -2200,6 +2200,51 @@ Data lives in the table; behaviour stays in the entry.
 | functions suite | 1601/1601 |
 | root `npm run lint` | pass |
 | `check:source-size` | **43 recorded**, verdict `OK` |
+| `check:ci-plan` | pass |
+
+---
+
+## `FR-10` — `hrAdmin.js` → the deployment surface, plus a module per concern
+
+**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R3 ·
+**607 → 18-line entry, plus four modules of 140–186**
+
+Five deployed functions in one file, `FR-2`'s shape. `functions/index.js`
+reads each handler by name off this module, so the entry is now nothing but
+that contract.
+
+| file | subject | lines |
+|---|---|---|
+| `hrAdmin/team.js` | `listCompanyTeam` and the chunked Auth lookup | 186 |
+| `hrAdmin/manageUser.js` | `deletePortalUser`, `updatePortalUser`, the SMS-line unassignment | 174 |
+| `hrAdmin/createUser.js` | assignable roles, the profile backstop, `createPortalUser` | 154 |
+| `hrAdmin/membership.js` | the `onMembershipWrite` claims/team-cache trigger | 140 |
+| `hrAdmin.js` (entry) | the five re-exported names | 18 |
+
+### Recipe
+
+- Helper ownership checked first and it was clean: `ensureUserProfile` and
+  `ASSIGNABLE_PORTAL_ROLES` are used only by create; `clearSmsAssignment`
+  only by delete; `fetchAuthUsers` only by the roster. Bodies moved verbatim
+  by `sed` line range; multiset diff missing only the original two wide
+  require lines (replaced per-module, linter-pruned). Each module keeps its
+  `exports.name = onCall(...)` line verbatim and re-exports it.
+- No `secrets:` bindings anywhere in the file; no source-text guard reads it
+  (checked `functions/test` and `src/tests`).
+- **Honest coverage note:** the four covering suites (47 tests) pin create,
+  delete/SMS-unassignment, the membership trigger, and the roster —
+  **`updatePortalUser` has no tests**. It moved whole with no internal seams
+  (verbatim body, imports proven by the linter), but it remains untested; a
+  characterization suite for it is a worthwhile follow-up unit.
+
+| Check | Result |
+|---|---|
+| export surface (5 functions) | **identical** |
+| the 4 covering suites (47 tests) | **identical**, name for name |
+| every original body line | accounted for — only the two replaced require lines |
+| functions suite | 1601/1601 |
+| root `npm run lint` | pass |
+| `check:source-size` | **42 recorded**, verdict `OK` |
 | `check:ci-plan` | pass |
 
 ---
