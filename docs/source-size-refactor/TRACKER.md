@@ -15,13 +15,13 @@ it currently is*.
 
 | | |
 |---|---|
-| **Last updated** | 2026-08-31, `FR-11` merged as #79; `FR-12` on the branch |
-| **Verified main SHA** | `f9298c7143ad9d086815ba3ac3d8e5bec9b210f8` (#79 / `FR-11` merged) |
-| **Oversized files** | **41 on `main`, 40 on this branch** (was 68 when the tracker opened) |
-| **Backlog entries** | **41 on `main`, 40 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
-| **Active work item** | `FR-12` — on the branch, PR pending. Built one-at-a-time from `main`, per `PLAN.md` § 6; nothing is stacked behind it. |
+| **Last updated** | 2026-08-31, `FR-12` merged as #80; `FR-13` on the branch |
+| **Verified main SHA** | `2310d92f76cc0effccb12807fdd5f59e67f73aae` (#80 / `FR-12` merged) |
+| **Oversized files** | **40 on `main`, 39 on this branch** (was 68 when the tracker opened) |
+| **Backlog entries** | **40 on `main`, 39 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
+| **Active work item** | `FR-13` — on the branch, PR pending. Built one-at-a-time from `main`, per `PLAN.md` § 6; nothing is stacked behind it. |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | none open yet for `FR-12`. [#79](https://github.com/Khomurod/SafeHaul/pull/79) and everything before it merged; #50 closed. |
+| **Active PR** | none open yet for `FR-13`. [#80](https://github.com/Khomurod/SafeHaul/pull/80) and everything before it merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
 | **CI status** | #61, #62 and #63 all merged fully green, first try. The only red round in this stretch was #60's `frontend-quality` — a **race in a test `LD-R3` wrote**, reproduced and fixed, see the interlude below. A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
@@ -30,8 +30,8 @@ it currently is*.
 
 ### Exact next action
 
-1. **Push and open the `FR-12` PR**, then merge it when green.
-2. **Nothing is pre-built behind `FR-12`.** The stacking deviation recorded below
+1. **Push and open the `FR-13` PR**, then merge it when green.
+2. **Nothing is pre-built behind `FR-13`.** The stacking deviation recorded below
    is fully unwound once it merges.
    **Their sections below were published with `FT-10`, deliberately ahead of their
    code.** The reason is worth keeping: for several units the "rebuild it from the
@@ -54,7 +54,7 @@ it currently is*.
    conflicts.
    **If those local branches are gone** (a fresh container), the work is not lost:
    rebuild each from its `FR-*` section below, which is written as a recipe.
-3. **After `FR-12`: `FR-13`–`FR-14`**, one at a time from `main`, then
+3. **After `FR-13`: `FR-14`**, then
    `RU-1` → `RU-2` (Firestore rules) under the owner's ruling in `PLAN.md` § 7.3.
 
 **Four process rules learned the hard way in this session, all worth keeping:**
@@ -145,8 +145,8 @@ use `—` until it exists.**
 | `FR-9` | **MERGED** | R3 | `providers.js` → 154 + the provider table | 628 | **154** | `claude/safehual-source-size-refactor-j4apre` | [#77](https://github.com/Khomurod/SafeHaul/pull/77) | — | 2026-08-31 | green | ✓ | ✓ | **1 ✓** |
 | `FR-10` | **MERGED** | R3 | `hrAdmin.js` → 18-line entry + 4 modules | 607 | **18** | `claude/safehual-source-size-refactor-j4apre` | [#78](https://github.com/Khomurod/SafeHaul/pull/78) | — | 2026-08-31 | green | ✓ | ✓ | **1 ✓** |
 | `FR-11` | **MERGED** | R4 | `documentBuilder.js` → 480 + `layout.js`; class kept whole | 599 | **480** | `claude/safehual-source-size-refactor-j4apre` | [#79](https://github.com/Khomurod/SafeHaul/pull/79) | — | 2026-08-31 | green | ✓ | ✓ | **1 ✓** |
-| `FR-12` | **IN PROGRESS** | R3 | `releaseManagement/index.js` → 151 + 2 modules | 517 | **151** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
-| `FR-13` | NOT STARTED | R3 | `functions/bulkActions/workers/batchWorker.js` (runtime) | 511 | 511 | — | — | — | — | — | — | — | 1 |
+| `FR-12` | **MERGED** | R3 | `releaseManagement/index.js` → 151 + 2 modules | 517 | **151** | `claude/safehual-source-size-refactor-j4apre` | [#80](https://github.com/Khomurod/SafeHaul/pull/80) | — | 2026-08-31 | green | ✓ | ✓ | **1 ✓** |
+| `FR-13` | **IN PROGRESS** | R3 | `batchWorker.js` → 233 + 2 modules | 511 | **233** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
 | `FR-14` | NOT STARTED | R3 | `functions/ai/credentials/store.js` (runtime) | 505 | 505 | — | — | — | — | — | — | — | 1 |
 | `SA-1` | NOT STARTED | R2 | `src/features/super-admin/views/AiIntegrationsView.jsx` (runtime) | 983 | 983 | — | — | — | — | — | — | — | 1 |
 | `SA-2` | NOT STARTED | R1 | `src/features/super-admin/views/AiIntegrationsView.contract.test.jsx` (test) | 1699 | 1699 | — | — | — | — | — | — | — | 1 |
@@ -2295,7 +2295,7 @@ and the WinAnsi text sanitation and wrapping, into `layout.js`.
 
 ## `FR-12` — `releaseManagement/index.js` → the callables, the engine, the store
 
-**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R3 ·
+**Status:** `MERGED` — [#80](https://github.com/Khomurod/SafeHaul/pull/80), main `2310d92` · **Risk:** R3 ·
 **517 → 151, plus two modules of 174–249**
 
 **This file is the Production promotion surface**, on the campaign's do-not-
@@ -2337,6 +2337,51 @@ never a SHA from the request.
 | functions suite | 1601/1601 |
 | root `npm run lint` | pass |
 | `check:source-size` | **40 recorded**, verdict `OK` |
+| `check:ci-plan` | pass |
+
+---
+
+## `FR-13` — `bulkActions/workers/batchWorker.js` → the worker, the sender, the loop
+
+**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R3 ·
+**511 → 233, plus two modules of 91–263**
+
+`FR-6`'s shape: one exported handler (`processBulkBatch`, an `onRequest` of
+~485 lines) over the hard cap by itself. The entry keeps the security gate
+(constant-time shared-secret check), the batch-claim transaction with the
+B4 send ceiling, the end-batch bookkeeping, and — load-bearing — the
+`onRequest({ ... secrets: [...] })` options **verbatim**, because
+`smsSecretBindings.test.js` reads this file as text and regex-matches
+SMS_ENCRYPTION_KEY inside those options. That guard is in the covering set
+and passes unchanged.
+
+| file | subject | lines |
+|---|---|---|
+| `workers/sendLoop.js` | the sequential per-lead loop: cancel check, idempotency, fetch, blacklist, send, atomic log+pointer, dedup ledgers, pacing | 263 |
+| `batchWorker.js` (entry) | the gate, the claim transaction, the ceiling, end-batch, the deployed options | 233 |
+| `workers/senderSetup.js` | the SMS adapter / SMTP transporter setup, with the fail-the-session-immediately branch | 91 |
+
+### Recipe
+
+- Three seam lines, each proven by the multiset diff being otherwise clean:
+  the two `let adapter/emailTransporter` declarations became `senderSetup`'s
+  locals (returned and destructured), and the adapter-failure branch's
+  direct `res.status(200).send(...)` became a tagged `{ failed }` return the
+  worker sends — the session-marking update it does first moved with it,
+  unchanged. The loop's three counters are locals of `runSendLoop`,
+  returned, where the worker used to close over them.
+- Covering set: the bulk session suite, `batchWorker.phoneLedgerWrite`,
+  `batchWorker.sessionCeiling`, `sessionCancel` (the mid-batch stop), and
+  `smsSecretBindings` — 19 tests, identical name-for-name.
+
+| Check | Result |
+|---|---|
+| export surface (`processBulkBatch`) | **identical** |
+| the 5 covering suites (19 tests, incl. the secret-binding text guard) | **identical**, name for name |
+| every original body line | accounted for — only the three documented seams |
+| functions suite | 1601/1601 |
+| root `npm run lint` | pass |
+| `check:source-size` | **39 recorded**, verdict `OK` |
 | `check:ci-plan` | pass |
 
 ---
