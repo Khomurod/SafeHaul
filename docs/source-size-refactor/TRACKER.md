@@ -15,13 +15,13 @@ it currently is*.
 
 | | |
 |---|---|
-| **Last updated** | 2026-08-31, `FR-9` merged as #77; `FR-10` on the branch |
-| **Verified main SHA** | `cbd2753bdc44b27bee729ba68bc6324a735e6ba9` (#77 / `FR-9` merged) |
-| **Oversized files** | **43 on `main`, 42 on this branch** (was 68 when the tracker opened) |
-| **Backlog entries** | **43 on `main`, 42 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
-| **Active work item** | `FR-10` — on the branch, PR pending. Built one-at-a-time from `main`, per `PLAN.md` § 6; nothing is stacked behind it. |
+| **Last updated** | 2026-08-31, `FR-10` merged as #78; `FR-11` on the branch |
+| **Verified main SHA** | `345b8d0a1caa463f4585fccfb62caeeb496dabbf` (#78 / `FR-10` merged) |
+| **Oversized files** | **42 on `main`, 41 on this branch** (was 68 when the tracker opened) |
+| **Backlog entries** | **42 on `main`, 41 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
+| **Active work item** | `FR-11` — on the branch, PR pending. Built one-at-a-time from `main`, per `PLAN.md` § 6; nothing is stacked behind it. |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | none open yet for `FR-10`. [#77](https://github.com/Khomurod/SafeHaul/pull/77) and everything before it merged; #50 closed. |
+| **Active PR** | none open yet for `FR-11`. [#78](https://github.com/Khomurod/SafeHaul/pull/78) and everything before it merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
 | **CI status** | #61, #62 and #63 all merged fully green, first try. The only red round in this stretch was #60's `frontend-quality` — a **race in a test `LD-R3` wrote**, reproduced and fixed, see the interlude below. A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
@@ -30,8 +30,8 @@ it currently is*.
 
 ### Exact next action
 
-1. **Push and open the `FR-10` PR**, then merge it when green.
-2. **Nothing is pre-built behind `FR-10`.** The stacking deviation recorded below
+1. **Push and open the `FR-11` PR**, then merge it when green.
+2. **Nothing is pre-built behind `FR-11`.** The stacking deviation recorded below
    is fully unwound once it merges.
    **Their sections below were published with `FT-10`, deliberately ahead of their
    code.** The reason is worth keeping: for several units the "rebuild it from the
@@ -54,7 +54,7 @@ it currently is*.
    conflicts.
    **If those local branches are gone** (a fresh container), the work is not lost:
    rebuild each from its `FR-*` section below, which is written as a recipe.
-3. **After `FR-10`: `FR-11`–`FR-14`**, one at a time from `main`, then
+3. **After `FR-11`: `FR-12`–`FR-14`**, one at a time from `main`, then
    `RU-1` → `RU-2` (Firestore rules) under the owner's ruling in `PLAN.md` § 7.3.
 
 **Four process rules learned the hard way in this session, all worth keeping:**
@@ -143,8 +143,8 @@ use `—` until it exists.**
 | `FR-7` | **MERGED** | R4 | `applicationDocument.js` → 176 + 3 modules | 643 | **176** | `claude/safehual-source-size-refactor-j4apre` | [#75](https://github.com/Khomurod/SafeHaul/pull/75) | — | 2026-08-31 | green | ✓ | ✓ | **1 ✓** |
 | `FR-8` | **MERGED** | R3 | `publicApi.js` → 186 + 3 modules | 631 | **186** | `claude/safehual-source-size-refactor-j4apre` | [#76](https://github.com/Khomurod/SafeHaul/pull/76) | — | 2026-08-31 | green | ✓ | ✓ | **1 ✓** |
 | `FR-9` | **MERGED** | R3 | `providers.js` → 154 + the provider table | 628 | **154** | `claude/safehual-source-size-refactor-j4apre` | [#77](https://github.com/Khomurod/SafeHaul/pull/77) | — | 2026-08-31 | green | ✓ | ✓ | **1 ✓** |
-| `FR-10` | **IN PROGRESS** | R3 | `hrAdmin.js` → 18-line entry + 4 modules | 607 | **18** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
-| `FR-11` | NOT STARTED | R4 | `functions/shared/pdf/documentBuilder.js` (runtime) | 599 | 599 | — | — | — | — | — | — | — | 1 |
+| `FR-10` | **MERGED** | R3 | `hrAdmin.js` → 18-line entry + 4 modules | 607 | **18** | `claude/safehual-source-size-refactor-j4apre` | [#78](https://github.com/Khomurod/SafeHaul/pull/78) | — | 2026-08-31 | green | ✓ | ✓ | **1 ✓** |
+| `FR-11` | **IN PROGRESS** | R4 | `documentBuilder.js` → 480 + `layout.js`; class kept whole | 599 | **480** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
 | `FR-12` | NOT STARTED | R3 | `functions/releaseManagement/index.js` (runtime) | 517 | 517 | — | — | — | — | — | — | — | 1 |
 | `FR-13` | NOT STARTED | R3 | `functions/bulkActions/workers/batchWorker.js` (runtime) | 511 | 511 | — | — | — | — | — | — | — | 1 |
 | `FR-14` | NOT STARTED | R3 | `functions/ai/credentials/store.js` (runtime) | 505 | 505 | — | — | — | — | — | — | — | 1 |
@@ -2206,7 +2206,7 @@ Data lives in the table; behaviour stays in the entry.
 
 ## `FR-10` — `hrAdmin.js` → the deployment surface, plus a module per concern
 
-**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R3 ·
+**Status:** `MERGED` — [#78](https://github.com/Khomurod/SafeHaul/pull/78), main `345b8d0` · **Risk:** R3 ·
 **607 → 18-line entry, plus four modules of 140–186**
 
 Five deployed functions in one file, `FR-2`'s shape. `functions/index.js`
@@ -2245,6 +2245,50 @@ that contract.
 | functions suite | 1601/1601 |
 | root `npm run lint` | pass |
 | `check:source-size` | **42 recorded**, verdict `OK` |
+| `check:ci-plan` | pass |
+
+---
+
+## `FR-11` — `shared/pdf/documentBuilder.js` → the engine, plus its vocabulary
+
+**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R4 ·
+**599 → 480, plus `layout.js` at 165**
+
+The recurring shape, in class form. The `DocumentBuilder` class (423 lines)
+is **deliberately kept whole**, with the justification in the file: it is one
+layout engine over one mutable cursor — every method reads and advances the
+same position state — and splitting a class across files means mixins or
+prototype patching, machinery with its own failure modes. What moved is the
+engine's *vocabulary*: page/margin geometry, the type scale, the ink palette,
+and the WinAnsi text sanitation and wrapping, into `layout.js`.
+
+| file | subject | lines |
+|---|---|---|
+| `documentBuilder.js` (entry) | the `DocumentBuilder` class, the export surface | 480 |
+| `pdf/layout.js` | geometry, type scale, ink, text sanitation and wrapping | 165 |
+
+### Recipe
+
+- Constants + helpers 20–160 → `layout.js` (which needs its own
+  `rgb` import from pdf-lib — the linter caught it as `no-undef`); class
+  162–588 stays. Multiset diff missing only the original pdf-lib require
+  line, resplit between the two files. Export surface identical, constant
+  values compared by JSON, prototype method list compared name-for-name.
+- Covering coverage is `applicationDocument.test.js` +
+  `reconstructSubmission.test.js` (46 tests) — they render real PDFs through
+  this engine and assert extracted text and layout primitives (`wrapText`
+  and `sanitizeForStandardFont` are imported and probed directly). Identical
+  name-for-name after the split. No source-text guard reads this file
+  (checked `functions/test` and `src/tests`).
+
+| Check | Result |
+|---|---|
+| export surface (8 names, constants by value, prototype methods by name) | **identical** |
+| 46 covering tests | **identical**, name for name |
+| every original body line | accounted for — only the resplit pdf-lib require |
+| functions suite | 1601/1601 |
+| root `npm run lint` | pass |
+| `check:source-size` | **41 recorded**, verdict `OK` |
 | `check:ci-plan` | pass |
 
 ---
