@@ -15,13 +15,13 @@ it currently is*.
 
 | | |
 |---|---|
-| **Last updated** | 2026-08-31, `FR-10` merged as #78; `FR-11` on the branch |
-| **Verified main SHA** | `345b8d0a1caa463f4585fccfb62caeeb496dabbf` (#78 / `FR-10` merged) |
-| **Oversized files** | **42 on `main`, 41 on this branch** (was 68 when the tracker opened) |
-| **Backlog entries** | **42 on `main`, 41 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
-| **Active work item** | `FR-11` — on the branch, PR pending. Built one-at-a-time from `main`, per `PLAN.md` § 6; nothing is stacked behind it. |
+| **Last updated** | 2026-08-31, `FR-11` merged as #79; `FR-12` on the branch |
+| **Verified main SHA** | `f9298c7143ad9d086815ba3ac3d8e5bec9b210f8` (#79 / `FR-11` merged) |
+| **Oversized files** | **41 on `main`, 40 on this branch** (was 68 when the tracker opened) |
+| **Backlog entries** | **41 on `main`, 40 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
+| **Active work item** | `FR-12` — on the branch, PR pending. Built one-at-a-time from `main`, per `PLAN.md` § 6; nothing is stacked behind it. |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | none open yet for `FR-11`. [#78](https://github.com/Khomurod/SafeHaul/pull/78) and everything before it merged; #50 closed. |
+| **Active PR** | none open yet for `FR-12`. [#79](https://github.com/Khomurod/SafeHaul/pull/79) and everything before it merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
 | **CI status** | #61, #62 and #63 all merged fully green, first try. The only red round in this stretch was #60's `frontend-quality` — a **race in a test `LD-R3` wrote**, reproduced and fixed, see the interlude below. A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
@@ -30,8 +30,8 @@ it currently is*.
 
 ### Exact next action
 
-1. **Push and open the `FR-11` PR**, then merge it when green.
-2. **Nothing is pre-built behind `FR-11`.** The stacking deviation recorded below
+1. **Push and open the `FR-12` PR**, then merge it when green.
+2. **Nothing is pre-built behind `FR-12`.** The stacking deviation recorded below
    is fully unwound once it merges.
    **Their sections below were published with `FT-10`, deliberately ahead of their
    code.** The reason is worth keeping: for several units the "rebuild it from the
@@ -54,7 +54,7 @@ it currently is*.
    conflicts.
    **If those local branches are gone** (a fresh container), the work is not lost:
    rebuild each from its `FR-*` section below, which is written as a recipe.
-3. **After `FR-11`: `FR-12`–`FR-14`**, one at a time from `main`, then
+3. **After `FR-12`: `FR-13`–`FR-14`**, one at a time from `main`, then
    `RU-1` → `RU-2` (Firestore rules) under the owner's ruling in `PLAN.md` § 7.3.
 
 **Four process rules learned the hard way in this session, all worth keeping:**
@@ -144,8 +144,8 @@ use `—` until it exists.**
 | `FR-8` | **MERGED** | R3 | `publicApi.js` → 186 + 3 modules | 631 | **186** | `claude/safehual-source-size-refactor-j4apre` | [#76](https://github.com/Khomurod/SafeHaul/pull/76) | — | 2026-08-31 | green | ✓ | ✓ | **1 ✓** |
 | `FR-9` | **MERGED** | R3 | `providers.js` → 154 + the provider table | 628 | **154** | `claude/safehual-source-size-refactor-j4apre` | [#77](https://github.com/Khomurod/SafeHaul/pull/77) | — | 2026-08-31 | green | ✓ | ✓ | **1 ✓** |
 | `FR-10` | **MERGED** | R3 | `hrAdmin.js` → 18-line entry + 4 modules | 607 | **18** | `claude/safehual-source-size-refactor-j4apre` | [#78](https://github.com/Khomurod/SafeHaul/pull/78) | — | 2026-08-31 | green | ✓ | ✓ | **1 ✓** |
-| `FR-11` | **IN PROGRESS** | R4 | `documentBuilder.js` → 480 + `layout.js`; class kept whole | 599 | **480** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
-| `FR-12` | NOT STARTED | R3 | `functions/releaseManagement/index.js` (runtime) | 517 | 517 | — | — | — | — | — | — | — | 1 |
+| `FR-11` | **MERGED** | R4 | `documentBuilder.js` → 480 + `layout.js`; class kept whole | 599 | **480** | `claude/safehual-source-size-refactor-j4apre` | [#79](https://github.com/Khomurod/SafeHaul/pull/79) | — | 2026-08-31 | green | ✓ | ✓ | **1 ✓** |
+| `FR-12` | **IN PROGRESS** | R3 | `releaseManagement/index.js` → 151 + 2 modules | 517 | **151** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
 | `FR-13` | NOT STARTED | R3 | `functions/bulkActions/workers/batchWorker.js` (runtime) | 511 | 511 | — | — | — | — | — | — | — | 1 |
 | `FR-14` | NOT STARTED | R3 | `functions/ai/credentials/store.js` (runtime) | 505 | 505 | — | — | — | — | — | — | — | 1 |
 | `SA-1` | NOT STARTED | R2 | `src/features/super-admin/views/AiIntegrationsView.jsx` (runtime) | 983 | 983 | — | — | — | — | — | — | — | 1 |
@@ -2251,7 +2251,7 @@ that contract.
 
 ## `FR-11` — `shared/pdf/documentBuilder.js` → the engine, plus its vocabulary
 
-**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R4 ·
+**Status:** `MERGED` — [#79](https://github.com/Khomurod/SafeHaul/pull/79), main `f9298c7` · **Risk:** R4 ·
 **599 → 480, plus `layout.js` at 165**
 
 The recurring shape, in class form. The `DocumentBuilder` class (423 lines)
@@ -2289,6 +2289,54 @@ and the WinAnsi text sanitation and wrapping, into `layout.js`.
 | functions suite | 1601/1601 |
 | root `npm run lint` | pass |
 | `check:source-size` | **41 recorded**, verdict `OK` |
+| `check:ci-plan` | pass |
+
+---
+
+## `FR-12` — `releaseManagement/index.js` → the callables, the engine, the store
+
+**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R3 ·
+**517 → 151, plus two modules of 174–249**
+
+**This file is the Production promotion surface**, on the campaign's do-not-
+weaken list, so everything moved verbatim and the deployed shape is pinned:
+the entry keeps all three `onCall` declarations, `releaseOptions` (whose
+`secrets: SECRET_NAMES` stays beside the v2 import), `getReleaseStatus`'s
+body, and the two candidate resolvers — promoting still resolves only the
+eligible Testing release, rollback only the previous Production release,
+never a SHA from the request.
+
+| file | subject | lines |
+|---|---|---|
+| `promote.js` | `startPromotion` — the shared engine: guard, credential check, lock, dispatch, audit | 249 |
+| `promotionStore.js` | the Admin-SDK-only collections, the lock TTL, `safeFailure`, serialisation, the latest-promotion read, GitHub reconciliation | 174 |
+| `index.js` (entry) | the three deployed callables, their options, the candidate resolvers | 151 |
+
+### Recipe
+
+- Helper placement followed measured usage: `refreshPromotion` touches the
+  lock collection and the audit log, so the store owns those; the engine owns
+  `assertCredentialConfigured`. Bodies moved verbatim by `sed` line range —
+  multiset diff missing only five reshaped require lines (wide destructures
+  resplit per module).
+- The linter earned its keep twice: `safeFailure` checks
+  `instanceof IneligibleReleaseError` and `refreshPromotion` writes audit
+  events, both `no-undef` in the store until their imports were added —
+  crashes the tests would only have found on those paths.
+- The three FT-9 suites plus `releaseManagement.github.test.js` (56 tests)
+  mock at module boundaries (`./github`, `../../firebaseAdmin`) that the new
+  modules resolve identically, and pass identical name-for-name. No
+  source-text guard reads this file (checked `functions/test`, `src/tests`,
+  and `scripts/`).
+
+| Check | Result |
+|---|---|
+| export surface (3 deployed callables) | **identical** |
+| the 4 covering suites (56 tests) | **identical**, name for name |
+| every original body line | accounted for — only five reshaped require lines |
+| functions suite | 1601/1601 |
+| root `npm run lint` | pass |
+| `check:source-size` | **40 recorded**, verdict `OK` |
 | `check:ci-plan` | pass |
 
 ---
