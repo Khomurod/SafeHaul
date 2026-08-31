@@ -15,13 +15,13 @@ it currently is*.
 
 | | |
 |---|---|
-| **Last updated** | 2026-08-31, `FR-3` merged as #71; `FR-4` on the branch — the pre-built queue ends here |
-| **Verified main SHA** | `8c6a5adc7fe338f2b376d061622b4bc9d64d3a77` (#71 / `FR-3` merged) |
-| **Oversized files** | **49 on `main`, 48 on this branch** (was 68 when the tracker opened) |
-| **Backlog entries** | **49 on `main`, 48 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
-| **Active work item** | `FR-4` — on the branch, PR pending. Nothing is pre-built behind it; the next unit is `FR-5`. |
+| **Last updated** | 2026-08-31, `FR-4` merged as #72 — the pre-built queue is drained and the § 6 deviation unwound; `FR-5` on the branch |
+| **Verified main SHA** | `13d599898a50244014b00389553658b9a30439fb` (#72 / `FR-4` merged) |
+| **Oversized files** | **48 on `main`, 47 on this branch** (was 68 when the tracker opened) |
+| **Backlog entries** | **48 on `main`, 47 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
+| **Active work item** | `FR-5` — on the branch, PR pending. Built one-at-a-time from `main`, per `PLAN.md` § 6; nothing is stacked behind it. |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | none open yet for `FR-4`. [#71](https://github.com/Khomurod/SafeHaul/pull/71) and everything before it merged; #50 closed. |
+| **Active PR** | none open yet for `FR-5`. [#72](https://github.com/Khomurod/SafeHaul/pull/72) and everything before it merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
 | **CI status** | #61, #62 and #63 all merged fully green, first try. The only red round in this stretch was #60's `frontend-quality` — a **race in a test `LD-R3` wrote**, reproduced and fixed, see the interlude below. A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
@@ -30,8 +30,8 @@ it currently is*.
 
 ### Exact next action
 
-1. **Push and open the `FR-4` PR**, then merge it when green.
-2. **Nothing is pre-built behind `FR-4`.** The stacking deviation recorded below
+1. **Push and open the `FR-5` PR**, then merge it when green.
+2. **Nothing is pre-built behind `FR-5`.** The stacking deviation recorded below
    is fully unwound once it merges.
    **Their sections below were published with `FT-10`, deliberately ahead of their
    code.** The reason is worth keeping: for several units the "rebuild it from the
@@ -54,10 +54,8 @@ it currently is*.
    conflicts.
    **If those local branches are gone** (a fresh container), the work is not lost:
    rebuild each from its `FR-*` section below, which is written as a recipe.
-3. **After `FR-4`, nothing is pre-built.** The next unit is `FR-5`
-   (`functions/blog/pipeline/generate.js`, 674 — `runSlot` is 352 lines, so apply
-   the "one large function plus its helpers" guidance below), then `FR-6`–`FR-14`,
-   then `RU-1` → `RU-2` (Firestore rules) under the owner's ruling in `PLAN.md` § 7.3.
+3. **After `FR-5`: `FR-6`–`FR-14`**, one at a time from `main`, then
+   `RU-1` → `RU-2` (Firestore rules) under the owner's ruling in `PLAN.md` § 7.3.
 
 **Four process rules learned the hard way in this session, all worth keeping:**
 
@@ -139,8 +137,8 @@ use `—` until it exists.**
 | `FR-1` | **MERGED** | R3 | `registry.js` → 162-line entry + 7 modules | 1188 | **162** | `claude/safehual-source-size-refactor-j4apre` | [#69](https://github.com/Khomurod/SafeHaul/pull/69) | — | 2026-08-31 | green | ✓ | ✓ | **1 ✓** |
 | `FR-2` | **MERGED** | R3 | `ai/callables.js` → 57-line entry + 6 modules | 951 | **57** | `claude/safehual-source-size-refactor-j4apre` | [#70](https://github.com/Khomurod/SafeHaul/pull/70) | — | 2026-08-31 | green | ✓ | ✓ | **1 ✓** |
 | `FR-3` | **MERGED** | R4 | `applicationDrafts.js` → 67-line entry + 5 modules | 948 | **67** | `claude/safehual-source-size-refactor-j4apre` | [#71](https://github.com/Khomurod/SafeHaul/pull/71) | — | 2026-08-31 | green | ✓ | ✓ | **1 ✓** |
-| `FR-4` | **IN PROGRESS** | R3 | `router.js` → 445 + 4 modules; `runAiTask` kept whole | 806 | **445** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
-| `FR-5` | NOT STARTED | R3 | `functions/blog/pipeline/generate.js` (runtime) | 674 | 674 | — | — | — | — | — | — | — | 1 |
+| `FR-4` | **MERGED** | R3 | `router.js` → 445 + 4 modules; `runAiTask` kept whole | 806 | **445** | `claude/safehual-source-size-refactor-j4apre` | [#72](https://github.com/Khomurod/SafeHaul/pull/72) | — | 2026-08-31 | green | ✓ | ✓ | **1 ✓** |
+| `FR-5` | **IN PROGRESS** | R3 | `generate.js` → 428 + 4 modules; `runSlot` kept whole | 674 | **428** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
 | `FR-6` | NOT STARTED | R3 | `functions/bulkActions/controllers/sessionController.js` (runtime) | 651 | 651 | — | — | — | — | — | — | — | 1 |
 | `FR-7` | NOT STARTED | R4 | `functions/shared/pdf/applicationDocument.js` (runtime) | 643 | 643 | — | — | — | — | — | — | — | 1 |
 | `FR-8` | NOT STARTED | R3 | `functions/blog/publicApi.js` (runtime) | 631 | 631 | — | — | — | — | — | — | — | 1 |
@@ -1873,7 +1871,7 @@ list — which is exactly what a careless split of a mixed-generation file produ
 
 ## `FR-4` — `ai/router/router.js` → the loop, plus the pieces it decides with
 
-**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R3 ·
+**Status:** `MERGED` — [#72](https://github.com/Khomurod/SafeHaul/pull/72), main `13d5998` · **Risk:** R3 ·
 **806 → 445, plus four modules of 86–159**
 
 | file | subject | lines |
@@ -1935,6 +1933,55 @@ call the other.
 
 ---
 
+## `FR-5` — `blog/pipeline/generate.js` → the pipeline, plus what it decides with
+
+**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R3 ·
+**674 → 428, plus four modules of 34–101**
+
+The second unit to meet the recurring shape recorded below: `runSlot` (342
+lines, the thirteen-stage pipeline spine) is **deliberately kept whole**, with
+the justification at the top of the file, and the helpers move out by what each
+decides. Decomposing the spine is its own future unit, not a size side effect.
+
+| file | subject | lines |
+|---|---|---|
+| `generate.js` (entry) | `runSlot`, `OUTCOME`, the export surface | 428 |
+| `pipeline/candidates.js` | the road-freight relevance gate and the candidate list | 101 |
+| `pipeline/evidence.js` | the fact package and the theme's sourcing bar | 91 |
+| `pipeline/validation.js` | the draft gate and the owner-ruled 150-word floor | 88 |
+| `pipeline/seo.js` | the SEO metadata block | 34 |
+
+### Recipe (how it was cut, reproducible from `main`'s prior state)
+
+- Segment boundaries were read off `grep -n` over top-level declarations, and
+  every body was moved with `sed -n 'a,bp'`, never retyped. `OUTCOME` stays in
+  the entry — it is the loop's vocabulary, used at fifteen sites in `runSlot`.
+  `MAX_CANDIDATES` + `ROAD_FREIGHT_PATTERN` + `isRoadFreightRelevant` +
+  `buildCandidates` → `candidates.js`; `buildFactPackage` +
+  `sourcingIsSufficient` → `evidence.js`; `MIN_WORD_COUNT` (with its owner-ruling
+  comment, verbatim) + `validateDraft` → `validation.js`; `PUBLIC_ORIGIN` +
+  `buildSeo` → `seo.js`. The entry re-exports the identical surface.
+- New modules were generated with the full candidate import set;
+  `npm run lint:backend` named the four dead requires and exactly those were
+  deleted. The linter decides what is unused, not grep.
+- No source-text guard reads this file (checked `readFileSync`/`readdirSync`
+  over `functions/test`), no `secrets:` binding lives here, and the only runtime
+  consumer is `blog/scheduler.js` (`runSlot`, `OUTCOME` — both unmoved).
+  `runLedger.js` documents itself against `runSlot`'s return sites, which all
+  stay in `generate.js`.
+
+| Check | Result |
+|---|---|
+| export surface, `OUTCOME` values (frozen), all three constants | **identical** |
+| 112 covering tests across the six `blogPipeline.*` suites | **identical**, name for name |
+| every original body line | **accounted for** — multiset diff, 0 missing |
+| functions suite | 1597/1597 |
+| root `npm run lint` | pass |
+| `check:source-size` | **47 recorded**, verdict `OK` |
+| `check:ci-plan` | pass |
+
+---
+
 ## The rebase that committed conflict markers, and the pipe that hid it
 
 Recorded because the mechanism is reusable and the fix is one character.
@@ -1988,8 +2035,8 @@ the conflict disappears rather than being resolved.
 
 ## A shape that recurs: one large function plus its helpers
 
-Recorded once here rather than re-argued per unit, because `FR-4` met it and at
-least `FR-5` (`blog/pipeline/generate.js`, 674, whose `runSlot` is 352) and
+Recorded once here rather than re-argued per unit, because `FR-4` and `FR-5`
+(`blog/pipeline/generate.js`, whose `runSlot` is 342) both met it, and
 `FR-7`/`FR-11` (the PDF builders) look the same from the outside.
 
 **The pattern.** A runtime file is over the limit because it contains one long
