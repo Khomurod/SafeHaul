@@ -31,7 +31,6 @@
   "files": {
     "functions/ai/credentials/store.js": 505,
     "functions/ai/registry/providers.js": 628,
-    "functions/blog/pipeline/generate.js": 674,
     "functions/blog/publicApi.js": 631,
     "functions/bulkActions/controllers/sessionController.js": 651,
     "functions/bulkActions/workers/batchWorker.js": 511,
