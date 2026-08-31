@@ -39,112 +39,19 @@ import React, { useId, useState, useMemo, useCallback } from 'react';
 import { db } from '@lib/firebase';
 import { doc, deleteDoc } from 'firebase/firestore';
 import {
-    Search, Trash2, Filter, Eye, MessageSquare, UserPlus,
-    FileText, User, Briefcase, Share2, Clock,
-    ChevronUp, MapPin
+    Search, Filter,
 } from 'lucide-react';
-import { formatPhoneNumber } from '@shared/utils/helpers';
 import { useToast } from '@shared/components/feedback';
-import { StatusBadge } from '@shared/components/badges';
 import { ModernDriverTable } from '@shared/components/table';
-import { Badge, Button, Card, IconButton, Input, Select } from '@/design-system/components';
-import { ConfirmDialog } from '@design-system/patterns';
+import { Button, Card, Input, Select } from '@/design-system/components';
 
 // ========== SOURCE BADGE COMPONENT ==========
-/** Domain source type -> semantic tone/label. Feature-owned mapping. */
-const SOURCE_CONFIG = {
-    'Company App': { tone: 'info', icon: FileText, label: 'Direct App' },
-    'Company Lead': { tone: 'accent', icon: Share2, label: 'Company Lead' },
-    'Company Import': { tone: 'warning', icon: Briefcase, label: 'Import' },
-};
-
-const SourceBadge = ({ type }) => {
-    const c = SOURCE_CONFIG[type] || { tone: 'neutral', icon: User, label: type };
-    return <Badge tone={c.tone} icon={c.icon}>{c.label}</Badge>;
-};
-
-// ========== BULK ACTION BAR ==========
-/**
- * OPERATOR-SAFETY FIX (2026-07-28). Message, Assign, Move Status and Archive were
- * **false affordances**: each handler did nothing but fire a *success* toast
- * ("Archive action for 50 items"), and Archive additionally asked
- * `window.confirm("Are you sure you want to archive 50 records?")` first — so an
- * operator could confirm a destructive-sounding bulk action on 50 driver records,
- * be told it succeeded, and have nothing happen at all. On a DOT-compliance
- * surface that is a materially misleading state, not a cosmetic gap.
- *
- * No implementation is invented here, because none can be inferred safely:
- *  - **Assign**: `LeadAssignmentModal` does real bulk assignment, but only within
- *    a single company's `leads` collection. This view spans every company and
- *    mixes applications with leads, so reusing it would mean inventing
- *    cross-tenant assignment policy.
- *  - **Message**: the campaigns feature owns bulk SMS (`initBulkSession`) with its
- *    own audience, consent and throttling rules. There is no precedent for sending
- *    from here.
- *  - **Move Status**: per-record status updates exist; a cross-company bulk status
- *    transition has no precedent and no audit-log shape.
- *  - **Archive**: the view has a real *permanent delete* path, but nothing in the
- *    repository defines an "archived" state, so Archive is not delete.
- *
- * The controls are therefore kept visible (so the owner decision stays visible
- * too) but disabled and explicitly labelled as unavailable. `Clear` still works.
- * No Firebase path, callable or business rule changed. Recorded in the roadmap for
- * an owner decision.
- */
-const BulkActionBar = ({ selectedCount, onClearSelection, unavailableNoteId }) => (
-    <div
-        role="group"
-        aria-label="Bulk actions for selected records"
-        className="flex flex-wrap items-center justify-between gap-ds-3 rounded-t-ds-xl bg-ds-action-primary px-ds-4 py-ds-3 text-ds-content-inverse"
-    >
-        <div className="flex items-center gap-ds-3">
-            <span className="font-semibold" role="status">{selectedCount} selected</span>
-            <Button variant="ghost" size="sm" onClick={onClearSelection}>
-                Clear<span className="sr-only"> selection</span>
-            </Button>
-        </div>
-        <div className="flex flex-wrap items-center gap-ds-2">
-            <Button variant="secondary" size="sm" disabled aria-describedby={unavailableNoteId}>
-                <MessageSquare size={14} aria-hidden="true" /> Message
-                <span className="sr-only">{` ${selectedCount} selected records`}</span>
-            </Button>
-            <Button variant="secondary" size="sm" disabled aria-describedby={unavailableNoteId}>
-                <UserPlus size={14} aria-hidden="true" /> Assign
-                <span className="sr-only">{` ${selectedCount} selected records`}</span>
-            </Button>
-            <Button variant="secondary" size="sm" disabled aria-describedby={unavailableNoteId}>
-                <ChevronUp size={14} aria-hidden="true" /> Move Status
-                <span className="sr-only">{` for ${selectedCount} selected records`}</span>
-            </Button>
-            <Button variant="danger" size="sm" disabled aria-describedby={unavailableNoteId}>
-                <Trash2 size={14} aria-hidden="true" /> Archive
-                <span className="sr-only">{` ${selectedCount} selected records`}</span>
-            </Button>
-        </div>
-        <p id={unavailableNoteId} className="w-full text-ds-xs text-ds-content-inverse">
-            Bulk Message, Assign, Move Status and Archive are not available yet. Use a
-            record&apos;s own actions instead.
-        </p>
-    </div>
-);
-
-/** Filter definitions. Values and visible text preserved verbatim. */
-const FILTERS = [
-    { key: 'status', label: 'Filter by status', options: [
-        ['All', 'All Status'], ['New', 'New'], ['In Review', 'In Review'],
-        ['Qualified', 'Qualified'], ['Hold', 'Hold'], ['Approved', 'Approved'], ['Rejected', 'Rejected'],
-    ] },
-    { key: 'source', label: 'Filter by source', options: [
-        ['All', 'All Sources'], ['Company App', 'Direct Applications'],
-        ['Company Lead', 'Company Leads'], ['Company Import', 'Company Imports'],
-    ] },
-    { key: 'driverType', label: 'Filter by driver type', options: [
-        ['All', 'All Types'], ['OTR', 'OTR'], ['Regional', 'Regional'], ['Local', 'Local'], ['Team', 'Team'],
-    ] },
-    { key: 'docsStatus', label: 'Filter by documents status', options: [
-        ['All', 'All Docs'], ['Complete', 'Complete'], ['Partial', 'Partial'], ['Missing', 'Missing'],
-    ] },
-];
+import {
+    BulkActionBar,
+    FILTERS,
+    DeleteRecordDialog,
+} from '../components/driver-list/UnifiedDriverListParts';
+import { buildDriverListColumns } from '../components/driver-list/driverListColumns';
 
 // ========== MAIN COMPONENT ==========
 export function UnifiedDriverList({
@@ -354,140 +261,14 @@ export function UnifiedDriverList({
     const hasActiveFilters = search || Object.values(filters).some(v => v !== 'All');
 
     // --- Modern Table Column Config ---
-    const tableColumns = useMemo(() => [
-        // Identity: Name + Contact
-        {
-            key: 'identity',
-            header: 'Driver',
-            render: (item) => (
-                <div className="min-w-[180px]">
-                    <p className="text-ds-body font-semibold text-ds-content">
-                        {item.firstName} {item.lastName}
-                    </p>
-                    <p className="text-ds-xs text-ds-content-muted truncate max-w-[200px] mt-0.5">
-                        {item.phone ? formatPhoneNumber(item.phone) : ''}
-                        {item.phone && item.email ? ' • ' : ''}
-                        {item.email || ''}
-                    </p>
-                </div>
-            ),
-        },
-        // Status + Stale
-        {
-            key: 'status',
-            header: 'Status',
-            render: (item) => {
-                const stale = isStale(item.createdAt);
-                return (
-                    <div className="flex flex-col gap-1">
-                        <StatusBadge status={item.status || 'New'} />
-                        {stale && <StatusBadge status="Stale" />}
-                    </div>
-                );
-            },
-        },
-        // Source
-        {
-            key: 'source',
-            header: 'Source',
-            render: (item) => <SourceBadge type={item.sourceType} />,
-        },
-        // Context: Location + Driver Type
-        {
-            key: 'context',
-            header: 'Location / Type',
-            render: (item) => (
-                <div>
-                    {(item.city || item.state) ? (
-                        <p className="text-ds-body font-semibold text-ds-content flex items-center gap-1">
-                            <MapPin size={12} className="text-ds-content-muted" />
-                            {item.city}{item.city && item.state ? ', ' : ''}{item.state}
-                        </p>
-                    ) : (
-                        <p className="text-ds-body text-ds-content-muted">—</p>
-                    )}
-                    <p className="text-ds-xs text-ds-content-muted mt-0.5">
-                        {Array.isArray(item.driverType)
-                            ? item.driverType.join(', ')
-                            : item.driverType || '—'}
-                    </p>
-                </div>
-            ),
-        },
-        // Details: Position + Exp + Docs
-        {
-            key: 'details',
-            header: 'Position / Docs',
-            render: (item) => {
-                const docsStatus = getDocsStatus(item);
-                return (
-                    <div>
-                        <p className="text-ds-body text-ds-content-secondary font-medium">
-                            {item.positionApplyingTo || 'Driver'}
-                            {item.yearsExperience ? ` · ${item.yearsExperience}y exp` : ''}
-                        </p>
-                        <span className={`text-ds-xs font-medium mt-0.5 inline-block ${docsStatus === 'Complete' ? 'text-ds-status-success-fg' :
-                                docsStatus === 'Missing' ? 'text-ds-status-warning-fg' : 'text-ds-content-muted'
-                            }`}>
-                            Docs: {docsStatus}
-                        </span>
-                    </div>
-                );
-            },
-        },
-        // Activity
-        {
-            key: 'activity',
-            header: 'Activity',
-            render: (item) => (
-                <span className="inline-flex items-center gap-1 text-ds-xs text-ds-content-muted">
-                    <Clock size={12} />
-                    {getRelativeTime(item.updatedAt || item.createdAt)}
-                </span>
-            ),
-        },
-        // Actions — hover-reveal
-        {
-            key: 'actions',
-            header: '',
-            headerClassName: 'w-[100px]',
-            cellClassName: 'w-[100px]',
-            stopPropagation: true,
-            render: (item) => {
-                const who = `${item.firstName || ''} ${item.lastName || ''}`.trim() || 'this driver';
-                return (
-                    // `focus-within` so keyboard users can see the actions at all —
-                    // they were hover-only and therefore unreachable without a mouse.
-                    <div className="flex items-center gap-1 opacity-0 transition-opacity duration-200 focus-within:opacity-100 group-hover:opacity-100">
-                        <IconButton
-                            label={`View ${who}`}
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => { e.stopPropagation(); onAppClick(item); }}
-                        >
-                            <Eye size={15} aria-hidden="true" />
-                        </IconButton>
-                        <IconButton
-                            label={`Message ${who}`}
-                            variant="ghost"
-                            size="sm"
-                        >
-                            <MessageSquare size={15} aria-hidden="true" />
-                        </IconButton>
-                        <IconButton
-                            label={`Delete ${who}`}
-                            variant="ghost"
-                            size="sm"
-                            loading={deletingId === item.id}
-                            onClick={(e) => { e.stopPropagation(); setPendingDelete(item); }}
-                        >
-                            <Trash2 size={15} aria-hidden="true" className="text-ds-status-danger-fg" />
-                        </IconButton>
-                    </div>
-                );
-            },
-        },
-    ], [deletingId, onAppClick]);
+    const tableColumns = useMemo(() => buildDriverListColumns({
+        deletingId,
+        onAppClick,
+        setPendingDelete,
+        getRelativeTime,
+        isStale,
+        getDocsStatus,
+    }), [deletingId, onAppClick]);
 
     return (
         <div className="space-y-4 h-full flex flex-col">
@@ -619,37 +400,6 @@ export function UnifiedDriverList({
                 />
             )}
         </div>
-    );
-}
-
-/**
- * Replaces the blocking `window.confirm` on the permanent record delete. The
- * SUPER ADMIN WARNING wording is preserved verbatim.
- *
- * The approved `ConfirmDialog` since 2026-08-25. Hand-composed before that, and
- * it carried the severity **in the heading's colour** — `text-ds-status-danger-fg`
- * on the title, with no medallion — which is status by colour alone on the most
- * destructive action in the product. The pattern's danger medallion carries it
- * instead, the wording is untouched, and initial focus lands on Cancel rather
- * than on "Permanently delete".
- */
-function DeleteRecordDialog({ item, onCancel, onConfirm }) {
-    const who = `${item.firstName || ''} ${item.lastName || ''}`.trim();
-
-    return (
-        <ConfirmDialog
-            tone="danger"
-            title="SUPER ADMIN WARNING"
-            description={(
-                <>
-                    Are you sure you want to PERMANENTLY DELETE this record for{' '}
-                    <strong className="text-ds-content">{who}</strong>? This cannot be undone.
-                </>
-            )}
-            confirmLabel="Permanently delete"
-            onCancel={onCancel}
-            onConfirm={onConfirm}
-        />
     );
 }
 
