@@ -15,13 +15,13 @@ it currently is*.
 
 | | |
 |---|---|
-| **Last updated** | 2026-08-31, `FR-12` merged as #80; `FR-13` on the branch |
-| **Verified main SHA** | `2310d92f76cc0effccb12807fdd5f59e67f73aae` (#80 / `FR-12` merged) |
-| **Oversized files** | **40 on `main`, 39 on this branch** (was 68 when the tracker opened) |
-| **Backlog entries** | **40 on `main`, 39 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
-| **Active work item** | `FR-13` — on the branch, PR pending. Built one-at-a-time from `main`, per `PLAN.md` § 6; nothing is stacked behind it. |
+| **Last updated** | 2026-08-31, `FR-13` merged as #81; `FR-14` on the branch — the last `FR-*` unit |
+| **Verified main SHA** | `b3d51d90180d71701e9044b5468bf27ab3478d0b` (#81 / `FR-13` merged) |
+| **Oversized files** | **39 on `main`, 38 on this branch** (was 68 when the tracker opened) |
+| **Backlog entries** | **39 on `main`, 38 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
+| **Active work item** | `FR-14` — on the branch, PR pending. Built one-at-a-time from `main`, per `PLAN.md` § 6; nothing is stacked behind it. |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | none open yet for `FR-13`. [#80](https://github.com/Khomurod/SafeHaul/pull/80) and everything before it merged; #50 closed. |
+| **Active PR** | none open yet for `FR-14`. [#81](https://github.com/Khomurod/SafeHaul/pull/81) and everything before it merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
 | **CI status** | #61, #62 and #63 all merged fully green, first try. The only red round in this stretch was #60's `frontend-quality` — a **race in a test `LD-R3` wrote**, reproduced and fixed, see the interlude below. A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
@@ -30,8 +30,8 @@ it currently is*.
 
 ### Exact next action
 
-1. **Push and open the `FR-13` PR**, then merge it when green.
-2. **Nothing is pre-built behind `FR-13`.** The stacking deviation recorded below
+1. **Push and open the `FR-14` PR**, then merge it when green.
+2. **Nothing is pre-built behind `FR-14`.** The stacking deviation recorded below
    is fully unwound once it merges.
    **Their sections below were published with `FT-10`, deliberately ahead of their
    code.** The reason is worth keeping: for several units the "rebuild it from the
@@ -54,7 +54,8 @@ it currently is*.
    conflicts.
    **If those local branches are gone** (a fresh container), the work is not lost:
    rebuild each from its `FR-*` section below, which is written as a recipe.
-3. **After `FR-13`: `FR-14`**, then
+3. **After `FR-14`, the `FR-*` series is done.** Next per the master table:
+   the `SA-*` frontend runtime/test units, then
    `RU-1` → `RU-2` (Firestore rules) under the owner's ruling in `PLAN.md` § 7.3.
 
 **Four process rules learned the hard way in this session, all worth keeping:**
@@ -146,8 +147,8 @@ use `—` until it exists.**
 | `FR-10` | **MERGED** | R3 | `hrAdmin.js` → 18-line entry + 4 modules | 607 | **18** | `claude/safehual-source-size-refactor-j4apre` | [#78](https://github.com/Khomurod/SafeHaul/pull/78) | — | 2026-08-31 | green | ✓ | ✓ | **1 ✓** |
 | `FR-11` | **MERGED** | R4 | `documentBuilder.js` → 480 + `layout.js`; class kept whole | 599 | **480** | `claude/safehual-source-size-refactor-j4apre` | [#79](https://github.com/Khomurod/SafeHaul/pull/79) | — | 2026-08-31 | green | ✓ | ✓ | **1 ✓** |
 | `FR-12` | **MERGED** | R3 | `releaseManagement/index.js` → 151 + 2 modules | 517 | **151** | `claude/safehual-source-size-refactor-j4apre` | [#80](https://github.com/Khomurod/SafeHaul/pull/80) | — | 2026-08-31 | green | ✓ | ✓ | **1 ✓** |
-| `FR-13` | **IN PROGRESS** | R3 | `batchWorker.js` → 233 + 2 modules | 511 | **233** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
-| `FR-14` | NOT STARTED | R3 | `functions/ai/credentials/store.js` (runtime) | 505 | 505 | — | — | — | — | — | — | — | 1 |
+| `FR-13` | **MERGED** | R3 | `batchWorker.js` → 233 + 2 modules | 511 | **233** | `claude/safehual-source-size-refactor-j4apre` | [#81](https://github.com/Khomurod/SafeHaul/pull/81) | — | 2026-08-31 | green | ✓ | ✓ | **1 ✓** |
+| `FR-14` | **IN PROGRESS** | R3 | `store.js` → 236 + 2 modules | 505 | **236** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
 | `SA-1` | NOT STARTED | R2 | `src/features/super-admin/views/AiIntegrationsView.jsx` (runtime) | 983 | 983 | — | — | — | — | — | — | — | 1 |
 | `SA-2` | NOT STARTED | R1 | `src/features/super-admin/views/AiIntegrationsView.contract.test.jsx` (test) | 1699 | 1699 | — | — | — | — | — | — | — | 1 |
 | `SA-3` | NOT STARTED | R2 | `src/features/super-admin/views/UnifiedDriverList.jsx` (runtime) | 656 | 656 | — | — | — | — | — | — | — | 1 |
@@ -2343,7 +2344,7 @@ never a SHA from the request.
 
 ## `FR-13` — `bulkActions/workers/batchWorker.js` → the worker, the sender, the loop
 
-**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R3 ·
+**Status:** `MERGED` — [#81](https://github.com/Khomurod/SafeHaul/pull/81), main `b3d51d9` · **Risk:** R3 ·
 **511 → 233, plus two modules of 91–263**
 
 `FR-6`'s shape: one exported handler (`processBulkBatch`, an `onRequest` of
@@ -2382,6 +2383,51 @@ and passes unchanged.
 | functions suite | 1601/1601 |
 | root `npm run lint` | pass |
 | `check:source-size` | **39 recorded**, verdict `OK` |
+| `check:ci-plan` | pass |
+
+---
+
+## `FR-14` — `ai/credentials/store.js` → credentials, the config doc, and health
+
+**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R3 ·
+**505 → 236, plus two modules of 83–252 — the last `FR-*` unit**
+
+The provider credential/config store split along the seam its own header
+describes: secrets in Secret Manager, config in Firestore. The entry keeps
+the credential operations (read/resolve/save/delete/reveal, `isConfigured`)
+and re-exports the identical 23-name surface — load-bearing, because the
+router and health-check suites mock `../../ai/credentials/store` by path and
+`aiRouter.support` reaches `cooldownState` through `jest.requireActual` on
+that same path.
+
+| file | subject | lines |
+|---|---|---|
+| `credentials/health.js` | cooldown windows and sizing, per-lane failure accounting, recorded outcomes, stored test results, the cooldown clear | 252 |
+| `store.js` (entry) | the credential operations and the full export surface | 236 |
+| `credentials/configDoc.js` | the non-secret Firestore config document and its read/write plumbing | 83 |
+
+### Recipe
+
+- Boundary discipline mattered twice: the first cut split `readCredentials`'
+  and `quotaCooldownMs`' doc comments from their functions (unterminated
+  comment — caught by `node --check` before anything ran). The regions are
+  92–258 (credentials) and 260–479 (health, from its own section banner),
+  with the config plumbing 30–90 and each constant beside its user.
+- Multiset diff: **0 lines missing** — the entry's requires happen to match
+  the original's exactly. Constants compared by value in the surface dump.
+- Covering set is the full AI family (363 tests) — the cooldown/lane
+  behaviour, credential lifecycle and reveal paths are all pinned there.
+  No source-text guard reads this file; no `secrets:` binding lives here
+  (the store *reads* Secret Manager, the callables bind the secrets).
+
+| Check | Result |
+|---|---|
+| export surface (23 names, constants by value) | **identical** |
+| the AI suite family (363 tests) | **identical**, name for name |
+| every original body line | accounted for — multiset diff, 0 missing |
+| functions suite | 1601/1601 |
+| root `npm run lint` | pass |
+| `check:source-size` | **38 recorded**, verdict `OK` |
 | `check:ci-plan` | pass |
 
 ---
