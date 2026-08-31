@@ -31,7 +31,6 @@
   "files": {
     "functions/ai/credentials/store.js": 505,
     "functions/bulkActions/workers/batchWorker.js": 511,
-    "functions/hrAdmin.js": 607,
     "functions/releaseManagement/index.js": 517,
     "functions/shared/pdf/documentBuilder.js": 599,
     "scripts/ci-plan.mjs": 523,
