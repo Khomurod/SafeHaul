@@ -15,13 +15,13 @@ it currently is*.
 
 | | |
 |---|---|
-| **Last updated** | 2026-08-31, `FR-14` merged as #82 — the `FR-*` series is done; `SA-2` on the branch |
-| **Verified main SHA** | `71d44d824684718347faba842610ea355ce04923` (#82 / `FR-14` merged) |
-| **Oversized files** | **38 on `main`, 37 on this branch** (was 68 when the tracker opened) |
-| **Backlog entries** | **38 on `main`, 37 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
-| **Active work item** | `SA-2` — on the branch, PR pending. Taken BEFORE `SA-1` deliberately: the campaign's tests-before-runtime order — splitting the 1699-line contract test first gives `SA-1` smaller, more legible covering suites, exactly the `FT`→`FR` pattern. |
+| **Last updated** | 2026-08-31, `SA-2` merged as #83; `SA-1` on the branch |
+| **Verified main SHA** | `040d03a19476ae3003c63be1f04df77151e8290e` (#83 / `SA-2` merged) |
+| **Oversized files** | **37 on `main`, 36 on this branch** (was 68 when the tracker opened) |
+| **Backlog entries** | **37 on `main`, 36 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
+| **Active work item** | `SA-1` — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | none open yet for `SA-2`. [#82](https://github.com/Khomurod/SafeHaul/pull/82) and everything before it merged; #50 closed. |
+| **Active PR** | none open yet for `SA-1`. [#83](https://github.com/Khomurod/SafeHaul/pull/83) and everything before it merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
 | **CI status** | #61, #62 and #63 all merged fully green, first try. The only red round in this stretch was #60's `frontend-quality` — a **race in a test `LD-R3` wrote**, reproduced and fixed, see the interlude below. A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
@@ -30,8 +30,8 @@ it currently is*.
 
 ### Exact next action
 
-1. **Push and open the `SA-2` PR**, then merge it when green.
-2. **Nothing is pre-built behind `SA-2`.** The stacking deviation recorded below
+1. **Push and open the `SA-1` PR**, then merge it when green.
+2. **Nothing is pre-built behind `SA-1`.** The stacking deviation recorded below
    is fully unwound once it merges.
    **Their sections below were published with `FT-10`, deliberately ahead of their
    code.** The reason is worth keeping: for several units the "rebuild it from the
@@ -54,8 +54,8 @@ it currently is*.
    conflicts.
    **If those local branches are gone** (a fresh container), the work is not lost:
    rebuild each from its `FR-*` section below, which is written as a recipe.
-3. **After `SA-2`: `SA-1`** (the view the split suites cover), then the rest
-   of the `SA-*` units, then
+3. **After `SA-1`: `SA-3`** (`UnifiedDriverList.jsx`, 656) and the rest of
+   the `SA-*` units, then
    `RU-1` → `RU-2` (Firestore rules) under the owner's ruling in `PLAN.md` § 7.3.
 
 **Four process rules learned the hard way in this session, all worth keeping:**
@@ -149,8 +149,8 @@ use `—` until it exists.**
 | `FR-12` | **MERGED** | R3 | `releaseManagement/index.js` → 151 + 2 modules | 517 | **151** | `claude/safehual-source-size-refactor-j4apre` | [#80](https://github.com/Khomurod/SafeHaul/pull/80) | — | 2026-08-31 | green | ✓ | ✓ | **1 ✓** |
 | `FR-13` | **MERGED** | R3 | `batchWorker.js` → 233 + 2 modules | 511 | **233** | `claude/safehual-source-size-refactor-j4apre` | [#81](https://github.com/Khomurod/SafeHaul/pull/81) | — | 2026-08-31 | green | ✓ | ✓ | **1 ✓** |
 | `FR-14` | **MERGED** | R3 | `store.js` → 236 + 2 modules | 505 | **236** | `claude/safehual-source-size-refactor-j4apre` | [#82](https://github.com/Khomurod/SafeHaul/pull/82) | — | 2026-08-31 | green | ✓ | ✓ | **1 ✓** |
-| `SA-1` | NOT STARTED | R2 | `src/features/super-admin/views/AiIntegrationsView.jsx` (runtime) | 983 | 983 | — | — | — | — | — | — | — | 1 |
-| `SA-2` | **IN PROGRESS** | R1 | contract test → 6 suites + support (before `SA-1`, tests-first) | 1699 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
+| `SA-1` | **IN PROGRESS** | R2 | view → 491 orchestration + 6 feature components | 983 | **491** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
+| `SA-2` | **MERGED** | R1 | contract test → 6 suites + support (before `SA-1`, tests-first) | 1699 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#83](https://github.com/Khomurod/SafeHaul/pull/83) | — | 2026-08-31 | green | ✓ | ✓ | **1 ✓** |
 | `SA-3` | NOT STARTED | R2 | `src/features/super-admin/views/UnifiedDriverList.jsx` (runtime) | 656 | 656 | — | — | — | — | — | — | — | 1 |
 | `SA-4` | NOT STARTED | R2 | `src/features/super-admin/hooks/useSystemHealth.js` (runtime) | 603 | 603 | — | — | — | — | — | — | — | 1 |
 | `SA-5` | NOT STARTED | R2 | `src/features/super-admin/components/CreateView.jsx` (runtime) | 573 | 573 | — | — | — | — | — | — | — | 1 |
@@ -2434,7 +2434,7 @@ that same path.
 
 ## `SA-2` — `AiIntegrationsView.contract.test.jsx` → 6 suites + support
 
-**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R1 ·
+**Status:** `MERGED` — [#83](https://github.com/Khomurod/SafeHaul/pull/83), main `040d03a` · **Risk:** R1 ·
 **1699 → deleted; 6 suites of 174–335 plus a 356-line support module**
 
 **Taken before `SA-1` deliberately** — the campaign's tests-before-runtime
@@ -2484,6 +2484,59 @@ recording.
 | full frontend vitest run | 4493 passed / 250 files |
 | eslint on the seven files | clean (one scoped, reasoned disable) |
 | `check:source-size` | **37 recorded**, verdict `OK` |
+| root `npm run lint` · `check:ci-plan` | pass |
+
+---
+
+## `SA-1` — `AiIntegrationsView.jsx` → orchestration plus six feature components
+
+**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R2 ·
+**983 → 491, plus six components of 35–307 under `components/ai/`**
+
+The first frontend runtime unit, cut under the `SA-2` suites (93 tests, six
+legible files) that were split first for exactly this purpose. The view keeps
+the state, the handlers and the layout — the screen's orchestration, said in
+its header — and each extracted region takes exactly the state and handlers
+it always used, as props. **No state moved into a child**, deliberately: the
+diagnostics results and tab state survive tab switches exactly as before.
+
+| file | subject | lines |
+|---|---|---|
+| `AiIntegrationsView.jsx` (entry) | state, handlers, layout, the columns memo, the tab strip | 491 |
+| `aiProviderColumns.jsx` | `buildProviderColumns(ctx)` — the table's cells, verbatim | 307 |
+| `AiDiagnosticsCards.jsx` | model pins + credential access (both generations) | 148 |
+| `AiMediaProvidersSection.jsx` | Research & Media, with its credential controls | 103 |
+| `AiIntegrationsModals.jsx` | the three dialogs; cancel still rejects typed | 70 |
+| `AiRecentActivityCard.jsx` | the count and the focus-managed jump to Logs | 35 |
+| `AiProvidersOverview.jsx` | the credentials explainer and the summary counts | 41 |
+
+### Recipe and the seams
+
+- The columns memo became `useMemo(() => buildProviderColumns({...}), [same
+  8 deps])` — the ORIGINAL dependency list, kept deliberately; the extraction
+  made a pre-existing gap visible (`testResults` read but not a dep), which
+  is now an in-file documented suppression rather than a silent behaviour
+  change. The activity card's tab-jump moved to a view-owned `openLogsTab`
+  (focus handoff beside the tab state); everything else is verbatim JSX.
+- **Two slips the checks caught**: the first cut swallowed the tab panel's
+  closing `</Stack>` into the activity card (eslint parse error), and the
+  rebuilt view initially dropped `export default AiIntegrationsView` — found
+  by the multiset diff, and `ViewRouter.jsx` consumes that default export.
+- Gates: 93 contract tests set-identical (three runs: before, after, after
+  prune); all 559 super-admin tests green; full vitest 4493/250 files;
+  `check:ui-contract` scanned the six new files, **none new** (this view had
+  no allowlist entries, and its JSX moved verbatim); eslint fully clean;
+  `check:table-layout` needs a storybook build locally — column widths moved
+  verbatim, CI verifies.
+
+| Check | Result |
+|---|---|
+| 93 contract tests | **set-identical**, all green |
+| all super-admin suites | 559/559 |
+| full frontend vitest run | 4493 passed / 250 files |
+| `check:ui-contract` | 476 files scanned, none new |
+| eslint (view + six components) | clean; one documented suppression |
+| `check:source-size` | **36 recorded**, verdict `OK` |
 | root `npm run lint` · `check:ci-plan` | pass |
 
 ---
