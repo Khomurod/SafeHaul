@@ -15,13 +15,13 @@ it currently is*.
 
 | | |
 |---|---|
-| **Last updated** | 2026-08-31, `FR-4` merged as #72 — the pre-built queue is drained and the § 6 deviation unwound; `FR-5` on the branch |
-| **Verified main SHA** | `13d599898a50244014b00389553658b9a30439fb` (#72 / `FR-4` merged) |
-| **Oversized files** | **48 on `main`, 47 on this branch** (was 68 when the tracker opened) |
-| **Backlog entries** | **48 on `main`, 47 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
-| **Active work item** | `FR-5` — on the branch, PR pending. Built one-at-a-time from `main`, per `PLAN.md` § 6; nothing is stacked behind it. |
+| **Last updated** | 2026-08-31, `FR-5` merged as #73; `FR-6` on the branch |
+| **Verified main SHA** | `cf773221eb8c335b70ab32f0ec44eef93040c83c` (#73 / `FR-5` merged) |
+| **Oversized files** | **47 on `main`, 46 on this branch** (was 68 when the tracker opened) |
+| **Backlog entries** | **47 on `main`, 46 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
+| **Active work item** | `FR-6` — on the branch, PR pending. Built one-at-a-time from `main`, per `PLAN.md` § 6; nothing is stacked behind it. |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | none open yet for `FR-5`. [#72](https://github.com/Khomurod/SafeHaul/pull/72) and everything before it merged; #50 closed. |
+| **Active PR** | none open yet for `FR-6`. [#73](https://github.com/Khomurod/SafeHaul/pull/73) and everything before it merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
 | **CI status** | #61, #62 and #63 all merged fully green, first try. The only red round in this stretch was #60's `frontend-quality` — a **race in a test `LD-R3` wrote**, reproduced and fixed, see the interlude below. A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
@@ -30,8 +30,8 @@ it currently is*.
 
 ### Exact next action
 
-1. **Push and open the `FR-5` PR**, then merge it when green.
-2. **Nothing is pre-built behind `FR-5`.** The stacking deviation recorded below
+1. **Push and open the `FR-6` PR**, then merge it when green.
+2. **Nothing is pre-built behind `FR-6`.** The stacking deviation recorded below
    is fully unwound once it merges.
    **Their sections below were published with `FT-10`, deliberately ahead of their
    code.** The reason is worth keeping: for several units the "rebuild it from the
@@ -54,7 +54,7 @@ it currently is*.
    conflicts.
    **If those local branches are gone** (a fresh container), the work is not lost:
    rebuild each from its `FR-*` section below, which is written as a recipe.
-3. **After `FR-5`: `FR-6`–`FR-14`**, one at a time from `main`, then
+3. **After `FR-6`: `FR-7`–`FR-14`**, one at a time from `main`, then
    `RU-1` → `RU-2` (Firestore rules) under the owner's ruling in `PLAN.md` § 7.3.
 
 **Four process rules learned the hard way in this session, all worth keeping:**
@@ -138,8 +138,8 @@ use `—` until it exists.**
 | `FR-2` | **MERGED** | R3 | `ai/callables.js` → 57-line entry + 6 modules | 951 | **57** | `claude/safehual-source-size-refactor-j4apre` | [#70](https://github.com/Khomurod/SafeHaul/pull/70) | — | 2026-08-31 | green | ✓ | ✓ | **1 ✓** |
 | `FR-3` | **MERGED** | R4 | `applicationDrafts.js` → 67-line entry + 5 modules | 948 | **67** | `claude/safehual-source-size-refactor-j4apre` | [#71](https://github.com/Khomurod/SafeHaul/pull/71) | — | 2026-08-31 | green | ✓ | ✓ | **1 ✓** |
 | `FR-4` | **MERGED** | R3 | `router.js` → 445 + 4 modules; `runAiTask` kept whole | 806 | **445** | `claude/safehual-source-size-refactor-j4apre` | [#72](https://github.com/Khomurod/SafeHaul/pull/72) | — | 2026-08-31 | green | ✓ | ✓ | **1 ✓** |
-| `FR-5` | **IN PROGRESS** | R3 | `generate.js` → 428 + 4 modules; `runSlot` kept whole | 674 | **428** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
-| `FR-6` | NOT STARTED | R3 | `functions/bulkActions/controllers/sessionController.js` (runtime) | 651 | 651 | — | — | — | — | — | — | — | 1 |
+| `FR-5` | **MERGED** | R3 | `generate.js` → 428 + 4 modules; `runSlot` kept whole | 674 | **428** | `claude/safehual-source-size-refactor-j4apre` | [#73](https://github.com/Khomurod/SafeHaul/pull/73) | — | 2026-08-31 | green | ✓ | ✓ | **1 ✓** |
+| `FR-6` | **IN PROGRESS** | R3 | `sessionController.js` → 265 + 2 modules; new IDOR-branch tests | 651 | **265** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
 | `FR-7` | NOT STARTED | R4 | `functions/shared/pdf/applicationDocument.js` (runtime) | 643 | 643 | — | — | — | — | — | — | — | 1 |
 | `FR-8` | NOT STARTED | R3 | `functions/blog/publicApi.js` (runtime) | 631 | 631 | — | — | — | — | — | — | — | 1 |
 | `FR-9` | NOT STARTED | R3 | `functions/ai/registry/providers.js` (runtime) | 628 | 628 | — | — | — | — | — | — | — | 1 |
@@ -1935,7 +1935,7 @@ call the other.
 
 ## `FR-5` — `blog/pipeline/generate.js` → the pipeline, plus what it decides with
 
-**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R3 ·
+**Status:** `MERGED` — [#73](https://github.com/Khomurod/SafeHaul/pull/73), main `cf77322` · **Risk:** R3 ·
 **674 → 428, plus four modules of 34–101**
 
 The second unit to meet the recurring shape recorded below: `runSlot` (342
@@ -1978,6 +1978,65 @@ decides. Decomposing the spine is its own future unit, not a size side effect.
 | functions suite | 1597/1597 |
 | root `npm run lint` | pass |
 | `check:source-size` | **47 recorded**, verdict `OK` |
+| `check:ci-plan` | pass |
+
+---
+
+## `FR-6` — `bulkActions/controllers/sessionController.js` → the callable, plus its phases
+
+**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R3 ·
+**651 → 265, plus two modules of 195–278, plus a new 4-test characterization suite**
+
+A different shape from `FR-4`/`FR-5`: the oversized thing was not a file with a
+big function in it — it was **one 513-line exported callable**
+(`initBulkSession`, lines 16–528), which busts the hard cap by itself and so
+could not be "kept whole in a justified file". Its phases moved out behind
+explicit-parameter seams instead; the callable keeps its auth, validation,
+rate-limit, branch dispatch, session-doc creation and worker start.
+
+| file | subject | lines |
+|---|---|---|
+| `controllers/session/gatherTargets.js` | the BULK-2 IDOR gate and the query-based gathering with all three recently-messaged exclusions | 278 |
+| `sessionController.js` (entry) | `initBulkSession`'s spine, `updateSessionStatus`, pause/resume/cancel/retry | 265 |
+| `controllers/session/importTargets.js` | import persistence and the import-side phone/email ledger filters | 195 |
+| `test/unit/sessionController.directSelection.test.js` | **new** — pins the previously untested IDOR branch | 198 |
+
+### Coverage was the risk, so coverage came first
+
+Only **9 tests** covered this 651-line controller, and the direct-selection
+branch — the BULK-2 IDOR verification — had **none**. Per the campaign rule
+(characterization first), a 4-test suite was written and shown green against
+the **unsplit** file before anything moved: foreign IDs are dropped, ownership
+is established by documentId-in queries against both company collections, an
+all-foreign list refuses with `permission-denied` before any write, and a
+>500-ID list refuses before any query. Then the split, then the same suite
+green again.
+
+### Recipe
+
+- Bodies moved verbatim by `sed` line range: direct-selection 45–83 and the
+  query branch 92–285 into `gatherTargets.js`; import persistence 302–465 into
+  `importTargets.js`. Exactly **two seam lines changed**, both proven by the
+  multiset diff being otherwise clean: `request.auth.uid` became the `authUid`
+  parameter, and `const rawItems = request.data.rawData` became an argument.
+  `persistImportTargets` returns `{ finalTargetIds, importFilteredCount }`
+  rather than mutating outer locals.
+- The `secrets: ['BULK_WORKER_SECRET', 'PROCESS_BULK_BATCH_URL']` literal stays
+  in the entry beside its `firebase-functions/v2/https` import, so
+  `secretBindingGenerations` still sees the pairing. `smsSecretBindings` does
+  not name this file (checked). No source-text guard reads it (checked).
+- The four dead entry requires were named by `lint:backend` and exactly those
+  deleted.
+
+| Check | Result |
+|---|---|
+| export surface (5 callables) | **identical** |
+| the 9 pre-existing covering tests | **identical**, name for name |
+| the new 4-test IDOR suite | green before the split and after |
+| every original body line | accounted for — multiset diff, only the two seam lines |
+| functions suite | **1601/1601** (1597 + the 4 new) |
+| root `npm run lint` | pass |
+| `check:source-size` | **46 recorded**, verdict `OK` |
 | `check:ci-plan` | pass |
 
 ---
