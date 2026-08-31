@@ -1127,6 +1127,18 @@ a control is gated on loaded data, wait for the data or for the enabled state �
 the other tests in this same file wait on `findByText('Dana Fixture')`, which is
 why only the export helper was exposed.
 
+**The same class hit again on #77 (2026-08-31), in
+`CreateView.contract.test.jsx`** — a head touching only `functions/ai/registry/`.
+Two shapes of the same race: asserting a company select's options before
+`loadCompanies` resolved (the select renders with only its placeholder first),
+and `fireEvent.change` to `'co-2'` before that `<option>` existed — **a change
+to a value the select does not yet offer silently no-ops**, so the submitted
+payload carried `companyId: ''`. Reproduced with a 50 ms mock delay (2 tests
+red), fixed by waiting for `options.length` / the named option, proven at
+400 ms, probe removed, 29/29 clean. That second shape is worth its own
+sentence: a select-option race does not fail at the select — it fails later,
+in whatever consumed the value that never got set.
+
 ---
 
 ## `FT-2` — `applicationDrafts.test.js` → 6 suites + support
