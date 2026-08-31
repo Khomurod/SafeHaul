@@ -15,13 +15,13 @@ it currently is*.
 
 | | |
 |---|---|
-| **Last updated** | 2026-08-31, `FT-9` merged as #67; `FT-10` on the branch |
-| **Verified main SHA** | `175682a63c1b2438195225ea3dccffdcb7acb2c0` (#67 / `FT-9` merged) |
-| **Oversized files** | **53 on `main`, 52 on this branch** (was 68 when the tracker opened) |
-| **Backlog entries** | **53 on `main`, 52 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
-| **Active work item** | `FT-10` — on the branch, PR pending, and it **finishes the `FT-*` series**. `FR-1`–`FR-4` are built, verified and committed on local branches behind it, and their sections below are now published *ahead of* their code. |
+| **Last updated** | 2026-08-31, `FT-10` merged as #68 — the `FT-*` series is done; `FR-1` on the branch |
+| **Verified main SHA** | `c121a0c511b1f88891465bae90847c0c8e7b4e4d` (#68 / `FT-10` merged) |
+| **Oversized files** | **52 on `main`, 51 on this branch** (was 68 when the tracker opened) |
+| **Backlog entries** | **52 on `main`, 51 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
+| **Active work item** | `FR-1` — on the branch, PR pending. `FR-2`–`FR-4` are built, verified and committed on local branches behind it; their sections below are already published. |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | none open yet for `FT-10`. [#67](https://github.com/Khomurod/SafeHaul/pull/67) and everything before it merged; #50 closed. |
+| **Active PR** | none open yet for `FR-1`. [#68](https://github.com/Khomurod/SafeHaul/pull/68) and everything before it merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
 | **CI status** | #61, #62 and #63 all merged fully green, first try. The only red round in this stretch was #60's `frontend-quality` — a **race in a test `LD-R3` wrote**, reproduced and fixed, see the interlude below. A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
@@ -30,7 +30,8 @@ it currently is*.
 
 ### Exact next action
 
-1. **Push and open the `FT-10` PR**, then merge it when green.
+1. **Push and open the `FR-1` PR**, then merge it when green. The first
+   production-module unit to reach review.
 2. **`FR-1`–`FR-4` are already built, verified and committed** — on the local
    branches `local/fr-1` … `local/fr-4`, each stacked on the one before.
    **Their sections below were published with `FT-10`, deliberately ahead of their
@@ -135,11 +136,11 @@ use `—` until it exists.**
 | `FT-7` | **MERGED** | R1 | `guestApplication.snapshot.test.js` → 3 suites + support | 637 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#65](https://github.com/Khomurod/SafeHaul/pull/65) | — | — | local green | — | — | **1 ✓** |
 | `FT-8` | **MERGED** | R1 | `environmentVault.callables.test.js` → 3 suites + support | 588 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#66](https://github.com/Khomurod/SafeHaul/pull/66) | — | — | local green | — | — | **1 ✓** |
 | `FT-9` | **MERGED** | R1 | `releaseManagement.callables.test.js` → 3 suites + support | 577 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#67](https://github.com/Khomurod/SafeHaul/pull/67) | — | — | local green | — | — | **1 ✓** |
-| `FT-10` | **IN PROGRESS** | R1 | `bulkActions.test.js` → 2 suites + support | 523 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
-| `FR-1` | NOT STARTED | R3 | `functions/environmentVault/registry.js` (runtime) | 1188 | 1188 | — | — | — | — | — | — | — | 1 |
-| `FR-2` | NOT STARTED | R3 | `functions/ai/callables.js` (runtime) | 951 | 951 | — | — | — | — | — | — | — | 1 |
-| `FR-3` | NOT STARTED | R4 | `functions/applicationDrafts.js` (runtime) | 948 | 948 | — | — | — | — | — | — | — | 1 |
-| `FR-4` | NOT STARTED | R3 | `functions/ai/router/router.js` (runtime) | 806 | 806 | — | — | — | — | — | — | — | 1 |
+| `FT-10` | **MERGED** | R1 | `bulkActions.test.js` → 2 suites + support | 523 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#68](https://github.com/Khomurod/SafeHaul/pull/68) | — | — | local green | — | — | **1 ✓** |
+| `FR-1` | **IN PROGRESS** | R3 | `registry.js` → 162-line entry + 7 modules | 1188 | **162** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
+| `FR-2` | **PR PENDING** | R3 | `ai/callables.js` → 57-line entry + 6 modules | 951 | **57** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
+| `FR-3` | **PR PENDING** | R4 | `applicationDrafts.js` → 67-line entry + 5 modules | 948 | **67** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
+| `FR-4` | **PR PENDING** | R3 | `router.js` → 445 + 4 modules; `runAiTask` kept whole | 806 | **445** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
 | `FR-5` | NOT STARTED | R3 | `functions/blog/pipeline/generate.js` (runtime) | 674 | 674 | — | — | — | — | — | — | — | 1 |
 | `FR-6` | NOT STARTED | R3 | `functions/bulkActions/controllers/sessionController.js` (runtime) | 651 | 651 | — | — | — | — | — | — | — | 1 |
 | `FR-7` | NOT STARTED | R4 | `functions/shared/pdf/applicationDocument.js` (runtime) | 643 | 643 | — | — | — | — | — | — | — | 1 |
@@ -1583,7 +1584,7 @@ not use it.
 
 ## `FT-10` — `bulkActions.test.js` → 2 suites + support
 
-**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R1 ·
+**Status:** `MERGED` — [#68](https://github.com/Khomurod/SafeHaul/pull/68), main `c121a0c` · **Risk:** R1 ·
 **523 → deleted, 2 suites of 191 and 231**
 
 | file | subject | lines |
@@ -1637,7 +1638,7 @@ restyles is a split whose diff nobody can review.
 
 ## `FR-1` — `environmentVault/registry.js` → a thin entry plus `registry/`
 
-**Status:** `PR PENDING` — committed, queued behind `FT-10` · **Risk:** R3 ·
+**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R3 ·
 **1188 → 162, plus seven modules of 55–291**
 
 **This is the first unit in the campaign to touch a production module**, so the
@@ -1932,6 +1933,57 @@ call the other.
 | root `npm run lint` | pass |
 | `check:source-size` | **48 over limit / 48 recorded**, verdict `OK` |
 | `check:ci-plan` · `test:source-size` | pass |
+
+---
+
+## The rebase that committed conflict markers, and the pipe that hid it
+
+Recorded because the mechanism is reusable and the fix is one character.
+
+Promoting `FT-10` published the `FR-1`–`FR-4` tracker sections *ahead of* their
+code. The next rebase therefore hit a conflict shape the table resolver does not
+handle — **both sides adding the same section** — so it refused, correctly, with
+`AssertionError: markers left behind`.
+
+The loop around it looked like this:
+
+```bash
+python3 resolve-tracker.py 2>&1 | tail -1     # <-- exit code lost to the pipe
+git add docs/source-size-refactor/TRACKER.md
+git -c core.editor=true rebase --continue
+```
+
+`| tail -1` discards the script's non-zero status, so `git add` staged a file
+still containing `<<<<<<<`, and `rebase --continue` committed it. The rebase then
+reported **"Successfully rebased"** while four commits carried 4, 10, 16 and 24
+conflict markers in `TRACKER.md`.
+
+**This is the same failure this campaign keeps finding, in its purest form:** a
+check that fired correctly, and a pipe that ate the answer. It is the sibling of
+*"read the verdict line, not the count"* — there, `grep 'file(s) over'` dropped
+`source-size REFUSED:`; here, `tail -1` dropped an exit code.
+
+**Caught by looking, not by tooling.** No test covers `TRACKER.md`, and the code
+files were untouched — the whole functions suite stayed 1597/1597 with the markers
+committed. It was found by grepping each commit's tracker for markers immediately
+after a rebase that printed a suspicious line.
+
+**Repair.** The four originals were still reachable, so each was rebuilt
+**code-only** — `cherry-pick -n`, then `git checkout HEAD -- TRACKER.md` to keep
+the branch's already-published section, then commit with the original message.
+That is also the right shape from here on: once a unit's section is published
+ahead of its code, the code commit should not carry a tracker hunk at all, and
+the conflict disappears rather than being resolved.
+
+**Two rules from this:**
+
+- **Never pipe a gate's output in a loop that acts on its result.** Check the
+  status, or run it bare so a failure is visible. `set -e` alone is not enough
+  when a pipeline is involved.
+- **After any rebase of this stack, grep every commit for conflict markers.** One
+  line, and it is the only thing standing between a silent corruption and a
+  reviewer finding it:
+  `git show <sha>:docs/source-size-refactor/TRACKER.md | grep -c '^<<<<<<<'`
 
 ---
 
