@@ -15,13 +15,13 @@ it currently is*.
 
 | | |
 |---|---|
-| **Last updated** | 2026-08-31, `FT-7` merged as #65; `FT-8` on the branch |
-| **Verified main SHA** | `68d513c0c30520d12aca089ef7a4cfb146c11ec6` (#65 / `FT-7` merged) |
-| **Oversized files** | **55 on `main`, 54 on this branch** (was 68 when the tracker opened) |
-| **Backlog entries** | **55 on `main`, 54 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
-| **Active work item** | `FT-8` — on the branch, PR pending. **`FT-9`, `FT-10`, `FR-1`, `FR-2` and `FR-3` are all built, verified and committed** on local branches, queued behind it. |
+| **Last updated** | 2026-08-31, `FT-8` merged as #66; `FT-9` on the branch |
+| **Verified main SHA** | `c1282134a7e486cd7cc085bb9cb3c0310a96a435` (#66 / `FT-8` merged) |
+| **Oversized files** | **54 on `main`, 53 on this branch** (was 68 when the tracker opened) |
+| **Backlog entries** | **54 on `main`, 53 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
+| **Active work item** | `FT-9` — on the branch, PR pending. **`FT-10` and `FR-1`–`FR-4` are all built, verified and committed** on local branches, queued behind it. |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | none open yet for `FT-8`. [#65](https://github.com/Khomurod/SafeHaul/pull/65) and everything before it merged; #50 closed. |
+| **Active PR** | none open yet for `FT-9`. [#66](https://github.com/Khomurod/SafeHaul/pull/66) and everything before it merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
 | **CI status** | #61, #62 and #63 all merged fully green, first try. The only red round in this stretch was #60's `frontend-quality` — a **race in a test `LD-R3` wrote**, reproduced and fixed, see the interlude below. A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
@@ -30,10 +30,10 @@ it currently is*.
 
 ### Exact next action
 
-1. **Push and open the `FT-8` PR**, then merge it when green.
-2. **`FT-9`, `FT-10`, `FR-1`, `FR-2` and `FR-3` are already built, verified and
-   committed** — on the local branches `local/ft-9`, `local/ft-10`, `local/fr-1`,
-   `local/fr-2` and `local/fr-3`, each stacked on the one before.
+1. **Push and open the `FT-9` PR**, then merge it when green.
+2. **`FT-10` and `FR-1`–`FR-4` are already built, verified and committed** — on
+   the local branches `local/ft-10`, `local/fr-1`, `local/fr-2`, `local/fr-3` and
+   `local/fr-4`, each stacked on the one before.
    Promote them one at a time with the standing per-unit ritual, because every
    unit reuses one branch name: once a PR merges, restart from the new `main`
    (`git fetch origin main && git checkout -B
@@ -128,8 +128,8 @@ use `—` until it exists.**
 | `FT-5` | **MERGED** | R1 | `aiCredentials.test.js` → 3 suites + support | 817 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#63](https://github.com/Khomurod/SafeHaul/pull/63) | — | — | local green | — | — | **1 ✓** |
 | `FT-6` | **MERGED** | R1 | `aiHealthCheck.test.js` → 3 suites + support | 645 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#64](https://github.com/Khomurod/SafeHaul/pull/64) | — | — | local green | — | — | **1 ✓** |
 | `FT-7` | **MERGED** | R1 | `guestApplication.snapshot.test.js` → 3 suites + support | 637 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#65](https://github.com/Khomurod/SafeHaul/pull/65) | — | — | local green | — | — | **1 ✓** |
-| `FT-8` | **IN PROGRESS** | R1 | `environmentVault.callables.test.js` → 3 suites + support | 588 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
-| `FT-9` | NOT STARTED | R1 | `functions/test/unit/releaseManagement.callables.test.js` (test) | 577 | 577 | — | — | — | — | — | — | — | 1 |
+| `FT-8` | **MERGED** | R1 | `environmentVault.callables.test.js` → 3 suites + support | 588 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#66](https://github.com/Khomurod/SafeHaul/pull/66) | — | — | local green | — | — | **1 ✓** |
+| `FT-9` | **IN PROGRESS** | R1 | `releaseManagement.callables.test.js` → 3 suites + support | 577 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
 | `FT-10` | NOT STARTED | R1 | `functions/test/bulkActions.test.js` (test) | 523 | 523 | — | — | — | — | — | — | — | 1 |
 | `FR-1` | NOT STARTED | R3 | `functions/environmentVault/registry.js` (runtime) | 1188 | 1188 | — | — | — | — | — | — | — | 1 |
 | `FR-2` | NOT STARTED | R3 | `functions/ai/callables.js` (runtime) | 951 | 951 | — | — | — | — | — | — | — | 1 |
@@ -1475,7 +1475,7 @@ chances to be wrong.
 
 ## `FT-8` — `environmentVault.callables.test.js` → 3 suites + support
 
-**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R1 ·
+**Status:** `MERGED` — [#66](https://github.com/Khomurod/SafeHaul/pull/66), main `c128213` · **Risk:** R1 ·
 **588 → deleted, 3 suites of 168–190**
 
 | file | subject | lines |
@@ -1527,6 +1527,51 @@ has placed a require better than a reading of the file would have.
 | functions suite | 1597/1597 |
 | root `npm run lint` | pass |
 | `check:source-size` | **54 over limit / 54 recorded**, verdict `OK` |
+| `check:ci-plan` · `test:source-size` | pass |
+
+---
+
+## `FT-9` — `releaseManagement.callables.test.js` → 3 suites + support
+
+**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R1 ·
+**577 → deleted, 3 suites of 121–214**
+
+| file | subject | lines |
+|---|---|---|
+| `…audit.test.js` | the audit record, rollback, the status the console reads | 214 |
+| `…eligibility.test.js` | what makes a release eligible, concurrency, dispatch failure | 177 |
+| `…support.js` | the fake GitHub, the Firestore store, fixtures, the hooks | 156 |
+| `…access.test.js` | who may promote, and why the browser cannot name a release | 121 |
+
+Body-line diff: **nothing lost**, one added blank line. All 42 full test names
+identical. Functions suite 1597/1597.
+
+**This is the release-promotion surface, so the guarantee matters more than
+usual.** The GitHub transport is mocked and the eligibility *rules* are real —
+untouched. Nothing here changes what makes a release promotable.
+
+### A fixture used by both the harness and the test bodies
+
+`allRequiredGreen` is derived from the real `REQUIRED_RELEASE_CHECKS`, and it is
+read in two places: `healthyWorld()` (harness) and four test bodies that shape a
+check into a failure. It cannot be computed at support's module scope, for the
+reason the original already recorded in a comment: **the hoisted `jest.mock`
+factory closes over `githubState` before the module-level constants initialise.**
+
+So `healthyWorld()` computes it lazily inside itself, and each suite keeps its own
+three-line `const` derived from the same real constant. Both derive from
+`REQUIRED_RELEASE_CHECKS`, so they cannot drift — and **not one test body
+changed**, which was the alternative (exporting it as a function would have edited
+four call sites). The linter then deleted the `const` from the one suite that does
+not use it.
+
+| Check | Result |
+|---|---|
+| 42 full test names, before vs after | **identical** |
+| body lines, original vs split | **nothing lost**, 1 added blank line |
+| functions suite | 1597/1597 |
+| root `npm run lint` | pass |
+| `check:source-size` | **53 over limit / 53 recorded**, verdict `OK` |
 | `check:ci-plan` · `test:source-size` | pass |
 
 ---
