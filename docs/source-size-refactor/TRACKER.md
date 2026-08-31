@@ -15,13 +15,13 @@ it currently is*.
 
 | | |
 |---|---|
-| **Last updated** | 2026-08-31, `FT-10` merged as #68 — the `FT-*` series is done; `FR-1` on the branch |
-| **Verified main SHA** | `c121a0c511b1f88891465bae90847c0c8e7b4e4d` (#68 / `FT-10` merged) |
-| **Oversized files** | **52 on `main`, 51 on this branch** (was 68 when the tracker opened) |
-| **Backlog entries** | **52 on `main`, 51 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
-| **Active work item** | `FR-1` — on the branch, PR pending. `FR-2`–`FR-4` are built, verified and committed on local branches behind it; their sections below are already published. |
+| **Last updated** | 2026-08-31, `FR-1` merged as #69 — the first production-module unit is on `main`; `FR-2` on the branch |
+| **Verified main SHA** | `cf00160cbf69c441825ca3b00842f4cbfa46df13` (#69 / `FR-1` merged) |
+| **Oversized files** | **51 on `main`, 50 on this branch** (was 68 when the tracker opened) |
+| **Backlog entries** | **51 on `main`, 50 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
+| **Active work item** | `FR-2` — on the branch, PR pending. `FR-3` and `FR-4` are built, verified and committed on local branches behind it; their sections below are already published. |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | none open yet for `FR-1`. [#68](https://github.com/Khomurod/SafeHaul/pull/68) and everything before it merged; #50 closed. |
+| **Active PR** | none open yet for `FR-2`. [#69](https://github.com/Khomurod/SafeHaul/pull/69) and everything before it merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
 | **CI status** | #61, #62 and #63 all merged fully green, first try. The only red round in this stretch was #60's `frontend-quality` — a **race in a test `LD-R3` wrote**, reproduced and fixed, see the interlude below. A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
@@ -30,10 +30,9 @@ it currently is*.
 
 ### Exact next action
 
-1. **Push and open the `FR-1` PR**, then merge it when green. The first
-   production-module unit to reach review.
-2. **`FR-1`–`FR-4` are already built, verified and committed** — on the local
-   branches `local/fr-1` … `local/fr-4`, each stacked on the one before.
+1. **Push and open the `FR-2` PR**, then merge it when green.
+2. **`FR-3` and `FR-4` are already built, verified and committed** — on the local
+   branches `local/fr-3` and `local/fr-4`, each stacked on the one before.
    **Their sections below were published with `FT-10`, deliberately ahead of their
    code.** The reason is worth keeping: for several units the "rebuild it from the
    tracker" fallback existed only on the same unpushed branches as the code it was
@@ -54,11 +53,11 @@ it currently is*.
    `NOT STARTED` while its section said otherwise. Nothing else in the file
    conflicts.
    **If those local branches are gone** (a fresh container), the work is not lost:
-   rebuild each from its `FT-*` section below, which is written as a recipe.
-3. **With `FT-10`, every `FT-*` file is written.** After them: `FR-1`
-   (`functions/environmentVault/registry.js`, 1120), which begins the R3 runtime
-   work — the first unit in this campaign to touch a production module — then
-   `RU-1` → `RU-2` (Firestore rules) under the owner's ruling in `PLAN.md` § 7.3.
+   rebuild each from its `FR-*` section below, which is written as a recipe.
+3. **After `FR-4`, nothing is pre-built.** The next unit is `FR-5`
+   (`functions/blog/pipeline/generate.js`, 674 — `runSlot` is 352 lines, so apply
+   the "one large function plus its helpers" guidance below), then `FR-6`–`FR-14`,
+   then `RU-1` → `RU-2` (Firestore rules) under the owner's ruling in `PLAN.md` § 7.3.
 
 **Four process rules learned the hard way in this session, all worth keeping:**
 
@@ -137,8 +136,8 @@ use `—` until it exists.**
 | `FT-8` | **MERGED** | R1 | `environmentVault.callables.test.js` → 3 suites + support | 588 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#66](https://github.com/Khomurod/SafeHaul/pull/66) | — | — | local green | — | — | **1 ✓** |
 | `FT-9` | **MERGED** | R1 | `releaseManagement.callables.test.js` → 3 suites + support | 577 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#67](https://github.com/Khomurod/SafeHaul/pull/67) | — | — | local green | — | — | **1 ✓** |
 | `FT-10` | **MERGED** | R1 | `bulkActions.test.js` → 2 suites + support | 523 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#68](https://github.com/Khomurod/SafeHaul/pull/68) | — | — | local green | — | — | **1 ✓** |
-| `FR-1` | **IN PROGRESS** | R3 | `registry.js` → 162-line entry + 7 modules | 1188 | **162** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
-| `FR-2` | **PR PENDING** | R3 | `ai/callables.js` → 57-line entry + 6 modules | 951 | **57** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
+| `FR-1` | **MERGED** | R3 | `registry.js` → 162-line entry + 7 modules | 1188 | **162** | `claude/safehual-source-size-refactor-j4apre` | [#69](https://github.com/Khomurod/SafeHaul/pull/69) | — | 2026-08-31 | green | ✓ | ✓ | **1 ✓** |
+| `FR-2` | **IN PROGRESS** | R3 | `ai/callables.js` → 57-line entry + 6 modules | 951 | **57** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
 | `FR-3` | **PR PENDING** | R4 | `applicationDrafts.js` → 67-line entry + 5 modules | 948 | **67** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
 | `FR-4` | **PR PENDING** | R3 | `router.js` → 445 + 4 modules; `runAiTask` kept whole | 806 | **445** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
 | `FR-5` | NOT STARTED | R3 | `functions/blog/pipeline/generate.js` (runtime) | 674 | 674 | — | — | — | — | — | — | — | 1 |
@@ -1638,7 +1637,7 @@ restyles is a split whose diff nobody can review.
 
 ## `FR-1` — `environmentVault/registry.js` → a thin entry plus `registry/`
 
-**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R3 ·
+**Status:** `MERGED` — [#69](https://github.com/Khomurod/SafeHaul/pull/69), main `cf00160` · **Risk:** R3 ·
 **1188 → 162, plus seven modules of 55–291**
 
 **This is the first unit in the campaign to touch a production module**, so the
@@ -1702,7 +1701,7 @@ assembly and the lookups; the tables are the modules. Same shape as
 
 ## `FR-2` — `ai/callables.js` → a deployment surface plus `callables/`
 
-**Status:** `PR PENDING` — committed, queued behind `FR-1` · **Risk:** R3 ·
+**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R3 ·
 **951 → 57, plus six modules of 83–264**
 
 Twelve deployed Cloud Functions. `functions/index.js` reads each by name off this

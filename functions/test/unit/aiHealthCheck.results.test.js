@@ -141,16 +141,29 @@ describe('safety and secrecy', () => {
         // its response field by field, and `capabilities` was simply absent — so
         // the per-capability UI would have rendered nothing in production while
         // every test passed. Asserting the *callable's* shape is what closes it.
+        // `ai/callables.js` is the deployment surface and re-exports by name; the
+        // handler itself lives in the module below. Following it matters, because
+        // reading the wrong file would leave the negative assertion passing over
+        // nothing at all.
         const source = require('fs').readFileSync(
-            require('path').resolve(__dirname, '../../ai/callables.js'),
+            require('path').resolve(__dirname, '../../ai/callables/health.js'),
             'utf8',
         );
-        // Bounded to this handler: the file continues into other callables,
+        // Bounded to this handler: the file may continue into other callables,
         // and scanning past the closing brace asserts nothing about this one.
-        const start = source.indexOf('exports.testAiProvider');
-        const testBlock = source.slice(start, source.indexOf('exports.', start + 10));
+        const start = source.indexOf('exports.testAiProvider = onCall');
+        const testBlock = source.slice(start, source.indexOf('\nexports.', start + 10));
 
-        expect(testBlock).toMatch(/capabilities:/);
+        // The block was actually found. Without this, a moved or renamed handler
+        // makes `not.toMatch` pass over an empty string — the failure mode this
+        // very assertion exists to prevent, one level up.
+        expect(start).toBeGreaterThanOrEqual(0);
+        expect(testBlock.length).toBeGreaterThan(200);
+
+        // `\b` deliberately: a bare /capabilities:/ is a substring match, so a
+        // response returning `extraCapabilities:` and no `capabilities` at all
+        // would have satisfied it. Measured, not supposed.
+        expect(testBlock).toMatch(/\bcapabilities:/);
         // And rebuilt from an allowlist, not spread wholesale — what crosses
         // this boundary is chosen, never inherited from an internal shape.
         expect(testBlock).not.toMatch(/\.\.\.result/);

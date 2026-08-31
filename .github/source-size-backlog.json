@@ -29,7 +29,6 @@
     "hard": 500
   },
   "files": {
-    "functions/ai/callables.js": 951,
     "functions/ai/credentials/store.js": 505,
     "functions/ai/registry/providers.js": 628,
     "functions/ai/router/router.js": 806,
