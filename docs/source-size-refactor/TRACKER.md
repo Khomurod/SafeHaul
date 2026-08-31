@@ -15,24 +15,24 @@ it currently is*.
 
 | | |
 |---|---|
-| **Last updated** | 2026-08-29, `FT-2` merged as #60; `FT-3` on the branch |
-| **Verified main SHA** | `444d356f899d5273de8709f11a0233fb85a80ff5` (#60 / `FT-2` merged) |
-| **Oversized files** | **60 on `main`, 59 on this branch** (was 68 when the tracker opened) |
-| **Backlog entries** | **60 on `main`, 59 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
-| **Active work item** | `FT-3` — on the branch, PR pending. `FT-4`, `FT-5` and `FT-6` are built and committed on local branches, queued behind it. |
+| **Last updated** | 2026-08-29, `FT-3` merged as #61; `FT-4` on the branch |
+| **Verified main SHA** | `89ea103d9586eb3da2109d6d05dd43d13adb24d0` (#61 / `FT-3` merged) |
+| **Oversized files** | **59 on `main`, 58 on this branch** (was 68 when the tracker opened) |
+| **Backlog entries** | **59 on `main`, 58 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
+| **Active work item** | `FT-4` — on the branch, PR pending. `FT-5`, `FT-6` and `FT-7` are built, verified and committed on local branches, queued behind it. |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | none open yet for `FT-3`. [#60](https://github.com/Khomurod/SafeHaul/pull/60) and everything before it merged; #50 closed. |
+| **Active PR** | none open yet for `FT-4`. [#61](https://github.com/Khomurod/SafeHaul/pull/61) and everything before it merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
-| **CI status** | #60 merged fully green on `b2c965a`. It went red once on `frontend-quality` — a **race in a test `LD-R3` wrote**, reproduced and fixed, see the interlude below. A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
+| **CI status** | #61 merged fully green on `ea18559`, first try. The only red round in this stretch was #60's `frontend-quality` — a **race in a test `LD-R3` wrote**, reproduced and fixed, see the interlude below. A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
 | **Working tree at session end** | see the last per-item section |
 | **Blockers** | none. The nav-placement question was delegated and decided — see `PLAN.md` § 7.2b. |
 
 ### Exact next action
 
-1. **Push and open the `FT-3` PR**, then merge it when green.
-2. **`FT-4`, `FT-5` and `FT-6` are already built, verified and committed** — on
-   the local branches `local/ft-4`, `local/ft-5` and `local/ft-6`, each stacked on
+1. **Push and open the `FT-4` PR**, then merge it when green.
+2. **`FT-5`, `FT-6` and `FT-7` are already built, verified and committed** — on
+   the local branches `local/ft-5`, `local/ft-6` and `local/ft-7`, each stacked on
    the one before. Promote them one at a time with the standing per-unit ritual,
    because every unit reuses one branch name: once a PR merges, restart from the
    new `main` (`git fetch origin main && git checkout -B
@@ -40,8 +40,8 @@ it currently is*.
    the next local branch's tip, and open a *new* PR. A merged pull request cannot
    carry new work. **If those local branches are gone** (a fresh container), the
    work is not lost — rebuild it from the `FT-*` sections below, which are written
-   as recipes.
-3. Then `FT-7` … `FT-10`, then `FR-1`
+   as recipes, not reports.
+3. Then `FT-8` … `FT-10`, then `FR-1`
    (`functions/environmentVault/registry.js`, 1120), which begins the R3 runtime
    work, then `RU-1` → `RU-2` (Firestore rules) under the owner's ruling in
    `PLAN.md` § 7.3.
@@ -115,8 +115,8 @@ use `—` until it exists.**
 | `T-5` | NOT STARTED | R4 | `scripts/ci-plan.mjs` (tooling) | 523 | 523 | — | — | — | — | — | — | — | 1 |
 | `FT-1` | **MERGED** | R1 | `blogPipeline.test.js` → 6 suites + support | 1496 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#59](https://github.com/Khomurod/SafeHaul/pull/59) | — | — | local green | — | — | **1 ✓** |
 | `FT-2` | **MERGED** | R1 | `applicationDrafts.test.js` → 6 suites + support | 1476 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#60](https://github.com/Khomurod/SafeHaul/pull/60) | — | — | local green | — | — | **1 ✓** |
-| `FT-3` | **IN PROGRESS** | R1 | `aiRouter.test.js` → 4 suites + support | 1203 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
-| `FT-4` | NOT STARTED | R1 | `functions/test/unit/aiProviders.test.js` (test) | 940 | 940 | — | — | — | — | — | — | — | 1 |
+| `FT-3` | **MERGED** | R1 | `aiRouter.test.js` → 4 suites + support | 1203 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#61](https://github.com/Khomurod/SafeHaul/pull/61) | — | — | local green | — | — | **1 ✓** |
+| `FT-4` | **IN PROGRESS** | R1 | `aiProviders.test.js` → 4 suites + support | 940 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
 | `FT-5` | NOT STARTED | R1 | `functions/test/unit/aiCredentials.test.js` (test) | 817 | 817 | — | — | — | — | — | — | — | 1 |
 | `FT-6` | NOT STARTED | R1 | `functions/test/unit/aiHealthCheck.test.js` (test) | 645 | 645 | — | — | — | — | — | — | — | 1 |
 | `FT-7` | NOT STARTED | R1 | `functions/test/unit/guestApplication.snapshot.test.js` (test) | 637 | 637 | — | — | — | — | — | — | — | 1 |
@@ -1204,7 +1204,7 @@ nothing dead. That is the direct fix for the false positives that reached CI in
 
 ## `FT-3` — `aiRouter.test.js` → 4 suites + support
 
-**Status:** `PR PENDING` — on the branch, PR about to open · **Risk:** R1 ·
+**Status:** `MERGED` — [#61](https://github.com/Khomurod/SafeHaul/pull/61), main `89ea103` · **Risk:** R1 ·
 **1203 → deleted, 4 suites of 224–355**
 
 | file | subject | lines |
@@ -1273,6 +1273,63 @@ names across the four files. Nothing was guessed.
 | functions suite | 1597/1597, 115 suites |
 | root `npm run lint` | pass |
 | `check:source-size` | **59 over limit / 59 recorded**, verdict `OK` |
+| `check:ci-plan` · `test:source-size` | pass |
+
+---
+
+## `FT-4` — `aiProviders.test.js` → 4 suites + support
+
+**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R1 ·
+**940 → deleted, 4 suites of 133–364**
+
+| file | subject | lines |
+|---|---|---|
+| `aiProviders.vendors.test.js` | Gemini, Cloudflare Workers AI, GitHub Models, OpenAI-compatible | 364 |
+| `aiProviders.groq.test.js` | the Groq adapter and its live-API-verified model pins | 219 |
+| `aiProviders.failures.test.js` | HTTP failure classification and timeouts | 185 |
+| `aiProviders.registry.test.js` | adapter coverage, and pins vendors have retired | 133 |
+| `aiProviders.support.js` | the injected `fetch`, the adapter context, the fixtures | 118 |
+
+Every one of the 869 body lines is accounted for — the multiset diff is **zero in
+both directions**, counting the two Gemini fixtures that moved into support. All
+81 full test names identical; functions suite 1597/1597 across 118 suites.
+
+### The lesson: a describe's start is not its predecessor's end
+
+The first cut of this split was generated from a map built by scanning for lines
+beginning `describe(` and treating the *next* one as the previous block's end.
+That is wrong whenever anything sits between two describes — and here
+`GEMINI_TEXT_RESPONSE` and `GEMINI_TRUNCATED_RESPONSE` do, at lines 240–272,
+inside what that map called "the Groq adapter". The Groq suite silently swallowed
+two Gemini fixtures and the Gemini suite lost them:
+`ReferenceError: GEMINI_TEXT_RESPONSE is not defined`, eight tests.
+
+Boundaries now come from **brace matching**, not from the next describe. And the
+multiset body-line diff is what turns "I think I got it all" into a fact — it is
+the check that would have caught this silently if the tests had not.
+
+Worth confirming for the earlier units: `FT-3`'s diff was zero and `FT-2`'s was
+four accounted differences, so neither dropped anything. The check earns its keep.
+
+### Everything else was the established recipe
+
+One `jest.mock` per file, factory body in support, dotted sibling names, lazy
+requires in support (the registry, for the `FT-3` reason), fixtures exported.
+This file queues no `*Once` value and has no `beforeEach` at all — every helper
+returns fresh state per call — so there is no reset to preserve.
+
+Imports pruned by the linter again. One wrinkle worth knowing: the pruner has to
+compare the **local** name in an aliased destructure —
+`const { requireModel: requireCloudflareModel }` is reported as
+`requireCloudflareModel`, which does not appear on the left of the colon.
+
+| Check | Result |
+|---|---|
+| 81 full test names, before vs after | **identical** |
+| body lines, original vs split | **zero differences, both directions** |
+| functions suite | 1597/1597, 118 suites |
+| root `npm run lint` | pass |
+| `check:source-size` | **58 over limit / 58 recorded**, verdict `OK` |
 | `check:ci-plan` · `test:source-size` | pass |
 
 ---
