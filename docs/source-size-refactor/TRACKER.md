@@ -15,13 +15,13 @@ it currently is*.
 
 | | |
 |---|---|
-| **Last updated** | 2026-08-31, `FR-13` merged as #81; `FR-14` on the branch — the last `FR-*` unit |
-| **Verified main SHA** | `b3d51d90180d71701e9044b5468bf27ab3478d0b` (#81 / `FR-13` merged) |
-| **Oversized files** | **39 on `main`, 38 on this branch** (was 68 when the tracker opened) |
-| **Backlog entries** | **39 on `main`, 38 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
-| **Active work item** | `FR-14` — on the branch, PR pending. Built one-at-a-time from `main`, per `PLAN.md` § 6; nothing is stacked behind it. |
+| **Last updated** | 2026-08-31, `FR-14` merged as #82 — the `FR-*` series is done; `SA-2` on the branch |
+| **Verified main SHA** | `71d44d824684718347faba842610ea355ce04923` (#82 / `FR-14` merged) |
+| **Oversized files** | **38 on `main`, 37 on this branch** (was 68 when the tracker opened) |
+| **Backlog entries** | **38 on `main`, 37 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
+| **Active work item** | `SA-2` — on the branch, PR pending. Taken BEFORE `SA-1` deliberately: the campaign's tests-before-runtime order — splitting the 1699-line contract test first gives `SA-1` smaller, more legible covering suites, exactly the `FT`→`FR` pattern. |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | none open yet for `FR-14`. [#81](https://github.com/Khomurod/SafeHaul/pull/81) and everything before it merged; #50 closed. |
+| **Active PR** | none open yet for `SA-2`. [#82](https://github.com/Khomurod/SafeHaul/pull/82) and everything before it merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
 | **CI status** | #61, #62 and #63 all merged fully green, first try. The only red round in this stretch was #60's `frontend-quality` — a **race in a test `LD-R3` wrote**, reproduced and fixed, see the interlude below. A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
@@ -30,8 +30,8 @@ it currently is*.
 
 ### Exact next action
 
-1. **Push and open the `FR-14` PR**, then merge it when green.
-2. **Nothing is pre-built behind `FR-14`.** The stacking deviation recorded below
+1. **Push and open the `SA-2` PR**, then merge it when green.
+2. **Nothing is pre-built behind `SA-2`.** The stacking deviation recorded below
    is fully unwound once it merges.
    **Their sections below were published with `FT-10`, deliberately ahead of their
    code.** The reason is worth keeping: for several units the "rebuild it from the
@@ -54,8 +54,8 @@ it currently is*.
    conflicts.
    **If those local branches are gone** (a fresh container), the work is not lost:
    rebuild each from its `FR-*` section below, which is written as a recipe.
-3. **After `FR-14`, the `FR-*` series is done.** Next per the master table:
-   the `SA-*` frontend runtime/test units, then
+3. **After `SA-2`: `SA-1`** (the view the split suites cover), then the rest
+   of the `SA-*` units, then
    `RU-1` → `RU-2` (Firestore rules) under the owner's ruling in `PLAN.md` § 7.3.
 
 **Four process rules learned the hard way in this session, all worth keeping:**
@@ -148,9 +148,9 @@ use `—` until it exists.**
 | `FR-11` | **MERGED** | R4 | `documentBuilder.js` → 480 + `layout.js`; class kept whole | 599 | **480** | `claude/safehual-source-size-refactor-j4apre` | [#79](https://github.com/Khomurod/SafeHaul/pull/79) | — | 2026-08-31 | green | ✓ | ✓ | **1 ✓** |
 | `FR-12` | **MERGED** | R3 | `releaseManagement/index.js` → 151 + 2 modules | 517 | **151** | `claude/safehual-source-size-refactor-j4apre` | [#80](https://github.com/Khomurod/SafeHaul/pull/80) | — | 2026-08-31 | green | ✓ | ✓ | **1 ✓** |
 | `FR-13` | **MERGED** | R3 | `batchWorker.js` → 233 + 2 modules | 511 | **233** | `claude/safehual-source-size-refactor-j4apre` | [#81](https://github.com/Khomurod/SafeHaul/pull/81) | — | 2026-08-31 | green | ✓ | ✓ | **1 ✓** |
-| `FR-14` | **IN PROGRESS** | R3 | `store.js` → 236 + 2 modules | 505 | **236** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
+| `FR-14` | **MERGED** | R3 | `store.js` → 236 + 2 modules | 505 | **236** | `claude/safehual-source-size-refactor-j4apre` | [#82](https://github.com/Khomurod/SafeHaul/pull/82) | — | 2026-08-31 | green | ✓ | ✓ | **1 ✓** |
 | `SA-1` | NOT STARTED | R2 | `src/features/super-admin/views/AiIntegrationsView.jsx` (runtime) | 983 | 983 | — | — | — | — | — | — | — | 1 |
-| `SA-2` | NOT STARTED | R1 | `src/features/super-admin/views/AiIntegrationsView.contract.test.jsx` (test) | 1699 | 1699 | — | — | — | — | — | — | — | 1 |
+| `SA-2` | **IN PROGRESS** | R1 | contract test → 6 suites + support (before `SA-1`, tests-first) | 1699 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
 | `SA-3` | NOT STARTED | R2 | `src/features/super-admin/views/UnifiedDriverList.jsx` (runtime) | 656 | 656 | — | — | — | — | — | — | — | 1 |
 | `SA-4` | NOT STARTED | R2 | `src/features/super-admin/hooks/useSystemHealth.js` (runtime) | 603 | 603 | — | — | — | — | — | — | — | 1 |
 | `SA-5` | NOT STARTED | R2 | `src/features/super-admin/components/CreateView.jsx` (runtime) | 573 | 573 | — | — | — | — | — | — | — | 1 |
@@ -2389,7 +2389,7 @@ and passes unchanged.
 
 ## `FR-14` — `ai/credentials/store.js` → credentials, the config doc, and health
 
-**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R3 ·
+**Status:** `MERGED` — [#82](https://github.com/Khomurod/SafeHaul/pull/82), main `71d44d8` · **Risk:** R3 ·
 **505 → 236, plus two modules of 83–252 — the last `FR-*` unit**
 
 The provider credential/config store split along the seam its own header
@@ -2429,6 +2429,62 @@ that same path.
 | root `npm run lint` | pass |
 | `check:source-size` | **38 recorded**, verdict `OK` |
 | `check:ci-plan` | pass |
+
+---
+
+## `SA-2` — `AiIntegrationsView.contract.test.jsx` → 6 suites + support
+
+**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R1 ·
+**1699 → deleted; 6 suites of 174–335 plus a 356-line support module**
+
+**Taken before `SA-1` deliberately** — the campaign's tests-before-runtime
+order: splitting the contract test first gives the later view split smaller,
+more legible covering suites, exactly the `FT`→`FR` pattern. The first
+`FT`-recipe unit under **vitest** rather than jest; the differences are worth
+recording.
+
+| file | subject |
+|---|---|
+| `…contract.support.jsx` | spies, mock factories, fixtures, `stubCallables`, `renderView`, helpers, `resetHarness` — and the original security-proof header, verbatim |
+| `…contract.credentials.test.jsx` | masking/reveal, unreadable-vs-missing, the access check |
+| `…contract.telemetry.test.jsx` | the panel, the Providers/Logs tabs, article transactions |
+| `…contract.mutations.test.jsx` | enable/disable, save/delete, Groq migration, re-authentication |
+| `…contract.routing.test.jsx` | routing order and why a provider is skipped |
+| `…contract.health.test.jsx` | per-lane health, what a failed capability says |
+| `…contract.listing.test.jsx` | provider listing, the retired provider, Research & Media, page structure |
+
+### The vitest translation of the recipe
+
+- `vi.mock` hoists per file like `jest.mock`, but factories are ESM: each
+  suite registers `vi.mock('x', async () => (await import('./…support')).xMock())`
+  — the module registry hands the factory and the suite's static import the
+  same instance, so the spies a suite imports are the ones the view talks to.
+- **The support module must not import the view statically**: static imports
+  run before any suite's mocks exist, so a support-level view import would
+  load the real firebase modules. `renderView` lazy-imports the view instead
+  (the `FT-3` lazy-`requireActual` trick, ESM form); the three suites that
+  call `render(<AiIntegrationsView />)` raw import the view themselves, after
+  their own hoisted mocks.
+- The `clearAllMocks`+`Once` hazard was checked and does not bite here:
+  `stubCallables` replaces every callable with a fresh `vi.fn()` in each
+  test's reset, so once-queues cannot leak across tests.
+- `react-refresh/only-export-components` warns on a non-component export
+  module; the support file carries a scoped disable with the reason (a test
+  harness, not an HMR module).
+- Baseline 93 tests; after the split, 93 across the six suites,
+  set-identical (`status :: fullName`), and the full frontend run is
+  **4493 passed / 250 files** (was 244+1 before: −1 original, +6 new).
+  Multiset diff over the whole set: every missing line is one of the
+  reshaped mock registrations or the header/spies now living in support —
+  each enumerated and accounted at review time.
+
+| Check | Result |
+|---|---|
+| 93 covering tests | **set-identical**, before and after prune |
+| full frontend vitest run | 4493 passed / 250 files |
+| eslint on the seven files | clean (one scoped, reasoned disable) |
+| `check:source-size` | **37 recorded**, verdict `OK` |
+| root `npm run lint` · `check:ci-plan` | pass |
 
 ---
 

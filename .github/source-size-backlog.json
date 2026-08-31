@@ -59,7 +59,6 @@
     "src/features/signing/hooks/useAiFieldAssistant.test.jsx": 534,
     "src/features/super-admin/components/CreateView.jsx": 573,
     "src/features/super-admin/hooks/useSystemHealth.js": 603,
-    "src/features/super-admin/views/AiIntegrationsView.contract.test.jsx": 1699,
     "src/features/super-admin/views/AiIntegrationsView.jsx": 983,
     "src/features/super-admin/views/BlogPostsView.contract.test.jsx": 570,
     "src/features/super-admin/views/EnvironmentIntegrationsView.contract.test.jsx": 709,
