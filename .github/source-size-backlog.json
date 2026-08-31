@@ -35,7 +35,6 @@
     "functions/bulkActions/workers/batchWorker.js": 511,
     "functions/hrAdmin.js": 607,
     "functions/releaseManagement/index.js": 517,
-    "functions/shared/pdf/applicationDocument.js": 643,
     "functions/shared/pdf/documentBuilder.js": 599,
     "scripts/ci-plan.mjs": 523,
     "scripts/deploy-functions-incremental.mjs": 525,
