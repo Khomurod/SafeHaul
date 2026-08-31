@@ -15,13 +15,13 @@ it currently is*.
 
 | | |
 |---|---|
-| **Last updated** | 2026-08-31, `FR-6` merged as #74; `FR-7` on the branch |
-| **Verified main SHA** | `29e7c43f91f706c83b23a172239c539d1e463444` (#74 / `FR-6` merged) |
-| **Oversized files** | **46 on `main`, 45 on this branch** (was 68 when the tracker opened) |
-| **Backlog entries** | **46 on `main`, 45 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
-| **Active work item** | `FR-7` — on the branch, PR pending. Built one-at-a-time from `main`, per `PLAN.md` § 6; nothing is stacked behind it. |
+| **Last updated** | 2026-08-31, `FR-7` merged as #75; `FR-8` on the branch |
+| **Verified main SHA** | `062e50e6c34b5553862cabf3e1bb73479cb491e2` (#75 / `FR-7` merged) |
+| **Oversized files** | **45 on `main`, 44 on this branch** (was 68 when the tracker opened) |
+| **Backlog entries** | **45 on `main`, 44 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
+| **Active work item** | `FR-8` — on the branch, PR pending. Built one-at-a-time from `main`, per `PLAN.md` § 6; nothing is stacked behind it. |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | none open yet for `FR-7`. [#74](https://github.com/Khomurod/SafeHaul/pull/74) and everything before it merged; #50 closed. |
+| **Active PR** | none open yet for `FR-8`. [#75](https://github.com/Khomurod/SafeHaul/pull/75) and everything before it merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
 | **CI status** | #61, #62 and #63 all merged fully green, first try. The only red round in this stretch was #60's `frontend-quality` — a **race in a test `LD-R3` wrote**, reproduced and fixed, see the interlude below. A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
@@ -30,8 +30,8 @@ it currently is*.
 
 ### Exact next action
 
-1. **Push and open the `FR-7` PR**, then merge it when green.
-2. **Nothing is pre-built behind `FR-7`.** The stacking deviation recorded below
+1. **Push and open the `FR-8` PR**, then merge it when green.
+2. **Nothing is pre-built behind `FR-8`.** The stacking deviation recorded below
    is fully unwound once it merges.
    **Their sections below were published with `FT-10`, deliberately ahead of their
    code.** The reason is worth keeping: for several units the "rebuild it from the
@@ -54,7 +54,7 @@ it currently is*.
    conflicts.
    **If those local branches are gone** (a fresh container), the work is not lost:
    rebuild each from its `FR-*` section below, which is written as a recipe.
-3. **After `FR-7`: `FR-8`–`FR-14`**, one at a time from `main`, then
+3. **After `FR-8`: `FR-9`–`FR-14`**, one at a time from `main`, then
    `RU-1` → `RU-2` (Firestore rules) under the owner's ruling in `PLAN.md` § 7.3.
 
 **Four process rules learned the hard way in this session, all worth keeping:**
@@ -140,8 +140,8 @@ use `—` until it exists.**
 | `FR-4` | **MERGED** | R3 | `router.js` → 445 + 4 modules; `runAiTask` kept whole | 806 | **445** | `claude/safehual-source-size-refactor-j4apre` | [#72](https://github.com/Khomurod/SafeHaul/pull/72) | — | 2026-08-31 | green | ✓ | ✓ | **1 ✓** |
 | `FR-5` | **MERGED** | R3 | `generate.js` → 428 + 4 modules; `runSlot` kept whole | 674 | **428** | `claude/safehual-source-size-refactor-j4apre` | [#73](https://github.com/Khomurod/SafeHaul/pull/73) | — | 2026-08-31 | green | ✓ | ✓ | **1 ✓** |
 | `FR-6` | **MERGED** | R3 | `sessionController.js` → 265 + 2 modules; new IDOR-branch tests | 651 | **265** | `claude/safehual-source-size-refactor-j4apre` | [#74](https://github.com/Khomurod/SafeHaul/pull/74) | — | 2026-08-31 | green | ✓ | ✓ | **1 ✓** |
-| `FR-7` | **IN PROGRESS** | R4 | `applicationDocument.js` → 176 + 3 modules | 643 | **176** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
-| `FR-8` | NOT STARTED | R3 | `functions/blog/publicApi.js` (runtime) | 631 | 631 | — | — | — | — | — | — | — | 1 |
+| `FR-7` | **MERGED** | R4 | `applicationDocument.js` → 176 + 3 modules | 643 | **176** | `claude/safehual-source-size-refactor-j4apre` | [#75](https://github.com/Khomurod/SafeHaul/pull/75) | — | 2026-08-31 | green | ✓ | ✓ | **1 ✓** |
+| `FR-8` | **IN PROGRESS** | R3 | `publicApi.js` → 186 + 3 modules | 631 | **186** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
 | `FR-9` | NOT STARTED | R3 | `functions/ai/registry/providers.js` (runtime) | 628 | 628 | — | — | — | — | — | — | — | 1 |
 | `FR-10` | NOT STARTED | R3 | `functions/hrAdmin.js` (runtime) | 607 | 607 | — | — | — | — | — | — | — | 1 |
 | `FR-11` | NOT STARTED | R4 | `functions/shared/pdf/documentBuilder.js` (runtime) | 599 | 599 | — | — | — | — | — | — | — | 1 |
@@ -2043,7 +2043,7 @@ green again.
 
 ## `FR-7` — `shared/pdf/applicationDocument.js` → the renderer, plus what it prints
 
-**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R4 ·
+**Status:** `MERGED` — [#75](https://github.com/Khomurod/SafeHaul/pull/75), main `062e50e` · **Risk:** R4 ·
 **643 → 176, plus three modules of 130–294**
 
 The application-PDF renderer, R4 because PDF geometry and the legal agreement
@@ -2087,6 +2087,62 @@ to it.
 | functions suite | 1601/1601 |
 | root `npm run lint` | pass |
 | `check:source-size` | **45 recorded**, verdict `OK` |
+| `check:ci-plan` | pass |
+
+---
+
+## `FR-8` — `blog/publicApi.js` → the router, plus what it serves
+
+**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R3 ·
+**631 → 186, plus three modules of 71–319**
+
+The public blog's HTTP surface. The entry keeps the security-posture header,
+`applyCommonHeaders`, the single `handlePublicBlogRequest` router (single by
+documented design — Hosting rewrites match by path), `serveBlogPublic`, and
+the `__test` surface. What it serves moves out by output kind.
+
+| file | subject | lines |
+|---|---|---|
+| `publicApi/pages.js` | the HTML: shared shell, article page, index, not-found | 319 |
+| `publicApi.js` (entry) | the router, response headers, the deployed function, `__test` | 186 |
+| `publicApi/rendering.js` | site constants, URL/date/reading-time helpers, JSON-LD, the landing-page card shape | 149 |
+| `publicApi/feeds.js` | the Atom feed and the sitemap | 71 |
+
+### Recipe
+
+- Bodies moved verbatim by `sed` line range. Multiset diff: the only two
+  missing lines are the original two wide `require` lines, replaced by
+  narrower per-module requires; every other addition is a header, require, or
+  export block.
+- **The generate-then-prune step caught two real defects this time**: the
+  first cut left `getTheme` out of `rendering.js` and `getTheme`/`THEMES` out
+  of `pages.js` — `no-undef`, a runtime crash on the JSON-LD, article, and
+  index paths — and the linter named them before any test ran. The same pass
+  named every dead import; exactly those were deleted.
+- Covering coverage is the six `blogPipeline.*` suites (112 tests, of which
+  `blogPipeline.rendering` exercises this file's `__test` surface: article
+  page, index, feed, sitemap, not-found, JSON-LD, cards). All identical
+  name-for-name after the split. Consumers: `functions/index.js`
+  (`serveBlogPublic`, unchanged) and that suite.
+- **A source-text guard on the FRONTEND side was found by CI, not by the
+  pre-cut sweep**: `src/tests/hostingConfig.test.js` reads this backend file
+  as text (the privacy-footer link, the robots backstop) and runs under
+  vitest in `frontend-quality` — the sweep only checked `functions/test`.
+  Repointed to read the entry plus every file in `blog/publicApi/` via
+  `readdirSync`, with anti-vacuity (`files > 3`, `text > 10000` chars), and
+  proven with two plants: a renamed privacy link fails it, and an empty
+  directory scan fails the anti-vacuity test. **Lesson recorded: sweep for
+  text guards across `src/tests` too, not just `functions/test` — a backend
+  file can be pinned from the frontend lane.**
+
+| Check | Result |
+|---|---|
+| export surface (`serveBlogPublic` + 12-key `__test`, constants by value) | **identical** |
+| 112 covering tests across the six `blogPipeline.*` suites | **identical**, name for name |
+| every original body line | accounted for — only the two replaced require lines |
+| functions suite | 1601/1601 |
+| root `npm run lint` | pass |
+| `check:source-size` | **44 recorded**, verdict `OK` |
 | `check:ci-plan` | pass |
 
 ---

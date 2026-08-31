@@ -22,13 +22,24 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const root = process.cwd();
 const config = JSON.parse(readFileSync(resolve(root, 'firebase.json'), 'utf8'));
 const robotsTxt = readFileSync(resolve(root, 'web/robots.txt'), 'utf8');
-const publicApi = readFileSync(resolve(root, 'functions/blog/publicApi.js'), 'utf8');
+// FR-8 split the blog surface: `publicApi.js` keeps the router and
+// `functions/blog/publicApi/` holds what it serves. The footer link and the
+// robots backstop may live in any of those files, so this guard reads them
+// all — and asserts it actually found a substantial surface, because a scan
+// that silently reads nothing passes every toContain the wrong way.
+const publicApiFiles = [
+    resolve(root, 'functions/blog/publicApi.js'),
+    ...readdirSync(resolve(root, 'functions/blog/publicApi'))
+        .filter((name) => name.endsWith('.js'))
+        .map((name) => resolve(root, 'functions/blog/publicApi', name)),
+];
+const publicApi = publicApiFiles.map((file) => readFileSync(file, 'utf8')).join('\n');
 
 // The target ALIASES are still `landing-*` because they map to the Firebase
 // Hosting sites `safehaul-landing-{testing,production}`, and a site cannot be
@@ -148,6 +159,11 @@ describe('firebase.json — /robots.txt is served statically, never rewritten', 
         expect(privacy).not.toMatch(/<script/i);
         // And it must not link back into the removed marketing site.
         expect(privacy).not.toMatch(/href="\/#/);
+    });
+
+    it('reads the whole split blog surface, not a stale path', () => {
+        expect(publicApiFiles.length).toBeGreaterThan(3);
+        expect(publicApi.length).toBeGreaterThan(10000);
     });
 
     it('links the privacy policy from the blog footer', () => {
