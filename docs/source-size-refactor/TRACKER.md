@@ -15,33 +15,36 @@ it currently is*.
 
 | | |
 |---|---|
-| **Last updated** | 2026-08-29, `FT-1` merged as #59; `FT-2` open as #60 |
-| **Verified main SHA** | `3c579aaea02d3bb2bee353705b5593d4ce129c8e` (#59 / `FT-1` merged) |
-| **Oversized files** | **61 on `main`, 60 on this branch** (was 68 when the tracker opened) |
-| **Backlog entries** | **61 on `main`, 60 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
-| **Active work item** | `FT-2` — open as #60, awaiting CI and review. |
+| **Last updated** | 2026-08-29, `FT-2` merged as #60; `FT-3` on the branch |
+| **Verified main SHA** | `444d356f899d5273de8709f11a0233fb85a80ff5` (#60 / `FT-2` merged) |
+| **Oversized files** | **60 on `main`, 59 on this branch** (was 68 when the tracker opened) |
+| **Backlog entries** | **60 on `main`, 59 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
+| **Active work item** | `FT-3` — on the branch, PR pending. `FT-4`, `FT-5` and `FT-6` are built and committed on local branches, queued behind it. |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | **[#60](https://github.com/Khomurod/SafeHaul/pull/60)** (`FT-2`). [#59](https://github.com/Khomurod/SafeHaul/pull/59) and everything before it merged; #50 closed. |
+| **Active PR** | none open yet for `FT-3`. [#60](https://github.com/Khomurod/SafeHaul/pull/60) and everything before it merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
-| **CI status** | #60 went red once on `frontend-quality` — a **race in a test `LD-R3` wrote**, reproduced and fixed, see below. A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
+| **CI status** | #60 merged fully green on `b2c965a`. It went red once on `frontend-quality` — a **race in a test `LD-R3` wrote**, reproduced and fixed, see the interlude below. A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
 | **Working tree at session end** | see the last per-item section |
 | **Blockers** | none. The nav-placement question was delegated and decided — see `PLAN.md` § 7.2b. |
 
 ### Exact next action
 
-1. **Merge [#60](https://github.com/Khomurod/SafeHaul/pull/60)** (`FT-2`) once its
-   head is green, then run the standing per-unit ritual: every unit reuses one
-   branch name, so once its PR merges, restart from the new `main`
-   (`git fetch origin main && git checkout -B
-   claude/safehual-source-size-refactor-j4apre origin/main`), re-apply the next
-   unit, and open a *new* PR. A merged pull request cannot carry new work.
-2. Then `FT-3` (`aiRouter.test.js`, 1203) and the seven `FT-*` files after it —
-   the `FT-2` section below is written as a recipe, and its two mechanical notes
-   are the ones that cost time.
-3. Then `FR-1` (`functions/environmentVault/registry.js`, 1120), which begins the
-   R3 runtime work, then `RU-1` → `RU-2` (Firestore rules) under the owner's
-   ruling in `PLAN.md` § 7.3.
+1. **Push and open the `FT-3` PR**, then merge it when green.
+2. **`FT-4`, `FT-5` and `FT-6` are already built, verified and committed** — on
+   the local branches `local/ft-4`, `local/ft-5` and `local/ft-6`, each stacked on
+   the one before. Promote them one at a time with the standing per-unit ritual,
+   because every unit reuses one branch name: once a PR merges, restart from the
+   new `main` (`git fetch origin main && git checkout -B
+   claude/safehual-source-size-refactor-j4apre origin/main`), `git cherry-pick`
+   the next local branch's tip, and open a *new* PR. A merged pull request cannot
+   carry new work. **If those local branches are gone** (a fresh container), the
+   work is not lost — rebuild it from the `FT-*` sections below, which are written
+   as recipes.
+3. Then `FT-7` … `FT-10`, then `FR-1`
+   (`functions/environmentVault/registry.js`, 1120), which begins the R3 runtime
+   work, then `RU-1` → `RU-2` (Firestore rules) under the owner's ruling in
+   `PLAN.md` § 7.3.
 
 **Four process rules learned the hard way in this session, all worth keeping:**
 
@@ -111,8 +114,8 @@ use `—` until it exists.**
 | `T-4` | NOT STARTED | R3 | `scripts/deploy-functions-incremental.mjs` (tooling) | 525 | 525 | — | — | — | — | — | — | — | 1 |
 | `T-5` | NOT STARTED | R4 | `scripts/ci-plan.mjs` (tooling) | 523 | 523 | — | — | — | — | — | — | — | 1 |
 | `FT-1` | **MERGED** | R1 | `blogPipeline.test.js` → 6 suites + support | 1496 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#59](https://github.com/Khomurod/SafeHaul/pull/59) | — | — | local green | — | — | **1 ✓** |
-| `FT-2` | **PR OPEN** | R1 | `applicationDrafts.test.js` → 6 suites + support | 1476 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#60](https://github.com/Khomurod/SafeHaul/pull/60) | — | — | local green | — | — | **1 ✓** |
-| `FT-3` | NOT STARTED | R1 | `functions/test/unit/aiRouter.test.js` (test) | 1203 | 1203 | — | — | — | — | — | — | — | 1 |
+| `FT-2` | **MERGED** | R1 | `applicationDrafts.test.js` → 6 suites + support | 1476 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#60](https://github.com/Khomurod/SafeHaul/pull/60) | — | — | local green | — | — | **1 ✓** |
+| `FT-3` | **IN PROGRESS** | R1 | `aiRouter.test.js` → 4 suites + support | 1203 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
 | `FT-4` | NOT STARTED | R1 | `functions/test/unit/aiProviders.test.js` (test) | 940 | 940 | — | — | — | — | — | — | — | 1 |
 | `FT-5` | NOT STARTED | R1 | `functions/test/unit/aiCredentials.test.js` (test) | 817 | 817 | — | — | — | — | — | — | — | 1 |
 | `FT-6` | NOT STARTED | R1 | `functions/test/unit/aiHealthCheck.test.js` (test) | 645 | 645 | — | — | — | — | — | — | — | 1 |
@@ -1117,7 +1120,7 @@ why only the export helper was exposed.
 
 ## `FT-2` — `applicationDrafts.test.js` → 6 suites + support
 
-**Status:** `PR OPEN` — [#60](https://github.com/Khomurod/SafeHaul/pull/60) · **Risk:** R1 · **1476 → deleted, 6 suites of 176–380**
+**Status:** `MERGED` — [#60](https://github.com/Khomurod/SafeHaul/pull/60), main `444d356` · **Risk:** R1 · **1476 → deleted, 6 suites of 176–380**
 
 | file | subject | lines |
 |---|---|---|
@@ -1195,6 +1198,81 @@ nothing dead. That is the direct fix for the false positives that reached CI in
 | functions suite | 1597/1597, 112 suites |
 | root `npm run lint` | pass (includes `lint:backend`) |
 | `check:source-size` | **60 over limit / 60 recorded**, verdict `OK` |
+| `check:ci-plan` · `test:source-size` | pass |
+
+---
+
+## `FT-3` — `aiRouter.test.js` → 4 suites + support
+
+**Status:** `PR PENDING` — on the branch, PR about to open · **Risk:** R1 ·
+**1203 → deleted, 4 suites of 224–355**
+
+| file | subject | lines |
+|---|---|---|
+| `aiRouter.routing.test.js` | default order, operator order, eligibility, capability | 355 |
+| `aiRouter.fallback.test.js` | unreadable credentials, what triggers fall-through | 322 |
+| `aiRouter.observability.test.js` | the kept answer, schema validation, telemetry, the transaction log | 294 |
+| `aiRouter.resilience.test.js` | infrastructure failures, images, deadlines, `describeRouting` | 224 |
+| `aiRouter.support.js` | the provider fakes, the config/credential doubles, task builders | 180 |
+
+**Not one test body line changed.** The multiset diff of the original's whole
+`describe` region against the four new files reports *zero* differences in either
+direction, only two extra blank lines from the file boundaries. Test names: all
+75 identical. Functions suite: 1597/1597 across 115 suites.
+
+### Two things this file needed that `FT-1` and `FT-2` did not
+
+**1. The doubles have to survive `jest.resetModules()`.** One test calls it to get
+a cold router, which clears the registry entry for the *support module* as well —
+so the next `jest.mock` factory loads a second copy of it with a second
+`mockStore`, and the one the test is holding is no longer the one the router talks
+to. It failed exactly that way: `credential_error` where `not_configured` was
+expected. In the single file this could not happen, because the factory was a
+closure over a `const` in the test file and `resetModules` does not re-execute the
+test file.
+
+The fix is to hang the doubles off the realm's global under a `Symbol.for` key, so
+a re-loaded support module finds the ones already there. **Jest gives every test
+file its own global object, so this is isolation, not sharing** — and it is the
+general answer for any suite whose tests call `resetModules`.
+
+**2. `jest.requireActual` at module scope can deadlock the mock graph.** The
+original's `cooldownState: jest.requireActual('../../ai/credentials/store').cooldownState`
+runs at *support* module load, and that require pulls in `../../firebaseAdmin`,
+whose mock factory requires the support module — still mid-load, exports not
+there. `require(...).firebaseAdminMock is not a function`. Deferring it to call
+time breaks the cycle and keeps the real implementation. The same lazy-require
+rule as `FT-2`, arrived at from the opposite direction.
+
+### The `Once` hazard: real, latent, and guarded — stated honestly
+
+This file **does** queue `*Once` values (two, in the infrastructure-failure
+section), so per `AGENTS.md` the reset became `jest.resetAllMocks()`, with the two
+definition-time implementations re-established immediately after —
+`mockRecordTelemetry` and `recordProviderOutcome`, which `clearAllMocks` would
+have left alone and `resetAllMocks` wipes.
+
+**Measured, not assumed: `clearAllMocks` also passes on the current ordering.**
+Swapped back deliberately, all 75 still green. So the leak is *latent* here rather
+than manifest — the guard is precautionary, and its reason is written into the
+support file so nobody weakens it back on the grounds that "the tests pass either
+way". They do. That is the nature of this hazard: it surfaces only when the
+ordering slips, which is exactly what a loaded CI runner does.
+
+### Pruning imports, second time on the linter
+
+Same method as `FT-2` and it needed no manual judgement: generate every suite
+carrying the *full* set of imports, run `npm run lint:backend`, delete exactly
+what it names, repeat until clean. It took **one round** and removed eighteen
+names across the four files. Nothing was guessed.
+
+| Check | Result |
+|---|---|
+| 75 full test names, before vs after | **identical** |
+| body lines, original vs split | **zero differences**, 2 added blank lines |
+| functions suite | 1597/1597, 115 suites |
+| root `npm run lint` | pass |
+| `check:source-size` | **59 over limit / 59 recorded**, verdict `OK` |
 | `check:ci-plan` · `test:source-size` | pass |
 
 ---
