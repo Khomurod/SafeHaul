@@ -38,7 +38,6 @@
     "functions/blog/publicApi.js": 631,
     "functions/bulkActions/controllers/sessionController.js": 651,
     "functions/bulkActions/workers/batchWorker.js": 511,
-    "functions/environmentVault/registry.js": 1188,
     "functions/hrAdmin.js": 607,
     "functions/releaseManagement/index.js": 517,
     "functions/shared/pdf/applicationDocument.js": 643,
