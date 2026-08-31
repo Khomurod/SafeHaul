@@ -165,21 +165,39 @@ describe('starting over', () => {
     });
 
     it('cannot reach a submitted application', async () => {
-        // The callable only ever addresses the draft subcollection, so a signed
-        // application and its immutable snapshot are out of its reach entirely.
-        const source = require('fs').readFileSync(
-            require('path').resolve(__dirname, '../../applicationDrafts.js'), 'utf8',
-        );
-        // Strip comments first: the prose above legitimately explains that
-        // submitted applications are out of reach, and matching that text would
-        // make this assertion a test of the documentation.
+        // The callables only ever address the draft subcollection, so a signed
+        // application and its immutable snapshot are out of their reach entirely.
+        //
+        // Read the WHOLE surface, not just the entry. `applicationDrafts.js` is
+        // now a re-export, so pointing this at it alone would leave both negative
+        // assertions passing over a file with no queries in it at all — which is
+        // the failure mode this assertion exists to prevent, one level up.
+        const fs = require('fs');
+        const path = require('path');
+        const root = path.resolve(__dirname, '../..');
+        const files = [
+            path.join(root, 'applicationDrafts.js'),
+            ...fs.readdirSync(path.join(root, 'drafts'))
+                .filter((name) => name.endsWith('.js'))
+                .map((name) => path.join(root, 'drafts', name)),
+        ];
+        // The surface is more than one file, and the directory listing is what
+        // keeps a newly added module from escaping this check.
+        expect(files.length).toBeGreaterThan(4);
+
+        const source = files.map((file) => fs.readFileSync(file, 'utf8')).join('\n');
+        // Strip comments first: the prose in these files legitimately explains
+        // that submitted applications are out of reach, and matching that text
+        // would make this assertion a test of the documentation.
         const code = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+        expect(code.length).toBeGreaterThan(5000);
+
         expect(code).not.toMatch(/collection\(\s*['"]applications['"]\s*\)/);
         expect(code).not.toMatch(/['"]submission['"]/);
         // Draft storage is reached only through the shared module, whose
         // `draftsCollection` is bound to the draft subcollection; the only other
-        // collection this file names is its own value-free audit trail.
-        expect(code).toMatch(/require\('\.\/shared\/applicationDraft'\)/);
+        // collection these files name is their own value-free audit trail.
+        expect(code).toMatch(/require\('\.\.\/shared\/applicationDraft'\)/);
         expect(code).toMatch(/application_draft_audit/);
     });
 });

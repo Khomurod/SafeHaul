@@ -23,7 +23,12 @@ const path = require('path');
 
 const REPO_ROOT = path.resolve(__dirname, '../../..');
 const config = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'firestore.indexes.json'), 'utf8'));
-const callableSource = fs.readFileSync(path.join(REPO_ROOT, 'functions/applicationDrafts.js'), 'utf8');
+// The lookup lives in `functions/drafts/resume.js`; `applicationDrafts.js` is
+// only the deployment surface that re-exports it. Reading the entry alone would
+// find no `.where(...)` at all — which the `filtered.length` assertion below
+// already refuses to treat as "nothing to check", and that is exactly how this
+// test caught the module split rather than passing over an empty string.
+const callableSource = fs.readFileSync(path.join(REPO_ROOT, 'functions/drafts/resume.js'), 'utf8');
 
 const draft = require('../../shared/applicationDraft');
 const telemetry = require('../../ai/telemetry/record');
@@ -57,7 +62,9 @@ describe('application_drafts composite index', () => {
         // Read out of the real query chain rather than trusting the assertion
         // above, so a new `.where(...)` added to `findResumableApplication` fails
         // here instead of on a driver's phone.
-        const body = callableSource.slice(callableSource.indexOf('exports.findResumableApplication'));
+        const start = callableSource.indexOf('exports.findResumableApplication');
+        expect(start).toBeGreaterThanOrEqual(0);
+        const body = callableSource.slice(start);
         const lookup = body.slice(0, body.indexOf('exports.resumeApplicationDraft'));
         const filtered = [...lookup.matchAll(/\.where\('([a-zA-Z]+)',\s*'=='/g)].map((match) => match[1]);
 
