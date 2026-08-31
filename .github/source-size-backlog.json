@@ -30,7 +30,6 @@
   },
   "files": {
     "functions/ai/credentials/store.js": 505,
-    "functions/ai/registry/providers.js": 628,
     "functions/bulkActions/workers/batchWorker.js": 511,
     "functions/hrAdmin.js": 607,
     "functions/releaseManagement/index.js": 517,

@@ -15,13 +15,13 @@ it currently is*.
 
 | | |
 |---|---|
-| **Last updated** | 2026-08-31, `FR-7` merged as #75; `FR-8` on the branch |
-| **Verified main SHA** | `062e50e6c34b5553862cabf3e1bb73479cb491e2` (#75 / `FR-7` merged) |
-| **Oversized files** | **45 on `main`, 44 on this branch** (was 68 when the tracker opened) |
-| **Backlog entries** | **45 on `main`, 44 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
-| **Active work item** | `FR-8` — on the branch, PR pending. Built one-at-a-time from `main`, per `PLAN.md` § 6; nothing is stacked behind it. |
+| **Last updated** | 2026-08-31, `FR-8` merged as #76; `FR-9` on the branch |
+| **Verified main SHA** | `72b9f06147a4a5b7f7e35ca79d8caafcb36ba134` (#76 / `FR-8` merged) |
+| **Oversized files** | **44 on `main`, 43 on this branch** (was 68 when the tracker opened) |
+| **Backlog entries** | **44 on `main`, 43 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
+| **Active work item** | `FR-9` — on the branch, PR pending. Built one-at-a-time from `main`, per `PLAN.md` § 6; nothing is stacked behind it. |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | none open yet for `FR-8`. [#75](https://github.com/Khomurod/SafeHaul/pull/75) and everything before it merged; #50 closed. |
+| **Active PR** | none open yet for `FR-9`. [#76](https://github.com/Khomurod/SafeHaul/pull/76) and everything before it merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
 | **CI status** | #61, #62 and #63 all merged fully green, first try. The only red round in this stretch was #60's `frontend-quality` — a **race in a test `LD-R3` wrote**, reproduced and fixed, see the interlude below. A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
@@ -30,8 +30,8 @@ it currently is*.
 
 ### Exact next action
 
-1. **Push and open the `FR-8` PR**, then merge it when green.
-2. **Nothing is pre-built behind `FR-8`.** The stacking deviation recorded below
+1. **Push and open the `FR-9` PR**, then merge it when green.
+2. **Nothing is pre-built behind `FR-9`.** The stacking deviation recorded below
    is fully unwound once it merges.
    **Their sections below were published with `FT-10`, deliberately ahead of their
    code.** The reason is worth keeping: for several units the "rebuild it from the
@@ -54,7 +54,7 @@ it currently is*.
    conflicts.
    **If those local branches are gone** (a fresh container), the work is not lost:
    rebuild each from its `FR-*` section below, which is written as a recipe.
-3. **After `FR-8`: `FR-9`–`FR-14`**, one at a time from `main`, then
+3. **After `FR-9`: `FR-10`–`FR-14`**, one at a time from `main`, then
    `RU-1` → `RU-2` (Firestore rules) under the owner's ruling in `PLAN.md` § 7.3.
 
 **Four process rules learned the hard way in this session, all worth keeping:**
@@ -141,8 +141,8 @@ use `—` until it exists.**
 | `FR-5` | **MERGED** | R3 | `generate.js` → 428 + 4 modules; `runSlot` kept whole | 674 | **428** | `claude/safehual-source-size-refactor-j4apre` | [#73](https://github.com/Khomurod/SafeHaul/pull/73) | — | 2026-08-31 | green | ✓ | ✓ | **1 ✓** |
 | `FR-6` | **MERGED** | R3 | `sessionController.js` → 265 + 2 modules; new IDOR-branch tests | 651 | **265** | `claude/safehual-source-size-refactor-j4apre` | [#74](https://github.com/Khomurod/SafeHaul/pull/74) | — | 2026-08-31 | green | ✓ | ✓ | **1 ✓** |
 | `FR-7` | **MERGED** | R4 | `applicationDocument.js` → 176 + 3 modules | 643 | **176** | `claude/safehual-source-size-refactor-j4apre` | [#75](https://github.com/Khomurod/SafeHaul/pull/75) | — | 2026-08-31 | green | ✓ | ✓ | **1 ✓** |
-| `FR-8` | **IN PROGRESS** | R3 | `publicApi.js` → 186 + 3 modules | 631 | **186** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
-| `FR-9` | NOT STARTED | R3 | `functions/ai/registry/providers.js` (runtime) | 628 | 628 | — | — | — | — | — | — | — | 1 |
+| `FR-8` | **MERGED** | R3 | `publicApi.js` → 186 + 3 modules | 631 | **186** | `claude/safehual-source-size-refactor-j4apre` | [#76](https://github.com/Khomurod/SafeHaul/pull/76) | — | 2026-08-31 | green | ✓ | ✓ | **1 ✓** |
+| `FR-9` | **IN PROGRESS** | R3 | `providers.js` → 154 + the provider table | 628 | **154** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
 | `FR-10` | NOT STARTED | R3 | `functions/hrAdmin.js` (runtime) | 607 | 607 | — | — | — | — | — | — | — | 1 |
 | `FR-11` | NOT STARTED | R4 | `functions/shared/pdf/documentBuilder.js` (runtime) | 599 | 599 | — | — | — | — | — | — | — | 1 |
 | `FR-12` | NOT STARTED | R3 | `functions/releaseManagement/index.js` (runtime) | 517 | 517 | — | — | — | — | — | — | — | 1 |
@@ -1127,6 +1127,18 @@ a control is gated on loaded data, wait for the data or for the enabled state �
 the other tests in this same file wait on `findByText('Dana Fixture')`, which is
 why only the export helper was exposed.
 
+**The same class hit again on #77 (2026-08-31), in
+`CreateView.contract.test.jsx`** — a head touching only `functions/ai/registry/`.
+Two shapes of the same race: asserting a company select's options before
+`loadCompanies` resolved (the select renders with only its placeholder first),
+and `fireEvent.change` to `'co-2'` before that `<option>` existed — **a change
+to a value the select does not yet offer silently no-ops**, so the submitted
+payload carried `companyId: ''`. Reproduced with a 50 ms mock delay (2 tests
+red), fixed by waiting for `options.length` / the named option, proven at
+400 ms, probe removed, 29/29 clean. That second shape is worth its own
+sentence: a select-option race does not fail at the select — it fails later,
+in whatever consumed the value that never got set.
+
 ---
 
 ## `FT-2` — `applicationDrafts.test.js` → 6 suites + support
@@ -2093,7 +2105,7 @@ to it.
 
 ## `FR-8` — `blog/publicApi.js` → the router, plus what it serves
 
-**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R3 ·
+**Status:** `MERGED` — [#76](https://github.com/Khomurod/SafeHaul/pull/76), main `72b9f06` · **Risk:** R3 ·
 **631 → 186, plus three modules of 71–319**
 
 The public blog's HTTP surface. The entry keeps the security-posture header,
@@ -2143,6 +2155,51 @@ the `__test` surface. What it serves moves out by output kind.
 | functions suite | 1601/1601 |
 | root `npm run lint` | pass |
 | `check:source-size` | **44 recorded**, verdict `OK` |
+| `check:ci-plan` | pass |
+
+---
+
+## `FR-9` — `ai/registry/providers.js` → the table, plus what is derived from it
+
+**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R3 ·
+**628 → 154, plus the 497-line provider table**
+
+`FR-1`'s shape again: a declarative registry. The 400-line `PROVIDER_LIST`
+moves — with its vocabulary (`TEXT_SUITE`, `STRUCTURED_MODE`,
+`DEFAULT_QUOTA_DETECTION`, the retry policies) and its field factories — into
+`providerTable.js`, one frozen row per provider, deliberately kept as ONE
+table rather than fragmented per vendor: nine homogeneous rows are one
+subject. The entry keeps everything derived from the table (the frozen
+registry, `PROVIDERS_BY_ID`, `DEFAULT_FALLBACK_ORDER`) and every lookup.
+Data lives in the table; behaviour stays in the entry.
+
+| file | subject | lines |
+|---|---|---|
+| `registry/providerTable.js` | the declarative rows and their vocabulary | 497 |
+| `providers.js` (entry) | the frozen registry, the fallback order, the lookups | 154 |
+
+### Recipe
+
+- `FR-1`'s evidence bar, since this is declarative data: a characterization
+  dump (`dump-providers.js` in the session scratchpad; rebuildable from this
+  description) serializing every export, every provider row with RegExp and
+  functions made explicit, frozenness, and every lookup probed over every
+  provider × capability — 96 lines, **byte-identical** before and after.
+- Bodies moved verbatim (`sed -n '28,503p'`); multiset diff 0 missing. The
+  capability destructure stays with the table; the entry re-requires
+  `CAPABILITIES` (the lookups use it), which the linter proved by `no-undef`
+  before any test ran.
+- No source-text guard reads this file — checked in `functions/test` AND
+  `src/tests`, per the `FR-8` lesson.
+
+| Check | Result |
+|---|---|
+| characterization dump (96 lines: rows, values, frozenness, lookups × capabilities) | **byte-identical** |
+| the AI suite family (363 tests) | all green |
+| every original body line | accounted for — multiset diff, 0 missing |
+| functions suite | 1601/1601 |
+| root `npm run lint` | pass |
+| `check:source-size` | **43 recorded**, verdict `OK` |
 | `check:ci-plan` | pass |
 
 ---

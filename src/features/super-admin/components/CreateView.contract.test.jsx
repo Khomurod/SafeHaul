@@ -248,6 +248,10 @@ describe('CreateView — standalone user creation contract', () => {
         renderView();
         goToUserTab();
         const select = await screen.findByLabelText(/^Assign to Company/);
+        // The select renders with only the placeholder until loadCompanies
+        // resolves; asserting before that is a race that fails on a loaded
+        // CI runner (measured: a 50ms mock delay reproduces it locally).
+        await waitFor(() => expect(select.options.length).toBe(3));
         expect([...select.options].map((o) => [o.value, o.textContent])).toEqual([
             ['', '-- Select Company --'],
             ['co-1', 'Artificial Freight Co'],
@@ -269,6 +273,9 @@ describe('CreateView — standalone user creation contract', () => {
         goToUserTab();
         fireEvent.change(await screen.findByLabelText(/^Full Name/), { target: { value: 'Test Recruiter' } });
         fireEvent.change(screen.getByLabelText(/^Email Address/), { target: { value: 'rec@example.test' } });
+        // Selecting 'co-2' before its <option> has loaded silently no-ops,
+        // and the payload then carries companyId '' — wait for the option.
+        await screen.findByRole('option', { name: 'Placeholder Logistics' });
         fireEvent.change(screen.getByLabelText(/^Assign to Company/), { target: { value: 'co-2' } });
         fireEvent.change(screen.getByLabelText(/^Password/), { target: { value: 'fixture-pass' } });
         fireEvent.submit(screen.getByRole('button', { name: /Create User/ }).closest('form'));
