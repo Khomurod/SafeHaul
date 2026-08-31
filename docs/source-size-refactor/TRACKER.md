@@ -15,13 +15,13 @@ it currently is*.
 
 | | |
 |---|---|
-| **Last updated** | 2026-08-31, `FT-6` merged as #64; `FT-7` on the branch |
-| **Verified main SHA** | `8e14ee5c565f8dbb777353b443b100f5620489b1` (#64 / `FT-6` merged) |
-| **Oversized files** | **56 on `main`, 55 on this branch** (was 68 when the tracker opened) |
-| **Backlog entries** | **56 on `main`, 55 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
-| **Active work item** | `FT-7` — on the branch, PR pending. **`FT-8` through `FT-10`, `FR-1` and `FR-2` are all built, verified and committed** on local branches, queued behind it. |
+| **Last updated** | 2026-08-31, `FT-7` merged as #65; `FT-8` on the branch |
+| **Verified main SHA** | `68d513c0c30520d12aca089ef7a4cfb146c11ec6` (#65 / `FT-7` merged) |
+| **Oversized files** | **55 on `main`, 54 on this branch** (was 68 when the tracker opened) |
+| **Backlog entries** | **55 on `main`, 54 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
+| **Active work item** | `FT-8` — on the branch, PR pending. **`FT-9`, `FT-10`, `FR-1`, `FR-2` and `FR-3` are all built, verified and committed** on local branches, queued behind it. |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | none open yet for `FT-7`. [#64](https://github.com/Khomurod/SafeHaul/pull/64) and everything before it merged; #50 closed. |
+| **Active PR** | none open yet for `FT-8`. [#65](https://github.com/Khomurod/SafeHaul/pull/65) and everything before it merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
 | **CI status** | #61, #62 and #63 all merged fully green, first try. The only red round in this stretch was #60's `frontend-quality` — a **race in a test `LD-R3` wrote**, reproduced and fixed, see the interlude below. A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
@@ -30,10 +30,10 @@ it currently is*.
 
 ### Exact next action
 
-1. **Push and open the `FT-7` PR**, then merge it when green.
-2. **`FT-8` through `FT-10`, `FR-1` and `FR-2` are already built, verified and
-   committed** — on the local branches `local/ft-8` … `local/ft-10`, `local/fr-1`
-   and `local/fr-2`, each stacked on the one before.
+1. **Push and open the `FT-8` PR**, then merge it when green.
+2. **`FT-9`, `FT-10`, `FR-1`, `FR-2` and `FR-3` are already built, verified and
+   committed** — on the local branches `local/ft-9`, `local/ft-10`, `local/fr-1`,
+   `local/fr-2` and `local/fr-3`, each stacked on the one before.
    Promote them one at a time with the standing per-unit ritual, because every
    unit reuses one branch name: once a PR merges, restart from the new `main`
    (`git fetch origin main && git checkout -B
@@ -127,8 +127,8 @@ use `—` until it exists.**
 | `FT-4` | **MERGED** | R1 | `aiProviders.test.js` → 4 suites + support | 940 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#62](https://github.com/Khomurod/SafeHaul/pull/62) | — | — | local green | — | — | **1 ✓** |
 | `FT-5` | **MERGED** | R1 | `aiCredentials.test.js` → 3 suites + support | 817 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#63](https://github.com/Khomurod/SafeHaul/pull/63) | — | — | local green | — | — | **1 ✓** |
 | `FT-6` | **MERGED** | R1 | `aiHealthCheck.test.js` → 3 suites + support | 645 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#64](https://github.com/Khomurod/SafeHaul/pull/64) | — | — | local green | — | — | **1 ✓** |
-| `FT-7` | **IN PROGRESS** | R1 | `guestApplication.snapshot.test.js` → 3 suites + support | 637 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
-| `FT-8` | NOT STARTED | R1 | `functions/test/unit/environmentVault.callables.test.js` (test) | 588 | 588 | — | — | — | — | — | — | — | 1 |
+| `FT-7` | **MERGED** | R1 | `guestApplication.snapshot.test.js` → 3 suites + support | 637 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#65](https://github.com/Khomurod/SafeHaul/pull/65) | — | — | local green | — | — | **1 ✓** |
+| `FT-8` | **IN PROGRESS** | R1 | `environmentVault.callables.test.js` → 3 suites + support | 588 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
 | `FT-9` | NOT STARTED | R1 | `functions/test/unit/releaseManagement.callables.test.js` (test) | 577 | 577 | — | — | — | — | — | — | — | 1 |
 | `FT-10` | NOT STARTED | R1 | `functions/test/bulkActions.test.js` (test) | 523 | 523 | — | — | — | — | — | — | — | 1 |
 | `FR-1` | NOT STARTED | R3 | `functions/environmentVault/registry.js` (runtime) | 1188 | 1188 | — | — | — | — | — | — | — | 1 |
@@ -1429,7 +1429,7 @@ comparison — the assertion is one line and it is now in the script.
 
 ## `FT-7` — `guestApplication.snapshot.test.js` → 3 suites + support
 
-**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R1 ·
+**Status:** `MERGED` — [#65](https://github.com/Khomurod/SafeHaul/pull/65), main `68d513c` · **Risk:** R1 ·
 **637 → deleted, 3 suites of 151–173**
 
 | file | subject | lines |
@@ -1469,6 +1469,64 @@ chances to be wrong.
 | functions suite | 1597/1597 |
 | root `npm run lint` | pass |
 | `check:source-size` | **55 over limit / 55 recorded**, verdict `OK` |
+| `check:ci-plan` · `test:source-size` | pass |
+
+---
+
+## `FT-8` — `environmentVault.callables.test.js` → 3 suites + support
+
+**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R1 ·
+**588 → deleted, 3 suites of 168–190**
+
+| file | subject | lines |
+|---|---|---|
+| `…access.test.js` | authorization, recent authentication, the inventory listing | 190 |
+| `…mutations.test.js` | changing what is stored, and the connectivity test | 188 |
+| `…reveal.test.js` | revealing a stored secret | 168 |
+| `…support.js` | the Firestore store, seed documents, fixtures, the reset | 145 |
+
+Body-line diff: **nothing lost**, one added blank line. All 59 full test names
+identical. Functions suite 1597/1597.
+
+### A `*Once` queue, and the case for changing nothing
+
+This file queues one `mockRejectedValueOnce` on `factory.getAdapter` — and its
+`beforeEach` **clears no mocks at all**. It re-seeds the store and installs two
+console spies; `afterEach` calls `restoreAllMocks`, which restores spies created
+with `spyOn` and does not touch a `jest.fn()`.
+
+`AGENTS.md` prescribes `resetAllMocks` when a file queues a `*Once`. That is not
+what was done here, deliberately: this `beforeEach` has never cleared mocks, and
+adding a reset would change what every test in the file starts from — a behaviour
+question, not a size one, and outside what a split is allowed to decide.
+
+**And the split makes the hazard strictly smaller anyway.** The queue now lives in
+its own file with its own module registry, so it cannot reach a different
+subject's tests at all — which is the only reach it ever had. The reasoning is
+written into the support file so the next reader does not have to re-derive it.
+
+### The store has to exist before the first require
+
+The original carried a comment worth keeping verbatim: *the vault modules
+destructure `{ admin, db }` at require time, so the store has to exist before the
+first require and then be reset in place.* `createFirestoreMock()` is therefore
+called at support's module scope and `firebaseAdminMock()` closes over it — the
+same singleton discipline as `FT-3` and `FT-5`, arrived at from a third direction.
+
+### The linter caught a require I added that the original did not have
+
+`factory` is required **inside the connectivity test's body**, not in the
+preamble. The generated suites carried a top-level `require` for it, which
+`lint:backend` correctly called dead. Fourth time the generate-then-prune method
+has placed a require better than a reading of the file would have.
+
+| Check | Result |
+|---|---|
+| 59 full test names, before vs after | **identical** |
+| body lines, original vs split | **nothing lost**, 1 added blank line |
+| functions suite | 1597/1597 |
+| root `npm run lint` | pass |
+| `check:source-size` | **54 over limit / 54 recorded**, verdict `OK` |
 | `check:ci-plan` · `test:source-size` | pass |
 
 ---
