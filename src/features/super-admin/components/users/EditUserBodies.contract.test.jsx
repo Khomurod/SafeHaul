@@ -235,10 +235,17 @@ describe('EditUserNameForm — delete user (destructive)', () => {
 });
 
 describe('UserMembershipsManager — listing contract', () => {
+    // The first paint after the memberships promise resolves competes with the
+    // whole 4,500-test CI run for the event loop; the default 1 s findBy
+    // timeout expired once on a loaded runner (2026-09-01) with the load
+    // itself already confirmed. The generous timeout is on the initial-load
+    // assertions only — the same family, fixed together.
+    const INITIAL_LOAD = { timeout: 5000 };
+
     it('loads memberships for the user and names the company', async () => {
         renderMemberships();
         await waitFor(() => expect(getMembershipsForUser).toHaveBeenCalledWith('user-1'));
-        expect(await screen.findByText('Artificial Freight Co')).toBeInTheDocument();
+        expect(await screen.findByText('Artificial Freight Co', {}, INITIAL_LOAD)).toBeInTheDocument();
         expect(screen.getByText('ID: co-1')).toBeInTheDocument();
     });
 
@@ -247,20 +254,20 @@ describe('UserMembershipsManager — listing contract', () => {
             docs: [{ id: 'mem-x', data: () => ({ companyId: 'gone', role: 'hr_user' }) }],
         });
         renderMemberships();
-        expect(await screen.findByText('Unknown Company')).toBeInTheDocument();
+        expect(await screen.findByText('Unknown Company', {}, INITIAL_LOAD)).toBeInTheDocument();
     });
 
     it('shows the frozen empty state', async () => {
         getMembershipsForUser.mockResolvedValueOnce({ docs: [] });
         renderMemberships();
-        expect(await screen.findByText('No active memberships.')).toBeInTheDocument();
+        expect(await screen.findByText('No active memberships.', {}, INITIAL_LOAD)).toBeInTheDocument();
         expect(screen.getByText('This user cannot access any company data.')).toBeInTheDocument();
     });
 
     it('announces a load failure with the frozen message', async () => {
         getMembershipsForUser.mockRejectedValueOnce(new Error('denied'));
         renderMemberships();
-        expect(await screen.findByText('Could not load memberships. Check permissions.')).toBeInTheDocument();
+        expect(await screen.findByText('Could not load memberships. Check permissions.', {}, INITIAL_LOAD)).toBeInTheDocument();
     });
 
     it('offers only companies the user is not already in', async () => {
