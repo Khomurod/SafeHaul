@@ -34,7 +34,6 @@
     "scripts/test-release-promotion.mjs": 584,
     "src/features/campaigns/components/LaunchPad.test.jsx": 539,
     "src/features/companies/hooks/useCompanyDashboard.js": 528,
-    "src/features/company-admin/hooks/useCompanyLeadUpload.contract.test.js": 507,
     "src/features/driver-app/components/application/PublicApplyHandler.contract.test.jsx": 2203,
     "src/features/driver-app/components/application/PublicApplyHandler.jsx": 1476,
     "src/features/driver-app/components/application/applicationDraftStorage.test.js": 511,
