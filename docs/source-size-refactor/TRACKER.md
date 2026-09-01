@@ -15,13 +15,13 @@ it currently is*.
 
 | | |
 |---|---|
-| **Last updated** | 2026-09-01, `PA-1b` merged as #122; **`PA-1c` on the branch retires `PublicApplyHandler.jsx`** (864 → 457 + three hooks) — the backlog is down to ONE entry: the 2203-line contract test |
-| **Verified main SHA** | `9d333fc3b62dbcb6d594ffaa1b7c3c058bf8f7b2` (#122 / `PA-1b` merged) |
-| **Oversized files** | **3 over 500 on `main`, 2 on this branch** (was 68 when the tracker opened); one of them, `firestore.rules`, sits under its owner-ruled 689 ceiling rather than in the backlog |
-| **Backlog entries** | **2 on `main`, 1 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
-| **Active work item** | `PA-1c` (PublicApplyHandler lifecycle hooks, PR 3 of 3) — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
+| **Last updated** | 2026-09-01, `PA-1c` merged as #123; **`PA-2` on the branch retires the LAST backlog entry** — the 2203-line contract test → six suites + support, `files` is `{}` |
+| **Verified main SHA** | `2513951c043479c3dbfff3534b1ae4ae7dec38e7` (#123 / `PA-1c` merged) |
+| **Oversized files** | **2 over 500 on `main`, 1 on this branch** (was 68 when the tracker opened) — and that one is `firestore.rules`, under its owner-ruled 689 ceiling. On this branch NO file exceeds the standard unaccounted. |
+| **Backlog entries** | **1 on `main`, 0 on this branch** — `files` is `{}`; `Z-1` deletes the file itself next |
+| **Active work item** | `PA-2` (the contract-test split — the campaign's final drain unit) — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | none open yet. [#122](https://github.com/Khomurod/SafeHaul/pull/122) and everything before it merged; #50 closed. |
+| **Active PR** | none open yet. [#123](https://github.com/Khomurod/SafeHaul/pull/123) and everything before it merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
 | **CI status** | #92–#113 all merged green. The only red in that stretch was #109's first round — the `EditUserBodies` initial-load race, not that PR's diff; fixed family-wide in the same PR (see the interlude below). A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
@@ -30,7 +30,7 @@ it currently is*.
 
 ### Exact next action
 
-1. **Push and open the `PA-1c` PR**, then merge it when green.
+1. **Push and open the `PA-2` PR**, then merge it when green.
 2. **Nothing is pre-built behind it**, and the stacking deviation recorded in
    earlier revisions is fully unwound — every pre-built unit has merged
    (#104–#113). The lesson stays recorded: recipes/sections go out ahead of their
@@ -50,12 +50,13 @@ it currently is*.
    exception on 2026-09-01 (`PLAN.md` § 7.3a, RU section below). **The drain
    continues** through the last giants. `EnvelopeCreator.jsx` is DONE
    (#118/#119/#120, 1363 → 451). `PublicApplyHandler.jsx` (1476) drains
-   over 3 PRs: `PA-1a` the submission path (#121, → 1088), `PA-1b` the
-   bootstrap (#122, → 864), `PA-1c` the discard/resume pair + draft
-   lifecycle + post-submit documents hooks (on branch, → 457, entry
-   removed). Then `PA-2`, the 2203-line contract test. When `PA-2` lands,
-   the backlog is empty: delete `.github/source-size-backlog.json` (`Z-1`)
-   and the campaign ends with one owner-ruled, measured exception.
+   over 3 PRs (#121/#122/#123, 1476 → 457). `PA-2` (on branch) splits the
+   2203-line contract test into six suites + support and empties the
+   backlog. Then `Z-1`: delete `.github/source-size-backlog.json` (the
+   checker's own docs say the file goes when the last entry does; an empty
+   `files` passes meanwhile — H45), final rescan, and the closing updates
+   to `AGENTS.md`/`PLAN.md`/`APP_BRIEF.md`. The campaign ends with one
+   owner-ruled, measured exception.
 
 **Four process rules learned the hard way in this session, all worth keeping:**
 
@@ -97,7 +98,7 @@ it currently is*.
 |---|---|---|
 | Over-limit files at campaign start (2026-08-26 audit, incl. 2026-08-27 additions) | 70 | — |
 | Retired before this tracker existed (PR #49) | 2 | — |
-| **Remaining now** (this branch, `PA-1c` applied) | **1** | **2,203** |
+| **Remaining now** (this branch, `PA-2` applied) | **0** | **0** |
 | Retired by this campaign so far | **63** (62 fixed or removed + `firestore.rules` moved to an owner-ruled, still-measured ceiling) | — |
 
 **How to reproduce those two numbers**, because an earlier revision of this table
@@ -177,8 +178,8 @@ use `—` until it exists.**
 | `SG-5` | **MERGED** | R1 | test → 3 suites + support (section `SG-1` below) | 755 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#108](https://github.com/Khomurod/SafeHaul/pull/108) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `SG-6` | **MERGED** | R1 | test → 2 suites + support (section `SG-4` below) | 534 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#111](https://github.com/Khomurod/SafeHaul/pull/111) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `SG-7` | **MERGED** | R1 | test → 2 suites + support (section `SG-5` below) | 502 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#112](https://github.com/Khomurod/SafeHaul/pull/112) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
-| `PA-1` | **IN PROGRESS (c of 3)** | R4 | 1476 → 457; submission path (#121) + bootstrap (#122) + discard/resume, lifecycle and post-submit hooks | 1476 | **457, deleted from backlog** | `claude/safehual-source-size-refactor-j4apre` | [#121](https://github.com/Khomurod/SafeHaul/pull/121) · [#122](https://github.com/Khomurod/SafeHaul/pull/122) | — | — | — | — | — | 1 |
-| `PA-2` | NOT STARTED | R2 | `src/features/driver-app/components/application/PublicApplyHandler.contract.test.jsx` (test) | 2203 | 2203 | — | — | — | — | — | — | — | 1 |
+| `PA-1` | **MERGED** | R4 | 1476 → 457 over three PRs; submission path + bootstrap + discard/resume, lifecycle and post-submit hooks | 1476 | **457, deleted from backlog** | `claude/safehual-source-size-refactor-j4apre` | [#121](https://github.com/Khomurod/SafeHaul/pull/121) · [#122](https://github.com/Khomurod/SafeHaul/pull/122) · [#123](https://github.com/Khomurod/SafeHaul/pull/123) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
+| `PA-2` | **IN PROGRESS** | R2 | test → 6 suites (submit, progressResume, reconcile, discardTabs, discardIdentity, discardReset) + support 313 | 2203 | **deleted — backlog empty** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | — | — | — | 1 |
 | `PA-3` | **MERGED** | R1 | test → identity (239) + sync (299); no support module — zero mocks | 511 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#114](https://github.com/Khomurod/SafeHaul/pull/114) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `SO-1` | **MERGED** | R1 | test → 2 suites + support (section `CP-1` below) | 539 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#113](https://github.com/Khomurod/SafeHaul/pull/113) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `SO-2` | **MERGED** | R2 | hook → 378 + `dashboardQueries.js` 203 (React-free Firestore side) | 528 | **378** | `claude/safehual-source-size-refactor-j4apre` | [#116](https://github.com/Khomurod/SafeHaul/pull/116) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
@@ -3936,7 +3937,7 @@ extended, the `useCallback` wrapper transform, and `loadCompany();` →
 
 ## `PA-1` — PR c of 3: the discard/resume pair, the draft lifecycle, the documents flow
 
-**Status:** `IN PROGRESS` — on the branch, PR pending · **Risk:** R4 ·
+**Status:** `MERGED` — [#123](https://github.com/Khomurod/SafeHaul/pull/123), 2026-09-01 · **Risk:** R4 ·
 **864 → 457 and OUT of the backlog; `useDiscardAwareResume` (218) +
 `useDraftLifecycle` (247) + `usePostSubmitDocuments` (153)**
 
@@ -3971,6 +3972,44 @@ its exact original shape — root lint is still exactly 124.
 | `check:source-size` | **1 recorded**, verdict `OK` — `PublicApplyHandler.jsx` (457) left the backlog; only `PA-2`, the contract test, remains |
 | `check:ui-contract` | 520 files, 236 known, none new |
 | root `npm run lint` | exit 0, the same 124 warnings |
+
+---
+
+## `PA-2` — the contract test → six suites plus a support module
+
+**Status:** `IN PROGRESS` — on the branch, PR pending · **Risk:** R2 ·
+**2203 → deleted, and the backlog is EMPTY; support (313) + submit (377) +
+progressResume (360) + reconcile (433) + discardTabs (406) +
+discardIdentity (405) + discardReset (378)**
+
+The standard vitest support recipe, applied to the campaign's largest file:
+spies as plain exports (the original's `vi.hoisted` wrappers dropped — with
+delegating factories the values resolve at mock-instantiation time), all
+fourteen `*Mock()` factory bodies verbatim, fixtures, `stubDraftCallables`,
+and `makeRenderers(PublicApplyHandler, MemoryRouter, Route, Routes)` — the
+suites import the component and the mocked router themselves (the `CA-3`
+rule). Each suite repeats the fourteen delegating `vi.mock` registrations and
+keeps its original describe titles, so all 359 full test names are unchanged.
+
+The 780-line `an application discarded in another tab` describe split across
+three files, each re-creating the describe wrapper (title, `DISCARD_KEY`,
+hooks, the `discardInAnotherTab` helper) so names stay identical;
+`renderRestoredTab` lives only in the two suites whose cases use it.
+`starting over` rides with the discard-reset file. Per-suite imports are
+trimmed to what each file uses; the one lint warning (the stale
+`eslint-disable` on `seedLocal`) is pre-existing — original line 938 — and
+moved verbatim; root lint is still exactly 124.
+
+| Check | Result |
+|---|---|
+| driver-app feature suite (81 files now) | **359/359, set-identical**, first run — no deadlock, no undefined imports |
+| multiset stripped-line diff | every line accounted for — export/factory transforms only |
+| `check:source-size` | **0 file(s) over 500; 0 recorded**, verdict `OK` — `files` is `{}` (H45: an empty backlog reports nothing) |
+| `check:ui-contract` | 521 files (the probe-button support scanned), 236 known, none new |
+| root `npm run lint` | exit 0, the same 124 warnings |
+
+E2E deliberately not re-run for this unit: no runtime file changed — the diff
+is test files and the emptied backlog.
 
 ---
 
