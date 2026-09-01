@@ -15,13 +15,13 @@ it currently is*.
 
 | | |
 |---|---|
-| **Last updated** | 2026-09-01, `PA-3` merged as #114; **`RU-2` resolved — the owner chose the documented exception** (option 1), implementation on the branch |
-| **Verified main SHA** | `4b6b59d596c357c5929cfa0904e1ea9ce6e218e7` (#114 / `PA-3` merged) |
-| **Oversized files** | **6 over 500 on `main` and on this branch** (was 68 when the tracker opened); on the branch one of the six, `firestore.rules`, sits under its owner-ruled 689 ceiling rather than in the backlog |
-| **Backlog entries** | **6 on `main`, 5 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
-| **Active work item** | `RU-2` resolution — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
+| **Last updated** | 2026-09-01, `RU-2` resolution merged as #115 — the rules file now sits under its owner-ruled 689 ceiling; `SO-2` (`useCompanyDashboard.js` → hook 378 + `dashboardQueries.js` 203) on the branch |
+| **Verified main SHA** | `e918885173390ee0d835ed21e3f71fa456b6d124` (#115 / `RU-2` resolution merged) |
+| **Oversized files** | **6 over 500 on `main`, 5 on this branch** (was 68 when the tracker opened); one of them, `firestore.rules`, sits under its owner-ruled 689 ceiling rather than in the backlog |
+| **Backlog entries** | **5 on `main`, 4 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
+| **Active work item** | `SO-2` — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | none open yet for the `RU-2` resolution. [#114](https://github.com/Khomurod/SafeHaul/pull/114) and everything before it merged; #50 closed. |
+| **Active PR** | none open yet for `SO-2`. [#115](https://github.com/Khomurod/SafeHaul/pull/115) and everything before it merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
 | **CI status** | #92–#113 all merged green. The only red in that stretch was #109's first round — the `EditUserBodies` initial-load race, not that PR's diff; fixed family-wide in the same PR (see the interlude below). A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
@@ -30,7 +30,7 @@ it currently is*.
 
 ### Exact next action
 
-1. **Push and open the `RU-2` resolution PR**, then merge it when green.
+1. **Push and open the `SO-2` PR**, then merge it when green.
 2. **Nothing is pre-built behind it**, and the stacking deviation recorded in
    earlier revisions is fully unwound — every pre-built unit has merged
    (#104–#113). The lesson stays recorded: recipes/sections go out ahead of their
@@ -46,14 +46,14 @@ it currently is*.
    and the six table rows were never flipped when those PRs merged. Both are now
    reconciled, with the alias noted on each affected row and section. When a
    section and the table disagree, trust neither — read `git log origin/main`.
-3. **`RU-2` is RESOLVED** — the owner chose the documented exception on
-   2026-09-01 (`PLAN.md` § 7.3a, RU section below). **The drain continues**:
-   the runtime hooks/views (`SO-2` `useCompanyDashboard.js` 528,
-   `SG-4`-in-table `SigningRoom.jsx` 652), then the giants (`SG-1`-in-table
-   `EnvelopeCreator.jsx` 1363, `PA-1` `PublicApplyHandler.jsx` 1476, `PA-2`
-   its 2203-line contract test). When `PA-2` lands, the backlog is empty:
-   delete `.github/source-size-backlog.json` (`Z-1`) and the campaign ends
-   with one owner-ruled, measured exception.
+3. **`RU-2` is RESOLVED and merged (#115)** — the owner chose the documented
+   exception on 2026-09-01 (`PLAN.md` § 7.3a, RU section below). **The drain
+   continues**: after `SO-2`, `SG-4`-in-table `SigningRoom.jsx` (652), then the
+   giants (`SG-1`-in-table `EnvelopeCreator.jsx` 1363, `PA-1`
+   `PublicApplyHandler.jsx` 1476, `PA-2` its 2203-line contract test). When
+   `PA-2` lands, the backlog is empty: delete
+   `.github/source-size-backlog.json` (`Z-1`) and the campaign ends with one
+   owner-ruled, measured exception.
 
 **Four process rules learned the hard way in this session, all worth keeping:**
 
@@ -95,7 +95,7 @@ it currently is*.
 |---|---|---|
 | Over-limit files at campaign start (2026-08-26 audit, incl. 2026-08-27 additions) | 70 | — |
 | Retired before this tracker existed (PR #49) | 2 | — |
-| **Remaining now** (this branch, `RU-2` resolution applied) | **5** | **6,222** |
+| **Remaining now** (this branch, `SO-2` applied) | **4** | **5,694** |
 | Retired by this campaign so far | **63** (62 fixed or removed + `firestore.rules` moved to an owner-ruled, still-measured ceiling) | — |
 
 **How to reproduce those two numbers**, because an earlier revision of this table
@@ -179,9 +179,9 @@ use `—` until it exists.**
 | `PA-2` | NOT STARTED | R2 | `src/features/driver-app/components/application/PublicApplyHandler.contract.test.jsx` (test) | 2203 | 2203 | — | — | — | — | — | — | — | 1 |
 | `PA-3` | **MERGED** | R1 | test → identity (239) + sync (299); no support module — zero mocks | 511 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#114](https://github.com/Khomurod/SafeHaul/pull/114) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `SO-1` | **MERGED** | R1 | test → 2 suites + support (section `CP-1` below) | 539 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#113](https://github.com/Khomurod/SafeHaul/pull/113) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
-| `SO-2` | NOT STARTED | R2 | `src/features/companies/hooks/useCompanyDashboard.js` (runtime) | 528 | 528 | — | — | — | — | — | — | — | 1 |
+| `SO-2` | **IN PROGRESS** | R2 | hook → 378 + `dashboardQueries.js` 203 (React-free Firestore side) | 528 | **378** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | — | — | — | 1 |
 | `RU-1` | **MERGED** | R3 | security test → 4 verbatim suites + `surfaces` strengthening suite + support | 1106 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#107](https://github.com/Khomurod/SafeHaul/pull/107) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
-| `RU-2` | **IN PROGRESS — owner ruled: documented exception** | R4 | measured under a pinned 689 ceiling, out of the backlog (see RU section) | 693 | **689, owner-ruled ceiling** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | — | — | — | 1 |
+| `RU-2` | **RESOLVED — owner-ruled exception** | R4 | measured under a pinned 689 ceiling, out of the backlog (see RU section) | 693 | **689, owner-ruled ceiling** | `claude/safehual-source-size-refactor-j4apre` | [#115](https://github.com/Khomurod/SafeHaul/pull/115) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `LD-R1` | **COMPLETE** | R4 | stand up `web/`; blog serves from its own stylesheets | — | — | `claude/safehual-source-size-refactor-j4apre` | #54 | `78a7e4a` | owner ruling | green | `1e399de` | main green | 0 |
 | `LD-R2` | **COMPLETE** | R4 | delete `landing/`, its scripts, tests and workflow steps | 5989 | **0 — deleted** | `claude/safehual-source-size-refactor-j4apre` | #55 | `57fe54f` | owner ruling | green | `78e1577` | main green | **3 ✓** |
 | `LD-R3` | **COMPLETE** | R3 | retire lead capture/Telegram/settings; read-only Website Leads + CSV | — | — | — | #56 | `ec2f6eb` | owner ruling | green | `f7c89d4` | main green | **1 ✓ (`SA-8`)** |
@@ -3669,6 +3669,46 @@ have produced exactly the "meaningless part-file" the ground rules prohibit.
 | every original line | accounted for — duplicated scaffolding + headers only |
 | `check:source-size` | **6 recorded**, verdict `OK` |
 | new-file eslint + root `npm run lint` | pass (124 pre-existing warnings, 0 errors) |
+
+---
+
+## `SO-2` — `useCompanyDashboard.js` → hook + `dashboardQueries.js`
+
+**Status:** `IN PROGRESS` — on the branch, PR pending · **Risk:** R2 ·
+**528 → 378; `dashboardQueries.js` (203) carries the Firestore side**
+
+First runtime-hook unit. The seam is React-free vs React-bound:
+`dashboardQueries.js` gets the constraint planning (`pipelineConstraints`,
+`usesPipelineOrderBy` as module-internal helpers, `buildDashboardConstraints`
+exported), the parallel search execution (`runDashboardSearch`) and the stats
+counts (`loadDashboardStats`, rollup-first with the count-query fallback) —
+bodies verbatim, `db`/`auth` imported by the module exactly as the hook did.
+The hook keeps state, effects, pagination and the E2E fixture branches.
+
+### Wrapper transforms, each deliberate
+
+- `useCallback` builders → plain functions taking `{ activeTab,
+  pipelineSegment, filters }`; the hook's `buildConstraints` becomes a thin
+  `useCallback` with deps `[activeTab, pipelineSegment, filters]` — the same
+  recreation set the old chain had transitively, so every downstream effect
+  fires exactly as before.
+- `runSearchQuery` becomes the one-expression `CA-9` wrapper around
+  `runDashboardSearch`, deps unchanged; `clientFilterContext()` is evaluated at
+  call time and passed as `filterContext`.
+- `fetchStats`'s Firestore branch became `setStats(await loadDashboardStats({
+  companyId }))` — the two in-branch `setStats(…); return;` pairs are `return
+  {…}` in the module; try/catch and the E2E branch stay in the hook.
+
+### Checks
+
+| Check | Result |
+|---|---|
+| dashboard + companies + company-admin suites | **739/739, set-identical** (the unit suites mock the hook, so see next row) |
+| E2E against the REAL hook (fixture path) | `applications-search-filters` + `company-shell-dashboard` + `company-candidate-table`, chromium: **11 passed, 2 mobile-only skips (pre-existing)** |
+| `vite build` | pass |
+| multiset stripped-line diff | every line accounted for — transforms enumerated above |
+| `check:source-size` / `check:ui-contract` | **4 recorded**, `OK` / 507 files, 236 known, none new |
+| root `npm run lint` | exit 0 |
 
 ---
 
