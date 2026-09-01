@@ -15,13 +15,13 @@ it currently is*.
 
 | | |
 |---|---|
-| **Last updated** | 2026-09-01, `T-5` merged as #106 — the `T-*` series is DONE; `RU-1` (security test → 4 verbatim suites + a strengthening suite + support) on the branch |
-| **Verified main SHA** | `96ed765c4d00001564b200c4c622e0a740f68f13` (#106 / `T-5` merged) |
-| **Oversized files** | **14 on `main`, 13 on this branch** (was 68 when the tracker opened) |
-| **Backlog entries** | **14 on `main`, 13 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
-| **Active work item** | `RU-1` — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
+| **Last updated** | 2026-09-01, `RU-1` merged as #107; `RU-2` assessed and STOPPED pending an owner decision (see the RU section); `SG-1` (`EnvelopeHistory.test.jsx` → 3 suites + support) on the branch |
+| **Verified main SHA** | `f64b350c6dd422c7b484d8449f1f47c51c155402` (#107 / `RU-1` merged) |
+| **Oversized files** | **13 on `main`, 12 on this branch** (was 68 when the tracker opened) |
+| **Backlog entries** | **13 on `main`, 12 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
+| **Active work item** | `SG-1` — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | none open yet for `RU-1`. [#106](https://github.com/Khomurod/SafeHaul/pull/106) and everything before it merged; #50 closed. |
+| **Active PR** | none open yet for `SG-1`. [#107](https://github.com/Khomurod/SafeHaul/pull/107) and everything before it merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
 | **CI status** | #61, #62 and #63 all merged fully green, first try. The only red round in this stretch was #60's `frontend-quality` — a **race in a test `LD-R3` wrote**, reproduced and fixed, see the interlude below. A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
@@ -30,8 +30,8 @@ it currently is*.
 
 ### Exact next action
 
-1. **Push and open the `RU-1` PR**, then merge it when green.
-2. **Nothing is pre-built behind `RU-1`.** The stacking deviation recorded below
+1. **Push and open the `SG-1` PR**, then merge it when green.
+2. **Nothing is pre-built behind `SG-1`.** The stacking deviation recorded below
    is fully unwound once it merges.
    **Their sections below were published with `FT-10`, deliberately ahead of their
    code.** The reason is worth keeping: for several units the "rebuild it from the
@@ -54,13 +54,17 @@ it currently is*.
    conflicts.
    **If those local branches are gone** (a fresh container), the work is not lost:
    rebuild each from its `FR-*` section below, which is written as a recipe.
-3. **After `RU-1`: `RU-2`** (`src/firestore.rules`, 693) under the
-   owner's ruling in `PLAN.md` § 7.3 — no build step, permissions
-   preserved exactly, stop and ask if it cannot be done safely (`RU-1`'s
-   split-and-strengthened suites are the safety net it required first) —
-   then the signing + driver-app series (`EnvelopeCreator.jsx` 1363,
-   `PublicApplyHandler` 1476 + its 2203-line test, `SigningRoom.jsx` 652,
-   and the remaining test splits),
+3. **`RU-2` is STOPPED pending an owner decision** — the arithmetic
+   cannot reach 500 by permitted means; see the RU section for the
+   measurement and the three options put to the owner. **The drain
+   continues with the signing + driver-app series**: after `SG-1`, the
+   remaining test splits (`EnvelopeCreator.editor.test` 677,
+   `aiAssistant.test` 540, `useAiFieldAssistant.test` 534,
+   `ResizableDraggableField.test` 502, `LaunchPad.test` 539,
+   `applicationDraftStorage.test` 511), the runtime hooks/views
+   (`useCompanyDashboard.js` 528, `SigningRoom.jsx` 652), and the giants
+   (`EnvelopeCreator.jsx` 1363, `PublicApplyHandler.jsx` 1476 + its
+   2203-line contract test),
    then `RU-1` → `RU-2` (Firestore rules) under the owner's ruling in
    `PLAN.md` § 7.3.
 
@@ -189,8 +193,8 @@ use `—` until it exists.**
 | `PA-3` | NOT STARTED | R1 | `src/features/driver-app/components/application/applicationDraftStorage.test.js` (test) | 511 | 511 | — | — | — | — | — | — | — | 1 |
 | `SO-1` | NOT STARTED | R1 | `src/features/campaigns/components/LaunchPad.test.jsx` (test) | 539 | 539 | — | — | — | — | — | — | — | 1 |
 | `SO-2` | NOT STARTED | R2 | `src/features/companies/hooks/useCompanyDashboard.js` (runtime) | 528 | 528 | — | — | — | — | — | — | — | 1 |
-| `RU-1` | **IN PROGRESS** | R3 | security test → 4 verbatim suites + `surfaces` strengthening suite + support | 1106 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
-| `RU-2` | **BLOCKED** by `RU-1` | R4 | `src/firestore.rules` (runtime) — no build step; stop and ask if unsafe | 693 | 693 | — | — | — | — | — | — | — | 1 |
+| `RU-1` | **MERGED** | R3 | security test → 4 verbatim suites + `surfaces` strengthening suite + support | 1106 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#107](https://github.com/Khomurod/SafeHaul/pull/107) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
+| `RU-2` | **STOPPED — owner decision requested** | R4 | `src/firestore.rules` — arithmetic cannot reach 500 by permitted means (see RU section) | 693 | 693 (recorded, measured, un-exempt) | — | — | — | — | — | — | — | 1 |
 | `LD-R1` | **COMPLETE** | R4 | stand up `web/`; blog serves from its own stylesheets | — | — | `claude/safehual-source-size-refactor-j4apre` | #54 | `78a7e4a` | owner ruling | green | `1e399de` | main green | 0 |
 | `LD-R2` | **COMPLETE** | R4 | delete `landing/`, its scripts, tests and workflow steps | 5989 | **0 — deleted** | `claude/safehual-source-size-refactor-j4apre` | #55 | `57fe54f` | owner ruling | green | `78e1577` | main green | **3 ✓** |
 | `LD-R3` | **COMPLETE** | R3 | retire lead capture/Telegram/settings; read-only Website Leads + CSV | — | — | — | #56 | `ec2f6eb` | owner ruling | green | `f7c89d4` | main green | **1 ✓ (`SA-8`)** |
@@ -3402,7 +3406,7 @@ test modules) keeps its import path.
 
 ## `RU-1` — `firestore.rules.security.test.js` → four verbatim suites, one strengthening suite, one support module
 
-**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R3
+**Status:** `MERGED` — [#107](https://github.com/Khomurod/SafeHaul/pull/107), 2026-09-01 · **Risk:** R3
 (the owner's prerequisite for ever touching `src/firestore.rules`) ·
 **1106 → deleted; tenancy (295) + lockdown (253) + profiles (298) +
 applications (348) + NEW `surfaces` (156) + support (33)**
@@ -3453,6 +3457,32 @@ changes. Stated in the support header.
 | every original line | accounted for — 8 harness-wrapper transforms only |
 | `check:ci-plan` | all checks passed |
 | `check:source-size` | **13 recorded**, verdict `OK` |
+| root `npm run lint` | pass |
+
+---
+
+## `SG-1` — `EnvelopeHistory.test.jsx` → three suites plus a support module
+
+**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R1 ·
+**755 → deleted; list (261) + actions (249) + details (245) + support (121)**
+
+The vitest support recipe on the signing history table's test: 68 tests over
+twelve describes, split by concern — the live subscription/status/delivery/
+title/quick-action presentation (34), row activation + details dialog + void
+(16), and copy/download/pagination/a11y (18). The support carries the four
+mock-state objects and factories, the fixtures with their PRIVACY note, the
+snapshot emitters, `makeRenderHistory(EnvelopeHistory)` and the reset/restore
+pair. `unsubSpy` is exported as an **ESM live binding** so the subscription
+tests read the spy `resetHarness` installed for that test — the module-level
+`let` the original mutated, made cross-module without touching a test body.
+
+| Check | Result |
+|---|---|
+| 68 tests across the three suites | **set-identical** to the pre-split baseline, all green |
+| all signing suites | 679/679 (30 files) |
+| `check:ui-contract` | 501 files, 235 known across 42 files, none new |
+| every original line | accounted for — wrapper/registration transforms only |
+| `check:source-size` | **12 recorded**, verdict `OK` |
 | root `npm run lint` | pass |
 
 ---
@@ -3605,12 +3635,48 @@ adding coverage leaves the refactor resting on exactly the assurance it had
 before. Required: identify collections and roles with thin or absent negative
 coverage and add it **before** the rules file is touched.
 
-### Current stopping point
+### Current stopping point — `RU-2` assessed and STOPPED, per the ruling
 
-`RU-1` is on the branch (see its own section above the interludes):
-four verbatim suites + the `surfaces` strengthening suite + support,
-75/75 emulator tests green, a rules-weakening plant refused. `RU-2` must
-not begin until it is merged.
+`RU-1` merged as [#107](https://github.com/Khomurod/SafeHaul/pull/107):
+four verbatim suites + the `surfaces` strengthening suite, 75/75 emulator
+tests, a rules-weakening plant refused. The safety net exists.
+
+`RU-2` was then measured, and the arithmetic does not reach 500 by any
+means the campaign permits:
+
+- The file is 689 physical lines: **75 blank, 244 comment, ~370 code.**
+  The comments are the security rationale (BUG-2 FIX, SEC-002 FIX, the
+  reasoning beside every lockdown) — deleting them is forbidden by the
+  campaign's own charter, and joining lines is forbidden formatting-gaming.
+- **Total duplicated-line excess across the whole file is 67 occurrences**,
+  measured by exact-line multiset — and most of those are one-line `allow`
+  statements inside DIFFERENT matchers that cannot merge. Even the
+  impossible best case, 689 − 67 = 622, is 122 lines over the cap.
+- The only structural lever left is wildcard-matcher consolidation
+  (`match /{sub}/{docId}` + `sub in [...]` conditions). Firestore ORs
+  overlapping match statements, so a wildcard alongside the remaining
+  specific matchers can silently WIDEN permissions — proving "preserved
+  exactly" would need an exhaustive role × collection × verb matrix far
+  beyond the 75 tests, and it moves the deployed policy further from what
+  a reviewer reads, the same concern that made the owner refuse a build
+  step.
+
+Per the ruling — "if that cannot be done safely, stop and request an owner
+decision; that is part of the ruling, not an escape hatch" — `RU-2` is
+STOPPED pending an owner decision. Options for the owner, honestly priced:
+
+1. **Record `src/firestore.rules` as a permanent documented exception**
+   (like `public/pdf.worker.min.mjs`), with its dated 693 ceiling — the
+   strengthened suites from `RU-1` remain the guard against growth by
+   another route.
+2. **Exempt the rules file's comments from the count** or permit moving
+   the rationale to a companion document — an explicit owner call, because
+   it is exactly the comment-deletion the charter forbids by default.
+3. **Approve wildcard consolidation** with a funded permission-matrix test
+   (role × collection × verb, hundreds of cases) as its proof.
+
+Until then the file stays recorded, measured and un-exempt in the backlog,
+and the campaign continues with the signing/driver-app queue.
 
 ---
 
