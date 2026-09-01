@@ -4,29 +4,27 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import {
     collection,
     query,
-    orderBy,
     limit,
     startAfter,
     getDocs,
-    getDoc,
-    doc,
-    where,
     getCountFromServer,
-    documentId,
 } from 'firebase/firestore';
 import { db, auth } from '@lib/firebase';
-import { shouldPreferDashboardRollup } from '@lib/runtime/dashboardRollup';
-import { getStatusesForSegment } from '@shared/utils/applicationStatus';
 import { isE2ETestMode } from '@lib/runtime/e2eMode';
 import {
     classifySearchTerm,
-    buildSearchPlans,
     recordMatchesSearch,
     applyClientSideFilters,
-    mergeSearchResults,
-    SEARCH_PLAN_LIMIT,
-    PREFIX_END,
 } from './dashboardSearch';
+// The Firestore side — constraint planning, the parallel search execution and
+// the stats counts — lives in `dashboardQueries.js` since the 2026-09-01
+// source-size split. This hook owns state, effects and pagination, and passes
+// its current state in as plain arguments.
+import {
+    buildDashboardConstraints,
+    loadDashboardStats,
+    runDashboardSearch,
+} from './dashboardQueries';
 import { E2E_DASHBOARD_APPLICATIONS, E2E_DASHBOARD_LEADS } from './e2eDashboardFixtures';
 
 /** applications: all | new | hired | terminated | declined — leads: all | attempting | in_process | interested */
@@ -106,122 +104,19 @@ export function useCompanyDashboard(companyId) {
         }
 
         try {
-            const appsRef = collection(db, "companies", companyId, "applications");
-            const leadsRef = collection(db, "companies", companyId, "leads");
-
-            const myLeadsSnapPromise = auth.currentUser
-                ? getCountFromServer(query(leadsRef, where('assignedTo', '==', auth.currentUser.uid)))
-                : Promise.resolve({ data: () => ({ count: 0 }) });
-
-            if (shouldPreferDashboardRollup()) {
-                const rollSnap = await getDoc(doc(db, 'companies', companyId, 'internal_stats', 'dashboard'));
-                const roll = rollSnap.exists() ? rollSnap.data() : null;
-                const rollupOk = roll && roll.schemaVersion === 1
-                    && typeof roll.applicationsTotal === 'number'
-                    && typeof roll.leadsTotal === 'number'
-                    && typeof roll.hiredTotal === 'number';
-
-                if (rollupOk) {
-                    const myLeadsSnap = await myLeadsSnapPromise;
-                    setStats({
-                        applications: roll.applicationsTotal,
-                        companyLeads: roll.leadsTotal,
-                        myLeads: myLeadsSnap.data().count,
-                        hired: roll.hiredTotal,
-                    });
-                    return;
-                }
-            }
-
-            const hiredQuery = query(appsRef, where('status', 'in', getStatusesForSegment('hired')));
-            const [appsSnap, companyLeadsSnap, myLeadsSnap, hiredSnap] = await Promise.all([
-                getCountFromServer(appsRef),
-                getCountFromServer(leadsRef),
-                myLeadsSnapPromise,
-                getCountFromServer(hiredQuery),
-            ]);
-
-            setStats({
-                applications: appsSnap.data().count,
-                companyLeads: companyLeadsSnap.data().count,
-                myLeads: myLeadsSnap.data().count,
-                hired: hiredSnap.data().count,
-            });
+            setStats(await loadDashboardStats({ companyId }));
         } catch (e) {
             console.error("Error fetching stats:", e);
             setStatsFetchError(e?.message || 'Could not load dashboard counts.');
         }
     }, [companyId, e2eRecordsForTab]);
 
-    const pipelineConstraints = useCallback(() => {
-        if (activeTab === 'applications') {
-            // Centralized status vocabulary: 'new' covers 'New' + 'New Application',
-            // 'hired' covers 'Hired' + 'Approved', 'declined' covers 'Declined' + 'Rejected'.
-            const statuses = getStatusesForSegment(pipelineSegment);
-            if (statuses) return [where('status', 'in', statuses)];
-            return [];
-        }
-        if (activeTab === 'company_leads' || activeTab === 'my_leads') {
-            if (pipelineSegment === 'attempting') {
-                return [where('status', 'in', ['Contact Attempt 1', 'Contact Attempt 2', 'Contact Attempt 3'])];
-            }
-            if (pipelineSegment === 'in_process') return [where('status', '==', 'In Process')];
-            if (pipelineSegment === 'interested') return [where('status', '==', 'Interested')];
-        }
-        return [];
-    }, [activeTab, pipelineSegment]);
-
-    const usesPipelineOrderBy = useCallback(() => {
-        if (activeTab === 'applications' && pipelineSegment !== 'all') return true;
-        if ((activeTab === 'company_leads' || activeTab === 'my_leads') && pipelineSegment !== 'all') return true;
-        return false;
-    }, [activeTab, pipelineSegment]);
-
-    const buildConstraints = useCallback(() => {
-        let constraints = [];
-
-        if (activeTab === 'applications') {
-            if (!usesPipelineOrderBy()) {
-                // legacy browse: no orderBy (document-id ordering)
-            }
-        } else if (activeTab === 'company_leads') {
-            if (!usesPipelineOrderBy()) {
-                constraints.push(orderBy("createdAt", "desc"));
-            }
-        } else if (activeTab === 'my_leads' && auth.currentUser) {
-            constraints.push(where("assignedTo", "==", auth.currentUser.uid));
-            if (!usesPipelineOrderBy()) {
-                constraints.push(orderBy("createdAt", "desc"));
-            }
-        }
-
-        constraints.push(...pipelineConstraints());
-
-        if (filters.myAssignmentsOnly && auth.currentUser &&
-            (activeTab === 'applications' || activeTab === 'company_leads')) {
-            constraints.push(where('assignedTo', '==', auth.currentUser.uid));
-        }
-
-        if (filters.state) {
-            constraints.push(where("state", "==", filters.state.toUpperCase()));
-        }
-        if (filters.driverType) {
-            constraints.push(where("driverType", "array-contains", filters.driverType));
-        }
-        if (filters.assignee) {
-            if (filters.assignee === '__unassigned__') {
-                constraints.push(where("assignedTo", "==", ""));
-            } else {
-                constraints.push(where("assignedTo", "==", filters.assignee));
-            }
-        }
-
-        if (usesPipelineOrderBy()) {
-            constraints.push(orderBy('createdAt', 'desc'));
-        }
-
-        return constraints;
-    }, [activeTab, filters, pipelineConstraints, usesPipelineOrderBy]);
+    // Same recreation set as before the split: the old useCallback depended on
+    // [activeTab, filters] plus builders that recreated on pipelineSegment.
+    const buildConstraints = useCallback(
+        () => buildDashboardConstraints({ activeTab, pipelineSegment, filters }),
+        [activeTab, pipelineSegment, filters],
+    );
 
     const clientFilterContext = useCallback(() => ({
         activeTab,
@@ -259,57 +154,12 @@ export function useCompanyDashboard(companyId) {
         fetchListTotalCount();
     }, [fetchListTotalCount]);
 
-    /**
-     * Search mode: run the classified term's single-field query plans in
-     * parallel, merge + verify client-side, then apply the active tab scope,
-     * pipeline segment, and toolbar filters. Single-field queries only —
-     * combining search with tabs/filters can never hit a missing composite
-     * index, and nothing downloads the whole collection.
-     */
-    const runSearchQuery = useCallback(async (term) => {
-        const classified = classifySearchTerm(term);
-        if (!classified) return [];
-
-        const collectionName = activeTab === 'applications' ? 'applications' : 'leads';
-        const baseRef = collection(db, "companies", companyId, collectionName);
-
-        const plans = buildSearchPlans(classified);
-        const seenPlanKeys = new Set();
-        const queries = [];
-        for (const plan of plans) {
-            const planKey = `${plan.kind}:${plan.field || ''}:${plan.value}`;
-            if (!plan.value || seenPlanKeys.has(planKey)) continue;
-            seenPlanKeys.add(planKey);
-
-            if (plan.kind === 'docId') {
-                queries.push(
-                    getDocs(query(baseRef, where(documentId(), '==', plan.value), limit(1)))
-                );
-            } else if (plan.kind === 'eq') {
-                queries.push(
-                    getDocs(query(baseRef, where(plan.field, '==', plan.value), limit(SEARCH_PLAN_LIMIT)))
-                );
-            } else if (plan.kind === 'prefix') {
-                queries.push(
-                    getDocs(query(
-                        baseRef,
-                        where(plan.field, '>=', plan.value),
-                        where(plan.field, '<=', plan.value + PREFIX_END),
-                        limit(SEARCH_PLAN_LIMIT),
-                    ))
-                );
-            }
-        }
-
-        const snapshots = await Promise.all(queries);
-        const lists = snapshots.map((snapshot) =>
-            snapshot.docs.map((docSnap) => ({ id: docSnap.id, companyId, ...docSnap.data() }))
-        );
-
-        const merged = mergeSearchResults(lists);
-        const verified = merged.filter((record) => recordMatchesSearch(record, classified));
-        return applyClientSideFilters(verified, clientFilterContext());
-    }, [companyId, activeTab, clientFilterContext]);
+    // One expression, so the promise the caller awaits is the module's own
+    // (the `CA-9` wrapper shape). Same recreation set as the original.
+    const runSearchQuery = useCallback(
+        (term) => runDashboardSearch({ companyId, activeTab, term, filterContext: clientFilterContext() }),
+        [companyId, activeTab, clientFilterContext],
+    );
 
     const fetchData = useCallback(async () => {
         if (!companyId) return;

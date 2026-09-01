@@ -29,7 +29,6 @@
     "hard": 500
   },
   "files": {
-    "src/features/companies/hooks/useCompanyDashboard.js": 528,
     "src/features/driver-app/components/application/PublicApplyHandler.contract.test.jsx": 2203,
     "src/features/driver-app/components/application/PublicApplyHandler.jsx": 1476,
     "src/features/signing/EnvelopeCreator.jsx": 1363,
