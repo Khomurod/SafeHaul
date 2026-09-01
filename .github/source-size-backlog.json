@@ -31,7 +31,6 @@
   "files": {
     "scripts/ci-plan.mjs": 523,
     "scripts/deploy-functions-incremental.mjs": 525,
-    "scripts/test-release-promotion.mjs": 584,
     "src/features/campaigns/components/LaunchPad.test.jsx": 539,
     "src/features/companies/hooks/useCompanyDashboard.js": 528,
     "src/features/driver-app/components/application/PublicApplyHandler.contract.test.jsx": 2203,
