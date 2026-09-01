@@ -15,13 +15,13 @@ it currently is*.
 
 | | |
 |---|---|
-| **Last updated** | 2026-09-01, `T-4` merged as #105; `T-5` (`ci-plan.mjs` → entry + rules module) on the branch — the last `T-*` unit |
-| **Verified main SHA** | `d5a499125e3659b5633c13a0d1d391dabf85e6b6` (#105 / `T-4` merged) |
-| **Oversized files** | **15 on `main`, 14 on this branch** (was 68 when the tracker opened) |
-| **Backlog entries** | **15 on `main`, 14 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
-| **Active work item** | `T-5` — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
+| **Last updated** | 2026-09-01, `T-5` merged as #106 — the `T-*` series is DONE; `RU-1` (security test → 4 verbatim suites + a strengthening suite + support) on the branch |
+| **Verified main SHA** | `96ed765c4d00001564b200c4c622e0a740f68f13` (#106 / `T-5` merged) |
+| **Oversized files** | **14 on `main`, 13 on this branch** (was 68 when the tracker opened) |
+| **Backlog entries** | **14 on `main`, 13 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
+| **Active work item** | `RU-1` — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | none open yet for `T-5`. [#105](https://github.com/Khomurod/SafeHaul/pull/105) and everything before it merged; #50 closed. |
+| **Active PR** | none open yet for `RU-1`. [#106](https://github.com/Khomurod/SafeHaul/pull/106) and everything before it merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
 | **CI status** | #61, #62 and #63 all merged fully green, first try. The only red round in this stretch was #60's `frontend-quality` — a **race in a test `LD-R3` wrote**, reproduced and fixed, see the interlude below. A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
@@ -30,8 +30,8 @@ it currently is*.
 
 ### Exact next action
 
-1. **Push and open the `T-5` PR**, then merge it when green.
-2. **Nothing is pre-built behind `T-5`.** The stacking deviation recorded below
+1. **Push and open the `RU-1` PR**, then merge it when green.
+2. **Nothing is pre-built behind `RU-1`.** The stacking deviation recorded below
    is fully unwound once it merges.
    **Their sections below were published with `FT-10`, deliberately ahead of their
    code.** The reason is worth keeping: for several units the "rebuild it from the
@@ -54,13 +54,13 @@ it currently is*.
    conflicts.
    **If those local branches are gone** (a fresh container), the work is not lost:
    rebuild each from its `FR-*` section below, which is written as a recipe.
-3. **After `T-5`: the remaining files are the four giants and the rules
-   pair** — `RU-1` → `RU-2` (`src/tests/firestore.rules.security.test.js`
-   1106, then `src/firestore.rules` 693) under the owner's ruling in
-   `PLAN.md` § 7.3 (no build step; strengthen/split the security tests
-   first; stop and ask if unsafe), and the signing + driver-app series
-   (`EnvelopeCreator.jsx` 1363, `PublicApplyHandler` 1476 + its 2203-line
-   test, `SigningRoom.jsx` 652, and the remaining test splits),
+3. **After `RU-1`: `RU-2`** (`src/firestore.rules`, 693) under the
+   owner's ruling in `PLAN.md` § 7.3 — no build step, permissions
+   preserved exactly, stop and ask if it cannot be done safely (`RU-1`'s
+   split-and-strengthened suites are the safety net it required first) —
+   then the signing + driver-app series (`EnvelopeCreator.jsx` 1363,
+   `PublicApplyHandler` 1476 + its 2203-line test, `SigningRoom.jsx` 652,
+   and the remaining test splits),
    then `RU-1` → `RU-2` (Firestore rules) under the owner's ruling in
    `PLAN.md` § 7.3.
 
@@ -130,7 +130,7 @@ use `—` until it exists.**
 | `T-2` | **COMPLETE** | R2 | `scripts/check-ui-contract.mjs` → entry + 6 modules | 1030 | **306** | — | #58 | `b1452ec` | — | green | `77be09c` | main green | **1 ✓** |
 | `T-3` | **MERGED** | R3 | gate test → entry + 5 modules | 584 | **58** | `claude/safehual-source-size-refactor-j4apre` | [#104](https://github.com/Khomurod/SafeHaul/pull/104) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `T-4` | **MERGED** | R3 | deploy script → entry + resolve module | 525 | **281** | `claude/safehual-source-size-refactor-j4apre` | [#105](https://github.com/Khomurod/SafeHaul/pull/105) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
-| `T-5` | **IN PROGRESS** | R4 | CI planner → entry + rules module | 523 | **240** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
+| `T-5` | **MERGED** | R4 | CI planner → entry + rules module | 523 | **240** | `claude/safehual-source-size-refactor-j4apre` | [#106](https://github.com/Khomurod/SafeHaul/pull/106) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `FT-1` | **MERGED** | R1 | `blogPipeline.test.js` → 6 suites + support | 1496 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#59](https://github.com/Khomurod/SafeHaul/pull/59) | — | — | local green | — | — | **1 ✓** |
 | `FT-2` | **MERGED** | R1 | `applicationDrafts.test.js` → 6 suites + support | 1476 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#60](https://github.com/Khomurod/SafeHaul/pull/60) | — | — | local green | — | — | **1 ✓** |
 | `FT-3` | **MERGED** | R1 | `aiRouter.test.js` → 4 suites + support | 1203 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#61](https://github.com/Khomurod/SafeHaul/pull/61) | — | — | local green | — | — | **1 ✓** |
@@ -189,7 +189,7 @@ use `—` until it exists.**
 | `PA-3` | NOT STARTED | R1 | `src/features/driver-app/components/application/applicationDraftStorage.test.js` (test) | 511 | 511 | — | — | — | — | — | — | — | 1 |
 | `SO-1` | NOT STARTED | R1 | `src/features/campaigns/components/LaunchPad.test.jsx` (test) | 539 | 539 | — | — | — | — | — | — | — | 1 |
 | `SO-2` | NOT STARTED | R2 | `src/features/companies/hooks/useCompanyDashboard.js` (runtime) | 528 | 528 | — | — | — | — | — | — | — | 1 |
-| `RU-1` | **READY** (after `LD-R`) | R3 | `src/tests/firestore.rules.security.test.js` (test) — split **and strengthen** | 1106 | 1106 | — | — | — | — | — | — | — | 1 |
+| `RU-1` | **IN PROGRESS** | R3 | security test → 4 verbatim suites + `surfaces` strengthening suite + support | 1106 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
 | `RU-2` | **BLOCKED** by `RU-1` | R4 | `src/firestore.rules` (runtime) — no build step; stop and ask if unsafe | 693 | 693 | — | — | — | — | — | — | — | 1 |
 | `LD-R1` | **COMPLETE** | R4 | stand up `web/`; blog serves from its own stylesheets | — | — | `claude/safehual-source-size-refactor-j4apre` | #54 | `78a7e4a` | owner ruling | green | `1e399de` | main green | 0 |
 | `LD-R2` | **COMPLETE** | R4 | delete `landing/`, its scripts, tests and workflow steps | 5989 | **0 — deleted** | `claude/safehual-source-size-refactor-j4apre` | #55 | `57fe54f` | owner ruling | green | `78e1577` | main green | **3 ✓** |
@@ -3362,7 +3362,7 @@ gate, and re-exports the eight test names from the module so
 
 ## `T-5` — `scripts/ci-plan.mjs` → entry plus the rules module
 
-**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R4
+**Status:** `MERGED` — [#106](https://github.com/Khomurod/SafeHaul/pull/106), 2026-09-01 · **Risk:** R4
 (the CI planner itself: its output decides which lanes run) ·
 **523 → 240 entry, plus `ci-plan-rules.mjs` (308) — the last `T-*` unit**
 
@@ -3396,6 +3396,63 @@ test modules) keeps its import path.
 | every original line | accounted for — **0 missing** |
 | gate battery (release, deploy, source-size) | all green |
 | `check:source-size` | **14 recorded**, verdict `OK` |
+| root `npm run lint` | pass |
+
+---
+
+## `RU-1` — `firestore.rules.security.test.js` → four verbatim suites, one strengthening suite, one support module
+
+**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R3
+(the owner's prerequisite for ever touching `src/firestore.rules`) ·
+**1106 → deleted; tenancy (295) + lockdown (253) + profiles (298) +
+applications (348) + NEW `surfaces` (156) + support (33)**
+
+The 47 emulator tests split at their natural blocks, every test body
+verbatim, every suite keeping the original describe name; the mid-file
+helpers already lived inside their blocks' ranges, so nothing needed a
+factory. **And per the ruling's "strengthen, not merely divide": a new
+`firestoreRules.surfaces.security.test.js` adds 11 tests (28 new
+assertions) over surfaces the original never touched** — the token-gated
+`verification_requests`/`change_reviews`, `public_profiles` write-denial,
+`message_templates`, `bulk_sessions` + read-only `logs`, `campaign_drafts`,
+read-only `stats_daily`/`internal_stats`, notifications' verb-split rules,
+the admin-only `system_settings/email_config` (a same-company recruiter is
+DENIED), the `team` roster, and the encrypted `integrations` with their
+super-admin-only create/delete. Every assertion pins the rules as they are.
+
+### The one deliberate change, and why it is required
+
+Vitest runs test FILES in parallel workers against the one emulator, and
+`clearFirestore()` wipes a whole project — with the original's single shared
+projectId, one suite's `beforeEach` would erase another suite's documents
+mid-test. **Each suite now boots `safehaul-rules-test-<suite>`** via the
+support's `createRulesTestEnv(suffix)` (the original `beforeAll` body plus
+the suffix). The rules never reference the projectId, so nothing under test
+changes. Stated in the support header.
+
+### Proofs
+
+- **47/47 original tests set-identical** under the real emulator, all green,
+  files in parallel; **75/75 total** (the four splits + surfaces + storage)
+  through the updated stress runner, 1/1 emulator runs.
+- **Rules-weakening plant**: `blog_posts` read flipped to `true` in
+  `src/firestore.rules` → the lockdown suite refused (exit 1). Restored;
+  `git diff` on the rules file clean.
+- Pins updated in `package.json` (`test:rules`) and
+  `scripts/run-rules-stress.mjs` (`rulesTestArgs`) to the five files.
+- The backlog's LAST entry has no trailing comma — the habitual
+  `sed '/…: N,/d'` missed it silently and `check:source-size` refused the
+  stale entry, exactly as designed.
+
+| Check | Result |
+|---|---|
+| 47 original emulator tests | **set-identical**, all green |
+| NEW surfaces suite | 11 tests / 28 assertions, green against current rules |
+| rules-weakening plant | refused (exit 1), restored clean |
+| `test:rules:emulators` (updated pins) | 75/75, 1/1 runs passed |
+| every original line | accounted for — 8 harness-wrapper transforms only |
+| `check:ci-plan` | all checks passed |
+| `check:source-size` | **13 recorded**, verdict `OK` |
 | root `npm run lint` | pass |
 
 ---
@@ -3550,7 +3607,10 @@ coverage and add it **before** the rules file is touched.
 
 ### Current stopping point
 
-Not started. `RU-2` must not begin until `RU-1` is merged.
+`RU-1` is on the branch (see its own section above the interludes):
+four verbatim suites + the `surfaces` strengthening suite + support,
+75/75 emulator tests green, a rules-weakening plant refused. `RU-2` must
+not begin until it is merged.
 
 ---
 

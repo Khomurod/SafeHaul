@@ -41,7 +41,6 @@
     "src/features/signing/components/EnvelopeHistory.test.jsx": 755,
     "src/features/signing/components/envelope-creator/ResizableDraggableField.test.jsx": 502,
     "src/features/signing/hooks/useAiFieldAssistant.test.jsx": 534,
-    "src/firestore.rules": 693,
-    "src/tests/firestore.rules.security.test.js": 1106
+    "src/firestore.rules": 693
   }
 }

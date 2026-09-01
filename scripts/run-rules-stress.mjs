@@ -14,7 +14,11 @@ const firebaseCliPath = resolve(
 const vitestCliPath = resolve(process.cwd(), 'node_modules', 'vitest', 'vitest.mjs');
 const rulesTestArgs = [
   '--run',
-  'src/tests/firestore.rules.security.test.js',
+  'src/tests/firestoreRules.tenancy.security.test.js',
+  'src/tests/firestoreRules.lockdown.security.test.js',
+  'src/tests/firestoreRules.profiles.security.test.js',
+  'src/tests/firestoreRules.applications.security.test.js',
+  'src/tests/firestoreRules.surfaces.security.test.js',
   'src/tests/storage.rules.security.test.js',
 ];
 
