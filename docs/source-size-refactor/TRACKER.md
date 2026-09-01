@@ -15,13 +15,13 @@ it currently is*.
 
 | | |
 |---|---|
-| **Last updated** | 2026-09-01, `SG-1c` merged as #120 — `EnvelopeCreator.jsx` is done (1363 → 451 over three PRs). `PA-1a` on the branch starts the last runtime giant: the submission path out of `PublicApplyHandler.jsx` (1476 → 1088 + `publicApplySubmit.js` 474) |
-| **Verified main SHA** | `1d85236ec34533fc8a4deff41dab20df8b119cbd` (#120 / `SG-1c` merged) |
-| **Oversized files** | **3 over 500 on `main` and on this branch** (was 68 when the tracker opened); one of them, `firestore.rules`, sits under its owner-ruled 689 ceiling rather than in the backlog. `PublicApplyHandler.jsx` is mid-drain: 1088 on the branch, entry stays until it is under 500 |
+| **Last updated** | 2026-09-01, `PA-1a` merged as #121; `PA-1b` on the branch (1088 → 864 + `publicApplyBootstrap.js` 364: session restore, company load, server reconciliation, reconnect flush) — `PA-1c` (discard/lifecycle + post-submit hooks) lands it under 500 |
+| **Verified main SHA** | `95a95c2c390650d2327e128120c0843e8a102681` (#121 / `PA-1a` merged) |
+| **Oversized files** | **3 over 500 on `main` and on this branch** (was 68 when the tracker opened); one of them, `firestore.rules`, sits under its owner-ruled 689 ceiling rather than in the backlog. `PublicApplyHandler.jsx` is mid-drain: 864 on the branch, entry stays until it is under 500 |
 | **Backlog entries** | **2 on `main` and on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
-| **Active work item** | `PA-1a` (PublicApplyHandler submission path, PR 1 of ~3) — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
+| **Active work item** | `PA-1b` (PublicApplyHandler bootstrap, PR 2 of ~3) — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | none open yet. [#120](https://github.com/Khomurod/SafeHaul/pull/120) and everything before it merged; #50 closed. |
+| **Active PR** | none open yet. [#121](https://github.com/Khomurod/SafeHaul/pull/121) and everything before it merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
 | **CI status** | #92–#113 all merged green. The only red in that stretch was #109's first round — the `EditUserBodies` initial-load race, not that PR's diff; fixed family-wide in the same PR (see the interlude below). A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
@@ -30,7 +30,7 @@ it currently is*.
 
 ### Exact next action
 
-1. **Push and open the `PA-1a` PR**, then merge it when green.
+1. **Push and open the `PA-1b` PR**, then merge it when green.
 2. **Nothing is pre-built behind it**, and the stacking deviation recorded in
    earlier revisions is fully unwound — every pre-built unit has merged
    (#104–#113). The lesson stays recorded: recipes/sections go out ahead of their
@@ -50,10 +50,9 @@ it currently is*.
    exception on 2026-09-01 (`PLAN.md` § 7.3a, RU section below). **The drain
    continues** through the last giants. `EnvelopeCreator.jsx` is DONE
    (#118/#119/#120, 1363 → 451). `PublicApplyHandler.jsx` (1476) drains
-   over ~3 PRs: `PA-1a` the submission path (on branch, → 1088), `PA-1b`
-   the bootstrap (load-company effect + server reconciliation), `PA-1c`
-   the draft lifecycle + post-submit documents hooks (→ under 500, entry
-   removed). Then `PA-2`, the 2203-line contract test. When `PA-2` lands,
+   over ~3 PRs: `PA-1a` the submission path (#121, → 1088), `PA-1b` the
+   bootstrap (on branch, → 864), `PA-1c` the draft lifecycle + post-submit
+   documents hooks (→ under 500, entry removed). Then `PA-2`, the 2203-line contract test. When `PA-2` lands,
    the backlog is empty: delete `.github/source-size-backlog.json` (`Z-1`)
    and the campaign ends with one owner-ruled, measured exception.
 
@@ -97,7 +96,7 @@ it currently is*.
 |---|---|---|
 | Over-limit files at campaign start (2026-08-26 audit, incl. 2026-08-27 additions) | 70 | — |
 | Retired before this tracker existed (PR #49) | 2 | — |
-| **Remaining now** (this branch, `PA-1a` applied) | **2** | **3,291** |
+| **Remaining now** (this branch, `PA-1b` applied) | **2** | **3,067** |
 | Retired by this campaign so far | **63** (62 fixed or removed + `firestore.rules` moved to an owner-ruled, still-measured ceiling) | — |
 
 **How to reproduce those two numbers**, because an earlier revision of this table
@@ -177,7 +176,7 @@ use `—` until it exists.**
 | `SG-5` | **MERGED** | R1 | test → 3 suites + support (section `SG-1` below) | 755 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#108](https://github.com/Khomurod/SafeHaul/pull/108) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `SG-6` | **MERGED** | R1 | test → 2 suites + support (section `SG-4` below) | 534 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#111](https://github.com/Khomurod/SafeHaul/pull/111) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `SG-7` | **MERGED** | R1 | test → 2 suites + support (section `SG-5` below) | 502 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#112](https://github.com/Khomurod/SafeHaul/pull/112) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
-| `PA-1` | **IN PROGRESS (a of ~3)** | R4 | 1476 → 1088; `publicApplySubmit.js` 474 (the submission path); bootstrap and lifecycle hooks next | 1476 | **1088** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | — | — | — | 1 |
+| `PA-1` | **IN PROGRESS (b of ~3)** | R4 | 1476 → 864; submission path (#121) + `publicApplyBootstrap.js` 364; lifecycle hooks next | 1476 | **864** | `claude/safehual-source-size-refactor-j4apre` | [#121](https://github.com/Khomurod/SafeHaul/pull/121) (a) | — | — | — | — | — | 1 |
 | `PA-2` | NOT STARTED | R2 | `src/features/driver-app/components/application/PublicApplyHandler.contract.test.jsx` (test) | 2203 | 2203 | — | — | — | — | — | — | — | 1 |
 | `PA-3` | **MERGED** | R1 | test → identity (239) + sync (299); no support module — zero mocks | 511 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#114](https://github.com/Khomurod/SafeHaul/pull/114) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `SO-1` | **MERGED** | R1 | test → 2 suites + support (section `CP-1` below) | 539 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#113](https://github.com/Khomurod/SafeHaul/pull/113) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
@@ -3870,7 +3869,7 @@ the view; import lines relocated to the view under its relative paths.
 
 ## `PA-1` — `PublicApplyHandler.jsx`, PR a of ~3: the submission path
 
-**Status:** `IN PROGRESS` — on the branch, PR pending · **Risk:** R4 (the
+**Status:** `MERGED` — [#121](https://github.com/Khomurod/SafeHaul/pull/121), 2026-09-01 · **Risk:** R4 (the
 public application path — the campaign's most sensitive runtime file) ·
 **1476 → 1088; `publicApplySubmit.js` (474)**
 
@@ -3900,6 +3899,36 @@ and 469) — root lint is still exactly 124.
 | multiset stripped-line diff | six lines differ, all enumerated: two import splits + the three declaration/closer transforms |
 | `vite build` | pass |
 | `check:source-size` / `check:ui-contract` | 2 recorded (entry stays at 1476 while the file is 1088), `OK` / 516 files, 236 known, none new |
+| root `npm run lint` | exit 0, the same 124 warnings |
+
+---
+
+## `PA-1` — PR b of ~3: the bootstrap
+
+**Status:** `IN PROGRESS` — on the branch, PR pending · **Risk:** R4 ·
+**1088 → 864; `publicApplyBootstrap.js` (364)**
+
+Four React-free functions, bodies lifted verbatim by script:
+`restorePostApplySessionFor` (the post-signing checklist restore),
+`loadPublicApplyCompany` (sandbox / E2E / production load with the
+local-draft restore and its discard guards — the effect keeps its exact
+dependency array, so the pre-existing missing-`discardedElsewhere` warning
+keeps its original shape), `reconcileServerDraftOnLoad` and
+`listenForReconnectFlush` (each RETURNS the effect's own cleanup, exactly as
+the inline bodies did). This tab's refs are passed as the ref objects; the
+component keeps `restorePostApplySession` as a thin `useCallback` with the
+same `[slug]` deps because the load effect names it as a dependency.
+
+Multiset misses, all enumerated: three import splits, the PA-1a comment
+extended, the `useCallback` wrapper transform, and `loadCompany();` →
+`return loadCompany();` inside the module.
+
+| Check | Result |
+|---|---|
+| driver-app feature suite (75 files) | **359/359, set-identical** vs the same pre-`PA-1a` baseline |
+| E2E | the same seven guest/apply specs, chromium: **24 passed**, 1 pre-existing mobile-only skip — these exercise load, restore, resume, offline queue and reconnect directly |
+| `vite build` | pass |
+| `check:source-size` / `check:ui-contract` | 2 recorded, `OK` / 517 files, 236 known, none new |
 | root `npm run lint` | exit 0, the same 124 warnings |
 
 ---
