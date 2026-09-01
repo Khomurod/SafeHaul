@@ -31,7 +31,6 @@
   "files": {
     "src/features/driver-app/components/application/PublicApplyHandler.contract.test.jsx": 2203,
     "src/features/driver-app/components/application/PublicApplyHandler.jsx": 1476,
-    "src/features/signing/EnvelopeCreator.jsx": 1363,
-    "src/features/signing/SigningRoom.jsx": 652
+    "src/features/signing/EnvelopeCreator.jsx": 1363
   }
 }

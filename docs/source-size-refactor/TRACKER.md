@@ -15,13 +15,13 @@ it currently is*.
 
 | | |
 |---|---|
-| **Last updated** | 2026-09-01, `RU-2` resolution merged as #115 — the rules file now sits under its owner-ruled 689 ceiling; `SO-2` (`useCompanyDashboard.js` → hook 378 + `dashboardQueries.js` 203) on the branch |
-| **Verified main SHA** | `e918885173390ee0d835ed21e3f71fa456b6d124` (#115 / `RU-2` resolution merged) |
-| **Oversized files** | **6 over 500 on `main`, 5 on this branch** (was 68 when the tracker opened); one of them, `firestore.rules`, sits under its owner-ruled 689 ceiling rather than in the backlog |
-| **Backlog entries** | **5 on `main`, 4 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
-| **Active work item** | `SO-2` — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
+| **Last updated** | 2026-09-01, `SO-2` merged as #116; `SG-4`-in-table (`SigningRoom.jsx` 652 → room 460 + `SigningDocumentView.jsx` 240) on the branch — only the three giants remain after it |
+| **Verified main SHA** | `839abd696531443fc9ad28ea18665ee4a26089d3` (#116 / `SO-2` merged) |
+| **Oversized files** | **5 over 500 on `main`, 4 on this branch** (was 68 when the tracker opened); one of them, `firestore.rules`, sits under its owner-ruled 689 ceiling rather than in the backlog |
+| **Backlog entries** | **4 on `main`, 3 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
+| **Active work item** | `SG-4`-in-table (`SigningRoom.jsx`) — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | none open yet for `SO-2`. [#115](https://github.com/Khomurod/SafeHaul/pull/115) and everything before it merged; #50 closed. |
+| **Active PR** | none open yet. [#116](https://github.com/Khomurod/SafeHaul/pull/116) and everything before it merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
 | **CI status** | #92–#113 all merged green. The only red in that stretch was #109's first round — the `EditUserBodies` initial-load race, not that PR's diff; fixed family-wide in the same PR (see the interlude below). A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
@@ -30,7 +30,7 @@ it currently is*.
 
 ### Exact next action
 
-1. **Push and open the `SO-2` PR**, then merge it when green.
+1. **Push and open the `SigningRoom` PR**, then merge it when green.
 2. **Nothing is pre-built behind it**, and the stacking deviation recorded in
    earlier revisions is fully unwound — every pre-built unit has merged
    (#104–#113). The lesson stays recorded: recipes/sections go out ahead of their
@@ -48,12 +48,11 @@ it currently is*.
    section and the table disagree, trust neither — read `git log origin/main`.
 3. **`RU-2` is RESOLVED and merged (#115)** — the owner chose the documented
    exception on 2026-09-01 (`PLAN.md` § 7.3a, RU section below). **The drain
-   continues**: after `SO-2`, `SG-4`-in-table `SigningRoom.jsx` (652), then the
-   giants (`SG-1`-in-table `EnvelopeCreator.jsx` 1363, `PA-1`
-   `PublicApplyHandler.jsx` 1476, `PA-2` its 2203-line contract test). When
-   `PA-2` lands, the backlog is empty: delete
-   `.github/source-size-backlog.json` (`Z-1`) and the campaign ends with one
-   owner-ruled, measured exception.
+   continues**: after `SigningRoom`, only the giants remain (`SG-1`-in-table
+   `EnvelopeCreator.jsx` 1363, `PA-1` `PublicApplyHandler.jsx` 1476, `PA-2`
+   its 2203-line contract test). When `PA-2` lands, the backlog is empty:
+   delete `.github/source-size-backlog.json` (`Z-1`) and the campaign ends
+   with one owner-ruled, measured exception.
 
 **Four process rules learned the hard way in this session, all worth keeping:**
 
@@ -95,7 +94,7 @@ it currently is*.
 |---|---|---|
 | Over-limit files at campaign start (2026-08-26 audit, incl. 2026-08-27 additions) | 70 | — |
 | Retired before this tracker existed (PR #49) | 2 | — |
-| **Remaining now** (this branch, `SO-2` applied) | **4** | **5,694** |
+| **Remaining now** (this branch, `SigningRoom` applied) | **3** | **5,042** |
 | Retired by this campaign so far | **63** (62 fixed or removed + `firestore.rules` moved to an owner-ruled, still-measured ceiling) | — |
 
 **How to reproduce those two numbers**, because an earlier revision of this table
@@ -171,7 +170,7 @@ use `—` until it exists.**
 | `SG-1` | NOT STARTED | R4 | `src/features/signing/EnvelopeCreator.jsx` (runtime) | 1363 | 1363 | — | — | — | — | — | — | — | 1 |
 | `SG-2` | **MERGED** | R1 | test → 3 suites + support (section `SG-2` below) | 677 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#109](https://github.com/Khomurod/SafeHaul/pull/109) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `SG-3` | **MERGED** | R1 | test → 2 suites + support (section `SG-3` below) | 540 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#110](https://github.com/Khomurod/SafeHaul/pull/110) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
-| `SG-4` | NOT STARTED | R3 | `src/features/signing/SigningRoom.jsx` (runtime) | 652 | 652 | — | — | — | — | — | — | — | 1 |
+| `SG-4` | **IN PROGRESS** | R3 | room → 460 + `SigningDocumentView.jsx` 240 (document viewport) | 652 | **460** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | — | — | — | 1 |
 | `SG-5` | **MERGED** | R1 | test → 3 suites + support (section `SG-1` below) | 755 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#108](https://github.com/Khomurod/SafeHaul/pull/108) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `SG-6` | **MERGED** | R1 | test → 2 suites + support (section `SG-4` below) | 534 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#111](https://github.com/Khomurod/SafeHaul/pull/111) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `SG-7` | **MERGED** | R1 | test → 2 suites + support (section `SG-5` below) | 502 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#112](https://github.com/Khomurod/SafeHaul/pull/112) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
@@ -179,7 +178,7 @@ use `—` until it exists.**
 | `PA-2` | NOT STARTED | R2 | `src/features/driver-app/components/application/PublicApplyHandler.contract.test.jsx` (test) | 2203 | 2203 | — | — | — | — | — | — | — | 1 |
 | `PA-3` | **MERGED** | R1 | test → identity (239) + sync (299); no support module — zero mocks | 511 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#114](https://github.com/Khomurod/SafeHaul/pull/114) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `SO-1` | **MERGED** | R1 | test → 2 suites + support (section `CP-1` below) | 539 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#113](https://github.com/Khomurod/SafeHaul/pull/113) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
-| `SO-2` | **IN PROGRESS** | R2 | hook → 378 + `dashboardQueries.js` 203 (React-free Firestore side) | 528 | **378** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | — | — | — | 1 |
+| `SO-2` | **MERGED** | R2 | hook → 378 + `dashboardQueries.js` 203 (React-free Firestore side) | 528 | **378** | `claude/safehual-source-size-refactor-j4apre` | [#116](https://github.com/Khomurod/SafeHaul/pull/116) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `RU-1` | **MERGED** | R3 | security test → 4 verbatim suites + `surfaces` strengthening suite + support | 1106 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#107](https://github.com/Khomurod/SafeHaul/pull/107) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `RU-2` | **RESOLVED — owner-ruled exception** | R4 | measured under a pinned 689 ceiling, out of the backlog (see RU section) | 693 | **689, owner-ruled ceiling** | `claude/safehual-source-size-refactor-j4apre` | [#115](https://github.com/Khomurod/SafeHaul/pull/115) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `LD-R1` | **COMPLETE** | R4 | stand up `web/`; blog serves from its own stylesheets | — | — | `claude/safehual-source-size-refactor-j4apre` | #54 | `78a7e4a` | owner ruling | green | `1e399de` | main green | 0 |
@@ -3674,7 +3673,7 @@ have produced exactly the "meaningless part-file" the ground rules prohibit.
 
 ## `SO-2` — `useCompanyDashboard.js` → hook + `dashboardQueries.js`
 
-**Status:** `IN PROGRESS` — on the branch, PR pending · **Risk:** R2 ·
+**Status:** `MERGED` — [#116](https://github.com/Khomurod/SafeHaul/pull/116), 2026-09-01 · **Risk:** R2 ·
 **528 → 378; `dashboardQueries.js` (203) carries the Firestore side**
 
 First runtime-hook unit. The seam is React-free vs React-bound:
@@ -3709,6 +3708,44 @@ The hook keeps state, effects, pagination and the E2E fixture branches.
 | multiset stripped-line diff | every line accounted for — transforms enumerated above |
 | `check:source-size` / `check:ui-contract` | **4 recorded**, `OK` / 507 files, 236 known, none new |
 | root `npm run lint` | exit 0 |
+
+---
+
+## `SG-4`-in-table — `SigningRoom.jsx` → room + `SigningDocumentView.jsx`
+
+**Status:** `IN PROGRESS` — on the branch, PR pending · **Risk:** R3 ·
+**652 → 460; `components/signing-room/SigningDocumentView.jsx` (240)**
+
+The seam is *showing* vs *signing*: the document viewport — pdf.js wiring and
+worker setup, per-page aspect tracking, the painted-page interactivity gate
+(NET-SLOW FIX), the load-error/retry state, the scroller ResizeObserver, and
+the fit-width math — moved into `SigningDocumentView`, bodies verbatim. The
+room keeps routing, consent/success gating, the submit flow, and every signer
+interaction handler (`handleFieldChange/Focus/EnterAdvance/SignatureTap`),
+passing them down as props. `pageRefs` stays in the room because its
+scroll-to-field navigation reads it; the view fills it per page.
+
+Transforms: the `docError` ternary became the view's return expression; the
+three import lines split across the two files (React hooks, lucide icons,
+`useSigningEnvelope` vs `E2E_MOCK_PDF_URL`); everything else moved unchanged,
+including `isE2EMockShell`, computed in the view from the same inputs. The
+`handleFieldChange` exhaustive-deps warning moved verbatim with its code —
+pre-existing on `main` (line 176 there), root lint total still exactly 124.
+
+| Check | Result |
+|---|---|
+| signing feature suite (164 files) | **679/679, set-identical** — includes `SigningRoom.test.jsx`, which drives the REAL room (react-pdf mocked by module path, so the mock follows the import into the view) |
+| E2E | `edoc-recruiter-send-and-sign` + `guest-post-application-edoc`, chromium: **9/9** (pinch zoom, full guest signing flow) |
+| `vite build` | pass |
+| multiset stripped-line diff | every line accounted for — transforms enumerated above |
+| `check:source-size` / `check:ui-contract` | **3 recorded**, `OK` / 508 files, 236 known, none new |
+| root `npm run lint` | exit 0, the same 124 warnings |
+
+The backlog's last-entry trap fired a third time here: `SigningRoom.jsx`
+became the LAST key once `src/firestore.rules` left, so its line has no
+trailing comma and the ritual `sed` is a silent no-op — the gate caught it
+("no longer needs a backlog entry"), python fixed it. The two-line python
+replace is now the default for ANY backlog removal; sed is retired for this.
 
 ---
 
