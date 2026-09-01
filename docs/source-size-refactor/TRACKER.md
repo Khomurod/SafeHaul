@@ -15,13 +15,13 @@ it currently is*.
 
 | | |
 |---|---|
-| **Last updated** | 2026-09-01, `SO-2` merged as #116; `SG-4`-in-table (`SigningRoom.jsx` 652 → room 460 + `SigningDocumentView.jsx` 240) on the branch — only the three giants remain after it |
-| **Verified main SHA** | `839abd696531443fc9ad28ea18665ee4a26089d3` (#116 / `SO-2` merged) |
-| **Oversized files** | **5 over 500 on `main`, 4 on this branch** (was 68 when the tracker opened); one of them, `firestore.rules`, sits under its owner-ruled 689 ceiling rather than in the backlog |
-| **Backlog entries** | **4 on `main`, 3 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
-| **Active work item** | `SG-4`-in-table (`SigningRoom.jsx`) — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
+| **Last updated** | 2026-09-01, `SigningRoom` merged as #117 — only the three giants remain. `SG-1a` (EnvelopeCreator 1363 → 1156 + `utils/envelopePersistence.js` 316) on the branch, first of a planned three-PR drain of that file |
+| **Verified main SHA** | `978ee687ff872ccc1cad804d198189a23510c590` (#117 / `SigningRoom` merged) |
+| **Oversized files** | **4 over 500 on `main` and on this branch** (was 68 when the tracker opened); one of them, `firestore.rules`, sits under its owner-ruled 689 ceiling rather than in the backlog. `EnvelopeCreator.jsx` is mid-drain: 1156 on the branch, entry stays until it is under 500 |
+| **Backlog entries** | **3 on `main` and on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
+| **Active work item** | `SG-1a` (EnvelopeCreator persistence split, PR 1 of ~3) — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | none open yet. [#116](https://github.com/Khomurod/SafeHaul/pull/116) and everything before it merged; #50 closed. |
+| **Active PR** | none open yet. [#117](https://github.com/Khomurod/SafeHaul/pull/117) and everything before it merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
 | **CI status** | #92–#113 all merged green. The only red in that stretch was #109's first round — the `EditUserBodies` initial-load race, not that PR's diff; fixed family-wide in the same PR (see the interlude below). A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
@@ -30,7 +30,7 @@ it currently is*.
 
 ### Exact next action
 
-1. **Push and open the `SigningRoom` PR**, then merge it when green.
+1. **Push and open the `SG-1a` PR**, then merge it when green.
 2. **Nothing is pre-built behind it**, and the stacking deviation recorded in
    earlier revisions is fully unwound — every pre-built unit has merged
    (#104–#113). The lesson stays recorded: recipes/sections go out ahead of their
@@ -48,9 +48,12 @@ it currently is*.
    section and the table disagree, trust neither — read `git log origin/main`.
 3. **`RU-2` is RESOLVED and merged (#115)** — the owner chose the documented
    exception on 2026-09-01 (`PLAN.md` § 7.3a, RU section below). **The drain
-   continues**: after `SigningRoom`, only the giants remain (`SG-1`-in-table
-   `EnvelopeCreator.jsx` 1363, `PA-1` `PublicApplyHandler.jsx` 1476, `PA-2`
-   its 2203-line contract test). When `PA-2` lands, the backlog is empty:
+   continues** through the giants. `EnvelopeCreator.jsx` (1363) drains over
+   ~3 PRs: `SG-1a` persistence module (done on branch, → 1156), `SG-1b` the
+   editing hooks (history write-path, field CRUD/geometry, clipboard
+   shortcuts, → ~860), `SG-1c` the AI-workflow hook + layout view (→ under
+   500, entry removed). Then `PA-1` `PublicApplyHandler.jsx` 1476 and `PA-2`
+   its 2203-line contract test. When `PA-2` lands, the backlog is empty:
    delete `.github/source-size-backlog.json` (`Z-1`) and the campaign ends
    with one owner-ruled, measured exception.
 
@@ -94,7 +97,7 @@ it currently is*.
 |---|---|---|
 | Over-limit files at campaign start (2026-08-26 audit, incl. 2026-08-27 additions) | 70 | — |
 | Retired before this tracker existed (PR #49) | 2 | — |
-| **Remaining now** (this branch, `SigningRoom` applied) | **3** | **5,042** |
+| **Remaining now** (this branch, `SG-1a` applied) | **3** | **4,835** |
 | Retired by this campaign so far | **63** (62 fixed or removed + `firestore.rules` moved to an owner-ruled, still-measured ceiling) | — |
 
 **How to reproduce those two numbers**, because an earlier revision of this table
@@ -167,10 +170,10 @@ use `—` until it exists.**
 | `CA-11` | **MERGED** | R1 | test → 2 suites + support | 550 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#101](https://github.com/Khomurod/SafeHaul/pull/101) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `CA-12` | **MERGED** | R1 | test → 2 suites + support | 545 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#102](https://github.com/Khomurod/SafeHaul/pull/102) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `CA-13` | **MERGED** | R1 | test → 2 suites + support | 507 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#103](https://github.com/Khomurod/SafeHaul/pull/103) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
-| `SG-1` | NOT STARTED | R4 | `src/features/signing/EnvelopeCreator.jsx` (runtime) | 1363 | 1363 | — | — | — | — | — | — | — | 1 |
+| `SG-1` | **IN PROGRESS (a of ~3)** | R4 | 1363 → 1156 + `utils/envelopePersistence.js` 316; hooks and view next | 1363 | **1156** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | — | — | — | 1 |
 | `SG-2` | **MERGED** | R1 | test → 3 suites + support (section `SG-2` below) | 677 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#109](https://github.com/Khomurod/SafeHaul/pull/109) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `SG-3` | **MERGED** | R1 | test → 2 suites + support (section `SG-3` below) | 540 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#110](https://github.com/Khomurod/SafeHaul/pull/110) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
-| `SG-4` | **IN PROGRESS** | R3 | room → 460 + `SigningDocumentView.jsx` 240 (document viewport) | 652 | **460** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | — | — | — | 1 |
+| `SG-4` | **MERGED** | R3 | room → 460 + `SigningDocumentView.jsx` 240 (document viewport) | 652 | **460** | `claude/safehual-source-size-refactor-j4apre` | [#117](https://github.com/Khomurod/SafeHaul/pull/117) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `SG-5` | **MERGED** | R1 | test → 3 suites + support (section `SG-1` below) | 755 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#108](https://github.com/Khomurod/SafeHaul/pull/108) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `SG-6` | **MERGED** | R1 | test → 2 suites + support (section `SG-4` below) | 534 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#111](https://github.com/Khomurod/SafeHaul/pull/111) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `SG-7` | **MERGED** | R1 | test → 2 suites + support (section `SG-5` below) | 502 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#112](https://github.com/Khomurod/SafeHaul/pull/112) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
@@ -3713,7 +3716,7 @@ The hook keeps state, effects, pagination and the E2E fixture branches.
 
 ## `SG-4`-in-table — `SigningRoom.jsx` → room + `SigningDocumentView.jsx`
 
-**Status:** `IN PROGRESS` — on the branch, PR pending · **Risk:** R3 ·
+**Status:** `MERGED` — [#117](https://github.com/Khomurod/SafeHaul/pull/117), 2026-09-01 · **Risk:** R3 ·
 **652 → 460; `components/signing-room/SigningDocumentView.jsx` (240)**
 
 The seam is *showing* vs *signing*: the document viewport — pdf.js wiring and
@@ -3746,6 +3749,45 @@ became the LAST key once `src/firestore.rules` left, so its line has no
 trailing comma and the ritual `sed` is a silent no-op — the gate caught it
 ("no longer needs a backlog entry"), python fixed it. The two-line python
 replace is now the default for ANY backlog removal; sed is retired for this.
+
+---
+
+## `SG-1` — `EnvelopeCreator.jsx`, PR a of ~3: the persistence module
+
+**Status:** `IN PROGRESS` — on the branch, PR pending · **Risk:** R4 ·
+**1363 → 1156; `utils/envelopePersistence.js` (316)**
+
+The giant drains in ~3 PRs so each round is fully verifiable. This first cut
+is the React-free Firebase half: `hydrateEnvelopeForEdit` (the
+"Correct"/"Edit Template" load — Firestore read, stored→editor field
+conversion, Storage PDF re-download) and `saveEnvelope` (validation, prefill
+resolution, Storage upload, template/request writes, the signing-request
+batch with its token secret, the copy-link/SMS/email delivery tail). Bodies
+verbatim; the component's effect and `handleSave` became thin calls passing
+the component's own setters, so state ownership did not move. The hydration
+effect keeps its exact dependency array; `handleSave` stays a plain function
+(it was not a `useCallback` before) and is one expression, so callers await
+the module's own promise.
+
+Only four stripped lines differ, all enumerated: the hydration IIfE's
+`(async () => {` / `})();` pair and `const handleSave = async () => {` with
+its closing `};`, replaced by the two module signatures and the wrappers.
+
+Planned next: `SG-1b` — `hooks/useEditorHistoryState` (commitFields /
+resetEditorHistory / stepHistory / undo / redo + ref sync),
+`hooks/useFieldEditing` (add/remove/move/resize/label/prop + align/match/
+duplicate/copy-to-pages), `hooks/useFieldClipboardShortcuts` (the mount
+keydown listener). `SG-1c` — the AI-suggestion workflow hook + the layout
+view component, landing the file under 500 and removing the backlog entry.
+
+| Check | Result |
+|---|---|
+| signing feature suite (164 files) | **679/679, set-identical** — the shell/compact/editor*/ai* suites drive the REAL component |
+| E2E | `edoc-envelope-creator-shell` + `edoc-send-template-wizard` + `edoc-recruiter-send-flow` + `edoc-workbench-closeout`, chromium: **29 passed, 1 pre-existing mobile-only skip** |
+| `vite build` | pass |
+| `check:source-size` | 3 recorded (entry stays at 1363 while the file is 1156 — counts falling need no ceremony), verdict `OK` |
+| `check:ui-contract` | 509 files, 236 known, none new |
+| root `npm run lint` | exit 0 |
 
 ---
 
