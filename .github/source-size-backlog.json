@@ -38,7 +38,6 @@
     "src/features/signing/EnvelopeCreator.editor.test.jsx": 677,
     "src/features/signing/EnvelopeCreator.jsx": 1363,
     "src/features/signing/SigningRoom.jsx": 652,
-    "src/features/signing/components/EnvelopeHistory.test.jsx": 755,
     "src/features/signing/components/envelope-creator/ResizableDraggableField.test.jsx": 502,
     "src/features/signing/hooks/useAiFieldAssistant.test.jsx": 534,
     "src/firestore.rules": 693
