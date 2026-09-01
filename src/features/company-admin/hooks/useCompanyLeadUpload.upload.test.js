@@ -1,133 +1,34 @@
-/**
- * Contract freeze for `useCompanyLeadUpload`.
- *
- * This hook owns every Firestore write behind lead bulk import. The
- * design-system campaign must not touch any of it, so the payloads, paths,
- * guards, batching, assignment behaviour and completion callback are pinned
- * here before the presentation layer changes.
- *
- * Frozen:
- *  - team-member load from `memberships` + `users`, and select-all default,
- *  - the round-robin and specific-user guard messages,
- *  - the created / updated lead payloads, the tenant-binding `companyId`,
- *    `LEAD_DEFAULT_STATUS`, and the `Company Import (File|Sheet)` source values,
- *  - the `activity_logs` subcollection entries,
- *  - round-robin distribution order and `assignedTo` / `assignedToName`,
- *  - the 200-operation batch limit (2 ops per lead),
- *  - `stats`, the `'success'` step and the 1500 ms `onUploadComplete` callback,
- *  - the data-repair scan rule, payload and 400-operation batch limit.
- *
- * All identifiers and contact details below are artificial.
- */
-import { act, renderHook, waitFor } from '@testing-library/react';
+// useCompanyLeadUpload contract, part 1 of 2: the return shape, team load,
+// assignment guards, the frozen created/updated payloads and dedupe rules,
+// round-robin distribution, batching, and the per-record progress string.
+// The shared harness — mock state, factories, fixtures and helpers — lives in
+// `useCompanyLeadUpload.contract.support.js`; the registrations below delegate
+// to it. See that file's header for the scope of this contract freeze.
+import { act } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const fs = vi.hoisted(() => ({
-    getDocs: vi.fn(),
-    getDoc: vi.fn(),
-    commit: vi.fn(),
-    set: vi.fn(),
-    update: vi.fn(),
-    batches: [],
-    docCounter: 0,
-}));
-
-const firebaseMock = vi.hoisted(() => ({
-    db: { __db: true },
-    auth: { currentUser: null },
-}));
-
-vi.mock('@lib/firebase', () => firebaseMock);
-vi.mock('firebase/firestore', () => ({
-    serverTimestamp: () => '__serverTimestamp__',
-    collection: (_db, ...segments) => ({ __kind: 'collection', path: segments.join('/') }),
-    doc: (first, ...rest) => {
-        if (rest.length === 0) {
-            fs.docCounter += 1;
-            return { __kind: 'doc', path: `${first.path}/generated-${fs.docCounter}` };
-        }
-        return { __kind: 'doc', path: rest.join('/') };
-    },
-    query: (ref, ...constraints) => ({ __kind: 'query', ref, constraints }),
-    where: (field, op, value) => ({ field, op, value }),
-    getDocs: (...args) => fs.getDocs(...args),
-    getDoc: (...args) => fs.getDoc(...args),
-    writeBatch: () => {
-        const batch = {
-            set: (...args) => { batch.ops.push(['set', ...args]); fs.set(...args); },
-            update: (...args) => { batch.ops.push(['update', ...args]); fs.update(...args); },
-            commit: async (...args) => { fs.commit(batch.ops.length, ...args); },
-            ops: [],
-        };
-        fs.batches.push(batch);
-        return batch;
-    },
-}));
+vi.mock('@lib/firebase', async () => (await import('./useCompanyLeadUpload.contract.support')).libFirebaseMock());
+vi.mock('firebase/firestore', async () => (await import('./useCompanyLeadUpload.contract.support')).firebaseFirestoreMock());
 
 import { LEAD_DEFAULT_STATUS } from '@shared/constants/atsStatus';
-import { PLACEHOLDER_DOMAIN } from '@/config/placeholderDomains';
 import { useCompanyLeadUpload } from './useCompanyLeadUpload';
+import {
+    makeMountHook,
+    resetHarness,
+    restoreHarness,
+    primeQueries,
+    snapshot,
+    fs,
+    firebaseMock,
+    COMPANY_ID,
+    LEADS_PATH,
+} from './useCompanyLeadUpload.contract.support';
 
-const COMPANY_ID = 'artificial-company-1';
-const LEADS_PATH = `companies/${COMPANY_ID}/leads`;
+const mountHook = makeMountHook(useCompanyLeadUpload);
 
-const MEMBERSHIPS = [
-    { data: () => ({ userId: 'artificial-user-a' }) },
-    { data: () => ({ userId: 'artificial-user-b' }) },
-];
+beforeEach(resetHarness);
 
-function snapshot(docs) {
-    return { docs, empty: docs.length === 0 };
-}
-
-/** Default query answers: memberships resolve, dedupe lookups find nothing. */
-function primeQueries({ dedupe = () => snapshot([]) } = {}) {
-    fs.getDocs.mockImplementation(async (target) => {
-        const path = target?.path ?? target?.ref?.path;
-        if (path === 'memberships') return snapshot(MEMBERSHIPS);
-        return dedupe(target);
-    });
-    fs.getDoc.mockImplementation(async (ref) => {
-        const id = ref.path.split('/').pop();
-        return {
-            exists: () => true,
-            id,
-            data: () => ({ name: `Name ${id}` }),
-        };
-    });
-}
-
-/**
- * `options` lets a case inject the `onError` / `onInfo` sinks, which is what the
- * real consumer (`CompanyBulkUpload`) does. The hook's *messages* are the frozen
- * contract; the sink is the consumer's choice. The defaults used to be blocking
- * `alert()` calls and are now non-blocking logs.
- */
-async function mountHook(onUploadComplete = vi.fn(), options = {}) {
-    const hook = renderHook(() => useCompanyLeadUpload(COMPANY_ID, onUploadComplete, options));
-    await waitFor(() => expect(hook.result.current.teamMembers).toHaveLength(2));
-    return { ...hook, onUploadComplete };
-}
-
-beforeEach(() => {
-    vi.clearAllMocks();
-    fs.batches = [];
-    fs.docCounter = 0;
-    firebaseMock.auth.currentUser = {
-        uid: 'artificial-admin-1',
-        displayName: 'Artificial Admin',
-        email: 'admin@example.test',
-    };
-    primeQueries();
-    vi.spyOn(console, 'error').mockImplementation(() => {});
-    vi.stubGlobal('alert', vi.fn());
-});
-
-afterEach(() => {
-    vi.unstubAllGlobals();
-    vi.restoreAllMocks();
-    vi.useRealTimers();
-});
+afterEach(restoreHarness);
 
 describe('useCompanyLeadUpload — preserved contracts', () => {
     it('exposes the frozen return shape and initial state', async () => {
@@ -384,124 +285,4 @@ describe('useCompanyLeadUpload — preserved contracts', () => {
         expect(result.current.progressCount).toEqual({ current: 2, total: 2 });
     });
 
-    it('leaves the numeric progress count at zero for the repair scan', async () => {
-        fs.getDocs.mockImplementation(async (target) => {
-            const path = target?.path ?? target?.ref?.path;
-            if (path === 'memberships') return snapshot(MEMBERSHIPS);
-            return snapshot([]);
-        });
-        const { result } = await mountHook();
-        await act(async () => { await result.current.runDataRepair(); });
-        expect(result.current.progressCount).toEqual({ current: 0, total: 0 });
-    });
-
-    it('rethrows an upload failure and clears the uploading flag', async () => {
-        fs.commit.mockImplementationOnce(() => { throw new Error('artificial batch failure'); });
-        const { result } = await mountHook();
-
-        await expect(result.current.uploadLeads([{ firstName: 'A' }], 'file'))
-            .rejects.toThrow('artificial batch failure');
-        await waitFor(() => expect(result.current.uploading).toBe(false));
-        expect(result.current.step).toBe('upload');
-    });
-
-    it('repairs leads whose email holds a phone number', async () => {
-        vi.useFakeTimers({ shouldAdvanceTime: true });
-        fs.getDocs.mockImplementation(async (target) => {
-            const path = target?.path ?? target?.ref?.path;
-            if (path === 'memberships') return snapshot(MEMBERSHIPS);
-            if (path === LEADS_PATH) {
-                return snapshot([
-                    {
-                        id: 'lead-broken',
-                        ref: { __kind: 'doc', path: `${LEADS_PATH}/lead-broken` },
-                        data: () => ({ email: '555-123-4567' }),
-                    },
-                    {
-                        id: 'lead-ok',
-                        ref: { __kind: 'doc', path: `${LEADS_PATH}/lead-ok` },
-                        data: () => ({ email: 'artificial@example.test' }),
-                    },
-                ]);
-            }
-            return snapshot([]);
-        });
-
-        const { result, onUploadComplete } = await mountHook();
-        await act(async () => { await result.current.runDataRepair(); });
-
-        expect(fs.update).toHaveBeenCalledTimes(1);
-        const [ref, payload] = fs.update.mock.calls[0];
-        expect(ref.path).toBe(`${LEADS_PATH}/lead-broken`);
-        expect(payload).toMatchObject({
-            isEmailPlaceholder: true,
-            phone: '(555) 123-4567',
-            normalizedPhone: '5551234567',
-            updatedAt: '__serverTimestamp__',
-        });
-        expect(payload.email).toMatch(
-            new RegExp(`^no_email_\\d+_lead_@${PLACEHOLDER_DOMAIN.replace(/\./g, '\\.')}$`
-                .replace('lead_', 'lead-')),
-        );
-
-        expect(result.current.stats).toEqual({ created: 0, updated: 1 });
-        expect(result.current.step).toBe('success');
-        expect(result.current.progress).toBe('Repaired 1 records.');
-
-        await act(async () => { vi.advanceTimersByTime(1500); });
-        expect(onUploadComplete).toHaveBeenCalledTimes(1);
-    });
-
-    it('reports a clean repair scan and returns to the upload step', async () => {
-        fs.getDocs.mockImplementation(async (target) => {
-            const path = target?.path ?? target?.ref?.path;
-            if (path === 'memberships') return snapshot(MEMBERSHIPS);
-            if (path === LEADS_PATH) {
-                return snapshot([{
-                    id: 'lead-ok',
-                    ref: { __kind: 'doc', path: `${LEADS_PATH}/lead-ok` },
-                    data: () => ({ email: 'artificial@example.test' }),
-                }]);
-            }
-            return snapshot([]);
-        });
-        const alertMock = vi.fn();
-        vi.stubGlobal('alert', alertMock);
-        const onInfo = vi.fn();
-
-        const { result, onUploadComplete } = await mountHook(vi.fn(), { onInfo });
-        await act(async () => { await result.current.runDataRepair(); });
-
-        const announced = onInfo.mock.calls.some(
-            ([text]) => text === 'Scan complete. No misformatted records found.',
-        );
-        expect(announced).toBe(true);
-        // The message must never be delivered by a blocking browser dialog again.
-        expect(alertMock).not.toHaveBeenCalled();
-        expect(result.current.uploading).toBe(false);
-        expect(result.current.step).toBe('upload');
-        expect(onUploadComplete).not.toHaveBeenCalled();
-    });
-
-    it('does not treat a real email or an existing placeholder as a phone number', async () => {
-        fs.getDocs.mockImplementation(async (target) => {
-            const path = target?.path ?? target?.ref?.path;
-            if (path === 'memberships') return snapshot(MEMBERSHIPS);
-            if (path === LEADS_PATH) {
-                return snapshot([
-                    { id: 'a', ref: { path: 'a' }, data: () => ({ email: 'x@example.test' }) },
-                    { id: 'b', ref: { path: 'b' }, data: () => ({ email: 'no_email_1@placeholder.com' }) },
-                    { id: 'c', ref: { path: 'c' }, data: () => ({ email: '' }) },
-                    { id: 'd', ref: { path: 'd' }, data: () => ({ email: '12345' }) },
-                ]);
-            }
-            return snapshot([]);
-        });
-
-        const { result } = await mountHook();
-        await act(async () => { await result.current.runDataRepair(); });
-
-        expect(fs.update).not.toHaveBeenCalled();
-        expect(result.current.stats).toEqual({ created: 0, updated: 0 });
-    });
 });
