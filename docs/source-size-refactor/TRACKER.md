@@ -15,13 +15,13 @@ it currently is*.
 
 | | |
 |---|---|
-| **Last updated** | 2026-09-01, `CA-13` merged as #103 — the `CA-*` series is DONE; `T-3` (`test-release-promotion.mjs` → entry + 5 modules) on the branch |
-| **Verified main SHA** | `479732fe18940a9264181cd4b4d815b0a75366e3` (#103 / `CA-13` merged) |
-| **Oversized files** | **17 on `main`, 16 on this branch** (was 68 when the tracker opened) |
-| **Backlog entries** | **17 on `main`, 16 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
-| **Active work item** | `T-3` — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
+| **Last updated** | 2026-09-01, `T-3` merged as #104; `T-4` (`deploy-functions-incremental.mjs` → entry + resolve module) on the branch |
+| **Verified main SHA** | `edecf5f1c904794d48aca2ad8fbe4f14d7ea73c8` (#104 / `T-3` merged) |
+| **Oversized files** | **16 on `main`, 15 on this branch** (was 68 when the tracker opened) |
+| **Backlog entries** | **16 on `main`, 15 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
+| **Active work item** | `T-4` — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | none open yet for `T-3`. [#103](https://github.com/Khomurod/SafeHaul/pull/103) and everything before it merged; #50 closed. |
+| **Active PR** | none open yet for `T-4`. [#104](https://github.com/Khomurod/SafeHaul/pull/104) and everything before it merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
 | **CI status** | #61, #62 and #63 all merged fully green, first try. The only red round in this stretch was #60's `frontend-quality` — a **race in a test `LD-R3` wrote**, reproduced and fixed, see the interlude below. A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
@@ -30,8 +30,8 @@ it currently is*.
 
 ### Exact next action
 
-1. **Push and open the `T-3` PR**, then merge it when green.
-2. **Nothing is pre-built behind `T-3`.** The stacking deviation recorded below
+1. **Push and open the `T-4` PR**, then merge it when green.
+2. **Nothing is pre-built behind `T-4`.** The stacking deviation recorded below
    is fully unwound once it merges.
    **Their sections below were published with `FT-10`, deliberately ahead of their
    code.** The reason is worth keeping: for several units the "rebuild it from the
@@ -54,10 +54,9 @@ it currently is*.
    conflicts.
    **If those local branches are gone** (a fresh container), the work is not lost:
    rebuild each from its `FR-*` section below, which is written as a recipe.
-3. **After `T-3`: the remaining `T-*` tooling units** (next `T-4`,
-   `scripts/deploy-functions-incremental.mjs`, 525 — deployment logic,
-   DO-NOT-WEAKEN), then `T-5` (`scripts/ci-plan.mjs`, 523 — the CI
-   planner itself, extra care), then `RU-1` → `RU-2` per the owner's
+3. **After `T-4`: `T-5`** (`scripts/ci-plan.mjs`, 523 — the CI planner
+   itself, R4, extra care: byte-identical plan output over several event
+   shapes before anything else), then `RU-1` → `RU-2` per the owner's
    ruling,
    then `RU-1` → `RU-2` (Firestore rules) under the owner's ruling in
    `PLAN.md` § 7.3.
@@ -126,8 +125,8 @@ use `—` until it exists.**
 | `SEC-1` | **COMPLETE** | R4 | reconcile PR #50 / #51 | — | — | `claude/secret-scan-loader-gateway` | #51 merged, #50 closed | `20c7550` | owner ruling | green | `dd240a2` | main green at `c023e3f` | 0 |
 | `T-1` | **COMPLETE** | R4 | `scripts/test-ci-plan.mjs` → entry + 7 sections + support | 1223 | **62** | — | #57 | `32673f5` | — | green | `9e7e24d` | main green | **1 ✓** |
 | `T-2` | **COMPLETE** | R2 | `scripts/check-ui-contract.mjs` → entry + 6 modules | 1030 | **306** | — | #58 | `b1452ec` | — | green | `77be09c` | main green | **1 ✓** |
-| `T-3` | **IN PROGRESS** | R3 | gate test → entry + 5 modules | 584 | **58** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
-| `T-4` | NOT STARTED | R3 | `scripts/deploy-functions-incremental.mjs` (tooling) | 525 | 525 | — | — | — | — | — | — | — | 1 |
+| `T-3` | **MERGED** | R3 | gate test → entry + 5 modules | 584 | **58** | `claude/safehual-source-size-refactor-j4apre` | [#104](https://github.com/Khomurod/SafeHaul/pull/104) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
+| `T-4` | **IN PROGRESS** | R3 | deploy script → entry + resolve module | 525 | **281** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
 | `T-5` | NOT STARTED | R4 | `scripts/ci-plan.mjs` (tooling) | 523 | 523 | — | — | — | — | — | — | — | 1 |
 | `FT-1` | **MERGED** | R1 | `blogPipeline.test.js` → 6 suites + support | 1496 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#59](https://github.com/Khomurod/SafeHaul/pull/59) | — | — | local green | — | — | **1 ✓** |
 | `FT-2` | **MERGED** | R1 | `applicationDrafts.test.js` → 6 suites + support | 1476 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#60](https://github.com/Khomurod/SafeHaul/pull/60) | — | — | local green | — | — | **1 ✓** |
@@ -3282,7 +3281,7 @@ detection; 5). Both keep the original describe name.
 
 ## `T-3` — `scripts/test-release-promotion.mjs` → entry plus five modules
 
-**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R3
+**Status:** `MERGED` — [#104](https://github.com/Khomurod/SafeHaul/pull/104), 2026-09-01 · **Risk:** R3
 (do-not-weaken: this file tests the Production promotion gate) ·
 **584 → 58 entry; harness (39) + fixtures (67) + gateScenarios (335) +
 workflowPins (114) + statusView (58) under `scripts/release-promotion-tests/`**
@@ -3316,6 +3315,44 @@ first run showed scenario 7d uses it too, not just section 16.
 | `check:ci-plan` | all checks passed |
 | every original line | accounted for — export/wrapper transforms and the two commented path fixes |
 | `check:source-size` | **16 recorded**, verdict `OK` |
+| root `npm run lint` | pass |
+
+---
+
+## `T-4` — `scripts/deploy-functions-incremental.mjs` → entry plus the resolve module
+
+**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R3
+(do-not-weaken: this is the deployment logic itself) ·
+**525 → 281 entry, plus `deploy-functions-resolve.mjs` (271)**
+
+The pure mapping/closure half — export→module parsing, the transitive
+`require()` walker, changed-file discovery, git-range resolution and the
+path constants — moved verbatim into a FLAT sibling module,
+`scripts/deploy-functions-resolve.mjs`, deliberately at the same directory
+depth so `root`/`repoRoot` resolve identically and no path math changes
+(the `T-3` lesson applied in advance). The entry keeps its path, shebang,
+the full rules/env header, `main()`, `runSequentialAll` and the invocation
+gate, and re-exports the eight test names from the module so
+`test-deploy-incremental.mjs`'s import path is untouched.
+
+### Proofs
+
+- **Dry-run plan byte-identical** over a fixed real range (473f805..56997bf,
+  the AI-credential split, which exercises shared-dep attribution across 5
+  entrypoints → 22 exports): `cmp` clean, exit 0.
+- **`check:deploy-script` output byte-identical**, exit 0.
+- **Plant**: `isRuntimeFunctionSource` forced to `true` in the module made
+  the covering test fail (exit 1, five failures) — the test still reaches
+  through the re-export into the moved code. Restored; both baselines
+  byte-identical again.
+
+| Check | Result |
+|---|---|
+| dry-run plan vs pre-split | **byte-identical** (`cmp`), exit 0 |
+| `check:deploy-script` | **byte-identical output**, exit 0; plant caught |
+| `check:ci-plan` | all checks passed |
+| every original line | accounted for — export-keyword transforms only |
+| `check:source-size` | **15 recorded**, verdict `OK` |
 | root `npm run lint` | pass |
 
 ---
