@@ -15,13 +15,13 @@ it currently is*.
 
 | | |
 |---|---|
-| **Last updated** | 2026-09-01, `CA-5` merged as #95; `CA-10` (`DossierBodies.contract.test.jsx` → 4 suites + support) on the branch — taken out of order because it shares its harness recipe with `CA-5` |
-| **Verified main SHA** | `effe51cdaf1bbc107ae6f70187c07af330379d8a` (#95 / `CA-5` merged) |
-| **Oversized files** | **25 on `main`, 24 on this branch** (was 68 when the tracker opened) |
-| **Backlog entries** | **25 on `main`, 24 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
-| **Active work item** | `CA-10` — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
+| **Last updated** | 2026-09-01, `CA-10` merged as #96; `CA-6` (`PEVTab.jsx` → tab + parts) on the branch |
+| **Verified main SHA** | `0d327845025cba36f8926f9f64b4d454c6e46d03` (#96 / `CA-10` merged) |
+| **Oversized files** | **24 on `main`, 23 on this branch** (was 68 when the tracker opened) |
+| **Backlog entries** | **24 on `main`, 23 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
+| **Active work item** | `CA-6` — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | none open yet for `CA-10`. [#95](https://github.com/Khomurod/SafeHaul/pull/95) and everything before it merged; #50 closed. |
+| **Active PR** | none open yet for `CA-6`. [#96](https://github.com/Khomurod/SafeHaul/pull/96) and everything before it merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
 | **CI status** | #61, #62 and #63 all merged fully green, first try. The only red round in this stretch was #60's `frontend-quality` — a **race in a test `LD-R3` wrote**, reproduced and fixed, see the interlude below. A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
@@ -30,8 +30,8 @@ it currently is*.
 
 ### Exact next action
 
-1. **Push and open the `CA-10` PR**, then merge it when green.
-2. **Nothing is pre-built behind `CA-10`.** The stacking deviation recorded below
+1. **Push and open the `CA-6` PR**, then merge it when green.
+2. **Nothing is pre-built behind `CA-6`.** The stacking deviation recorded below
    is fully unwound once it merges.
    **Their sections below were published with `FT-10`, deliberately ahead of their
    code.** The reason is worth keeping: for several units the "rebuild it from the
@@ -54,8 +54,9 @@ it currently is*.
    conflicts.
    **If those local branches are gone** (a fresh container), the work is not lost:
    rebuild each from its `FR-*` section below, which is written as a recipe.
-3. **After `CA-10`: the rest of the `CA-*` series** (next `CA-6`,
-   `PEVTab.jsx`, 629 — a runtime split), the `T-*` tooling units,
+3. **After `CA-6`: the rest of the `CA-*` series** (next `CA-7`,
+   `PEVTab.contract.test.jsx`, 547 — the vitest support recipe), the
+   `T-*` tooling units,
    then `RU-1` → `RU-2` (Firestore rules) under the owner's ruling in
    `PLAN.md` § 7.3.
 
@@ -164,11 +165,11 @@ use `—` until it exists.**
 | `CA-3` | **MERGED** | R1 | test → 3 suites + support | 576 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#93](https://github.com/Khomurod/SafeHaul/pull/93) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `CA-4` | **MERGED** | R2 | modal chrome → 395 + document | 634 | **395** | `claude/safehual-source-size-refactor-j4apre` | [#94](https://github.com/Khomurod/SafeHaul/pull/94) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `CA-5` | **MERGED** | R1 | contract test → 3 suites + support | 751 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#95](https://github.com/Khomurod/SafeHaul/pull/95) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
-| `CA-6` | NOT STARTED | R2 | `src/features/company-admin/components/tabs/PEVTab.jsx` (runtime) | 629 | 629 | — | — | — | — | — | — | — | 1 |
+| `CA-6` | **IN PROGRESS** | R2 | tab → 447 + parts | 629 | **447** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
 | `CA-7` | NOT STARTED | R1 | `src/features/company-admin/components/tabs/PEVTab.contract.test.jsx` (test) | 547 | 547 | — | — | — | — | — | — | — | 1 |
 | `CA-8` | NOT STARTED | R2 | `src/features/company-admin/views/CompanyCandidatesListPage.jsx` (runtime) | 607 | 607 | — | — | — | — | — | — | — | 1 |
 | `CA-9` | NOT STARTED | R2 | `src/features/company-admin/components/tabs/DQFileTab.jsx` (runtime) | 526 | 526 | — | — | — | — | — | — | — | 1 |
-| `CA-10` | **IN PROGRESS** | R1 | contract test → 4 suites + support | 667 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
+| `CA-10` | **MERGED** | R1 | contract test → 4 suites + support | 667 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#96](https://github.com/Khomurod/SafeHaul/pull/96) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `CA-11` | NOT STARTED | R1 | `src/features/company-admin/views/UserProfilePage.test.jsx` (test) | 550 | 550 | — | — | — | — | — | — | — | 1 |
 | `CA-12` | NOT STARTED | R1 | `src/features/company-admin/components/modals/PEVRequestModal.test.jsx` (test) | 545 | 545 | — | — | — | — | — | — | — | 1 |
 | `CA-13` | NOT STARTED | R1 | `src/features/company-admin/hooks/useCompanyLeadUpload.contract.test.js` (test) | 507 | 507 | — | — | — | — | — | — | — | 1 |
@@ -2993,7 +2994,7 @@ the fixtures, `makeRenderModal(VOEPreviewModal)` and `resetHarness`.
 
 ## `CA-10` — `DossierBodies.contract.test.jsx` → four suites plus a support module
 
-**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R1 ·
+**Status:** `MERGED` — [#96](https://github.com/Khomurod/SafeHaul/pull/96), 2026-09-01 · **Risk:** R1 ·
 **667 → deleted; dqfile (286) + notes (168) + activity (106) + a11y (92) + support (145)**
 
 Taken out of series order because it is the same vitest support recipe as
@@ -3023,6 +3024,43 @@ the tabs it renders and passes them in.
 | `check:ui-contract` | 492 files, 235 known across 41 files, none new |
 | every original line | accounted for — 30 wrapper transforms; one section banner superseded by the suite headline |
 | `check:source-size` | **24 recorded**, verdict `OK` |
+| root `npm run lint` | pass |
+
+---
+
+## `CA-6` — `tabs/PEVTab.jsx` → the tab, plus its presentational parts
+
+**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R2 ·
+**629 → 447, plus `PEVTabParts.jsx` (249)**
+
+The tab keeps its spine — the 51-line frozen-contracts header, the paywall
+gate, all handlers (`handleViewResult`, `handleFinalSend`,
+`handleUploadResult`), every piece of state, the summary metrics, the modal
+guards and the hidden file input. What moved verbatim into `PEVTabParts.jsx`:
+the status→tone/icon maps and their two helpers (used only by the card), one
+employer's verification card (`PEVEmployerCard`, the map body at orig
+388–502) and the verification-history dialog (`PEVHistoryModal`, orig
+563–625). All handlers and setters arrive as props, so every action closes
+over exactly the values it closed over inline; `setHistoryTargetIndex` is
+passed under its own name so the dialog's two close handlers stay verbatim.
+
+### Notes
+
+- The original imported `Loader2` without using it (a pre-existing dead
+  import); the linter-driven prune of the resplit lucide import dropped it.
+- Entry is 447 — above the 400 soft line, deliberately: 51 of those lines
+  are the frozen-contracts header, and the remaining spine (gate + three
+  Firestore/Storage/callable handlers + layout) is one cohesive unit whose
+  further split would separate handlers from the state they mutate.
+
+| Check | Result |
+|---|---|
+| 47 covering tests (`PEVTab.contract` + `PEVTab.a11y`) | **set-identical**, all green |
+| all company-admin suites | 707/707 (44 files) |
+| `check:ui-contract` | 493 files, 235 known across 41 files, none new |
+| every original line | accounted for — two resplit import lines only |
+| JSX component-import audit | none missing |
+| `check:source-size` | **23 recorded**, verdict `OK` |
 | root `npm run lint` | pass |
 
 ---
