@@ -15,13 +15,13 @@ it currently is*.
 
 | | |
 |---|---|
-| **Last updated** | 2026-09-01, `CA-9` merged as #100; `CA-11` (`UserProfilePage.test.jsx` → 2 suites + support) on the branch |
-| **Verified main SHA** | `4ae63b1bdcfdd1371797b8f3e9a4ee419306a084` (#100 / `CA-9` merged) |
-| **Oversized files** | **20 on `main`, 19 on this branch** (was 68 when the tracker opened) |
-| **Backlog entries** | **20 on `main`, 19 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
-| **Active work item** | `CA-11` — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
+| **Last updated** | 2026-09-01, `CA-11` merged as #101; `CA-12` (`PEVRequestModal.test.jsx` → 2 suites + support) on the branch |
+| **Verified main SHA** | `21c7bac7c4ac9e1f8746b59bf51c5d7abe7deeaf` (#101 / `CA-11` merged) |
+| **Oversized files** | **19 on `main`, 18 on this branch** (was 68 when the tracker opened) |
+| **Backlog entries** | **19 on `main`, 18 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
+| **Active work item** | `CA-12` — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | none open yet for `CA-11`. [#100](https://github.com/Khomurod/SafeHaul/pull/100) and everything before it merged; #50 closed. |
+| **Active PR** | none open yet for `CA-12`. [#101](https://github.com/Khomurod/SafeHaul/pull/101) and everything before it merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
 | **CI status** | #61, #62 and #63 all merged fully green, first try. The only red round in this stretch was #60's `frontend-quality` — a **race in a test `LD-R3` wrote**, reproduced and fixed, see the interlude below. A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
@@ -30,8 +30,8 @@ it currently is*.
 
 ### Exact next action
 
-1. **Push and open the `CA-11` PR**, then merge it when green.
-2. **Nothing is pre-built behind `CA-11`.** The stacking deviation recorded below
+1. **Push and open the `CA-12` PR**, then merge it when green.
+2. **Nothing is pre-built behind `CA-12`.** The stacking deviation recorded below
    is fully unwound once it merges.
    **Their sections below were published with `FT-10`, deliberately ahead of their
    code.** The reason is worth keeping: for several units the "rebuild it from the
@@ -54,9 +54,9 @@ it currently is*.
    conflicts.
    **If those local branches are gone** (a fresh container), the work is not lost:
    rebuild each from its `FR-*` section below, which is written as a recipe.
-3. **After `CA-11`: the rest of the `CA-*` series** (next `CA-12`,
-   `PEVRequestModal.test.jsx`, 545 — the vitest support recipe), the
-   `T-*` tooling units,
+3. **After `CA-12`: the last `CA-*` unit** (`CA-13`,
+   `useCompanyLeadUpload.contract.test.js`, 507), the `T-*` tooling
+   units,
    then `RU-1` → `RU-2` (Firestore rules) under the owner's ruling in
    `PLAN.md` § 7.3.
 
@@ -170,8 +170,8 @@ use `—` until it exists.**
 | `CA-8` | **MERGED** | R2 | view → 306 + columns | 607 | **306** | `claude/safehual-source-size-refactor-j4apre` | [#99](https://github.com/Khomurod/SafeHaul/pull/99) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `CA-9` | **MERGED** | R2 | tab → 453 + sync routine | 526 | **453** | `claude/safehual-source-size-refactor-j4apre` | [#100](https://github.com/Khomurod/SafeHaul/pull/100) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `CA-10` | **MERGED** | R1 | contract test → 4 suites + support | 667 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#96](https://github.com/Khomurod/SafeHaul/pull/96) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
-| `CA-11` | **IN PROGRESS** | R1 | test → 2 suites + support | 550 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
-| `CA-12` | NOT STARTED | R1 | `src/features/company-admin/components/modals/PEVRequestModal.test.jsx` (test) | 545 | 545 | — | — | — | — | — | — | — | 1 |
+| `CA-11` | **MERGED** | R1 | test → 2 suites + support | 550 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#101](https://github.com/Khomurod/SafeHaul/pull/101) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
+| `CA-12` | **IN PROGRESS** | R1 | test → 2 suites + support | 545 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
 | `CA-13` | NOT STARTED | R1 | `src/features/company-admin/hooks/useCompanyLeadUpload.contract.test.js` (test) | 507 | 507 | — | — | — | — | — | — | — | 1 |
 | `SG-1` | NOT STARTED | R4 | `src/features/signing/EnvelopeCreator.jsx` (runtime) | 1363 | 1363 | — | — | — | — | — | — | — | 1 |
 | `SG-2` | NOT STARTED | R1 | `src/features/signing/EnvelopeCreator.editor.test.jsx` (test) | 677 | 677 | — | — | — | — | — | — | — | 1 |
@@ -3179,7 +3179,7 @@ awaitability is preserved.
 
 ## `CA-11` — `UserProfilePage.test.jsx` → two suites plus a support module
 
-**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R1 ·
+**Status:** `MERGED` — [#101](https://github.com/Khomurod/SafeHaul/pull/101), 2026-09-01 · **Risk:** R1 ·
 **550 → deleted; profile (251) + credentials (250) + support (141)**
 
 The vitest support recipe. The 30 tests split at describe boundaries:
@@ -3210,6 +3210,37 @@ explanatory comment, chosen by the original because the file queues
 | `check:ui-contract` | 497 files, 235 known across 42 files, none new |
 | every original line | accounted for — wrapper/registration transforms only |
 | `check:source-size` | **19 recorded**, verdict `OK` |
+| root `npm run lint` | pass |
+
+---
+
+## `CA-12` — `PEVRequestModal.test.jsx` → two suites plus a support module
+
+**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R1 ·
+**545 → deleted; fmcsa (223) + delivery (291) + support (42)**
+
+A different test shape from the other splits: 545 lines but only 8 tests in
+ONE describe, no module mocks at all — the modal runs for real against a
+stubbed `fetch` and env token. So the support is tiny: `stubHarness` /
+`restoreHarness` (the original `beforeEach`/`afterEach` bodies verbatim) and
+the `baseEmployer` fixture. The tests split by concern: the FMCSA registry
+lookup (token gate, candidate fetch-and-fill, no-contact census banner; 3)
+and delivery validation (missing email/fax without `window.alert`,
+`onProceed`, contact seeding; 5). Both suites keep the original
+`describe('PEVRequestModal')` name, so every test's full name is unchanged.
+
+### Notes
+
+- Cutting the last test by line range dragged the describe's own `});` along
+  — the same closer-slip as `CA-7`, caught by lint before running.
+
+| Check | Result |
+|---|---|
+| 8 tests across the two suites | **set-identical** to the pre-split baseline, all green |
+| all company-admin suites | 707/707 (47 files) |
+| `check:ui-contract` | 498 files, 235 known across 42 files, none new |
+| every original line | accounted for — four harness-wrapper transforms only |
+| `check:source-size` | **18 recorded**, verdict `OK` |
 | root `npm run lint` | pass |
 
 ---
