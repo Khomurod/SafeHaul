@@ -77,12 +77,12 @@
         "hand-styled-field": "roadmap \u00a75 \u2014 two borderless `<input type=\"date\">` controls inside the leaderboard's date-range chip. Same gap as `ManageTeamModal`'s inline numeric editors: `Input` is a 44px bordered full-width control and would destroy the chip, and overriding it back would be worse. Both carry an `aria-label` and the shared focus ring. See the inline-editable-value gap in \u00a75."
       }
     },
-    "features/company-admin/components/modals/VOEPreviewModal.jsx": {
+    "features/company-admin/components/modals/VOEDocument.jsx": {
       "raw-palette-class": 100,
       "sub-12px-type": 31,
       "off-scale-type": 20,
       "arbitrary-type-size": 1,
-      "tailwind-radius": 14,
+      "tailwind-radius": 12,
       "tailwind-shadow": 1,
       "reasons": {
         "arbitrary-type-size": "roadmap \u00a75 \u2014 the 13px release-authorisation paragraph inside the generated 49 CFR \u00a7391.23 document. Same immutable export as this file's other entries: html2canvas rasterises it into a bare print window with no --ds-* properties, and VOEPreviewModal.export.test.jsx fails if the document acquires a token.",
@@ -91,6 +91,12 @@
         "sub-12px-type": "roadmap \u00a75 \u2014 printed-form facsimile small print, not interface text.",
         "tailwind-radius": "roadmap \u00a75 \u2014 the generated 49 CFR \u00a7391.23 document is rasterised by html2canvas into a bare print window with no --ds-* custom properties, so a tokenised radius would resolve to nothing on export. Enforced in both directions by VOEPreviewModal.export.test.jsx.",
         "tailwind-shadow": "roadmap \u00a75 \u2014 the generated 49 CFR \u00a7391.23 document is rasterised by html2canvas into a bare print window with no --ds-* custom properties, so a tokenised shadow would resolve to nothing on export. Enforced in both directions by VOEPreviewModal.export.test.jsx."
+      }
+    },
+    "features/company-admin/components/modals/VOEPreviewModal.jsx": {
+      "tailwind-radius": 2,
+      "reasons": {
+        "tailwind-radius": "the two 8px recipient/applicant status dots in the sub-header \u2014 pre-existing chrome, kept byte-identical when the generated \u00a7391.23 document moved to VOEDocument.jsx (source-size split); converting them to rounded-ds-full is the roadmap's call, not a refactor's."
       }
     },
     "features/company-admin/components/modals/pev/FmcsaCarrierPicker.jsx": {

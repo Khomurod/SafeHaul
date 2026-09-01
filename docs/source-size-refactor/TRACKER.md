@@ -15,13 +15,13 @@ it currently is*.
 
 | | |
 |---|---|
-| **Last updated** | 2026-09-01, `CA-2` merged as #92; `CA-3` (`DocumentsManager.test.jsx` → 3 suites + support) on the branch |
-| **Verified main SHA** | `b46cfe1e2db840e151d848f6f3669e3fe0bf4606` (#92 / `CA-2` merged) |
-| **Oversized files** | **28 on `main`, 27 on this branch** (was 68 when the tracker opened) |
-| **Backlog entries** | **28 on `main`, 27 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
-| **Active work item** | `CA-3` — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
+| **Last updated** | 2026-09-01, `CA-3` merged as #93; `CA-4` (`VOEPreviewModal.jsx` → chrome + document) on the branch |
+| **Verified main SHA** | `737f21a96f7a2291559bd33876b05407e9dd2ec9` (#93 / `CA-3` merged) |
+| **Oversized files** | **27 on `main`, 26 on this branch** (was 68 when the tracker opened) |
+| **Backlog entries** | **27 on `main`, 26 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
+| **Active work item** | `CA-4` — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | none open yet for `CA-3`. [#92](https://github.com/Khomurod/SafeHaul/pull/92) and everything before it merged; #50 closed. |
+| **Active PR** | none open yet for `CA-4`. [#93](https://github.com/Khomurod/SafeHaul/pull/93) and everything before it merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
 | **CI status** | #61, #62 and #63 all merged fully green, first try. The only red round in this stretch was #60's `frontend-quality` — a **race in a test `LD-R3` wrote**, reproduced and fixed, see the interlude below. A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
@@ -30,8 +30,8 @@ it currently is*.
 
 ### Exact next action
 
-1. **Push and open the `CA-3` PR**, then merge it when green.
-2. **Nothing is pre-built behind `CA-3`.** The stacking deviation recorded below
+1. **Push and open the `CA-4` PR**, then merge it when green.
+2. **Nothing is pre-built behind `CA-4`.** The stacking deviation recorded below
    is fully unwound once it merges.
    **Their sections below were published with `FT-10`, deliberately ahead of their
    code.** The reason is worth keeping: for several units the "rebuild it from the
@@ -54,8 +54,9 @@ it currently is*.
    conflicts.
    **If those local branches are gone** (a fresh container), the work is not lost:
    rebuild each from its `FR-*` section below, which is written as a recipe.
-3. **After `CA-3`: the rest of the `CA-*` series** (next `CA-4`,
-   `VOEPreviewModal.jsx`, 634), the `T-*` tooling units,
+3. **After `CA-4`: the rest of the `CA-*` series** (next `CA-5`,
+   `VOEPreviewModal.contract.test.jsx`, 751 — the `SA-2`/`CA-3` vitest
+   support recipe), the `T-*` tooling units,
    then `RU-1` → `RU-2` (Firestore rules) under the owner's ruling in
    `PLAN.md` § 7.3.
 
@@ -161,8 +162,8 @@ use `—` until it exists.**
 | `SA-9` | **MERGED** | R1 | contract test → 3 suites + support | 570 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#90](https://github.com/Khomurod/SafeHaul/pull/90) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `CA-1` | **MERGED** | R2 | tab → 321 + the seven cards | 752 | **321** | `claude/safehual-source-size-refactor-j4apre` | [#91](https://github.com/Khomurod/SafeHaul/pull/91) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `CA-2` | **MERGED** | R2 | view → 482 + two feature hooks | 735 | **482** | `claude/safehual-source-size-refactor-j4apre` | [#92](https://github.com/Khomurod/SafeHaul/pull/92) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
-| `CA-3` | **IN PROGRESS** | R1 | test → 3 suites + support | 576 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
-| `CA-4` | NOT STARTED | R2 | `src/features/company-admin/components/modals/VOEPreviewModal.jsx` (runtime) | 634 | 634 | — | — | — | — | — | — | — | 1 |
+| `CA-3` | **MERGED** | R1 | test → 3 suites + support | 576 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#93](https://github.com/Khomurod/SafeHaul/pull/93) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
+| `CA-4` | **IN PROGRESS** | R2 | modal chrome → 395 + document | 634 | **395** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
 | `CA-5` | NOT STARTED | R1 | `src/features/company-admin/components/modals/VOEPreviewModal.contract.test.jsx` (test) | 751 | 751 | — | — | — | — | — | — | — | 1 |
 | `CA-6` | NOT STARTED | R2 | `src/features/company-admin/components/tabs/PEVTab.jsx` (runtime) | 629 | 629 | — | — | — | — | — | — | — | 1 |
 | `CA-7` | NOT STARTED | R1 | `src/features/company-admin/components/tabs/PEVTab.contract.test.jsx` (test) | 547 | 547 | — | — | — | — | — | — | — | 1 |
@@ -2859,7 +2860,7 @@ all verbatim.
 
 ## `CA-3` — `views/DocumentsManager.test.jsx` → three suites plus a support module
 
-**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R1 ·
+**Status:** `MERGED` — [#93](https://github.com/Khomurod/SafeHaul/pull/93), 2026-09-01 · **Risk:** R1 ·
 **576 → deleted; 3 suites (~190 each) + `DocumentsManager.support.jsx` (~155)**
 
 The `SA-2` support-module recipe, applied to the workspace-shell test: the
@@ -2904,6 +2905,50 @@ verbatim. The 41 tests split by describe block:
 | every original line | accounted for — 40 wrapper/registration transforms, bodies intact |
 | `check:source-size` | **27 recorded**, verdict `OK` |
 | root `npm run lint` | pass (the moved pre-existing directive warning only) |
+
+---
+
+## `CA-4` — `modals/VOEPreviewModal.jsx` → the chrome, plus the generated document
+
+**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R2 ·
+**634 → 395, plus `VOEDocument.jsx` (273)**
+
+One seam, and it was already documented in the file's own header: the app
+chrome (dialog shell, header, actions, export handlers, missing-data state)
+versus the generated 49 CFR §391.23 document — an immutable, deliberately
+non-tokenised subtree (orig 350–598) that two export paths rasterise/clone
+byte-for-byte. It moved verbatim into `VOEDocument.jsx` with props
+`{ employer, applicant, companyName, auditId, signatureUrl, signatureText,
+documentRef }`; `documentRef` stays owned by the modal because its print/PDF
+handlers clone and rasterise that node. All derivations (`auditId` memo,
+signature partition) stay in the modal so no computation changed lifetime.
+
+### Notes
+
+- **The pipe hid a real gate failure, again**: `npm run check:ui-contract |
+  tail -1` exits with `tail`'s 0, so an `&&` chain sailed past a genuine
+  refusal. The refusal was real and right: the ui-contract allowlist keys
+  violations BY FILE, and the document's 165 recorded exceptions lived under
+  the modal's path. **An allowlist entry follows the code it excuses**: the
+  entry moved to `VOEDocument.jsx` (radius split 12/2 — the two sub-header
+  status dots stay in the chrome under their own honest reason), total still
+  235, checker reports "none new" across 41 files.
+- **Match a JSON file's serialisation before rewriting it**: the first
+  allowlist edit used indent-4/UTF-8 and rewrote all 530 lines; redone with
+  the file's own indent-2/ascii-escapes the diff is 8+/2−.
+- The export test (`VOEPreviewModal.export.test.jsx`) asserts the rendered
+  `voe-document` subtree carries no `ds-*` class — it passes unchanged, which
+  is the proof the move did not touch the exported bytes.
+
+| Check | Result |
+|---|---|
+| 126 covering tests (VOE contract/a11y/export + PEVTab contract/a11y) | **set-identical**, all green |
+| all company-admin suites | 707/707 |
+| `check:ui-contract` | 490 files, 235 known across 41 files, none new |
+| every original line | accounted for — 0 missing in the multiset diff |
+| JSX component-import audit | none missing |
+| `check:source-size` | **26 recorded**, verdict `OK` |
+| root `npm run lint` | pass |
 
 ---
 
