@@ -15,13 +15,13 @@ it currently is*.
 
 | | |
 |---|---|
-| **Last updated** | 2026-09-01, `SA-3` merged as #85; `SA-4` on the branch |
-| **Verified main SHA** | `0f0e286ba8238051cc7ddb89b9b2e4ea59d50044` (#85 / `SA-3` merged) |
-| **Oversized files** | **35 on `main`, 34 on this branch** (was 68 when the tracker opened) |
-| **Backlog entries** | **35 on `main`, 34 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
-| **Active work item** | `SA-4` — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
+| **Last updated** | 2026-09-01, `SA-4` merged as #86; `SA-5` on the branch |
+| **Verified main SHA** | `0e158dd17f9b3429ce7786246947932e53da09be` (#86 / `SA-4` merged) |
+| **Oversized files** | **34 on `main`, 33 on this branch** (was 68 when the tracker opened) |
+| **Backlog entries** | **34 on `main`, 33 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
+| **Active work item** | `SA-5` — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | none open yet for `SA-4`. [#85](https://github.com/Khomurod/SafeHaul/pull/85) and everything before it merged; #50 closed. |
+| **Active PR** | none open yet for `SA-5`. [#86](https://github.com/Khomurod/SafeHaul/pull/86) and everything before it merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
 | **CI status** | #61, #62 and #63 all merged fully green, first try. The only red round in this stretch was #60's `frontend-quality` — a **race in a test `LD-R3` wrote**, reproduced and fixed, see the interlude below. A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
@@ -30,8 +30,8 @@ it currently is*.
 
 ### Exact next action
 
-1. **Push and open the `SA-4` PR**, then merge it when green.
-2. **Nothing is pre-built behind `SA-4`.** The stacking deviation recorded below
+1. **Push and open the `SA-5` PR**, then merge it when green.
+2. **Nothing is pre-built behind `SA-5`.** The stacking deviation recorded below
    is fully unwound once it merges.
    **Their sections below were published with `FT-10`, deliberately ahead of their
    code.** The reason is worth keeping: for several units the "rebuild it from the
@@ -54,8 +54,8 @@ it currently is*.
    conflicts.
    **If those local branches are gone** (a fresh container), the work is not lost:
    rebuild each from its `FR-*` section below, which is written as a recipe.
-3. **After `SA-4`: `SA-5`** (`CreateView.jsx`, 573) and the rest of the
-   `SA-*` units, then
+3. **After `SA-5`: `SA-6`** (`EnvironmentIntegrationsView.jsx`, 563) and the
+   rest of the `SA-*` units, then
    `RU-1` → `RU-2` (Firestore rules) under the owner's ruling in `PLAN.md` § 7.3.
 
 **Four process rules learned the hard way in this session, all worth keeping:**
@@ -152,8 +152,8 @@ use `—` until it exists.**
 | `SA-1` | **MERGED** | R2 | view → 491 orchestration + 6 feature components | 983 | **491** | `claude/safehual-source-size-refactor-j4apre` | [#84](https://github.com/Khomurod/SafeHaul/pull/84) | — | 2026-08-31 | green | ✓ | ✓ | **1 ✓** |
 | `SA-2` | **MERGED** | R1 | contract test → 6 suites + support (before `SA-1`, tests-first) | 1699 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#83](https://github.com/Khomurod/SafeHaul/pull/83) | — | 2026-08-31 | green | ✓ | ✓ | **1 ✓** |
 | `SA-3` | **MERGED** | R2 | view → 405 orchestration + 2 modules | 656 | **405** | `claude/safehual-source-size-refactor-j4apre` | [#85](https://github.com/Khomurod/SafeHaul/pull/85) | — | 2026-08-31 | green | ✓ | ✓ | **1 ✓** |
-| `SA-4` | **IN PROGRESS** | R2 | hook → 242 runner + 388-line steps module | 603 | **242** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
-| `SA-5` | NOT STARTED | R2 | `src/features/super-admin/components/CreateView.jsx` (runtime) | 573 | 573 | — | — | — | — | — | — | — | 1 |
+| `SA-4` | **MERGED** | R2 | hook → 242 runner + 388-line steps module | 603 | **242** | `claude/safehual-source-size-refactor-j4apre` | [#86](https://github.com/Khomurod/SafeHaul/pull/86) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
+| `SA-5` | **IN PROGRESS** | R2 | view → 305 + the two forms | 573 | **305** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
 | `SA-6` | NOT STARTED | R2 | `src/features/super-admin/views/EnvironmentIntegrationsView.jsx` (runtime) | 563 | 563 | — | — | — | — | — | — | — | 1 |
 | `SA-7` | NOT STARTED | R1 | `src/features/super-admin/views/EnvironmentIntegrationsView.contract.test.jsx` (test) | 709 | 709 | — | — | — | — | — | — | — | 1 |
 | `SA-8` | **COMPLETE** (replaced by `LD-R3`) | R2 | `LandingPageSettingsView.jsx` → `WebsiteLeadsView.jsx` | 536 | **231** | — | — | — | — | — | — | — | 1 ✓ |
@@ -2583,7 +2583,7 @@ parts and the table's columns move out verbatim.
 
 ## `SA-4` — `useSystemHealth.js` → the runner, plus the seventeen steps
 
-**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R2 ·
+**Status:** `MERGED` — [#86](https://github.com/Khomurod/SafeHaul/pull/86), main `0e158dd` · **Risk:** R2 ·
 **603 → 242, plus a 388-line steps module**
 
 The System Health hook split along its own seam: the hook keeps the runner —
@@ -2618,6 +2618,47 @@ argument: the accumulated test data, the updater, the logger.
 | every original body line | accounted for — only the documented `getData()` seam |
 | eslint | clean except the two pre-existing warnings, unchanged |
 | `check:source-size` | **34 recorded**, verdict `OK` |
+| root `npm run lint` · `check:ci-plan` | pass |
+
+---
+
+## `SA-5` — `CreateView.jsx` → the view, plus its two forms
+
+**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R2 ·
+**573 → 305, plus the two forms under `components/create/`**
+
+The Create New screen's two flows, each moved verbatim into its own form
+component; the view keeps the state, both submit handlers, the slug effect,
+the tab strip and the outcome region — the frozen contract its header
+records stays where it was.
+
+| file | subject | lines |
+|---|---|---|
+| `CreateView.jsx` (entry) | state, submit handlers, slug effect, tabs, outcome | 305 |
+| `create/CreateCompanyForm.jsx` | company details, the plan choice, the optional initial user | 238 |
+| `create/CreateUserForm.jsx` | the standalone-user form | 106 |
+
+### Notes
+
+- Two seam lines only — each `<form onSubmit={handleX}>` became
+  `onSubmit={onSubmit}` with the handler passed as a prop; the multiset diff
+  shows exactly those plus one resplit lucide import line.
+- `PLANS` turned out to be used only by the company form, so it moved there
+  as a module-local const (not exported — `react-refresh` stays quiet and
+  the view never needed it).
+- The pre-existing `companyForm.appSlug` exhaustive-deps warning is on
+  `main` too (verified against the pristine file) and is left untouched.
+- 29 covering tests (`CreateView.contract`, including the two select-race
+  fixes from #77's round) set-identical; all 559 super-admin tests green;
+  `check:ui-contract` 481 files, none new.
+
+| Check | Result |
+|---|---|
+| 29 covering tests | **set-identical**, all green |
+| all super-admin suites | 559/559 |
+| `check:ui-contract` | 481 files scanned, none new |
+| every original body line | accounted for — the two onSubmit seams + one resplit import |
+| `check:source-size` | **33 recorded**, verdict `OK` |
 | root `npm run lint` · `check:ci-plan` | pass |
 
 ---
