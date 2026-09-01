@@ -198,6 +198,49 @@ export const EXCLUDED = Object.freeze([
 ]);
 
 /**
+ * Files the owner has ruled may stay over the hard limit — measured, not excluded.
+ *
+ * This is a different mechanism from `EXCLUDED`, and the difference is the point:
+ * an excluded file is not scanned at all, while an excepted file is measured on
+ * every run against its OWN pinned ceiling. The ceiling is the file's size on the
+ * day of the ruling, so the ruling covers the file as it was, never growth — and
+ * it is deliberately tighter than the backlog count the file carried (693).
+ *
+ * The rules for an entry here, enforced by `evaluate` and pinned by
+ * `scripts/test-source-size.mjs` §G:
+ *
+ * - the file must exist, or the run fails — a rename or deletion does not carry
+ *   the ruling with it;
+ * - the file may never exceed `maxLines`;
+ * - a file that comes back under the hard limit must have its entry REMOVED,
+ *   and the check fails until it is — like the backlog, this list only shrinks;
+ * - a path may not be in this list and the backlog at once: the backlog is
+ *   unfinished work, an exception is a ruling, and one of two answers is stale;
+ * - a malformed ceiling is refused, not compared — `NaN` makes every comparison
+ *   false, which is the bypass the backlog's shape check closed on 2026-08-27.
+ *
+ * Every entry needs an owner ruling and a reason that would survive review.
+ */
+export const DOCUMENTED_EXCEPTIONS = Object.freeze([
+  {
+    path: 'src/firestore.rules',
+    maxLines: 689,
+    ruledOn: '2026-09-01',
+    reason: 'The deployed Firestore security policy. It cannot be split: rules have '
+      + 'no include mechanism (one file per deployment target) and the owner ruled '
+      + 'out a build step, which would put the deployed policy one step further '
+      + 'from the file a reviewer reads. It cannot be safely shortened either: '
+      + 'about a third of it is the rationale comments this repository runs on, '
+      + 'the measured duplicated-line excess (67) leaves a best case of ~620, and '
+      + 'the remaining shorthand — merged wildcard matchers — can silently WIDEN '
+      + 'what is permitted, because overlapping match statements are OR-united. '
+      + 'The owner chose the documented exception over bending the metric or '
+      + 'funding a full permission-matrix rewrite, on 2026-09-01, from the three '
+      + 'options recorded in docs/source-size-refactor/TRACKER.md § RU-2.',
+  },
+]);
+
+/**
  * Directories that must yield source files, or the scan has silently stopped
  * looking somewhere it matters.
  *

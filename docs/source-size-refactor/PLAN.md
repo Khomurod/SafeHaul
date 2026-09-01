@@ -345,6 +345,26 @@ or widening a condition to save lines.
 make step 2 safe, and splitting them without adding coverage would leave the
 refactor resting on exactly the assurance it had before.
 
+### 7.3a `RU-2` resolved — documented exception (2026-09-01)
+
+Step 3 was exercised: after `RU-1` merged (#107), the `RU-2` assessment showed
+the arithmetic cannot reach 500 by permitted means — a third of the file is
+rationale comments this standard deliberately counts, the measured
+duplicated-line excess (67) leaves a best case around 620, and the remaining
+shorthand (merged wildcard matchers) can silently widen permissions because
+overlapping match statements are OR-united. Three options were priced and put
+to the owner; **the owner chose the documented exception**: keep the file
+exactly as it is, record the reason officially, keep it measured.
+
+Implemented as `DOCUMENTED_EXCEPTIONS` in `scripts/source-size-scope.mjs`: the
+file is still scanned on every run, its ceiling is pinned at **689** (its size
+on the day of the ruling — tighter than the 693 the backlog recorded), it may
+never grow, the entry must be removed if the file ever comes back under 500,
+and `test:source-size` §G pins the entry and drives every rule. The other two
+options — exempting comments from the count, and a wildcard rewrite behind a
+funded permission matrix — were declined. Not one rule changed; nobody's
+access changed.
+
 ### 7.4 Keep this plan and the tracker current
 
 **Ruling: update `PLAN.md` and `TRACKER.md` immediately when rulings land, and
