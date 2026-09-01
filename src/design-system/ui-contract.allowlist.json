@@ -112,9 +112,15 @@
       }
     },
     "features/company-admin/views/CompanyCandidatesListPage.jsx": {
-      "hand-styled-button": 4,
+      "hand-styled-button": 1,
       "reasons": {
-        "hand-styled-button": "roadmap \u00a75 \u2014 four dense-table affordances. Two 24px sort toggles in a column header and a 32px phone chip in a cell are both below the 36px `sm` step, which is the compact-icon-button gap the catalog's Introduction records; forcing the approved height would grow the header and the row. The third is the pipeline segment strip, whose 12px full-radius pills would become 44px cards under `SegmentedControl`, doubling the height of a filter strip that sits above a dense table. All four are tokenised, named per record where they act on one, and carry the shared focus ring."
+        "hand-styled-button": "roadmap \u00a75 \u2014 the pipeline segment strip, whose 12px full-radius pills would become 44px cards under `SegmentedControl`, doubling the height of a filter strip that sits above a dense table. Tokenised and carries the shared focus ring. Its three sibling affordances moved to candidateListColumns.jsx with the columns (source-size split)."
+      }
+    },
+    "features/company-admin/views/candidateListColumns.jsx": {
+      "hand-styled-button": 3,
+      "reasons": {
+        "hand-styled-button": "roadmap \u00a75 \u2014 three dense-table affordances, moved here verbatim from CompanyCandidatesListPage.jsx (source-size split): two 24px sort toggles in a column header and a 32px phone chip in a cell, both below the 36px `sm` step, which is the compact-icon-button gap the catalog's Introduction records; forcing the approved height would grow the header and the row. All are tokenised, named per record where they act on one, and carry the shared focus ring."
       }
     },
     "features/driver-app/components/application/IntakeChooser.jsx": {
