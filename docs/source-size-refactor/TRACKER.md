@@ -15,13 +15,13 @@ it currently is*.
 
 | | |
 |---|---|
-| **Last updated** | 2026-09-01, `CA-7` merged as #98; `CA-8` (`CompanyCandidatesListPage.jsx` → view + columns) on the branch |
-| **Verified main SHA** | `cc13f2d5a50ee2b2edc7ae1d6cd0a1d5cf529b58` (#98 / `CA-7` merged) |
-| **Oversized files** | **22 on `main`, 21 on this branch** (was 68 when the tracker opened) |
-| **Backlog entries** | **22 on `main`, 21 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
-| **Active work item** | `CA-8` — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
+| **Last updated** | 2026-09-01, `CA-8` merged as #99; `CA-9` (`DQFileTab.jsx` → tab + sync routine) on the branch |
+| **Verified main SHA** | `895023fa11e48f768b2962bb68fe0f75126bf1e1` (#99 / `CA-8` merged) |
+| **Oversized files** | **21 on `main`, 20 on this branch** (was 68 when the tracker opened) |
+| **Backlog entries** | **21 on `main`, 20 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
+| **Active work item** | `CA-9` — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | none open yet for `CA-8`. [#98](https://github.com/Khomurod/SafeHaul/pull/98) and everything before it merged; #50 closed. |
+| **Active PR** | none open yet for `CA-9`. [#99](https://github.com/Khomurod/SafeHaul/pull/99) and everything before it merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
 | **CI status** | #61, #62 and #63 all merged fully green, first try. The only red round in this stretch was #60's `frontend-quality` — a **race in a test `LD-R3` wrote**, reproduced and fixed, see the interlude below. A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
@@ -30,8 +30,8 @@ it currently is*.
 
 ### Exact next action
 
-1. **Push and open the `CA-8` PR**, then merge it when green.
-2. **Nothing is pre-built behind `CA-8`.** The stacking deviation recorded below
+1. **Push and open the `CA-9` PR**, then merge it when green.
+2. **Nothing is pre-built behind `CA-9`.** The stacking deviation recorded below
    is fully unwound once it merges.
    **Their sections below were published with `FT-10`, deliberately ahead of their
    code.** The reason is worth keeping: for several units the "rebuild it from the
@@ -54,8 +54,9 @@ it currently is*.
    conflicts.
    **If those local branches are gone** (a fresh container), the work is not lost:
    rebuild each from its `FR-*` section below, which is written as a recipe.
-3. **After `CA-8`: the rest of the `CA-*` series** (next `CA-9`,
-   `DQFileTab.jsx`, 526 — a runtime split), the `T-*` tooling units,
+3. **After `CA-9`: the rest of the `CA-*` series** (next `CA-11`,
+   `UserProfilePage.test.jsx`, 550 — the vitest support recipe), the
+   `T-*` tooling units,
    then `RU-1` → `RU-2` (Firestore rules) under the owner's ruling in
    `PLAN.md` § 7.3.
 
@@ -166,8 +167,8 @@ use `—` until it exists.**
 | `CA-5` | **MERGED** | R1 | contract test → 3 suites + support | 751 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#95](https://github.com/Khomurod/SafeHaul/pull/95) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `CA-6` | **MERGED** | R2 | tab → 447 + parts | 629 | **447** | `claude/safehual-source-size-refactor-j4apre` | [#97](https://github.com/Khomurod/SafeHaul/pull/97) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `CA-7` | **MERGED** | R1 | contract test → 2 suites + support | 547 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#98](https://github.com/Khomurod/SafeHaul/pull/98) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
-| `CA-8` | **IN PROGRESS** | R2 | view → 306 + columns | 607 | **306** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
-| `CA-9` | NOT STARTED | R2 | `src/features/company-admin/components/tabs/DQFileTab.jsx` (runtime) | 526 | 526 | — | — | — | — | — | — | — | 1 |
+| `CA-8` | **MERGED** | R2 | view → 306 + columns | 607 | **306** | `claude/safehual-source-size-refactor-j4apre` | [#99](https://github.com/Khomurod/SafeHaul/pull/99) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
+| `CA-9` | **IN PROGRESS** | R2 | tab → 453 + sync routine | 526 | **453** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
 | `CA-10` | **MERGED** | R1 | contract test → 4 suites + support | 667 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#96](https://github.com/Khomurod/SafeHaul/pull/96) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `CA-11` | NOT STARTED | R1 | `src/features/company-admin/views/UserProfilePage.test.jsx` (test) | 550 | 550 | — | — | — | — | — | — | — | 1 |
 | `CA-12` | NOT STARTED | R1 | `src/features/company-admin/components/modals/PEVRequestModal.test.jsx` (test) | 545 | 545 | — | — | — | — | — | — | — | 1 |
@@ -3101,7 +3102,7 @@ comment, `makeRenderTab(PEVTab)` and `resetHarness`.
 
 ## `CA-8` — `views/CompanyCandidatesListPage.jsx` → the view, plus its columns
 
-**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R2 ·
+**Status:** `MERGED` — [#99](https://github.com/Khomurod/SafeHaul/pull/99), 2026-09-01 · **Risk:** R2 ·
 **607 → 306, plus `candidateListColumns.jsx` (323)**
 
 The `SA-1`/`CA-1` columns-builder recipe. The ~240-line `columns` memo and the
@@ -3137,6 +3138,42 @@ it while the deps keep it — rebuild timing unchanged.
 | JSX component-import audit | none missing |
 | `check:source-size` | **21 recorded**, verdict `OK` |
 | root `npm run lint` | pass (the moved pre-existing warning only) |
+
+---
+
+## `CA-9` — `tabs/DQFileTab.jsx` → the tab, plus its fetch-and-sync routine
+
+**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R2 ·
+**526 → 453, plus `dqFileSync.js` (102)**
+
+Only 26 lines over the hard limit, so one seam: `fetchAndSyncFiles` — the
+fetch-and-auto-sync routine carrying the eight `syncTargets` field→type
+mappings that must stay in step with `driverSync.js` — moved verbatim into
+`dqFileSync.js` as `fetchAndSyncDqFiles({...})`. Everything the inline
+closure captured (the memoised collection ref, the path segments, the three
+state setters) arrives through the argument object; the tab keeps a
+one-expression `fetchAndSyncFiles` wrapper returning that call, so the
+effect and the two `await fetchAndSyncFiles()` call sites are unchanged and
+awaitability is preserved.
+
+### Notes
+
+- Entry is 453 with a 54-line frozen-contracts header — the same shape and
+  justification as `CA-6`.
+- The pre-existing exhaustive-deps warning (the effect not listing
+  `fetchAndSyncFiles`) is byte-identical after the split.
+- The dqfile/a11y covering suites assert the sync behaviorally (paths,
+  payload shape, de-duplication), so the verbatim move is proven, not
+  assumed.
+
+| Check | Result |
+|---|---|
+| 28 covering tests (`DossierBodies.dqfile` + `.a11y`) | **set-identical**, all green |
+| all company-admin suites | 707/707 (45 files) |
+| `check:ui-contract` | 496 files, 235 known across 42 files, none new |
+| every original line | accounted for — one resplit import, one closure→function header |
+| `check:source-size` | **20 recorded**, verdict `OK` |
+| root `npm run lint` | pass (the pre-existing warning only) |
 
 ---
 
