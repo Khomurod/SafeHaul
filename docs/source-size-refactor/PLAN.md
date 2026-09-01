@@ -1,5 +1,11 @@
 # Source-size refactor campaign — implementation plan
 
+> **CAMPAIGN COMPLETE — 2026-09-01.** The backlog drained from 70 entries to
+> zero and `.github/source-size-backlog.json` is deleted per its own
+> instructions. No handwritten file exceeds the 500-line standard;
+> `src/firestore.rules` sits under the owner-ruled, still-measured 689-line
+> ceiling of § 7.3a. This plan and the tracker remain as the record.
+
 **Canonical plan file.** Progress and handoff state live in
 [`TRACKER.md`](TRACKER.md) beside it. This file describes *what* the campaign is
 and *how* work units are chosen and executed; the tracker records *where the

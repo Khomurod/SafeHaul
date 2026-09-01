@@ -102,13 +102,19 @@ read.
 An audit on 2026-08-26 found **70 files over the limit**, including a 2203-line
 test, a 1476-line component owning the public application, four tooling scripts
 over 1000, a 3447-line stylesheet and a 1682-line HTML page. None of it was
-decided; it accumulated because nothing said no. Those files are recorded in
-`.github/source-size-backlog.json`, which is a **campaign and not an allowlist** —
+decided; it accumulated because nothing said no. Those files were recorded in
+`.github/source-size-backlog.json`, which was a **campaign and not an allowlist** —
 the checker enforces the difference. A file not listed may never exceed the
 limit; a listed file may never grow; a listed file that comes back under must be
 removed, and the check fails until it is. An entry for a path that no longer
 exists fails too, so a rename cannot carry an exemption with it. When the last
-entry goes, so does the file.
+entry goes, so does the file — **and it went on 2026-09-01**: the campaign
+drained all 70 entries (66 split or shrunk by responsibility, the landing site
+deleted by owner ruling, the rules file moved to its owner-ruled ceiling) and
+the backlog file is deleted. Every rule in this section still governs: nothing
+is listed now, so no handwritten file may exceed the limit at all, and the
+baseline machinery below stays in force for any entry that ever tries to come
+back.
 
 **And the backlog itself is compared against git, not trusted.** Every rule above
 is enforced against the backlog *in the branch under test*, which that branch may
