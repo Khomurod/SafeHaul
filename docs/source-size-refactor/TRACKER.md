@@ -15,13 +15,13 @@ it currently is*.
 
 | | |
 |---|---|
-| **Last updated** | 2026-09-01, `CA-4` merged as #94; `CA-5` (`VOEPreviewModal.contract.test.jsx` → 3 suites + support) on the branch |
-| **Verified main SHA** | `2d3af8c9c160b91831c0365661482ef363fac1db` (#94 / `CA-4` merged) |
-| **Oversized files** | **26 on `main`, 25 on this branch** (was 68 when the tracker opened) |
-| **Backlog entries** | **26 on `main`, 25 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
-| **Active work item** | `CA-5` — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
+| **Last updated** | 2026-09-01, `CA-5` merged as #95; `CA-10` (`DossierBodies.contract.test.jsx` → 4 suites + support) on the branch — taken out of order because it shares its harness recipe with `CA-5` |
+| **Verified main SHA** | `effe51cdaf1bbc107ae6f70187c07af330379d8a` (#95 / `CA-5` merged) |
+| **Oversized files** | **25 on `main`, 24 on this branch** (was 68 when the tracker opened) |
+| **Backlog entries** | **25 on `main`, 24 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
+| **Active work item** | `CA-10` — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | none open yet for `CA-5`. [#94](https://github.com/Khomurod/SafeHaul/pull/94) and everything before it merged; #50 closed. |
+| **Active PR** | none open yet for `CA-10`. [#95](https://github.com/Khomurod/SafeHaul/pull/95) and everything before it merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
 | **CI status** | #61, #62 and #63 all merged fully green, first try. The only red round in this stretch was #60's `frontend-quality` — a **race in a test `LD-R3` wrote**, reproduced and fixed, see the interlude below. A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
@@ -30,8 +30,8 @@ it currently is*.
 
 ### Exact next action
 
-1. **Push and open the `CA-5` PR**, then merge it when green.
-2. **Nothing is pre-built behind `CA-5`.** The stacking deviation recorded below
+1. **Push and open the `CA-10` PR**, then merge it when green.
+2. **Nothing is pre-built behind `CA-10`.** The stacking deviation recorded below
    is fully unwound once it merges.
    **Their sections below were published with `FT-10`, deliberately ahead of their
    code.** The reason is worth keeping: for several units the "rebuild it from the
@@ -54,9 +54,8 @@ it currently is*.
    conflicts.
    **If those local branches are gone** (a fresh container), the work is not lost:
    rebuild each from its `FR-*` section below, which is written as a recipe.
-3. **After `CA-5`: the rest of the `CA-*` series** (next `CA-6`,
-   `DossierBodies.contract.test.jsx`, 667 — the same vitest support
-   recipe), the `T-*` tooling units,
+3. **After `CA-10`: the rest of the `CA-*` series** (next `CA-6`,
+   `PEVTab.jsx`, 629 — a runtime split), the `T-*` tooling units,
    then `RU-1` → `RU-2` (Firestore rules) under the owner's ruling in
    `PLAN.md` § 7.3.
 
@@ -164,12 +163,12 @@ use `—` until it exists.**
 | `CA-2` | **MERGED** | R2 | view → 482 + two feature hooks | 735 | **482** | `claude/safehual-source-size-refactor-j4apre` | [#92](https://github.com/Khomurod/SafeHaul/pull/92) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `CA-3` | **MERGED** | R1 | test → 3 suites + support | 576 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#93](https://github.com/Khomurod/SafeHaul/pull/93) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `CA-4` | **MERGED** | R2 | modal chrome → 395 + document | 634 | **395** | `claude/safehual-source-size-refactor-j4apre` | [#94](https://github.com/Khomurod/SafeHaul/pull/94) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
-| `CA-5` | **IN PROGRESS** | R1 | contract test → 3 suites + support | 751 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
+| `CA-5` | **MERGED** | R1 | contract test → 3 suites + support | 751 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#95](https://github.com/Khomurod/SafeHaul/pull/95) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `CA-6` | NOT STARTED | R2 | `src/features/company-admin/components/tabs/PEVTab.jsx` (runtime) | 629 | 629 | — | — | — | — | — | — | — | 1 |
 | `CA-7` | NOT STARTED | R1 | `src/features/company-admin/components/tabs/PEVTab.contract.test.jsx` (test) | 547 | 547 | — | — | — | — | — | — | — | 1 |
 | `CA-8` | NOT STARTED | R2 | `src/features/company-admin/views/CompanyCandidatesListPage.jsx` (runtime) | 607 | 607 | — | — | — | — | — | — | — | 1 |
 | `CA-9` | NOT STARTED | R2 | `src/features/company-admin/components/tabs/DQFileTab.jsx` (runtime) | 526 | 526 | — | — | — | — | — | — | — | 1 |
-| `CA-10` | NOT STARTED | R1 | `src/features/company-admin/components/tabs/DossierBodies.contract.test.jsx` (test) | 667 | 667 | — | — | — | — | — | — | — | 1 |
+| `CA-10` | **IN PROGRESS** | R1 | contract test → 4 suites + support | 667 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
 | `CA-11` | NOT STARTED | R1 | `src/features/company-admin/views/UserProfilePage.test.jsx` (test) | 550 | 550 | — | — | — | — | — | — | — | 1 |
 | `CA-12` | NOT STARTED | R1 | `src/features/company-admin/components/modals/PEVRequestModal.test.jsx` (test) | 545 | 545 | — | — | — | — | — | — | — | 1 |
 | `CA-13` | NOT STARTED | R1 | `src/features/company-admin/hooks/useCompanyLeadUpload.contract.test.js` (test) | 507 | 507 | — | — | — | — | — | — | — | 1 |
@@ -2954,7 +2953,7 @@ signature partition) stay in the modal so no computation changed lifetime.
 
 ## `CA-5` — `VOEPreviewModal.contract.test.jsx` → three suites plus a support module
 
-**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R1 ·
+**Status:** `MERGED` — [#95](https://github.com/Khomurod/SafeHaul/pull/95), 2026-09-01 · **Risk:** R1 ·
 **751 → deleted; document (261) + pdf (124) + print (369) + support (108)**
 
 The `SA-2`/`CA-3` support-module recipe again. The 51 tests split at describe
@@ -2989,6 +2988,42 @@ the fixtures, `makeRenderModal(VOEPreviewModal)` and `resetHarness`.
 | every original line | accounted for — 17 wrapper/registration transforms, bodies intact |
 | `check:source-size` | **25 recorded**, verdict `OK` |
 | root `npm run lint` | pass (the three moved pre-existing directive warnings only) |
+
+---
+
+## `CA-10` — `DossierBodies.contract.test.jsx` → four suites plus a support module
+
+**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R1 ·
+**667 → deleted; dqfile (286) + notes (168) + activity (106) + a11y (92) + support (145)**
+
+Taken out of series order because it is the same vitest support recipe as
+`CA-5`, still warm. The 53 tests cover three components in one file, so the
+split is by component: `DQFileTab` (five describes, orig 113–364),
+`ActivityHistoryTab` (384–461), `NotesTab` (468–607), and the cross-component
+axe proofs (610–667) as their own suite that builds all three renderers. The
+support module exports the five mock-state objects, the six factory bodies
+(including the dual-form `collection()` shim with its explanatory comment),
+`snap`, the fixtures (`DQ_FILE`, `LOGS`, `tsDaysAgo`) and three
+`makeRender*(Component)` builders — the tabs transitively import the mocked
+firebase modules, so the deadlock rule covers them too: each suite imports
+the tabs it renders and passes them in.
+
+### Notes
+
+- The original pairs `vi.clearAllMocks()` with four `*Once` queues — the
+  documented live hazard. Kept verbatim: `resetHarness` re-establishes every
+  default right after clearing, exactly as the original `beforeEach` did, and
+  the split leaves every `*Once` inside the describe that queues it.
+- No `afterEach(cleanup)` in the original — none added.
+
+| Check | Result |
+|---|---|
+| 53 tests across the four suites | **set-identical** to the pre-split baseline, all green |
+| all company-admin suites | 707/707 (44 files) |
+| `check:ui-contract` | 492 files, 235 known across 41 files, none new |
+| every original line | accounted for — 30 wrapper transforms; one section banner superseded by the suite headline |
+| `check:source-size` | **24 recorded**, verdict `OK` |
+| root `npm run lint` | pass |
 
 ---
 

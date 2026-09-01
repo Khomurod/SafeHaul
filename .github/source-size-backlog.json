@@ -36,7 +36,6 @@
     "src/features/companies/hooks/useCompanyDashboard.js": 528,
     "src/features/company-admin/components/modals/PEVRequestModal.test.jsx": 545,
     "src/features/company-admin/components/tabs/DQFileTab.jsx": 526,
-    "src/features/company-admin/components/tabs/DossierBodies.contract.test.jsx": 667,
     "src/features/company-admin/components/tabs/PEVTab.contract.test.jsx": 547,
     "src/features/company-admin/components/tabs/PEVTab.jsx": 629,
     "src/features/company-admin/hooks/useCompanyLeadUpload.contract.test.js": 507,
