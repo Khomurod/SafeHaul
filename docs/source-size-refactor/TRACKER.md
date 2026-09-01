@@ -15,13 +15,13 @@ it currently is*.
 
 | | |
 |---|---|
-| **Last updated** | 2026-09-01, `CA-6` merged as #97; `CA-7` (`PEVTab.contract.test.jsx` → 2 suites + support) on the branch |
-| **Verified main SHA** | `716201f7a529706f17b8118e20bf282b07095a67` (#97 / `CA-6` merged) |
-| **Oversized files** | **23 on `main`, 22 on this branch** (was 68 when the tracker opened) |
-| **Backlog entries** | **23 on `main`, 22 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
-| **Active work item** | `CA-7` — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
+| **Last updated** | 2026-09-01, `CA-7` merged as #98; `CA-8` (`CompanyCandidatesListPage.jsx` → view + columns) on the branch |
+| **Verified main SHA** | `cc13f2d5a50ee2b2edc7ae1d6cd0a1d5cf529b58` (#98 / `CA-7` merged) |
+| **Oversized files** | **22 on `main`, 21 on this branch** (was 68 when the tracker opened) |
+| **Backlog entries** | **22 on `main`, 21 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
+| **Active work item** | `CA-8` — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | none open yet for `CA-7`. [#97](https://github.com/Khomurod/SafeHaul/pull/97) and everything before it merged; #50 closed. |
+| **Active PR** | none open yet for `CA-8`. [#98](https://github.com/Khomurod/SafeHaul/pull/98) and everything before it merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
 | **CI status** | #61, #62 and #63 all merged fully green, first try. The only red round in this stretch was #60's `frontend-quality` — a **race in a test `LD-R3` wrote**, reproduced and fixed, see the interlude below. A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
@@ -30,8 +30,8 @@ it currently is*.
 
 ### Exact next action
 
-1. **Push and open the `CA-7` PR**, then merge it when green.
-2. **Nothing is pre-built behind `CA-7`.** The stacking deviation recorded below
+1. **Push and open the `CA-8` PR**, then merge it when green.
+2. **Nothing is pre-built behind `CA-8`.** The stacking deviation recorded below
    is fully unwound once it merges.
    **Their sections below were published with `FT-10`, deliberately ahead of their
    code.** The reason is worth keeping: for several units the "rebuild it from the
@@ -54,9 +54,8 @@ it currently is*.
    conflicts.
    **If those local branches are gone** (a fresh container), the work is not lost:
    rebuild each from its `FR-*` section below, which is written as a recipe.
-3. **After `CA-7`: the rest of the `CA-*` series** (next `CA-8`,
-   `CompanyCandidatesListPage.jsx`, 607 — a runtime split), the
-   `T-*` tooling units,
+3. **After `CA-8`: the rest of the `CA-*` series** (next `CA-9`,
+   `DQFileTab.jsx`, 526 — a runtime split), the `T-*` tooling units,
    then `RU-1` → `RU-2` (Firestore rules) under the owner's ruling in
    `PLAN.md` § 7.3.
 
@@ -166,8 +165,8 @@ use `—` until it exists.**
 | `CA-4` | **MERGED** | R2 | modal chrome → 395 + document | 634 | **395** | `claude/safehual-source-size-refactor-j4apre` | [#94](https://github.com/Khomurod/SafeHaul/pull/94) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `CA-5` | **MERGED** | R1 | contract test → 3 suites + support | 751 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#95](https://github.com/Khomurod/SafeHaul/pull/95) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `CA-6` | **MERGED** | R2 | tab → 447 + parts | 629 | **447** | `claude/safehual-source-size-refactor-j4apre` | [#97](https://github.com/Khomurod/SafeHaul/pull/97) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
-| `CA-7` | **IN PROGRESS** | R1 | contract test → 2 suites + support | 547 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
-| `CA-8` | NOT STARTED | R2 | `src/features/company-admin/views/CompanyCandidatesListPage.jsx` (runtime) | 607 | 607 | — | — | — | — | — | — | — | 1 |
+| `CA-7` | **MERGED** | R1 | contract test → 2 suites + support | 547 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#98](https://github.com/Khomurod/SafeHaul/pull/98) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
+| `CA-8` | **IN PROGRESS** | R2 | view → 306 + columns | 607 | **306** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
 | `CA-9` | NOT STARTED | R2 | `src/features/company-admin/components/tabs/DQFileTab.jsx` (runtime) | 526 | 526 | — | — | — | — | — | — | — | 1 |
 | `CA-10` | **MERGED** | R1 | contract test → 4 suites + support | 667 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#96](https://github.com/Khomurod/SafeHaul/pull/96) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `CA-11` | NOT STARTED | R1 | `src/features/company-admin/views/UserProfilePage.test.jsx` (test) | 550 | 550 | — | — | — | — | — | — | — | 1 |
@@ -3067,7 +3066,7 @@ passed under its own name so the dialog's two close handlers stay verbatim.
 
 ## `CA-7` — `PEVTab.contract.test.jsx` → two suites plus a support module
 
-**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R1 ·
+**Status:** `MERGED` — [#98](https://github.com/Khomurod/SafeHaul/pull/98), 2026-09-01 · **Risk:** R1 ·
 **547 → deleted; flow (252) + results (241) + support (140)**
 
 The vitest support recipe, fourth application. The 34 tests split at describe
@@ -3097,6 +3096,47 @@ comment, `makeRenderTab(PEVTab)` and `resetHarness`.
 | every original line | accounted for — 24 wrapper/registration transforms, bodies intact |
 | `check:source-size` | **22 recorded**, verdict `OK` |
 | root `npm run lint` | pass |
+
+---
+
+## `CA-8` — `views/CompanyCandidatesListPage.jsx` → the view, plus its columns
+
+**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R2 ·
+**607 → 306, plus `candidateListColumns.jsx` (323)**
+
+The `SA-1`/`CA-1` columns-builder recipe. The ~240-line `columns` memo and the
+module-level display helpers it leans on (`getOutcomePillStyle`,
+`getCandidateName`, `formatAddedDate`, `staleContactMeta`, the two pipeline
+tab lists) moved verbatim into `candidateListColumns.jsx`; the view memoises
+`buildCandidateColumns({ sortConfig, handleDateSort, handlePhoneClick })` with
+its ORIGINAL deps `[scope, sortConfig]` under a reasoned suppression — the
+handlers were captured without being listed before the split too (the
+pre-existing exhaustive-deps warning), and listing them now would change when
+the columns rebuild. `scope` turned out to be referenced nowhere in the body
+(its one textual hit was the deps line itself), so the builder does not take
+it while the deps keep it — rebuild timing unchanged.
+
+### Notes
+
+- **No unit test names this view** — the behavioral net is the two e2e specs
+  that drive the real route in Chromium (`company-candidate-table.spec.cjs`,
+  5 tests; `applications-search-filters.spec.cjs`, 4), which CI runs on every
+  shard, plus the 734 company-admin/companies unit tests around it.
+- **Second allowlist-follows-the-code event** (after `CA-4`): the view's four
+  recorded `hand-styled-button` exceptions split 3/1 — the two sort toggles
+  and the phone chip moved with the columns, the pipeline segment strip stays
+  in the view — total still 235, checker "none new" across 42 files.
+- The pre-existing `dashboard` exhaustive-deps warning moved with its effect.
+
+| Check | Result |
+|---|---|
+| company-admin + companies suites | 734/734 (47 files) |
+| e2e (CI) | `company-candidate-table` + `applications-search-filters` drive the real route |
+| `check:ui-contract` | 495 files, 235 known across 42 files, none new |
+| every original line | accounted for — export/wrapper transforms only |
+| JSX component-import audit | none missing |
+| `check:source-size` | **21 recorded**, verdict `OK` |
+| root `npm run lint` | pass (the moved pre-existing warning only) |
 
 ---
 
