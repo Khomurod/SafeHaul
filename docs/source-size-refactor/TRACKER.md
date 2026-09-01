@@ -15,13 +15,13 @@ it currently is*.
 
 | | |
 |---|---|
-| **Last updated** | 2026-09-01, `CA-1` merged as #91; `CA-2` (`DocumentsManager.jsx` → view + two hooks) on the branch |
-| **Verified main SHA** | `e5a49c850b41543b4c164b6f7d03e6d52df8cfa5` (#91 / `CA-1` merged) |
-| **Oversized files** | **29 on `main`, 28 on this branch** (was 68 when the tracker opened) |
-| **Backlog entries** | **29 on `main`, 28 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
-| **Active work item** | `CA-2` — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
+| **Last updated** | 2026-09-01, `CA-2` merged as #92; `CA-3` (`DocumentsManager.test.jsx` → 3 suites + support) on the branch |
+| **Verified main SHA** | `b46cfe1e2db840e151d848f6f3669e3fe0bf4606` (#92 / `CA-2` merged) |
+| **Oversized files** | **28 on `main`, 27 on this branch** (was 68 when the tracker opened) |
+| **Backlog entries** | **28 on `main`, 27 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
+| **Active work item** | `CA-3` — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | none open yet for `CA-2`. [#91](https://github.com/Khomurod/SafeHaul/pull/91) and everything before it merged; #50 closed. |
+| **Active PR** | none open yet for `CA-3`. [#92](https://github.com/Khomurod/SafeHaul/pull/92) and everything before it merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
 | **CI status** | #61, #62 and #63 all merged fully green, first try. The only red round in this stretch was #60's `frontend-quality` — a **race in a test `LD-R3` wrote**, reproduced and fixed, see the interlude below. A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
@@ -30,8 +30,8 @@ it currently is*.
 
 ### Exact next action
 
-1. **Push and open the `CA-2` PR**, then merge it when green.
-2. **Nothing is pre-built behind `CA-2`.** The stacking deviation recorded below
+1. **Push and open the `CA-3` PR**, then merge it when green.
+2. **Nothing is pre-built behind `CA-3`.** The stacking deviation recorded below
    is fully unwound once it merges.
    **Their sections below were published with `FT-10`, deliberately ahead of their
    code.** The reason is worth keeping: for several units the "rebuild it from the
@@ -54,9 +54,8 @@ it currently is*.
    conflicts.
    **If those local branches are gone** (a fresh container), the work is not lost:
    rebuild each from its `FR-*` section below, which is written as a recipe.
-3. **After `CA-2`: the rest of the `CA-*` series** (next `CA-3`,
-   `DocumentsManager.test.jsx`, 576 — a test split, the `SA-2` vitest support
-   recipe), the `T-*` tooling units,
+3. **After `CA-3`: the rest of the `CA-*` series** (next `CA-4`,
+   `VOEPreviewModal.jsx`, 634), the `T-*` tooling units,
    then `RU-1` → `RU-2` (Firestore rules) under the owner's ruling in
    `PLAN.md` § 7.3.
 
@@ -161,8 +160,8 @@ use `—` until it exists.**
 | `SA-8` | **COMPLETE** (replaced by `LD-R3`) | R2 | `LandingPageSettingsView.jsx` → `WebsiteLeadsView.jsx` | 536 | **231** | — | — | — | — | — | — | — | 1 ✓ |
 | `SA-9` | **MERGED** | R1 | contract test → 3 suites + support | 570 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#90](https://github.com/Khomurod/SafeHaul/pull/90) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `CA-1` | **MERGED** | R2 | tab → 321 + the seven cards | 752 | **321** | `claude/safehual-source-size-refactor-j4apre` | [#91](https://github.com/Khomurod/SafeHaul/pull/91) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
-| `CA-2` | **IN PROGRESS** | R2 | view → 482 + two feature hooks | 735 | **482** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
-| `CA-3` | NOT STARTED | R1 | `src/features/company-admin/views/DocumentsManager.test.jsx` (test) | 576 | 576 | — | — | — | — | — | — | — | 1 |
+| `CA-2` | **MERGED** | R2 | view → 482 + two feature hooks | 735 | **482** | `claude/safehual-source-size-refactor-j4apre` | [#92](https://github.com/Khomurod/SafeHaul/pull/92) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
+| `CA-3` | **IN PROGRESS** | R1 | test → 3 suites + support | 576 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
 | `CA-4` | NOT STARTED | R2 | `src/features/company-admin/components/modals/VOEPreviewModal.jsx` (runtime) | 634 | 634 | — | — | — | — | — | — | — | 1 |
 | `CA-5` | NOT STARTED | R1 | `src/features/company-admin/components/modals/VOEPreviewModal.contract.test.jsx` (test) | 751 | 751 | — | — | — | — | — | — | — | 1 |
 | `CA-6` | NOT STARTED | R2 | `src/features/company-admin/components/tabs/PEVTab.jsx` (runtime) | 629 | 629 | — | — | — | — | — | — | — | 1 |
@@ -2806,7 +2805,7 @@ header documents.
 
 ## `CA-2` — `views/DocumentsManager.jsx` → the view, plus two feature hooks
 
-**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R2 ·
+**Status:** `MERGED` — [#92](https://github.com/Khomurod/SafeHaul/pull/92), 2026-09-01 · **Risk:** R2 ·
 **735 → 482, plus a 260-line send-flow hook and a 120-line forms hook**
 
 The Documents workspace kept two separable state machines inline: the
@@ -2855,6 +2854,56 @@ all verbatim.
 | JSX component-import audit (multi-line-aware) | none missing |
 | `check:source-size` | **28 recorded**, verdict `OK` |
 | root `npm run lint` | pass (pre-existing warnings only) |
+
+---
+
+## `CA-3` — `views/DocumentsManager.test.jsx` → three suites plus a support module
+
+**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R1 ·
+**576 → deleted; 3 suites (~190 each) + `DocumentsManager.support.jsx` (~155)**
+
+The `SA-2` support-module recipe, applied to the workspace-shell test: the
+hoisted mock state became plain exported consts, each inline `vi.mock`
+factory became a `*Mock()` export the suites delegate to, and
+`renderManager`/`resetHarness`/`tabs`/`openNewDocument`/`company` moved
+verbatim. The 41 tests split by describe block:
+
+| file | subject | tests |
+|---|---|---|
+| `DocumentsManager.header.test.jsx` | header + New Document choices | 16 |
+| `DocumentsManager.views.test.jsx` | tab interface + E-Docs gate | 13 |
+| `DocumentsManager.contracts.test.jsx` | per-view prop contracts | 12 |
+| `DocumentsManager.support.jsx` | harness (not matched by the test glob) | — |
+
+### Notes — one new hazard, worth the section by itself
+
+- **The support module must not import ANY module the suites mock.** This
+  support initially kept the original's `MemoryRouter` import; loading it
+  fired the suites' `react-router-dom` mock, whose factory was `await
+  import`ing this very support module — a circular module await that hangs
+  vitest **silently and indefinitely**: no output, 0% CPU, no timeout. It
+  looks exactly like an infra problem (and here it was first misread as
+  container-restart fallout). The `EnvironmentIntegrationsView` support never
+  hit this only because that view's harness imports nothing mocked. Fix:
+  suites import `MemoryRouter` themselves — through their own mock, which can
+  resolve by then — and pass it to `makeRenderManager(View, MemoryRouter)`.
+  Diagnosis that worked: run an unrelated suite (2 s ⇒ vitest is fine), then
+  suspect the import graph of the new files.
+- `makeRenderManager(View, Router)` preserves every `renderManager()` call
+  site verbatim — no async rewrite of 41 sync tests.
+- The original's one lint warning (unused `no-await-in-loop` directive in the
+  a11y loop) moved verbatim with its test and still warns — pre-existing.
+- `vi.clearAllMocks()` in `resetHarness` is safe here: the file queues no
+  `*Once` values (checked before keeping it).
+
+| Check | Result |
+|---|---|
+| 41 tests across the three suites | **set-identical** to the pre-split baseline, all green |
+| all company-admin suites | 707/707 (39 files) |
+| `check:ui-contract` | 489 files scanned, none new |
+| every original line | accounted for — 40 wrapper/registration transforms, bodies intact |
+| `check:source-size` | **27 recorded**, verdict `OK` |
+| root `npm run lint` | pass (the moved pre-existing directive warning only) |
 
 ---
 
