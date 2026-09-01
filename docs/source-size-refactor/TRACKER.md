@@ -15,13 +15,13 @@ it currently is*.
 
 | | |
 |---|---|
-| **Last updated** | 2026-09-01, `SA-7` merged as #89; `SA-9` on the branch — the `SA-*` series ends here |
-| **Verified main SHA** | `6de3df5e823cac71c31a539b6cf001f1eef262c5` (#89 / `SA-7` merged) |
-| **Oversized files** | **31 on `main`, 30 on this branch** (was 68 when the tracker opened) |
-| **Backlog entries** | **31 on `main`, 30 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
-| **Active work item** | `SA-9` — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
+| **Last updated** | 2026-09-01, `SA-9` merged as #90 — the `SA-*` series is done; `CA-1` on the branch |
+| **Verified main SHA** | `207a99f24b4bb40baa7912d6633df26ec39eedcc` (#90 / `SA-9` merged) |
+| **Oversized files** | **30 on `main`, 29 on this branch** (was 68 when the tracker opened) |
+| **Backlog entries** | **30 on `main`, 29 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
+| **Active work item** | `CA-1` — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | none open yet for `SA-9`. [#89](https://github.com/Khomurod/SafeHaul/pull/89) and everything before it merged; #50 closed. |
+| **Active PR** | none open yet for `CA-1`. [#90](https://github.com/Khomurod/SafeHaul/pull/90) and everything before it merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
 | **CI status** | #61, #62 and #63 all merged fully green, first try. The only red round in this stretch was #60's `frontend-quality` — a **race in a test `LD-R3` wrote**, reproduced and fixed, see the interlude below. A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
@@ -30,8 +30,8 @@ it currently is*.
 
 ### Exact next action
 
-1. **Push and open the `SA-9` PR**, then merge it when green.
-2. **Nothing is pre-built behind `SA-9`.** The stacking deviation recorded below
+1. **Push and open the `CA-1` PR**, then merge it when green.
+2. **Nothing is pre-built behind `CA-1`.** The stacking deviation recorded below
    is fully unwound once it merges.
    **Their sections below were published with `FT-10`, deliberately ahead of their
    code.** The reason is worth keeping: for several units the "rebuild it from the
@@ -54,8 +54,8 @@ it currently is*.
    conflicts.
    **If those local branches are gone** (a fresh container), the work is not lost:
    rebuild each from its `FR-*` section below, which is written as a recipe.
-3. **After `SA-9`: the `CA-*` series** (starting `CA-1`,
-   `driver-dossier/tabs/ApplicationTab.jsx`, 752), the `T-*` tooling units,
+3. **After `CA-1`: the rest of the `CA-*` series** (next `CA-2`,
+   `DocumentsManager.jsx`, 735), the `T-*` tooling units,
    then `RU-1` → `RU-2` (Firestore rules) under the owner's ruling in
    `PLAN.md` § 7.3.
 
@@ -158,8 +158,8 @@ use `—` until it exists.**
 | `SA-6` | **MERGED** | R2 | view → 417 + presentation + columns | 563 | **417** | `claude/safehual-source-size-refactor-j4apre` | [#88](https://github.com/Khomurod/SafeHaul/pull/88) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `SA-7` | **MERGED** | R1 | contract test → 3 suites + support | 709 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#89](https://github.com/Khomurod/SafeHaul/pull/89) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `SA-8` | **COMPLETE** (replaced by `LD-R3`) | R2 | `LandingPageSettingsView.jsx` → `WebsiteLeadsView.jsx` | 536 | **231** | — | — | — | — | — | — | — | 1 ✓ |
-| `SA-9` | **IN PROGRESS** | R1 | contract test → 3 suites + support | 570 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
-| `CA-1` | NOT STARTED | R2 | `src/features/company-admin/components/modals/driver-dossier/tabs/ApplicationTab.jsx` (runtime) | 752 | 752 | — | — | — | — | — | — | — | 1 |
+| `SA-9` | **MERGED** | R1 | contract test → 3 suites + support | 570 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#90](https://github.com/Khomurod/SafeHaul/pull/90) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
+| `CA-1` | **IN PROGRESS** | R2 | tab → 321 + the seven cards | 752 | **321** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
 | `CA-2` | NOT STARTED | R2 | `src/features/company-admin/views/DocumentsManager.jsx` (runtime) | 735 | 735 | — | — | — | — | — | — | — | 1 |
 | `CA-3` | NOT STARTED | R1 | `src/features/company-admin/views/DocumentsManager.test.jsx` (test) | 576 | 576 | — | — | — | — | — | — | — | 1 |
 | `CA-4` | NOT STARTED | R2 | `src/features/company-admin/components/modals/VOEPreviewModal.jsx` (runtime) | 634 | 634 | — | — | — | — | — | — | — | 1 |
@@ -2740,7 +2740,7 @@ visible when something after it misbehaves.
 
 ## `SA-9` — `BlogPostsView.contract.test.jsx` → 3 suites + support
 
-**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R1 ·
+**Status:** `MERGED` — [#90](https://github.com/Khomurod/SafeHaul/pull/90), main `207a99f` · **Risk:** R1 ·
 **570 → deleted; 3 suites of 151–210 plus a 183-line support module — the last `SA-*` unit**
 
 The `SA-2`/`SA-7` vitest recipe, uneventfully this time: every recorded
@@ -2758,6 +2758,47 @@ manual publication check + the publication run ledger.
 | all super-admin suites | 559/559 |
 | eslint (four files) | clean (the scoped harness disable, reasoned) |
 | `check:source-size` | **30 recorded**, verdict `OK` |
+| root `npm run lint` · `check:ci-plan` | pass |
+
+---
+
+## `CA-1` — `driver-dossier/tabs/ApplicationTab.jsx` → the tab, plus its cards
+
+**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R2 ·
+**752 → 321, plus a 464-line cards module — the first `CA-*` unit**
+
+The dossier's Application tab already had its seven sub-components at module
+level; they moved verbatim (with the two timeline date helpers only they use)
+into `applicationTabCards.jsx`: identity with the SSN masking rule, license
+with the CDL expiry bands, safety, the experience timeline, consent with the
+data-url-only signature rendering, plus the shared summary-card and row
+primitives. The tab keeps the view toggle, the pending-changes banner,
+`previewValue`, and the deliberately-unmigrated full-application path its
+header documents.
+
+| file | subject | lines |
+|---|---|---|
+| `applicationTabCards.jsx` | the seven cards and their two date helpers | 464 |
+| `ApplicationTab.jsx` (entry) | the tab: toggle, banner, full-application path | 321 |
+
+### Notes
+
+- Multiset diff missing exactly one line: the resplit design-system import.
+- The component-import audit from `SA-6` was rewritten multi-line-aware
+  (regex over import blocks rather than a same-line grep): the naive form
+  reported eighteen false "missing" names before the real audit reported
+  none. The improved audit lives in this section for reuse.
+- 148 covering tests (the dossier suites, `ApplicationTab.contract`
+  included) set-identical; all 707 company-admin tests green;
+  `check:ui-contract` 486 files, none new.
+
+| Check | Result |
+|---|---|
+| 148 covering tests (dossier suites) | **set-identical**, all green |
+| all company-admin suites | 707/707 |
+| `check:ui-contract` | 486 files scanned, none new |
+| every original body line | accounted for — one resplit import |
+| `check:source-size` | **29 recorded**, verdict `OK` |
 | root `npm run lint` · `check:ci-plan` | pass |
 
 ---
