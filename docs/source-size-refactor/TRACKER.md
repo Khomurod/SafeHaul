@@ -15,13 +15,13 @@ it currently is*.
 
 | | |
 |---|---|
-| **Last updated** | 2026-09-01, `RU-1` merged as #107; `RU-2` assessed and STOPPED pending an owner decision (see the RU section); `SG-1` (`EnvelopeHistory.test.jsx` → 3 suites + support) on the branch |
-| **Verified main SHA** | `f64b350c6dd422c7b484d8449f1f47c51c155402` (#107 / `RU-1` merged) |
-| **Oversized files** | **13 on `main`, 12 on this branch** (was 68 when the tracker opened) |
-| **Backlog entries** | **13 on `main`, 12 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
-| **Active work item** | `SG-1` — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
+| **Last updated** | 2026-09-01, `SG-1` merged as #108 (with the `RU-2` stop record); `SG-2` (`EnvelopeCreator.editor.test.jsx` → 3 suites + support) on the branch |
+| **Verified main SHA** | `47c1d60f4145a984e33ea022794765e8b325f74f` (#108 / `SG-1` merged) |
+| **Oversized files** | **12 on `main`, 11 on this branch** (was 68 when the tracker opened) |
+| **Backlog entries** | **12 on `main`, 11 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
+| **Active work item** | `SG-2` — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | none open yet for `SG-1`. [#107](https://github.com/Khomurod/SafeHaul/pull/107) and everything before it merged; #50 closed. |
+| **Active PR** | none open yet for `SG-2`. [#108](https://github.com/Khomurod/SafeHaul/pull/108) and everything before it merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
 | **CI status** | #61, #62 and #63 all merged fully green, first try. The only red round in this stretch was #60's `frontend-quality` — a **race in a test `LD-R3` wrote**, reproduced and fixed, see the interlude below. A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
@@ -30,8 +30,8 @@ it currently is*.
 
 ### Exact next action
 
-1. **Push and open the `SG-1` PR**, then merge it when green.
-2. **Nothing is pre-built behind `SG-1`.** The stacking deviation recorded below
+1. **Push and open the `SG-2` PR**, then merge it when green.
+2. **Nothing is pre-built behind `SG-2`.** The stacking deviation recorded below
    is fully unwound once it merges.
    **Their sections below were published with `FT-10`, deliberately ahead of their
    code.** The reason is worth keeping: for several units the "rebuild it from the
@@ -54,12 +54,9 @@ it currently is*.
    conflicts.
    **If those local branches are gone** (a fresh container), the work is not lost:
    rebuild each from its `FR-*` section below, which is written as a recipe.
-3. **`RU-2` is STOPPED pending an owner decision** — the arithmetic
-   cannot reach 500 by permitted means; see the RU section for the
-   measurement and the three options put to the owner. **The drain
-   continues with the signing + driver-app series**: after `SG-1`, the
-   remaining test splits (`EnvelopeCreator.editor.test` 677,
-   `aiAssistant.test` 540, `useAiFieldAssistant.test` 534,
+3. **`RU-2` stays STOPPED pending an owner decision** (see the RU
+   section). **The drain continues**: after `SG-2`, the remaining test
+   splits (`aiAssistant.test` 540, `useAiFieldAssistant.test` 534,
    `ResizableDraggableField.test` 502, `LaunchPad.test` 539,
    `applicationDraftStorage.test` 511), the runtime hooks/views
    (`useCompanyDashboard.js` 528, `SigningRoom.jsx` 652), and the giants
@@ -3483,6 +3480,41 @@ tests read the spy `resetHarness` installed for that test — the module-level
 | `check:ui-contract` | 501 files, 235 known across 42 files, none new |
 | every original line | accounted for — wrapper/registration transforms only |
 | `check:source-size` | **12 recorded**, verdict `OK` |
+| root `npm run lint` | pass |
+
+---
+
+## `SG-2` — `EnvelopeCreator.editor.test.jsx` → three suites plus a support module
+
+**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R1 ·
+**677 → deleted; fields (285) + undo (191) + state (169) + support (167)**
+
+The vitest support recipe on the editor-shell test: 43 tests over nine
+describes, split by concern — save state / recipient edits / failed save /
+unsaved-change protection (12), undo-redo + page navigation (13), inspector +
+field tools + signer preview (18). The support carries the mock state, TEN
+factory bodies — five firebase/feedback plus the five prop-recording
+component doubles (sidebar, thumbnail rail, workbench, properties panel,
+preview dialog), each verbatim — the fixtures and helpers, `makeSetup` and
+`resetHarness`.
+
+### Notes
+
+- **A `.support.jsx` file is scanned by `check:ui-contract`; the `.test.jsx`
+  it came from was not.** The stub sidebar's raw `<input type="file">` was
+  invisible inside the test file and flagged the moment it moved. Recorded as
+  a documented allowlist entry (`raw-file-input: 1`) whose reason states what
+  it is: a vitest-only double, never product UI. Same class as the `CA-4`
+  allowlist-follows-the-code event, new wrinkle: the file CHANGED scan status
+  by being renamed out of the test glob.
+
+| Check | Result |
+|---|---|
+| 43 tests across the three suites | **set-identical**, all green |
+| all signing suites | 679/679 (32 files) |
+| `check:ui-contract` | 502 files, 236 known across 43 files, none new |
+| every original line | accounted for — wrapper/registration transforms only |
+| `check:source-size` | **11 recorded**, verdict `OK` |
 | root `npm run lint` | pass |
 
 ---

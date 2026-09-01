@@ -153,6 +153,12 @@
         "raw-table": "roadmap \u00a75 \u2014 approved native-table pattern for an editable matrix or per-row interactive rows. DataTable is a display-table contract. The table must still use the --ds-table-* roles."
       }
     },
+    "features/signing/EnvelopeCreator.editor.support.jsx": {
+      "raw-file-input": 1,
+      "reasons": {
+        "raw-file-input": "a prop-recording sidebar double inside the vitest harness for the editor-shell suites \u2014 it stands in for the real sidebar's upload control so the suites can drive the same handleFileChange the shell hands down. It renders only under vitest, never in the product. Moved verbatim from EnvelopeCreator.editor.test.jsx (source-size split), which the scanner excluded as a test file; the support module is scanned, so the double is recorded here instead."
+      }
+    },
     "features/signing/components/envelope-creator/AiSuggestionOverlay.jsx": {
       "hand-styled-button": 2,
       "reasons": {
