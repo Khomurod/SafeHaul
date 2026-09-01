@@ -268,9 +268,20 @@ The only excluded file is `public/pdf.worker.min.mjs`: vendored, minified
 Mozilla PDF.js, committed because it is served directly. Every exclusion has to
 carry that kind of reason, and a test asserts they do.
 
+An **exclusion** is not the same thing as a **documented exception**, and the
+checker keeps them apart on purpose: an excluded file is not scanned at all,
+while an excepted file (`DOCUMENTED_EXCEPTIONS` in
+`scripts/source-size-scope.mjs`) is measured on every run against its own pinned
+ceiling — it may never grow, must lose its entry if it ever comes back under
+500, must still exist under exactly that path, and may not sit in the backlog at
+the same time. `test:source-size` §G pins the entry by path, ceiling and date,
+drives every rule on fixtures, and both failure modes were planted before
+merging: one added line refuses against the ceiling, and deleting the entry
+fails closed as an ordinary oversized file.
+
 **Three of the recorded files looked unsplittable, and the question was put to
-the owner rather than left as a silent exemption. Two of the three are now
-answered, and neither answer was "split it".**
+the owner rather than left as a silent exemption. All three are now answered,
+and none of the answers was "split it".**
 
 `landing/index.html` (1682) and `landing/assets/css/styles.css` (3447) belonged to
 a static marketing site with no build step, so splitting either meant introducing
@@ -283,13 +294,20 @@ not move, and the privacy page was preserved standalone. **A third option — de
 the thing rather than split it or build it — is worth remembering when a file
 looks unsplittable.**
 
-`src/firestore.rules` (693) is still open. Firestore rules have no include
-mechanism, one file per deployment target, so splitting means a build step that
-concatenates and puts the deployed policy one step further from the file a
-reviewer reads. The owner has ruled **no build step**: strengthen and split the
-security tests first, then reduce the file itself while preserving permissions
-exactly — and if that cannot be done safely, stop and say so rather than force it.
-It is recorded and measured; it is not exempt.
+`src/firestore.rules` (689) is answered too, and the answer is the documented
+exception above — chosen by the owner on 2026-09-01 after the campaign's
+assessment showed the arithmetic cannot reach 500 by permitted means. Firestore
+rules have no include mechanism, one file per deployment target, so splitting
+means a build step, which the owner had already ruled out; a third of the file
+is the rationale comments this standard deliberately counts; the measured
+duplicated-line excess (67) leaves a best case around 620; and the remaining
+shorthand — merged wildcard matchers — can silently **widen** what is permitted,
+because overlapping match statements are OR-united. The security tests were
+strengthened and split first (`src/tests/firestoreRules.*.security.test.js`),
+exactly as the original ruling ordered, and the stop-and-ask it ended with was
+exercised rather than forced. The file stays measured on every run with a
+ceiling of 689 — its size on the day of the ruling, four lines *tighter* than
+the backlog count it used to carry — and the ceiling can only ever move down.
 
 ## Local test-runner process safety
 

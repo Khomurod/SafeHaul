@@ -15,13 +15,13 @@ it currently is*.
 
 | | |
 |---|---|
-| **Last updated** | 2026-09-01, `CP-1` merged as #113 — every pre-built unit has landed; `PA-3` (`applicationDraftStorage.test.js` → 2 suites, no support needed) on the branch |
-| **Verified main SHA** | `f5d1b12d15380dbb16a1058244de5d142a81bf19` (#113 / `CP-1` merged) |
-| **Oversized files** | **7 on `main`, 6 on this branch** (was 68 when the tracker opened) |
-| **Backlog entries** | **7 on `main`, 6 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
-| **Active work item** | `PA-3` — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
+| **Last updated** | 2026-09-01, `PA-3` merged as #114; **`RU-2` resolved — the owner chose the documented exception** (option 1), implementation on the branch |
+| **Verified main SHA** | `4b6b59d596c357c5929cfa0904e1ea9ce6e218e7` (#114 / `PA-3` merged) |
+| **Oversized files** | **6 over 500 on `main` and on this branch** (was 68 when the tracker opened); on the branch one of the six, `firestore.rules`, sits under its owner-ruled 689 ceiling rather than in the backlog |
+| **Backlog entries** | **6 on `main`, 5 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
+| **Active work item** | `RU-2` resolution — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | none open yet for `PA-3`. [#113](https://github.com/Khomurod/SafeHaul/pull/113) and everything before it merged; #50 closed. |
+| **Active PR** | none open yet for the `RU-2` resolution. [#114](https://github.com/Khomurod/SafeHaul/pull/114) and everything before it merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
 | **CI status** | #92–#113 all merged green. The only red in that stretch was #109's first round — the `EditUserBodies` initial-load race, not that PR's diff; fixed family-wide in the same PR (see the interlude below). A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
@@ -30,8 +30,8 @@ it currently is*.
 
 ### Exact next action
 
-1. **Push and open the `PA-3` PR**, then merge it when green.
-2. **Nothing is pre-built behind `PA-3`**, and the stacking deviation recorded in
+1. **Push and open the `RU-2` resolution PR**, then merge it when green.
+2. **Nothing is pre-built behind it**, and the stacking deviation recorded in
    earlier revisions is fully unwound — every pre-built unit has merged
    (#104–#113). The lesson stays recorded: recipes/sections go out ahead of their
    code, because a fallback that lives in the same basket as the thing it
@@ -46,12 +46,14 @@ it currently is*.
    and the six table rows were never flipped when those PRs merged. Both are now
    reconciled, with the alias noted on each affected row and section. When a
    section and the table disagree, trust neither — read `git log origin/main`.
-3. **`RU-2` stays STOPPED pending an owner decision** (see the RU
-   section). **The drain continues**: after `PA-3`, the runtime hooks/views
-   (`SO-2` `useCompanyDashboard.js` 528, `SG-4`-in-table `SigningRoom.jsx` 652),
-   then the giants (`SG-1`-in-table `EnvelopeCreator.jsx` 1363, `PA-1`
-   `PublicApplyHandler.jsx` 1476, `PA-2` its 2203-line contract test), then
-   `RU-2` (Firestore rules) under the owner's ruling in `PLAN.md` § 7.3.
+3. **`RU-2` is RESOLVED** — the owner chose the documented exception on
+   2026-09-01 (`PLAN.md` § 7.3a, RU section below). **The drain continues**:
+   the runtime hooks/views (`SO-2` `useCompanyDashboard.js` 528,
+   `SG-4`-in-table `SigningRoom.jsx` 652), then the giants (`SG-1`-in-table
+   `EnvelopeCreator.jsx` 1363, `PA-1` `PublicApplyHandler.jsx` 1476, `PA-2`
+   its 2203-line contract test). When `PA-2` lands, the backlog is empty:
+   delete `.github/source-size-backlog.json` (`Z-1`) and the campaign ends
+   with one owner-ruled, measured exception.
 
 **Four process rules learned the hard way in this session, all worth keeping:**
 
@@ -93,8 +95,8 @@ it currently is*.
 |---|---|---|
 | Over-limit files at campaign start (2026-08-26 audit, incl. 2026-08-27 additions) | 70 | — |
 | Retired before this tracker existed (PR #49) | 2 | — |
-| **Remaining now** (this branch, `PA-3` applied) | **6** | **6,911** |
-| Retired by this campaign so far | **62** | — |
+| **Remaining now** (this branch, `RU-2` resolution applied) | **5** | **6,222** |
+| Retired by this campaign so far | **63** (62 fixed or removed + `firestore.rules` moved to an owner-ruled, still-measured ceiling) | — |
 
 **How to reproduce those two numbers**, because an earlier revision of this table
 carried a Lines figure nobody could: the count is `.files` keys in
@@ -175,11 +177,11 @@ use `—` until it exists.**
 | `SG-7` | **MERGED** | R1 | test → 2 suites + support (section `SG-5` below) | 502 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#112](https://github.com/Khomurod/SafeHaul/pull/112) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `PA-1` | NOT STARTED | R4 | `src/features/driver-app/components/application/PublicApplyHandler.jsx` (runtime) | 1476 | 1476 | — | — | — | — | — | — | — | 1 |
 | `PA-2` | NOT STARTED | R2 | `src/features/driver-app/components/application/PublicApplyHandler.contract.test.jsx` (test) | 2203 | 2203 | — | — | — | — | — | — | — | 1 |
-| `PA-3` | **IN PROGRESS** | R1 | test → identity (239) + sync (299); no support module — zero mocks | 511 | **deleted on branch** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | — | — | — | 1 |
+| `PA-3` | **MERGED** | R1 | test → identity (239) + sync (299); no support module — zero mocks | 511 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#114](https://github.com/Khomurod/SafeHaul/pull/114) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `SO-1` | **MERGED** | R1 | test → 2 suites + support (section `CP-1` below) | 539 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#113](https://github.com/Khomurod/SafeHaul/pull/113) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `SO-2` | NOT STARTED | R2 | `src/features/companies/hooks/useCompanyDashboard.js` (runtime) | 528 | 528 | — | — | — | — | — | — | — | 1 |
 | `RU-1` | **MERGED** | R3 | security test → 4 verbatim suites + `surfaces` strengthening suite + support | 1106 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#107](https://github.com/Khomurod/SafeHaul/pull/107) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
-| `RU-2` | **STOPPED — owner decision requested** | R4 | `src/firestore.rules` — arithmetic cannot reach 500 by permitted means (see RU section) | 693 | 693 (recorded, measured, un-exempt) | — | — | — | — | — | — | — | 1 |
+| `RU-2` | **IN PROGRESS — owner ruled: documented exception** | R4 | measured under a pinned 689 ceiling, out of the backlog (see RU section) | 693 | **689, owner-ruled ceiling** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | — | — | — | 1 |
 | `LD-R1` | **COMPLETE** | R4 | stand up `web/`; blog serves from its own stylesheets | — | — | `claude/safehual-source-size-refactor-j4apre` | #54 | `78a7e4a` | owner ruling | green | `1e399de` | main green | 0 |
 | `LD-R2` | **COMPLETE** | R4 | delete `landing/`, its scripts, tests and workflow steps | 5989 | **0 — deleted** | `claude/safehual-source-size-refactor-j4apre` | #55 | `57fe54f` | owner ruling | green | `78e1577` | main green | **3 ✓** |
 | `LD-R3` | **COMPLETE** | R3 | retire lead capture/Telegram/settings; read-only Website Leads + CSV | — | — | — | #56 | `ec2f6eb` | owner ruling | green | `f7c89d4` | main green | **1 ✓ (`SA-8`)** |
@@ -3635,7 +3637,7 @@ live binding, the reset body) moved to the support.
 
 ## `PA-3` — `applicationDraftStorage.test.js` → two suites, no support module
 
-**Status:** `IN PROGRESS` — on the branch, PR pending · **Risk:** R1 ·
+**Status:** `MERGED` — [#114](https://github.com/Khomurod/SafeHaul/pull/114), 2026-09-01 · **Risk:** R1 ·
 **511 → deleted; identity (239) + sync (299)**
 
 The easiest unit in the campaign, and worth recording *why*: the file has
@@ -3794,7 +3796,7 @@ sanctioned fallback, not a hope.
 
 ## `RU-1` → `RU-2` — Firestore rules
 
-**Status:** `RU-1` `READY` (after `LD-R`) · `RU-2` `BLOCKED` by `RU-1` · **Risk:** R3 → R4
+**Status:** `RU-1` `MERGED` [#107](https://github.com/Khomurod/SafeHaul/pull/107) · `RU-2` **RESOLVED — owner chose option 1 (documented exception), 2026-09-01**; implementation on the branch · **Risk:** R3 → R4
 
 ### Goal
 
@@ -3860,6 +3862,42 @@ STOPPED pending an owner decision. Options for the owner, honestly priced:
 
 Until then the file stays recorded, measured and un-exempt in the backlog,
 and the campaign continues with the signing/driver-app queue.
+
+### Resolution — the owner chose option 1 (2026-09-01)
+
+The three options above were put to the owner in plain language; **the owner
+chose "keep it, write down why"** — the documented exception. Options 2
+(exempting the comments) and 3 (wildcard rewrite behind a funded permission
+matrix) were declined. Recorded in `PLAN.md` § 7.3a.
+
+Implementation, deliberately **measured rather than excluded**:
+
+- `DOCUMENTED_EXCEPTIONS` in `scripts/source-size-scope.mjs` — one entry,
+  `src/firestore.rules`, ceiling **689** (its size on the day of the ruling,
+  four lines tighter than the 693 the backlog recorded), dated, with the full
+  reason in the entry itself.
+- `evaluate` in `scripts/source-size.mjs` enforces: the file must exist under
+  exactly that path, may never exceed its ceiling, must lose the entry if it
+  comes back under 500, may not be backlogged and excepted at once, and a
+  malformed ceiling is refused before anything is compared (the backlog's
+  NaN lesson, applied here on day one). `exceptionShapeProblems` is exported
+  and tested.
+- The default for `evaluate` is NO exceptions — `main` passes the constant, and
+  the wiring fails **closed**: with the entry deleted, the run refuses the file
+  as an ordinary oversized one. Both plants run against the real gate before
+  merging: one appended line → refused over the 689 ceiling; the entry emptied
+  → refused over the 500 maximum. Reverted, `source-size OK.`
+- `test:source-size` §G (13 checks) pins the entry by path/ceiling/date and
+  drives every rule on fixtures; §E gains E8 (the excepted file is still
+  scanned) and E6 now reads "fixed, recorded, or owner-ruled".
+- The backlog entry is removed (6 → 5); `firestore.rules` no longer appears in
+  the campaign ledger because it is no longer unfinished work — it is a ruling.
+- The verdict line now reports all three populations:
+  `N file(s) over 500 lines; M recorded in the backlog; 1 under an owner-ruled ceiling.`
+
+Not one rule in `src/firestore.rules` changed; nobody's access changed. The
+strengthened `RU-1` suites remain the guard against the file changing by any
+other route.
 
 ---
 

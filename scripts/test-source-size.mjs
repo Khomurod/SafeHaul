@@ -15,6 +15,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   BACKLOG_PATH,
+  DOCUMENTED_EXCEPTIONS,
   EXCLUDED,
   HARD_LIMIT,
   ACCOUNTED_FORMATS,
@@ -26,6 +27,7 @@ import {
   classify,
   countLines,
   evaluate,
+  exceptionShapeProblems,
   isExcluded,
   isSourcePath,
   listSourceFiles,
@@ -313,10 +315,17 @@ console.log('\nE. Against the real repository');
   const backlog = existsSync(backlogFile)
     ? JSON.parse(readFileSync(backlogFile, 'utf8')).files || {}
     : {};
+  const excepted = new Set(DOCUMENTED_EXCEPTIONS.map((e) => e.path));
   const over = files.filter((f) => f.lines > HARD_LIMIT).map((f) => f.path);
-  const unrecorded = over.filter((p) => !(p in backlog));
-  assert('E6. every file over the limit is either fixed or recorded',
+  const unrecorded = over.filter((p) => !(p in backlog) && !excepted.has(p));
+  assert('E6. every file over the limit is either fixed, recorded, or owner-ruled',
     unrecorded.length === 0, unrecorded.join(', '));
+
+  // The excepted file is MEASURED — the contrast with E5 is the mechanism's whole
+  // point. An exception that fell out of the scan would be an exclusion in disguise.
+  assert('E8. the owner-ruled exception is still scanned, not excluded',
+    files.some((f) => f.path === 'src/firestore.rules' && Number.isInteger(f.lines)),
+    'src/firestore.rules must appear in measure() output');
 
   assert('E7. the backlog describes why it exists',
     !existsSync(backlogFile) || typeof JSON.parse(readFileSync(backlogFile, 'utf8')).$comment === 'object'
@@ -365,6 +374,106 @@ assert('F6. and every format left out says why it is not source',
   && UNMEASURED_FORMATS.every((f) => f.extension.startsWith('.') && f.reason.length > 40)
   && UNMEASURED_FORMATS.every((f) => !SOURCE_EXTENSIONS.includes(f.extension)),
   'what a coverage claim does NOT look at is the half that goes stale silently');
+
+/* ========================================================================== */
+console.log('\nG. Documented exceptions — an owner ruling, measured, never a blind spot');
+/* ========================================================================== */
+
+/*
+ * The entry is pinned by NAME and by CEILING, the same reasoning as A2 and A6b:
+ * everything else in this section derives from `DOCUMENTED_EXCEPTIONS` itself, so
+ * without this a raised ceiling or a swapped path would keep every rule below
+ * green while changing what the gate permits. Raising 689 must be a deliberate
+ * edit HERE as well as in the scope module, where code review sees both.
+ */
+assert('G1. exactly one exception exists, pinned by path and ceiling',
+  DOCUMENTED_EXCEPTIONS.length === 1
+  && DOCUMENTED_EXCEPTIONS[0].path === 'src/firestore.rules'
+  && DOCUMENTED_EXCEPTIONS[0].maxLines === 689
+  && DOCUMENTED_EXCEPTIONS[0].ruledOn === '2026-09-01',
+  JSON.stringify(DOCUMENTED_EXCEPTIONS.map((e) => [e.path, e.maxLines, e.ruledOn])));
+
+assert('G2. the ruling carries its argument',
+  DOCUMENTED_EXCEPTIONS.every((e) => typeof e.reason === 'string' && e.reason.length > 200
+    && /owner/.test(e.reason)),
+  'an exception without the owner\'s reasoning is an allowlist entry');
+
+assert('G2b. and the real entry passes the shape check it is held to',
+  exceptionShapeProblems(DOCUMENTED_EXCEPTIONS).length === 0,
+  exceptionShapeProblems(DOCUMENTED_EXCEPTIONS).join('; '));
+
+const RULED = Object.freeze([{
+  path: 'src/policy.rules',
+  maxLines: 700,
+  ruledOn: '2026-09-01',
+  reason: 'A fixture ruling long enough to satisfy the shape check, standing in for the '
+    + 'owner-ruled Firestore policy so each verdict below tests exactly one rule.',
+}]);
+
+{
+  const { ok } = evaluate(withRoots(file('src/policy.rules', 700)), {}, RULED);
+  assert('G3. an excepted file at its ceiling passes', ok);
+}
+{
+  const { ok, problems } = evaluate(withRoots(file('src/policy.rules', 701)), {}, RULED);
+  assert('G4. one line over the ceiling fails',
+    !ok && /never growth/.test(problems.join(' ')), problems.join(' '));
+}
+{
+  const { ok, problems } = evaluate(withRoots(file('src/policy.rules', HARD_LIMIT)), {}, RULED);
+  assert('G5. one that came back under the hard limit must lose its exception',
+    !ok && /no longer needs its documented exception/.test(problems.join(' ')),
+    problems.join(' '));
+}
+{
+  const { ok, problems } = evaluate(withRoots(), {}, RULED);
+  assert('G6. an exception for a file that no longer exists fails',
+    !ok && /does not carry its ruling/.test(problems.join(' ')), problems.join(' '));
+}
+{
+  const { ok, problems } = evaluate(
+    withRoots(file('src/policy.rules', 600)), { 'src/policy.rules': 693 }, RULED,
+  );
+  assert('G7. a path in the backlog and the exceptions at once is refused',
+    !ok && /one of the two answers is stale/.test(problems.join(' ')), problems.join(' '));
+}
+{
+  // The D5b bypass, at the exception's own ceiling: a non-number compares as NaN
+  // and every rule above would silently wave the file through.
+  const bad = [{ ...RULED[0], maxLines: 'unbounded' }];
+  const { ok, problems } = evaluate(withRoots(file('src/policy.rules', 9000)), {}, bad);
+  assert('G8. a ceiling that is not a number is refused, not ignored',
+    !ok && /not an integer above/.test(problems.join(' ')),
+    `${problems.join('; ') || 'nothing reported'} — without this a 9000-line file passes clean`);
+}
+{
+  const { ok, problems } = evaluate(
+    withRoots(file('src/policy.rules', 600), file('vendor/src/policy.rules', 600)), {}, RULED,
+  );
+  assert('G9. the ruling covers the whole path, never a suffix',
+    !ok && problems.some((p) => p.startsWith('vendor/src/policy.rules')
+      && /over the 500-line maximum/.test(p)),
+    problems.join(' '));
+}
+{
+  const twice = [RULED[0], { ...RULED[0], maxLines: 800 }];
+  const { ok, problems } = evaluate(withRoots(file('src/policy.rules', 600)), {}, twice);
+  assert('G10. two rulings for one path are refused — two ceilings is no ceiling',
+    !ok && /two documented exceptions/.test(problems.join(' ')), problems.join(' '));
+}
+{
+  const undated = [{ ...RULED[0], ruledOn: undefined }];
+  const { ok, problems } = evaluate(withRoots(file('src/policy.rules', 600)), {}, undated);
+  assert('G11. an undated ruling is refused',
+    !ok && /does not date its ruling/.test(problems.join(' ')), problems.join(' '));
+}
+{
+  // The default is NONE: a fixture that names no exceptions gets no ceiling from
+  // the real repository's ruling leaking in through a default parameter.
+  const { ok } = evaluate(withRoots(file('src/firestore.rules', 9000)), {});
+  assert('G12. no exception applies unless the caller passes it',
+    !ok, 'the real ruling must not leak into evaluate through a default');
+}
 
 console.log(failures === 0
   ? '\nAll source-size checks passed.'
