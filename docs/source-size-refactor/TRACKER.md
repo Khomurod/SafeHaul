@@ -15,13 +15,13 @@ it currently is*.
 
 | | |
 |---|---|
-| **Last updated** | 2026-09-01, `SG-1` merged as #108 (with the `RU-2` stop record); `SG-2` (`EnvelopeCreator.editor.test.jsx` → 3 suites + support) on the branch |
-| **Verified main SHA** | `47c1d60f4145a984e33ea022794765e8b325f74f` (#108 / `SG-1` merged) |
-| **Oversized files** | **12 on `main`, 11 on this branch** (was 68 when the tracker opened) |
-| **Backlog entries** | **12 on `main`, 11 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
-| **Active work item** | `SG-2` — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
+| **Last updated** | 2026-09-01, `SG-2` merged as #109 (with the EditUserBodies CI-headroom fix); `SG-3` (`EnvelopeCreator.aiAssistant.test.jsx` → 2 suites + support) on the branch |
+| **Verified main SHA** | `6f1d63299e7e675c3d2f365b17369cde9135093f` (#109 / `SG-2` merged) |
+| **Oversized files** | **11 on `main`, 10 on this branch** (was 68 when the tracker opened) |
+| **Backlog entries** | **11 on `main`, 10 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
+| **Active work item** | `SG-3` — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | none open yet for `SG-2`. [#108](https://github.com/Khomurod/SafeHaul/pull/108) and everything before it merged; #50 closed. |
+| **Active PR** | none open yet for `SG-3`. [#109](https://github.com/Khomurod/SafeHaul/pull/109) and everything before it merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
 | **CI status** | #61, #62 and #63 all merged fully green, first try. The only red round in this stretch was #60's `frontend-quality` — a **race in a test `LD-R3` wrote**, reproduced and fixed, see the interlude below. A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
@@ -30,8 +30,8 @@ it currently is*.
 
 ### Exact next action
 
-1. **Push and open the `SG-2` PR**, then merge it when green.
-2. **Nothing is pre-built behind `SG-2`.** The stacking deviation recorded below
+1. **Push and open the `SG-3` PR**, then merge it when green.
+2. **Nothing is pre-built behind `SG-3`.** The stacking deviation recorded below
    is fully unwound once it merges.
    **Their sections below were published with `FT-10`, deliberately ahead of their
    code.** The reason is worth keeping: for several units the "rebuild it from the
@@ -55,13 +55,12 @@ it currently is*.
    **If those local branches are gone** (a fresh container), the work is not lost:
    rebuild each from its `FR-*` section below, which is written as a recipe.
 3. **`RU-2` stays STOPPED pending an owner decision** (see the RU
-   section). **The drain continues**: after `SG-2`, the remaining test
-   splits (`aiAssistant.test` 540, `useAiFieldAssistant.test` 534,
-   `ResizableDraggableField.test` 502, `LaunchPad.test` 539,
-   `applicationDraftStorage.test` 511), the runtime hooks/views
-   (`useCompanyDashboard.js` 528, `SigningRoom.jsx` 652), and the giants
-   (`EnvelopeCreator.jsx` 1363, `PublicApplyHandler.jsx` 1476 + its
-   2203-line contract test),
+   section). **The drain continues**: after `SG-3`, the remaining test
+   splits (`useAiFieldAssistant.test` 534, `ResizableDraggableField.test`
+   502, `LaunchPad.test` 539, `applicationDraftStorage.test` 511), the
+   runtime hooks/views (`useCompanyDashboard.js` 528, `SigningRoom.jsx`
+   652), and the giants (`EnvelopeCreator.jsx` 1363,
+   `PublicApplyHandler.jsx` 1476 + its 2203-line contract test),
    then `RU-1` → `RU-2` (Firestore rules) under the owner's ruling in
    `PLAN.md` § 7.3.
 
@@ -3515,6 +3514,45 @@ preview dialog), each verbatim — the fixtures and helpers, `makeSetup` and
 | `check:ui-contract` | 502 files, 236 known across 43 files, none new |
 | every original line | accounted for — wrapper/registration transforms only |
 | `check:source-size` | **11 recorded**, verdict `OK` |
+| root `npm run lint` | pass |
+
+---
+
+## `SG-3` — `EnvelopeCreator.aiAssistant.test.jsx` → two suites plus a support module
+
+**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R1 ·
+**540 → deleted; scan (185) + apply (272) + support (174)**
+
+The vitest support recipe on the AI Field Assistant test: 25 tests over five
+describes, split into the scan half (launcher, scan dialog, review rail; 13)
+and the apply half (applying suggestions, manual-field preservation,
+one-level undo, the never-saves-automatically guarantee; 12). The support
+carries ten factory bodies verbatim — including the STATEFUL `uuid` mock
+(its counter lives inside the factory, so it still resets per suite exactly
+as it reset per file), the `importOriginal`-passing `pdfFieldInspector`
+factory, and the two component doubles with their out-of-scope rationale
+comments (restored after the multiset diff flagged them).
+
+### Interlude on the way here — the `EditUserBodies` CI red on #109
+
+`frontend-quality` failed once in a file this PR did not touch:
+`EditUserBodies.contract.test.jsx`, "loads memberships…". NOT the
+documented Once-queue leak (that file already uses `resetAllMocks`); the
+membership load was already confirmed by `waitFor`, and the FIRST PAINT
+after the promise resolved lost a 1 s default `findBy` timeout to a loaded
+runner. Fixed family-wide: all four initial-load assertions in that describe
+now carry a 5 s timeout with the rationale in place. 3/3 local runs, then CI
+green. **Third instance of the load-race class** (after `WebsiteLeadsView`
+and `CreateView`) — but a new shape: not a missing wait, a too-thin timeout
+on an assertion that already waited correctly.
+
+| Check | Result |
+|---|---|
+| 25 tests across the two suites | **set-identical**, all green |
+| all signing suites | 679/679 (33 files) |
+| `check:ui-contract` | 503 files, 236 known across 43 files, none new |
+| every original line | accounted for — wrapper transforms; two comment blocks restored |
+| `check:source-size` | **10 recorded**, verdict `OK` |
 | root `npm run lint` | pass |
 
 ---
