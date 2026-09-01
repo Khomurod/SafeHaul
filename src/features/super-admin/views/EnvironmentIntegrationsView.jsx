@@ -1,9 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
     AlertTriangle,
-    Building2,
     CheckCircle2,
-    Globe,
     KeyRound,
     RefreshCw,
     ShieldCheck,
@@ -34,11 +32,17 @@ import {
     testManagedIntegration,
     updateEnvironmentValue,
 } from '../services/environmentVault';
-import { EnvironmentActions, EnvironmentPermissionSummary } from '../components/environment/EnvironmentActions';
 import { EnvironmentDeleteDialog } from '../components/environment/EnvironmentDeleteDialog';
-import { EnvironmentValueCell } from '../components/environment/EnvironmentValueCell';
 import { EnvironmentValueModal } from '../components/environment/EnvironmentValueModal';
 import { ReauthenticateModal } from '../components/environment/ReauthenticateModal';
+import { buildEnvironmentColumns } from '../components/environment/environmentColumns';
+import {
+    SOURCE_LABELS,
+    CATEGORY_LABELS,
+    ACTION_LABELS,
+    label,
+    formatTimestamp,
+} from '../components/environment/environmentPresentation';
 
 /**
  * Super Admin "Environment & Integrations" — the complete inventory of every
@@ -64,55 +68,6 @@ import { ReauthenticateModal } from '../components/environment/ReauthenticateMod
  * view uses the same `<h2>` + description composition the other views use.
  */
 
-const STATUS_PRESENTATION = {
-    configured: { tone: 'success', label: 'Configured', icon: CheckCircle2 },
-    missing: { tone: 'danger', label: 'Missing', icon: AlertTriangle },
-    unknown: { tone: 'neutral', label: 'Not retrievable', icon: ShieldCheck },
-};
-
-const SOURCE_LABELS = {
-    'vite-build': 'Browser build',
-    'functions-env': 'Cloud Functions env',
-    'secret-manager': 'Secret Manager',
-    'github-actions-secret': 'GitHub Actions secret',
-    'github-actions-variable': 'Workflow variable',
-    'firebase-runtime': 'Firebase runtime',
-    'repo-config': 'Repository config',
-    'firestore-encrypted': 'Firestore (encrypted)',
-    'firestore-plaintext': 'Firestore',
-    'local-tooling': 'Deployment tooling',
-};
-
-const CATEGORY_LABELS = {
-    'browser-build': 'Browser & build',
-    'functions-env': 'Cloud Functions',
-    'secret-manager': 'Secret Manager',
-    'github-actions': 'GitHub Actions',
-    'firebase-config': 'Firebase configuration',
-    'global-integration': 'Global integrations',
-    'company-integration': 'Company integrations',
-    'infrastructure-security': 'Infrastructure & security',
-    'public-config': 'Public configuration',
-    'deployment-operations': 'Deployment & operations',
-};
-
-const ACTION_LABELS = {
-    list: 'Listed the inventory',
-    reveal: 'Revealed a value',
-    update: 'Replaced a value',
-    add: 'Added a value',
-    delete: 'Deleted a value',
-    test: 'Tested an integration',
-};
-
-const label = (map, value) => map[value] || value;
-
-function formatTimestamp(millis) {
-    if (!millis) return '—';
-    return new Date(millis).toLocaleString('en-US', {
-        year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
-    });
-}
 
 export function EnvironmentIntegrationsView() {
     const { showSuccess, showError, showInfo } = useToast();
@@ -234,111 +189,10 @@ export function EnvironmentIntegrationsView() {
         }
     }, [deleteTarget, inventory, runGuarded, showSuccess]);
 
-    const columns = useMemo(() => [
-        {
-            key: 'key',
-            header: 'Key',
-            rowHeader: true,
-            priority: 'primary',
-            width: 'lg',
-            render: (row) => (
-                <div className="min-w-0">
-                    <span className="block break-all font-mono text-ds-sm font-semibold text-ds-content">{row.key}</span>
-                    <span className="block text-ds-sm text-ds-content-secondary">{row.displayName}</span>
-                </div>
-            ),
-        },
-        {
-            key: 'integration',
-            header: 'Integration',
-            width: 'md',
-            truncate: true,
-            render: (row) => row.integration,
-        },
-        {
-            key: 'scope',
-            header: 'Scope',
-            width: 'sm',
-            priority: 'tertiary',
-            render: (row) => (
-                <span className="flex items-center gap-ds-1 text-ds-sm">
-                    {row.scope === 'company'
-                        ? <Building2 size={14} aria-hidden="true" />
-                        : <Globe size={14} aria-hidden="true" />}
-                    {row.scope === 'company' ? (row.companyName || row.companyId) : 'Global'}
-                </span>
-            ),
-        },
-        {
-            key: 'source',
-            header: 'Source',
-            width: 'md',
-            priority: 'tertiary',
-            render: (row) => label(SOURCE_LABELS, row.source),
-        },
-        {
-            key: 'status',
-            header: 'Status',
-            // `lg`, not `sm`: a configured entry that also needs a deployment
-            // stacks two badges, which need 157px together. At 120px they spilled
-            // over the next column on mobile.
-            width: 'lg',
-            render: (row) => {
-                const presentation = STATUS_PRESENTATION[row.status] || STATUS_PRESENTATION.unknown;
-                return (
-                    <span className="flex flex-col items-start gap-ds-1">
-                        <Badge tone={presentation.tone} icon={presentation.icon}>{presentation.label}</Badge>
-                        {row.requiresDeployment && <Badge tone="warning" icon={UploadCloud}>Needs deployment</Badge>}
-                    </span>
-                );
-            },
-        },
-        {
-            key: 'value',
-            header: 'Value',
-            width: 'lg',
-            render: (row) => (
-                <EnvironmentValueCell
-                    entry={row}
-                    isRevealed={revealed.revealedId === row.id}
-                    isPending={revealed.pendingId === row.id}
-                    revealedValue={revealed.revealedValue}
-                    unavailableReason={revealed.unavailableReason}
-                    secondsRemaining={revealed.secondsRemaining}
-                    onToggle={revealed.reveal}
-                />
-            ),
-        },
-        {
-            key: 'permissions',
-            header: 'Permissions',
-            width: 'md',
-            priority: 'tertiary',
-            render: (row) => <EnvironmentPermissionSummary entry={row} />,
-        },
-        {
-            key: 'lastUpdated',
-            header: 'Last updated',
-            width: 'md',
-            priority: 'tertiary',
-            render: (row) => (
-                <span className="text-ds-sm text-ds-content-secondary">
-                    {formatTimestamp(row.lastUpdated)}
-                    {row.updatedBy && <span className="block text-ds-sm text-ds-content-muted">by {row.updatedBy}</span>}
-                </span>
-            ),
-        },
-        {
-            key: 'actions',
-            header: '',
-            headerLabel: 'Actions',
-            align: 'end',
-            width: 'actions',
-            priority: 'actions',
-            stopPropagation: true,
-            render: (row) => <EnvironmentActions entry={row} onAction={handleAction} />,
-        },
-    ], [handleAction, revealed]);
+    const columns = useMemo(() => buildEnvironmentColumns({
+        handleAction,
+        revealed,
+    }), [handleAction, revealed]);
 
     const { summary, options, filters, setFilter } = inventory;
 
