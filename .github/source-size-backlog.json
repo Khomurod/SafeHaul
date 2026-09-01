@@ -28,7 +28,5 @@
     "warn": 400,
     "hard": 500
   },
-  "files": {
-    "src/features/driver-app/components/application/PublicApplyHandler.contract.test.jsx": 2203
-  }
+  "files": {}
 }
