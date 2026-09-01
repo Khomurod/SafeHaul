@@ -15,13 +15,13 @@ it currently is*.
 
 | | |
 |---|---|
-| **Last updated** | 2026-09-01, `T-3` merged as #104; `T-4` (`deploy-functions-incremental.mjs` → entry + resolve module) on the branch |
-| **Verified main SHA** | `edecf5f1c904794d48aca2ad8fbe4f14d7ea73c8` (#104 / `T-3` merged) |
-| **Oversized files** | **16 on `main`, 15 on this branch** (was 68 when the tracker opened) |
-| **Backlog entries** | **16 on `main`, 15 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
-| **Active work item** | `T-4` — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
+| **Last updated** | 2026-09-01, `T-4` merged as #105; `T-5` (`ci-plan.mjs` → entry + rules module) on the branch — the last `T-*` unit |
+| **Verified main SHA** | `d5a499125e3659b5633c13a0d1d391dabf85e6b6` (#105 / `T-4` merged) |
+| **Oversized files** | **15 on `main`, 14 on this branch** (was 68 when the tracker opened) |
+| **Backlog entries** | **15 on `main`, 14 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
+| **Active work item** | `T-5` — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | none open yet for `T-4`. [#104](https://github.com/Khomurod/SafeHaul/pull/104) and everything before it merged; #50 closed. |
+| **Active PR** | none open yet for `T-5`. [#105](https://github.com/Khomurod/SafeHaul/pull/105) and everything before it merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
 | **CI status** | #61, #62 and #63 all merged fully green, first try. The only red round in this stretch was #60's `frontend-quality` — a **race in a test `LD-R3` wrote**, reproduced and fixed, see the interlude below. A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
@@ -30,8 +30,8 @@ it currently is*.
 
 ### Exact next action
 
-1. **Push and open the `T-4` PR**, then merge it when green.
-2. **Nothing is pre-built behind `T-4`.** The stacking deviation recorded below
+1. **Push and open the `T-5` PR**, then merge it when green.
+2. **Nothing is pre-built behind `T-5`.** The stacking deviation recorded below
    is fully unwound once it merges.
    **Their sections below were published with `FT-10`, deliberately ahead of their
    code.** The reason is worth keeping: for several units the "rebuild it from the
@@ -54,10 +54,13 @@ it currently is*.
    conflicts.
    **If those local branches are gone** (a fresh container), the work is not lost:
    rebuild each from its `FR-*` section below, which is written as a recipe.
-3. **After `T-4`: `T-5`** (`scripts/ci-plan.mjs`, 523 — the CI planner
-   itself, R4, extra care: byte-identical plan output over several event
-   shapes before anything else), then `RU-1` → `RU-2` per the owner's
-   ruling,
+3. **After `T-5`: the remaining files are the four giants and the rules
+   pair** — `RU-1` → `RU-2` (`src/tests/firestore.rules.security.test.js`
+   1106, then `src/firestore.rules` 693) under the owner's ruling in
+   `PLAN.md` § 7.3 (no build step; strengthen/split the security tests
+   first; stop and ask if unsafe), and the signing + driver-app series
+   (`EnvelopeCreator.jsx` 1363, `PublicApplyHandler` 1476 + its 2203-line
+   test, `SigningRoom.jsx` 652, and the remaining test splits),
    then `RU-1` → `RU-2` (Firestore rules) under the owner's ruling in
    `PLAN.md` § 7.3.
 
@@ -126,8 +129,8 @@ use `—` until it exists.**
 | `T-1` | **COMPLETE** | R4 | `scripts/test-ci-plan.mjs` → entry + 7 sections + support | 1223 | **62** | — | #57 | `32673f5` | — | green | `9e7e24d` | main green | **1 ✓** |
 | `T-2` | **COMPLETE** | R2 | `scripts/check-ui-contract.mjs` → entry + 6 modules | 1030 | **306** | — | #58 | `b1452ec` | — | green | `77be09c` | main green | **1 ✓** |
 | `T-3` | **MERGED** | R3 | gate test → entry + 5 modules | 584 | **58** | `claude/safehual-source-size-refactor-j4apre` | [#104](https://github.com/Khomurod/SafeHaul/pull/104) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
-| `T-4` | **IN PROGRESS** | R3 | deploy script → entry + resolve module | 525 | **281** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
-| `T-5` | NOT STARTED | R4 | `scripts/ci-plan.mjs` (tooling) | 523 | 523 | — | — | — | — | — | — | — | 1 |
+| `T-4` | **MERGED** | R3 | deploy script → entry + resolve module | 525 | **281** | `claude/safehual-source-size-refactor-j4apre` | [#105](https://github.com/Khomurod/SafeHaul/pull/105) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
+| `T-5` | **IN PROGRESS** | R4 | CI planner → entry + rules module | 523 | **240** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
 | `FT-1` | **MERGED** | R1 | `blogPipeline.test.js` → 6 suites + support | 1496 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#59](https://github.com/Khomurod/SafeHaul/pull/59) | — | — | local green | — | — | **1 ✓** |
 | `FT-2` | **MERGED** | R1 | `applicationDrafts.test.js` → 6 suites + support | 1476 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#60](https://github.com/Khomurod/SafeHaul/pull/60) | — | — | local green | — | — | **1 ✓** |
 | `FT-3` | **MERGED** | R1 | `aiRouter.test.js` → 4 suites + support | 1203 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#61](https://github.com/Khomurod/SafeHaul/pull/61) | — | — | local green | — | — | **1 ✓** |
@@ -3321,7 +3324,7 @@ first run showed scenario 7d uses it too, not just section 16.
 
 ## `T-4` — `scripts/deploy-functions-incremental.mjs` → entry plus the resolve module
 
-**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R3
+**Status:** `MERGED` — [#105](https://github.com/Khomurod/SafeHaul/pull/105), 2026-09-01 · **Risk:** R3
 (do-not-weaken: this is the deployment logic itself) ·
 **525 → 281 entry, plus `deploy-functions-resolve.mjs` (271)**
 
@@ -3353,6 +3356,46 @@ gate, and re-exports the eight test names from the module so
 | `check:ci-plan` | all checks passed |
 | every original line | accounted for — export-keyword transforms only |
 | `check:source-size` | **15 recorded**, verdict `OK` |
+| root `npm run lint` | pass |
+
+---
+
+## `T-5` — `scripts/ci-plan.mjs` → entry plus the rules module
+
+**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R4
+(the CI planner itself: its output decides which lanes run) ·
+**523 → 240 entry, plus `ci-plan-rules.mjs` (308) — the last `T-*` unit**
+
+The pure half — the frozen `LANES`/`ALWAYS_REQUIRED_JOBS` tables, the
+cross-cutting/doc path classes, `lanesForPath`, `selectLanes`, and the
+attestation naming/validation/reading — moved verbatim (zero missing lines
+in the multiset) into the flat sibling `ci-plan-rules.mjs`. The entry keeps
+its path, `main()`, the git/event glue and the GitHub API client, and
+re-exports the full surface so every existing importer
+(`test-source-size-ci.mjs`, `verify-release-validation.mjs`, the `ci-plan/`
+test modules) keeps its import path.
+
+### Proofs
+
+- **Characterization dump byte-identical**: `{tables, lanesForPath over a
+  ~1,000-path corpus (every 7th tracked file plus synthetic edge paths),
+  six selectLanes scenarios, attestation fixtures}` — `cmp` clean.
+- **`check:ci-plan` output byte-identical**, exit 0.
+- **Plant**: adding `src/` to `DOC_PREFIXES` in the module — exactly the
+  class of weakening this planner must refuse, since it would let source
+  changes skip every lane — failed `check:ci-plan` with 11 failures.
+  Restored; all baselines byte-identical again.
+- The whole gate battery re-run green after the split:
+  `check:ci-plan` · `check:release-scripts` · `check:deploy-script` ·
+  `test:source-size` · `check:source-size`.
+
+| Check | Result |
+|---|---|
+| characterization dump vs pre-split | **byte-identical** (`cmp`) |
+| `check:ci-plan` | **byte-identical output**, exit 0; plant caught (11 failures) |
+| every original line | accounted for — **0 missing** |
+| gate battery (release, deploy, source-size) | all green |
+| `check:source-size` | **14 recorded**, verdict `OK` |
 | root `npm run lint` | pass |
 
 ---
