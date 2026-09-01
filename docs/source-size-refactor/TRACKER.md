@@ -15,13 +15,13 @@ it currently is*.
 
 | | |
 |---|---|
-| **Last updated** | 2026-09-01, `CA-3` merged as #93; `CA-4` (`VOEPreviewModal.jsx` → chrome + document) on the branch |
-| **Verified main SHA** | `737f21a96f7a2291559bd33876b05407e9dd2ec9` (#93 / `CA-3` merged) |
-| **Oversized files** | **27 on `main`, 26 on this branch** (was 68 when the tracker opened) |
-| **Backlog entries** | **27 on `main`, 26 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
-| **Active work item** | `CA-4` — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
+| **Last updated** | 2026-09-01, `CA-4` merged as #94; `CA-5` (`VOEPreviewModal.contract.test.jsx` → 3 suites + support) on the branch |
+| **Verified main SHA** | `2d3af8c9c160b91831c0365661482ef363fac1db` (#94 / `CA-4` merged) |
+| **Oversized files** | **26 on `main`, 25 on this branch** (was 68 when the tracker opened) |
+| **Backlog entries** | **26 on `main`, 25 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
+| **Active work item** | `CA-5` — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | none open yet for `CA-4`. [#93](https://github.com/Khomurod/SafeHaul/pull/93) and everything before it merged; #50 closed. |
+| **Active PR** | none open yet for `CA-5`. [#94](https://github.com/Khomurod/SafeHaul/pull/94) and everything before it merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
 | **CI status** | #61, #62 and #63 all merged fully green, first try. The only red round in this stretch was #60's `frontend-quality` — a **race in a test `LD-R3` wrote**, reproduced and fixed, see the interlude below. A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
@@ -30,8 +30,8 @@ it currently is*.
 
 ### Exact next action
 
-1. **Push and open the `CA-4` PR**, then merge it when green.
-2. **Nothing is pre-built behind `CA-4`.** The stacking deviation recorded below
+1. **Push and open the `CA-5` PR**, then merge it when green.
+2. **Nothing is pre-built behind `CA-5`.** The stacking deviation recorded below
    is fully unwound once it merges.
    **Their sections below were published with `FT-10`, deliberately ahead of their
    code.** The reason is worth keeping: for several units the "rebuild it from the
@@ -54,9 +54,9 @@ it currently is*.
    conflicts.
    **If those local branches are gone** (a fresh container), the work is not lost:
    rebuild each from its `FR-*` section below, which is written as a recipe.
-3. **After `CA-4`: the rest of the `CA-*` series** (next `CA-5`,
-   `VOEPreviewModal.contract.test.jsx`, 751 — the `SA-2`/`CA-3` vitest
-   support recipe), the `T-*` tooling units,
+3. **After `CA-5`: the rest of the `CA-*` series** (next `CA-6`,
+   `DossierBodies.contract.test.jsx`, 667 — the same vitest support
+   recipe), the `T-*` tooling units,
    then `RU-1` → `RU-2` (Firestore rules) under the owner's ruling in
    `PLAN.md` § 7.3.
 
@@ -163,8 +163,8 @@ use `—` until it exists.**
 | `CA-1` | **MERGED** | R2 | tab → 321 + the seven cards | 752 | **321** | `claude/safehual-source-size-refactor-j4apre` | [#91](https://github.com/Khomurod/SafeHaul/pull/91) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `CA-2` | **MERGED** | R2 | view → 482 + two feature hooks | 735 | **482** | `claude/safehual-source-size-refactor-j4apre` | [#92](https://github.com/Khomurod/SafeHaul/pull/92) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `CA-3` | **MERGED** | R1 | test → 3 suites + support | 576 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#93](https://github.com/Khomurod/SafeHaul/pull/93) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
-| `CA-4` | **IN PROGRESS** | R2 | modal chrome → 395 + document | 634 | **395** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
-| `CA-5` | NOT STARTED | R1 | `src/features/company-admin/components/modals/VOEPreviewModal.contract.test.jsx` (test) | 751 | 751 | — | — | — | — | — | — | — | 1 |
+| `CA-4` | **MERGED** | R2 | modal chrome → 395 + document | 634 | **395** | `claude/safehual-source-size-refactor-j4apre` | [#94](https://github.com/Khomurod/SafeHaul/pull/94) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
+| `CA-5` | **IN PROGRESS** | R1 | contract test → 3 suites + support | 751 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
 | `CA-6` | NOT STARTED | R2 | `src/features/company-admin/components/tabs/PEVTab.jsx` (runtime) | 629 | 629 | — | — | — | — | — | — | — | 1 |
 | `CA-7` | NOT STARTED | R1 | `src/features/company-admin/components/tabs/PEVTab.contract.test.jsx` (test) | 547 | 547 | — | — | — | — | — | — | — | 1 |
 | `CA-8` | NOT STARTED | R2 | `src/features/company-admin/views/CompanyCandidatesListPage.jsx` (runtime) | 607 | 607 | — | — | — | — | — | — | — | 1 |
@@ -2910,7 +2910,7 @@ verbatim. The 41 tests split by describe block:
 
 ## `CA-4` — `modals/VOEPreviewModal.jsx` → the chrome, plus the generated document
 
-**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R2 ·
+**Status:** `MERGED` — [#94](https://github.com/Khomurod/SafeHaul/pull/94), 2026-09-01 · **Risk:** R2 ·
 **634 → 395, plus `VOEDocument.jsx` (273)**
 
 One seam, and it was already documented in the file's own header: the app
@@ -2949,6 +2949,46 @@ signature partition) stay in the modal so no computation changed lifetime.
 | JSX component-import audit | none missing |
 | `check:source-size` | **26 recorded**, verdict `OK` |
 | root `npm run lint` | pass |
+
+---
+
+## `CA-5` — `VOEPreviewModal.contract.test.jsx` → three suites plus a support module
+
+**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R1 ·
+**751 → deleted; document (261) + pdf (124) + print (369) + support (108)**
+
+The `SA-2`/`CA-3` support-module recipe again. The 51 tests split at describe
+boundaries: the generated document's content contracts (missing data, legal
+text, field values, SSN masking, signature rules, audit id — orig 91–320),
+the PDF export plus the onClose/onSend callbacks (321–377 + 717–751), and
+the print pipeline with its escaping rules and its 20-line rebuild rationale
+comment (379–716, the comment cut WITH the print suite it introduces). The
+support module exports the four mock-state objects, the four factory bodies,
+the fixtures, `makeRenderModal(VOEPreviewModal)` and `resetHarness`.
+
+### Notes
+
+- The `CA-3` deadlock rule is load-bearing here too and is stated in the
+  support header: the support module imports none of the four mocked modules
+  (`DataContext`, `sanitizeUserContent`, `html2canvas`, `jspdf`).
+- The `sanitizeUserContent` factory REASSIGNS `sanitizeSpy.fn` around the
+  real implementation — the spy lives in the support module as a mutable
+  object so the assignment lands where the suites read it, exactly as the
+  original's hoisted object did.
+- Three unused `no-script-url` directive warnings pre-exist on the original
+  and moved verbatim with their print-escaping tests.
+- Suite names avoid `VOEPreviewModal.export.test.jsx`, which already exists
+  and is a different file (the ds-boundary proof) — the new suites are
+  `.document.` / `.pdf.` / `.print.`.
+
+| Check | Result |
+|---|---|
+| 51 tests across the three suites | **set-identical** to the pre-split baseline, all green |
+| all company-admin suites | 707/707 (41 files) |
+| `check:ui-contract` | 491 files, 235 known across 41 files, none new |
+| every original line | accounted for — 17 wrapper/registration transforms, bodies intact |
+| `check:source-size` | **25 recorded**, verdict `OK` |
+| root `npm run lint` | pass (the three moved pre-existing directive warnings only) |
 
 ---
 
