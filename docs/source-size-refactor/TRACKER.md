@@ -15,13 +15,13 @@ it currently is*.
 
 | | |
 |---|---|
-| **Last updated** | 2026-09-01, `SA-6` merged as #88; `SA-7` on the branch |
-| **Verified main SHA** | `0e49192dd934e47d205bc0eda426920e3c22774c` (#88 / `SA-6` merged) |
-| **Oversized files** | **32 on `main`, 31 on this branch** (was 68 when the tracker opened) |
-| **Backlog entries** | **32 on `main`, 31 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
-| **Active work item** | `SA-7` — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
+| **Last updated** | 2026-09-01, `SA-7` merged as #89; `SA-9` on the branch — the `SA-*` series ends here |
+| **Verified main SHA** | `6de3df5e823cac71c31a539b6cf001f1eef262c5` (#89 / `SA-7` merged) |
+| **Oversized files** | **31 on `main`, 30 on this branch** (was 68 when the tracker opened) |
+| **Backlog entries** | **31 on `main`, 30 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
+| **Active work item** | `SA-9` — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | none open yet for `SA-7`. [#88](https://github.com/Khomurod/SafeHaul/pull/88) and everything before it merged; #50 closed. |
+| **Active PR** | none open yet for `SA-9`. [#89](https://github.com/Khomurod/SafeHaul/pull/89) and everything before it merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
 | **CI status** | #61, #62 and #63 all merged fully green, first try. The only red round in this stretch was #60's `frontend-quality` — a **race in a test `LD-R3` wrote**, reproduced and fixed, see the interlude below. A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
@@ -30,8 +30,8 @@ it currently is*.
 
 ### Exact next action
 
-1. **Push and open the `SA-7` PR**, then merge it when green.
-2. **Nothing is pre-built behind `SA-7`.** The stacking deviation recorded below
+1. **Push and open the `SA-9` PR**, then merge it when green.
+2. **Nothing is pre-built behind `SA-9`.** The stacking deviation recorded below
    is fully unwound once it merges.
    **Their sections below were published with `FT-10`, deliberately ahead of their
    code.** The reason is worth keeping: for several units the "rebuild it from the
@@ -54,9 +54,10 @@ it currently is*.
    conflicts.
    **If those local branches are gone** (a fresh container), the work is not lost:
    rebuild each from its `FR-*` section below, which is written as a recipe.
-3. **After `SA-7`: `SA-9`** (`BlogPostsView.contract.test.jsx`, 570), the
-   `CA-*` and `T-*` units, then
-   `RU-1` → `RU-2` (Firestore rules) under the owner's ruling in `PLAN.md` § 7.3.
+3. **After `SA-9`: the `CA-*` series** (starting `CA-1`,
+   `driver-dossier/tabs/ApplicationTab.jsx`, 752), the `T-*` tooling units,
+   then `RU-1` → `RU-2` (Firestore rules) under the owner's ruling in
+   `PLAN.md` § 7.3.
 
 **Four process rules learned the hard way in this session, all worth keeping:**
 
@@ -155,9 +156,9 @@ use `—` until it exists.**
 | `SA-4` | **MERGED** | R2 | hook → 242 runner + 388-line steps module | 603 | **242** | `claude/safehual-source-size-refactor-j4apre` | [#86](https://github.com/Khomurod/SafeHaul/pull/86) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `SA-5` | **MERGED** | R2 | view → 305 + the two forms | 573 | **305** | `claude/safehual-source-size-refactor-j4apre` | [#87](https://github.com/Khomurod/SafeHaul/pull/87) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `SA-6` | **MERGED** | R2 | view → 417 + presentation + columns | 563 | **417** | `claude/safehual-source-size-refactor-j4apre` | [#88](https://github.com/Khomurod/SafeHaul/pull/88) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
-| `SA-7` | **IN PROGRESS** | R1 | contract test → 3 suites + support | 709 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
+| `SA-7` | **MERGED** | R1 | contract test → 3 suites + support | 709 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#89](https://github.com/Khomurod/SafeHaul/pull/89) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `SA-8` | **COMPLETE** (replaced by `LD-R3`) | R2 | `LandingPageSettingsView.jsx` → `WebsiteLeadsView.jsx` | 536 | **231** | — | — | — | — | — | — | — | 1 ✓ |
-| `SA-9` | NOT STARTED | R1 | `src/features/super-admin/views/BlogPostsView.contract.test.jsx` (test) | 570 | 570 | — | — | — | — | — | — | — | 1 |
+| `SA-9` | **IN PROGRESS** | R1 | contract test → 3 suites + support | 570 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
 | `CA-1` | NOT STARTED | R2 | `src/features/company-admin/components/modals/driver-dossier/tabs/ApplicationTab.jsx` (runtime) | 752 | 752 | — | — | — | — | — | — | — | 1 |
 | `CA-2` | NOT STARTED | R2 | `src/features/company-admin/views/DocumentsManager.jsx` (runtime) | 735 | 735 | — | — | — | — | — | — | — | 1 |
 | `CA-3` | NOT STARTED | R1 | `src/features/company-admin/views/DocumentsManager.test.jsx` (test) | 576 | 576 | — | — | — | — | — | — | — | 1 |
@@ -2702,7 +2703,7 @@ records stays where it was.
 
 ## `SA-7` — `EnvironmentIntegrationsView.contract.test.jsx` → 3 suites + support
 
-**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R1 ·
+**Status:** `MERGED` — [#89](https://github.com/Khomurod/SafeHaul/pull/89), main `6de3df5` · **Risk:** R1 ·
 **709 → deleted; 3 suites of 147–293 plus a 227-line support module**
 
 The `SA-2` vitest recipe, applied to the vault screen's contract test right
@@ -2733,6 +2734,30 @@ visible when something after it misbehaves.
 | all super-admin suites | 559/559 |
 | eslint (four files) | clean (the scoped harness disable, reasoned) |
 | `check:source-size` | **31 recorded**, verdict `OK` |
+| root `npm run lint` · `check:ci-plan` | pass |
+
+---
+
+## `SA-9` — `BlogPostsView.contract.test.jsx` → 3 suites + support
+
+**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R1 ·
+**570 → deleted; 3 suites of 151–210 plus a 183-line support module — the last `SA-*` unit**
+
+The `SA-2`/`SA-7` vitest recipe, uneventfully this time: every recorded
+lesson applied up front (the first range checked to end outside its comment,
+the component-import audit run per suite, `renderView` lazily importing the
+view) and nothing new went wrong. Suites: listing + removed articles +
+viewing a published article; deletion + the recent-authentication guard; the
+manual publication check + the publication run ledger.
+
+- 35 covering tests set-identical; all 559 super-admin tests green.
+
+| Check | Result |
+|---|---|
+| 35 covering tests | **set-identical**, all green |
+| all super-admin suites | 559/559 |
+| eslint (four files) | clean (the scoped harness disable, reasoned) |
+| `check:source-size` | **30 recorded**, verdict `OK` |
 | root `npm run lint` · `check:ci-plan` | pass |
 
 ---
