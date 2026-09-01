@@ -15,13 +15,13 @@ it currently is*.
 
 | | |
 |---|---|
-| **Last updated** | 2026-08-31, `SA-1` merged as #84; `SA-3` on the branch |
-| **Verified main SHA** | `4108a91a169c863292046e2cff65234f88ce729d` (#84 / `SA-1` merged) |
-| **Oversized files** | **36 on `main`, 35 on this branch** (was 68 when the tracker opened) |
-| **Backlog entries** | **36 on `main`, 35 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
-| **Active work item** | `SA-3` — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
+| **Last updated** | 2026-09-01, `SA-3` merged as #85; `SA-4` on the branch |
+| **Verified main SHA** | `0f0e286ba8238051cc7ddb89b9b2e4ea59d50044` (#85 / `SA-3` merged) |
+| **Oversized files** | **35 on `main`, 34 on this branch** (was 68 when the tracker opened) |
+| **Backlog entries** | **35 on `main`, 34 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
+| **Active work item** | `SA-4` — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | none open yet for `SA-3`. [#84](https://github.com/Khomurod/SafeHaul/pull/84) and everything before it merged; #50 closed. |
+| **Active PR** | none open yet for `SA-4`. [#85](https://github.com/Khomurod/SafeHaul/pull/85) and everything before it merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
 | **CI status** | #61, #62 and #63 all merged fully green, first try. The only red round in this stretch was #60's `frontend-quality` — a **race in a test `LD-R3` wrote**, reproduced and fixed, see the interlude below. A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
@@ -30,8 +30,8 @@ it currently is*.
 
 ### Exact next action
 
-1. **Push and open the `SA-3` PR**, then merge it when green.
-2. **Nothing is pre-built behind `SA-3`.** The stacking deviation recorded below
+1. **Push and open the `SA-4` PR**, then merge it when green.
+2. **Nothing is pre-built behind `SA-4`.** The stacking deviation recorded below
    is fully unwound once it merges.
    **Their sections below were published with `FT-10`, deliberately ahead of their
    code.** The reason is worth keeping: for several units the "rebuild it from the
@@ -54,7 +54,7 @@ it currently is*.
    conflicts.
    **If those local branches are gone** (a fresh container), the work is not lost:
    rebuild each from its `FR-*` section below, which is written as a recipe.
-3. **After `SA-3`: `SA-4`** (`useSystemHealth.js`, 603) and the rest of the
+3. **After `SA-4`: `SA-5`** (`CreateView.jsx`, 573) and the rest of the
    `SA-*` units, then
    `RU-1` → `RU-2` (Firestore rules) under the owner's ruling in `PLAN.md` § 7.3.
 
@@ -151,8 +151,8 @@ use `—` until it exists.**
 | `FR-14` | **MERGED** | R3 | `store.js` → 236 + 2 modules | 505 | **236** | `claude/safehual-source-size-refactor-j4apre` | [#82](https://github.com/Khomurod/SafeHaul/pull/82) | — | 2026-08-31 | green | ✓ | ✓ | **1 ✓** |
 | `SA-1` | **MERGED** | R2 | view → 491 orchestration + 6 feature components | 983 | **491** | `claude/safehual-source-size-refactor-j4apre` | [#84](https://github.com/Khomurod/SafeHaul/pull/84) | — | 2026-08-31 | green | ✓ | ✓ | **1 ✓** |
 | `SA-2` | **MERGED** | R1 | contract test → 6 suites + support (before `SA-1`, tests-first) | 1699 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#83](https://github.com/Khomurod/SafeHaul/pull/83) | — | 2026-08-31 | green | ✓ | ✓ | **1 ✓** |
-| `SA-3` | **IN PROGRESS** | R2 | view → 405 orchestration + 2 modules | 656 | **405** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
-| `SA-4` | NOT STARTED | R2 | `src/features/super-admin/hooks/useSystemHealth.js` (runtime) | 603 | 603 | — | — | — | — | — | — | — | 1 |
+| `SA-3` | **MERGED** | R2 | view → 405 orchestration + 2 modules | 656 | **405** | `claude/safehual-source-size-refactor-j4apre` | [#85](https://github.com/Khomurod/SafeHaul/pull/85) | — | 2026-08-31 | green | ✓ | ✓ | **1 ✓** |
+| `SA-4` | **IN PROGRESS** | R2 | hook → 242 runner + 388-line steps module | 603 | **242** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
 | `SA-5` | NOT STARTED | R2 | `src/features/super-admin/components/CreateView.jsx` (runtime) | 573 | 573 | — | — | — | — | — | — | — | 1 |
 | `SA-6` | NOT STARTED | R2 | `src/features/super-admin/views/EnvironmentIntegrationsView.jsx` (runtime) | 563 | 563 | — | — | — | — | — | — | — | 1 |
 | `SA-7` | NOT STARTED | R1 | `src/features/super-admin/views/EnvironmentIntegrationsView.contract.test.jsx` (test) | 709 | 709 | — | — | — | — | — | — | — | 1 |
@@ -2543,7 +2543,7 @@ diagnostics results and tab state survive tab switches exactly as before.
 
 ## `SA-3` — `UnifiedDriverList.jsx` → orchestration plus its parts
 
-**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R2 ·
+**Status:** `MERGED` — [#85](https://github.com/Khomurod/SafeHaul/pull/85), main `0f0e286` · **Risk:** R2 ·
 **656 → 405, plus two modules under `components/driver-list/`**
 
 The `SA-1` recipe again, smaller. The view keeps the state, the filters and
@@ -2577,6 +2577,47 @@ parts and the table's columns move out verbatim.
 | `check:ui-contract` | 478 files scanned, none new |
 | eslint | clean except the pre-existing `handleSort` warning, unchanged |
 | `check:source-size` | **35 recorded**, verdict `OK` |
+| root `npm run lint` · `check:ci-plan` | pass |
+
+---
+
+## `SA-4` — `useSystemHealth.js` → the runner, plus the seventeen steps
+
+**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R2 ·
+**603 → 242, plus a 388-line steps module**
+
+The System Health hook split along its own seam: the hook keeps the runner —
+status, progress, pause/resume, the persisted-state effect, the repair and
+backfill actions — and the seventeen diagnostic step implementations move,
+with the `STEPS` list they belong to, into `systemHealthSteps.js` (a plain
+module, not a hook). Each step reaches its world through one context
+argument: the accumulated test data, the updater, the logger.
+
+| file | subject | lines |
+|---|---|---|
+| `hooks/systemHealthSteps.js` | `STEPS` + `executeHealthStep` — the seventeen cases, verbatim | 388 |
+| `hooks/useSystemHealth.js` (entry) | the runner, persistence, repair/backfill actions | 242 |
+
+### Notes
+
+- One seam beyond the wrapper, documented in place: the `cleanup` case read
+  `testDataRef.current` live rather than the entry-time snapshot, so the
+  context carries a `getData()` getter and cleanup still sees everything
+  every earlier step recorded. The multiset diff's ONLY missing line is that
+  replaced read.
+- Two pre-existing warnings, both verified on `main` and left untouched:
+  `storageErr` unused in a moved catch, and the runner effect's `addLog`
+  exhaustive-deps gap.
+- 37 covering tests (`SystemHealthView.contract`) set-identical; all 559
+  super-admin tests green.
+
+| Check | Result |
+|---|---|
+| 37 covering tests | **set-identical**, all green |
+| all super-admin suites | 559/559 |
+| every original body line | accounted for — only the documented `getData()` seam |
+| eslint | clean except the two pre-existing warnings, unchanged |
+| `check:source-size` | **34 recorded**, verdict `OK` |
 | root `npm run lint` · `check:ci-plan` | pass |
 
 ---
