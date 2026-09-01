@@ -29,7 +29,6 @@
     "hard": 500
   },
   "files": {
-    "scripts/ci-plan.mjs": 523,
     "src/features/campaigns/components/LaunchPad.test.jsx": 539,
     "src/features/companies/hooks/useCompanyDashboard.js": 528,
     "src/features/driver-app/components/application/PublicApplyHandler.contract.test.jsx": 2203,
