@@ -15,53 +15,43 @@ it currently is*.
 
 | | |
 |---|---|
-| **Last updated** | 2026-09-01, `SG-5` merged as #112 — the `SG-*` test splits are done; `CP-1` (`LaunchPad.test.jsx` → 2 suites + support) on the branch |
-| **Verified main SHA** | `445da0063e3ce1ae7fbbb7007c5ece2e56cce574` (#112 / `SG-5` merged) |
-| **Oversized files** | **8 on `main`, 7 on this branch** (was 68 when the tracker opened) |
-| **Backlog entries** | **8 on `main`, 7 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
-| **Active work item** | `CP-1` — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
+| **Last updated** | 2026-09-01, `CP-1` merged as #113 — every pre-built unit has landed; `PA-3` (`applicationDraftStorage.test.js` → 2 suites, no support needed) on the branch |
+| **Verified main SHA** | `f5d1b12d15380dbb16a1058244de5d142a81bf19` (#113 / `CP-1` merged) |
+| **Oversized files** | **7 on `main`, 6 on this branch** (was 68 when the tracker opened) |
+| **Backlog entries** | **7 on `main`, 6 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
+| **Active work item** | `PA-3` — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | none open yet for `CP-1`. [#112](https://github.com/Khomurod/SafeHaul/pull/112) and everything before it merged; #50 closed. |
+| **Active PR** | none open yet for `PA-3`. [#113](https://github.com/Khomurod/SafeHaul/pull/113) and everything before it merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
-| **CI status** | #61, #62 and #63 all merged fully green, first try. The only red round in this stretch was #60's `frontend-quality` — a **race in a test `LD-R3` wrote**, reproduced and fixed, see the interlude below. A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
+| **CI status** | #92–#113 all merged green. The only red in that stretch was #109's first round — the `EditUserBodies` initial-load race, not that PR's diff; fixed family-wide in the same PR (see the interlude below). A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
 | **Working tree at session end** | see the last per-item section |
 | **Blockers** | none. The nav-placement question was delegated and decided — see `PLAN.md` § 7.2b. |
 
 ### Exact next action
 
-1. **Push and open the `CP-1` PR**, then merge it when green.
-2. **Nothing is pre-built behind `CP-1`.** The stacking deviation recorded below
-   is fully unwound once it merges.
-   **Their sections below were published with `FT-10`, deliberately ahead of their
-   code.** The reason is worth keeping: for several units the "rebuild it from the
-   tracker" fallback existed only on the same unpushed branches as the code it was
-   meant to protect — verified at the time as 5 sections on the stack tip, 0 on the
-   remote, 0 on `main`. A fallback in the same basket as the thing it protects is
-   not a fallback. Recipes now go out first.
-   Promote them one at a time with the standing per-unit ritual, because every
-   unit reuses one branch name: once a PR merges, restart from the new `main`
+1. **Push and open the `PA-3` PR**, then merge it when green.
+2. **Nothing is pre-built behind `PA-3`**, and the stacking deviation recorded in
+   earlier revisions is fully unwound — every pre-built unit has merged
+   (#104–#113). The lesson stays recorded: recipes/sections go out ahead of their
+   code, because a fallback that lives in the same basket as the thing it
+   protects is not a fallback. The per-unit ritual is unchanged: one unit at a
+   time from `main`, restart the branch after each merge
    (`git fetch origin main && git checkout -B
-   claude/safehual-source-size-refactor-j4apre origin/main`), `git cherry-pick`
-   the next local branch's tip, and open a *new* PR. A merged pull request cannot
-   carry new work.
-   **The tracker table conflicts on every cherry-pick**, because each unit edits
-   the row above its own. Resolve it by taking, per work item, whichever row is
-   further along — the merged/in-progress rows from `HEAD`, the newly filled row
-   from the commit being picked. **Check afterwards that no row was dropped**: an
-   automated resolution here silently lost `FT-5`'s row once, leaving it reading
-   `NOT STARTED` while its section said otherwise. Nothing else in the file
-   conflicts.
-   **If those local branches are gone** (a fresh container), the work is not lost:
-   rebuild each from its `FR-*` section below, which is written as a recipe.
+   claude/safehual-source-size-refactor-j4apre origin/main`), open a *new* PR. A
+   merged pull request cannot carry new work.
+   **A drift this repair caught (2026-09-01):** the `SG-*`/`CP-1` sections were
+   written with session-local IDs while the master table kept the original ones
+   (table `SG-5`/`SG-6`/`SG-7`/`SO-1` = sections `SG-1`/`SG-4`/`SG-5`/`CP-1`),
+   and the six table rows were never flipped when those PRs merged. Both are now
+   reconciled, with the alias noted on each affected row and section. When a
+   section and the table disagree, trust neither — read `git log origin/main`.
 3. **`RU-2` stays STOPPED pending an owner decision** (see the RU
-   section). **The drain continues**: after `CP-1`, the last small test
-   split (`applicationDraftStorage.test` 511), the runtime hooks/views
-   (`useCompanyDashboard.js` 528, `SigningRoom.jsx` 652), and the giants
-   (`EnvelopeCreator.jsx` 1363, `PublicApplyHandler.jsx` 1476 + its
-   2203-line contract test),
-   then `RU-1` → `RU-2` (Firestore rules) under the owner's ruling in
-   `PLAN.md` § 7.3.
+   section). **The drain continues**: after `PA-3`, the runtime hooks/views
+   (`SO-2` `useCompanyDashboard.js` 528, `SG-4`-in-table `SigningRoom.jsx` 652),
+   then the giants (`SG-1`-in-table `EnvelopeCreator.jsx` 1363, `PA-1`
+   `PublicApplyHandler.jsx` 1476, `PA-2` its 2203-line contract test), then
+   `RU-2` (Firestore rules) under the owner's ruling in `PLAN.md` § 7.3.
 
 **Four process rules learned the hard way in this session, all worth keeping:**
 
@@ -103,8 +93,8 @@ it currently is*.
 |---|---|---|
 | Over-limit files at campaign start (2026-08-26 audit, incl. 2026-08-27 additions) | 70 | — |
 | Retired before this tracker existed (PR #49) | 2 | — |
-| **Remaining now** | **60** | **43,810** |
-| Retired by this campaign so far | **8** | — |
+| **Remaining now** (this branch, `PA-3` applied) | **6** | **6,911** |
+| Retired by this campaign so far | **62** | — |
 
 **How to reproduce those two numbers**, because an earlier revision of this table
 carried a Lines figure nobody could: the count is `.files` keys in
@@ -177,16 +167,16 @@ use `—` until it exists.**
 | `CA-12` | **MERGED** | R1 | test → 2 suites + support | 545 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#102](https://github.com/Khomurod/SafeHaul/pull/102) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `CA-13` | **MERGED** | R1 | test → 2 suites + support | 507 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#103](https://github.com/Khomurod/SafeHaul/pull/103) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `SG-1` | NOT STARTED | R4 | `src/features/signing/EnvelopeCreator.jsx` (runtime) | 1363 | 1363 | — | — | — | — | — | — | — | 1 |
-| `SG-2` | NOT STARTED | R1 | `src/features/signing/EnvelopeCreator.editor.test.jsx` (test) | 677 | 677 | — | — | — | — | — | — | — | 1 |
-| `SG-3` | NOT STARTED | R1 | `src/features/signing/EnvelopeCreator.aiAssistant.test.jsx` (test) | 540 | 540 | — | — | — | — | — | — | — | 1 |
+| `SG-2` | **MERGED** | R1 | test → 3 suites + support (section `SG-2` below) | 677 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#109](https://github.com/Khomurod/SafeHaul/pull/109) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
+| `SG-3` | **MERGED** | R1 | test → 2 suites + support (section `SG-3` below) | 540 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#110](https://github.com/Khomurod/SafeHaul/pull/110) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `SG-4` | NOT STARTED | R3 | `src/features/signing/SigningRoom.jsx` (runtime) | 652 | 652 | — | — | — | — | — | — | — | 1 |
-| `SG-5` | NOT STARTED | R1 | `src/features/signing/components/EnvelopeHistory.test.jsx` (test) | 755 | 755 | — | — | — | — | — | — | — | 1 |
-| `SG-6` | NOT STARTED | R1 | `src/features/signing/hooks/useAiFieldAssistant.test.jsx` (test) | 534 | 534 | — | — | — | — | — | — | — | 1 |
-| `SG-7` | NOT STARTED | R1 | `src/features/signing/components/envelope-creator/ResizableDraggableField.test.jsx` (test) | 502 | 502 | — | — | — | — | — | — | — | 1 |
+| `SG-5` | **MERGED** | R1 | test → 3 suites + support (section `SG-1` below) | 755 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#108](https://github.com/Khomurod/SafeHaul/pull/108) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
+| `SG-6` | **MERGED** | R1 | test → 2 suites + support (section `SG-4` below) | 534 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#111](https://github.com/Khomurod/SafeHaul/pull/111) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
+| `SG-7` | **MERGED** | R1 | test → 2 suites + support (section `SG-5` below) | 502 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#112](https://github.com/Khomurod/SafeHaul/pull/112) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `PA-1` | NOT STARTED | R4 | `src/features/driver-app/components/application/PublicApplyHandler.jsx` (runtime) | 1476 | 1476 | — | — | — | — | — | — | — | 1 |
 | `PA-2` | NOT STARTED | R2 | `src/features/driver-app/components/application/PublicApplyHandler.contract.test.jsx` (test) | 2203 | 2203 | — | — | — | — | — | — | — | 1 |
-| `PA-3` | NOT STARTED | R1 | `src/features/driver-app/components/application/applicationDraftStorage.test.js` (test) | 511 | 511 | — | — | — | — | — | — | — | 1 |
-| `SO-1` | NOT STARTED | R1 | `src/features/campaigns/components/LaunchPad.test.jsx` (test) | 539 | 539 | — | — | — | — | — | — | — | 1 |
+| `PA-3` | **IN PROGRESS** | R1 | test → identity (239) + sync (299); no support module — zero mocks | 511 | **deleted on branch** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | — | — | — | 1 |
+| `SO-1` | **MERGED** | R1 | test → 2 suites + support (section `CP-1` below) | 539 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#113](https://github.com/Khomurod/SafeHaul/pull/113) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `SO-2` | NOT STARTED | R2 | `src/features/companies/hooks/useCompanyDashboard.js` (runtime) | 528 | 528 | — | — | — | — | — | — | — | 1 |
 | `RU-1` | **MERGED** | R3 | security test → 4 verbatim suites + `surfaces` strengthening suite + support | 1106 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#107](https://github.com/Khomurod/SafeHaul/pull/107) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `RU-2` | **STOPPED — owner decision requested** | R4 | `src/firestore.rules` — arithmetic cannot reach 500 by permitted means (see RU section) | 693 | 693 (recorded, measured, un-exempt) | — | — | — | — | — | — | — | 1 |
@@ -3458,7 +3448,7 @@ changes. Stated in the support header.
 
 ## `SG-1` — `EnvelopeHistory.test.jsx` → three suites plus a support module
 
-**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R1 ·
+**Status:** `MERGED` — [#108](https://github.com/Khomurod/SafeHaul/pull/108), 2026-09-01 (master-table row `SG-5`) · **Risk:** R1 ·
 **755 → deleted; list (261) + actions (249) + details (245) + support (121)**
 
 The vitest support recipe on the signing history table's test: 68 tests over
@@ -3484,7 +3474,7 @@ tests read the spy `resetHarness` installed for that test — the module-level
 
 ## `SG-2` — `EnvelopeCreator.editor.test.jsx` → three suites plus a support module
 
-**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R1 ·
+**Status:** `MERGED` — [#109](https://github.com/Khomurod/SafeHaul/pull/109), 2026-09-01 · **Risk:** R1 ·
 **677 → deleted; fields (285) + undo (191) + state (169) + support (167)**
 
 The vitest support recipe on the editor-shell test: 43 tests over nine
@@ -3519,7 +3509,7 @@ preview dialog), each verbatim — the fixtures and helpers, `makeSetup` and
 
 ## `SG-3` — `EnvelopeCreator.aiAssistant.test.jsx` → two suites plus a support module
 
-**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R1 ·
+**Status:** `MERGED` — [#110](https://github.com/Khomurod/SafeHaul/pull/110), 2026-09-01 · **Risk:** R1 ·
 **540 → deleted; scan (185) + apply (272) + support (174)**
 
 The vitest support recipe on the AI Field Assistant test: 25 tests over five
@@ -3558,7 +3548,7 @@ on an assertion that already waited correctly.
 
 ## `SG-4` — `useAiFieldAssistant.test.jsx` → two suites plus a support module
 
-**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R1 ·
+**Status:** `MERGED` — [#111](https://github.com/Khomurod/SafeHaul/pull/111), 2026-09-01 (master-table row `SG-6`) · **Risk:** R1 ·
 **534 → deleted; scan (206) + flow (306) + support (88)**
 
 The vitest support recipe on a `renderHook` file: 38 tests over six
@@ -3584,7 +3574,7 @@ after their own hoisted mocks.
 
 ## `SG-5` — `ResizableDraggableField.test.jsx` → two suites plus a support module
 
-**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R1 ·
+**Status:** `MERGED` — [#112](https://github.com/Khomurod/SafeHaul/pull/112), 2026-09-01 (master-table row `SG-7`) · **Risk:** R1 ·
 **502 → deleted; geometry (281) + appearance (194) + support (95)**
 
 The vitest support recipe on the placed-field overlay test: 54 tests over
@@ -3609,7 +3599,7 @@ same pattern as `SG-1`'s `unsubSpy`.
 
 ## `CP-1` — `LaunchPad.test.jsx` → two suites plus a support module
 
-**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R1 ·
+**Status:** `MERGED` — [#113](https://github.com/Khomurod/SafeHaul/pull/113), 2026-09-01 (master-table row `SO-1`) · **Risk:** R1 ·
 **539 → deleted; launch (294) + protection (240) + support (98)**
 
 The vitest support recipe on a NESTED-describe file: the 39 tests live in a
@@ -3640,6 +3630,43 @@ live binding, the reset body) moved to the support.
 | every original line | accounted for — wrapper transforms only |
 | `check:source-size` | **7 recorded**, verdict `OK` |
 | root `npm run lint` | pass |
+
+---
+
+## `PA-3` — `applicationDraftStorage.test.js` → two suites, no support module
+
+**Status:** `IN PROGRESS` — on the branch, PR pending · **Risk:** R1 ·
+**511 → deleted; identity (239) + sync (299)**
+
+The easiest unit in the campaign, and worth recording *why*: the file has
+**zero mocks** — no `vi.mock`, no factories, no `*Once` queues, no harness
+state. It tests a pure localStorage module (`applicationDraftStorage.js`, 487,
+untouched) with `localStorage.clear()` in `beforeEach`/`afterEach` and two
+in-test `vi.spyOn(window.localStorage, 'setItem')` calls that restore
+themselves. So the support-module recipe does not apply, and forcing one would
+have produced exactly the "meaningless part-file" the ground rules prohibit.
+
+### Recipe (rebuild from scratch if needed)
+
+- Split at describe boundaries, original lines verbatim:
+  - `applicationDraftStorage.identity.test.js` — `sensitive fields`,
+    `the draft's name`, `the discard mark` (original lines 21–233);
+  - `applicationDraftStorage.sync.test.js` — `reading`, `writing`,
+    `navigation-only writes`, `the synced option`, `markDraftSynced`, and the
+    standalone `clears the draft and its metadata together` (lines 235–510).
+- Each file rebuilds the shared scaffolding: the
+  `describe('applicationDraftStorage', …)` outer wrapper (same title, so every
+  test keeps its original full name), the two `localStorage.clear()` hooks, and
+  `const SLUG = 'acme'; const KEY = 'draft_acme';`. The identity file imports
+  all eight module exports; the sync file only the four it uses.
+
+| Check | Result |
+|---|---|
+| 43 tests across the two suites | **set-identical**, all green |
+| driver-app application folder | 359/359 (19 files) |
+| every original line | accounted for — duplicated scaffolding + headers only |
+| `check:source-size` | **6 recorded**, verdict `OK` |
+| new-file eslint + root `npm run lint` | pass (124 pre-existing warnings, 0 errors) |
 
 ---
 
