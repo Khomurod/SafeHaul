@@ -35,7 +35,6 @@
     "src/features/campaigns/components/LaunchPad.test.jsx": 539,
     "src/features/companies/hooks/useCompanyDashboard.js": 528,
     "src/features/company-admin/components/modals/PEVRequestModal.test.jsx": 545,
-    "src/features/company-admin/components/tabs/DQFileTab.jsx": 526,
     "src/features/company-admin/hooks/useCompanyLeadUpload.contract.test.js": 507,
     "src/features/company-admin/views/UserProfilePage.test.jsx": 550,
     "src/features/driver-app/components/application/PublicApplyHandler.contract.test.jsx": 2203,
