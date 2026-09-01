@@ -2,11 +2,6 @@ import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { Loader2 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { useToast } from '@shared/components/feedback';
-import {
-    cloneFieldWithoutId,
-    computeNextPasteRect,
-    isEditableKeyboardTarget,
-} from '@features/signing/utils/envelopeFieldClipboard';
 // The Firebase persistence paths — the "Correct"/"Edit Template" hydration
 // and the save/send action — live in utils/envelopePersistence.js since the
 // 2026-09-01 source-size split. State stays here; the module gets setters.
@@ -20,7 +15,7 @@ import {
     clampPdfViewportWidth,
 } from '@features/signing/utils/envelopePdfZoom';
 import { ConfirmDialog } from '@design-system/patterns';
-import { FIELD_TEMPLATES, getFieldIcon } from './components/envelope-creator/fieldDefinitions';
+import { getFieldIcon } from './components/envelope-creator/fieldDefinitions';
 import { FieldPropertiesPanel } from './components/envelope-creator/FieldPropertiesPanel';
 import { EditorInspector } from './components/envelope-creator/EditorInspector';
 import { EnvelopeSidebar } from './components/envelope-creator/EnvelopeSidebar';
@@ -39,13 +34,6 @@ import { SignerPreviewDialog } from './components/envelope-creator/SignerPreview
 import {
     canRedo as historyCanRedo,
     canUndo as historyCanUndo,
-    createHistory,
-    currentFields,
-    isRedoShortcut,
-    isUndoShortcut,
-    pushHistory,
-    redoHistory,
-    undoHistory,
 } from '@features/signing/utils/editorHistory';
 import {
     INSPECTOR_TABS,
@@ -54,19 +42,20 @@ import {
     resolveEditorMode,
 } from '@features/signing/utils/editorSaveState';
 import {
-    alignFields,
     allPages,
-    copyFieldsToPages,
     countFieldsByPage,
-    duplicateField,
-    matchFieldSize,
-    snapFieldPosition,
     toggleSelection,
 } from '@features/signing/utils/fieldGeometry';
 import { FieldToolsPanel } from './components/envelope-creator/FieldToolsPanel';
 import { EditorBottomSheet } from './components/envelope-creator/EditorBottomSheet';
 import { EditorMobileBar } from './components/envelope-creator/EditorMobileBar';
 import { useCompactEditor } from './hooks/useCompactEditor';
+// The editing spine split out on 2026-09-01 (SG-1b): history/save state and
+// the single write path, the field-mutation handlers, and the keyboard
+// clipboard — see each hook's header for what moved.
+import { useEditorHistoryState } from './hooks/useEditorHistoryState';
+import { useEnvelopeFieldEditing } from './hooks/useEnvelopeFieldEditing';
+import { useFieldClipboardShortcuts } from './hooks/useFieldClipboardShortcuts';
 
 /**
  * EnvelopeCreator — one-off signing request + template editor.
@@ -112,14 +101,30 @@ export default function EnvelopeCreator({
      * working unchanged.
      */
     const [selectedFieldIds, setSelectedFieldIds] = useState([]);
-    // Guides for the field currently under the pointer. Purely visual — it is
-    // never part of the document and never enters the undo history.
-    const [dragGuides, setDragGuides] = useState(null);
     const selectedFieldId = selectedFieldIds[0] ?? null;
 
     const setSelectedFieldId = useCallback((id, options = {}) => {
         setSelectedFieldIds((previous) => toggleSelection(previous, id, options?.additive === true));
     }, []);
+
+    // The placed-field array, the undo/redo stack and the save state — with
+    // `commitFields`, the single write path — live in useEditorHistoryState
+    // since the 2026-09-01 source-size split (SG-1b).
+    const {
+        fields,
+        history,
+        saveState,
+        setSaveState,
+        fieldsRef,
+        commitFields,
+        resetEditorHistory,
+        handleUndo,
+        handleRedo,
+        handleUndoRef,
+        handleRedoRef,
+        commitFieldsRef,
+        markSaved,
+    } = useEditorHistoryState({ setSelectedFieldIds });
 
     // FEAT-1: Track the currently visible page for multi-page field placement
     const [activePage, setActivePage] = useState(1);
@@ -132,8 +137,6 @@ export default function EnvelopeCreator({
     // ADV-2 FIX: Delivery method selector for one-off sends
     const [deliveryMethod, setDeliveryMethod] = useState('email'); // 'email' | 'sms' | 'both' | 'copy'
     const [title, setTitle] = useState('');
-
-    const [fields, setFields] = useState([]);
 
     // --- AI Field Assistant -------------------------------------------------
     // Suggestions live entirely inside the assistant until the reviewer applies
@@ -152,31 +155,17 @@ export default function EnvelopeCreator({
     const [aiUndoFieldIds, setAiUndoFieldIds] = useState([]);
 
     // --- Editor shell -------------------------------------------------------
-    const [history, setHistory] = useState(() => createHistory([]));
-    const [saveState, setSaveState] = useState(SAVE_STATES.CLEAN);
     const [previewOpen, setPreviewOpen] = useState(false);
     const [pendingClose, setPendingClose] = useState(false);
-    const historyRef = useRef(history);
     const canvasRef = useRef(null);
-    // The keydown listener is registered once on mount, so it reads the
-    // handlers through refs rather than closing over a stale render.
-    const handleUndoRef = useRef(() => {});
-    const handleRedoRef = useRef(() => {});
-    const commitFieldsRef = useRef(() => {});
 
     const [pageDimensions, setPageDimensions] = useState({});
     const [pdfViewportWidth, setPdfViewportWidth] = useState(PDF_VIEWPORT_WIDTH_DEFAULT);
 
     const pdfWorkbenchRef = useRef(null);
-    const fieldsRef = useRef([]);
     const selectedFieldIdRef = useRef(null);
     const selectedFieldIdsRef = useRef([]);
     const fileRef = useRef(null);
-    const envelopeClipboardRef = useRef(null);
-
-    useEffect(() => {
-        fieldsRef.current = fields;
-    }, [fields]);
 
     useEffect(() => {
         selectedFieldIdRef.current = selectedFieldId;
@@ -210,143 +199,18 @@ export default function EnvelopeCreator({
         return () => el.removeEventListener('wheel', onWheel);
     }, [hydrating]);
 
-    useEffect(() => {
-        const onKeyDown = (e) => {
-            const key = typeof e.key === 'string' ? e.key.toLowerCase() : '';
-            if (!(e.ctrlKey || e.metaKey) || !key) return;
-
-            // Undo/redo come first: they must work even with a field selected,
-            // and they are not text-editing operations.
-            if (isRedoShortcut(e)) {
-                if (isEditableKeyboardTarget(e.target)) return;
-                e.preventDefault();
-                handleRedoRef.current();
-                return;
-            }
-            if (isUndoShortcut(e)) {
-                if (isEditableKeyboardTarget(e.target)) return;
-                e.preventDefault();
-                handleUndoRef.current();
-                return;
-            }
-
-            if (key === 'c') {
-                if (isEditableKeyboardTarget(e.target)) return;
-                const fid = selectedFieldIdRef.current;
-                if (!fid || !fileRef.current) return;
-                const field = fieldsRef.current.find((f) => f.id === fid);
-                if (!field) return;
-                e.preventDefault();
-                const template = cloneFieldWithoutId(field);
-                const anchorRect = {
-                    x: field.x,
-                    y: field.y,
-                    width: field.width,
-                    height: field.height,
-                    page: field.page,
-                };
-                envelopeClipboardRef.current = {
-                    template,
-                    anchor: anchorRect,
-                    lastPlaced: { ...anchorRect },
-                };
-                return;
-            }
-
-            if (key === 'v') {
-                if (isEditableKeyboardTarget(e.target)) return;
-                const clip = envelopeClipboardRef.current;
-                if (!clip?.template || !fileRef.current) return;
-                e.preventDefault();
-                const { template, anchor, lastPlaced } = clip;
-                const rect = computeNextPasteRect(lastPlaced, anchor, template.width, template.height);
-                const newField = {
-                    ...template,
-                    id: uuidv4(),
-                    x: rect.x,
-                    y: rect.y,
-                    width: rect.width,
-                    height: rect.height,
-                    page: rect.page,
-                };
-                commitFieldsRef.current((prev) => [...prev, newField], { label: 'Paste field' });
-                setSelectedFieldIds([newField.id]);
-                envelopeClipboardRef.current = {
-                    ...clip,
-                    lastPlaced: {
-                        x: rect.x,
-                        y: rect.y,
-                        width: rect.width,
-                        height: rect.height,
-                        page: rect.page,
-                    },
-                };
-            }
-        };
-
-        window.addEventListener('keydown', onKeyDown);
-        return () => window.removeEventListener('keydown', onKeyDown);
-        // Everything the listener needs is read through refs, so it is
-        // registered once on mount rather than on every field change.
-    }, []);
-
-    useEffect(() => {
-        historyRef.current = history;
-    }, [history]);
-
-    /**
-     * The single write path for placed fields.
-     *
-     * Every mutation goes through here so it lands in the undo history and
-     * marks the document unsaved. `fieldsRef` is updated eagerly so two commits
-     * inside one tick still see each other, and the history push happens
-     * outside the state updater so a double-invoked updater cannot record the
-     * same change twice.
-     */
-    const commitFields = useCallback((updater, { label = 'Edit', coalesceKey = null } = {}) => {
-        const previous = fieldsRef.current;
-        const next = typeof updater === 'function' ? updater(previous) : updater;
-        if (next === previous) return;
-        fieldsRef.current = next;
-        setFields(next);
-        const nextHistory = pushHistory(historyRef.current, next, { label, coalesceKey });
-        historyRef.current = nextHistory;
-        setHistory(nextHistory);
-        setSaveState(SAVE_STATES.UNSAVED);
-    }, []);
-
-    /** Replace both the fields and the history at a safe reset point. */
-    const resetEditorHistory = useCallback((nextFields, { markClean = true } = {}) => {
-        const base = createHistory(nextFields);
-        fieldsRef.current = nextFields;
-        historyRef.current = base;
-        setFields(nextFields);
-        setHistory(base);
-        if (markClean) setSaveState(SAVE_STATES.CLEAN);
-    }, []);
-
-    const stepHistory = useCallback((step) => {
-        const next = step(historyRef.current);
-        if (next === historyRef.current) return;
-        historyRef.current = next;
-        setHistory(next);
-        const restored = currentFields(next);
-        fieldsRef.current = restored;
-        setFields(restored);
-        setSaveState(SAVE_STATES.UNSAVED);
-        // Keep only the selected fields that still exist.
-        const alive = new Set(restored.map((field) => field.id));
-        setSelectedFieldIds((previous) => previous.filter((id) => alive.has(id)));
-    }, []);
-
-    const handleUndo = useCallback(() => stepHistory(undoHistory), [stepHistory]);
-    const handleRedo = useCallback(() => stepHistory(redoHistory), [stepHistory]);
-
-    useEffect(() => {
-        handleUndoRef.current = handleUndo;
-        handleRedoRef.current = handleRedo;
-        commitFieldsRef.current = commitFields;
-    }, [handleUndo, handleRedo, commitFields]);
+    // Ctrl/Cmd undo/redo and field copy/paste live in
+    // useFieldClipboardShortcuts since the 2026-09-01 source-size split
+    // (SG-1b); the listener still registers once and reads through these refs.
+    useFieldClipboardShortcuts({
+        fieldsRef,
+        selectedFieldIdRef,
+        fileRef,
+        commitFieldsRef,
+        handleUndoRef,
+        handleRedoRef,
+        setSelectedFieldIds,
+    });
 
     const aiAssistant = useAiFieldAssistant({
         companyId,
@@ -419,7 +283,7 @@ export default function EnvelopeCreator({
             setSelectedSuggestionId(null);
             showSuccess(`${toApply.length} field${toApply.length === 1 ? '' : 's'} placed. Review before saving.`);
         },
-        [removeAiSuggestions, showSuccess, commitFields],
+        [removeAiSuggestions, showSuccess, commitFields, fieldsRef],
     );
 
     const handleApplySelected = useCallback(() => {
@@ -524,7 +388,7 @@ export default function EnvelopeCreator({
     const handleTitleChange = useCallback((next) => {
         setTitle(next);
         setSaveState(SAVE_STATES.UNSAVED);
-    }, []);
+    }, [setSaveState]);
 
     /** Scroll a page into view; the IntersectionObserver then updates activePage. */
     const goToPage = useCallback((page) => {
@@ -582,157 +446,32 @@ export default function EnvelopeCreator({
         }
     };
 
-    // PHASE 2: Updated addField using templates
-    const addField = useCallback((templateId) => {
-        if (!file) return;
-        const template = FIELD_TEMPLATES[templateId];
-        if (!template) return;
-
-        let w = 25, h = 5;
-        if (template.type === 'checkbox') { w = 4; h = 3; }
-        if (template.type === 'text') { w = 30; h = 5; }
-        if (template.type === 'date') { w = 20; h = 5; }
-        if (template.type === 'initial') { w = 15; h = 4; }
-
-        // FEAT-1: Place field on the currently visible page instead of always page 1
-        const newField = {
-            id: uuidv4(),
-            ...template,
-            page: activePage,
-            x: 10, y: 10,
-            width: w, height: h,
-        };
-        commitFields(prev => [...prev, newField], { label: `Add ${template.label || templateId} field` });
-    }, [file, activePage, commitFields]);
-
-    const removeField = useCallback((id) => {
-        commitFields(prev => prev.filter(f => f.id !== id), { label: 'Remove field' });
-        setSelectedFieldIds((previous) => previous.filter((value) => value !== id));
-    }, [commitFields]);
-
-    /**
-     * Live alignment guides while a field is under the pointer.
-     *
-     * Read-only: it computes what the drop *would* snap to and shows it. No
-     * field is touched, so a drag that is abandoned changes nothing and adds no
-     * history entry.
-     */
-    const handleFieldDragMove = useCallback((id, pageNum, xPercent, yPercent) => {
-        const current = fieldsRef.current;
-        const moving = current.find((f) => f.id === id);
-        if (!moving) return;
-        const others = current.filter((f) => f.id !== id && f.page === pageNum);
-        const { guides } = snapFieldPosition({ ...moving, x: xPercent, y: yPercent, page: pageNum }, others);
-        setDragGuides(guides.length > 0 ? { page: pageNum, guides } : null);
-    }, []);
-
-    // One completed drag is one history entry: react-draggable commits once on
-    // `onStop`, and the coalesce key merges a run of keyboard nudges.
-    //
-    // Snapping applies to pointer drags only (`options.snap`). Arrow-key
-    // placement stays exact to the percent, because the keyboard is the
-    // precision path — silently pulling a nudge onto a guide would make it
-    // impossible to sit a field just off centre.
-    const updateFieldPosition = useCallback((id, pageNum, xPercent, yPercent, options = {}) => {
-        setDragGuides(null);
-        commitFields(
-            (prev) => {
-                const moving = prev.find((f) => f.id === id);
-                if (!moving) return prev;
-                let x = xPercent;
-                let y = yPercent;
-                if (options?.snap) {
-                    const others = prev.filter((f) => f.id !== id && f.page === pageNum);
-                    const snapped = snapFieldPosition({ ...moving, x, y, page: pageNum }, others);
-                    x = snapped.x;
-                    y = snapped.y;
-                }
-                return prev.map((f) => (f.id === id ? { ...f, x, y, page: pageNum } : f));
-            },
-            { label: 'Move field', coalesceKey: `move:${id}` },
-        );
-    }, [commitFields]);
-
-    const updateFieldSize = useCallback((id, widthPercent, heightPercent) => {
-        commitFields(
-            prev => prev.map(f => f.id === id ? { ...f, width: widthPercent, height: heightPercent } : f),
-            { label: 'Resize field', coalesceKey: `resize:${id}` },
-        );
-    }, [commitFields]);
-
-    const updateFieldLabel = useCallback((id, newLabel) => {
-        commitFields(
-            prev => prev.map(f => f.id === id ? { ...f, label: newLabel } : f),
-            { label: 'Rename field', coalesceKey: `label:${id}` },
-        );
-    }, [commitFields]);
-
-    // PHASE 3: Update any property on the active field
-    const updateActiveField = useCallback((key, value) => {
-        if (!selectedFieldId) return;
-        commitFields(
-            prev => prev.map(f => f.id === selectedFieldId ? { ...f, [key]: value } : f),
-            { label: 'Change field property', coalesceKey: `prop:${selectedFieldId}:${key}` },
-        );
-    }, [selectedFieldId, commitFields]);
-
-    /**
-     * Bulk field tools.
-     *
-     * All of them go through `commitFields`, so each one is exactly one undo
-     * step, and all of them are pure geometry on the local field array — no
-     * Firestore, no Storage, no callable.
-     *
-     * Copies get their own ids. The suffix guarantees uniqueness even where the
-     * id source repeats within a tick, which matters because a copy that shared
-     * an id with its source would silently overwrite it on save.
-     */
-    const copySequenceRef = useRef(0);
-    const nextCopyId = useCallback(() => {
-        copySequenceRef.current += 1;
-        return `${uuidv4()}_${copySequenceRef.current}`;
-    }, []);
-
-    const handleAlignFields = useCallback((mode) => {
-        commitFields(
-            (prev) => alignFields(prev, selectedFieldIdsRef.current, mode),
-            { label: `Align ${mode}` },
-        );
-    }, [commitFields]);
-
-    const handleMatchFieldSize = useCallback((dimension) => {
-        commitFields(
-            (prev) => matchFieldSize(prev, selectedFieldIdsRef.current, dimension),
-            { label: `Match ${dimension}` },
-        );
-    }, [commitFields]);
-
-    const handleDuplicateSelection = useCallback(() => {
-        const ids = selectedFieldIdsRef.current;
-        if (ids.length === 0) return;
-        const created = [];
-        commitFields((prev) => {
-            const copies = prev
-                .filter((field) => ids.includes(field.id))
-                .map((field) => duplicateField(field, nextCopyId))
-                .filter(Boolean);
-            if (copies.length === 0) return prev;
-            created.push(...copies.map((copy) => copy.id));
-            return [...prev, ...copies];
-        }, { label: `Duplicate ${ids.length} field${ids.length === 1 ? '' : 's'}` });
-        // The copies become the selection, so the next nudge moves them and not
-        // the originals underneath.
-        if (created.length > 0) setSelectedFieldIds(created);
-    }, [commitFields, nextCopyId]);
-
-    const handleCopyToPages = useCallback((targetPages, label) => {
-        const ids = selectedFieldIdsRef.current;
-        if (ids.length === 0 || targetPages.length === 0) return;
-        commitFields(
-            (prev) => copyFieldsToPages(prev, ids, targetPages, nextCopyId).fields,
-            { label },
-        );
-    }, [commitFields, nextCopyId]);
+    // Every field mutation — add/remove/move/resize/label/property plus the
+    // align/match/duplicate/copy-to-pages bulk tools and the visual drag
+    // guides — lives in useEnvelopeFieldEditing since the 2026-09-01
+    // source-size split (SG-1b). All of it still routes through commitFields.
+    const {
+        dragGuides,
+        addField,
+        removeField,
+        handleFieldDragMove,
+        updateFieldPosition,
+        updateFieldSize,
+        updateFieldLabel,
+        updateActiveField,
+        handleAlignFields,
+        handleMatchFieldSize,
+        handleDuplicateSelection,
+        handleCopyToPages,
+    } = useEnvelopeFieldEditing({
+        commitFields,
+        fieldsRef,
+        selectedFieldIdsRef,
+        setSelectedFieldIds,
+        file,
+        activePage,
+        selectedFieldId,
+    });
 
     const onPageLoadSuccess = (page) => {
         setPageDimensions(prev => ({ ...prev, [page.pageNumber]: { width: page.width, height: page.height } }));
@@ -752,25 +491,19 @@ export default function EnvelopeCreator({
     const editRecipientName = useCallback((value) => {
         setRecipientName(value);
         setSaveState(SAVE_STATES.UNSAVED);
-    }, []);
+    }, [setSaveState]);
     const editRecipientEmail = useCallback((value) => {
         setRecipientEmail(value);
         setSaveState(SAVE_STATES.UNSAVED);
-    }, []);
+    }, [setSaveState]);
     const editRecipientPhone = useCallback((value) => {
         setRecipientPhone(value);
         setSaveState(SAVE_STATES.UNSAVED);
-    }, []);
+    }, [setSaveState]);
     const editDeliveryMethod = useCallback((value) => {
         setDeliveryMethod(value);
         setSaveState(SAVE_STATES.UNSAVED);
-    }, []);
-
-    const markSaved = useCallback(() => {
-        setSaveState(SAVE_STATES.SAVED);
-        historyRef.current = createHistory(fieldsRef.current);
-        setHistory(historyRef.current);
-    }, []);
+    }, [setSaveState]);
 
     // One expression, so the caller awaits the module's own promise (the
     // `CA-9` wrapper shape). Not a useCallback before the split either.
