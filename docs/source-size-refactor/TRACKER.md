@@ -15,13 +15,13 @@ it currently is*.
 
 | | |
 |---|---|
-| **Last updated** | 2026-09-01, `SG-4` merged as #111; `SG-5` (`ResizableDraggableField.test.jsx` → 2 suites + support) on the branch |
-| **Verified main SHA** | `30f8213934f3c53c3168166606086b2af17f1a81` (#111 / `SG-4` merged) |
-| **Oversized files** | **9 on `main`, 8 on this branch** (was 68 when the tracker opened) |
-| **Backlog entries** | **9 on `main`, 8 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
-| **Active work item** | `SG-5` — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
+| **Last updated** | 2026-09-01, `SG-5` merged as #112 — the `SG-*` test splits are done; `CP-1` (`LaunchPad.test.jsx` → 2 suites + support) on the branch |
+| **Verified main SHA** | `445da0063e3ce1ae7fbbb7007c5ece2e56cce574` (#112 / `SG-5` merged) |
+| **Oversized files** | **8 on `main`, 7 on this branch** (was 68 when the tracker opened) |
+| **Backlog entries** | **8 on `main`, 7 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
+| **Active work item** | `CP-1` — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | none open yet for `SG-5`. [#111](https://github.com/Khomurod/SafeHaul/pull/111) and everything before it merged; #50 closed. |
+| **Active PR** | none open yet for `CP-1`. [#112](https://github.com/Khomurod/SafeHaul/pull/112) and everything before it merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
 | **CI status** | #61, #62 and #63 all merged fully green, first try. The only red round in this stretch was #60's `frontend-quality` — a **race in a test `LD-R3` wrote**, reproduced and fixed, see the interlude below. A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
@@ -30,8 +30,8 @@ it currently is*.
 
 ### Exact next action
 
-1. **Push and open the `SG-5` PR**, then merge it when green.
-2. **Nothing is pre-built behind `SG-5`.** The stacking deviation recorded below
+1. **Push and open the `CP-1` PR**, then merge it when green.
+2. **Nothing is pre-built behind `CP-1`.** The stacking deviation recorded below
    is fully unwound once it merges.
    **Their sections below were published with `FT-10`, deliberately ahead of their
    code.** The reason is worth keeping: for several units the "rebuild it from the
@@ -55,11 +55,11 @@ it currently is*.
    **If those local branches are gone** (a fresh container), the work is not lost:
    rebuild each from its `FR-*` section below, which is written as a recipe.
 3. **`RU-2` stays STOPPED pending an owner decision** (see the RU
-   section). **The drain continues**: after `SG-5`, the remaining test
-   splits (`LaunchPad.test` 539, `applicationDraftStorage.test` 511),
-   the runtime hooks/views (`useCompanyDashboard.js` 528,
-   `SigningRoom.jsx` 652), and the giants (`EnvelopeCreator.jsx` 1363,
-   `PublicApplyHandler.jsx` 1476 + its 2203-line contract test),
+   section). **The drain continues**: after `CP-1`, the last small test
+   split (`applicationDraftStorage.test` 511), the runtime hooks/views
+   (`useCompanyDashboard.js` 528, `SigningRoom.jsx` 652), and the giants
+   (`EnvelopeCreator.jsx` 1363, `PublicApplyHandler.jsx` 1476 + its
+   2203-line contract test),
    then `RU-1` → `RU-2` (Firestore rules) under the owner's ruling in
    `PLAN.md` § 7.3.
 
@@ -3603,6 +3603,42 @@ same pattern as `SG-1`'s `unsubSpy`.
 | `check:ui-contract` | 505 files, 236 known across 43 files, none new |
 | every original line | accounted for — wrapper transforms only |
 | `check:source-size` | **8 recorded**, verdict `OK` |
+| root `npm run lint` | pass |
+
+---
+
+## `CP-1` — `LaunchPad.test.jsx` → two suites plus a support module
+
+**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R1 ·
+**539 → deleted; launch (294) + protection (240) + support (98)**
+
+The vitest support recipe on a NESTED-describe file: the 39 tests live in a
+small legacy describe plus one big migrated-flow describe with eight nested
+describes and its own shared helpers. Both suites rebuild the migrated-flow
+wrapper (same title, so every full test name is unchanged) around their share
+of the nested describes; the wrapper's helpers (`validCampaign`, `renderPad`
+via `makeRenderPad`, `openConfirm`, `confirmLaunch`, `callable` as an ESM
+live binding, the reset body) moved to the support.
+
+### Notes — one new recipe hazard, caught by the set-identical run
+
+- **A factory must hand out the spy INSTANCE the suites configure, not a
+  wrapper around it.** The suites (and the legacy beforeEach) configure the
+  mocked module via `vi.mocked(httpsCallable).mockReturnValue(...)`; the
+  first support draft returned `(...args) => fnMocks.httpsCallable(...args)`,
+  which is not a mock function, so `vi.mocked(...)` had nothing to configure
+  and three tests failed. The factory now returns `fnMocks.httpsCallable`
+  itself, with the reason commented. Delegation wrappers are fine for state
+  the suites only READ; anything the suites configure through the module's
+  own export must be the same object.
+
+| Check | Result |
+|---|---|
+| 39 tests across the two suites | **set-identical**, all green |
+| all campaigns suites | 211/211 (12 files) |
+| `check:ui-contract` | 506 files, 236 known across 43 files, none new |
+| every original line | accounted for — wrapper transforms only |
+| `check:source-size` | **7 recorded**, verdict `OK` |
 | root `npm run lint` | pass |
 
 ---
