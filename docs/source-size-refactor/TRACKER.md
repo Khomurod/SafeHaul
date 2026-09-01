@@ -15,13 +15,13 @@ it currently is*.
 
 | | |
 |---|---|
-| **Last updated** | 2026-09-01, `SG-3` merged as #110; `SG-4` (`useAiFieldAssistant.test.jsx` → 2 suites + support) on the branch |
-| **Verified main SHA** | `d08f66c2289124a4e6c97119976d68e1df3fdc89` (#110 / `SG-3` merged) |
-| **Oversized files** | **10 on `main`, 9 on this branch** (was 68 when the tracker opened) |
-| **Backlog entries** | **10 on `main`, 9 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
-| **Active work item** | `SG-4` — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
+| **Last updated** | 2026-09-01, `SG-4` merged as #111; `SG-5` (`ResizableDraggableField.test.jsx` → 2 suites + support) on the branch |
+| **Verified main SHA** | `30f8213934f3c53c3168166606086b2af17f1a81` (#111 / `SG-4` merged) |
+| **Oversized files** | **9 on `main`, 8 on this branch** (was 68 when the tracker opened) |
+| **Backlog entries** | **9 on `main`, 8 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
+| **Active work item** | `SG-5` — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | none open yet for `SG-4`. [#110](https://github.com/Khomurod/SafeHaul/pull/110) and everything before it merged; #50 closed. |
+| **Active PR** | none open yet for `SG-5`. [#111](https://github.com/Khomurod/SafeHaul/pull/111) and everything before it merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
 | **CI status** | #61, #62 and #63 all merged fully green, first try. The only red round in this stretch was #60's `frontend-quality` — a **race in a test `LD-R3` wrote**, reproduced and fixed, see the interlude below. A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
@@ -30,8 +30,8 @@ it currently is*.
 
 ### Exact next action
 
-1. **Push and open the `SG-4` PR**, then merge it when green.
-2. **Nothing is pre-built behind `SG-4`.** The stacking deviation recorded below
+1. **Push and open the `SG-5` PR**, then merge it when green.
+2. **Nothing is pre-built behind `SG-5`.** The stacking deviation recorded below
    is fully unwound once it merges.
    **Their sections below were published with `FT-10`, deliberately ahead of their
    code.** The reason is worth keeping: for several units the "rebuild it from the
@@ -55,12 +55,11 @@ it currently is*.
    **If those local branches are gone** (a fresh container), the work is not lost:
    rebuild each from its `FR-*` section below, which is written as a recipe.
 3. **`RU-2` stays STOPPED pending an owner decision** (see the RU
-   section). **The drain continues**: after `SG-4`, the remaining test
-   splits (`ResizableDraggableField.test` 502, `LaunchPad.test` 539,
-   `applicationDraftStorage.test` 511), the runtime hooks/views
-   (`useCompanyDashboard.js` 528, `SigningRoom.jsx` 652), and the giants
-   (`EnvelopeCreator.jsx` 1363, `PublicApplyHandler.jsx` 1476 + its
-   2203-line contract test),
+   section). **The drain continues**: after `SG-5`, the remaining test
+   splits (`LaunchPad.test` 539, `applicationDraftStorage.test` 511),
+   the runtime hooks/views (`useCompanyDashboard.js` 528,
+   `SigningRoom.jsx` 652), and the giants (`EnvelopeCreator.jsx` 1363,
+   `PublicApplyHandler.jsx` 1476 + its 2203-line contract test),
    then `RU-1` → `RU-2` (Firestore rules) under the owner's ruling in
    `PLAN.md` § 7.3.
 
@@ -3579,6 +3578,31 @@ after their own hoisted mocks.
 | `check:ui-contract` | 504 files, 236 known across 43 files, none new |
 | every original line | accounted for — wrapper transforms only |
 | `check:source-size` | **9 recorded**, verdict `OK` |
+| root `npm run lint` | pass |
+
+---
+
+## `SG-5` — `ResizableDraggableField.test.jsx` → two suites plus a support module
+
+**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R1 ·
+**502 → deleted; geometry (281) + appearance (194) + support (95)**
+
+The vitest support recipe on the placed-field overlay test: 54 tests over
+eight describes, split into the geometry half (percentage conversion, the
+drag and resize contracts, selection/label/removal, keyboard placement; the
+maths that must not move a field by a pixel) and the appearance half
+(appearance states, pointer selection order, presentation). One mock only —
+the transparent react-draggable double, moved verbatim with its rationale
+comment. `handlers` is an ESM live binding assigned by `resetHarness`, the
+same pattern as `SG-1`'s `unsubSpy`.
+
+| Check | Result |
+|---|---|
+| 54 tests across the two suites | **set-identical**, all green |
+| all signing suites | 679/679 (35 files) |
+| `check:ui-contract` | 505 files, 236 known across 43 files, none new |
+| every original line | accounted for — wrapper transforms only |
+| `check:source-size` | **8 recorded**, verdict `OK` |
 | root `npm run lint` | pass |
 
 ---

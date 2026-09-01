@@ -1,84 +1,31 @@
-// Focused coverage for the placed-field overlay. The drag/resize mathematics is
-// this component's real contract — every percentage conversion, bound, floor and
-// callback payload is pinned here so the migration cannot move a field by a
-// pixel. All fixtures are artificial.
+// The placed-field overlay, part 1 of 2: geometry conversion, the drag
+// contract, the resize contract, selection/label/removal, and keyboard
+// placement — every percentage conversion, bound, floor and callback payload.
+// The shared harness — the react-draggable double, fixtures and helpers —
+// lives in `ResizableDraggableField.support.jsx`; the registration below
+// delegates to it. All fixtures are artificial.
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
-import { axe } from 'vitest-axe';
+import { screen, fireEvent } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-// react-draggable is replaced with a transparent harness that records the props
-// it was given and lets a test invoke onStop with a chosen pixel position, so
-// the conversion maths can be asserted without a real pointer gesture.
-const draggableProps = vi.hoisted(() => ({ current: null }));
-vi.mock('react-draggable', () => ({
-    default: ({ children, ...props }) => {
-        draggableProps.current = props;
-        return React.cloneElement(children, { 'data-draggable': 'true' });
-    },
-}));
+vi.mock('react-draggable', async () => (await import('./ResizableDraggableField.support')).reactDraggableMock());
 
 import { ResizableDraggableField } from './ResizableDraggableField';
+import {
+    makeRenderField,
+    resetHarness,
+    resizeBy,
+    makeField,
+    icon,
+    handlers,
+    draggableProps,
+    PAGE_WIDTH,
+    PAGE_HEIGHT,
+} from './ResizableDraggableField.support';
 
-const PAGE_WIDTH = 800;
-const PAGE_HEIGHT = 1000;
+const renderField = makeRenderField(ResizableDraggableField);
 
-function icon(type) {
-    return <span data-testid={`icon-${type}`} />;
-}
-
-let handlers;
-
-function makeField(overrides = {}) {
-    return {
-        id: 'f-1',
-        type: 'text',
-        label: 'Full Name',
-        page: 1,
-        x: 10,
-        y: 20,
-        width: 25,
-        height: 5,
-        ...overrides,
-    };
-}
-
-function renderField(fieldOverrides = {}, propOverrides = {}) {
-    const field = makeField(fieldOverrides);
-    const utils = render(
-        <ResizableDraggableField
-            field={field}
-            pageNum={1}
-            pageWidth={PAGE_WIDTH}
-            pageHeight={PAGE_HEIGHT}
-            getIcon={icon}
-            isSelected={false}
-            {...handlers}
-            {...propOverrides}
-        />,
-    );
-    return { field, ...utils };
-}
-
-/** Simulates a full resize gesture through the window-level listeners.
- *  The handle only exists on the selected field, so callers render selected. */
-function resizeBy(container, dx, dy) {
-    const handle = container.querySelector('.resize-handle');
-    fireEvent.mouseDown(handle, { clientX: 100, clientY: 100 });
-    fireEvent(window, new MouseEvent('mousemove', { clientX: 100 + dx, clientY: 100 + dy }));
-    fireEvent(window, new MouseEvent('mouseup', {}));
-}
-
-beforeEach(() => {
-    draggableProps.current = null;
-    handlers = {
-        onStop: vi.fn(),
-        onResize: vi.fn(),
-        onRemove: vi.fn(),
-        onLabelChange: vi.fn(),
-        onSelect: vi.fn(),
-    };
-});
+beforeEach(resetHarness);
 
 describe('ResizableDraggableField — geometry', () => {
     it('converts percentage position to pixels for the drag position', () => {
@@ -333,170 +280,3 @@ describe('ResizableDraggableField — keyboard placement', () => {
     });
 });
 
-describe('ResizableDraggableField — appearance states', () => {
-    const box = (container) => container.querySelector('[data-draggable]');
-
-    it('is a thin toned border over a translucent fill when unselected', () => {
-        const { container } = renderField();
-        const target = box(container);
-        expect(target.className).toContain('border-ds-status-info-border');
-        expect(target.className).not.toContain('border-2');
-        expect(target.querySelector('[data-field-fill]').className).toContain('opacity-40');
-    });
-
-    it('states selection with a primary border, a ring and a heavier fill', () => {
-        const { container } = renderField({}, { isSelected: true });
-        const target = box(container);
-        expect(target.className).toContain('border-ds-action-primary');
-        expect(target.className).toContain('ring-2');
-        expect(target.querySelector('[data-field-fill]').className).toContain('opacity-70');
-    });
-
-    it('distinguishes a field in a multi-selection from the one being edited', () => {
-        const { container } = renderField({}, { isMultiSelected: true });
-        const target = box(container);
-        // In the selection: primary border and the heavier fill…
-        expect(target.className).toContain('border-ds-action-primary');
-        expect(target.querySelector('[data-field-fill]').className).toContain('opacity-70');
-        // …but not the ring, which marks the single field the inspector shows.
-        expect(target.className).not.toContain('ring-2');
-        expect(target).toHaveAccessibleName(/, selected$/);
-    });
-
-    it('leaves an unselected field with no selected state to report', () => {
-        const { container } = renderField();
-        expect(box(container)).toHaveAccessibleName('Full Name, text field on page 1');
-    });
-
-    it('reveals the remove control and resize handle only on the selected field', () => {
-        const { container, rerender } = renderField();
-        expect(screen.queryByRole('button', { name: /^Remove/ })).toBeNull();
-        expect(container.querySelector('.resize-handle')).toBeNull();
-
-        rerender(
-            <ResizableDraggableField
-                field={makeField()}
-                pageNum={1}
-                pageWidth={PAGE_WIDTH}
-                pageHeight={PAGE_HEIGHT}
-                getIcon={icon}
-                isSelected
-                {...handlers}
-            />,
-        );
-        expect(screen.getByRole('button', { name: 'Remove Full Name from page 1' })).toBeInTheDocument();
-        expect(container.querySelector('.resize-handle')).not.toBeNull();
-    });
-
-    it('keeps the label editable whether or not the field is selected', () => {
-        const { unmount } = renderField();
-        expect(screen.getByRole('textbox', { name: /^Label for/ })).toBeInTheDocument();
-        unmount();
-
-        renderField({}, { isSelected: true });
-        expect(screen.getByRole('textbox', { name: /^Label for/ })).toBeInTheDocument();
-    });
-
-    it('reports a Shift-click as an additive selection', () => {
-        const { container } = renderField();
-        fireEvent.click(box(container), { shiftKey: true });
-        expect(handlers.onSelect).toHaveBeenCalledWith('f-1', { additive: true });
-    });
-
-    it('raises the selected field above its neighbours', () => {
-        const plain = renderField();
-        expect(box(plain.container).className).toContain('z-50');
-        plain.unmount();
-
-        const selected = renderField({}, { isSelected: true });
-        expect(box(selected.container).className).toContain('z-[60]');
-    });
-
-    it('has no accessibility violations while selected', async () => {
-        const { container } = renderField({}, { isSelected: true });
-        expect((await axe(container)).violations).toEqual([]);
-    });
-});
-
-describe('ResizableDraggableField — pointer selection order', () => {
-    const box = (container) => container.querySelector('[data-draggable]');
-
-    it('lets the click own selection when a pointer press focused the field', () => {
-        // A pointer press focuses before the click is dispatched. If focus also
-        // selected, a Shift-click would select on focus and toggle straight back
-        // out on click, leaving an empty selection.
-        const { container } = renderField();
-        const target = box(container);
-
-        fireEvent.mouseDown(target);
-        fireEvent.focus(target);
-        expect(handlers.onSelect).not.toHaveBeenCalled();
-
-        fireEvent.click(target, { shiftKey: true });
-        expect(handlers.onSelect).toHaveBeenCalledTimes(1);
-        expect(handlers.onSelect).toHaveBeenCalledWith('f-1', { additive: true });
-    });
-
-    it('still selects on focus when the keyboard got there', () => {
-        const { container } = renderField();
-        fireEvent.focus(box(container));
-        expect(handlers.onSelect).toHaveBeenCalledWith('f-1');
-    });
-
-    it('selects on focus again after the pointer leaves the field', () => {
-        const { container } = renderField();
-        const target = box(container);
-
-        fireEvent.mouseDown(target);
-        fireEvent.focus(target);
-        fireEvent.blur(target);
-        handlers.onSelect.mockClear();
-
-        // Tabbing back in is a keyboard focus again, not the earlier press.
-        fireEvent.focus(target);
-        expect(handlers.onSelect).toHaveBeenCalledWith('f-1');
-    });
-});
-
-describe('ResizableDraggableField — presentation', () => {
-    it.each([
-        ['signature', 'warning'],
-        ['initial', 'warning'],
-        ['text', 'info'],
-        ['date', 'success'],
-        ['checkbox', 'accent'],
-    ])('tones a %s field with the %s status tokens', (type, tone) => {
-        const { container } = renderField({ type });
-        const box = container.querySelector('[data-draggable]');
-        expect(box.className).toContain(`border-ds-status-${tone}-border`);
-        // The fill is a separate translucent layer so the PDF stays readable.
-        const fill = box.querySelector('[data-field-fill]');
-        expect(fill.className).toContain(`bg-ds-status-${tone}-bg`);
-        expect(fill.className).toContain('opacity-40');
-    });
-
-    it('keeps the class names react-draggable cancels on', () => {
-        const { container } = renderField({}, { isSelected: true });
-        expect(container.querySelector('.resize-handle')).not.toBeNull();
-        expect(container.querySelector('.label-input')).not.toBeNull();
-    });
-
-    it('no longer hides the resize affordance until hover', () => {
-        const { container } = renderField({}, { isSelected: true });
-        const handle = container.querySelector('.resize-handle');
-        expect(handle.className).not.toContain('opacity-0');
-        expect(handle.className).toContain('opacity-60');
-    });
-
-    it('uses no legacy palette, no raw hex and no 9px or 10px text', () => {
-        const { container } = renderField();
-        expect(container.innerHTML).not.toMatch(/bg-(yellow|orange|blue|green|purple)-\d{2,3}|bg-red-500|text-gray-600/);
-        expect(container.innerHTML).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
-        expect(container.innerHTML).not.toMatch(/text-\[9px\]|text-\[10px\]/);
-    });
-
-    it('has no accessibility violations', async () => {
-        const { container } = renderField();
-        expect((await axe(container)).violations).toEqual([]);
-    });
-});
