@@ -43,7 +43,6 @@
     "src/features/company-admin/components/tabs/PEVTab.jsx": 629,
     "src/features/company-admin/hooks/useCompanyLeadUpload.contract.test.js": 507,
     "src/features/company-admin/views/CompanyCandidatesListPage.jsx": 607,
-    "src/features/company-admin/views/DocumentsManager.jsx": 735,
     "src/features/company-admin/views/DocumentsManager.test.jsx": 576,
     "src/features/company-admin/views/UserProfilePage.test.jsx": 550,
     "src/features/driver-app/components/application/PublicApplyHandler.contract.test.jsx": 2203,

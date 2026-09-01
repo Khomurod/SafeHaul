@@ -15,13 +15,13 @@ it currently is*.
 
 | | |
 |---|---|
-| **Last updated** | 2026-09-01, `SA-9` merged as #90 — the `SA-*` series is done; `CA-1` on the branch |
-| **Verified main SHA** | `207a99f24b4bb40baa7912d6633df26ec39eedcc` (#90 / `SA-9` merged) |
-| **Oversized files** | **30 on `main`, 29 on this branch** (was 68 when the tracker opened) |
-| **Backlog entries** | **30 on `main`, 29 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
-| **Active work item** | `CA-1` — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
+| **Last updated** | 2026-09-01, `CA-1` merged as #91; `CA-2` (`DocumentsManager.jsx` → view + two hooks) on the branch |
+| **Verified main SHA** | `e5a49c850b41543b4c164b6f7d03e6d52df8cfa5` (#91 / `CA-1` merged) |
+| **Oversized files** | **29 on `main`, 28 on this branch** (was 68 when the tracker opened) |
+| **Backlog entries** | **29 on `main`, 28 on this branch** — count `.files` keys in the JSON; `grep -c` over-counts, and the top level has three non-file keys |
+| **Active work item** | `CA-2` — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | none open yet for `CA-1`. [#90](https://github.com/Khomurod/SafeHaul/pull/90) and everything before it merged; #50 closed. |
+| **Active PR** | none open yet for `CA-2`. [#91](https://github.com/Khomurod/SafeHaul/pull/91) and everything before it merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
 | **CI status** | #61, #62 and #63 all merged fully green, first try. The only red round in this stretch was #60's `frontend-quality` — a **race in a test `LD-R3` wrote**, reproduced and fixed, see the interlude below. A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
@@ -30,8 +30,8 @@ it currently is*.
 
 ### Exact next action
 
-1. **Push and open the `CA-1` PR**, then merge it when green.
-2. **Nothing is pre-built behind `CA-1`.** The stacking deviation recorded below
+1. **Push and open the `CA-2` PR**, then merge it when green.
+2. **Nothing is pre-built behind `CA-2`.** The stacking deviation recorded below
    is fully unwound once it merges.
    **Their sections below were published with `FT-10`, deliberately ahead of their
    code.** The reason is worth keeping: for several units the "rebuild it from the
@@ -54,8 +54,9 @@ it currently is*.
    conflicts.
    **If those local branches are gone** (a fresh container), the work is not lost:
    rebuild each from its `FR-*` section below, which is written as a recipe.
-3. **After `CA-1`: the rest of the `CA-*` series** (next `CA-2`,
-   `DocumentsManager.jsx`, 735), the `T-*` tooling units,
+3. **After `CA-2`: the rest of the `CA-*` series** (next `CA-3`,
+   `DocumentsManager.test.jsx`, 576 — a test split, the `SA-2` vitest support
+   recipe), the `T-*` tooling units,
    then `RU-1` → `RU-2` (Firestore rules) under the owner's ruling in
    `PLAN.md` § 7.3.
 
@@ -159,8 +160,8 @@ use `—` until it exists.**
 | `SA-7` | **MERGED** | R1 | contract test → 3 suites + support | 709 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#89](https://github.com/Khomurod/SafeHaul/pull/89) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `SA-8` | **COMPLETE** (replaced by `LD-R3`) | R2 | `LandingPageSettingsView.jsx` → `WebsiteLeadsView.jsx` | 536 | **231** | — | — | — | — | — | — | — | 1 ✓ |
 | `SA-9` | **MERGED** | R1 | contract test → 3 suites + support | 570 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#90](https://github.com/Khomurod/SafeHaul/pull/90) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
-| `CA-1` | **IN PROGRESS** | R2 | tab → 321 + the seven cards | 752 | **321** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
-| `CA-2` | NOT STARTED | R2 | `src/features/company-admin/views/DocumentsManager.jsx` (runtime) | 735 | 735 | — | — | — | — | — | — | — | 1 |
+| `CA-1` | **MERGED** | R2 | tab → 321 + the seven cards | 752 | **321** | `claude/safehual-source-size-refactor-j4apre` | [#91](https://github.com/Khomurod/SafeHaul/pull/91) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
+| `CA-2` | **IN PROGRESS** | R2 | view → 482 + two feature hooks | 735 | **482** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | local green | — | — | **1 ✓** |
 | `CA-3` | NOT STARTED | R1 | `src/features/company-admin/views/DocumentsManager.test.jsx` (test) | 576 | 576 | — | — | — | — | — | — | — | 1 |
 | `CA-4` | NOT STARTED | R2 | `src/features/company-admin/components/modals/VOEPreviewModal.jsx` (runtime) | 634 | 634 | — | — | — | — | — | — | — | 1 |
 | `CA-5` | NOT STARTED | R1 | `src/features/company-admin/components/modals/VOEPreviewModal.contract.test.jsx` (test) | 751 | 751 | — | — | — | — | — | — | — | 1 |
@@ -2764,7 +2765,7 @@ manual publication check + the publication run ledger.
 
 ## `CA-1` — `driver-dossier/tabs/ApplicationTab.jsx` → the tab, plus its cards
 
-**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R2 ·
+**Status:** `MERGED` — [#91](https://github.com/Khomurod/SafeHaul/pull/91), 2026-09-01 · **Risk:** R2 ·
 **752 → 321, plus a 464-line cards module — the first `CA-*` unit**
 
 The dossier's Application tab already had its seven sub-components at module
@@ -2800,6 +2801,60 @@ header documents.
 | every original body line | accounted for — one resplit import |
 | `check:source-size` | **29 recorded**, verdict `OK` |
 | root `npm run lint` · `check:ci-plan` | pass |
+
+---
+
+## `CA-2` — `views/DocumentsManager.jsx` → the view, plus two feature hooks
+
+**Status:** `IN PROGRESS` — on the branch, PR about to open · **Risk:** R2 ·
+**735 → 482, plus a 260-line send-flow hook and a 120-line forms hook**
+
+The Documents workspace kept two separable state machines inline: the
+template-send flow (wizard state, the driver picker and its fetch, prefill
+state and partition, and `executeTemplateSend` itself — orig 71–90 and
+168–350) and the post-application forms configuration (init-from-profile and
+prune effects, `buildPostSubmitConfig`, the four toggle/move handlers, and
+the save — orig 140–166, 352–363, 462–505). Each moved verbatim into a
+feature hook; both hooks are called in the component, so every piece of
+state keeps exactly the lifetime it had inline. The view keeps the tabs,
+templates subscription, the delete/edit/duplicate/configure flows, the
+guards, the `viewMode === 'create'` branch, and the whole return JSX —
+all verbatim.
+
+| file | subject | lines |
+|---|---|---|
+| `hooks/useTemplateSendFlow.js` | wizard/picker/prefill state + `executeTemplateSend` | 260 |
+| `hooks/usePostSubmitForms.js` | post-application forms config + save | 120 |
+| `views/DocumentsManager.jsx` (entry) | tabs, panels, delete flow, dialogs | 482 |
+
+### Notes
+
+- `handleConfigureTemplate` and the delete flow stay in the view:
+  configure is pure tab navigation, and deletion prunes the forms config via
+  the hook's returned `buildPostSubmitConfig` — the hook exposes the builder
+  and `setPostSubmitTemplateIds` for exactly that caller.
+- **The sed-comment trap struck again, in its silent form**: the first cut of
+  `usePostSubmitForms` started one line late (missing the one-line
+  `isTemplateEnabledPostSubmit`) and dragged in two stray comment *openers*
+  whose closers stayed behind — so three handlers sat inside an unterminated
+  block comment that still parsed, surfacing only as `no-undef` at the return
+  object. Pin both comment boundaries before cutting; lint the fragment
+  before wiring it.
+- The original's five `react-hooks/rules-of-hooks` warnings (hooks after the
+  pre-existing feature-locked early return at orig 108) become three of the
+  same class in the new view — same root cause, untouched by policy.
+- Three state-group comments (FEAT-2/3/4, prefill grouping, required-by-
+  default) moved with their state after the multiset diff flagged them.
+
+| Check | Result |
+|---|---|
+| 41 covering tests (`DocumentsManager.test.jsx`) | **set-identical**, all green |
+| all company-admin suites | 707/707 |
+| `check:ui-contract` | 488 files scanned, none new |
+| every original body line | accounted for — two resplit imports, three moved comments |
+| JSX component-import audit (multi-line-aware) | none missing |
+| `check:source-size` | **28 recorded**, verdict `OK` |
+| root `npm run lint` | pass (pre-existing warnings only) |
 
 ---
 
