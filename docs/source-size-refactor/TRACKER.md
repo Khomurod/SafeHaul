@@ -15,13 +15,13 @@ it currently is*.
 
 | | |
 |---|---|
-| **Last updated** | 2026-09-01, `PA-1c` merged as #123; **`PA-2` on the branch retires the LAST backlog entry** — the 2203-line contract test → six suites + support, `files` is `{}` |
-| **Verified main SHA** | `2513951c043479c3dbfff3534b1ae4ae7dec38e7` (#123 / `PA-1c` merged) |
-| **Oversized files** | **2 over 500 on `main`, 1 on this branch** (was 68 when the tracker opened) — and that one is `firestore.rules`, under its owner-ruled 689 ceiling. On this branch NO file exceeds the standard unaccounted. |
-| **Backlog entries** | **1 on `main`, 0 on this branch** — `files` is `{}`; `Z-1` deletes the file itself next |
-| **Active work item** | `PA-2` (the contract-test split — the campaign's final drain unit) — on the branch, PR pending. Built one-at-a-time from `main`; nothing is stacked behind it. |
+| **Last updated** | 2026-09-01, `PA-2` merged as #124 — the backlog is EMPTY. **`Z-1` on the branch closes the campaign**: the backlog file is deleted per its own instructions, and `AGENTS.md`/`PLAN.md`/`APP_BRIEF.md` record completion |
+| **Verified main SHA** | `a41d8c42ce4e34e3dc17da679c45f867d5f189bc` (#124 / `PA-2` merged) |
+| **Oversized files** | **1 over 500** (was 68 when the tracker opened) — `firestore.rules`, measured on every run under its owner-ruled 689 ceiling. **Nothing exceeds the standard unaccounted.** |
+| **Backlog entries** | **0 — and on this branch the file itself is gone.** The checker's verdict line: `1 file(s) over 500 lines; 0 recorded in the backlog; 1 under an owner-ruled ceiling.` |
+| **Active work item** | `Z-1` — the closing unit. Nothing is queued behind it; when it merges the campaign is COMPLETE. |
 | **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | none open yet. [#123](https://github.com/Khomurod/SafeHaul/pull/123) and everything before it merged; #50 closed. |
+| **Active PR** | none open yet. [#124](https://github.com/Khomurod/SafeHaul/pull/124) and everything before it merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
 | **CI status** | #92–#113 all merged green. The only red in that stretch was #109's first round — the `EditUserBodies` initial-load race, not that PR's diff; fixed family-wide in the same PR (see the interlude below). A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
@@ -30,7 +30,7 @@ it currently is*.
 
 ### Exact next action
 
-1. **Push and open the `PA-2` PR**, then merge it when green.
+1. **Push and open the `Z-1` PR**, then merge it when green. That is the last action of the campaign.
 2. **Nothing is pre-built behind it**, and the stacking deviation recorded in
    earlier revisions is fully unwound — every pre-built unit has merged
    (#104–#113). The lesson stays recorded: recipes/sections go out ahead of their
@@ -50,13 +50,9 @@ it currently is*.
    exception on 2026-09-01 (`PLAN.md` § 7.3a, RU section below). **The drain
    continues** through the last giants. `EnvelopeCreator.jsx` is DONE
    (#118/#119/#120, 1363 → 451). `PublicApplyHandler.jsx` (1476) drains
-   over 3 PRs (#121/#122/#123, 1476 → 457). `PA-2` (on branch) splits the
-   2203-line contract test into six suites + support and empties the
-   backlog. Then `Z-1`: delete `.github/source-size-backlog.json` (the
-   checker's own docs say the file goes when the last entry does; an empty
-   `files` passes meanwhile — H45), final rescan, and the closing updates
-   to `AGENTS.md`/`PLAN.md`/`APP_BRIEF.md`. The campaign ends with one
-   owner-ruled, measured exception.
+   over 3 PRs (#121/#122/#123, 1476 → 457). `PA-2` merged as #124 — the
+   backlog is empty. `Z-1` (on branch) deletes the file, and the campaign
+   ends with one owner-ruled, measured exception. There is no next unit.
 
 **Four process rules learned the hard way in this session, all worth keeping:**
 
@@ -98,7 +94,7 @@ it currently is*.
 |---|---|---|
 | Over-limit files at campaign start (2026-08-26 audit, incl. 2026-08-27 additions) | 70 | — |
 | Retired before this tracker existed (PR #49) | 2 | — |
-| **Remaining now** (this branch, `PA-2` applied) | **0** | **0** |
+| **Remaining now** (campaign complete) | **0** | **0** |
 | Retired by this campaign so far | **63** (62 fixed or removed + `firestore.rules` moved to an owner-ruled, still-measured ceiling) | — |
 
 **How to reproduce those two numbers**, because an earlier revision of this table
@@ -179,7 +175,7 @@ use `—` until it exists.**
 | `SG-6` | **MERGED** | R1 | test → 2 suites + support (section `SG-4` below) | 534 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#111](https://github.com/Khomurod/SafeHaul/pull/111) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `SG-7` | **MERGED** | R1 | test → 2 suites + support (section `SG-5` below) | 502 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#112](https://github.com/Khomurod/SafeHaul/pull/112) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `PA-1` | **MERGED** | R4 | 1476 → 457 over three PRs; submission path + bootstrap + discard/resume, lifecycle and post-submit hooks | 1476 | **457, deleted from backlog** | `claude/safehual-source-size-refactor-j4apre` | [#121](https://github.com/Khomurod/SafeHaul/pull/121) · [#122](https://github.com/Khomurod/SafeHaul/pull/122) · [#123](https://github.com/Khomurod/SafeHaul/pull/123) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
-| `PA-2` | **IN PROGRESS** | R2 | test → 6 suites (submit, progressResume, reconcile, discardTabs, discardIdentity, discardReset) + support 313 | 2203 | **deleted — backlog empty** | `claude/safehual-source-size-refactor-j4apre` | — | — | — | — | — | — | 1 |
+| `PA-2` | **MERGED** | R2 | test → 6 suites (submit, progressResume, reconcile, discardTabs, discardIdentity, discardReset) + support 313 | 2203 | **deleted — backlog empty** | `claude/safehual-source-size-refactor-j4apre` | [#124](https://github.com/Khomurod/SafeHaul/pull/124) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `PA-3` | **MERGED** | R1 | test → identity (239) + sync (299); no support module — zero mocks | 511 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#114](https://github.com/Khomurod/SafeHaul/pull/114) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `SO-1` | **MERGED** | R1 | test → 2 suites + support (section `CP-1` below) | 539 | **deleted** | `claude/safehual-source-size-refactor-j4apre` | [#113](https://github.com/Khomurod/SafeHaul/pull/113) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
 | `SO-2` | **MERGED** | R2 | hook → 378 + `dashboardQueries.js` 203 (React-free Firestore side) | 528 | **378** | `claude/safehual-source-size-refactor-j4apre` | [#116](https://github.com/Khomurod/SafeHaul/pull/116) | — | 2026-09-01 | green | ✓ | ✓ | **1 ✓** |
@@ -192,7 +188,7 @@ use `—` until it exists.**
 | `LD-2` | **COMPLETE** (deleted by `LD-R2`) | R4 | `landing/index.html` | 1682 | **gone** | — | — | — | — | — | — | — | 1 ✓ |
 | `LD-3` | **COMPLETE** (deleted by `LD-R2`) | R4 | `landing/assets/js/main.js` | 860 | **gone** | — | — | — | — | — | — | — | 1 ✓ |
 | `PA-0` | NOT STARTED | R1 | public-apply characterization coverage audit | — | — | — | — | — | — | — | — | — | 0 |
-| `Z-1` | NOT STARTED | R1 | delete backlog file; final rescan; brief update | — | — | — | — | — | — | — | — | — | 0 |
+| `Z-1` | **IN PROGRESS** | R1 | backlog file deleted; final rescan clean; AGENTS/PLAN/APP_BRIEF record completion | — | — | `claude/safehual-source-size-refactor-j4apre` | — | — | — | — | — | — | 0 |
 
 ---
 
@@ -3977,7 +3973,7 @@ its exact original shape — root lint is still exactly 124.
 
 ## `PA-2` — the contract test → six suites plus a support module
 
-**Status:** `IN PROGRESS` — on the branch, PR pending · **Risk:** R2 ·
+**Status:** `MERGED` — [#124](https://github.com/Khomurod/SafeHaul/pull/124), 2026-09-01 · **Risk:** R2 ·
 **2203 → deleted, and the backlog is EMPTY; support (313) + submit (377) +
 progressResume (360) + reconcile (433) + discardTabs (406) +
 discardIdentity (405) + discardReset (378)**
@@ -4010,6 +4006,39 @@ moved verbatim; root lint is still exactly 124.
 
 E2E deliberately not re-run for this unit: no runtime file changed — the diff
 is test files and the emptied backlog.
+
+---
+
+## `Z-1` — the campaign closes
+
+**Status:** `IN PROGRESS` — on the branch, PR pending · **Risk:** R1
+
+`.github/source-size-backlog.json` is deleted, exactly as its own `$comment`
+required: *"When the last entry goes, delete this file. Nothing here is
+permitted to stay large; every line is work that has not been done yet."*
+There is no work left undone.
+
+- The checker with the file gone: `1 file(s) over 500 lines; 0 recorded in the
+  backlog; 1 under an owner-ruled ceiling.` → `source-size OK.` — the one file
+  over 500 IS the owner-ruled `src/firestore.rules` (689 ceiling, § RU above).
+- `npm run test:source-size`: all four suites pass against the deleted file
+  (the empty/missing-backlog paths are H45 and the `existsSync` guard).
+- `AGENTS.md` marks the campaign complete inside the section that ran it;
+  `PLAN.md` carries a completion banner; `docs/APP_BRIEF.md`'s source-size
+  paragraph now describes the end state instead of a running campaign.
+
+**The campaign in one paragraph.** 2026-08-26: 70 handwritten files over the
+500-line standard, 55k+ lines of unreviewable bulk, none of it decided. Over
+~75 pull requests: 66 files split by responsibility with set-identical test
+runs and enumerated transforms as the proof standard; the landing site deleted
+by owner ruling (the blog's stylesheets extracted, `/news` preserved); the
+lead subsystem retired read-only by owner ruling; the Firestore rules file
+strengthened (11 new security-surface tests), assessed as unsafely shrinkable,
+and moved by owner ruling to a measured 689-line ceiling — four lines tighter
+than its backlog record. Zero behavior changes shipped; every merge green on
+the first CI run except one (#109, an unrelated pre-existing test race, fixed
+family-wide in the same PR). The gate that enforced all of this — and the nine
+review rounds of holes it closed — stays in force with nothing listed.
 
 ---
 

@@ -1095,15 +1095,14 @@ CI also enforces a **source-size standard**: 400 physical lines asks a file to
 justify its shape, 500 is the hard maximum, and it applies to tests and tooling
 as much as to runtime code. It measures every handwritten source language —
 JS/TS, CSS, HTML and Firestore rules — not only the scripts.
-`npm run check:source-size` prints the inventory and fails on a new offender; the
-files still over the limit are recorded in `.github/source-size-backlog.json`,
-which can only shrink and is itself compared against git so a change cannot add
-its own exemption. **That file is the count** — deliberately not repeated here,
-because it changes with every merge and a number in this paragraph was stale
-within a day of being written. Retiring the backlog is a running campaign:
-`docs/source-size-refactor/PLAN.md` holds the plan and
-`docs/source-size-refactor/TRACKER.md` the current state, and the tracker is the
-file to read before continuing that work. The commit it compares
+`npm run check:source-size` prints the inventory and fails on a new offender.
+The retirement campaign **completed on 2026-09-01**: the backlog
+(`.github/source-size-backlog.json`) drained from 70 files to zero and was then
+deleted, as its own instructions required. Today no handwritten file exceeds
+the standard except `src/firestore.rules`, which is measured on every run
+against an owner-ruled 689-line ceiling (see `AGENTS.md`) rather than listed as
+unfinished work. `docs/source-size-refactor/PLAN.md` and
+`docs/source-size-refactor/TRACKER.md` remain as the campaign's record. The commit it compares
 against is a pull request's own base, or the newest ancestor GitHub says carried
 a fully validated release — never the branch's own history, and never a
 manually-named commit that does not contain either. Where there is no earlier
