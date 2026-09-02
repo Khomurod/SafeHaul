@@ -688,7 +688,7 @@ projection, and `/apply/:slug` is not gated by any flag. See
 | **Per-company SMTP** (Nodemailer) | All outbound email — there is no platform-wide fallback sender | `companies/{id}/system_settings/email_config` (admin-only subcollection); password encrypted with an `enc:v1:` prefix and **never returned to the browser**. A legacy fallback still reads `companies/{id}.emailSettings` for pre-migration tenants — do not delete it without migrating them |
 | **Facebook Lead Ads** | Inbound leads → company `leads` subcollection | Per company |
 | **AI providers** | CDL auto-fill, e-doc field placement, blog generation | Secret Manager via the frozen registry in `functions/ai/registry` |
-| **Telegram** | Marketing-site lead delivery | Encrypted Firestore config, Secret Manager fallback |
+| **Telegram** | **Retired 2026-08-29** with the marketing-site lead form (`LD-R3`). No callable in `functions/index.js` sends to it. The six retired landing callables were still deployed on 2026-09-02 and stay until Production is promoted past `LD-R3`, because the live Production frontends still call them; procedure in `docs/FIREBASE_HOSTING_RUNBOOK.md` | Secrets unbound; rotate the bot token (runbook) |
 | **Socrata / Transportation.gov** | FMCSA employer autocomplete | Public app token |
 | **Sentry** | Error monitoring (frontend + functions) | DSN |
 | **GitHub API** | Release promotion from the Super Admin UI | GitHub App credential, server-side only |
@@ -866,7 +866,9 @@ currently populates them from a recipient's reply; see §12.
   all, asserted by `src/tests/hostingConfig.test.js`.
 - **Marketing claims must trace to the capability registry.**
   `functions/ai/knowledge/safehaulCapabilities.js` is the source of truth, and
-  `npm run check:public-claims` enforces it as part of `npm run lint`. Never
+  `npm run check:public-claims` enforces it — as a step of the always-required
+  `callable-contract` CI job, which runs on every push and pull request and
+  which no lane selection can skip, and as part of the root `npm run lint`. Never
   claim DOT/FMCSA compliance, MVR/PSP/Clearinghouse checks, document-expiry
   monitoring, a job board, or any named carrier endorsement.
 - **A `web/` change runs the `frontend_unit` CI lane.** The public site has
@@ -876,7 +878,15 @@ currently populates them from a recipient's reply; see §12.
   that claimed MVR checks, captured no lead, and failed `npm run lint`. That site
   is gone and `web/` replaced it — the directory changed, the lesson did not.
   `src/tests/hostingConfig.test.js` covers it in that lane; `A5`/`A5b` in
-  `scripts/test-ci-plan.mjs` pin the mapping.
+  `scripts/test-ci-plan.mjs` pin the mapping. The claims check is deliberately
+  NOT in this lane: it has two inputs, the pages and the capability package, and
+  a registry change selects only the functions lane. It runs in the
+  always-required `callable-contract` job instead. Until 2026-09-01 it lived in
+  the root `npm run lint` only, which CI never ran (the job runs
+  `lint:frontend`), so it was documented as a gate without being one. `K4` pins
+  the step to an always-required job, blocking and unconditional, pins that the
+  checker and the package need nothing installed, and refuses a page in a
+  subdirectory the checker does not scan.
 
 ---
 
@@ -1098,10 +1108,11 @@ JS/TS, CSS, HTML and Firestore rules — not only the scripts.
 `npm run check:source-size` prints the inventory and fails on a new offender.
 The retirement campaign **completed on 2026-09-01**: the backlog
 (`.github/source-size-backlog.json`) drained from 70 files to zero and was then
-deleted, as its own instructions required. Today no handwritten file exceeds
-the standard except `src/firestore.rules`, which is measured on every run
-against an owner-ruled 689-line ceiling (see `AGENTS.md`) rather than listed as
-unfinished work. `docs/source-size-refactor/PLAN.md` and
+deleted, as its own instructions required. 500 is the hard maximum for every
+handwritten file, with one owner-approved exception: `src/firestore.rules` is
+measured on every run against a 689-line ceiling that may never grow and may
+only move down (see `AGENTS.md`). No unaccounted file exceeds the maximum.
+`docs/source-size-refactor/PLAN.md` and
 `docs/source-size-refactor/TRACKER.md` remain as the campaign's record. The commit it compares
 against is a pull request's own base, or the newest ancestor GitHub says carried
 a fully validated release — never the branch's own history, and never a
@@ -1120,10 +1131,14 @@ workflow) and currently reports pre-existing errors in
 `src/config/applicationDefinition.js`. A red typecheck is not a broken build;
 do not assume a pre-existing one is yours.
 
-**The public site has two gates, both in CI**: `npm run check:public-claims`
-(part of `npm run lint`, and it refuses a run that finds no HTML in `web/` rather
-than passing vacantly), and `src/tests/hostingConfig.test.js` in the
-`frontend_unit` lane, which a `web/` change selects. The hand-run accessibility
+**The public site has two gates, both in CI since 2026-09-01**:
+`npm run check:public-claims`, a step of the always-required `callable-contract`
+job (so it runs on every push and pull request whichever lanes are selected, and
+it refuses a run that finds no HTML in `web/` rather than passing vacantly), and
+`src/tests/hostingConfig.test.js` in the `frontend_unit` lane, which a `web/`
+change selects. Before that date the claims check was in `npm run lint` only and
+CI ran `lint:frontend`, so no job executed it; `K4` in `npm run check:ci-plan`
+now pins the step. The hand-run accessibility
 audit and the screenshot capture went with the marketing site they served.
 
 **Local test-runner safety.** Four rules — run one Playwright suite at a time,

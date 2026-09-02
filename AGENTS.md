@@ -112,9 +112,11 @@ entry goes, so does the file — **and it went on 2026-09-01**: the campaign
 drained all 70 entries (66 split or shrunk by responsibility, the landing site
 deleted by owner ruling, the rules file moved to its owner-ruled ceiling) and
 the backlog file is deleted. Every rule in this section still governs: nothing
-is listed now, so no handwritten file may exceed the limit at all, and the
-baseline machinery below stays in force for any entry that ever tries to come
-back.
+is listed now, so no handwritten file may exceed 500 lines unaccounted for. The
+one accounted-for file is `src/firestore.rules`, under the owner-ruled, measured
+689-line ceiling described below, which may never grow and may only move down.
+The baseline machinery below stays in force for any entry that ever tries to
+come back.
 
 **And the backlog itself is compared against git, not trusted.** Every rule above
 is enforced against the backlog *in the branch under test*, which that branch may

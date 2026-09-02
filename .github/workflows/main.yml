@@ -194,6 +194,19 @@ jobs:
       - name: Verify frontend/backend callable contract
         run: node scripts/check-callable-contract.mjs
 
+      # The public site's claims gate. `npm run check:public-claims` holds every
+      # `web/*.html` to `functions/ai/knowledge/safehaulCapabilities.js`, and it
+      # was reachable only through the root `npm run lint`, which CI never runs —
+      # a gate that was documented, not wired. It lives HERE, not in a lane,
+      # because it has two inputs and a lane can skip on either: a `web/` change
+      # selects `frontend_unit`, but a registry change selects only `functions`,
+      # and either can make the live page newly wrong. This job runs on every
+      # push and pull request with no `npm ci`, and the checker needs nothing
+      # installed. `K4` in `npm run check:ci-plan` pins all of that, and refuses
+      # a page in a subdirectory the checker does not scan.
+      - name: Public-claims check
+        run: npm run check:public-claims
+
       # The promotion gate decides what may reach app.safehaul.io, so its refusal
       # paths are a required check rather than a nicety.
       - name: Verify the production-promotion gate

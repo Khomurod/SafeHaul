@@ -15,22 +15,26 @@ it currently is*.
 
 | | |
 |---|---|
-| **Last updated** | 2026-09-01, `PA-2` merged as #124 — the backlog is EMPTY. **`Z-1` on the branch closes the campaign**: the backlog file is deleted per its own instructions, and `AGENTS.md`/`PLAN.md`/`APP_BRIEF.md` record completion |
-| **Verified main SHA** | `a41d8c42ce4e34e3dc17da679c45f867d5f189bc` (#124 / `PA-2` merged) |
+| **Last updated** | 2026-09-02, closeout. `Z-1` merged as [#125](https://github.com/Khomurod/SafeHaul/pull/125) — **the campaign is COMPLETE**: the backlog file is gone from `main`, and the checker's verdict there is `1 file(s) over 500 lines; 0 recorded in the backlog; 1 under an owner-ruled ceiling.` → `source-size OK.` A closeout PR from this branch adds what the post-campaign review found (§ Closeout, at the end of the `Z-1` section): the public-claims CI step and its `K4` contract, the `PA-0` audit with one gap-closing suite, and the documentation reconciled to the 500/689 policy |
+| **Verified main SHA** | `fb19c60` (#125 / `Z-1` merged) |
 | **Oversized files** | **1 over 500** (was 68 when the tracker opened) — `firestore.rules`, measured on every run under its owner-ruled 689 ceiling. **Nothing exceeds the standard unaccounted.** |
-| **Backlog entries** | **0 — and on this branch the file itself is gone.** The checker's verdict line: `1 file(s) over 500 lines; 0 recorded in the backlog; 1 under an owner-ruled ceiling.` |
-| **Active work item** | `Z-1` — the closing unit. Nothing is queued behind it; when it merges the campaign is COMPLETE. |
-| **Active branch** | `claude/safehual-source-size-refactor-j4apre` |
-| **Active PR** | none open yet. [#124](https://github.com/Khomurod/SafeHaul/pull/124) and everything before it merged; #50 closed. |
+| **Backlog entries** | **0, and the file is deleted on `main`** (#125). |
+| **Active work item** | **none.** The campaign has no next unit. The closeout PR is the last change from this branch and nothing is queued behind it. |
+| **Active branch** | `claude/safehual-source-size-refactor-j4apre` — carries the closeout PR only |
+| **Active PR** | the closeout PR from this branch (contents in § Closeout). [#125](https://github.com/Khomurod/SafeHaul/pull/125) and everything before it merged; #50 closed. |
 | **PR head SHA** | read `git rev-parse origin/claude/safehual-source-size-refactor-j4apre` — a tracker commit cannot contain its own SHA |
 | **Review status** | Codex quota still exhausted. Merges need human review. |
-| **CI status** | #92–#113 all merged green. The only red in that stretch was #109's first round — the `EditUserBodies` initial-load race, not that PR's diff; fixed family-wide in the same PR (see the interlude below). A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
-| **Working tree at session end** | see the last per-item section |
-| **Blockers** | none. The nav-placement question was delegated and decided — see `PLAN.md` § 7.2b. |
+| **CI status** | #92–#125 all merged green. The only red in that stretch was #109's first round — the `EditUserBodies` initial-load race, not that PR's diff; fixed family-wide in the same PR (see the interlude below). A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
+| **Working tree at session end** | clean after the closeout commit |
+| **Blockers** | none inside the repository. Two operator actions outside it are recorded in § Closeout: enabling branch protection on `main` (the agent proxy refuses the API writes), and deleting the six retired landing callables — verified still deployed on 2026-09-02, and deletable only after Production is promoted past `f7c89d4`, because `safehaul.io` and `app.safehaul.io` still serve pre-removal frontends that call them. |
 
 ### Exact next action
 
-1. **Push and open the `Z-1` PR**, then merge it when green. That is the last action of the campaign.
+1. **Merge the closeout PR when green.** That is the last action from this
+   branch. Then the two operator actions in § Closeout, which no PR can do:
+   enable branch protection on `main` (minimal rule in the hosting runbook), and
+   verify-then-delete the six retired landing callables once Production is
+   promoted past `f7c89d4`.
 2. **Nothing is pre-built behind it**, and the stacking deviation recorded in
    earlier revisions is fully unwound — every pre-built unit has merged
    (#104–#113). The lesson stays recorded: recipes/sections go out ahead of their
@@ -51,8 +55,8 @@ it currently is*.
    continues** through the last giants. `EnvelopeCreator.jsx` is DONE
    (#118/#119/#120, 1363 → 451). `PublicApplyHandler.jsx` (1476) drains
    over 3 PRs (#121/#122/#123, 1476 → 457). `PA-2` merged as #124 — the
-   backlog is empty. `Z-1` (on branch) deletes the file, and the campaign
-   ends with one owner-ruled, measured exception. There is no next unit.
+   backlog is empty. `Z-1` merged as #125 and deleted the file; the campaign
+   ended with one owner-ruled, measured exception. There is no next unit.
 
 **Four process rules learned the hard way in this session, all worth keeping:**
 
@@ -187,8 +191,8 @@ use `—` until it exists.**
 | `LD-1` | **COMPLETE** (deleted by `LD-R2`) | R4 | `landing/assets/css/styles.css` | 3447 | **gone** | — | — | — | — | — | — | — | 1 ✓ |
 | `LD-2` | **COMPLETE** (deleted by `LD-R2`) | R4 | `landing/index.html` | 1682 | **gone** | — | — | — | — | — | — | — | 1 ✓ |
 | `LD-3` | **COMPLETE** (deleted by `LD-R2`) | R4 | `landing/assets/js/main.js` | 860 | **gone** | — | — | — | — | — | — | — | 1 ✓ |
-| `PA-0` | NOT STARTED | R1 | public-apply characterization coverage audit | — | — | — | — | — | — | — | — | — | 0 |
-| `Z-1` | **IN PROGRESS** | R1 | backlog file deleted; final rescan clean; AGENTS/PLAN/APP_BRIEF record completion | — | — | `claude/safehual-source-size-refactor-j4apre` | — | — | — | — | — | — | 0 |
+| `PA-0` | **COMPLETE** | R1 | public-apply characterization coverage audit — 13 concerns, evidence matrix in § `PA-0`; two gaps closed by `PublicApplyHandler.loadAndPostSubmit.contract.test.jsx` (10 tests) | — | — | `claude/safehual-source-size-refactor-j4apre` | closeout PR | — | 2026-09-02 | — | — | — | 0 |
+| `Z-1` | **MERGED** | R1 | backlog file deleted; final rescan clean; AGENTS/PLAN/APP_BRIEF record completion | — | — | `claude/safehual-source-size-refactor-j4apre` | [#125](https://github.com/Khomurod/SafeHaul/pull/125) | — | 2026-09-01 | green | ✓ (`fb19c60`) | ✓ | 0 |
 
 ---
 
@@ -889,7 +893,7 @@ unzip vr.zip && cp test-results/<...>/<name>-actual.png e2e/visual/__screenshots
 
 ## `T-1` — `scripts/test-ci-plan.mjs` → entry + 7 sections
 
-**Status:** done locally, PR pending · **Risk:** R4 · **1223 → 62**
+**Status:** `COMPLETE` — merged as #57 (`9e7e24d`); the line below is the section as written before the PR · **Risk:** R4 · **1223 → 62**
 
 Split on the pattern PR #49 established for the secret scanner: a thin entry with
 a section table, sections in `scripts/ci-plan/`, and a shared `test-support.mjs`
@@ -945,7 +949,7 @@ already unused in the original — carried over verbatim, not introduced.
 
 ## `T-2` — `scripts/check-ui-contract.mjs` → entry + 6 modules
 
-**Status:** done locally, PR pending · **Risk:** R2 · **1030 → 306**
+**Status:** `COMPLETE` — merged as #58 (`77be09c`) · **Risk:** R2 · **1030 → 306**
 
 | file | owns | lines |
 |---|---|---|
@@ -4011,7 +4015,7 @@ is test files and the emptied backlog.
 
 ## `Z-1` — the campaign closes
 
-**Status:** `IN PROGRESS` — on the branch, PR pending · **Risk:** R1
+**Status:** `MERGED` — [#125](https://github.com/Khomurod/SafeHaul/pull/125), `fb19c60` on `main` · **Risk:** R1
 
 `.github/source-size-backlog.json` is deleted, exactly as its own `$comment`
 required: *"When the last entry goes, delete this file. Nothing here is
@@ -4039,6 +4043,150 @@ than its backlog record. Zero behavior changes shipped; every merge green on
 the first CI run except one (#109, an unrelated pre-existing test race, fixed
 family-wide in the same PR). The gate that enforced all of this — and the nine
 review rounds of holes it closed — stays in force with nothing listed.
+---
+
+## `PA-0` — public-apply characterization coverage audit
+
+**Status:** `COMPLETE` — audited 2026-09-02, in the closeout PR · **Risk:** R1
+
+The plan scheduled this audit ahead of `PA-1` (§ 3.4: coverage before
+extraction). In practice the split ran first, on the strength of the 2203-line
+contract freeze, and this row stayed `NOT STARTED` while `PA-1`/`PA-2` merged.
+The audit was then performed after the fact, against `main` at `fb19c60`, by
+reading every test that touches the public application rather than by counting:
+the seven contract suites and their support module, the storage, reconcile and
+field-parity units, the queue and id libraries, the seven backend suites for the
+guest/draft/post-application callables, the five rules suites, and the eight
+Playwright journeys. **Eleven of the thirteen concerns were already
+characterised in the browser, on the server and end to end. Two were not, and
+both are closed by one new suite** —
+`PublicApplyHandler.loadAndPostSubmit.contract.test.jsx` (10 tests, 265 lines,
+same delegating-registration harness as the other six). Nothing else was added:
+a concern with evidence gets a row, not a test.
+
+Test counts are `it(`/`test(` occurrences in the named file on that commit.
+
+| # | Concern | Browser (vitest) | Server and rules | E2E (Playwright) | Verdict |
+|---|---|---|---|---|---|
+| 1 | Initial loading | `PublicApplyHandler.test.jsx` (E2E intake chooser); every contract case walks the real chooser (`chooseManualIntake` → "Fill Out Manually"); `PublicApplyScreens.test.jsx` (15) pins the loading and link-error screens as components | `firestoreRules.surfaces` — `public_profiles` readable publicly, writable by nobody | `guest-application-intake` (2) | **Gap closed.** The container's routing to the link-error screen was asserted nowhere: "Company not found." and "Unable to load application." existed only as strings passed to a screen in isolation. New: 4 tests — both errors reach the screen with its `Link Error` heading; no company is recorded and no callable fires; a saved local draft survives the failed load |
+| 2 | Draft creation / persistence | `progressResume` (16): saves on every forward step, none on back, local copy written first, explicit save records the step, signature never sent; `applicationDraftStorage.sync` (26); `applicationDraftStorage.identity` (17) — SSN/signature never persisted, draft naming | `applicationDrafts.guards` (10) — refused keys and path-shaped ids; `applicationDrafts.lifecycle` (14) — the browser write counter | `guest-draft-resume` (2) — every forward step saved server-side | Covered |
+| 3 | Resume | `progressResume` "continuing an existing application" — offers once, restores answers and step, lookup failure lets the applicant carry on, restore failure keeps the dialog with a message | `applicationDrafts.finding` (10); `lifecycle` "restoring a draft"; `resume-tokens` (13); `identity-bar` (7) | `guest-application-resume` (12): offers to continue; returning device restores from the server unasked | Covered |
+| 4 | Server / local reconciliation | `reconcile` (16) in the container; `reconcileApplicationDraft.test.js` (32) on the pure function | (server stores and returns the sequence — `lifecycle`) | `guest-application-resume`: failed save loses nothing on reload; synced copy yields to the server; Back cannot let a stale copy win | Covered |
+| 5 | Start Over / discard | `discardReset` "starting over" (6) — asks twice, deletes only on confirmation, Escape deletes nothing, failed discard reported | `lifecycle` "starting over" (7) — token-proved ownership, one consistent state, cannot reach a submitted application | `guest-application-resume`: start over asks twice then begins clean; a discarded draft does not come back | Covered |
+| 6 | Cross-tab discard | `discardTabs` (11), `discardIdentity` (10), `discardReset` "discarded in another tab" (4); `identity` "the discard mark" (10) | `finding` — no resurrection of a draft discarded mid-lookup; `resume-tokens` — stale token of a discarded draft refused | `guest-application-resume`: a discard in one tab does not come back from another; nor when another tab reloads | Covered |
+| 7 | Offline / queued submission | `submit` (18): queue before submit, dequeue only on success, three retries then the queued screen, error when the queue is unavailable; `discardIdentity`/`discardTabs` — queued entries carry the draft's name and mark; `PublicApplyScreens` — queued screen; `src/lib/submissionQueue.test.js` (21) | — (the queue is a browser concern; the callable's idempotency is row 9) | `guest-offline-queue` (1) | Covered |
+| 8 | Reconnect / retry | `reconcile`: retries the server copy when the connection returns, and does not when nothing is owed; `discardIdentity`: sends nothing on reconnect after a discard; `submissionQueue`: attempts, next-retry time, max retries | `resume-tokens` — a retried save with the same token stays idempotent | `guest-application-resume`: a save that failed offline is sent when the connection returns | Covered |
+| 9 | Duplicate-submit protection | `submit`: one callable however many times the action fires; **new:** one signing request however quickly the open action is pressed | `guestApplication` (7) — deterministic id, upsert on the same identity, progressed status never clobbered; `src/lib/applicationId.test.js` (23); `postApplicationEdocs` — repeated clicks reuse the pending request | `wizard-double-submit` (1) | Covered |
+| 10 | Final submission | `submit`: exact top-level payload, frozen `formData` envelope, local draft and recruiter code cleared, server ids and confirmation number preferred, recruiter code from either query parameter | `guestApplication` (7) and the three `guestApplication.snapshot.*` suites | `public-application` (5) — full submission with CDL and med-card uploads | Covered |
+| 11 | Post-submission document flow | `RequiredDocumentsChecklist.test.jsx` (11); `PublicApplyScreens` — success screen, confirmation fallback, checklist gate, pending-required switch | `postApplicationEdocs` (22) — deterministic request id, token never on the request doc, `alreadyCompleted`, expired-link re-issue, every refusal | `guest-post-application-edoc` (2) — the mock signing branch, restore on reload, "Start a new application" | **Gap closed.** The browser's *production* open path (`createPostApplicationSigningRequest`) was pinned only on the server and driven end to end only through the `isE2ETestMode` branch. New: 6 tests — exact payload (company, application, confirmation, template, origin) and `timeout: 60000`; return path written before the `/sign/...?token=` navigation, session snapshot `in_progress`; `alreadyCompleted` marks the row complete without navigating; a `permission-denied` refusal becomes the friendly message, an `error` snapshot, a Retry action and a structured diagnostic without the token; a response without a link is an error, not a blank navigation; one document at a time |
+| 12 | Tenant / company isolation | `submit` — `companyId` in the envelope comes from the loaded profile; **new** — a broken link records no company | `finding` — never lets one company reach another's draft; `guards` — scoped to the company that asked, requires membership; `guestApplication` — payload `companyId` mismatch rejected; `postApplicationEdocs` — confirmation number must match the application; rules: `applications.security` (`APP-COMPANYID` ×2, `SEC-004` ×2, `FUNC-005`), `lockdown` — no client access to unfinished applications, `profiles` — snapshot tenant separation | (every journey runs against one company) | Covered |
+| 13 | Validation / security boundaries | `submit`: required-document gate (5 cases), signature gate, invalid email/phone before any network call, failed local save reported; `requiredUnpersistedFields.test.js` (11) — browser and server strip lists identical; `identity` — no SSN or signature persisted; `progressResume` — no signature to the draft callable | `guards` — prototype-shaped and reserved keys dropped; `lifecycle` — no SSN, identity hash or token hash returned, constant-time token compare; `finding` — fail-closed rate limits, identity kept out of the key; `identity-bar` — refusal budget | `guest-application-resume`: SSN never persisted or put in a draft payload; a resumed application cannot be submitted without the SSN it never stored; `public-application`: upload guard denial surfaces | Covered |
+
+**Method notes.** (1) Both new gaps were confirmed as gaps by mutation before
+the tests were kept: dropping `?token=` from the signing navigation and changing
+the not-found copy each failed exactly the tests written for them (3 of 10) and
+nothing else. (2) The support module gained one hoisted ref, `profileOutcome`,
+so a test can make the profile fetch return `null` or throw; it follows the
+`profileOverride`/`profileGate` idiom rather than a `mockResolvedValueOnce`,
+for the `Once`-queue reason `AGENTS.md` records. (3) Whole-folder run after the
+change: `src/features/driver-app/components/application` — 25 files, 369 tests,
+all passing. (4) Not in scope, recorded so nobody wonders: `PublicApplyHandler
+.jsx` is 457 lines and stays; the audit found no reason to split further.
+
+---
+
+## Closeout — 2026-09-02, the post-campaign review
+
+Six questions were put to the finished campaign. Each was verified before
+anything changed, and two of them end in operator actions this repository
+cannot take by itself.
+
+**1. Branch protection on `main` — BLOCKED, reported.** The GitHub API shows no
+protection rule and no ruleset on `main`. Writing one from this session is
+refused by the agent proxy (`Write access to this GitHub API path is not
+permitted through this proxy`, on both the classic protection and the rulesets
+endpoints). No workaround was attempted and nothing in CI was changed. The
+minimal rule is written into `docs/FIREBASE_HOSTING_RUNBOOK.md` § "Branch
+protection": pull request required; required checks `Verify the release is
+fully validated` and `secret-scan` only, without "up to date"; force-push and
+deletion blocked; administrators at the owner's discretion.
+
+**2. Public-claims validation for `web/` — FIXED.** `npm run check:public-claims`
+was in the root `npm run lint`, and `docs/APP_BRIEF.md` said CI enforced it.
+CI's `frontend-quality` runs `lint:frontend`; no job ran the check. So a `web/`
+change selected the `frontend_unit` lane (A5), the lane ran the hosting-config
+tests and the ratchet, and the one check written for the public site's words
+never ran — documented as a gate, wired as nothing. The first fix put a
+`Public-claims check` step in `frontend-quality`, the job of the lane `web/`
+selects. Review on the PR (Codex) found the hole that leaves: the check has two
+inputs, the pages and the capability package they are held to, and a change to
+`functions/ai/knowledge/safehaulCapabilities.js` selects only the `functions`
+lane — a registry edit could make the live page newly invalid while CI stayed
+green. So the step lives in `callable-contract` instead, the always-required
+job that no lane selection can skip and that runs with no `npm ci` (the checker
+and the package it loads need nothing installed — proven on a `git archive`
+export with no `node_modules`). `K4` in `npm run check:ci-plan` requires the
+step in an always-required job, blocking and unconditional, with no job-level
+`if:`; pins the npm script to the checker file; pins that the checker imports
+only Node builtins and the package requires nothing; pins the checker's no-HTML
+refusal and its reuse of `checkClaims`; and refuses any `.html` under `web/`
+that is not at the top level the checker scans. Four plants were refused before
+the change was kept: the step removed, the step made `continue-on-error`, the
+step present only in a lane job, and a `web/legal/terms.html`. Backend-only
+changes pay nothing measurable — the check is one `readdirSync` and a regex
+pass over one page, in a job that already runs on every change.
+
+**3. Retired Firebase Functions — VERIFIED STILL DEPLOYED; deletion blocked.**
+The six callables `LD-R3` retired are gone from `functions/index.js` and from
+every caller in the repository, but nothing in the repository deletes a
+function from Cloud: the deploy scripts only ever `--only functions:<name>`,
+and the workflow's single deletion step names `onLeadSubmitted`. No Firebase or
+Google credential reaches this container (the API returned `401
+ACCESS_TOKEN_TYPE_UNSUPPORTED`), so `functions:list` was not possible — but
+presence is checkable without one: a deployed function answers on
+`https://us-central1-truckerapp-system.cloudfunctions.net/<name>` (`400
+INVALID_ARGUMENT` for a callable, `405` for the `onRequest`) and a made-up name
+gets Cloud's `404`. **All six answered on 2026-09-02; `listLandingLeads`
+answered the same way; the made-up name did not.** They cannot be deleted yet:
+`app.safehaul.io/release.json` reports `765c49f` (#33, built 2026-08-10), before
+`LD-R2` and `LD-R3`, so the Production Super Admin still carries the Landing
+Page Settings screen that calls five of them, and `safehaul.io` still serves the
+marketing page whose form posts to `/api/landing-lead`, which the Production
+rewrite routes to `submitLandingLead`. Deleting them would break a live form
+and a live screen; expand → promote → contract says promote first. The runbook
+carries the procedure with that precondition and the URL probe as its
+verification. Extending the existing `onLeadSubmitted` deletion step to the six
+names was considered and NOT done for the same reason: it would run against the
+shared backend on the next Testing deploy, ahead of the promotion. **No
+deletion is claimed.**
+
+**4. `PA-0` — DONE.** The section above.
+
+**5. Source-size documentation — RECONCILED.** Three statements said, in
+effect, "no handwritten file may exceed 500 lines": `AGENTS.md` ("no handwritten
+file may exceed the limit at all"), `PLAN.md`'s completion banner ("No
+handwritten file exceeds the 500-line standard") and `APP_BRIEF.md` ("no
+handwritten file exceeds the standard except…", which contradicted itself in
+one sentence). Each now states the policy the checker enforces: 500 is the hard
+maximum for every handwritten file; `src/firestore.rules` has one owner-approved,
+measured exception with a 689-line ceiling that may never grow and may only
+move down; no unaccounted file exceeds the maximum. The exception machinery
+itself (`DOCUMENTED_EXCEPTIONS`, `test:source-size` §G) is untouched — no bypass
+was found, so nothing was redesigned. The tracker's handoff, the `PA-0` and
+`Z-1` rows and the `Z-1` section were brought to the merged state; history is
+kept.
+
+**6. Nothing else moved.** No change to `dashboardQueries.js`, the checker, CI
+beyond the one step, Firebase rules, schema, indexes, permissions, routes,
+feature flags, the public application's behaviour, the preserved lead data, or
+the 689 exception. Production was not promoted.
+
+**Verification for this PR** (all run on the branch, all passing): the new
+suite (10) and the whole application folder (25 files, 369 tests);
+`npm run check:ci-plan` (262 assertions); `npm run test:source-size` (all four
+suites); `npm run check:source-size` → `source-size OK.`; `npm run
+check:public-claims` → `1 page(s) clear`; `eslint` on every changed source
+file; `npm run build`; `git diff --check`.
 
 ---
 
@@ -4273,7 +4421,7 @@ other route.
 
 ## `T-1` — `scripts/test-ci-plan.mjs` (1223 lines) — note kept for later
 
-**Status:** `NOT STARTED` · **Risk:** R4
+**Status:** superseded — `T-1` was done as #57 (its section above); this pre-reordering note is kept as history · **Risk:** R4
 
 Was the designated first unit before the owner's rulings reordered the campaign;
 now queued behind `LD-R` and the rules work. The reasoning is kept because it is
