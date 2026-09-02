@@ -30,7 +30,7 @@ describe('StandardQuestionsConfig', () => {
             { id: 'employmentHistory', label: 'Employment History (3-10 Yrs)' },
             { id: 'cdlUpload', label: 'CDL Document Upload' },
             { id: 'medCardUpload', label: 'Medical Card Upload' },
-            { id: 'mvrConsent', label: 'MVR Consent Form' },
+            { id: 'mvrConsent', label: 'Signed MVR Authorization Form (upload)' },
             { id: 'referralSource', label: 'Referral Source' },
             { id: 'emergencyContacts', label: 'Emergency Contacts' },
         ]);
@@ -52,7 +52,7 @@ describe('StandardQuestionsConfig', () => {
         // Spot-check the two the screen used to get backwards.
         expect(screen.getByRole('switch', { name: 'Require Medical Card Upload' }))
             .toHaveAttribute('aria-checked', 'true');
-        expect(screen.getByRole('switch', { name: 'Require MVR Consent Form' }))
+        expect(screen.getByRole('switch', { name: 'Require Signed MVR Authorization Form (upload)' }))
             .toHaveAttribute('aria-checked', 'false');
         // Emergency contacts stay opt-in.
         expect(screen.getByRole('switch', { name: 'Hide Emergency Contacts' }))

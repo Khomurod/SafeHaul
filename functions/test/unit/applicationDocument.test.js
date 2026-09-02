@@ -176,14 +176,17 @@ describe('application PDF — the SSN policy', () => {
 });
 
 describe('application PDF — agreements and signatures', () => {
-    it('prints all four agreements with their frozen wording', async () => {
+    it('prints all five agreements with their frozen wording', async () => {
         const { text } = await render();
+        // The MVR authorization joined the set on 2026-09-02; it is answered on
+        // the driving-record step and preserved with the same rigour.
+        expect(text).toMatch(/MOTOR VEHICLE RECORD \(MVR\) AUTHORIZATION/);
         expect(text).toMatch(/AGREEMENT TO CONDUCT TRANSACTION ELECTRONICALLY/);
         expect(text).toMatch(/BACKGROUND CHECK DISCLOSURE AND AUTHORIZATION/);
         // That heading wraps mid-phrase, so this matches the body's own text.
         expect(text).toMatch(/Pre-Employment Screening Program \(PSP\)/);
         expect(text).toMatch(/Clearinghouse/);
-        expect(text).toMatch(/AGREEMENT 4 OF 4/);
+        expect(text).toMatch(/AGREEMENT 5 OF 5/);
     });
 
     it('keeps the paragraph structure of the legal text', async () => {
@@ -201,8 +204,10 @@ describe('application PDF — agreements and signatures', () => {
         const { text } = await render({}, { acceptanceOver: acceptances });
 
         expect(text).toMatch(/The applicant did NOT accept this agreement\. No signature is attached to it\./);
-        // Three accepted agreements, so exactly three signature blocks.
-        expect(text.match(/ACCEPTED AND SIGNED/g)).toHaveLength(3);
+        // Four accepted agreements, so exactly four signature blocks. The MVR
+        // authorization is among them: the applicant's final signature binds to
+        // every agreement they accepted, however the acceptance was given.
+        expect(text.match(/ACCEPTED AND SIGNED/g)).toHaveLength(4);
     });
 
     it('says so plainly when no acceptance was recorded at all', async () => {

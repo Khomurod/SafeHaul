@@ -149,7 +149,7 @@ export default function MonthYearField({
                 aria-describedby={helpText ? helpTextId : undefined}
                 className="grid grid-cols-2 gap-ds-2"
             >
-                <div>
+                <div className="min-w-0">
                     <label className="ds-visually-hidden" htmlFor={`${idPrefix}-month`}>{partName('month')}</label>
                     <Select
                         id={`${idPrefix}-month`}
@@ -169,7 +169,7 @@ export default function MonthYearField({
                         })}
                     </Select>
                 </div>
-                <div>
+                <div className="min-w-0">
                     <label className="ds-visually-hidden" htmlFor={`${idPrefix}-year`}>{partName('year')}</label>
                     <Select
                         id={`${idPrefix}-year`}

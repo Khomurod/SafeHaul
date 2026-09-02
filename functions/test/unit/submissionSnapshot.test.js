@@ -250,11 +250,9 @@ describe('custom answers never surface a question id as wording', () => {
 });
 
 describe('agreements: exact wording plus its own acceptance evidence', () => {
-  it('captures all four agreements with the verbatim text presented', () => {
+  it('captures all five agreements with the verbatim text presented', () => {
     const snap = snapshot();
-    expect(snap.agreements.map((a) => a.id)).toEqual([
-      'electronicSignature', 'fcraDisclosure', 'pspDisclosure', 'clearinghouseConsent',
-    ]);
+    expect(snap.agreements.map((a) => a.id)).toEqual(['mvrAuthorization', 'electronicSignature', 'fcraDisclosure', 'pspDisclosure', 'clearinghouseConsent']);
     for (const a of snap.agreements) {
       expect(a.body).toContain('Artificial Freight Co');
       expect(a.body.length).toBeGreaterThan(200);

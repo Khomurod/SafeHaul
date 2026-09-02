@@ -255,11 +255,9 @@ describe('company details are an allowlist, not a database dump', () => {
 });
 
 describe('agreements are referenced by id and version', () => {
-  it('records all four required agreements at the current version', () => {
+  it('records all five required agreements at the current version', () => {
     const def = buildApplicationDefinition({ company: company() });
-    expect(def.agreements.map((a) => a.id)).toEqual([
-      'electronicSignature', 'fcraDisclosure', 'pspDisclosure', 'clearinghouseConsent',
-    ]);
+    expect(def.agreements.map((a) => a.id)).toEqual(['mvrAuthorization', 'electronicSignature', 'fcraDisclosure', 'pspDisclosure', 'clearinghouseConsent']);
     expect(def.agreements.every((a) => a.version === def.agreementVersion)).toBe(true);
   });
 

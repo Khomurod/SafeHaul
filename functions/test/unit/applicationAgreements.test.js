@@ -11,7 +11,7 @@ jest.mock('firebase-functions/v1', () => {
   return { https, runWith: () => ({ https }) };
 });
 
-const mockState = { company: null, publicProfile: null, companyThrows: null, publicThrows: null };
+const mockState = { company: null, publicProfile: null, companyThrows: null, publicThrows: null, wording: {}, wordingThrows: null };
 
 jest.mock('../../firebaseAdmin', () => ({
   db: {
@@ -29,6 +29,13 @@ jest.mock('../../firebaseAdmin', () => ({
             ? { exists: true, data: () => mockState.publicProfile }
             : { exists: false, data: () => null };
         },
+        // companies/{id}/legal_agreements — the company's own wording versions.
+        collection: () => ({
+          async get() {
+            if (mockState.wordingThrows) throw mockState.wordingThrows;
+            return { docs: Object.entries(mockState.wording).map(([id, data]) => ({ id, data: () => data })) };
+          },
+        }),
       }),
     }),
   },
@@ -41,6 +48,7 @@ jest.mock('../../shared/rateLimiter', () => ({
 
 const { getApplicationAgreements } = require('../../applicationAgreements');
 const { resolveAgreementSet, requiredAgreementIds } = require('../../shared/legalAgreements');
+const { publishWordingVersion } = require('../../shared/companyAgreementWording');
 
 const ctx = { rawRequest: { ip: '203.0.113.9' } };
 
@@ -48,18 +56,28 @@ describe('getApplicationAgreements', () => {
   beforeEach(() => {
     mockState.company = { companyName: 'Blue Line Freight' };
     mockState.publicProfile = null;
+    mockState.wording = {};
+    mockState.wordingThrows = null;
     mockState.companyThrows = null;
     mockState.publicThrows = null;
     mockRateLimitAllowed = true;
   });
 
-  it('serves all four required agreements, including the Clearinghouse consent', async () => {
+  it('serves all five required agreements, including the MVR authorization and the Clearinghouse consent', async () => {
     const result = await getApplicationAgreements({ companyId: 'co1' }, ctx);
     const ids = result.agreements.map((a) => a.id);
 
     expect(ids).toEqual(requiredAgreementIds());
     expect(ids).toContain('clearinghouseConsent');
-    expect(ids).toHaveLength(4);
+    expect(ids).toContain('mvrAuthorization');
+    expect(ids).toHaveLength(5);
+  });
+
+  it('says which page presents each agreement, so the MVR step and the consent step split the set', async () => {
+    const result = await getApplicationAgreements({ companyId: 'co1' }, ctx);
+    const byId = Object.fromEntries(result.agreements.map((a) => [a.id, a.presentedOn]));
+    expect(byId.mvrAuthorization).toBe('drivingRecord');
+    expect(byId.clearinghouseConsent).toBe('consent');
   });
 
   it('serves text byte-identical to what the snapshot will preserve', async () => {
@@ -98,7 +116,7 @@ describe('getApplicationAgreements', () => {
     // Failing the apply page over a projection outage would be worse than
     // using the company document's own name.
     expect(result.companyName).toBe('Blue Line Freight');
-    expect(result.agreements).toHaveLength(4);
+    expect(result.agreements).toHaveLength(5);
   });
 
   it('reports the current agreement version so acceptance can be recorded against it', async () => {
@@ -122,7 +140,27 @@ describe('getApplicationAgreements', () => {
     mockState.company = null;
     const result = await getApplicationAgreements({ companyId: 'nope' }, ctx);
     expect(result.companyName).toBe('Unknown Company');
-    expect(result.agreements).toHaveLength(4);
+    expect(result.agreements).toHaveLength(5);
+  });
+
+  it('serves the company\'s own published wording, at its own version, in place of the platform text', async () => {
+    const body = 'I authorize {{companyName}} to obtain my driving record from every licensing state — company wording.';
+    mockState.wording = { mvrAuthorization: publishWordingVersion(null, 'mvrAuthorization', body, { createdBy: 'sa', now: '2026-09-02T00:00:00Z' }) };
+    const result = await getApplicationAgreements({ companyId: 'co1' }, ctx);
+    const mvr = result.agreements.find((a) => a.id === 'mvrAuthorization');
+    expect(mvr.version).toMatch(/^c-[0-9a-f]{12}$/);
+    expect(mvr.companyWording).toBe(true);
+    expect(mvr.body).toBe(body.replace('{{companyName}}', 'Blue Line Freight'));
+    // Agreements the company did not customise stay on the platform wording.
+    const fcra = result.agreements.find((a) => a.id === 'fcraDisclosure');
+    expect(fcra.version).toBe('v1');
+    expect(fcra.companyWording).toBe(false);
+  });
+
+  it('falls back to the platform wording when the company wording cannot be read', async () => {
+    mockState.wordingThrows = new Error('unavailable');
+    const result = await getApplicationAgreements({ companyId: 'co1' }, ctx);
+    expect(result.agreements.every((a) => a.version === 'v1')).toBe(true);
   });
 
   it('never leaks applicant or internal company data', async () => {

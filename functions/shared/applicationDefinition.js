@@ -271,17 +271,28 @@ function hashDefinition(definition) {
  *
  * @param {object} opts
  * @param {object} opts.company           `companies/{companyId}` data.
- * @param {string} [opts.agreementVersion] Defaults to the current version.
+ * @param {string} [opts.agreementVersion] Platform wording version; defaults to the current one.
+ * @param {object} [opts.agreementVersions] Per-agreement versions where they differ
+ *   from `agreementVersion` — a company's own published wording (`c-…` ids, see
+ *   `companyAgreementWording.js`). Recorded so the snapshot binds each signature
+ *   to the exact text that agreement was shown in.
  * @returns {object} definition, including a content-addressed `version`.
  */
-function buildApplicationDefinition({ company, agreementVersion = CURRENT_AGREEMENT_VERSION } = {}) {
+function buildApplicationDefinition({ company, agreementVersion = CURRENT_AGREEMENT_VERSION, agreementVersions = {} } = {}) {
+    // Required lazily: applicationRules requires this module for `resolveGate`.
+    const { applyRulesToSections, resolveApplicationRules } = require('./applicationRules');
     const raw = company && typeof company === 'object' ? company : {};
     const applicationConfig = raw.applicationConfig && typeof raw.applicationConfig === 'object'
         ? raw.applicationConfig
         : {};
+    // The company's Application Rules in force for this application. Recorded so
+    // the preserved record says what a Yes/No or a missing row MEANT for this
+    // carrier, and applied to the table so a renamed vehicle category is frozen
+    // under the wording the driver actually read.
+    const applicationRules = resolveApplicationRules(raw.applicationRules);
     const companyDetails = snapshotCompanyDetails(raw);
 
-    const sections = STANDARD_SECTIONS.map((section) => ({
+    const sections = applyRulesToSections(STANDARD_SECTIONS, applicationRules).map((section) => ({
         id: section.id,
         title: section.title,
         fields: section.fields.map((field) => {
@@ -315,14 +326,16 @@ function buildApplicationDefinition({ company, agreementVersion = CURRENT_AGREEM
 
     // Agreements are recorded by id+version here; the exact rendered text is
     // captured in the submission snapshot, which is what a signature binds to.
+    const perAgreement = agreementVersions && typeof agreementVersions === 'object' ? agreementVersions : {};
     const agreements = resolveAgreementSet({
         companyName: companyDetails.companyName,
         version: agreementVersion,
     }).map((a) => ({
         id: a.id,
-        version: a.version,
+        version: typeof perAgreement[a.id] === 'string' && perAgreement[a.id] ? perAgreement[a.id] : a.version,
         title: a.title,
         requiresSignature: a.requiresSignature,
+        presentedOn: a.presentedOn,
     }));
 
     const definition = {
@@ -332,6 +345,7 @@ function buildApplicationDefinition({ company, agreementVersion = CURRENT_AGREEM
         customQuestions,
         agreements,
         agreementVersion,
+        applicationRules,
     };
 
     return { ...definition, version: hashDefinition(definition) };

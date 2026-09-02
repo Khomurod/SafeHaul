@@ -26,6 +26,28 @@ const {
     CURRENT_AGREEMENT_VERSION,
     resolveAgreementSet,
 } = require('./shared/legalAgreements');
+const { applyCompanyWording, normalizeWordingDocs } = require('./shared/companyAgreementWording');
+
+/**
+ * The company's own agreement wording, if it has published any.
+ *
+ * Read from `companies/{id}/legal_agreements`, which no client can reach. A
+ * failure here must not fail the apply page — the platform wording is always a
+ * legitimate thing to present — so it degrades to "no company wording" and says
+ * so in the log. `submitGuestApplication` reads the same collection through this
+ * same function, so the text served and the text frozen come from one place.
+ */
+async function loadCompanyAgreementWording(companyId) {
+    try {
+        const snap = await db.collection('companies').doc(companyId).collection('legal_agreements').get();
+        const raw = {};
+        for (const doc of snap.docs || []) raw[doc.id] = doc.data();
+        return normalizeWordingDocs(raw);
+    } catch (err) {
+        console.error('[applicationAgreements] Company wording lookup error:', err);
+        return {};
+    }
+}
 
 /**
  * Resolve the carrier name exactly as `submitGuestApplication` does: the company
@@ -88,7 +110,8 @@ exports.getApplicationAgreements = functions
         // showing a partial agreement set would be worse than showing none.
         let agreements;
         try {
-            agreements = resolveAgreementSet({ companyName });
+            const wording = await loadCompanyAgreementWording(companyId);
+            agreements = applyCompanyWording(resolveAgreementSet({ companyName }), wording, { companyName });
         } catch (err) {
             console.error('[getApplicationAgreements] Could not resolve agreement set:', err);
             throw new functions.https.HttpsError(
@@ -106,8 +129,11 @@ exports.getApplicationAgreements = functions
                 title: agreement.title,
                 body: agreement.body,
                 requiresSignature: agreement.requiresSignature,
+                presentedOn: agreement.presentedOn,
+                companyWording: Boolean(agreement.companyWording),
             })),
         };
     });
 
 module.exports.resolveAgreementCompanyName = resolveAgreementCompanyName;
+module.exports.loadCompanyAgreementWording = loadCompanyAgreementWording;

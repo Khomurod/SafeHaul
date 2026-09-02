@@ -20,7 +20,7 @@ import { FieldMessage, Input, Label } from '@/design-system/components';
  * `src/tests/a11y/primitives.a11y.test.jsx` and the field-validation
  * integration tests.
  */
-const InputField = ({ label, id, name, type = 'text', value, onChange, onBlur, required = false, placeholder, className = "", error }) => {
+const InputField = ({ label, id, name, type = 'text', value, onChange, onBlur, required = false, placeholder, className = "", error, min, max, step, inputMode }) => {
     const isFile = type === 'file';
     // C2: associate the error message with the input for assistive tech.
     const errorId = error ? `${id || name}-error` : undefined;
@@ -85,6 +85,10 @@ const InputField = ({ label, id, name, type = 'text', value, onChange, onBlur, r
                 onBlur={handleBlur}
                 required={required}
                 placeholder={placeholder}
+                min={min}
+                max={max}
+                step={step}
+                inputMode={inputMode}
                 // C2: WCAG 2.1 AA — programmatically expose required/invalid state and the
                 // associated error message so screen readers announce them.
                 aria-required={required || undefined}

@@ -290,3 +290,27 @@ describe('DateTripletField — presentation and accessibility', () => {
         expect((await axe(container)).violations).toEqual([]);
     });
 });
+
+describe('DateTripletField — the year is never clipped (2026-09-02)', () => {
+    // On a phone the three selects shared one `grid-cols-3` row, and the year
+    // select — the widest of the three — was cut to "20…" by its cell. The year
+    // now takes the whole second row below `sm`, and every cell may shrink
+    // below its content's intrinsic width so the row itself never overflows.
+    it('gives the year a full row on small screens and one third from sm up', () => {
+        renderField();
+        const yearCell = selects().year.closest('div');
+        expect(yearCell.className).toContain('col-span-2');
+        expect(yearCell.className).toContain('sm:col-span-1');
+    });
+
+    it('lets every cell shrink so the row cannot overflow its container', () => {
+        renderField();
+        const { month, day, year } = selects();
+        for (const control of [month, day, year]) {
+            expect(control.closest('div').className).toContain('min-w-0');
+        }
+        const grid = month.closest('div').parentElement;
+        expect(grid.className).toContain('grid-cols-2');
+        expect(grid.className).toContain('sm:grid-cols-3');
+    });
+});

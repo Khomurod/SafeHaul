@@ -76,7 +76,7 @@ describe('public profile DTO (A4 projection)', () => {
 
     // The projection is an allowlist: only these keys may ever appear.
     expect(Object.keys(dto).sort()).toEqual(
-      ['appSlug', 'applicationConfig', 'brandColor', 'companyName', 'customQuestions', 'dtoVersion', 'logoUrl', 'postApplicationTemplates', 'updatedAt'].sort(),
+      ['appSlug', 'applicationConfig', 'applicationIntegrations', 'applicationRules', 'brandColor', 'companyName', 'customQuestions', 'dtoVersion', 'logoUrl', 'postApplicationTemplates', 'updatedAt'].sort(),
     );
     expect(JSON.stringify(dto)).not.toMatch(/123-45-6789|00012345|do not share|secret|owner@acme.com/);
   });

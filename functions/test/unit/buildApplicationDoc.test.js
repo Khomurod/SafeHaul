@@ -1,9 +1,10 @@
 jest.mock('firebase-functions/v1', () => ({
   https: {
     HttpsError: class HttpsError extends Error {
-      constructor(code, message) {
+      constructor(code, message, details) {
         super(message);
         this.code = code;
+        this.details = details;
       }
     },
   },
@@ -14,6 +15,7 @@ jest.mock('firebase-admin/firestore', () => ({
 }));
 
 const {
+  assertApplicationRules,
   assertRequiredUploads,
   buildApplicationDoc,
   generateApplicantKey,
@@ -109,5 +111,43 @@ describe('buildApplicationDoc', () => {
       },
       {}
     )).toThrow(/Missing required uploaded documents: CDL Front, CDL Back, Medical Card/);
+  });
+});
+
+describe('assertApplicationRules', () => {
+  const lastYear = `${new Date().getFullYear() - 1}-01-15`;
+  const nextYear = `${new Date().getFullYear() + 1}-01-15`;
+  const clean = { cdlExpiration: nextYear, 'has-violations': 'no', 'has-accidents': 'no' };
+
+  it('lets a submission through under the platform defaults', () => {
+    expect(() => assertApplicationRules(undefined, undefined, { ...clean, cdlExpiration: lastYear })).not.toThrow();
+  });
+
+  it('refuses what the company blocks, in the wizard\'s own words, and says which page', () => {
+    let error;
+    try {
+      assertApplicationRules({ expiredCdl: 'block' }, undefined, { ...clean, cdlExpiration: lastYear });
+    } catch (e) {
+      error = e;
+    }
+    expect(error.code).toBe('invalid-argument');
+    expect(error.message).toMatch(/does not meet this carrier's requirements/);
+    expect(error.message).toMatch(/expir/i);
+    expect(error.details.issues).toEqual([
+      { code: 'expired-cdlExpiration', semanticStep: 'license', fieldId: 'cdlExpiration' },
+    ]);
+  });
+
+  it('does not refuse what the company only warns about', () => {
+    expect(() => assertApplicationRules({ expiredCdl: 'warn' }, undefined, { ...clean, cdlExpiration: lastYear })).not.toThrow();
+  });
+
+  it('refuses an impossible date regardless of configuration', () => {
+    expect(() => assertApplicationRules(undefined, undefined, { ...clean, dob: '1990-02-30' }))
+      .toThrow(/invalid|impossible|date/i);
+  });
+
+  it('tolerates a missing form', () => {
+    expect(() => assertApplicationRules(undefined, undefined, undefined)).not.toThrow();
   });
 });

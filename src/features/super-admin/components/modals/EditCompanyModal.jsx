@@ -1,7 +1,7 @@
 import React, { useId, useState, useEffect } from 'react';
 import { updateCompany } from '@features/companies';
 import { uploadCompanyLogo } from '@lib/firebase';
-import { X, CreditCard } from 'lucide-react';
+import { X, CreditCard, SlidersHorizontal } from 'lucide-react';
 import {
   Button,
   ChoiceGroup,
@@ -12,6 +12,7 @@ import {
   Radio,
 } from '@/design-system/components';
 import { Modal } from '@design-system/patterns';
+import { ApplicationRulesPanel } from '@features/settings/components/rules/ApplicationRulesPanel';
 
 /**
  * Super Admin company editor.
@@ -41,6 +42,12 @@ import { Modal } from '@design-system/patterns';
  * closed the file-input gap this file used to record as an exception. The
  * picker's keyboard path and accessible name are the primitive's; the accepted
  * types and what happens to the file stay here.
+ *
+ * Application Rules (2026-09-02): a super admin configures a selected company's
+ * driver-application behaviour from here, with the same panel the company's own
+ * admins see under Settings → Company Profile → Application Rules. The rules are
+ * written only when this editor touched them, so saving a name change leaves a
+ * company's rules — or its absence of rules — exactly as they were.
  */
 function TextField({ id, label, ...props }) {
   return (
@@ -57,6 +64,9 @@ export function EditCompanyModal({ companyDoc, onClose, onSave }) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState('');
+  const [applicationRules, setApplicationRules] = useState(undefined);
+  const [rulesTouched, setRulesTouched] = useState(false);
+  const [rulesOpen, setRulesOpen] = useState(false);
   const titleId = useId();
   const logoId = useId();
   const planGroupId = useId();
@@ -79,6 +89,8 @@ export function EditCompanyModal({ companyDoc, onClose, onSave }) {
         planType: company.planType || 'free', // Default to Free
       });
       setOriginalSlug(company.appSlug || '');
+      setApplicationRules(company.applicationRules);
+      setRulesTouched(false);
     }
   }, [companyDoc]);
 
@@ -119,6 +131,7 @@ export function EditCompanyModal({ companyDoc, onClose, onSave }) {
         companyLogoUrl: newLogoUrl,
         planType: formData.planType, // Save the plan type!
       };
+      if (rulesTouched && applicationRules) companyData.applicationRules = applicationRules;
 
       setMessage('Saving company data...');
       await updateCompany(companyDoc.id, companyData, originalSlug);
@@ -221,6 +234,29 @@ export function EditCompanyModal({ companyDoc, onClose, onSave }) {
             <TextField id="city" label="City" value={formData.city} onChange={handleChange} />
             <TextField id="state" label="State" value={formData.state} onChange={handleChange} maxLength="2" />
             <TextField id="zip" label="ZIP Code" value={formData.zip} onChange={handleChange} />
+          </div>
+
+          <hr className="border-ds-border-subtle" />
+
+          {/* The company's driver-application rules, configurable without code. */}
+          <div className="space-y-ds-3">
+            <Button
+              variant="secondary"
+              onClick={() => setRulesOpen((open) => !open)}
+              aria-expanded={rulesOpen}
+              aria-controls="edit-company-application-rules"
+            >
+              <SlidersHorizontal size={16} aria-hidden="true" />
+              {rulesOpen ? 'Hide application rules' : 'Application rules for this company'}
+            </Button>
+            {rulesOpen && (
+              <div id="edit-company-application-rules">
+                <ApplicationRulesPanel
+                  rules={applicationRules}
+                  onChange={(next) => { setApplicationRules(next); setRulesTouched(true); }}
+                />
+              </div>
+            )}
           </div>
         </div>
 

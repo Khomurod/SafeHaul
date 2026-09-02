@@ -255,6 +255,11 @@ export const ACCIDENTS_SECTION = {
         { key: 'details', label: 'Accident Details', type: 'textarea', required: true },
         { key: 'commercial', label: 'Commercial Vehicle?', type: 'radio', options: YES_NO_OPTIONS },
         { key: 'preventable', label: 'Preventable?', type: 'radio', options: YES_NO_OPTIONS },
+        // 49 CFR 391.21(b)(7): appended after the original keys (2026-09-02) so
+        // stored rows keep their order; absent on records written before then.
+        { key: 'fatalities', label: 'Fatalities', type: 'number' },
+        { key: 'injuries', label: 'Injuries', type: 'number' },
+        { key: 'hazmatSpill', label: 'Hazardous Material Spill?', type: 'radio', options: YES_NO_OPTIONS },
     ]
 };
 

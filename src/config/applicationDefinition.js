@@ -27,6 +27,7 @@
 
 import STANDARD_SECTIONS from '../../functions/shared/applicationSections.json';
 import { resolveApplicationGate } from './applicationGates';
+import { applyRulesToSections, normalizeApplicationAnswers } from './applicationRules';
 
 export { STANDARD_SECTIONS };
 
@@ -150,6 +151,10 @@ export function decodeRepeatingRows(rows) {
  * @param {object} opts.applicationConfig The company's saved gate map.
  * @param {object} opts.formData          The driver's answers so far.
  * @param {Array}  [opts.customQuestions] The company's custom questions.
+ * @param {object} [opts.applicationRules] The company's Application Rules: vehicle
+ *   wording and hidden categories are applied to the table, and the answers are
+ *   normalised the way submission normalises them (an explicit "no violations"
+ *   drops leftover rows), so the driver reviews the record that will be frozen.
  * @param {number} [opts.stepByFieldId]   Optional map of field id → wizard step,
  *   so a section can offer an Edit control that lands on the right page.
  * @returns {{sections: Array, customAnswers: Array}}
@@ -158,11 +163,12 @@ export function buildApplicationReview({
     applicationConfig,
     formData,
     customQuestions = [],
+    applicationRules = undefined,
     stepByFieldId = {},
 } = {}) {
-    const data = formData && typeof formData === 'object' ? formData : {};
+    const data = normalizeApplicationAnswers(formData && typeof formData === 'object' ? formData : {});
 
-    const sections = STANDARD_SECTIONS.map((section) => {
+    const sections = applyRulesToSections(STANDARD_SECTIONS, applicationRules).map((section) => {
         const answers = [];
 
         for (const field of section.fields) {

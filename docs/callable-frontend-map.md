@@ -46,6 +46,10 @@ Maps each **`httpsCallable`** export in [`functions/index.js`](../functions/inde
 | `listEnvironmentAndIntegrations` | [`environmentVault.js`](../src/features/super-admin/services/environmentVault.js) | Super Admin vault: full configuration inventory, every value masked |
 | `listSandboxTenantCompanies` | [`SandboxActionPanel.jsx`](../src/features/sandbox/SandboxActionPanel.jsx) | List sandbox tenants |
 | `parseCdlWithGroq` | [`useCdlAutoFill.js`](../src/features/driver-app/hooks/useCdlAutoFill.js) | CDL image OCR. Routed through the shared AI platform; the vendor name is a retained compatibility alias |
+| `extractApplicationReport` | [`useReportImport.js`](../src/features/driver-app/hooks/useReportImport.js) | Guest: read an applicant's own PSP report or MVR pages into *suggestions* (company must have enabled `applicationIntegrations.{psp,mvr}`); nothing is written to the application |
+| `listCompanyAgreementWording` | [`AgreementsPanel.jsx`](../src/features/settings/components/rules/AgreementsPanel.jsx) | Company Admin or Super Admin: the agreement wording in force for a company (platform or company-published version) |
+| `publishCompanyAgreementWording` | [`AgreementsPanel.jsx`](../src/features/settings/components/rules/AgreementsPanel.jsx) | **Super Admin only:** publish a new content-addressed (`c-…`) wording version for one agreement |
+| `revertCompanyAgreementWording` | [`AgreementsPanel.jsx`](../src/features/settings/components/rules/AgreementsPanel.jsx) | **Super Admin only:** return an agreement to the platform wording (published versions stay on record) |
 | `pauseBulkSession` | [`CampaignDetails.jsx`](../src/features/campaigns/components/CampaignDetails.jsx) | Pause campaign |
 | `removePhoneLine` | [`LineManager.jsx`](../src/features/super-admin/components/integrations/LineManager.jsx) | Remove SMS line |
 | `resumeBulkSession` | [`CampaignDetails.jsx`](../src/features/campaigns/components/CampaignDetails.jsx) | Resume campaign |

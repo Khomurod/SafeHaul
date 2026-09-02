@@ -133,8 +133,23 @@ empty shell.
 the sanitized `public_profiles/{companyId}` mirror. The driver chooses CDL
 photo auto-fill or manual entry, then completes a 9-step wizard (Contact →
 Qualifications → License → Violations → Accidents → Employment → General →
-Review → Consent) over 11 canonical data sections. Submission goes through the
+Review → Consent) over the canonical data sections in
+`functions/shared/applicationSections.json`. Submission goes through the
 `submitGuestApplication` callable (Admin SDK), not a client write.
+
+**What the wizard asks is shaped by the company, without code.** Company Settings
+→ Company Profile has five tabs that form the whole mental model: *Standard
+Questions* (show / hide / require the DOT questions), *Application Rules*
+(per-company enforcement — see §5), *Custom Questions*, *Agreements* (the legal
+wording presented, versioned) and *Integrations* (optional PSP-report and MVR
+import). The Violations step carries the one **MVR authorization** question, a
+versioned agreement the applicant answers Yes/No; a clear Yes/No question now
+precedes both the moving-violations and the accidents lists; the Employment step
+can offer a PSP-report import and the License step an MVR import, both of which
+only *suggest* entries the applicant accepts one by one; and the General step
+can carry an optional **Hours of Service statement** (last seven days, last
+relieved) when the company turns it on. A company that configures nothing sees
+exactly the application it had before 2026-09-02.
 
 **Progress survives, from the first page onward.** Every forward step writes a
 local copy synchronously and a server-side draft in the background, so a closed
@@ -564,33 +579,79 @@ an audit record before issuing a short-lived signed URL. This matters because
 the document can carry a full SSN. **Do not add a Storage rule for that prefix
 and do not regenerate the PDF on download.**
 
-**Legal agreement wording is versioned and frozen.** Four agreements
-(`electronicSignature`, `fcraDisclosure`, `pspDisclosure`,
+**Legal agreement wording is versioned and frozen.** Five agreements
+(`mvrAuthorization`, `electronicSignature`, `fcraDisclosure`, `pspDisclosure`,
 `clearinghouseConsent`) live in `functions/shared/legalAgreements.js`, current
-version `v1`. A submission is bound to the version the applicant actually saw,
-never to whatever is deployed when the request lands. `legacy-1` bodies are a
-**frozen forensic record — never edit them**. `clearinghouseConsent`
-deliberately has *no* `legacy-1`, so historical reconstruction can never
-attribute a consent nobody gave.
+version `v1`. Each carries `presentedOn`: the MVR authorization is answered
+Yes/No on the Violations step (the `consent-mvr` answer records
+`agreementAcceptances.mvrAuthorization` with the version shown); the other four
+are accepted on the Consent step. A submission is bound to the version the
+applicant actually saw, never to whatever is deployed when the request lands.
+`legacy-1` bodies are a **frozen forensic record — never edit them**.
+`clearinghouseConsent` deliberately has *no* `legacy-1`, so historical
+reconstruction can never attribute a consent nobody gave. **Applications
+submitted before the MVR authorization existed have no acceptance for it** and
+their records say so; nothing back-fills a consent.
+
+**A company may publish its own wording for an agreement, and that wording is
+immutable too.** Versions are content-addressed (`c-<12 hex>` of agreement id +
+body) and stored at `companies/{id}/legal_agreements/{agreementId}`, a path with
+no client rule at all — the three callables (`listCompanyAgreementWording`,
+`publishCompanyAgreementWording`, `revertCompanyAgreementWording`) are the only
+access, and **publishing or reverting is Super Admin only**; a Company Admin can
+read what is in force. The public apply page receives the active company text
+through `getApplicationAgreements`; the snapshot freezes the company text at its
+`c-` version, so an applicant who accepted an older company version keeps that
+exact text forever, and a version whose hash no longer matches its body is
+dropped rather than trusted.
+
+**Application Rules have one engine.** `functions/shared/applicationRules.js`
+mirrors `src/config/applicationRules.js` (bodies byte-identical, asserted by
+`applicationRules.test.js`; the date helpers in `applicationDates.js` likewise),
+driven by `functions/shared/applicationRulesCatalog.json`, which is also what the
+settings UI renders. The same `evaluateApplicationRules` runs in each wizard step
+(inline, the moment an answer changes), in the browser's final pre-flight (which
+walks a resumed applicant to the first page that fails) and in
+`submitGuestApplication` (`assertApplicationRules`, which refuses with the same
+sentence). Rules: previous address when under three years at the current one;
+which experience options are offered; which vehicle-experience categories are
+shown and how they are worded (stored keys never change — a hidden category with
+a saved value still displays); expired CDL and expired medical card, each
+allow / warn / block; require previous-licence details; MVR authorization
+optional / required; require violation details and accident details when the
+applicant answers Yes (accidents record fatalities, injuries and hazmat spill);
+employment-history enforcement allow / warn / block with a configurable minimum
+of years; require a felony explanation; Hours of Service statement off / on.
+**Every default reproduces the pre-2026-09-02 behaviour**, so an unconfigured
+company is unchanged, and `warn` is what "three-year coverage" always did. An
+impossible date (30 February, a year outside the field's range) is refused
+everywhere regardless of configuration. Legacy records with violation or
+accident rows but no Yes/No answer read as Yes; an explicit No drops leftover
+rows at review, pre-flight and on the server (`normalizeApplicationAnswers`).
+Super Admin sets any company's rules from Companies → Edit; Company Admins set
+their own from Settings.
 
 **Acceptance IP is server-observed.** The browser may report its user agent
 (self-description) but its claimed IP is overwritten unconditionally with the
 address the server saw. Evidence forgeable by the party it incriminates is not
 evidence.
 
-**Employment history must cover 36 months.** Per 49 CFR 391.21(b)(10), the
-application must account for the previous three years; employment,
-unemployment, schooling and military service all count, so a gap is only a gap
-when nothing explains it. The calculation is calendar-month based and pure (no
+**Employment history must cover 36 months by default.** Per 49 CFR
+391.21(b)(10), the application must account for the previous three years;
+employment, unemployment, schooling and military service all count, so a gap is
+only a gap when nothing explains it. The company's `employmentHistoryMinimumYears`
+rule (1–10, default 3) sets the window and `employmentHistoryEnforcement` decides
+whether incomplete coverage is ignored, warned about once, or blocks submission. The calculation is calendar-month based and pure (no
 I/O, injected reference date) so a recorded coverage result never drifts. The
 logic is implemented **twice** — `functions/shared/employmentCoverage.js` and
 `src/shared/utils/employmentCoverage.js` — because the browser needs the same
 answer and the SPA does not import the CommonJS backend modules. Both are proven
 identical against the shared `employmentCoverage.vectors.json` fixtures.
 **Change both or neither.** (The same convention is used for
-`searchNormalization`; note that the *data* file
-`functions/shared/applicationSections.json` is genuinely shared by direct import
-from `src/config/applicationDefinition.js`.)
+`searchNormalization`, `applicationRules` and `applicationDates`; note that the
+*data* files `functions/shared/applicationSections.json`,
+`applicationRulesCatalog.json` and `applicationRules.vectors.json` are genuinely
+shared by direct import from `src/config/`.)
 
 **Company edits to a submitted application need driver approval.** A company
 admin's edits become per-field `pending_changes`; the main document stays the
@@ -657,7 +718,8 @@ Rule vocabulary: `isSuperAdmin()` · `isCompanyAdmin(companyId)` ·
   `ai_telemetry`, `blog_posts`, `blog_runs`, `platform_settings`,
   `landing_leads`, `orphaned_signature_cleanup`,
   `companies/{id}/application_drafts`, `companies/{id}/application_draft_audit`,
-  and the `application_originals` Storage prefix. Some rely on default-deny with
+  `companies/{id}/legal_agreements` (company legal wording — callables only,
+  publish is Super Admin only), and the `application_originals` Storage prefix. Some rely on default-deny with
   no rule at all; the AI, blog and application-draft paths carry an **explicit**
   `allow read, write: if false`, which is the stronger form — it survives a later
   broad `match` being added above them, and it states the intent where a reader
@@ -669,6 +731,14 @@ Rule vocabulary: `isSuperAdmin()` · `isCompanyAdmin(companyId)` ·
   purpose and checked against company membership (`getSignedDocumentUrl`,
   `getSignedApplicationFileUrl`, `getSignedGuestUploadUrl`, `getSignedPevUrl`).
   Persisted upload URLs expire, so views re-sign at view time.
+
+**Application configuration is split by sensitivity.** A Company Admin manages
+Standard Questions, Application Rules, Custom Questions and Integrations
+(`applicationConfig`, `applicationRules`, `applicationIntegrations` on the
+company document, an ordinary admin update). Legal wording is the exception:
+reading what is in force is Company Admin, but publishing or reverting a
+company's agreement text is **Super Admin only**, and Super Admin can also set
+any company's Application Rules from Companies → Edit.
 
 **Per-tenant feature flags** live on `companies/{companyId}` as `features` and
 `featureSchedules`. Keys: `pev`, `campaignsEnabled`, `eDocs`, `importLeads`,
@@ -687,7 +757,7 @@ projection, and `/apply/:slug` is not gated by any flag. See
 | **RingCentral** (primary) / **8x8** (alternate) | Outbound SMS | Encrypted per company in `companies/{id}/integrations/sms_provider`, decrypted server-side with `SMS_ENCRYPTION_KEY` |
 | **Per-company SMTP** (Nodemailer) | All outbound email — there is no platform-wide fallback sender | `companies/{id}/system_settings/email_config` (admin-only subcollection); password encrypted with an `enc:v1:` prefix and **never returned to the browser**. A legacy fallback still reads `companies/{id}.emailSettings` for pre-migration tenants — do not delete it without migrating them |
 | **Facebook Lead Ads** | Inbound leads → company `leads` subcollection | Per company |
-| **AI providers** | CDL auto-fill, e-doc field placement, blog generation | Secret Manager via the frozen registry in `functions/ai/registry` |
+| **AI providers** | CDL auto-fill, e-doc field placement, blog generation, and — only for companies that enable it — reading an applicant's own PSP report or MVR into *suggestions* (`extractApplicationReport`) | Secret Manager via the frozen registry in `functions/ai/registry` |
 | **Telegram** | **Retired 2026-08-29** with the marketing-site lead form (`LD-R3`). No callable in `functions/index.js` sends to it. The six retired landing callables were still deployed on 2026-09-02 and stay until Production is promoted past `LD-R3`, because the live Production frontends still call them; procedure in `docs/FIREBASE_HOSTING_RUNBOOK.md` | Secrets unbound; rotate the bot token (runbook) |
 | **Socrata / Transportation.gov** | FMCSA employer autocomplete | Public app token |
 | **Sentry** | Error monitoring (frontend + functions) | DSN |
@@ -791,9 +861,12 @@ currently populates them from a recipient's reply; see §12.
 
 - **`public_profiles` is the contract for the public apply page.** It is a
   sanitized projection of `companies/{id}` that deliberately strips `features`,
-  `featureSchedules` and internal fields. If a company setting has no effect on
-  `/apply/:slug`, the projection allowlist is the first place to look — that has
-  been the bug before.
+  `featureSchedules` and internal fields. Since DTO v3 it carries the resolved
+  `applicationRules` and the `applicationIntegrations` enabled flags (booleans
+  only), which is how the wizard and `extractApplicationReport` know what the
+  company switched on; the server reads its own copy, never the client's. If a
+  company setting has no effect on `/apply/:slug`, the projection allowlist is
+  the first place to look — that has been the bug before.
 - **Applications and leads are near-twins.** Most callables accept a
   `collectionName` of `applications` or `leads` (strictly whitelisted against
   path injection). A change to one usually belongs in both.
@@ -861,6 +934,13 @@ currently populates them from a recipient's reply; see §12.
   keypress would permanently delete the work an applicant came back for. Start over
   is its own explicit destructive confirmation, and Escape at either stage deletes
   nothing.
+- **Imported reports suggest; they never answer.** A PSP report or MVR the
+  applicant uploads yields suggestions with their own Add buttons. Nothing
+  already entered is overwritten, nothing is added twice, and a PSP carrier
+  sighting becomes an employer row holding only the name and USDOT number —
+  **PSP data is inspection and crash history, never employment dates**, and the
+  UI says so. Nothing from either document is stored or logged; the pages live in
+  memory for one request.
 - **The public site stays dependency-free.** No framework, no build step, and no
   application or design-system imports. `web/privacy.html` ships no `<script>` at
   all, asserted by `src/tests/hostingConfig.test.js`.

@@ -112,7 +112,13 @@ exports.submitGuestApplication = require('./guestApplication').submitGuestApplic
 // that freezes them into the submission snapshot, so displayed and preserved
 // wording cannot diverge.
 exports.getApplicationAgreements = require('./applicationAgreements').getApplicationAgreements;
+// Company-specific legal wording, versioned; read by company admins, changed by super admins only.
+exports.listCompanyAgreementWording = require('./companyAgreements').listCompanyAgreementWording;
+exports.publishCompanyAgreementWording = require('./companyAgreements').publishCompanyAgreementWording;
+exports.revertCompanyAgreementWording = require('./companyAgreements').revertCompanyAgreementWording;
 exports.parseCdlWithGroq = require('./cdlParser').parseCdlWithGroq;
+// Optional, company-enabled: an applicant's PSP report or MVR read into suggestions they confirm.
+exports.extractApplicationReport = require('./applicationReportImport').extractApplicationReport;
 // Autosave, resume and start-over for an in-progress application. Drafts live in
 // their own server-only subcollection rather than in `applications`, because
 // creating an application document fires the recruiter notification, the

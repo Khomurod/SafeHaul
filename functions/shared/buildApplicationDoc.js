@@ -93,7 +93,7 @@ function getMissingRequiredUploads(applicationConfig, formData) {
     // cannot start rejecting submissions at companies that never asked for it.
     const mvrConsentConfig = getFieldConfig(applicationConfig, 'mvrConsent', false);
     if (!mvrConsentConfig.hidden && mvrConsentConfig.required && !hasUploadedFile(formData['mvr-consent-upload'])) {
-        missingRequiredUploads.push('MVR Consent Form');
+        missingRequiredUploads.push('Signed MVR authorization form');
     }
 
     return missingRequiredUploads;
@@ -113,6 +113,26 @@ function assertRequiredUnpersistedFields(applicationConfig, formData) {
         throw new functions.https.HttpsError(
             'invalid-argument',
             `Missing required information: ${missing.join(', ')}.`,
+        );
+    }
+}
+
+/**
+ * Refuses a submission the company's Application Rules do not accept.
+ *
+ * The rules come from the company's own record (the public projection the
+ * driver rendered, then the company document), never from the payload, so a
+ * resumed draft that skipped the page whose rule now fails, or a hand-built
+ * request, gets the same refusal the wizard gives — in the same words.
+ */
+function assertApplicationRules(applicationRules, applicationConfig, formData) {
+    const { evaluateApplicationRules } = require('./applicationRules');
+    const verdict = evaluateApplicationRules({ rules: applicationRules, applicationConfig, formData: formData || {} });
+    if (verdict.blocking.length > 0) {
+        throw new functions.https.HttpsError(
+            'invalid-argument',
+            `The application does not meet this carrier's requirements: ${verdict.blocking.map((issue) => issue.message).join(' ')}`,
+            { issues: verdict.blocking.map(({ code, semanticStep, fieldId }) => ({ code, semanticStep, fieldId })) },
         );
     }
 }
@@ -199,6 +219,7 @@ function buildApplicationDoc({
 }
 
 module.exports = {
+    assertApplicationRules,
     assertRequiredUnpersistedFields,
     assertRequiredUploads,
     buildApplicationDoc,

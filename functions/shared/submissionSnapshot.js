@@ -37,6 +37,7 @@
 const { createHash } = require('crypto');
 
 const { resolveAgreement } = require('./legalAgreements');
+const { resolveCompanyAgreement } = require('./companyAgreementWording');
 const { STANDARD_SECTIONS, visibleFields } = require('./applicationDefinition');
 const { computeEmploymentCoverage } = require('./employmentCoverage');
 const { decodeRepeatingRows } = require('./submissionSnapshotStorage');
@@ -321,15 +322,18 @@ function signatureFingerprint(image) {
     return createHash('sha256').update(image).digest('hex');
 }
 
-function buildAgreementRecords({ definition, acceptances = {}, signature = null }) {
+function buildAgreementRecords({ definition, acceptances = {}, signature = null, companyWording = null }) {
     const companyName = definition?.company?.companyName || null;
     const declared = Array.isArray(definition?.agreements) ? definition.agreements : [];
     const given = acceptances && typeof acceptances === 'object' ? acceptances : {};
 
     return declared.map((declaredAgreement) => {
-        // Resolve the exact text at the recorded version. Throws on an unknown
-        // id/version rather than substituting wording we cannot vouch for.
-        const resolved = resolveAgreement(declaredAgreement.id, declaredAgreement.version, { companyName });
+        // Resolve the exact text at the recorded version: the company's own
+        // published wording when the version is one of its `c-…` ids, otherwise
+        // the platform registry. Both throw or return nothing on an unknown
+        // version rather than substituting wording we cannot vouch for.
+        const resolved = resolveCompanyAgreement(declaredAgreement.id, declaredAgreement.version, companyWording, { companyName })
+            || resolveAgreement(declaredAgreement.id, declaredAgreement.version, { companyName });
         const evidence = given[declaredAgreement.id];
         const accepted = Boolean(evidence && evidence.accepted === true);
         const acceptedAt = accepted ? (clean(evidence.acceptedAt) || null) : null;
@@ -354,6 +358,8 @@ function buildAgreementRecords({ definition, acceptances = {}, signature = null 
             // The verbatim text as displayed. This is what the signature binds to.
             body: resolved.body,
             legacyWording: resolved.legacy,
+            companyWording: Boolean(resolved.companyWording),
+            presentedOn: resolved.presentedOn || 'consent',
             requiresSignature: resolved.requiresSignature,
             accepted,
             acceptedAt,
@@ -389,6 +395,8 @@ function buildAgreementRecords({ definition, acceptances = {}, signature = null 
  * @param {object} [opts.signature]  `{ image, type, capturedAt }`.
  * @param {string} [opts.submittedAt] ISO timestamp; also the coverage reference.
  * @param {object} [opts.provenance] `{ source, notes }` — see reconstructed records.
+ * @param {object} [opts.companyWording] The company's published agreement wording
+ *   (`normalizeWordingDocs` output), for agreements recorded at a company version.
  */
 function buildSubmissionSnapshot({
     definition,
@@ -397,6 +405,7 @@ function buildSubmissionSnapshot({
     signature = null,
     submittedAt = null,
     provenance = {},
+    companyWording = null,
 } = {}) {
     if (!definition || typeof definition !== 'object') {
         throw new Error('buildSubmissionSnapshot requires an application definition');
@@ -405,6 +414,9 @@ function buildSubmissionSnapshot({
     const data = formData && typeof formData === 'object' ? formData : {};
     const submitted = clean(submittedAt) || new Date().toISOString();
 
+    // The window is the company's `employmentHistoryMinimumYears`, so the number
+    // told to the driver on the employment step and the number frozen here agree.
+    const { employmentCoverageOptions } = require('./applicationRules');
     const coverage = computeEmploymentCoverage(
         {
             employers: data.employers,
@@ -415,7 +427,7 @@ function buildSubmissionSnapshot({
             schools: data.schools,
             military: data.military,
         },
-        { referenceDate: submitted },
+        employmentCoverageOptions(definition.applicationRules, submitted),
     );
 
     const source = clean(provenance.source) || 'submission';
@@ -430,7 +442,7 @@ function buildSubmissionSnapshot({
         company: definition.company,
         sections: buildSections(definition, data),
         customAnswers: buildCustomAnswers(definition, data.customAnswers),
-        agreements: buildAgreementRecords({ definition, acceptances, signature }),
+        agreements: buildAgreementRecords({ definition, acceptances, signature, companyWording }),
         employmentCoverage: coverage,
         signature: signature
             ? {

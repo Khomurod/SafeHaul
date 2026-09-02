@@ -8,7 +8,11 @@ import BusinessInfoSection from './components/BusinessInfoSection';
 import VehicleExperienceSection from './components/VehicleExperienceSection';
 import EmergencyContactsSection from './components/EmergencyContactsSection';
 import { StepNavigation } from './components/StepNavigation';
+import { StepIssues } from './components/StepIssues';
+import { HoursOfServiceSection } from './components/HoursOfServiceSection';
 import { resolveApplicationGate } from '@/config/applicationGates';
+import { visibleVehicleCategories } from '@/config/applicationRules';
+import { useStepGate } from '@features/driver-app/hooks/useApplicationRules';
 
 /**
  * Presentation migrated to the approved `FormSection` / `FormField` / `Textarea`
@@ -21,6 +25,13 @@ import { resolveApplicationGate } from '@/config/applicationGates';
  * The emergency-contacts gate now supplies BOTH halves of its setting. It used
  * to supply only visibility, and the section hard-coded Contact #1 as required —
  * so "visible but optional" was unreachable and blocked the applicant.
+ *
+ * Company rules applied here (2026-09-02): the vehicle categories and their
+ * wording (`vehicleExperienceHidden` / `vehicleExperienceLabels`), whether a
+ * felony explanation is mandatory (`requireFelonyExplanation`), and the optional
+ * Hours of Service statement (`hoursOfServiceStatement: 'application'`), which
+ * renders here rather than as a tenth step so no company's application grows a
+ * mandatory page it did not ask for.
  */
 const Step7_General = ({ formData, updateFormData, onNavigate, onPartialSubmit }) => {
     const { states } = useUtils();
@@ -39,6 +50,8 @@ const Step7_General = ({ formData, updateFormData, onNavigate, onPartialSubmit }
     const milesOptions = MILES_DRIVEN_OPTIONS;
     const expOptions = EXPERIENCE_OPTIONS;
     const hasFelony = formData['has-felony'] === 'yes';
+    const { rules, blocking, attempted, issuesRef, refuseIfBlocked } = useStepGate('general', formData);
+    const vehicleCategories = visibleVehicleCategories(rules);
 
     const handleContinue = () => {
         const form = document.getElementById('driver-form');
@@ -48,11 +61,13 @@ const Step7_General = ({ formData, updateFormData, onNavigate, onPartialSubmit }
                 return;
             }
         }
+        if (refuseIfBlocked()) return;
         onNavigate('next');
     };
 
     return (
         <div id="page-7" className="form-step space-y-ds-6">
+            <StepIssues ref={issuesRef} blocking={blocking} showBlocking={attempted} />
             {(formData.positionType === 'ownerOperator' || formData.positionType === 'leaseOperator') && (
                 <BusinessInfoSection
                     formData={formData}
@@ -66,6 +81,7 @@ const Step7_General = ({ formData, updateFormData, onNavigate, onPartialSubmit }
                 updateFormData={updateFormData}
                 milesOptions={milesOptions}
                 expOptions={expOptions}
+                categories={vehicleCategories}
             />
 
             {!emergencyContactsConfig.hidden && (
@@ -76,7 +92,9 @@ const Step7_General = ({ formData, updateFormData, onNavigate, onPartialSubmit }
                 />
             )}
 
-            {/* HOS Section Removed: Note required for initial application per typical DOT flows unless asked by carrier (now handled via custom questions if needed) */}
+            {rules.hoursOfServiceStatement === 'application' && (
+                <HoursOfServiceSection formData={formData} updateFormData={updateFormData} />
+            )}
 
             <FormSection title="Felony History">
                 <RadioGroup
@@ -89,7 +107,7 @@ const Step7_General = ({ formData, updateFormData, onNavigate, onPartialSubmit }
                 />
                 {hasFelony && (
                     <div id="felony-details" className="border-t border-ds-border-subtle pt-ds-4">
-                        <FormField id="felony-explanation" label="Please explain:">
+                        <FormField id="felony-explanation" label="Please explain:" required={rules.requireFelonyExplanation}>
                             <Textarea
                                 name="felonyExplanation"
                                 rows="3"
