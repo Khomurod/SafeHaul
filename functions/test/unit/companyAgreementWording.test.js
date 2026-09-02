@@ -169,3 +169,52 @@ describe('what the applicant is shown and what the record binds to', () => {
     expect(snapshot.agreements.find((a) => a.id === 'fcraDisclosure').version).toBe('v1');
   });
 });
+
+describe('resolveAgreementVersions — the version the applicant actually saw (Codex P1, 2026-09-02)', () => {
+  const { resolveAgreementVersions, publishWordingVersion, normalizeWordingDocs } = require('../../shared/companyAgreementWording');
+  const wording = normalizeWordingDocs({
+    fcraDisclosure: publishWordingVersion(null, 'fcraDisclosure', 'Company FCRA wording, long enough to be a real body of text.', { createdBy: 'sa' }),
+  });
+  const companyVersion = wording.fcraDisclosure.currentVersion;
+
+  it('honours a current platform version the acceptance names, even when the company has since published its own', () => {
+    // The page loaded platform v1; a super admin published company wording
+    // before the submission landed. The signature binds to v1, not to text the
+    // applicant never read.
+    const versions = resolveAgreementVersions({
+      platformVersion: 'v1',
+      acceptances: { fcraDisclosure: { accepted: true, version: 'v1' } },
+      wordingDocs: wording,
+    });
+    expect(versions.fcraDisclosure).toBe('v1');
+  });
+
+  it('still honours a company version the acceptance names', () => {
+    const versions = resolveAgreementVersions({
+      platformVersion: 'v1',
+      acceptances: { fcraDisclosure: { accepted: true, version: companyVersion } },
+      wordingDocs: wording,
+    });
+    expect(versions.fcraDisclosure).toBe(companyVersion);
+  });
+
+  it('falls back to the company\'s current version when the acceptance names none', () => {
+    const versions = resolveAgreementVersions({ platformVersion: 'v1', acceptances: {}, wordingDocs: wording });
+    expect(versions.fcraDisclosure).toBe(companyVersion);
+  });
+
+  it('never honours a legacy or unknown claimed version', () => {
+    const legacy = resolveAgreementVersions({
+      platformVersion: 'v1',
+      acceptances: { fcraDisclosure: { accepted: true, version: 'legacy-1' } },
+      wordingDocs: wording,
+    });
+    expect(legacy.fcraDisclosure).toBe(companyVersion);
+    const unknown = resolveAgreementVersions({
+      platformVersion: 'v1',
+      acceptances: { fcraDisclosure: { accepted: true, version: 'v9' } },
+      wordingDocs: {},
+    });
+    expect(unknown.fcraDisclosure).toBe('v1');
+  });
+});

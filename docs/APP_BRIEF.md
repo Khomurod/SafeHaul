@@ -603,7 +603,14 @@ read what is in force. The public apply page receives the active company text
 through `getApplicationAgreements`; the snapshot freezes the company text at its
 `c-` version, so an applicant who accepted an older company version keeps that
 exact text forever, and a version whose hash no longer matches its body is
-dropped rather than trusted.
+dropped rather than trusted. A submission binds each agreement to the version
+the acceptance names when that version is real — a company version the company
+actually holds, or a current platform version — so wording published between the
+page loading and the submission landing never replaces what the applicant read.
+If the company's wording record cannot be read, the read **fails** (`unavailable`)
+rather than degrading to platform text: the apply page retries, and a submission
+falls into the existing failed-snapshot path instead of freezing text the
+applicant never saw.
 
 **Application Rules have one engine.** `functions/shared/applicationRules.js`
 mirrors `src/config/applicationRules.js` (bodies byte-identical, asserted by
@@ -621,7 +628,11 @@ allow / warn / block; require previous-licence details; MVR authorization
 optional / required; require violation details and accident details when the
 applicant answers Yes (accidents record fatalities, injuries and hazmat spill);
 employment-history enforcement allow / warn / block with a configurable minimum
-of years; require a felony explanation; Hours of Service statement off / on.
+of years; require a felony explanation; Hours of Service statement off / on (when
+on, the statement must cover exactly the seven days before the reference day, so
+a week carried in a resumed draft is refused and re-asked). A Yes to the MVR
+authorization is accepted only with its recorded acceptance evidence beside it;
+the question stays disabled until the wording has loaded.
 **Every default reproduces the pre-2026-09-02 behaviour**, so an unconfigured
 company is unchanged, and `warn` is what "three-year coverage" always did. An
 impossible date (30 February, a year outside the field's range) is refused

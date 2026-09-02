@@ -152,9 +152,10 @@ function applyCompanyWording(platformSet, wordingDocs, { companyName } = {}) {
  *
  * The acceptance evidence names the version the applicant was shown. A company
  * version is honoured only if it exists in the company's own record — so a
- * client cannot invent one — and, when the evidence names none, the company's
- * current version is used, or the platform version where the company has no
- * wording of its own.
+ * client cannot invent one — and a platform version only if it is a current
+ * (non-legacy) entry of that agreement. When the evidence names none, the
+ * company's current version is used, or the platform version where the company
+ * has no wording of its own.
  */
 function resolveAgreementVersions({ platformVersion, acceptances, wordingDocs }) {
     const given = acceptances && typeof acceptances === 'object' ? acceptances : {};
@@ -162,7 +163,15 @@ function resolveAgreementVersions({ platformVersion, acceptances, wordingDocs })
     for (const agreementId of Object.keys(AGREEMENTS)) {
         const doc = wordingDocs && wordingDocs[agreementId];
         const claimed = given[agreementId] && typeof given[agreementId] === 'object' ? given[agreementId].version : null;
+        const platformEntry = claimed && !isCompanyVersion(claimed) ? AGREEMENTS[agreementId].versions[claimed] : null;
         if (isCompanyVersion(claimed) && doc && doc.versions[claimed]) {
+            versions[agreementId] = claimed;
+        } else if (platformEntry && !platformEntry.legacy) {
+            // A current platform version the applicant was actually shown — the
+            // company may have published its own wording between the page loading
+            // and the submission landing. The signature binds to what they read,
+            // never to text that arrived afterwards. (A `legacy-*` claim is not
+            // honoured: those bodies exist for reconstruction, not for presenting.)
             versions[agreementId] = claimed;
         } else if (doc && doc.currentVersion) {
             versions[agreementId] = doc.currentVersion;

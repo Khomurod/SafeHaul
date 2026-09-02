@@ -14,22 +14,75 @@
 import { useCallback, useRef, useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
-import { loadPdfDocument, renderPageToDataUrl } from '@features/signing/utils/pdfPageRasterizer';
+import {
+    RASTER_MAX_WIDTH,
+    RASTER_QUALITY,
+    loadPdfDocument,
+    renderPageToDataUrl,
+} from '@features/signing/utils/pdfPageRasterizer';
 import { fileToDataUrl } from '../components/application/publicApplyHelpers';
 
 /** Must match the callable's `MAX_PAGES`. */
 export const REPORT_MAX_PAGES = 5;
+/** Must match the callable's `MAX_IMAGE_CHARS`: the size of one page as a data URL. */
+export const REPORT_MAX_PAGE_CHARS = 4 * 1024 * 1024;
 export const REPORT_MAX_FILE_BYTES = 15 * 1024 * 1024;
 const IMAGE_TYPES = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp']);
+const PAGE_TOO_LARGE = 'That page is too large to read. Please upload a smaller photo, or a PDF.';
+
+/**
+ * Re-encode a photo the way PDF pages are rendered: at most `RASTER_MAX_WIDTH`
+ * wide, JPEG, in memory. A phone photo is several megabytes and base64 grows it
+ * by a third, so sent raw it would clear the 15 MB file check here and then be
+ * refused by the callable's per-page ceiling every time. Returns null where the
+ * environment has no bitmap or canvas support, and the caller falls back to the
+ * raw file — still bounded by `REPORT_MAX_PAGE_CHARS`.
+ */
+export async function compressImageFile(file) {
+    if (typeof createImageBitmap !== 'function' || typeof document === 'undefined') return null;
+    let bitmap;
+    try {
+        bitmap = await createImageBitmap(file);
+    } catch {
+        return null;
+    }
+    try {
+        const scale = Math.min(1, RASTER_MAX_WIDTH / bitmap.width);
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        if (!context) return null;
+        canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+        canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+        context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL('image/jpeg', RASTER_QUALITY);
+        canvas.width = 0;
+        canvas.height = 0;
+        return typeof dataUrl === 'string' && dataUrl.startsWith('data:image/') ? dataUrl : null;
+    } finally {
+        bitmap.close?.();
+    }
+}
+
+function assertPageFits(dataUrl) {
+    if (typeof dataUrl !== 'string' || dataUrl.length > REPORT_MAX_PAGE_CHARS) throw new Error(PAGE_TOO_LARGE);
+    return dataUrl;
+}
 
 /**
  * A PDF becomes up to `REPORT_MAX_PAGES` JPEG data URLs; a photo becomes one.
- * Anything else is refused with a message the applicant can act on.
+ * Every page is held to the callable's own per-page ceiling here, so nothing is
+ * sent that the server is certain to refuse. Anything else is refused with a
+ * message the applicant can act on.
  *
  * @returns {Promise<{pages: string[], totalPages: number}>}
  */
 export async function fileToPageImages(file, deps = {}) {
-    const { loadPdf = loadPdfDocument, renderPage = renderPageToDataUrl, readImage = fileToDataUrl } = deps;
+    const {
+        loadPdf = loadPdfDocument,
+        renderPage = renderPageToDataUrl,
+        readImage = fileToDataUrl,
+        compressImage = compressImageFile,
+    } = deps;
     if (!file) throw new Error('Choose a file to import.');
     if (file.size > REPORT_MAX_FILE_BYTES) throw new Error('That file is too large. Please upload a file under 15 MB.');
 
@@ -40,7 +93,7 @@ export async function fileToPageImages(file, deps = {}) {
             const pages = [];
             for (let pageNumber = 1; pageNumber <= count; pageNumber += 1) {
                 const dataUrl = await renderPage(document, pageNumber);
-                if (dataUrl) pages.push(dataUrl);
+                if (dataUrl) pages.push(assertPageFits(dataUrl));
             }
             if (pages.length === 0) throw new Error('Could not read any pages from that PDF.');
             return { pages, totalPages: document.numPages };
@@ -49,7 +102,8 @@ export async function fileToPageImages(file, deps = {}) {
         }
     }
     if (IMAGE_TYPES.has(file.type)) {
-        return { pages: [await readImage(file)], totalPages: 1 };
+        const dataUrl = (await compressImage(file)) || (await readImage(file));
+        return { pages: [assertPageFits(dataUrl)], totalPages: 1 };
     }
     throw new Error('Please upload a PDF or a photo (JPG, PNG or WebP).');
 }

@@ -179,6 +179,12 @@ const Step4_Violations = ({ formData, updateFormData, onNavigate, onPartialSubmi
                         <p className="whitespace-pre-wrap text-ds-sm leading-relaxed text-ds-content-secondary">{mvrAgreement.body}</p>
                     </div>
                 )}
+                {/*
+                  Disabled until the wording is on screen. A Yes is an acceptance
+                  of versioned text, recorded beside the answer; a Yes clicked
+                  before the text loaded would have nothing to record, and the
+                  rules engine refuses exactly that (`mvr-authorization-evidence`).
+                */}
                 <RadioGroup
                     label="I authorize this motor vehicle record check"
                     name="consent-mvr"
@@ -186,7 +192,11 @@ const Step4_Violations = ({ formData, updateFormData, onNavigate, onPartialSubmi
                     value={formData['consent-mvr']}
                     onChange={handleMvrChange}
                     required={true}
+                    disabled={!mvrAgreement}
                 />
+                {!mvrAgreement && !agreementsLoading && !agreementsError && (
+                    <p role="status" className="text-ds-xs text-ds-content-muted">The authorization wording has to load before you can answer.</p>
+                )}
                 {mvrRequired && formData['consent-mvr'] === 'no' && (
                     <FieldMessage tone="error" data-testid="mvr-declined-message">
                         This carrier needs your authorization to obtain your motor vehicle record before the application can

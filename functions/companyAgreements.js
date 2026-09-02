@@ -121,20 +121,26 @@ exports.publishCompanyAgreementWording = functions
         const note = typeof data.note === 'string' ? data.note.trim().slice(0, 200) : null;
 
         const ref = db.collection('companies').doc(companyId).collection('legal_agreements').doc(agreementId);
-        const existing = await ref.get();
-        let next;
-        try {
-            next = publishWordingVersion(existing.exists ? existing.data() : null, agreementId, data.body, {
-                createdBy: auth.uid,
-                note,
-            });
-        } catch (err) {
-            throw new functions.https.HttpsError('invalid-argument', err.message);
-        }
-        // A plain set: every version already stored is carried forward untouched,
-        // and the version ids are hashes of their text, so nothing here can
-        // rewrite what an earlier applicant was shown.
-        await ref.set(next);
+        // Read, merge and write in ONE transaction. Two publishes landing together
+        // would otherwise each read the same version map and the later plain set
+        // would drop the other's freshly published version — a version an
+        // applicant may already have been shown and accepted. Every version
+        // already stored is carried forward untouched either way; the ids are
+        // hashes of their text, so nothing here can rewrite earlier wording.
+        const next = await db.runTransaction(async (tx) => {
+            const existing = await tx.get(ref);
+            let candidate;
+            try {
+                candidate = publishWordingVersion(existing.exists ? existing.data() : null, agreementId, data.body, {
+                    createdBy: auth.uid,
+                    note,
+                });
+            } catch (err) {
+                throw new functions.https.HttpsError('invalid-argument', err.message);
+            }
+            tx.set(ref, candidate);
+            return candidate;
+        });
         return { companyId, agreementId, currentVersion: next.currentVersion, agreements: await describeCompanyAgreements(companyId) };
     });
 
@@ -145,9 +151,11 @@ exports.revertCompanyAgreementWording = functions
         const companyId = requireCompanyId(data);
         const agreementId = requireAgreementId(data);
         const ref = db.collection('companies').doc(companyId).collection('legal_agreements').doc(agreementId);
-        const existing = await ref.get();
-        const next = revertToPlatformWording(existing.exists ? existing.data() : null, agreementId);
-        if (next) await ref.set(next);
+        await db.runTransaction(async (tx) => {
+            const existing = await tx.get(ref);
+            const next = revertToPlatformWording(existing.exists ? existing.data() : null, agreementId);
+            if (next) tx.set(ref, next);
+        });
         return { companyId, agreementId, currentVersion: null, agreements: await describeCompanyAgreements(companyId) };
     });
 

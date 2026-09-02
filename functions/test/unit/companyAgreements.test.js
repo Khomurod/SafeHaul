@@ -14,6 +14,14 @@ const mockDb = { company: { companyName: 'Blue Line Freight' }, wording: {} };
 
 jest.mock('../../firebaseAdmin', () => ({
   db: {
+    // The callables publish and revert inside a transaction; the fake runs the
+    // body once against the same in-memory documents.
+    async runTransaction(body) {
+      return body({
+        get: (ref) => ref.get(),
+        set: (ref, value) => ref.set(value),
+      });
+    },
     collection: () => ({
       doc: () => ({
         async get() { return { exists: true, data: () => mockDb.company }; },

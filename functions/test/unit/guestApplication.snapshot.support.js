@@ -162,7 +162,12 @@ const firebaseAdminMock = () => ({
       }
       if (col === 'companies') {
         return { doc: (companyId) => ({
-          collection: () => ({ doc: (applicationId) => mockApplicationDoc(companyId, applicationId) }),
+          collection: () => ({
+            doc: (applicationId) => mockApplicationDoc(companyId, applicationId),
+            // `legal_agreements` — no company wording published; the read must
+            // succeed, because a failed read now fails the snapshot on purpose.
+            get: async () => ({ docs: [] }),
+          }),
         }) };
       }
       return { doc: () => ({}) };

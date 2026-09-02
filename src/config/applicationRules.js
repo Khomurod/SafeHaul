@@ -228,11 +228,28 @@ function isCompleteAccident(row) {
         && yesNo(row.hazmatSpill) !== null;
 }
 
-function isCompleteHoursOfService(data) {
-    const days = listOf(data.hosDailyHours);
-    const daysComplete = days.length === 7 && days.every((row) => (
-        Boolean(parseApplicationDate(row.date)) && /^\d{1,2}(\.\d{1,2})?$/.test(String(row.hours ?? '').trim()) && Number(row.hours) <= 24
-    ));
+/** The seven calendar days before `today`, newest first — the days a statement must cover. */
+function hoursOfServiceDays(today) {
+    const base = new Date(toIsoDay(today) + 'T12:00:00');
+    return Array.from({ length: 7 }, (_, offset) => {
+        const day = new Date(base);
+        day.setDate(base.getDate() - (offset + 1));
+        return toIsoDay(day);
+    });
+}
+
+function isCompleteHoursOfService(data, today) {
+    // Keyed by day, so seven rows for the wrong week — a draft resumed later —
+    // or the same day twice do not pass as a statement about the last seven.
+    const byDay = new Map();
+    for (const row of listOf(data.hosDailyHours)) {
+        const parsed = parseApplicationDate(row.date);
+        if (parsed && parsed.day !== null) byDay.set(parsed.iso, row);
+    }
+    const daysComplete = hoursOfServiceDays(today).every((day) => {
+        const row = byDay.get(day);
+        return Boolean(row) && /^\d{1,2}(\.\d{1,2})?$/.test(String(row.hours ?? '').trim()) && Number(row.hours) <= 24;
+    });
     return daysComplete
         && Boolean(parseApplicationDate(data.hosLastRelievedDate))
         && /^\d{1,2}:\d{2}$/.test(String(data.hosLastRelievedTime ?? '').trim());
@@ -338,6 +355,15 @@ function evaluateApplicationRules({ rules: rawRules, applicationConfig, formData
         issues.push(issue('mvr-authorization-required', 'block', 'violations', 'consent-mvr',
             'This carrier needs your authorization to obtain your motor vehicle record before the application can continue. Choose Yes to continue, or contact the carrier if you have questions.'));
     }
+    // A Yes is an acceptance of versioned wording, and the wizard records the
+    // evidence beside the answer. A Yes without it — the wording had not loaded
+    // when it was clicked, or an older draft carried the answer alone — would be
+    // frozen as "not accepted" next to an answer that says otherwise.
+    const mvrEvidence = data.agreementAcceptances && data.agreementAcceptances.mvrAuthorization;
+    if (yesNo(data['consent-mvr']) === 'yes' && !(mvrEvidence && mvrEvidence.accepted === true)) {
+        issues.push(issue('mvr-authorization-evidence', 'block', 'violations', 'consent-mvr',
+            'Your motor vehicle record authorization could not be recorded with the wording you were shown. Please answer the authorization question again.'));
+    }
 
     if (rules.requireViolationDetails) {
         const answer = yesNo(data['has-violations']);
@@ -383,7 +409,7 @@ function evaluateApplicationRules({ rules: rawRules, applicationConfig, formData
             'Please explain the felony conviction you reported.'));
     }
 
-    if (rules.hoursOfServiceStatement === 'application' && !isCompleteHoursOfService(data)) {
+    if (rules.hoursOfServiceStatement === 'application' && !isCompleteHoursOfService(data, today)) {
         issues.push(issue('hours-of-service-required', 'block', 'general', 'hosDailyHours',
             'Complete the Hours of Service statement: your on-duty hours for each of the past 7 days, and the date and time you were last relieved from duty.'));
     }

@@ -31,22 +31,28 @@ const { applyCompanyWording, normalizeWordingDocs } = require('./shared/companyA
 /**
  * The company's own agreement wording, if it has published any.
  *
- * Read from `companies/{id}/legal_agreements`, which no client can reach. A
- * failure here must not fail the apply page — the platform wording is always a
- * legitimate thing to present — so it degrades to "no company wording" and says
- * so in the log. `submitGuestApplication` reads the same collection through this
- * same function, so the text served and the text frozen come from one place.
+ * Read from `companies/{id}/legal_agreements`, which no client can reach.
+ * `submitGuestApplication` reads the same collection through this same
+ * function, so the text served and the text frozen come from one place.
+ *
+ * A read failure FAILS, as `unavailable`. It used to degrade to "no company
+ * wording", which is wrong on both paths: the apply page would present platform
+ * text a company had replaced, and — worse — a submission naming a company
+ * version it could not verify would silently bind the signature to platform
+ * text the applicant never saw. Both callers already have a retry path; neither
+ * has a legitimate answer to give without the record.
  */
 async function loadCompanyAgreementWording(companyId) {
+    let snap;
     try {
-        const snap = await db.collection('companies').doc(companyId).collection('legal_agreements').get();
-        const raw = {};
-        for (const doc of snap.docs || []) raw[doc.id] = doc.data();
-        return normalizeWordingDocs(raw);
+        snap = await db.collection('companies').doc(companyId).collection('legal_agreements').get();
     } catch (err) {
         console.error('[applicationAgreements] Company wording lookup error:', err);
-        return {};
+        throw new functions.https.HttpsError('unavailable', 'Agreement wording is temporarily unavailable. Please try again.');
     }
+    const raw = {};
+    for (const doc of snap.docs || []) raw[doc.id] = doc.data();
+    return normalizeWordingDocs(raw);
 }
 
 /**
@@ -113,6 +119,9 @@ exports.getApplicationAgreements = functions
             const wording = await loadCompanyAgreementWording(companyId);
             agreements = applyCompanyWording(resolveAgreementSet({ companyName }), wording, { companyName });
         } catch (err) {
+            // `unavailable` from the wording read stays `unavailable`: it tells
+            // the applicant to retry rather than that something is broken.
+            if (err instanceof functions.https.HttpsError) throw err;
             console.error('[getApplicationAgreements] Could not resolve agreement set:', err);
             throw new functions.https.HttpsError(
                 'internal',

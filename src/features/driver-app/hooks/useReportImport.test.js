@@ -17,7 +17,7 @@ vi.mock('@features/signing/utils/pdfPageRasterizer', () => ({
     renderPageToDataUrl: rasterMocks.renderPageToDataUrl,
 }));
 
-import { REPORT_MAX_PAGES, fileToPageImages, useReportImport } from './useReportImport';
+import { REPORT_MAX_PAGES, REPORT_MAX_PAGE_CHARS, fileToPageImages, useReportImport } from './useReportImport';
 
 const PNG = new File(['x'], 'record.png', { type: 'image/png' });
 
@@ -55,9 +55,30 @@ describe('fileToPageImages', () => {
         await expect(fileToPageImages(new File([''], 'x.pdf', { type: 'application/pdf' }), { loadPdf, renderPage })).rejects.toThrow(/Could not read any pages/);
     });
 
-    it('reads a photo as a single page', async () => {
+    it('re-encodes a photo the way PDF pages are rendered, and sends that', async () => {
+        const compressImage = vi.fn().mockResolvedValue('data:image/jpeg;base64,SMALL');
+        const readImage = vi.fn().mockResolvedValue('data:image/png;base64,RAW');
+        await expect(fileToPageImages(PNG, { compressImage, readImage })).resolves.toEqual({ pages: ['data:image/jpeg;base64,SMALL'], totalPages: 1 });
+        expect(readImage).not.toHaveBeenCalled();
+    });
+
+    it('falls back to the raw photo where re-encoding is unavailable', async () => {
+        const compressImage = vi.fn().mockResolvedValue(null);
         const readImage = vi.fn().mockResolvedValue('data:image/png;base64,AAAA');
-        await expect(fileToPageImages(PNG, { readImage })).resolves.toEqual({ pages: ['data:image/png;base64,AAAA'], totalPages: 1 });
+        await expect(fileToPageImages(PNG, { compressImage, readImage })).resolves.toEqual({ pages: ['data:image/png;base64,AAAA'], totalPages: 1 });
+    });
+
+    it('refuses a page the callable would refuse, instead of sending it to fail', async () => {
+        // The server caps one page at MAX_IMAGE_CHARS of data URL; a 5 MB phone
+        // photo passes the 15 MB file check and is a certain server rejection.
+        const oversized = 'data:image/png;base64,' + 'A'.repeat(REPORT_MAX_PAGE_CHARS);
+        const compressImage = vi.fn().mockResolvedValue(null);
+        const readImage = vi.fn().mockResolvedValue(oversized);
+        await expect(fileToPageImages(PNG, { compressImage, readImage })).rejects.toThrow(/too large to read/);
+
+        const loadPdf = vi.fn().mockResolvedValue(fakePdf(1));
+        const renderPage = vi.fn().mockResolvedValue(oversized);
+        await expect(fileToPageImages(new File([''], 'x.pdf', { type: 'application/pdf' }), { loadPdf, renderPage })).rejects.toThrow(/too large to read/);
     });
 
     it('refuses other types and oversized files with a message the applicant can act on', async () => {

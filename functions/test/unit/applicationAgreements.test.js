@@ -157,12 +157,6 @@ describe('getApplicationAgreements', () => {
     expect(fcra.companyWording).toBe(false);
   });
 
-  it('falls back to the platform wording when the company wording cannot be read', async () => {
-    mockState.wordingThrows = new Error('unavailable');
-    const result = await getApplicationAgreements({ companyId: 'co1' }, ctx);
-    expect(result.agreements.every((a) => a.version === 'v1')).toBe(true);
-  });
-
   it('never leaks applicant or internal company data', async () => {
     mockState.company = { companyName: 'Blue Line Freight', ownerEmail: 'boss@x.com', dotNumber: '1234567' };
     const result = await getApplicationAgreements({ companyId: 'co1' }, ctx);
@@ -170,5 +164,21 @@ describe('getApplicationAgreements', () => {
     const serialized = JSON.stringify(result);
     expect(serialized).not.toContain('boss@x.com');
     expect(Object.keys(result).sort()).toEqual(['agreementVersion', 'agreements', 'companyName']);
+  });
+});
+
+describe('a wording read that fails is a failure, not "no company wording" (Codex P1, 2026-09-02)', () => {
+  const { loadCompanyAgreementWording } = require('../../applicationAgreements');
+
+  it('rejects as unavailable so the caller retries instead of presenting platform text', async () => {
+    mockState.wordingThrows = new Error('UNAVAILABLE: Firestore is down');
+    const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      await expect(loadCompanyAgreementWording('co-1')).rejects.toMatchObject({ code: 'unavailable' });
+      await expect(getApplicationAgreements({ companyId: 'co-1' }, { rawRequest: { ip: '203.0.113.9' } }))
+        .rejects.toMatchObject({ code: 'unavailable' });
+    } finally {
+      spy.mockRestore();
+    }
   });
 });
