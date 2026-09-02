@@ -139,6 +139,8 @@ const companyApplications = require('./companyApplications');
 exports.saveCompanyPreparedApplication = companyApplications.saveCompanyPreparedApplication;
 exports.getCompanyPreparedDraft = companyApplications.getCompanyPreparedDraft;
 exports.listCompanyPreparedApplications = companyApplications.listCompanyPreparedApplications;
+exports.mintApplicationInvite = companyApplications.mintApplicationInvite;
+exports.exchangeApplicationInvite = companyApplications.exchangeApplicationInvite;
 exports.createPostApplicationSigningRequest = require('./postApplicationEdocs').createPostApplicationSigningRequest;
 // AI Field Assistant: authenticated, company-scoped PDF field-placement suggestions.
 // Deliberately separate from parseCdlWithGroq (public guest path, different model pin).

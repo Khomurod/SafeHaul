@@ -27,7 +27,10 @@
 // it, so **the export names here are the contract** and a rename is a redeployment.
 const { saveCompanyPreparedApplication } = require('./companyApplications/prepare');
 const { getCompanyPreparedDraft, listCompanyPreparedApplications } = require('./companyApplications/read');
+const { mintApplicationInvite, exchangeApplicationInvite } = require('./companyApplications/invite');
 
 exports.saveCompanyPreparedApplication = saveCompanyPreparedApplication;
 exports.getCompanyPreparedDraft = getCompanyPreparedDraft;
 exports.listCompanyPreparedApplications = listCompanyPreparedApplications;
+exports.mintApplicationInvite = mintApplicationInvite;
+exports.exchangeApplicationInvite = exchangeApplicationInvite;

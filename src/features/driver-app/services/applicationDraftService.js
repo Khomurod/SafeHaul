@@ -291,6 +291,27 @@ export async function resumeApplicationDraft(payload) {
     return result.data;
 }
 
+/**
+ * Opens a link a carrier sent, exchanging its token for the application they
+ * prepared.
+ *
+ * Resolves to `null` for every unsuccessful case — a wrong link, an expired one, a
+ * carrier that has stopped accepting applications — because the driver who follows
+ * a stale link should land on the ordinary blank application and be able to apply,
+ * not on a diagnostic. The one thing the caller must know is whether there is a
+ * prepared application to show.
+ */
+export async function exchangeApplicationInvite(payload) {
+    try {
+        const call = httpsCallable(functions, 'exchangeApplicationInvite');
+        const result = await call(payload);
+        return result.data?.opened ? result.data : null;
+    } catch (error) {
+        console.warn('[applicationDraftService] Application link could not be opened:', error?.code || error?.message);
+        return null;
+    }
+}
+
 /** Discards an unfinished application. Throws, because the caller must not proceed silently. */
 export async function startNewApplication(payload) {
     if (e2eDraftsEnabled()) return { discarded: true };

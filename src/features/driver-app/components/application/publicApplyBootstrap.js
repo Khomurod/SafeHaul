@@ -29,6 +29,7 @@ import {
   isRequestSigned,
 } from './postApplyDocsStorage';
 import { reconcileApplicationDraft } from './reconcileApplicationDraft';
+import { exchangeApplicationInvite, writeResumeToken } from '../../services/applicationDraftService';
 
   /**
    * Restore a recent submission (and its document checklist) after the driver
@@ -158,6 +159,50 @@ export async function loadPublicApplyCompany({
           setError("Company not found.");
           setLoading(false);
           return;
+        }
+
+        /**
+         * A link the carrier sent, carrying an application it prepared.
+         *
+         * Taken before the local-draft restore, because it is the stronger claim:
+         * this browser may hold an abandoned attempt of its own, and what the
+         * driver clicked is the application their carrier filled in for them.
+         *
+         * The exchange also mints a resume token for this draft. A carrier-prepared
+         * draft has no identity HMAC — the carrier does not know the driver's
+         * Social Security Number — so that token is the only thing that will
+         * authorize the driver's own autosave from here on. Stored the moment it
+         * arrives, before anything can go wrong further down.
+         *
+         * A link that no longer opens is not an error: `exchangeApplicationInvite`
+         * resolves to null and the driver simply gets the ordinary application.
+         */
+        const inviteToken = searchParams.get('invite');
+        if (inviteToken) {
+          const invited = await exchangeApplicationInvite({
+            companyId: companyData.id,
+            applicantKey: searchParams.get('k') || null,
+            inviteToken,
+          });
+          if (invited) {
+            writeResumeToken(slug, {
+              resumeToken: invited.resumeToken,
+              applicantKey: invited.applicantKey,
+            });
+            restoredFromDraftRef.current = true;
+            draftIdRef.current = invited.applicantKey;
+            setFormData((prev) => ({
+              ...prev,
+              ...invited.formData,
+              // Decorative, for rendering the rows as locked. The enforcement copy
+              // lives on the draft itself, where the locked party cannot reach it.
+              lockedEmployers: invited.lockedEmployers || [],
+            }));
+            setIntakeMode('manual');
+            sessionStorage.setItem('pending_application_company', companyData.id);
+            setLoading(false);
+            return;
+          }
         }
 
         setCompany(companyData);
