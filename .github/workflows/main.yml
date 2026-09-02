@@ -194,6 +194,19 @@ jobs:
       - name: Verify frontend/backend callable contract
         run: node scripts/check-callable-contract.mjs
 
+      # The public site's claims gate. `npm run check:public-claims` holds every
+      # `web/*.html` to `functions/ai/knowledge/safehaulCapabilities.js`, and it
+      # was reachable only through the root `npm run lint`, which CI never runs —
+      # a gate that was documented, not wired. It lives HERE, not in a lane,
+      # because it has two inputs and a lane can skip on either: a `web/` change
+      # selects `frontend_unit`, but a registry change selects only `functions`,
+      # and either can make the live page newly wrong. This job runs on every
+      # push and pull request with no `npm ci`, and the checker needs nothing
+      # installed. `K4` in `npm run check:ci-plan` pins all of that, and refuses
+      # a page in a subdirectory the checker does not scan.
+      - name: Public-claims check
+        run: npm run check:public-claims
+
       # The promotion gate decides what may reach app.safehaul.io, so its refusal
       # paths are a required check rather than a nicety.
       - name: Verify the production-promotion gate
@@ -331,16 +344,6 @@ jobs:
 
       - name: Frontend Lint
         run: npm run lint:frontend
-
-      # The public site's claims gate. `npm run check:public-claims` is part of
-      # the root `npm run lint`, but CI runs `lint:frontend`, so for a while no
-      # job ran it at all — a `web/` change selected this lane (`A5`) and was
-      # "validated" without the one check written for it. It is a step HERE
-      # because `frontend_unit` is the lane `web/` selects, so a public-site
-      # change cannot skip it, and it fails closed when `web/` holds no HTML.
-      # `K4` in `npm run check:ci-plan` pins the step, the lane and the script.
-      - name: Public-claims check
-        run: npm run check:public-claims
 
       # The design-system ratchet. It measures the tree against a committed
       # inventory and fails on anything the inventory does not already cover, so

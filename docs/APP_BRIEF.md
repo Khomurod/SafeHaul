@@ -866,9 +866,9 @@ currently populates them from a recipient's reply; see §12.
   all, asserted by `src/tests/hostingConfig.test.js`.
 - **Marketing claims must trace to the capability registry.**
   `functions/ai/knowledge/safehaulCapabilities.js` is the source of truth, and
-  `npm run check:public-claims` enforces it — as a step of the `frontend-quality`
-  CI job, which is the lane every `web/` change selects, and as part of the root
-  `npm run lint`. Never
+  `npm run check:public-claims` enforces it — as a step of the always-required
+  `callable-contract` CI job, which runs on every push and pull request and
+  which no lane selection can skip, and as part of the root `npm run lint`. Never
   claim DOT/FMCSA compliance, MVR/PSP/Clearinghouse checks, document-expiry
   monitoring, a job board, or any named carrier endorsement.
 - **A `web/` change runs the `frontend_unit` CI lane.** The public site has
@@ -878,12 +878,15 @@ currently populates them from a recipient's reply; see §12.
   that claimed MVR checks, captured no lead, and failed `npm run lint`. That site
   is gone and `web/` replaced it — the directory changed, the lesson did not.
   `src/tests/hostingConfig.test.js` covers it in that lane; `A5`/`A5b` in
-  `scripts/test-ci-plan.mjs` pin the mapping. The same lane runs
-  `npm run check:public-claims`: until 2026-09-01 that check lived in the root
-  `npm run lint` only, which CI never ran (the job runs `lint:frontend`), so it
-  was documented as a gate without being one. `K4` pins the step to whichever
-  jobs a `web/` page selects, and refuses a page in a subdirectory the checker
-  does not scan.
+  `scripts/test-ci-plan.mjs` pin the mapping. The claims check is deliberately
+  NOT in this lane: it has two inputs, the pages and the capability package, and
+  a registry change selects only the functions lane. It runs in the
+  always-required `callable-contract` job instead. Until 2026-09-01 it lived in
+  the root `npm run lint` only, which CI never ran (the job runs
+  `lint:frontend`), so it was documented as a gate without being one. `K4` pins
+  the step to an always-required job, blocking and unconditional, pins that the
+  checker and the package need nothing installed, and refuses a page in a
+  subdirectory the checker does not scan.
 
 ---
 
@@ -1129,12 +1132,13 @@ workflow) and currently reports pre-existing errors in
 do not assume a pre-existing one is yours.
 
 **The public site has two gates, both in CI since 2026-09-01**:
-`npm run check:public-claims` (a step of the `frontend-quality` job as well as
-part of `npm run lint`; it refuses a run that finds no HTML in `web/` rather than
-passing vacantly) and `src/tests/hostingConfig.test.js`, both in the
-`frontend_unit` lane, which a `web/` change selects. Before that date the claims
-check was in `npm run lint` only and CI ran `lint:frontend`, so no job executed
-it; `K4` in `npm run check:ci-plan` now pins the step. The hand-run accessibility
+`npm run check:public-claims`, a step of the always-required `callable-contract`
+job (so it runs on every push and pull request whichever lanes are selected, and
+it refuses a run that finds no HTML in `web/` rather than passing vacantly), and
+`src/tests/hostingConfig.test.js` in the `frontend_unit` lane, which a `web/`
+change selects. Before that date the claims check was in `npm run lint` only and
+CI ran `lint:frontend`, so no job executed it; `K4` in `npm run check:ci-plan`
+now pins the step. The hand-run accessibility
 audit and the screenshot capture went with the marketing site they served.
 
 **Local test-runner safety.** Four rules — run one Playwright suite at a time,

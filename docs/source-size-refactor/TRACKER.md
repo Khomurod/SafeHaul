@@ -4116,16 +4116,25 @@ was in the root `npm run lint`, and `docs/APP_BRIEF.md` said CI enforced it.
 CI's `frontend-quality` runs `lint:frontend`; no job ran the check. So a `web/`
 change selected the `frontend_unit` lane (A5), the lane ran the hosting-config
 tests and the ratchet, and the one check written for the public site's words
-never ran — documented as a gate, wired as nothing. The fix is one step,
-`Public-claims check`, in `frontend-quality`, the job of the lane `web/`
-selects; `K4` in `npm run check:ci-plan` (11 assertions) derives that job set
-from `lanesForPath`/`LANES` rather than naming it, requires the step in every
-such job, blocking and unconditional, pins the npm script to the checker file,
-pins the checker's no-HTML refusal and its reuse of `checkClaims`, and refuses
-any `.html` under `web/` that is not at the top level the checker scans. Three
-plants were refused before the change was kept: the step removed, the step made
-`continue-on-error`, and a `web/legal/terms.html`. Backend-only changes are
-unaffected — the step is inside a lane those changes do not select.
+never ran — documented as a gate, wired as nothing. The first fix put a
+`Public-claims check` step in `frontend-quality`, the job of the lane `web/`
+selects. Review on the PR (Codex) found the hole that leaves: the check has two
+inputs, the pages and the capability package they are held to, and a change to
+`functions/ai/knowledge/safehaulCapabilities.js` selects only the `functions`
+lane — a registry edit could make the live page newly invalid while CI stayed
+green. So the step lives in `callable-contract` instead, the always-required
+job that no lane selection can skip and that runs with no `npm ci` (the checker
+and the package it loads need nothing installed — proven on a `git archive`
+export with no `node_modules`). `K4` in `npm run check:ci-plan` requires the
+step in an always-required job, blocking and unconditional, with no job-level
+`if:`; pins the npm script to the checker file; pins that the checker imports
+only Node builtins and the package requires nothing; pins the checker's no-HTML
+refusal and its reuse of `checkClaims`; and refuses any `.html` under `web/`
+that is not at the top level the checker scans. Four plants were refused before
+the change was kept: the step removed, the step made `continue-on-error`, the
+step present only in a lane job, and a `web/legal/terms.html`. Backend-only
+changes pay nothing measurable — the check is one `readdirSync` and a regex
+pass over one page, in a job that already runs on every change.
 
 **3. Retired Firebase Functions — VERIFIED STILL DEPLOYED; deletion blocked.**
 The six callables `LD-R3` retired are gone from `functions/index.js` and from

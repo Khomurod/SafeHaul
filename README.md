@@ -58,8 +58,8 @@ Every product claim must trace to an `available` or `partial` entry in
 [`functions/ai/knowledge/safehaulCapabilities.js`](functions/ai/knowledge/safehaulCapabilities.js),
 which is the **source of truth for what SafeHaul can honestly say about
 itself**. `npm run check:public-claims` enforces it — as a step of the
-`frontend-quality` CI job, which every `web/` change selects, and as part of
-`npm run lint`.
+always-required `callable-contract` CI job, which every push and pull request
+runs, and as part of `npm run lint`.
 
 Notably absent, and never to be claimed as shipped: document-expiry monitoring
 or renewal reminders · MVR, PSP or FMCSA Clearinghouse **checks** (the
