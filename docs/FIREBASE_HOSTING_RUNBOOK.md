@@ -384,9 +384,13 @@ deletion step removes `onLeadSubmitted` alone. So the six callables `LD-R3`
 retired on 2026-08-29 — `submitLandingLead` (v2 `onRequest`),
 `getLandingPageSettings`, `updateLandingTelegramConfig`,
 `setLandingTelegramEnabled`, `sendLandingTelegramTest` and
-`retryLandingLeadDelivery` (v2 `onCall`), all in `us-central1` — are **assumed
-still deployed** until someone with project access looks. The closeout session
-on 2026-09-02 could not: the container has no Firebase or Google credential.
+`retryLandingLeadDelivery` (v2 `onCall`), all in `us-central1` — **were still
+deployed on 2026-09-02**, verified without a credential: a deployed function
+answers on its public URL,
+`https://us-central1-truckerapp-system.cloudfunctions.net/<name>` (a callable
+returns `400 INVALID_ARGUMENT` to a bare GET; the `onRequest` returns `405`),
+while a name that does not exist gets Cloud's `404 Page not found`. All six
+answered; a made-up name did not. The same probe is the verification in step 4.
 
 The operator procedure, in order:
 
@@ -395,7 +399,14 @@ The operator procedure, in order:
    Production frontend must be serving a release at or after `f7c89d4` (#56,
    `LD-R3` merged), because the older Super Admin "Landing Page Settings" screen
    called five of these. Read it from Super Admin → Releases, or from
-   `verify-shipped` on the last production run.
+   `https://app.safehaul.io/release.json`. **As of 2026-09-02 it is not met**:
+   that manifest reports `765c49f` (#33, built 2026-08-10), which predates both
+   `LD-R2` and `LD-R3`, and `safehaul.io` still serves the marketing page whose
+   `main.js` posts to `/api/landing-lead`, which the Production Hosting rewrite
+   still routes to `submitLandingLead` (a GET there returns the function's own
+   `405`). Deleting any of the six before the promotion would break the live
+   lead form for visitors and the live Super Admin screen. Wait for the
+   promotion; do not work around it.
 2. **Compare deployed against intended.** `firebase functions:list --project
    truckerapp-system` against the exports in `functions/index.js`; the
    difference should be exactly the six names above. Anything else on the list
@@ -406,8 +417,8 @@ The operator procedure, in order:
    updateLandingTelegramConfig setLandingTelegramEnabled sendLandingTelegramTest
    retryLandingLeadDelivery --region us-central1 --project truckerapp-system --force`.
    `listLandingLeads` stays: it is the only path to the archive.
-4. **Verify**: run `functions:list` again and confirm the six are gone and
-   `listLandingLeads` is not.
+4. **Verify**: run `functions:list` again, or the URL probe above — each of the
+   six must now return `404`, and `listLandingLeads` must still answer `400`.
 5. **Touch no data.** The `landing_leads` collection and `platform_settings/
    landing_page` are preserved by owner ruling; deleting a function deletes no
    documents, and nothing in this procedure should either.

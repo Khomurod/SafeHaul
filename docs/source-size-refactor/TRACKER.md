@@ -26,7 +26,7 @@ it currently is*.
 | **Review status** | Codex quota still exhausted. Merges need human review. |
 | **CI status** | #92–#125 all merged green. The only red in that stretch was #109's first round — the `EditUserBodies` initial-load race, not that PR's diff; fixed family-wide in the same PR (see the interlude below). A "failure" that lists `cancelled` lanes is a concurrency cancellation from a rapid push, not a defect. |
 | **Working tree at session end** | clean after the closeout commit |
-| **Blockers** | none inside the repository. Two operator actions outside it are recorded in § Closeout: enabling branch protection on `main` (the agent proxy refuses the API writes) and deleting the six retired landing callables from the Firebase project (no live access from the container). |
+| **Blockers** | none inside the repository. Two operator actions outside it are recorded in § Closeout: enabling branch protection on `main` (the agent proxy refuses the API writes), and deleting the six retired landing callables — verified still deployed on 2026-09-02, and deletable only after Production is promoted past `f7c89d4`, because `safehaul.io` and `app.safehaul.io` still serve pre-removal frontends that call them. |
 
 ### Exact next action
 
@@ -4127,19 +4127,29 @@ plants were refused before the change was kept: the step removed, the step made
 `continue-on-error`, and a `web/legal/terms.html`. Backend-only changes are
 unaffected — the step is inside a lane those changes do not select.
 
-**3. Retired Firebase Functions — REPORT ONLY.** The six callables `LD-R3`
-retired are gone from `functions/index.js` and from every caller, but nothing
-in this repository deletes a function from Cloud: the deploy scripts only ever
-`--only functions:<name>`, and the workflow's single deletion step names
-`onLeadSubmitted`. Live comparison was not possible (no Firebase or Google
-credential reaches this container; the API returned `401
-ACCESS_TOKEN_TYPE_UNSUPPORTED`), so **no deletion is claimed**. The runbook now
-carries the operator procedure — precondition (Production promoted past
-`f7c89d4`, the expand/contract rule), `functions:list` against the exports,
-delete exactly the six in `us-central1`, verify, touch no data. Extending the
-existing `onLeadSubmitted` deletion step to the six names was considered and
-NOT done: it would run against the shared backend on the next Testing deploy,
-and whether Production still calls them is exactly what could not be checked.
+**3. Retired Firebase Functions — VERIFIED STILL DEPLOYED; deletion blocked.**
+The six callables `LD-R3` retired are gone from `functions/index.js` and from
+every caller in the repository, but nothing in the repository deletes a
+function from Cloud: the deploy scripts only ever `--only functions:<name>`,
+and the workflow's single deletion step names `onLeadSubmitted`. No Firebase or
+Google credential reaches this container (the API returned `401
+ACCESS_TOKEN_TYPE_UNSUPPORTED`), so `functions:list` was not possible — but
+presence is checkable without one: a deployed function answers on
+`https://us-central1-truckerapp-system.cloudfunctions.net/<name>` (`400
+INVALID_ARGUMENT` for a callable, `405` for the `onRequest`) and a made-up name
+gets Cloud's `404`. **All six answered on 2026-09-02; `listLandingLeads`
+answered the same way; the made-up name did not.** They cannot be deleted yet:
+`app.safehaul.io/release.json` reports `765c49f` (#33, built 2026-08-10), before
+`LD-R2` and `LD-R3`, so the Production Super Admin still carries the Landing
+Page Settings screen that calls five of them, and `safehaul.io` still serves the
+marketing page whose form posts to `/api/landing-lead`, which the Production
+rewrite routes to `submitLandingLead`. Deleting them would break a live form
+and a live screen; expand → promote → contract says promote first. The runbook
+carries the procedure with that precondition and the URL probe as its
+verification. Extending the existing `onLeadSubmitted` deletion step to the six
+names was considered and NOT done for the same reason: it would run against the
+shared backend on the next Testing deploy, ahead of the promotion. **No
+deletion is claimed.**
 
 **4. `PA-0` — DONE.** The section above.
 

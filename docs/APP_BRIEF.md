@@ -688,7 +688,7 @@ projection, and `/apply/:slug` is not gated by any flag. See
 | **Per-company SMTP** (Nodemailer) | All outbound email — there is no platform-wide fallback sender | `companies/{id}/system_settings/email_config` (admin-only subcollection); password encrypted with an `enc:v1:` prefix and **never returned to the browser**. A legacy fallback still reads `companies/{id}.emailSettings` for pre-migration tenants — do not delete it without migrating them |
 | **Facebook Lead Ads** | Inbound leads → company `leads` subcollection | Per company |
 | **AI providers** | CDL auto-fill, e-doc field placement, blog generation | Secret Manager via the frozen registry in `functions/ai/registry` |
-| **Telegram** | **Retired 2026-08-29** with the marketing-site lead form (`LD-R3`). No callable in `functions/index.js` sends to it; the deployed copies of the six retired landing callables are listed for deletion in `docs/FIREBASE_HOSTING_RUNBOOK.md` | Secrets unbound; rotate the bot token (runbook) |
+| **Telegram** | **Retired 2026-08-29** with the marketing-site lead form (`LD-R3`). No callable in `functions/index.js` sends to it. The six retired landing callables were still deployed on 2026-09-02 and stay until Production is promoted past `LD-R3`, because the live Production frontends still call them; procedure in `docs/FIREBASE_HOSTING_RUNBOOK.md` | Secrets unbound; rotate the bot token (runbook) |
 | **Socrata / Transportation.gov** | FMCSA employer autocomplete | Public app token |
 | **Sentry** | Error monitoring (frontend + functions) | DSN |
 | **GitHub API** | Release promotion from the Super Admin UI | GitHub App credential, server-side only |
