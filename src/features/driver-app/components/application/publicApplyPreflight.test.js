@@ -158,3 +158,46 @@ describe('runSubmissionPreflight', () => {
         expect(badPhone.result.ok).toBe(false);
     });
 });
+
+describe('employers the carrier locked', () => {
+    const acme = { companyName: 'Acme Trucking', dotNumber: '123456' };
+    const locked = [{ signature: 'dot:123456', companyName: 'Acme Trucking', dotNumber: '123456' }];
+
+    it('walks the applicant to the employment page when a locked employer went missing', () => {
+        const { result, setCurrentStep, showError } = run({
+            formData: completeForm({ lockedEmployers: locked, employers: [{ companyName: 'Somewhere Else' }] }),
+        });
+
+        expect(result.ok).toBe(false);
+        expect(setCurrentStep).toHaveBeenCalledWith('employment');
+        expect(showError.mock.calls[0][0]).toContain('Acme Trucking');
+    });
+
+    it('refuses a rewritten identity on a locked row', () => {
+        const { result, showError } = run({
+            formData: completeForm({
+                lockedEmployers: locked,
+                employers: [{ companyName: 'Not Acme', dotNumber: '123456' }],
+            }),
+        });
+
+        expect(result.ok).toBe(false);
+        expect(showError.mock.calls[0][0]).toMatch(/cannot be changed/);
+    });
+
+    it('passes an application that kept them and filled in the rest', () => {
+        const { result } = run({
+            formData: completeForm({
+                lockedEmployers: locked,
+                employers: [{ ...acme, startDate: '2023-01-01', endDate: '2024-06-30', reasonForLeaving: 'Pay' }],
+            }),
+        });
+
+        expect(result.ok).toBe(true);
+    });
+
+    it('says nothing about an application nobody locked anything on', () => {
+        const { result } = run({ formData: completeForm({ employers: [] }) });
+        expect(result.ok).toBe(true);
+    });
+});

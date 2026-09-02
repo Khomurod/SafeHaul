@@ -57,60 +57,19 @@ const PREPARED_STATUSES = Object.freeze({
     DRIVER_IN_PROGRESS: 'driver_in_progress',
 });
 
-/** How many employers one carrier may lock. A PSP report lists a handful. */
-const MAX_LOCKED_EMPLOYERS = 25;
-const MAX_LOCKED_TEXT = 120;
+/**
+ * Locking is defined once, in a module the browser has a byte-identical copy of.
+ *
+ * The wizard has to render exactly the rows this file records as locked, and the
+ * submission has to refuse exactly the changes the wizard prevented. Two
+ * definitions of "which employer is this" would be two answers to that question.
+ */
+const {
+    MAX_LOCKED_EMPLOYERS, employerSignature, normalizeLockedEmployers,
+} = require('./applicationLockedFields');
 
-function text(value, max = MAX_LOCKED_TEXT) {
+function text(value, max = 120) {
     return typeof value === 'string' ? value.trim().slice(0, max) : '';
-}
-
-/** Digits only: `USDOT 123456` and `123456` name one carrier. */
-function digits(value) {
-    return String(value || '').replace(/\D/g, '');
-}
-
-/**
- * The identity of an employer row, for matching one row against another.
- *
- * The USDOT number when there is one, the normalised name otherwise — the same
- * order `carrierAlreadyListed` uses in the browser, so "is this row already
- * listed" and "is this row the one that was locked" can never disagree.
- *
- * @returns {string} `dot:123456`, `name:acme trucking`, or '' when neither exists
- */
-function employerSignature(row) {
-    const dot = digits(row?.dotNumber);
-    if (dot) return `dot:${dot}`;
-    const name = text(row?.companyName)
-        .toLowerCase()
-        .replace(/\s+/g, ' ');
-    return name ? `name:${name}` : '';
-}
-
-/**
- * The lock list as it is stored: one entry per employer whose identity is fixed.
- *
- * Anything without a signature is dropped rather than stored as a lock nothing can
- * match — a lock that matches no row would refuse every submission with no way for
- * either party to satisfy it.
- */
-function normalizeLockedEmployers(rows) {
-    const list = Array.isArray(rows) ? rows : [];
-    const seen = new Set();
-    const locked = [];
-    for (const row of list) {
-        const signature = employerSignature(row);
-        if (!signature || seen.has(signature)) continue;
-        seen.add(signature);
-        locked.push({
-            signature,
-            companyName: text(row?.companyName),
-            dotNumber: digits(row?.dotNumber),
-        });
-        if (locked.length >= MAX_LOCKED_EMPLOYERS) break;
-    }
-    return locked;
 }
 
 /** True when this stored draft is one a carrier prepared. */

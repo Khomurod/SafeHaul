@@ -14,6 +14,7 @@
 import { resolveWizardStepIndex } from '@shared/components/layout/Stepper';
 import { isValidEmail, isValidPhone } from '@shared/utils/validation';
 import { evaluateApplicationRules, normalizeApplicationAnswers } from '@/config/applicationRules';
+import { lockedEmployerIssues } from '@/config/applicationLockedFields';
 import { hasUploadedFile } from './publicApplyHelpers';
 import { getMissingRequiredUnpersistedFields } from './requiredUnpersistedFields';
 
@@ -68,6 +69,24 @@ export function runSubmissionPreflight({
   });
   if (verdict.blocking.length > 0) {
     const [first] = verdict.blocking;
+    showError(first.message);
+    goTo(first.semanticStep);
+    return { ok: false, formData };
+  }
+
+  /**
+   * Employers the carrier locked, when this application is one a carrier prepared.
+   *
+   * The wizard renders those rows as fixed, so reaching this is either developer
+   * tools or a row deleted from a page that did not know it was locked. Checked
+   * here so the applicant is walked to the employment page with the sentence the
+   * server would have refused them with, rather than meeting it after a failed
+   * submission. `formData.lockedEmployers` is the browser's decorative copy; the
+   * server checks the carrier's own record, which the driver cannot reach.
+   */
+  const lockedIssues = lockedEmployerIssues(formData?.lockedEmployers, normalized);
+  if (lockedIssues.length > 0) {
+    const [first] = lockedIssues;
     showError(first.message);
     goTo(first.semanticStep);
     return { ok: false, formData };

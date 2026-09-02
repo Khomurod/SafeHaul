@@ -16,6 +16,7 @@ jest.mock('firebase-admin/firestore', () => ({
 
 const {
   assertApplicationRules,
+  assertLockedEmployers,
   assertRequiredUploads,
   buildApplicationDoc,
   generateApplicantKey,
@@ -149,5 +150,46 @@ describe('assertApplicationRules', () => {
 
   it('tolerates a missing form', () => {
     expect(() => assertApplicationRules(undefined, undefined, undefined)).not.toThrow();
+  });
+});
+
+describe('assertLockedEmployers', () => {
+  const acme = { companyName: 'Acme Trucking', dotNumber: '123456' };
+  const locked = [{ signature: 'dot:123456', companyName: 'Acme Trucking', dotNumber: '123456' }];
+
+  it('is a no-op for the overwhelming majority of submissions, which lock nothing', () => {
+    expect(() => assertLockedEmployers([], { employers: [] })).not.toThrow();
+    expect(() => assertLockedEmployers(undefined, { employers: [acme] })).not.toThrow();
+  });
+
+  it('accepts an application that kept the carrier and filled in the rest', () => {
+    expect(() => assertLockedEmployers(locked, {
+      employers: [{ ...acme, startDate: '2023-01-01', endDate: '2024-06-30', reasonForLeaving: 'Pay' }],
+    })).not.toThrow();
+  });
+
+  it('refuses a locked employer that was removed, and says which page to fix', () => {
+    let error;
+    try {
+      assertLockedEmployers(locked, { employers: [{ companyName: 'Somewhere Else' }] });
+    } catch (e) {
+      error = e;
+    }
+    expect(error.code).toBe('invalid-argument');
+    expect(error.message).toContain('Acme Trucking');
+    expect(error.details.issues).toEqual([
+      { code: 'locked-employer-missing', semanticStep: 'employment', fieldId: 'employers' },
+    ]);
+  });
+
+  it('refuses a rewritten identity on a row the carrier locked', () => {
+    expect(() => assertLockedEmployers(locked, {
+      employers: [{ companyName: 'Not Acme', dotNumber: '123456' }],
+    })).toThrow(/cannot be changed/);
+  });
+
+  it('tolerates a missing form', () => {
+    expect(() => assertLockedEmployers(locked, undefined)).toThrow(/has to stay on it/);
+    expect(() => assertLockedEmployers([], undefined)).not.toThrow();
   });
 });
