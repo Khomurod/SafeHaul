@@ -2,46 +2,63 @@ import React from 'react';
 import { FormField, FormSection, Select } from '@/design-system/components';
 
 /**
- * Six paired miles/experience dropdowns. Presentation migrated to the approved
- * `FormSection` / `FormField` / `Select` primitives (2026-07-27).
+ * Paired miles/experience dropdowns, one pair per vehicle category the company
+ * shows. Presentation uses the approved `FormSection` / `FormField` / `Select`
+ * primitives.
  *
- * Unchanged: every field key, every element id, and the defaults each select
- * falls back to when the applicant has not answered (`'0'` for miles,
- * `'<6 months'` for experience) — these defaults are what gets saved, so they
- * must keep being the rendered value.
+ * The categories, their wording and which of them are shown come from the
+ * company's Application Rules (`visibleVehicleCategories`). The saved KEYS
+ * (`expStraightTruckMiles`, …) and element ids (`exp-straight-truck-miles`, …)
+ * never change, whatever the wording — a company renaming "Tractor + Semi
+ * Trailer" cannot corrupt an answer stored under the old name.
+ *
+ * DEFECT FIXED (2026-09-02): the selects fell back to `'0'` and `'<6 months'`,
+ * neither of which is in its option list, so the control silently displayed the
+ * FIRST option ("Student / Recent Grad") while nothing was saved. An unanswered
+ * select now shows a placeholder, and a stored value the current options do not
+ * contain is rendered as its own option so it stays visible and unchanged.
  */
-const VEHICLE_TYPES = [
-    { label: 'Straight Truck', milesId: 'exp-straight-truck-miles', milesName: 'expStraightTruckMiles', expId: 'exp-straight-truck-exp', expName: 'expStraightTruckExp', milesLabel: 'Miles Driven in Straight Truck', expLabel: 'Experience in Straight Truck' },
-    { label: 'Tractor + Semi Trailer', milesId: 'exp-semi-trailer-miles', milesName: 'expSemiTrailerMiles', expId: 'exp-semi-trailer-exp', expName: 'expSemiTrailerExp', milesLabel: 'Miles Driven in Tractor + Semi Trailer', expLabel: 'Experience in Tractor + Semi Trailer' },
-    { label: 'Tractor + Two Trailers', milesId: 'exp-two-trailers-miles', milesName: 'expTwoTrailersMiles', expId: 'exp-two-trailers-exp', expName: 'expTwoTrailersExp', milesLabel: 'Miles Driven in Tractor + Two Trailers', expLabel: 'Experience in Tractor + Two Trailers' },
-];
+const kebab = (fieldName) => fieldName.replace(/([A-Z])/g, '-$1').toLowerCase();
 
-const VehicleExperienceSection = ({ formData, updateFormData, milesOptions, expOptions }) => {
+function OptionSelect({ id, label, name, value, options, onChange }) {
+    const stored = value || '';
+    const known = options.some((option) => option.value === stored);
+    return (
+        <FormField id={id} label={label}>
+            <Select name={name} value={stored} onChange={onChange}>
+                <option value="">Select…</option>
+                {stored && !known && <option value={stored}>{stored}</option>}
+                {options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </Select>
+        </FormField>
+    );
+}
+
+const VehicleExperienceSection = ({ formData, updateFormData, milesOptions, expOptions, categories }) => {
     const handleChange = (e) => updateFormData(e.target.name, e.target.value);
+    if (!categories || categories.length === 0) return null;
 
     return (
         <FormSection title="Experience by Vehicle Type">
             <div className="grid grid-cols-1 gap-ds-6 sm:grid-cols-2">
-                {VEHICLE_TYPES.map((type) => (
-                    <React.Fragment key={type.label}>
-                        <FormField id={type.milesId} label={type.milesLabel}>
-                            <Select
-                                name={type.milesName}
-                                value={formData[type.milesName] || '0'}
-                                onChange={handleChange}
-                            >
-                                {milesOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                            </Select>
-                        </FormField>
-                        <FormField id={type.expId} label={type.expLabel}>
-                            <Select
-                                name={type.expName}
-                                value={formData[type.expName] || '<6 months'}
-                                onChange={handleChange}
-                            >
-                                {expOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                            </Select>
-                        </FormField>
+                {categories.map((category) => (
+                    <React.Fragment key={category.id}>
+                        <OptionSelect
+                            id={kebab(category.milesField)}
+                            label={`Miles Driven in ${category.label}`}
+                            name={category.milesField}
+                            value={formData[category.milesField]}
+                            options={milesOptions}
+                            onChange={handleChange}
+                        />
+                        <OptionSelect
+                            id={kebab(category.expField)}
+                            label={`Experience in ${category.label}`}
+                            name={category.expField}
+                            value={formData[category.expField]}
+                            options={expOptions}
+                            onChange={handleChange}
+                        />
                     </React.Fragment>
                 ))}
             </div>

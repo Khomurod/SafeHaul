@@ -7,10 +7,15 @@ import DynamicRow from '@shared/components/form/DynamicRow';
 import { useUtils } from '@shared/hooks/useUtils';
 import { useData } from '@/context/DataContext';
 import { YES_NO_OPTIONS, LICENSE_CLASS_OPTIONS, ENDORSEMENT_OPTIONS } from '@/config/form-options';
-import { Checkbox, ChoiceGroup, FormField, FormSection, Select } from '@/design-system/components';
+import { Checkbox, ChoiceGroup, FieldMessage, FormField, FormSection, Select } from '@/design-system/components';
 import { StepNavigation } from './components/StepNavigation';
 import { StateSelectField } from './components/StateSelectField';
+import { StepIssues } from './components/StepIssues';
 import { resolveApplicationGate } from '@/config/applicationGates';
+import { dateStatus } from '@/config/applicationDates';
+import { useStepGate } from '@features/driver-app/hooks/useApplicationRules';
+import { ReportImportPanel } from './components/ReportImportPanel';
+import { integrationEnabled } from '../reportSuggestions';
 
 /**
  * Presentation migrated to the approved `FormSection` / `FormField` / `Select` /
@@ -22,6 +27,13 @@ import { resolveApplicationGate } from '@/config/applicationGates';
  * `endorsements` comma-joined string, the `additionalLicenses` row shape, the
  * TWIC conditional block, and the `isUploading` disabled/"Uploading..." Continue
  * state.
+ *
+ * 2026-09-02 — company rules. An expiration date in the past is judged the
+ * moment the date changes (`expiredCdl` / `expiredMedicalCard`: allow, warn or
+ * block), the other-state licence list can be required to hold one complete
+ * record (`requirePreviousLicenseDetails`), and the signed-form upload is
+ * labelled as what it is — a paper form — so it is not mistaken for the MVR
+ * authorization question on the next step.
  *
  * DEFECT FIXED (2026-07-27): the missing-upload message was a plain `<div>` — not
  * announced, and not focused. An applicant who pressed Continue with a document
@@ -48,6 +60,24 @@ const Step3_License = ({ formData, updateFormData, handleFileUpload, onNavigate,
     const mvrConsentConfig = getConfig('mvrConsent');
     const [validationError, setValidationError] = useState('');
     const validationErrorRef = useRef(null);
+    const { rules, blocking, attempted, issuesRef, refuseIfBlocked } = useStepGate('license', formData);
+
+    // Recomputed on every render, so the message follows the date immediately.
+    const expiryMessage = (fieldId, level, label) => {
+        if (level === 'allow' || dateStatus(formData[fieldId]) !== 'expired') return null;
+        if (level === 'block') {
+            return (
+                <FieldMessage tone="error" className="mt-ds-1" data-testid={`${fieldId}-expired`}>
+                    Your {label} expiration date is in the past. This carrier needs a current one before you can continue.
+                </FieldMessage>
+            );
+        }
+        return (
+            <p role="status" className="mt-ds-1 text-ds-xs font-medium text-ds-status-warning-fg" data-testid={`${fieldId}-expired`}>
+                Your {label} expiration date is in the past. You can continue, but the carrier will ask you about it.
+            </p>
+        );
+    };
 
     useEffect(() => {
         if (validationError) validationErrorRef.current?.focus();
@@ -99,7 +129,7 @@ const Step3_License = ({ formData, updateFormData, handleFileUpload, onNavigate,
             missingUploads.push('Medical Card');
         }
         if (!mvrConsentConfig.hidden && mvrConsentConfig.required && !hasUploadedFile(formData['mvr-consent-upload'])) {
-            missingUploads.push('MVR Consent Form');
+            missingUploads.push('Signed MVR authorization form');
         }
         if (missingUploads.length > 0) {
             setValidationError(`Please upload required documents: ${missingUploads.join(', ')}.`);
@@ -113,6 +143,7 @@ const Step3_License = ({ formData, updateFormData, handleFileUpload, onNavigate,
                 return;
             }
         }
+        if (refuseIfBlocked()) return;
 
         onNavigate('next');
     };
@@ -121,6 +152,7 @@ const Step3_License = ({ formData, updateFormData, handleFileUpload, onNavigate,
 
     return (
         <div id="page-3" className="form-step space-y-ds-6">
+            <StepIssues ref={issuesRef} blocking={blocking} showBlocking={attempted} />
             {validationError && (
                 <p
                     ref={validationErrorRef}
@@ -130,6 +162,15 @@ const Step3_License = ({ formData, updateFormData, handleFileUpload, onNavigate,
                 >
                     {validationError}
                 </p>
+            )}
+
+            {/*
+              Optional MVR import — only when the company switched it on. Licence
+              details fill EMPTY fields only; violations are offered one by one and
+              land on the next step. Nothing already typed is overwritten.
+            */}
+            {integrationEnabled(currentCompany, 'mvr') && (
+                <ReportImportPanel kind="mvr" company={currentCompany} formData={formData} updateFormData={updateFormData} />
             )}
 
             <FormSection title="Current License Information">
@@ -153,17 +194,20 @@ const Step3_License = ({ formData, updateFormData, handleFileUpload, onNavigate,
                 />
 
                 <InputField label="License Number" id="cdl-number" name="cdlNumber" required={true} value={formData.cdlNumber} onChange={updateFormData} />
-                <DateTripletField
-                    label="License Expiration"
-                    idPrefix="cdl-expiration"
-                    name="cdlExpiration"
-                    required={true}
-                    value={formData.cdlExpiration}
-                    onChange={updateFormData}
-                    minYear={expMinYear}
-                    maxYear={expMaxYear}
-                    helpText="Use Month / Day / Year."
-                />
+                <div>
+                    <DateTripletField
+                        label="License Expiration"
+                        idPrefix="cdl-expiration"
+                        name="cdlExpiration"
+                        required={true}
+                        value={formData.cdlExpiration}
+                        onChange={updateFormData}
+                        minYear={expMinYear}
+                        maxYear={expMaxYear}
+                        helpText="Use Month / Day / Year."
+                    />
+                    {expiryMessage('cdlExpiration', rules.expiredCdl, 'license')}
+                </div>
 
                 <div className="border-t border-ds-border-subtle pt-ds-4">
                     <ChoiceGroup legend="Endorsements">
@@ -194,6 +238,11 @@ const Step3_License = ({ formData, updateFormData, handleFileUpload, onNavigate,
                         required={true}
                     />
 
+                    {formData['has-other-licenses'] === 'yes' && rules.requirePreviousLicenseDetails && (
+                        <FieldMessage tone="help" data-testid="previous-license-hint">
+                            This carrier needs at least one complete record below: state, license number, class and expiration date.
+                        </FieldMessage>
+                    )}
                     {formData['has-other-licenses'] === 'yes' && (
                         <DynamicRow
                             listKey="additionalLicenses"
@@ -283,30 +332,34 @@ const Step3_License = ({ formData, updateFormData, handleFileUpload, onNavigate,
                             onChange={updateUploadedFile}
                             required={medCardConfig.required && !formData['medical-card-upload']}
                         />
-                        <DateTripletField
-                            label="Medical Card Expiration"
-                            idPrefix="medical-card-expiration"
-                            name="medCardExpiration"
-                            value={formData.medCardExpiration}
-                            onChange={updateFormData}
-                            minYear={expMinYear}
-                            maxYear={expMaxYear}
-                            helpText="Month / Day / Year (optional if not shown on card)."
-                        />
+                        <div>
+                            <DateTripletField
+                                label="Medical Card Expiration"
+                                idPrefix="medical-card-expiration"
+                                name="medCardExpiration"
+                                value={formData.medCardExpiration}
+                                onChange={updateFormData}
+                                minYear={expMinYear}
+                                maxYear={expMaxYear}
+                                helpText="Month / Day / Year (optional if not shown on card)."
+                            />
+                            {expiryMessage('medCardExpiration', rules.expiredMedicalCard, 'medical card')}
+                        </div>
                     </div>
                 )}
 
                 {/*
-                  MVR CONSENT FORM
-                  Configurable in Settings → Questions since that screen existed,
-                  but nothing ever rendered or enforced it, so the setting did
-                  nothing. It is hidden unless the company asks for it, and
-                  required only when the company marks it Required.
+                  SIGNED MVR AUTHORIZATION FORM (a paper form the company hands out)
+                  Configurable in Settings → Questions. Hidden unless the company
+                  asks for it, required only when the company marks it Required.
+                  It is a DOCUMENT; the on-screen MVR authorization the applicant
+                  answers Yes/No to lives on the next step, once, with its own
+                  versioned wording.
                 */}
                 {!mvrConsentConfig.hidden && (
                     <div className="space-y-ds-4 border-t border-ds-border-subtle pt-ds-4">
                         <UploadField
-                            label="Upload MVR Consent Form"
+                            label="Upload your signed MVR authorization form"
                             name="mvr-consent-upload"
                             value={formData['mvr-consent-upload']}
                             onUpload={handleFileUpload}

@@ -17,6 +17,11 @@ const { normalizeCapabilities } = require('../registry/capabilities');
 /** Every task type the platform knows how to run. */
 const TASK_TYPES = Object.freeze({
     CDL_EXTRACTION: 'cdl_extraction',
+    // Optional, company-enabled imports of an applicant's own PSP report and
+    // motor vehicle record. Everything they read is a SUGGESTION the applicant
+    // confirms; nothing is written into an answer on their behalf.
+    PSP_REPORT_EXTRACTION: 'psp_report_extraction',
+    MVR_EXTRACTION: 'mvr_extraction',
     EDOC_FIELD_PLACEMENT: 'edoc_field_placement',
     ARTICLE_GENERATION: 'article_generation',
     ARTICLE_FACT_CHECK: 'article_fact_check',

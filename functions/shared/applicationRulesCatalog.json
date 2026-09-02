@@ -1,0 +1,153 @@
+{
+    "$comment": "Application Rules a company can set without a code change. Read by functions/shared/applicationRules.js and src/config/applicationRules.js (mirrors) and rendered by the settings UI. Every default reproduces the behaviour the wizard had before the rules existed, so a company that never opens the settings sees no change. Labels are written for company staff, not engineers.",
+    "version": 1,
+    "groups": [
+        { "id": "address", "title": "Address history" },
+        { "id": "experience", "title": "Driving experience" },
+        { "id": "license", "title": "License and medical card" },
+        { "id": "drivingRecord", "title": "Driving record" },
+        { "id": "employment", "title": "Employment history" },
+        { "id": "disclosures", "title": "Disclosures" },
+        { "id": "workflows", "title": "Optional statements" }
+    ],
+    "enforcementOptions": [
+        { "value": "allow", "label": "Allow — accept the application as entered" },
+        { "value": "warn", "label": "Warn — tell the applicant, but let them continue" },
+        { "value": "block", "label": "Block — the applicant cannot continue until it is fixed" }
+    ],
+    "rules": [
+        {
+            "id": "requirePreviousAddressUnderThreeYears",
+            "group": "address",
+            "type": "boolean",
+            "default": false,
+            "label": "Require previous addresses when the applicant has lived at their current address for less than 3 years",
+            "help": "When on, an applicant who answers No to “lived here 3 years or more” must add at least one complete previous address before continuing."
+        },
+        {
+            "id": "experienceOptionsHidden",
+            "group": "experience",
+            "type": "hiddenOptions",
+            "optionSet": "experienceYears",
+            "default": [],
+            "label": "Commercial-driving experience choices shown to applicants",
+            "help": "Untick a choice to hide it from your application. A carrier that does not hire recent graduates can hide “Student / Recent Grad”; another carrier can leave it on."
+        },
+        {
+            "id": "vehicleExperienceHidden",
+            "group": "experience",
+            "type": "hiddenOptions",
+            "optionSet": "vehicleCategories",
+            "default": ["other"],
+            "label": "Vehicle types applicants describe their experience with",
+            "help": "Untick a vehicle type to remove it from the application. Answers already saved for a hidden type stay on the record."
+        },
+        {
+            "id": "vehicleExperienceLabels",
+            "group": "experience",
+            "type": "labels",
+            "optionSet": "vehicleCategories",
+            "default": {},
+            "label": "Wording for each vehicle type",
+            "help": "Optional. Change how a vehicle type is named for your applicants; the saved answer keys never change."
+        },
+        {
+            "id": "expiredCdl",
+            "group": "license",
+            "type": "enforcement",
+            "default": "allow",
+            "label": "If the license expiration date is in the past",
+            "help": "The check runs the moment the applicant changes the date."
+        },
+        {
+            "id": "expiredMedicalCard",
+            "group": "license",
+            "type": "enforcement",
+            "default": "allow",
+            "label": "If the medical card expiration date is in the past",
+            "help": "Only applies while the medical card question is shown."
+        },
+        {
+            "id": "requirePreviousLicenseDetails",
+            "group": "license",
+            "type": "boolean",
+            "default": false,
+            "label": "Require complete details for every other-state license held in the past 3 years",
+            "help": "When the applicant says they held a license in another state, at least one complete record (state, number, class, expiration) is required."
+        },
+        {
+            "id": "mvrAuthorization",
+            "group": "drivingRecord",
+            "type": "choice",
+            "default": "optional",
+            "options": [
+                { "value": "optional", "label": "Ask for it, but let the applicant decline" },
+                { "value": "required", "label": "Required — the applicant cannot continue without authorizing it" }
+            ],
+            "label": "Motor vehicle record (MVR) authorization",
+            "help": "The authorization wording itself is a versioned agreement (see Agreements). This setting only decides whether declining stops the application."
+        },
+        {
+            "id": "requireViolationDetails",
+            "group": "drivingRecord",
+            "type": "boolean",
+            "default": false,
+            "label": "When the applicant reports moving violations, require at least one complete violation record",
+            "help": "A complete record has a date, the charge and the location."
+        },
+        {
+            "id": "requireAccidentDetails",
+            "group": "drivingRecord",
+            "type": "boolean",
+            "default": false,
+            "label": "When the applicant reports accidents, require complete accident details",
+            "help": "Every accident must then record the date, what happened, the number of fatalities, the number of injuries and whether hazardous materials were spilled."
+        },
+        {
+            "id": "employmentHistoryEnforcement",
+            "group": "employment",
+            "type": "enforcement",
+            "default": "warn",
+            "label": "If the employment history does not account for the required period",
+            "help": "Gaps, schooling and military service count toward the period, not only employers."
+        },
+        {
+            "id": "employmentHistoryMinimumYears",
+            "group": "employment",
+            "type": "number",
+            "default": 3,
+            "min": 1,
+            "max": 10,
+            "label": "Years of history the application must account for",
+            "help": "FMCSA asks for 3 years for most drivers and 10 years for CDL drivers. The DOT application text still asks for the full 10 years."
+        },
+        {
+            "id": "requireFelonyExplanation",
+            "group": "disclosures",
+            "type": "boolean",
+            "default": false,
+            "label": "When the applicant reports a felony conviction, require an explanation"
+        },
+        {
+            "id": "hoursOfServiceStatement",
+            "group": "workflows",
+            "type": "choice",
+            "default": "off",
+            "options": [
+                { "value": "off", "label": "Not part of the application" },
+                { "value": "application", "label": "Collected in the application (General Questions step)" }
+            ],
+            "label": "Hours of Service statement for the past 7 days",
+            "help": "Adds the 49 CFR 395.8(j)(2) statement: on-duty hours for each of the past 7 days and when the applicant was last relieved from duty. To collect it after the application instead, add it as a post-application form under Documents."
+        }
+    ],
+    "optionSets": {
+        "vehicleCategories": [
+            { "id": "straightTruck", "label": "Straight Truck", "milesField": "expStraightTruckMiles", "expField": "expStraightTruckExp" },
+            { "id": "semiTrailer", "label": "Tractor + Semi Trailer", "milesField": "expSemiTrailerMiles", "expField": "expSemiTrailerExp" },
+            { "id": "twoTrailers", "label": "Tractor + Two Trailers", "milesField": "expTwoTrailersMiles", "expField": "expTwoTrailersExp" },
+            { "id": "other", "label": "Other", "milesField": "expOtherMiles", "expField": "expOtherExp" }
+        ],
+        "experienceYears": ["New", "0-6 months", "6-12 months", "1", "2", "3", "4", "5+"]
+    }
+}

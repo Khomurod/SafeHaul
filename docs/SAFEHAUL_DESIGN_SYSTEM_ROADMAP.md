@@ -1269,8 +1269,13 @@ Screens added since, built on approved components and `--ds-*` tokens from the
 start rather than migrated: AI Integrations → credential-access diagnostic and the
 per-lane health badges, Blog Posts → Publication runs, the driver application's
 two-stage resume dialog (the approved `ConfirmDialog`, twice — see below), and
-Company → Drivers → Started (unfinished). No new visual primitive was introduced
-for any of them.
+Company → Drivers → Started (unfinished), and — 2026-09-02 — the Application
+Rules, Agreements and Integrations tabs of Company → Company Profile, the same
+rules panel inside Super Admin → Edit Company, and in the driver application the
+step-level issue alerts (`StepIssues`), the Hours of Service section, the
+Yes/No violations and accidents questions and the PSP/MVR report-import panel
+(`FormSection` + `FileInput` + `Badge` + `Button`). No new visual primitive was
+introduced for any of them.
 
 One design decision in that set is worth recording because it is a safety
 property, not a preference: **the resume dialog uses two sequential

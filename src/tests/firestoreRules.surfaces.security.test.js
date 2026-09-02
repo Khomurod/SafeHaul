@@ -153,4 +153,21 @@ describeFirestore('firestore.rules security regressions', () => {
     await assertFails(deleteDoc(doc(admin, 'companies', 'company-a', 'integrations', 'sms_provider')));
     await assertSucceeds(setDoc(doc(superCtx(), 'companies', 'company-a', 'integrations', 'email_provider'), { host: 'x' }));
   });
+
+  // Company-specific legal wording is versioned by content hash, and the
+  // guarantee that "publishing only ever adds a version" holds only if no
+  // client can touch the documents at all. There is deliberately no rule for
+  // this subcollection: default deny, for every role, both directions. Reads
+  // and writes go through `listCompanyAgreementWording` and the super-admin
+  // publish/revert callables.
+  it('SURFACE: company legal wording is unreachable from every client — read and write, super admin included', async () => {
+    await seed(['companies', 'company-a', 'legal_agreements', 'fcraDisclosure'], { currentVersion: 'c-1', versions: {} });
+
+    for (const ctx of [guestCtx(), teamOf('company-a'), teamOf('company-a', 'company_admin'), superCtx()]) {
+      await assertFails(getDoc(doc(ctx, 'companies', 'company-a', 'legal_agreements', 'fcraDisclosure')));
+      await assertFails(setDoc(doc(ctx, 'companies', 'company-a', 'legal_agreements', 'mvrAuthorization'), { currentVersion: 'c-2', versions: {} }));
+      await assertFails(updateDoc(doc(ctx, 'companies', 'company-a', 'legal_agreements', 'fcraDisclosure'), { currentVersion: 'c-9' }));
+      await assertFails(deleteDoc(doc(ctx, 'companies', 'company-a', 'legal_agreements', 'fcraDisclosure')));
+    }
+  });
 });

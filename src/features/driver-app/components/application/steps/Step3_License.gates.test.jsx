@@ -60,12 +60,12 @@ describe('Step3_License — MVR consent gate', () => {
 
     it('is not shown to a driver when the company has not asked for it', () => {
         renderStep();
-        expect(screen.queryAllByText(/Upload MVR Consent Form/i)).toHaveLength(0);
+        expect(screen.queryAllByText(/Upload your signed MVR authorization form/i)).toHaveLength(0);
     });
 
     it('is shown when the company enables it', () => {
         renderStep({ applicationConfig: { mvrConsent: { hidden: false, required: false } } });
-        expect(screen.queryAllByText(/Upload MVR Consent Form/i).length).toBeGreaterThan(0);
+        expect(screen.queryAllByText(/Upload your signed MVR authorization form/i).length).toBeGreaterThan(0);
     });
 
     it('does not block Continue when the company marked it optional', () => {
@@ -82,7 +82,7 @@ describe('Step3_License — MVR consent gate', () => {
         });
         fireEvent.click(continueButton());
         expect(onNavigate).not.toHaveBeenCalled();
-        expect(screen.getByText(/Please upload required documents: MVR Consent Form\./))
+        expect(screen.getByText(/Please upload required documents: Signed MVR authorization form\./))
             .toBeInTheDocument();
     });
 

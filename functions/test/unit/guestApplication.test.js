@@ -44,6 +44,8 @@ jest.mock('../../firebaseAdmin', () => ({
           doc: jest.fn(() => ({
             collection: jest.fn(() => ({
               doc: jest.fn(() => ({ set: mockSet, get: mockGet })),
+              // `legal_agreements`: no company wording published.
+              get: jest.fn().mockResolvedValue({ docs: [] }),
             })),
           })),
         };

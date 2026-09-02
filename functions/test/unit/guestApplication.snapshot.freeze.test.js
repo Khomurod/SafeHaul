@@ -56,10 +56,10 @@ describe('submission freezes a snapshot', () => {
     expect(first.displayValue).toBe('Ann');
   });
 
-  it('captures all four agreements including the Clearinghouse consent', async () => {
+  it('captures all five agreements — the MVR authorization and the Clearinghouse consent included', async () => {
     await submitGuestApplication(payload(), ctx);
     const ids = onlySnapshot().agreements.map((a) => a.id);
-    expect(ids).toEqual(['electronicSignature', 'fcraDisclosure', 'pspDisclosure', 'clearinghouseConsent']);
+    expect(ids).toEqual(['mvrAuthorization', 'electronicSignature', 'fcraDisclosure', 'pspDisclosure', 'clearinghouseConsent']);
   });
 
   it('attaches no signature to an agreement with no acceptance evidence', async () => {
@@ -76,6 +76,9 @@ describe('submission freezes a snapshot', () => {
   it('records per-agreement acceptance when the client supplies it', async () => {
     await submitGuestApplication(payload({
       agreementAcceptances: {
+        // The MVR authorization is accepted on the Motor Vehicle Record step,
+        // before the consent-step agreements.
+        mvrAuthorization: { accepted: true, acceptedAt: '2026-06-15T11:50:00.000Z' },
         electronicSignature: { accepted: true, acceptedAt: '2026-06-15T12:00:00.000Z' },
         fcraDisclosure: { accepted: true, acceptedAt: '2026-06-15T12:00:01.000Z' },
         pspDisclosure: { accepted: true, acceptedAt: '2026-06-15T12:00:02.000Z' },
@@ -86,7 +89,9 @@ describe('submission freezes a snapshot', () => {
     const agreements = onlySnapshot().agreements;
     expect(agreements.every((a) => a.accepted === true)).toBe(true);
     expect(agreements.every((a) => a.signature !== null)).toBe(true);
-    expect(agreements[0].acceptedAt).toBe('2026-06-15T12:00:00.000Z');
+    expect(agreements[0].id).toBe('mvrAuthorization');
+    expect(agreements[0].acceptedAt).toBe('2026-06-15T11:50:00.000Z');
+    expect(agreements[1].acceptedAt).toBe('2026-06-15T12:00:00.000Z');
   });
 
   it('records the IP the server observed, not one the client claims', async () => {

@@ -3,6 +3,8 @@ import RadioGroup from '@shared/components/form/RadioGroup';
 import { FormField, FormSection, Textarea } from '@/design-system/components';
 import { YES_NO_OPTIONS, EXPERIENCE_OPTIONS } from '@/config/form-options';
 import { StepNavigation } from './components/StepNavigation';
+import { StepIssues } from './components/StepIssues';
+import { useApplicationRules, useStepGate } from '@features/driver-app/hooks/useApplicationRules';
 
 /**
  * Presentation migrated to the approved `FormSection` / `FormField` / `Textarea`
@@ -14,11 +16,22 @@ import { StepNavigation } from './components/StepNavigation';
  * The per-step "Step 2 of 9" heading was removed: `Stepper` renders the
  * authoritative step title as the page `<h1>`, and this copy also said "of 9"
  * even when custom questions made it ten steps.
+ *
+ * The experience choices come from the company's Application Rules
+ * (`experienceOptionsHidden`): a carrier that does not hire recent graduates
+ * hides "Student / Recent Grad", another carrier keeps it. The stored VALUES never
+ * change — only which of them are offered. An answer a company has since hidden
+ * is not rendered, so the applicant must choose again; the rule engine refuses it
+ * at submission for the same reason, on the same page.
  */
 const Step2_Qualifications = ({ formData, updateFormData, onNavigate, onPartialSubmit }) => {
     const yesNoOptions = YES_NO_OPTIONS;
     const drugTestPositive = formData['drug-test-positive'] === 'yes';
-    const experienceOptions = EXPERIENCE_OPTIONS;
+    const rules = useApplicationRules();
+    const experienceOptions = EXPERIENCE_OPTIONS.filter(
+        (option) => !rules.experienceOptionsHidden.includes(option.value),
+    );
+    const { blocking, attempted, issuesRef, refuseIfBlocked } = useStepGate('qualifications', formData);
 
     // VAL-1: Validate required radio fields before advancing.
     // form.checkValidity() does not catch radio groups unless they have a required attribute
@@ -29,11 +42,13 @@ const Step2_Qualifications = ({ formData, updateFormData, onNavigate, onPartialS
             form.reportValidity();
             return;
         }
+        if (refuseIfBlocked()) return;
         onNavigate('next');
     };
 
     return (
         <div id="page-2" className="form-step space-y-ds-6">
+            <StepIssues ref={issuesRef} blocking={blocking} showBlocking={attempted} />
             <FormSection title="General Qualifications">
                 <RadioGroup
                     label="Legally eligible to work in the U.S.?"

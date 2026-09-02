@@ -9,6 +9,7 @@
 
 const contract = require('./contract');
 const { extractCdlFields } = require('./cdlExtraction');
+const { extractReportSuggestions } = require('./reportExtraction');
 const { analyzeDocumentPages } = require('./edocFieldPlacement');
 const { testProviderConnection } = require('./healthCheck');
 
@@ -16,6 +17,7 @@ module.exports = {
     TASK_TYPES: contract.TASK_TYPES,
     PRIVACY: contract.PRIVACY,
     extractCdlFields,
+    extractReportSuggestions,
     analyzeDocumentPages,
     testProviderConnection,
 };

@@ -153,8 +153,10 @@ async function completeRemainingSteps(page) {
   await chooseRadio(page, 'revoked-licenses-no');
   await chooseRadio(page, 'driving-convictions-no');
   await chooseRadio(page, 'drug-alcohol-convictions-no');
+  await chooseRadio(page, 'has-violations-no');
   await continueToStep(page, 'Accident History');
 
+  await chooseRadio(page, 'has-accidents-no');
   await continueToStep(page, 'Employment History');
   await continueAnywayPastEmploymentCoverage(page);
 

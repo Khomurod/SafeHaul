@@ -48,7 +48,7 @@ test.describe('Company Settings application-questions compatibility slice', () =
     // been collected), which makes it the switch that starts off and can be
     // driven on from the keyboard. Medical Card Upload defaults on, because
     // that is what the application actually enforces.
-    const requireMed = page.getByRole('switch', { name: 'Require MVR Consent Form' });
+    const requireMed = page.getByRole('switch', { name: 'Require Signed MVR Authorization Form (upload)' });
     // Land focus via the keyboard (a round-trip) so :focus-visible applies —
     // programmatic .focus() does not trigger focus-visible on a button.
     await requireMed.focus();

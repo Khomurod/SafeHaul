@@ -44,6 +44,17 @@ function describeMonths(count) {
     return count === 1 ? '1 month' : `${count} months`;
 }
 
+/**
+ * "three years" / "5 years" / "18 months" — the period the company requires,
+ * spoken the way the panel always spoke of the default three.
+ */
+export function describePeriod(requiredMonths) {
+    const months = Number(requiredMonths) || 36;
+    if (months === 36) return 'three years';
+    if (months % 12 === 0) return `${months / 12} year${months === 12 ? '' : 's'}`;
+    return describeMonths(months);
+}
+
 /** "July 2024" for a single month, "July 2024 – December 2024" for a range. */
 export function describeGap(gap) {
     const from = formatCoverageMonth(gap.fromMonth);
@@ -64,8 +75,8 @@ export function EmploymentCoverageSummary({ coverage }) {
                         aria-hidden="true"
                     />
                     <span>
-                        Your history accounts for all {coverage.requiredMonths} months of the last
-                        three years.
+                        Your history accounts for all {coverage.requiredMonths} months of the last{' '}
+                        {describePeriod(coverage.requiredMonths)}.
                     </span>
                 </p>
             </Card>
@@ -85,7 +96,7 @@ export function EmploymentCoverageSummary({ coverage }) {
                     <strong className="text-ds-content">
                         {coverage.coveredMonths} of {coverage.requiredMonths} months
                     </strong>{' '}
-                    of the last three years. {describeMonths(coverage.missingMonths)} are still
+                    of the last {describePeriod(coverage.requiredMonths)}. {describeMonths(coverage.missingMonths)} are still
                     unexplained.
                 </span>
             </p>
@@ -97,9 +108,12 @@ export function EmploymentCoverageSummary({ coverage }) {
  * @param {object}   props
  * @param {object}   props.coverage    Output of `computeEmploymentCoverage`.
  * @param {Function} props.onAddHistory Driver chose to fill the gaps in.
- * @param {Function} props.onContinueAnyway Driver chose to proceed regardless.
+ * @param {Function|null} props.onContinueAnyway Driver chose to proceed regardless.
+ *   `null` when the company's rule is `block`: the escape is not offered and the
+ *   panel says the history is required rather than recommended.
  */
 export function EmploymentCoveragePrompt({ coverage, onAddHistory, onContinueAnyway }) {
+    const mustComplete = typeof onContinueAnyway !== 'function';
     const headingRef = useRef(null);
 
     // Move focus to the panel when it appears: it replaces the outcome of a
@@ -134,13 +148,13 @@ export function EmploymentCoveragePrompt({ coverage, onAddHistory, onContinueAny
                             tabIndex={-1}
                             className="text-ds-body font-bold text-ds-content"
                         >
-                            {describeMonths(coverage.missingMonths)} of the last three years are
+                            {describeMonths(coverage.missingMonths)} of the last {describePeriod(coverage.requiredMonths)} are
                             not accounted for
                         </h3>
                         <p className="text-ds-sm text-ds-content-secondary">
-                            Carriers are required to account for the previous three years
-                            (49 CFR 391.21). Adding the missing periods now usually means a
-                            faster decision, and fewer questions later.
+                            {mustComplete
+                                ? `This carrier requires your history to account for the previous ${describePeriod(coverage.requiredMonths)} (49 CFR 391.21) before you can continue. Add the missing periods below.`
+                                : `Carriers are required to account for the previous ${describePeriod(coverage.requiredMonths)} (49 CFR 391.21). Adding the missing periods now usually means a faster decision, and fewer questions later.`}
                         </p>
                     </div>
                 </div>
@@ -168,7 +182,7 @@ export function EmploymentCoveragePrompt({ coverage, onAddHistory, onContinueAny
 
                 <div className="space-y-ds-2">
                     <p className="text-ds-sm font-medium text-ds-content">
-                        Any of these count toward the three years:
+                        Any of these count toward the {describePeriod(coverage.requiredMonths)}:
                     </p>
                     <ul className="space-y-ds-1 text-ds-sm text-ds-content-secondary">
                         <li>A job you held — driving or not.</li>
@@ -196,9 +210,11 @@ export function EmploymentCoveragePrompt({ coverage, onAddHistory, onContinueAny
                     <Button variant="primary" size="lg" onClick={onAddHistory}>
                         Add missing history
                     </Button>
-                    <Button variant="ghost" size="lg" onClick={onContinueAnyway}>
-                        Continue anyway
-                    </Button>
+                    {!mustComplete && (
+                        <Button variant="ghost" size="lg" onClick={onContinueAnyway}>
+                            Continue anyway
+                        </Button>
+                    )}
                 </div>
             </div>
         </Card>

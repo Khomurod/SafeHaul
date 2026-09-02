@@ -1,34 +1,55 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import InputField from '@shared/components/form/InputField';
 import DateTripletField from '@shared/components/form/DateTripletField';
 import RadioGroup from '@shared/components/form/RadioGroup';
 import DynamicRow from '@shared/components/form/DynamicRow';
 import { useUtils } from '@shared/hooks/useUtils';
+import { YES_NO_OPTIONS } from '@/config/form-options';
+import { normalizeApplicationAnswers } from '@/config/applicationRules';
 import { FormField, FormSection, Textarea } from '@/design-system/components';
+import { useStepGate } from '@features/driver-app/hooks/useApplicationRules';
 import { StepNavigation } from './components/StepNavigation';
 import { StateSelectField } from './components/StateSelectField';
+import { StepIssues } from './components/StepIssues';
 
 /**
- * Presentation migrated to the approved `FormSection` / `FormField` / `Textarea`
- * primitives (2026-07-27).
+ * Accident history.
  *
- * Unchanged: the `accidents` row shape
+ * Unchanged: the `accidents` row shape's original keys
  * `{ date, city, state, commercial, details, preventable }`, the yes/no defaults
- * `commercial: 'no'` / `preventable: 'no'`, every required flag, and the VAL-1
- * `form.checkValidity()` gate.
+ * `commercial: 'no'` / `preventable: 'no'`, the per-row scoped radio ids
+ * (`accident-…-<index>`), and the VAL-1 `form.checkValidity()` gate.
  *
- * DEFECT FIXED (2026-07-27): both per-row radio groups used the bare field name,
- * so every accident row rendered ids `commercial-yes` / `preventable-yes`. Ids
- * must be unique — `label[for="commercial-yes"]` resolved to row 1, so clicking
- * row 2's "Yes" toggled row 1, and the browser treated all rows as one radio
- * group. Each row now scopes its ids and grouping name with `accident-…-<index>`
- * while `name` (the saved key) stays `commercial` / `preventable`.
+ * 2026-09-02 — a proper accident module. A clear Yes/No question
+ * (`has-accidents`) precedes the list, and each row carries the details
+ * 49 CFR 391.21(b)(7) actually asks for: fatalities, injuries and whether
+ * hazardous materials were spilled (`fatalities` / `injuries` / `hazmatSpill`,
+ * appended after the original keys so stored rows keep their order). They are
+ * optional unless the company's `requireAccidentDetails` rule is on, in which
+ * case every row must be complete before the applicant continues — and the
+ * server refuses the same submission with the same wording.
+ *
+ * A record written before the question existed, with rows but no answer, reads
+ * as Yes; an explicit No hides the list and drops leftover rows at submission.
  */
 const Step5_Accidents = ({ formData, updateFormData, onNavigate, onPartialSubmit }) => {
     const ty = new Date().getFullYear();
     const { states } = useUtils();
-    const yesNoOptions = [{ label: 'Yes', value: 'yes' }, { label: 'No', value: 'no' }];
-    const initialAccident = { date: '', city: '', state: '', commercial: 'no', details: '', preventable: 'no' };
+    const yesNoOptions = YES_NO_OPTIONS;
+    const initialAccident = {
+        date: '', city: '', state: '', commercial: 'no', details: '', preventable: 'no',
+        fatalities: '', injuries: '', hazmatSpill: '',
+    };
+
+    const { rules, blocking, attempted, issuesRef, refuseIfBlocked } = useStepGate('accidents', formData);
+    const detailsRequired = rules.requireAccidentDetails;
+    const hasAccidents = formData['has-accidents'];
+
+    useEffect(() => {
+        if (hasAccidents) return;
+        const derived = normalizeApplicationAnswers(formData)['has-accidents'];
+        if (derived) updateFormData('has-accidents', derived);
+    }, [hasAccidents, formData, updateFormData]);
 
     // VAL-1: Run native form validation before allowing navigation forward.
     const handleContinue = () => {
@@ -37,6 +58,7 @@ const Step5_Accidents = ({ formData, updateFormData, onNavigate, onPartialSubmit
             form.reportValidity();
             return;
         }
+        if (refuseIfBlocked()) return;
         onNavigate('next');
     };
 
@@ -54,14 +76,7 @@ const Step5_Accidents = ({ formData, updateFormData, onNavigate, onPartialSubmit
                 helpText="Pick month, day, year."
             />
             <div className="grid grid-cols-1 gap-ds-4 sm:grid-cols-2">
-                <InputField
-                    label="City"
-                    id={'accident-city-' + index}
-                    name="city"
-                    value={item.city}
-                    onChange={handleChange}
-                    required={true}
-                />
+                <InputField label="City" id={'accident-city-' + index} name="city" value={item.city} onChange={handleChange} required={true} />
                 <StateSelectField
                     id={'accident-state-' + index}
                     name="state"
@@ -81,7 +96,7 @@ const Step5_Accidents = ({ formData, updateFormData, onNavigate, onPartialSubmit
                 required={true}
                 horizontal={true}
             />
-            <FormField id={'accident-details-' + index} label="Accident details" required>
+            <FormField id={'accident-details-' + index} label="Nature of the accident (what happened)" required>
                 <Textarea
                     name="details"
                     rows="3"
@@ -89,6 +104,43 @@ const Step5_Accidents = ({ formData, updateFormData, onNavigate, onPartialSubmit
                     onChange={(e) => handleChange(e.target.name, e.target.value)}
                 />
             </FormField>
+            <div className="grid grid-cols-1 gap-ds-4 sm:grid-cols-2">
+                <InputField
+                    label="Number of fatalities"
+                    id={'accident-fatalities-' + index}
+                    name="fatalities"
+                    type="number"
+                    min="0"
+                    max="999"
+                    value={item.fatalities}
+                    onChange={handleChange}
+                    required={detailsRequired}
+                    placeholder="0"
+                />
+                <InputField
+                    label="Number of injuries"
+                    id={'accident-injuries-' + index}
+                    name="injuries"
+                    type="number"
+                    min="0"
+                    max="999"
+                    value={item.injuries}
+                    onChange={handleChange}
+                    required={detailsRequired}
+                    placeholder="0"
+                />
+            </div>
+            <RadioGroup
+                label="Was there a hazardous material spill?"
+                name="hazmatSpill"
+                idPrefix={'accident-hazmat-' + index}
+                groupName={'accident-hazmat-' + index}
+                options={yesNoOptions}
+                value={item.hazmatSpill}
+                onChange={(name, value) => handleChange(name, value)}
+                required={detailsRequired}
+                horizontal={true}
+            />
             <RadioGroup
                 label="Was this accident preventable?"
                 name="preventable"
@@ -105,16 +157,36 @@ const Step5_Accidents = ({ formData, updateFormData, onNavigate, onPartialSubmit
 
     return (
         <div id="page-5" className="form-step space-y-ds-6">
+            <StepIssues ref={issuesRef} blocking={blocking} showBlocking={attempted} />
+
             <FormSection title="Accident History (Past 3 Years)">
-                <p className="text-ds-sm text-ds-content-secondary">Please list all motor vehicle accidents in which you were involved in the past 3 years.</p>
-                <DynamicRow
-                    listKey="accidents"
-                    formData={formData}
-                    updateFormData={updateFormData}
-                    renderRow={renderAccidentRow}
-                    initialItemState={initialAccident}
-                    addButtonLabel="+ Add Accident"
+                <RadioGroup
+                    label="Have you been involved in any motor vehicle accidents in the past 3 years?"
+                    name="has-accidents"
+                    options={yesNoOptions}
+                    value={hasAccidents}
+                    onChange={updateFormData}
+                    required={true}
                 />
+                {hasAccidents === 'yes' && (
+                    <>
+                        <p className="text-ds-sm text-ds-content-secondary">
+                            List every accident you were involved in during the past 3 years.
+                            {detailsRequired && ' This carrier needs the date, what happened, the number of fatalities, the number of injuries and whether hazardous materials were spilled for each one.'}
+                        </p>
+                        <DynamicRow
+                            listKey="accidents"
+                            formData={formData}
+                            updateFormData={updateFormData}
+                            renderRow={renderAccidentRow}
+                            initialItemState={initialAccident}
+                            addButtonLabel="+ Add Accident"
+                        />
+                    </>
+                )}
+                {hasAccidents === 'no' && (
+                    <p className="text-ds-sm text-ds-content-muted" data-testid="no-accidents-note">No accidents will be listed on your application.</p>
+                )}
             </FormSection>
 
             <StepNavigation

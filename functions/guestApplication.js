@@ -7,13 +7,17 @@ const functions = require('firebase-functions/v1');
 const { admin, db, storage } = require('./firebaseAdmin');
 const { assertCompanyAcceptingIntake } = require('./shared/companyTenant');
 const {
+    assertApplicationRules,
     assertRequiredUnpersistedFields,
     assertRequiredUploads,
     buildApplicationDoc,
 } = require('./shared/buildApplicationDoc');
+const { normalizeApplicationAnswers } = require('./shared/applicationRules');
 const { upsertApplicationDoc } = require('./shared/upsertApplicationDoc');
 const { buildApplicationDefinition } = require('./shared/applicationDefinition');
 const { CURRENT_AGREEMENT_VERSION, submittableVersions } = require('./shared/legalAgreements');
+const { isCompanyVersion, resolveAgreementVersions } = require('./shared/companyAgreementWording');
+const { loadCompanyAgreementWording } = require('./applicationAgreements');
 
 /** Versions a fresh submission may claim. Never a retired `legacy-*` one. */
 const KNOWN_SUBMITTABLE_VERSIONS = submittableVersions();
@@ -47,7 +51,10 @@ function agreementVersionFromAcceptances(acceptances) {
         Object.values(acceptances)
             .filter((evidence) => evidence && typeof evidence === 'object')
             .map((evidence) => evidence.version)
-            .filter((version) => typeof version === 'string' && version),
+            // A company's own wording carries its own `c-…` version per agreement
+            // (resolved separately by `resolveAgreementVersions`); only the
+            // platform wording has a single set-wide version.
+            .filter((version) => typeof version === 'string' && version && !isCompanyVersion(version)),
     );
 
     if (reported.size !== 1) return CURRENT_AGREEMENT_VERSION;
@@ -114,7 +121,7 @@ exports.submitGuestApplication = functions
         }
 
         const { companyId, email, phone, signature, formData: rawFormData } = data || {};
-        const normalizedFormData = rawFormData && typeof rawFormData === 'object' ? rawFormData : {};
+        let normalizedFormData = rawFormData && typeof rawFormData === 'object' ? rawFormData : {};
 
         if (!companyId || typeof companyId !== 'string') {
             throw new functions.https.HttpsError('invalid-argument', 'Missing or invalid companyId.');
@@ -145,6 +152,7 @@ exports.submitGuestApplication = functions
         const companyData = await assertCompanyAcceptingIntake(db, companyId);
         let companyName = companyData.companyName || 'Unknown Company';
         let applicationConfig = companyData.applicationConfig || null;
+        let applicationRules = companyData.applicationRules || null;
         // Questions as the DRIVER saw them. The public apply page renders from
         // public_profiles, so that projection — not the company document — is the
         // faithful record of what was asked. Falls back to the company document
@@ -157,6 +165,7 @@ exports.submitGuestApplication = functions
                 const publicData = publicSnap.data() || {};
                 companyName = publicData.companyName || companyName;
                 applicationConfig = publicData.applicationConfig ?? applicationConfig;
+                applicationRules = publicData.applicationRules ?? applicationRules;
                 if (Array.isArray(publicData.customQuestions)) {
                     customQuestions = publicData.customQuestions;
                 }
@@ -165,11 +174,19 @@ exports.submitGuestApplication = functions
             console.error('[submitGuestApplication] Public profile lookup error:', err);
         }
 
+        // An explicit "no violations" / "no accidents" drops any leftover rows, and
+        // a legacy payload with rows but no answer reads as Yes — the same
+        // normalisation the review step and the browser's pre-flight apply, so the
+        // stored record is the one the driver confirmed.
+        normalizedFormData = normalizeApplicationAnswers(normalizedFormData);
+
         assertRequiredUploads(applicationConfig, normalizedFormData);
         // A resumed applicant never revisits the page that collects these, and the
         // draft deliberately never carried them, so this is the only place that can
         // catch a required Social Security Number going missing.
         assertRequiredUnpersistedFields(applicationConfig, normalizedFormData);
+        // The company's Application Rules, from its own record — never the client.
+        assertApplicationRules(applicationRules, applicationConfig, normalizedFormData);
 
         const {
             applicantKeyFull,
@@ -217,17 +234,26 @@ exports.submitGuestApplication = functions
 
             let submissionSnapshot = null;
             try {
+                // The wording they actually saw, not whatever is current now: the
+                // platform version the acceptances agree on, and — where this
+                // company publishes its own wording — the company version each
+                // acceptance names, verified against the company's own record.
+                const platformVersion = agreementVersionFromAcceptances(normalizedFormData.agreementAcceptances);
+                const companyWording = await loadCompanyAgreementWording(companyId);
                 const definition = buildApplicationDefinition({
                     company: {
                         ...companyData,
                         companyName,
                         applicationConfig,
+                        applicationRules,
                         customQuestions,
                     },
-                    // The wording they actually saw, not whatever is current now.
-                    agreementVersion: agreementVersionFromAcceptances(
-                        normalizedFormData.agreementAcceptances,
-                    ),
+                    agreementVersion: platformVersion,
+                    agreementVersions: resolveAgreementVersions({
+                        platformVersion,
+                        acceptances: normalizedFormData.agreementAcceptances,
+                        wordingDocs: companyWording,
+                    }),
                 });
 
                 const snapshot = buildSubmissionSnapshot({
@@ -243,6 +269,7 @@ exports.submitGuestApplication = functions
                         capturedAt: new Date().toISOString(),
                     },
                     submittedAt: new Date().toISOString(),
+                    companyWording,
                 });
 
                 submissionSnapshot = await writeSubmissionSnapshot({

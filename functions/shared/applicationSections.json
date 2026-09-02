@@ -284,6 +284,10 @@
                 }
             },
             {
+                "id": "has-violations",
+                "label": "Moving Violations in the Past 3 Years"
+            },
+            {
                 "id": "violations",
                 "label": "Traffic Violations",
                 "repeating": true,
@@ -306,6 +310,10 @@
                         "label": "Penalty"
                     }
                 ]
+            },
+            {
+                "id": "has-accidents",
+                "label": "Accidents in the Past 3 Years"
             },
             {
                 "id": "accidents",
@@ -336,6 +344,18 @@
                     {
                         "id": "details",
                         "label": "Details"
+                    },
+                    {
+                        "id": "fatalities",
+                        "label": "Fatalities"
+                    },
+                    {
+                        "id": "injuries",
+                        "label": "Injuries"
+                    },
+                    {
+                        "id": "hazmatSpill",
+                        "label": "Hazardous Material Spill"
                     }
                 ]
             }
@@ -537,6 +557,40 @@
         ]
     },
     {
+        "id": "hoursOfService",
+        "title": "Hours of Service Statement",
+        "fields": [
+            {
+                "id": "hosDailyHours",
+                "label": "On-Duty Hours, Past 7 Days",
+                "repeating": true,
+                "presentWhenAnswered": true,
+                "columns": [
+                    {
+                        "id": "date",
+                        "label": "Date",
+                        "type": "date"
+                    },
+                    {
+                        "id": "hours",
+                        "label": "Hours on Duty"
+                    }
+                ]
+            },
+            {
+                "id": "hosLastRelievedDate",
+                "label": "Last Relieved From Duty (Date)",
+                "type": "date",
+                "presentWhenAnswered": true
+            },
+            {
+                "id": "hosLastRelievedTime",
+                "label": "Last Relieved From Duty (Time)",
+                "presentWhenAnswered": true
+            }
+        ]
+    },
+    {
         "id": "businessInfo",
         "title": "Business Information",
         "fields": [
@@ -658,7 +712,7 @@
             },
             {
                 "id": "mvr-consent-upload",
-                "label": "MVR Consent Form",
+                "label": "Signed MVR Authorization Form",
                 "gate": "mvrConsent",
                 "type": "file"
             },
@@ -685,6 +739,12 @@
                 "label": "Social Security Card",
                 "type": "file",
                 "sensitive": true,
+                "presentWhenAnswered": true
+            },
+            {
+                "id": "psp-report-upload",
+                "label": "PSP Report (Applicant Upload)",
+                "type": "file",
                 "presentWhenAnswered": true
             }
         ]

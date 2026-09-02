@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { saveCompanySettings } from '@features/companies';
 import { uploadCompanyLogo } from '@lib/firebase';
-import { Save, Edit2, Info, ListChecks } from 'lucide-react';
+import { Save, Edit2, Info, ListChecks, SlidersHorizontal, Blocks, FileSignature } from 'lucide-react';
 import { useToast } from '@shared/components/feedback';
 import { useData } from '@/context/DataContext';
 import { Button, TabList, TabPanel } from '@/design-system/components';
 import { CompanyInfoSection, QuestionsTabContent } from './profile';
+import { ApplicationRulesPanel } from './rules/ApplicationRulesPanel';
+import { ApplicationIntegrationsPanel } from './rules/ApplicationIntegrationsPanel';
+import { AgreementsPanel } from './rules/AgreementsPanel';
 
 export function CompanyProfileTab({ currentCompanyProfile }) {
     const { showSuccess, showError } = useToast();
@@ -19,8 +22,9 @@ export function CompanyProfileTab({ currentCompanyProfile }) {
     const editButtonRef = useRef(null);
     const wasEditingRef = useRef(false);
 
-    const isCompanyAdmin = currentUserClaims?.roles?.[currentCompanyProfile.id] === 'company_admin'
-        || currentUserClaims?.roles?.globalRole === 'super_admin';
+    const isSuperAdmin = currentUserClaims?.roles?.globalRole === 'super_admin'
+        || currentUserClaims?.globalRole === 'super_admin';
+    const isCompanyAdmin = currentUserClaims?.roles?.[currentCompanyProfile.id] === 'company_admin' || isSuperAdmin;
 
     useEffect(() => {
         if (currentCompanyProfile) {
@@ -37,6 +41,11 @@ export function CompanyProfileTab({ currentCompanyProfile }) {
                 companyLogoUrl: currentCompanyProfile.companyLogoUrl || '',
                 applicationConfig: currentCompanyProfile.applicationConfig || {},
                 customQuestions: currentCompanyProfile.customQuestions || [],
+                // Undefined until the company has rules or integrations of its own,
+                // so a company that never opens those tabs saves exactly what it
+                // always saved and keeps the platform defaults.
+                applicationRules: currentCompanyProfile.applicationRules,
+                applicationIntegrations: currentCompanyProfile.applicationIntegrations,
             });
         }
     }, [currentCompanyProfile]);
@@ -58,7 +67,9 @@ export function CompanyProfileTab({ currentCompanyProfile }) {
                 legal: { mcNumber: compData.mcNumber, dotNumber: compData.dotNumber },
                 applicationConfig: compData.applicationConfig,
                 customQuestions: compData.customQuestions,
-                companyLogoUrl: compData.companyLogoUrl
+                companyLogoUrl: compData.companyLogoUrl,
+                applicationRules: compData.applicationRules,
+                applicationIntegrations: compData.applicationIntegrations,
             };
             await saveCompanySettings(currentCompanyProfile.id, payload);
             showSuccess('Company settings saved successfully.');
@@ -92,9 +103,15 @@ export function CompanyProfileTab({ currentCompanyProfile }) {
         setCompData(prev => ({ ...prev, [field]: value }));
     };
 
+    // The application's settings, in the order a company thinks about them:
+    // which questions are asked, what happens when an answer needs more attention,
+    // and which optional data sources help the applicant answer.
     const tabs = [
         { id: 'info', label: 'Company Information', icon: Info },
-        { id: 'questions', label: 'Application Form Questions', icon: ListChecks }
+        { id: 'questions', label: 'Application Form Questions', icon: ListChecks },
+        { id: 'rules', label: 'Application Rules', icon: SlidersHorizontal },
+        { id: 'agreements', label: 'Agreements', icon: FileSignature },
+        { id: 'integrations', label: 'Application Integrations', icon: Blocks },
     ];
 
     return (
@@ -160,6 +177,43 @@ export function CompanyProfileTab({ currentCompanyProfile }) {
                 )}
                 {activeTab === 'questions' && (
                     <QuestionsTabContent compData={compData} isCompanyAdmin={isCompanyAdmin} onConfigChange={(newConfig) => setCompData(prev => ({ ...prev, applicationConfig: newConfig }))} onQuestionsChange={(updatedQuestions) => setCompData(prev => ({ ...prev, customQuestions: updatedQuestions }))} onSave={handleSaveCompany} loading={loading} />
+                )}
+                {activeTab === 'rules' && (
+                    <div className="space-y-ds-4">
+                        <ApplicationRulesPanel
+                            rules={compData.applicationRules}
+                            readOnly={!isCompanyAdmin}
+                            onChange={(nextRules) => setCompData(prev => ({ ...prev, applicationRules: nextRules }))}
+                        />
+                        {isCompanyAdmin && (
+                            <div className="flex justify-end">
+                                <Button variant="primary" loading={loading} onClick={handleSaveCompany}>
+                                    {!loading && <Save size={16} aria-hidden="true" />}
+                                    Save Application Rules
+                                </Button>
+                            </div>
+                        )}
+                    </div>
+                )}
+                {activeTab === 'agreements' && (
+                    <AgreementsPanel companyId={currentCompanyProfile.id} canPublish={isSuperAdmin} />
+                )}
+                {activeTab === 'integrations' && (
+                    <div className="space-y-ds-4">
+                        <ApplicationIntegrationsPanel
+                            integrations={compData.applicationIntegrations}
+                            readOnly={!isCompanyAdmin}
+                            onChange={(next) => setCompData(prev => ({ ...prev, applicationIntegrations: next }))}
+                        />
+                        {isCompanyAdmin && (
+                            <div className="flex justify-end">
+                                <Button variant="primary" loading={loading} onClick={handleSaveCompany}>
+                                    {!loading && <Save size={16} aria-hidden="true" />}
+                                    Save Integrations
+                                </Button>
+                            </div>
+                        )}
+                    </div>
                 )}
             </TabPanel>
         </div>

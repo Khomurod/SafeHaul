@@ -45,6 +45,7 @@ const STEP_BY_SECTION = {
     experience: 6,
     employment: 5,
     educationMilitary: 5,
+    hoursOfService: 6,
     businessInfo: 6,
     emergencyAndDisclosures: 6,
     documents: 2,
@@ -112,6 +113,7 @@ const Step8_Review = ({ formData, onNavigate }) => {
 
     const { sections, customAnswers } = useMemo(() => buildApplicationReview({
         applicationConfig: currentCompanyProfile?.applicationConfig,
+        applicationRules: currentCompanyProfile?.applicationRules,
         formData,
         customQuestions: currentCompanyProfile?.customQuestions,
     }), [currentCompanyProfile, formData]);

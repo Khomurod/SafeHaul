@@ -82,13 +82,17 @@ test.describe('@a11y mobile-critical journeys (no serious/critical violations)',
         await chooseRadio(page, 'revoked-licenses-no');
         await chooseRadio(page, 'driving-convictions-no');
         await chooseRadio(page, 'drug-alcohol-convictions-no');
+        await chooseRadio(page, 'has-violations-no');
         await continueToStep(page, 'Accident History');
 
-        // A dynamic row exercises the per-row ids, selects and radio groups.
+        // A dynamic row exercises the per-row ids, selects and radio groups. The
+        // list only appears once the applicant says they had an accident.
+        await chooseRadio(page, 'has-accidents-yes');
         await page.getByRole('button', { name: '+ Add Accident' }).click();
         await expect(page.locator('#accident-city-0')).toBeVisible();
         expect(await seriousViolations(page)).toEqual([]);
         await page.getByRole('button', { name: 'Remove Accident #1' }).click();
+        await chooseRadio(page, 'has-accidents-no');
 
         await continueToStep(page, 'Employment History');
         await page.getByRole('button', { name: '+ Add Employer' }).click();

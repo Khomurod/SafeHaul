@@ -26,15 +26,18 @@
 
 export const E2E_AGREEMENT_VERSION = 'e2e-fixture';
 
-const fixture = (id, title, requiresSignature) => ({
+const fixture = (id, title, requiresSignature, presentedOn = 'consent') => ({
     id,
     version: E2E_AGREEMENT_VERSION,
     title,
     body: `TEST FIXTURE — NOT LEGAL TEXT.\n\nThis stands in for the "${title}" disclosure while the application is exercised end to end against an unreachable backend. The real wording is resolved from the server-side agreement registry and is what a real applicant reads and accepts.`,
     requiresSignature,
+    presentedOn,
 });
 
 export const E2E_AGREEMENTS = [
+    // Shown on the Motor Vehicle Record step, beside the Yes/No authorization.
+    fixture('mvrAuthorization', 'Motor Vehicle Record (MVR) Authorization', false, 'drivingRecord'),
     fixture('electronicSignature', 'Agreement to Conduct Transaction Electronically', true),
     fixture('fcraDisclosure', 'Background Check Disclosure and Authorization', true),
     fixture('pspDisclosure', 'FMCSA PSP Disclosure and Authorization', true),

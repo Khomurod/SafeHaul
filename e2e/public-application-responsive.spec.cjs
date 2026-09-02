@@ -164,12 +164,16 @@ test.describe('public driver application responsive presentation', () => {
       await chooseRadio(page, 'revoked-licenses-no');
       await chooseRadio(page, 'driving-convictions-no');
       await chooseRadio(page, 'drug-alcohol-convictions-no');
+      await chooseRadio(page, 'has-violations-no');
 
       await continueToStep(page, 'Accident History');
+      // The list only appears after a Yes; the row is the widest content here.
+      await chooseRadio(page, 'has-accidents-yes');
       await page.getByRole('button', { name: '+ Add Accident' }).click();
       await expect(page.locator('#accident-city-0')).toBeVisible();
       await checkpoint('step 5 (dynamic row open)');
       await page.getByRole('button', { name: 'Remove Accident #1' }).click();
+      await chooseRadio(page, 'has-accidents-no');
 
       await continueToStep(page, 'Employment History');
       await page.getByRole('button', { name: '+ Add Employer' }).click();

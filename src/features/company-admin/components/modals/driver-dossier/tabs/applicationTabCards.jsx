@@ -215,12 +215,28 @@ function LicenseCard({ appData, fileUrls = {} }) {
     );
 }
 
+/**
+ * "yes" / "no" as the applicant answered it, or null for a record written before
+ * the Yes/No questions existed (2026-09-02) — those are described by their lists.
+ */
+function yesNoAnswer(value) {
+    const raw = String(value ?? '').trim().toLowerCase();
+    return raw === 'yes' || raw === 'no' ? raw : null;
+}
+
 function SafetyCard({ appData }) {
     const violations = appData.violations || [];
     const accidents = appData.accidents || [];
     const hasIncidents = violations.length > 0 || accidents.length > 0;
+    const violationsAnswer = yesNoAnswer(appData['has-violations']);
+    const accidentsAnswer = yesNoAnswer(appData['has-accidents']);
+    // A Yes with nothing listed is worth a recruiter's attention; say so rather
+    // than calling the record clean.
+    const declaredWithoutDetail = (violationsAnswer === 'yes' && violations.length === 0)
+        || (accidentsAnswer === 'yes' && accidents.length === 0);
 
-    if (!hasIncidents) {
+    if (!hasIncidents && !declaredWithoutDetail) {
+        const explicit = violationsAnswer === 'no' && accidentsAnswer === 'no';
         return (
             <Card padding="md" className="flex items-center gap-ds-4 border-ds-status-success-border bg-ds-status-success-bg">
                 <span className="rounded-ds-full bg-ds-surface p-ds-2 text-ds-status-success-fg">
@@ -228,7 +244,11 @@ function SafetyCard({ appData }) {
                 </span>
                 <div className="min-w-0">
                     <h4 className="font-bold text-ds-status-success-fg">Clean Record</h4>
-                    <p className="text-ds-sm text-ds-status-success-fg">No violations or accidents reported on this application.</p>
+                    <p className="text-ds-sm text-ds-status-success-fg">
+                        {explicit
+                            ? 'The applicant answered No to moving violations and No to accidents in the past 3 years.'
+                            : 'No violations or accidents reported on this application.'}
+                    </p>
                 </div>
             </Card>
         );
@@ -236,6 +256,17 @@ function SafetyCard({ appData }) {
 
     return (
         <DossierSummaryCard icon={AlertTriangle} title="Safety Record" tone="warning">
+            {(violationsAnswer || accidentsAnswer) && (
+                <p className="mb-ds-3 text-ds-sm text-ds-content-secondary" data-testid="safety-answers">
+                    Moving violations (past 3 years): <strong className="text-ds-content">{violationsAnswer ? (violationsAnswer === 'yes' ? 'Yes' : 'No') : 'Not asked'}</strong>
+                    {' · '}Accidents (past 3 years): <strong className="text-ds-content">{accidentsAnswer ? (accidentsAnswer === 'yes' ? 'Yes' : 'No') : 'Not asked'}</strong>
+                </p>
+            )}
+            {declaredWithoutDetail && (
+                <p className="mb-ds-3 text-ds-sm text-ds-status-warning-fg" role="note">
+                    The applicant answered Yes but listed no details.
+                </p>
+            )}
             <div className="grid grid-cols-1 gap-ds-4 md:grid-cols-2">
                 {violations.length > 0 && (
                     <div className="space-y-ds-3">

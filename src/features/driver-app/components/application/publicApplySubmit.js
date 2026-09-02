@@ -1,8 +1,9 @@
 // The guest application's submission path, split out of
 // `PublicApplyHandler.jsx` on 2026-09-01 for the source-size standard
-// (PA-1a). One React-free function, body verbatim from the component:
-// pre-flight validation (unpersisted fields, required uploads, signature,
-// email/phone), the E2E queue path, the queue-first guaranteed delivery, the
+// (PA-1a). One React-free function, body verbatim from the component: the
+// pre-flight (now `publicApplyPreflight.js` — unpersisted fields, the company's
+// Application Rules, required uploads, signature, email/phone), the E2E queue
+// path, the queue-first guaranteed delivery, the
 // three-attempt Cloud Function submission with backoff, and every discard
 // re-check in between. This tab's refs are passed as the ref OBJECTS so the
 // mutation semantics — capture before an await, re-read after it — are
@@ -11,9 +12,7 @@
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
 import * as Sentry from '@sentry/react';
-import { resolveWizardStepIndex } from '@shared/components/layout/Stepper';
 import { newSubmissionAttemptId } from '@shared/utils/submissionAttemptId';
-import { isValidEmail, isValidPhone } from '@shared/utils/validation';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 import {
   initQueue,
@@ -26,14 +25,13 @@ import {
   generateConfirmationNumber
 } from '@lib/applicationId';
 import { SANDBOX_APP_SLUG } from '@features/sandbox/sandboxConstants';
-import { hasUploadedFile } from './publicApplyHelpers';
 import { clearApplicationDraft } from './applicationDraftStorage';
 import { savePostApplySession } from './postApplyDocsStorage';
-import { getMissingRequiredUnpersistedFields } from './requiredUnpersistedFields';
+import { runSubmissionPreflight } from './publicApplyPreflight';
 
 export async function submitPublicApplication({
   // State values as they stood when the applicant pressed Submit.
-  formData,
+  formData: rawFormData,
   company,
   slug,
   sandbox,
@@ -115,67 +113,22 @@ export async function submitPublicApplication({
     // The mark as it stands *now*, for the same reason. See `submittedDraftIdentity`.
     const submitMark = discardMarkRef.current;
 
-    /**
-     * Required answers a resumed application could not have brought back.
-     *
-     * Checked before the uploads, because it routes to an earlier page: a draft
-     * never stores `ssn`, so an applicant who resumed part-way through has never
-     * been asked for it and the step that collects it never ran its validation.
-     * Sending them to the upload step first, then to page one, would be two
-     * round trips for one incomplete form.
-     *
-     * The server refuses the same submission independently
-     * (`assertRequiredUnpersistedFields`) — this half exists to tell the
-     * applicant which field and take them to it, not to be the enforcement.
-     */
-    const missingUnpersisted = getMissingRequiredUnpersistedFields(
-      company?.applicationConfig,
-      formData,
-    );
-    if (missingUnpersisted.length > 0) {
-      const labels = missingUnpersisted.map((field) => field.label).join(', ');
-      const subject = missingUnpersisted.length > 1 ? 'They are' : 'It is';
-      showError(`Please re-enter your ${labels} to submit. ${subject} not saved with your progress for security.`);
-      setCurrentStep(resolveWizardStepIndex(
-        missingUnpersisted[0].semanticStep,
-        customQuestions.length > 0,
-      ));
-      return;
-    }
-
-    const requiredUploadErrors = [];
-    if (!cdlUploadConfig.hidden && cdlUploadConfig.required) {
-      if (!hasUploadedFile(formData['cdl-front'])) requiredUploadErrors.push('CDL Front');
-      if (!hasUploadedFile(formData['cdl-back'])) requiredUploadErrors.push('CDL Back');
-    }
-    if (!medCardConfig.hidden && medCardConfig.required && !hasUploadedFile(formData['medical-card-upload'])) {
-      requiredUploadErrors.push('Medical Card');
-    }
-    if (!mvrConsentConfig.hidden && mvrConsentConfig.required && !hasUploadedFile(formData['mvr-consent-upload'])) {
-      requiredUploadErrors.push('MVR Consent Form');
-    }
-    if (requiredUploadErrors.length > 0) {
-      showError(`Please upload required documents before submitting: ${requiredUploadErrors.join(', ')}.`);
-      setCurrentStep(2);
-      return;
-    }
-
-    // Validate signature and certification
-    if (!formData.signature || !formData['final-certification']) {
-      showError("Please complete the electronic signature.");
-      setCurrentStep(consentStepIndex);
-      return;
-    }
-
-    // Validate email and phone
-    if (!isValidEmail(formData.email)) {
-      showError("Invalid Email Address.");
-      return;
-    }
-    if (!isValidPhone(formData.phone)) {
-      showError("Invalid Phone Number.");
-      return;
-    }
+    // Every check the server repeats, run here first so the applicant is told
+    // which page needs attention. Returns the normalised payload to send: an
+    // explicit "no violations" has dropped its leftover rows, as the server will.
+    const preflight = runSubmissionPreflight({
+      formData: rawFormData,
+      company,
+      customQuestions,
+      consentStepIndex,
+      cdlUploadConfig,
+      medCardConfig,
+      mvrConsentConfig,
+      setCurrentStep,
+      showError,
+    });
+    if (!preflight.ok) return;
+    const formData = preflight.formData;
 
     if (isSubmittingRef.current || submissionStatus === 'submitting') return;
     isSubmittingRef.current = true;

@@ -20,7 +20,7 @@ export const STANDARD_FIELDS = [
     { id: 'employmentHistory', label: 'Employment History (3-10 Yrs)' },
     { id: 'cdlUpload', label: 'CDL Document Upload' },
     { id: 'medCardUpload', label: 'Medical Card Upload' },
-    { id: 'mvrConsent', label: 'MVR Consent Form' },
+    { id: 'mvrConsent', label: 'Signed MVR Authorization Form (upload)' },
     { id: 'referralSource', label: 'Referral Source' },
     { id: 'emergencyContacts', label: 'Emergency Contacts' },
 ];

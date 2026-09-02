@@ -53,7 +53,7 @@ erDiagram
 
 | Collection | Document ID | Client access (summary) | Purpose |
 |------------|-------------|-------------------------|---------|
-| `companies` | `companyId` | **get:** team or super · **list:** super only · **create/delete:** super · **update:** admin+ | Tenant root: branding, `features`, `featureSchedules`, `applicationConfig`, quotas, etc. |
+| `companies` | `companyId` | **get:** team or super · **list:** super only · **create/delete:** super · **update:** admin+ | Tenant root: branding, `features`, `featureSchedules`, `applicationConfig`, `applicationRules`, `applicationIntegrations`, quotas, etc. |
 | `public_profiles` | `companyId` | **read:** public · **write:** server (`syncPublicProfile` trigger) | Sanitized mirror for `/apply/:slug` (no revenue/internal fields) |
 | `drivers` | `driverId` (= Auth uid) | **get:** owner, super, or any staff · **list:** owner or super only · **write:** owner or super | Master driver profile |
 | `users` | `userId` | **read:** owner, super, staff · **create:** self · **update:** owner (no role/companyId) or super | HR/admin portal user profile |
@@ -112,6 +112,7 @@ Used by Cloud Functions with Admin SDK:
 | `companies/{id}/inbound_messages/{id}` | Inbound SMS (STOP handling trigger) |
 | `companies/{id}/application_drafts/{applicantKey}` | An unfinished driver application, saved after each Next. See below |
 | `companies/{id}/application_draft_audit/{id}` | Value-free records of resume-match attempts and discards |
+| `companies/{id}/legal_agreements/{agreementId}` | Company-published agreement wording: `{ activeVersion, versions: { 'c-<hash>': { body, createdAt, createdBy, note } } }`. Callables only; publish/revert is Super Admin only |
 
 ---
 
@@ -332,6 +333,8 @@ Synced from `companies` on write (not readable from full company doc by guests):
 
 - `companyName`, `appSlug`, `logoUrl`, `brandColor`
 - `applicationConfig` (subset of keys in `PUBLIC_APPLICATION_CONFIG_KEYS`)
+- `applicationRules` (resolved against the platform defaults — DTO v3)
+- `applicationIntegrations` (`{ psp: { enabled }, mvr: { enabled } }`, booleans only — DTO v3)
 - `customQuestions`
 - `updatedAt`
 

@@ -24,6 +24,13 @@
 // record. A submission stores the version id AND the exact rendered text it
 // presented, so later edits here can never alter history.
 //
+// WHERE EACH AGREEMENT IS SHOWN
+// -----------------------------
+// `presentedOn` names the wizard page: `consent` for the final agreements step,
+// `drivingRecord` for the MVR authorization, which is answered Yes/No on the
+// Motor Vehicle Record page. `resolveAgreementSet` returns the whole set; each
+// page filters by placement, and the snapshot records all of them.
+//
 // ADDING OR CHANGING AN AGREEMENT
 // -------------------------------
 // Never edit the body of a published version. Add a new version id instead.
@@ -165,6 +172,14 @@ I hereby provide consent to {{companyName}} ("Prospective Employer") to conduct 
 I understand that if the full query conducted by Prospective Employer indicates that drug or alcohol violation information about me exists in the Clearinghouse, FMCSA will disclose that information to Prospective Employer.
 I further understand that if I refuse to provide consent for Prospective Employer to conduct a full query of the Clearinghouse, Prospective Employer must prohibit me from performing safety-sensitive functions, including driving a commercial motor vehicle, as required by FMCSA's drug and alcohol program regulations.`;
 
+const V1_MVR_AUTHORIZATION = `MOTOR VEHICLE RECORD (MVR) AUTHORIZATION
+
+In connection with my application for employment with {{companyName}} ("Prospective Employer"), I authorize Prospective Employer, its employees, agents or contractors to obtain my motor vehicle record (driving record) from the driver licensing agency of every state in which I have held a driver's license during the past three (3) years, as permitted by 49 CFR 391.23 and applicable state law.
+
+I understand that Prospective Employer will use this record to evaluate my qualifications to operate a commercial motor vehicle, and that, if I am hired, a copy of the record will be placed in my driver qualification file.
+
+I understand that I have the right to review the information obtained and to dispute its accuracy with the state agency that issued it.`;
+
 /**
  * Every agreement, keyed by stable id. `order` fixes presentation sequence so
  * the driver, the on-screen review and the PDF cannot disagree about it.
@@ -174,8 +189,33 @@ I further understand that if I refuse to provide consent for Prospective Employe
  * subpart G and must always be presented.
  */
 const AGREEMENTS = Object.freeze({
+    /**
+     * Presented on the Motor Vehicle Record step, not the consent step: the
+     * applicant reads it where the Yes/No authorization question is asked, so
+     * there is ONE MVR authorization in the whole application — this wording,
+     * this version, this acceptance — instead of a consent radio on one page and
+     * unrelated "MVR consent" concepts on others. `requiresSignature: false`
+     * because the answer to the question is the authorization; the applicant's
+     * signature at the end certifies the application as a whole.
+     *
+     * No `legacy-1`: before 2026-09-02 the step asked a bare Yes/No with two
+     * sentences of prose and recorded no agreement, so no historical record can
+     * be attributed to this wording.
+     */
+    mvrAuthorization: {
+        id: 'mvrAuthorization',
+        order: 0,
+        required: true,
+        requiresSignature: false,
+        presentedOn: 'drivingRecord',
+        title: 'MOTOR VEHICLE RECORD (MVR) AUTHORIZATION',
+        versions: {
+            v1: { body: V1_MVR_AUTHORIZATION },
+        },
+    },
     electronicSignature: {
         id: 'electronicSignature',
+        presentedOn: 'consent',
         order: 1,
         required: true,
         requiresSignature: true,
@@ -187,6 +227,7 @@ const AGREEMENTS = Object.freeze({
     },
     fcraDisclosure: {
         id: 'fcraDisclosure',
+        presentedOn: 'consent',
         order: 2,
         required: true,
         requiresSignature: true,
@@ -198,6 +239,7 @@ const AGREEMENTS = Object.freeze({
     },
     pspDisclosure: {
         id: 'pspDisclosure',
+        presentedOn: 'consent',
         order: 3,
         required: true,
         requiresSignature: true,
@@ -209,6 +251,7 @@ const AGREEMENTS = Object.freeze({
     },
     clearinghouseConsent: {
         id: 'clearinghouseConsent',
+        presentedOn: 'consent',
         order: 4,
         required: true,
         requiresSignature: true,
@@ -281,6 +324,9 @@ function resolveAgreement(agreementId, version, { companyName } = {}) {
         title: agreement.title,
         body,
         requiresSignature: agreement.requiresSignature,
+        // Which page of the application shows it: `consent` (the final
+        // agreements step) or `drivingRecord` (the MVR step).
+        presentedOn: agreement.presentedOn || 'consent',
         legacy: Boolean(entry.legacy),
     };
 }

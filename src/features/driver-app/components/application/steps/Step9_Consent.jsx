@@ -55,8 +55,11 @@ const Step9_Consent = ({ formData, updateFormData, onNavigate, onFinalSubmit, is
     const canvasRef = useRef(null);
 
     const companyId = currentCompanyProfile?.id || formData?.companyId || null;
-    const { agreements, loading: agreementsLoading, error: agreementsError, retry } =
+    const { agreements: allAgreements, loading: agreementsLoading, error: agreementsError, retry } =
         useApplicationAgreements(companyId);
+    // The MVR authorization is read and answered on the Motor Vehicle Record
+    // step; this page shows the agreements that belong to it.
+    const agreements = allAgreements.filter((agreement) => (agreement.presentedOn || 'consent') === 'consent');
 
     const [isSigned, setIsSigned] = useState(!!formData.signature);
     const [signatureError, setSignatureError] = useState('');

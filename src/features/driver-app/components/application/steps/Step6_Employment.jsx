@@ -3,22 +3,28 @@ import InputField from '@shared/components/form/InputField';
 import RadioGroup from '@shared/components/form/RadioGroup';
 import DynamicRow from '@shared/components/form/DynamicRow';
 import DateTripletField from '@shared/components/form/DateTripletField';
-import MonthYearField from '@shared/components/form/MonthYearField';
 import { useUtils } from '@shared/hooks/useUtils';
 import { useData } from '@/context/DataContext';
-import { YES_NO_OPTIONS, MILITARY_BRANCH_OPTIONS } from '@/config/form-options';
+import { YES_NO_OPTIONS } from '@/config/form-options';
 import { useToast } from '@shared/components/feedback';
 import { employerRowHasVerifierContact } from '@shared/utils/employmentApplicationHelpers';
 import EmployerNameAutocomplete from './components/EmployerNameAutocomplete';
-import { FormField, FormSection, Textarea } from '@/design-system/components';
+import { FormSection } from '@/design-system/components';
 import { StepNavigation } from './components/StepNavigation';
 import { StateSelectField } from './components/StateSelectField';
+import { StepIssues } from './components/StepIssues';
+import { makeEmploymentRowRenderers } from './components/EmploymentHistoryRows';
+import { EMPTY_EMPLOYER } from './components/employmentRowShapes';
+import { ReportImportPanel } from './components/ReportImportPanel';
+import { integrationEnabled } from '../reportSuggestions';
 import { computeEmploymentCoverage } from '@shared/utils/employmentCoverage';
 import {
     EmploymentCoveragePrompt,
     EmploymentCoverageSummary,
 } from './components/EmploymentCoveragePrompt';
 import { resolveApplicationGate } from '@/config/applicationGates';
+import { employmentCoverageOptions } from '@/config/applicationRules';
+import { useStepIssues } from '@features/driver-app/hooks/useApplicationRules';
 
 const EMAIL_OK = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -37,6 +43,14 @@ const EMAIL_OK = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  * element ids and shared one browser radio group — clicking row 2's option
  * toggled row 1's input through the duplicated `label[for]`. Each row now scopes
  * its ids and grouping name by index while `name` (the saved key) is unchanged.
+ *
+ * 2026-09-02 — the company decides what incomplete coverage means
+ * (`employmentHistoryEnforcement`: allow / warn / block) and how many years must
+ * be accounted for (`employmentHistoryMinimumYears`). `warn` is the behaviour
+ * this step always had: one interruption, then "Continue anyway". `block` shows
+ * the same panel without that escape until the months are accounted for, and the
+ * server refuses the same submission. `allow` never interrupts. The schooling,
+ * gap and military row renderers moved to `EmploymentHistoryRows.jsx` unchanged.
  */
 const Step6_Employment = ({ formData, updateFormData, onNavigate, onPartialSubmit }) => {
     const { showError } = useToast();
@@ -53,27 +67,19 @@ const Step6_Employment = ({ formData, updateFormData, onNavigate, onPartialSubmi
     const getConfig = (fieldId) => resolveApplicationGate(currentCompany?.applicationConfig, fieldId);
 
     const empHistoryConfig = getConfig('employmentHistory');
+    const { rules, blocking } = useStepIssues('employment', formData);
+    const enforcement = rules.employmentHistoryEnforcement;
+    // Coverage is told through its own panel; anything else that blocks this
+    // step (an impossible date in a row) is told through the shared alert.
+    const otherBlocking = blocking.filter((issue) => issue.code !== 'employment-coverage');
+    const [attempted, setAttempted] = useState(false);
+    const issuesRef = useRef(null);
 
-    const initialEmployer = {
-        companyName: '',
-        dotNumber: '',
-        address: '',
-        city: '',
-        state: '',
-        phone: '',
-        companyEmail: '',
-        position: '',
-        startDate: '',
-        endDate: '',
-        reasonForLeaving: '',
-        supervisorName: '',
-        supervisorPhone: '',
-        supervisorEmail: '',
-        mayContact: '',
-    };
+    const initialEmployer = { ...EMPTY_EMPLOYER };
     const initialSchool = { name: '', startDate: '', endDate: '', location: '' };
     const initialUnemployment = { startDate: '', endDate: '', details: '' };
     const initialMilitary = { branch: '', start: '', end: '', rank: '', heavyEq: 'no', honorable: 'yes', explanation: '' };
+    const { renderSchoolRow, renderUnemploymentRow, renderMilitaryRow } = makeEmploymentRowRenderers({ ty, yesNoOptions });
 
     // Live three-year coverage, computed by the same module the submission
     // snapshot uses on the server, so what the driver is told here and what the
@@ -84,12 +90,13 @@ const Step6_Employment = ({ formData, updateFormData, onNavigate, onPartialSubmi
         unemploymentPeriods: formData.unemploymentPeriods,
         schools: formData.schools,
         military: formData.military,
-    }), [
+    }, employmentCoverageOptions(rules)), [
         formData.employers,
         formData.unemployment,
         formData.unemploymentPeriods,
         formData.schools,
         formData.military,
+        rules,
     ]);
 
     const [coveragePromptOpen, setCoveragePromptOpen] = useState(false);
@@ -143,13 +150,25 @@ const Step6_Employment = ({ formData, updateFormData, onNavigate, onPartialSubmi
                 return;
             }
         }
-
-        // Encourage, never block: the prompt interrupts once, and its own
-        // "Continue anyway" always proceeds.
-        if (!coverage.isComplete && !coveragePromptSeen.current) {
-            coveragePromptSeen.current = true;
-            setCoveragePromptOpen(true);
+        if (otherBlocking.length > 0) {
+            setAttempted(true);
+            issuesRef.current?.focus();
             return;
+        }
+
+        if (!coverage.isComplete) {
+            // `block`: the panel stays until the months are accounted for. `warn`:
+            // it interrupts once, and its own "Continue anyway" proceeds. `allow`:
+            // never interrupts.
+            if (enforcement === 'block') {
+                setCoveragePromptOpen(true);
+                return;
+            }
+            if (enforcement === 'warn' && !coveragePromptSeen.current) {
+                coveragePromptSeen.current = true;
+                setCoveragePromptOpen(true);
+                return;
+            }
         }
 
         proceed();
@@ -236,140 +255,9 @@ const Step6_Employment = ({ formData, updateFormData, onNavigate, onPartialSubmi
         </div>
     );
 
-    const renderSchoolRow = (index, item, handleChange) => (
-        <div className="space-y-ds-3">
-            <InputField label="School Name" id={'school-name-' + index} name="name" value={item.name} onChange={handleChange} required={true} />
-            <div className="grid grid-cols-1 gap-ds-4 sm:grid-cols-2">
-                <DateTripletField
-                    label="Start Date"
-                    idPrefix={'school-start-' + index}
-                    name="startDate"
-                    value={item.startDate}
-                    onChange={handleChange}
-                    required={true}
-                    maxToday={true}
-                    minYear={ty - 40}
-                    helpText="Month / Day / Year."
-                />
-                <DateTripletField
-                    label="End Date"
-                    idPrefix={'school-end-' + index}
-                    name="endDate"
-                    value={item.endDate}
-                    onChange={handleChange}
-                    required={true}
-                    maxToday={true}
-                    minYear={ty - 40}
-                    helpText="Month / Day / Year."
-                />
-            </div>
-            <InputField label="Location (City, State)" id={'school-location-' + index} name="location" value={item.location} onChange={handleChange} />
-        </div>
-    );
-
-    const renderUnemploymentRow = (index, item, handleChange) => (
-        <div className="space-y-ds-3">
-            <div className="grid grid-cols-1 gap-ds-4 sm:grid-cols-2">
-                <MonthYearField
-                    label="Gap Start (month / year)"
-                    idPrefix={'unemp-start-' + index}
-                    name="startDate"
-                    value={item.startDate}
-                    onChange={handleChange}
-                    required={true}
-                    maxToday={true}
-                    minYear={ty - 40}
-                    helpText="Easier than typing — stored securely like other dates."
-                />
-                <MonthYearField
-                    label="Gap End (month / year)"
-                    idPrefix={'unemp-end-' + index}
-                    name="endDate"
-                    value={item.endDate}
-                    onChange={handleChange}
-                    required={true}
-                    maxToday={true}
-                    minYear={ty - 40}
-                />
-            </div>
-            <FormField id={'unemp-details-' + index} label="Details related to unemployment period">
-                <Textarea
-                    name="details"
-                    rows="3"
-                    value={item.details || ""}
-                    onChange={(e) => handleChange(e.target.name, e.target.value)}
-                />
-            </FormField>
-        </div>
-    );
-
-    const renderMilitaryRow = (index, item, handleChange) => (
-        <div className="space-y-ds-3">
-            <RadioGroup
-                label="Branch of Service"
-                name="branch"
-                idPrefix={'mil-branch-' + index}
-                groupName={'mil-branch-' + index}
-                options={MILITARY_BRANCH_OPTIONS}
-                value={item.branch}
-                onChange={(name, value) => handleChange(name, value)}
-                required={true}
-                horizontal={false}
-            />
-            <div className="grid grid-cols-1 gap-ds-4 sm:grid-cols-2">
-                <MonthYearField
-                    label="Service Start (month / year)"
-                    idPrefix={'mil-start-' + index}
-                    name="start"
-                    value={item.start}
-                    onChange={handleChange}
-                    required={true}
-                    maxToday={true}
-                    minYear={ty - 50}
-                />
-                <MonthYearField
-                    label="Service End (month / year)"
-                    idPrefix={'mil-end-' + index}
-                    name="end"
-                    value={item.end}
-                    onChange={handleChange}
-                    required={true}
-                    maxToday={true}
-                    minYear={ty - 50}
-                />
-            </div>
-            <InputField label="Rank of Discharge" id={'mil-rank-' + index} name="rank" value={item.rank} onChange={handleChange} required={true} />
-            <RadioGroup
-                label="Did you operate heavy equipment/machinery?"
-                name="heavyEq"
-                idPrefix={'mil-heavy-eq-' + index}
-                groupName={'mil-heavy-eq-' + index}
-                options={yesNoOptions}
-                value={item.heavyEq}
-                onChange={(name, value) => handleChange(name, value)}
-            />
-            <RadioGroup
-                label="Did you receive an honorable discharge?"
-                name="honorable"
-                idPrefix={'mil-honorable-' + index}
-                groupName={'mil-honorable-' + index}
-                options={yesNoOptions}
-                value={item.honorable}
-                onChange={(name, value) => handleChange(name, value)}
-            />
-            <FormField id={'mil-explain-' + index} label="Please explain">
-                <Textarea
-                    name="explanation"
-                    rows="3"
-                    value={item.explanation || ""}
-                    onChange={(e) => handleChange(e.target.name, e.target.value)}
-                />
-            </FormField>
-        </div>
-    );
-
     return (
         <div id="page-6" className="form-step space-y-ds-6">
+            <StepIssues ref={issuesRef} blocking={otherBlocking} showBlocking={attempted} />
             <div className="space-y-ds-2 text-ds-sm text-ds-content-secondary">
                 <p>
                     <strong className="text-ds-content">Application (49 CFR 391.21):</strong> provide a complete employment history for the <strong className="text-ds-content">past 10 years</strong> — all employers (driving and non-driving),
@@ -394,6 +282,15 @@ const Step6_Employment = ({ formData, updateFormData, onNavigate, onPartialSubmi
                 tabIndex={-1}
                 className="space-y-ds-6 focus:outline-none"
             >
+            {/*
+              Optional PSP import — only when the company switched it on. It
+              suggests carriers and violations the report mentions; the applicant
+              adds each one deliberately, and nothing already entered changes.
+            */}
+            {!empHistoryConfig.hidden && integrationEnabled(currentCompany, 'psp') && (
+                <ReportImportPanel kind="psp" company={currentCompany} formData={formData} updateFormData={updateFormData} />
+            )}
+
             {/* Previous Employers - Configurable */}
             {!empHistoryConfig.hidden && (
                 <FormSection title="Previous Employers">
@@ -448,7 +345,7 @@ const Step6_Employment = ({ formData, updateFormData, onNavigate, onPartialSubmi
                 <EmploymentCoveragePrompt
                     coverage={coverage}
                     onAddHistory={handleAddHistory}
-                    onContinueAnyway={proceed}
+                    onContinueAnyway={enforcement === 'block' ? null : proceed}
                 />
             )}
 

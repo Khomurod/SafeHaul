@@ -3,18 +3,19 @@ import InputField from '@shared/components/form/InputField';
 import { useFieldValidation } from '@shared/hooks/useFieldValidation';
 import { required, email as emailRule, phone as phoneRule } from '@shared/utils/fieldValidators';
 import DateTripletField from '@shared/components/form/DateTripletField';
-import MonthYearField from '@shared/components/form/MonthYearField';
 import { ageFromIsoDate } from '@shared/utils/dateFormHelpers';
 import RadioGroup from '@shared/components/form/RadioGroup';
-import DynamicRow from '@shared/components/form/DynamicRow';
 import { useUtils } from '@shared/hooks/useUtils';
 import { useData } from '@/context/DataContext';
 import { AlertCircle } from 'lucide-react';
 import { useToast } from '@shared/components/feedback';
-import { Checkbox, FormSection } from '@/design-system/components';
+import { Checkbox, FieldMessage, FormSection } from '@/design-system/components';
 import { StepNavigation } from './components/StepNavigation';
 import { StateSelectField } from './components/StateSelectField';
+import { StepIssues } from './components/StepIssues';
+import { PreviousAddressesSection } from './components/PreviousAddressesSection';
 import { resolveApplicationGate } from '@/config/applicationGates';
+import { useStepGate } from '@features/driver-app/hooks/useApplicationRules';
 
 // Map validator field names to their input element ids (for focus-on-error).
 const FIELD_ID_BY_NAME = {
@@ -40,6 +41,12 @@ const FIELD_ID_BY_NAME = {
  * The per-step "Step 1 of 9" legend was removed: `Stepper` renders the
  * authoritative step title as the page `<h1>`, and this copy also said "of 9"
  * even when custom questions made it ten steps.
+ *
+ * 2026-09-02: the date-of-birth age check is also shown inline the moment the
+ * date changes (it used to surface only as a toast on Continue), and the
+ * company's `requirePreviousAddressUnderThreeYears` rule asks for a previous
+ * address as soon as the applicant answers No to the three-year question. The
+ * previous-address editor moved to `PreviousAddressesSection` unchanged.
  */
 const Step1_Contact = ({ formData, updateFormData, onNavigate, onPartialSubmit }) => {
     const ty = new Date().getFullYear();
@@ -62,6 +69,13 @@ const Step1_Contact = ({ formData, updateFormData, onNavigate, onPartialSubmit }
     // --- Logic ---
     const residenceThreeYears = formData['residence-3-years'];
     const knownByOtherName = formData['known-by-other-name'] === 'yes';
+    const { rules, blocking, attempted, issuesRef, refuseIfBlocked } = useStepGate('contact', formData);
+    const previousAddressRequired = rules.requirePreviousAddressUnderThreeYears
+        && !historyConfig.hidden && residenceThreeYears === 'no';
+
+    // Immediate: recalculated on every change of the date, not only on Continue.
+    const dobAge = !dobConfig.hidden && formData.dob ? ageFromIsoDate(formData.dob) : null;
+    const dobUnder21 = dobAge !== null && dobAge < 21;
 
     useEffect(() => {
         if (formData['known-by-other-name'] === undefined) {
@@ -180,6 +194,7 @@ const Step1_Contact = ({ formData, updateFormData, onNavigate, onPartialSubmit }
                 return;
             }
         }
+        if (refuseIfBlocked()) return;
         onNavigate('next');
     };
 
@@ -200,6 +215,7 @@ const Step1_Contact = ({ formData, updateFormData, onNavigate, onPartialSubmit }
 
     return (
         <div id="page-1" className="form-step space-y-ds-6">
+            <StepIssues ref={issuesRef} blocking={blocking} showBlocking={attempted} />
 
             {/* --- Personal Details --- */}
             <FormSection title="Personal Information">
@@ -247,17 +263,24 @@ const Step1_Contact = ({ formData, updateFormData, onNavigate, onPartialSubmit }
 
                     {/* DOB Field - Configurable */}
                     {!dobConfig.hidden && (
-                        <DateTripletField
-                            label="Date of Birth"
-                            idPrefix="dob"
-                            name="dob"
-                            required={dobConfig.required}
-                            value={formData.dob}
-                            onChange={updateFormData}
-                            maxToday={true}
-                            minYear={1920}
-                            helpText="Select month, day, and year — easier than scrolling a calendar."
-                        />
+                        <div>
+                            <DateTripletField
+                                label="Date of Birth"
+                                idPrefix="dob"
+                                name="dob"
+                                required={dobConfig.required}
+                                value={formData.dob}
+                                onChange={updateFormData}
+                                maxToday={true}
+                                minYear={1920}
+                                helpText="Select month, day, and year — easier than scrolling a calendar."
+                            />
+                            {dobUnder21 && (
+                                <FieldMessage tone="error" className="mt-ds-1" data-testid="dob-age-message">
+                                    This date of birth indicates you are under 21. Interstate CMV positions require age 21 or older — please verify the date.
+                                </FieldMessage>
+                            )}
+                        </div>
                     )}
                 </div>
 
@@ -331,91 +354,13 @@ const Step1_Contact = ({ formData, updateFormData, onNavigate, onPartialSubmit }
                 )}
             </FormSection>
 
-            {/*
-              --- Previous Address History (Past 3 Years) ---
-
-              Gated by the SAME `addressHistory` setting as the three-year
-              question above. Hiding only the question left the editor — its
-              heading, its Add button and its six required fields per row —
-              on screen at a company that had turned address history off, so
-              "Hidden" hid half a section. Hidden means the whole section.
-
-              Row fields stay required regardless of the gate's requiredness:
-              that is per-row completeness, not per-section. A driver who chose
-              to add a previous address is asked to finish it; a driver at a
-              company where the section is optional simply adds no rows.
-            */}
             {!historyConfig.hidden && (
-                <DynamicRow
-                    listKey="previousAddresses"
-                    title="Previous Addresses (Past 3 Years)"
+                <PreviousAddressesSection
                     formData={formData}
                     updateFormData={updateFormData}
-                    initialItemState={{ street: '', city: '', state: '', zip: '', startDate: '', endDate: '' }}
-                    addButtonLabel="Add Previous Address"
-                    renderRow={(index, item, handleRowChange) => (
-                        <div className="space-y-ds-4">
-                            <InputField
-                                label="Address"
-                                id={`prev-street-${index}`}
-                                name="street"
-                                value={item.street}
-                                onChange={(n, v) => handleRowChange('street', v)}
-                                placeholder="123 Old St"
-                                required={true}
-                            />
-                            <div className="grid grid-cols-1 gap-ds-6 sm:grid-cols-3">
-                                <InputField
-                                    label="City"
-                                    id={`prev-city-${index}`}
-                                    name="city"
-                                    value={item.city}
-                                    onChange={(n, v) => handleRowChange('city', v)}
-                                    placeholder="City"
-                                    required={true}
-                                />
-                                <StateSelectField
-                                    id={`prev-state-${index}`}
-                                    name="state"
-                                    states={states}
-                                    value={item.state}
-                                    onChange={(e) => handleRowChange('state', e.target.value)}
-                                />
-                                <InputField
-                                    label="ZIP Code"
-                                    id={`prev-zip-${index}`}
-                                    name="zip"
-                                    value={item.zip}
-                                    onChange={(n, v) => handleRowChange('zip', v)}
-                                    placeholder="Zip"
-                                    required={true}
-                                />
-                            </div>
-                            <div className="grid grid-cols-1 gap-ds-6 sm:grid-cols-2">
-                                <MonthYearField
-                                    label="From (month / year)"
-                                    idPrefix={`prev-start-${index}`}
-                                    name="startDate"
-                                    value={item.startDate}
-                                    onChange={(n, v) => handleRowChange('startDate', v)}
-                                    required={true}
-                                    maxToday={true}
-                                    minYear={ty - 80}
-                                    helpText="Same easy dropdowns as employment gaps — no calendar picker."
-                                />
-                                <MonthYearField
-                                    label="To (month / year)"
-                                    idPrefix={`prev-end-${index}`}
-                                    name="endDate"
-                                    value={item.endDate}
-                                    onChange={(n, v) => handleRowChange('endDate', v)}
-                                    required={true}
-                                    maxToday={true}
-                                    minYear={ty - 80}
-                                />
-                            </div>
-                        </div>
-                    )}
+                    states={states}
+                    ty={ty}
+                    requiredHint={previousAddressRequired}
                 />
             )}
 

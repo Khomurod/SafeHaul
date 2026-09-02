@@ -19,10 +19,19 @@ const CO = { companyName: 'Artificial Freight Co' };
 const LEGACY_PRESENTED_IDS = ['electronicSignature', 'fcraDisclosure', 'pspDisclosure'];
 
 describe('agreement set completeness — no required agreement may go missing', () => {
-  it('always presents all four agreements in a fixed order', () => {
-    expect(requiredAgreementIds()).toEqual([
-      'electronicSignature', 'fcraDisclosure', 'pspDisclosure', 'clearinghouseConsent',
-    ]);
+  it('always presents all five agreements in a fixed order', () => {
+    expect(requiredAgreementIds()).toEqual(['mvrAuthorization', 'electronicSignature', 'fcraDisclosure', 'pspDisclosure', 'clearinghouseConsent']);
+  });
+
+  // ONE MVR authorization in the whole application: read and answered on the
+  // Motor Vehicle Record step, never a second time on the consent step.
+  it('presents the MVR authorization on the driving-record step, answered Yes/No rather than signed', () => {
+    const mvr = resolveAgreementSet(CO).find((a) => a.id === 'mvrAuthorization');
+    expect(mvr.presentedOn).toBe('drivingRecord');
+    expect(mvr.requiresSignature).toBe(false);
+    expect(mvr.body).toContain('Artificial Freight Co');
+    expect(mvr.body).toContain('49 CFR 391.23');
+    expect(AGREEMENTS.mvrAuthorization.versions['legacy-1']).toBeUndefined();
   });
 
   // 49 CFR Part 382 subpart G: the Clearinghouse full-query consent is mandatory.
@@ -32,8 +41,10 @@ describe('agreement set completeness — no required agreement may go missing', 
     expect(ids).toContain('clearinghouseConsent');
   });
 
-  it('marks every presented agreement as needing a signature', () => {
-    expect(resolveAgreementSet(CO).every((a) => a.requiresSignature)).toBe(true);
+  it('marks every consent-step agreement as needing a signature', () => {
+    const consentStep = resolveAgreementSet(CO).filter((a) => a.presentedOn === 'consent');
+    expect(consentStep).toHaveLength(4);
+    expect(consentStep.every((a) => a.requiresSignature)).toBe(true);
   });
 
   it('resolves the set at the current version by default', () => {

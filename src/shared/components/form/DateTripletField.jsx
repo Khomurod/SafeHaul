@@ -26,6 +26,13 @@ const emptyTriplet = () => ({ year: '', month: '', day: '' });
  * The three selects are grouped so assistive technology hears the field name
  * once, and each control's own name is composed from it ("Date of Birth month")
  * instead of a bare "Month".
+ *
+ * DEFECT FIXED (2026-09-02): the three selects shared one `grid-cols-3` row at
+ * every width. On a phone that left the year select about 80px wide, of which
+ * the design system's arrow gutter and padding take 44 — so a four-digit year
+ * rendered clipped. The row now wraps on narrow screens (month and day share
+ * the first line, the year takes the whole second line) and each cell is
+ * `min-w-0`, so the year is always shown in full on desktop and mobile alike.
  */
 export default function DateTripletField({
     label,
@@ -188,9 +195,9 @@ export default function DateTripletField({
                 role="group"
                 aria-labelledby={label || required ? groupLabelId : undefined}
                 aria-describedby={helpText ? helpTextId : undefined}
-                className="grid grid-cols-3 gap-ds-2"
+                className="grid grid-cols-2 gap-ds-2 sm:grid-cols-3"
             >
-                <div>
+                <div className="min-w-0">
                     <label className="ds-visually-hidden" htmlFor={`${idPrefix}-month`}>{partName('month')}</label>
                     <Select
                         id={`${idPrefix}-month`}
@@ -210,7 +217,7 @@ export default function DateTripletField({
                         })}
                     </Select>
                 </div>
-                <div>
+                <div className="min-w-0">
                     <label className="ds-visually-hidden" htmlFor={`${idPrefix}-day`}>{partName('day')}</label>
                     <Select
                         id={`${idPrefix}-day`}
@@ -226,7 +233,7 @@ export default function DateTripletField({
                         ))}
                     </Select>
                 </div>
-                <div>
+                <div className="col-span-2 min-w-0 sm:col-span-1">
                     <label className="ds-visually-hidden" htmlFor={`${idPrefix}-year`}>{partName('year')}</label>
                     <Select
                         id={`${idPrefix}-year`}

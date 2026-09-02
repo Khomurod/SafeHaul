@@ -35,6 +35,7 @@ const RadioGroup = ({
     idPrefix,
     groupName,
     error,
+    disabled = false,
 }) => {
     // Payload key stays `name`; only the DOM id base and the browser's grouping
     // name may be scoped by the caller.
@@ -63,6 +64,7 @@ const RadioGroup = ({
                     onChange={handleChange}
                     required={required}
                     requiredMark={false}
+                    disabled={disabled}
                 />
             ))}
         </ChoiceGroup>

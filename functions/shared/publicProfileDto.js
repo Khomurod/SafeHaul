@@ -36,7 +36,8 @@ const PUBLIC_APPLICATION_CONFIG_KEYS = [
 ];
 
 /**
- * The shape version of this projection.
+ * The shape version of this projection. Version 3 (2026-09-02) added
+ * `applicationRules` and `applicationIntegrations`.
  *
  * Stamped onto every profile this module writes, and compared by the reconciler
  * in `publicProfileSync.js`. That comparison is the whole point: widening the
@@ -50,7 +51,20 @@ const PUBLIC_APPLICATION_CONFIG_KEYS = [
  * BUMP THIS whenever `buildPublicProfileDto`'s output shape changes, so every
  * existing profile is rewritten by the reconciler on its next pass.
  */
-const PUBLIC_PROFILE_DTO_VERSION = 2;
+const PUBLIC_PROFILE_DTO_VERSION = 3;
+
+const { resolveApplicationRules } = require('./applicationRules');
+
+/**
+ * The optional data sources a company may switch on for its applicants. Only the
+ * on/off flags cross to the public surface — never a credential, an account id
+ * or anything about how the source is configured.
+ */
+function projectIntegrations(raw) {
+    const source = raw && typeof raw === 'object' ? raw : {};
+    const enabled = (key) => Boolean(source[key] && typeof source[key] === 'object' && source[key].enabled === true);
+    return { psp: { enabled: enabled('psp') }, mvr: { enabled: enabled('mvr') } };
+}
 
 /**
  * Build the public-safe projection of a company document.
@@ -89,6 +103,13 @@ function buildPublicProfileDto(companyData = {}, updatedAt = null, options = {})
         logoUrl: companyData.companyLogoUrl || null,
         brandColor: companyData.brandColor || '#1e40af',
         applicationConfig,
+        // The company's Application Rules, resolved: defaults filled in, values
+        // validated, unknown keys dropped. Every value is a setting the applicant
+        // experiences directly, so there is nothing private to withhold — and
+        // resolving here means the apply page and the server both read one
+        // complete, well-formed object rather than each filling gaps its own way.
+        applicationRules: resolveApplicationRules(companyData.applicationRules),
+        applicationIntegrations: projectIntegrations(companyData.applicationIntegrations),
         customQuestions: Array.isArray(companyData.customQuestions) ? companyData.customQuestions : [],
         // Post-application e-sign forms shown to the driver on the success
         // screen. Project ONLY the fields the public page needs
