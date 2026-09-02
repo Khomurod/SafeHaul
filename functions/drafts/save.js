@@ -12,6 +12,7 @@ const { checkRateLimit } = require('../shared/rateLimiter');
 const { assertCompanyAcceptingIntake } = require('../shared/companyTenant');
 const { generateApplicantKey } = require('../shared/buildApplicationDoc');
 const draft = require('../shared/applicationDraft');
+const prepared = require('../shared/companyPreparedDraft');
 const {
     applicantKeyOf, clientIp, docId, identityKeyOrNull, mayModifyExistingDraft,
     recordMatchAttempt, supersedeOtherDrafts, text, tokenOpensALiveDraft,
@@ -146,7 +147,18 @@ exports.saveApplicationProgress = functions
                 clientSeq: Number.isInteger(data?.clientSeq)
                     ? Math.max(0, Math.min(MAX_CLIENT_SEQ, data.clientSeq))
                     : null,
-                status: 'in_progress',
+                /**
+                 * A carrier-prepared application becomes the driver's the moment
+                 * they save one page of it. That is a one-way door: it is what
+                 * ends the carrier's read of the answers it wrote (see
+                 * `shared/companyPreparedDraft.js`), so it must not be reversible
+                 * by a later save, and it must never be *set* by anything but a
+                 * real driver save landing here. An ordinary driver-authored
+                 * draft keeps `in_progress` exactly as before.
+                 */
+                status: prepared.isCompanyPrepared(existing.exists ? existing.data() : null)
+                    ? prepared.PREPARED_STATUSES.DRIVER_IN_PROGRESS
+                    : 'in_progress',
                 updatedAt: draft.serverTimestamp(),
                 expiresAt: draft.expiresAt(),
             };

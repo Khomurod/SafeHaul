@@ -132,6 +132,13 @@ exports.startNewApplication = applicationDrafts.startNewApplication;
 // The recruiter half: unfinished applications are only useful to the carrier if
 // somebody can see them.
 exports.listApplicationDrafts = applicationDrafts.listApplicationDrafts;
+
+// Applications a carrier starts on the driver's behalf: prepared as a draft,
+// completed and signed by the driver through the ordinary public wizard.
+const companyApplications = require('./companyApplications');
+exports.saveCompanyPreparedApplication = companyApplications.saveCompanyPreparedApplication;
+exports.getCompanyPreparedDraft = companyApplications.getCompanyPreparedDraft;
+exports.listCompanyPreparedApplications = companyApplications.listCompanyPreparedApplications;
 exports.createPostApplicationSigningRequest = require('./postApplicationEdocs').createPostApplicationSigningRequest;
 // AI Field Assistant: authenticated, company-scoped PDF field-placement suggestions.
 // Deliberately separate from parseCdlWithGroq (public guest path, different model pin).
