@@ -146,6 +146,28 @@ name, so on a run where the browser lane is skipped you will see a check called
 `E2E shard ${{ matrix.shard }} of 4 (Chromium)`. That is GitHub rendering an
 un-expanded matrix, not a broken workflow. It is not required by anything.
 
+**Status, 2026-09-02: `main` has no protection rule and no ruleset.** Read from
+the GitHub API during the source-size closeout; the same session could not write
+one, because its proxy refuses writes to the protection and ruleset endpoints.
+Enabling it is a repository-settings action for an owner, and the minimal rule
+is short — nothing here changes CI:
+
+1. **Require a pull request before merging.** No approval-count requirement is
+   needed for the gate to work; add one only if you want a second person on
+   every merge.
+2. **Require status checks to pass**, naming exactly the two above:
+   `Verify the release is fully validated` and `secret-scan`. Leave "require
+   branches to be up to date before merging" **off** — the gate already
+   measures the pull request's own merge result, and turning it on would make
+   every documentation-only pull request rebase for nothing. Both checks have
+   reported on past pull requests, so the settings search finds them by name.
+3. **Block force pushes and branch deletion** on `main`.
+4. "Include administrators" is the owner's call. The gate does not depend on it.
+
+Do not add `callable-contract` as a third required check: it is in
+`ALWAYS_REQUIRED_JOBS`, so the gate already refuses any run in which it did not
+succeed, and naming it twice buys nothing.
+
 ## Releasing from Super Admin
 
 **Super Admin → Releases** is the normal route to Production.
@@ -352,6 +374,43 @@ The retired function:
   Google Secret Manager. Both are now unbound and out of the vault registry; the
   stored ciphertext in `platform_settings/landing_page` was not deleted, so
   **rotate the bot token through BotFather** if that has not happened yet.
+
+### Deleting the retired callables from the project
+
+Retiring a function in `functions/index.js` does not remove it from Cloud. The
+deploy scripts (`scripts/deploy-functions-*.mjs`) only ever run
+`--only functions:<name>` for functions that still exist, and the workflow's one
+deletion step removes `onLeadSubmitted` alone. So the six callables `LD-R3`
+retired on 2026-08-29 — `submitLandingLead` (v2 `onRequest`),
+`getLandingPageSettings`, `updateLandingTelegramConfig`,
+`setLandingTelegramEnabled`, `sendLandingTelegramTest` and
+`retryLandingLeadDelivery` (v2 `onCall`), all in `us-central1` — are **assumed
+still deployed** until someone with project access looks. The closeout session
+on 2026-09-02 could not: the container has no Firebase or Google credential.
+
+The operator procedure, in order:
+
+1. **Check the precondition first.** Deleting a callable is the *contract* half
+   of expand → promote → contract (see "Shared-backend rules" below). The
+   Production frontend must be serving a release at or after `f7c89d4` (#56,
+   `LD-R3` merged), because the older Super Admin "Landing Page Settings" screen
+   called five of these. Read it from Super Admin → Releases, or from
+   `verify-shipped` on the last production run.
+2. **Compare deployed against intended.** `firebase functions:list --project
+   truckerapp-system` against the exports in `functions/index.js`; the
+   difference should be exactly the six names above. Anything else on the list
+   that the file does not export is a separate question — do not delete it under
+   this procedure.
+3. **Delete only the six**, region-qualified:
+   `firebase functions:delete submitLandingLead getLandingPageSettings
+   updateLandingTelegramConfig setLandingTelegramEnabled sendLandingTelegramTest
+   retryLandingLeadDelivery --region us-central1 --project truckerapp-system --force`.
+   `listLandingLeads` stays: it is the only path to the archive.
+4. **Verify**: run `functions:list` again and confirm the six are gone and
+   `listLandingLeads` is not.
+5. **Touch no data.** The `landing_leads` collection and `platform_settings/
+   landing_page` are preserved by owner ruling; deleting a function deletes no
+   documents, and nothing in this procedure should either.
 
 Never place Telegram credentials in HTML, browser JavaScript, `.env` files that
 are committed, GitHub secrets, or GitHub Actions. **This rule does not retire with

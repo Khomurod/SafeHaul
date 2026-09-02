@@ -98,6 +98,16 @@ export const profileOverride = { current: null };
  */
 export const profileGate = { current: null };
 
+/**
+ * Lets a test decide the fetch's outcome outright.
+ *
+ * A function, consulted on every fetch once the gate opens: return `null` for a
+ * company that does not exist, or throw for a service that is down. Held in a
+ * ref rather than queued with `mockResolvedValueOnce` for the reason the
+ * override gives above — a one-shot value serves the default to a second call.
+ */
+export const profileOutcome = { current: null };
+
 // --- vi.mock factory bodies, verbatim from the original registrations ------
 
 export const dataContextMock = () => ({
@@ -153,6 +163,7 @@ export const applicationIdMock = () => ({
 export const publicProfileServiceMock = () => ({
   fetchPublicProfileBySlug: vi.fn(async () => {
     if (profileGate.current) await profileGate.current;
+    if (profileOutcome.current) return profileOutcome.current();
     return {
       id: 'company-1',
       companyName: 'Acme Freight',

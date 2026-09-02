@@ -2,15 +2,16 @@
  * K, L — the guards that have to stay guards.
  *
  * K pins the steps that were once advisory and are now blocking, so none can
- * quietly go back to `continue-on-error`. L pins the secret scanner's wiring: no
+ * quietly go back to `continue-on-error`, and the public-claims step that was
+ * documented as a CI gate before any job ran it. L pins the secret scanner's wiring: no
  * third-party scanning action, full history checked out, no `if:` that can
  * condition it away, and an audit that reports without being able to block a
  * release.
  */
 
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve as resolvePath } from 'node:path';
-import { ALWAYS_REQUIRED_JOBS } from '../ci-plan.mjs';
+import { ALWAYS_REQUIRED_JOBS, LANES, lanesForPath } from '../ci-plan.mjs';
 import { evaluateValidation } from '../verify-release-validation.mjs';
 import { allJobs, assert, here, plan, workflow } from './test-support.mjs';
 
@@ -90,6 +91,88 @@ console.log('\nK. Guards that stay guards');
         && existsSync(resolvePath(fontDir, 'InterVariable-Italic.woff2'))
         && existsSync(resolvePath(fontDir, 'LICENSE.txt')),
         'both faces plus the SIL OFL licence that permits redistributing them');
+
+    /*
+     * K4 — the public site's claims gate runs in CI, in the lane `web/` selects.
+     *
+     * `npm run check:public-claims` was wired into the root `npm run lint`, and the
+     * brief said CI enforced it. CI ran `lint:frontend`. So no job executed the
+     * check at all: a `web/` change selected `frontend_unit` (A5), that lane ran
+     * the hosting-config tests and the ratchet, and the one check written for the
+     * public site's words never ran — a gate that was documented, not wired.
+     * Found 2026-09-01 while closing the source-size campaign.
+     *
+     * The step lives in `frontend-quality` now. These pin it to EVERY job of the
+     * lane a public page selects — derived from the planner, not named here, so a
+     * lane change cannot strand it — and pin the checker's own fail-closed
+     * refusal, because a scan over no HTML reads exactly like a pass. The last
+     * check is the coverage claim itself: the checker reads only top-level
+     * `web/*.html`, so a page in a subdirectory would be validated by nothing.
+     */
+    const CLAIMS_SCRIPT = 'npm run check:public-claims';
+    const jobBlock = (jobId) => {
+        const start = workflowText.indexOf(`\n  ${jobId}:\n`);
+        if (start < 0) return null;
+        const rest = workflowText.slice(start + 1);
+        const next = rest.search(/\n {2}[A-Za-z0-9_-]+:\n/);
+        return next < 0 ? rest : rest.slice(0, next);
+    };
+    const stepIn = (block, name) => {
+        const start = block.indexOf(`- name: ${name}`);
+        if (start < 0) return null;
+        const rest = block.slice(start + 1);
+        const next = rest.indexOf('\n      - name:');
+        return next < 0 ? rest : rest.slice(0, next);
+    };
+
+    const existingPage = lanesForPath('web/privacy.html');
+    const futurePage = lanesForPath('web/some-future-page.html');
+    assert('K4. a public page selects at least one lane',
+        existingPage.length > 0,
+        'a page mapped to no lane is validated by nothing; A5 pins the mapping, this pins its consequence');
+    assert('K4. a page that does not exist yet selects the same lanes',
+        JSON.stringify(futurePage) === JSON.stringify(existingPage),
+        'the mapping is by directory, so the next public page inherits the gate rather than escaping it');
+
+    const claimsJobs = [...new Set(existingPage.flatMap((lane) => LANES[lane].jobs))];
+    for (const job of claimsJobs) {
+        const block = jobBlock(job);
+        assert(`K4. ${job} exists in the workflow`, block !== null,
+            'the planner selects a job the workflow does not define; the lane would run nothing');
+        const step = block === null ? null : stepIn(block, 'Public-claims check');
+        assert(`K4. ${job} carries the public-claims step`, step !== null,
+            `every job a web/ change selects must run ${CLAIMS_SCRIPT}, or the change is validated without it`);
+        assert(`K4. ${job} runs the checker itself, not a script that merely contains it`,
+            step !== null && new RegExp(`^\\s+run:\\s*${CLAIMS_SCRIPT.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`, 'm').test(step),
+            'the root `npm run lint` used to be the only caller, and CI never ran it');
+        assert(`K4. the public-claims step in ${job} is blocking and unconditional`,
+            step !== null && !/continue-on-error:\s*true/.test(step) && !/^\s+if:/m.test(step),
+            'a claims check that cannot fail, or that a condition can skip, is a report');
+    }
+
+    const pkg = JSON.parse(readFileSync(resolvePath(here, '../package.json'), 'utf8'));
+    const checkerPath = resolvePath(here, './check-public-claims.mjs');
+    assert('K4. `check:public-claims` still points at the checker',
+        pkg.scripts['check:public-claims'] === 'node scripts/check-public-claims.mjs' && existsSync(checkerPath),
+        'the workflow names the npm script, so the script must still name the file');
+    const checker = readFileSync(checkerPath, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    assert('K4. the checker reads the public site from `web/`',
+        /PUBLIC_DIR = path\.join\(ROOT, 'web'\)/.test(checker),
+        'the lane mapping is for web/; a checker reading another directory validates the wrong site');
+    assert('K4. the checker refuses when it finds no HTML',
+        /if \(pages\.length === 0\) \{[^}]*process\.exit\(1\)/.test(checker),
+        'zero pages means nothing was checked, and nothing checked must not pass');
+    assert('K4. the checker reuses the capability package\'s own checkClaims',
+        /require\([^)]*safehaulCapabilities\.js/.test(checker) && /\bcheckClaims\(/.test(checker),
+        'the blog and the public site are held to one list, not two copies that drift');
+
+    const webDir = resolvePath(here, '../web');
+    const nestedHtml = readdirSync(webDir, { recursive: true })
+        .map(String)
+        .filter((file) => file.endsWith('.html') && /[\\/]/.test(file));
+    assert('K4. every public page sits where the checker looks',
+        nestedHtml.length === 0,
+        `the checker scans top-level web/*.html only; nested page(s) would be validated by nothing: ${nestedHtml.join(', ')}`);
 }
 
 console.log('\nL. The secret scanner is scoped, pinned, and still mandatory');

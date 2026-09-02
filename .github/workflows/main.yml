@@ -332,6 +332,16 @@ jobs:
       - name: Frontend Lint
         run: npm run lint:frontend
 
+      # The public site's claims gate. `npm run check:public-claims` is part of
+      # the root `npm run lint`, but CI runs `lint:frontend`, so for a while no
+      # job ran it at all — a `web/` change selected this lane (`A5`) and was
+      # "validated" without the one check written for it. It is a step HERE
+      # because `frontend_unit` is the lane `web/` selects, so a public-site
+      # change cannot skip it, and it fails closed when `web/` holds no HTML.
+      # `K4` in `npm run check:ci-plan` pins the step, the lane and the script.
+      - name: Public-claims check
+        run: npm run check:public-claims
+
       # The design-system ratchet. It measures the tree against a committed
       # inventory and fails on anything the inventory does not already cover, so
       # a new raw palette class, off-scale type size, sub-12px text or

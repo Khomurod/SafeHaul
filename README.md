@@ -57,7 +57,9 @@ Super Admin operations and the business rules behind them — is in the
 Every product claim must trace to an `available` or `partial` entry in
 [`functions/ai/knowledge/safehaulCapabilities.js`](functions/ai/knowledge/safehaulCapabilities.js),
 which is the **source of truth for what SafeHaul can honestly say about
-itself**. `npm run check:public-claims` enforces it as part of `npm run lint`.
+itself**. `npm run check:public-claims` enforces it — as a step of the
+`frontend-quality` CI job, which every `web/` change selects, and as part of
+`npm run lint`.
 
 Notably absent, and never to be claimed as shipped: document-expiry monitoring
 or renewal reminders · MVR, PSP or FMCSA Clearinghouse **checks** (the
