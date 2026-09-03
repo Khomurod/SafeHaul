@@ -1277,11 +1277,15 @@ Yes/No violations and accidents questions and the PSP/MVR report-import panel
 (`FormSection` + `FileInput` + `Badge` + `Button`), and — 2026-09-03 — Company →
 Applications → Start an application, where a carrier fills in a driver's
 application and sends them a link: the worklist (`DataTable` + `Badge`), the
-identity and editor screens (`SchemaSection` for the scalar sections, the
-wizard's own `DynamicRow` for employers and violations), the document panel
-(`UploadField`), the reader panel and the link panel (`Card` + `Button` +
-`Badge` + `FieldMessage`). No new visual primitive was introduced for any of
-them.
+editor screen (`SchemaSection` for the scalar sections, including the email and
+phone that key the draft, and the wizard's own `DynamicRow` for employers and
+violations), the document panel (`UploadField`), the reader panel and the link
+panel (`Card` + `Button` + `Badge` + `FieldMessage`). Updated 2026-09-03: the
+flow now opens with a **mode chooser** (two `Card`s — read the documents, or fill
+in manually) and, on the AI path, a dedicated **upload step** before the editor;
+the separate identity screen was removed, because the email and phone are
+ordinary schema fields of the editor. No new visual primitive was introduced for
+any of them (`ApplicationModeChooser` is `Card` + `Button` content).
 
 One choice there is a rule rather than a preference, and it is the same one the
 driver wizard's locked employer rows follow: **a field the viewer may not change
