@@ -300,30 +300,28 @@ const PROVIDER_LIST = [
         ],
         configFields: [],
         /**
-         * The vision entries were both **retired models**, and had been for
-         * months, which is why Mistral could never serve a CDL photograph:
+         * Pinned to `mistral-medium-latest`, one model for every lane.
          *
-         *   pixtral-12b-2409    deprecated 2025-12-02, retired 2025-12-31
-         *   pixtral-large-2411  deprecated 2026-02-27, retired 2026-05-31
+         * `mistral-large-latest` (the previous text and vision pin) is paid-tier
+         * only: a free key gets `403 tier_not_allowed` and Large is not even in
+         * its catalogue, so every lane 403'd and the connection test reported
+         * six failures. The pixtral models it replaced were retired months ago.
          *
-         * `-latest` does not rescue an alias whose model is gone. Verified
-         * against Mistral's model catalogue 2026-08-17.
-         *
-         * `mistral-large-latest` replaces both. It resolves to
-         * `mistral-large-2512` (Mistral Large 3), whose published capabilities
-         * are `input: ['text', 'image']` with `structured-outputs` — so one
-         * model now serves the text lanes and the image lanes, on the same
-         * entitlement, instead of pinning two more that could rot separately.
+         * `mistral-medium-latest` is vision-capable with structured output and
+         * long context, so one model serves the text and image lanes on the
+         * *free* entitlement. Verified 2026-09-03 on a free key against the live
+         * API: it read a CDL photo, a PSP page image, and PSP/MVR/medical text
+         * into the schema. No per-tier config exists, so the default targets the
+         * tier a free key actually has.
          */
         defaultModels: {
-            [TEXT]: 'mistral-large-latest',
-            [ARTICLE_WRITING]: 'mistral-large-latest',
-            // Resolves to mistral-small-2603 (Mistral Small 4). Verified 2026-08-17.
-            [SUMMARIZATION]: 'mistral-small-latest',
-            [CLASSIFICATION]: 'mistral-small-latest',
-            [STRUCTURED_JSON]: 'mistral-large-latest',
-            [VISION]: 'mistral-large-latest',
-            [MULTI_IMAGE]: 'mistral-large-latest',
+            [TEXT]: 'mistral-medium-latest',
+            [ARTICLE_WRITING]: 'mistral-medium-latest',
+            [SUMMARIZATION]: 'mistral-medium-latest',
+            [CLASSIFICATION]: 'mistral-medium-latest',
+            [STRUCTURED_JSON]: 'mistral-medium-latest',
+            [VISION]: 'mistral-medium-latest',
+            [MULTI_IMAGE]: 'mistral-medium-latest',
         },
         timeoutMs: 45000,
         retryPolicy: SINGLE_ATTEMPT,

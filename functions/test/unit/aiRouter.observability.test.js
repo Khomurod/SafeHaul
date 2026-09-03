@@ -192,7 +192,7 @@ describe('transaction logging', () => {
                     providerId, status: 404, vendorCode: 'model_not_found',
                 });
             }
-            return { text: '{"value":"x"}', model: 'mistral-large-latest', usage: { inputTokens: 900, outputTokens: 120 } };
+            return { text: '{"value":"x"}', model: 'mistral-medium-latest', usage: { inputTokens: 900, outputTokens: 120 } };
         });
 
         const result = await runAiTask(visionTask());

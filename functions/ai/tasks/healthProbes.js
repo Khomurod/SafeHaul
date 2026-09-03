@@ -57,25 +57,88 @@
  * is what put two working vision providers on the console as broken while CDL
  * auto-fill had nothing to fall back to.
  *
- * 256x256 is still flat colour, still generated, still ~560 bytes, and still
+ * 256x256 is still flat colour, still generated, still ~570 bytes, and still
  * costs a rounding error — it is simply large enough for the question to be a
  * fair one. **If these are ever shrunk again, the probes stop testing the
  * vendors and start testing their tolerance of degenerate input.**
+ *
+ * ## Why they are generated, not pasted as base64
+ *
+ * They used to be hand-rolled minimal PNGs pasted in as base64. Mistral's newer
+ * models (`mistral-small`, `mistral-medium`) reject those outright with `400
+ * invalid_request_file` while reading a standard, properly zlib-compressed PNG
+ * of the exact same pixels perfectly (measured 2026-09-03 on a free key). A
+ * false "vision failed" is the pessimistic lie this file already exists to
+ * prevent, so the images are now emitted by `solidColorPng` below: a conformant
+ * encoding is the most compatible one, and generating it means the bytes can
+ * never rot into a form a strict decoder refuses.
  */
 
+const zlib = require('zlib');
 const { CAPABILITIES } = require('../registry/capabilities');
 
+const PROBE_IMAGE_SIZE = 256;
+
+/** Standard CRC-32 (IEEE), the checksum every PNG chunk carries. */
+const CRC_TABLE = (() => {
+    const table = new Array(256);
+    for (let n = 0; n < 256; n += 1) {
+        let c = n;
+        for (let k = 0; k < 8; k += 1) c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1);
+        table[n] = c >>> 0;
+    }
+    return table;
+})();
+
+function crc32(buffer) {
+    let crc = 0xffffffff;
+    for (const byte of buffer) crc = CRC_TABLE[(crc ^ byte) & 0xff] ^ (crc >>> 8);
+    return (crc ^ 0xffffffff) >>> 0;
+}
+
+/** One length-prefixed, CRC-suffixed PNG chunk. */
+function pngChunk(type, data) {
+    const length = Buffer.alloc(4);
+    length.writeUInt32BE(data.length);
+    const typeBytes = Buffer.from(type, 'ascii');
+    const crc = Buffer.alloc(4);
+    crc.writeUInt32BE(crc32(Buffer.concat([typeBytes, data])));
+    return Buffer.concat([length, typeBytes, data, crc]);
+}
+
 /**
- * A 256x256 solid red PNG and a 256x256 solid blue PNG, 564 bytes each.
+ * A `data:image/png` URL for a solid-colour square, standard-encoded (8-bit
+ * truecolour, one zlib IDAT). Conformant enough for the strictest vendor
+ * decoders — see the note above on why that matters.
+ */
+function solidColorPng(size, [r, g, b]) {
+    const signature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+    const ihdr = Buffer.alloc(13);
+    ihdr.writeUInt32BE(size, 0); // width
+    ihdr.writeUInt32BE(size, 4); // height
+    ihdr[8] = 8; // bit depth
+    ihdr[9] = 2; // colour type 2: truecolour RGB (10 compression, 11 filter, 12 interlace default to 0)
+    const row = Buffer.alloc(1 + size * 3); // leading filter byte (0, None) + RGB pixels
+    for (let x = 0; x < size; x += 1) {
+        row[1 + x * 3] = r; row[2 + x * 3] = g; row[3 + x * 3] = b;
+    }
+    const raw = Buffer.concat(Array.from({ length: size }, () => row));
+    const idat = zlib.deflateSync(raw, { level: 9 });
+    const png = Buffer.concat([
+        signature, pngChunk('IHDR', ihdr), pngChunk('IDAT', idat), pngChunk('IEND', Buffer.alloc(0)),
+    ]);
+    return `data:image/png;base64,${png.toString('base64')}`;
+}
+
+/**
+ * A solid red PNG and a solid blue PNG.
  *
  * Two colours rather than one because the multi-image probe has to be able to
  * distinguish *which* image is which — a provider that silently drops all but
  * the first image would otherwise pass.
- *
- * See the note above on why these are not 8x8 any more.
  */
-const RED_PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAIAAADTED8xAAAB+0lEQVR42u3TQQkAAAjAwPUvrX8reHAJBmsK3pIAA4ABwABgADAAGAAMAAYAA4ABwABgADAAGAAMAAYAA4ABwABgADAAGAAMAAYAA4ABwABgADAAGAAMAAYAA4ABwABgADAAGAAMAAYAA4ABwABgADAAGAAMAAYAA4ABwAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgAJMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAyAASTAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAGAAOAAcAAYAAwABgADAAGAAOAAcAAYAAwABgADAAGAAOAAcAAYAAwABgADAAGAAOAAcAAYAAwABgADAAGAAOAAcAAYAAwABgADAAGAAOAAcAAYAAwABgADADHAllMDvLkz2XNAAAAAElFTkSuQmCC';
-const BLUE_PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAIAAADTED8xAAAB+0lEQVR42u3TQQkAAAjAwPUvrW8zeHAJBqsGHpMAA4ABwABgADAAGAAMAAYAA4ABwABgADAAGAAMAAYAA4ABwABgADAAGAAMAAYAA4ABwABgADAAGAAMAAYAA4ABwABgADAAGAAMAAYAA4ABwABgADAAGAAMAAYAA4ABwAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgAJMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAyAASTAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAYAAwABgADgAHAAGAAMAAGAAOAAcAAYAAwABgADAAGAAOAAcAAYAAwABgADAAGAAOAAcAAYAAwABgADAAGAAOAAcAAYAAwABgADAAGAAOAAcAAYAAwABgADAAGAAOAAcAAYAAwABgADADHAjtqDvJl75jFAAAAAElFTkSuQmCC';
+const RED_PNG = solidColorPng(PROBE_IMAGE_SIZE, [200, 20, 20]);
+const BLUE_PNG = solidColorPng(PROBE_IMAGE_SIZE, [20, 40, 200]);
 
 /** Deliberately tiny: a probe should cost a rounding error, not a real request. */
 const PROBE_TIMEOUT_MS = 20000;
@@ -223,6 +286,8 @@ module.exports = {
     PROBES,
     probesFor,
     PROBE_TIMEOUT_MS,
+    PROBE_IMAGE_SIZE,
+    solidColorPng,
     RED_PNG,
     BLUE_PNG,
 };

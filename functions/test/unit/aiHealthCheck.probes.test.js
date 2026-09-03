@@ -12,7 +12,9 @@ jest.mock('../../ai/credentials/store', () => require('./aiHealthCheck.support')
 jest.mock('../../ai/providers', () => require('./aiHealthCheck.support').providersMock());
 
 const { testProviderConnection, PROBE_STATUS } = require('../../ai/tasks/healthCheck');
-const { PROBES, RED_PNG, BLUE_PNG } = require('../../ai/tasks/healthProbes');
+const {
+    PROBES, RED_PNG, BLUE_PNG, PROBE_IMAGE_SIZE, solidColorPng,
+} = require('../../ai/tasks/healthProbes');
 const { AiError } = require('../../ai/router/errors');
 const {
     mockExecute, healthyProvider, byId, resetHealthCheckState,
@@ -171,5 +173,43 @@ describe('failing correctly', () => {
         const result = await testProviderConnection('gemini');
 
         expect(byId(result.capabilities).structured_json.category).toBe('malformed_response');
+    });
+});
+
+/**
+ * The probe images must be *standard* PNGs, not merely present.
+ *
+ * A hand-rolled minimal PNG is what put Mistral's newer models on the console as
+ * "vision failed" — they reject it with `400 invalid_request_file` while reading
+ * a conformant PNG of the same pixels perfectly. So these assertions guard the
+ * encoding, not just the existence of two data URLs: signature, declared 256x256
+ * dimensions, and a distinct second colour for the multi-image probe.
+ */
+describe('probe images are conformant PNGs', () => {
+    const PNG_SIGNATURE = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+
+    /** Decode a `data:image/png;base64,…` URL into its bytes. */
+    function bytesOf(dataUrl) {
+        expect(dataUrl.startsWith('data:image/png;base64,')).toBe(true);
+        return Buffer.from(dataUrl.replace('data:image/png;base64,', ''), 'base64');
+    }
+
+    it.each([['RED_PNG', RED_PNG], ['BLUE_PNG', BLUE_PNG]])('%s is a valid 256x256 PNG', (_name, url) => {
+        const bytes = bytesOf(url);
+        expect(bytes.subarray(0, 8).equals(PNG_SIGNATURE)).toBe(true);
+        // IHDR width/height live at byte offsets 16 and 20.
+        expect(bytes.readUInt32BE(16)).toBe(PROBE_IMAGE_SIZE);
+        expect(bytes.readUInt32BE(20)).toBe(PROBE_IMAGE_SIZE);
+    });
+
+    it('uses two distinct colours so a dropped second image cannot pass', () => {
+        expect(RED_PNG).not.toBe(BLUE_PNG);
+    });
+
+    it('generates a conformant PNG for any colour and size', () => {
+        const bytes = bytesOf(solidColorPng(8, [1, 2, 3]));
+        expect(bytes.subarray(0, 8).equals(PNG_SIGNATURE)).toBe(true);
+        expect(bytes.readUInt32BE(16)).toBe(8);
+        expect(bytes.readUInt32BE(20)).toBe(8);
     });
 });
