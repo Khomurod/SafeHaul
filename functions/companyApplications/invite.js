@@ -32,7 +32,7 @@
 
 const crypto = require('crypto');
 const { onCall: onCallV2, HttpsError: HttpsErrorV2 } = require('firebase-functions/v2/https');
-const { LIMITS, functions, runtime } = require('../drafts/runtime');
+const { functions, runtime } = require('../drafts/runtime');
 const { db } = require('../firebaseAdmin');
 const { checkRateLimit } = require('../shared/rateLimiter');
 const { assertCompanyAcceptingIntake } = require('../shared/companyTenant');

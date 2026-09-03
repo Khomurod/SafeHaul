@@ -28,9 +28,11 @@
 const { saveCompanyPreparedApplication } = require('./companyApplications/prepare');
 const { getCompanyPreparedDraft, listCompanyPreparedApplications } = require('./companyApplications/read');
 const { mintApplicationInvite, exchangeApplicationInvite } = require('./companyApplications/invite');
+const { extractCompanyApplicationDocuments } = require('./companyApplications/aiExtract');
 
 exports.saveCompanyPreparedApplication = saveCompanyPreparedApplication;
 exports.getCompanyPreparedDraft = getCompanyPreparedDraft;
 exports.listCompanyPreparedApplications = listCompanyPreparedApplications;
 exports.mintApplicationInvite = mintApplicationInvite;
 exports.exchangeApplicationInvite = exchangeApplicationInvite;
+exports.extractCompanyApplicationDocuments = extractCompanyApplicationDocuments;

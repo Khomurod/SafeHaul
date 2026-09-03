@@ -224,4 +224,8 @@ module.exports = {
     looseDateToIso,
     normalizeMvrOutput,
     normalizePspOutput,
+    // Shared with `applicationDocumentExtraction.js`, so a violation read from a
+    // PDF's text layer and one read from a page image produce the same row. Two
+    // copies would mean accepting a suggestion depended on which route answered.
+    normalizeViolations,
 };

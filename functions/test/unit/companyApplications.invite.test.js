@@ -93,7 +93,7 @@ describe('minting a link', () => {
         const second = await mint();
 
         expect(second.inviteToken).not.toBe(first.inviteToken);
-        setInviteExpiry(60_000);
+        setInviteExpiry(60000);
         await expect(exchange(first.inviteToken)).resolves.toMatchObject({ opened: true });
         await expect(exchange(second.inviteToken)).resolves.toMatchObject({ opened: true });
     });
@@ -123,7 +123,7 @@ describe('opening a link', () => {
     it('hands back the prepared answers, the locked employers and a resume token', async () => {
         await prepare();
         const { inviteToken } = await mint();
-        setInviteExpiry(60_000);
+        setInviteExpiry(60000);
 
         const result = await exchange(inviteToken);
 
@@ -138,7 +138,7 @@ describe('opening a link', () => {
     it('lets the driver save immediately afterwards, which is the point of the token', async () => {
         await prepare();
         const { inviteToken } = await mint();
-        setInviteExpiry(60_000);
+        setInviteExpiry(60000);
         const { resumeToken } = await exchange(inviteToken);
 
         const saved = await saveFirstPage({ resumeToken, formData: { firstName: 'Dana', lastStep: 2 } });
@@ -150,7 +150,7 @@ describe('opening a link', () => {
     it('records that the link was actually opened, once', async () => {
         await prepare();
         const { inviteToken } = await mint();
-        setInviteExpiry(60_000);
+        setInviteExpiry(60000);
 
         await exchange(inviteToken);
         const firstClaim = mockStore.get(PATH()).inviteClaimedAt;
@@ -165,7 +165,7 @@ describe('opening a link', () => {
     it('finds the draft even when the link carries no key', async () => {
         await prepare();
         const { inviteToken } = await mint();
-        setInviteExpiry(60_000);
+        setInviteExpiry(60000);
 
         await expect(exchange(inviteToken, { applicantKey: null })).resolves.toMatchObject({ opened: true });
     });
@@ -176,7 +176,7 @@ describe('opening a link', () => {
     ])('refuses %s with the same answer', async (_label, badToken) => {
         await prepare();
         await mint();
-        setInviteExpiry(60_000);
+        setInviteExpiry(60000);
 
         await expect(exchange(badToken)).rejects.toMatchObject({ code: 'not-found' });
     });
@@ -184,7 +184,7 @@ describe('opening a link', () => {
     it('refuses an expired link, indistinguishably from a wrong one', async () => {
         await prepare();
         const { inviteToken } = await mint();
-        setInviteExpiry(-60_000);
+        setInviteExpiry(-60000);
 
         const expired = await exchange(inviteToken).catch((error) => error);
         const wrong = await exchange('f'.repeat(64)).catch((error) => error);
@@ -196,7 +196,7 @@ describe('opening a link', () => {
     it('refuses a link for a draft that has since been discarded', async () => {
         await prepare();
         const { inviteToken } = await mint();
-        setInviteExpiry(60_000);
+        setInviteExpiry(60000);
         mockStore.delete(PATH());
 
         await expect(exchange(inviteToken)).rejects.toMatchObject({ code: 'not-found' });
@@ -216,7 +216,7 @@ describe('opening a link', () => {
     it('refuses when the carrier is no longer accepting applications', async () => {
         await prepare();
         const { inviteToken } = await mint();
-        setInviteExpiry(60_000);
+        setInviteExpiry(60000);
         mockAssertIntake.mockRejectedValueOnce(
             Object.assign(new Error('closed'), { code: 'permission-denied' }),
         );
@@ -227,7 +227,7 @@ describe('opening a link', () => {
     it('never returns a token hash or the identity HMAC', async () => {
         await prepare();
         const { inviteToken } = await mint();
-        setInviteExpiry(60_000);
+        setInviteExpiry(60000);
         mockStore.set(PATH(), { ...mockStore.get(PATH()), identityKey: 'secret-hmac' });
 
         const serialized = JSON.stringify(await exchange(inviteToken));

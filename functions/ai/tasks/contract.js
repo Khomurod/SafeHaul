@@ -22,6 +22,10 @@ const TASK_TYPES = Object.freeze({
     // confirms; nothing is written into an answer on their behalf.
     PSP_REPORT_EXTRACTION: 'psp_report_extraction',
     MVR_EXTRACTION: 'mvr_extraction',
+    // A carrier's own reading of a driver's paperwork: the text of any subset of
+    // licence, medical card, PSP report and motor vehicle record, in one request.
+    APPLICATION_DOCUMENT_EXTRACTION: 'application_document_extraction',
+    MEDICAL_CARD_EXTRACTION: 'medical_card_extraction',
     EDOC_FIELD_PLACEMENT: 'edoc_field_placement',
     ARTICLE_GENERATION: 'article_generation',
     ARTICLE_FACT_CHECK: 'article_fact_check',
