@@ -151,6 +151,18 @@ can carry an optional **Hours of Service statement** (last seven days, last
 relieved) when the company turns it on. A company that configures nothing sees
 exactly the application it had before 2026-09-02.
 
+**A carrier can start an application for a driver.** Company → Applications →
+Start an application: the recruiter enters the driver's name, email and phone
+(the email and phone are the *identity* — they key the draft and the application
+it becomes), attaches any of the driver's licence, medical card, PSP report and
+motor vehicle record, optionally presses **Read the documents**, edits everything
+by hand either way, then copies a link and sends it. The driver opens the link,
+lands in the ordinary public wizard with the answers already there, completes
+what only they can supply (Social Security Number and signature are never in a
+draft), reviews and signs. It is staged as a *draft*, never an early
+`applications` document — see §5 — so nothing is filed, nobody is emailed, and no
+pipeline counter moves until the driver submits it themselves.
+
 **Progress survives, from the first page onward.** Every forward step writes a
 local copy synchronously and a server-side draft in the background, so a closed
 tab, a dropped connection, a failed CDL scan or a page error no longer costs an
@@ -664,6 +676,45 @@ identical against the shared `employmentCoverage.vectors.json` fixtures.
 `applicationRulesCatalog.json` and `applicationRules.vectors.json` are genuinely
 shared by direct import from `src/config/`.)
 
+**A carrier-prepared application is a draft, and the carrier stops being able to
+read it the moment the driver writes.** It lives at
+`companies/{id}/application_drafts/{applicantKey}` with `origin: 'company'` and a
+status of `prepared` → `sent` → `driver_in_progress`. The carrier may read back
+the answers it wrote until the driver's first save, which flips the status
+one-way (in `drafts/save.js`) and from then on returns contact and progress only —
+the same shape `listApplicationDrafts` has always returned. The company's own
+authorship is what earns that read; the driver's first write ends it. A carrier
+may never overwrite a draft the driver started themselves, and knowing an email
+and a phone does not open a prepared one: it carries no identity HMAC (the
+carrier does not know the driver's SSN), so only the invite token lets the
+intended driver in.
+
+**The invite link is its own token, and its own risk.** Minted by
+`mintApplicationInvite` (random 32 bytes, only the SHA-256 stored, returned once,
+prior hash kept live through one regeneration), it expires in 14 days —
+independently of, and always inside, the draft's 30-day retention. It is
+deliberately not the resume token: a resume token lives only in the driver's
+browser and is rotated freely, while this one is designed to be copied into an
+email or a text message. **Accepted risk, in the same family as the absent App
+Check:** a link in a sent-mail archive is a bearer credential for one prepared
+application until it expires or is regenerated. `exchangeApplicationInvite`
+answers a wrong link and an expired one identically, is rate-limited fail-closed
+per IP, and hands back a resume token so the rest of the wizard behaves like any
+other resumed session.
+
+**Employers a carrier locked from a PSP report keep their identity.** A PSP
+report names a carrier and its USDOT number beside an inspection date; it does
+not say when the driver started, left, or why. So a locked row's name and USDOT
+number are fixed and everything else on it is the driver's. Enforced by
+`applicationLockedFields.js`, mirrored byte-identically between
+`functions/shared/` and `src/config/` with a parity test, and checked in three
+places: the wizard renders the identity as a record rather than a field, the
+browser pre-flight refuses and routes to the employment page, and
+`submitGuestApplication` refuses again — the only one of the three that is
+enforcement. It applies **only once `inviteClaimedAt` is stamped**, i.e. to a
+driver who actually opened the carrier's link: refusing someone for leaving out
+an employer nobody showed them would be refusing them for the carrier's homework.
+
 **Company edits to a submitted application need driver approval.** A company
 admin's edits become per-field `pending_changes`; the main document stays the
 **canonical original** until each field is resolved, so exports keep showing
@@ -743,6 +794,12 @@ Rule vocabulary: `isSuperAdmin()` · `isCompanyAdmin(companyId)` ·
   `getSignedApplicationFileUrl`, `getSignedGuestUploadUrl`, `getSignedPevUrl`).
   Persisted upload URLs expire, so views re-sign at view time.
 
+**Starting an application for a driver is company-workspace access, not admin.**
+`/company/drivers/start-application` is deliberately not `adminOnly`: a recruiter
+holding a driver's file is who does this, and nothing it produces is filed. The
+callables use `assertCompanyAccessForRequest` / `assertCompanyAccess` for the
+same reason, with per-user fail-closed rate limits.
+
 **Application configuration is split by sensitivity.** A Company Admin manages
 Standard Questions, Application Rules, Custom Questions and Integrations
 (`applicationConfig`, `applicationRules`, `applicationIntegrations` on the
@@ -768,7 +825,7 @@ projection, and `/apply/:slug` is not gated by any flag. See
 | **RingCentral** (primary) / **8x8** (alternate) | Outbound SMS | Encrypted per company in `companies/{id}/integrations/sms_provider`, decrypted server-side with `SMS_ENCRYPTION_KEY` |
 | **Per-company SMTP** (Nodemailer) | All outbound email — there is no platform-wide fallback sender | `companies/{id}/system_settings/email_config` (admin-only subcollection); password encrypted with an `enc:v1:` prefix and **never returned to the browser**. A legacy fallback still reads `companies/{id}.emailSettings` for pre-migration tenants — do not delete it without migrating them |
 | **Facebook Lead Ads** | Inbound leads → company `leads` subcollection | Per company |
-| **AI providers** | CDL auto-fill, e-doc field placement, blog generation, and — only for companies that enable it — reading an applicant's own PSP report or MVR into *suggestions* (`extractApplicationReport`) | Secret Manager via the frozen registry in `functions/ai/registry` |
+| **AI providers** | CDL auto-fill, e-doc field placement, blog generation, reading an applicant's own PSP report or MVR into *suggestions* where the company enables it (`extractApplicationReport`), and — for any company — reading the paperwork a recruiter attaches when starting an application (`extractCompanyApplicationDocuments`: one text task over whichever documents were attached, with a per-document vision fallback) | Secret Manager via the frozen registry in `functions/ai/registry` |
 | **Telegram** | **Retired 2026-08-29** with the marketing-site lead form (`LD-R3`). No callable in `functions/index.js` sends to it. The six retired landing callables were still deployed on 2026-09-02 and stay until Production is promoted past `LD-R3`, because the live Production frontends still call them; procedure in `docs/FIREBASE_HOSTING_RUNBOOK.md` | Secrets unbound; rotate the bot token (runbook) |
 | **Socrata / Transportation.gov** | FMCSA employer autocomplete | Public app token |
 | **Sentry** | Error monitoring (frontend + functions) | DSN |
@@ -878,6 +935,17 @@ currently populates them from a recipient's reply; see §12.
   company switched on; the server reads its own copy, never the client's. If a
   company setting has no effect on `/apply/:slug`, the projection allowlist is
   the first place to look — that has been the bug before.
+- **`application_drafts` now holds two kinds of thing.** A driver's unfinished
+  application and a carrier's prepared one live in the same collection, told
+  apart by `origin`. Anything that reads or writes that collection has to keep
+  that distinction: the read cutoff, the locked-employer list and the invite
+  token all hang off it, and a change that treats every draft alike would either
+  leak a driver's answers to the carrier or refuse the carrier its own.
+- **Text extraction happens in the browser, not the server.** `pdfjs-dist` for a
+  PDF's text layer and a lazily-imported `tesseract.js` for OCR. Nothing
+  server-side parses a PDF or runs recognition, and the tesseract chunk must stay
+  lazy — a static import would put ~2MB into the company workspace bundle for
+  every recruiter, including the ones who only ever attach real PDFs.
 - **Applications and leads are near-twins.** Most callables accept a
   `collectionName` of `applications` or `leads` (strictly whitelisted against
   path injection). A change to one usually belongs in both.
@@ -945,6 +1013,12 @@ currently populates them from a recipient's reply; see §12.
   keypress would permanently delete the work an applicant came back for. Start over
   is its own explicit destructive confirmation, and Escape at either stage deletes
   nothing.
+- **A carrier-started application is never an early `applications` document.**
+  Creating one fires four triggers — a recruiter notification, an "application
+  received" email to the applicant, a `drivers/{id}` shadow profile and the
+  dashboard counters — before anyone has read, consented to or signed a word of
+  it. It is staged as a draft and promoted by the driver's own submission,
+  exactly as an unfinished application already was.
 - **Imported reports suggest; they never answer.** A PSP report or MVR the
   applicant uploads yields suggestions with their own Add buttons. Nothing
   already entered is overwritten, nothing is added twice, and a PSP carrier

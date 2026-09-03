@@ -110,7 +110,7 @@ Used by Cloud Functions with Admin SDK:
 |------|---------|
 | `companies/{id}/blacklist/{phone}` | Company opt-out list |
 | `companies/{id}/inbound_messages/{id}` | Inbound SMS (STOP handling trigger) |
-| `companies/{id}/application_drafts/{applicantKey}` | An unfinished driver application, saved after each Next. See below |
+| `companies/{id}/application_drafts/{applicantKey}` | An unfinished driver application, saved after each Next — **or** one a carrier prepared (`origin: 'company'`, `status: prepared\|sent\|driver_in_progress`, `preparedBy`, `inviteTokenHash`, `inviteClaimedAt`, `lockedEmployers`). See below |
 | `companies/{id}/application_draft_audit/{id}` | Value-free records of resume-match attempts and discards |
 | `companies/{id}/legal_agreements/{agreementId}` | Company-published agreement wording: `{ activeVersion, versions: { 'c-<hash>': { body, createdAt, createdBy, note } } }`. Callables only; publish/revert is Super Admin only |
 

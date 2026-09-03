@@ -51,6 +51,49 @@ const E2E_RESUME_DRAFT = Object.freeze({
     lastSemanticStep: 'violations',
 });
 
+/**
+ * The application a carrier prepared, for the browser test that opens its link.
+ *
+ * Gated exactly as the resume fixture above is — the E2E flag is never set in a
+ * production build and `import.meta.env.PROD` refuses regardless. It exists
+ * because the invite exchange is a callable, and an E2E run points at an
+ * unreachable project on purpose: without this, the one flow worth proving in a
+ * real browser (a locked employer that cannot be edited) could not be reached.
+ *
+ * The locked carrier is deliberately the only employer, so the test can assert
+ * both halves: its identity is fixed, and the dates beside it are not.
+ */
+const E2E_INVITE_TOKEN = 'e2e-invite-token';
+const E2E_PREPARED_APPLICATION = Object.freeze({
+    opened: true,
+    applicantKey: E2E_APPLICANT_KEY,
+    resumeToken: E2E_RESUME_TOKEN,
+    formData: {
+        firstName: 'Prepared',
+        lastName: 'Driver',
+        email: 'prepared@example.com',
+        phone: '5555550188',
+        // A licence carries the date of birth and the address, so a carrier that
+        // read one has them. It never carries a Social Security Number, and a
+        // draft never stores one either — that stays the driver's to supply.
+        dob: '1990-01-01',
+        street: '123 Main St',
+        city: 'Austin',
+        state: 'Texas',
+        zip: '78701',
+        cdlNumber: 'E2EPREPARED7',
+        // The carrier attached the licence and the medical card it read, so they
+        // ride into the driver's wizard as uploads already satisfied — which is
+        // most of the point of a carrier starting the application.
+        'cdl-front': { name: 'cdl-front.jpg', url: 'https://example.test/cdl-front.jpg', storagePath: 'companies/e2e-company/applications/guest_uploads/cdl-front.jpg' },
+        'cdl-back': { name: 'cdl-back.jpg', url: 'https://example.test/cdl-back.jpg', storagePath: 'companies/e2e-company/applications/guest_uploads/cdl-back.jpg' },
+        'medical-card-upload': { name: 'med-card.jpg', url: 'https://example.test/med-card.jpg', storagePath: 'companies/e2e-company/applications/guest_uploads/med-card.jpg' },
+        employers: [{ companyName: 'Acme Trucking', dotNumber: '123456' }],
+    },
+    lockedEmployers: [{ signature: 'dot:123456', companyName: 'Acme Trucking', dotNumber: '123456' }],
+    preparedBy: 'E2E Recruiter',
+});
+
 function e2eDraftsEnabled() {
     if (import.meta.env.PROD) return false;
     return isE2ETestMode;
@@ -302,6 +345,11 @@ export async function resumeApplicationDraft(payload) {
  * prepared application to show.
  */
 export async function exchangeApplicationInvite(payload) {
+    if (e2eDraftsEnabled()) {
+        return payload?.inviteToken === E2E_INVITE_TOKEN
+            ? { ...E2E_PREPARED_APPLICATION, formData: { ...E2E_PREPARED_APPLICATION.formData } }
+            : null;
+    }
     try {
         const call = httpsCallable(functions, 'exchangeApplicationInvite');
         const result = await call(payload);

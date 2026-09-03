@@ -1274,8 +1274,21 @@ Rules, Agreements and Integrations tabs of Company → Company Profile, the same
 rules panel inside Super Admin → Edit Company, and in the driver application the
 step-level issue alerts (`StepIssues`), the Hours of Service section, the
 Yes/No violations and accidents questions and the PSP/MVR report-import panel
-(`FormSection` + `FileInput` + `Badge` + `Button`). No new visual primitive was
-introduced for any of them.
+(`FormSection` + `FileInput` + `Badge` + `Button`), and — 2026-09-03 — Company →
+Applications → Start an application, where a carrier fills in a driver's
+application and sends them a link: the worklist (`DataTable` + `Badge`), the
+identity and editor screens (`SchemaSection` for the scalar sections, the
+wizard's own `DynamicRow` for employers and violations), the document panel
+(`UploadField`), the reader panel and the link panel (`Card` + `Button` +
+`Badge` + `FieldMessage`). No new visual primitive was introduced for any of
+them.
+
+One choice there is a rule rather than a preference, and it is the same one the
+driver wizard's locked employer rows follow: **a field the viewer may not change
+is a read-only display with a badge, never a disabled input.** A disabled input
+reads as broken, leaves the tab order and takes its label with it; enforcement
+lives in `applicationLockedFields.js` regardless, so the markup's job is to
+explain rather than to prevent.
 
 One design decision in that set is worth recording because it is a safety
 property, not a preference: **the resume dialog uses two sequential
