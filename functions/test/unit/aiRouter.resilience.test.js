@@ -248,6 +248,27 @@ describe('a per-attempt deadline lets a task fail over before the total runs out
         expect(firstCall[1].timeoutMs).toBeGreaterThan(20000);
         expect(firstCall[1].timeoutMs).toBeLessThanOrEqual(45000);
     });
+
+    it('will not honour a stated retry wait that would consume the failover reserve', async () => {
+        const { AiError } = require('../../ai/router/errors');
+        // Gemini asks for a 30s wait (the max) — honouring it under a 20s ceiling
+        // against a 45s total would leave no room for a fallback attempt.
+        mockExecute.mockImplementation(async (providerId) => {
+            if (providerId === 'gemini') {
+                const error = new AiError('timeout', 'Rate limited.', { providerId });
+                error.retryable = true;
+                error.retryAfterMs = 30000;
+                throw error;
+            }
+            return { text: 'ok', model: 'test/model' };
+        });
+
+        const result = await runAiTask(textTask({ totalDeadlineMs: 45000, perAttemptDeadlineMs: 20000 }));
+
+        // Skipped the wait and failed straight over — and never slept 30s.
+        expect(result.providerId).toBe('groq');
+        expect(mockExecute.mock.calls.filter(([id]) => id === 'gemini')).toHaveLength(1);
+    });
 });
 
 describe('describeRouting', () => {

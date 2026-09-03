@@ -139,6 +139,10 @@ export function StartApplicationPage() {
     const backToList = useCallback(() => { setView('list'); loadList(); }, [loadList]);
 
     const driverName = [prep.formData.firstName, prep.formData.lastName].filter(Boolean).join(' ');
+    // Once a link exists — minted this session, or a loaded draft already `sent` —
+    // the email and phone that key the draft are fixed: re-keying would strand the
+    // link the driver already has. The editor renders them read-only.
+    const identityLocked = prep.status === 'sent' || Boolean(invite.link);
 
     if (view === 'list') {
         return (
@@ -256,6 +260,7 @@ export function StartApplicationPage() {
                         onUnlockEmployer={prep.unlockEmployer}
                         onUpload={uploadDocument}
                         onFileChange={onFileChange}
+                        identityLocked={identityLocked}
                     />
                 )}
 

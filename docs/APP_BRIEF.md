@@ -158,9 +158,12 @@ medical card, PSP report and motor vehicle record, reads them, and prefills what
 it can; the manual path goes straight to the form (documents can still be
 attached there, just not read). Both land in one editable form where the recruiter
 enters the driver's email and phone — the *identity* that keys the draft and the
-application it becomes — and corrects anything the reader got wrong. The only
-fields the driver cannot later change are the employers a PSP report named, which
-stay locked to their identity. The recruiter then copies a link and sends it; the
+application it becomes — and corrects anything the reader got wrong. Once a link
+has been minted (the draft is `sent`), the email and phone render **read-only**:
+re-keying a draft whose link is already in the driver's hands would strand that
+link on the old answers, so changing the driver means starting a new application.
+The only fields the driver cannot later change are the employers a PSP report
+named, which stay locked to their identity. The recruiter then copies a link and sends it; the
 driver opens it, lands in the ordinary public wizard with the answers already
 there, completes what only they can supply (Social Security Number and signature
 are never in a draft), reviews and signs. It is staged as a *draft*, never an

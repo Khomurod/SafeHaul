@@ -366,6 +366,12 @@ export function SchemaSection({
     onChange,
     config = {},
     className = '',
+    // Field keys that stay read-only even while the section is editing. A caller
+    // uses this for a value that identifies the record and must not change once it
+    // exists — e.g. the email and phone that key a carrier-prepared draft, which
+    // would strand an already-sent invite link if re-keyed. Empty by default, so
+    // every existing call site is unaffected.
+    lockedKeys = [],
     // Re-signed file URLs keyed by field key, so file links (CDL etc.) use a
     // fresh signed URL instead of the expired persisted one.
     fileUrls = {}
@@ -386,7 +392,10 @@ export function SchemaSection({
             data={data}
             onChange={onChange}
             mode="display"
-            isEditing={isEditing}
+            // A locked key renders read-only even while the rest of the section
+            // edits — `SchemaField` already shows a value read-only when not
+            // editing, so this needs no new field mode.
+            isEditing={isEditing && !lockedKeys.includes(field.key)}
             config={config}
             fileUrls={fileUrls}
         />

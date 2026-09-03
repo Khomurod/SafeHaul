@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, cleanup } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import { SchemaField } from './SchemaRenderer';
+import { SchemaField, SchemaSection } from './SchemaRenderer';
 
 afterEach(cleanup);
 
@@ -67,5 +67,33 @@ describe('SchemaRenderer radio options ({label, value} objects)', () => {
         expect(getByText('Yes')).toBeInTheDocument();
         expect(getByText('No')).toBeInTheDocument();
         expect(getByDisplayValue('no')).toBeChecked();
+    });
+});
+
+describe('SchemaSection lockedKeys', () => {
+    const data = { firstName: 'Dana', email: 'dana@example.test' };
+
+    it('edits a field by default, but renders a locked key read-only', () => {
+        // Editing: the email is an input the recruiter can change.
+        const { getByDisplayValue, rerender, queryByDisplayValue, getByText } = render(
+            <SchemaSection sectionId="personalInfo" data={data} isEditing onChange={() => {}} />,
+        );
+        expect(getByDisplayValue('dana@example.test')).toBeInTheDocument();
+
+        // Locked: the value shows, but there is no input to change it — the guard
+        // against re-keying a draft whose invite link is already out. First name,
+        // not locked, is still editable.
+        rerender(
+            <SchemaSection
+                sectionId="personalInfo"
+                data={data}
+                isEditing
+                onChange={() => {}}
+                lockedKeys={['email']}
+            />,
+        );
+        expect(queryByDisplayValue('dana@example.test')).toBeNull();
+        expect(getByText('dana@example.test')).toBeInTheDocument();
+        expect(getByDisplayValue('Dana')).toBeInTheDocument();
     });
 });

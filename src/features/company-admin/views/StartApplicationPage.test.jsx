@@ -53,9 +53,10 @@ vi.mock('../applicationPrep/ApplicationDocumentsPanel', () => ({
     default: () => <div data-testid="documents-panel" />,
 }));
 vi.mock('../applicationPrep/ApplicationPrepEditor', () => ({
-    default: ({ formData, updateField, onUpload, onFileChange }) => (
+    default: ({ formData, updateField, onUpload, onFileChange, identityLocked }) => (
         <div data-testid="prep-editor">
             <div data-testid="editor">{JSON.stringify(formData)}</div>
+            <div data-testid="identity-locked">{String(Boolean(identityLocked))}</div>
             <input
                 data-testid="editor-email"
                 value={formData.email || ''}
@@ -126,7 +127,7 @@ function callableFor(name) {
             case 'saveCompanyPreparedApplication':
                 return { data: { applicantKey: 'key-new', lockedEmployers: [] } };
             case 'mintApplicationInvite':
-                return { data: { inviteToken: 'tok-abc', applicantKey: 'key-dana', expiresInDays: 14 } };
+                return { data: { inviteToken: 'tok-abc', applicantKey: payload.applicantKey, expiresInDays: 14 } };
             default:
                 return { data: {} };
         }
@@ -254,5 +255,21 @@ describe('one driver never leaks into the next', () => {
         expect(screen.getByRole('button', { name: /^Save$/i })).toBeDisabled();
         fireEvent.change(screen.getByTestId('editor-email'), { target: { value: 'x@example.test' } });
         expect(screen.getByRole('button', { name: /^Save$/i })).toBeEnabled();
+    });
+
+    it('locks the identity once a link exists, so a sent link cannot be re-keyed', async () => {
+        render(<StartApplicationPage />);
+
+        // A draft already 'sent' (its link is out) opens with identity locked.
+        await openFromList('key-dana');
+        expect(screen.getByTestId('identity-locked')).toHaveTextContent('true');
+
+        // A merely 'prepared' draft is editable — until a link is minted for it.
+        fireEvent.click(screen.getByText('Back to the list'));
+        await openFromList('key-sam');
+        expect(screen.getByTestId('identity-locked')).toHaveTextContent('false');
+
+        fireEvent.click(screen.getByText('mint'));
+        await waitFor(() => expect(screen.getByTestId('identity-locked')).toHaveTextContent('true'));
     });
 });

@@ -333,8 +333,20 @@ async function runAiTask(task, deps = {}) {
                     // Grant one extra attempt when the vendor stated a short
                     // wait. The loop above performs the wait and re-executes, so
                     // there is exactly one code path that calls the adapter.
+                    //
+                    // But a stated wait is still this provider's turn: honouring a
+                    // 30s wait (the `MAX_RETRY_AFTER_MS` cap) under a task with a
+                    // per-attempt ceiling would consume the budget reserved for
+                    // failing over to a healthy provider — the very thing the
+                    // ceiling exists to protect. So when a ceiling is set, only
+                    // wait if what remains after it still leaves a full slice for a
+                    // fallback; otherwise move on to the next provider now.
+                    const budgetLeftMs = totalDeadlineMs - (Date.now() - startedAt);
+                    const retryFitsReserve = perAttemptDeadlineMs === Infinity
+                        || budgetLeftMs - (providerError.retryAfterMs || 0) >= perAttemptDeadlineMs;
                     if (providerError.retryAfterMs && !usedStatedWait
                         && attempt === maxAttempts - 1
+                        && retryFitsReserve
                         && !deadlineController.signal.aborted) {
                         maxAttempts += 1;
                         continue;

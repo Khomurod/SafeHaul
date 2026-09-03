@@ -34,8 +34,13 @@ export function ApplicationPrepEditor({
     onUnlockEmployer,
     onUpload,
     onFileChange,
+    // Once a link has been minted for this draft, the email and phone that key it
+    // must not change: the driver's already-sent link would keep opening the old
+    // key while the recruiter edited a new one. They render read-only instead.
+    identityLocked = false,
 }) {
     const ty = new Date().getFullYear();
+    const identityLockedKeys = identityLocked ? ['email', 'phone'] : [];
 
     const renderViolationRow = (index, item, handleChange) => (
         <div className="grid grid-cols-1 gap-ds-4 sm:grid-cols-2">
@@ -77,9 +82,17 @@ export function ApplicationPrepEditor({
         <div className="space-y-ds-6">
             <FormSection
                 title="Driver details"
-                description="Whatever you already know. Anything left blank is simply a question the driver answers."
+                description={identityLocked
+                    ? 'A link is out for this driver. The email and phone identify it, so they are fixed — to change them, start a new application.'
+                    : 'Whatever you already know. Anything left blank is simply a question the driver answers.'}
             >
-                <SchemaSection sectionId="personalInfo" data={formData} isEditing onChange={updateField} />
+                <SchemaSection
+                    sectionId="personalInfo"
+                    data={formData}
+                    isEditing
+                    onChange={updateField}
+                    lockedKeys={identityLockedKeys}
+                />
                 <SchemaSection sectionId="currentAddress" data={formData} isEditing onChange={updateField} />
             </FormSection>
 
