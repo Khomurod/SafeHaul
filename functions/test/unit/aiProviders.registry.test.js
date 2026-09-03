@@ -131,3 +131,31 @@ describe('model pins that vendors have retired', () => {
         expect(multiImageProviders.length).toBeGreaterThan(1);
     });
 });
+
+describe('Mistral runs on the tier a free key actually has', () => {
+    /**
+     * Distinct from a retired pin: `mistral-large-latest` is a live, working
+     * model — it is simply *paid-tier only*. A free key gets `403
+     * tier_not_allowed` and Large is not even in its catalogue, so pinning it
+     * meant every Mistral lane 403'd and the connection test reported six
+     * failures on a key that authenticates and does inference. Verified against
+     * the live API on a free key 2026-09-03: `mistral-medium-latest` serves
+     * every lane — text, structured JSON and vision — on the free entitlement.
+     *
+     * These guard the regression back to a paid-tier default, which no vendor
+     * catalogue reconciliation would catch (the model is real, just entitled).
+     */
+    const PAID_TIER_ONLY = ['mistral-large-latest', 'mistral-large-2512'];
+
+    it('pins no paid-tier-only model on any lane', () => {
+        const pins = Object.values(getProvider('mistral').defaultModels);
+        for (const paid of PAID_TIER_ONLY) expect(pins).not.toContain(paid);
+    });
+
+    it('resolves a free-tier model for text, structured JSON and vision alike', () => {
+        const mistral = getProvider('mistral');
+        for (const capability of [CAPABILITIES.TEXT, CAPABILITIES.STRUCTURED_JSON, CAPABILITIES.VISION]) {
+            expect(resolveModel(mistral, capability, {})).toMatch(/^mistral-(medium|small)/);
+        }
+    });
+});

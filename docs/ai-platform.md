@@ -177,6 +177,29 @@ upgrading or paying for a provider, and no such recommendation is made.
 The keys used for this were pasted into a working session and should be treated
 as disclosed. Rotate them.
 
+### Free-tier follow-up, 2026-09-03
+
+The verification above used paid entitlements. A carrier on Mistral's **free**
+tier hits a wall the audit could not see: `mistral-large-latest` is paid-tier
+only. A free key returns `403 tier_not_allowed` for it, and Large is not even
+listed in that account's catalogue — so every Mistral lane 403'd and the
+connection test reported all six capabilities as failed, on a key that
+authenticates and does inference.
+
+Two changes, both verified against the live API on a free key:
+
+- **Mistral is pinned to `mistral-medium-latest`** on every lane. Medium is
+  vision-capable with structured output and long context, and on the free
+  entitlement it read a CDL photo, a PSP page image, and PSP/MVR/medical text
+  into the extraction schema. (`mistral-small-latest` passed the same checks and
+  is the lighter alternative; there is no per-tier config, so the default targets
+  the tier a free key actually has.)
+- **The health-check probe images are regenerated as standard PNGs.** Mistral's
+  newer models reject the previous hand-rolled minimal PNG with `400
+  invalid_request_file` while reading a properly zlib-compressed PNG of the same
+  pixels — so the probes now emit conformant images (`solidColorPng`), or the
+  connection test would report a false "vision failed" for a provider that works.
+
 ## Fallback order and behaviour
 
 The **default** order, derived from `priority` so it lives in one place:
@@ -741,7 +764,7 @@ for All / Errors / CDL / E-Docs / Articles. Activating a row opens the timeline:
 ```
 CDL Extraction · txn 6f2a…
   1. Gemini    gemini-3.6-flash      quota_exceeded     HTTP 429   812ms  → mistral
-  2. Mistral   mistral-large-latest  model_unavailable  HTTP 404   240ms  → groq
+  2. Mistral   mistral-medium-latest model_unavailable  HTTP 404   240ms  → groq
   3. Groq      qwen/qwen3.6-27b      success                      1,940ms  schema ✓
 Final result → success (2 fallbacks, 2,992ms)
 ```
