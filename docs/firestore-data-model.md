@@ -110,7 +110,7 @@ Used by Cloud Functions with Admin SDK:
 |------|---------|
 | `companies/{id}/blacklist/{phone}` | Company opt-out list |
 | `companies/{id}/inbound_messages/{id}` | Inbound SMS (STOP handling trigger) |
-| `companies/{id}/application_drafts/{applicantKey}` | An unfinished driver application, saved after each Next. See below |
+| `companies/{id}/application_drafts/{applicantKey}` | An unfinished driver application, saved after each Next — **or** one a carrier prepared (`origin: 'company'`, `status: prepared\|sent\|driver_in_progress`, `preparedBy`, `inviteTokenHash`, `inviteClaimedAt`, `lockedEmployers`). See below |
 | `companies/{id}/application_draft_audit/{id}` | Value-free records of resume-match attempts and discards |
 | `companies/{id}/legal_agreements/{agreementId}` | Company-published agreement wording: `{ activeVersion, versions: { 'c-<hash>': { body, createdAt, createdBy, note } } }`. Callables only; publish/revert is Super Admin only |
 
@@ -221,6 +221,19 @@ transaction that authorizes the write. Each step falls through rather than decid
 exists for the save that corrects a contact field and an identity field at once, where
 neither the new document id nor the new `identityKey` finds the draft the token opens.
 Audited as `stale_token`.
+
+**That resolution also decides where a carrier's facts live.** It returns the
+document, not just a verdict, because the same move it exists to permit — an
+applicant correcting the email or phone that derives the id — is what would
+otherwise strand a prepared application's `origin`, `preparedBy`, `invitedAt`,
+`inviteClaimedAt` and `lockedEmployers` on a key nobody writes to again. Those
+five are copied onto the new id (`carriedPreparedFields`), and the status becomes
+`driver_in_progress` there as it would have at the old one. `submitGuestApplication`
+reads the locks from the key it derives from the *submitted* contact details, so
+without the copy correcting a typo would unlock every employer the carrier locked.
+The invite token hashes deliberately stay behind: they address one document, and
+two live drafts answering one link is worse than a claimed link that has to be
+re-sent.
 
 **The lookup's token rotation happens in a transaction that re-reads the draft.** A
 merge-set creates what it cannot find, so a Start Over landing between the query that

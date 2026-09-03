@@ -177,14 +177,24 @@ function tokenNamesDraft(doc, resumeToken) {
     return prior.some((hash) => draft.resumeTokenMatches(hash, resumeToken));
 }
 
-async function tokenOpensALiveDraft(transaction, {
+/**
+ * The live draft this token names, or null.
+ *
+ * The liveness question above, answered with the document rather than a boolean
+ * — because *which* document it is matters when the answer came from falling
+ * through. An applicant correcting their email writes to a different id than the
+ * draft their token belongs to, and anything the CARRIER recorded on that draft
+ * has to travel with the applicant rather than stay behind on a key nobody will
+ * write to again. See `drafts/save.js`.
+ */
+async function liveDraftForToken(transaction, {
     companyId, target, identityKey, resumeToken, claimedApplicantKey,
 }) {
     if (target?.exists && tokenNamesDraft(target, resumeToken)) {
-        return true;
+        return target;
     }
 
-    const matches = (docs) => docs.some((doc) => tokenNamesDraft(doc, resumeToken));
+    const matching = (docs) => docs.find((doc) => tokenNamesDraft(doc, resumeToken)) || null;
 
     // The browser tells us which key it thinks its token belongs to. A hint, never a
     // claim: the token hash on that document still has to match, so naming somebody
@@ -196,20 +206,21 @@ async function tokenOpensALiveDraft(transaction, {
         const claimed = await transaction.get(
             draft.draftsCollection(companyId).doc(claimedApplicantKey),
         );
-        if (claimed.exists && matches([claimed])) return true;
+        if (claimed.exists && tokenNamesDraft(claimed, resumeToken)) return claimed;
     }
 
     if (identityKey) {
         const siblings = await transaction.get(
             draft.draftsCollection(companyId).where('identityKey', '==', identityKey),
         );
-        if (matches(siblings.docs)) return true;
+        const sibling = matching(siblings.docs);
+        if (sibling) return sibling;
     }
 
     const recent = await transaction.get(
         draft.draftsCollection(companyId).orderBy('updatedAt', 'desc').limit(50),
     );
-    return matches(recent.docs);
+    return matching(recent.docs);
 }
 
 /**
@@ -341,5 +352,5 @@ module.exports = {
     supersedeOtherDrafts,
     text,
     tokenNamesDraft,
-    tokenOpensALiveDraft,
+    liveDraftForToken,
 };

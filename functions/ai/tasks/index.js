@@ -10,6 +10,8 @@
 const contract = require('./contract');
 const { extractCdlFields } = require('./cdlExtraction');
 const { extractReportSuggestions } = require('./reportExtraction');
+const { extractApplicationDocuments } = require('./applicationDocumentExtraction');
+const { extractMedicalCardFields } = require('./medicalCardExtraction');
 const { analyzeDocumentPages } = require('./edocFieldPlacement');
 const { testProviderConnection } = require('./healthCheck');
 
@@ -18,6 +20,8 @@ module.exports = {
     PRIVACY: contract.PRIVACY,
     extractCdlFields,
     extractReportSuggestions,
+    extractApplicationDocuments,
+    extractMedicalCardFields,
     analyzeDocumentPages,
     testProviderConnection,
 };

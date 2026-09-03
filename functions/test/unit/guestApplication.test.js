@@ -28,6 +28,16 @@ const applicationWrites = () => mockSet.mock.calls.filter(
 );
 
 const mockGet = jest.fn().mockResolvedValue({ exists: false, data: () => null });
+/**
+ * The draft document, read separately from the application document.
+ *
+ * Its own double, because it is its own document: submission reads
+ * `application_drafts/{key}` to learn which employers the carrier locked, and a
+ * shared `get` would let that read consume a value queued for the application
+ * read — which is how a dedup test starts failing for a reason that has nothing
+ * to do with deduplication.
+ */
+const mockDraftGet = jest.fn().mockResolvedValue({ exists: false, data: () => null });
 
 jest.mock('../../firebaseAdmin', () => ({
   db: {
@@ -42,8 +52,10 @@ jest.mock('../../firebaseAdmin', () => ({
       if (col === 'companies') {
         return {
           doc: jest.fn(() => ({
-            collection: jest.fn(() => ({
-              doc: jest.fn(() => ({ set: mockSet, get: mockGet })),
+            collection: jest.fn((sub) => ({
+              doc: jest.fn(() => (sub === 'application_drafts'
+                ? { get: mockDraftGet, delete: jest.fn().mockResolvedValue(undefined) }
+                : { set: mockSet, get: mockGet })),
               // `legal_agreements`: no company wording published.
               get: jest.fn().mockResolvedValue({ docs: [] }),
             })),
@@ -79,6 +91,7 @@ describe('submitGuestApplication', () => {
     jest.clearAllMocks();
     mockSet.mockResolvedValue(undefined);
     mockGet.mockResolvedValue({ exists: false, data: () => null });
+    mockDraftGet.mockResolvedValue({ exists: false, data: () => null });
     delete process.env.FUNCTIONS_EMULATOR;
   });
 
@@ -211,5 +224,70 @@ describe('submitGuestApplication', () => {
     const writes = applicationWrites();
     const writtenDoc = writes[writes.length - 1][0];
     expect(writtenDoc.status).toBeUndefined();
+  });
+
+  describe('employers a carrier locked when it prepared the application', () => {
+    const acme = { companyName: 'Acme Trucking', dotNumber: '123456' };
+    const preparedDraft = (extra = {}) => ({
+      exists: true,
+      data: () => ({
+        origin: 'company',
+        inviteClaimedAt: { toDate: () => new Date('2026-09-01T10:00:00Z') },
+        lockedEmployers: [{ signature: 'dot:123456', companyName: 'Acme Trucking', dotNumber: '123456' }],
+        ...extra,
+      }),
+    });
+
+    it('refuses a submission that dropped one, naming the page to fix', async () => {
+      mockDraftGet.mockResolvedValue(preparedDraft());
+
+      await expect(submitGuestApplication({
+        ...validPayload,
+        formData: { ...validPayload.formData, employers: [{ companyName: 'Somewhere Else' }] },
+      }, ctxBase)).rejects.toMatchObject({ code: 'invalid-argument' });
+    });
+
+    it('accepts one that kept it and filled in the dates the carrier could not know', async () => {
+      mockDraftGet.mockResolvedValue(preparedDraft());
+
+      const res = await submitGuestApplication({
+        ...validPayload,
+        formData: {
+          ...validPayload.formData,
+          employers: [{ ...acme, startDate: '2023-01-01', endDate: '2024-06-30', reasonForLeaving: 'Pay' }],
+        },
+      }, ctxBase);
+
+      expect(res.success).toBe(true);
+    });
+
+    it('does not apply to a driver who never opened the link', async () => {
+      // No `inviteClaimedAt`: the carrier prepared this, but this driver was never
+      // shown it. Refusing them for leaving out an employer nobody showed them
+      // would be refusing them for the carrier's homework.
+      mockDraftGet.mockResolvedValue(preparedDraft({ inviteClaimedAt: null }));
+
+      const res = await submitGuestApplication({
+        ...validPayload,
+        formData: { ...validPayload.formData, employers: [] },
+      }, ctxBase);
+
+      expect(res.success).toBe(true);
+    });
+
+    it('does not apply to an ordinary application, and costs it one read', async () => {
+      const res = await submitGuestApplication(validPayload, ctxBase);
+      expect(res.success).toBe(true);
+    });
+
+    it('lets a signed application through when the draft cannot be read at all', async () => {
+      const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      mockDraftGet.mockRejectedValue(new Error('firestore unavailable'));
+
+      // Every other protection still applied, and the carrier can see what was
+      // submitted. A diagnostic is not a reason to lose a signed application.
+      await expect(submitGuestApplication(validPayload, ctxBase)).resolves.toMatchObject({ success: true });
+      spy.mockRestore();
+    });
   });
 });

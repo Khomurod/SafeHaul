@@ -8,6 +8,7 @@ const { admin, db, storage } = require('./firebaseAdmin');
 const { assertCompanyAcceptingIntake } = require('./shared/companyTenant');
 const {
     assertApplicationRules,
+    assertLockedEmployers,
     assertRequiredUnpersistedFields,
     assertRequiredUploads,
     buildApplicationDoc,
@@ -97,6 +98,38 @@ function stampAcceptanceOrigin(acceptances, clientIp) {
  * nothing to delete and says nothing about it. That is correct: the submission
  * itself is idempotent, and so is this.
  */
+/**
+ * The employers the carrier locked, but only for a driver who actually saw them.
+ *
+ * A carrier that started this application from the driver's PSP report fixed the
+ * identity of the employers that report names. Enforcing that here is what makes
+ * it a rule rather than a disabled input — but it must reach only the driver the
+ * carrier prepared it for. Someone who never opened the link never saw those rows,
+ * and refusing their application for leaving out an employer nobody showed them
+ * would be refusing them for the carrier's homework. `inviteClaimedAt` is stamped
+ * by the exchange, so it is exactly the record of "this driver was shown this".
+ *
+ * Returns an empty list for every ordinary submission, which is nearly all of
+ * them: the field does not exist on a draft the driver started themselves.
+ */
+async function lockedEmployersForSubmission(companyId, applicationId) {
+    try {
+        const doc = await db.collection('companies').doc(String(companyId))
+            .collection('application_drafts').doc(String(applicationId))
+            .get();
+        if (!doc.exists) return [];
+        const data = doc.data() || {};
+        if (!data.inviteClaimedAt) return [];
+        return Array.isArray(data.lockedEmployers) ? data.lockedEmployers : [];
+    } catch (error) {
+        // A draft that cannot be read is not a reason to refuse a signed
+        // application: every other protection still applies, and the carrier can
+        // see what was submitted. Recorded, not enforced.
+        console.error(`[submitGuestApplication] Could not read locked employers for ${applicationId}: ${error?.message || 'unknown'}`);
+        return [];
+    }
+}
+
 async function discardDraftForApplication(companyId, applicationId) {
     try {
         await db.collection('companies').doc(String(companyId))
@@ -202,6 +235,15 @@ exports.submitGuestApplication = functions
             signature,
             formData: normalizedFormData,
         });
+
+        // Employers the carrier locked from the driver's own safety record. Read
+        // from the prepared draft — never from the payload, where the locked party
+        // could edit it — and only once the application id is known, since the
+        // draft and the application share that key.
+        assertLockedEmployers(
+            await lockedEmployersForSubmission(companyId, applicationId),
+            normalizedFormData,
+        );
 
         try {
             const result = await upsertApplicationDoc({

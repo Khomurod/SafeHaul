@@ -12,10 +12,30 @@ const { checkRateLimit } = require('../shared/rateLimiter');
 const { assertCompanyAcceptingIntake } = require('../shared/companyTenant');
 const { generateApplicantKey } = require('../shared/buildApplicationDoc');
 const draft = require('../shared/applicationDraft');
+const prepared = require('../shared/companyPreparedDraft');
 const {
-    applicantKeyOf, clientIp, docId, identityKeyOrNull, mayModifyExistingDraft,
-    recordMatchAttempt, supersedeOtherDrafts, text, tokenOpensALiveDraft,
+    applicantKeyOf, clientIp, docId, identityKeyOrNull, liveDraftForToken,
+    mayModifyExistingDraft, recordMatchAttempt, supersedeOtherDrafts, text,
 } = require('./identity');
+
+/**
+ * The carrier-prepared draft this save belongs to, or null.
+ *
+ * Normally the document being written. But the id is derived from the email and
+ * phone, so an applicant who corrects either one is writing to a *different*
+ * document than the one the carrier prepared — and their resume token is what
+ * says the two are the same application. Answered from whichever of the two the
+ * prepared draft actually is, because the alternative is a new document with no
+ * `origin`, no `inviteClaimedAt` and no `lockedEmployers`: submission reads the
+ * locks from the key it computes off the submitted contact details, so a
+ * corrected typo would unlock every employer the carrier locked.
+ */
+function preparedSourceFor(existing, source, targetId) {
+    if (existing.exists && prepared.isCompanyPrepared(existing.data())) return existing;
+    if (source && source.id !== targetId && prepared.isCompanyPrepared(source.data())) return source;
+    return null;
+}
+
 /**
  * Saves everything entered so far. Called after each successful Next.
  *
@@ -95,13 +115,19 @@ exports.saveApplicationProgress = functions
             // would otherwise wave the same stale payload through: the applicant's
             // own name, date of birth and SSN are in it, so it authorizes fine and
             // overwrites whatever replaced the draft it was written against.
-            if (presentedToken && !(await tokenOpensALiveDraft(transaction, {
-                companyId,
-                target: existing,
-                identityKey,
-                resumeToken: presentedToken,
-                claimedApplicantKey: applicantKeyOf(data?.resumeApplicantKey),
-            }))) {
+            //
+            // The document is kept, not just the verdict: when the id has moved it
+            // is the only thing that says which prepared application this is.
+            const opened = presentedToken
+                ? await liveDraftForToken(transaction, {
+                    companyId,
+                    target: existing,
+                    identityKey,
+                    resumeToken: presentedToken,
+                    claimedApplicantKey: applicantKeyOf(data?.resumeApplicantKey),
+                })
+                : null;
+            if (presentedToken && !opened) {
                 return { refused: true, stale: true, token: null };
             }
 
@@ -116,6 +142,8 @@ exports.saveApplicationProgress = functions
                 });
                 if (!authorizedBy) return { refused: true, token: null };
             }
+
+            const preparedSource = preparedSourceFor(existing, opened, ref.id);
 
             const token = existing.exists && existing.data()?.resumeTokenHash
                 ? null
@@ -146,12 +174,29 @@ exports.saveApplicationProgress = functions
                 clientSeq: Number.isInteger(data?.clientSeq)
                     ? Math.max(0, Math.min(MAX_CLIENT_SEQ, data.clientSeq))
                     : null,
-                status: 'in_progress',
+                /**
+                 * A carrier-prepared application becomes the driver's the moment
+                 * they save one page of it. That is a one-way door: it is what
+                 * ends the carrier's read of the answers it wrote (see
+                 * `shared/companyPreparedDraft.js`), so it must not be reversible
+                 * by a later save, and it must never be *set* by anything but a
+                 * real driver save landing here. An ordinary driver-authored
+                 * draft keeps `in_progress` exactly as before.
+                 */
+                status: preparedSource
+                    ? prepared.PREPARED_STATUSES.DRIVER_IN_PROGRESS
+                    : 'in_progress',
                 updatedAt: draft.serverTimestamp(),
                 expiresAt: draft.expiresAt(),
             };
             if (!existing.exists) update.createdAt = draft.serverTimestamp();
             if (token) update.resumeTokenHash = token.hash;
+            // The id moved, so the carrier's facts move with the applicant. See
+            // `carriedPreparedFields` for what travels and what deliberately does
+            // not, and `preparedSourceFor` above for why this is not optional.
+            if (preparedSource && preparedSource.id !== ref.id) {
+                Object.assign(update, prepared.carriedPreparedFields(preparedSource.data()));
+            }
 
             transaction.set(ref, update, { merge: true });
             return { refused: false, token };

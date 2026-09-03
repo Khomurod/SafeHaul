@@ -29,6 +29,7 @@ import {
   isRequestSigned,
 } from './postApplyDocsStorage';
 import { reconcileApplicationDraft } from './reconcileApplicationDraft';
+import { exchangeApplicationInvite, writeResumeToken } from '../../services/applicationDraftService';
 
   /**
    * Restore a recent submission (and its document checklist) after the driver
@@ -94,6 +95,57 @@ export async function loadPublicApplyCompany({
   setCurrentStep,
   setIntakeMode,
 }) {
+    /**
+     * A link the carrier sent, carrying an application it prepared.
+     *
+     * Taken before the local-draft restore, because it is the stronger claim: this
+     * browser may hold an abandoned attempt of its own, and what the driver
+     * clicked is the application their carrier filled in for them.
+     *
+     * The exchange also mints a resume token for this draft. A carrier-prepared
+     * draft has no identity HMAC — the carrier does not know the driver's Social
+     * Security Number — so that token is the only thing that will authorize the
+     * driver's own autosave from here on. Stored the moment it arrives, before
+     * anything further down can go wrong.
+     *
+     * A link that no longer opens is not an error: `exchangeApplicationInvite`
+     * resolves to null and the driver gets the ordinary application.
+     *
+     * Called from every branch that resolves a company, because which link the
+     * driver followed has nothing to do with how the company was looked up.
+     *
+     * @returns {Promise<boolean>} true when a prepared application was opened
+     */
+    async function openPreparedApplication(companyData) {
+      const inviteToken = searchParams.get('invite');
+      if (!inviteToken) return false;
+
+      const invited = await exchangeApplicationInvite({
+        companyId: companyData.id,
+        applicantKey: searchParams.get('k') || null,
+        inviteToken,
+      });
+      if (!invited) return false;
+
+      writeResumeToken(slug, {
+        resumeToken: invited.resumeToken,
+        applicantKey: invited.applicantKey,
+      });
+      restoredFromDraftRef.current = true;
+      draftIdRef.current = invited.applicantKey;
+      setFormData((prev) => ({
+        ...prev,
+        ...invited.formData,
+        // Decorative, for rendering the rows as locked. The enforcement copy lives
+        // on the draft itself, where the locked party cannot reach it.
+        lockedEmployers: invited.lockedEmployers || [],
+      }));
+      setIntakeMode('manual');
+      sessionStorage.setItem('pending_application_company', companyData.id);
+      setLoading(false);
+      return true;
+    }
+
     async function loadCompany() {
       if (!sandbox && !slug) {
         setError("Invalid link - no company specified.");
@@ -133,6 +185,7 @@ export async function loadPublicApplyCompany({
           }
           sessionStorage.setItem('pending_application_company', mockCompany.id);
           restorePostApplySession(mockCompany);
+          if (await openPreparedApplication(mockCompany)) return;
           if (getE2EQueryParam('e2eIntake', 'manual') !== 'choice') {
             setIntakeMode('manual');
           }
@@ -169,6 +222,14 @@ export async function loadPublicApplyCompany({
         // Returning from the signing room (or a reload right after submitting):
         // bring back the success screen + required-documents checklist.
         restorePostApplySession(companyData);
+
+        // Deliberately AFTER the company is set. `openPreparedApplication` returns
+        // straight out of `loadCompany`, and the wizard it hands the driver reads
+        // `company.companyName` -- so opening the invite first left every real
+        // carrier-sent link rendering against no company at all. The E2E branch
+        // above sets the company before calling it, which is precisely why a
+        // browser test could not see this. The two branches now agree.
+        if (await openPreparedApplication(companyData)) return;
 
         // P2-5 FIX: Recover saved draft from localStorage on page revisit.
         //

@@ -15,6 +15,8 @@ import { StateSelectField } from './components/StateSelectField';
 import { StepIssues } from './components/StepIssues';
 import { makeEmploymentRowRenderers } from './components/EmploymentHistoryRows';
 import { EMPTY_EMPLOYER } from './components/employmentRowShapes';
+import { LockedEmployerIdentity } from './components/LockedEmployerIdentity';
+import { isLockedEmployerRow } from '@/config/applicationLockedFields';
 import { ReportImportPanel } from './components/ReportImportPanel';
 import { integrationEnabled } from '../reportSuggestions';
 import { computeEmploymentCoverage } from '@shared/utils/employmentCoverage';
@@ -174,24 +176,40 @@ const Step6_Employment = ({ formData, updateFormData, onNavigate, onPartialSubmi
         proceed();
     };
 
+    /**
+     * Employers the carrier fixed when it prepared this application.
+     *
+     * The decorative copy the invite exchange delivered. The enforcement copy is on
+     * the draft, where the driver cannot reach it, and the submission checks that
+     * one — this is only what tells the page which rows to present as settled.
+     * Absent for every application a driver started themselves.
+     */
+    const lockedEmployers = formData.lockedEmployers;
+
     const renderEmployerRow = (index, item, handleChange) => (
         <div className="space-y-ds-3">
-            <EmployerNameAutocomplete
-                id={'emp-name-' + index}
-                label="Company Name"
-                value={item.companyName}
-                onChange={handleChange}
-                required={empHistoryConfig.required}
-                statesAllowlist={states}
-            />
-            <InputField
-                label="USDOT Number"
-                id={'emp-dot-' + index}
-                name="dotNumber"
-                value={item.dotNumber}
-                onChange={handleChange}
-                placeholder="Optional — filled when you pick a carrier from search"
-            />
+            {isLockedEmployerRow(item, lockedEmployers) ? (
+                <LockedEmployerIdentity companyName={item.companyName} dotNumber={item.dotNumber} />
+            ) : (
+                <>
+                    <EmployerNameAutocomplete
+                        id={'emp-name-' + index}
+                        label="Company Name"
+                        value={item.companyName}
+                        onChange={handleChange}
+                        required={empHistoryConfig.required}
+                        statesAllowlist={states}
+                    />
+                    <InputField
+                        label="USDOT Number"
+                        id={'emp-dot-' + index}
+                        name="dotNumber"
+                        value={item.dotNumber}
+                        onChange={handleChange}
+                        placeholder="Optional — filled when you pick a carrier from search"
+                    />
+                </>
+            )}
             <InputField label="Street Address" id={'emp-street-' + index} name="address" value={item.address} onChange={handleChange} required={empHistoryConfig.required} />
             <div className="grid grid-cols-1 gap-ds-4 sm:grid-cols-3">
                 <InputField label="City" id={'emp-city-' + index} name="city" value={item.city} onChange={handleChange} required={empHistoryConfig.required} />

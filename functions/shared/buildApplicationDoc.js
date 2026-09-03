@@ -137,6 +137,25 @@ function assertApplicationRules(applicationRules, applicationConfig, formData) {
     }
 }
 
+/**
+ * Employers the carrier locked, checked the way the wizard checked them.
+ *
+ * Reads the same shared module the browser mirrors, so a submission is refused for
+ * exactly what the driver was shown as fixed and nothing else. An application with
+ * no locked employers — every ordinary one — costs a single length check.
+ */
+function assertLockedEmployers(lockedEmployers, formData) {
+    const { lockedEmployerIssues } = require('./applicationLockedFields');
+    const issues = lockedEmployerIssues(lockedEmployers, formData || {});
+    if (issues.length > 0) {
+        throw new functions.https.HttpsError(
+            'invalid-argument',
+            `This application does not match what your carrier prepared: ${issues.map((issue) => issue.message).join(' ')}`,
+            { issues: issues.map(({ code, semanticStep, fieldId }) => ({ code, semanticStep, fieldId })) },
+        );
+    }
+}
+
 function assertRequiredUploads(applicationConfig, formData) {
     const missingRequiredUploads = getMissingRequiredUploads(applicationConfig, formData || {});
     if (missingRequiredUploads.length > 0) {
@@ -220,6 +239,7 @@ function buildApplicationDoc({
 
 module.exports = {
     assertApplicationRules,
+    assertLockedEmployers,
     assertRequiredUnpersistedFields,
     assertRequiredUploads,
     buildApplicationDoc,

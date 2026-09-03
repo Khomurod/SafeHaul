@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "prebuild": "node -e \"const fs=require('fs');fs.copyFileSync('node_modules/pdfjs-dist/build/pdf.worker.min.mjs','public/pdf.worker.min.mjs');console.log('\u2705 PDF worker synced from node_modules')\"",
+    "prebuild": "node -e \"const fs=require('fs');fs.copyFileSync('node_modules/pdfjs-dist/build/pdf.worker.min.mjs','public/pdf.worker.min.mjs');console.log('✅ PDF worker synced from node_modules')\"",
     "build": "vite build",
     "lint": "npm run lint:frontend && npm run lint:backend && npm run check:public-claims",
     "lint:frontend": "eslint .",
@@ -61,6 +61,7 @@
     "react-signature-canvas": "1.1.0-alpha.2",
     "react-virtuoso": "^4.18.1",
     "recharts": "^3.6.0",
+    "tesseract.js": "^7.0.0",
     "uuid": "^11.0.3"
   },
   "devDependencies": {
