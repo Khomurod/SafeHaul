@@ -32,6 +32,17 @@ export const COMPANY_ROUTE_MANIFEST = Object.freeze([
     nav: { kind: 'group-item', group: 'applications', label: 'Started (unfinished)', icon: 'Hourglass' },
   },
   {
+    id: 'startApplication',
+    path: 'drivers/start-application',
+    screen: 'startApplicationPage',
+    featureName: 'Start an Application',
+    // Not `adminOnly`: a recruiter with a driver's paperwork in hand is exactly
+    // who starts one of these, and they already reach every other applications
+    // screen. Nothing it produces is filed — the driver still completes and signs
+    // it — so the bar is company-workspace access, as it is for the dossier.
+    nav: { kind: 'group-item', group: 'applications', label: 'Start an application', icon: 'FilePlus' },
+  },
+  {
     id: 'companyLeads',
     path: 'drivers/leads/company',
     screen: 'companyCandidatesListPage',
