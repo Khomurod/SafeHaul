@@ -85,6 +85,13 @@ async function runAiTask(task, deps = {}) {
     const totalDeadlineMs = Number.isInteger(task.totalDeadlineMs)
         ? task.totalDeadlineMs
         : DEFAULT_TOTAL_DEADLINE_MS;
+    // A per-attempt ceiling, distinct from the total, is what makes failover
+    // possible: without it the first provider may take the entire budget, so a
+    // stalled provider leaves nothing for the next one. Tasks that must fail over
+    // set it below the total; the rest are unchanged (Infinity == the old cap).
+    const perAttemptDeadlineMs = Number.isInteger(task.perAttemptDeadlineMs)
+        ? task.perAttemptDeadlineMs
+        : Infinity;
     const deadlineController = new AbortController();
     const deadlineTimer = setTimeout(() => deadlineController.abort(), totalDeadlineMs);
 
@@ -214,7 +221,15 @@ async function runAiTask(task, deps = {}) {
                         schemaName: task.schemaName || 'safehaul_task_output',
                         temperature: typeof task.temperature === 'number' ? task.temperature : 0,
                         maxOutputTokens: task.maxOutputTokens || 2048,
-                        timeoutMs: Math.min(provider.timeoutMs, totalDeadlineMs),
+                        // The smallest of: what the vendor is given, the task's
+                        // per-attempt ceiling, and the budget that is actually
+                        // left. The last term is what stops a late attempt being
+                        // handed more time than the deadline has remaining.
+                        timeoutMs: Math.min(
+                            provider.timeoutMs,
+                            perAttemptDeadlineMs,
+                            Math.max(0, totalDeadlineMs - (Date.now() - startedAt)),
+                        ),
                         parentSignal: deadlineController.signal,
                         credentials: evaluation.credentials.values,
                         config: evaluation.config,
@@ -318,8 +333,20 @@ async function runAiTask(task, deps = {}) {
                     // Grant one extra attempt when the vendor stated a short
                     // wait. The loop above performs the wait and re-executes, so
                     // there is exactly one code path that calls the adapter.
+                    //
+                    // But a stated wait is still this provider's turn: honouring a
+                    // 30s wait (the `MAX_RETRY_AFTER_MS` cap) under a task with a
+                    // per-attempt ceiling would consume the budget reserved for
+                    // failing over to a healthy provider — the very thing the
+                    // ceiling exists to protect. So when a ceiling is set, only
+                    // wait if what remains after it still leaves a full slice for a
+                    // fallback; otherwise move on to the next provider now.
+                    const budgetLeftMs = totalDeadlineMs - (Date.now() - startedAt);
+                    const retryFitsReserve = perAttemptDeadlineMs === Infinity
+                        || budgetLeftMs - (providerError.retryAfterMs || 0) >= perAttemptDeadlineMs;
                     if (providerError.retryAfterMs && !usedStatedWait
                         && attempt === maxAttempts - 1
+                        && retryFitsReserve
                         && !deadlineController.signal.aborted) {
                         maxAttempts += 1;
                         continue;

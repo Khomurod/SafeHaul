@@ -74,3 +74,41 @@ test.describe('an application a carrier prepared', () => {
         await expect(page.locator('#first-name')).toHaveValue('');
     });
 });
+
+/**
+ * The carrier's own side: the Manual/AI choice, and where each one lands. This
+ * needs no callable — the choice and the editor render on their own; the reading,
+ * saving and link-minting are covered by their unit suites, which mock the
+ * callables an E2E run cannot reach.
+ */
+test.describe('a carrier starting an application', () => {
+    test.describe.configure({ timeout: 90_000 });
+
+    const START_URL = '/company/drivers/start-application?e2eAuth=company_admin';
+
+    test('asks how to fill it in, then manual goes to the editable form', async ({ page }) => {
+        await page.goto(START_URL);
+        await page.getByRole('button', { name: /Start an application/i }).click();
+
+        // The fork comes first.
+        await expect(page.getByRole('heading', { name: 'Let AI read the documents' })).toBeVisible();
+        await expect(page.getByRole('heading', { name: 'Fill in manually' })).toBeVisible();
+
+        await page.getByTestId('mode-manual').click();
+
+        // The editable form — no reader in the manual path — with the identity
+        // fields the recruiter types (email and phone key the draft).
+        await expect(page.getByRole('heading', { name: 'Driver details' })).toBeVisible();
+        await expect(page.getByText('Read the documents')).toHaveCount(0);
+    });
+
+    test('the AI choice leads to the document upload step', async ({ page }) => {
+        await page.goto(START_URL);
+        await page.getByRole('button', { name: /Start an application/i }).click();
+        await page.getByTestId('mode-ai').click();
+
+        await expect(page.getByRole('heading', { name: "Upload the driver's documents" })).toBeVisible();
+        // The reader is here, in its pre-run state, before any document is attached.
+        await expect(page.getByRole('heading', { name: 'Read the documents' })).toBeVisible();
+    });
+});

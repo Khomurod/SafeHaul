@@ -69,6 +69,7 @@ function defineTask(spec) {
         maxOutputTokens = 2048,
         privacy = PRIVACY.INTERNAL,
         totalDeadlineMs,
+        perAttemptDeadlineMs = null,
         verdictOf = null,
     } = spec;
 
@@ -97,6 +98,16 @@ function defineTask(spec) {
         maxOutputTokens,
         privacy,
         totalDeadlineMs,
+        /**
+         * Optional cap on how long ANY ONE provider may take, distinct from the
+         * total. Without it the first provider can consume the whole
+         * `totalDeadlineMs`, so a single stalled provider leaves no time to fail
+         * over to a healthy one — which is exactly how a rate-limited provider at
+         * the top of the routing order timed out the whole request. Set it below
+         * the total on a task that must fail over, and the router gives each
+         * attempt at most this much (and never more than the budget that remains).
+         */
+        perAttemptDeadlineMs,
         /**
          * Optional: reduces a successful answer to one short, safe word for
          * telemetry.

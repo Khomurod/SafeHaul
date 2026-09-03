@@ -152,16 +152,29 @@ relieved) when the company turns it on. A company that configures nothing sees
 exactly the application it had before 2026-09-02.
 
 **A carrier can start an application for a driver.** Company → Applications →
-Start an application: the recruiter enters the driver's name, email and phone
-(the email and phone are the *identity* — they key the draft and the application
-it becomes), attaches any of the driver's licence, medical card, PSP report and
-motor vehicle record, optionally presses **Read the documents**, edits everything
-by hand either way, then copies a link and sends it. The driver opens the link,
-lands in the ordinary public wizard with the answers already there, completes
-what only they can supply (Social Security Number and signature are never in a
-draft), reviews and signs. It is staged as a *draft*, never an early
-`applications` document — see §5 — so nothing is filed, nobody is emailed, and no
-pipeline counter moves until the driver submits it themselves.
+Start an application first asks **how** to fill it in: **Let AI read the
+documents** or **Fill in manually**. The AI path uploads the driver's licence,
+medical card, PSP report and motor vehicle record, reads them, and prefills what
+it can; the manual path goes straight to the form (documents can still be
+attached there, just not read). Both land in one editable form where the recruiter
+enters the driver's email and phone — the *identity* that keys the draft and the
+application it becomes — and corrects anything the reader got wrong. Once a link
+has been minted (the draft is `sent`), the email and phone render **read-only**:
+re-keying a draft whose link is already in the driver's hands would strand that
+link on the old answers, so changing the driver means starting a new application.
+The only fields the driver cannot later change are the employers a PSP report
+named, which stay locked to their identity. The recruiter then copies a link and sends it; the
+driver opens it, lands in the ordinary public wizard with the answers already
+there, completes what only they can supply (Social Security Number and signature
+are never in a draft), reviews and signs. It is staged as a *draft*, never an
+early `applications` document — see §5 — so nothing is filed, nobody is emailed,
+and no pipeline counter moves until the driver submits it themselves.
+
+The reader extracts text in the recruiter's own browser first — a PDF's own text
+layer, else Tesseract OCR of the rendered pages, else the page images sent to the
+vision AI — and only the text (or, for an unreadable document, the images) leaves
+the browser, to one AI task. Any subset of the four documents is valid; a photo of
+a card (JPG/PNG/WebP) is read as readily as a PDF.
 
 **Progress survives, from the first page onward.** Every forward step writes a
 local copy synchronously and a server-side draft in the background, so a closed
@@ -854,7 +867,12 @@ projection, and `/apply/:slug` is not gated by any flag. See
   its key works, and reports a throttled probe as untested rather than as broken.
   Health and cooldown are tracked **per lane** (text / vision), because a
   provider's text and image work reach different models on different entitlements
-  and fail independently. See [`docs/ai-platform.md`](./ai-platform.md).
+  and fail independently. A task may set `perAttemptDeadlineMs` below its total so
+  no single provider can consume the whole budget: without it the first provider
+  in the routing order could stall for the entire deadline and the request would
+  time out (`deadline_exceeded`) before a healthy provider was ever tried — the
+  document reader sets it so a stalled leader fails over instead. See
+  [`docs/ai-platform.md`](./ai-platform.md).
 - **Credential access differs by function generation, and both must be granted.**
   This project mixes 1st- and 2nd-generation functions, which default to
   *different* runtime service accounts (App Engine and Compute Engine), so
@@ -1178,6 +1196,12 @@ these.
   readable. Deliberately not solved by fetching the signed URL back into a Blob:
   that is a cross-origin `fetch` against the Storage bucket, and whether it works
   depends on bucket CORS configuration this repository does not set.
+- **HEIC photos cannot be read.** The reader accepts PDF, JPG, PNG and WebP;
+  browsers cannot decode HEIC (an iPhone's default), so such a photo is refused
+  with a message naming the accepted formats. (This is the surviving edge after
+  the fix that made ordinary photos readable at all — the pipeline's image reader
+  had no production default, so every photo failed while PDFs worked.) Convert or
+  re-take as JPG, or upload a PDF.
 - **No payment processing.** `companies/{id}.planType` is a manual super-admin
   `free` / `paid` flag that only changes a badge ("Free Plan" / "Pro Plan").
   Marketing prices ($199 / $299 per month) are **not** enforced anywhere in the

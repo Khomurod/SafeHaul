@@ -58,6 +58,21 @@ describe('one document at a time', () => {
         expect(deps.readImage).toHaveBeenCalledWith(PHOTO);
     });
 
+    it('reads a photo through the built-in reader when none is injected (the production path)', async () => {
+        // The panel calls the pipeline with NO `readImage` in deps. If the default
+        // is missing, `readImage(file)` throws and every photo is reported `failed`
+        // while PDFs work — the exact bug that made a CDL photo unreadable. Injecting
+        // only `recognize` here forces the REAL default image reader to run.
+        const noReader = { recognize: vi.fn().mockResolvedValue({ text: LONG_TEXT, pages: 1 }) };
+
+        const result = await extractOneDocument({ kind: 'cdl', file: PHOTO }, noReader);
+
+        expect(result.method).toBe('ocr');
+        expect(noReader.recognize).toHaveBeenCalled();
+        // What it recognised is a real data URL the default reader produced.
+        expect(noReader.recognize.mock.calls[0][0][0]).toMatch(/^data:/);
+    });
+
     it('hands the pages on when recognition comes back too thin to trust', async () => {
         deps.recognize.mockResolvedValue({ text: 'sm ll', pages: 1 });
 
@@ -88,7 +103,7 @@ describe('one document at a time', () => {
         );
 
         expect(result.method).toBe('failed');
-        expect(result.reason).toMatch(/PDFs and photos/);
+        expect(result.reason).toMatch(/PDF, JPG, PNG or WebP/);
     });
 
     it('reports a file that cannot be opened at all', async () => {
@@ -142,7 +157,7 @@ describe('everything the carrier attached', () => {
 
         expect(result.documents.psp).toBeTruthy();
         expect(result.documents.medical).toBeUndefined();
-        expect(result.failures.medical).toMatch(/PDFs and photos/);
+        expect(result.failures.medical).toMatch(/PDF, JPG, PNG or WebP/);
     });
 
     it('ignores empty slots instead of treating them as documents', async () => {

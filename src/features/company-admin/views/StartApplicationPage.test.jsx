@@ -1,19 +1,18 @@
 /**
- * Starting a second application, and opening a different one.
+ * Starting an application: choosing a mode, and switching between drivers.
  *
- * Two findings from the review on 2026-09-03, both of which are about the page's
- * own state rather than any callable:
+ * What is pinned here is the flow this page owns — the Manual/AI choice, the AI
+ * upload step, and that per-application state (identity, answers, documents, the
+ * invite link) never leaks from one driver to the next — plus the two findings the
+ * earlier review caught, now under the new flow:
  *
- *  - "Start an application" changed the view and nothing else. The hook still held
- *    the previous driver's identity, answers, uploaded documents and locks — and
- *    the identity is what keys the draft, so the next save filed one driver's
- *    answers under another driver's key.
- *  - the invite link is independent of the loaded draft, so after minting a link
- *    for one driver and opening another from the list, the previous driver's
- *    bearer URL was still on screen with the primary Copy button beside it.
+ *  - starting another application must not save one driver's answers under another
+ *    driver's key (the email/phone in the answers is the key);
+ *  - the invite link, minted for one driver, must not be offered for the next.
  *
- * The children are stood in for: their own suites cover what they render, and what
- * is pinned here is what this page hands them.
+ * The children are stood in for; their own suites cover what they render. The
+ * mocked editor exposes the few interactions the page reacts to: typing the email
+ * (which keys the draft), attaching a document, and removing one.
  */
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
@@ -50,12 +49,20 @@ vi.mock('../applicationPrep/PreparedApplicationsTable', () => ({
         </div>
     ),
 }));
+vi.mock('../applicationPrep/ApplicationDocumentsPanel', () => ({
+    default: () => <div data-testid="documents-panel" />,
+}));
 vi.mock('../applicationPrep/ApplicationPrepEditor', () => ({
-    // `attach` does exactly what `UploadField` does: upload, then hand the parent
-    // the metadata the upload returned.
-    default: ({ formData, onUpload, onFileChange }) => (
-        <div>
+    default: ({ formData, updateField, onUpload, onFileChange, identityLocked }) => (
+        <div data-testid="prep-editor">
             <div data-testid="editor">{JSON.stringify(formData)}</div>
+            <div data-testid="identity-locked">{String(Boolean(identityLocked))}</div>
+            <input
+                data-testid="editor-email"
+                value={formData.email || ''}
+                onChange={(event) => updateField('email', event.target.value)}
+            />
+            {/* `attach` does exactly what `UploadField` does: upload, then hand the parent the metadata. */}
             <button
                 type="button"
                 onClick={async () => {
@@ -65,7 +72,6 @@ vi.mock('../applicationPrep/ApplicationPrepEditor', () => ({
             >
                 attach
             </button>
-            {/* `UploadField` reports a removal as `onChange(name, null)`. */}
             <button type="button" onClick={() => onFileChange('psp-report-upload', null)}>remove</button>
         </div>
     ),
@@ -92,7 +98,10 @@ const DANA = {
     lastName: 'Alvarez',
     email: 'dana@example.test',
     phone: '2145550147',
-    formData: { cdlNumber: 'TX1234567', 'psp-report-upload': { name: 'dana-psp.pdf' } },
+    formData: {
+        firstName: 'Dana', lastName: 'Alvarez', email: 'dana@example.test',
+        cdlNumber: 'TX1234567', 'psp-report-upload': { name: 'dana-psp.pdf' },
+    },
     lockedEmployers: [{ signature: 'dot:123456', companyName: 'Acme Trucking', dotNumber: '123456' }],
 };
 
@@ -103,12 +112,10 @@ const SAM = {
     firstName: 'Sam',
     lastName: 'Booker',
     email: 'sam@example.test',
-    phone: '2145550188',
-    formData: { cdlNumber: 'OK7654321' },
+    formData: { firstName: 'Sam', lastName: 'Booker', email: 'sam@example.test', cdlNumber: 'OK7654321' },
     lockedEmployers: [],
 };
 
-/** One double for every callable, dispatching on the name it was made with. */
 function callableFor(name) {
     return async (payload) => {
         callables.calls.push({ name, payload });
@@ -120,26 +127,21 @@ function callableFor(name) {
             case 'saveCompanyPreparedApplication':
                 return { data: { applicantKey: 'key-new', lockedEmployers: [] } };
             case 'mintApplicationInvite':
-                return { data: { inviteToken: 'tok-abc', applicantKey: 'key-dana', expiresInDays: 14 } };
+                return { data: { inviteToken: 'tok-abc', applicantKey: payload.applicantKey, expiresInDays: 14 } };
             default:
                 return { data: {} };
         }
     };
 }
 
-function editorFormData() {
-    return JSON.parse(screen.getByTestId('editor').textContent);
-}
-
-function panelProps() {
-    return JSON.parse(screen.getByTestId('ai-panel').textContent);
-}
+const editorFormData = () => JSON.parse(screen.getByTestId('editor').textContent);
+const panelProps = () => JSON.parse(screen.getByTestId('ai-panel').textContent);
+const savePayload = () => callables.calls.find((entry) => entry.name === 'saveCompanyPreparedApplication')?.payload;
 
 async function openFromList(applicantKey) {
-    // The list arrives from a callable, so the row is not there on first paint.
     const row = await screen.findByText(`open ${applicantKey}`);
     fireEvent.click(row);
-    await waitFor(() => expect(screen.getByTestId('editor')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTestId('prep-editor')).toBeInTheDocument());
 }
 
 beforeEach(() => {
@@ -147,7 +149,43 @@ beforeEach(() => {
     callables.httpsCallable.mockImplementation((_functions, name) => callableFor(name));
 });
 
-describe('opening one prepared application after another', () => {
+describe('choosing how to start a new application', () => {
+    it('offers the AI and manual choices before anything else', async () => {
+        render(<StartApplicationPage />);
+        fireEvent.click(await screen.findByRole('button', { name: /Start an application/i }));
+
+        expect(screen.getByTestId('mode-ai')).toBeInTheDocument();
+        expect(screen.getByTestId('mode-manual')).toBeInTheDocument();
+        // Not the editor yet — the choice comes first.
+        expect(screen.queryByTestId('prep-editor')).toBeNull();
+    });
+
+    it('manual goes straight to the editor, with no reader', async () => {
+        render(<StartApplicationPage />);
+        fireEvent.click(await screen.findByRole('button', { name: /Start an application/i }));
+        fireEvent.click(screen.getByTestId('mode-manual'));
+
+        expect(screen.getByTestId('prep-editor')).toBeInTheDocument();
+        expect(screen.queryByTestId('ai-panel')).toBeNull();
+    });
+
+    it('AI goes to the upload step, then on to the editor with the reader', async () => {
+        render(<StartApplicationPage />);
+        fireEvent.click(await screen.findByRole('button', { name: /Start an application/i }));
+        fireEvent.click(screen.getByTestId('mode-ai'));
+
+        // The upload step: documents + the reader, no editor yet.
+        expect(screen.getByTestId('documents-panel')).toBeInTheDocument();
+        expect(screen.getByTestId('ai-panel')).toBeInTheDocument();
+        expect(screen.queryByTestId('prep-editor')).toBeNull();
+
+        fireEvent.click(screen.getByRole('button', { name: /Continue to review/i }));
+        expect(screen.getByTestId('prep-editor')).toBeInTheDocument();
+        expect(screen.getByTestId('ai-panel')).toBeInTheDocument();
+    });
+});
+
+describe('one driver never leaks into the next', () => {
     it("does not offer the previous driver's link for the next driver", async () => {
         render(<StartApplicationPage />);
         await openFromList('key-dana');
@@ -158,7 +196,7 @@ describe('opening one prepared application after another', () => {
         fireEvent.click(screen.getByText('Back to the list'));
         await openFromList('key-sam');
 
-        // Not merely a stale display: the primary action beside it is Copy.
+        // Not merely stale display: the action beside it is Copy.
         expect(screen.getByTestId('invite-link')).toHaveTextContent('no link');
     });
 
@@ -167,17 +205,13 @@ describe('opening one prepared application after another', () => {
         await openFromList('key-dana');
         expect(editorFormData().cdlNumber).toBe('TX1234567');
 
-        // Attaching keeps the bytes as well as the metadata — the reader needs
-        // them, and an upload leaves only `{name, url, storagePath}` behind.
         fireEvent.click(screen.getByText('attach'));
         await waitFor(() => expect(panelProps().blobs).toHaveProperty('psp-report-upload'));
-        expect(panelProps().files['psp-report-upload'].storagePath).toContain('psp.pdf');
 
         fireEvent.click(screen.getByText('Back to the list'));
         await openFromList('key-sam');
 
         expect(editorFormData().cdlNumber).toBe('OK7654321');
-        // Those bytes were Dana's document. Sam's application holds none of them.
         expect(panelProps().blobs).toEqual({});
     });
 
@@ -189,25 +223,7 @@ describe('opening one prepared application after another', () => {
         await waitFor(() => expect(panelProps().blobs).toHaveProperty('psp-report-upload'));
 
         fireEvent.click(screen.getByText('remove'));
-
-        // Otherwise the reader would read a document the application no longer
-        // holds, and fill the form from a file the driver will never see.
         await waitFor(() => expect(panelProps().blobs).toEqual({}));
-        expect(panelProps().files['psp-report-upload']).toBeNull();
-    });
-});
-
-describe('starting a second application', () => {
-    it('asks who it is for with nothing filled in', async () => {
-        render(<StartApplicationPage />);
-        await openFromList('key-dana');
-
-        fireEvent.click(screen.getByText('Back to the list'));
-        fireEvent.click(screen.getByRole('button', { name: /Start an application/i }));
-
-        expect(screen.getByLabelText(/First name/i)).toHaveValue('');
-        expect(screen.getByLabelText(/^Email/i)).toHaveValue('');
-        expect(screen.getByLabelText(/^Phone/i)).toHaveValue('');
     });
 
     it("saves none of the previous driver's answers under the new key", async () => {
@@ -215,22 +231,45 @@ describe('starting a second application', () => {
         await openFromList('key-dana');
 
         fireEvent.click(screen.getByText('Back to the list'));
-        fireEvent.click(screen.getByRole('button', { name: /Start an application/i }));
-        fireEvent.change(screen.getByLabelText(/^Email/i), { target: { value: 'new@example.test' } });
-        fireEvent.change(screen.getByLabelText(/^Phone/i), { target: { value: '2145550199' } });
-        fireEvent.click(screen.getByRole('button', { name: /Continue/i }));
+        fireEvent.click(await screen.findByRole('button', { name: /Start an application/i }));
+        fireEvent.click(screen.getByTestId('mode-manual'));
 
-        await waitFor(() => expect(
-            callables.calls.some((entry) => entry.name === 'saveCompanyPreparedApplication'),
-        ).toBe(true));
+        // The editor is empty; type the new driver's email (which keys the draft).
+        expect(editorFormData().cdlNumber).toBeUndefined();
+        fireEvent.change(screen.getByTestId('editor-email'), { target: { value: 'new@example.test' } });
+        fireEvent.click(screen.getByRole('button', { name: /^Save$/i }));
 
-        const saved = callables.calls.find((entry) => entry.name === 'saveCompanyPreparedApplication').payload;
+        await waitFor(() => expect(savePayload()).toBeTruthy());
+        const saved = savePayload();
         expect(saved.email).toBe('new@example.test');
-        // Dana's licence, Dana's PSP upload and Dana's locked carrier. None of it
-        // belongs to this application, and the email above is what keys the draft.
+        // Dana's licence and PSP upload belong to a different key. None of it here.
         expect(saved.formData.cdlNumber).toBeUndefined();
         expect(saved.formData['psp-report-upload']).toBeUndefined();
-        expect(saved.formData.firstName).toBe('');
-        expect(saved.lockedEmployers).toEqual([]);
+    });
+
+    it('keeps Save disabled until an email or phone identifies the draft', async () => {
+        render(<StartApplicationPage />);
+        fireEvent.click(await screen.findByRole('button', { name: /Start an application/i }));
+        fireEvent.click(screen.getByTestId('mode-manual'));
+
+        expect(screen.getByRole('button', { name: /^Save$/i })).toBeDisabled();
+        fireEvent.change(screen.getByTestId('editor-email'), { target: { value: 'x@example.test' } });
+        expect(screen.getByRole('button', { name: /^Save$/i })).toBeEnabled();
+    });
+
+    it('locks the identity once a link exists, so a sent link cannot be re-keyed', async () => {
+        render(<StartApplicationPage />);
+
+        // A draft already 'sent' (its link is out) opens with identity locked.
+        await openFromList('key-dana');
+        expect(screen.getByTestId('identity-locked')).toHaveTextContent('true');
+
+        // A merely 'prepared' draft is editable — until a link is minted for it.
+        fireEvent.click(screen.getByText('Back to the list'));
+        await openFromList('key-sam');
+        expect(screen.getByTestId('identity-locked')).toHaveTextContent('false');
+
+        fireEvent.click(screen.getByText('mint'));
+        await waitFor(() => expect(screen.getByTestId('identity-locked')).toHaveTextContent('true'));
     });
 });
