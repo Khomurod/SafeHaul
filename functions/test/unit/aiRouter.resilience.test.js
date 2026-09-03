@@ -206,6 +206,50 @@ describe('deadline reporting', () => {
     });
 });
 
+describe('a per-attempt deadline lets a task fail over before the total runs out', () => {
+    /**
+     * The defect: every provider's `timeoutMs` equalled the task's total, so the
+     * FIRST provider could consume the whole budget. When it stalled, `http.js`
+     * threw `deadline_exceeded` (the total-deadline abort) — which `isTaskFatal`
+     * ends the walk on — instead of the per-attempt `timeout`, which fails over.
+     * A rate-limited provider at the top of the routing order therefore timed out
+     * the entire read (observed in production as `deadline_exceeded` at ~47s).
+     *
+     * The fix caps each attempt to `perAttemptDeadlineMs`, so a stalled provider
+     * throws the non-fatal `timeout` with budget left to reach a healthy one.
+     */
+    it('caps each attempt to the per-attempt deadline, so a stalled leader fails over', async () => {
+        mockExecute.mockImplementation(async (providerId, context) => {
+            if (providerId === 'gemini') {
+                // What `http.js` throws when the PER-ATTEMPT timer fires — not the
+                // total-deadline abort, which would be the fatal `deadline_exceeded`.
+                throw new AiError('timeout', `No response within ${context.timeoutMs}ms.`, { providerId });
+            }
+            return { text: 'ok', model: 'test/model' };
+        });
+
+        const result = await runAiTask(textTask({ totalDeadlineMs: 45000, perAttemptDeadlineMs: 20000 }));
+
+        // Gemini leads by default and stalled; the read still succeeds via groq.
+        expect(result.providerId).toBe('groq');
+        // Gemini was handed only the 20s slice — min(provider 45000, cap 20000,
+        // remaining). That smaller cap is precisely what leaves time to reach groq.
+        const geminiCall = mockExecute.mock.calls.find(([id]) => id === 'gemini');
+        expect(geminiCall[1].timeoutMs).toBe(20000);
+    });
+
+    it('is opt-in: a task with no per-attempt cap still hands the attempt the whole budget', async () => {
+        const result = await runAiTask(textTask({ totalDeadlineMs: 45000 }));
+
+        expect(result.providerId).toBeTruthy();
+        const firstCall = mockExecute.mock.calls[0];
+        // Capped only by the remaining budget, never below it — the old behaviour,
+        // proving the new term changes nothing until a task asks for it.
+        expect(firstCall[1].timeoutMs).toBeGreaterThan(20000);
+        expect(firstCall[1].timeoutMs).toBeLessThanOrEqual(45000);
+    });
+});
+
 describe('describeRouting', () => {
     it('explains why each provider is or is not eligible', async () => {
         mockStore.readAllConfigs.mockResolvedValue(allConfigured({ gemini: { enabled: false } }));

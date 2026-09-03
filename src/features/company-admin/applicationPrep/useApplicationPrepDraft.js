@@ -6,21 +6,27 @@ import { normalizeLockedEmployers } from '@/config/applicationLockedFields';
 /**
  * One carrier-prepared application, from the recruiter's side.
  *
- * Holds the identity that keys it, the answers, and the employers locked from the
- * driver's safety record; talks to the three callables that stage it. Deliberately
- * has no opinion about how any of it is displayed — the screen decides that, and
- * the AI panel (later) reaches the same `setFormData` a recruiter typing does.
+ * Holds the answers and the employers locked from the driver's safety record;
+ * talks to the callables that stage it. Deliberately has no opinion about how any
+ * of it is displayed — the screen decides that, and the AI reader reaches the same
+ * `setFormData` a recruiter typing does.
  *
- * ## The identity is the key, and that is why changing it is a decision
+ * ## `formData` is the single source of truth, identity included
+ *
+ * The driver's name, email and phone are ordinary fields of `formData` (the
+ * `personalInfo` schema section edits them), not a state of their own. That is
+ * what lets the AI reader prefill the name and the recruiter type the email in
+ * the very same editor without two copies of "who is this" drifting apart.
+ *
+ * ## The email and phone are the key, and that is why changing them is a decision
  *
  * The draft's document id is `sha256(companyId:email:phone)`, the same key the
  * submitted application will take. Editing the email or phone therefore does not
- * edit this application — it addresses a different one. Before a link exists that
- * is harmless (nobody has been sent anywhere), so the change is silent; the screen
- * asks first once a link is out, because the old link keeps opening the old draft.
+ * edit this application — it addresses a different one. A save recomputes the key
+ * from whatever `formData` holds, so correcting a typo before a link is out simply
+ * stages the application under the right key.
  */
 export function useApplicationPrepDraft(companyId) {
-    const [identity, setIdentity] = useState({ firstName: '', lastName: '', email: '', phone: '' });
     const [formData, setFormData] = useState({});
     const [lockedEmployers, setLockedEmployers] = useState([]);
     const [applicantKey, setApplicantKey] = useState(null);
@@ -40,23 +46,25 @@ export function useApplicationPrepDraft(companyId) {
         }));
     }, []);
 
-    /** Everything the carrier typed, plus the identity fields the wizard also owns. */
-    const payloadFormData = useMemo(() => ({
-        ...formData,
-        firstName: identity.firstName || formData.firstName || '',
-        lastName: identity.lastName || formData.lastName || '',
-        email: identity.email,
-        phone: identity.phone,
-        lockedEmployers,
-    }), [formData, identity, lockedEmployers]);
+    /** The email and phone that key the draft, read straight off the answers. */
+    const contactEmail = typeof formData.email === 'string' ? formData.email.trim() : '';
+    const contactPhone = typeof formData.phone === 'string' ? formData.phone.trim() : '';
+    /** True once there is enough to key the draft — the Save gate. */
+    const identityComplete = Boolean(contactEmail || contactPhone);
+
+    /** The answers, plus the lock list the server records beside them. */
+    const payloadFormData = useMemo(
+        () => ({ ...formData, lockedEmployers }),
+        [formData, lockedEmployers],
+    );
 
     const save = useCallback(async () => {
         setBusy(true);
         setError(null);
         try {
             const result = await call('saveCompanyPreparedApplication', {
-                email: identity.email,
-                phone: identity.phone,
+                email: contactEmail,
+                phone: contactPhone,
                 formData: payloadFormData,
                 lockedEmployers,
             });
@@ -70,7 +78,7 @@ export function useApplicationPrepDraft(companyId) {
         } finally {
             setBusy(false);
         }
-    }, [call, identity.email, identity.phone, lockedEmployers, payloadFormData]);
+    }, [call, contactEmail, contactPhone, lockedEmployers, payloadFormData]);
 
     const load = useCallback(async (key) => {
         setBusy(true);
@@ -79,15 +87,21 @@ export function useApplicationPrepDraft(companyId) {
             const result = await call('getCompanyPreparedDraft', { applicantKey: key });
             setApplicantKey(result.applicantKey);
             setStatus(result.status);
-            setIdentity({
-                firstName: result.firstName || '',
-                lastName: result.lastName || '',
-                email: result.email || '',
-                phone: result.phone || '',
-            });
             if (result.readable) {
                 setFormData(result.formData || {});
                 setLockedEmployers(result.lockedEmployers || []);
+            } else {
+                // The driver has taken it over, so the answers are theirs — but the
+                // contact and name still identify the row, and the screen shows a
+                // read-only notice in place of the editor. Keeping just those keeps
+                // the header meaningful without pretending we hold the answers.
+                setFormData({
+                    firstName: result.firstName || '',
+                    lastName: result.lastName || '',
+                    email: result.email || '',
+                    phone: result.phone || '',
+                });
+                setLockedEmployers([]);
             }
             return result;
         } catch (loadError) {
@@ -125,13 +139,12 @@ export function useApplicationPrepDraft(companyId) {
      * Back to holding nothing, for starting a different driver's application.
      *
      * Every piece of this hook's state belongs to one applicant, and the key that
-     * addresses it is derived from the identity. Keeping any of it across a switch
-     * would file one driver's answers, documents and locks under another driver's
-     * key — a save, not a display glitch. So the screen resets before it asks who
-     * the next application is for.
+     * addresses it is derived from the email and phone in `formData`. Keeping any
+     * of it across a switch would file one driver's answers, documents and locks
+     * under another driver's key — a save, not a display glitch. So the screen
+     * resets before it starts the next one.
      */
     const reset = useCallback(() => {
-        setIdentity({ firstName: '', lastName: '', email: '', phone: '' });
         setFormData({});
         setLockedEmployers([]);
         setApplicantKey(null);
@@ -140,8 +153,8 @@ export function useApplicationPrepDraft(companyId) {
     }, []);
 
     return {
-        identity, setIdentity,
         formData, setFormData, updateField,
+        contactEmail, contactPhone, identityComplete,
         lockedEmployers, lockEmployers, unlockEmployer,
         applicantKey, status, busy, error,
         save, load, reset,

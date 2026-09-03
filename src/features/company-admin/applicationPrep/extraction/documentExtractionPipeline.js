@@ -1,4 +1,5 @@
 import { renderPageToDataUrl } from '@features/signing/utils/pdfPageRasterizer';
+import { fileToDataUrl } from '@features/driver-app/components/application/publicApplyHelpers';
 import { extractPdfText, loadPdf, MIN_CHARS_PER_DOCUMENT } from './pdfTextLayer';
 import { recognizePages } from './ocrFallback';
 
@@ -41,7 +42,12 @@ function isPdf(file) {
 
 /** Rendered pages, for OCR here or for the vision route server-side. */
 async function renderPages(file, deps) {
-    const { load = loadPdf, renderPage = renderPageToDataUrl, readImage } = deps;
+    // `readImage` MUST default to a real reader. It is an injection seam for tests,
+    // but the production caller passes no deps — leaving it undefined here meant
+    // every photo threw `readImage is not a function` and was reported as an
+    // unreadable file, while PDFs (which have their own `loadPdf`) worked. That is
+    // the whole reason a CDL photo failed while a PSP/MVR PDF read fine.
+    const { load = loadPdf, renderPage = renderPageToDataUrl, readImage = fileToDataUrl } = deps;
     if (!isPdf(file)) {
         const dataUrl = await readImage(file);
         return dataUrl ? [dataUrl] : [];
@@ -70,7 +76,9 @@ export async function extractOneDocument({ kind, file }, deps = {}) {
 
     if (!file) return { kind, method: 'failed' };
     if (!isPdf(file) && !IMAGE_TYPES.test(file.type || '')) {
-        return { kind, method: 'failed', reason: 'Only PDFs and photos can be read.' };
+        // Names the formats so a HEIC photo — an iPhone's default, which the
+        // browser cannot decode here — reads as a fixable choice, not a dead end.
+        return { kind, method: 'failed', reason: 'That file cannot be read. Use a PDF, JPG, PNG or WebP.' };
     }
 
     if (isPdf(file) && !forcePages) {

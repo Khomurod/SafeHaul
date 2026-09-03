@@ -3,7 +3,8 @@
  *
  * What matters here is the identity — the email and phone key the draft and the
  * application it becomes — and the lock list, which is what the driver will not be
- * able to edit. Everything else is a form.
+ * able to edit. Identity lives in `formData` (the schema edits it), not a state of
+ * its own, so `save` reads the key straight off the answers.
  */
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -23,12 +24,15 @@ beforeEach(() => {
 });
 
 describe('preparing an application', () => {
-    it('sends the identity as the key and the answers alongside it', async () => {
+    it('reads the key off the answers and sends them together', async () => {
         const { result } = renderHook(() => useApplicationPrepDraft('co-1'));
 
-        act(() => {
-            result.current.setIdentity({ firstName: 'Dana', lastName: 'Alvarez', email: 'dana@example.test', phone: '2145550147' });
-        });
+        // Email/phone are ordinary fields now — the same `updateField` the schema
+        // editor calls, not a separate identity state.
+        act(() => result.current.updateField('firstName', 'Dana'));
+        act(() => result.current.updateField('lastName', 'Alvarez'));
+        act(() => result.current.updateField('email', 'dana@example.test'));
+        act(() => result.current.updateField('phone', '2145550147'));
         act(() => result.current.updateField('cdlNumber', 'TX1234567'));
         await act(async () => { await result.current.save(); });
 
@@ -37,6 +41,14 @@ describe('preparing an application', () => {
         expect(payload).toMatchObject({ companyId: 'co-1', email: 'dana@example.test', phone: '2145550147' });
         expect(payload.formData).toMatchObject({ firstName: 'Dana', lastName: 'Alvarez', cdlNumber: 'TX1234567' });
         expect(result.current.applicantKey).toBe('key-1');
+    });
+
+    it('gates the save until there is an email or phone to key the draft', () => {
+        const { result } = renderHook(() => useApplicationPrepDraft('co-1'));
+
+        expect(result.current.identityComplete).toBe(false);
+        act(() => result.current.updateField('email', 'dana@example.test'));
+        expect(result.current.identityComplete).toBe(true);
     });
 
     it('locks an employer by identity, and does not lock the same one twice', async () => {
@@ -108,10 +120,12 @@ describe('opening one back up', () => {
         const loaded = await act(async () => result.current.load('key-1'));
 
         expect(loaded.readable).toBe(false);
-        expect(result.current.formData).toEqual({});
-        // Contact and progress still come back: the carrier may see how far the
-        // driver has got, just not what they wrote.
-        expect(result.current.identity.email).toBe('dana@example.test');
+        // No answers — only the contact/name, so the header stays meaningful while
+        // the screen shows a read-only notice in place of the editor.
+        expect(result.current.formData).toEqual({
+            firstName: 'Dana', lastName: 'Alvarez', email: 'dana@example.test', phone: '2145550147',
+        });
+        expect(result.current.formData.cdlNumber).toBeUndefined();
     });
 });
 
@@ -130,11 +144,11 @@ describe('moving on to another driver', () => {
 
         act(() => { result.current.reset(); });
 
-        // Every one of these is keyed to an applicant, and the identity is what
-        // keys the draft — so a leftover here files one driver's answers and
-        // documents under the next driver's key.
-        expect(result.current.identity).toEqual({ firstName: '', lastName: '', email: '', phone: '' });
+        // Every one of these is keyed to an applicant, and the email/phone in
+        // formData is what keys the draft — so a leftover here files one driver's
+        // answers and documents under the next driver's key.
         expect(result.current.formData).toEqual({});
+        expect(result.current.identityComplete).toBe(false);
         expect(result.current.lockedEmployers).toEqual([]);
         expect(result.current.applicantKey).toBeNull();
         expect(result.current.status).toBe('draft');

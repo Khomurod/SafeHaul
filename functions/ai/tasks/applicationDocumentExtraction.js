@@ -61,6 +61,11 @@ const MAX_TOTAL_CHARS = 16000;
 
 /** Below the router's own default and below the callable's timeout, as the siblings are. */
 const DOCUMENT_TOTAL_DEADLINE_MS = 45000;
+// Below the total on purpose: no single provider may take the whole budget, so a
+// stalled one (a rate-limited provider sitting at the top of the routing order)
+// fails over to a healthy one with time to spare, instead of timing out the whole
+// read. 45s total / ~20s each leaves room for two full attempts.
+const DOCUMENT_PER_ATTEMPT_MS = 20000;
 
 const VIOLATION_SCHEMA = Object.freeze({
     type: 'object',
@@ -228,6 +233,7 @@ async function extractApplicationDocuments({ documents }, deps = {}) {
         maxOutputTokens: 3000,
         privacy: PRIVACY.RESTRICTED,
         totalDeadlineMs: DOCUMENT_TOTAL_DEADLINE_MS,
+        perAttemptDeadlineMs: DOCUMENT_PER_ATTEMPT_MS,
     });
 
     const result = await runAiTask(task, deps);
@@ -245,6 +251,7 @@ module.exports = {
     DOCUMENT_KINDS,
     DOCUMENT_LABELS,
     DOCUMENT_PROMPT,
+    DOCUMENT_PER_ATTEMPT_MS,
     DOCUMENT_TOTAL_DEADLINE_MS,
     MAX_CHARS_PER_DOCUMENT,
     MAX_TOTAL_CHARS,
