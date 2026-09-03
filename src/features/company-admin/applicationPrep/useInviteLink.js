@@ -28,7 +28,12 @@ export function useInviteLink({ companyId, appSlug }) {
             const { data } = await call({ companyId, applicantKey });
             const url = `${window.location.origin}/apply/${appSlug}`
                 + `?invite=${encodeURIComponent(data.inviteToken)}&k=${encodeURIComponent(data.applicantKey)}`;
-            setLink({ url, expiresInDays: data.expiresInDays });
+            // Stamped with whose application it opens. The link is a bearer
+            // credential for exactly one applicant, so a screen that shows it must
+            // be able to prove it belongs to the applicant on screen — see
+            // `linkFor`. Showing one driver's link under another driver's name is
+            // one Copy away from sending a stranger their application.
+            setLink({ url, expiresInDays: data.expiresInDays, applicantKey: data.applicantKey });
             return url;
         } catch (mintError) {
             setError(describeError(mintError));
@@ -52,7 +57,27 @@ export function useInviteLink({ companyId, appSlug }) {
         }
     }, [link]);
 
-    return { link, busy, error, copied, mint, copy };
+    const reset = useCallback(() => {
+        setLink(null);
+        setError(null);
+        setCopied(false);
+    }, []);
+
+    /**
+     * The link, but only if it opens this applicant's application.
+     *
+     * Structural rather than a matter of remembering to reset: the hook does not
+     * watch which draft the screen has loaded, so switching applications used to
+     * leave the previous driver's URL on screen with the primary Copy button
+     * beside it. A caller that asks for "the link for this key" cannot show the
+     * wrong one, whether or not anything was reset.
+     */
+    const linkFor = useCallback(
+        (applicantKey) => (applicantKey && link?.applicantKey === applicantKey ? link : null),
+        [link],
+    );
+
+    return { link, linkFor, busy, error, copied, mint, copy, reset };
 }
 
 export default useInviteLink;

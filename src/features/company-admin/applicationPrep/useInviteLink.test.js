@@ -68,6 +68,30 @@ describe('the driver link', () => {
         expect(result.current.link).toBeNull();
     });
 
+    it('is only ever handed out for the application it opens', async () => {
+        const { result } = renderHook(() => useInviteLink({ companyId: 'co-1', appSlug: 'blue-line' }));
+        await act(async () => { await result.current.mint('key-1'); });
+
+        // The hook does not watch which draft the screen loaded, so a switch to
+        // another driver used to leave this URL on screen with the primary Copy
+        // button beside it — one click from sending a stranger their application.
+        expect(result.current.linkFor('key-1').url).toContain('k=key-1');
+        expect(result.current.linkFor('key-2')).toBeNull();
+        expect(result.current.linkFor(null)).toBeNull();
+    });
+
+    it('lets the screen drop it when it moves to another application', async () => {
+        const { result } = renderHook(() => useInviteLink({ companyId: 'co-1', appSlug: 'blue-line' }));
+        await act(async () => { await result.current.mint('key-1'); });
+        await act(async () => { await result.current.copy(); });
+
+        act(() => { result.current.reset(); });
+
+        expect(result.current.link).toBeNull();
+        expect(result.current.copied).toBe(false);
+        expect(result.current.error).toBeNull();
+    });
+
     it('reports a failure instead of a half-made link', async () => {
         const denied = new Error('nope');
         denied.code = 'functions/permission-denied';

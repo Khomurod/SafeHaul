@@ -95,6 +95,24 @@ describe('opening an application a carrier prepared', () => {
         expect(state.error).toBeNull();
     });
 
+    it('sets the company before it returns, which is what the wizard renders from', async () => {
+        const { args } = harness({ query: 'invite=abc123&k=applicant-key-1' });
+
+        await loadPublicApplyCompany(args);
+
+        // The invite branch returns straight out of `loadPublicApplyCompany`, so a
+        // company set *after* it is a company never set at all — and the wizard
+        // dereferences `company.companyName` on the very next render. Every real
+        // carrier-sent link opened on nothing; the E2E branch happens to set the
+        // company before calling the helper, which is why no browser test saw it.
+        expect(args.setCompany).toHaveBeenCalledWith(
+            expect.objectContaining({ id: 'co-1', companyName: 'Blue Line Freight' }),
+        );
+        expect(args.setCurrentCompanyProfile).toHaveBeenCalledWith(
+            expect.objectContaining({ id: 'co-1' }),
+        );
+    });
+
     it('stores the resume token, which is what authorizes the driver to save', async () => {
         const { args } = harness({ query: 'invite=abc123' });
 

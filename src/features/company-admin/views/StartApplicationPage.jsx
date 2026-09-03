@@ -45,6 +45,16 @@ export function StartApplicationPage() {
     const appSlug = currentCompanyProfile?.appSlug || companyId;
 
     const [view, setView] = useState('list');
+    /**
+     * The `File` objects this tab holds, keyed by upload field.
+     *
+     * An upload puts `{name, url, storagePath}` into the form data and sends the
+     * bytes to Storage, so the reader — which needs bytes — has nothing to work
+     * with unless they are kept. Held here rather than in the draft because they
+     * are exactly as long-lived as this tab: a draft re-opened tomorrow has the
+     * documents on the application and nothing in this map, and the panel says so.
+     */
+    const [documentBlobs, setDocumentBlobs] = useState({});
     const [applications, setApplications] = useState([]);
     const [listLoading, setListLoading] = useState(true);
     const [listError, setListError] = useState(null);
@@ -73,6 +83,11 @@ export function StartApplicationPage() {
     useEffect(() => { loadList(); }, [loadList]);
 
     const openExisting = useCallback(async (entry) => {
+        // The previous application's link and documents go first. Both are keyed to
+        // a driver: the link is a bearer URL for one application, and the blobs are
+        // the bytes behind one set of uploads.
+        invite.reset();
+        setDocumentBlobs({});
         const result = await prep.load(entry.applicantKey);
         if (!result) return;
         // Once the driver has started, the answers are theirs — the server sends
@@ -82,12 +97,19 @@ export function StartApplicationPage() {
             ? null
             : 'This driver has started filling it in, so their answers are theirs now. You can still see how far they have got.');
         setView('editor');
-    }, [prep]);
+    }, [invite, prep]);
 
     const startNew = useCallback(() => {
+        // Not just the view. The hook still holds the previous driver's identity,
+        // answers, documents and locks, and the identity is what keys the draft —
+        // so starting a second application without clearing it saves one driver's
+        // answers under another driver's key.
+        prep.reset();
+        invite.reset();
+        setDocumentBlobs({});
         setReadOnlyNotice(null);
         setView('identity');
-    }, []);
+    }, [invite, prep]);
 
     const identityComplete = Boolean(prep.identity.email || prep.identity.phone);
 
@@ -99,7 +121,26 @@ export function StartApplicationPage() {
         }
     }, [loadList, prep]);
 
-    const onFileChange = useCallback((name, value) => prep.updateField(name, value), [prep]);
+    const uploadDocument = useCallback(async (fieldName, file) => {
+        const uploaded = await handleFileUpload(fieldName, file);
+        // Only once the upload succeeded: a blob the application does not hold is
+        // a document the driver would never see, and reading it would fill the
+        // form from a file that is not attached to anything.
+        if (uploaded) setDocumentBlobs((previous) => ({ ...previous, [fieldName]: file }));
+        return uploaded;
+    }, [handleFileUpload]);
+
+    const onFileChange = useCallback((name, value) => {
+        prep.updateField(name, value);
+        if (value) return;
+        setDocumentBlobs((previous) => {
+            if (!previous[name]) return previous;
+            const next = { ...previous };
+            delete next[name];
+            return next;
+        });
+    }, [prep]);
+
     const updateList = useCallback((key, value) => prep.updateField(key, value), [prep]);
 
     if (view === 'list') {
@@ -195,6 +236,7 @@ export function StartApplicationPage() {
                     <ApplicationAiPrepPanel
                         companyId={companyId}
                         files={prep.formData}
+                        blobs={documentBlobs}
                         formData={prep.formData}
                         onApply={prep.setFormData}
                         onLockCarriers={prep.lockEmployers}
@@ -209,13 +251,13 @@ export function StartApplicationPage() {
                         lockedEmployers={prep.lockedEmployers}
                         onLockEmployers={prep.lockEmployers}
                         onUnlockEmployer={prep.unlockEmployer}
-                        onUpload={handleFileUpload}
+                        onUpload={uploadDocument}
                         onFileChange={onFileChange}
                     />
                 )}
 
                 <InviteLinkPanel
-                    link={invite.link}
+                    link={invite.linkFor(prep.applicantKey)}
                     busy={invite.busy}
                     error={invite.error}
                     copied={invite.copied}

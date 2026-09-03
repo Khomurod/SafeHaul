@@ -353,7 +353,10 @@ export async function exchangeApplicationInvite(payload) {
     try {
         const call = httpsCallable(functions, 'exchangeApplicationInvite');
         const result = await call(payload);
-        return result.data?.opened ? result.data : null;
+        // `HttpsCallableResult.data` is `unknown`, and this is the one caller in
+        // this file that reads a field off it rather than returning it whole.
+        const opened = /** @type {{opened?: boolean}} */ (result.data);
+        return opened?.opened ? result.data : null;
     } catch (error) {
         console.warn('[applicationDraftService] Application link could not be opened:', error?.code || error?.message);
         return null;

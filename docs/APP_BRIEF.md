@@ -715,6 +715,18 @@ enforcement. It applies **only once `inviteClaimedAt` is stamped**, i.e. to a
 driver who actually opened the carrier's link: refusing someone for leaving out
 an employer nobody showed them would be refusing them for the carrier's homework.
 
+**The lock follows the applicant, not the document id.** A draft's id is
+`sha256(company:email:phone)`, so a driver who corrects their own email or phone
+on page one writes to a different document than the carrier prepared. The
+carrier's facts about the application — `origin`, `preparedBy`, `invitedAt`,
+`inviteClaimedAt` and `lockedEmployers` — are copied onto the new id by
+`drafts/save.js`, using the draft the driver's resume token opened. Without that
+copy the submission would read the locks from a key that has none, so correcting
+a typo would silently unlock every employer the carrier locked. The invite token
+hashes deliberately do **not** travel: they address one document, and two live
+drafts answering one link is a worse problem than a claimed link that has to be
+sent again.
+
 **Company edits to a submitted application need driver approval.** A company
 admin's edits become per-field `pending_changes`; the main document stays the
 **canonical original** until each field is resolved, so exports keep showing
@@ -1158,6 +1170,14 @@ these.
   stripping fields from live user records is a data migration, not a UI removal —
   so expect to see them on older accounts and ignore them. Nothing in
   `firestore.rules` or Cloud Functions ever referenced them.
+- **"Read the documents" only reads what the current browser holds.** An upload
+  leaves `{name, url, storagePath}` in the form data and sends the bytes to
+  Storage, so a prepared application re-opened in a later session has its
+  documents on the application but nothing for the reader to read. The panel says
+  which ones and offers to read the rest; attaching a document again makes it
+  readable. Deliberately not solved by fetching the signed URL back into a Blob:
+  that is a cross-origin `fetch` against the Storage bucket, and whether it works
+  depends on bucket CORS configuration this repository does not set.
 - **No payment processing.** `companies/{id}.planType` is a manual super-admin
   `free` / `paid` flag that only changes a badge ("Free Plan" / "Pro Plan").
   Marketing prices ($199 / $299 per month) are **not** enforced anywhere in the

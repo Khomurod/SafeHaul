@@ -29,6 +29,20 @@ const config = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'firestore.indexe
 // already refuses to treat as "nothing to check", and that is exactly how this
 // test caught the module split rather than passing over an empty string.
 const callableSource = fs.readFileSync(path.join(REPO_ROOT, 'functions/drafts/resume.js'), 'utf8');
+/**
+ * The carrier-prepared surface queries the same collection, and got the same
+ * treatment for the same reason: on 2026-09-03 review found `origin == 'company'`
+ * ordered by `updatedAt` in both of these with no index declared for it, so the
+ * recruiter's list and the keyless invite lookup would both have failed with
+ * `FAILED_PRECONDITION` in a deployed project while every test here passed.
+ *
+ * Read as a SET of files rather than one path, so splitting the module again does
+ * not quietly move a query out from under this test.
+ */
+const PREPARED_SOURCE_FILES = Object.freeze([
+    'functions/companyApplications/read.js',
+    'functions/companyApplications/invite.js',
+]);
 
 const draft = require('../../shared/applicationDraft');
 const telemetry = require('../../ai/telemetry/record');
@@ -68,6 +82,30 @@ describe('application_drafts composite index', () => {
         const lookup = body.slice(0, body.indexOf('exports.resumeApplicationDraft'));
         const filtered = [...lookup.matchAll(/\.where\('([a-zA-Z]+)',\s*'=='/g)].map((match) => match[1]);
 
+        expect(filtered.length).toBeGreaterThan(0);
+        for (const field of filtered) {
+            expect(hasIndex('application_drafts', [
+                { fieldPath: field, order: 'ASCENDING' },
+                { fieldPath: 'updatedAt', order: 'DESCENDING' },
+            ])).toBe(true);
+        }
+    });
+});
+
+describe('the carrier-prepared queries on the same collection', () => {
+    it('declares the origin + updatedAt index', () => {
+        expect(hasIndex('application_drafts', [
+            { fieldPath: 'origin', order: 'ASCENDING' },
+            { fieldPath: 'updatedAt', order: 'DESCENDING' },
+        ])).toBe(true);
+    });
+
+    it.each(PREPARED_SOURCE_FILES)('declares an index for every equality filter in %s', (file) => {
+        const source = fs.readFileSync(path.join(REPO_ROOT, file), 'utf8');
+        const filtered = [...source.matchAll(/\.where\('([a-zA-Z]+)',\s*'=='/g)].map((match) => match[1]);
+
+        // Not "nothing to check": a file that has stopped containing the query is
+        // a file the query moved out of, and that is what this must catch.
         expect(filtered.length).toBeGreaterThan(0);
         for (const field of filtered) {
             expect(hasIndex('application_drafts', [

@@ -222,6 +222,19 @@ exists for the save that corrects a contact field and an identity field at once,
 neither the new document id nor the new `identityKey` finds the draft the token opens.
 Audited as `stale_token`.
 
+**That resolution also decides where a carrier's facts live.** It returns the
+document, not just a verdict, because the same move it exists to permit — an
+applicant correcting the email or phone that derives the id — is what would
+otherwise strand a prepared application's `origin`, `preparedBy`, `invitedAt`,
+`inviteClaimedAt` and `lockedEmployers` on a key nobody writes to again. Those
+five are copied onto the new id (`carriedPreparedFields`), and the status becomes
+`driver_in_progress` there as it would have at the old one. `submitGuestApplication`
+reads the locks from the key it derives from the *submitted* contact details, so
+without the copy correcting a typo would unlock every employer the carrier locked.
+The invite token hashes deliberately stay behind: they address one document, and
+two live drafts answering one link is worse than a claimed link that has to be
+re-sent.
+
 **The lookup's token rotation happens in a transaction that re-reads the draft.** A
 merge-set creates what it cannot find, so a Start Over landing between the query that
 chose the candidate and the write that rotates its token would be undone — the document

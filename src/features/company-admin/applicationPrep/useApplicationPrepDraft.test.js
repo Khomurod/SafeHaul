@@ -115,6 +115,33 @@ describe('opening one back up', () => {
     });
 });
 
+describe('moving on to another driver', () => {
+    it('holds nothing from the last application', async () => {
+        callables.call.mockResolvedValue({
+            data: {
+                applicantKey: 'key-1', status: 'sent', readable: true,
+                firstName: 'Dana', lastName: 'Alvarez', email: 'dana@example.test', phone: '2145550147',
+                formData: { cdlNumber: 'TX1234567', 'psp-report-upload': { name: 'psp.pdf' } },
+                lockedEmployers: [{ signature: 'dot:123456', companyName: 'Acme Trucking', dotNumber: '123456' }],
+            },
+        });
+        const { result } = renderHook(() => useApplicationPrepDraft('co-1'));
+        await act(async () => { await result.current.load('key-1'); });
+
+        act(() => { result.current.reset(); });
+
+        // Every one of these is keyed to an applicant, and the identity is what
+        // keys the draft — so a leftover here files one driver's answers and
+        // documents under the next driver's key.
+        expect(result.current.identity).toEqual({ firstName: '', lastName: '', email: '', phone: '' });
+        expect(result.current.formData).toEqual({});
+        expect(result.current.lockedEmployers).toEqual([]);
+        expect(result.current.applicantKey).toBeNull();
+        expect(result.current.status).toBe('draft');
+        expect(result.current.error).toBeNull();
+    });
+});
+
 describe('describeError', () => {
     it.each([
         ['functions/permission-denied', /do not have access/],

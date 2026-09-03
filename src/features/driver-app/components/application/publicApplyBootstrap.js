@@ -213,8 +213,6 @@ export async function loadPublicApplyCompany({
           return;
         }
 
-        if (await openPreparedApplication(companyData)) return;
-
         setCompany(companyData);
         // Important: Global context setter preserved
         if (setCurrentCompanyProfile) {
@@ -224,6 +222,14 @@ export async function loadPublicApplyCompany({
         // Returning from the signing room (or a reload right after submitting):
         // bring back the success screen + required-documents checklist.
         restorePostApplySession(companyData);
+
+        // Deliberately AFTER the company is set. `openPreparedApplication` returns
+        // straight out of `loadCompany`, and the wizard it hands the driver reads
+        // `company.companyName` -- so opening the invite first left every real
+        // carrier-sent link rendering against no company at all. The E2E branch
+        // above sets the company before calling it, which is precisely why a
+        // browser test could not see this. The two branches now agree.
+        if (await openPreparedApplication(companyData)) return;
 
         // P2-5 FIX: Recover saved draft from localStorage on page revisit.
         //

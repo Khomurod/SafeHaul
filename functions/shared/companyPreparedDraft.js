@@ -89,6 +89,34 @@ function companyMayReadAnswers(data) {
         && (data || {}).status !== PREPARED_STATUSES.DRIVER_IN_PROGRESS;
 }
 
+/**
+ * The facts that follow the APPLICANT when the draft's id changes.
+ *
+ * The id is `sha256(company:email:phone)`, so a driver who corrects their own
+ * email or phone on page one writes to a different document than the one the
+ * carrier prepared. These are the carrier's own facts about the application —
+ * that it prepared it, who did, when the driver claimed the link, and which
+ * employers the safety record named — and the last of them is what the
+ * submission reads to enforce the lock. Left behind on the old key, correcting a
+ * typo would silently unlock every employer the carrier locked.
+ *
+ * Deliberately NOT the invite token hashes. Those address one document, and two
+ * live drafts answering one link is a worse problem than a claimed link that has
+ * to be sent again. The driver's own resume token still opens the moved draft —
+ * that is what proved the save belongs to it in the first place.
+ */
+function carriedPreparedFields(data) {
+    const source = data || {};
+    const carried = {
+        origin: ORIGIN_COMPANY,
+        lockedEmployers: Array.isArray(source.lockedEmployers) ? source.lockedEmployers : [],
+    };
+    if (source.preparedBy) carried.preparedBy = source.preparedBy;
+    if (source.invitedAt) carried.invitedAt = source.invitedAt;
+    if (source.inviteClaimedAt) carried.inviteClaimedAt = source.inviteClaimedAt;
+    return carried;
+}
+
 function isoOf(value) {
     return value?.toDate?.()?.toISOString?.() || null;
 }
@@ -143,6 +171,7 @@ module.exports = {
     MAX_LOCKED_EMPLOYERS,
     ORIGIN_COMPANY,
     PREPARED_STATUSES,
+    carriedPreparedFields,
     companyMayReadAnswers,
     employerSignature,
     isCompanyPrepared,

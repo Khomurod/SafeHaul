@@ -8,6 +8,7 @@ import { describeError } from './useApplicationPrepDraft';
 import { applyExtractedFields } from './applyExtractedFields';
 import { extractDocuments } from './extraction/documentExtractionPipeline';
 import { attachedDocuments } from './attachedDocuments';
+import { mergeExtractionResults } from './mergeExtractionResults';
 
 /**
  * "Read what I attached, and fill in what you can."
@@ -48,20 +49,24 @@ const DOCUMENT_LABELS = Object.freeze({
     mvr: 'Motor vehicle record',
 });
 
-export function ApplicationAiPrepPanel({ companyId, files, formData, onApply, onLockCarriers }) {
+export function ApplicationAiPrepPanel({ companyId, files, blobs, formData, onApply, onLockCarriers }) {
     const [state, setState] = useState('idle');
     const [error, setError] = useState(null);
     const [methods, setMethods] = useState({});
     const [summary, setSummary] = useState(null);
 
-    const attached = attachedDocuments(files);
+    // What the application holds, and which of those this tab can actually read.
+    // See `attachedDocuments`: an upload leaves metadata behind, not bytes.
+    const attached = attachedDocuments(files, blobs);
+    const readable = attached.filter((entry) => entry.file);
+    const elsewhere = attached.filter((entry) => !entry.file);
 
     const read = useCallback(async () => {
         setState('reading');
         setError(null);
         setSummary(null);
         try {
-            const extraction = await extractDocuments(attached);
+            const extraction = await extractDocuments(readable);
             if (Object.keys(extraction.documents).length === 0) {
                 setError('None of the attached files could be opened. You can still type the details in.');
                 setState('error');
@@ -77,7 +82,7 @@ export function ApplicationAiPrepPanel({ companyId, files, formData, onApply, on
                 .map(([kind]) => kind);
             if (unreadable.length > 0) {
                 const pages = await extractDocuments(
-                    attached.filter((entry) => unreadable.includes(entry.kind)),
+                    readable.filter((entry) => unreadable.includes(entry.kind)),
                     { forcePages: true },
                 );
                 const asPages = Object.fromEntries(Object.entries(pages.documents)
@@ -87,7 +92,11 @@ export function ApplicationAiPrepPanel({ companyId, files, formData, onApply, on
                     const second = await call({ companyId, documents: asPages });
                     data = {
                         ...second.data,
-                        extracted: { ...data.extracted, ...second.data.extracted },
+                        // Nested, not spread: the second pass answers for the
+                        // unreadable documents only, so its empty sections would
+                        // otherwise erase everything the first pass read. See
+                        // `mergeExtractionResults`.
+                        extracted: mergeExtractionResults(data.extracted, second.data.extracted),
                         methods: { ...data.methods, ...second.data.methods },
                     };
                 }
@@ -104,7 +113,7 @@ export function ApplicationAiPrepPanel({ companyId, files, formData, onApply, on
             setError(describeError(readError));
             setState('error');
         }
-    }, [attached, companyId, formData, onApply, onLockCarriers]);
+    }, [companyId, formData, onApply, onLockCarriers, readable]);
 
     return (
         <Card padding="md">
@@ -120,13 +129,21 @@ export function ApplicationAiPrepPanel({ companyId, files, formData, onApply, on
                 <Button
                     variant="primary"
                     onClick={read}
-                    disabled={attached.length === 0 || state === 'reading'}
+                    disabled={readable.length === 0 || state === 'reading'}
                     data-testid="read-documents"
                 >
                     {state === 'reading'
                         ? <><Loader2 className="animate-spin" size={14} aria-hidden="true" /> Reading…</>
-                        : <><Sparkles size={14} aria-hidden="true" /> Read {attached.length || 'the'} document{attached.length === 1 ? '' : 's'}</>}
+                        : <><Sparkles size={14} aria-hidden="true" /> Read {readable.length || 'the'} document{readable.length === 1 ? '' : 's'}</>}
                 </Button>
+
+                {elsewhere.length > 0 && (
+                    <FieldMessage tone="help" data-testid="reattach-to-read">
+                        Attached in an earlier session, so not in this browser to read:
+                        {' '}{[...new Set(elsewhere.map((entry) => DOCUMENT_LABELS[entry.kind] || entry.kind))].join(', ')}.
+                        {' '}They stay on the application either way — attach one again above to have it read.
+                    </FieldMessage>
+                )}
 
                 {state === 'reading' && (
                     <p role="status" className="text-ds-xs text-ds-content-muted">

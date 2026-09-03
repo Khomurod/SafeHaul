@@ -121,12 +121,30 @@ export function useApplicationPrepDraft(companyId) {
         setLockedEmployers((previous) => previous.filter((entry) => entry.signature !== signature));
     }, []);
 
+    /**
+     * Back to holding nothing, for starting a different driver's application.
+     *
+     * Every piece of this hook's state belongs to one applicant, and the key that
+     * addresses it is derived from the identity. Keeping any of it across a switch
+     * would file one driver's answers, documents and locks under another driver's
+     * key — a save, not a display glitch. So the screen resets before it asks who
+     * the next application is for.
+     */
+    const reset = useCallback(() => {
+        setIdentity({ firstName: '', lastName: '', email: '', phone: '' });
+        setFormData({});
+        setLockedEmployers([]);
+        setApplicantKey(null);
+        setStatus('draft');
+        setError(null);
+    }, []);
+
     return {
         identity, setIdentity,
         formData, setFormData, updateField,
         lockedEmployers, lockEmployers, unlockEmployer,
         applicantKey, status, busy, error,
-        save, load,
+        save, load, reset,
     };
 }
 
