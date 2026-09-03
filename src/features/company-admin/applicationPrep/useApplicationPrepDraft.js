@@ -106,7 +106,15 @@ export function useApplicationPrepDraft(companyId) {
      * two locks and locking a blank row is not a lock nothing can satisfy.
      */
     const lockEmployers = useCallback((rows) => {
-        setLockedEmployers((previous) => normalizeLockedEmployers([...previous, ...(rows || [])]));
+        // A carrier from a PSP report names itself `name`; an employer row calls
+        // the same thing `companyName`. Accepting both here means the reader and
+        // the row's own Lock button reach one list without a translation step at
+        // either call site.
+        const asRows = (rows || []).map((row) => ({
+            companyName: row?.companyName || row?.name || '',
+            dotNumber: row?.dotNumber || '',
+        }));
+        setLockedEmployers((previous) => normalizeLockedEmployers([...previous, ...asRows]));
     }, []);
 
     const unlockEmployer = useCallback((signature) => {

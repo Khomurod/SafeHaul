@@ -66,14 +66,14 @@ async function renderPages(file, deps) {
  * @returns {Promise<{kind: string, method: 'text'|'ocr'|'pages'|'failed', text?: string, pages?: string[]}>}
  */
 export async function extractOneDocument({ kind, file }, deps = {}) {
-    const { extractText = extractPdfText, recognize = recognizePages } = deps;
+    const { extractText = extractPdfText, recognize = recognizePages, forcePages = false } = deps;
 
     if (!file) return { kind, method: 'failed' };
     if (!isPdf(file) && !IMAGE_TYPES.test(file.type || '')) {
         return { kind, method: 'failed', reason: 'Only PDFs and photos can be read.' };
     }
 
-    if (isPdf(file)) {
+    if (isPdf(file) && !forcePages) {
         try {
             const layer = await extractText(file, deps);
             if (layer.sufficient) return { kind, method: 'text', text: layer.text };
@@ -89,6 +89,11 @@ export async function extractOneDocument({ kind, file }, deps = {}) {
         return { kind, method: 'failed', reason: 'That file could not be opened.' };
     }
     if (pages.length === 0) return { kind, method: 'failed', reason: 'That file could not be opened.' };
+
+    // `forcePages` is the second pass: the reader has already told us the text it
+    // was given was not worth reading, so recognising it again would produce the
+    // same nonsense. The pages go straight to the models that read pictures.
+    if (forcePages) return { kind, method: 'pages', pages };
 
     try {
         const recognised = await recognize(pages, deps);

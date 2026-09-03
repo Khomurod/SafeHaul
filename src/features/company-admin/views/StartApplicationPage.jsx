@@ -11,6 +11,7 @@ import { useGuestFileUpload } from '@features/driver-app/hooks/useGuestFileUploa
 import { useApplicationPrepDraft, describeError } from '../applicationPrep/useApplicationPrepDraft';
 import { useInviteLink } from '../applicationPrep/useInviteLink';
 import ApplicationPrepEditor from '../applicationPrep/ApplicationPrepEditor';
+import ApplicationAiPrepPanel from '../applicationPrep/ApplicationAiPrepPanel';
 import InviteLinkPanel from '../applicationPrep/InviteLinkPanel';
 import PreparedApplicationsTable from '../applicationPrep/PreparedApplicationsTable';
 
@@ -189,6 +190,16 @@ export function StartApplicationPage() {
 
                 {readOnlyNotice && <Card padding="md"><FieldMessage tone="help">{readOnlyNotice}</FieldMessage></Card>}
                 {prep.error && <Card padding="md"><FieldMessage tone="error">{prep.error}</FieldMessage></Card>}
+
+                {!readOnlyNotice && (
+                    <ApplicationAiPrepPanel
+                        companyId={companyId}
+                        files={prep.formData}
+                        formData={prep.formData}
+                        onApply={prep.setFormData}
+                        onLockCarriers={prep.lockEmployers}
+                    />
+                )}
 
                 {!readOnlyNotice && (
                     <ApplicationPrepEditor
