@@ -185,19 +185,34 @@ function rowHasContent(row) {
     return Object.entries(row).some(([key, value]) => key !== 'id' && !isBlank(value));
 }
 
+/** Only these two lists predate their question, so only these two infer a Yes. */
+const LEGACY_ROW_LISTS = Object.freeze([['has-violations', 'violations'], ['has-accidents', 'accidents']]);
+const CONDITIONAL_LISTS = Object.freeze(Object.entries(CATALOG.conditionalAnswers.lists));
+const CONDITIONAL_FIELDS = Object.freeze(Object.entries(CATALOG.conditionalAnswers.fields));
+
 /**
- * Legacy shapes, made explicit. The Yes/No violations and accidents questions
- * arrived after years of applications that only had the lists, so a record with
- * rows and no answer means Yes. And an explicit No is authoritative: rows left
- * behind by an applicant who changed their mind are dropped, on screen, in the
- * browser's payload and on the server alike.
+ * Legacy shapes, made explicit. Violations and accidents predate their Yes/No
+ * questions, so rows with no answer mean Yes — those two alone, because no other
+ * list shipped without its question and inferring one would answer for the
+ * applicant. And an explicit No is authoritative: everything that answer
+ * revealed is dropped, on screen, in the browser's payload and on the server
+ * alike. That used to mean the row lists and nothing else, so a driver who
+ * answered Yes, explained, then corrected themselves to No still submitted the
+ * text — and it printed on the recruiter's PDF under an answer reading No.
+ * `conditionalAnswers` in the catalog carries the full set; a new conditional
+ * field belongs there or it leaks the same way.
  */
 function normalizeApplicationAnswers(formData) {
     const data = { ...(formData && typeof formData === 'object' ? formData : {}) };
-    for (const [flag, list] of [['has-violations', 'violations'], ['has-accidents', 'accidents']]) {
+    for (const [flag, list] of LEGACY_ROW_LISTS) {
         const rows = listOf(data[list]).filter(rowHasContent);
         if (!yesNo(data[flag]) && rows.length > 0) data[flag] = 'yes';
+    }
+    for (const [flag, list] of CONDITIONAL_LISTS) {
         if (yesNo(data[flag]) === 'no' && Array.isArray(data[list]) && data[list].length > 0) data[list] = [];
+    }
+    for (const [flag, fields] of CONDITIONAL_FIELDS) {
+        if (yesNo(data[flag]) === 'no') fields.forEach((field) => { delete data[field]; });
     }
     return data;
 }
