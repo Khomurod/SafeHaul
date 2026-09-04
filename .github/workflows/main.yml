@@ -27,14 +27,16 @@ on:
     inputs:
       source_size_base:
         description: >-
-          Optional baseline commit for the source-size guard. Leave it empty and
-          the guard compares against the newest ancestor carrying a fully
-          validated release, which it asks GitHub for. Set it only when that walk
-          finds nothing and you can name a release you know was good. It clears a
-          HIGHER bar than an inferred base, because an escape hatch nobody checks
-          is a bypass: an ancestor, not the head, itself carrying a validated
-          release, containing the base the walk would have chosen, and not from
-          before the source-size backlog existed.
+          Optional baseline commit for the source-size guard AND the UI-contract
+          allowlist, which share it: one baseline question, one answer, one place
+          an operator can get it wrong. Leave it empty and both guards compare
+          against the newest ancestor carrying a fully validated release, which
+          they ask GitHub for. Set it only when that walk finds nothing and you
+          can name a release you know was good. It clears a HIGHER bar than an
+          inferred base, because an escape hatch nobody checks is a bypass: an
+          ancestor, not the head, itself carrying a validated release, containing
+          the base the walk would have chosen, and not from before the
+          source-size backlog or the UI-contract allowlist existed.
         required: false
         default: ''
       secret_scan_base:
@@ -191,6 +193,19 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: 20.x
+          cache: 'npm'
+
+      # Installed for ONE reason: the UI-contract guard's native-table rule
+      # parses with `@babel/parser`, because deciding whether
+      # `className={on ? 'ds-native-table' : 'other'}` is on contract is a
+      # question about structure that no string match can answer. Every other
+      # check in this job still needs nothing installed, and the ones that say so
+      # in their own comments are held to it by `npm run check:ci-plan` — a
+      # dependency-free checker cannot be broken by a bad install, which is worth
+      # keeping even now that an install happens.
+      - name: Install Dependencies
+        run: npm ci
+
       - name: Verify frontend/backend callable contract
         run: node scripts/check-callable-contract.mjs
 
@@ -273,6 +288,37 @@ jobs:
       - name: Verify the AI provider boundary
         run: npm run check:ai-boundary
 
+      # The design-system ratchet, moved here from `frontend-quality` on
+      # 2026-09-04 for the reason the source-size guard is here: it now proves the
+      # allowlist did not grow by reading the previous version out of git, which
+      # needs `fetch-depth: 0`, `checks: read`, a token and the shared
+      # `SOURCE_SIZE_BASE` — all of which this job already has — and it needs to
+      # be unskippable, which a lane below `plan` is not. A design-system standard
+      # CI may skip is not a standard.
+      # The guard's own tests run FIRST. A guard can go blind silently — narrow
+      # the walker's extension set and the scan drops 26 stylesheets while still
+      # clearing its floor — so the checker being green means nothing until the
+      # checker itself has been proven to still be able to fail.
+      - name: Verify the UI-contract guard
+        run: npm run test:ui-contract
+
+      # `--require-baseline` is what stops the allowlist being edited into a
+      # self-serve exemption. Every rule in the checker is enforced against the
+      # allowlist in the branch under test, which that branch may edit: a
+      # 2026-09-04 audit raised a recorded count from 100 to 103 with `--update`
+      # and got "none new", and added a new file with a filler reason and got a
+      # pass. Both are refused now by comparing every addition against the base
+      # commit's own content, and a run that cannot find that base refuses too.
+      - name: UI contract ratchet
+        run: npm run check:ui-contract -- --require-baseline
+        env:
+          # The same three as "Check source sizes" above, and deliberately the
+          # same override: one baseline question, one answer, one place an
+          # operator can get it wrong.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_PR_BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
+          SOURCE_SIZE_BASE: ${{ github.event.inputs.source_size_base || '' }}
+
   # ---------------------------------------------------------------------------
   # Lanes — each runs when relevant and not already proven for this exact tree
   # ---------------------------------------------------------------------------
@@ -344,23 +390,6 @@ jobs:
 
       - name: Frontend Lint
         run: npm run lint:frontend
-
-      # The design-system ratchet. It measures the tree against a committed
-      # inventory and fails on anything the inventory does not already cover, so
-      # a new raw palette class, off-scale type size, sub-12px text or
-      # hand-built control cannot land. It is here rather than in its own job
-      # because it needs nothing but a checkout and `npm ci` — and because a new
-      # job below `plan` would have to re-derive the skip-propagation clauses
-      # this pipeline documents at length.
-      # The guard's own tests run FIRST. A guard can go blind silently — narrow
-      # the walker's extension set and the scan drops 26 stylesheets while still
-      # clearing its floor — so the checker being green means nothing until the
-      # checker itself has been proven to still be able to fail.
-      - name: Verify the UI-contract guard
-        run: npm run test:ui-contract
-
-      - name: UI contract ratchet
-        run: npm run check:ui-contract
 
       - name: Frontend Unit Tests + Coverage (baseline-ratchet gate)
         run: npm run test:coverage

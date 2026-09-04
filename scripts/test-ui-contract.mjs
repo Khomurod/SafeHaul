@@ -248,13 +248,21 @@ console.log('\nX. The CLI stays out of the Vitest module graph');
     try {
         found = execFileSync('grep',
             ['-rlE', '--include=*.js', '--include=*.jsx',
-                String.raw`(from|import\()\s*['"][^'"]*check-ui-contract`, resolve(repoRoot, 'src')],
+                String.raw`(from|import\()\s*['"][^'"]*(check-ui-contract|ui-contract/baseline)`,
+                resolve(repoRoot, 'src')],
             { encoding: 'utf8', cwd: repoRoot });
     } catch (error) {
         if (error.status !== 1) throw error;
     }
     const offenders = found.trim().split('\n').filter(Boolean);
-    assert('X1. nothing under src/ imports the CLI entry',
+    /*
+     * Two modules, one hazard. `check-ui-contract.mjs` computes nothing at module
+     * scope any more, but `ui-contract/baseline.mjs` imports
+     * `source-size-baseline.mjs`, which resolves the repository root from
+     * `import.meta.url` on import — under Vitest's rewrite that is not a file
+     * URL, and the whole module throws before a single assertion runs.
+     */
+    assert('X1. nothing under src/ imports the CLI entry or the git baseline',
         offenders.length === 0, offenders.join(', '));
 }
 

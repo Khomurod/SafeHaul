@@ -313,6 +313,28 @@ slice that owed each one; that debt reached zero on 2026-08-25 and the `debt`
 escape hatch went with it, so an entry is now a decision someone wrote down
 rather than a promise to come back.
 
+**And since 2026-09-04 the inventory is compared against git, not taken on
+trust.** A written reason answers "is it written down"; only the base commit
+answers "was it already there". An audit reproduced two ways through in one
+command each — raise a recorded count and run `--update`, or add a brand-new file
+with an entry whose reason is a plausible sentence naming nothing — so every
+addition is now measured against the base's own content. Three consequences worth
+knowing before you reach for the flag:
+
+- **`--update` only shrinks.** It refuses to write a new file, a new rule or a
+  higher count, and names each one. Write those by hand, with a reason.
+- **A recorded exception is a frozen ceiling.** `VOEDocument.jsx` cannot grow a
+  101st raw palette class; the way out is to make the exception unnecessary, not
+  larger.
+- **A file this change creates can never carry an entry** — but a file it
+  *moves* can, because git's own rename and copy attribution is what supplies the
+  base's copy. A rename or a responsibility split carries its entries across; it
+  cannot carry a violation the move introduced.
+
+A slice that widens a rule is still possible, and that is why the base's content
+is measured rather than its recorded numbers: violations that have been in the
+tree for months can be recorded the moment a rule starts seeing them.
+
 Its styled-control rules were, until 2026-08-25, matching `<(button)\b([^>]*)>` —
 and `[^>]*` stops at the `>` in `=>`, so any control whose `className` came after
 an arrow function was invisible. It saw 12 hand-styled controls; a real

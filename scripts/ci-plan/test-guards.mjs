@@ -164,7 +164,8 @@ console.log('\nK. Guards that stay guards');
     const specifiers = [...checker.matchAll(/\bfrom\s+'([^']+)'/g)].map((match) => match[1]);
     assert('K4. the checker imports nothing but Node builtins',
         specifiers.length > 0 && specifiers.every((specifier) => specifier.startsWith('node:')),
-        `callable-contract runs with no npm ci, so a dependency here fails every run: ${specifiers.join(', ')}`);
+        'this checker stays dependency-free on purpose: it is the one gate that must survive a '
+        + `broken install in the always-required job: ${specifiers.join(', ')}`);
     const capabilities = stripComments(readFileSync(
         resolvePath(here, '../functions/ai/knowledge/safehaulCapabilities.js'), 'utf8'));
     assert('K4. the capability package the checker loads needs nothing installed either',

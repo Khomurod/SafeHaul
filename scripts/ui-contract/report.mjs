@@ -75,3 +75,40 @@ export function reportIntact(scanned, toleratedTotal, fileCount) {
 export function reportUpdated(fileCount, total) {
     console.log(`Inventory updated: ${fileCount} files, ${total} tolerated violations.`);
 }
+
+/**
+ * `--update` was asked to raise a ceiling, and would not.
+ *
+ * Named additions rather than a count, because the fix is per entry: each one is
+ * either a violation to fix or an exception to write down with a reason.
+ */
+export function reportRefusedUpdate(problems, growth) {
+    console.error('\n`--update` refuses to write: this would ADD to the inventory, not shrink it.\n');
+    for (const problem of problems) console.error(`  ${problem}`);
+    for (const { file, rule, count, previous } of growth) {
+        const was = previous === null ? 'not recorded' : `was ${previous}`;
+        console.error(`  ${file}  ${rule}: ${count}  (${was})`);
+    }
+    console.error('\n`--update` exists to record shrinkage. Regenerating an increase is how an');
+    console.error('allowlist stops being an allowlist and becomes a description of whatever the');
+    console.error('branch happens to contain — a 2026-09-04 audit raised a count from 100 to 103');
+    console.error('this way and the check reported "none new".');
+    console.error('\nFix the violation, or add the entry by hand with a `reasons` line naming the');
+    console.error('roadmap item that justifies it. A hand-written entry still has to survive the');
+    console.error('baseline check: the base commit must already carry that violation.\n');
+}
+
+/**
+ * The inventory itself moved the wrong way, or could not be shown not to have.
+ *
+ * Reported before the content verdicts: when the allowlist cannot be trusted,
+ * "none new" is a statement about nothing.
+ */
+export function reportTampered(problems) {
+    console.error('\nThe UI contract allowlist did not survive comparison with its base commit:\n');
+    for (const problem of problems) console.error(`  - ${problem}`);
+    console.error('\nAn entry records a violation that was ALREADY THERE. Adding one for code this');
+    console.error('change wrote — or raising a recorded count to match it — is a gate taking its');
+    console.error('scope from the branch it is gating, which is the shape of every hole this');
+    console.error('repository has had to close twice. Fix the violation instead.\n');
+}
