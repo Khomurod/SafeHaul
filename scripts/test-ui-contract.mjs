@@ -21,24 +21,28 @@
  * names the mutation that turns it red, so a future reader can check the test is
  * still worth its line.
  *
- * Sections grow with the guard. The baseline and scope sections arrive with the
- * slices that add them.
+ * ## This file asks whether the DECISIONS are right
+ *
+ * Three siblings ask the other questions, and `npm run test:ui-contract` chains
+ * all four:
+ *
+ * | file                            | asks                                       |
+ * |---------------------------------|--------------------------------------------|
+ * | this one                        | are the decisions right?                   |
+ * | `test-ui-contract-scope.mjs`    | is it still LOOKING at the whole tree?     |
+ * | `test-ui-contract-baseline.mjs` | can the inventory be edited by the branch? |
+ * | `test-ui-contract-ci.mjs`       | does CI run it, and can that be skipped?   |
+ *
+ * The scope half was split out on 2026-09-04 when the coverage pins landed;
+ * "which files does it read" and "what does it conclude" are different subjects
+ * with different mutations, and one file doing both was heading past 400 lines.
  */
 
-import { execFileSync } from 'node:child_process';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-import { MINIMUM_SCANNED_FILES } from './check-ui-contract.mjs';
 import { COUNTERS, REMEDIES, countViolations } from './ui-contract/counting.mjs';
 import { CSS_RULE_NAMES, RULES, STYLED_CONTROL_RULES } from './ui-contract/rules.mjs';
-import { STORY_RULE_NAMES } from './ui-contract/source-text.mjs';
 import { MIN_REASON_LENGTH, evaluate } from './ui-contract/verdict.mjs';
 import { regenerate, serialise } from './ui-contract/update.mjs';
 import { untetheredTables } from './ui-contract/tether.mjs';
-
-const here = dirname(fileURLToPath(import.meta.url));
-const repoRoot = resolve(here, '..');
 
 let failures = 0;
 function assert(name, condition, detail = '') {
@@ -82,34 +86,6 @@ assert('S4d. patternless rules and COUNTERS are the same set',
     patternless.length === counterNames.length
     && patternless.every((name) => counterNames.includes(name)),
     `patternless [${patternless}] vs counters [${counterNames}]`);
-
-/* ========================================================================== */
-console.log('\nS8. The walker must reach the tree it claims to guard');
-
-// Mutation: lower the floor, or narrow the extension regex. 554 -> 528 when
-// `css` is dropped, which the floor alone cannot see.
-assert('S8a. the floor is a real constant, not a magic number',
-    Number.isInteger(MINIMUM_SCANNED_FILES) && MINIMUM_SCANNED_FILES >= 400,
-    String(MINIMUM_SCANNED_FILES));
-
-const intact = execFileSync('node', [resolve(here, 'check-ui-contract.mjs')],
-    { cwd: repoRoot, encoding: 'utf8' });
-const scannedNow = Number(intact.match(/intact: (\d+) files scanned/)?.[1] ?? 0);
-assert('S8b. the live scan is comfortably above the floor',
-    scannedNow > MINIMUM_SCANNED_FILES, `scanned ${scannedNow}`);
-
-/* ========================================================================== */
-console.log('\nS5. Story rules are a deliberate subset, not an accident');
-
-// Mutation: add a class-list rule and forget the story set. A story is scanned
-// with a reduced set on purpose (prose collides with bare class names), so the
-// subset has to be intentional and asserted rather than inferred.
-const unknownStoryRules = STORY_RULE_NAMES.filter((name) => !uniqueRuleNames.includes(name));
-assert('S5a. every story rule is a real rule',
-    unknownStoryRules.length === 0, unknownStoryRules.join(', '));
-assert('S5b. the story set is a strict subset',
-    STORY_RULE_NAMES.length > 0 && STORY_RULE_NAMES.length < uniqueRuleNames.length,
-    `${STORY_RULE_NAMES.length} of ${uniqueRuleNames.length}`);
 
 /* ========================================================================== */
 console.log('\nV. The verdict functions, driven on fixtures');
@@ -232,47 +208,18 @@ assert('T5. a file with no raw-table entry is not parsed at all',
         () => { throw new Error('should not be read'); }).length === 0);
 
 /* ========================================================================== */
-console.log('\nX. The CLI stays out of the Vitest module graph');
+console.log('\nX. The rule engine stands alone');
 
-// Mutation: import `check-ui-contract.mjs` from a test under `src/`. Vitest
-// rewrites `import.meta.url`, so anything at the CLI's module scope — or at the
-// module scope of anything it imports, such as the git-baseline helpers — runs
-// inside that rewrite. `paths.mjs` puts every path behind a function call for
-// this reason; the CLI is the one file that must never be pulled in.
-// Matches an import specifier, not a mention: naming the file in a comment is
-// exactly what the ratchet suite does to explain why it imports elsewhere, and
-// a check that fires on its own documentation gets switched off.
-{
-    // grep exits 1 when it matches nothing, which is the passing case here.
-    let found = '';
-    try {
-        found = execFileSync('grep',
-            ['-rlE', '--include=*.js', '--include=*.jsx',
-                String.raw`(from|import\()\s*['"][^'"]*(check-ui-contract|ui-contract/baseline)`,
-                resolve(repoRoot, 'src')],
-            { encoding: 'utf8', cwd: repoRoot });
-    } catch (error) {
-        if (error.status !== 1) throw error;
-    }
-    const offenders = found.trim().split('\n').filter(Boolean);
-    /*
-     * Two modules, one hazard. `check-ui-contract.mjs` computes nothing at module
-     * scope any more, but `ui-contract/baseline.mjs` imports
-     * `source-size-baseline.mjs`, which resolves the repository root from
-     * `import.meta.url` on import — under Vitest's rewrite that is not a file
-     * URL, and the whole module throws before a single assertion runs.
-     */
-    assert('X1. nothing under src/ imports the CLI entry or the git baseline',
-        offenders.length === 0, offenders.join(', '));
-}
-
-// The pure rule engine must stay importable from src/, because that is what the
-// ratchet suite proves each rule on.
+// The pure rule engine must stay importable from `src/` without the CLI, because
+// that is what `src/tests/uiContract.ratchet.test.js` proves each rule on.
+// `scripts/test-ui-contract-scope.mjs` §X1 pins the other half: that nothing
+// under `src/` reaches the CLI entry or the git baseline, whose module scopes
+// would run inside Vitest's `import.meta.url` rewrite.
 assert('X2. the rule engine is importable without the CLI',
     countViolations('<div className="bg-blue-500" />')['raw-palette-class'] === 1);
 
 /* ========================================================================== */
 console.log(failures === 0
-    ? '\nAll UI-contract guard checks passed.'
+    ? '\nAll UI-contract decision checks passed.'
     : `\n${failures} check(s) failed.`);
 process.exit(failures === 0 ? 0 : 1);

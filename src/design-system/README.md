@@ -341,5 +341,14 @@ an arrow function was invisible. It saw 12 hand-styled controls; a real
 open-tag scanner sees 49. **A guard's coverage is a thing to measure, not to
 assume.**
 
+So it is measured, on every run of `npm run test:ui-contract`. The floors are
+**per format**, not just on the total: a total floor cannot see a category go to
+zero underneath it, and dropping `css` from the extension pattern takes the scan
+from 554 files to 528 while still clearing 400. Four suites ask four different
+questions — are the decisions right (`test-ui-contract.mjs`), is it still looking
+at the whole tree (`-scope`), can the inventory be edited by the branch under
+test (`-baseline`), and does CI actually run it in a job nothing can skip
+(`-ci`).
+
 Run all of them before opening a UI pull request — `.github/pull_request_template.md`
 is the checklist, and it asks you never to tick a check you did not run.

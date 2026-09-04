@@ -38,7 +38,7 @@
     "build-storybook": "storybook build",
     "test:stories": "vitest run src/tests/designSystemStories.a11y.test.jsx",
     "check:ui-contract": "node scripts/check-ui-contract.mjs",
-    "test:ui-contract": "node scripts/test-ui-contract.mjs && node scripts/test-ui-contract-baseline.mjs && node scripts/test-ui-contract-ci.mjs",
+    "test:ui-contract": "node scripts/test-ui-contract.mjs && node scripts/test-ui-contract-scope.mjs && node scripts/test-ui-contract-baseline.mjs && node scripts/test-ui-contract-ci.mjs",
     "check:visual-contract": "node scripts/check-visual-contract.mjs",
     "test:visual": "playwright test --config=playwright.visual.config.cjs",
     "test:visual:update": "playwright test --config=playwright.visual.config.cjs --update-snapshots",
