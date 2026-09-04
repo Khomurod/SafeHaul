@@ -14,6 +14,29 @@ import { StepNavigation } from './components/StepNavigation';
 import { StepIssues } from './components/StepIssues';
 
 /**
+ * Required free-text explanation shown when a disclosure question is "yes".
+ *
+ * At module scope on purpose. Declared inside the step, this was a new function
+ * — and therefore a new component *type* — on every render, so React unmounted
+ * the old subtree and mounted a fresh one instead of updating it. The textarea
+ * was destroyed and rebuilt on each keystroke, which threw the caret out of the
+ * box after every character and made the explanation effectively unwritable.
+ * `updateFormData` arrives as `onChange` rather than through a closure, which is
+ * what lets the definition move out.
+ */
+const ConditionalExplanation = ({ id, name, value, onChange }) => (
+    <FormField id={id} label="Please provide details (date, location, circumstances):" required>
+        <Textarea
+            name={name}
+            rows="3"
+            value={value || ''}
+            onChange={(event) => onChange(event.target.name, event.target.value)}
+            placeholder="Provide details here..."
+        />
+    </FormField>
+);
+
+/**
  * Motor Vehicle Record step: the MVR authorization, the FMCSA licence
  * disclosures, and moving violations.
  *
@@ -130,19 +153,6 @@ const Step4_Violations = ({ formData, updateFormData, onNavigate, onPartialSubmi
         </div>
     );
 
-    /** Required free-text explanation shown when a disclosure question is "yes". */
-    const ConditionalExplanation = ({ id, name, value }) => (
-        <FormField id={id} label="Please provide details (date, location, circumstances):" required>
-            <Textarea
-                name={name}
-                rows="3"
-                value={value || ""}
-                onChange={(e) => updateFormData(e.target.name, e.target.value)}
-                placeholder="Provide details here..."
-            />
-        </FormField>
-    );
-
     return (
         <div id="page-4" className="form-step space-y-ds-6">
             <StepIssues ref={issuesRef} blocking={blocking} showBlocking={attempted} />
@@ -215,7 +225,7 @@ const Step4_Violations = ({ formData, updateFormData, onNavigate, onPartialSubmi
                     required={true}
                 />
                 {formData['revoked-licenses'] === 'yes' && (
-                    <ConditionalExplanation id="revocation-explanation" name="revocationExplanation" value={formData.revocationExplanation} />
+                    <ConditionalExplanation id="revocation-explanation" name="revocationExplanation" value={formData.revocationExplanation} onChange={updateFormData} />
                 )}
 
                 <RadioGroup
@@ -227,7 +237,7 @@ const Step4_Violations = ({ formData, updateFormData, onNavigate, onPartialSubmi
                     required={true}
                 />
                 {formData['driving-convictions'] === 'yes' && (
-                    <ConditionalExplanation id="conviction-explanation" name="convictionExplanation" value={formData.convictionExplanation} />
+                    <ConditionalExplanation id="conviction-explanation" name="convictionExplanation" value={formData.convictionExplanation} onChange={updateFormData} />
                 )}
 
                 <RadioGroup
@@ -239,7 +249,7 @@ const Step4_Violations = ({ formData, updateFormData, onNavigate, onPartialSubmi
                     required={true}
                 />
                 {formData['drug-alcohol-convictions'] === 'yes' && (
-                    <ConditionalExplanation id="drug-conviction-explanation" name="drugConvictionExplanation" value={formData.drugConvictionExplanation} />
+                    <ConditionalExplanation id="drug-conviction-explanation" name="drugConvictionExplanation" value={formData.drugConvictionExplanation} onChange={updateFormData} />
                 )}
             </FormSection>
 

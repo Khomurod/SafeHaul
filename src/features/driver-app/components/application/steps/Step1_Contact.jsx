@@ -17,6 +17,23 @@ import { PreviousAddressesSection } from './components/PreviousAddressesSection'
 import { resolveApplicationGate } from '@/config/applicationGates';
 import { useStepGate } from '@features/driver-app/hooks/useApplicationRules';
 
+/**
+ * Advisory-only formatting hint beside a field.
+ *
+ * Not a blocking error, so it carries `role="status"` rather than the
+ * `role="alert"` an invalid field gets. At module scope for the same reason as
+ * `ConditionalExplanation` in the violations step: a component declared inside
+ * another component is a new type on every render, so React remounts it rather
+ * than updating it — and remounting a live region can make a screen reader
+ * re-announce a hint the driver has already heard.
+ */
+const ValidationWarning = ({ message }) => (
+    <p role="status" className="mt-ds-1 flex items-center gap-ds-1 text-ds-xs font-medium text-ds-status-warning-fg">
+        <AlertCircle size={12} aria-hidden="true" />
+        <span>{message}</span>
+    </p>
+);
+
 // Map validator field names to their input element ids (for focus-on-error).
 const FIELD_ID_BY_NAME = {
     firstName: 'first-name',
@@ -203,15 +220,6 @@ const Step1_Contact = ({ formData, updateFormData, onNavigate, onPartialSubmit }
     const hasEmailWarning = (val) => val && val.length > 5 && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
     const hasSSNWarning = (val) => val && val.length > 7 && !/^\d{3}-?\d{2}-?\d{4}$/.test(val);
     const hasZipWarning = (val) => val && val.length > 0 && !/^\d{5}(-\d{4})?$/.test(val);
-
-    // Advisory-only formatting hints. They are not blocking errors, so they use
-    // `role="status"` rather than the `role="alert"` an invalid field gets.
-    const ValidationWarning = ({ message }) => (
-        <p role="status" className="mt-ds-1 flex items-center gap-ds-1 text-ds-xs font-medium text-ds-status-warning-fg">
-            <AlertCircle size={12} aria-hidden="true" />
-            <span>{message}</span>
-        </p>
-    );
 
     return (
         <div id="page-1" className="form-step space-y-ds-6">
