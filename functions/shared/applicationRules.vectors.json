@@ -61,7 +61,13 @@
         { "name": "rows with no answer become Yes", "formData": { "violations": [{ "date": "2025-01-01", "charge": "x" }] }, "expect": { "has-violations": "yes" } },
         { "name": "empty rows do not imply Yes", "formData": { "accidents": [{ "id": 1, "date": "", "details": "" }] }, "expect": { "has-accidents": null } },
         { "name": "No drops leftover rows", "formData": { "has-violations": "no", "violations": [{ "date": "2025-01-01", "charge": "x" }] }, "expect": { "violations": [] } },
-        { "name": "Yes keeps rows", "formData": { "has-accidents": "yes", "accidents": [{ "date": "2025-01-01" }] }, "expect": { "accidents": [{ "date": "2025-01-01" }] } }
+        { "name": "Yes keeps rows", "formData": { "has-accidents": "yes", "accidents": [{ "date": "2025-01-01" }] }, "expect": { "accidents": [{ "date": "2025-01-01" }] } },
+        { "name": "No clears the explanation that answer revealed", "formData": { "revoked-licenses": "no", "revocationExplanation": "Suspended in 2019" }, "expect": { "revocationExplanation": null } },
+        { "name": "Yes keeps the explanation", "formData": { "revoked-licenses": "yes", "revocationExplanation": "Suspended in 2019" }, "expect": { "revocationExplanation": "Suspended in 2019" } },
+        { "name": "an unanswered question keeps what was typed", "formData": { "revocationExplanation": "Suspended in 2019" }, "expect": { "revocationExplanation": "Suspended in 2019" } },
+        { "name": "No clears every field that answer revealed", "formData": { "has-twic": "no", "twicExpiration": "2028-01-01", "twic-card-upload": { "name": "twic.pdf", "url": "https://example.test/t.pdf" } }, "expect": { "twicExpiration": null, "twic-card-upload": null } },
+        { "name": "No empties the additional-licence list", "formData": { "has-other-licenses": "no", "additionalLicenses": [{ "state": "TX", "number": "1", "class": "A" }] }, "expect": { "additionalLicenses": [] } },
+        { "name": "No clears all four military fields", "formData": { "military-service": "no", "military-branch": "Army", "military-mos": "88M", "military-start": "2010-01", "military-end": "2014-01" }, "expect": { "military-branch": null, "military-mos": null, "military-start": null, "military-end": null } }
     ],
     "dates": [
         { "input": "2026-02-30", "iso": null },

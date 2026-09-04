@@ -141,6 +141,24 @@
             "help": "Adds the 49 CFR 395.8(j)(2) statement: on-duty hours for each of the past 7 days and when the applicant was last relieved from duty. To collect it after the application instead, add it as a post-application form under Documents."
         }
     ],
+    "conditionalAnswers": {
+        "$comment": "What a Yes reveals, so that an explicit No can drop it. The union of the `dependsOn`/`showWhen` declarations in src/config/applicationSchema.js and the `dependsOn` objects in functions/shared/applicationSections.json — neither file lists them all, and the payload must come out the same whichever side normalises it. Read by normalizeApplicationAnswers in both applicationRules.js mirrors: `lists` are emptied so the row shape survives, `fields` are removed outright. A conditional field added to a step but not listed here is still submitted after the driver answers No.",
+        "lists": {
+            "has-violations": "violations",
+            "has-accidents": "accidents",
+            "has-other-licenses": "additionalLicenses"
+        },
+        "fields": {
+            "known-by-other-name": ["otherName"],
+            "drug-test-positive": ["drug-test-explanation"],
+            "has-twic": ["twicExpiration", "twic-card-upload"],
+            "revoked-licenses": ["revocationExplanation"],
+            "driving-convictions": ["convictionExplanation"],
+            "drug-alcohol-convictions": ["drugConvictionExplanation"],
+            "has-felony": ["felonyExplanation"],
+            "military-service": ["military-branch", "military-mos", "military-start", "military-end"]
+        }
+    },
     "optionSets": {
         "vehicleCategories": [
             { "id": "straightTruck", "label": "Straight Truck", "milesField": "expStraightTruckMiles", "expField": "expStraightTruckExp" },

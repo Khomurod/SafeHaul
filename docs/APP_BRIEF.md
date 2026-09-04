@@ -662,8 +662,14 @@ the question stays disabled until the wording has loaded.
 company is unchanged, and `warn` is what "three-year coverage" always did. An
 impossible date (30 February, a year outside the field's range) is refused
 everywhere regardless of configuration. Legacy records with violation or
-accident rows but no Yes/No answer read as Yes; an explicit No drops leftover
-rows at review, pre-flight and on the server (`normalizeApplicationAnswers`).
+accident rows but no Yes/No answer read as Yes; an explicit No drops everything
+that answer revealed — leftover rows *and* the conditional fields beneath it,
+such as the licence-revocation, conviction and felony explanations — at review,
+pre-flight and on the server alike (`normalizeApplicationAnswers`). The full set
+is `conditionalAnswers` in `functions/shared/applicationRulesCatalog.json`, which
+both mirrors read; a conditional field added to a step but not listed there is
+still submitted after the driver answers No, and prints on the recruiter's PDF
+under an answer reading No.
 Super Admin sets any company's rules from Companies → Edit; Company Admins set
 their own from Settings.
 
