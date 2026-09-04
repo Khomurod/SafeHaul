@@ -12,7 +12,12 @@
  * over the tree, so they stay fast and stay honest about *which* rule fires.
  */
 import { describe, expect, it } from 'vitest';
-import { countViolations, stripComments } from '../../scripts/check-ui-contract.mjs';
+// Imported from the library modules, not the CLI entry: Vitest rewrites
+// `import.meta.url`, so anything evaluated at the CLI's module scope would run
+// inside that rewrite. `scripts/test-ui-contract.mjs` pins that nothing under
+// `src/` imports `check-ui-contract.mjs`.
+import { countViolations } from '../../scripts/ui-contract/counting.mjs';
+import { stripComments } from '../../scripts/ui-contract/source-text.mjs';
 
 const count = (source, rule) => countViolations(source)[rule] ?? 0;
 

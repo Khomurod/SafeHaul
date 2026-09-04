@@ -352,6 +352,13 @@ jobs:
       # because it needs nothing but a checkout and `npm ci` — and because a new
       # job below `plan` would have to re-derive the skip-propagation clauses
       # this pipeline documents at length.
+      # The guard's own tests run FIRST. A guard can go blind silently — narrow
+      # the walker's extension set and the scan drops 26 stylesheets while still
+      # clearing its floor — so the checker being green means nothing until the
+      # checker itself has been proven to still be able to fail.
+      - name: Verify the UI-contract guard
+        run: npm run test:ui-contract
+
       - name: UI contract ratchet
         run: npm run check:ui-contract
 
