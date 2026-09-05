@@ -166,7 +166,7 @@ export function AiRoutingOrderCard({
                                 onDragOver={(event) => { event.preventDefault(); }}
                                 onDrop={(event) => { event.preventDefault(); handleDrop(providerId); }}
                                 onDragEnd={() => setDraggingId(null)}
-                                className={`flex items-center gap-ds-2 rounded border border-ds-border bg-ds-surface px-ds-2 py-ds-1 ${
+                                className={`flex items-center gap-ds-2 rounded-ds-sm border border-ds-border bg-ds-surface px-ds-2 py-ds-1 ${
                                     draggingId === providerId ? 'border-ds-action-primary' : ''
                                 }`}
                             >

@@ -330,6 +330,14 @@ component itself as well.
   below had the right shape all along — *"would look identical today and would
   mean that re-tuning the console surface silently restyles a picture of a
   phone"*. That is the argument, and it is the one recorded now.
+- **The audience preview scrim is `bg-black/20`, and no role matches it.**
+  `--ds-color-overlay` is `rgb(15 23 42 / 0.6)` — slate-900 at 60% — where the
+  scrim is pure black at 20%, so migrating it would visibly lighten and re-tint
+  the backdrop. Declaring a semantic `rgb(… / a)` token is the right fix and is
+  what the rule's own remedy points at; naming a new scrim **role** is a
+  design-system decision rather than a mechanical one, so it belongs with the
+  surface and status-notice work. Recorded until then.
+
 - **Signature ink is a literal in four places, and must stay one.** The canvas a
   signature is drawn on is rasterised to a PNG and stored as part of a signed
   document — `SignatureSheet.jsx` into a sealed PDF, `SignaturePad.jsx` through

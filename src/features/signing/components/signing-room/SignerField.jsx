@@ -55,7 +55,7 @@ export function SignerField({
             if (isFieldLocked(field)) {
                 return (
                     <SignerFieldOverlay field={field} interactive={false}>
-                        <div className={`${fillClass} flex items-center overflow-hidden rounded border-2 border-ds-status-info-border bg-ds-status-info-bg px-2 text-ds-sm font-medium text-ds-content`}>
+                        <div className={`${fillClass} flex items-center overflow-hidden rounded-ds-sm border-2 border-ds-status-info-border bg-ds-status-info-bg px-2 text-ds-sm font-medium text-ds-content`}>
                             {field.defaultValue || ''}
                         </div>
                     </SignerFieldOverlay>
@@ -64,7 +64,7 @@ export function SignerField({
             return (
                 <SignerFieldOverlay field={field}>
                     <input
-                        className={`${fillClass} rounded border-2 border-ds-status-info-border bg-ds-status-info-bg px-2 text-base md:text-ds-sm`}
+                        className={`${fillClass} rounded-ds-sm border-2 border-ds-status-info-border bg-ds-status-info-bg px-2 text-base md:text-ds-sm`}
                         placeholder="Type here..."
                         aria-label={fieldLabel(field, fieldPosition, fieldTotal)}
                         value={fieldValues[field.id] || ''}
@@ -81,7 +81,7 @@ export function SignerField({
             if (isFieldLocked(field)) {
                 return (
                     <SignerFieldOverlay field={field} interactive={false}>
-                        <div className={`${fillClass} flex items-center overflow-hidden rounded border-2 border-ds-status-success-border bg-ds-status-success-bg px-2 text-ds-sm font-medium text-ds-content`}>
+                        <div className={`${fillClass} flex items-center overflow-hidden rounded-ds-sm border-2 border-ds-status-success-border bg-ds-status-success-bg px-2 text-ds-sm font-medium text-ds-content`}>
                             {field.defaultValue || ''}
                         </div>
                     </SignerFieldOverlay>
@@ -91,7 +91,7 @@ export function SignerField({
                 <SignerFieldOverlay field={field}>
                     <input
                         type="date"
-                        className={`${fillClass} rounded border-2 border-ds-status-success-border bg-ds-status-success-bg px-2 text-base md:text-ds-sm`}
+                        className={`${fillClass} rounded-ds-sm border-2 border-ds-status-success-border bg-ds-status-success-bg px-2 text-base md:text-ds-sm`}
                         aria-label={fieldLabel(field, fieldPosition, fieldTotal)}
                         value={fieldValues[field.id] || ''}
                         data-signer-input={field.id}
@@ -146,7 +146,7 @@ export function SignerField({
                                 ? (isInitial ? 'Initials added — tap to redraw' : 'Signature added — tap to redraw')
                                 : (isInitial ? 'Tap to add initials' : 'Tap to sign')
                         }
-                        className={`${fillClass} flex cursor-pointer items-center justify-center gap-1 rounded border-2 shadow-ds-xs transition focus-visible:outline-none focus-visible:shadow-ds-focus ${value ? 'border-solid p-0.5' : 'border-dashed'} ${value ? palette.signed : palette.empty}`}
+                        className={`${fillClass} flex cursor-pointer items-center justify-center gap-1 rounded-ds-sm border-2 shadow-ds-xs transition focus-visible:outline-none focus-visible:shadow-ds-focus ${value ? 'border-solid p-0.5' : 'border-dashed'} ${value ? palette.signed : palette.empty}`}
                     >
                         {value ? (
                             // Show the actual ink on the document — the signer

@@ -140,7 +140,7 @@ export const ModernDriverTable = memo(function ModernDriverTable({
                             {columns.map(col => (
                                 <th scope="col" key={col.key} className={col.headerClassName || undefined}>
                                     <span className="sr-only">{col.header}</span>
-                                    <div aria-hidden="true" className="h-3 w-20 animate-pulse rounded bg-ds-border-subtle" />
+                                    <div aria-hidden="true" className="h-3 w-20 animate-pulse rounded-ds-sm bg-ds-border-subtle" />
                                 </th>
                             ))}
                         </tr>
@@ -149,13 +149,13 @@ export const ModernDriverTable = memo(function ModernDriverTable({
                         {Array.from({ length: 6 }).map((_, i) => (
                             <tr key={i}>
                                 {showCheckboxes && (
-                                    <td><div className="h-5 w-5 animate-pulse rounded bg-ds-surface-subtle" /></td>
+                                    <td><div className="h-5 w-5 animate-pulse rounded-ds-sm bg-ds-surface-subtle" /></td>
                                 )}
                                 {columns.map(col => (
                                     <td key={col.key}>
                                         <div className="space-y-ds-2">
-                                            <div className="h-4 w-3/4 animate-pulse rounded bg-ds-surface-subtle" />
-                                            <div className="h-3 w-1/2 animate-pulse rounded bg-ds-surface-subtle" />
+                                            <div className="h-4 w-3/4 animate-pulse rounded-ds-sm bg-ds-surface-subtle" />
+                                            <div className="h-3 w-1/2 animate-pulse rounded-ds-sm bg-ds-surface-subtle" />
                                         </div>
                                     </td>
                                 ))}
