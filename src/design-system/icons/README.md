@@ -89,8 +89,11 @@ through `glyphComponent`, because those files still hand raw components across
 prop boundaries — `<PageState icon={AlertTriangle} />` has to keep working while
 its file is unmigrated.
 
-`check:icon-contract` enforces the campaign, and the backlog is a **record of
-debt, not an allowlist**: a file not listed may not name the package at all; a
+`check:icon-contract` enforces the campaign over `src/` — the application, the
+same scope `check:ui-contract` governs, because that is what Vite bundles and a
+fixture in `scripts/` describing an import is not an import. The backlog is a
+**record of debt, not an allowlist**: a file not listed may not name the
+package at all; a
 listed file may never take more glyphs than its recorded count; a listed file
 that reaches zero must lose its entry, and the check fails until it does; an
 entry for a path that no longer exists fails too, so a rename cannot carry an

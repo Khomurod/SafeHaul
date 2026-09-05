@@ -40,23 +40,32 @@ import { evaluate } from './icon-contract/evaluate.mjs';
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 /**
- * `git ls-files -z`, kept NUL-delimited.
+ * Every file git can see, kept NUL-delimited.
  *
  * Not a directory walk: a file cannot escape the scan by being moved, and
  * gitignored build output is structurally unreachable rather than excluded by a
- * pattern somebody could widen. The NUL matters — a tracked path may contain a
- * newline, and splitting on newlines turns one such path into two, hiding the
- * real file behind a fragment.
+ * pattern somebody could widen. The NUL matters — a path may contain a newline,
+ * and splitting on newlines turns one such path into two, hiding the real file
+ * behind a fragment.
+ *
+ * `--others --exclude-standard` alongside `--cached` is the part worth keeping.
+ * With `ls-files` alone the list is TRACKED files, so a brand-new file is
+ * invisible until it is committed — which means a contributor's run passes on
+ * the same tree CI refuses, and the first they hear of it is a red pipeline.
+ * That happened on this guard's own first run. Untracked-but-not-ignored files
+ * are counted, so local and CI answer the same question.
  */
-function trackedFiles() {
-    return execFileSync('git', ['ls-files', '-z'], { cwd: repoRoot, encoding: 'utf8' })
-        .split('\0')
-        .filter(Boolean);
+function scannableFiles() {
+    return execFileSync(
+        'git',
+        ['ls-files', '-z', '--cached', '--others', '--exclude-standard'],
+        { cwd: repoRoot, encoding: 'utf8' },
+    ).split('\0').filter(Boolean);
 }
 
 function measure() {
     const files = [];
-    for (const path of trackedFiles()) {
+    for (const path of scannableFiles()) {
         if (!isGoverned(path)) continue;
         const full = resolve(repoRoot, path);
         if (!existsSync(full)) continue;

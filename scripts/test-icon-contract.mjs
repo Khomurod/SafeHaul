@@ -21,13 +21,13 @@
  * turns it red.
  */
 
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
 import { checkBacklogDirection } from './source-size-baseline.mjs';
 import {
-    BACKLOG_PATH, countLucideImports, hasUncountableImport, isGoverned,
+    BACKLOG_PATH, SCAN_ROOT, countLucideImports, hasUncountableImport, isGoverned,
 } from './icon-contract/scope.mjs';
 import { backlogShapeProblems, evaluate } from './icon-contract/evaluate.mjs';
 import { initThrowawayRepo, removeTree } from './lib/throwaway.mjs';
@@ -132,6 +132,57 @@ assert('J9. a file just outside it is governed',
     'the exemption is the directory, not the word "icon"');
 assert('J10. non-source files are not scanned',
     !isGoverned('src/design-system/icons/README.md') && !isGoverned('docs/APP_BRIEF.md'));
+
+/*
+ * J11 is here because CI caught it and a local run did not. The scan covered the
+ * whole tree for about an hour, and its first honest verdict was that THIS FILE
+ * "imports 8 glyphs" — the fixtures below are syntactically real import
+ * statements inside string literals, and a text scanner cannot tell one from a
+ * description of one. Spelling them evasively (`'lucide' + '-react'`) is the
+ * computed-specifier dodge `secret-scan` refuses as a class, and exempting the
+ * one path is a hole. The scope is the application instead, and the claim in
+ * `scope.mjs` says so.
+ */
+assert('J11. the scan covers the application, not the tooling that tests it',
+    isGoverned('src/features/a.jsx')
+    && !isGoverned('scripts/test-icon-contract.mjs')
+    && !isGoverned('e2e/x.spec.cjs')
+    && !isGoverned('functions/index.js'),
+    'a fixture describing an import is not an import, and scripts render no icons');
+assert('J12. and the claim it makes is exactly that scope',
+    SCAN_ROOT === 'src/',
+    'if this widens, the wording in scope.mjs and the docs has to widen with it');
+
+/*
+ * L: the listing itself. `git ls-files` alone lists TRACKED files, so a
+ * brand-new file is invisible until it is committed — a contributor's run passes
+ * on the same tree CI refuses. That is how this guard's own test file reached
+ * `main`'s pipeline unseen. Untracked-but-not-ignored files are counted now, and
+ * this reads the checker's source to keep it that way, because the failure mode
+ * is silent: the scan simply covers less than it says.
+ */
+console.log('\nL. the file listing matches what a contributor sees');
+{
+    const source = readFileSync(new URL('./check-icon-contract.mjs', import.meta.url), 'utf8');
+    /*
+     * Matched inside the ARGUMENT ARRAY, not anywhere in the file. The first
+     * version of this searched the whole source, so it went on passing when the
+     * flags were deleted — because the comment above them still explains why
+     * they are there. A check that is satisfied by its own documentation is the
+     * same failure as one that fires on it, and it was caught here by the
+     * mutation that was supposed to prove the assertion could fail.
+     */
+    const args = (source.match(/\['ls-files'[^\]]*\]/) || [''])[0];
+    assert('L1. the listing includes untracked files',
+        /'--others'/.test(args),
+        'without --others a new file is invisible until it is committed');
+    assert('L2. and gitignored build output stays unreachable',
+        /'--exclude-standard'/.test(args),
+        'without it the scan walks into node_modules and dist');
+    assert('L3. the listing stays NUL-delimited',
+        /ls-files',\s*'-z'|'-z',/.test(source) && /split\('\\0'\)/.test(source),
+        'a path containing a newline splits into two, hiding the real file');
+}
 
 console.log('\nK. the direction, against real history');
 

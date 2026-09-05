@@ -10,6 +10,29 @@
 export const BACKLOG_PATH = 'src/design-system/icons/lucide-import.backlog.json';
 
 /**
+ * What the claim covers: the application.
+ *
+ * `src/` is where icons are rendered, and it is the same scope
+ * `check:ui-contract` governs for the same reason — it is what Tailwind
+ * compiles and what Vite bundles. Narrowing to it is not a weakening as long as
+ * the CLAIM narrows with it, which is the rule this repository states as "a
+ * check must not take its scope from something narrower than the claim it is
+ * making". So the claim is: **no file under `src/` outside the icons directory
+ * names `lucide-react`.**
+ *
+ * It was the whole tree for about an hour, and CI caught what that was really
+ * saying: `scripts/test-icon-contract.mjs` "imports 8 glyphs", because its
+ * fixtures are syntactically real import statements inside string literals and
+ * a text scanner cannot tell one from a description of one. The available
+ * repairs were to spell the fixtures evasively — `'lucide' + '-react'`, which
+ * is precisely the computed-specifier dodge `secret-scan` refuses as a class,
+ * and a poor precedent to set inside a guard's own test — or to exempt the one
+ * path, which is a hole. Scoping the check to the thing it is actually about is
+ * neither.
+ */
+export const SCAN_ROOT = 'src/';
+
+/**
  * The one directory allowed to name the package.
  *
  * `icons/glyphs.js` exists in order to be the only importer, and
@@ -70,7 +93,9 @@ export function hasUncountableImport(source) {
     return countLucideImports(source) === 0;
 }
 
-/** A path the contract governs: a source file outside the icons directory. */
+/** A path the contract governs: an application source file outside `icons/`. */
 export function isGoverned(path) {
-    return SOURCE_FILE_PATTERN.test(path) && !path.startsWith(CONTRACT_ROOT);
+    return path.startsWith(SCAN_ROOT)
+        && SOURCE_FILE_PATTERN.test(path)
+        && !path.startsWith(CONTRACT_ROOT);
 }
