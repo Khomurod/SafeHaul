@@ -13,11 +13,10 @@ const ANNOUNCE = { off: undefined, polite: 'status', assertive: 'alert' };
  *   success  CheckCircle x6, Clock x1, CheckCircle2 x1, ...
  *   warning  AlertTriangle x4, AlertCircle x2, ...
  *   info     Info x3, Zap x1, Loader2 x1, ...
- *   accent   Sparkles x1
- *   neutral  (no toned notice uses it today)
+ *   accent   (none — see below)
+ *   neutral  (none — nothing uses a neutral notice today)
  *
- * Two deliberate departures from the raw tally, both normalisations the
- * migration makes and both worth stating rather than slipping in:
+ * Three departures from the raw tally, all stated rather than slipped in:
  *
  * - **success takes `CheckCircle2`, not `CheckCircle`.** The tally favours the
  *   older alias 6 to 1, but the two are different marks — `CheckCircle` breaks
@@ -25,9 +24,17 @@ const ANNOUNCE = { off: undefined, polite: 'status', assertive: 'alert' };
  *   form is what reads as a success mark and what `SectionNavigation` already
  *   ships for `status="complete"`. One vocabulary inside the design system beats
  *   matching a majority outside it.
- * - **neutral takes `Info`**, on no evidence, because nothing uses a neutral
- *   notice yet. It is the least assertive glyph available; revisit when a
- *   consumer appears.
+ * - **neutral takes `Info` on no evidence**, because nothing uses a neutral
+ *   notice. It is the least assertive glyph available.
+ * - **accent takes `Sparkles` on no evidence either**, and this one is a
+ *   correction. An earlier count credited accent with one site,
+ *   `EnvelopeSidebar:272`. Reading it showed a `<Button>` and its own helper
+ *   text inside a tint — a call-to-action panel, not a message — so it is not a
+ *   notice and does not migrate. Accent has **zero** consumers; `Sparkles` is
+ *   a guess that happens to suit the tone this application uses accent for.
+ *
+ * Both guesses are recorded as guesses so the first real consumer can overrule
+ * them without arguing with a number that was never there.
  */
 const TONES = {
   neutral: Info,

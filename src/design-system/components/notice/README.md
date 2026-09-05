@@ -36,18 +36,32 @@ signal — the words carry the meaning, and the border and fill are reinforcemen
 | warning | `AlertTriangle` | AlertTriangle ×4, AlertCircle ×2 |
 | info | `Info` | Info ×3, Zap ×1, Loader2 ×1 |
 | success | `CheckCircle2` | CheckCircle ×6, CheckCircle2 ×1 |
-| accent | `Sparkles` | Sparkles ×1 |
-| neutral | `Info` | nothing uses a neutral notice yet |
+| accent | `Sparkles` | **none** — see the correction below |
+| neutral | `Info` | none — nothing uses a neutral notice |
 
-Two deliberate departures, stated rather than slipped in:
+Three departures, all stated rather than slipped in:
 
 - **success takes `CheckCircle2`**, against a tally favouring the older
   `CheckCircle` 6 to 1. The two are different marks — one breaks the tick out
   through the ring, the other closes it — and the closed form is what reads as a
   success mark and what `SectionNavigation` already ships for `status="complete"`.
   One vocabulary inside the design system beats matching a majority outside it.
-- **neutral takes `Info`** on no evidence at all, because nothing uses a neutral
-  notice yet. Revisit when a consumer appears.
+- **neutral takes `Info` on no evidence**, because nothing uses a neutral
+  notice. It is the least assertive glyph available.
+- **accent takes `Sparkles` on no evidence either, and this is a correction.**
+  The audit's first tally credited accent with one site,
+  `EnvelopeSidebar:272`. Reading it while scoping the migration showed a
+  `<Button>` and its own helper text inside a tint — a **call-to-action panel,
+  not a message**. It is not a notice, it does not migrate, and accent therefore
+  has **zero** consumers.
+
+Both guesses are recorded as guesses, so the first real consumer of either tone
+can overrule them without arguing with a number that was never there.
+
+That correction also moves the audit's own figures by one: the parse counted 70
+elements carrying the signature, and this is a seventh that is not a message —
+**65 notices, not 66**. The pattern is now five slices deep: a signature alone
+cannot tell a message from a container, a legend, or a button in a tinted box.
 
 ### `flex-start`, not centred
 
