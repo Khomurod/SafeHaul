@@ -86,7 +86,7 @@ export function CustomQuestionsBuilder({ questions = [], onChange, onSave, loadi
                     <div className="space-y-ds-2">
                         {q.options?.map((opt, i) => (
                             <div key={i} className="flex items-center gap-ds-2">
-                                <span className="h-4 w-4 rounded border border-ds-border" aria-hidden="true"></span>
+                                <span className="h-4 w-4 rounded-ds-sm border border-ds-border" aria-hidden="true"></span>
                                 <span className="text-ds-sm text-ds-content-secondary">{opt}</span>
                             </div>
                         ))}

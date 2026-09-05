@@ -42,6 +42,12 @@ describe('the guard fires on the defects it exists for', () => {
         ['hand-styled-field', '<input className="border rounded px-3" />'],
         ['hand-styled-anchor', '<a href="/x" className="px-4 py-2 rounded border">Go</a>'],
         ['tailwind-radius', '<div className="rounded-lg" />'],
+        // The BARE forms, which the two rules above never saw: `rounded` and
+        // `shadow` with no step at all are Tailwind's defaults, and bare is the
+        // commonest way to write "just round it a bit" — 17 of them existed.
+        ['bare-tailwind-radius', '<div className="rounded" />'],
+        ['bare-tailwind-shadow', '<div className="shadow" />'],
+        ['raw-black-white-class', '<div className="bg-black/20 text-white" />'],
         ['tailwind-shadow', '<div className="shadow-sm" />'],
         ['jsx-label-on-throwing-primitive', '<FormField id="x" label={(<span>Date</span>)}>{c}</FormField>'],
     ])('catches %s', (rule, source) => {
@@ -87,6 +93,27 @@ describe('the guard stays silent on correct code', () => {
      * also swallow the prefixed ones, or the guard silently stops guarding the
      * thing it was written for.
      */
+    /*
+     * The bare-name rules match an English word, so their boundaries are the
+     * whole design. `surrounded` ends in the word; `transition-shadow` is an
+     * animation property rather than an elevation; and every `-ds-` step is the
+     * scale being used correctly.
+     */
+    it.each([
+        ['a word ending in the rule name', 'const surrounded = true;'],
+        ['a transition property', '<div className="transition-shadow" />'],
+        ['the ds radius scale', '<div className="rounded-ds-sm rounded-t-ds-lg" />'],
+        ['Tailwind radius steps, which the sibling rule owns', '<div className="rounded-lg rounded-full" />'],
+        ['the ds shadow scale', '<div className="shadow-ds-xs" />'],
+    ])('the bare rules do not fire on %s', (_name, source) => {
+        expect(count(source, 'bare-tailwind-radius') + count(source, 'bare-tailwind-shadow')).toBe(0);
+    });
+
+    it('does not read a ds surface role as raw black or white', () => {
+        expect(count('<div className="bg-ds-surface text-ds-content-on-inverse" />',
+            'raw-black-white-class')).toBe(0);
+    });
+
     it('tells the two radius scales apart rather than matching on the suffix', () => {
         const source = '<div className="rounded-ds-lg rounded-t-ds-full rounded-ds-card" />';
         expect(count(source, 'tailwind-radius')).toBe(0);

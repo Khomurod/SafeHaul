@@ -371,9 +371,9 @@ export function EmailSettingsTab({ currentCompanyProfile }) {
                                 <li>Scroll down and click <strong>App passwords</strong></li>
                                 <li>Select app: <strong>Mail</strong>, Select device: <strong>Other (Custom name)</strong></li>
                                 <li>Enter "SafeHaul" and click <strong>Generate</strong></li>
-                                <li>Copy the 16-character password (e.g., <code className="bg-ds-surface-subtle px-1 rounded">xxxx xxxx xxxx xxxx</code>)</li>
+                                <li>Copy the 16-character password (e.g., <code className="bg-ds-surface-subtle px-1 rounded-ds-sm">xxxx xxxx xxxx xxxx</code>)</li>
                             </ol>
-                            <div className="mt-4 p-3 bg-ds-status-info-bg rounded border border-ds-status-info-border">
+                            <div className="mt-4 p-3 bg-ds-status-info-bg rounded-ds-sm border border-ds-status-info-border">
                                 <p className="text-ds-body font-semibold text-ds-status-info-fg">Configuration:</p>
                                 <ul className="text-ds-xs text-ds-status-info-fg mt-ds-1 space-y-ds-1">
                                     <li>• <strong>Host:</strong> smtp.gmail.com</li>
@@ -395,7 +395,7 @@ export function EmailSettingsTab({ currentCompanyProfile }) {
                                 <li>For Microsoft 365 admins: Go to <strong>Exchange Admin Center</strong> → <strong>Settings</strong> → Enable SMTP AUTH</li>
                                 <li>Use your regular Outlook email and password (or create an app-specific password if using MFA)</li>
                             </ol>
-                            <div className="mt-4 p-3 bg-ds-status-info-bg rounded border border-ds-status-info-border">
+                            <div className="mt-4 p-3 bg-ds-status-info-bg rounded-ds-sm border border-ds-status-info-border">
                                 <p className="text-ds-body font-semibold text-ds-status-info-fg">Configuration:</p>
                                 <ul className="text-ds-xs text-ds-status-info-fg mt-ds-1 space-y-ds-1">
                                     <li>• <strong>Host:</strong> smtp.office365.com</li>
@@ -417,9 +417,9 @@ export function EmailSettingsTab({ currentCompanyProfile }) {
                                 <li>Go to <strong>Settings</strong> → <strong>API Keys</strong></li>
                                 <li>Click <strong>Create API Key</strong></li>
                                 <li>Name: "SafeHaul SMTP", Permissions: <strong>Full Access</strong> (or Mail Send only)</li>
-                                <li>Copy the generated API key (starts with <code className="bg-ds-surface-subtle px-1 rounded">SG.</code>)</li>
+                                <li>Copy the generated API key (starts with <code className="bg-ds-surface-subtle px-1 rounded-ds-sm">SG.</code>)</li>
                             </ol>
-                            <div className="mt-4 p-3 bg-ds-status-accent-bg rounded border border-ds-status-accent-border">
+                            <div className="mt-4 p-3 bg-ds-status-accent-bg rounded-ds-sm border border-ds-status-accent-border">
                                 <p className="text-ds-body font-semibold text-ds-status-accent-fg">Configuration:</p>
                                 <ul className="text-ds-xs text-ds-status-accent-fg mt-ds-1 space-y-ds-1">
                                     <li>• <strong>Host:</strong> smtp.sendgrid.net</li>

@@ -152,12 +152,43 @@ console.log('\nS2. The walker reaches every format it claims to cover');
         uncovered.length === 0,
         `${uncovered.join(', ')} — Tailwind compiles it, so the guard must read it`);
 
-    // And the CLI reports the same number it walked, rather than a stale one.
-    const intact = execFileSync('node', [resolve(here, 'check-ui-contract.mjs')],
-        { cwd: repoRoot, encoding: 'utf8' });
-    const reported = Number(intact.match(/intact: (\d+) files scanned/)?.[1] ?? 0);
-    assert('S2g. the number the CLI prints is the number it walked',
-        reported === files.length, `printed ${reported}, walked ${files.length}`);
+    /*
+     * And the CLI reports the same number it walked, rather than a stale one.
+     *
+     * Read from stdout whether the CLI passed or refused. It exits 1 whenever
+     * the tree carries an unrecorded violation, which is the ordinary state
+     * half-way through a slice that widens a rule — and the first version let
+     * `execFileSync` throw there, so this whole suite crashed exactly when
+     * someone was most likely to be running it. A test that only works while
+     * everything already works is not much of a test.
+     */
+    let intact;
+    try {
+        intact = execFileSync('node', [resolve(here, 'check-ui-contract.mjs')],
+            { cwd: repoRoot, encoding: 'utf8' });
+    } catch (error) {
+        intact = `${error.stdout || ''}${error.stderr || ''}`;
+    }
+    /*
+     * Two states, two real assertions — never a silent skip.
+     *
+     * A passing checker prints the count, and it must equal what this suite
+     * walked. A refusing checker does not print it, so the equality is
+     * unavailable; what is still checkable, and is the failure this assertion
+     * exists for, is that the refusal is about CONTENT rather than about the
+     * walk having gone blind. `reportBrokenScan` is the one that would say
+     * otherwise, and it must not be what came back.
+     */
+    const passing = intact.match(/intact: (\d+) files scanned/);
+    if (passing) {
+        assert('S2g. the number the CLI prints is the number it walked',
+            Number(passing[1]) === files.length,
+            `printed ${passing[1]}, walked ${files.length}`);
+    } else {
+        assert('S2g. the checker refused over content, not over a broken scan',
+            !/scan reached only/.test(intact),
+            intact.split('\n').find(Boolean) || 'no output at all');
+    }
 }
 
 /* ========================================================================== */
@@ -260,6 +291,20 @@ console.log('\nS5. Story rules are a deliberate subset, not an accident');
         // permissions matrix in `Checkbox.stories` is an approved native table.
         'hand-built-overlay', 'raw-table', 'raw-file-input', 'hand-rolled-tablist',
         'hand-written-target-blank', 'jsx-label-on-throwing-primitive',
+        /*
+         * The BARE-name rules, and this pair is the interesting exclusion.
+         * `bare-tailwind-shadow` matches the English word, and
+         * `Card.stories.jsx` contains "They must not change the card surface,
+         * radius, border or shadow" — a story teaching the right thing would
+         * fail the check that exists to teach it. Measured, not assumed.
+         *
+         * `bare-tailwind-radius` has no collision in the catalog TODAY. It is
+         * excluded anyway, because "the corners are rounded" is an ordinary
+         * sentence and the hazard is identical; adding a rule to the story set
+         * later is easy, while removing one after it has fired on documentation
+         * is how a check gets switched off.
+         */
+        'bare-tailwind-radius', 'bare-tailwind-shadow',
         // CSS rules: opt-in by name, and a story is not a stylesheet.
         ...CSS_RULE_NAMES,
     ]);

@@ -30,6 +30,7 @@ import { CSS_RULE_NAMES } from './rules.mjs';
  */
 export const STORY_RULE_NAMES = [
     'raw-palette-class',
+    'raw-black-white-class',
     'raw-hex-colour',
     'sub-12px-type',
     'off-scale-type',
@@ -53,6 +54,9 @@ export const STORY_RULE_NAMES = [
  */
 export const HTML_RULE_NAMES = [
     'raw-palette-class',
+    'raw-black-white-class',
+    'bare-tailwind-radius',
+    'bare-tailwind-shadow',
     'raw-hex-colour',
     'sub-12px-type',
     'off-scale-type',

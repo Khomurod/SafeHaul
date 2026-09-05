@@ -62,6 +62,51 @@ export const RULES = [
             + 'genuinely cannot resolve a custom property is an exception — record it.',
     },
     {
+        name: 'bare-tailwind-radius',
+        /*
+         * `rounded` with no scale step — Tailwind's default, which is 4px.
+         *
+         * The `tailwind-radius` rule above catches `rounded-lg` and friends, but
+         * a bare `rounded` slipped past it entirely, and bare is the commonest
+         * way to write "just round it a bit". 17 of them across 6 files.
+         *
+         * The lookbehind is what makes this usable: without it the pattern also
+         * matches the tail of `surrounded`, and the lookahead keeps
+         * `rounded-ds-md` and `rounded-full` out — those are the scale being used
+         * correctly, and a rule that fires on correct code gets switched off.
+         * The optional side group covers `rounded-t`, `rounded-bl` and the
+         * logical-property spellings, which are equally scale-less.
+         */
+        pattern: /(?<![\w-])rounded(?:-(?:t|b|l|r|tl|tr|bl|br|s|e|ss|se|es|ee))?(?![\w-])/g,
+        remedy: 'A bare `rounded` is Tailwind\'s 4px default, which is not a step on the '
+            + '`--ds-radius-*` scale. Name the step you mean: `rounded-ds-sm` is the closest.',
+    },
+    {
+        name: 'bare-tailwind-shadow',
+        /*
+         * The same gap for elevation. `shadow` alone is Tailwind's default step.
+         * The lookbehind excludes `transition-shadow`, which is an animation
+         * property rather than an elevation, and the lookahead excludes every
+         * `shadow-*` the sibling rule already reads.
+         */
+        pattern: /(?<![\w-])shadow(?![\w-])/g,
+        remedy: 'A bare `shadow` is Tailwind\'s default elevation, which is not a step on the '
+            + '`--ds-shadow-*` scale. Name the step: `shadow-ds-xs` is the closest.',
+    },
+    {
+        name: 'raw-black-white-class',
+        /*
+         * Pure black and pure white, which the palette rule misses because they
+         * carry no numeric step. The optional `/NN` covers the opacity forms —
+         * `bg-black/20` is how nearly every one of these is actually written.
+         */
+        pattern: new RegExp(`\\b(?:${COLOR_PREFIX})-(?:black|white)(?:/\\d{1,3})?(?![\\w-])`, 'g'),
+        remedy: 'Pure black and pure white are not roles. Use `bg-ds-surface`, '
+            + '`text-ds-content-on-inverse` or the inverse surface roles. An opacity wash over '
+            + 'one needs a semantic token declared as `rgb(… / a)` in `tokens/semantic.css` '
+            + '(see `--ds-color-brand-accent-soft`), not a slash suffix on a raw colour.',
+    },
+    {
         name: 'sub-12px-type',
         pattern: /text-\[(?:[0-9]|1[01])(?:\.\d+)?px\]/g,
         remedy: 'The interface floor is 12px (`text-ds-xs`). This has been the written rule '
