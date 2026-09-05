@@ -39,3 +39,83 @@ Pass `open` + `onToggle` for a rail that remembers its sections. Pass
   inside a collapsed section is otherwise reachable by find-in-page and by
   screen-reader browse mode.
 - **`headingLevel` matches the surrounding outline**; default `3`.
+
+## `variant`
+
+| | `default` | `card` |
+|---|---|---|
+| Where it goes | a sidebar rail, flush to the edge | inside a `Card` |
+| Title | 12px, bold, uppercase, letter-spaced, truncates | `heading-sm`, bold, wraps |
+| Extras | `meta` — a trailing count | `description`, `leading` |
+| Chevron | 16px, inherits the trigger colour | 24px, link colour |
+| Hover | tints, to say which row of a stack you are on | nothing — it is the only control in its card |
+
+### `card` does not draw a card
+
+`Card` owns the surface, border, radius and padding. The variant only takes off
+the rail chrome — the section's bottom border, the trigger's own padding, the
+hover tint — so a disclosure sits correctly **inside** one. It is named for
+where it goes, not for what it paints.
+
+```jsx
+<Card padding="md">
+  <Disclosure
+    variant="card"
+    title="How to connect a mailbox"
+    description="Step-by-step guides for three providers"
+    leading={<span className="rounded-ds-md bg-ds-action-primary p-ds-2">…</span>}
+    open={showGuide}
+    onToggle={setShowGuide}
+  >
+    …
+  </Disclosure>
+</Card>
+```
+
+### `leading` is a slot, and the wrapper hides it
+
+Whatever you pass sits inside an `aria-hidden` wrapper, so a caller cannot
+forget. What goes in it is the feature's business — a toned tile, a product
+mark, a glyph — and none of it may carry meaning the title does not already
+say.
+
+There is deliberately no tile primitive behind it. A filled square icon tile
+appears at four sites in this tree and is recorded as its own roadmap gap;
+building one *inside* `Disclosure` would be the wrong home for it.
+
+### The description is part of the trigger's accessible name
+
+The whole header is one control, so everything visible in it is announced.
+Choosing a description is choosing part of the name — keep it short, and never
+put anything there that would read as a second sentence of instructions. This
+is unchanged from the markup the variant replaced, and a test pins it.
+
+### Combinations that throw
+
+- `description` or `leading` without `variant="card"` — the rail's 12px
+  micro-label has room for neither.
+- `meta` with `variant="card"` — it would fight the chevron for the same
+  trailing slot.
+
+Each is a layout nobody has built or reviewed. Refusing costs a caller one
+error message; shipping one untested costs a reviewer a screenshot they did not
+know to take. Lift either when a consumer needs it, with a story and a probe.
+
+## The guard
+
+`hand-rolled-disclosure` counts a `<button aria-expanded>` **inside a heading**.
+
+Not "a raw `<button aria-expanded>`", which was measured first and matched two
+elements in the whole tree — this one and a bottom app-bar tab that would then
+need a recorded reason to buy it off. The eleven live `aria-expanded` sites are
+mostly not disclosures at all: four menu triggers, a combobox (where the
+attribute sits on an `<input>`), a navigation group, a drawer trigger, a filter
+toggle, a row expander. `Disclosure` replaces none of them, and nine are already
+on `Button` or `IconButton`.
+
+The heading is what separates the one from the ten, because a disclosure
+*section* puts its trigger inside one so the section reaches the document
+outline. So the other ten are left alone by their own structure rather than by
+an exemption list, and this rule needs no entry in `CONTRACT_EXEMPT_RULES` —
+this component renders `<Heading>`, a capitalised binding for the caller's
+level, and the rule reads lowercase `h1`–`h6` only.

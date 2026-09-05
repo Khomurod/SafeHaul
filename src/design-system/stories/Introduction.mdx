@@ -128,8 +128,16 @@ Closed on 2026-09-05:
   form. It is deliberately *not* the published `InlineEdit` pattern — none of
   its consumers has a read view — and it refuses to render without a name,
   because it has no `FormField` wrapper to give it one.
-- A raw `<button>` carrying `aria-pressed` or `aria-current`, and a round disc
-  holding a person's initial, are refused from here on. `SegmentedControl` and `Chip` are the toggle shapes, a `Button` with
+- **`Disclosure variant="card"`**, a prominent titled section — leading slot,
+  `heading-sm` title, a description line, a 24px chevron. It does *not* draw the
+  card it is named for: `Card` owns the surface, and the variant only takes off
+  the rail chrome that would fight it. `description` and `leading` throw on the
+  rail; `meta` throws on a card.
+- A raw `<button>` carrying `aria-pressed` or `aria-current`, a round disc
+  holding a person's initial, and a `<button aria-expanded>` **inside a
+  heading**, are refused from here on. That last scope is the whole rule: ten
+  other live `aria-expanded` controls are menus, a combobox, a navigation group,
+  a drawer and a filter toggle, and `Disclosure` replaces none of them. `SegmentedControl` and `Chip` are the toggle shapes, a `Button` with
   `pressed` is the third, and `SelectableCard` is the card. A step indicator that
   is read rather than operated has no primitive yet and is recorded as an open
   gap rather than demanded by a rule.

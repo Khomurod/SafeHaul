@@ -9,8 +9,12 @@
  *
  * Deliberately no imports from the counting layer: entries whose `count` needs
  * the tag scanner declare `pattern: null` and are dispatched by name there, which
- * is what keeps this table free of a cycle.
+ * is what keeps this table free of a cycle. Those six live in
+ * `./structural-rules.mjs` since 2026-09-05 and are appended to `RULES` below —
+ * one table to every consumer, two files because they are read differently.
  */
+
+import { STRUCTURAL_RULES } from './structural-rules.mjs';
 
 export const TAILWIND_PALETTE = 'slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose';
 export const COLOR_PREFIX = 'bg|text|border|ring|from|to|via|divide|placeholder|decoration|outline|accent|caret|fill|stroke|shadow';
@@ -20,7 +24,7 @@ export const COLOR_PREFIX = 'bg|text|border|ring|from|to|via|divide|placeholder|
  * when it fires. The message is the whole point: a guard that says only "failed"
  * teaches nothing and gets an exemption added instead of a fix.
  */
-export const RULES = [
+const TEXT_RULES = [
     {
         name: 'raw-palette-class',
         pattern: new RegExp(`\\b(?:${COLOR_PREFIX})-(?:${TAILWIND_PALETTE})-\\d{2,3}\\b`, 'g'),
@@ -197,30 +201,6 @@ export const RULES = [
             + '`tokens/foundation.css`; a layer with no name is a number somebody outbids.',
     },
     {
-        /*
-         * Nine primitives throw `TypeError` on a label that is not a non-empty
-         * string — `FormField`, `FieldDisplay`, `Checkbox`, `Radio`, `Switch`,
-         * `IconButton`, `IconButtonLink`, `FileInput`, `ProgressBar`. That is the
-         * right contract: an unlabelled control is the defect they exist to
-         * prevent, and a silent fallback would hide it.
-         *
-         * The cost is that passing JSX — usually to sneak a decorative icon in
-         * beside the words — is a CRASH, not a downgrade, and only at the moment
-         * that branch renders. `DashboardToolbar`'s filter panel carried one for
-         * ten migration slices: it sits behind a toggle, the component had no
-         * tests, and nothing in the e2e suite clicked Filters. A review bot found
-         * it, not this file, which is why the rule now exists.
-         *
-         * Put the icon next to the control instead of inside its label.
-         */
-        name: 'jsx-label-on-throwing-primitive',
-        // counted by `countJsxLabelsOnThrowingPrimitives`, which needs the tag scanner
-        pattern: null,
-        remedy: 'These primitives throw on a label that is not a non-empty string, so JSX here '
-            + 'is a runtime crash the moment the branch renders. Pass the words as a string and '
-            + 'put the icon beside the control, not inside its label.',
-    },
-    {
         name: 'raw-table',
         pattern: /<table\b/g,
         remedy: 'Use `DataTable` for a display table. An editable matrix or a per-row '
@@ -249,20 +229,6 @@ export const RULES = [
     },
     {
         /*
-         * A hand-built file picker. `FileInput` shipped for exactly these, and
-         * two of the nine that existed had been a `<div onClick>` driving a
-         * `display: none` input — which has no keyboard path to the picker at
-         * all. The old `hand-styled-field` rule could never see them, because a
-         * hidden input carries no styling signal.
-         */
-        name: 'raw-file-input',
-        pattern: null, // counted by `countFileInputs`, which needs the tag scanner
-        remedy: 'Use `FileInput`. A `display: none` input behind a `<div onClick>` has no '
-            + 'keyboard path to the picker; `FileInput` is a real focusable input behind a '
-            + '`<label>`. Upload semantics, accepted types and size limits stay at the call site.',
-    },
-    {
-        /*
          * `target="_blank"` written by hand.
          *
          * `Link`, `ButtonLink` and `IconButtonLink` take `external`, which sets
@@ -278,73 +244,13 @@ export const RULES = [
             + 'the only form that announces the new tab; `target` plus `rel` written by hand '
             + 'does not (WCAG 3.2.5).',
     },
-    {
-        /*
-         * A disc standing for a person.
-         *
-         * Scoped by what the disc HOLDS rather than by its shape, because the
-         * shape alone is shared by five different components — see
-         * `countHandRolledAvatars` for the measurement that settled it. The
-         * seventeen non-avatar discs in this tree are `StatusMedallion`'s, a
-         * count badge's, a step marker's and a radio dot's business; demanding
-         * `Avatar` for any of them would be the rule naming the wrong remedy.
-         */
-        name: 'hand-rolled-avatar',
-        pattern: null,
-        remedy: 'Use `Avatar`. It owns the size scale (20/32/40/48/64, the steps GitHub '
-            + 'Primer publishes), the tone, and `aria-hidden` — an initial beside the name '
-            + 'it abbreviates is noise to a screen reader, and five of the eight discs this '
-            + 'replaced were announcing one. A disc holding a GLYPH is `StatusMedallion`.',
-    },
-    {
-        /*
-         * "Which one of this set you are on" — a page, a step, a location.
-         *
-         * A sibling of `hand-rolled-toggle` and a different question: `pressed`
-         * says whether one thing is on, `current` says which of several you are
-         * looking at. An element claiming both tells assistive technology two
-         * stories about itself, which is why `SelectableCard` refuses the pair.
-         *
-         * `<button>` only. The three non-interactive `aria-current` sites in the
-         * tree are correct markup for a progress display with no primitive
-         * behind it; see `countHandRolledCurrent` for the measurement and why
-         * roadmap section 5 is the right place for that rather than a rule.
-         */
-        name: 'hand-rolled-current',
-        pattern: null,
-        remedy: 'Use `SelectableCard` with `current` for one option of a set, or '
-            + '`SectionNavigation` for a navigation rail. A step indicator that is read '
-            + 'rather than operated has no primitive yet — see the roadmap gap table.',
-    },
-    {
-        /*
-         * A two-state control the design system already builds.
-         *
-         * Counter-backed rather than a regex, for the reason `openTagAttributes`
-         * exists at all: the shape has to be read off the OPEN TAG, so that a
-         * `<Button aria-pressed>` — nineteen live call sites, all correct — is
-         * silent while a raw `<button aria-pressed>` is not. A regex over the
-         * attribute alone cannot tell those apart, and one that tried to match
-         * `<button[^>]*aria-pressed` would stop at the first `>` inside an arrow
-         * function, which is the defect this module records twice already.
-         *
-         * `<a aria-pressed>` counts too. It is invalid ARIA — a link goes
-         * somewhere, it is not on or off — so the rule catching it is a bonus
-         * rather than the point. `Chip` refuses the same combination at runtime.
-         *
-         * Scope is the two elements the design system has primitives for. A
-         * `<div role="button" aria-pressed>` is a different and rarer mistake,
-         * and inventing coverage for a shape nobody has written would be a rule
-         * nobody could test against a real file.
-         */
-        name: 'hand-rolled-toggle',
-        pattern: null,
-        remedy: 'Use `Chip` for a filter or a tag, `SegmentedControl` for a set of cards, or '
-            + '`Button`/`IconButton` with `pressed` for a toggle that keeps its variant. '
-            + 'Wrap a set in `ChipGroup` so the group is named — "pressed" alone does not say '
-            + 'what was chosen.',
-    },
 ];
+
+/**
+ * One table, whatever it is spelled across. A consumer asks for the rules that
+ * apply to JSX and gets all of them; nothing downstream knows about the split.
+ */
+export const RULES = [...TEXT_RULES, ...STRUCTURAL_RULES];
 
 /**
  * The rules that mean something in a stylesheet.

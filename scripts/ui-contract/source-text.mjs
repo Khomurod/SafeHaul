@@ -48,6 +48,9 @@ export const STORY_RULE_NAMES = [
     'hand-rolled-toggle',
     'hand-rolled-current',
     'hand-rolled-avatar',
+    // And one more: a story that hand-builds a collapsible section is
+    // publishing the markup `Disclosure` exists to stop being rewritten.
+    'hand-rolled-disclosure',
 ];
 
 /**

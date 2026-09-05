@@ -3,13 +3,14 @@ import { httpsCallable } from "firebase/functions";
 import { functions } from '@lib/firebase';
 import {
     Save, Loader2, CheckCircle, AlertTriangle, Mail, Server,
-    HelpCircle, ChevronDown, ChevronUp, TestTube,
+    HelpCircle, TestTube,
 } from 'lucide-react';
 import { useToast } from '@shared/components/feedback';
 import {
     Badge,
     Button,
     Card,
+    Disclosure,
     FormField,
     FormSection,
     Input,
@@ -334,31 +335,19 @@ export function EmailSettingsTab({ currentCompanyProfile }) {
 
             {/* Setup Guide (feature-owned content) */}
             <Card padding="md">
-                <h3 className="m-0">
-                    <button
-                        type="button"
-                        onClick={() => setShowGuide(!showGuide)}
-                        aria-expanded={showGuide}
-                        aria-controls="email-setup-guide"
-                        className="flex w-full items-center justify-between gap-ds-3 rounded-ds-lg text-left focus-visible:outline-none focus-visible:shadow-ds-focus"
-                    >
-                        <span className="flex items-center gap-ds-3">
-                            <span className="rounded-ds-md bg-ds-action-primary p-2">
-                                <HelpCircle className="text-ds-content-inverse" size={24} aria-hidden="true" />
-                            </span>
-                            <span>
-                                <span className="block text-ds-heading-sm font-bold text-ds-content">How to Set Up SMTP</span>
-                                <span className="block text-ds-sm text-ds-content-muted">Step-by-step guides for Gmail, Outlook, and SendGrid</span>
-                            </span>
+                <Disclosure
+                    variant="card"
+                    title="How to Set Up SMTP"
+                    description="Step-by-step guides for Gmail, Outlook, and SendGrid"
+                    leading={
+                        <span className="rounded-ds-md bg-ds-action-primary p-ds-2">
+                            <HelpCircle className="text-ds-content-inverse" size={24} aria-hidden="true" />
                         </span>
-                        {showGuide
-                            ? <ChevronUp className="text-ds-content-link" size={24} aria-hidden="true" />
-                            : <ChevronDown className="text-ds-content-link" size={24} aria-hidden="true" />}
-                    </button>
-                </h3>
-
-                {showGuide && (
-                    <div id="email-setup-guide" className="mt-6 space-y-6 animate-in fade-in slide-in-from-top-2">
+                    }
+                    open={showGuide}
+                    onToggle={setShowGuide}
+                >
+                    <div className="space-y-6 animate-in fade-in slide-in-from-top-2">
                         {/* Gmail Guide */}
                         <div className="rounded-ds-md border border-ds-border-subtle bg-ds-surface p-5 shadow-ds-xs">
                             <h4 className="font-bold text-ds-content text-ds-heading-md mb-ds-3 flex items-center gap-2">
@@ -430,7 +419,7 @@ export function EmailSettingsTab({ currentCompanyProfile }) {
                             </div>
                         </div>
                     </div>
-                )}
+                </Disclosure>
             </Card>
 
             {/* Save */}

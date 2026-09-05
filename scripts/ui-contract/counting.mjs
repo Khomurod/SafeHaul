@@ -197,6 +197,67 @@ export function countApplyOffContract(code) {
     return found;
 }
 
+/**
+ * A hand-rolled disclosure: a `<button aria-expanded>` inside a heading.
+ *
+ * ## Why the heading and not the attribute
+ *
+ * The obvious rule — "a raw `<button aria-expanded>`" — was measured before it
+ * was written, and it matched **two elements in the whole tree**: the one this
+ * slice migrates, and a bottom app-bar tab that would then need a second
+ * recorded reason to buy it off. Meanwhile the eleven live `aria-expanded`
+ * sites are mostly not disclosures at all — four menu triggers, a combobox
+ * (where the attribute sits on an `<input>`, not a button), a navigation group,
+ * a drawer trigger, a filter toggle, a row expander. `Disclosure` replaces none
+ * of those, and nine of them are already on `Button` or `IconButton`.
+ *
+ * The heading is what separates the one from the ten. A disclosure *section*
+ * puts its trigger inside a heading so the section appears in the document
+ * outline — that is the WAI-ARIA Authoring Practices shape, it is the shape
+ * `Disclosure` renders, and a popup trigger never has it. So the rule reads for
+ * it, and the other ten are left alone by their own structure rather than by an
+ * exemption list. Measured against the live tree: 1 matched, 10 left alone, and
+ * after the migration 0 and 10.
+ *
+ * `Disclosure` itself is silent here without any path exemption, because it
+ * renders `<Heading>` — a capitalised binding for the level the caller chose —
+ * and this reads lowercase `h1`–`h6` only. That is a property worth keeping if
+ * the component is ever rewritten, and a test asserts it.
+ */
+const HEADING_TAG = /<(h[1-6])(?=[\s/>])/g;
+const EXPANDED = /\baria-expanded\s*=/;
+
+export function countHandRolledDisclosures(code) {
+    let total = 0;
+    for (const match of code.matchAll(HEADING_TAG)) {
+        const tag = match[1];
+        const rest = code.slice(match.index);
+        /*
+         * The brace-aware scanner rather than `indexOf('>')`: an open tag may
+         * carry an arrow function, and stopping at the first `>` inside one is
+         * the defect this module records twice already. Here it is load-bearing
+         * for the NEXT line rather than for the offset — reading the true
+         * attribute text is the only way to know the tag closed itself.
+         */
+        const attributes = openTagAttributes(rest, tag)[0];
+        if (attributes === undefined) continue;
+        /*
+         * A self-closing heading holds nothing, and skipping it is not a
+         * nicety: its region would otherwise run on to the NEXT heading's close
+         * tag and count that heading's trigger a second time. Measured at 2 for
+         * `<h3 />` above a real disclosure before this line existed.
+         */
+        if (attributes.trimEnd().endsWith('/')) continue;
+        const bodyStart = match[0].length + attributes.length + 1;
+        const close = rest.slice(bodyStart).search(new RegExp(`</${tag}\\s*>`));
+        /* Opened and never closed: not a section, so there is no body to read. */
+        if (close < 0) continue;
+        total += openTagAttributes(rest.slice(bodyStart, bodyStart + close), 'button')
+            .filter((one) => EXPANDED.test(one)).length;
+    }
+    return total;
+}
+
 export const COUNTERS = {
     'css-apply-off-contract': countApplyOffContract,
     'raw-file-input': countFileInputs,
@@ -204,6 +265,7 @@ export const COUNTERS = {
     'hand-rolled-toggle': countHandRolledToggles,
     'hand-rolled-current': countHandRolledCurrent,
     'hand-rolled-avatar': countHandRolledAvatars,
+    'hand-rolled-disclosure': countHandRolledDisclosures,
 };
 
 /**

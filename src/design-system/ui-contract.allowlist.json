@@ -122,12 +122,6 @@
         "hand-styled-button": "roadmap §5 — an ARIA combobox option must carry role=\"option\" inside the listbox, and `Button` renders role=\"button\", which would break the combobox contract. No Combobox/Listbox primitive exists yet."
       }
     },
-    "src/features/settings/components/EmailSettingsTab.jsx": {
-      "hand-styled-button": 1,
-      "reasons": {
-        "hand-styled-button": "roadmap §5 — the SMTP setup-guide header. `Disclosure` has exactly one appearance, a rail-section header (12px, bold, uppercase, letter-spaced), because that is the shape its consumer needed; this is a card section heading at `heading-sm` with a description line under it, and `Disclosure` has no API for either. Giving the primitive a second visual variant for one consumer is speculative — recorded as the card-section-disclosure gap. The trigger itself is correct ARIA: `aria-expanded` and `aria-controls` on a button inside a heading, tokenised, shared focus ring."
-      }
-    },
     "src/features/settings/components/IntegrationsTab.jsx": {
       "raw-hex-colour": 2,
       "reasons": {
