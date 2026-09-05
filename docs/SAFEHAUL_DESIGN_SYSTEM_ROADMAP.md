@@ -307,9 +307,29 @@ component itself as well.
   product opened a new tab with no announcement, which is a WCAG 3.2.5 failure,
   and the primitive exists mainly to fix that.
 - **`VOEPreviewModal`'s generated 49 CFR §391.23 document keeps its raw palette
-  and its sub-12px type.** It is rasterised by html2canvas into a bare print
-  window with no `--ds-*` custom properties, so a token would resolve to
-  nothing. Enforced in both directions by `VOEPreviewModal.export.test.jsx`.
+  and its sub-12px type.** It is immutable legal content, and it must render the
+  same next year as it does today: a `--ds-*` role is themeable **by design**, so
+  tokenising the document would mean a future palette change silently restyling a
+  signed regulatory artefact that has already been exported. Its class list is
+  also the capture surface for a rasteriser, so any edit changes every exported
+  PDF and every printed page. Tokenising it needs a re-proof of export parity — a
+  real captured PDF and a real printed page — not a passing unit test. Enforced in
+  both directions by `VOEPreviewModal.export.test.jsx`.
+
+  **The reason recorded here until 2026-09-04 was a different one, and it was
+  false.** It said the document is rasterised into a bare print window with no
+  `--ds-*` properties, so a token would resolve to nothing. Neither export path
+  works that way: `html2canvas` reads **computed** style, which resolves `var()`
+  before the rasteriser sees it, and `handlePrint` inlines the application's own
+  stylesheets through `collectPrintStyles` (rebuilt 2026-07-27) — every readable
+  sheet, `tokens/foundation.css` and `semantic.css` included. Tokens would
+  resolve. **165 of the inventory's exceptions rested on that sentence**, which is
+  the reason this correction matters more than its size: an exception whose stated
+  ground is checkable and wrong invites the next reader to check it, find it
+  wrong, and conclude the whole exception was unfounded. The `DeviceMockup` entry
+  below had the right shape all along — *"would look identical today and would
+  mean that re-tuning the console surface silently restyles a picture of a
+  phone"*. That is the argument, and it is the one recorded now.
 - **`DeviceMockup` keeps literal greys and `text-[10px]` — it is artwork, not
   interface.** The component draws a picture of a physical phone. The status-bar
   time is that small because a real one is, and the bezel, side buttons and
