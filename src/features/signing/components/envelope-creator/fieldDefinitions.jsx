@@ -25,41 +25,40 @@ export const FIELD_TEMPLATES = {
 };
 
 /**
- * Palette-button tones, expressed with semantic design-system tokens instead of
- * the previous hard-coded Tailwind palette. Only adjacent hues were merged
+ * Which design-system tone each field type reads as.
+ *
+ * The mapping is domain knowledge and stays here — only this feature knows that
+ * a signature is a different kind of thing from a date. What that tone LOOKS
+ * like is the design system's, and used to be four hand-written class lists in
+ * this file; `Button`'s `tone` prop carries it now.
+ *
+ * Only adjacent hues were merged when these moved onto semantic tokens
  * (yellow+orange → warning, indigo+purple → accent), so the four visual groups —
- * signature-style, date, signer info and data fields — stay distinct. These
- * strings are consumed only by `EnvelopeSidebar`.
+ * signature-style, date, signer info and data fields — stay distinct.
  */
-const FIELD_TONE = {
-    warning: 'border-ds-status-warning-border bg-ds-status-warning-bg text-ds-status-warning-fg hover:bg-ds-surface-subtle',
-    success: 'border-ds-status-success-border bg-ds-status-success-bg text-ds-status-success-fg hover:bg-ds-surface-subtle',
-    info: 'border-ds-status-info-border bg-ds-status-info-bg text-ds-status-info-fg hover:bg-ds-surface-subtle',
-    accent: 'border-ds-status-accent-border bg-ds-status-accent-bg text-ds-status-accent-fg hover:bg-ds-surface-subtle',
-};
 
 export const FIELD_CATEGORIES = [
     {
         title: 'Standard Fields',
         items: [
-            { templateId: 'signature', label: 'Signature', icon: PenTool, color: FIELD_TONE.warning },
-            { templateId: 'initial', label: 'Initial', icon: Fingerprint, color: FIELD_TONE.warning },
-            { templateId: 'date_signed', label: 'Date Signed', icon: Calendar, color: FIELD_TONE.success },
+            { templateId: 'signature', label: 'Signature', icon: PenTool, tone: 'warning' },
+            { templateId: 'initial', label: 'Initial', icon: Fingerprint, tone: 'warning' },
+            { templateId: 'date_signed', label: 'Date Signed', icon: Calendar, tone: 'success' },
         ]
     },
     {
         title: 'Signer Info',
         items: [
-            { templateId: 'name', label: 'Name', icon: User, color: FIELD_TONE.info },
-            { templateId: 'email_field', label: 'Email', icon: Mail, color: FIELD_TONE.info },
-            { templateId: 'company', label: 'Company', icon: Building2, color: FIELD_TONE.info },
+            { templateId: 'name', label: 'Name', icon: User, tone: 'info' },
+            { templateId: 'email_field', label: 'Email', icon: Mail, tone: 'info' },
+            { templateId: 'company', label: 'Company', icon: Building2, tone: 'info' },
         ]
     },
     {
         title: 'Data Fields',
         items: [
-            { templateId: 'text', label: 'Text', icon: Type, color: FIELD_TONE.accent },
-            { templateId: 'checkbox', label: 'Checkbox', icon: CheckSquare, color: FIELD_TONE.accent },
+            { templateId: 'text', label: 'Text', icon: Type, tone: 'accent' },
+            { templateId: 'checkbox', label: 'Checkbox', icon: CheckSquare, tone: 'accent' },
         ]
     }
 ];

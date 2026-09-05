@@ -14,9 +14,50 @@ const SIZES = new Set(['sm', 'md', 'lg']);
  * Optional colour tone layered over a variant, for actions whose meaning is
  * carried by colour in the domain (a signing submit reads as green). `default`
  * leaves the variant's own colours alone. Tone never replaces a text label:
- * callers must still say what the action does.
+ * callers must still say what the action does, because colour alone is not a
+ * status.
+ *
+ * What a tone MEANS depends on the variant, and the pair is checked here rather
+ * than left to CSS, so an unsupported combination names its call site instead of
+ * rendering something nobody chose:
+ *
+ *   - on `primary` it FILLS, and only `success` is allowed. A primary action
+ *     already carries the strongest emphasis on the page, so a second colour on
+ *     top competes with that rather than adding to it. `success` predates this
+ *     rule and keeps its meaning: a signing submit reads as green.
+ *   - on `secondary` and `ghost` it is the status TINT trio — border, tinted
+ *     background, status text — which is what eleven hand-rolled controls were
+ *     drawing by hand before this existed.
+ *   - `danger` and `link` take none. `danger` IS a tone, so a second one
+ *     contradicts it; `link` has no box to tint.
  */
-const TONES = new Set(['default', 'success']);
+const TONES = new Set(['default', 'neutral', 'info', 'success', 'warning', 'danger', 'accent']);
+
+/** Which tones each variant can carry. */
+const TONES_BY_VARIANT = {
+  primary: new Set(['default', 'success']),
+  secondary: TONES,
+  ghost: TONES,
+  danger: new Set(['default']),
+  link: new Set(['default']),
+};
+
+const TONE_REFUSALS = {
+  danger: 'A danger button is already a tone; a second one contradicts it.',
+  link: 'A link has no box to tint — use variant="ghost" if the action needs one.',
+  primary: 'A primary action already carries the page\'s strongest emphasis, so a second '
+    + 'colour competes with it rather than adding to it. Use variant="secondary" for a '
+    + 'toned action.',
+};
+
+function assertTone(variant, tone) {
+  if (TONES_BY_VARIANT[variant].has(tone)) return;
+  const allowed = [...TONES_BY_VARIANT[variant]].map((value) => `'${value}'`).join(', ');
+  throw new TypeError(
+    `Button variant="${variant}" cannot carry tone="${tone}". It accepts ${allowed}. `
+    + (TONE_REFUSALS[variant] ?? ''),
+  );
+}
 
 function normalizeOption(value, options, fallback, name) {
   const normalized = value ?? fallback;
@@ -42,6 +83,7 @@ export const Button = forwardRef(function Button({
   const normalizedVariant = normalizeOption(variant, VARIANTS, 'secondary', 'variant');
   const normalizedSize = normalizeOption(size, SIZES, 'md', 'size');
   const normalizedTone = normalizeOption(tone, TONES, 'default', 'tone');
+  assertTone(normalizedVariant, normalizedTone);
 
   return (
     <button

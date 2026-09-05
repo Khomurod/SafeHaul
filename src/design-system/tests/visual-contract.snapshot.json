@@ -140,6 +140,18 @@
     "borderColor": "rgb(203, 213, 225)",
     "color": "rgb(30, 41, 59)"
   },
+  "mobile · a tone fills a primary and tints a secondary · primary[success]": {
+    "backgroundColor": "rgb(21, 128, 61)",
+    "color": "rgb(255, 255, 255)",
+    "borderColor": "rgba(0, 0, 0, 0)",
+    "borderRadius": "8px"
+  },
+  "mobile · a tone fills a primary and tints a secondary · secondary[success]": {
+    "backgroundColor": "rgb(220, 252, 231)",
+    "color": "rgb(22, 101, 52)",
+    "borderColor": "rgb(187, 247, 208)",
+    "borderRadius": "8px"
+  },
   "mobile · the one variant that leaves the control scale, and the one that does not · button[link]": {
     "height": "16.25px",
     "fontSize": "13px",
@@ -435,6 +447,18 @@
     "backgroundColor": "rgb(255, 255, 255)",
     "borderColor": "rgb(203, 213, 225)",
     "color": "rgb(30, 41, 59)"
+  },
+  "desktop · a tone fills a primary and tints a secondary · primary[success]": {
+    "backgroundColor": "rgb(21, 128, 61)",
+    "color": "rgb(255, 255, 255)",
+    "borderColor": "rgba(0, 0, 0, 0)",
+    "borderRadius": "8px"
+  },
+  "desktop · a tone fills a primary and tints a secondary · secondary[success]": {
+    "backgroundColor": "rgb(220, 252, 231)",
+    "color": "rgb(22, 101, 52)",
+    "borderColor": "rgb(187, 247, 208)",
+    "borderRadius": "8px"
   },
   "desktop · the one variant that leaves the control scale, and the one that does not · button[link]": {
     "height": "16.25px",

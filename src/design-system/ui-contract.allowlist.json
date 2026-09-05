@@ -28,11 +28,11 @@
     },
     "src/features/auth/components/LoginScreen.jsx": {
       "raw-hex-colour": 2,
+      "raw-black-white-class": 1,
       "reasons": {
         "raw-hex-colour": "roadmap §5 — the hero's background wash is brand artwork: three decorative blobs blurred over 256–384px, aria-hidden, carrying no information, drawn in the mark's own colours. The named brand roles (--ds-color-brand-accent / -primary) cover everything on that panel that carries meaning; these three are translucent, and a Tailwind opacity modifier cannot be applied to a var() colour, so tokenising them would mean three single-use tint tokens for a blur.",
         "raw-black-white-class": "roadmap §5 — `bg-white/5` on one of the login hero's decorative blur orbs, alongside the brand-tinted pair already recorded on this file. It is artwork on an inverse surface, not an interface colour: the orbs exist to give the panel depth and carry no meaning, so mapping them onto a content or surface role would tie a decoration to a role that a contrast change could legitimately re-tune."
-      },
-      "raw-black-white-class": 1
+      }
     },
     "src/features/campaigns/CampaignEditor.jsx": {
       "hand-styled-button": 1,
@@ -41,12 +41,12 @@
       }
     },
     "src/features/campaigns/components/AudienceBuilder.jsx": {
+      "raw-black-white-class": 1,
       "hand-styled-button": 1,
       "reasons": {
         "hand-styled-button": "roadmap §5 — the application-status filter chips are MULTI-select (a `status` array), and `SegmentedControl` is single-select by contract (`value` is a scalar). They are also 12px chips rather than 44px control-height cards, so adopting it would triple their height inside a filter panel. This is the filter-chip gap the catalog's Introduction already records, and this is its first concrete consumer.",
         "raw-black-white-class": "roadmap §5 — `bg-black/20`, the scrim behind the audience preview list. Recorded rather than migrated because NO existing role matches it, measured: `--ds-color-overlay` is rgb(15 23 42 / 0.6) — slate-900 at 60% — where this is pure black at 20%, so the swap would visibly lighten and re-tint the backdrop. The rule's remedy points at declaring a semantic `rgb(… / a)` token, and that is the right fix; naming a new scrim ROLE is a design-system decision rather than a mechanical one, so it belongs with the status-notice and surface work rather than inside a rule-widening slice. Retire this entry there."
-      },
-      "raw-black-white-class": 1
+      }
     },
     "src/features/campaigns/components/CampaignCard.jsx": {
       "hand-styled-button": 3,
@@ -90,6 +90,8 @@
     },
     "src/features/company-admin/components/modals/VOEDocument.jsx": {
       "raw-palette-class": 100,
+      "bare-tailwind-radius": 1,
+      "raw-black-white-class": 2,
       "sub-12px-type": 31,
       "off-scale-type": 20,
       "arbitrary-type-size": 1,
@@ -106,9 +108,7 @@
         "bare-tailwind-radius": "roadmap §5 — the generated 49 CFR §391.23 document, whose class list is the capture surface for a rasteriser. It is immutable legal content and must render the same next year as today, so it does not follow a theme. Same ground as this file's other entries; see the raw-palette-class reason.",
         "raw-black-white-class": "roadmap §5 — the generated 49 CFR §391.23 document, whose class list is the capture surface for a rasteriser. It is immutable legal content and must render the same next year as today, so it does not follow a theme. Same ground as this file's other entries; see the raw-palette-class reason.",
         "raw-z-index": "roadmap §5 — the same frozen-document ground as this file's other entries. The one value is `-z-10` on the §391.23 watermark, which has to sit BEHIND the document text; the local layer scale starts at 1 and has no negative rung, and adding one for a single watermark would be inventing vocabulary for one call site. The class list is also the capture surface for the exported PDF, so any change to it re-opens export parity."
-      },
-      "bare-tailwind-radius": 1,
-      "raw-black-white-class": 2
+      }
     },
     "src/features/company-admin/components/modals/VOEPreviewModal.jsx": {
       "tailwind-radius": 2,
@@ -194,12 +194,6 @@
         "hand-styled-button": "roadmap §5 — a mobile bottom app bar. Its items are equal-width stacked icon-over-label targets at 56px, which is the platform convention for a bottom bar and deliberately taller than the 44px control step; `Button` is an inline 44px control and cannot be either. No primitive covers a bottom app bar and one consumer does not justify writing one. Tokenised, each item named \"Open <section>\" so it does not collide with the heading inside the sheet it opens."
       }
     },
-    "src/features/signing/components/envelope-creator/EnvelopeSidebar.jsx": {
-      "hand-styled-button": 1,
-      "reasons": {
-        "hand-styled-button": "roadmap §5 — the field-palette tiles are colour-coded per field type, which is domain-to-visual mapping the feature owns and `Button` has no API for. Same exception family as the PEV FMCSA suggestion rows and the call-outcome grid: no approved SelectableCard/Listbox primitive yet."
-      }
-    },
     "src/features/signing/components/envelope-creator/PageThumbnailRail.jsx": {
       "hand-styled-button": 1,
       "reasons": {
@@ -270,12 +264,6 @@
       "raw-hex-colour": 2,
       "reasons": {
         "raw-hex-colour": "roadmap §5 — signature ink, rasterised into a legal record. The canvas this colour strokes is converted to a PNG (read back by getSignatureDataUrl() and submitted with the driver's application from Step9_Consent) and stored as part of a signed document, so it must not follow a theme: re-theming the application can never be allowed to retint a signature somebody has already given. Same argument as SignatureSheet.jsx, which has documented it in its own source since it was written. Found on 2026-09-05 when raw-hex-colour was widened to JS assignments — it had been invisible because the rule matched only arbitrary-value classes and CSS-style declarations. Two sites: the initial stroke style and the one clearCanvas restores, which must agree or a cleared pad would sign in a different colour."
-      }
-    },
-    "src/shared/components/layout/Stepper.jsx": {
-      "hand-styled-button": 1,
-      "reasons": {
-        "hand-styled-button": "roadmap §5 — the sandbox-only Magic Fill control. It is a warning-toned action, and `Button` exposes primary/secondary/ghost/danger/link with no semantic status tone; the tone is load-bearing because the control fills a real application form with fabricated data and must not look like an ordinary step action. Already recorded in `design-system/README.md` as the sandbox Magic Fill exception. Tokenised, 44px activation height, shared focus ring."
       }
     },
     "src/shared/components/modals/CallOutcomeModalUI.jsx": {
