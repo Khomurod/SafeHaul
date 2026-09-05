@@ -65,13 +65,12 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import {
-    mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync,
-} from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { builtinModules } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join as joinPath, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { removeTree } from '../lib/throwaway.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -292,7 +291,7 @@ export function loadedGraph(entry = ENTRY) {
         return readFileSync(record, 'utf8').split('\n').filter(Boolean)
             .map((url) => fileURLToPath(url.replace(/[?#].*$/, '')));
     } finally {
-        rmSync(dirname(record), { recursive: true, force: true });
+        removeTree(dirname(record));
     }
 }
 

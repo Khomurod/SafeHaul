@@ -70,7 +70,7 @@ export function NotificationDropdown({ companyId }) {
 
             {/* Dropdown Panel */}
             {isOpen && (
-                <div className="absolute right-0 top-full mt-2 w-[min(24rem,calc(100vw-1.5rem))] bg-ds-surface rounded-ds-lg shadow-ds-lg border border-ds-border-subtle z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="absolute right-0 top-full mt-2 w-[min(24rem,calc(100vw-1.5rem))] bg-ds-surface rounded-ds-lg shadow-ds-lg border border-ds-border-subtle z-ds-dropdown overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                     {/* Header */}
                     <div className="px-4 py-3 border-b border-ds-border-subtle bg-ds-surface-subtle flex justify-between items-center">
                         <div className="flex items-center gap-2">

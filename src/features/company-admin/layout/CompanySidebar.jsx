@@ -191,7 +191,7 @@ export const CompanySidebar = ({
             )}
 
             {!isExpanded && (
-              <div className="absolute left-full ml-2 px-2 py-1 bg-ds-surface text-ds-content text-ds-xs rounded-ds-md opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 pointer-events-none z-50 whitespace-nowrap border border-ds-border-subtle shadow-ds-lg">
+              <div className="absolute left-full ml-2 px-2 py-1 bg-ds-surface text-ds-content text-ds-xs rounded-ds-md opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 pointer-events-none z-ds-dropdown whitespace-nowrap border border-ds-border-subtle shadow-ds-lg">
                 {item.label}
               </div>
             )}

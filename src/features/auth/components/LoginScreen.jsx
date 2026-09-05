@@ -256,7 +256,7 @@ export function LoginScreen() {
           <div className="absolute top-1/2 left-1/2 w-64 h-64 bg-white/5 rounded-ds-full blur-2xl transform -translate-x-1/2 -translate-y-1/2"></div>
         </div>
 
-        <div className="relative z-10 flex w-full flex-col items-center justify-center px-ds-12 text-center lg:px-16 xl:px-20">
+        <div className="relative z-ds-raised flex w-full flex-col items-center justify-center px-ds-12 text-center lg:px-16 xl:px-20">
           <div className="max-w-lg">
             <Logo className="mx-auto mb-ds-8 h-20 w-20" />
 
@@ -330,7 +330,7 @@ export function LoginScreen() {
           onClose={closeForgotPassword}
           labelledBy={RESET_DIALOG_TITLE_ID}
           initialFocusRef={resetEmailSent ? undefined : resetEmailRef}
-          className="w-full max-w-md overflow-hidden rounded-ds-xl bg-ds-surface shadow-ds-lg"
+          size="md"
         >
           <div className="p-8">
             {resetEmailSent ? (

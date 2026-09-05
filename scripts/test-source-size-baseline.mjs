@@ -21,12 +21,13 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { BACKLOG_PATH, countLines } from './source-size.mjs';
 import { checkBacklogDirection, resolveBaselineRef } from './source-size-baseline.mjs';
 import { resolveValidatedBaseline } from './source-size-validated.mjs';
+import { removeTree } from './lib/throwaway.mjs';
 
 
 let failures = 0;
@@ -97,6 +98,9 @@ console.log('\nH. The backlog cannot be edited into an allowlist');
   const dir = mkdtempSync(join(tmpdir(), 'safehaul-size-baseline-'));
   const git = (...args) => execFileSync('git', args, { cwd: dir, encoding: 'utf8' });
   git('init', '-q', '-b', 'main');
+  // No background `git gc --auto` writing into `.git` after cleanup starts.
+  git('config', 'gc.auto', '0');
+  git('config', 'maintenance.auto', 'false');
   git('config', 'user.email', 'tests@safehaul.invalid');
   git('config', 'user.name', 'SafeHaul tests');
   git('config', 'commit.gpgsign', 'false');
@@ -125,7 +129,7 @@ console.log('\nH. The backlog cannot be edited into an allowlist');
   });
   assert('H11. and the same machinery passes a backlog that only shrank',
     shrunk.problems.length === 0, shrunk.problems.join('; '));
-  rmSync(dir, { recursive: true, force: true });
+  removeTree(dir);
 }
 
 {
@@ -143,6 +147,9 @@ console.log('\nH. The backlog cannot be edited into an allowlist');
   const dir = mkdtempSync(join(tmpdir(), 'safehaul-size-forkpoint-'));
   const git = (...args) => execFileSync('git', args, { cwd: dir, encoding: 'utf8' }).trim();
   git('init', '-q', '-b', 'main');
+  // No background `git gc --auto` writing into `.git` after cleanup starts.
+  git('config', 'gc.auto', '0');
+  git('config', 'maintenance.auto', 'false');
   git('config', 'user.email', 'tests@safehaul.invalid');
   git('config', 'user.name', 'SafeHaul tests');
   git('config', 'commit.gpgsign', 'false');
@@ -210,7 +217,7 @@ console.log('\nH. The backlog cannot be edited into an allowlist');
       bogus.ref === null && /the head itself/.test(bogus.error || ''),
       'the lookup is trusted for WHICH commit, never for whether it can be compared');
   }
-  rmSync(dir, { recursive: true, force: true });
+  removeTree(dir);
 }
 
 {
@@ -235,6 +242,9 @@ console.log('\nH. The backlog cannot be edited into an allowlist');
   const dir = mkdtempSync(join(tmpdir(), 'safehaul-size-precampaign-'));
   const git = (...args) => execFileSync('git', args, { cwd: dir, encoding: 'utf8' }).trim();
   git('init', '-q', '-b', 'main');
+  // No background `git gc --auto` writing into `.git` after cleanup starts.
+  git('config', 'gc.auto', '0');
+  git('config', 'maintenance.auto', 'false');
   git('config', 'user.email', 'tests@safehaul.invalid');
   git('config', 'user.name', 'SafeHaul tests');
   git('config', 'commit.gpgsign', 'false');
@@ -297,7 +307,7 @@ console.log('\nH. The backlog cannot be edited into an allowlist');
   assert('H28. and the pull request that introduces the backlog still passes',
     introducing.problems.length === 0 && /every entry checked against it/.test(introducing.describe),
     `${introducing.describe} — ${introducing.problems.join('; ') || 'nothing reported'}`);
-  rmSync(dir, { recursive: true, force: true });
+  removeTree(dir);
 }
 
 {
@@ -347,6 +357,9 @@ console.log('\nH. The backlog cannot be edited into an allowlist');
   const dir = mkdtempSync(join(tmpdir(), 'safehaul-size-merge-'));
   const git = (...args) => execFileSync('git', args, { cwd: dir, encoding: 'utf8' }).trim();
   git('init', '-q', '-b', 'main');
+  // No background `git gc --auto` writing into `.git` after cleanup starts.
+  git('config', 'gc.auto', '0');
+  git('config', 'maintenance.auto', 'false');
   git('config', 'user.email', 'tests@safehaul.invalid');
   git('config', 'user.name', 'SafeHaul tests');
   git('config', 'commit.gpgsign', 'false');
@@ -370,7 +383,7 @@ console.log('\nH. The backlog cannot be edited into an allowlist');
   });
   assert('H35. and the head-itself refusal still fires before any of this',
     forward.ref === null && /the head itself/.test(forward.error || ''), JSON.stringify(forward));
-  rmSync(dir, { recursive: true, force: true });
+  removeTree(dir);
 }
 
 {

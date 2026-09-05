@@ -1015,6 +1015,41 @@ what it asks rather than how carefully it looks** — and check whether the same
 shape exists in the sibling rules, because twice now it did and nobody swept for
 it.
 
+### Fourteen numbers, and the escalation war they came from
+
+Recorded 2026-09-05, when the stacking scale was completed.
+
+The tree carried **74 raw `z-*` sites spelling fourteen different values**:
+`z-10` through `z-50`, then `z-[55]`, `z-[60]`, `z-[65]`, `z-[70]`, `z-[80]`,
+`z-[100]` and `z-[9999]`. That distribution is the diagnosis on its own. A bare
+number says nothing about what it is *for*, so the only way to raise something
+was to pick one bigger than whatever it had lost to — and each winner became the
+next thing to outbid. Three of the four highest values are on dialogs that each
+needed to sit above a different neighbour.
+
+The scale in `tokens/foundation.css` names the layers instead: `raised` 10,
+`sticky` 20, `dropdown` 30, `drawer-backdrop` 40, `drawer` 50, `modal` 60,
+`toast` 100, with ten-unit gaps so a new layer does not renumber the others.
+`tokens.test.js` asserts strict ordering and that every layer has a Tailwind
+utility — a layer a class list cannot name is a layer somebody writes a number
+for.
+
+**`layer-1` … `layer-4` are deliberately absent.** They are local layers inside
+an `isolate` context in the envelope editor, and they arrive in the slice that
+gives them consumers, because `tokens.consumers.test.js` refuses a token nothing
+reads. That rule is what keeps this list a vocabulary rather than an inventory.
+
+**And one claim in this file was wrong, which is worth keeping rather than
+quietly deleting.** The audit recorded the drawer/dialog conflict as a *live
+layering bug*: `WorkspaceFrame`'s mobile drawer read `--ds-z-modal`, so in the
+CSS it outranked every `<Modal>`. The CSS half is true and is fixed. The "live"
+half is not: while the drawer is open its backdrop covers every page control,
+and nothing rendered inside the drawer opens a dialog — both checked before
+writing this. So the ordering was wrong rather than visibly broken. What the fix
+removes is a trap the next "open a dialog from the navigation" would have fallen
+into; the nine `z-[60]`/`z-[70]` overlays in the tree were compensating for
+*each other* and for the tables beneath them, not for the drawer.
+
 ### The second rule that parses — a class list held in a variable
 
 Added 2026-09-05, and it is the paragraph above ("the rest of the file still

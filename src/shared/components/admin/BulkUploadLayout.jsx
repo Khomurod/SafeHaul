@@ -386,8 +386,7 @@ export function BulkUploadLayout({
         <Modal
             onClose={onClose}
             labelledBy={titleId}
-            overlayClassName="fixed inset-0 z-50 flex items-center justify-center bg-ds-overlay p-4 backdrop-blur-sm"
-            className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-ds-xl border border-ds-border-subtle bg-ds-surface shadow-ds-lg"
+            size="2xl"
         >
             {body}
         </Modal>

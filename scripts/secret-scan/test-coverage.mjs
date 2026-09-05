@@ -17,12 +17,13 @@
  * executing it. L27-L34 are the seven review rounds that found each way in.
  */
 
-import { mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join as joinPath, resolve as resolvePath } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { assert } from './test-support.mjs';
 import { implementationFiles, unreachableCovered, uncoveredLoads } from './test-sources.mjs';
+import { removeTree } from '../lib/throwaway.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -213,7 +214,7 @@ const here = dirname(fileURLToPath(import.meta.url));
             shouldPass
                 ? 'a plain literal is verifiable and must not be refused'
                 : 'a computed specifier names a module this cannot see, so it must not be skipped');
-        rmSync(dir, { recursive: true, force: true });
+        removeTree(dir);
     }
 
     /*
@@ -233,8 +234,8 @@ const here = dirname(fileURLToPath(import.meta.url));
     }
     assert('L30. a scanner module outside the covered directory is refused, not skipped',
         refused, 'silently omitting it is how the pinning assertions would go quiet');
-    rmSync(fixture, { recursive: true, force: true });
-    rmSync(outside, { recursive: true, force: true });
+    removeTree(fixture);
+    removeTree(outside);
 
     /*
      * And the static half asked of Node rather than inferred.
@@ -294,7 +295,7 @@ const here = dirname(fileURLToPath(import.meta.url));
             .some((f) => f.endsWith('orphan.mjs'));
         assert(`L34. ${label} does not make an unloaded module reachable`, orphaned,
             'only being loaded counts; anything lexical is a way for dead source to vouch for itself');
-        rmSync(dir, { recursive: true, force: true });
+        removeTree(dir);
     }
 
     /*
@@ -308,7 +309,7 @@ const here = dirname(fileURLToPath(import.meta.url));
         assert('L34b. but a module the entry actually imports is not an orphan',
             unreachableCovered(joinPath(dir, 'entry.mjs'), dir).length === 0,
             'otherwise the check would refuse the scanner as it stands');
-        rmSync(dir, { recursive: true, force: true });
+        removeTree(dir);
     }
 
     assert('L33. and everything these checks read is source the scanner loads',

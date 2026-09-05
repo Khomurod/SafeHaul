@@ -20,11 +20,12 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { BACKLOG_PATH, countLines } from './source-size.mjs';
 import { checkBacklogDirection } from './source-size-baseline.mjs';
+import { removeTree } from './lib/throwaway.mjs';
 import {
   backlogShapeProblems, bootstrapProblems, compareBacklog, compareBacklogSizes,
 } from './source-size-direction.mjs';
@@ -134,6 +135,9 @@ assert('H17. nothing is compared until the shape is sound',
   const dir = mkdtempSync(join(tmpdir(), 'safehaul-size-ratchet-'));
   const git = (...args) => execFileSync('git', args, { cwd: dir, encoding: 'utf8' }).trim();
   git('init', '-q', '-b', 'main');
+  // No background `git gc --auto` writing into `.git` after cleanup starts.
+  git('config', 'gc.auto', '0');
+  git('config', 'maintenance.auto', 'false');
   git('config', 'user.email', 'tests@safehaul.invalid');
   git('config', 'user.name', 'SafeHaul tests');
   git('config', 'commit.gpgsign', 'false');
@@ -157,7 +161,7 @@ assert('H17. nothing is compared until the shape is sound',
   assert('H23. and the whole chain refuses the regrowth through git',
     verdict.problems.some((problem) => /big\.js is 1300 lines, up from 1200/.test(problem)),
     `${verdict.describe} — ${verdict.problems.join('; ') || 'nothing reported'}`);
-  rmSync(dir, { recursive: true, force: true });
+  removeTree(dir);
 }
 
 {

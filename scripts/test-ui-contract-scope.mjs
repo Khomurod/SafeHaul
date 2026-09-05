@@ -33,8 +33,8 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { MINIMUM_SCANNED_FILES } from './check-ui-contract.mjs';
@@ -368,6 +368,54 @@ console.log('\nX. The CLI stays out of the Vitest module graph');
     const offenders = found.trim().split('\n').filter(Boolean);
     assert('X1. nothing under src/ imports the CLI entry or the git baseline',
         offenders.length === 0, offenders.join(', '));
+}
+
+/* ========================================================================== */
+console.log('\nS10. Throwaway directories are removed without racing git');
+
+/*
+ * Broader than this guard, and here because this is the suite that runs.
+ *
+ * `callable-contract` went red on 2026-09-05 with
+ *
+ *     Error: ENOTEMPTY: directory not empty, rmdir '/tmp/safehaul-ui-…/.git'
+ *
+ * in the CLEANUP of a harness whose every assertion had just passed. A gate
+ * failing because a temp directory would not delete teaches people that a red
+ * gate might mean nothing, which is the most expensive thing a gate can teach.
+ *
+ * The cause was `git gc --auto` writing into `.git` after the command that
+ * triggered it returned, and the reason it was fatal is that `force: true`
+ * suppresses `ENOENT` and nothing else. `scripts/lib/throwaway.mjs` fixes both;
+ * this stops the next harness copying the old shape from an older one.
+ *
+ * Five files had it, only one failed — which is why this is written over the
+ * set rather than over the instance, the rule `CLAUDE.md` records after one CI
+ * root cause was patched three times.
+ */
+{
+    const offenders = [];
+    const walk = (dir) => {
+        for (const entry of readdirSync(dir, { withFileTypes: true })) {
+            const full = join(dir, entry.name);
+            if (entry.isDirectory()) { walk(full); continue; }
+            if (!entry.name.endsWith('.mjs')) continue;
+            const source = readFileSync(full, 'utf8');
+            for (const match of source.matchAll(/rmSync\([^;]*?recursive:\s*true[^;]*?\)/gs)) {
+                if (/maxRetries/.test(match[0])) continue;
+                offenders.push(`${relative(repoRoot, full)}: ${match[0].replace(/\s+/g, ' ').slice(0, 70)}`);
+            }
+        }
+    };
+    walk(resolve(repoRoot, 'scripts'));
+    assert('S10. no recursive rmSync in scripts/ is written without retries',
+        offenders.length === 0, offenders.join(' | '));
+
+    // ...and the helper everything routes through actually asks for them.
+    const helper = readFileSync(resolve(repoRoot, 'scripts/lib/throwaway.mjs'), 'utf8');
+    assert('S10b. the shared remover retries, and the shared init disables git maintenance',
+        /maxRetries:\s*\d+/.test(helper) && /retryDelay:\s*\d+/.test(helper)
+        && /'gc\.auto',\s*'0'/.test(helper) && /'maintenance\.auto',\s*'false'/.test(helper));
 }
 
 /* ========================================================================== */

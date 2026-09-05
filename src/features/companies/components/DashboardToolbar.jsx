@@ -82,7 +82,7 @@ export const DashboardToolbar = memo(function DashboardToolbar({
 
 
     return (
-        <div className="relative z-30 flex shrink-0 flex-col gap-ds-3 border-b border-ds-border-subtle bg-ds-surface p-ds-4">
+        <div className="relative z-ds-dropdown flex shrink-0 flex-col gap-ds-3 border-b border-ds-border-subtle bg-ds-surface p-ds-4">
 
             <div className="flex flex-col items-center justify-between gap-ds-4 sm:flex-row">
                 <div className="flex flex-wrap items-center gap-ds-4">

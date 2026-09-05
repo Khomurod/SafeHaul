@@ -201,7 +201,7 @@ export default function EmployerNameAutocomplete({
         <ul
           id={listboxId}
           role="listbox"
-          className="absolute z-[100] mt-ds-1 max-h-60 w-full overflow-auto rounded-ds-md border border-ds-border-subtle bg-ds-surface shadow-ds-lg"
+          className="absolute z-ds-dropdown mt-ds-1 max-h-60 w-full overflow-auto rounded-ds-md border border-ds-border-subtle bg-ds-surface shadow-ds-lg"
         >
           {items.map((row, idx) => {
             const name = row?.legal_name ?? 'Unknown';

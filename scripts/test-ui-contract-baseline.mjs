@@ -38,7 +38,7 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 
@@ -48,6 +48,7 @@ import {
 import { ALLOWLIST_PATH, checkAllowlistDirection, measureAt } from './ui-contract/baseline.mjs';
 import { additions } from './ui-contract/update.mjs';
 import { ALLOWLIST_VERSION, normaliseAllowlist } from './ui-contract/allowlist.mjs';
+import { initThrowawayRepo, removeTree } from './lib/throwaway.mjs';
 
 let failures = 0;
 function assert(name, condition, detail = '') {
@@ -214,11 +215,7 @@ console.log('\nG. Against real repositories');
 /** A throwaway repo laid out like this one: `src/` plus the allowlist. */
 function repo(label) {
     const dir = mkdtempSync(join(tmpdir(), `safehaul-ui-${label}-`));
-    const git = (...args) => execFileSync('git', args, { cwd: dir, encoding: 'utf8' }).trim();
-    git('init', '-q', '-b', 'main');
-    git('config', 'user.email', 'tests@safehaul.invalid');
-    git('config', 'user.name', 'SafeHaul tests');
-    git('config', 'commit.gpgsign', 'false');
+    const git = initThrowawayRepo(dir);
     const write = (path, text) => {
         mkdirSync(dirname(resolve(dir, path)), { recursive: true });
         writeFileSync(resolve(dir, path), text);
@@ -233,7 +230,7 @@ function repo(label) {
     });
     return {
         dir, git, write, allowlist, commit, check,
-        done: () => rmSync(dir, { recursive: true, force: true }),
+        done: () => removeTree(dir),
     };
 }
 

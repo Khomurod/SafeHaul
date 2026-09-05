@@ -148,8 +148,43 @@
   --ds-duration-fast: 150ms;
   --ds-duration-slow: 300ms;
   --ds-ease-standard: ease;
+  /*
+   * The stacking layers, named.
+   *
+   * Before this scale was complete there were 74 raw `z-*` sites across the
+   * tree spelling **fourteen** different numbers, including `z-[9999]`,
+   * `z-[100]`, `z-[80]`, `z-[70]` and `z-[65]` — an escalation war, where each
+   * new thing that had to sit on top picked a number bigger than whatever it
+   * had lost to. Nothing in a raw number says what it is *for*, so the only way
+   * to raise something was to outbid it.
+   *
+   * The gaps are deliberate: ten between neighbours leaves room for a layer
+   * nobody has needed yet without renumbering the ones that exist.
+   *
+   * `drawer` sits BELOW `modal`, and that ordering is the whole reason this
+   * scale was completed. The mobile navigation drawer used to render at
+   * `--ds-z-modal` while every dialog wrote a bare `z-50`, so a dialog opened
+   * with the drawer out rendered *behind* it — and nine hand-written `z-[60]`,
+   * `z-[70]` and `z-[9999]` workarounds existed because of it.
+   *
+   * **Two things on the same layer tie, and DOM order decides.** That is not a
+   * footnote: a page-level sticky header nested under the workspace topbar is
+   * NOT on the topbar's layer, it is `raised` above the page content and below
+   * the application chrome. Company Settings' header was moved to `sticky` in
+   * the first draft of this scale, tied with the topbar, won on DOM order and
+   * covered the topbar's drop shadow — a two-pixel band that CI's visual lane
+   * caught at both widths. Pick the layer by what the thing sits between.
+   *
+   * `layer-1` … `layer-4` are missing on purpose: they are local layers inside
+   * an `isolate` context in the envelope editor, and they arrive in the slice
+   * that gives them consumers. `tokens.consumers.test.js` refuses a token
+   * nothing reads, which is exactly the rule that keeps this list a vocabulary.
+   */
+  --ds-z-raised: 10;
   --ds-z-sticky: 20;
-  --ds-z-modal-backdrop: 50;
+  --ds-z-dropdown: 30;
+  --ds-z-drawer-backdrop: 40;
+  --ds-z-drawer: 50;
   --ds-z-modal: 60;
   --ds-z-toast: 100;
 }

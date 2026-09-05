@@ -112,7 +112,7 @@ export function ToastProvider({ children }) {
     <ToastContext.Provider value={{ showSuccess, showError, showInfo, showWarning }}>
       {children}
 
-      <div className="pointer-events-none fixed bottom-ds-6 left-ds-4 right-ds-4 z-[100] flex max-h-[calc(100vh-3rem)] flex-col items-end gap-ds-3 overflow-hidden sm:left-auto sm:right-ds-6">
+      <div className="pointer-events-none fixed bottom-ds-6 left-ds-4 right-ds-4 z-ds-toast flex max-h-[calc(100vh-3rem)] flex-col items-end gap-ds-3 overflow-hidden sm:left-auto sm:right-ds-6">
         {toasts.map((toast) => {
           const variant = TOAST_VARIANTS[toast.type] || TOAST_VARIANTS.info;
           const Icon = variant.icon;

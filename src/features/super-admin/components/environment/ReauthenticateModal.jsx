@@ -54,7 +54,7 @@ export function ReauthenticateModal({ onSuccess, onCancel }) {
             initialFocusRef={inputRef}
             closeOnBackdrop={false}
             closeOnEscape={!submitting}
-            className="bg-ds-surface rounded-ds-xl shadow-ds-lg w-full max-w-md overflow-hidden"
+            size="md"
         >
             <form onSubmit={handleSubmit}>
                 <Stack gap="md" className="p-ds-6">

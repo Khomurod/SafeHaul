@@ -135,8 +135,8 @@ export function ViewCompanyAppsModal({ companyId, companyName, onClose }) {
     <Modal
       onClose={onClose}
       labelledBy={titleId}
-      overlayClassName="fixed inset-0 z-[60] flex items-center justify-center bg-ds-overlay p-ds-4 backdrop-blur-sm"
-      className="flex max-h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-ds-xl border border-ds-border-subtle bg-ds-surface shadow-ds-lg"
+      size="4xl"
+      scroll="body"
     >
       <div id="view-apps-modal" className="flex min-h-0 flex-col">
         {/* Header */}

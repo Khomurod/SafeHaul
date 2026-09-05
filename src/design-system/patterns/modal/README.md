@@ -67,12 +67,25 @@ either.
 
 ## Stacking
 
-The overlay sits at `--ds-z-modal`, which is not a caller's decision. It matters
-because the mobile navigation drawer sits at the same layer and every dialog
-still writing its own overlay writes a bare `z-50` — which renders it **behind**
-the drawer. Nine hand-written workarounds for that exist in the tree.
+The overlay sits at `--ds-z-modal`, which is not a caller's decision.
 `check:visual-contract` reads the overlay's `zIndex` on every run so the
-contract's own layer cannot drift back down.
+contract's own layer cannot drift back down, and `e2e/dialog-layering.spec.cjs`
+checks the whole scale resolves in order in a real browser.
+
+The scale is in `tokens/foundation.css`, and it is worth reading the comment
+there: the tree carried **74 raw `z-*` sites spelling fourteen different
+numbers**, `z-[9999]` among them, because a bare number says nothing about what
+it is *for* — so the only way to raise something was to outbid whatever it had
+lost to. `--ds-z-drawer` (50) sits below `--ds-z-modal` (60) for that reason.
+
+**One correction worth keeping**, because the earlier version of this paragraph
+got it wrong. `WorkspaceFrame`'s mobile drawer did read `--ds-z-modal`, so in
+the CSS it outranked every dialog — but that conflict is **not reachable
+through the UI**: while the drawer is open its backdrop covers every page
+control, and nothing rendered inside the drawer opens a dialog. Both were
+checked. So the ordering was wrong rather than visibly broken, and what the fix
+removes is a trap the next "open a dialog from the navigation" would have fallen
+into, not a bug anyone can currently see.
 
 ## Rendering convention
 

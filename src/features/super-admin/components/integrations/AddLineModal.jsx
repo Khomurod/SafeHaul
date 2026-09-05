@@ -141,7 +141,7 @@ export function AddLineModal({ companyId, onClose, onSuccess, sharedCredentials 
         <Modal
             onClose={onClose}
             labelledBy={titleId}
-            className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-ds-xl border border-ds-border-subtle bg-ds-surface shadow-ds-lg"
+            size="lg"
         >
             {/* Header */}
             <div className="flex items-center justify-between border-b border-ds-border-subtle bg-ds-surface-subtle px-ds-6 py-ds-4">

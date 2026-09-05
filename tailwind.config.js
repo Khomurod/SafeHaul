@@ -30,6 +30,21 @@ export default {
         'ds-disabled-soft': 'var(--ds-opacity-disabled-soft)',
       },
 
+      /*
+       * The stacking layers as utilities, so a class list can name one instead
+       * of outbidding the last number it lost to. See `foundation.css` — the
+       * tree carried fourteen different raw values, `z-[9999]` among them.
+       */
+      zIndex: {
+        'ds-raised': 'var(--ds-z-raised)',
+        'ds-sticky': 'var(--ds-z-sticky)',
+        'ds-dropdown': 'var(--ds-z-dropdown)',
+        'ds-drawer-backdrop': 'var(--ds-z-drawer-backdrop)',
+        'ds-drawer': 'var(--ds-z-drawer)',
+        'ds-modal': 'var(--ds-z-modal)',
+        'ds-toast': 'var(--ds-z-toast)',
+      },
+
       colors: {
         'ds-canvas': 'var(--ds-color-canvas)',
         'ds-surface': 'var(--ds-color-surface)',

@@ -212,7 +212,7 @@ export function CompaniesView({
                 >
                 <table className="ds-native-table" data-row-hover>
                     <caption className="sr-only">{title}</caption>
-                    <thead className="sticky top-0 z-10 shadow-ds-xs">
+                    <thead className="sticky top-0 z-ds-sticky shadow-ds-xs">
                         <tr>
                             <th scope="col">Company Name</th>
                             <th scope="col">Slug / ID</th>

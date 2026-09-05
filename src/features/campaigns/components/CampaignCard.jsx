@@ -76,7 +76,7 @@ export function CampaignCard({ campaign, onClick, onDelete, onCancel, onViewRepo
                         <div
                             role="menu"
                             aria-label="Campaign actions"
-                            className="absolute right-0 top-full z-10 mt-ds-1 w-48 rounded-ds-lg border border-ds-border-subtle bg-ds-surface py-ds-1 shadow-ds-lg"
+                            className="absolute right-0 top-full z-ds-dropdown mt-ds-1 w-48 rounded-ds-lg border border-ds-border-subtle bg-ds-surface py-ds-1 shadow-ds-lg"
                         >
                             {/* Live sessions must be cancelled (worker stops safely, history
                                 is kept); only drafts and stopped sessions can be deleted. */}

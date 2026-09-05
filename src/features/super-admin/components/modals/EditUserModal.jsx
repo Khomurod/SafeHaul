@@ -52,7 +52,8 @@ export function EditUserModal({ userId, companyId, allCompaniesMap, onClose, onS
     <Modal
       onClose={onClose}
       labelledBy={titleId}
-      className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-ds-xl border border-ds-border-subtle bg-ds-surface shadow-ds-lg"
+      size="2xl"
+      scroll="body"
     >
       <div id="edit-user-modal" className="flex min-h-0 flex-col">
         <header className="flex shrink-0 items-center justify-between border-b border-ds-border-subtle p-ds-5">
