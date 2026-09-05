@@ -61,6 +61,7 @@ const SUBJECTS = [
     ['components-button--ghost-tones', 'button-ghost-tones'],
     ['components-iconbutton--variants', 'icon-button-variants'],
     ['components-iconbutton--sizes', 'icon-button-sizes'],
+    ['components-iconbutton--extra-small-and-round', 'icon-button-xs-round'],
     ['components-link--beside-a-button', 'link-beside-button'],
     ['components-link--sizes', 'link-sizes'],
     ['components-link--quiet-tone', 'link-quiet-tone'],

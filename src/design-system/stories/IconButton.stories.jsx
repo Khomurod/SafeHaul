@@ -1,6 +1,6 @@
 import React from 'react';
 import { fn } from 'storybook/test';
-import { Icon, Download, MoreHorizontal, Pencil, Trash2, X } from '@design-system/icons';
+import { Check, Icon, Download, MoreHorizontal, Pencil, Trash2, X } from '@design-system/icons';
 import { Button, IconButton } from '@design-system/components';
 
 /**
@@ -92,9 +92,31 @@ export const Variants = {
 export const Sizes = {
   render: (args) => (
     <div className="sb-row">
+      <IconButton {...args} size="xs" label="Edit record (extra small)"><Icon icon={Pencil} size="xs" /></IconButton>
       <IconButton {...args} size="sm" label="Edit record (small)"><Icon icon={Pencil} size="sm" /></IconButton>
       <IconButton {...args} size="md" label="Edit record (medium)"><Icon icon={Pencil} size="lg" /></IconButton>
       <IconButton {...args} size="lg" label="Edit record (large)"><Icon icon={Pencil} size="xl" /></IconButton>
+    </div>
+  ),
+};
+
+/**
+ * `xs` is 24px — the WCAG 2.2 SC 2.5.8 (AA) target-size **minimum**, not a
+ * comfortable size. It exists for affordances pinned to something small enough
+ * that a 36px control would cover it, and it is **icon-only**: a labelled
+ * `Button` refuses this step, because 12px text cannot sit in 24px with any
+ * padding.
+ *
+ * `shape="round"` cuts it as a disc. That is for a control sitting ON another
+ * element's corner, where a rounded square reads as a second, nested box.
+ */
+export const ExtraSmallAndRound = {
+  render: (args) => (
+    <div className="sb-row">
+      <IconButton {...args} size="xs" label="Dismiss"><Icon icon={X} size="xs" /></IconButton>
+      <IconButton {...args} size="xs" shape="round" variant="danger" label="Remove item"><Icon icon={X} size="xs" /></IconButton>
+      <IconButton {...args} size="xs" shape="round" variant="primary" label="Accept suggestion"><Icon icon={Check} size="xs" /></IconButton>
+      <IconButton {...args} size="xs" variant="ghost" label="Sort ascending"><Icon icon={Pencil} size="xs" /></IconButton>
     </div>
   ),
 };

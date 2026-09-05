@@ -323,6 +323,37 @@
   padding: 0;
 }
 
+/*
+ * `xs` — 24px square, the WCAG 2.2 SC 2.5.8 minimum, and icon-only. `Button`
+ * refuses this step for a labelled control because 12px text cannot sit in it
+ * with any padding; `Button.jsx` explains how the two are told apart.
+ *
+ * `min-height` as well as `height`: the shared `.ds-button` rule sets
+ * `min-height: var(--ds-control-height-md)`, which would otherwise floor this
+ * at 44px and leave a 24px-wide, 44px-tall control — narrower than the minimum
+ * in one axis while looking like it passed.
+ */
+.ds-icon-button[data-size='xs'] {
+  width: var(--ds-control-height-xs);
+  height: var(--ds-control-height-xs);
+  min-height: var(--ds-control-height-xs);
+  flex-basis: var(--ds-control-height-xs);
+  padding: 0;
+}
+
+.ds-button.ds-icon-button[data-size='xs'] {
+  --ds-button-icon-size: var(--ds-icon-size-xs);
+}
+
+/*
+ * A disc rather than a rounded square. The corner affordances on a placed PDF
+ * field are round because they sit ON the field's own corner and a squared one
+ * reads as a second, nested box.
+ */
+.ds-icon-button[data-shape='round'] {
+  border-radius: var(--ds-radius-full);
+}
+
 .ds-icon-button[data-size='lg'] {
   width: var(--ds-control-height-lg);
   flex-basis: var(--ds-control-height-lg);

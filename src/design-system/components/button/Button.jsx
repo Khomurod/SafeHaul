@@ -10,6 +10,21 @@ import './Button.css';
  */
 const VARIANTS = new Set(['primary', 'secondary', 'ghost', 'danger', 'link']);
 const SIZES = new Set(['sm', 'md', 'lg']);
+
+/**
+ * `xs` is 24px — the WCAG 2.2 SC 2.5.8 minimum — and it is an ICON-ONLY step.
+ * A labelled button cannot fit 12px text with any padding at that height, so
+ * `Button` refuses it and only `IconButton` reaches it.
+ *
+ * The two are told apart by `.ds-icon-button`, which `IconButton` always adds:
+ * the same coupling `Button.css` already relies on to give an icon-only button
+ * its square footprint. A caller who hand-writes that class on a plain `Button`
+ * gets the icon-only treatment throughout, which is what they asked for.
+ */
+const ICON_ONLY_SIZES = new Set(['xs', 'sm', 'md', 'lg']);
+
+/** How an icon-only control is cut. `square` is the control radius; `round` is a disc. */
+const SHAPES = new Set(['square', 'round']);
 /**
  * Optional colour tone layered over a variant, for actions whose meaning is
  * carried by colour in the domain (a signing submit reads as green). `default`
@@ -81,7 +96,10 @@ export const Button = forwardRef(function Button({
   ...props
 }, ref) {
   const normalizedVariant = normalizeOption(variant, VARIANTS, 'secondary', 'variant');
-  const normalizedSize = normalizeOption(size, SIZES, 'md', 'size');
+  const iconOnly = className.split(/\s+/).includes('ds-icon-button');
+  const normalizedSize = normalizeOption(
+    size, iconOnly ? ICON_ONLY_SIZES : SIZES, 'md', 'size',
+  );
   const normalizedTone = normalizeOption(tone, TONES, 'default', 'tone');
   assertTone(normalizedVariant, normalizedTone);
 
@@ -108,10 +126,16 @@ export const Button = forwardRef(function Button({
 export const IconButton = forwardRef(function IconButton({
   label,
   children,
+  shape = 'square',
   ...props
 }, ref) {
   if (typeof label !== 'string' || label.trim() === '') {
     throw new TypeError('IconButton requires a non-empty label.');
+  }
+  if (!SHAPES.has(shape)) {
+    throw new TypeError(
+      `Unsupported IconButton shape: ${shape}. Expected 'square' or 'round'.`,
+    );
   }
   /*
    * `link` zeroes the control height, which is right for a text action and
@@ -131,6 +155,7 @@ export const IconButton = forwardRef(function IconButton({
       {...props}
       ref={ref}
       className={`ds-icon-button ${props.className || ''}`.trim()}
+      data-shape={shape === 'square' ? undefined : shape}
       aria-label={label}
     >
       {children}
