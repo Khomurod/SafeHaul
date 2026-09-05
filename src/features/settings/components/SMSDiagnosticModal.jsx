@@ -76,7 +76,7 @@ export function SMSDiagnosticModal({ companyId, inventory, onClose }) {
         <Modal
             onClose={onClose}
             labelledBy="sms-diagnostic-title"
-            className="w-full max-w-md overflow-hidden rounded-ds-xl border border-ds-border-subtle bg-ds-surface shadow-ds-lg"
+            size="md"
         >
             <header className="flex items-center justify-between border-b border-ds-border-subtle bg-ds-surface-subtle px-ds-6 py-ds-4">
                 <h2 id="sms-diagnostic-title" className="flex items-center gap-ds-2 font-bold text-ds-content">

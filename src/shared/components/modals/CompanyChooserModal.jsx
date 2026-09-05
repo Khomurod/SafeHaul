@@ -100,8 +100,7 @@ export function CompanyChooserModal() {
       // out are choosing a company or logging out, exactly as before.
       labelledBy={titleId}
       describedBy={descriptionId}
-      overlayClassName="fixed inset-0 z-50 flex items-center justify-center bg-ds-overlay p-4 backdrop-blur-sm"
-      className="w-full max-w-md overflow-hidden rounded-ds-xl border border-ds-border-subtle bg-ds-surface shadow-ds-lg"
+      size="md"
     >
       <div id="choose-company-modal" className="p-ds-8">
         <h2 id={titleId} className="mb-ds-2 text-center text-ds-heading-xl font-bold text-ds-content">

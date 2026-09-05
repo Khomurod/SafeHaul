@@ -91,8 +91,7 @@ export default function DetailedReportModal({ companyId, sessionId, isOpen, onCl
         <Modal
             onClose={onClose}
             labelledBy="delivery-report-title"
-            overlayClassName="fixed inset-0 z-50 flex justify-center overflow-y-auto bg-ds-overlay p-ds-4 backdrop-blur-sm"
-            className="m-auto w-full max-w-4xl overflow-hidden rounded-ds-xl bg-ds-surface shadow-ds-lg"
+            size="4xl"
         >
             <div className="flex flex-col gap-ds-4 p-ds-6">
                 <div className="flex items-start justify-between gap-ds-4">

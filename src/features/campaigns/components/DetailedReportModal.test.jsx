@@ -296,10 +296,26 @@ describe('DetailedReportModal — dialog behavior & a11y', () => {
     it('keeps the whole dialog scrollable on short viewports (controls never clipped)', async () => {
         renderModal();
         const dialog = await screen.findByRole('dialog', { name: 'Delivery Report' });
-        // The overlay (dialog's parent) scrolls vertically and the panel is
-        // auto-margin centered, so a tall report can never clip Close/Retry.
-        expect(dialog.parentElement.className).toContain('overflow-y-auto');
-        expect(dialog.className).toContain('m-auto');
+        /*
+         * The requirement is unchanged — a tall report must never clip Close or
+         * Retry — but the mechanism moved on 2026-09-05, and this test was
+         * written against the mechanism.
+         *
+         * It used to scroll the OVERLAY (`overflow-y-auto` on the backdrop) with
+         * an auto-margin panel that could grow past the viewport. The chrome
+         * contract scrolls the PANEL instead, capped at `--ds-dialog-max-height`
+         * — same guarantee, and the cap is what makes it a guarantee rather than
+         * a consequence of the page being tall enough.
+         *
+         * jsdom applies no stylesheet, so what a unit test can assert is the
+         * contract that selects the rule. The 90vh cap itself is measured in a
+         * real browser by `check:visual-contract`, which reads `maxHeight` on
+         * every `.ds-modal__panel[data-size]`.
+         */
+        expect(dialog.className).toContain('ds-modal__panel');
+        expect(dialog).toHaveAttribute('data-scroll', 'panel');
+        expect(dialog).toHaveAttribute('data-size', '4xl');
+        expect(dialog.parentElement.className).toContain('ds-modal');
     });
 
     it('has no accessibility violations with delivered and failed rows', async () => {

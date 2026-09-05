@@ -140,8 +140,8 @@ export function CallOutcomeModalUI({
     <Modal
       onClose={onClose}
       labelledBy={titleId}
-      overlayClassName="fixed inset-0 z-[70] flex items-center justify-center bg-ds-overlay p-4 backdrop-blur-sm"
-      className="flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-ds-xl border border-ds-border-subtle bg-ds-surface shadow-ds-lg"
+      size="md"
+      scroll="body"
     >
       <div className="flex shrink-0 items-center justify-between gap-ds-2 border-b border-ds-border-subtle bg-ds-surface-subtle p-ds-4">
         <h2 id={titleId} className="flex items-center gap-ds-2 font-bold text-ds-content">

@@ -193,7 +193,8 @@ export function ManageTeamModal({ companyId, onClose }) {
             onClose={onClose}
             labelledBy="manage-team-title"
             describedBy="manage-team-desc"
-            className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-ds-xl border border-ds-border bg-ds-surface shadow-ds-lg"
+            size="4xl"
+            scroll="body"
         >
             <header className="flex items-center justify-between gap-ds-4 border-b border-ds-border-subtle bg-ds-surface-subtle p-ds-6">
                 <div className="min-w-0">
@@ -350,21 +351,25 @@ export function ManageTeamModal({ companyId, onClose }) {
                 <Modal
                     onClose={() => setPendingDelete(null)}
                     labelledBy={confirmTitleId}
-                    className="w-full max-w-sm rounded-ds-xl border border-ds-border bg-ds-surface p-ds-6 shadow-ds-lg"
+                    size="sm"
                 >
-                    <h3 id={confirmTitleId} className="mb-ds-2 text-ds-heading-sm font-bold text-ds-content">
-                        Remove team member
-                    </h3>
-                    <p className="mb-ds-6 text-ds-content-secondary">
-                        Are you sure you want to remove {pendingDelete.userName || 'this user'} from the team?
-                    </p>
-                    <div className="flex justify-end gap-ds-3">
-                        <Button variant="secondary" onClick={() => setPendingDelete(null)}>
-                            Cancel
-                        </Button>
-                        <Button variant="danger" onClick={confirmDeleteUser}>
-                            Remove
-                        </Button>
+                    {/* The panel used to carry `p-ds-6` itself; the chrome contract
+                        owns the box, not its padding, so it moves onto the content. */}
+                    <div className="p-ds-6">
+                        <h3 id={confirmTitleId} className="mb-ds-2 text-ds-heading-sm font-bold text-ds-content">
+                            Remove team member
+                        </h3>
+                        <p className="mb-ds-6 text-ds-content-secondary">
+                            Are you sure you want to remove {pendingDelete.userName || 'this user'} from the team?
+                        </p>
+                        <div className="flex justify-end gap-ds-3">
+                            <Button variant="secondary" onClick={() => setPendingDelete(null)}>
+                                Cancel
+                            </Button>
+                            <Button variant="danger" onClick={confirmDeleteUser}>
+                                Remove
+                            </Button>
+                        </div>
                     </div>
                 </Modal>
             )}

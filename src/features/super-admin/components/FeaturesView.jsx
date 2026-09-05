@@ -376,7 +376,8 @@ function ScheduleDeactivationDialog({ info, date, time, onDateChange, onTimeChan
             onClose={onCancel}
             labelledBy={titleId}
             closeOnBackdrop={false}
-            className="flex w-full max-w-lg flex-col overflow-hidden rounded-ds-xl border border-ds-border-subtle bg-ds-surface shadow-ds-lg"
+            size="lg"
+            scroll="body"
         >
             <div className="flex items-center justify-between border-b border-ds-border-subtle bg-ds-status-warning-bg p-ds-5">
                 <h2 id={titleId} className="flex items-center gap-ds-2 text-ds-heading-sm font-bold text-ds-status-warning-fg">
@@ -432,7 +433,8 @@ function AlertStatsDialog({ info, stats, loading, onClose }) {
         <Modal
             onClose={onClose}
             labelledBy={titleId}
-            className="flex max-h-[80vh] w-full max-w-2xl flex-col overflow-hidden rounded-ds-xl border border-ds-border-subtle bg-ds-surface shadow-ds-lg"
+            size="2xl"
+            scroll="body"
         >
             <div className="flex shrink-0 items-center justify-between border-b border-ds-border-subtle bg-ds-status-info-bg p-ds-5">
                 <h2 id={titleId} className="flex items-center gap-ds-2 text-ds-heading-sm font-bold text-ds-status-info-fg">

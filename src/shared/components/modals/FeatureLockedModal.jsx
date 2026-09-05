@@ -38,8 +38,7 @@ export function FeatureLockedModal({ onClose, featureName = "Search For Drivers"
             onClose={onClose}
             labelledBy={titleId}
             describedBy={descriptionId}
-            overlayClassName="fixed inset-0 z-[60] flex items-center justify-center bg-ds-overlay p-4 backdrop-blur-sm"
-            className="relative w-full max-w-2xl overflow-hidden rounded-ds-xl border border-ds-border-subtle bg-ds-surface shadow-ds-lg"
+            size="2xl"
         >
             <div className="absolute right-ds-4 top-ds-4 z-ds-raised">
                 <IconButton label={`Close the ${featureName} notice`} variant="ghost" size="sm" onClick={onClose}>

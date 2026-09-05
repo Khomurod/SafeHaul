@@ -44,7 +44,7 @@ export function DeleteUserModal({ userId, userName, onClose, onConfirm }) {
       describedBy={descriptionId}
       closeOnBackdrop={false}
       closeOnEscape={!loading}
-      className="w-full max-w-lg overflow-hidden rounded-ds-xl border border-ds-border-subtle bg-ds-surface shadow-ds-lg"
+      size="lg"
     >
       <div id="delete-user-modal">
         <header className="flex items-center justify-between border-b border-ds-border-subtle p-ds-5">

@@ -40,7 +40,7 @@ export function AiTransactionModal({ entry, onClose }) {
         <Modal
             labelledBy={headingId}
             onClose={onClose}
-            className="bg-ds-surface rounded-ds-xl shadow-ds-lg w-full max-w-2xl overflow-hidden"
+            size="2xl"
         >
             <div className="flex max-h-[85vh] flex-col">
                 <header className="border-b border-ds-border-subtle p-ds-5">

@@ -330,7 +330,7 @@ export function LoginScreen() {
           onClose={closeForgotPassword}
           labelledBy={RESET_DIALOG_TITLE_ID}
           initialFocusRef={resetEmailSent ? undefined : resetEmailRef}
-          className="w-full max-w-md overflow-hidden rounded-ds-xl bg-ds-surface shadow-ds-lg"
+          size="md"
         >
           <div className="p-8">
             {resetEmailSent ? (

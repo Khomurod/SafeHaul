@@ -159,33 +159,38 @@ export function LaunchPad({ companyId, campaign, onLaunchSuccess }) {
                     // success and on failure alike.
                     closeOnEscape={!isLaunching}
                     closeOnBackdrop={!isLaunching}
-                    className="w-full max-w-md overflow-hidden rounded-ds-xl border border-ds-border bg-ds-surface p-ds-6 text-left shadow-ds-lg"
+                    size="md"
                 >
-                    <h3 id={confirmTitleId} className="mb-ds-2 text-ds-heading-sm font-bold text-ds-content">Confirm campaign launch</h3>
-                    <p id={confirmDescId} className="mb-ds-4 text-ds-sm text-ds-content-secondary">
-                        Send to <strong>{campaign.matchCount || 0}</strong> recipients via{' '}
-                        <strong>{methodLabel}</strong>?
-                    </p>
-                    <p className="mb-ds-4 rounded-ds-md bg-ds-surface-subtle p-ds-3 text-ds-xs text-ds-content-secondary line-clamp-4">
-                        {previewMessage.slice(0, 280)}
-                        {previewMessage.length > 280 ? '…' : ''}
-                    </p>
-                    <div className="flex flex-col gap-ds-3 sm:flex-row">
-                        <Button
-                            variant="secondary"
-                            fullWidth
-                            onClick={() => setShowConfirm(false)}
-                        >
-                            Cancel
-                        </Button>
-                        <Button
-                            variant="primary"
-                            fullWidth
-                            loading={isLaunching}
-                            onClick={handleLaunch}
-                        >
-                            Confirm Launch
-                        </Button>
+                    {/* The panel used to carry `p-ds-6 text-left` itself. The chrome
+                        contract owns the box, not its padding, so both move onto the
+                        content — which is where they were always describing. */}
+                    <div className="p-ds-6 text-left">
+                        <h3 id={confirmTitleId} className="mb-ds-2 text-ds-heading-sm font-bold text-ds-content">Confirm campaign launch</h3>
+                        <p id={confirmDescId} className="mb-ds-4 text-ds-sm text-ds-content-secondary">
+                            Send to <strong>{campaign.matchCount || 0}</strong> recipients via{' '}
+                            <strong>{methodLabel}</strong>?
+                        </p>
+                        <p className="mb-ds-4 rounded-ds-md bg-ds-surface-subtle p-ds-3 text-ds-xs text-ds-content-secondary line-clamp-4">
+                            {previewMessage.slice(0, 280)}
+                            {previewMessage.length > 280 ? '…' : ''}
+                        </p>
+                        <div className="flex flex-col gap-ds-3 sm:flex-row">
+                            <Button
+                                variant="secondary"
+                                fullWidth
+                                onClick={() => setShowConfirm(false)}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                variant="primary"
+                                fullWidth
+                                loading={isLaunching}
+                                onClick={handleLaunch}
+                            >
+                                Confirm Launch
+                            </Button>
+                        </div>
                     </div>
                 </Modal>
             )}
