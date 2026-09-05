@@ -1,7 +1,7 @@
 import React from 'react';
 import { Badge, Button, Card, DataTable, IconButton, MetricCard } from '@design-system/components';
 import { PageContainer, ResponsiveGrid, Stack } from '@design-system/layouts';
-import { Eye, EyeOff, ShieldAlert } from 'lucide-react';
+import { Icon, Eye, EyeOff, ShieldAlert } from '@design-system/icons';
 
 /**
  * The provider-integration row pattern: a prioritised list of interchangeable
@@ -122,7 +122,7 @@ function CredentialCell({ row, revealedId, secondsRemaining }) {
                 aria-pressed={isRevealed}
                 disabled={!row.credential.configured}
             >
-                {isRevealed ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}
+                {isRevealed ? <Icon icon={EyeOff} size="md" /> : <Icon icon={Eye} size="md" />}
             </IconButton>
         </div>
     );

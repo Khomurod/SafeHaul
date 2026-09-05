@@ -1,6 +1,6 @@
 import React from 'react';
 import { fn } from 'storybook/test';
-import { Check, Download, Plus, Trash2 } from 'lucide-react';
+import { Icon, Check, Download, Plus, Trash2 } from '@design-system/icons';
 import { Button } from '@design-system/components';
 
 /**
@@ -192,10 +192,10 @@ export const SuccessTone = {
 export const WithIcons = {
   render: (args) => (
     <div className="sb-row">
-      <Button {...args} variant="primary"><Plus size={16} aria-hidden="true" />Add record</Button>
-      <Button {...args} variant="secondary"><Download size={16} aria-hidden="true" />Export</Button>
-      <Button {...args} variant="ghost"><Check size={16} aria-hidden="true" />Mark reviewed</Button>
-      <Button {...args} variant="danger"><Trash2 size={16} aria-hidden="true" />Delete</Button>
+      <Button {...args} variant="primary"><Icon icon={Plus} size="md" />Add record</Button>
+      <Button {...args} variant="secondary"><Icon icon={Download} size="md" />Export</Button>
+      <Button {...args} variant="ghost"><Icon icon={Check} size="md" />Mark reviewed</Button>
+      <Button {...args} variant="danger"><Icon icon={Trash2} size="md" />Delete</Button>
     </div>
   ),
 };

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { fn } from 'storybook/test';
-import { Search, SlidersHorizontal, X } from 'lucide-react';
+import { Icon, Search, SlidersHorizontal, X } from '@design-system/icons';
 import {
   Badge,
   Button,
@@ -67,7 +67,7 @@ function AppliedFilters({ filters, onRemove }) {
         <Inline gap="sm" key={filter} wrap={false}>
           <Badge tone="info">{filter}</Badge>
           <IconButton size="sm" variant="ghost" label={`Remove filter: ${filter}`} onClick={onRemove}>
-            <X size={14} aria-hidden="true" />
+            <Icon icon={X} size="sm" />
           </IconButton>
         </Inline>
       ))}
@@ -131,7 +131,7 @@ function FilterPanelExample({ appliedFilters = ['Status: In review', 'Region: No
                 />
 
                 <Button variant="primary" fullWidth onClick={fn()}>
-                  <Search size={16} aria-hidden="true" />
+                  <Icon icon={Search} size="md" />
                   Apply filters
                 </Button>
               </Stack>
@@ -260,7 +260,7 @@ export const MobileViewport = {
   render: () => (
     <Stack gap="md">
       <p className="sb-note">
-        <SlidersHorizontal size={14} aria-hidden="true" /> There is no approved collapsible
+        <Icon icon={SlidersHorizontal} size="sm" /> There is no approved collapsible
         primitive yet, so the panel is shown in full above the results. A collapsed
         filter drawer is a recorded roadmap gap, not something to hand-roll here.
       </p>

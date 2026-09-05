@@ -2,7 +2,7 @@ import React from 'react';
 import { Badge, Button, DataTable } from '@design-system/components';
 import { PageContainer, Stack } from '@design-system/layouts';
 import { ConfirmDialog } from '@design-system/patterns';
-import { ExternalLink, Trash2 } from 'lucide-react';
+import { Icon, ExternalLink, Trash2 } from '@design-system/icons';
 
 /**
  * The title-deletion list pattern: a deliberately small screen whose only job is
@@ -63,10 +63,10 @@ function columns() {
                     {item.status !== 'removed' && (
                         <>
                             <Button size="sm" variant="ghost" aria-label={`View ${item.title}`}>
-                                <ExternalLink size={14} aria-hidden="true" /> View
+                                <Icon icon={ExternalLink} size="sm" /> View
                             </Button>
                             <Button size="sm" variant="danger" aria-label={`Delete ${item.title}`}>
-                                <Trash2 size={14} aria-hidden="true" /> Delete
+                                <Icon icon={Trash2} size="sm" /> Delete
                             </Button>
                         </>
                     )}

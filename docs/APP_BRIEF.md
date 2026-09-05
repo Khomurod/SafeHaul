@@ -1116,13 +1116,15 @@ props that used to let a call site replace that wholesale now throw. And every
 glyph comes from `@design-system/icons` at a step on the icon scale
 (`xs`…`3xl`, 12–32px): the registry hands out **tokens**, not components, so
 `<Trash2 size={13} />` throws by name at the call site. 178 files outside the
-design system still import `lucide-react` directly; they are migrated area by
-area, and the guard that refuses a new one lands with that campaign. Update the roadmap with
+design system still import `lucide-react` directly and are recorded in
+`src/design-system/icons/lucide-import.backlog.json`; `npm run
+check:icon-contract` refuses a new importer, refuses a listed file that grows,
+and refuses an entry the base commit does not justify. That list only shrinks. Update the roadmap with
 evidence in the same task, and never mark an item complete without the
 functional, visual, mobile, accessibility, documentation and diff checks
 actually having run.
 
-**These rules are now checked, not just written.** Seven automated guards stand
+**These rules are now checked, not just written.** Eight automated guards stand
 behind them, and they exist because for most of 2026 a substantial, well-adopted
 design system coexisted with 660 raw palette classes, off-scale type and
 sub-12px text — all of which passed review, lint, 234 test files and CI, because
@@ -1132,6 +1134,7 @@ nothing looked:
 |---|---|---|
 | `npm test` (`design-system/tests/`) | yes | An import across a layer boundary — in stylesheets as well as modules; a broken token contract or a pairing below AA |
 | `npm run check:ui-contract` | yes | A raw colour, off-scale type, sub-12px text, a Tailwind radius or shadow, a hand-built overlay, a raw table, a hand-styled control, a hand-rolled tablist, a raw file input, a hand-written `target="_blank"` — in JSX, in stories and in CSS |
+| `npm run check:icon-contract` | yes | A file outside `src/design-system/icons/` importing `lucide-react`, or a recorded one importing more than it did. The direction is read out of git, so a change cannot record its own exemption |
 | `npm run check:table-layout` | yes | A cell narrower than its content, in a real browser at 412px and 1440px — for `DataTable` and the `ds-native-table` contract |
 | `npm run check:visual-contract` | yes | A change to computed geometry — control heights, cell padding, radii, resolved colours, and a frozen table column losing its opaque background |
 | `npm run test:stories` | yes | A story that fails to render, or fails axe |

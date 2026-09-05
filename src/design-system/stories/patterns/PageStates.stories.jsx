@@ -1,6 +1,6 @@
 import React from 'react';
 import { fn } from 'storybook/test';
-import { AlertTriangle, Inbox, Loader, Plus, RefreshCw } from 'lucide-react';
+import { Icon, AlertTriangle, Inbox, Loader, Plus, RefreshCw } from '@design-system/icons';
 import {
   Badge,
   Button,
@@ -246,12 +246,12 @@ export const FullPageStates = {
             icon={Inbox}
             title="Nothing here yet"
             description="Records you create will appear here."
-            actions={<Button variant="primary" onClick={fn()}><Plus aria-hidden="true" />New record</Button>}
+            actions={<Button variant="primary" onClick={fn()}><Icon icon={Plus} />New record</Button>}
           />
           <ErrorState
             title="This page could not be loaded"
             description="The connection was interrupted. Nothing has been lost — try again."
-            actions={<Button variant="secondary" onClick={fn()}><RefreshCw aria-hidden="true" />Try again</Button>}
+            actions={<Button variant="secondary" onClick={fn()}><Icon icon={RefreshCw} />Try again</Button>}
           />
         </Stack>
       </PageContainer>
@@ -296,7 +296,7 @@ export const OnAnInverseSurface = {
               surface="inverse"
               title="This preview could not be loaded"
               description="The connection was interrupted. Nothing has been lost — try again."
-              actions={<Button variant="secondary" onClick={fn()}><RefreshCw aria-hidden="true" />Try again</Button>}
+              actions={<Button variant="secondary" onClick={fn()}><Icon icon={RefreshCw} />Try again</Button>}
             />
           </div>
         </Stack>

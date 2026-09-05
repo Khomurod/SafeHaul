@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { fn } from 'storybook/test';
-import { Bell, FileText, History, Settings, Shield, SlidersHorizontal } from 'lucide-react';
+import {
+    Icon, Bell, FileText, History, Settings, Shield, SlidersHorizontal
+} from '@design-system/icons';
 import {
   Badge,
   Button,

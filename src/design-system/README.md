@@ -27,9 +27,10 @@ Before changing UI code, read:
   accessible-name rule, and a registry of 171 **glyph tokens** that cannot be
   rendered except through `Icon` — so a call site cannot go back to passing its own
   pixel number. 178 files outside the design system still import `lucide-react`
-  directly and are migrated area by area; until that is done, `Icon` also accepts
-  a bare component, because those files hand raw glyphs to design-system
-  containers as props. See `icons/README.md`.
+  directly; they are recorded in `icons/lucide-import.backlog.json`, enforced by
+  `npm run check:icon-contract`, and drained area by area. Until that is done,
+  `Icon` also accepts a bare component, because those files hand raw glyphs to
+  design-system containers as props. See `icons/README.md`.
 - `stories/` is the component catalog, built with Storybook 10 and configured in
   `.storybook/`. Run it with `npm run storybook`; `npm run test:stories` renders
   every story and runs axe over it. See `stories/README.md`.

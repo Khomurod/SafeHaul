@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { fn } from 'storybook/test';
-import { X } from 'lucide-react';
+import { Icon, X } from '@design-system/icons';
 import {
     Button,
     FormField,
@@ -37,7 +37,7 @@ function DialogShell({ titleId, title, onClose, children, footer }) {
                 <h2 id={titleId} style={{ margin: 0, flex: 1 }}>{title}</h2>
                 {onClose && (
                     <IconButton variant="ghost" size="sm" label="Close dialog" onClick={onClose}>
-                        <X size={18} aria-hidden="true" />
+                        <Icon icon={X} size="lg" />
                     </IconButton>
                 )}
             </div>

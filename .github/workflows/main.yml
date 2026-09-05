@@ -319,6 +319,24 @@ jobs:
           GITHUB_PR_BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
           SOURCE_SIZE_BASE: ${{ github.event.inputs.source_size_base || '' }}
 
+      # The icon campaign, wired exactly like the UI contract above and for the
+      # same reason: the list of files still importing `lucide-react` lives in
+      # the branch under test, so the checker alone would accept a new importer
+      # that arrives with its own entry. The guard's own tests run first — one
+      # that has gone blind reports the same clean result as one that found
+      # nothing wrong.
+      - name: Verify the icon-contract guard
+        run: npm run test:icon-contract
+
+      - name: Icon contract ratchet
+        run: npm run check:icon-contract -- --require-baseline
+        env:
+          # The same three again, and the same shared override: one baseline
+          # question, one answer, one place an operator can get it wrong.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_PR_BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
+          SOURCE_SIZE_BASE: ${{ github.event.inputs.source_size_base || '' }}
+
   # ---------------------------------------------------------------------------
   # Lanes — each runs when relevant and not already proven for this exact tree
   # ---------------------------------------------------------------------------

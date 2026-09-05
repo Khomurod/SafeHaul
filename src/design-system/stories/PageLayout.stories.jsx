@@ -1,6 +1,6 @@
 import React from 'react';
 import { fn } from 'storybook/test';
-import { Download, Plus } from 'lucide-react';
+import { Icon, Download, Plus } from '@design-system/icons';
 import { Badge, Button, Card, MetricCard } from '@design-system/components';
 import {
   Inline,
@@ -89,11 +89,11 @@ export const Default = {
           actions={(
             <>
               <Button variant="secondary" onClick={fn()}>
-                <Download size={16} aria-hidden="true" />
+                <Icon icon={Download} size="md" />
                 Export
               </Button>
               <Button variant="primary" onClick={fn()}>
-                <Plus size={16} aria-hidden="true" />
+                <Icon icon={Plus} size="md" />
                 New record
               </Button>
             </>

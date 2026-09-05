@@ -1,6 +1,6 @@
 import React from 'react';
 import { fn } from 'storybook/test';
-import { Eye, Inbox } from 'lucide-react';
+import { Icon, Eye, Inbox } from '@design-system/icons';
 import { Badge, DataTable, IconButton } from '@design-system/components';
 import { NOT_PROVIDED, RECORDS } from './fixtures';
 
@@ -59,7 +59,7 @@ const columns = [
     stopPropagation: true,
     render: (row) => (
       <IconButton size="sm" variant="ghost" label={`View ${row.reference}`} onClick={fn()}>
-        <Eye size={16} aria-hidden="true" />
+        <Icon icon={Eye} size="md" />
       </IconButton>
     ),
   },
