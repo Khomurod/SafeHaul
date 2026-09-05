@@ -1,4 +1,4 @@
-import React, { useId, useRef, useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import { X, CheckCircle, RefreshCw, FileText, Image as ImageIcon, AlertCircle } from 'lucide-react';
 import {
     Button, FileInput, IconButton, IconButtonLink, ProgressBar,
@@ -70,6 +70,25 @@ const UploadField = ({
     // Replaces the bare `confirm("Are you sure you want to remove this file?")`.
     const [pendingClear, setPendingClear] = useState(false);
     const fileInputRef = useRef(null);
+    /*
+     * The fake-progress interval, held so it can be cleared on UNMOUNT as well
+     * as on the two paths below that already clear it.
+     *
+     * It was cleared on success and on failure but nowhere else, so a person who
+     * navigated away mid-upload left a 200ms timer running for the life of the
+     * tab, calling `setProgress` on a component that no longer exists. React 19
+     * no longer warns about that, so nothing said so.
+     *
+     * It surfaced on 2026-09-05 as `ReferenceError: window is not defined` in
+     * `frontend-quality` — the timer outliving jsdom's teardown — on a pull
+     * request that does not touch this file. Adding one test file was enough to
+     * shift the scheduling that had been hiding it, which is the tell for a leak
+     * rather than a flake: nothing here is timing-dependent except whether the
+     * teardown wins the race.
+     */
+    const progressIntervalRef = useRef(null);
+
+    useEffect(() => () => clearInterval(progressIntervalRef.current), []);
     const rawId = useId().replace(/:/g, '');
     const labelId = `upload-${name}-label-${rawId}`;
 
@@ -100,6 +119,7 @@ const UploadField = ({
                 return prev + Math.random() * 10;
             });
         }, 200);
+        progressIntervalRef.current = progressInterval;
 
         try {
             // Perform Upload

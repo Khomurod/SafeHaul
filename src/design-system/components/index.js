@@ -6,6 +6,7 @@ export { Chip, ChipGroup } from './chip';
 export { Disclosure } from './disclosure';
 export { FileInput } from './file-input';
 export { ButtonLink, IconButtonLink, Link } from './link';
+export { Notice } from './notice';
 export { SegmentedControl } from './segmented';
 export { SelectableCard } from './selectable-card';
 export { Switch } from './switch';
