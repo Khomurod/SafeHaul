@@ -158,6 +158,11 @@ export function CallOutcomeModalUI({
           <span className="font-bold text-ds-content">{lead.firstName} {lead.lastName}</span>
         </div>
 
+        {/* The glyph was `fill="currentColor"` — a solid handset — and the icon
+            contract does not pass `fill`, so it renders as an outline like every
+            other glyph in the product. Deliberate: adding a fill escape hatch to
+            `Icon` to keep one call site solid would be the contract working for
+            the exception rather than the rule. */}
         {lead.phone && (
           <Chip href={`tel:${lead.phone}`} tone="success" icon={Phone}>
             <span className="sr-only">Call now: </span>
