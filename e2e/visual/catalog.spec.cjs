@@ -101,6 +101,13 @@ const SUBJECTS = [
     // Dialogs.
     ['components-modal--default', 'modal'],
     ['components-modal--with-form', 'modal-with-form'],
+    // The chrome contract, added 2026-09-05. Five shots rather than one because
+    // the axes are independent and a single composite would hide which moved.
+    ['patterns-modal-chrome--sizes', 'modal-chrome-sizes'],
+    ['patterns-modal-chrome--scroll-body', 'modal-chrome-scroll-body'],
+    ['patterns-modal-chrome--danger-tone', 'modal-chrome-danger-tone'],
+    ['patterns-modal-chrome--bottom-sheet', 'modal-chrome-bottom-sheet'],
+    ['patterns-modal-chrome--fullscreen-mobile', 'modal-chrome-fullscreen'],
     ['components-confirmdialog--tones', 'confirm-dialog-tones'],
     ['components-confirmdialog--loading', 'confirm-dialog-loading'],
     ['components-confirmdialog--error-state', 'confirm-dialog-error'],

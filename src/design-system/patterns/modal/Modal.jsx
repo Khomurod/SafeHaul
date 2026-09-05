@@ -1,12 +1,65 @@
 import React, { useCallback, useEffect, useRef } from 'react';
+import './Modal.css';
+
+/**
+ * The six chrome axes, enumerated.
+ *
+ * A misspelled value must throw rather than render something plausible. The
+ * campaign's own history is the argument: `size="3xl"` silently falling back to
+ * the default is exactly how 30 spellings of one intention accumulated without
+ * anyone noticing, because nothing ever said no.
+ */
+const CHROME = {
+    size: ['sm', 'md', 'lg', 'xl', '2xl', '4xl', '5xl', '7xl'],
+    scroll: ['panel', 'body'],
+    mobile: ['inset', 'fullscreen'],
+    placement: ['center', 'bottom'],
+    tone: ['neutral', 'danger'],
+};
+
+function assertChrome(values) {
+    for (const [prop, allowed] of Object.entries(CHROME)) {
+        if (allowed.includes(values[prop])) continue;
+        throw new TypeError(
+            `Modal: unsupported ${prop} "${values[prop]}". Expected one of `
+            + `${allowed.map((value) => `'${value}'`).join(', ')}. The dialog chrome is a `
+            + 'contract, not a class list — if none of these is the shape you need, add the '
+            + 'case here with the roadmap row that justifies it.',
+        );
+    }
+}
+
+/** One warning per distinct legacy class list, so a list in a loop says it once. */
+const warnedLegacy = new Set();
+
+/*
+ * What a legacy caller got before the chrome contract existed.
+ *
+ * These are needed because the two legacy props are ONE decision and callers
+ * pass them separately: a site that replaces only the panel used to inherit the
+ * overlay default, and handing it the contract's overlay instead would move its
+ * stacking layer from 50 to 60 — a change in a slice that promises none. Half
+ * the contract and half a class list is also the one combination that cannot be
+ * reasoned about, since the two would fight over the same properties.
+ *
+ * The old defaults were Tailwind class lists; the identical boxes live in
+ * `Modal.css` now. See the note there — hoisting them into a `const` here made
+ * the dialog primitive itself a reported hand-built overlay.
+ */
+const LEGACY_OVERLAY = 'ds-modal--legacy';
+const LEGACY_PANEL = 'ds-modal__panel--legacy';
 
 /**
  * The accessible dialog primitive (C4, WCAG 2.2 AA).
  *
  * Every overlay in the product goes through this one component. A repository
- * scan for `fixed inset-0` should return only this file and callers passing it
- * an `overlayClassName`; anything else is a hand-built dialog missing the
- * behaviour below.
+ * scan for `fixed inset-0` should return only `Modal.css` and callers still
+ * passing an `overlayClassName`; anything else is a hand-built dialog missing
+ * the behaviour below.
+ *
+ * The dialog's CHROME — size, scroll model, fill, mobile treatment, placement
+ * and tone — is a contract of six enumerated props; see `Modal.css` and
+ * `README.md`. What is here is the behaviour.
  *
  * Rendering this component means the dialog is open — parents conditionally
  * render it (`{open && <Modal .../>}`), the same convention the rest of the app
@@ -33,8 +86,20 @@ import React, { useCallback, useEffect, useRef } from 'react';
  * @param {boolean} [props.closeOnEscape=true] Whether Escape closes.
  * @param {React.RefObject<HTMLElement>} [props.initialFocusRef] Element to focus on open.
  *   Defaults to the first focusable child, then the dialog itself.
- * @param {string} [props.overlayClassName] Classes for the backdrop element.
- * @param {string} [props.className] Classes for the dialog panel.
+ * @param {'sm'|'md'|'lg'|'xl'|'2xl'|'4xl'|'5xl'|'7xl'} [props.size='lg'] Panel width.
+ * @param {'panel'|'body'} [props.scroll='panel'] `panel` scrolls the whole panel;
+ *   `body` makes the panel a column so a header and footer inside it stay pinned.
+ * @param {boolean} [props.fill=false] Fix the panel height instead of capping it,
+ *   for a viewer that must not resize as its content changes.
+ * @param {'inset'|'fullscreen'} [props.mobile='inset'] Below 640px, `fullscreen`
+ *   takes the whole screen — for the dialogs that are really a screen.
+ * @param {'center'|'bottom'} [props.placement='center'] `bottom` is a sheet.
+ * @param {'neutral'|'danger'} [props.tone='neutral'] Borders a destructive dialog.
+ * @param {string} [props.overlayClassName] **Legacy.** Replaces the backdrop's
+ *   whole class list, bypassing the chrome contract. Removed in the slice that
+ *   finishes migrating the call sites; pass the props above instead.
+ * @param {string} [props.className] **Legacy.** Replaces the panel's whole class
+ *   list, with the same caveat.
  * @param {React.ReactNode} props.children Dialog contents.
  */
 export function Modal({
@@ -45,15 +110,38 @@ export function Modal({
     closeOnBackdrop = true,
     closeOnEscape = true,
     initialFocusRef,
-    // Defaults migrated to `--ds-*` tokens 2026-07-28: the raw `bg-slate-900/60`
-    // and `bg-white` / `rounded-2xl` / `shadow-2xl` values were design decisions
-    // baked into the shared dialog, so every caller that did not override them
-    // inherited an unapproved surface. `--ds-color-overlay` is the same
-    // `rgb(15 23 42 / 0.6)` this used, so there is no visual change.
-    overlayClassName = 'fixed inset-0 z-50 flex items-center justify-center bg-ds-overlay backdrop-blur-sm p-4',
-    className = 'bg-ds-surface rounded-ds-xl shadow-ds-lg w-full max-w-lg overflow-hidden',
+    size = 'lg',
+    scroll = 'panel',
+    fill = false,
+    mobile = 'inset',
+    placement = 'center',
+    tone = 'neutral',
+    /*
+     * The legacy escape hatch. These REPLACE the chrome rather than extending
+     * it, which is how 38 call sites came to spell the same six intentions 30
+     * different ways. They stay for exactly as long as it takes to migrate
+     * those sites, so this change renders every one of them unchanged; the
+     * slice that finishes the migration deletes both and throws on either.
+     *
+     * No default value, deliberately — a default is indistinguishable from a
+     * caller passing one, and telling those apart is what lets the contract be
+     * the default while the hatch still works.
+     */
+    overlayClassName,
+    className,
     children,
 }) {
+    assertChrome({ size, scroll, mobile, placement, tone });
+    const legacyChrome = overlayClassName !== undefined || className !== undefined;
+    const legacyKey = `${overlayClassName ?? ''}|${className ?? ''}`;
+    if (legacyChrome && import.meta.env.DEV && !warnedLegacy.has(legacyKey)) {
+        warnedLegacy.add(legacyKey);
+        // eslint-disable-next-line no-console
+        console.warn(
+            'Modal: `className`/`overlayClassName` replace the chrome contract and are '
+            + 'being removed. Use `size`, `scroll`, `fill`, `mobile`, `placement` and `tone`.',
+        );
+    }
     const panelRef = useRef(null);
     const previouslyFocused = useRef(null);
 
@@ -151,7 +239,12 @@ export function Modal({
     };
 
     return (
-        <div className={overlayClassName} onMouseDown={handleOverlayMouseDown}>
+        <div
+            className={legacyChrome ? (overlayClassName ?? LEGACY_OVERLAY) : 'ds-modal'}
+            data-placement={legacyChrome ? undefined : placement}
+            data-mobile={legacyChrome ? undefined : mobile}
+            onMouseDown={handleOverlayMouseDown}
+        >
             <div
                 ref={panelRef}
                 role="dialog"
@@ -161,7 +254,11 @@ export function Modal({
                 aria-describedby={describedBy}
                 tabIndex={-1}
                 onKeyDown={handleKeyDown}
-                className={className}
+                className={legacyChrome ? (className ?? LEGACY_PANEL) : 'ds-modal__panel'}
+                data-size={legacyChrome ? undefined : size}
+                data-scroll={legacyChrome ? undefined : scroll}
+                data-fill={legacyChrome || !fill ? undefined : 'true'}
+                data-tone={legacyChrome ? undefined : tone}
             >
                 {children}
             </div>

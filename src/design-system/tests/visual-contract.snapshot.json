@@ -1,4 +1,82 @@
 {
+  "mobile · the dialog chrome, and the eight widths that replaced thirty class lists · panel[sm]": {
+    "maxWidth": "384px",
+    "maxHeight": "823.5px",
+    "borderRadius": "16px",
+    "borderTopWidth": "1px",
+    "borderTopColor": "rgb(226, 232, 240)",
+    "backgroundColor": "rgb(255, 255, 255)",
+    "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
+  },
+  "mobile · the dialog chrome, and the eight widths that replaced thirty class lists · panel[md]": {
+    "maxWidth": "448px",
+    "maxHeight": "823.5px",
+    "borderRadius": "16px",
+    "borderTopWidth": "1px",
+    "borderTopColor": "rgb(226, 232, 240)",
+    "backgroundColor": "rgb(255, 255, 255)",
+    "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
+  },
+  "mobile · the dialog chrome, and the eight widths that replaced thirty class lists · panel[lg]": {
+    "maxWidth": "512px",
+    "maxHeight": "823.5px",
+    "borderRadius": "16px",
+    "borderTopWidth": "1px",
+    "borderTopColor": "rgb(226, 232, 240)",
+    "backgroundColor": "rgb(255, 255, 255)",
+    "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
+  },
+  "mobile · the dialog chrome, and the eight widths that replaced thirty class lists · panel[xl]": {
+    "maxWidth": "576px",
+    "maxHeight": "823.5px",
+    "borderRadius": "16px",
+    "borderTopWidth": "1px",
+    "borderTopColor": "rgb(226, 232, 240)",
+    "backgroundColor": "rgb(255, 255, 255)",
+    "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
+  },
+  "mobile · the dialog chrome, and the eight widths that replaced thirty class lists · panel[2xl]": {
+    "maxWidth": "672px",
+    "maxHeight": "823.5px",
+    "borderRadius": "16px",
+    "borderTopWidth": "1px",
+    "borderTopColor": "rgb(226, 232, 240)",
+    "backgroundColor": "rgb(255, 255, 255)",
+    "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
+  },
+  "mobile · the dialog chrome, and the eight widths that replaced thirty class lists · panel[4xl]": {
+    "maxWidth": "896px",
+    "maxHeight": "823.5px",
+    "borderRadius": "16px",
+    "borderTopWidth": "1px",
+    "borderTopColor": "rgb(226, 232, 240)",
+    "backgroundColor": "rgb(255, 255, 255)",
+    "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
+  },
+  "mobile · the dialog chrome, and the eight widths that replaced thirty class lists · panel[5xl]": {
+    "maxWidth": "1024px",
+    "maxHeight": "823.5px",
+    "borderRadius": "16px",
+    "borderTopWidth": "1px",
+    "borderTopColor": "rgb(226, 232, 240)",
+    "backgroundColor": "rgb(255, 255, 255)",
+    "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
+  },
+  "mobile · the dialog chrome, and the eight widths that replaced thirty class lists · panel[7xl]": {
+    "maxWidth": "370.8px",
+    "maxHeight": "823.5px",
+    "borderRadius": "16px",
+    "borderTopWidth": "1px",
+    "borderTopColor": "rgb(226, 232, 240)",
+    "backgroundColor": "rgb(255, 255, 255)",
+    "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
+  },
+  "mobile · the dialog overlay, whose stacking layer is not a caller decision · overlay": {
+    "zIndex": "60",
+    "backgroundColor": "rgba(15, 23, 42, 0.6)",
+    "paddingTop": "16px",
+    "alignItems": "center"
+  },
   "mobile · the control scale, and the pairing it exists for · input[md]": {
     "height": "44px",
     "fontSize": "16px",
@@ -176,6 +254,84 @@
     "padding": "0px",
     "fontSize": "14px",
     "maxWidth": "378px"
+  },
+  "desktop · the dialog chrome, and the eight widths that replaced thirty class lists · panel[sm]": {
+    "maxWidth": "384px",
+    "maxHeight": "810px",
+    "borderRadius": "16px",
+    "borderTopWidth": "1px",
+    "borderTopColor": "rgb(226, 232, 240)",
+    "backgroundColor": "rgb(255, 255, 255)",
+    "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
+  },
+  "desktop · the dialog chrome, and the eight widths that replaced thirty class lists · panel[md]": {
+    "maxWidth": "448px",
+    "maxHeight": "810px",
+    "borderRadius": "16px",
+    "borderTopWidth": "1px",
+    "borderTopColor": "rgb(226, 232, 240)",
+    "backgroundColor": "rgb(255, 255, 255)",
+    "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
+  },
+  "desktop · the dialog chrome, and the eight widths that replaced thirty class lists · panel[lg]": {
+    "maxWidth": "512px",
+    "maxHeight": "810px",
+    "borderRadius": "16px",
+    "borderTopWidth": "1px",
+    "borderTopColor": "rgb(226, 232, 240)",
+    "backgroundColor": "rgb(255, 255, 255)",
+    "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
+  },
+  "desktop · the dialog chrome, and the eight widths that replaced thirty class lists · panel[xl]": {
+    "maxWidth": "576px",
+    "maxHeight": "810px",
+    "borderRadius": "16px",
+    "borderTopWidth": "1px",
+    "borderTopColor": "rgb(226, 232, 240)",
+    "backgroundColor": "rgb(255, 255, 255)",
+    "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
+  },
+  "desktop · the dialog chrome, and the eight widths that replaced thirty class lists · panel[2xl]": {
+    "maxWidth": "672px",
+    "maxHeight": "810px",
+    "borderRadius": "16px",
+    "borderTopWidth": "1px",
+    "borderTopColor": "rgb(226, 232, 240)",
+    "backgroundColor": "rgb(255, 255, 255)",
+    "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
+  },
+  "desktop · the dialog chrome, and the eight widths that replaced thirty class lists · panel[4xl]": {
+    "maxWidth": "896px",
+    "maxHeight": "810px",
+    "borderRadius": "16px",
+    "borderTopWidth": "1px",
+    "borderTopColor": "rgb(226, 232, 240)",
+    "backgroundColor": "rgb(255, 255, 255)",
+    "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
+  },
+  "desktop · the dialog chrome, and the eight widths that replaced thirty class lists · panel[5xl]": {
+    "maxWidth": "1024px",
+    "maxHeight": "810px",
+    "borderRadius": "16px",
+    "borderTopWidth": "1px",
+    "borderTopColor": "rgb(226, 232, 240)",
+    "backgroundColor": "rgb(255, 255, 255)",
+    "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
+  },
+  "desktop · the dialog chrome, and the eight widths that replaced thirty class lists · panel[7xl]": {
+    "maxWidth": "1280px",
+    "maxHeight": "810px",
+    "borderRadius": "16px",
+    "borderTopWidth": "1px",
+    "borderTopColor": "rgb(226, 232, 240)",
+    "backgroundColor": "rgb(255, 255, 255)",
+    "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
+  },
+  "desktop · the dialog overlay, whose stacking layer is not a caller decision · overlay": {
+    "zIndex": "60",
+    "backgroundColor": "rgba(15, 23, 42, 0.6)",
+    "paddingTop": "16px",
+    "alignItems": "center"
   },
   "desktop · the control scale, and the pairing it exists for · input[md]": {
     "height": "44px",

@@ -243,6 +243,55 @@ describe('design tokens', () => {
     expect(cardCss).not.toMatch(/\.ds-metric-card__icon\s*\{[^}]*--ds-control-height/);
   });
 
+  /*
+   * Dialog geometry.
+   *
+   * These exist because 38 of 41 `<Modal>` call sites replaced the panel's whole
+   * class list to pick a width, and wrote 30 different spellings of the same
+   * handful of intentions. The widths are the Tailwind steps those class lists
+   * already resolved to — naming them moved nothing, and pinning them here is
+   * what stops the next one drifting.
+   */
+  it.each([
+    ['ds-dialog-width-sm', '24rem'],
+    ['ds-dialog-width-md', '28rem'],
+    ['ds-dialog-width-lg', '32rem'],
+    ['ds-dialog-width-xl', '36rem'],
+    ['ds-dialog-width-2xl', '42rem'],
+    ['ds-dialog-width-4xl', '56rem'],
+    ['ds-dialog-width-5xl', '64rem'],
+    ['ds-dialog-max-height', '90vh'],
+    ['ds-sheet-max-height', '80vh'],
+    ['ds-overlay-blur', '4px'],
+  ])('publishes %s as a dialog geometry role', (token, value) => {
+    expect(resolveToken(token)).toBe(value);
+  });
+
+  it('caps the widest dialog at the viewport rather than at a fixed step', () => {
+    // 80rem exceeds a 1280px screen, so the widest case has to be a `min()`.
+    // Every other step is a plain length; this one being different is the point.
+    expect(resolveToken('ds-dialog-width-7xl')).toMatch(/min\(\s*80rem\s*,\s*90vw\s*\)/);
+  });
+
+  it('orders the dialog widths, so a bigger name is a bigger dialog', () => {
+    const rem = (name) => parseFloat(resolveToken(name));
+    const steps = ['sm', 'md', 'lg', 'xl', '2xl', '4xl', '5xl']
+      .map((step) => rem(`ds-dialog-width-${step}`));
+    expect(steps).toEqual([...steps].sort((a, b) => a - b));
+    expect(new Set(steps).size).toBe(steps.length);
+  });
+
+  it('leaves the modal chrome reading roles rather than raw lengths', () => {
+    const modalCss = fs
+      .readFileSync(path.resolve(tokenRoot, '../patterns/modal/Modal.css'), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '');
+    expect(modalCss).toMatch(/z-index:\s*var\(--ds-z-modal\)/);
+    expect(modalCss).toMatch(/background:\s*var\(--ds-color-overlay\)/);
+    expect(modalCss).toMatch(/backdrop-filter:\s*blur\(var\(--ds-overlay-blur\)\)/);
+    // A dialog that caps its own height in `vh` is how 80/85/92/95 accumulated.
+    expect(modalCss).not.toMatch(/max-height:\s*\d/);
+  });
+
   it('exposes the semantic contract through namespaced Tailwind utilities', () => {
     const colors = tailwindConfig.theme.extend.colors;
     expect(colors['ds-canvas']).toBe('var(--ds-color-canvas)');

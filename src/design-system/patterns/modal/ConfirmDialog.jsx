@@ -119,7 +119,15 @@ export function ConfirmDialog({
             initialFocusRef={cancelRef}
             closeOnBackdrop={closeOnBackdrop && !loading}
             closeOnEscape={!loading}
-            className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-ds-xl border border-ds-border-subtle bg-ds-surface shadow-ds-lg"
+            /*
+             * The chrome contract rather than a class list. It resolves to the
+             * identical box — `lg` is the 32rem this wrote as `max-w-lg`, and
+             * `body` is the `flex-col` + `overflow-hidden` pair that keeps the
+             * footer reachable while the message scrolls — so this moves nothing
+             * and stops the confirmation being a second dialog contract.
+             */
+            size="lg"
+            scroll="body"
         >
             <div className="overflow-y-auto p-ds-5 text-center">
                 <StatusMedallion tone={medallion} className="mx-auto mb-ds-3"><Icon /></StatusMedallion>
