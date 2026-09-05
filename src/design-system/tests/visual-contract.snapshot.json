@@ -170,6 +170,24 @@
     "borderTopColor": "rgb(37, 99, 235)",
     "backgroundColor": "rgb(219, 234, 254)"
   },
+  "mobile · the inline field keeps the control height and drops only the box · input[inline,compact]": {
+    "height": "36px",
+    "borderTopColor": "rgba(0, 0, 0, 0)",
+    "backgroundColor": "rgba(0, 0, 0, 0)",
+    "width": "56px"
+  },
+  "mobile · the inline field keeps the control height and drops only the box · input[inline,auto]": {
+    "height": "36px",
+    "borderTopColor": "rgba(0, 0, 0, 0)",
+    "backgroundColor": "rgba(0, 0, 0, 0)",
+    "width": "158px"
+  },
+  "mobile · the inline field keeps the control height and drops only the box · input[default]": {
+    "height": "44px",
+    "borderTopColor": "rgb(203, 213, 225)",
+    "backgroundColor": "rgb(255, 255, 255)",
+    "width": "274px"
+  },
   "mobile · the avatar that is two sizes, and only a two-width probe can tell · avatar[lg→xl]": {
     "width": "48px",
     "height": "48px",
@@ -556,6 +574,24 @@
     "boxShadow": "rgb(37, 99, 235) 0px 0px 0px 1px inset",
     "borderTopColor": "rgb(37, 99, 235)",
     "backgroundColor": "rgb(219, 234, 254)"
+  },
+  "desktop · the inline field keeps the control height and drops only the box · input[inline,compact]": {
+    "height": "36px",
+    "borderTopColor": "rgba(0, 0, 0, 0)",
+    "backgroundColor": "rgba(0, 0, 0, 0)",
+    "width": "56px"
+  },
+  "desktop · the inline field keeps the control height and drops only the box · input[inline,auto]": {
+    "height": "36px",
+    "borderTopColor": "rgba(0, 0, 0, 0)",
+    "backgroundColor": "rgba(0, 0, 0, 0)",
+    "width": "137px"
+  },
+  "desktop · the inline field keeps the control height and drops only the box · input[default]": {
+    "height": "44px",
+    "borderTopColor": "rgb(203, 213, 225)",
+    "backgroundColor": "rgb(255, 255, 255)",
+    "width": "244px"
   },
   "desktop · the avatar that is two sizes, and only a two-width probe can tell · avatar[lg→xl]": {
     "width": "64px",

@@ -58,6 +58,48 @@
   font-size: var(--ds-font-size-body-lg);
 }
 
+/*
+ * The inline variant: a field inside running content rather than inside a form.
+ *
+ * It overrides the CHROME only — border, background, width — and deliberately
+ * leaves `min-height`, `padding` and `font-size` to the size rules above, so an
+ * inline field still lines up with the controls around it. Written at two
+ * selectors so it beats the base rule and loses to nothing else.
+ *
+ * `width: auto` is the load-bearing one. `.ds-form-control` is `width: 100%`
+ * because a form field fills its row; a field inside a chip that did that would
+ * push the chip's label and glyph out of the way, which is exactly what the
+ * four hand-built ones were avoiding by not using the primitive at all.
+ */
+.ds-form-control[data-variant='inline'] {
+  width: auto;
+  border-color: transparent;
+  background: transparent;
+}
+
+/*
+ * The border stays TRANSPARENT rather than being removed. A field that drops its
+ * border on the way in shifts the text beside it by a pixel on each side, and in
+ * a chip that reads as a wobble; keeping the box and hiding it costs nothing.
+ * Hover and focus can then colour it back in without moving anything.
+ */
+.ds-form-control[data-variant='inline']:hover:not(:disabled):not(:read-only) {
+  background: var(--ds-color-surface-hover);
+}
+
+/*
+ * A field for a few characters. Three selectors so it beats the variant's own
+ * `width: auto` — which is the whole reason this is a prop: a caller's `w-14`
+ * carries one selector, loses, and the field silently renders at the browser's
+ * 220px default for a number input.
+ */
+.ds-form-control[data-variant='inline'][data-width='compact'] {
+  width: var(--ds-field-width-compact);
+}
+
+.ds-form-control[data-variant='inline'][data-align='center'] { text-align: center; }
+.ds-form-control[data-variant='inline'][data-align='end'] { text-align: end; }
+
 .ds-form-control::placeholder {
   color: var(--ds-color-content-muted);
   opacity: 1;

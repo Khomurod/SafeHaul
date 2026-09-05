@@ -197,6 +197,13 @@
    * so those two moved to 40. 24px is absent because the one 24px disc in the
    * tree is a numbered step marker in a progress indicator, not an avatar.
    */
+  /*
+   * A field holding a few characters — a per-day goal, a count. 56px is what
+   * the two consumers already used, and it fits three digits at the `sm` step
+   * with the padding that step carries.
+   */
+  --ds-field-width-compact: 56px;
+
   --ds-avatar-size-xs: 20px;
   --ds-avatar-size-sm: 32px;
   --ds-avatar-size-md: 40px;

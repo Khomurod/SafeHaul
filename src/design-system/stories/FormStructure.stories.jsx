@@ -263,3 +263,81 @@ export const NarrowViewport = {
     </FormSection>
   ),
 };
+
+/**
+ * `variant="inline"` — a field that lives inside running content rather than a
+ * form. It is **not** the published `InlineEdit` pattern (a read view that swaps
+ * to an edit view); every consumer here is permanently editable and saves on
+ * blur, so there is no read view to build.
+ *
+ * The variant owns the chrome — borderless, transparent, only as wide as it
+ * needs — and `size` still owns the height, which is what keeps it lined up with
+ * the controls beside it. It refuses to render unnamed: it has no `FormField`
+ * wrapper to name it.
+ */
+export const InlineInChips = {
+  render: () => (
+    <Stack gap="md">
+      <Inline gap="md" wrap>
+        <span className="inline-flex items-center gap-ds-2 rounded-ds-md border border-ds-border-subtle bg-ds-surface-subtle p-ds-2">
+          <span className="flex flex-col">
+            <span id="story-dials" className="text-ds-xs font-bold uppercase text-ds-content-muted">Dials</span>
+            <Input
+              type="number"
+              variant="inline"
+              size="sm"
+              align="center"
+              width="compact"
+              aria-labelledby="story-dials"
+              defaultValue={200}
+              onChange={fn()}
+            />
+          </span>
+        </span>
+        <span className="inline-flex items-center gap-ds-2 rounded-ds-md border border-ds-border-subtle bg-ds-surface-subtle p-ds-2">
+          <span className="flex flex-col">
+            <span id="story-contacts" className="text-ds-xs font-bold uppercase text-ds-content-muted">Contacts</span>
+            <Input
+              type="number"
+              variant="inline"
+              size="sm"
+              align="center"
+              width="compact"
+              aria-labelledby="story-contacts"
+              defaultValue={80}
+              onChange={fn()}
+            />
+          </span>
+        </span>
+      </Inline>
+
+      <Inline gap="sm">
+        <span className="inline-flex items-center gap-ds-2 rounded-ds-md border border-ds-border-subtle bg-ds-surface-subtle px-ds-3 py-ds-1 text-ds-xs">
+          <Input
+            type="date"
+            variant="inline"
+            size="sm"
+            aria-label="Range start date"
+            defaultValue="2026-08-01"
+            onChange={fn()}
+          />
+          <span className="text-ds-content-muted" aria-hidden="true">–</span>
+          <Input
+            type="date"
+            variant="inline"
+            size="sm"
+            aria-label="Range end date"
+            defaultValue="2026-08-31"
+            onChange={fn()}
+          />
+        </span>
+      </Inline>
+
+      <Inline gap="sm" wrap>
+        <FormField id="story-bordered" label="The bordered default, for comparison">
+          <Input defaultValue="A field in a form" onChange={fn()} />
+        </FormField>
+      </Inline>
+    </Stack>
+  ),
+};

@@ -157,12 +157,91 @@ function controlSize(size, component) {
   return size === 'md' ? undefined : size;
 }
 
+/**
+ * `inline` is a field that lives INSIDE running content rather than in a form.
+ *
+ * Borderless, transparent and only as wide as it needs to be — the shape four
+ * call sites had hand-built: two goal editors inside a labelled chip and two
+ * date fields inside a date-range chip. `default` keeps the bordered control.
+ *
+ * ## It is not the published "inline edit" pattern, and the name is a trap
+ *
+ * Atlassian, PatternFly and Cloudscape all define an `InlineEdit` component: a
+ * READ view that swaps to an EDIT view when activated. That is the standard
+ * answer for an editable value sitting in a sentence — and it is **not** what
+ * any of these four are. Every one is permanently editable and saves on blur or
+ * change; none has a read view. Building `InlineEdit` here would be a primitive
+ * with zero consumers, which is the mistake the roadmap's §8 records.
+ *
+ * ## It keeps the control scale rather than escaping it
+ *
+ * The variant changes the CHROME — border, background, width — and leaves
+ * `size` owning the height, so an inline field still lines up with the controls
+ * around it. Measured before choosing: the two date fields are already 36px
+ * (`sm`), and the two goal editors have no height at all, rendering at roughly
+ * 20px — **under the 24px WCAG 2.5.8 minimum for something a person clicks
+ * into**. `size="sm"` leaves the first pair untouched and takes the second over
+ * the line.
+ *
+ * ## It requires a name
+ *
+ * A bordered field in a form is named by its `FormField` label. An inline one
+ * has no such wrapper by construction, so the name has to come from the caller
+ * or it has none at all — and a spinbutton announcing only its number is the
+ * defect this variant would otherwise ship four times.
+ */
+const INPUT_VARIANTS = new Set(['default', 'inline']);
+
+/** Where the value sits when the box is wider than the text. */
+const INLINE_ALIGNS = new Set(['start', 'center', 'end']);
+
+/**
+ * How wide an inline field is, and why this is a prop rather than a class list.
+ *
+ * `auto` lets the control size itself, which is what a date field wants — the
+ * native picker has its own intrinsic width and forcing one clips it.
+ *
+ * `compact` is a field for a few characters, which is what the two goal editors
+ * want. It has to be a PROP because the variant rule sets `width: auto` at two
+ * selectors and a `w-14` utility carries one: measured, the goal editors
+ * rendered at **220px** — the browser's default width for a number input —
+ * against the 56px their class asked for, a four-fold widening that no test
+ * would have caught and that only showed up in a probe reading the number.
+ * The same specificity trap `SelectableCard`'s README records one component
+ * over.
+ */
+const INLINE_WIDTHS = new Set(['auto', 'compact']);
+
 export const Input = forwardRef(function Input({
   className = '',
   type = 'text',
   size = 'md',
+  variant = 'default',
+  align = 'start',
+  width = 'auto',
   ...props
 }, ref) {
+  if (!INPUT_VARIANTS.has(variant)) {
+    throw new TypeError(
+      `Unsupported Input variant: ${variant}. Expected 'default' or 'inline'.`,
+    );
+  }
+  if (!INLINE_ALIGNS.has(align)) {
+    throw new TypeError(`Unsupported Input align: ${align}.`);
+  }
+  if (!INLINE_WIDTHS.has(width)) {
+    throw new TypeError(`Unsupported Input width: ${width}. Expected 'auto' or 'compact'.`);
+  }
+  const named = ['aria-label', 'aria-labelledby', 'id']
+    .some((attribute) => typeof props[attribute] === 'string' && props[attribute].trim() !== '');
+  if (variant === 'inline' && !named) {
+    throw new TypeError(
+      'Input variant="inline" requires an aria-label, an aria-labelledby or an id a '
+      + '<label> points at. It has no FormField wrapper to name it, so without one it '
+      + 'announces as an unlabelled field.',
+    );
+  }
+
   return (
     <input
       {...props}
@@ -170,6 +249,9 @@ export const Input = forwardRef(function Input({
       type={type}
       className={controlClassName(className)}
       data-size={controlSize(size, 'Input')}
+      data-variant={variant === 'default' ? undefined : variant}
+      data-align={align === 'start' ? undefined : align}
+      data-width={width === 'auto' ? undefined : width}
     />
   );
 });

@@ -64,3 +64,73 @@ Switch and file-input contracts remain open roadmap work; do not improvise local
 design-system alternatives. Feature-owned file-input compositions (the public
 application's `UploadField` and the custom-questions upload) document that gap at
 their call sites.
+
+## `Input variant="inline"`
+
+A field that lives inside running content rather than inside a form — a per-day
+goal in a labelled chip, a date in a date-range chip.
+
+```jsx
+<Input type="number" variant="inline" size="sm" align="center" width="compact"
+       aria-label={`Dials — daily goal for ${name}`} />
+
+<Input type="date" variant="inline" size="sm" aria-label="Range start date" />
+```
+
+| Prop | Values | Notes |
+|---|---|---|
+| `variant` | `default` (bordered), `inline` | |
+| `align` | `start` (default), `center`, `end` | inline only |
+| `width` | `auto` (default), `compact` | inline only; `compact` is 56px |
+
+### It is not the published "inline edit" pattern
+
+Atlassian, PatternFly and Cloudscape all define an `InlineEdit` component: a
+**read** view that swaps to an **edit** view on activation. That is the standard
+answer for an editable value sitting in a sentence, and it is not what any
+consumer here is — every one is permanently editable and saves on blur or
+change. Building `InlineEdit` would be a primitive with zero consumers.
+
+The name is a trap worth knowing about before you go looking for a read view.
+
+### The variant owns the chrome; `size` still owns the height
+
+Border, background and width change. `min-height`, `padding` and `font-size` do
+not — that is what keeps an inline field lined up with the controls beside it,
+and a test asserts the variant rule sets none of the three.
+
+Measured before the height was chosen: the two date fields were already 36px,
+and the two goal editors had no height at all, rendering at roughly 20px —
+**under the 24px WCAG 2.5.8 minimum for something a person clicks into**. Both
+pairs take `size="sm"` (36px): the dates are untouched and the goal editors go
+over the line.
+
+### The border is hidden, not removed
+
+A field that drops its border on the way in shifts the text beside it by a pixel
+on each side, and inside a chip that reads as a wobble. `border-color:
+transparent` keeps the box and hides it, so hover can colour it back in without
+moving anything.
+
+### `width` is a prop because a class list cannot win
+
+The variant rule sets `width: auto` at two selectors and a `w-14` utility
+carries one. Measured in a real browser: a 56px class on a number field rendered
+at **220px**, the browser's own default — a four-fold widening that no unit test
+saw and that a probe reading the number caught. `width="compact"` is the
+contract's answer; the same specificity trap is recorded one component over in
+`selectable-card/README.md`.
+
+### It refuses to render unnamed
+
+A bordered field is named by its `FormField` label. An inline one has no such
+wrapper by construction, so without an `aria-label`, an `aria-labelledby` or an
+`id` a `<label>` points at, it announces as an unlabelled field. It throws
+instead.
+
+**Give the name the visible word first.** WCAG 2.5.3 (Label in Name) requires
+the spoken name to contain the visible text. The goal editors show `DIALS` above
+them and announced as "Daily dial goal for Maria Garcia" — singular, so the name
+did not contain its own label and a speech-input user saying "Dials" could not
+reach the field. They now read "Dials — daily goal for Maria Garcia", which
+keeps the member's name because the row repeats per member.

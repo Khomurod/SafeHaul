@@ -7,6 +7,7 @@ import {
     Card,
     DataTable,
     IconButton,
+    Input,
     defineTableColumns,
 } from '@/design-system/components';
 import { db } from '@lib/firebase';
@@ -221,20 +222,24 @@ export function InlineLeaderboard({ companyId }) {
                 >
                     <div className="flex items-center gap-2 bg-ds-surface-subtle px-3 py-1 rounded-ds-md border border-ds-border-subtle text-ds-xs">
                         <Calendar size={14} className="text-ds-content-muted" aria-hidden="true" />
-                        <input
+                        <Input
                             type="date"
+                            variant="inline"
+                            size="sm"
                             aria-label="Leaderboard start date"
                             value={startDate}
                             onChange={(event) => setStartDate(event.target.value)}
-                            className="min-h-9 bg-transparent font-medium text-ds-content-secondary outline-none cursor-pointer focus-visible:shadow-ds-focus rounded-ds-sm"
+                            className="cursor-pointer text-ds-content-secondary"
                         />
                         <span className="text-ds-content-muted" aria-hidden="true">–</span>
-                        <input
+                        <Input
                             type="date"
+                            variant="inline"
+                            size="sm"
                             aria-label="Leaderboard end date"
                             value={endDate}
                             onChange={(event) => setEndDate(event.target.value)}
-                            className="min-h-9 bg-transparent font-medium text-ds-content-secondary outline-none cursor-pointer focus-visible:shadow-ds-focus rounded-ds-sm"
+                            className="cursor-pointer text-ds-content-secondary"
                         />
                     </div>
                     <IconButton
