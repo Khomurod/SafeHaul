@@ -167,6 +167,14 @@
    * with the drawer out rendered *behind* it — and nine hand-written `z-[60]`,
    * `z-[70]` and `z-[9999]` workarounds existed because of it.
    *
+   * **Two things on the same layer tie, and DOM order decides.** That is not a
+   * footnote: a page-level sticky header nested under the workspace topbar is
+   * NOT on the topbar's layer, it is `raised` above the page content and below
+   * the application chrome. Company Settings' header was moved to `sticky` in
+   * the first draft of this scale, tied with the topbar, won on DOM order and
+   * covered the topbar's drop shadow — a two-pixel band that CI's visual lane
+   * caught at both widths. Pick the layer by what the thing sits between.
+   *
    * `layer-1` … `layer-4` are missing on purpose: they are local layers inside
    * an `isolate` context in the envelope editor, and they arrive in the slice
    * that gives them consumers. `tokens.consumers.test.js` refuses a token

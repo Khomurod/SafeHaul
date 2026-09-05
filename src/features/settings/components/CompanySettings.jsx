@@ -122,7 +122,21 @@ export function CompanySettings() {
             className="min-h-screen min-w-0 bg-ds-canvas text-ds-content"
             data-testid="company-settings-shell"
         >
-            <div className="min-h-16 bg-ds-surface border-b border-ds-border-subtle mb-ds-8 flex items-center px-ds-4 sm:px-ds-6 lg:px-ds-8 sticky top-0 z-ds-sticky">
+            {/*
+              * `raised`, not `sticky`, and the difference is worth recording.
+              *
+              * This is a page-level sticky header nested UNDER the workspace
+              * topbar, which is itself on the sticky layer
+              * (`WorkspaceFrame.css`). Putting this one there too made the two
+              * tie, and being later in the DOM this one won — covering the
+              * topbar's drop shadow. CI's visual lane caught it as a two-pixel
+              * band under the topbar, at both widths.
+              *
+              * `raised` is 10, exactly what this wrote as `z-10`, so the
+              * rendering is unchanged — and it says the truer thing: lifted
+              * above the page content, below the application chrome.
+              */}
+            <div className="min-h-16 bg-ds-surface border-b border-ds-border-subtle mb-ds-8 flex items-center px-ds-4 sm:px-ds-6 lg:px-ds-8 sticky top-0 z-ds-raised">
                 <Button
                     variant="ghost"
                     justify="start"
