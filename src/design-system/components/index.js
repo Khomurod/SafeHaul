@@ -6,6 +6,7 @@ export { Disclosure } from './disclosure';
 export { FileInput } from './file-input';
 export { ButtonLink, IconButtonLink, Link } from './link';
 export { SegmentedControl } from './segmented';
+export { SelectableCard } from './selectable-card';
 export { Switch } from './switch';
 export { TabList, TabPanel, tabIds } from './tabs';
 export { ProgressBar } from './progress';

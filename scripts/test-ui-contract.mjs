@@ -374,26 +374,45 @@ assert('P5. Chip and ChipGroup are silent',
  * rather than a path skip precisely so it cannot quietly widen: this asserts the
  * set difference is exactly one name, and that every other rule still reaches
  * inside `src/design-system/`.
- * Mutation: add a second name to CONTRACT_EXEMPT_RULES and this fails.
+ * Mutation: add a name that is not a rule, or drop a rule from the routing
+ * without dropping it from the list, and these fail.
  */
 const contractRules = rulesFor('src/design-system/components/segmented/SegmentedControl.jsx');
-assert('P6a. the design system is exempt from exactly one rule',
-    CONTRACT_EXEMPT_RULES.length === 1
-    && CONTRACT_EXEMPT_RULES[0] === 'hand-rolled-toggle');
-assert('P6b. and keeps every other JSX rule',
-    JSX_RULE_NAMES.filter((name) => !contractRules.includes(name)).join(',') === 'hand-rolled-toggle');
+/*
+ * Not "exactly N rules" — that assertion has to be edited every time the list
+ * legitimately changes, and an assertion people edit routinely stops being read.
+ * What must hold whatever the length is: the exempt names are a subset of the
+ * real rules (so a typo cannot exempt nothing while looking like it exempts
+ * something), and the difference between the full JSX set and what the design
+ * system gets is EXACTLY that list and nothing more.
+ */
+assert('P6a. every exempt name is a real rule',
+    CONTRACT_EXEMPT_RULES.every((name) => JSX_RULE_NAMES.includes(name)),
+    CONTRACT_EXEMPT_RULES.filter((name) => !JSX_RULE_NAMES.includes(name)).join(', '));
+assert('P6b. and the design system keeps every other JSX rule',
+    JSX_RULE_NAMES.filter((name) => !contractRules.includes(name)).sort().join(',')
+    === [...CONTRACT_EXEMPT_RULES].sort().join(','));
 assert('P6c. so the primitive itself does not trip it',
     (countViolations('<button aria-pressed={on} className="ds-segmented__option"/>', contractRules)['hand-rolled-toggle'] ?? 0) === 0);
 
 /*
  * P7. A story is held to it, by the same argument `raw-z-index` is: the catalog
- * is the design system's published example, and one hand-rolling a toggle is
+ * is the design system's published example, and one hand-rolling a control is
  * teaching the shape rather than merely containing it. Stories are routed before
  * the contract-root branch, so the exemption must NOT reach them.
+ *
+ * Driven over `CONTRACT_EXEMPT_RULES` rather than over one name. The first
+ * version named `hand-rolled-toggle` alone, and a mutation proved that: dropping
+ * `hand-rolled-current` from the story set passed. An exemption and its catalog
+ * counterpart are two halves of one decision, so the assertion has to be over
+ * the set, not over a member of it.
  */
-assert('P7. a catalog story is still held to the rule',
-    STORY_RULE_NAMES.includes('hand-rolled-toggle')
-    && rulesFor('src/design-system/stories/Chip.stories.jsx').includes('hand-rolled-toggle'));
+const storyRules = rulesFor('src/design-system/stories/Chip.stories.jsx');
+assert('P7. every rule the design system is exempt from still binds its catalog',
+    CONTRACT_EXEMPT_RULES.every(
+        (name) => STORY_RULE_NAMES.includes(name) && storyRules.includes(name),
+    ),
+    CONTRACT_EXEMPT_RULES.filter((name) => !storyRules.includes(name)).join(', '));
 
 /*
  * P8. `JSX_RULE_NAMES` is what the exemption subtracts FROM, so if it ever
@@ -410,6 +429,42 @@ const everyKind = '<div className="bg-blue-500" style={{ color: \'#ff0000\' }} /
 assert('P8. the named JSX rule set covers exactly what `null` covers',
     JSON.stringify(countViolations(everyKind, JSX_RULE_NAMES))
     === JSON.stringify(countViolations(everyKind)));
+
+const currents = (code) => countViolations(code)['hand-rolled-current'] ?? 0;
+
+/*
+ * P9. `hand-rolled-current` is `hand-rolled-toggle`'s sibling and asks a
+ * different question, so the two must not answer for each other: a `pressed`
+ * control is not a `current` one and counting it as both would double every
+ * toggle in the tree.
+ */
+assert('P9. current and pressed are counted separately',
+    currents('<button aria-current="page">3</button>') === 1
+    && toggles('<button aria-current="page">3</button>') === 0
+    && currents('<button aria-pressed={on}>x</button>') === 0);
+
+/*
+ * P10. Scoped to `<button>` on purpose, and this is the assertion that keeps it
+ * honest. Three raw `aria-current` sites in the tree are non-interactive
+ * progress displays — a `<li>` step indicator, a `<span>` step chip — which are
+ * CORRECT markup with no primitive behind them. A rule firing there would be
+ * demanding a component nobody has built; the roadmap gap table is where that
+ * belongs.
+ * Mutation: widen the counter to `li|span` and this fails.
+ */
+assert('P10. a non-interactive step indicator is not a hand-rolled control',
+    currents('<li aria-current="step">2. Map</li><span aria-current="step">3. Send</span>') === 0);
+
+assert('P11. a component carrying aria-current is silent',
+    currents('<SelectableCard current /><SectionNavigation aria-current="page" />') === 0);
+
+// P12. The migration target, and the design system's own rail that the remedy
+// names — neither may trip the rule that points at them.
+assert('P12. the design system is exempt from both state rules',
+    CONTRACT_EXEMPT_RULES.length === 2
+    && CONTRACT_EXEMPT_RULES.includes('hand-rolled-toggle')
+    && CONTRACT_EXEMPT_RULES.includes('hand-rolled-current')
+    && (countViolations('<button aria-current="page" />', contractRules)['hand-rolled-current'] ?? 0) === 0);
 
 /* ========================================================================== */
 console.log('\nX. The rule engine stands alone');

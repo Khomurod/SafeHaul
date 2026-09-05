@@ -46,6 +46,7 @@ export const STORY_RULE_NAMES = [
     // Same argument, one shape over: a story hand-rolling a pressed control is
     // publishing the thing `Chip` and `SegmentedControl` exist to replace.
     'hand-rolled-toggle',
+    'hand-rolled-current',
 ];
 
 /**
@@ -74,19 +75,20 @@ export const HTML_RULE_NAMES = [
 /**
  * The design system's own source, and the rules it is exempt from.
  *
- * Exactly one, and it is the shape of exemption to be suspicious of: a rule that
- * says "use the primitive" cannot also fire on the primitive. `SegmentedControl`
- * IS the `role="group"` of `<button aria-pressed>` that `hand-rolled-toggle`
- * points people at, and `Chip` is the other one. Anywhere else, an exemption
- * this broad would be a hole — so it is a NAMED LIST rather than a path skip:
- * every other rule still applies inside `src/design-system/`, and adding a
- * second name here is a decision somebody has to write down.
+ * Two, and both are the shape of exemption to be suspicious of: a rule that says
+ * "use the primitive" cannot also fire on the primitive. `SegmentedControl` IS
+ * the `role="group"` of `<button aria-pressed>` that `hand-rolled-toggle` points
+ * people at (and `Chip` is the other one); `SectionNavigation` IS the
+ * `<button aria-current>` rail that `hand-rolled-current` points at. Anywhere
+ * else, an exemption this broad would be a hole — so it is a NAMED LIST rather
+ * than a path skip: every other rule still applies inside `src/design-system/`,
+ * and adding a third name here is a decision somebody has to write down.
  *
  * Catalog stories are not covered by this: they are routed to
  * `STORY_RULE_NAMES` first, which holds them to the rule deliberately.
  */
 export const CONTRACT_ROOT = 'src/design-system/';
-export const CONTRACT_EXEMPT_RULES = ['hand-rolled-toggle'];
+export const CONTRACT_EXEMPT_RULES = ['hand-rolled-toggle', 'hand-rolled-current'];
 
 /**
  * Which rules apply to a file.

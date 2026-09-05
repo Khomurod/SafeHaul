@@ -118,6 +118,31 @@ export const PROBES = [
          * minimum in neither axis, but the wrong shape and a wasted 20px on a
          * field box. It is the kind of thing only a measurement catches.
          */
+        /*
+         * `selected` and `current` are one visual state and two ARIA states, and
+         * that is a decision worth measuring rather than trusting. If they ever
+         * drift apart visually, a person picking a page and a person picking a
+         * record start learning two different meanings for the same rail — and a
+         * screenshot of two different stories would never show it, because
+         * nothing puts them side by side.
+         */
+        story: 'components-selectablecard--selectable',
+        label: 'the selected card, whose ring is a ring rather than a thicker border',
+        selectors: {
+            'selectableCard[on]': ".ds-selectable-card[data-state='on']",
+            'selectableCard[off]': ".ds-selectable-card:not([data-state])",
+        },
+        properties: ['borderTopWidth', 'boxShadow', 'borderRadius', 'backgroundColor'],
+    },
+    {
+        story: 'components-selectablecard--current-of-a-set',
+        label: 'the current card reads exactly as the selected one',
+        selectors: {
+            'selectableCard[current]': ".ds-selectable-card[data-state='on']",
+        },
+        properties: ['borderTopWidth', 'boxShadow', 'borderTopColor', 'backgroundColor'],
+    },
+    {
         story: 'components-chip--sizes',
         label: 'the chip steps, measured against the controls they claim to match',
         selectors: {

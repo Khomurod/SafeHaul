@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { Document, Page } from 'react-pdf';
 import { Sparkles } from 'lucide-react';
+import { SelectableCard } from '@/design-system/components';
 
 /** Rendered width of a thumbnail, in px. Small on purpose — see below. */
 const THUMBNAIL_WIDTH = 96;
@@ -120,20 +121,16 @@ export function PageThumbnailRail({
 
                     return (
                         <li key={page}>
-                            <button
-                                type="button"
+                            <SelectableCard
                                 ref={(node) => registerSlot(page, node)}
                                 data-thumb-page={page}
-                                aria-current={isCurrent ? 'page' : undefined}
+                                current={isCurrent}
+                                padding="xs"
+                                className="flex-col gap-ds-1"
                                 aria-label={`Page ${page}, ${fieldCount} field${fieldCount === 1 ? '' : 's'}${
                                     suggestionCount > 0 ? `, ${suggestionCount} AI suggestion${suggestionCount === 1 ? '' : 's'}` : ''
                                 }${needsReview ? ', needs manual review' : ''}`}
-                                onClick={() => onSelectPage(page)}
-                                className={`flex w-full flex-col items-center gap-ds-1 rounded-ds-lg border-2 p-ds-1 transition-colors focus-visible:outline-none focus-visible:shadow-ds-focus ${
-                                    isCurrent
-                                        ? 'border-ds-action-primary bg-ds-status-info-bg'
-                                        : 'border-ds-border-subtle bg-ds-surface hover:border-ds-border'
-                                }`}
+                                onSelect={() => onSelectPage(page)}
                             >
                                 <span
                                     aria-hidden="true"
@@ -167,7 +164,7 @@ export function PageThumbnailRail({
                                     )}
                                     {needsReview && <span className="text-ds-status-warning-fg">!</span>}
                                 </span>
-                            </button>
+                            </SelectableCard>
                         </li>
                     );
                 })}

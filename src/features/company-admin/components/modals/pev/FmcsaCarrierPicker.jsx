@@ -10,14 +10,13 @@
 // pair, the `data-testid="fmcsa-row-N"` hooks, `mapFmcsaRowToPevContact` as the
 // only source of displayed values, and every user-facing string.
 //
-// DOCUMENTED EXCEPTION — feature-owned raw `<button>` per row. Each row is a
-// selectable suggestion carrying multi-line structured content (legal name,
-// USDOT + city/state, and a contact-availability note). The approved `Button`
-// takes inline children and owns its own layout, so it cannot host this; there
-// is no Listbox/Combobox or SelectableCard primitive yet (recorded in the
-// roadmap, same gap as the public application's FMCSA employer combobox).
-// `aria-pressed` carries the selection, and the selected state is also stated in
-// text — never by colour alone.
+// EXCEPTION RETIRED 2026-09-05. Each row is a selectable suggestion carrying
+// multi-line structured content (legal name, USDOT + city/state, and a
+// contact-availability note), which is why the approved `Button` could never
+// host it — `Button` takes inline children and owns its own layout. That is the
+// gap `SelectableCard` was built for, and these rows are one of its four
+// consumers. `selected` carries the ARIA; the selected state is also stated in
+// text below, never by colour alone.
 //
 // DEFECTS FIXED (2026-07-27):
 // - Six separate runs of 10 px interface text (the state note, the usage hint,
@@ -31,6 +30,7 @@
 
 import React from 'react';
 import { Building2, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { SelectableCard } from '@/design-system/components';
 import { mapFmcsaRowToPevContact } from '@shared/services/fmcsaEmployerSocrata';
 
 /** Stable key for an FMCSA census row (DOT number + index). Shared with the container. */
@@ -95,17 +95,13 @@ export function FmcsaCarrierPicker({
                         const hasContact = !!(m.email || m.fax || m.phone);
                         return (
                             <li key={rowKey}>
-                                <button
-                                    type="button"
-                                    aria-pressed={selected}
+                                <SelectableCard
+                                    selected={selected}
+                                    padding="sm"
                                     data-testid={`fmcsa-row-${idx}`}
-                                    onClick={() => onSelectRow(row, idx)}
-                                    className={`w-full rounded-ds-md border px-ds-3 py-ds-2 text-left text-ds-sm transition-colors focus-visible:outline-none focus-visible:shadow-ds-focus ${selected
-                                        ? 'border-ds-focus bg-ds-status-info-bg shadow-ds-xs'
-                                        : 'border-ds-border-subtle bg-ds-surface hover:border-ds-focus'
-                                        }`}
+                                    onSelect={() => onSelectRow(row, idx)}
                                 >
-                                    <span className="flex items-start justify-between gap-ds-2">
+                                    <span className="flex w-full items-start justify-between gap-ds-2">
                                         <span className="min-w-0 flex-1">
                                             <span className="block truncate font-semibold text-ds-content">{m.legalName || 'Unknown'}</span>
                                             <span className="block text-ds-xs text-ds-content-secondary">
@@ -127,7 +123,7 @@ export function FmcsaCarrierPicker({
                                             Selected
                                         </span>
                                     )}
-                                </button>
+                                </SelectableCard>
                             </li>
                         );
                     })}

@@ -113,8 +113,17 @@ Closed on 2026-09-05:
   feature-side can beat — which is the point, because the two sort arrows it was
   built for marked the active direction with a text utility that lost to the
   variant's own `color` rule, and lost silently.
-- A raw `<button aria-pressed>` is refused from here on. `SegmentedControl` and
-  `Chip` are the two shapes; a `Button` with `pressed` is the third.
+- **SelectableCard**, for a block of record content that behaves as one option —
+  an FMCSA suggestion row, a lead row, a company row, a page thumbnail. It closed
+  a gap this catalog had recorded three times under three names, because the
+  audit found one shape behind all of them. `selected` and `current` are two
+  different ARIA answers that render identically on purpose, and passing both
+  throws.
+- A raw `<button>` carrying `aria-pressed` or `aria-current` is refused from here
+  on. `SegmentedControl` and `Chip` are the toggle shapes, a `Button` with
+  `pressed` is the third, and `SelectableCard` is the card. A step indicator that
+  is read rather than operated has no primitive yet and is recorded as an open
+  gap rather than demanded by a rule.
 
 Closed on 2026-08-25:
 
