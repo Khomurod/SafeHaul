@@ -40,7 +40,8 @@ function ModalForm({ error = null, saving = false, invalid = false, startOpen = 
                     onClose={saving ? undefined : close}
                     closeOnEscape={!saving}
                     closeOnBackdrop={false}
-                    className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-ds-xl border border-ds-border-subtle bg-ds-surface shadow-ds-lg"
+                    size="lg"
+                    scroll="body"
                 >
                     <form
                         onSubmit={(event) => { event.preventDefault(); close(); }}

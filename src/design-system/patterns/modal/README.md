@@ -48,20 +48,20 @@ content grows scrolls its footer out of reach on a short viewport, and the
 confirm button becomes unreachable. It is the commonest dialog layout defect
 there is.
 
-### The legacy props, and when they go
+### The legacy props are gone
 
-**Every call site is migrated as of 2026-09-05** — all 41 of them, and there is
-no `overlayClassName` left anywhere in `src/`. `className` and `overlayClassName`
-still exist and still replace the chrome, and they warn once per distinct class
-list in development; the next slice deletes both and throws on either.
+`className` and `overlayClassName` were removed on 2026-09-05, and passing
+either now throws. They REPLACED the chrome rather than extending it, which is
+how 38 call sites came to write 30 spellings of the same six intentions.
 
-They are one decision, not two: passing either opts the whole dialog out, and
-the other falls back to what such a caller used to inherit. That mattered during
-the migration — 20 of the 41 sites passed only `className`, and handing those the
-contract's overlay would have moved their stacking layer from 50 to 60 in a slice
-that promised no change. Half the contract and half a class list is also the one
-combination that cannot be reasoned about, since the two would fight over the
-same properties.
+They are still *named* in the signature, deliberately: a removed prop that falls
+into a `...rest` lands on the DOM as an unknown attribute, which is the quiet
+version of the same problem. A caller that reaches for one gets a sentence
+telling it what to use instead.
+
+There is no styling escape hatch left. If none of the six axes is the shape you
+need, the case goes into `Modal.css` with the roadmap row that justifies it —
+which is a review, not a class list.
 
 ### Nested dialogs need no stacking prop
 

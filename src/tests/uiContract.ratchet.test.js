@@ -173,21 +173,59 @@ describe('the guard stays silent on correct code', () => {
         expect(count(source, 'raw-hex-colour')).toBe(0);
     });
 
-    it('does not flag an overlayClassName passed to Modal', () => {
-        // The roadmap approves this: a scan should return `Modal` itself and its
-        // `overlayClassName` callers. Counting them would have fired on 20
-        // correct call sites.
+    it('flags an overlayClassName, now that the prop no longer exists', () => {
+        /*
+         * This asserted 0 until 2026-09-05, and the exemption was correct at the
+         * time: `overlayClassName` was the approved way to position a dialog, its
+         * values legitimately contain `fixed inset-0`, and counting them would
+         * have fired on 20 correct call sites. `Modal` removed the prop once
+         * every call site moved to the chrome contract, so the exemption's whole
+         * premise is gone — and the rule now means what the roadmap always
+         * claimed it did.
+         */
         const source = '<Modal overlayClassName="fixed inset-0 z-50 flex bg-ds-overlay p-4">{body}</Modal>';
-        expect(count(source, 'hand-built-overlay')).toBe(0);
+        expect(count(source, 'hand-built-overlay')).toBe(1);
     });
 
-    it('still flags a hand-built overlay in a file that also passes overlayClassName', () => {
-        // The exemption must not become a blanket pass for the whole file.
+    it('flags a hand-built overlay wherever it appears', () => {
         const source = [
-            '<Modal overlayClassName="fixed inset-0 z-50 flex">{body}</Modal>',
-            '<div className="fixed inset-0 z-40" />',
+            '<div className="fixed inset-0 bg-ds-overlay" />',
+            '<div className="fixed inset-0 flex items-center" />',
         ].join('\n');
-        expect(count(source, 'hand-built-overlay')).toBe(1);
+        expect(count(source, 'hand-built-overlay')).toBe(2);
+    });
+
+    /*
+     * The stacking scale, and the history is the argument for the rule: 74 raw
+     * values spelling fourteen different numbers, `z-[9999]` among them. A
+     * number says nothing about what it is for, so the only way to raise
+     * something was to outbid whatever it had lost to.
+     */
+    it.each([
+        ['a utility class', '<div className="z-50" />', 1],
+        ['an arbitrary value', '<div className="z-[9999]" />', 1],
+        ['a negative layer, which is still unnamed', '<div className="-z-10" />', 1],
+        ['a style-object property', 'const s = { position: "absolute", zIndex: 20 };', 1],
+        ['every one of them, not just the first', '<div className="z-10" /><div className="z-[70]" />', 2],
+    ])('catches a raw stacking number: %s', (_name, source, expected) => {
+        expect(count(source, 'raw-z-index')).toBe(expected);
+    });
+
+    it.each([
+        ['a named application layer', '<div className="z-ds-modal" />'],
+        ['a named local layer', '<div className="z-ds-layer-2" />'],
+        ['a token reference in a style object', "const s = { zIndex: 'var(--ds-z-layer-2)' };"],
+        ['Tailwind\'s auto, which names no layer at all', '<div className="lg:z-auto" />'],
+        ['a word that merely ends in z', '<div className="quiz-10" />'],
+    ])('stays silent on %s', (_name, source) => {
+        expect(count(source, 'raw-z-index')).toBe(0);
+    });
+
+    it('holds a stylesheet to the same rule', () => {
+        const css = (source) => countViolations(source, CSS_RULE_NAMES)['css-raw-z-index'] ?? 0;
+        expect(css('.x { z-index: 60; }')).toBe(1);
+        expect(css('.x { z-index: -1; }')).toBe(1);
+        expect(css('.x { z-index: var(--ds-z-modal); }')).toBe(0);
     });
 });
 

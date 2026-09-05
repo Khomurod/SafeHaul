@@ -160,18 +160,41 @@ export const RULES = [
         name: 'hand-built-overlay',
         pattern: /fixed inset-0/g,
         /*
-         * Passing `overlayClassName` to `Modal` is the approved way to position a
-         * dialog, and those values legitimately contain `fixed inset-0` — the
-         * roadmap says a scan should return `Modal` itself *and* its
-         * `overlayClassName` callers. Counting them would have made this rule fire
-         * on 20 correct call sites, and a check that flags correct code gets
-         * switched off. `prepare` removes those attribute values before matching,
-         * so what is left is a genuinely hand-built overlay.
+         * No `prepare` any more, and its removal is the point.
+         *
+         * This rule used to strip `overlayClassName="…"` before matching, because
+         * passing one to `Modal` was the approved way to position a dialog and
+         * those values legitimately contain `fixed inset-0` — counting them would
+         * have fired on 20 correct call sites, and a check that flags correct
+         * code gets switched off. That prop was removed on 2026-09-05 once every
+         * call site moved to the chrome contract, so there is nothing left to
+         * strip, and the rule now means exactly what the roadmap always claimed:
+         * a scan for `fixed inset-0` returns `Modal.css` and nothing else.
          */
-        prepare: (code) => code.replace(/overlayClassName\s*=\s*(?:"[^"]*"|'[^']*'|\{`[^`]*`\}|\{[^}]*\})/g, 'overlayClassName={…}'),
-        remedy: 'Every overlay goes through `Modal` from `@design-system/patterns`. Passing it '
-            + 'an `overlayClassName` is fine; building the backdrop yourself is not — that is '
-            + 'how a dialog ends up with no role, no focus trap and no Escape.',
+        remedy: 'Every overlay goes through `Modal` from `@design-system/patterns`, which owns '
+            + 'the backdrop outright — there is no prop for it. Building one yourself is how a '
+            + 'dialog ends up with no role, no focus trap and no Escape.',
+    },
+    {
+        name: 'raw-z-index',
+        /*
+         * A bare stacking number, and the history is the argument for the rule.
+         *
+         * This tree carried 74 of them spelling FOURTEEN different values —
+         * `z-10` through `z-50`, then `z-[55]`, `z-[60]`, `z-[65]`, `z-[70]`,
+         * `z-[80]`, `z-[100]` and `z-[9999]`. A number says nothing about what
+         * it is for, so the only way to raise something was to outbid whatever
+         * it had lost to, and each winner became the next thing to outbid.
+         *
+         * Both spellings are matched because both occurred: the utility class,
+         * and `zIndex: 20` in a style object. `-z-10` is included — a negative
+         * layer is still an unnamed one.
+         */
+        pattern: /(?<![\w-])-?z-(?:\[-?\d+\]|\d+)(?![\w-])|\bzIndex\s*:\s*-?\d+/g,
+        remedy: 'Name the layer: `z-ds-raised`, `z-ds-sticky`, `z-ds-dropdown`, `z-ds-drawer`, '
+            + '`z-ds-modal`, `z-ds-toast` — or, for something that only orders siblings inside '
+            + 'one `isolate` container, `z-ds-layer-1` … `z-ds-layer-4`. See '
+            + '`tokens/foundation.css`; a layer with no name is a number somebody outbids.',
     },
     {
         /*
@@ -272,6 +295,17 @@ export const CSS_RULES = [
         remedy: 'Reach a `--ds-*` role with `var()`. Colour is declared in '
             + '`tokens/foundation.css` and given meaning in `tokens/semantic.css`; those two '
             + 'are the only files allowed to name a colour, and they are exempt by path.',
+    },
+    {
+        name: 'css-raw-z-index',
+        /*
+         * The same rule on the stylesheet side. A `z-index: 60` in CSS is the
+         * same unnamed layer as a `z-50` in a class list, and the tokens are
+         * reachable from both.
+         */
+        pattern: /z-index:\s*-?\d+/g,
+        remedy: 'Reach a layer with `var(--ds-z-*)`. `tokens/foundation.css` names all of '
+            + 'them, and it is the one file allowed to write the numbers.',
     },
     {
         name: 'css-apply-off-contract',

@@ -207,12 +207,14 @@ export const EmptyRow = {
 export const StickyFirstColumn = {
   render: () => (
     <Card padding="none">
-      <div className="overflow-x-auto">
+      {/* `isolate` is what makes the two layers below local to this table:
+          a sticky first column only has to outrank the cells beside it. */}
+      <div className="isolate overflow-x-auto">
         <table className="ds-native-table min-w-[1100px]" data-density="compact" data-row-hover>
           <caption className="ds-visually-hidden">Reference allocation matrix, wide</caption>
           <thead>
             <tr>
-              <th scope="col" className="sticky left-0 z-30">Reference</th>
+              <th scope="col" className="sticky left-0 z-ds-layer-2">Reference</th>
               {['Owner', 'Quota', 'Region', 'Contact', 'Renewal', 'Notes', 'Reviewer'].map((h) => (
                 <th key={h} scope="col">{h}</th>
               ))}
@@ -221,7 +223,7 @@ export const StickyFirstColumn = {
           <tbody>
             {ROWS.map((row) => (
               <tr key={row.id}>
-                <th scope="row" className="sticky left-0 z-10 border-r border-ds-border-subtle">
+                <th scope="row" className="sticky left-0 z-ds-layer-1 border-r border-ds-border-subtle">
                   {row.reference}
                 </th>
                 <td>{row.owner}</td>

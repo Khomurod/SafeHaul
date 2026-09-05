@@ -298,46 +298,13 @@ describe('Modal chrome', () => {
             .toThrow(TypeError);
     });
 
-    it('leaves a legacy caller exactly as it was, chrome attributes included', () => {
-        // The whole reason this slice is non-breaking. A caller that replaces the
-        // class list must not also inherit half the contract's attributes, or its
-        // own class list would be fighting `Modal.css` for the same properties.
-        render(
-            <Modal
-                label="Legacy"
-                overlayClassName="fixed inset-0 z-50 flex"
-                className="w-full max-w-4xl bg-ds-surface"
-            >
-                <p>Body</p>
-            </Modal>,
-        );
-        expect(panelOf()).toHaveClass('w-full', 'max-w-4xl');
-        expect(panelOf()).not.toHaveClass('ds-modal__panel');
-        expect(overlayOf()).toHaveClass('fixed', 'inset-0', 'z-50');
-        expect(overlayOf()).not.toHaveClass('ds-modal');
-        for (const attribute of ['data-size', 'data-scroll', 'data-fill', 'data-tone']) {
-            expect(panelOf()).not.toHaveAttribute(attribute);
-        }
-        for (const attribute of ['data-placement', 'data-mobile']) {
-            expect(overlayOf()).not.toHaveAttribute(attribute);
-        }
-    });
-
-    it('treats a legacy panel and a legacy overlay as the same decision', () => {
-        // Half the contract and half a class list is the one combination that
-        // cannot be reasoned about, so either legacy prop opts the whole dialog out.
-        render(<Modal label="Half" className="max-w-2xl"><p>Body</p></Modal>);
-        expect(panelOf()).toHaveClass('max-w-2xl');
-        expect(panelOf()).not.toHaveAttribute('data-size');
-        // ...and the overlay falls back to what such a caller used to inherit,
-        // not to the contract — otherwise this slice would move its z-index.
-        expect(overlayOf()).not.toHaveClass('ds-modal');
-        expect(overlayOf()).toHaveClass('ds-modal--legacy');
-    });
-
-    it('gives a legacy overlay the panel a legacy caller used to inherit', () => {
-        render(<Modal label="Half" overlayClassName="fixed inset-0 bg-ds-overlay"><p>Body</p></Modal>);
-        expect(panelOf()).not.toHaveClass('ds-modal__panel');
-        expect(panelOf()).toHaveClass('ds-modal__panel--legacy');
+    it.each(['className', 'overlayClassName'])('refuses %s outright', (prop) => {
+        /*
+         * A refusal, not a silent `...rest`. These REPLACED the chrome rather
+         * than extending it, and an unknown prop landing on the DOM as an
+         * attribute would be the quiet version of the same problem.
+         */
+        expect(() => render(<Modal label="x" {...{ [prop]: 'max-w-2xl' }}><p>b</p></Modal>))
+            .toThrow(/were removed on 2026-09-05/);
     });
 });

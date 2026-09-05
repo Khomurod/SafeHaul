@@ -40,6 +40,9 @@ export const STORY_RULE_NAMES = [
     'hand-styled-button',
     'hand-styled-field',
     'hand-styled-anchor',
+    // A story that writes its own stacking number is teaching one, and the
+    // catalog is the last place a `z-[9999]` should be able to start.
+    'raw-z-index',
 ];
 
 /**

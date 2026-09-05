@@ -1,11 +1,11 @@
 {
-  "$comment": "Every UI-contract violation the product deliberately keeps, and why. `npm run check:ui-contract` fails on anything not listed here, on a count higher OR lower than recorded, and on any entry whose rule has no `reasons` text. This began as a shrink-only inventory of 660 violations carrying `debt` tags for the migration slices that owed the work; that debt reached zero on 2026-08-25 and the `debt` escape hatch was removed with it. An entry here is now a decision someone wrote down, not a promise to come back. Since 2026-09-04 it is also compared against the base commit: an entry may only record a violation the base already carried, so a recorded exception is a frozen ceiling and a file this change creates can never carry one. `--update` therefore only SHRINKS \u2014 it refuses to write an addition and tells you to write it by hand with a reason. Keys are repo-relative as of version 2 (2026-09-05), when the scan reached `index.html` \u2014 Tailwind compiles it, so a class there ships like any other, and there is no honest `src/`-relative name for a file outside `src/`. Regenerate with `npm run check:ui-contract -- --update`.",
+  "$comment": "Every UI-contract violation the product deliberately keeps, and why. `npm run check:ui-contract` fails on anything not listed here, on a count higher OR lower than recorded, and on any entry whose rule has no `reasons` text. This began as a shrink-only inventory of 660 violations carrying `debt` tags for the migration slices that owed the work; that debt reached zero on 2026-08-25 and the `debt` escape hatch was removed with it. An entry here is now a decision someone wrote down, not a promise to come back. Since 2026-09-04 it is also compared against the base commit: an entry may only record a violation the base already carried, so a recorded exception is a frozen ceiling and a file this change creates can never carry one. `--update` therefore only SHRINKS — it refuses to write an addition and tells you to write it by hand with a reason. Keys are repo-relative as of version 2 (2026-09-05), when the scan reached `index.html` — Tailwind compiles it, so a class there ships like any other, and there is no honest `src/`-relative name for a file outside `src/`. Regenerate with `npm run check:ui-contract -- --update`.",
   "version": 2,
   "files": {
     "index.html": {
       "raw-palette-class": 1,
       "reasons": {
-        "raw-palette-class": "roadmap \u00a72 \u2014 `<body class=\"bg-gray-50\">`, the application's page background. This is not an approved exception: it is the first thing the widened scan found, recorded here so the widening lands separately from the fix. Fixing it is one character-for-character swap to `bg-ds-canvas` (the utility exists), but the two colours are NOT identical \u2014 Tailwind's gray-50 is #f9fafb and --ds-color-canvas resolves to slate-50 #f8fafc \u2014 and nothing else paints the body, so the change moves every application-screen pixel baseline. Those can only be re-recorded from CI's visual-regression-diff artifact (local Chromium and CI's do not agree), which is why it is its own slice. Retire this entry there."
+        "raw-palette-class": "roadmap §2 — `<body class=\"bg-gray-50\">`, the application's page background. This is not an approved exception: it is the first thing the widened scan found, recorded here so the widening lands separately from the fix. Fixing it is one character-for-character swap to `bg-ds-canvas` (the utility exists), but the two colours are NOT identical — Tailwind's gray-50 is #f9fafb and --ds-color-canvas resolves to slate-50 #f8fafc — and nothing else paints the body, so the change moves every application-screen pixel baseline. Those can only be re-recorded from CI's visual-regression-diff artifact (local Chromium and CI's do not agree), which is why it is its own slice. Retire this entry there."
       }
     },
     "src/design-system/components/data-table/DataTable.jsx": {
@@ -29,41 +29,41 @@
     "src/features/auth/components/LoginScreen.jsx": {
       "raw-hex-colour": 2,
       "reasons": {
-        "raw-hex-colour": "roadmap \u00a75 \u2014 the hero's background wash is brand artwork: three decorative blobs blurred over 256\u2013384px, aria-hidden, carrying no information, drawn in the mark's own colours. The named brand roles (--ds-color-brand-accent / -primary) cover everything on that panel that carries meaning; these three are translucent, and a Tailwind opacity modifier cannot be applied to a var() colour, so tokenising them would mean three single-use tint tokens for a blur.",
-        "raw-black-white-class": "roadmap \u00a75 \u2014 `bg-white/5` on one of the login hero's decorative blur orbs, alongside the brand-tinted pair already recorded on this file. It is artwork on an inverse surface, not an interface colour: the orbs exist to give the panel depth and carry no meaning, so mapping them onto a content or surface role would tie a decoration to a role that a contrast change could legitimately re-tune."
+        "raw-hex-colour": "roadmap §5 — the hero's background wash is brand artwork: three decorative blobs blurred over 256–384px, aria-hidden, carrying no information, drawn in the mark's own colours. The named brand roles (--ds-color-brand-accent / -primary) cover everything on that panel that carries meaning; these three are translucent, and a Tailwind opacity modifier cannot be applied to a var() colour, so tokenising them would mean three single-use tint tokens for a blur.",
+        "raw-black-white-class": "roadmap §5 — `bg-white/5` on one of the login hero's decorative blur orbs, alongside the brand-tinted pair already recorded on this file. It is artwork on an inverse surface, not an interface colour: the orbs exist to give the panel depth and carry no meaning, so mapping them onto a content or surface role would tie a decoration to a role that a contrast change could legitimately re-tune."
       },
       "raw-black-white-class": 1
     },
     "src/features/campaigns/CampaignEditor.jsx": {
       "hand-styled-button": 1,
       "reasons": {
-        "hand-styled-button": "roadmap \u00a75 \u2014 the campaign section rail. It is a `nav` of steps with `aria-current=\"step\"` and a per-step completion indicator. `SectionNavigation` is the near miss and cannot express either: it hardcodes `aria-current=\"page\"`, and it has no trailing slot for the complete/incomplete icon that is the whole point of this rail. Extending it for one consumer would be speculative; recorded as the section-rail-with-status gap instead. Tokenised, keyboard-reachable, shared focus ring."
+        "hand-styled-button": "roadmap §5 — the campaign section rail. It is a `nav` of steps with `aria-current=\"step\"` and a per-step completion indicator. `SectionNavigation` is the near miss and cannot express either: it hardcodes `aria-current=\"page\"`, and it has no trailing slot for the complete/incomplete icon that is the whole point of this rail. Extending it for one consumer would be speculative; recorded as the section-rail-with-status gap instead. Tokenised, keyboard-reachable, shared focus ring."
       }
     },
     "src/features/campaigns/components/AudienceBuilder.jsx": {
       "hand-styled-button": 1,
       "reasons": {
-        "hand-styled-button": "roadmap \u00a75 \u2014 the application-status filter chips are MULTI-select (a `status` array), and `SegmentedControl` is single-select by contract (`value` is a scalar). They are also 12px chips rather than 44px control-height cards, so adopting it would triple their height inside a filter panel. This is the filter-chip gap the catalog's Introduction already records, and this is its first concrete consumer.",
-        "raw-black-white-class": "roadmap \u00a75 \u2014 `bg-black/20`, the scrim behind the audience preview list. Recorded rather than migrated because NO existing role matches it, measured: `--ds-color-overlay` is rgb(15 23 42 / 0.6) \u2014 slate-900 at 60% \u2014 where this is pure black at 20%, so the swap would visibly lighten and re-tint the backdrop. The rule's remedy points at declaring a semantic `rgb(\u2026 / a)` token, and that is the right fix; naming a new scrim ROLE is a design-system decision rather than a mechanical one, so it belongs with the status-notice and surface work rather than inside a rule-widening slice. Retire this entry there."
+        "hand-styled-button": "roadmap §5 — the application-status filter chips are MULTI-select (a `status` array), and `SegmentedControl` is single-select by contract (`value` is a scalar). They are also 12px chips rather than 44px control-height cards, so adopting it would triple their height inside a filter panel. This is the filter-chip gap the catalog's Introduction already records, and this is its first concrete consumer.",
+        "raw-black-white-class": "roadmap §5 — `bg-black/20`, the scrim behind the audience preview list. Recorded rather than migrated because NO existing role matches it, measured: `--ds-color-overlay` is rgb(15 23 42 / 0.6) — slate-900 at 60% — where this is pure black at 20%, so the swap would visibly lighten and re-tint the backdrop. The rule's remedy points at declaring a semantic `rgb(… / a)` token, and that is the right fix; naming a new scrim ROLE is a design-system decision rather than a mechanical one, so it belongs with the status-notice and surface work rather than inside a rule-widening slice. Retire this entry there."
       },
       "raw-black-white-class": 1
     },
     "src/features/campaigns/components/CampaignCard.jsx": {
       "hand-styled-button": 3,
       "reasons": {
-        "hand-styled-button": "roadmap \u00a75 \u2014 two `role=\"menuitem\"` entries in the card's overflow menu, plus one stat affordance inside the card body. `Button` renders `role=\"button\"`, which would break the menu contract exactly as it would break the FMCSA combobox's `role=\"option\"`; the stat affordance has no button chrome at all (no padding, no background, no border) and is a text-and-icon cell trigger. All three are tokenised and carry the shared focus ring."
+        "hand-styled-button": "roadmap §5 — two `role=\"menuitem\"` entries in the card's overflow menu, plus one stat affordance inside the card body. `Button` renders `role=\"button\"`, which would break the menu contract exactly as it would break the FMCSA combobox's `role=\"option\"`; the stat affordance has no button chrome at all (no padding, no background, no border) and is a text-and-icon cell trigger. All three are tokenised and carry the shared focus ring."
       }
     },
     "src/features/campaigns/components/CampaignResultsTable.jsx": {
       "raw-table": 1,
       "reasons": {
-        "raw-table": "roadmap \u00a75 \u2014 approved native-table pattern for an editable matrix or per-row interactive rows. DataTable is a display-table contract. The table must still use the --ds-table-* roles."
+        "raw-table": "roadmap §5 — approved native-table pattern for an editable matrix or per-row interactive rows. DataTable is a display-table contract. The table must still use the --ds-table-* roles."
       }
     },
     "src/features/campaigns/components/DetailedReportModal.jsx": {
       "raw-table": 1,
       "reasons": {
-        "raw-table": "roadmap \u00a75 \u2014 approved native-table pattern for an editable matrix or per-row interactive rows. DataTable is a display-table contract. The table must still use the --ds-table-* roles."
+        "raw-table": "roadmap §5 — approved native-table pattern for an editable matrix or per-row interactive rows. DataTable is a display-table contract. The table must still use the --ds-table-* roles."
       }
     },
     "src/features/campaigns/components/DeviceMockup.jsx": {
@@ -71,21 +71,21 @@
       "sub-12px-type": 1,
       "tailwind-radius": 5,
       "reasons": {
-        "raw-palette-class": "roadmap \u00a75 \u2014 DeviceMockup is artwork, not interface. The bezel, side buttons and battery pips are moulded plastic, not a SafeHaul surface; mapping them onto --ds-color-surface-inverse-subtle would look identical today and would mean re-tuning the console surface silently restyles a picture of a phone. Declared once in the DEVICE constant at the top of the file. The screen itself takes --ds-color-surface.",
-        "sub-12px-type": "roadmap \u00a75 \u2014 the phone status-bar time is a decorative illustration of a real device, not interface text.",
-        "tailwind-radius": "roadmap \u00a75 \u2014 device artwork. The bezel and side-button radii describe a moulded plastic case, not a SafeHaul surface, and they are part of the same DEVICE palette exception as its colours."
+        "raw-palette-class": "roadmap §5 — DeviceMockup is artwork, not interface. The bezel, side buttons and battery pips are moulded plastic, not a SafeHaul surface; mapping them onto --ds-color-surface-inverse-subtle would look identical today and would mean re-tuning the console surface silently restyles a picture of a phone. Declared once in the DEVICE constant at the top of the file. The screen itself takes --ds-color-surface.",
+        "sub-12px-type": "roadmap §5 — the phone status-bar time is a decorative illustration of a real device, not interface text.",
+        "tailwind-radius": "roadmap §5 — device artwork. The bezel and side-button radii describe a moulded plastic case, not a SafeHaul surface, and they are part of the same DEVICE palette exception as its colours."
       }
     },
     "src/features/campaigns/components/VirtualLeadList.jsx": {
       "hand-styled-button": 1,
       "reasons": {
-        "hand-styled-button": "roadmap \u00a75 \u2014 a selectable lead row on the inverse (console) surface, `aria-pressed` for its exclusion state. Same family as `CompanyChooserModal`'s selectable company row: it is correctly a `<button>` because it is a real activation, but forcing it into `Button` would make a virtualised list row look like an action bar. Uses only the on-inverse roles and the shared focus ring."
+        "hand-styled-button": "roadmap §5 — a selectable lead row on the inverse (console) surface, `aria-pressed` for its exclusion state. Same family as `CompanyChooserModal`'s selectable company row: it is correctly a `<button>` because it is a real activation, but forcing it into `Button` would make a virtualised list row look like an action bar. Uses only the on-inverse roles and the shared focus ring."
       }
     },
     "src/features/company-admin/components/InlineLeaderboard.jsx": {
       "hand-styled-field": 2,
       "reasons": {
-        "hand-styled-field": "roadmap \u00a75 \u2014 two borderless `<input type=\"date\">` controls inside the leaderboard's date-range chip. Same gap as `ManageTeamModal`'s inline numeric editors: `Input` is a 44px bordered full-width control and would destroy the chip, and overriding it back would be worse. Both carry an `aria-label` and the shared focus ring. See the inline-editable-value gap in \u00a75."
+        "hand-styled-field": "roadmap §5 — two borderless `<input type=\"date\">` controls inside the leaderboard's date-range chip. Same gap as `ManageTeamModal`'s inline numeric editors: `Input` is a 44px bordered full-width control and would destroy the chip, and overriding it back would be worse. Both carry an `aria-label` and the shared focus ring. See the inline-editable-value gap in §5."
       }
     },
     "src/features/company-admin/components/modals/VOEDocument.jsx": {
@@ -95,15 +95,17 @@
       "arbitrary-type-size": 1,
       "tailwind-radius": 12,
       "tailwind-shadow": 1,
+      "raw-z-index": 1,
       "reasons": {
-        "arbitrary-type-size": "roadmap \u00a75 \u2014 the generated 49 CFR \u00a7391.23 document is immutable legal content, not themeable app chrome. The reason recorded here until 2026-09-04 was that the export paths have no --ds-* properties so a token would resolve to nothing; that is FALSE on both paths and was corrected rather than left standing. html2canvas rasterises from COMPUTED style, which resolves var() before the rasteriser sees it; and handlePrint inlines the application's own stylesheets via collectPrintStyles (rebuilt 2026-07-27), which copies every readable sheet including tokens/foundation.css and semantic.css. The surviving ground is stronger: a --ds-* role is themeable BY DESIGN, and this artefact must render the same next year as today \u2014 a palette change must not reach a signed regulatory document that has already been exported. Its class list is the capture surface, so any edit changes every exported PDF and every printed page. Tokenising it needs a re-proof of export parity \u2014 a real captured PDF and a real printed page \u2014 not a passing unit test. VOEPreviewModal.export.test.jsx enforces the boundary in both directions.",
-        "off-scale-type": "roadmap \u00a75 \u2014 the generated 49 CFR \u00a7391.23 document is immutable legal content, not themeable app chrome. The reason recorded here until 2026-09-04 was that the export paths have no --ds-* properties so a token would resolve to nothing; that is FALSE on both paths and was corrected rather than left standing. html2canvas rasterises from COMPUTED style, which resolves var() before the rasteriser sees it; and handlePrint inlines the application's own stylesheets via collectPrintStyles (rebuilt 2026-07-27), which copies every readable sheet including tokens/foundation.css and semantic.css. The surviving ground is stronger: a --ds-* role is themeable BY DESIGN, and this artefact must render the same next year as today \u2014 a palette change must not reach a signed regulatory document that has already been exported. Its class list is the capture surface, so any edit changes every exported PDF and every printed page. Tokenising it needs a re-proof of export parity \u2014 a real captured PDF and a real printed page \u2014 not a passing unit test. VOEPreviewModal.export.test.jsx enforces the boundary in both directions.",
-        "raw-palette-class": "roadmap \u00a75 \u2014 the generated 49 CFR \u00a7391.23 document is immutable legal content, not themeable app chrome. The reason recorded here until 2026-09-04 was that the export paths have no --ds-* properties so a token would resolve to nothing; that is FALSE on both paths and was corrected rather than left standing. html2canvas rasterises from COMPUTED style, which resolves var() before the rasteriser sees it; and handlePrint inlines the application's own stylesheets via collectPrintStyles (rebuilt 2026-07-27), which copies every readable sheet including tokens/foundation.css and semantic.css. The surviving ground is stronger: a --ds-* role is themeable BY DESIGN, and this artefact must render the same next year as today \u2014 a palette change must not reach a signed regulatory document that has already been exported. Its class list is the capture surface, so any edit changes every exported PDF and every printed page. Tokenising it needs a re-proof of export parity \u2014 a real captured PDF and a real printed page \u2014 not a passing unit test. VOEPreviewModal.export.test.jsx enforces the boundary in both directions.",
-        "sub-12px-type": "roadmap \u00a75 \u2014 the generated 49 CFR \u00a7391.23 document is immutable legal content, not themeable app chrome. The reason recorded here until 2026-09-04 was that the export paths have no --ds-* properties so a token would resolve to nothing; that is FALSE on both paths and was corrected rather than left standing. html2canvas rasterises from COMPUTED style, which resolves var() before the rasteriser sees it; and handlePrint inlines the application's own stylesheets via collectPrintStyles (rebuilt 2026-07-27), which copies every readable sheet including tokens/foundation.css and semantic.css. The surviving ground is stronger: a --ds-* role is themeable BY DESIGN, and this artefact must render the same next year as today \u2014 a palette change must not reach a signed regulatory document that has already been exported. Its class list is the capture surface, so any edit changes every exported PDF and every printed page. Tokenising it needs a re-proof of export parity \u2014 a real captured PDF and a real printed page \u2014 not a passing unit test. VOEPreviewModal.export.test.jsx enforces the boundary in both directions.",
-        "tailwind-radius": "roadmap \u00a75 \u2014 the generated 49 CFR \u00a7391.23 document is immutable legal content, not themeable app chrome. The reason recorded here until 2026-09-04 was that the export paths have no --ds-* properties so a token would resolve to nothing; that is FALSE on both paths and was corrected rather than left standing. html2canvas rasterises from COMPUTED style, which resolves var() before the rasteriser sees it; and handlePrint inlines the application's own stylesheets via collectPrintStyles (rebuilt 2026-07-27), which copies every readable sheet including tokens/foundation.css and semantic.css. The surviving ground is stronger: a --ds-* role is themeable BY DESIGN, and this artefact must render the same next year as today \u2014 a palette change must not reach a signed regulatory document that has already been exported. Its class list is the capture surface, so any edit changes every exported PDF and every printed page. Tokenising it needs a re-proof of export parity \u2014 a real captured PDF and a real printed page \u2014 not a passing unit test. VOEPreviewModal.export.test.jsx enforces the boundary in both directions.",
-        "tailwind-shadow": "roadmap \u00a75 \u2014 the generated 49 CFR \u00a7391.23 document is immutable legal content, not themeable app chrome. The reason recorded here until 2026-09-04 was that the export paths have no --ds-* properties so a token would resolve to nothing; that is FALSE on both paths and was corrected rather than left standing. html2canvas rasterises from COMPUTED style, which resolves var() before the rasteriser sees it; and handlePrint inlines the application's own stylesheets via collectPrintStyles (rebuilt 2026-07-27), which copies every readable sheet including tokens/foundation.css and semantic.css. The surviving ground is stronger: a --ds-* role is themeable BY DESIGN, and this artefact must render the same next year as today \u2014 a palette change must not reach a signed regulatory document that has already been exported. Its class list is the capture surface, so any edit changes every exported PDF and every printed page. Tokenising it needs a re-proof of export parity \u2014 a real captured PDF and a real printed page \u2014 not a passing unit test. VOEPreviewModal.export.test.jsx enforces the boundary in both directions.",
-        "bare-tailwind-radius": "roadmap \u00a75 \u2014 the generated 49 CFR \u00a7391.23 document, whose class list is the capture surface for a rasteriser. It is immutable legal content and must render the same next year as today, so it does not follow a theme. Same ground as this file's other entries; see the raw-palette-class reason.",
-        "raw-black-white-class": "roadmap \u00a75 \u2014 the generated 49 CFR \u00a7391.23 document, whose class list is the capture surface for a rasteriser. It is immutable legal content and must render the same next year as today, so it does not follow a theme. Same ground as this file's other entries; see the raw-palette-class reason."
+        "arbitrary-type-size": "roadmap §5 — the generated 49 CFR §391.23 document is immutable legal content, not themeable app chrome. The reason recorded here until 2026-09-04 was that the export paths have no --ds-* properties so a token would resolve to nothing; that is FALSE on both paths and was corrected rather than left standing. html2canvas rasterises from COMPUTED style, which resolves var() before the rasteriser sees it; and handlePrint inlines the application's own stylesheets via collectPrintStyles (rebuilt 2026-07-27), which copies every readable sheet including tokens/foundation.css and semantic.css. The surviving ground is stronger: a --ds-* role is themeable BY DESIGN, and this artefact must render the same next year as today — a palette change must not reach a signed regulatory document that has already been exported. Its class list is the capture surface, so any edit changes every exported PDF and every printed page. Tokenising it needs a re-proof of export parity — a real captured PDF and a real printed page — not a passing unit test. VOEPreviewModal.export.test.jsx enforces the boundary in both directions.",
+        "off-scale-type": "roadmap §5 — the generated 49 CFR §391.23 document is immutable legal content, not themeable app chrome. The reason recorded here until 2026-09-04 was that the export paths have no --ds-* properties so a token would resolve to nothing; that is FALSE on both paths and was corrected rather than left standing. html2canvas rasterises from COMPUTED style, which resolves var() before the rasteriser sees it; and handlePrint inlines the application's own stylesheets via collectPrintStyles (rebuilt 2026-07-27), which copies every readable sheet including tokens/foundation.css and semantic.css. The surviving ground is stronger: a --ds-* role is themeable BY DESIGN, and this artefact must render the same next year as today — a palette change must not reach a signed regulatory document that has already been exported. Its class list is the capture surface, so any edit changes every exported PDF and every printed page. Tokenising it needs a re-proof of export parity — a real captured PDF and a real printed page — not a passing unit test. VOEPreviewModal.export.test.jsx enforces the boundary in both directions.",
+        "raw-palette-class": "roadmap §5 — the generated 49 CFR §391.23 document is immutable legal content, not themeable app chrome. The reason recorded here until 2026-09-04 was that the export paths have no --ds-* properties so a token would resolve to nothing; that is FALSE on both paths and was corrected rather than left standing. html2canvas rasterises from COMPUTED style, which resolves var() before the rasteriser sees it; and handlePrint inlines the application's own stylesheets via collectPrintStyles (rebuilt 2026-07-27), which copies every readable sheet including tokens/foundation.css and semantic.css. The surviving ground is stronger: a --ds-* role is themeable BY DESIGN, and this artefact must render the same next year as today — a palette change must not reach a signed regulatory document that has already been exported. Its class list is the capture surface, so any edit changes every exported PDF and every printed page. Tokenising it needs a re-proof of export parity — a real captured PDF and a real printed page — not a passing unit test. VOEPreviewModal.export.test.jsx enforces the boundary in both directions.",
+        "sub-12px-type": "roadmap §5 — the generated 49 CFR §391.23 document is immutable legal content, not themeable app chrome. The reason recorded here until 2026-09-04 was that the export paths have no --ds-* properties so a token would resolve to nothing; that is FALSE on both paths and was corrected rather than left standing. html2canvas rasterises from COMPUTED style, which resolves var() before the rasteriser sees it; and handlePrint inlines the application's own stylesheets via collectPrintStyles (rebuilt 2026-07-27), which copies every readable sheet including tokens/foundation.css and semantic.css. The surviving ground is stronger: a --ds-* role is themeable BY DESIGN, and this artefact must render the same next year as today — a palette change must not reach a signed regulatory document that has already been exported. Its class list is the capture surface, so any edit changes every exported PDF and every printed page. Tokenising it needs a re-proof of export parity — a real captured PDF and a real printed page — not a passing unit test. VOEPreviewModal.export.test.jsx enforces the boundary in both directions.",
+        "tailwind-radius": "roadmap §5 — the generated 49 CFR §391.23 document is immutable legal content, not themeable app chrome. The reason recorded here until 2026-09-04 was that the export paths have no --ds-* properties so a token would resolve to nothing; that is FALSE on both paths and was corrected rather than left standing. html2canvas rasterises from COMPUTED style, which resolves var() before the rasteriser sees it; and handlePrint inlines the application's own stylesheets via collectPrintStyles (rebuilt 2026-07-27), which copies every readable sheet including tokens/foundation.css and semantic.css. The surviving ground is stronger: a --ds-* role is themeable BY DESIGN, and this artefact must render the same next year as today — a palette change must not reach a signed regulatory document that has already been exported. Its class list is the capture surface, so any edit changes every exported PDF and every printed page. Tokenising it needs a re-proof of export parity — a real captured PDF and a real printed page — not a passing unit test. VOEPreviewModal.export.test.jsx enforces the boundary in both directions.",
+        "tailwind-shadow": "roadmap §5 — the generated 49 CFR §391.23 document is immutable legal content, not themeable app chrome. The reason recorded here until 2026-09-04 was that the export paths have no --ds-* properties so a token would resolve to nothing; that is FALSE on both paths and was corrected rather than left standing. html2canvas rasterises from COMPUTED style, which resolves var() before the rasteriser sees it; and handlePrint inlines the application's own stylesheets via collectPrintStyles (rebuilt 2026-07-27), which copies every readable sheet including tokens/foundation.css and semantic.css. The surviving ground is stronger: a --ds-* role is themeable BY DESIGN, and this artefact must render the same next year as today — a palette change must not reach a signed regulatory document that has already been exported. Its class list is the capture surface, so any edit changes every exported PDF and every printed page. Tokenising it needs a re-proof of export parity — a real captured PDF and a real printed page — not a passing unit test. VOEPreviewModal.export.test.jsx enforces the boundary in both directions.",
+        "bare-tailwind-radius": "roadmap §5 — the generated 49 CFR §391.23 document, whose class list is the capture surface for a rasteriser. It is immutable legal content and must render the same next year as today, so it does not follow a theme. Same ground as this file's other entries; see the raw-palette-class reason.",
+        "raw-black-white-class": "roadmap §5 — the generated 49 CFR §391.23 document, whose class list is the capture surface for a rasteriser. It is immutable legal content and must render the same next year as today, so it does not follow a theme. Same ground as this file's other entries; see the raw-palette-class reason.",
+        "raw-z-index": "roadmap §5 — the same frozen-document ground as this file's other entries. The one value is `-z-10` on the §391.23 watermark, which has to sit BEHIND the document text; the local layer scale starts at 1 and has no negative rung, and adding one for a single watermark would be inventing vocabulary for one call site. The class list is also the capture surface for the exported PDF, so any change to it re-opens export parity."
       },
       "bare-tailwind-radius": 1,
       "raw-black-white-class": 2
@@ -111,105 +113,105 @@
     "src/features/company-admin/components/modals/VOEPreviewModal.jsx": {
       "tailwind-radius": 2,
       "reasons": {
-        "tailwind-radius": "the two 8px recipient/applicant status dots in the sub-header \u2014 pre-existing chrome, kept byte-identical when the generated \u00a7391.23 document moved to VOEDocument.jsx (source-size split); converting them to rounded-ds-full is the roadmap's call, not a refactor's."
+        "tailwind-radius": "the two 8px recipient/applicant status dots in the sub-header — pre-existing chrome, kept byte-identical when the generated §391.23 document moved to VOEDocument.jsx (source-size split); converting them to rounded-ds-full is the roadmap's call, not a refactor's."
       }
     },
     "src/features/company-admin/components/modals/pev/FmcsaCarrierPicker.jsx": {
       "hand-styled-button": 1,
       "reasons": {
-        "hand-styled-button": "roadmap \u00a75 \u2014 an FMCSA suggestion row is a three-line record summary (legal name, USDOT and location, then what FMCSA did or did not list), not a label. `SegmentedControl` takes a string `label`, so it cannot express this even though the semantics match; \u00a75's claim that the primitive covers these rows was wrong and is corrected. This is the SelectableCard/Listbox gap. Tokenised, `aria-pressed`, shared focus ring."
+        "hand-styled-button": "roadmap §5 — an FMCSA suggestion row is a three-line record summary (legal name, USDOT and location, then what FMCSA did or did not list), not a label. `SegmentedControl` takes a string `label`, so it cannot express this even though the semantics match; §5's claim that the primitive covers these rows was wrong and is corrected. This is the SelectableCard/Listbox gap. Tokenised, `aria-pressed`, shared focus ring."
       }
     },
     "src/features/company-admin/components/tabs/PEVTab.jsx": {
       "raw-file-input": 1,
       "reasons": {
-        "raw-file-input": "roadmap \u00a75 \u2014 a PROGRAMMATIC picker: one hidden input opened by whichever per-employer \"Upload Result\" row action was activated. `FileInput` is a visible control by contract (a real input behind a real label), and there is no visible picker here to be \u2014 the affordance is a table row action. It carries an accessible name and the `hidden` attribute as well as the class, so it leaves the accessibility tree without depending on CSS."
+        "raw-file-input": "roadmap §5 — a PROGRAMMATIC picker: one hidden input opened by whichever per-employer \"Upload Result\" row action was activated. `FileInput` is a visible control by contract (a real input behind a real label), and there is no visible picker here to be — the affordance is a table row action. It carries an accessible name and the `hidden` attribute as well as the class, so it leaves the accessibility tree without depending on CSS."
       }
     },
     "src/features/company-admin/views/CompanyCandidatesListPage.jsx": {
       "hand-styled-button": 1,
       "reasons": {
-        "hand-styled-button": "roadmap \u00a75 \u2014 the pipeline segment strip, whose 12px full-radius pills would become 44px cards under `SegmentedControl`, doubling the height of a filter strip that sits above a dense table. Tokenised and carries the shared focus ring. Its three sibling affordances moved to candidateListColumns.jsx with the columns (source-size split)."
+        "hand-styled-button": "roadmap §5 — the pipeline segment strip, whose 12px full-radius pills would become 44px cards under `SegmentedControl`, doubling the height of a filter strip that sits above a dense table. Tokenised and carries the shared focus ring. Its three sibling affordances moved to candidateListColumns.jsx with the columns (source-size split)."
       }
     },
     "src/features/company-admin/views/candidateListColumns.jsx": {
       "hand-styled-button": 3,
       "reasons": {
-        "hand-styled-button": "roadmap \u00a75 \u2014 three dense-table affordances, moved here verbatim from CompanyCandidatesListPage.jsx (source-size split): two 24px sort toggles in a column header and a 32px phone chip in a cell, both below the 36px `sm` step, which is the compact-icon-button gap the catalog's Introduction records; forcing the approved height would grow the header and the row. All are tokenised, named per record where they act on one, and carry the shared focus ring."
+        "hand-styled-button": "roadmap §5 — three dense-table affordances, moved here verbatim from CompanyCandidatesListPage.jsx (source-size split): two 24px sort toggles in a column header and a 32px phone chip in a cell, both below the 36px `sm` step, which is the compact-icon-button gap the catalog's Introduction records; forcing the approved height would grow the header and the row. All are tokenised, named per record where they act on one, and carry the shared focus ring."
       }
     },
     "src/features/driver-app/components/application/IntakeChooser.jsx": {
       "raw-file-input": 1,
       "reasons": {
-        "raw-file-input": "roadmap \u00a75 \u2014 a PROGRAMMATIC picker. The visible affordance is one of two mutually exclusive intake choice cards (\"Scan my CDL\" beside \"Fill Out Manually\"), so it has to look like its sibling card rather than like a picker; `FileInput` is a visible control by contract. The input is `aria-hidden` and out of the tab order because the card is the control, and the card is a keyboard-reachable approved `Button`."
+        "raw-file-input": "roadmap §5 — a PROGRAMMATIC picker. The visible affordance is one of two mutually exclusive intake choice cards (\"Scan my CDL\" beside \"Fill Out Manually\"), so it has to look like its sibling card rather than like a picker; `FileInput` is a visible control by contract. The input is `aria-hidden` and out of the tab order because the card is the control, and the card is a keyboard-reachable approved `Button`."
       }
     },
     "src/features/driver-app/components/application/steps/components/EmployerNameAutocomplete.jsx": {
       "hand-styled-button": 1,
       "reasons": {
-        "hand-styled-button": "roadmap \u00a75 \u2014 an ARIA combobox option must carry role=\"option\" inside the listbox, and `Button` renders role=\"button\", which would break the combobox contract. No Combobox/Listbox primitive exists yet."
+        "hand-styled-button": "roadmap §5 — an ARIA combobox option must carry role=\"option\" inside the listbox, and `Button` renders role=\"button\", which would break the combobox contract. No Combobox/Listbox primitive exists yet."
       }
     },
     "src/features/settings/components/EmailSettingsTab.jsx": {
       "hand-styled-button": 1,
       "reasons": {
-        "hand-styled-button": "roadmap \u00a75 \u2014 the SMTP setup-guide header. `Disclosure` has exactly one appearance, a rail-section header (12px, bold, uppercase, letter-spaced), because that is the shape its consumer needed; this is a card section heading at `heading-sm` with a description line under it, and `Disclosure` has no API for either. Giving the primitive a second visual variant for one consumer is speculative \u2014 recorded as the card-section-disclosure gap. The trigger itself is correct ARIA: `aria-expanded` and `aria-controls` on a button inside a heading, tokenised, shared focus ring."
+        "hand-styled-button": "roadmap §5 — the SMTP setup-guide header. `Disclosure` has exactly one appearance, a rail-section header (12px, bold, uppercase, letter-spaced), because that is the shape its consumer needed; this is a card section heading at `heading-sm` with a description line under it, and `Disclosure` has no API for either. Giving the primitive a second visual variant for one consumer is speculative — recorded as the card-section-disclosure gap. The trigger itself is correct ARIA: `aria-expanded` and `aria-controls` on a button inside a heading, tokenised, shared focus ring."
       }
     },
     "src/features/settings/components/IntegrationsTab.jsx": {
       "raw-hex-colour": 2,
       "reasons": {
-        "raw-hex-colour": "roadmap \u00a75 \u2014 #1877F2 is Facebook's brand blue on the Facebook connection tile. A third-party mark is not a SafeHaul role and must not be re-tuned by a change to this product's palette, so it stays literal, the same way the SafeHaul mark's own colours are pinned rather than derived."
+        "raw-hex-colour": "roadmap §5 — #1877F2 is Facebook's brand blue on the Facebook connection tile. A third-party mark is not a SafeHaul role and must not be re-tuned by a change to this product's palette, so it stays literal, the same way the SafeHaul mark's own colours are pinned rather than derived."
       }
     },
     "src/features/settings/components/number-assignment/AssignmentTable.jsx": {
       "raw-table": 1,
       "reasons": {
-        "raw-table": "roadmap \u00a75 \u2014 approved native-table pattern for an editable matrix or per-row interactive rows. DataTable is a display-table contract. The table must still use the --ds-table-* roles."
+        "raw-table": "roadmap §5 — approved native-table pattern for an editable matrix or per-row interactive rows. DataTable is a display-table contract. The table must still use the --ds-table-* roles."
       }
     },
     "src/features/signing/EnvelopeCreator.editor.support.jsx": {
       "raw-file-input": 1,
       "reasons": {
-        "raw-file-input": "a prop-recording sidebar double inside the vitest harness for the editor-shell suites \u2014 it stands in for the real sidebar's upload control so the suites can drive the same handleFileChange the shell hands down. It renders only under vitest, never in the product. Moved verbatim from EnvelopeCreator.editor.test.jsx (source-size split), which the scanner excluded as a test file; the support module is scanned, so the double is recorded here instead."
+        "raw-file-input": "a prop-recording sidebar double inside the vitest harness for the editor-shell suites — it stands in for the real sidebar's upload control so the suites can drive the same handleFileChange the shell hands down. It renders only under vitest, never in the product. Moved verbatim from EnvelopeCreator.editor.test.jsx (source-size split), which the scanner excluded as a test file; the support module is scanned, so the double is recorded here instead."
       }
     },
     "src/features/signing/components/SignatureSheet.jsx": {
       "raw-hex-colour": 1,
       "reasons": {
-        "raw-hex-colour": "roadmap \u00a75 \u2014 signature ink, rasterised into a legal record. The canvas this colour strokes is converted to a PNG (adopted by the signing room and stamped into a sealed PDF) and stored as part of a signed document, so it must not follow a theme: re-theming the application can never be allowed to retint a signature somebody has already given. Same argument as SignatureSheet.jsx, which has documented it in its own source since it was written. Found on 2026-09-05 when raw-hex-colour was widened to JS assignments \u2014 it had been invisible because the rule matched only arbitrary-value classes and CSS-style declarations."
+        "raw-hex-colour": "roadmap §5 — signature ink, rasterised into a legal record. The canvas this colour strokes is converted to a PNG (adopted by the signing room and stamped into a sealed PDF) and stored as part of a signed document, so it must not follow a theme: re-theming the application can never be allowed to retint a signature somebody has already given. Same argument as SignatureSheet.jsx, which has documented it in its own source since it was written. Found on 2026-09-05 when raw-hex-colour was widened to JS assignments — it had been invisible because the rule matched only arbitrary-value classes and CSS-style declarations."
       }
     },
     "src/features/signing/components/envelope-creator/AiSuggestionOverlay.jsx": {
       "hand-styled-button": 2,
       "reasons": {
-        "hand-styled-button": "roadmap \u00a75 \u2014 two ~14px accept/reject badges pinned to the corners of a suggestion box whose minimum size is 8px; `IconButton`'s min-height would overflow it. Both keep an accessible name, a focus-visible ring and --ds-* tones. Retiring them needs a compact icon-button size in the design system."
+        "hand-styled-button": "roadmap §5 — two ~14px accept/reject badges pinned to the corners of a suggestion box whose minimum size is 8px; `IconButton`'s min-height would overflow it. Both keep an accessible name, a focus-visible ring and --ds-* tones. Retiring them needs a compact icon-button size in the design system."
       }
     },
     "src/features/signing/components/envelope-creator/EditorMobileBar.jsx": {
       "hand-styled-button": 1,
       "reasons": {
-        "hand-styled-button": "roadmap \u00a75 \u2014 a mobile bottom app bar. Its items are equal-width stacked icon-over-label targets at 56px, which is the platform convention for a bottom bar and deliberately taller than the 44px control step; `Button` is an inline 44px control and cannot be either. No primitive covers a bottom app bar and one consumer does not justify writing one. Tokenised, each item named \"Open <section>\" so it does not collide with the heading inside the sheet it opens."
+        "hand-styled-button": "roadmap §5 — a mobile bottom app bar. Its items are equal-width stacked icon-over-label targets at 56px, which is the platform convention for a bottom bar and deliberately taller than the 44px control step; `Button` is an inline 44px control and cannot be either. No primitive covers a bottom app bar and one consumer does not justify writing one. Tokenised, each item named \"Open <section>\" so it does not collide with the heading inside the sheet it opens."
       }
     },
     "src/features/signing/components/envelope-creator/EnvelopeSidebar.jsx": {
       "hand-styled-button": 1,
       "reasons": {
-        "hand-styled-button": "roadmap \u00a75 \u2014 the field-palette tiles are colour-coded per field type, which is domain-to-visual mapping the feature owns and `Button` has no API for. Same exception family as the PEV FMCSA suggestion rows and the call-outcome grid: no approved SelectableCard/Listbox primitive yet."
+        "hand-styled-button": "roadmap §5 — the field-palette tiles are colour-coded per field type, which is domain-to-visual mapping the feature owns and `Button` has no API for. Same exception family as the PEV FMCSA suggestion rows and the call-outcome grid: no approved SelectableCard/Listbox primitive yet."
       }
     },
     "src/features/signing/components/envelope-creator/PageThumbnailRail.jsx": {
       "hand-styled-button": 1,
       "reasons": {
-        "hand-styled-button": "roadmap \u00a75 \u2014 a page thumbnail is a rendered PDF page image with a page number and field count, sized to the rail rather than to the control scale, and carries `aria-current=\"page\"`. `Button` would put its own padding and background around a picture of a page. Same SelectableCard family as the FMCSA rows. Tokenised, uniquely named per page, shared focus ring."
+        "hand-styled-button": "roadmap §5 — a page thumbnail is a rendered PDF page image with a page number and field count, sized to the rail rather than to the control scale, and carries `aria-current=\"page\"`. `Button` would put its own padding and background around a picture of a page. Same SelectableCard family as the FMCSA rows. Tokenised, uniquely named per page, shared focus ring."
       }
     },
     "src/features/signing/components/envelope-creator/ResizableDraggableField.jsx": {
       "hand-styled-button": 1,
       "hand-styled-field": 1,
       "reasons": {
-        "hand-styled-field": "roadmap \u00a75 \u2014 the inline field-label editor sits inside the draggable field rectangle, whose minimum size is 8px. The approved `Input`'s control height would overflow the box it is labelling. Same exception family as this file's corner remove badge.",
-        "hand-styled-button": "roadmap \u00a75 \u2014 the corner remove badge on a placed field box whose minimum size is 8px, because the geometry comes from the PDF's own coordinates. `IconButton`'s min-height would overflow the box it belongs to. Same constraint as this file's inline label editor. Keeps an accessible name, a focus-visible ring and `--ds-*` tones."
+        "hand-styled-field": "roadmap §5 — the inline field-label editor sits inside the draggable field rectangle, whose minimum size is 8px. The approved `Input`'s control height would overflow the box it is labelling. Same exception family as this file's corner remove badge.",
+        "hand-styled-button": "roadmap §5 — the corner remove badge on a placed field box whose minimum size is 8px, because the geometry comes from the PDF's own coordinates. `IconButton`'s min-height would overflow the box it belongs to. Same constraint as this file's inline label editor. Keeps an accessible name, a focus-visible ring and `--ds-*` tones."
       }
     },
     "src/features/signing/components/signing-room/SignerField.jsx": {
@@ -217,69 +219,69 @@
       "hand-styled-button": 1,
       "hand-styled-field": 3,
       "reasons": {
-        "hand-styled-field": "roadmap \u00a75 \u2014 these inputs overlay author-placed PDF field boxes, whose geometry comes from the document's own coordinates and can be as small as 8px. The approved controls carry the shared 36/44/52px control height and inline padding, which would break alignment with the PDF. Same constraint already recorded for the signature button in this file.",
-        "off-scale-type": "roadmap \u00a75 \u2014 `text-base` is the 16px iOS no-zoom size. The design system solved this for `.ds-form-control` on 2026-08-25 (`--ds-font-size-control-mobile`), but these inputs are deliberately NOT `.ds-form-control`: they overlay author-placed PDF field boxes and cannot take the shared control styling, per the geometry exception above. The fix does not reach them, so they keep their own 16px.",
-        "hand-styled-button": "roadmap \u00a75 \u2014 the signature affordance overlays an author-placed PDF field box, whose size comes from the document's coordinates and can be as small as 8px. Every approved control carries the shared 36/44/52px control height and inline padding, which would break alignment with the PDF underneath. Same constraint already recorded for this file's inputs."
+        "hand-styled-field": "roadmap §5 — these inputs overlay author-placed PDF field boxes, whose geometry comes from the document's own coordinates and can be as small as 8px. The approved controls carry the shared 36/44/52px control height and inline padding, which would break alignment with the PDF. Same constraint already recorded for the signature button in this file.",
+        "off-scale-type": "roadmap §5 — `text-base` is the 16px iOS no-zoom size. The design system solved this for `.ds-form-control` on 2026-08-25 (`--ds-font-size-control-mobile`), but these inputs are deliberately NOT `.ds-form-control`: they overlay author-placed PDF field boxes and cannot take the shared control styling, per the geometry exception above. The fix does not reach them, so they keep their own 16px.",
+        "hand-styled-button": "roadmap §5 — the signature affordance overlays an author-placed PDF field box, whose size comes from the document's coordinates and can be as small as 8px. Every approved control carries the shared 36/44/52px control height and inline padding, which would break alignment with the PDF underneath. Same constraint already recorded for this file's inputs."
       }
     },
     "src/features/super-admin/components/CompaniesView.jsx": {
       "raw-table": 1,
       "reasons": {
-        "raw-table": "roadmap \u00a75 \u2014 approved native-table pattern for an editable matrix or per-row interactive rows. DataTable is a display-table contract. The table must still use the --ds-table-* roles."
+        "raw-table": "roadmap §5 — approved native-table pattern for an editable matrix or per-row interactive rows. DataTable is a display-table contract. The table must still use the --ds-table-* roles."
       }
     },
     "src/features/super-admin/components/FeaturesView.jsx": {
       "raw-table": 2,
       "reasons": {
-        "raw-table": "roadmap \u00a75 \u2014 approved native-table pattern for an editable matrix or per-row interactive rows. DataTable is a display-table contract. The table must still use the --ds-table-* roles."
+        "raw-table": "roadmap §5 — approved native-table pattern for an editable matrix or per-row interactive rows. DataTable is a display-table contract. The table must still use the --ds-table-* roles."
       }
     },
     "src/features/super-admin/components/StatsBackfillPanel.jsx": {
       "raw-table": 1,
       "reasons": {
-        "raw-table": "roadmap \u00a75 \u2014 an operator console with six per-row actions and live progress. Uses the --ds-table-* roles. Per-row interactive rows are the case \u00a75 approves a native table for."
+        "raw-table": "roadmap §5 — an operator console with six per-row actions and live progress. Uses the --ds-table-* roles. Per-row interactive rows are the case §5 approves a native table for."
       }
     },
     "src/features/super-admin/components/UsersView.jsx": {
       "raw-table": 1,
       "reasons": {
-        "raw-table": "roadmap \u00a75 \u2014 a native table inside a virtualised scroll region. Uses the --ds-table-* roles. DataTable owns its own scroll container, so adopting it here would mean nesting two, which is the defect that produces a dead scrollbar gutter."
+        "raw-table": "roadmap §5 — a native table inside a virtualised scroll region. Uses the --ds-table-* roles. DataTable owns its own scroll container, so adopting it here would mean nesting two, which is the defect that produces a dead scrollbar gutter."
       }
     },
     "src/features/super-admin/components/integrations/LineManager.jsx": {
       "raw-table": 1,
       "reasons": {
-        "raw-table": "roadmap \u00a75 \u2014 approved native-table pattern for an editable matrix or per-row interactive rows. DataTable is a display-table contract. The table must still use the --ds-table-* roles."
+        "raw-table": "roadmap §5 — approved native-table pattern for an editable matrix or per-row interactive rows. DataTable is a display-table contract. The table must still use the --ds-table-* roles."
       }
     },
     "src/features/super-admin/components/modals/ViewCompanyAppsModal.jsx": {
       "raw-table": 1,
       "reasons": {
-        "raw-table": "roadmap \u00a75 \u2014 a native table with a per-row filter control and a per-row action, inside a dialog. Uses the --ds-table-* roles. Converting it to DataTable would need the editable-matrix decision that \u00a76 still records as open."
+        "raw-table": "roadmap §5 — a native table with a per-row filter control and a per-row action, inside a dialog. Uses the --ds-table-* roles. Converting it to DataTable would need the editable-matrix decision that §6 still records as open."
       }
     },
     "src/features/super-admin/views/AnalyticsView.jsx": {
       "raw-table": 3,
       "reasons": {
-        "raw-table": "roadmap \u00a75 \u2014 three <table> elements: two visible native tables with per-row actions, which apply ds-native-table and so read the --ds-table-* header, divider and density roles, plus one sr-only table that is the text equivalent of the chart above it. DataTable is a display-table contract and does not cover per-row actions in two linked tables sharing one scroll region. All three carry ds-native-table, the hidden one included: the guard has no hidden-table exemption, because deciding whether a class list is hidden at every breakpoint is not decidable (sr-only xl:not-sr-only is hidden on a phone and visible on a desktop, and that pattern is already in this repo). Measured first \u2014 sr-only keeps position:absolute and clip:rect(0,0,0,0), so the contract changes the box and nothing visible."
+        "raw-table": "roadmap §5 — three <table> elements: two visible native tables with per-row actions, which apply ds-native-table and so read the --ds-table-* header, divider and density roles, plus one sr-only table that is the text equivalent of the chart above it. DataTable is a display-table contract and does not cover per-row actions in two linked tables sharing one scroll region. All three carry ds-native-table, the hidden one included: the guard has no hidden-table exemption, because deciding whether a class list is hidden at every breakpoint is not decidable (sr-only xl:not-sr-only is hidden on a phone and visible on a desktop, and that pattern is already in this repo). Measured first — sr-only keeps position:absolute and clip:rect(0,0,0,0), so the contract changes the box and nothing visible."
       }
     },
     "src/lib/signature.js": {
       "raw-hex-colour": 2,
       "reasons": {
-        "raw-hex-colour": "roadmap \u00a75 \u2014 signature ink, rasterised into a legal record. The canvas this colour strokes is converted to a PNG (read back by getSignatureDataUrl() and submitted with the driver's application from Step9_Consent) and stored as part of a signed document, so it must not follow a theme: re-theming the application can never be allowed to retint a signature somebody has already given. Same argument as SignatureSheet.jsx, which has documented it in its own source since it was written. Found on 2026-09-05 when raw-hex-colour was widened to JS assignments \u2014 it had been invisible because the rule matched only arbitrary-value classes and CSS-style declarations. Two sites: the initial stroke style and the one clearCanvas restores, which must agree or a cleared pad would sign in a different colour."
+        "raw-hex-colour": "roadmap §5 — signature ink, rasterised into a legal record. The canvas this colour strokes is converted to a PNG (read back by getSignatureDataUrl() and submitted with the driver's application from Step9_Consent) and stored as part of a signed document, so it must not follow a theme: re-theming the application can never be allowed to retint a signature somebody has already given. Same argument as SignatureSheet.jsx, which has documented it in its own source since it was written. Found on 2026-09-05 when raw-hex-colour was widened to JS assignments — it had been invisible because the rule matched only arbitrary-value classes and CSS-style declarations. Two sites: the initial stroke style and the one clearCanvas restores, which must agree or a cleared pad would sign in a different colour."
       }
     },
     "src/shared/components/layout/Stepper.jsx": {
       "hand-styled-button": 1,
       "reasons": {
-        "hand-styled-button": "roadmap \u00a75 \u2014 the sandbox-only Magic Fill control. It is a warning-toned action, and `Button` exposes primary/secondary/ghost/danger/link with no semantic status tone; the tone is load-bearing because the control fills a real application form with fabricated data and must not look like an ordinary step action. Already recorded in `design-system/README.md` as the sandbox Magic Fill exception. Tokenised, 44px activation height, shared focus ring."
+        "hand-styled-button": "roadmap §5 — the sandbox-only Magic Fill control. It is a warning-toned action, and `Button` exposes primary/secondary/ghost/danger/link with no semantic status tone; the tone is load-bearing because the control fills a real application form with fabricated data and must not look like an ordinary step action. Already recorded in `design-system/README.md` as the sandbox Magic Fill exception. Tokenised, 44px activation height, shared focus ring."
       }
     },
     "src/shared/components/modals/CallOutcomeModalUI.jsx": {
       "hand-styled-anchor": 1,
       "reasons": {
-        "hand-styled-anchor": "A status-tinted phone chip that is also a tel: link. Fully tokenised with a screen-reader prefix (\"Call now:\"). Neither Link (underlined text) nor ButtonLink (button-shaped) is a tinted inline chip. See the tinted-chip-link gap in \u00a75."
+        "hand-styled-anchor": "A status-tinted phone chip that is also a tel: link. Fully tokenised with a screen-reader prefix (\"Call now:\"). Neither Link (underlined text) nor ButtonLink (button-shaped) is a tinted inline chip. See the tinted-chip-link gap in §5."
       }
     },
     "src/shared/components/modals/CompanyChooserModal.jsx": {
@@ -291,25 +293,25 @@
     "src/shared/components/modals/ManageTeamModal.jsx": {
       "hand-styled-field": 2,
       "reasons": {
-        "hand-styled-field": "Two inline numeric goal editors inside a labelled chip. Both are already tokenised, carry an aria-label and aria-invalid, and use the shared focus ring. `Input` is a 44px bordered full-width control and would destroy the compact inline chip; overriding it back would be worse than this. See the inline-editable-value gap in \u00a75."
+        "hand-styled-field": "Two inline numeric goal editors inside a labelled chip. Both are already tokenised, carry an aria-label and aria-invalid, and use the shared focus ring. `Input` is a 44px bordered full-width control and would destroy the compact inline chip; overriding it back would be worse than this. See the inline-editable-value gap in §5."
       }
     },
     "src/shared/components/signature/SignaturePad.jsx": {
       "raw-hex-colour": 1,
       "reasons": {
-        "raw-hex-colour": "roadmap \u00a75 \u2014 signature ink, rasterised into a legal record. The canvas this colour strokes is converted to a PNG (handed to the parent as a data URL by onSignatureChange) and stored as part of a signed document, so it must not follow a theme: re-theming the application can never be allowed to retint a signature somebody has already given. Same argument as SignatureSheet.jsx, which has documented it in its own source since it was written. Found on 2026-09-05 when raw-hex-colour was widened to JS assignments \u2014 it had been invisible because the rule matched only arbitrary-value classes and CSS-style declarations."
+        "raw-hex-colour": "roadmap §5 — signature ink, rasterised into a legal record. The canvas this colour strokes is converted to a PNG (handed to the parent as a data URL by onSignatureChange) and stored as part of a signed document, so it must not follow a theme: re-theming the application can never be allowed to retint a signature somebody has already given. Same argument as SignatureSheet.jsx, which has documented it in its own source since it was written. Found on 2026-09-05 when raw-hex-colour was widened to JS assignments — it had been invisible because the rule matched only arbitrary-value classes and CSS-style declarations."
       }
     },
     "src/shared/components/table/ModernDriverTable.jsx": {
       "raw-table": 2,
       "reasons": {
-        "raw-table": "roadmap \u00a75 \u2014 approved native-table pattern for an editable matrix or per-row interactive rows. DataTable is a display-table contract. The table must still use the --ds-table-* roles."
+        "raw-table": "roadmap §5 — approved native-table pattern for an editable matrix or per-row interactive rows. DataTable is a display-table contract. The table must still use the --ds-table-* roles."
       }
     },
     "src/shared/utils/printDocument.js": {
       "raw-hex-colour": 1,
       "reasons": {
-        "raw-hex-colour": "roadmap \u00a75 \u2014 `background: #ffffff` on html/body in PRINT_DOCUMENT_STYLES. Paper is white; that is a physical fact about the medium, not a surface role that a palette change may re-tune. The reason recorded here until 2026-09-04 said the print window has no --ds-* properties \u2014 false, since collectPrintStyles inlines the application's own stylesheets, tokens included. The real ground is that these rules are injected as a STRING and are the safety net for the case collectPrintStyles reports: a sheet it could not read. A net that depends on the thing it is catching for is not a net."
+        "raw-hex-colour": "roadmap §5 — `background: #ffffff` on html/body in PRINT_DOCUMENT_STYLES. Paper is white; that is a physical fact about the medium, not a surface role that a palette change may re-tune. The reason recorded here until 2026-09-04 said the print window has no --ds-* properties — false, since collectPrintStyles inlines the application's own stylesheets, tokens included. The real ground is that these rules are injected as a STRING and are the safety net for the case collectPrintStyles reports: a sheet it could not read. A net that depends on the thing it is catching for is not a net."
       }
     }
   }

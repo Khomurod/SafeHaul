@@ -29,25 +29,7 @@ function assertChrome(values) {
     }
 }
 
-/** One warning per distinct legacy class list, so a list in a loop says it once. */
-const warnedLegacy = new Set();
 
-/*
- * What a legacy caller got before the chrome contract existed.
- *
- * These are needed because the two legacy props are ONE decision and callers
- * pass them separately: a site that replaces only the panel used to inherit the
- * overlay default, and handing it the contract's overlay instead would move its
- * stacking layer from 50 to 60 — a change in a slice that promises none. Half
- * the contract and half a class list is also the one combination that cannot be
- * reasoned about, since the two would fight over the same properties.
- *
- * The old defaults were Tailwind class lists; the identical boxes live in
- * `Modal.css` now. See the note there — hoisting them into a `const` here made
- * the dialog primitive itself a reported hand-built overlay.
- */
-const LEGACY_OVERLAY = 'ds-modal--legacy';
-const LEGACY_PANEL = 'ds-modal__panel--legacy';
 
 /**
  * The accessible dialog primitive (C4, WCAG 2.2 AA).
@@ -95,11 +77,6 @@ const LEGACY_PANEL = 'ds-modal__panel--legacy';
  *   takes the whole screen — for the dialogs that are really a screen.
  * @param {'center'|'bottom'} [props.placement='center'] `bottom` is a sheet.
  * @param {'neutral'|'danger'} [props.tone='neutral'] Borders a destructive dialog.
- * @param {string} [props.overlayClassName] **Legacy.** Replaces the backdrop's
- *   whole class list, bypassing the chrome contract. Removed in the slice that
- *   finishes migrating the call sites; pass the props above instead.
- * @param {string} [props.className] **Legacy.** Replaces the panel's whole class
- *   list, with the same caveat.
  * @param {React.ReactNode} props.children Dialog contents.
  */
 export function Modal({
@@ -117,29 +94,24 @@ export function Modal({
     placement = 'center',
     tone = 'neutral',
     /*
-     * The legacy escape hatch. These REPLACE the chrome rather than extending
-     * it, which is how 38 call sites came to spell the same six intentions 30
-     * different ways. They stay for exactly as long as it takes to migrate
-     * those sites, so this change renders every one of them unchanged; the
-     * slice that finishes the migration deletes both and throws on either.
-     *
-     * No default value, deliberately — a default is indistinguishable from a
-     * caller passing one, and telling those apart is what lets the contract be
-     * the default while the hatch still works.
+     * Still named, so passing one is a loud refusal rather than a silent
+     * `...rest` that lands on the DOM as an unknown attribute. They were the
+     * escape hatch that let 38 call sites spell the same six intentions 30
+     * different ways; every one of them is migrated, and the hatch is shut.
      */
     overlayClassName,
     className,
     children,
 }) {
     assertChrome({ size, scroll, mobile, placement, tone });
-    const legacyChrome = overlayClassName !== undefined || className !== undefined;
-    const legacyKey = `${overlayClassName ?? ''}|${className ?? ''}`;
-    if (legacyChrome && import.meta.env.DEV && !warnedLegacy.has(legacyKey)) {
-        warnedLegacy.add(legacyKey);
-        // eslint-disable-next-line no-console
-        console.warn(
-            'Modal: `className`/`overlayClassName` replace the chrome contract and are '
-            + 'being removed. Use `size`, `scroll`, `fill`, `mobile`, `placement` and `tone`.',
+    if (overlayClassName !== undefined || className !== undefined) {
+        throw new TypeError(
+            'Modal: `className` and `overlayClassName` were removed on 2026-09-05. They '
+            + 'REPLACED the dialog chrome rather than extending it, which is how 38 call '
+            + 'sites came to write 30 spellings of the same six intentions. Use `size`, '
+            + '`scroll`, `fill`, `mobile`, `placement` and `tone`; if none of those is the '
+            + 'shape you need, add the case to `Modal.css` with the roadmap row that '
+            + 'justifies it — do not reintroduce a class list.',
         );
     }
     const panelRef = useRef(null);
@@ -240,9 +212,9 @@ export function Modal({
 
     return (
         <div
-            className={legacyChrome ? (overlayClassName ?? LEGACY_OVERLAY) : 'ds-modal'}
-            data-placement={legacyChrome ? undefined : placement}
-            data-mobile={legacyChrome ? undefined : mobile}
+            className="ds-modal"
+            data-placement={placement}
+            data-mobile={mobile}
             onMouseDown={handleOverlayMouseDown}
         >
             <div
@@ -254,11 +226,11 @@ export function Modal({
                 aria-describedby={describedBy}
                 tabIndex={-1}
                 onKeyDown={handleKeyDown}
-                className={legacyChrome ? (className ?? LEGACY_PANEL) : 'ds-modal__panel'}
-                data-size={legacyChrome ? undefined : size}
-                data-scroll={legacyChrome ? undefined : scroll}
-                data-fill={legacyChrome || !fill ? undefined : 'true'}
-                data-tone={legacyChrome ? undefined : tone}
+                className="ds-modal__panel"
+                data-size={size}
+                data-scroll={scroll}
+                data-fill={fill || undefined}
+                data-tone={tone}
             >
                 {children}
             </div>

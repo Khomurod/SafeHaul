@@ -287,7 +287,7 @@ for weeks.
 |---|---|---|
 | `npm test` (`tests/architecture.test.js`) | yes | An import from features, context, Firebase or `shared` into this directory — in a stylesheet as well as a module |
 | `npm test` (`tests/tokens.test.js`) | yes | A broken token contract, a contrast pairing below AA, an unbridged Tailwind utility, a control sizing itself in pixels |
-| `npm run check:ui-contract` | yes | A raw colour, off-scale type size, sub-12px text, Tailwind radius or shadow, hand-built overlay, raw table, hand-styled control, hand-rolled tablist, raw file input or hand-written `target="_blank"` — in JSX, in stories and in CSS |
+| `npm run check:ui-contract` | yes | A raw colour, off-scale type size, sub-12px text, Tailwind radius or shadow, **bare stacking number**, hand-built overlay, raw table, hand-styled control, hand-rolled tablist, raw file input or hand-written `target="_blank"` — in JSX, in stories and in CSS |
 | `npm run check:table-layout` | yes | A cell narrower than its content, in a real browser at 412px and 1440px — in `DataTable` **and** in the `ds-native-table` contract |
 | `npm run check:visual-contract` | yes | A change to computed geometry — control heights, cell padding, radii, resolved colours |
 | `npm run test:stories` | yes | A story that fails to render, or fails axe |
