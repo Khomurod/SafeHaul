@@ -80,6 +80,25 @@ export function countHandRolledToggles(code) {
 }
 
 /**
+ * A raw `<button>` carrying `aria-current`.
+ *
+ * Scoped to `<button>` deliberately, and NOT to every element with the
+ * attribute. Measured on 2026-09-05: seven raw elements carry `aria-current`
+ * across `src/`, and three are non-interactive progress displays — a `<li>` in
+ * `BulkUploadLayout`'s step indicator, a `<span>` in `SendTemplateWizard`'s, and
+ * the design system's own `SectionNavigation`. `aria-current="step"` on
+ * something read rather than operated is correct markup with no primitive behind
+ * it, so a rule firing on them would be demanding a component that does not
+ * exist. That gap is recorded in roadmap section 5, which is where a missing
+ * primitive belongs — a rule is the wrong instrument for "we have not built this
+ * yet".
+ */
+export function countHandRolledCurrent(code) {
+    return openTagAttributes(code, 'button')
+        .filter((attributes) => /\baria-current\s*=/.test(attributes)).length;
+}
+
+/**
  * The primitives that validate `label` and throw on anything but a non-empty
  * string. Kept beside the counter that reads them so the two cannot drift.
  */
@@ -139,6 +158,7 @@ export const COUNTERS = {
     'raw-file-input': countFileInputs,
     'jsx-label-on-throwing-primitive': countJsxLabelsOnThrowingPrimitives,
     'hand-rolled-toggle': countHandRolledToggles,
+    'hand-rolled-current': countHandRolledCurrent,
 };
 
 /**

@@ -152,6 +152,24 @@
     "borderColor": "rgb(187, 247, 208)",
     "borderRadius": "8px"
   },
+  "mobile · the selected card, whose ring is a ring rather than a thicker border · selectableCard[on]": {
+    "borderTopWidth": "1px",
+    "boxShadow": "rgb(37, 99, 235) 0px 0px 0px 1px inset",
+    "borderRadius": "12px",
+    "backgroundColor": "rgb(219, 234, 254)"
+  },
+  "mobile · the selected card, whose ring is a ring rather than a thicker border · selectableCard[off]": {
+    "borderTopWidth": "1px",
+    "boxShadow": "none",
+    "borderRadius": "12px",
+    "backgroundColor": "rgb(255, 255, 255)"
+  },
+  "mobile · the current card reads exactly as the selected one · selectableCard[current]": {
+    "borderTopWidth": "1px",
+    "boxShadow": "rgb(37, 99, 235) 0px 0px 0px 1px inset",
+    "borderTopColor": "rgb(37, 99, 235)",
+    "backgroundColor": "rgb(219, 234, 254)"
+  },
   "mobile · the chip steps, measured against the controls they claim to match · chip[xs]": {
     "height": "24px",
     "borderRadius": "9999px"
@@ -495,6 +513,24 @@
     "color": "rgb(22, 101, 52)",
     "borderColor": "rgb(187, 247, 208)",
     "borderRadius": "8px"
+  },
+  "desktop · the selected card, whose ring is a ring rather than a thicker border · selectableCard[on]": {
+    "borderTopWidth": "1px",
+    "boxShadow": "rgb(37, 99, 235) 0px 0px 0px 1px inset",
+    "borderRadius": "12px",
+    "backgroundColor": "rgb(219, 234, 254)"
+  },
+  "desktop · the selected card, whose ring is a ring rather than a thicker border · selectableCard[off]": {
+    "borderTopWidth": "1px",
+    "boxShadow": "none",
+    "borderRadius": "12px",
+    "backgroundColor": "rgb(255, 255, 255)"
+  },
+  "desktop · the current card reads exactly as the selected one · selectableCard[current]": {
+    "borderTopWidth": "1px",
+    "boxShadow": "rgb(37, 99, 235) 0px 0px 0px 1px inset",
+    "borderTopColor": "rgb(37, 99, 235)",
+    "backgroundColor": "rgb(219, 234, 254)"
   },
   "desktop · the chip steps, measured against the controls they claim to match · chip[xs]": {
     "height": "24px",

@@ -3,7 +3,7 @@ import { Virtuoso } from 'react-virtuoso';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/lib/firebase/config';
 import { CheckCircle2, Inbox, Loader2, XCircle } from 'lucide-react';
-import { Badge, Button } from '@/design-system/components';
+import { Badge, Button, SelectableCard } from '@/design-system/components';
 import { EmptyState, ErrorState, LoadingState } from '@/design-system/patterns';
 
 /**
@@ -166,32 +166,30 @@ export default function VirtualLeadList({ companyId, filters, excludedIds = [], 
             </>
         );
 
-        const rowClass = 'flex w-full items-center gap-ds-4 rounded-ds-lg border p-ds-3 text-left transition-all';
-
         // Already-messaged rows stay non-toggleable, so they are not exposed as a
-        // control at all — only the toggleable rows become buttons.
+        // control at all — `as="div"` is the twin `SelectableCard` has for exactly
+        // this, and it refuses a state or a handler rather than accepting one and
+        // rendering something unclickable that looks clickable.
         if (isPhoneExcluded) {
             return (
                 <div className="pb-ds-2 pr-ds-2">
-                    <div className={`${rowClass} border-ds-status-warning-fg-on-inverse bg-transparent`}>
+                    <SelectableCard as="div" surface="inverse" tone="warning">
                         {rowBody}
-                    </div>
+                    </SelectableCard>
                 </div>
             );
         }
 
         return (
             <div className="pb-ds-2 pr-ds-2">
-                <button
-                    type="button"
-                    aria-pressed={!isExcluded}
-                    onClick={() => onToggleExclusion && onToggleExclusion(safeId)}
-                    className={`${rowClass} focus-visible:outline-none focus-visible:shadow-ds-focus ${isExcluded
-                        ? 'border-ds-border-inverse bg-transparent'
-                        : 'group border-transparent bg-ds-surface-inverse-subtle hover:border-ds-content-on-inverse-muted'}`}
+                <SelectableCard
+                    surface="inverse"
+                    selected={!isExcluded}
+                    className="group"
+                    onSelect={() => onToggleExclusion && onToggleExclusion(safeId)}
                 >
                     {rowBody}
-                </button>
+                </SelectableCard>
             </div>
         );
     };

@@ -35,9 +35,11 @@
       }
     },
     "src/features/campaigns/CampaignEditor.jsx": {
+      "hand-rolled-current": 1,
       "hand-styled-button": 1,
       "reasons": {
-        "hand-styled-button": "roadmap §5 — the campaign section rail. It is a `nav` of steps with `aria-current=\"step\"` and a per-step completion indicator. `SectionNavigation` is the near miss and cannot express either: it hardcodes `aria-current=\"page\"`, and it has no trailing slot for the complete/incomplete icon that is the whole point of this rail. Extending it for one consumer would be speculative; recorded as the section-rail-with-status gap instead. Tokenised, keyboard-reachable, shared focus ring."
+        "hand-styled-button": "roadmap §5 — the campaign section rail. It is a `nav` of steps with `aria-current=\"step\"` and a per-step completion indicator. `SectionNavigation` is the near miss and cannot express either: it hardcodes `aria-current=\"page\"`, and it has no trailing slot for the complete/incomplete icon that is the whole point of this rail. Extending it for one consumer would be speculative; recorded as the section-rail-with-status gap instead. Tokenised, keyboard-reachable, shared focus ring.",
+        "hand-rolled-current": "roadmap §5 — the campaign section rail, and the same one control this file already records under `hand-styled-button`. It is a WIZARD STEP rail, not a page rail: `SectionNavigation` hardcodes `aria-current=\"page\"` and has no trailing slot for the complete/incomplete indicator that is this rail's whole purpose, so `SelectableCard` would be the wrong shape and the near-miss primitive is not ready. P-8 extends `SectionNavigation` with `currentType` and per-item status and retires both entries together. Tokenised, `aria-current`, shared focus ring."
       }
     },
     "src/features/campaigns/components/AudienceBuilder.jsx": {
@@ -74,14 +76,6 @@
         "tailwind-radius": "roadmap §5 — device artwork. The bezel and side-button radii describe a moulded plastic case, not a SafeHaul surface, and they are part of the same DEVICE palette exception as its colours."
       }
     },
-    "src/features/campaigns/components/VirtualLeadList.jsx": {
-      "hand-rolled-toggle": 1,
-      "hand-styled-button": 1,
-      "reasons": {
-        "hand-styled-button": "roadmap §5 — a selectable lead row on the inverse (console) surface, `aria-pressed` for its exclusion state. Same family as `CompanyChooserModal`'s selectable company row: it is correctly a `<button>` because it is a real activation, but forcing it into `Button` would make a virtualised list row look like an action bar. Uses only the on-inverse roles and the shared focus ring.",
-        "hand-rolled-toggle": "roadmap §5 — the same one control as this file's `hand-styled-button` entry, now visible to a second rule because `hand-rolled-toggle` shipped a slice before the primitive that retires it. A lead row's exclusion state is a SELECTION on a virtualised list row, not a filter chip and not a card in a grid: `Chip` would turn a full-width row into a pill and `SegmentedControl` takes a string label. It is `SelectableCard`'s consumer, and P-4 retires both entries together. Recorded rather than left unlisted so the count can only fall from here."
-      }
-    },
     "src/features/company-admin/components/InlineLeaderboard.jsx": {
       "hand-styled-field": 2,
       "reasons": {
@@ -114,14 +108,6 @@
       "tailwind-radius": 2,
       "reasons": {
         "tailwind-radius": "the two 8px recipient/applicant status dots in the sub-header — pre-existing chrome, kept byte-identical when the generated §391.23 document moved to VOEDocument.jsx (source-size split); converting them to rounded-ds-full is the roadmap's call, not a refactor's."
-      }
-    },
-    "src/features/company-admin/components/modals/pev/FmcsaCarrierPicker.jsx": {
-      "hand-rolled-toggle": 1,
-      "hand-styled-button": 1,
-      "reasons": {
-        "hand-styled-button": "roadmap §5 — an FMCSA suggestion row is a three-line record summary (legal name, USDOT and location, then what FMCSA did or did not list), not a label. `SegmentedControl` takes a string `label`, so it cannot express this even though the semantics match; §5's claim that the primitive covers these rows was wrong and is corrected. This is the SelectableCard/Listbox gap. Tokenised, `aria-pressed`, shared focus ring.",
-        "hand-rolled-toggle": "roadmap §5 — the same one control as this file's `hand-styled-button` entry, seen by a second rule that shipped a slice before its primitive. An FMCSA suggestion row is a three-line record summary, so neither of the toggles this rule points at fits: `Chip` holds a short label and `SegmentedControl` takes a string. It is `SelectableCard`'s consumer, and P-4 retires both entries together."
       }
     },
     "src/features/company-admin/components/tabs/PEVTab.jsx": {
@@ -160,10 +146,18 @@
         "raw-table": "roadmap §5 — approved native-table pattern for an editable matrix or per-row interactive rows. DataTable is a display-table contract. The table must still use the --ds-table-* roles."
       }
     },
+    "src/features/signing/EnvelopeCreator.aiAssistant.support.jsx": {
+      "hand-rolled-current": 1,
+      "reasons": {
+        "hand-rolled-current": "A TEST DOUBLE. `EnvelopeCreator.aiAssistant.support.jsx` stands in for the envelope creator's AI assistant surface in component tests, and its page rail is a deliberately minimal copy of the real one — the point of a double is that it is NOT the production component, so pulling `SelectableCard` into it would couple the test to the thing under test. Recorded rather than migrated, and recorded rather than left unlisted, so the count can only fall if the double is ever deleted."
+      }
+    },
     "src/features/signing/EnvelopeCreator.editor.support.jsx": {
       "raw-file-input": 1,
+      "hand-rolled-current": 1,
       "reasons": {
-        "raw-file-input": "a prop-recording sidebar double inside the vitest harness for the editor-shell suites — it stands in for the real sidebar's upload control so the suites can drive the same handleFileChange the shell hands down. It renders only under vitest, never in the product. Moved verbatim from EnvelopeCreator.editor.test.jsx (source-size split), which the scanner excluded as a test file; the support module is scanned, so the double is recorded here instead."
+        "raw-file-input": "a prop-recording sidebar double inside the vitest harness for the editor-shell suites — it stands in for the real sidebar's upload control so the suites can drive the same handleFileChange the shell hands down. It renders only under vitest, never in the product. Moved verbatim from EnvelopeCreator.editor.test.jsx (source-size split), which the scanner excluded as a test file; the support module is scanned, so the double is recorded here instead.",
+        "hand-rolled-current": "A TEST DOUBLE. `EnvelopeCreator.editor.support.jsx` stands in for the envelope creator's editor surface in component tests, and its page rail is a deliberately minimal copy of the real one — the point of a double is that it is NOT the production component, so pulling `SelectableCard` into it would couple the test to the thing under test. Recorded rather than migrated, and recorded rather than left unlisted, so the count can only fall if the double is ever deleted."
       }
     },
     "src/features/signing/components/SignatureSheet.jsx": {
@@ -176,12 +170,6 @@
       "hand-styled-button": 1,
       "reasons": {
         "hand-styled-button": "roadmap §5 — a mobile bottom app bar. Its items are equal-width stacked icon-over-label targets at 56px, which is the platform convention for a bottom bar and deliberately taller than the 44px control step; `Button` is an inline 44px control and cannot be either. No primitive covers a bottom app bar and one consumer does not justify writing one. Tokenised, each item named \"Open <section>\" so it does not collide with the heading inside the sheet it opens."
-      }
-    },
-    "src/features/signing/components/envelope-creator/PageThumbnailRail.jsx": {
-      "hand-styled-button": 1,
-      "reasons": {
-        "hand-styled-button": "roadmap §5 — a page thumbnail is a rendered PDF page image with a page number and field count, sized to the rail rather than to the control scale, and carries `aria-current=\"page\"`. `Button` would put its own padding and background around a picture of a page. Same SelectableCard family as the FMCSA rows. Tokenised, uniquely named per page, shared focus ring."
       }
     },
     "src/features/signing/components/envelope-creator/ResizableDraggableField.jsx": {
@@ -246,12 +234,6 @@
       "raw-hex-colour": 2,
       "reasons": {
         "raw-hex-colour": "roadmap §5 — signature ink, rasterised into a legal record. The canvas this colour strokes is converted to a PNG (read back by getSignatureDataUrl() and submitted with the driver's application from Step9_Consent) and stored as part of a signed document, so it must not follow a theme: re-theming the application can never be allowed to retint a signature somebody has already given. Same argument as SignatureSheet.jsx, which has documented it in its own source since it was written. Found on 2026-09-05 when raw-hex-colour was widened to JS assignments — it had been invisible because the rule matched only arbitrary-value classes and CSS-style declarations. Two sites: the initial stroke style and the one clearCanvas restores, which must agree or a cleared pad would sign in a different colour."
-      }
-    },
-    "src/shared/components/modals/CompanyChooserModal.jsx": {
-      "hand-styled-button": 1,
-      "reasons": {
-        "hand-styled-button": "A selectable company row, not a button. It is correctly a <button> (it is a real activation), uses only --ds-* tokens and the shared focus ring. The rule cannot distinguish a tokenised selectable row from a hand-built button; forcing it into Button would make a list row look like an action bar."
       }
     },
     "src/shared/components/modals/ManageTeamModal.jsx": {

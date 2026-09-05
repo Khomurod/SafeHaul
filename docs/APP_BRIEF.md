@@ -1134,12 +1134,12 @@ nothing looked:
 | Command | Blocking | Catches |
 |---|---|---|
 | `npm test` (`design-system/tests/`) | yes | An import across a layer boundary — in stylesheets as well as modules; a broken token contract or a pairing below AA |
-| `npm run check:ui-contract` | yes | A raw colour, off-scale type, sub-12px text, a Tailwind radius or shadow, a hand-built overlay, a raw table, a hand-styled control, a hand-rolled tablist, a hand-rolled toggle (a raw `<button aria-pressed>`), a raw file input, a hand-written `target="_blank"` — in JSX, in stories and in CSS |
+| `npm run check:ui-contract` | yes | A raw colour, off-scale type, sub-12px text, a Tailwind radius or shadow, a hand-built overlay, a raw table, a hand-styled control, a hand-rolled tablist, a hand-rolled toggle or current-item control (a raw `<button>` with `aria-pressed` or `aria-current`), a raw file input, a hand-written `target="_blank"` — in JSX, in stories and in CSS |
 | `npm run check:icon-contract` | yes | A file under `src/`, outside `src/design-system/icons/`, importing `lucide-react` — or a recorded one importing more than it did. The direction is read out of git, so a change cannot record its own exemption |
 | `npm run check:table-layout` | yes | A cell narrower than its content, in a real browser at 412px and 1440px — for `DataTable` and the `ds-native-table` contract |
 | `npm run check:visual-contract` | yes | A change to computed geometry — control heights, cell padding, radii, resolved colours, and a frozen table column losing its opaque background |
 | `npm run test:stories` | yes | A story that fails to render, or fails axe |
-| `npm run test:visual` | **yes**, since 2026-08-25 | A change to how anything *looks*, across 87 catalog subjects and 15 real screens at both widths. **Known gap:** the e-doc field editor and the sandbox wizard are not among the 15, so changes confined to them are guarded by `check:visual-contract` measurements rather than by a photograph |
+| `npm run test:visual` | **yes**, since 2026-08-25 | A change to how anything *looks*, across 91 catalog subjects and 15 real screens at both widths. **Known gap:** the e-doc field editor and the sandbox wizard are not among the 15, so changes confined to them are guarded by `check:visual-contract` measurements rather than by a photograph |
 | `npm run test:e2e -- --grep "@a11y"` | **yes**, since 2026-08-25 | Real-browser axe on the mobile-critical journeys, plus keyboard behaviour: roving `tabIndex`, arrow/Home/End, and that every control a Tab press reaches shows the product's focus ring |
 
 Two of those became blocking on 2026-08-25, and the pixel lane is the one worth

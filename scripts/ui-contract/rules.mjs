@@ -280,6 +280,26 @@ export const RULES = [
     },
     {
         /*
+         * "Which one of this set you are on" — a page, a step, a location.
+         *
+         * A sibling of `hand-rolled-toggle` and a different question: `pressed`
+         * says whether one thing is on, `current` says which of several you are
+         * looking at. An element claiming both tells assistive technology two
+         * stories about itself, which is why `SelectableCard` refuses the pair.
+         *
+         * `<button>` only. The three non-interactive `aria-current` sites in the
+         * tree are correct markup for a progress display with no primitive
+         * behind it; see `countHandRolledCurrent` for the measurement and why
+         * roadmap section 5 is the right place for that rather than a rule.
+         */
+        name: 'hand-rolled-current',
+        pattern: null,
+        remedy: 'Use `SelectableCard` with `current` for one option of a set, or '
+            + '`SectionNavigation` for a navigation rail. A step indicator that is read '
+            + 'rather than operated has no primitive yet — see the roadmap gap table.',
+    },
+    {
+        /*
          * A two-state control the design system already builds.
          *
          * Counter-backed rather than a regex, for the reason `openTagAttributes`

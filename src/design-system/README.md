@@ -73,6 +73,8 @@ this one true rather than aspirational.
 
 ## Current approved consumers
 
+- The company chooser, the PEV carrier picker, the campaign lead preview and the
+  e-doc page rail consume `SelectableCard` (2026-09-05).
 - Company candidate lists consume `DataTable`, and — since 2026-09-05 — `Chip`
   for the pipeline segment strip and the per-row call affordance, and
   `IconButton` with `pressed` for the two column sort arrows.
@@ -139,12 +141,13 @@ this one true rather than aspirational.
   shared `PaywallMessage` is migrated with it and now takes a `headingLevel` so
   it stops colliding with its host's section heading. The callable payloads,
   activity log, Firestore write, Storage path, clipboard/URL behaviour, delivery
-  values and every frozen string remain feature-owned. Documented feature-owned
-  exceptions: the FMCSA suggestion rows (raw `<button>`; no Listbox/SelectableCard
-  primitive — a three-line record summary, which `SegmentedControl`'s string
-  `label` cannot express) and the result-upload input, which is a *programmatic*
-  picker: one hidden input opened by whichever per-employer row action was
-  activated, where `FileInput` is a visible control by contract.
+  values and every frozen string remain feature-owned. The FMCSA suggestion rows were a
+  documented exception until 2026-09-05 and are now `SelectableCard`s — a
+  three-line record summary is exactly the shape that primitive was built for,
+  and `SegmentedControl`'s string `label` was never going to express it. One
+  documented feature-owned exception remains: the result-upload input, which is a
+  *programmatic* picker — one hidden input opened by whichever per-employer row
+  action was activated, where `FileInput` is a visible control by contract.
   `VOEPreviewModal`'s document layout, its PDF/print rendering and the employer
   response portal are deliberately not migrated.
 

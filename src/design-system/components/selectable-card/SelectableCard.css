@@ -1,0 +1,110 @@
+/*
+ * One card, four call sites that had two radii, two border widths and four
+ * paddings between them.
+ *
+ * The selected weight is an INSET ring rather than a thicker border, borrowed
+ * from `SegmentedControl.css`: a 2px border on selection and 1px otherwise
+ * moves the content by a pixel every time somebody picks a different row, and in
+ * a virtualised list that is a visible twitch. The ring paints inside the box
+ * and costs no layout.
+ */
+.ds-selectable-card {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: var(--ds-space-4);
+  border: 1px solid var(--ds-selectable-border, var(--ds-color-border-subtle));
+  border-radius: var(--ds-radius-lg);
+  background: var(--ds-selectable-bg, var(--ds-color-surface));
+  color: var(--ds-selectable-fg, var(--ds-color-content));
+  font-family: inherit;
+  font-size: var(--ds-font-size-sm);
+  text-align: start;
+  transition: background-color var(--ds-duration-fast) var(--ds-ease-standard),
+    border-color var(--ds-duration-fast) var(--ds-ease-standard);
+}
+
+/* A button carries a pointer; the non-interactive twin must not pretend to. */
+button.ds-selectable-card {
+  cursor: pointer;
+}
+
+.ds-selectable-card[data-padding='none'] { padding: 0; }
+.ds-selectable-card[data-padding='xs'] { padding: var(--ds-space-1); }
+.ds-selectable-card[data-padding='sm'] { padding: var(--ds-space-3); }
+.ds-selectable-card[data-padding='md'] { padding: var(--ds-space-4); }
+
+button.ds-selectable-card:hover:not(:disabled):not([data-state]) {
+  border-color: var(--ds-color-focus);
+}
+
+.ds-selectable-card:focus-visible {
+  outline: 2px solid var(--ds-color-focus);
+  outline-offset: 2px;
+}
+
+/*
+ * `selected` and `current` render identically on purpose. They differ in what
+ * they TELL assistive technology, not in what they look like — a person looking
+ * at the screen wants one answer ("this is the one"), and inventing a second
+ * visual language for the difference would be a distinction nobody asked for.
+ */
+.ds-selectable-card[data-state='on'] {
+  border-color: var(--ds-color-action-primary);
+  background: var(--ds-color-status-info-bg);
+  box-shadow: inset 0 0 0 1px var(--ds-color-action-primary);
+}
+
+/*
+ * `tone` colours the border only — see `SelectableCard.jsx` for why not a fill.
+ * It sits above the base border and below the selected state, so a selected
+ * toned card still reads as selected: the question "which one did I pick" beats
+ * "what kind of record is this" when both want the same edge.
+ */
+.ds-selectable-card[data-tone='info'] { --ds-selectable-border: var(--ds-color-status-info-border); }
+.ds-selectable-card[data-tone='success'] { --ds-selectable-border: var(--ds-color-status-success-border); }
+.ds-selectable-card[data-tone='warning'] { --ds-selectable-border: var(--ds-color-status-warning-border); }
+.ds-selectable-card[data-tone='danger'] { --ds-selectable-border: var(--ds-color-status-danger-border); }
+
+/*
+ * The inverse surface. `VirtualLeadList` renders on the console-dark panel, and
+ * every role it uses has an on-inverse counterpart; without this the card would
+ * paint a white block in the middle of it.
+ */
+.ds-selectable-card[data-surface='inverse'] {
+  --ds-selectable-border: var(--ds-color-border-inverse);
+  --ds-selectable-bg: transparent;
+  --ds-selectable-fg: var(--ds-color-content-on-inverse);
+}
+
+.ds-selectable-card[data-surface='inverse'][data-state='on'] {
+  border-color: var(--ds-color-border-inverse);
+  background: var(--ds-color-surface-inverse-subtle);
+  box-shadow: none;
+}
+
+button.ds-selectable-card[data-surface='inverse']:hover:not([data-state]) {
+  border-color: var(--ds-color-content-on-inverse-muted);
+}
+
+/*
+ * On slate-900 the light-surface border roles are all but invisible, which is
+ * exactly what the `-fg-on-inverse` tokens exist for. Written after the inverse
+ * surface block so these win, and at the same two-attribute weight.
+ */
+.ds-selectable-card[data-surface='inverse'][data-tone='info'] {
+  --ds-selectable-border: var(--ds-color-status-info-fg-on-inverse);
+}
+.ds-selectable-card[data-surface='inverse'][data-tone='success'] {
+  --ds-selectable-border: var(--ds-color-status-success-fg-on-inverse);
+}
+.ds-selectable-card[data-surface='inverse'][data-tone='warning'] {
+  --ds-selectable-border: var(--ds-color-status-warning-fg-on-inverse);
+}
+.ds-selectable-card[data-surface='inverse'][data-tone='danger'] {
+  --ds-selectable-border: var(--ds-color-status-danger-fg-on-inverse);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-selectable-card { transition: none; }
+}

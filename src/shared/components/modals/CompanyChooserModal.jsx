@@ -2,7 +2,7 @@ import React, { useId, useState, useEffect } from 'react';
 import { useData } from '@/context/DataContext';
 import { getCompanyProfile } from '@features/companies';
 import { Briefcase, LogOut } from 'lucide-react';
-import { Button } from '@/design-system/components';
+import { Button, SelectableCard } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { Modal } from '@design-system/patterns';
 /**
@@ -126,11 +126,14 @@ export function CompanyChooserModal() {
             </div>
 
             {!loading && !error && companyDataList.map(company => (
-              <button
+              /* A plain activation: picking a company signs you into it rather
+                 than selecting it, so this takes neither `selected` nor
+                 `current` and announces as an ordinary button. */
+              <SelectableCard
                 key={company.id}
-                type="button"
-                className="flex w-full items-center justify-between rounded-ds-md border border-ds-border-subtle bg-ds-surface-subtle p-ds-4 text-left transition-all hover:border-ds-focus hover:bg-ds-surface focus-visible:outline-none focus-visible:shadow-ds-focus"
-                onClick={() => loginToCompany(company.id, company.role)}
+                padding="md"
+                className="justify-between"
+                onSelect={() => loginToCompany(company.id, company.role)}
               >
                 <span className="flex min-w-0 items-center gap-ds-3">
                   <span
@@ -151,7 +154,7 @@ export function CompanyChooserModal() {
                 <span className="shrink-0 text-ds-sm font-semibold text-ds-content-link">
                   Select &rarr;
                 </span>
-              </button>
+              </SelectableCard>
             ))}
           </Stack>
         </div>
