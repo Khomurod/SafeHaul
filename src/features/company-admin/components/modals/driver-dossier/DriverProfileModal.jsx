@@ -166,7 +166,7 @@ export function DriverProfileModal({
                           width. Wrapping lets the actions drop to a second line
                           instead of eating the title.
                         */}
-                        <div className="z-10 flex shrink-0 flex-wrap items-center justify-between gap-ds-2 border-b border-ds-border-subtle bg-ds-surface px-ds-4 py-ds-3 sm:min-h-16 sm:px-ds-6">
+                        <div className="z-ds-raised flex shrink-0 flex-wrap items-center justify-between gap-ds-2 border-b border-ds-border-subtle bg-ds-surface px-ds-4 py-ds-3 sm:min-h-16 sm:px-ds-6">
                             <DossierHeader
                                 activeTab={activeTab}
                                 appData={appData}
@@ -197,7 +197,17 @@ export function DriverProfileModal({
                             {loading ? (
                                 <div
                                     role="status"
-                                    className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-ds-2 bg-ds-surface/80"
+                                    /*
+                                     * `raised`, the same layer as the header
+                                     * above, and it still covers it: the tab
+                                     * panel sets no z-index of its own, so this
+                                     * overlay and that header compare directly —
+                                     * and at equal z-index the later element in
+                                     * the document wins. It was a bare `z-20`
+                                     * outranking a bare `z-10`, which is the
+                                     * same outcome by a route nobody could name.
+                                     */
+                                    className="absolute inset-0 z-ds-raised flex flex-col items-center justify-center gap-ds-2 bg-ds-surface/80"
                                 >
                                     <Loader2 className="h-8 w-8 animate-spin text-ds-action-primary" aria-hidden="true" />
                                     <p className="text-ds-sm font-medium text-ds-content-secondary">Loading driver dossier…</p>

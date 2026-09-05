@@ -126,7 +126,7 @@ export function AiSuggestionOverlay({
                     onSelect(suggestion.suggestionId);
                 }}
                 data-ai-suggestion={suggestion.suggestionId}
-                className={`group pointer-events-auto absolute z-40 flex cursor-move flex-col rounded-ds-sm border-2 border-dashed shadow-ds-sm transition focus-visible:outline-none focus-visible:shadow-ds-focus
+                className={`group pointer-events-auto absolute z-ds-layer-1 flex cursor-move flex-col rounded-ds-sm border-2 border-dashed shadow-ds-sm transition focus-visible:outline-none focus-visible:shadow-ds-focus
                     ${accepted
                         ? 'border-ds-status-success-border bg-ds-status-success-bg'
                         : 'border-ds-status-accent-border bg-ds-status-accent-bg'}
@@ -157,7 +157,7 @@ export function AiSuggestionOverlay({
                     tokens. Recorded in the roadmap alongside the existing exception. */}
                 <button
                     type="button"
-                    className="ai-suggestion-action absolute -right-2 -top-2 z-50 rounded-ds-full bg-ds-action-danger p-0.5 text-ds-content-inverse shadow-ds-sm focus-visible:outline-none focus-visible:shadow-ds-focus"
+                    className="ai-suggestion-action absolute -right-2 -top-2 z-ds-layer-2 rounded-ds-full bg-ds-action-danger p-0.5 text-ds-content-inverse shadow-ds-sm focus-visible:outline-none focus-visible:shadow-ds-focus"
                     aria-label={`Reject AI suggestion ${suggestion.label} on page ${pageNum}`}
                     onMouseDown={(event) => event.stopPropagation()}
                     onClick={(event) => {
@@ -169,7 +169,7 @@ export function AiSuggestionOverlay({
                 </button>
                 <button
                     type="button"
-                    className="ai-suggestion-action absolute -left-2 -top-2 z-50 rounded-ds-full bg-ds-action-primary p-0.5 text-ds-content-inverse shadow-ds-sm focus-visible:outline-none focus-visible:shadow-ds-focus"
+                    className="ai-suggestion-action absolute -left-2 -top-2 z-ds-layer-2 rounded-ds-full bg-ds-action-primary p-0.5 text-ds-content-inverse shadow-ds-sm focus-visible:outline-none focus-visible:shadow-ds-focus"
                     aria-label={`${accepted ? 'Unselect' : 'Select'} AI suggestion ${suggestion.label} on page ${pageNum}`}
                     aria-pressed={accepted}
                     onMouseDown={(event) => event.stopPropagation()}

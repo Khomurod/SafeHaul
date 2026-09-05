@@ -121,11 +121,30 @@ test.describe('E-Doc compact editor', () => {
     await page.getByRole('button', { name: 'Open Setup' }).click();
     await expect(page.getByRole('dialog', { name: 'Setup' })).toBeVisible();
 
-    // Scoped to the sheet panel itself, not `[role="dialog"]`: at this width the
-    // company shell also keeps its own navigation drawer in the DOM, and its
-    // markup is not what this spec is asserting on.
+    /*
+     * Scoped to the sheet panel itself, not `[role="dialog"]`: at this width the
+     * company shell also keeps its own navigation drawer in the DOM, and its
+     * markup is not what this spec is asserting on.
+     *
+     * Selected by the CHROME CONTRACT rather than by a radius utility. This read
+     * `.include('.rounded-t-ds-xl')` until 2026-09-05, when the bottom-sheet
+     * radius moved from the call site's class list into `Modal.css` — at which
+     * point the selector matched nothing and the scope silently became "the
+     * editor nav only". A sibling spec caught the same shape by throwing; this
+     * one would just have quietly stopped checking the sheet.
+     */
+    const sheetPanel = '.ds-modal[data-placement="bottom"] .ds-modal__panel';
+    /*
+     * Assert the scope before using it. axe throws only when NO include matches
+     * anything, and the second include below always matches — so a sheet
+     * selector that stopped matching would quietly shrink this test to "the
+     * editor nav only" and still report green. Verified by pointing the
+     * selector at a placement that does not exist: the test passed.
+     */
+    await expect(page.locator(sheetPanel)).toHaveCount(1);
+
     const { violations } = await new AxeBuilder({ page })
-      .include('.rounded-t-ds-xl')
+      .include(sheetPanel)
       .include('nav[aria-label="Editor sections"]')
       .analyze();
     const serious = violations

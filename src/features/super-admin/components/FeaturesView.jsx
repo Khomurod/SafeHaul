@@ -257,13 +257,22 @@ export function FeaturesView({ companyList, onDataUpdate }) {
                     role="region"
                     aria-label="Feature matrix"
                     tabIndex={0}
-                    className="min-h-0 flex-1 overflow-auto bg-ds-canvas focus-visible:outline-none focus-visible:shadow-ds-focus"
+                    /*
+                     * `isolate` is what makes the three `layer-*` tiers below
+                     * local. A sticky matrix needs an internal order — row
+                     * header under column header under the corner where they
+                     * cross — and that order is nobody's business outside this
+                     * region. Safe to isolate: both of this view's dialogs are
+                     * rendered after this element closes, not inside it.
+                     */
+                    className="isolate min-h-0 flex-1 overflow-auto bg-ds-canvas focus-visible:outline-none focus-visible:shadow-ds-focus"
                 >
                         <table className="ds-native-table">
                             <caption className="sr-only">Feature overrides by company</caption>
-                            <thead className="sticky top-0 z-20 shadow-ds-xs">
+                            <thead className="sticky top-0 z-ds-layer-2 shadow-ds-xs">
                                 <tr>
-                                    <th scope="col" className="sticky left-0 z-30">Company Name</th>
+                                    {/* The corner cell crosses both, so it is the top tier. */}
+                                    <th scope="col" className="sticky left-0 z-ds-layer-3">Company Name</th>
                                     {ALL_FEATURES.map(f => (
                                         <th key={f.key} scope="col" className="whitespace-nowrap text-center">
                                             {f.label}
@@ -280,7 +289,7 @@ export function FeaturesView({ companyList, onDataUpdate }) {
                                     </tr>
                                 ) : filteredList.map(company => (
                                     <tr key={company.id} className="transition-colors">
-                                        <th scope="row" className="sticky left-0 z-10 border-r border-ds-border-subtle font-medium text-ds-content">
+                                        <th scope="row" className="sticky left-0 z-ds-layer-1 border-r border-ds-border-subtle font-medium text-ds-content">
                                             {company.companyName}
                                         </th>
                                         {ALL_FEATURES.map(f => {

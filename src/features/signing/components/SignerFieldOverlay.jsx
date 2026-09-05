@@ -29,7 +29,7 @@ export function SignerFieldOverlay({ field, children, className = '', interactiv
                     }}
                 />
             )}
-            <div className="relative z-10 w-full h-full min-w-0 min-h-0">{children}</div>
+            <div className="relative z-ds-layer-1 w-full h-full min-w-0 min-h-0">{children}</div>
         </div>
     );
 }

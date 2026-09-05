@@ -113,7 +113,7 @@ export function EnvelopeSidebar({
     // editor mounts this inside a bottom sheet for one section at a time, so it
     // opens that section only and drops the fixed-width bordered rail chrome.
     initialOpenSections = null,
-    className = 'z-10 flex w-64 shrink-0 flex-col overflow-y-auto border-r border-ds-border bg-ds-surface shadow-ds-lg',
+    className = 'z-ds-raised flex w-64 shrink-0 flex-col overflow-y-auto border-r border-ds-border bg-ds-surface shadow-ds-lg',
     label = 'Envelope setup',
 }) {
     const rawId = useId().replace(/:/g, '');

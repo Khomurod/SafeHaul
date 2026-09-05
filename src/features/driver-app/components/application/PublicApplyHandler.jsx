@@ -412,7 +412,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     <div className="min-h-screen bg-ds-canvas pb-ds-12">
       {/* The company banner is a `<header>` landmark so a screen-reader user can
           reach "whose application is this?" without walking the whole form. */}
-      <header className="sticky top-0 z-20 border-b border-ds-border-subtle bg-ds-surface px-ds-4 py-ds-3 shadow-ds-xs">
+      <header className="sticky top-0 z-ds-sticky border-b border-ds-border-subtle bg-ds-surface px-ds-4 py-ds-3 shadow-ds-xs">
         <div className="mx-auto flex max-w-4xl flex-col gap-ds-2">
           <p className="font-bold text-ds-content">{company.companyName}</p>
           {sandbox && (
