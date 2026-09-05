@@ -134,9 +134,17 @@ export function DocumentsTab({ fileUrls = {}, appData }) {
                     label={previewDoc.label}
                     onClose={() => setPreviewDoc(null)}
                     initialFocusRef={closePreviewRef}
-                    // Above the dossier dialog itself, matching the previous z-[70].
-                    overlayClassName="fixed inset-0 z-[70] flex items-center justify-center bg-ds-overlay p-ds-4 backdrop-blur-sm"
-                    className="flex h-full w-full max-w-5xl flex-col overflow-hidden rounded-ds-xl bg-ds-surface shadow-ds-lg"
+                    /*
+                     * No stacking prop, and none is needed: this overlay is a DOM
+                     * descendant of the dossier's, which has its own z-index and
+                     * therefore its own stacking context — a positioned descendant
+                     * with z-index >= 0 paints above its ancestor's content. The
+                     * `z-[70]` that used to sit here was never doing anything the
+                     * DOM was not already doing.
+                     */
+                    size="5xl"
+                    scroll="body"
+                    fill
                 >
                     {/*
                       The toolbar sits on the panel's own light surface rather

@@ -70,7 +70,8 @@ export function SignerPreviewDialog({
             labelledBy={titleId}
             describedBy={descriptionId}
             initialFocusRef={closeRef}
-            className="flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-ds-xl border border-ds-border bg-ds-surface shadow-ds-lg"
+            size="4xl"
+            scroll="body"
         >
             <div className="flex flex-wrap items-start justify-between gap-ds-3 border-b border-ds-border-subtle bg-ds-surface-subtle p-ds-4">
                 <div className="min-w-0">

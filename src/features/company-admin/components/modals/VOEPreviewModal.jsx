@@ -114,8 +114,7 @@ export function VOEPreviewModal({ employer, applicant, onClose, onSend }) {
                 labelledBy={titleId}
                 onClose={onClose}
                 initialFocusRef={closeRef}
-                overlayClassName="fixed inset-0 z-[80] flex items-center justify-center bg-ds-overlay p-ds-4 backdrop-blur-md"
-                className="w-full max-w-md overflow-hidden rounded-ds-xl bg-ds-surface shadow-ds-lg"
+                size="md"
             >
                 <div className="p-ds-6" role="alert">
                     <div className="mb-ds-3 flex items-center gap-ds-3">
@@ -257,8 +256,9 @@ export function VOEPreviewModal({ employer, applicant, onClose, onSend }) {
             labelledBy={titleId}
             onClose={onClose}
             initialFocusRef={closeRef}
-            overlayClassName="fixed inset-0 z-[80] flex items-stretch justify-center bg-ds-overlay p-0 backdrop-blur-md sm:items-center sm:p-ds-4"
-            className="flex h-full w-full flex-col overflow-hidden bg-ds-surface-subtle shadow-ds-lg sm:h-auto sm:max-h-[95vh] sm:max-w-4xl sm:rounded-ds-xl"
+            size="4xl"
+            scroll="body"
+            mobile="fullscreen"
         >
             {/*
               Header.

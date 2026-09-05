@@ -45,7 +45,8 @@ export function NewDocumentDialog({ onClose, onChoose, templateCount = 0 }) {
             labelledBy={titleId}
             describedBy={descriptionId}
             initialFocusRef={firstChoiceRef}
-            className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-ds-xl border border-ds-border bg-ds-surface shadow-ds-lg"
+            size="lg"
+            scroll="body"
         >
             <div className="flex items-start justify-between gap-ds-4 border-b border-ds-border-subtle bg-ds-surface-subtle p-ds-5">
                 <div className="min-w-0">

@@ -103,8 +103,9 @@ export function SignatureSheet({ kind = 'signature', onCancel, onAdopt }) {
             labelledBy={headingId}
             describedBy={consentId}
             closeOnBackdrop={false}
-            overlayClassName="fixed inset-0 z-50 flex items-stretch justify-center bg-ds-overlay md:items-center md:p-ds-6"
-            className="flex h-full w-full flex-col overflow-hidden bg-ds-surface md:h-auto md:max-w-xl md:rounded-ds-xl md:shadow-ds-lg"
+            size="xl"
+            scroll="body"
+            mobile="fullscreen"
         >
             <div
                 className="flex items-center justify-between gap-ds-2 border-b border-ds-border-subtle bg-ds-surface px-ds-4 py-ds-3"

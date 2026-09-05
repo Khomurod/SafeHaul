@@ -164,7 +164,8 @@ The reverse directions are prohibited and enforced by
   hand-built `fixed inset-0` dialog. A repository-wide scan should return only
   `Modal.css` and callers still passing an `overlayClassName`.
 - **A dialog's chrome is `size`/`scroll`/`fill`/`mobile`/`placement`/`tone`, not
-  a class list.** Added 2026-09-05. `Modal`'s `className` and `overlayClassName`
+  a class list.** Added 2026-09-05, and every one of the 41 call sites was
+  migrated the same day; no `overlayClassName` remains in `src/`. `Modal`'s `className` and `overlayClassName`
   REPLACE the panel and backdrop, and 38 of the 41 call sites used them to write
   **30 different spellings** of the same handful of intentions — a hairline
   border here and none there, `max-h-[85vh]` beside `max-h-[92vh]`,
@@ -1547,7 +1548,7 @@ every consumer that can use it does:
 | Family | Owned by | Closed |
 |---|---|---|
 | Dialog shell | `patterns/modal` | 2026-08-22 |
-| Dialog **chrome** (size / scroll / fill / mobile / placement / tone) | `patterns/modal` → `Modal.css` | **open** — contract shipped 2026-09-05, 38 call sites still on the legacy `className` |
+| Dialog **chrome** (size / scroll / fill / mobile / placement / tone) | `patterns/modal` → `Modal.css` | consumers complete 2026-09-05 — all 41 sites migrated, no `overlayClassName` left; the legacy props are deleted in the slice that adds the `raw-z-index` rules |
 | Confirmation dialog | `patterns/modal` → `ConfirmDialog` | 2026-08-25 |
 | Toast / notification | `shared/components/feedback/ToastProvider` — **not in the design system** | consumers complete; primitive not promoted |
 | Empty / error / loading state | `patterns/page-state` | 2026-08-25 |

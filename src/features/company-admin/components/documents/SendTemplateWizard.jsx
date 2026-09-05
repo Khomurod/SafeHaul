@@ -92,7 +92,8 @@ export function SendTemplateWizard({
             initialFocusRef={stepIndex === 0 ? nameInputRef : undefined}
             closeOnBackdrop={false}
             closeOnEscape={!sending}
-            className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-ds-xl border border-ds-border bg-ds-surface shadow-ds-lg"
+            size="lg"
+            scroll="body"
         >
             <div className="border-b border-ds-border-subtle bg-ds-surface-subtle p-ds-5">
                 <div className="flex items-start justify-between gap-ds-4">

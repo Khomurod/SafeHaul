@@ -282,21 +282,25 @@ export function CompanyBulkUpload({ companyId, onClose, onUploadComplete, isEmbe
                 <Modal
                     onClose={() => setRepairConfirmOpen(false)}
                     labelledBy={repairTitleId}
-                    className="w-full max-w-md rounded-ds-xl bg-ds-surface p-ds-6 shadow-ds-lg"
+                    size="md"
                 >
-                    <h2 id={repairTitleId} className="mb-ds-2 text-ds-heading-sm font-bold text-ds-content">
-                        Fix Data Mismatch
-                    </h2>
-                    <p className="mb-ds-6 text-ds-content-secondary">
-                        This will scan your leads for &apos;Email&apos; fields that look like Phone Numbers and move them to the correct field. Continue?
-                    </p>
-                    <div className="flex justify-end gap-ds-3">
-                        <Button variant="secondary" onClick={() => setRepairConfirmOpen(false)}>
-                            Cancel
-                        </Button>
-                        <Button variant="primary" onClick={handleRepairConfirmed}>
-                            Continue
-                        </Button>
+                    {/* The panel carried `p-ds-6`; the chrome contract owns the box,
+                        not its padding, so it moves onto the content. */}
+                    <div className="p-ds-6">
+                        <h2 id={repairTitleId} className="mb-ds-2 text-ds-heading-sm font-bold text-ds-content">
+                            Fix Data Mismatch
+                        </h2>
+                        <p className="mb-ds-6 text-ds-content-secondary">
+                            This will scan your leads for &apos;Email&apos; fields that look like Phone Numbers and move them to the correct field. Continue?
+                        </p>
+                        <div className="flex justify-end gap-ds-3">
+                            <Button variant="secondary" onClick={() => setRepairConfirmOpen(false)}>
+                                Cancel
+                            </Button>
+                            <Button variant="primary" onClick={handleRepairConfirmed}>
+                                Continue
+                            </Button>
+                        </div>
                     </div>
                 </Modal>
             )}

@@ -33,7 +33,8 @@ export function AiScanOptionsDialog({ activePage, numPages, onClose, onStart }) 
             labelledBy={titleId}
             describedBy={descriptionId}
             initialFocusRef={startRef}
-            className="flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-ds-xl border border-ds-border bg-ds-surface shadow-ds-lg"
+            size="md"
+            scroll="body"
         >
             <div className="flex items-start justify-between gap-ds-4 border-b border-ds-border-subtle bg-ds-surface-subtle p-ds-5">
                 <div className="min-w-0">

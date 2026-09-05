@@ -186,10 +186,13 @@ export function PEVHistoryModal({
         labelledBy={historyTitleId}
         onClose={() => setHistoryTargetIndex(null)}
         initialFocusRef={closeHistoryRef}
-        // z-[100] preserves this dialog's stacking above the dossier
-        // and the request modal.
-        overlayClassName="fixed inset-0 z-[100] flex items-center justify-center bg-ds-overlay p-ds-4 backdrop-blur-sm"
-        className="flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-ds-xl bg-ds-surface shadow-ds-lg"
+        /*
+         * The `z-[100]` that used to sit here was outbidding the dossier and the
+         * request dialog. It is a descendant of both, so it already paints above
+         * them; the number was compensating for nothing.
+         */
+        size="md"
+        scroll="body"
     >
         <div className="flex shrink-0 items-center justify-between gap-ds-3 border-b border-ds-border-subtle bg-ds-surface-subtle px-ds-4 py-ds-3">
             <h4 id={historyTitleId} className="font-bold text-ds-content">Verification History</h4>

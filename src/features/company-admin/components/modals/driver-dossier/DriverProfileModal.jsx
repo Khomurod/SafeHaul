@@ -120,97 +120,110 @@ export function DriverProfileModal({
                 // by the selected tab, and nothing happens if it is activated.
                 initialFocusRef={tabPanelRef}
                 // Backdrop dismissal is kept from the previous implementation.
-                // z-[60] preserves the dossier's stacking above the candidate
-                // table's own overlays; the document preview sits above it again.
-                overlayClassName="fixed inset-0 z-[60] flex items-stretch justify-center bg-ds-overlay backdrop-blur-sm sm:items-center sm:p-ds-4"
-                className="flex h-full w-full flex-col overflow-hidden bg-ds-surface shadow-ds-lg sm:h-[90vh] sm:w-[90vw] sm:max-w-7xl sm:flex-row sm:rounded-ds-xl"
+                /*
+                 * `7xl` is `min(80rem, 90vw)`, which is what `sm:w-[90vw]
+                 * sm:max-w-7xl` already resolved to; `fill` is the `sm:h-[90vh]`.
+                 * The `z-[60]` that used to sit here was compensating for the
+                 * mobile drawer, which now sits a layer below every dialog — and
+                 * the document preview inside this one is a DOM descendant, so
+                 * it paints above regardless of the number.
+                 */
+                size="7xl"
+                scroll="body"
+                fill
+                mobile="fullscreen"
             >
                 {/*
+                  The panel is a column (`scroll="body"`), so the two panes go
+                  side by side inside this one child rather than on the panel.
+
                   Below `sm` the navigation is a horizontal strip above the
                   content; from `sm` up it is the fixed-width left pane. Same DOM
                   order either way, so the tab sequence never changes.
                 */}
-                <div className="shrink-0 border-b border-ds-border-subtle bg-ds-surface-subtle sm:h-full sm:w-[280px] sm:border-b-0 sm:border-r">
-                    <DossierSidebar
-                        appData={appData}
-                        currentStatus={currentStatus}
-                        activeTab={activeTab}
-                        setActiveTab={setActiveTab}
-                        loading={loading}
-                        dqStatus={dqStatus}
-                        idBase={tabsIdBase}
-                    />
-                </div>
-
-                {/* Right Side Container */}
-                <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-ds-surface sm:h-full">
-
-                    {/*
-                      The header wraps at every width and has a minimum height
-                      rather than a fixed one. With `sm:flex-nowrap` + `sm:h-16`
-                      the section title was squeezed to zero width at 1024 px —
-                      it is `truncate`, so it did not ellipsise, it simply
-                      vanished while the status/assign controls kept their full
-                      width. Wrapping lets the actions drop to a second line
-                      instead of eating the title.
-                    */}
-                    <div className="z-10 flex shrink-0 flex-wrap items-center justify-between gap-ds-2 border-b border-ds-border-subtle bg-ds-surface px-ds-4 py-ds-3 sm:min-h-16 sm:px-ds-6">
-                        <DossierHeader
-                            activeTab={activeTab}
+                <div className="flex min-h-0 flex-1 flex-col sm:flex-row">
+                    <div className="shrink-0 border-b border-ds-border-subtle bg-ds-surface-subtle sm:h-full sm:w-[280px] sm:border-b-0 sm:border-r">
+                        <DossierSidebar
                             appData={appData}
-                            companyProfile={companyProfile}
                             currentStatus={currentStatus}
-                            onClose={onClose}
-                            onStatusUpdate={handleStatusUpdate}
-                            canEdit={canEdit}
-                            teamMembers={teamMembers}
-                            assignedTo={assignedTo}
-                            onAssignChange={handleAssignChange}
-                            canDelete={isCompanyAdmin}
-                            onDelete={() => setConfirmingDelete(true)}
+                            activeTab={activeTab}
+                            setActiveTab={setActiveTab}
+                            loading={loading}
+                            dqStatus={dqStatus}
+                            idBase={tabsIdBase}
                         />
                     </div>
 
-                    {/*
-                      The tab panel is the scroll container, and it is
-                      keyboard-focusable so a keyboard user can scroll long tab
-                      content without tabbing through every control inside it.
-                    */}
-                    <TabPanel
-                        ref={tabPanelRef}
-                        idBase={tabsIdBase}
-                        tabId={activeTab}
-                        className="relative flex-1 overflow-y-auto overflow-x-hidden bg-ds-surface p-ds-4 sm:p-ds-6"
-                    >
-                        {loading ? (
-                            <div
-                                role="status"
-                                className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-ds-2 bg-ds-surface/80"
-                            >
-                                <Loader2 className="h-8 w-8 animate-spin text-ds-action-primary" aria-hidden="true" />
-                                <p className="text-ds-sm font-medium text-ds-content-secondary">Loading driver dossier…</p>
-                            </div>
-                        ) : error ? (
-                            <div role="alert" className="p-ds-8 text-center">
-                                <p className="font-medium text-ds-status-danger-fg">Error loading application details.</p>
-                                <p className="mt-ds-2 text-ds-sm text-ds-content-secondary [overflow-wrap:anywhere]">{error}</p>
-                            </div>
-                        ) : (
-                            <DossierContent
+                    {/* Right Side Container */}
+                    <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-ds-surface sm:h-full">
+
+                        {/*
+                          The header wraps at every width and has a minimum height
+                          rather than a fixed one. With `sm:flex-nowrap` + `sm:h-16`
+                          the section title was squeezed to zero width at 1024 px —
+                          it is `truncate`, so it did not ellipsise, it simply
+                          vanished while the status/assign controls kept their full
+                          width. Wrapping lets the actions drop to a second line
+                          instead of eating the title.
+                        */}
+                        <div className="z-10 flex shrink-0 flex-wrap items-center justify-between gap-ds-2 border-b border-ds-border-subtle bg-ds-surface px-ds-4 py-ds-3 sm:min-h-16 sm:px-ds-6">
+                            <DossierHeader
                                 activeTab={activeTab}
                                 appData={appData}
-                                driverId={driverId}
-                                companyId={companyId}
-                                collectionName={collectionName}
-                                isEditing={isEditing}
-                                setIsEditing={setIsEditing}
-                                handleSaveEdit={handleSaveEdit}
-                                isSaving={isSaving}
-                                fileUrls={fileUrls}
+                                companyProfile={companyProfile}
+                                currentStatus={currentStatus}
+                                onClose={onClose}
+                                onStatusUpdate={handleStatusUpdate}
                                 canEdit={canEdit}
+                                teamMembers={teamMembers}
+                                assignedTo={assignedTo}
+                                onAssignChange={handleAssignChange}
+                                canDelete={isCompanyAdmin}
+                                onDelete={() => setConfirmingDelete(true)}
                             />
-                        )}
-                    </TabPanel>
+                        </div>
+
+                        {/*
+                          The tab panel is the scroll container, and it is
+                          keyboard-focusable so a keyboard user can scroll long tab
+                          content without tabbing through every control inside it.
+                        */}
+                        <TabPanel
+                            ref={tabPanelRef}
+                            idBase={tabsIdBase}
+                            tabId={activeTab}
+                            className="relative flex-1 overflow-y-auto overflow-x-hidden bg-ds-surface p-ds-4 sm:p-ds-6"
+                        >
+                            {loading ? (
+                                <div
+                                    role="status"
+                                    className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-ds-2 bg-ds-surface/80"
+                                >
+                                    <Loader2 className="h-8 w-8 animate-spin text-ds-action-primary" aria-hidden="true" />
+                                    <p className="text-ds-sm font-medium text-ds-content-secondary">Loading driver dossier…</p>
+                                </div>
+                            ) : error ? (
+                                <div role="alert" className="p-ds-8 text-center">
+                                    <p className="font-medium text-ds-status-danger-fg">Error loading application details.</p>
+                                    <p className="mt-ds-2 text-ds-sm text-ds-content-secondary [overflow-wrap:anywhere]">{error}</p>
+                                </div>
+                            ) : (
+                                <DossierContent
+                                    activeTab={activeTab}
+                                    appData={appData}
+                                    driverId={driverId}
+                                    companyId={companyId}
+                                    collectionName={collectionName}
+                                    isEditing={isEditing}
+                                    setIsEditing={setIsEditing}
+                                    handleSaveEdit={handleSaveEdit}
+                                    isSaving={isSaving}
+                                    fileUrls={fileUrls}
+                                    canEdit={canEdit}
+                                />
+                            )}
+                        </TabPanel>
+                    </div>
                 </div>
             </Modal>
 
@@ -220,8 +233,7 @@ export function DriverProfileModal({
                     labelledBy="delete-app-title"
                     // Destructive dialogs open on the least destructive action.
                     initialFocusRef={cancelDeleteRef}
-                    overlayClassName="fixed inset-0 z-[65] flex items-center justify-center bg-ds-overlay backdrop-blur-sm p-ds-4"
-                    className="w-full max-w-md overflow-hidden rounded-ds-xl bg-ds-surface shadow-ds-lg"
+                    size="md"
                 >
                     <div className="p-ds-6">
                         <div className="mb-ds-3 flex items-center gap-ds-3">

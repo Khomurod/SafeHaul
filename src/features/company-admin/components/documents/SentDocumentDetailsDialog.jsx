@@ -60,7 +60,8 @@ export function SentDocumentDetailsDialog({
             onClose={onClose}
             labelledBy={titleId}
             initialFocusRef={closeRef}
-            className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-ds-xl border border-ds-border bg-ds-surface shadow-ds-lg"
+            size="lg"
+            scroll="body"
         >
             <div className="flex items-start justify-between gap-ds-4 border-b border-ds-border-subtle bg-ds-surface-subtle p-ds-5">
                 <h2 id={titleId} className="min-w-0 text-ds-heading-sm font-bold text-ds-content [overflow-wrap:anywhere]">

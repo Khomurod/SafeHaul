@@ -146,8 +146,7 @@ export function QuickLeadModal({ companyId, onClose, onSuccess }) {
             onClose={onClose}
             labelledBy={titleId}
             describedBy={descriptionId}
-            overlayClassName="fixed inset-0 z-[100] flex items-center justify-center bg-ds-overlay p-4 backdrop-blur-sm"
-            className="w-full max-w-md overflow-hidden rounded-ds-xl border border-ds-border-subtle bg-ds-surface shadow-ds-lg"
+            size="md"
         >
             {/* Header */}
             <div className="flex items-center justify-between gap-ds-3 border-b border-ds-border-subtle bg-ds-surface-subtle px-ds-6 py-ds-4">

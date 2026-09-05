@@ -26,9 +26,11 @@ import { Modal } from '@design-system/patterns';
  * Defects fixed:
  *  1. **The overlay was a hand-built `fixed inset-0` div** with no
  *     `role="dialog"`, no `aria-modal`, no focus move on open, no focus trap and
- *     no focus restoration — and this dialog sits at `z-[9999]` over the whole
+ *     no focus restoration — and this dialog sat at `z-[9999]` over the whole
  *     app, so a keyboard user was trapped behind it with no way in or out. It now
- *     uses the approved accessible `Modal`. Escape now dismisses (recording the same
+ *     uses the approved accessible `Modal`, on the shared `--ds-z-modal` layer:
+ *     the 9999 was outbidding a navigation drawer that now sits below every
+ *     dialog by contract. Escape now dismisses (recording the same
  *     `dismisses` counter the X button does); backdrop click still does **not**
  *     dismiss, preserving the original deliberate `stopPropagation`.
  *  2. **The close control had no accessible name** — an icon-only button whose
@@ -140,8 +142,9 @@ export function FeatureDeactivationWarning() {
             // Preserves the original deliberate `stopPropagation`: this notice is
             // not dismissed by clicking away from it.
             closeOnBackdrop={false}
-            overlayClassName="fixed inset-0 z-[9999] flex items-center justify-center bg-ds-overlay p-4 backdrop-blur-sm"
-            className="flex w-full max-w-lg flex-col overflow-hidden rounded-ds-xl border border-ds-status-danger-border bg-ds-surface shadow-ds-lg"
+            size="lg"
+            scroll="body"
+            tone="danger"
         >
             <div className="relative flex flex-col items-center border-b border-ds-status-danger-border bg-ds-status-danger-bg p-ds-6 text-center">
                 <div className="absolute right-ds-4 top-ds-4">

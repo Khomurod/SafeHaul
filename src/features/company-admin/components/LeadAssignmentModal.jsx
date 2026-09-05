@@ -198,8 +198,8 @@ export function LeadAssignmentModal({ companyId, selectedLeadIds, onClose, onSuc
             onClose={onClose}
             labelledBy={titleId}
             describedBy={descriptionId}
-            overlayClassName="fixed inset-0 z-[60] flex items-center justify-center bg-ds-overlay p-4 backdrop-blur-sm"
-            className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-ds-xl border border-ds-border-subtle bg-ds-surface shadow-ds-lg"
+            size="lg"
+            scroll="body"
         >
             <div className="flex items-center justify-between gap-ds-3 border-b border-ds-border-subtle bg-ds-surface-subtle p-ds-5">
                 <div className="min-w-0">

@@ -198,8 +198,9 @@ export function PEVRequestModal({ employer, applicant: _applicant, onClose, onPr
             labelledBy={titleId}
             onClose={onClose}
             initialFocusRef={closeRef}
-            overlayClassName="fixed inset-0 z-[80] flex items-stretch justify-center bg-ds-overlay p-0 backdrop-blur-sm sm:items-center sm:p-ds-4"
-            className="flex h-full w-full flex-col overflow-hidden bg-ds-surface shadow-ds-lg sm:h-auto sm:max-h-[90vh] sm:max-w-lg sm:rounded-ds-xl"
+            size="lg"
+            scroll="body"
+            mobile="fullscreen"
         >
             {/*
               Header.
