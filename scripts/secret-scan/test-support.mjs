@@ -26,15 +26,14 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import {
-    copyFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync,
-} from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve as resolvePath } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gitRunner } from './git.mjs';
 import { GITLEAKS_VERSION, ensureGitleaks, performScans } from './gitleaks.mjs';
 import { ScanPlanError } from './range.mjs';
+import { removeTree } from '../lib/throwaway.mjs';
 
 export const here = dirname(fileURLToPath(import.meta.url));
 export const repoRoot = resolvePath(here, '../..');
@@ -120,6 +119,9 @@ export function makeRepo() {
     scratch.push(dir);
     const git = (...args) => execFileSync('git', args, { cwd: dir, encoding: 'utf8' }).trim();
     git('init', '-q', '-b', 'main');
+    // No background `git gc --auto` writing into `.git` after cleanup starts.
+    git('config', 'gc.auto', '0');
+    git('config', 'maintenance.auto', 'false');
     git('config', 'user.email', 'tests@safehaul.invalid');
     git('config', 'user.name', 'SafeHaul tests');
     git('config', 'commit.gpgsign', 'false');
@@ -202,5 +204,5 @@ export const gitleaksVersion = GITLEAKS_VERSION;
 
 /** Every throwaway directory this run created, removed by the entry point. */
 export function cleanup() {
-    for (const dir of scratch) rmSync(dir, { recursive: true, force: true });
+    for (const dir of scratch) removeTree(dir);
 }

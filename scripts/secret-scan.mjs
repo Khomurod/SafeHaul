@@ -179,7 +179,24 @@ async function main() {
         );
     }
 
-    rmSync(work, { recursive: true, force: true });
+    /*
+     * Retries, and inline rather than through `scripts/lib/throwaway.mjs`.
+     *
+     * The shared helper is what every other caller uses, and importing it here
+     * is refused by this scanner's own containment assertion (§L,
+     * `test-sources.mjs`): the covered set is this entry plus every non-test
+     * module in `scripts/secret-scan/`, so a part of the scanner living
+     * anywhere else would be pinned by nothing. That property is worth more
+     * than three shared lines, so the three lines are repeated.
+     *
+     * `force: true` alone is not enough — it suppresses `ENOENT` and nothing
+     * else, and an `ENOTEMPTY` from a concurrent writer still throws. That
+     * failed `callable-contract` on 2026-09-05 in a sibling harness, after
+     * every assertion in it had passed.
+     */
+    rmSync(work, {
+        recursive: true, force: true, maxRetries: 10, retryDelay: 50,
+    });
 
     if (problems.length > 0) {
         console.error(`\nsecret-scan REFUSED: ${problems.join('; ')}`);
