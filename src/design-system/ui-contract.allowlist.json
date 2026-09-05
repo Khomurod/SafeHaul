@@ -34,14 +34,6 @@
         "raw-black-white-class": "roadmap §5 — `bg-white/5` on one of the login hero's decorative blur orbs, alongside the brand-tinted pair already recorded on this file. It is artwork on an inverse surface, not an interface colour: the orbs exist to give the panel depth and carry no meaning, so mapping them onto a content or surface role would tie a decoration to a role that a contrast change could legitimately re-tune."
       }
     },
-    "src/features/campaigns/CampaignEditor.jsx": {
-      "hand-rolled-current": 1,
-      "hand-styled-button": 1,
-      "reasons": {
-        "hand-styled-button": "roadmap §5 — the campaign section rail. It is a `nav` of steps with `aria-current=\"step\"` and a per-step completion indicator. `SectionNavigation` is the near miss and cannot express either: it hardcodes `aria-current=\"page\"`, and it has no trailing slot for the complete/incomplete icon that is the whole point of this rail. Extending it for one consumer would be speculative; recorded as the section-rail-with-status gap instead. Tokenised, keyboard-reachable, shared focus ring.",
-        "hand-rolled-current": "roadmap §5 — the campaign section rail, and the same one control this file already records under `hand-styled-button`. It is a WIZARD STEP rail, not a page rail: `SectionNavigation` hardcodes `aria-current=\"page\"` and has no trailing slot for the complete/incomplete indicator that is this rail's whole purpose, so `SelectableCard` would be the wrong shape and the near-miss primitive is not ready. P-8 extends `SectionNavigation` with `currentType` and per-item status and retires both entries together. Tokenised, `aria-current`, shared focus ring."
-      }
-    },
     "src/features/campaigns/components/AudienceBuilder.jsx": {
       "raw-black-white-class": 1,
       "reasons": {

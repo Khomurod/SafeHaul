@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
-    Icon, Bell, FileText, History, Settings, Shield, SlidersHorizontal
+    Icon, Bell, FileText, History, MessageSquare, Rocket, Settings, Shield,
+    SlidersHorizontal, Users
 } from '@design-system/icons';
 import { Card, SectionNavigation } from '@design-system/components';
 import { Stack } from '@design-system/layouts';
@@ -199,4 +200,61 @@ export const KeyboardNavigation = {
       </Stack>
     </div>
   ),
+};
+
+/**
+ * A wizard rail: `currentType="step"`, a per-item completion marker, no group
+ * heading, and no frame because the container it sits in already draws one.
+ *
+ * The completion state is announced as part of each item's name — "Audience
+ * (completed)" — rather than shown by colour alone, and the two glyphs differ
+ * in shape so the state survives forced-colours mode.
+ */
+const WIZARD_STEPS = [
+  {
+    id: 'wizard',
+    items: [
+      { id: 'audience', label: 'Audience', icon: Users, status: 'complete' },
+      { id: 'content', label: 'Content', icon: MessageSquare, status: 'incomplete' },
+      { id: 'review', label: 'Review', icon: Rocket, status: 'incomplete' },
+    ],
+  },
+];
+
+export const WizardSteps = {
+  render: function WizardStepsStory() {
+    const [currentId, setCurrentId] = useState('content');
+    return (
+      <Card padding="md" style={{ maxWidth: 280 }}>
+        <SectionNavigation
+          label="Sequence sections"
+          groups={WIZARD_STEPS}
+          currentId={currentId}
+          currentType="step"
+          frame="none"
+          onSelect={setCurrentId}
+        />
+      </Card>
+    );
+  },
+};
+
+/** The same rail at 412, where the labels and the markers share the width. */
+export const WizardStepsNarrow = {
+  globals: { viewport: { value: 'safehaulMobile' } },
+  render: function WizardStepsNarrowStory() {
+    const [currentId, setCurrentId] = useState('content');
+    return (
+      <Card padding="md">
+        <SectionNavigation
+          label="Sequence sections"
+          groups={WIZARD_STEPS}
+          currentId={currentId}
+          currentType="step"
+          frame="none"
+          onSelect={setCurrentId}
+        />
+      </Card>
+    );
+  },
 };

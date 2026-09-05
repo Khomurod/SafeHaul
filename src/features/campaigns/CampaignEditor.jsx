@@ -1,12 +1,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import {
-    ArrowLeft, CheckCircle2, Circle, Users, MessageSquare, Rocket, Save
-} from 'lucide-react';
+import { ArrowLeft, Save } from 'lucide-react';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@lib/firebase';
 import { useCampaignDraft } from './hooks/useCampaignDraft';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
-import { Button, FormField, Input } from '@/design-system/components';
+import { Button, FormField, Input, SectionNavigation } from '@/design-system/components';
+/*
+ * The rail's glyphs come from the registry rather than `lucide-react`, because
+ * `SectionNavigation` renders `item.icon` through `Icon` and the registry hands
+ * out TOKENS, not components — a raw import throws by name at the call site.
+ * Required by the migration, not Phase 7 arriving early.
+ */
+import { MessageSquare, Rocket, Users } from '@/design-system/icons';
 
 // Lazy load sub-components
 const AudienceBuilder = React.lazy(() => import('./components/AudienceBuilder').then(m => ({ default: m.AudienceBuilder })));
@@ -130,45 +135,28 @@ export function CampaignEditor({ companyId, campaignId, onClose }) {
                         />
                     </FormField>
 
-                    <nav aria-label="Campaign sections" className="flex flex-col gap-ds-2">
-                        {SECTIONS.map(section => {
-                            const isActive = activeSection === section.id;
-                            const isDone = isSectionComplete(section.id);
-                            const Icon = section.icon;
-
-                            return (
-                                <button
-                                    key={section.id}
-                                    type="button"
-                                    onClick={() => setActiveSection(section.id)}
-                                    aria-current={isActive ? 'step' : undefined}
-                                    className={[
-                                        'flex w-full items-center justify-between rounded-ds-lg p-ds-3 transition-all',
-                                        'focus-visible:outline-none focus-visible:shadow-ds-focus',
-                                        isActive
-                                            ? 'bg-ds-status-info-bg text-ds-status-info-fg shadow-ds-xs'
-                                            : 'text-ds-content-secondary hover:bg-ds-surface-subtle',
-                                    ].join(' ')}
-                                >
-                                    <span className="flex items-center gap-ds-3">
-                                        <Icon size={18} className={isActive ? 'text-ds-action-primary' : 'text-ds-content-muted'} aria-hidden="true" />
-                                        <span className="text-ds-sm font-bold">{section.label}</span>
-                                    </span>
-                                    {isDone ? (
-                                        <>
-                                            <CheckCircle2 size={16} className="text-ds-status-success-fg" aria-hidden="true" />
-                                            <span className="sr-only"> (completed)</span>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Circle size={16} className="text-ds-border" aria-hidden="true" />
-                                            <span className="sr-only"> (incomplete)</span>
-                                        </>
-                                    )}
-                                </button>
-                            );
-                        })}
-                    </nav>
+                    {/*
+                        The completion state is domain knowledge — what makes a
+                        section "done" is this feature's business — so it is
+                        mapped here and handed to the primitive as a status. The
+                        rail owns the appearance, the announcement and the
+                        keyboard behaviour, none of which this screen should be
+                        deciding for itself.
+                    */}
+                    <SectionNavigation
+                        label="Campaign sections"
+                        groups={[{
+                            id: 'sections',
+                            items: SECTIONS.map(section => ({
+                                ...section,
+                                status: isSectionComplete(section.id) ? 'complete' : 'incomplete',
+                            })),
+                        }]}
+                        currentId={activeSection}
+                        currentType="step"
+                        frame="none"
+                        onSelect={setActiveSection}
+                    />
                 </div>
 
                 <div className="mt-auto border-t border-ds-border-subtle p-ds-4">

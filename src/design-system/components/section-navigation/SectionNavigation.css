@@ -142,3 +142,45 @@
     transition: none;
   }
 }
+
+/*
+ * `frame="none"`: the rail is mounted inside a container that already draws a
+ * surface, so the component's own would be a second box around the first. The
+ * card frame stays the default because that is what every consumer but one
+ * needs, and a primitive should not make the common case ask.
+ */
+.ds-section-navigation[data-frame='none'] {
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+/*
+ * The trailing status column, scoped to items that HAVE a status rather than
+ * declared on the shared template — and that scoping is load-bearing, not
+ * caution. Measured in Chromium before the decision: adding an `auto` third
+ * track costs **12px of label width even when nothing occupies it**, because
+ * grid places its `gap` between every explicit track whether or not anything
+ * is in it. 268px became 256px. Unscoped, every item in every existing
+ * consumer would have quietly lost a `--ds-space-3` of room for its label.
+ */
+.ds-section-navigation__item[data-status] {
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+}
+
+/*
+ * `content-muted` rather than a border role: this is a glyph, and the border
+ * roles are for lines. It is de-emphasised but legible, which is what "not yet"
+ * should look like — the shape carries the state either way (a filled check
+ * against an empty ring), and the visually-hidden suffix carries it for anyone
+ * who is not looking at it.
+ */
+.ds-section-navigation__status {
+  color: var(--ds-color-content-muted);
+}
+
+.ds-section-navigation__item[data-status='complete'] .ds-section-navigation__status {
+  color: var(--ds-color-status-success-fg);
+}

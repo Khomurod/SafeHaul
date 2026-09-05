@@ -1,4 +1,66 @@
 {
+  "mobile · the step rail: a third column, two status colours, and no frame · frameless": {
+    "gridTemplateColumns": "none",
+    "borderTopWidth": "0px",
+    "borderRadius": "0px",
+    "paddingTop": "0px",
+    "backgroundColor": "rgba(0, 0, 0, 0)",
+    "boxShadow": "none",
+    "color": "rgb(30, 41, 59)",
+    "width": "238px",
+    "height": "140px"
+  },
+  "mobile · the step rail: a third column, two status colours, and no frame · step-item": {
+    "gridTemplateColumns": "20px 151px 16px",
+    "borderTopWidth": "0px",
+    "borderRadius": "8px",
+    "paddingTop": "8px",
+    "backgroundColor": "rgba(0, 0, 0, 0)",
+    "boxShadow": "none",
+    "color": "rgb(71, 85, 105)",
+    "width": "238px",
+    "height": "44px"
+  },
+  "mobile · the step rail: a third column, two status colours, and no frame · complete": {
+    "gridTemplateColumns": "none",
+    "borderTopWidth": "0px",
+    "borderRadius": "0px",
+    "paddingTop": "0px",
+    "backgroundColor": "rgba(0, 0, 0, 0)",
+    "boxShadow": "none",
+    "color": "rgb(22, 101, 52)",
+    "width": "16px",
+    "height": "16px"
+  },
+  "mobile · the step rail: a third column, two status colours, and no frame · incomplete": {
+    "gridTemplateColumns": "none",
+    "borderTopWidth": "0px",
+    "borderRadius": "0px",
+    "paddingTop": "0px",
+    "backgroundColor": "rgba(0, 0, 0, 0)",
+    "boxShadow": "none",
+    "color": "rgb(71, 85, 105)",
+    "width": "16px",
+    "height": "16px"
+  },
+  "mobile · the page rail the step variant must not have moved · item": {
+    "gridTemplateColumns": "20px 271px",
+    "minHeight": "44px",
+    "borderTopWidth": "0px",
+    "borderRadius": "8px",
+    "paddingTop": "8px",
+    "backgroundColor": "rgb(239, 246, 255)",
+    "boxShadow": "none"
+  },
+  "mobile · the page rail the step variant must not have moved · frame": {
+    "gridTemplateColumns": "none",
+    "minHeight": "0px",
+    "borderTopWidth": "1px",
+    "borderRadius": "16px",
+    "paddingTop": "8px",
+    "backgroundColor": "rgb(255, 255, 255)",
+    "boxShadow": "rgba(15, 23, 42, 0.1) 0px 1px 3px 0px, rgba(15, 23, 42, 0.06) 0px 1px 2px 0px"
+  },
   "mobile · the card disclosure, and the rail chrome it takes off · section": {
     "paddingLeft": "0px",
     "fontSize": "16px",
@@ -91,146 +153,11 @@
     "width": "16px",
     "height": "16px"
   },
-  "mobile · the dialog chrome, and the eight widths that replaced thirty class lists · panel[sm]": {
-    "maxWidth": "384px",
-    "maxHeight": "823.5px",
-    "borderRadius": "16px",
-    "borderTopWidth": "1px",
-    "borderTopColor": "rgb(226, 232, 240)",
-    "backgroundColor": "rgb(255, 255, 255)",
-    "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
-  },
-  "mobile · the dialog chrome, and the eight widths that replaced thirty class lists · panel[md]": {
-    "maxWidth": "448px",
-    "maxHeight": "823.5px",
-    "borderRadius": "16px",
-    "borderTopWidth": "1px",
-    "borderTopColor": "rgb(226, 232, 240)",
-    "backgroundColor": "rgb(255, 255, 255)",
-    "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
-  },
-  "mobile · the dialog chrome, and the eight widths that replaced thirty class lists · panel[lg]": {
-    "maxWidth": "512px",
-    "maxHeight": "823.5px",
-    "borderRadius": "16px",
-    "borderTopWidth": "1px",
-    "borderTopColor": "rgb(226, 232, 240)",
-    "backgroundColor": "rgb(255, 255, 255)",
-    "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
-  },
-  "mobile · the dialog chrome, and the eight widths that replaced thirty class lists · panel[xl]": {
-    "maxWidth": "576px",
-    "maxHeight": "823.5px",
-    "borderRadius": "16px",
-    "borderTopWidth": "1px",
-    "borderTopColor": "rgb(226, 232, 240)",
-    "backgroundColor": "rgb(255, 255, 255)",
-    "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
-  },
-  "mobile · the dialog chrome, and the eight widths that replaced thirty class lists · panel[2xl]": {
-    "maxWidth": "672px",
-    "maxHeight": "823.5px",
-    "borderRadius": "16px",
-    "borderTopWidth": "1px",
-    "borderTopColor": "rgb(226, 232, 240)",
-    "backgroundColor": "rgb(255, 255, 255)",
-    "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
-  },
-  "mobile · the dialog chrome, and the eight widths that replaced thirty class lists · panel[4xl]": {
-    "maxWidth": "896px",
-    "maxHeight": "823.5px",
-    "borderRadius": "16px",
-    "borderTopWidth": "1px",
-    "borderTopColor": "rgb(226, 232, 240)",
-    "backgroundColor": "rgb(255, 255, 255)",
-    "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
-  },
-  "mobile · the dialog chrome, and the eight widths that replaced thirty class lists · panel[5xl]": {
-    "maxWidth": "1024px",
-    "maxHeight": "823.5px",
-    "borderRadius": "16px",
-    "borderTopWidth": "1px",
-    "borderTopColor": "rgb(226, 232, 240)",
-    "backgroundColor": "rgb(255, 255, 255)",
-    "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
-  },
-  "mobile · the dialog chrome, and the eight widths that replaced thirty class lists · panel[7xl]": {
-    "maxWidth": "370.8px",
-    "maxHeight": "823.5px",
-    "borderRadius": "16px",
-    "borderTopWidth": "1px",
-    "borderTopColor": "rgb(226, 232, 240)",
-    "backgroundColor": "rgb(255, 255, 255)",
-    "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
-  },
   "mobile · the dialog overlay, whose stacking layer is not a caller decision · overlay": {
     "zIndex": "60",
     "backgroundColor": "rgba(15, 23, 42, 0.6)",
     "paddingTop": "16px",
     "alignItems": "center"
-  },
-  "mobile · the control scale, and the pairing it exists for · input[md]": {
-    "height": "44px",
-    "fontSize": "16px",
-    "borderRadius": "8px",
-    "paddingLeft": "12px",
-    "paddingRight": "12px"
-  },
-  "mobile · the control scale, and the pairing it exists for · input[sm]": {
-    "height": "36px",
-    "fontSize": "16px",
-    "borderRadius": "8px",
-    "paddingLeft": "8px",
-    "paddingRight": "8px"
-  },
-  "mobile · the control scale, and the pairing it exists for · input[lg]": {
-    "height": "52px",
-    "fontSize": "16px",
-    "borderRadius": "8px",
-    "paddingLeft": "16px",
-    "paddingRight": "16px"
-  },
-  "mobile · the control scale, and the pairing it exists for · button[md]": {
-    "height": "44px",
-    "fontSize": "14px",
-    "borderRadius": "8px",
-    "paddingLeft": "16px",
-    "paddingRight": "16px"
-  },
-  "mobile · the control scale, and the pairing it exists for · button[sm]": {
-    "height": "36px",
-    "fontSize": "13px",
-    "borderRadius": "8px",
-    "paddingLeft": "12px",
-    "paddingRight": "12px"
-  },
-  "mobile · the control scale, and the pairing it exists for · button[lg]": {
-    "height": "52px",
-    "fontSize": "15px",
-    "borderRadius": "8px",
-    "paddingLeft": "20px",
-    "paddingRight": "20px"
-  },
-  "mobile · the control scale, and the pairing it exists for · iconButton[md]": {
-    "height": "44px",
-    "fontSize": "14px",
-    "borderRadius": "8px",
-    "paddingLeft": "0px",
-    "paddingRight": "0px"
-  },
-  "mobile · an input and a select are the same control, and must look it · input[md]": {
-    "height": "44px",
-    "fontSize": "16px",
-    "backgroundColor": "rgb(255, 255, 255)",
-    "borderColor": "rgb(203, 213, 225)",
-    "color": "rgb(30, 41, 59)"
-  },
-  "mobile · an input and a select are the same control, and must look it · select[md]": {
-    "height": "44px",
-    "fontSize": "16px",
-    "backgroundColor": "rgb(255, 255, 255)",
-    "borderColor": "rgb(203, 213, 225)",
-    "color": "rgb(30, 41, 59)"
   },
   "mobile · a tone fills a primary and tints a secondary · primary[success]": {
     "backgroundColor": "rgb(21, 128, 61)",
@@ -353,6 +280,174 @@
     "paddingLeft": "16px",
     "paddingRight": "16px"
   },
+  "mobile · the surface geometry every card shares · card": {
+    "borderRadius": "12px",
+    "padding": "0px",
+    "borderTopWidth": "1px",
+    "backgroundColor": "rgb(255, 255, 255)"
+  },
+  "mobile · badges hug their label and never stretch · badge": {
+    "height": "24px",
+    "fontSize": "12px",
+    "borderRadius": "9999px",
+    "width": "61px"
+  },
+  "mobile · table density: row height and cell padding · headerCell": {
+    "height": "48px",
+    "paddingLeft": "16px",
+    "paddingRight": "16px",
+    "fontSize": "12px"
+  },
+  "mobile · table density: row height and cell padding · bodyCell": {
+    "height": "72px",
+    "paddingLeft": "16px",
+    "paddingRight": "16px",
+    "fontSize": "14px"
+  },
+  "mobile · a tab is a control, at the control height · tab": {
+    "height": "44px",
+    "fontSize": "13px"
+  },
+  "mobile · switch geometry · switch": {
+    "width": "44px",
+    "height": "24px",
+    "borderRadius": "9999px"
+  },
+  "mobile · the dialog chrome, and the eight widths that replaced thirty class lists · panel[sm]": {
+    "maxWidth": "384px",
+    "maxHeight": "823.5px",
+    "borderRadius": "16px",
+    "borderTopWidth": "1px",
+    "borderTopColor": "rgb(226, 232, 240)",
+    "backgroundColor": "rgb(255, 255, 255)",
+    "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
+  },
+  "mobile · the dialog chrome, and the eight widths that replaced thirty class lists · panel[md]": {
+    "maxWidth": "448px",
+    "maxHeight": "823.5px",
+    "borderRadius": "16px",
+    "borderTopWidth": "1px",
+    "borderTopColor": "rgb(226, 232, 240)",
+    "backgroundColor": "rgb(255, 255, 255)",
+    "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
+  },
+  "mobile · the dialog chrome, and the eight widths that replaced thirty class lists · panel[lg]": {
+    "maxWidth": "512px",
+    "maxHeight": "823.5px",
+    "borderRadius": "16px",
+    "borderTopWidth": "1px",
+    "borderTopColor": "rgb(226, 232, 240)",
+    "backgroundColor": "rgb(255, 255, 255)",
+    "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
+  },
+  "mobile · the dialog chrome, and the eight widths that replaced thirty class lists · panel[xl]": {
+    "maxWidth": "576px",
+    "maxHeight": "823.5px",
+    "borderRadius": "16px",
+    "borderTopWidth": "1px",
+    "borderTopColor": "rgb(226, 232, 240)",
+    "backgroundColor": "rgb(255, 255, 255)",
+    "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
+  },
+  "mobile · the dialog chrome, and the eight widths that replaced thirty class lists · panel[2xl]": {
+    "maxWidth": "672px",
+    "maxHeight": "823.5px",
+    "borderRadius": "16px",
+    "borderTopWidth": "1px",
+    "borderTopColor": "rgb(226, 232, 240)",
+    "backgroundColor": "rgb(255, 255, 255)",
+    "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
+  },
+  "mobile · the dialog chrome, and the eight widths that replaced thirty class lists · panel[4xl]": {
+    "maxWidth": "896px",
+    "maxHeight": "823.5px",
+    "borderRadius": "16px",
+    "borderTopWidth": "1px",
+    "borderTopColor": "rgb(226, 232, 240)",
+    "backgroundColor": "rgb(255, 255, 255)",
+    "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
+  },
+  "mobile · the dialog chrome, and the eight widths that replaced thirty class lists · panel[5xl]": {
+    "maxWidth": "1024px",
+    "maxHeight": "823.5px",
+    "borderRadius": "16px",
+    "borderTopWidth": "1px",
+    "borderTopColor": "rgb(226, 232, 240)",
+    "backgroundColor": "rgb(255, 255, 255)",
+    "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
+  },
+  "mobile · the dialog chrome, and the eight widths that replaced thirty class lists · panel[7xl]": {
+    "maxWidth": "370.8px",
+    "maxHeight": "823.5px",
+    "borderRadius": "16px",
+    "borderTopWidth": "1px",
+    "borderTopColor": "rgb(226, 232, 240)",
+    "backgroundColor": "rgb(255, 255, 255)",
+    "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
+  },
+  "mobile · the control scale, and the pairing it exists for · input[md]": {
+    "height": "44px",
+    "fontSize": "16px",
+    "borderRadius": "8px",
+    "paddingLeft": "12px",
+    "paddingRight": "12px"
+  },
+  "mobile · the control scale, and the pairing it exists for · input[sm]": {
+    "height": "36px",
+    "fontSize": "16px",
+    "borderRadius": "8px",
+    "paddingLeft": "8px",
+    "paddingRight": "8px"
+  },
+  "mobile · the control scale, and the pairing it exists for · input[lg]": {
+    "height": "52px",
+    "fontSize": "16px",
+    "borderRadius": "8px",
+    "paddingLeft": "16px",
+    "paddingRight": "16px"
+  },
+  "mobile · the control scale, and the pairing it exists for · button[md]": {
+    "height": "44px",
+    "fontSize": "14px",
+    "borderRadius": "8px",
+    "paddingLeft": "16px",
+    "paddingRight": "16px"
+  },
+  "mobile · the control scale, and the pairing it exists for · button[sm]": {
+    "height": "36px",
+    "fontSize": "13px",
+    "borderRadius": "8px",
+    "paddingLeft": "12px",
+    "paddingRight": "12px"
+  },
+  "mobile · the control scale, and the pairing it exists for · button[lg]": {
+    "height": "52px",
+    "fontSize": "15px",
+    "borderRadius": "8px",
+    "paddingLeft": "20px",
+    "paddingRight": "20px"
+  },
+  "mobile · the control scale, and the pairing it exists for · iconButton[md]": {
+    "height": "44px",
+    "fontSize": "14px",
+    "borderRadius": "8px",
+    "paddingLeft": "0px",
+    "paddingRight": "0px"
+  },
+  "mobile · an input and a select are the same control, and must look it · input[md]": {
+    "height": "44px",
+    "fontSize": "16px",
+    "backgroundColor": "rgb(255, 255, 255)",
+    "borderColor": "rgb(203, 213, 225)",
+    "color": "rgb(30, 41, 59)"
+  },
+  "mobile · an input and a select are the same control, and must look it · select[md]": {
+    "height": "44px",
+    "fontSize": "16px",
+    "backgroundColor": "rgb(255, 255, 255)",
+    "borderColor": "rgb(203, 213, 225)",
+    "color": "rgb(30, 41, 59)"
+  },
   "mobile · every step of the icon scale · icon[xs]": {
     "width": "12px",
     "height": "12px"
@@ -414,18 +509,6 @@
   "mobile · the gap between a glyph and its label is the system's too · gap in button[lg]": {
     "columnGap": "8px"
   },
-  "mobile · the surface geometry every card shares · card": {
-    "borderRadius": "12px",
-    "padding": "0px",
-    "borderTopWidth": "1px",
-    "backgroundColor": "rgb(255, 255, 255)"
-  },
-  "mobile · badges hug their label and never stretch · badge": {
-    "height": "24px",
-    "fontSize": "12px",
-    "borderRadius": "9999px",
-    "width": "61px"
-  },
   "mobile · a native table is the same table as DataTable · nativeTable.headerRow": {
     "paddingLeft": "0px",
     "paddingRight": "0px",
@@ -460,27 +543,6 @@
     "position": "sticky",
     "left": "0px"
   },
-  "mobile · table density: row height and cell padding · headerCell": {
-    "height": "48px",
-    "paddingLeft": "16px",
-    "paddingRight": "16px",
-    "fontSize": "12px"
-  },
-  "mobile · table density: row height and cell padding · bodyCell": {
-    "height": "72px",
-    "paddingLeft": "16px",
-    "paddingRight": "16px",
-    "fontSize": "14px"
-  },
-  "mobile · a tab is a control, at the control height · tab": {
-    "height": "44px",
-    "fontSize": "13px"
-  },
-  "mobile · switch geometry · switch": {
-    "width": "44px",
-    "height": "24px",
-    "borderRadius": "9999px"
-  },
   "mobile · the three page states are the same shape as each other · state": {
     "padding": "24px 16px",
     "fontSize": "16px",
@@ -495,6 +557,68 @@
     "padding": "0px",
     "fontSize": "14px",
     "maxWidth": "378px"
+  },
+  "desktop · the step rail: a third column, two status colours, and no frame · frameless": {
+    "gridTemplateColumns": "none",
+    "borderTopWidth": "0px",
+    "borderRadius": "0px",
+    "paddingTop": "0px",
+    "backgroundColor": "rgba(0, 0, 0, 0)",
+    "boxShadow": "none",
+    "color": "rgb(30, 41, 59)",
+    "width": "238px",
+    "height": "140px"
+  },
+  "desktop · the step rail: a third column, two status colours, and no frame · step-item": {
+    "gridTemplateColumns": "20px 151px 16px",
+    "borderTopWidth": "0px",
+    "borderRadius": "8px",
+    "paddingTop": "8px",
+    "backgroundColor": "rgba(0, 0, 0, 0)",
+    "boxShadow": "none",
+    "color": "rgb(71, 85, 105)",
+    "width": "238px",
+    "height": "44px"
+  },
+  "desktop · the step rail: a third column, two status colours, and no frame · complete": {
+    "gridTemplateColumns": "none",
+    "borderTopWidth": "0px",
+    "borderRadius": "0px",
+    "paddingTop": "0px",
+    "backgroundColor": "rgba(0, 0, 0, 0)",
+    "boxShadow": "none",
+    "color": "rgb(22, 101, 52)",
+    "width": "16px",
+    "height": "16px"
+  },
+  "desktop · the step rail: a third column, two status colours, and no frame · incomplete": {
+    "gridTemplateColumns": "none",
+    "borderTopWidth": "0px",
+    "borderRadius": "0px",
+    "paddingTop": "0px",
+    "backgroundColor": "rgba(0, 0, 0, 0)",
+    "boxShadow": "none",
+    "color": "rgb(71, 85, 105)",
+    "width": "16px",
+    "height": "16px"
+  },
+  "desktop · the page rail the step variant must not have moved · item": {
+    "gridTemplateColumns": "20px 467px",
+    "minHeight": "44px",
+    "borderTopWidth": "0px",
+    "borderRadius": "8px",
+    "paddingTop": "8px",
+    "backgroundColor": "rgb(239, 246, 255)",
+    "boxShadow": "none"
+  },
+  "desktop · the page rail the step variant must not have moved · frame": {
+    "gridTemplateColumns": "none",
+    "minHeight": "0px",
+    "borderTopWidth": "1px",
+    "borderRadius": "16px",
+    "paddingTop": "8px",
+    "backgroundColor": "rgb(255, 255, 255)",
+    "boxShadow": "rgba(15, 23, 42, 0.1) 0px 1px 3px 0px, rgba(15, 23, 42, 0.06) 0px 1px 2px 0px"
   },
   "desktop · the card disclosure, and the rail chrome it takes off · section": {
     "paddingLeft": "0px",
@@ -588,146 +712,11 @@
     "width": "16px",
     "height": "16px"
   },
-  "desktop · the dialog chrome, and the eight widths that replaced thirty class lists · panel[sm]": {
-    "maxWidth": "384px",
-    "maxHeight": "810px",
-    "borderRadius": "16px",
-    "borderTopWidth": "1px",
-    "borderTopColor": "rgb(226, 232, 240)",
-    "backgroundColor": "rgb(255, 255, 255)",
-    "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
-  },
-  "desktop · the dialog chrome, and the eight widths that replaced thirty class lists · panel[md]": {
-    "maxWidth": "448px",
-    "maxHeight": "810px",
-    "borderRadius": "16px",
-    "borderTopWidth": "1px",
-    "borderTopColor": "rgb(226, 232, 240)",
-    "backgroundColor": "rgb(255, 255, 255)",
-    "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
-  },
-  "desktop · the dialog chrome, and the eight widths that replaced thirty class lists · panel[lg]": {
-    "maxWidth": "512px",
-    "maxHeight": "810px",
-    "borderRadius": "16px",
-    "borderTopWidth": "1px",
-    "borderTopColor": "rgb(226, 232, 240)",
-    "backgroundColor": "rgb(255, 255, 255)",
-    "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
-  },
-  "desktop · the dialog chrome, and the eight widths that replaced thirty class lists · panel[xl]": {
-    "maxWidth": "576px",
-    "maxHeight": "810px",
-    "borderRadius": "16px",
-    "borderTopWidth": "1px",
-    "borderTopColor": "rgb(226, 232, 240)",
-    "backgroundColor": "rgb(255, 255, 255)",
-    "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
-  },
-  "desktop · the dialog chrome, and the eight widths that replaced thirty class lists · panel[2xl]": {
-    "maxWidth": "672px",
-    "maxHeight": "810px",
-    "borderRadius": "16px",
-    "borderTopWidth": "1px",
-    "borderTopColor": "rgb(226, 232, 240)",
-    "backgroundColor": "rgb(255, 255, 255)",
-    "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
-  },
-  "desktop · the dialog chrome, and the eight widths that replaced thirty class lists · panel[4xl]": {
-    "maxWidth": "896px",
-    "maxHeight": "810px",
-    "borderRadius": "16px",
-    "borderTopWidth": "1px",
-    "borderTopColor": "rgb(226, 232, 240)",
-    "backgroundColor": "rgb(255, 255, 255)",
-    "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
-  },
-  "desktop · the dialog chrome, and the eight widths that replaced thirty class lists · panel[5xl]": {
-    "maxWidth": "1024px",
-    "maxHeight": "810px",
-    "borderRadius": "16px",
-    "borderTopWidth": "1px",
-    "borderTopColor": "rgb(226, 232, 240)",
-    "backgroundColor": "rgb(255, 255, 255)",
-    "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
-  },
-  "desktop · the dialog chrome, and the eight widths that replaced thirty class lists · panel[7xl]": {
-    "maxWidth": "1280px",
-    "maxHeight": "810px",
-    "borderRadius": "16px",
-    "borderTopWidth": "1px",
-    "borderTopColor": "rgb(226, 232, 240)",
-    "backgroundColor": "rgb(255, 255, 255)",
-    "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
-  },
   "desktop · the dialog overlay, whose stacking layer is not a caller decision · overlay": {
     "zIndex": "60",
     "backgroundColor": "rgba(15, 23, 42, 0.6)",
     "paddingTop": "16px",
     "alignItems": "center"
-  },
-  "desktop · the control scale, and the pairing it exists for · input[md]": {
-    "height": "44px",
-    "fontSize": "14px",
-    "borderRadius": "8px",
-    "paddingLeft": "12px",
-    "paddingRight": "12px"
-  },
-  "desktop · the control scale, and the pairing it exists for · input[sm]": {
-    "height": "36px",
-    "fontSize": "13px",
-    "borderRadius": "8px",
-    "paddingLeft": "8px",
-    "paddingRight": "8px"
-  },
-  "desktop · the control scale, and the pairing it exists for · input[lg]": {
-    "height": "52px",
-    "fontSize": "15px",
-    "borderRadius": "8px",
-    "paddingLeft": "16px",
-    "paddingRight": "16px"
-  },
-  "desktop · the control scale, and the pairing it exists for · button[md]": {
-    "height": "44px",
-    "fontSize": "14px",
-    "borderRadius": "8px",
-    "paddingLeft": "16px",
-    "paddingRight": "16px"
-  },
-  "desktop · the control scale, and the pairing it exists for · button[sm]": {
-    "height": "36px",
-    "fontSize": "13px",
-    "borderRadius": "8px",
-    "paddingLeft": "12px",
-    "paddingRight": "12px"
-  },
-  "desktop · the control scale, and the pairing it exists for · button[lg]": {
-    "height": "52px",
-    "fontSize": "15px",
-    "borderRadius": "8px",
-    "paddingLeft": "20px",
-    "paddingRight": "20px"
-  },
-  "desktop · the control scale, and the pairing it exists for · iconButton[md]": {
-    "height": "44px",
-    "fontSize": "14px",
-    "borderRadius": "8px",
-    "paddingLeft": "0px",
-    "paddingRight": "0px"
-  },
-  "desktop · an input and a select are the same control, and must look it · input[md]": {
-    "height": "44px",
-    "fontSize": "14px",
-    "backgroundColor": "rgb(255, 255, 255)",
-    "borderColor": "rgb(203, 213, 225)",
-    "color": "rgb(30, 41, 59)"
-  },
-  "desktop · an input and a select are the same control, and must look it · select[md]": {
-    "height": "44px",
-    "fontSize": "14px",
-    "backgroundColor": "rgb(255, 255, 255)",
-    "borderColor": "rgb(203, 213, 225)",
-    "color": "rgb(30, 41, 59)"
   },
   "desktop · a tone fills a primary and tints a secondary · primary[success]": {
     "backgroundColor": "rgb(21, 128, 61)",
@@ -850,6 +839,174 @@
     "paddingLeft": "16px",
     "paddingRight": "16px"
   },
+  "desktop · the surface geometry every card shares · card": {
+    "borderRadius": "12px",
+    "padding": "0px",
+    "borderTopWidth": "1px",
+    "backgroundColor": "rgb(255, 255, 255)"
+  },
+  "desktop · badges hug their label and never stretch · badge": {
+    "height": "24px",
+    "fontSize": "12px",
+    "borderRadius": "9999px",
+    "width": "61px"
+  },
+  "desktop · table density: row height and cell padding · headerCell": {
+    "height": "48px",
+    "paddingLeft": "20px",
+    "paddingRight": "20px",
+    "fontSize": "12px"
+  },
+  "desktop · table density: row height and cell padding · bodyCell": {
+    "height": "72px",
+    "paddingLeft": "20px",
+    "paddingRight": "20px",
+    "fontSize": "14px"
+  },
+  "desktop · a tab is a control, at the control height · tab": {
+    "height": "44px",
+    "fontSize": "13px"
+  },
+  "desktop · switch geometry · switch": {
+    "width": "44px",
+    "height": "24px",
+    "borderRadius": "9999px"
+  },
+  "desktop · the dialog chrome, and the eight widths that replaced thirty class lists · panel[sm]": {
+    "maxWidth": "384px",
+    "maxHeight": "810px",
+    "borderRadius": "16px",
+    "borderTopWidth": "1px",
+    "borderTopColor": "rgb(226, 232, 240)",
+    "backgroundColor": "rgb(255, 255, 255)",
+    "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
+  },
+  "desktop · the dialog chrome, and the eight widths that replaced thirty class lists · panel[md]": {
+    "maxWidth": "448px",
+    "maxHeight": "810px",
+    "borderRadius": "16px",
+    "borderTopWidth": "1px",
+    "borderTopColor": "rgb(226, 232, 240)",
+    "backgroundColor": "rgb(255, 255, 255)",
+    "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
+  },
+  "desktop · the dialog chrome, and the eight widths that replaced thirty class lists · panel[lg]": {
+    "maxWidth": "512px",
+    "maxHeight": "810px",
+    "borderRadius": "16px",
+    "borderTopWidth": "1px",
+    "borderTopColor": "rgb(226, 232, 240)",
+    "backgroundColor": "rgb(255, 255, 255)",
+    "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
+  },
+  "desktop · the dialog chrome, and the eight widths that replaced thirty class lists · panel[xl]": {
+    "maxWidth": "576px",
+    "maxHeight": "810px",
+    "borderRadius": "16px",
+    "borderTopWidth": "1px",
+    "borderTopColor": "rgb(226, 232, 240)",
+    "backgroundColor": "rgb(255, 255, 255)",
+    "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
+  },
+  "desktop · the dialog chrome, and the eight widths that replaced thirty class lists · panel[2xl]": {
+    "maxWidth": "672px",
+    "maxHeight": "810px",
+    "borderRadius": "16px",
+    "borderTopWidth": "1px",
+    "borderTopColor": "rgb(226, 232, 240)",
+    "backgroundColor": "rgb(255, 255, 255)",
+    "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
+  },
+  "desktop · the dialog chrome, and the eight widths that replaced thirty class lists · panel[4xl]": {
+    "maxWidth": "896px",
+    "maxHeight": "810px",
+    "borderRadius": "16px",
+    "borderTopWidth": "1px",
+    "borderTopColor": "rgb(226, 232, 240)",
+    "backgroundColor": "rgb(255, 255, 255)",
+    "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
+  },
+  "desktop · the dialog chrome, and the eight widths that replaced thirty class lists · panel[5xl]": {
+    "maxWidth": "1024px",
+    "maxHeight": "810px",
+    "borderRadius": "16px",
+    "borderTopWidth": "1px",
+    "borderTopColor": "rgb(226, 232, 240)",
+    "backgroundColor": "rgb(255, 255, 255)",
+    "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
+  },
+  "desktop · the dialog chrome, and the eight widths that replaced thirty class lists · panel[7xl]": {
+    "maxWidth": "1280px",
+    "maxHeight": "810px",
+    "borderRadius": "16px",
+    "borderTopWidth": "1px",
+    "borderTopColor": "rgb(226, 232, 240)",
+    "backgroundColor": "rgb(255, 255, 255)",
+    "boxShadow": "rgba(15, 23, 42, 0.1) 0px 10px 15px 0px, rgba(15, 23, 42, 0.05) 0px 4px 6px 0px"
+  },
+  "desktop · the control scale, and the pairing it exists for · input[md]": {
+    "height": "44px",
+    "fontSize": "14px",
+    "borderRadius": "8px",
+    "paddingLeft": "12px",
+    "paddingRight": "12px"
+  },
+  "desktop · the control scale, and the pairing it exists for · input[sm]": {
+    "height": "36px",
+    "fontSize": "13px",
+    "borderRadius": "8px",
+    "paddingLeft": "8px",
+    "paddingRight": "8px"
+  },
+  "desktop · the control scale, and the pairing it exists for · input[lg]": {
+    "height": "52px",
+    "fontSize": "15px",
+    "borderRadius": "8px",
+    "paddingLeft": "16px",
+    "paddingRight": "16px"
+  },
+  "desktop · the control scale, and the pairing it exists for · button[md]": {
+    "height": "44px",
+    "fontSize": "14px",
+    "borderRadius": "8px",
+    "paddingLeft": "16px",
+    "paddingRight": "16px"
+  },
+  "desktop · the control scale, and the pairing it exists for · button[sm]": {
+    "height": "36px",
+    "fontSize": "13px",
+    "borderRadius": "8px",
+    "paddingLeft": "12px",
+    "paddingRight": "12px"
+  },
+  "desktop · the control scale, and the pairing it exists for · button[lg]": {
+    "height": "52px",
+    "fontSize": "15px",
+    "borderRadius": "8px",
+    "paddingLeft": "20px",
+    "paddingRight": "20px"
+  },
+  "desktop · the control scale, and the pairing it exists for · iconButton[md]": {
+    "height": "44px",
+    "fontSize": "14px",
+    "borderRadius": "8px",
+    "paddingLeft": "0px",
+    "paddingRight": "0px"
+  },
+  "desktop · an input and a select are the same control, and must look it · input[md]": {
+    "height": "44px",
+    "fontSize": "14px",
+    "backgroundColor": "rgb(255, 255, 255)",
+    "borderColor": "rgb(203, 213, 225)",
+    "color": "rgb(30, 41, 59)"
+  },
+  "desktop · an input and a select are the same control, and must look it · select[md]": {
+    "height": "44px",
+    "fontSize": "14px",
+    "backgroundColor": "rgb(255, 255, 255)",
+    "borderColor": "rgb(203, 213, 225)",
+    "color": "rgb(30, 41, 59)"
+  },
   "desktop · every step of the icon scale · icon[xs]": {
     "width": "12px",
     "height": "12px"
@@ -911,18 +1068,6 @@
   "desktop · the gap between a glyph and its label is the system's too · gap in button[lg]": {
     "columnGap": "8px"
   },
-  "desktop · the surface geometry every card shares · card": {
-    "borderRadius": "12px",
-    "padding": "0px",
-    "borderTopWidth": "1px",
-    "backgroundColor": "rgb(255, 255, 255)"
-  },
-  "desktop · badges hug their label and never stretch · badge": {
-    "height": "24px",
-    "fontSize": "12px",
-    "borderRadius": "9999px",
-    "width": "61px"
-  },
   "desktop · a native table is the same table as DataTable · nativeTable.headerRow": {
     "paddingLeft": "0px",
     "paddingRight": "0px",
@@ -956,27 +1101,6 @@
     "backgroundColor": "rgb(255, 255, 255)",
     "position": "sticky",
     "left": "0px"
-  },
-  "desktop · table density: row height and cell padding · headerCell": {
-    "height": "48px",
-    "paddingLeft": "20px",
-    "paddingRight": "20px",
-    "fontSize": "12px"
-  },
-  "desktop · table density: row height and cell padding · bodyCell": {
-    "height": "72px",
-    "paddingLeft": "20px",
-    "paddingRight": "20px",
-    "fontSize": "14px"
-  },
-  "desktop · a tab is a control, at the control height · tab": {
-    "height": "44px",
-    "fontSize": "13px"
-  },
-  "desktop · switch geometry · switch": {
-    "width": "44px",
-    "height": "24px",
-    "borderRadius": "9999px"
   },
   "desktop · the three page states are the same shape as each other · state": {
     "padding": "32px 16px",
