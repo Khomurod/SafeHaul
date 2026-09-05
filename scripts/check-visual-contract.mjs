@@ -128,6 +128,47 @@ const PROBES = [
         properties: ['height', 'fontSize', 'paddingLeft', 'paddingRight'],
     },
     {
+        /*
+         * The icon scale itself: six steps, measured, in one frame.
+         *
+         * `Icon.css` states these through `:where()`, which has ZERO specificity
+         * — deliberately, so the container rules below still win. That makes the
+         * scale unusually easy to lose: any stylesheet that mentions `.ds-icon`
+         * at all outranks it, and the failure is a glyph quietly rendering at
+         * the wrong size rather than an error. This reads the numbers back.
+         */
+        story: 'foundations-icons--scale',
+        label: 'every step of the icon scale',
+        selectors: {
+            'icon[xs]': ".ds-icon[data-size='xs']",
+            'icon[sm]': ".ds-icon[data-size='sm']",
+            'icon[md]': ".ds-icon[data-size='md']",
+            'icon[lg]': ".ds-icon[data-size='lg']",
+            'icon[xl]': ".ds-icon[data-size='xl']",
+            'icon[2xl]': ".ds-icon[data-size='2xl']",
+            'icon[3xl]': ".ds-icon[data-size='3xl']",
+        },
+        properties: ['width', 'height'],
+    },
+    {
+        /*
+         * And the rule that outranks it. Every glyph in this story is written
+         * `size="md"`; each renders at the size its CONTAINER decided. If the
+         * `:where()` above were ever written as a plain class selector these
+         * three would all read 16px and two buttons in a row would carry
+         * different-sized glyphs — which is the defect the control scale was
+         * built to end, arriving through the icon contract instead.
+         */
+        story: 'foundations-icons--inside-controls',
+        label: 'a container still outranks the icon scale',
+        selectors: {
+            'icon in button[sm]': ".ds-button[data-size='sm'] .ds-button__content > svg",
+            'icon in button[md]': ".ds-button[data-size='md'] .ds-button__content > svg",
+            'icon in button[lg]': ".ds-button[data-size='lg'] .ds-button__content > svg",
+        },
+        properties: ['width', 'height'],
+    },
+    {
         story: 'foundations-control-scale--icon-normalisation',
         label: 'icon size is the system\'s decision, not the call site\'s',
         selectors: {

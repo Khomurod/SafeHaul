@@ -23,10 +23,13 @@ Before changing UI code, read:
   holds `EmptyState`, `ErrorState` and `LoadingState`, which own the
   announcement each state needs as well as its appearance.
 - `layouts/` contains business-neutral page and region composition.
-- `icons/` holds a **placeholder README and nothing else** — no `Icon` component, no
-  glyph set, no exports. Icons are imported directly from `lucide-react` at 178 call
-  sites today. The contract that README describes is built in the icon-foundation
-  slice; until then this directory documents an intention, not an API.
+- `icons/` holds the approved icon contract: `Icon`, a seven-step size scale, the
+  accessible-name rule, and a registry of 171 **glyph tokens** that cannot be
+  rendered except through `Icon` — so a call site cannot go back to passing its own
+  pixel number. 178 files outside the design system still import `lucide-react`
+  directly and are migrated area by area; until that is done, `Icon` also accepts
+  a bare component, because those files hand raw glyphs to design-system
+  containers as props. See `icons/README.md`.
 - `stories/` is the component catalog, built with Storybook 10 and configured in
   `.storybook/`. Run it with `npm run storybook`; `npm run test:stories` renders
   every story and runs axe over it. See `stories/README.md`.

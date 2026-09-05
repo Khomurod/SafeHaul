@@ -3,8 +3,9 @@ import {
   AlertTriangle,
   ChevronLeft,
   ChevronRight,
+  Icon,
   Inbox,
-} from 'lucide-react';
+} from '../../icons';
 import { defineTableColumns } from './tableColumnContract';
 import './DataTable.css';
 
@@ -45,7 +46,7 @@ function StateContent({ state, empty, error, loadingLabel }) {
   if (state === 'error') {
     return (
       <div className="ds-data-table__state ds-data-table__state--error" role="alert">
-        <AlertTriangle size={32} aria-hidden="true" />
+        <Icon icon={AlertTriangle} size="3xl" />
         <p className="ds-data-table__state-title">Unable to load records</p>
         <p className="ds-data-table__state-description">{error.message}</p>
         {error.onRetry && (
@@ -64,7 +65,7 @@ function StateContent({ state, empty, error, loadingLabel }) {
   const EmptyIcon = empty.icon;
   return (
     <div className="ds-data-table__state" role="status" aria-live="polite">
-      {EmptyIcon ? <EmptyIcon size={32} aria-hidden="true" /> : <Inbox size={32} aria-hidden="true" />}
+      <Icon icon={EmptyIcon || Inbox} size="3xl" />
       <p className="ds-data-table__state-title">{empty.title}</p>
       {empty.description && (
         <p className="ds-data-table__state-description">{empty.description}</p>
@@ -175,7 +176,7 @@ export const DataTable = memo(function DataTable({
     >
       {showInlineError && (
         <div className="ds-data-table__notice" role="alert">
-          <AlertTriangle size={18} aria-hidden="true" />
+          <Icon icon={AlertTriangle} size="lg" />
           <span>{normalizedError.message}</span>
           {normalizedError.onRetry && (
             <button type="button" onClick={normalizedError.onRetry}>Retry</button>
@@ -311,7 +312,7 @@ export const DataTable = memo(function DataTable({
               onClick={pagination.onPrev}
               disabled={!pagination.hasPrev}
             >
-              <ChevronLeft size={18} aria-hidden="true" />
+              <Icon icon={ChevronLeft} size="lg" />
             </button>
             <span aria-live="polite">
               Page <strong>{pagination.currentPage}</strong> of{' '}
@@ -323,7 +324,7 @@ export const DataTable = memo(function DataTable({
               onClick={pagination.onNext}
               disabled={!pagination.hasNext}
             >
-              <ChevronRight size={18} aria-hidden="true" />
+              <Icon icon={ChevronRight} size="lg" />
             </button>
           </div>
         </nav>

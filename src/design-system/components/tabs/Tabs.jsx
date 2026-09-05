@@ -1,4 +1,5 @@
 import React, { forwardRef, useCallback, useRef } from 'react';
+import { Icon as DsIcon } from '../../icons';
 import './Tabs.css';
 
 /**
@@ -167,7 +168,7 @@ export function TabList({
             className="ds-tab"
             data-selected={isSelected || undefined}
           >
-            {Icon && <Icon aria-hidden="true" />}
+            {Icon && <DsIcon icon={Icon} size="md" />}
             <span className="ds-tab__label">{tab.label}</span>
             {tab.badge}
             {/*

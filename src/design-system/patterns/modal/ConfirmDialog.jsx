@@ -1,5 +1,5 @@
 import React, { useId, useRef } from 'react';
-import { AlertTriangle, HelpCircle, Info } from 'lucide-react';
+import { AlertTriangle, HelpCircle, Icon as DsIcon, Info } from '../../icons';
 import { Button, StatusMedallion } from '@design-system/components';
 import { Modal } from './Modal';
 
@@ -130,7 +130,10 @@ export function ConfirmDialog({
             scroll="body"
         >
             <div className="overflow-y-auto p-ds-5 text-center">
-                <StatusMedallion tone={medallion} className="mx-auto mb-ds-3"><Icon /></StatusMedallion>
+                <StatusMedallion tone={medallion} className="mx-auto mb-ds-3">
+                    {/* 24px, which is what the bare glyph rendered here before. */}
+                    <DsIcon icon={Icon} size="2xl" />
+                </StatusMedallion>
                 <h2 id={titleId} className="text-ds-heading-sm font-bold text-ds-content [overflow-wrap:anywhere]">
                     {title}
                 </h2>
@@ -148,7 +151,7 @@ export function ConfirmDialog({
                 <div role="alert" className="mt-ds-3">
                     {error && (
                         <p className="flex items-start gap-ds-2 rounded-ds-md border border-ds-status-danger-border bg-ds-status-danger-bg p-ds-3 text-left text-ds-sm text-ds-status-danger-fg [overflow-wrap:anywhere]">
-                            <Info size={16} aria-hidden="true" className="mt-0.5 shrink-0" />
+                            <DsIcon icon={Info} className="mt-0.5 shrink-0" />
                             {error}
                         </p>
                     )}

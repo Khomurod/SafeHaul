@@ -43,6 +43,24 @@ roadmap section 6 blocking "declaring the affected families fully approved". A
 page still marked *Needs review* is now waiting on something specific to itself,
 not on a palette or a standard nobody had signed off.
 
+## Icons
+
+Every glyph comes from `@design-system/icons`, and it arrives as a **token**
+rather than a component:
+
+```jsx
+import { Icon, Trash2 } from '@/design-system/icons';
+
+<Icon icon={Trash2} size="sm" />        // decoration — announced by nothing
+<Icon icon={Trash2} label="Delete" />   // the glyph IS the control
+```
+
+Sizes are the seven steps `xs sm md lg xl 2xl 3xl` (12–32px), never a pixel
+number — `<Trash2 size={13} />` throws by name. A container that already sizes
+the glyph inside it (`Button`, `IconButton`, `Tabs`, `SegmentedControl`,
+`FileInput`) still wins, so an icon in a small button is small because the button
+says so. See **Foundations → Icons**.
+
 ## Known gaps
 
 **The authoritative list lives in one place, and it is not here.**

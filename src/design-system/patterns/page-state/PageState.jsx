@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { AlertTriangle, Loader2 } from 'lucide-react';
+import { AlertTriangle, Icon as DsIcon, Loader2 } from '../../icons';
 import { Card, StatusMedallion } from '@design-system/components';
 import './PageState.css';
 
@@ -143,7 +143,13 @@ export function PageState({
     >
       {Icon && (
         <StatusMedallion tone={tone} size="lg">
-          <Icon aria-hidden="true" />
+          {/*
+            `2xl` is the 24px this rendered before the icon contract, when the
+            glyph came straight from the package and took its default. The
+            medallion does not size its child, so this is the only place that
+            number lives — stated rather than inherited from a library default.
+          */}
+          <DsIcon icon={Icon} size="2xl" />
         </StatusMedallion>
       )}
       <Heading

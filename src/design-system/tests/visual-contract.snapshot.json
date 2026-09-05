@@ -152,6 +152,46 @@
     "paddingLeft": "16px",
     "paddingRight": "16px"
   },
+  "mobile · every step of the icon scale · icon[xs]": {
+    "width": "12px",
+    "height": "12px"
+  },
+  "mobile · every step of the icon scale · icon[sm]": {
+    "width": "14px",
+    "height": "14px"
+  },
+  "mobile · every step of the icon scale · icon[md]": {
+    "width": "16px",
+    "height": "16px"
+  },
+  "mobile · every step of the icon scale · icon[lg]": {
+    "width": "18px",
+    "height": "18px"
+  },
+  "mobile · every step of the icon scale · icon[xl]": {
+    "width": "20px",
+    "height": "20px"
+  },
+  "mobile · every step of the icon scale · icon[2xl]": {
+    "width": "24px",
+    "height": "24px"
+  },
+  "mobile · every step of the icon scale · icon[3xl]": {
+    "width": "32px",
+    "height": "32px"
+  },
+  "mobile · a container still outranks the icon scale · icon in button[sm]": {
+    "width": "14px",
+    "height": "14px"
+  },
+  "mobile · a container still outranks the icon scale · icon in button[md]": {
+    "width": "16px",
+    "height": "16px"
+  },
+  "mobile · a container still outranks the icon scale · icon in button[lg]": {
+    "width": "18px",
+    "height": "18px"
+  },
   "mobile · icon size is the system's decision, not the call site's · icon in button[md]": {
     "width": "16px",
     "height": "16px"
@@ -407,6 +447,46 @@
     "fontSize": "14px",
     "paddingLeft": "16px",
     "paddingRight": "16px"
+  },
+  "desktop · every step of the icon scale · icon[xs]": {
+    "width": "12px",
+    "height": "12px"
+  },
+  "desktop · every step of the icon scale · icon[sm]": {
+    "width": "14px",
+    "height": "14px"
+  },
+  "desktop · every step of the icon scale · icon[md]": {
+    "width": "16px",
+    "height": "16px"
+  },
+  "desktop · every step of the icon scale · icon[lg]": {
+    "width": "18px",
+    "height": "18px"
+  },
+  "desktop · every step of the icon scale · icon[xl]": {
+    "width": "20px",
+    "height": "20px"
+  },
+  "desktop · every step of the icon scale · icon[2xl]": {
+    "width": "24px",
+    "height": "24px"
+  },
+  "desktop · every step of the icon scale · icon[3xl]": {
+    "width": "32px",
+    "height": "32px"
+  },
+  "desktop · a container still outranks the icon scale · icon in button[sm]": {
+    "width": "14px",
+    "height": "14px"
+  },
+  "desktop · a container still outranks the icon scale · icon in button[md]": {
+    "width": "16px",
+    "height": "16px"
+  },
+  "desktop · a container still outranks the icon scale · icon in button[lg]": {
+    "width": "18px",
+    "height": "18px"
   },
   "desktop · icon size is the system's decision, not the call site's · icon in button[md]": {
     "width": "16px",

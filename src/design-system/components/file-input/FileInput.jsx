@@ -1,5 +1,5 @@
 import React, { forwardRef, useCallback, useId, useState } from 'react';
-import { Loader2, Upload } from 'lucide-react';
+import { Icon, Loader2, Upload } from '../../icons';
 import { resolveDroppedFiles } from './dropAcceptance';
 import { useFocusRestore } from './useFocusRestore';
 import './FileInput.css';
@@ -332,8 +332,8 @@ export const FileInput = forwardRef(function FileInput({
         onDrop={handleDrop}
       >
         {loading
-          ? <Loader2 className="ds-file-input__spinner" aria-hidden="true" />
-          : <Upload aria-hidden="true" />}
+          ? <Icon icon={Loader2} className="ds-file-input__spinner" />
+          : <Icon icon={Upload} />}
         <span className="ds-file-input__button-label">{buttonLabel}</span>
         {variant === 'dropzone' && description && (
           <span className="ds-file-input__description" id={descriptionId}>{description}</span>
