@@ -1,6 +1,7 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import Draggable from 'react-draggable';
 import { Check, Scaling, Sparkles, X } from 'lucide-react';
+import { IconButton } from '@/design-system/components';
 
 /**
  * One AI suggestion drawn over the PDF.
@@ -149,37 +150,44 @@ export function AiSuggestionOverlay({
                     key resizes it. This suggestion is not part of the document until you apply it.
                 </span>
 
-                {/* DOCUMENTED EXCEPTION — the two corner controls are not the approved
-                    IconButton, for the same reason ResizableDraggableField's remove
-                    control is not: they are ~14px badges pinned to a box whose minimum
-                    size is 8px, and the approved primitive's min-height would overflow
-                    it. Both keep an accessible name, a focus-visible ring and `--ds-*`
-                    tokens. Recorded in the roadmap alongside the existing exception. */}
-                <button
-                    type="button"
-                    className="ai-suggestion-action absolute -right-2 -top-2 z-ds-layer-2 rounded-ds-full bg-ds-action-danger p-0.5 text-ds-content-inverse shadow-ds-sm focus-visible:outline-none focus-visible:shadow-ds-focus"
-                    aria-label={`Reject AI suggestion ${suggestion.label} on page ${pageNum}`}
+                {/* Both corner controls are the approved `IconButton` at its `xs` step —
+                    24px, the WCAG 2.2 SC 2.5.8 minimum, added for exactly this. The
+                    exception they replaced said the primitive's min-height would
+                    overflow the box; `xs` sets `min-height` to 24px rather than
+                    inheriting the 44px floor, which is what made that true.
+
+                    `.ai-suggestion-action` stays on both: the drag handler keys off it
+                    to let a pointer press a control without starting a drag. It is a
+                    behaviour hook, not a style. */}
+                <IconButton
+                    label={`Reject AI suggestion ${suggestion.label} on page ${pageNum}`}
+                    variant="danger"
+                    size="xs"
+                    shape="round"
+                    className="ai-suggestion-action absolute -right-3 -top-3 z-ds-layer-2 shadow-ds-sm"
                     onMouseDown={(event) => event.stopPropagation()}
                     onClick={(event) => {
                         event.stopPropagation();
                         onReject(suggestion.suggestionId);
                     }}
                 >
-                    <X size={10} aria-hidden="true" />
-                </button>
-                <button
-                    type="button"
-                    className="ai-suggestion-action absolute -left-2 -top-2 z-ds-layer-2 rounded-ds-full bg-ds-action-primary p-0.5 text-ds-content-inverse shadow-ds-sm focus-visible:outline-none focus-visible:shadow-ds-focus"
-                    aria-label={`${accepted ? 'Unselect' : 'Select'} AI suggestion ${suggestion.label} on page ${pageNum}`}
+                    <X size={12} aria-hidden="true" />
+                </IconButton>
+                <IconButton
+                    label={`${accepted ? 'Unselect' : 'Select'} AI suggestion ${suggestion.label} on page ${pageNum}`}
+                    variant="primary"
+                    size="xs"
+                    shape="round"
                     aria-pressed={accepted}
+                    className="ai-suggestion-action absolute -left-3 -top-3 z-ds-layer-2 shadow-ds-sm"
                     onMouseDown={(event) => event.stopPropagation()}
                     onClick={(event) => {
                         event.stopPropagation();
                         onAccept(suggestion.suggestionId);
                     }}
                 >
-                    <Check size={10} aria-hidden="true" />
-                </button>
+                    <Check size={12} aria-hidden="true" />
+                </IconButton>
 
                 <div
                     className="resize-handle absolute bottom-0 right-0 flex h-3 w-3 cursor-se-resize items-end justify-end p-0.5 opacity-60 transition group-hover:opacity-100"

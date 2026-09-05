@@ -1139,7 +1139,7 @@ nothing looked:
 | `npm run check:table-layout` | yes | A cell narrower than its content, in a real browser at 412px and 1440px — for `DataTable` and the `ds-native-table` contract |
 | `npm run check:visual-contract` | yes | A change to computed geometry — control heights, cell padding, radii, resolved colours, and a frozen table column losing its opaque background |
 | `npm run test:stories` | yes | A story that fails to render, or fails axe |
-| `npm run test:visual` | **yes**, since 2026-08-25 | A change to how anything *looks*, across 78 catalog subjects and 15 real screens at both widths |
+| `npm run test:visual` | **yes**, since 2026-08-25 | A change to how anything *looks*, across 82 catalog subjects and 15 real screens at both widths. **Known gap:** the e-doc field editor and the sandbox wizard are not among the 15, so changes confined to them are guarded by `check:visual-contract` measurements rather than by a photograph |
 | `npm run test:e2e -- --grep "@a11y"` | **yes**, since 2026-08-25 | Real-browser axe on the mobile-critical journeys, plus keyboard behaviour: roving `tabIndex`, arrow/Home/End, and that every control a Tab press reaches shows the product's focus ring |
 
 Two of those became blocking on 2026-08-25, and the pixel lane is the one worth

@@ -141,6 +141,32 @@ describe('Button tone', () => {
       .toThrow(/no box to tint/);
   });
 
+  /*
+   * The `xs` step: 24px, the WCAG 2.2 SC 2.5.8 minimum, and icon-only. It exists
+   * because the corner affordances on a placed PDF field measured 14x14.
+   */
+  it('gives IconButton a 24px step that a labelled Button cannot reach', () => {
+    render(<IconButton label="Remove" size="xs">x</IconButton>);
+    expect(screen.getByRole('button', { name: 'Remove' })).toHaveAttribute('data-size', 'xs');
+  });
+
+  it('refuses xs on a labelled button, which cannot fit text at 24px', () => {
+    expect(() => render(<Button size="xs">Remove</Button>))
+      .toThrow(/Unsupported Button size: xs/);
+  });
+
+  it('cuts an icon button square by default and round on request', () => {
+    const { rerender } = render(<IconButton label="Remove">x</IconButton>);
+    expect(screen.getByRole('button', { name: 'Remove' })).not.toHaveAttribute('data-shape');
+    rerender(<IconButton label="Remove" shape="round">x</IconButton>);
+    expect(screen.getByRole('button', { name: 'Remove' })).toHaveAttribute('data-shape', 'round');
+  });
+
+  it('refuses a shape it has no rule for', () => {
+    expect(() => render(<IconButton label="Remove" shape="pill">x</IconButton>))
+      .toThrow(/Unsupported IconButton shape: pill/);
+  });
+
   it('keeps the one pairing that predates the scale', () => {
     // `primary` + `success` is the signing submit, and it fills rather than
     // tints. Twelve live call sites depend on it looking exactly as it did.

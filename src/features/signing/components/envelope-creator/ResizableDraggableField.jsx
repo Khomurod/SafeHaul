@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useId } from 'react';
 import Draggable from 'react-draggable';
 import { X, Scaling } from 'lucide-react';
+import { IconButton } from '@/design-system/components';
 
 /**
  * Resizable & draggable field overlay.
@@ -225,21 +226,29 @@ export const ResizableDraggableField = React.memo(({ field, pageNum, pageWidth, 
                     stay reachable from the keyboard. */}
                 {isSelected && (
                     <>
-                        {/* DOCUMENTED EXCEPTION — this corner control is not the approved
-                            IconButton. It is a ~14px round badge pinned to the corner of a
-                            field whose minimum size is 8px; the approved primitive carries a
-                            min-height and padding that would overflow the field it belongs
-                            to. It keeps an accessible name, a focus-visible ring and the
-                            `--ds-*` tokens. Retiring it needs a compact icon-button size in
-                            the design system, recorded in the roadmap gap list. */}
-                        <button
-                            type="button"
-                            aria-label={`Remove ${fieldName} from page ${pageNum}`}
+                        {/* The exception this replaced said retiring it "needs a compact
+                            icon-button size in the design system". It has one: `xs` is 24px,
+                            the WCAG 2.2 SC 2.5.8 minimum, and the badge was 14x14.
+
+                            That minimum was reachable two ways. Every placed field also has
+                            a conformant 36x36 Remove control in the field list, which is
+                            exactly the equivalent-control exception 2.5.8 allows — so the
+                            badge could have stayed small with that written down. The owner
+                            chose on 2026-09-05 to meet the minimum on the badge itself, and
+                            the cost is real and visible: on a 28x27 checkbox field a 24px
+                            badge is nearly as wide as the field it sits on. The offset moves
+                            from -8px to -12px so the larger disc still straddles the corner
+                            rather than covering the field's contents. */}
+                        <IconButton
+                            label={`Remove ${fieldName} from page ${pageNum}`}
+                            variant="danger"
+                            size="xs"
+                            shape="round"
                             onMouseDown={(e) => { e.stopPropagation(); onRemove(field.id); }}
-                            className="absolute -right-2 -top-2 z-ds-layer-2 rounded-ds-full bg-ds-action-danger p-0.5 text-ds-content-inverse shadow-ds-sm focus-visible:outline-none focus-visible:shadow-ds-focus"
+                            className="absolute -right-3 -top-3 z-ds-layer-2 shadow-ds-sm"
                         >
-                            <X size={10} aria-hidden="true" />
-                        </button>
+                            <X size={12} aria-hidden="true" />
+                        </IconButton>
 
                         {/* The resize affordance stays a pointer-only control: react-draggable
                             cancels dragging on `.resize-handle`, and the mousemove/mouseup

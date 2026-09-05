@@ -142,6 +142,29 @@ const PROBES = [
         properties: ['backgroundColor', 'color', 'borderColor', 'borderRadius'],
     },
     {
+        /*
+         * The `xs` step, as a number, because it is a CONFORMANCE claim rather
+         * than a taste one: 24px is the WCAG 2.2 SC 2.5.8 (AA) target-size
+         * minimum, and the owner chose on 2026-09-05 to meet it on the PDF
+         * corner badges themselves rather than lean on the equivalent-control
+         * exception. A step that silently drifted to 20px would still look
+         * fine and would no longer conform.
+         *
+         * `height` as well as `width`: `.ds-button` carries
+         * `min-height: var(--ds-control-height-md)`, so an `xs` rule that set
+         * only the width would leave a 24px-wide, 44px-tall control — under the
+         * minimum in neither axis, but the wrong shape and a wasted 20px on a
+         * field box. It is the kind of thing only a measurement catches.
+         */
+        story: 'components-iconbutton--extra-small-and-round',
+        label: 'the 24px minimum target, and the disc',
+        selectors: {
+            'iconButton[xs]': ".ds-icon-button[data-size='xs']:not([data-shape])",
+            'iconButton[xs,round]': ".ds-icon-button[data-size='xs'][data-shape='round']",
+        },
+        properties: ['width', 'height', 'borderRadius'],
+    },
+    {
         story: 'components-button--link-variant',
         label: 'the one variant that leaves the control scale, and the one that does not',
         selectors: {

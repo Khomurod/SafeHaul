@@ -137,7 +137,7 @@
     "src/features/company-admin/views/candidateListColumns.jsx": {
       "hand-styled-button": 3,
       "reasons": {
-        "hand-styled-button": "roadmap §5 — three dense-table affordances, moved here verbatim from CompanyCandidatesListPage.jsx (source-size split): two 24px sort toggles in a column header and a 32px phone chip in a cell, both below the 36px `sm` step, which is the compact-icon-button gap the catalog's Introduction records; forcing the approved height would grow the header and the row. All are tokenised, named per record where they act on one, and carry the shared focus ring."
+        "hand-styled-button": "roadmap §5 — three dense-table affordances, moved here verbatim from CompanyCandidatesListPage.jsx (source-size split). **The recorded reason was the compact-icon-button gap, and that gap closed on 2026-09-05**: `xs` is 24px and the two sort toggles are already `h-6 w-6`, so size is no longer what blocks them. The real blocker is the PRESSED state. Each toggle shows which sort direction is active with `text-ds-action-primary`, and `.ds-button[data-variant='ghost']` sets `color` at 0-2-0 specificity, so a feature-side text utility at 0-1-0 loses — migrating them today would silently drop the only indication of which sort is applied. That is the same trap `Button.css` records for background overrides, one property over. `IconButton` needs a `pressed` API, which is the P-3 slice. The 32px phone chip is P-3's `Chip`. All three are tokenised, named per record where they act on one, and carry the shared focus ring."
       }
     },
     "src/features/driver-app/components/application/IntakeChooser.jsx": {
@@ -182,12 +182,6 @@
         "raw-hex-colour": "roadmap §5 — signature ink, rasterised into a legal record. The canvas this colour strokes is converted to a PNG (adopted by the signing room and stamped into a sealed PDF) and stored as part of a signed document, so it must not follow a theme: re-theming the application can never be allowed to retint a signature somebody has already given. Same argument as SignatureSheet.jsx, which has documented it in its own source since it was written. Found on 2026-09-05 when raw-hex-colour was widened to JS assignments — it had been invisible because the rule matched only arbitrary-value classes and CSS-style declarations."
       }
     },
-    "src/features/signing/components/envelope-creator/AiSuggestionOverlay.jsx": {
-      "hand-styled-button": 2,
-      "reasons": {
-        "hand-styled-button": "roadmap §5 — two ~14px accept/reject badges pinned to the corners of a suggestion box whose minimum size is 8px; `IconButton`'s min-height would overflow it. Both keep an accessible name, a focus-visible ring and --ds-* tones. Retiring them needs a compact icon-button size in the design system."
-      }
-    },
     "src/features/signing/components/envelope-creator/EditorMobileBar.jsx": {
       "hand-styled-button": 1,
       "reasons": {
@@ -201,11 +195,9 @@
       }
     },
     "src/features/signing/components/envelope-creator/ResizableDraggableField.jsx": {
-      "hand-styled-button": 1,
       "hand-styled-field": 1,
       "reasons": {
-        "hand-styled-field": "roadmap §5 — the inline field-label editor sits inside the draggable field rectangle, whose minimum size is 8px. The approved `Input`'s control height would overflow the box it is labelling. Same exception family as this file's corner remove badge.",
-        "hand-styled-button": "roadmap §5 — the corner remove badge on a placed field box whose minimum size is 8px, because the geometry comes from the PDF's own coordinates. `IconButton`'s min-height would overflow the box it belongs to. Same constraint as this file's inline label editor. Keeps an accessible name, a focus-visible ring and `--ds-*` tones."
+        "hand-styled-field": "roadmap §5 — the inline field-label editor sits inside the draggable field rectangle, whose minimum size is 8px. The approved `Input`'s control height would overflow the box it is labelling. Same exception family as this file's corner remove badge."
       }
     },
     "src/features/signing/components/signing-room/SignerField.jsx": {

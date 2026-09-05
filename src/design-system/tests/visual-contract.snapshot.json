@@ -152,6 +152,16 @@
     "borderColor": "rgb(187, 247, 208)",
     "borderRadius": "8px"
   },
+  "mobile · the 24px minimum target, and the disc · iconButton[xs]": {
+    "width": "24px",
+    "height": "24px",
+    "borderRadius": "8px"
+  },
+  "mobile · the 24px minimum target, and the disc · iconButton[xs,round]": {
+    "width": "24px",
+    "height": "24px",
+    "borderRadius": "9999px"
+  },
   "mobile · the one variant that leaves the control scale, and the one that does not · button[link]": {
     "height": "16.25px",
     "fontSize": "13px",
@@ -459,6 +469,16 @@
     "color": "rgb(22, 101, 52)",
     "borderColor": "rgb(187, 247, 208)",
     "borderRadius": "8px"
+  },
+  "desktop · the 24px minimum target, and the disc · iconButton[xs]": {
+    "width": "24px",
+    "height": "24px",
+    "borderRadius": "8px"
+  },
+  "desktop · the 24px minimum target, and the disc · iconButton[xs,round]": {
+    "width": "24px",
+    "height": "24px",
+    "borderRadius": "9999px"
   },
   "desktop · the one variant that leaves the control scale, and the one that does not · button[link]": {
     "height": "16.25px",
