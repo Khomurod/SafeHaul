@@ -40,8 +40,12 @@
 
 import { HOISTED_CLASS_NAME } from './ui-contract/bindings.mjs';
 import { COUNTERS, REMEDIES, countViolations } from './ui-contract/counting.mjs';
-import { CSS_RULES, CSS_RULE_NAMES, RULES, STYLED_CONTROL_RULES } from './ui-contract/rules.mjs';
-import { HTML_RULE_NAMES, STORY_RULE_NAMES } from './ui-contract/source-text.mjs';
+import {
+    CSS_RULES, CSS_RULE_NAMES, JSX_RULE_NAMES, RULES, STYLED_CONTROL_RULES,
+} from './ui-contract/rules.mjs';
+import {
+    CONTRACT_EXEMPT_RULES, HTML_RULE_NAMES, STORY_RULE_NAMES, rulesFor,
+} from './ui-contract/source-text.mjs';
 import { MIN_REASON_LENGTH, evaluate } from './ui-contract/verdict.mjs';
 import { regenerate, serialise } from './ui-contract/update.mjs';
 import { untetheredTables } from './ui-contract/tether.mjs';
@@ -321,6 +325,91 @@ assert('H6. the pre-filter matches the shape the rule reads, and not the inline 
     HOISTED_CLASS_NAME.test('<input className={commonClasses} />')
     && !HOISTED_CLASS_NAME.test('<input className="border px-ds-3" />')
     && !HOISTED_CLASS_NAME.test('<input className={props.className} />'));
+
+/* ========================================================================== */
+console.log('\nP. The hand-rolled toggle');
+
+const toggles = (code) => countViolations(code)['hand-rolled-toggle'] ?? 0;
+
+// P1. The shape the rule exists for.
+assert('P1. a raw <button aria-pressed> is one violation',
+    toggles('<button type="button" aria-pressed={on}>Hired</button>') === 1);
+
+/*
+ * P2. The whole difficulty of this rule in one assertion. Nineteen live call
+ * sites pass `aria-pressed` straight through to `Button` or `IconButton`, and
+ * they are correct — the state is being handed to the contract. The wrong shape
+ * differs by ONE CAPITAL LETTER, which a regex over the attribute cannot see, so
+ * the counter reads the element name off the open tag instead.
+ * Mutation: make `openTagAttributes`'s start pattern case-insensitive and this
+ * goes to 2.
+ */
+assert('P2. a component carrying aria-pressed is silent',
+    toggles('<Button aria-pressed={on}>SMS</Button><IconButton aria-pressed={on} label="x"/>') === 0);
+
+/*
+ * P3. `<button[^>]*aria-pressed` stops at the first `>`, including the one in
+ * `=>`, so prop ORDER would decide whether a toggle is visible. That defect is
+ * recorded twice already in `counting.mjs`; this is the third rule it would
+ * have hit.
+ */
+assert('P3. an arrow function before the attribute does not hide it',
+    toggles('<button onClick={() => go()} aria-pressed={on}>x</button>') === 1);
+
+// P4. Anchors count — `aria-pressed` on a link is invalid ARIA. Elements whose
+// name merely STARTS with `a` do not: the tag reader requires `[\s/>]` after it.
+assert('P4. an anchor counts and an abbr does not',
+    toggles('<a href="/x" aria-pressed={on}>x</a>') === 1
+    && toggles('<abbr aria-pressed="true">x</abbr><article aria-pressed="true"/>') === 0);
+
+// P5. The migration target has to be silent, or the rule refuses its own remedy.
+assert('P5. Chip and ChipGroup are silent',
+    toggles('<ChipGroup ariaLabel="Stage"><Chip pressed={on}>Hired</Chip></ChipGroup>') === 0);
+
+/*
+ * P6. The design system is exempt from this rule and NOTHING else.
+ *
+ * `SegmentedControl` IS the `role="group"` of `<button aria-pressed>` the rule
+ * points people at, so the rule cannot fire on it. The exemption is a named list
+ * rather than a path skip precisely so it cannot quietly widen: this asserts the
+ * set difference is exactly one name, and that every other rule still reaches
+ * inside `src/design-system/`.
+ * Mutation: add a second name to CONTRACT_EXEMPT_RULES and this fails.
+ */
+const contractRules = rulesFor('src/design-system/components/segmented/SegmentedControl.jsx');
+assert('P6a. the design system is exempt from exactly one rule',
+    CONTRACT_EXEMPT_RULES.length === 1
+    && CONTRACT_EXEMPT_RULES[0] === 'hand-rolled-toggle');
+assert('P6b. and keeps every other JSX rule',
+    JSX_RULE_NAMES.filter((name) => !contractRules.includes(name)).join(',') === 'hand-rolled-toggle');
+assert('P6c. so the primitive itself does not trip it',
+    (countViolations('<button aria-pressed={on} className="ds-segmented__option"/>', contractRules)['hand-rolled-toggle'] ?? 0) === 0);
+
+/*
+ * P7. A story is held to it, by the same argument `raw-z-index` is: the catalog
+ * is the design system's published example, and one hand-rolling a toggle is
+ * teaching the shape rather than merely containing it. Stories are routed before
+ * the contract-root branch, so the exemption must NOT reach them.
+ */
+assert('P7. a catalog story is still held to the rule',
+    STORY_RULE_NAMES.includes('hand-rolled-toggle')
+    && rulesFor('src/design-system/stories/Chip.stories.jsx').includes('hand-rolled-toggle'));
+
+/*
+ * P8. `JSX_RULE_NAMES` is what the exemption subtracts FROM, so if it ever
+ * covered less than `only === null` does, a design-system file would silently
+ * skip the difference — a hole opened by a list drifting out of date rather than
+ * by anybody deciding anything. Driven on a fixture that trips four different
+ * rule kinds at once: a pattern rule, a counter rule, a styled-control rule and
+ * a class-list rule.
+ * Mutation: drop STYLED_CONTROL_RULES from JSX_RULE_NAMES and this fails.
+ */
+const everyKind = '<div className="bg-blue-500" style={{ color: \'#ff0000\' }} />'
+    + '<button className="rounded-ds-md bg-ds-surface px-ds-3" aria-pressed={on}>x</button>'
+    + '<input type="file" />';
+assert('P8. the named JSX rule set covers exactly what `null` covers',
+    JSON.stringify(countViolations(everyKind, JSX_RULE_NAMES))
+    === JSON.stringify(countViolations(everyKind)));
 
 /* ========================================================================== */
 console.log('\nX. The rule engine stands alone');

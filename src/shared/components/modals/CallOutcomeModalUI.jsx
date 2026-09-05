@@ -6,7 +6,7 @@ import {
 import { formatPhoneNumber } from '@shared/utils/helpers';
 import { EXPERIENCE_OPTIONS } from '../../../config/form-options';
 import {
-  Button, FormField, IconButton, Input, SegmentedControl, Select, Textarea,
+  Button, Chip, FormField, IconButton, Input, SegmentedControl, Select, Textarea,
 } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { Modal } from '@design-system/patterns';
@@ -158,15 +158,16 @@ export function CallOutcomeModalUI({
           <span className="font-bold text-ds-content">{lead.firstName} {lead.lastName}</span>
         </div>
 
+        {/* The glyph was `fill="currentColor"` — a solid handset — and the icon
+            contract does not pass `fill`, so it renders as an outline like every
+            other glyph in the product. Deliberate: adding a fill escape hatch to
+            `Icon` to keep one call site solid would be the contract working for
+            the exception rather than the rule. */}
         {lead.phone && (
-          <a
-            href={`tel:${lead.phone}`}
-            className="flex items-center gap-1 rounded-ds-full bg-ds-status-success-bg px-ds-3 py-1.5 text-ds-xs font-bold text-ds-status-success-fg transition-colors hover:bg-ds-surface focus-visible:outline-none focus-visible:shadow-ds-focus"
-          >
-            <Phone size={12} fill="currentColor" aria-hidden="true" />
+          <Chip href={`tel:${lead.phone}`} tone="success" icon={Phone}>
             <span className="sr-only">Call now: </span>
             {formatPhoneNumber(lead.phone)}
-          </a>
+          </Chip>
         )}
       </div>
 

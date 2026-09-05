@@ -3,12 +3,13 @@ import { useCampaignTargeting } from '../hooks/useCampaignTargeting';
 import { useCompanyTeam } from '@/shared/hooks/useCompanyTeam';
 import { useData } from '@/context/DataContext';
 import { APPLICATION_STATUSES, LAST_CALL_RESULTS } from '../constants/campaignConstants';
-import { Filter, Users, RefreshCw, CheckCircle2, FileSpreadsheet, Check } from 'lucide-react';
+import { Filter, Users, RefreshCw, CheckCircle2, FileSpreadsheet } from 'lucide-react';
 import { useBulkImport } from '@/shared/hooks/useBulkImport';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import VirtualLeadList from './VirtualLeadList';
 import {
-    Badge, Button, Card, FileInput, FormField, Input, Select, TabList, TabPanel,
+    Badge, Button, Card, Chip, ChipGroup, FileInput, FormField, Input, Select,
+    TabList, TabPanel,
 } from '@/design-system/components';
 
 const getUploadFingerprint = (rows) => {
@@ -220,36 +221,30 @@ export function AudienceBuilder({ companyId, filters, onChange, campaignScopeKey
                                         </FormField>
 
                                         {/* Status Pills */}
-                                        <div role="group" aria-labelledby={statusLabelId}>
+                                        <div>
                                             <span id={statusLabelId} className="mb-ds-2 block text-ds-xs font-bold uppercase text-ds-content-secondary">
                                                 Status
                                             </span>
-                                            <div className="flex flex-wrap gap-ds-2">
+                                            {/* Multi-select: `Chip` carries the pressed state and its leading
+                                                check, so selection is never colour alone. */}
+                                            <ChipGroup ariaLabelledBy={statusLabelId}>
                                                 {APPLICATION_STATUSES.map((status) => {
-                                                    const isActive = localFilters.status?.includes(status.id);
+                                                    const isActive = !!localFilters.status?.includes(status.id);
                                                     return (
-                                                        <button
+                                                        <Chip
                                                             key={status.id}
-                                                            type="button"
-                                                            aria-pressed={isActive}
+                                                            pressed={isActive}
                                                             onClick={() => {
                                                                 const current = localFilters.status || [];
                                                                 const newVal = isActive ? current.filter(s => s !== status.id) : [...current, status.id];
                                                                 handleFilterChange('status', newVal);
                                                             }}
-                                                            className={`flex items-center gap-ds-1 rounded-ds-md border px-ds-3 py-ds-1 text-ds-xs font-bold transition-colors focus-visible:outline-none focus-visible:shadow-ds-focus ${
-                                                                isActive
-                                                                    ? 'border-ds-action-primary bg-ds-action-primary text-ds-content-inverse shadow-ds-xs'
-                                                                    : 'border-ds-border bg-ds-surface text-ds-content-secondary hover:border-ds-border hover:bg-ds-surface-subtle'
-                                                            }`}
                                                         >
-                                                            {/* Icon + pressed state so selection is never colour-only. */}
-                                                            {isActive && <Check size={12} aria-hidden="true" />}
                                                             {status.label}
-                                                        </button>
+                                                        </Chip>
                                                     );
                                                 })}
-                                            </div>
+                                            </ChipGroup>
                                         </div>
 
                                         {/* Exclude Previously Messaged */}

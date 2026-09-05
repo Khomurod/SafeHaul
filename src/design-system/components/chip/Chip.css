@@ -1,0 +1,146 @@
+/*
+ * A chip borrows `Badge`'s geometry on purpose — same pill, same 12px semibold
+ * text, same 12px leading glyph — and adds the three things a badge cannot have:
+ * a pointer, a focus ring and a pressed state.
+ */
+.ds-chip {
+  display: inline-flex;
+  /* As wide as its label and no wider — `Badge.css` records why `width` and not
+     `align-self`: a chip in a `Stack` is a flex item whose cross size is its
+     width, and the default `stretch` renders it as a full-width pill. */
+  width: fit-content;
+  align-items: center;
+  gap: var(--ds-space-1);
+  border: 1px solid var(--ds-chip-border, var(--ds-color-border));
+  border-radius: var(--ds-radius-full);
+  background: var(--ds-chip-bg, var(--ds-color-surface));
+  color: var(--ds-chip-fg, var(--ds-color-content-secondary));
+  cursor: pointer;
+  font-family: inherit;
+  font-size: var(--ds-font-size-xs);
+  font-weight: var(--ds-font-weight-semibold);
+  line-height: var(--ds-line-height-tight);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background-color var(--ds-duration-fast) var(--ds-ease-standard),
+    border-color var(--ds-duration-fast) var(--ds-ease-standard),
+    color var(--ds-duration-fast) var(--ds-ease-standard);
+}
+
+/*
+ * The glyph is sized here rather than left to `Icon`, for the reason
+ * `foundation.css` records for every control: a container owns the size of the
+ * glyph inside it, so a caller cannot make one chip's icon disagree with the
+ * next one's.
+ */
+.ds-chip > svg {
+  width: var(--ds-icon-size-xs);
+  height: var(--ds-icon-size-xs);
+  flex: 0 0 auto;
+}
+
+/* The shared control-height steps, so a chip lines up with the controls beside
+   it. 24px is the WCAG 2.2 SC 2.5.8 minimum. */
+.ds-chip[data-size='xs'] {
+  min-height: var(--ds-control-height-xs);
+  padding: 0 var(--ds-space-2);
+}
+
+.ds-chip[data-size='sm'] {
+  min-height: var(--ds-control-height-sm);
+  padding: 0 var(--ds-space-3);
+}
+
+.ds-chip:hover:not(:disabled):not([data-pressed]) {
+  border-color: var(--ds-color-border);
+  background: var(--ds-color-surface-hover);
+  color: var(--ds-color-content);
+}
+
+.ds-chip:focus-visible {
+  outline: 2px solid var(--ds-color-focus);
+  outline-offset: 2px;
+}
+
+.ds-chip:disabled {
+  cursor: not-allowed;
+  opacity: var(--ds-opacity-disabled);
+}
+
+/*
+ * Pressed is a solid fill AND a leading check — never the fill alone. The check
+ * is drawn by `Chip.jsx`; this is the half that disappears in forced-colours
+ * mode, which is exactly why the other half exists. Both campaign filter strips
+ * already filled with `action-primary`, so this keeps the language they set.
+ *
+ * It deliberately outranks the tone trio below by coming after it at the same
+ * 0-2-0: a toggle's job is to say WHICH one is on, and a tinted "on" state
+ * competing with a tinted "off" state says nothing.
+ */
+.ds-chip[data-tone] {
+  border-color: var(--ds-chip-tone-border);
+  background: var(--ds-chip-tone-bg);
+  color: var(--ds-chip-tone-fg);
+}
+
+.ds-chip[data-tone]:hover:not(:disabled):not([data-pressed]) {
+  border-color: var(--ds-chip-tone-fg);
+  background: var(--ds-chip-tone-bg);
+  color: var(--ds-chip-tone-fg);
+}
+
+.ds-chip[data-tone='neutral'] {
+  --ds-chip-tone-bg: var(--ds-color-status-neutral-bg);
+  --ds-chip-tone-fg: var(--ds-color-status-neutral-fg);
+  --ds-chip-tone-border: var(--ds-color-status-neutral-border);
+}
+.ds-chip[data-tone='info'] {
+  --ds-chip-tone-bg: var(--ds-color-status-info-bg);
+  --ds-chip-tone-fg: var(--ds-color-status-info-fg);
+  --ds-chip-tone-border: var(--ds-color-status-info-border);
+}
+.ds-chip[data-tone='success'] {
+  --ds-chip-tone-bg: var(--ds-color-status-success-bg);
+  --ds-chip-tone-fg: var(--ds-color-status-success-fg);
+  --ds-chip-tone-border: var(--ds-color-status-success-border);
+}
+.ds-chip[data-tone='warning'] {
+  --ds-chip-tone-bg: var(--ds-color-status-warning-bg);
+  --ds-chip-tone-fg: var(--ds-color-status-warning-fg);
+  --ds-chip-tone-border: var(--ds-color-status-warning-border);
+}
+.ds-chip[data-tone='danger'] {
+  --ds-chip-tone-bg: var(--ds-color-status-danger-bg);
+  --ds-chip-tone-fg: var(--ds-color-status-danger-fg);
+  --ds-chip-tone-border: var(--ds-color-status-danger-border);
+}
+.ds-chip[data-tone='accent'] {
+  --ds-chip-tone-bg: var(--ds-color-status-accent-bg);
+  --ds-chip-tone-fg: var(--ds-color-status-accent-fg);
+  --ds-chip-tone-border: var(--ds-color-status-accent-border);
+}
+
+.ds-chip[data-pressed] {
+  border-color: var(--ds-color-action-primary);
+  background: var(--ds-color-action-primary);
+  color: var(--ds-color-content-inverse);
+}
+
+.ds-chip[data-pressed]:hover:not(:disabled) {
+  border-color: var(--ds-color-action-primary-hover);
+  background: var(--ds-color-action-primary-hover);
+}
+
+/* A wrapping row, not a grid: chips are as wide as their labels, and a filter
+   strip that reflows is the shape every consumer already hand-wrote. */
+.ds-chip-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-chip {
+    transition: none;
+  }
+}

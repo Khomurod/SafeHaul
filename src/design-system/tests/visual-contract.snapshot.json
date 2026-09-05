@@ -152,6 +152,32 @@
     "borderColor": "rgb(187, 247, 208)",
     "borderRadius": "8px"
   },
+  "mobile · the chip steps, measured against the controls they claim to match · chip[xs]": {
+    "height": "24px",
+    "borderRadius": "9999px"
+  },
+  "mobile · the chip steps, measured against the controls they claim to match · chip[sm]": {
+    "height": "36px",
+    "borderRadius": "9999px"
+  },
+  "mobile · the chip steps, measured against the controls they claim to match · iconButton[xs]:beside-chip": {
+    "height": "24px",
+    "borderRadius": "8px"
+  },
+  "mobile · the chip steps, measured against the controls they claim to match · button[sm]:beside-chip": {
+    "height": "36px",
+    "borderRadius": "8px"
+  },
+  "mobile · the pressed state draws a ring, not only a colour · iconButton[pressed]": {
+    "boxShadow": "rgb(37, 99, 235) 0px 0px 0px 1px inset",
+    "color": "rgb(37, 99, 235)",
+    "backgroundColor": "rgb(239, 246, 255)"
+  },
+  "mobile · the pressed state draws a ring, not only a colour · button[ghost,pressed]": {
+    "boxShadow": "rgb(37, 99, 235) 0px 0px 0px 1px inset",
+    "color": "rgb(37, 99, 235)",
+    "backgroundColor": "rgb(239, 246, 255)"
+  },
   "mobile · the 24px minimum target, and the disc · iconButton[xs]": {
     "width": "24px",
     "height": "24px",
@@ -469,6 +495,32 @@
     "color": "rgb(22, 101, 52)",
     "borderColor": "rgb(187, 247, 208)",
     "borderRadius": "8px"
+  },
+  "desktop · the chip steps, measured against the controls they claim to match · chip[xs]": {
+    "height": "24px",
+    "borderRadius": "9999px"
+  },
+  "desktop · the chip steps, measured against the controls they claim to match · chip[sm]": {
+    "height": "36px",
+    "borderRadius": "9999px"
+  },
+  "desktop · the chip steps, measured against the controls they claim to match · iconButton[xs]:beside-chip": {
+    "height": "24px",
+    "borderRadius": "8px"
+  },
+  "desktop · the chip steps, measured against the controls they claim to match · button[sm]:beside-chip": {
+    "height": "36px",
+    "borderRadius": "8px"
+  },
+  "desktop · the pressed state draws a ring, not only a colour · iconButton[pressed]": {
+    "boxShadow": "rgb(37, 99, 235) 0px 0px 0px 1px inset",
+    "color": "rgb(37, 99, 235)",
+    "backgroundColor": "rgb(239, 246, 255)"
+  },
+  "desktop · the pressed state draws a ring, not only a colour · button[ghost,pressed]": {
+    "boxShadow": "rgb(37, 99, 235) 0px 0px 0px 1px inset",
+    "color": "rgb(37, 99, 235)",
+    "backgroundColor": "rgb(239, 246, 255)"
   },
   "desktop · the 24px minimum target, and the disc · iconButton[xs]": {
     "width": "24px",

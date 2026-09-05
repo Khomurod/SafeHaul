@@ -42,9 +42,7 @@
     },
     "src/features/campaigns/components/AudienceBuilder.jsx": {
       "raw-black-white-class": 1,
-      "hand-styled-button": 1,
       "reasons": {
-        "hand-styled-button": "roadmap §5 — the application-status filter chips are MULTI-select (a `status` array), and `SegmentedControl` is single-select by contract (`value` is a scalar). They are also 12px chips rather than 44px control-height cards, so adopting it would triple their height inside a filter panel. This is the filter-chip gap the catalog's Introduction already records, and this is its first concrete consumer.",
         "raw-black-white-class": "roadmap §5 — `bg-black/20`, the scrim behind the audience preview list. Recorded rather than migrated because NO existing role matches it, measured: `--ds-color-overlay` is rgb(15 23 42 / 0.6) — slate-900 at 60% — where this is pure black at 20%, so the swap would visibly lighten and re-tint the backdrop. The rule's remedy points at declaring a semantic `rgb(… / a)` token, and that is the right fix; naming a new scrim ROLE is a design-system decision rather than a mechanical one, so it belongs with the status-notice and surface work rather than inside a rule-widening slice. Retire this entry there."
       }
     },
@@ -77,9 +75,11 @@
       }
     },
     "src/features/campaigns/components/VirtualLeadList.jsx": {
+      "hand-rolled-toggle": 1,
       "hand-styled-button": 1,
       "reasons": {
-        "hand-styled-button": "roadmap §5 — a selectable lead row on the inverse (console) surface, `aria-pressed` for its exclusion state. Same family as `CompanyChooserModal`'s selectable company row: it is correctly a `<button>` because it is a real activation, but forcing it into `Button` would make a virtualised list row look like an action bar. Uses only the on-inverse roles and the shared focus ring."
+        "hand-styled-button": "roadmap §5 — a selectable lead row on the inverse (console) surface, `aria-pressed` for its exclusion state. Same family as `CompanyChooserModal`'s selectable company row: it is correctly a `<button>` because it is a real activation, but forcing it into `Button` would make a virtualised list row look like an action bar. Uses only the on-inverse roles and the shared focus ring.",
+        "hand-rolled-toggle": "roadmap §5 — the same one control as this file's `hand-styled-button` entry, now visible to a second rule because `hand-rolled-toggle` shipped a slice before the primitive that retires it. A lead row's exclusion state is a SELECTION on a virtualised list row, not a filter chip and not a card in a grid: `Chip` would turn a full-width row into a pill and `SegmentedControl` takes a string label. It is `SelectableCard`'s consumer, and P-4 retires both entries together. Recorded rather than left unlisted so the count can only fall from here."
       }
     },
     "src/features/company-admin/components/InlineLeaderboard.jsx": {
@@ -117,27 +117,17 @@
       }
     },
     "src/features/company-admin/components/modals/pev/FmcsaCarrierPicker.jsx": {
+      "hand-rolled-toggle": 1,
       "hand-styled-button": 1,
       "reasons": {
-        "hand-styled-button": "roadmap §5 — an FMCSA suggestion row is a three-line record summary (legal name, USDOT and location, then what FMCSA did or did not list), not a label. `SegmentedControl` takes a string `label`, so it cannot express this even though the semantics match; §5's claim that the primitive covers these rows was wrong and is corrected. This is the SelectableCard/Listbox gap. Tokenised, `aria-pressed`, shared focus ring."
+        "hand-styled-button": "roadmap §5 — an FMCSA suggestion row is a three-line record summary (legal name, USDOT and location, then what FMCSA did or did not list), not a label. `SegmentedControl` takes a string `label`, so it cannot express this even though the semantics match; §5's claim that the primitive covers these rows was wrong and is corrected. This is the SelectableCard/Listbox gap. Tokenised, `aria-pressed`, shared focus ring.",
+        "hand-rolled-toggle": "roadmap §5 — the same one control as this file's `hand-styled-button` entry, seen by a second rule that shipped a slice before its primitive. An FMCSA suggestion row is a three-line record summary, so neither of the toggles this rule points at fits: `Chip` holds a short label and `SegmentedControl` takes a string. It is `SelectableCard`'s consumer, and P-4 retires both entries together."
       }
     },
     "src/features/company-admin/components/tabs/PEVTab.jsx": {
       "raw-file-input": 1,
       "reasons": {
         "raw-file-input": "roadmap §5 — a PROGRAMMATIC picker: one hidden input opened by whichever per-employer \"Upload Result\" row action was activated. `FileInput` is a visible control by contract (a real input behind a real label), and there is no visible picker here to be — the affordance is a table row action. It carries an accessible name and the `hidden` attribute as well as the class, so it leaves the accessibility tree without depending on CSS."
-      }
-    },
-    "src/features/company-admin/views/CompanyCandidatesListPage.jsx": {
-      "hand-styled-button": 1,
-      "reasons": {
-        "hand-styled-button": "roadmap §5 — the pipeline segment strip, whose 12px full-radius pills would become 44px cards under `SegmentedControl`, doubling the height of a filter strip that sits above a dense table. Tokenised and carries the shared focus ring. Its three sibling affordances moved to candidateListColumns.jsx with the columns (source-size split)."
-      }
-    },
-    "src/features/company-admin/views/candidateListColumns.jsx": {
-      "hand-styled-button": 3,
-      "reasons": {
-        "hand-styled-button": "roadmap §5 — three dense-table affordances, moved here verbatim from CompanyCandidatesListPage.jsx (source-size split). **The recorded reason was the compact-icon-button gap, and that gap closed on 2026-09-05**: `xs` is 24px and the two sort toggles are already `h-6 w-6`, so size is no longer what blocks them. The real blocker is the PRESSED state. Each toggle shows which sort direction is active with `text-ds-action-primary`, and `.ds-button[data-variant='ghost']` sets `color` at 0-2-0 specificity, so a feature-side text utility at 0-1-0 loses — migrating them today would silently drop the only indication of which sort is applied. That is the same trap `Button.css` records for background overrides, one property over. `IconButton` needs a `pressed` API, which is the P-3 slice. The 32px phone chip is P-3's `Chip`. All three are tokenised, named per record where they act on one, and carry the shared focus ring."
       }
     },
     "src/features/driver-app/components/application/IntakeChooser.jsx": {
@@ -256,12 +246,6 @@
       "raw-hex-colour": 2,
       "reasons": {
         "raw-hex-colour": "roadmap §5 — signature ink, rasterised into a legal record. The canvas this colour strokes is converted to a PNG (read back by getSignatureDataUrl() and submitted with the driver's application from Step9_Consent) and stored as part of a signed document, so it must not follow a theme: re-theming the application can never be allowed to retint a signature somebody has already given. Same argument as SignatureSheet.jsx, which has documented it in its own source since it was written. Found on 2026-09-05 when raw-hex-colour was widened to JS assignments — it had been invisible because the rule matched only arbitrary-value classes and CSS-style declarations. Two sites: the initial stroke style and the one clearCanvas restores, which must agree or a cleared pad would sign in a different colour."
-      }
-    },
-    "src/shared/components/modals/CallOutcomeModalUI.jsx": {
-      "hand-styled-anchor": 1,
-      "reasons": {
-        "hand-styled-anchor": "A status-tinted phone chip that is also a tel: link. Fully tokenised with a screen-reader prefix (\"Call now:\"). Neither Link (underlined text) nor ButtonLink (button-shaped) is a tinted inline chip. See the tinted-chip-link gap in §5."
       }
     },
     "src/shared/components/modals/CompanyChooserModal.jsx": {

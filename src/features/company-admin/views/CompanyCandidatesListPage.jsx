@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { DashboardToolbar, useCompanyDashboard } from '@features/companies';
-import { DataTable } from '@/design-system/components';
+import { Chip, ChipGroup, DataTable } from '@/design-system/components';
 import { useData } from '@/context/DataContext';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 
@@ -219,21 +219,27 @@ export const CompanyCandidatesListPage = ({ scope }) => {
                         myAssignmentsLabel={scope === 'applications' ? 'My assignments' : 'My leads'}
                     />
                     {showPipelineTabs && (
-                        <div className="flex flex-wrap gap-2 px-4 py-3 border-t border-ds-border-subtle bg-ds-surface-subtle/60">
+                        /*
+                         * `ChipGroup` supplies two things the hand-written strip
+                         * did not have: a name for the set, and `aria-pressed` on
+                         * each segment. Without them a screen-reader user heard
+                         * six unrelated buttons and no indication of which one the
+                         * table was filtered by.
+                         */
+                        <ChipGroup
+                            ariaLabel="Pipeline segment"
+                            className="px-4 py-3 border-t border-ds-border-subtle bg-ds-surface-subtle/60"
+                        >
                             {pipelineTabs.map((tab) => (
-                                <button
+                                <Chip
                                     key={tab.id}
-                                    type="button"
+                                    pressed={dashboard.pipelineSegment === tab.id}
                                     onClick={() => dashboard.setPipelineSegment(tab.id)}
-                                    className={`px-3 py-1.5 rounded-ds-full text-ds-xs font-semibold border transition-colors ${dashboard.pipelineSegment === tab.id
-                                        ? 'bg-ds-action-primary text-ds-content-inverse border-ds-action-primary shadow-ds-sm'
-                                        : 'bg-ds-surface text-ds-content-secondary border-ds-border-subtle hover:border-ds-border'
-                                        }`}
                                 >
                                     {tab.label}
-                                </button>
+                                </Chip>
                             ))}
-                        </div>
+                        </ChipGroup>
                     )}
                 </div>
 
