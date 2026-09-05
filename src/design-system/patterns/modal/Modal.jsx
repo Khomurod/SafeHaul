@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef } from 'react';
 
 /**
- * The accessible dialog primitive (C4, WCAG 2.1 AA).
+ * The accessible dialog primitive (C4, WCAG 2.2 AA).
  *
  * Every overlay in the product goes through this one component. A repository
  * scan for `fixed inset-0` should return only this file and callers passing it

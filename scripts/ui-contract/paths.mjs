@@ -57,33 +57,27 @@ export const TOKEN_DEFINITION_FILES = new Set([
     'design-system/tokens/semantic.css',
 ]);
 
+/**
+ * What counts as a file this guard reads.
+ *
+ * A named export rather than a literal inside the walk, because it is the single
+ * highest-leverage thing here and nothing could see it change: dropping `css`
+ * takes the scan from 554 files to 528, which still clears the only floor there
+ * was, and silently stops reading 26 stylesheets — the exact way
+ * `src/shared/styles/designTokens.css` sat through the whole campaign with a
+ * second colour, type, radius and shadow scale in forty-odd raw hexes.
+ * `scripts/test-ui-contract-scope.mjs` §S1 and §S2 pin both halves: the pattern
+ * itself, and that the live scan still reaches each format it claims to cover.
+ */
+export const SOURCE_FILE_PATTERN = /\.(?:[jt]sx?|css)$/;
+
 export function sourceFiles(directory) {
     return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
         const target = path.join(directory, entry.name);
         if (entry.isDirectory()) return sourceFiles(target);
-        if (!/\.(?:[jt]sx?|css)$/.test(entry.name)) return [];
+        if (!SOURCE_FILE_PATTERN.test(entry.name)) return [];
         // Tests assert on the very strings these rules forbid.
         if (isTestFile(entry.name)) return [];
         return [target];
     });
 }
-
-/**
- * The rules a *story* is held to.
- *
- * Stories used to be skipped entirely, as "catalog furniture already covered by
- * `test:stories`". That reasoning does not hold: `test:stories` runs axe, not
- * this, and a story is the design system's own published example of how to build
- * something — a raw palette class or an off-scale type size in one is being
- * taught, not merely tolerated.
- *
- * So they are scanned, but only for the rules that read a **class list**. The
- * markup-shaped rules are left off deliberately, for two reasons that both apply
- * only to the catalog: a story legitimately *demonstrates* the pattern (the
- * permissions matrix in `Checkbox.stories` is a native `<table>`, which is the
- * approved case for one), and a story's documentation *discusses* it — three of
- * these rules fired on prose like "Do not hand-write `target=\"_blank\"`",
- * because class names live inside string literals so string literals cannot be
- * stripped. Allowlisting a sentence that tells people the right thing would be
- * an inventory entry that teaches nothing.
- */

@@ -23,7 +23,10 @@ Before changing UI code, read:
   holds `EmptyState`, `ErrorState` and `LoadingState`, which own the
   announcement each state needs as well as its appearance.
 - `layouts/` contains business-neutral page and region composition.
-- `icons/` documents and exports the approved icon contract.
+- `icons/` holds a **placeholder README and nothing else** — no `Icon` component, no
+  glyph set, no exports. Icons are imported directly from `lucide-react` at 178 call
+  sites today. The contract that README describes is built in the icon-foundation
+  slice; until then this directory documents an intention, not an API.
 - `stories/` is the component catalog, built with Storybook 10 and configured in
   `.storybook/`. Run it with `npm run storybook`; `npm run test:stories` renders
   every story and runs axe over it. See `stories/README.md`.
@@ -238,20 +241,18 @@ the design system rather than the call site.
 Each page records an explicit **Approved** / **Needs review** / **Temporary**
 status and names what is unresolved. Read that status before reusing something:
 the catalog is deliberately not a list of things that are all finished. The
-`Introduction` page is the authority on what does **not** exist yet — as of
-2026-08-25 that is Combobox/Listbox, an indeterminate checkbox outside
-`DataTable`, a compact icon-button step for a control overlaying PDF geometry, a
-filter chip, an overflow menu, a split panel, a sticky page footer, a
-card-section disclosure, a section rail with per-item status, a bottom app bar
-that is deliberately not being built, and — the largest of them, measured on
-2026-08-25 — a **status notice / callout**: a tinted bordered block with an icon
-and a sentence, rebuilt at every call site because `FieldMessage` is scoped to a
-form field, `Badge` is a chip and `PageState` is a whole slot. Roadmap §5 records
-the measurement and why it was not attempted the same day. Tabs, Link, FileInput, Switch,
-SegmentedControl, Disclosure, the three page states and `ConfirmDialog` all
-exist and all have consumers — *every* consumer, as of 2026-08-25. Do not
-hand-roll any of them, and do not hand-roll the ones that are missing either;
-record the need in the roadmap.
+**One list is authoritative, and it is not this one.** What does not exist yet
+lives in `docs/SAFEHAUL_DESIGN_SYSTEM_ROADMAP.md` section 5, "Missing primitives
+that live code is waiting on" — with, for each gap, the call sites that cite it
+and the reason the nearest primitive does not fit. This paragraph used to repeat
+that list, the `Introduction` page claimed to be the authority on it, and §5 held
+a third copy; three copies of a list that changes every slice is three chances to
+read a stale one. Go to §5.
+
+Tabs, Link, FileInput, Switch, SegmentedControl, Disclosure, the three page
+states and `ConfirmDialog` all exist and all have consumers — *every* consumer,
+as of 2026-08-25. Do not hand-roll any of them, and do not hand-roll the ones
+that are missing either; record the need in §5.
 
 The trap that caught this product twice is worth naming here: a **hand-composed
 pattern** — `Card` + `StatusMedallion` + heading + body + actions, or a `Modal`
@@ -313,11 +314,42 @@ slice that owed each one; that debt reached zero on 2026-08-25 and the `debt`
 escape hatch went with it, so an entry is now a decision someone wrote down
 rather than a promise to come back.
 
+**And since 2026-09-04 the inventory is compared against git, not taken on
+trust.** A written reason answers "is it written down"; only the base commit
+answers "was it already there". An audit reproduced two ways through in one
+command each — raise a recorded count and run `--update`, or add a brand-new file
+with an entry whose reason is a plausible sentence naming nothing — so every
+addition is now measured against the base's own content. Three consequences worth
+knowing before you reach for the flag:
+
+- **`--update` only shrinks.** It refuses to write a new file, a new rule or a
+  higher count, and names each one. Write those by hand, with a reason.
+- **A recorded exception is a frozen ceiling.** `VOEDocument.jsx` cannot grow a
+  101st raw palette class; the way out is to make the exception unnecessary, not
+  larger.
+- **A file this change creates can never carry an entry** — but a file it
+  *moves* can, because git's own rename and copy attribution is what supplies the
+  base's copy. A rename or a responsibility split carries its entries across; it
+  cannot carry a violation the move introduced.
+
+A slice that widens a rule is still possible, and that is why the base's content
+is measured rather than its recorded numbers: violations that have been in the
+tree for months can be recorded the moment a rule starts seeing them.
+
 Its styled-control rules were, until 2026-08-25, matching `<(button)\b([^>]*)>` —
 and `[^>]*` stops at the `>` in `=>`, so any control whose `className` came after
 an arrow function was invisible. It saw 12 hand-styled controls; a real
 open-tag scanner sees 49. **A guard's coverage is a thing to measure, not to
 assume.**
+
+So it is measured, on every run of `npm run test:ui-contract`. The floors are
+**per format**, not just on the total: a total floor cannot see a category go to
+zero underneath it, and dropping `css` from the extension pattern takes the scan
+from 554 files to 528 while still clearing 400. Four suites ask four different
+questions — are the decisions right (`test-ui-contract.mjs`), is it still looking
+at the whole tree (`-scope`), can the inventory be edited by the branch under
+test (`-baseline`), and does CI actually run it in a job nothing can skip
+(`-ci`).
 
 Run all of them before opening a UI pull request — `.github/pull_request_template.md`
 is the checklist, and it asks you never to tick a check you did not run.

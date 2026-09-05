@@ -24,13 +24,19 @@ import { VOEDocument } from './VOEDocument';
  * Transmit actions, and the loading, export-failure and missing-data states.
  *
  * The **generated document itself is deliberately NOT tokenised.** It is
- * immutable document content, not themeable app chrome, and two export paths
- * depend on its literal styling:
- *   1. `handleDownloadPDF` rasterises it with html2canvas, so every colour is
- *      resolved from computed style at capture time.
- *   2. `handlePrint` clones it into a bare `window.open` document. That window
- *      is built from scratch, so nothing in it can be assumed — see the print
- *      pipeline note below for what is copied into it and what is not.
+ * immutable document content, not themeable app chrome: a `--ds-*` role is
+ * themeable by design, and this artefact must render the same next year as it
+ * does today, because a palette change must not reach a signed regulatory
+ * document that has already been exported. Its class list is the capture surface
+ * for a rasteriser, so any edit to it changes every exported PDF and every
+ * printed page.
+ *
+ * Note what that reason is NOT, corrected 2026-09-04: it is not that the export
+ * paths lack the custom properties. `handleDownloadPDF` rasterises with
+ * html2canvas from **computed** style, which resolves `var()` first; and
+ * `handlePrint` inlines the application's own stylesheets through
+ * `collectPrintStyles`, tokens included. Tokens would resolve. They are withheld
+ * because the document must not follow the theme, not because it could not.
  * `VOEPreviewModal.export.test.jsx` enforces this: the document subtree must
  * contain no `ds-*` class and no `var(--ds-…)` value. Do not "finish the
  * migration" by tokenising it without first proving export parity.

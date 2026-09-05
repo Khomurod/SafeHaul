@@ -53,7 +53,20 @@ approved design decision — nothing in the product may consume those classes.
 
 ## Status
 
-The roadmap's Phase 11 catalog item is **still open**. `WorkspaceFrame` has no
-story, reduced-motion has no dedicated story, and the statuses recorded on each
-page are this campaign's honest reading rather than an owner-approved sign-off.
-Visual regression baselines do not exist; see Phase 11 for what remains.
+**Baselines exist, and the lane blocks.** 172 pixel baselines are committed under
+`e2e/visual/__screenshots__/`, and `npm run test:visual` has failed the build
+since 2026-08-25 (`scripts/test-ci-plan.mjs` K1 asserts the step carries no
+`continue-on-error`, so it cannot quietly go back to advisory). This paragraph
+used to say the baselines did not exist, which would have sent the next
+contributor to record work that was already done.
+
+**The visible families are owner-approved.** On 2026-09-04 the owner approved the
+semantic brand and action colours and confirmed WCAG 2.2 AA as the accessibility
+target, which were the two open decisions the per-page statuses were waiting on.
+
+Two honest gaps remain, both verified against the tree:
+
+- `WorkspaceFrame` has no story — `layouts/workspace/` holds an implementation, a
+  stylesheet and a unit test, and nothing in the catalog.
+- Reduced motion has no dedicated story. It is *mentioned* in the page-state and
+  data-table pages, which is not the same as being demonstrated.

@@ -22,7 +22,7 @@ Delete this whole section for a change that renders nothing.
 
 | Check | Ran | Notes |
 |---|---|---|
-| `npm run check:ui-contract` | [ ] | inventory shrank by N / unchanged |
+| `npm run check:ui-contract` | [ ] | inventory shrank by N / unchanged — it may not grow: `--update` refuses an addition, and a new entry has to be one the base commit already carried |
 | `npm run check:visual-contract` | [ ] | geometry unchanged, or the diff and why |
 | `npm run test:stories` | [ ] | |
 | `npm run check:table-layout` | [ ] | required if a table, cell or column width moved |
@@ -48,7 +48,10 @@ Delete this whole section for a change that renders nothing.
       Tailwind's `rounded-lg` is 8px where `rounded-ds-lg` is 12px, and its
       `shadow-sm` is the `shadow-ds-xs` step.
 - [ ] `ui-contract.allowlist.json` is regenerated if the counts moved, and any
-      new entry says **why** it is allowed. There is no `debt` option any more.
+      new entry says **why** it is allowed. There is no `debt` option any more —
+      and a reason is not enough on its own: the base commit must already carry
+      the violation, so a file this change creates can never carry an entry and a
+      recorded exception can never grow. `--update` only shrinks.
 - [ ] Nothing here is a **hand-composed pattern**: a status screen built from
       `Card` + `StatusMedallion` + heading + body + actions, or a `Modal` with
       its own Cancel/Confirm footer. Both are made of approved primitives, so no

@@ -3,23 +3,34 @@
  *
  * WHY THIS FILE EXISTS
  *
- * The VOE document is a legal artefact that leaves the application through two
- * paths, and **neither of them carries the SafeHaul stylesheet**:
+ * The VOE document is a legal artefact, and it is treated as **immutable
+ * document content rather than themeable app chrome**. This file is the
+ * executable form of that decision: if someone later "finishes the migration" by
+ * tokenising the document, these tests fail and explain why.
  *
- *   1. `handleDownloadPDF` rasterises the node with html2canvas. Colours come
- *      from computed style at capture time.
- *   2. `handlePrint` writes the node's `innerHTML` into a bare `window.open`
- *      document whose only stylesheet is Tailwind from a CDN. That window has
- *      no `:root` custom properties at all, so a `--ds-*` colour would resolve
- *      to nothing and the printed form would lose its rules, borders and
- *      emphasis.
+ * ## The reason, corrected 2026-09-04
  *
- * So the document is treated as immutable document content, not themeable app
- * chrome. This file is the executable form of that decision: if someone later
- * "finishes the migration" by tokenising the document, these tests fail and
- * explain why. Tokenising it is only allowed once export parity is proven —
- * which means a real captured PDF and a real printed page, not a passing unit
- * test.
+ * This header used to say the two export paths carry no SafeHaul stylesheet, so
+ * a `--ds-*` colour would resolve to nothing. **That is false on both paths, and
+ * saying so was worse than saying nothing** — it invited someone to check it,
+ * find it wrong, and conclude the whole exception was unfounded:
+ *
+ *   1. `handleDownloadPDF` rasterises with html2canvas, which reads **computed**
+ *      style. `var()` is already resolved before the rasteriser sees it.
+ *   2. `handlePrint` does not write `innerHTML` into a CDN-Tailwind window. The
+ *      pipeline was rebuilt on 2026-07-27: it clones the node as a DOM tree and
+ *      inlines the application's own stylesheets through `collectPrintStyles`,
+ *      which copies every readable sheet — `tokens/foundation.css` and
+ *      `semantic.css` included. Those properties *are* there.
+ *
+ * The surviving ground is the stronger one. A `--ds-*` role is themeable **by
+ * design**; this artefact must render the same next year as it does today,
+ * because a palette change must not reach a signed regulatory document that has
+ * already been exported. Its class list is the capture surface for a rasteriser,
+ * so any edit changes every exported PDF and every printed page.
+ *
+ * Tokenising it is therefore allowed only once export parity is proven — a real
+ * captured PDF and a real printed page, not a passing unit test.
  *
  * The complement is asserted too: the surrounding chrome *must* be tokenised,
  * so this guard cannot be satisfied by simply not migrating anything.

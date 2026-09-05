@@ -36,52 +36,35 @@ one.
 Where a page says *Needs review*, it says exactly what is unresolved. Those
 caveats are the roadmap's open items, not hedging.
 
+**The two decisions that held the visible families were answered on 2026-09-04.**
+The owner approved the semantic brand and action colours as they stand and
+confirmed WCAG 2.2 AA as the permanent standard, which were the last two items in
+roadmap section 6 blocking "declaring the affected families fully approved". A
+page still marked *Needs review* is now waiting on something specific to itself,
+not on a palette or a standard nobody had signed off.
+
 ## Known gaps
 
-These primitives do **not** exist yet. Do not hand-roll them — record the need in
-the roadmap instead. Each one currently has at least one documented
-feature-owned exception in the product:
+**The authoritative list lives in one place, and it is not here.**
+`docs/SAFEHAUL_DESIGN_SYSTEM_ROADMAP.md` section 5 — "Missing primitives that
+live code is waiting on" — records every gap with the call sites that cite it and
+the reason the nearest primitive does not fit. This page used to repeat that
+list, and so did `src/design-system/README.md`; three copies of a list that
+changes every slice is three chances to read a stale one.
 
-- **Combobox / Listbox.** The FMCSA employer picker is a recorded exception, and
-  so are the e-doc field-palette tiles, which are a selectable list colour-coded
-  by field type.
-- **Indeterminate checkbox** outside `DataTable`'s own select-all.
-- **A compact icon-button step, and a control that takes no height of its own.**
-  The e-doc editor and the signing room place controls over author-placed PDF
-  field boxes, which can be 8px across; every approved control carries the
-  36/44/52px control height, which would overflow the box it belongs to.
-- **Filter chip**, **overflow menu**, **split panel** and **sticky page footer**.
-  The overflow menu has exactly one candidate consumer, whose every action is
-  currently a visible button — which is a perfectly good answer, not a
-  workaround, so it is not being built speculatively. The filter chip has two
-  named consumers as of 2026-08-25: the campaign audience builder's
-  application-status chips, which are **multi**-select over an array and 12px
-  tall, and the candidate list's single-select pipeline strip.
-- **A card-section disclosure.** `Disclosure` has exactly one appearance — a
-  rail-section header at 12px, bold, uppercase — because that is the shape its
-  consumer needed. The SMTP setup guide in email settings is a `heading-sm` card
-  section with a description line, and one consumer does not justify a second
-  variant.
-- **A section rail with per-item status.** The e-doc campaign editor's rail.
-  `SectionNavigation` is the near miss: it hardcodes `aria-current="page"` where
-  this is a wizard step, and has no trailing slot for the complete/incomplete
-  indicator that is the rail's whole purpose.
-- **A status notice / callout** — the largest remaining gap, measured on
-  2026-08-25. A tinted bordered block with an icon and a sentence. `FieldMessage`
-  is scoped to a form field, `Badge` is a chip and `PageState` is a whole slot, so
-  the shape is rebuilt at every call site. Its token signature returns 109 lines
-  across 87 files, which includes some separately recorded exceptions; the true
-  count of notices is lower and was not enumerated. Deliberately not built the
-  same day: a primitive for it needs a shape audit of the real call sites first,
-  and shipping one without migrating them is the mistake this catalog page already
-  records twice.
-- **An avatar / initial disc** — a circular tinted disc holding an initial, an
-  index or a count, decorative in every case. Eight of them at five different
-  diameters. `StatusMedallion` is the near miss: it holds an *icon* and its tone
-  carries meaning, where these carry a character.
-- **A bottom app bar**, deliberately *not* being built. The e-doc mobile bar's
-  items are equal-width stacked icon-over-label targets at 56px — the platform
-  convention, and deliberately taller than the 44px control step. One consumer.
+What still belongs here is the rule, not the inventory: **do not hand-roll a
+primitive that does not exist yet.** Record the need in section 5, with the call
+site and what the nearest existing primitive cannot express. A hand-rolled one
+becomes a second implementation the moment the real one lands, and this catalog
+records that mistake happening twice already.
+
+The same goes for a shape the design system already owns. A **hand-composed
+pattern** — a card with a medallion, heading, body and actions, or a dialog with
+its own cancel-and-confirm footer — is made entirely of approved primitives, so
+it passes every automated rule while duplicating a pattern that exists. Use
+`patterns/page-state` and `ConfirmDialog`.
+
+## Recently closed
 
 Closed on 2026-08-21, so the exceptions that cited them are retired:
 
