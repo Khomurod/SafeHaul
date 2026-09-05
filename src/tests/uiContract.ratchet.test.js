@@ -228,3 +228,73 @@ describe('comment handling', () => {
         expect(stripped.split('\n')).toHaveLength(4);
     });
 });
+
+/**
+ * A class list hoisted into a variable.
+ *
+ * The styled-control rules read the characters inside an opening tag, which
+ * works for the way a class list is usually written and is blind to the way it
+ * is sometimes written. Measured before `scripts/ui-contract/bindings.mjs`
+ * existed: the same `<input>`, styled the same way, counted 1 inline and 0
+ * hoisted — so moving one string to a `const` was a complete exemption.
+ *
+ * The resolution is deliberately conservative. This rule must never fire on a
+ * control it cannot prove is styled, because the shape it reads —
+ * `className={something}` — is also how every component in React forwards a
+ * className it was handed.
+ */
+describe('a class list held in a variable', () => {
+    const field = (source) => count(source, 'hand-styled-field');
+
+    it('counts a hoisted class list exactly like the inline one', () => {
+        const inline = '<input className="px-ds-3 border rounded-ds-md bg-ds-surface" />';
+        const hoisted = [
+            'const c = "px-ds-3 border rounded-ds-md bg-ds-surface";',
+            '<input className={c} />',
+        ].join('\n');
+        expect(field(inline)).toBe(1);
+        expect(field(hoisted)).toBe(1);
+    });
+
+    it('counts each element the binding styles, not each binding', () => {
+        const source = [
+            'const c = "p-ds-3 border rounded-ds-md";',
+            '<div><textarea className={c} /><select className={c} /><input className={c} /></div>',
+        ].join('\n');
+        expect(field(source)).toBe(3);
+    });
+
+    it('counts a control styled both ways exactly once', () => {
+        // Otherwise the text scan and the parser would each report the same
+        // control, and one hand-styled input would read as two.
+        const source = [
+            'const c = "p-ds-3 border";',
+            '<input className={c} data-tone="bg-ds-surface" />',
+        ].join('\n');
+        expect(field(source)).toBe(1);
+    });
+
+    it.each([
+        ['a forwarded className, which styles nothing', '<input className={props.className} />'],
+        ['a binding with no styling in it', 'const c = "flex gap-ds-2";\n<input className={c} />'],
+        ['a spread that may replace the class', 'const c = "p-ds-3 border";\n<input className={c} {...rest} />'],
+        ['a name the file rebinds', 'let c = "p-ds-3 border";\nc = pick();\n<input className={c} />'],
+        ['a name a parameter shadows', 'const c = "p-ds-3 border";\nfunction g(c) { return c; }\n<input className={c} />'],
+        ['an imported name', "import { c } from './x';\n<input className={c} />"],
+        ['a component, whose className is its own contract', 'const c = "p-ds-3 border";\n<Thing className={c} />'],
+        ['a conditional with one unstyled branch', 'const c = on ? "p-ds-3 border" : "";\n<input className={c} />'],
+    ])('stays silent on %s', (_name, source) => {
+        expect(field(source)).toBe(0);
+    });
+
+    it('reads a ternary whose branches both style, and a template that certainly does', () => {
+        expect(field('const c = on ? "p-ds-3 border" : "bg-ds-surface p-ds-2";\n<input className={c} />')).toBe(1);
+        expect(field('const c = `border rounded-ds-md ${tone}`;\n<input className={c} />')).toBe(1);
+    });
+
+    it('is not paid for by files that have no such binding', () => {
+        // The parse happens only when `className={identifier}` is present, so an
+        // unparseable snippet with no hoisted class list is still counted.
+        expect(count('<input className="border rounded-ds-md px-ds-3" />', 'hand-styled-field')).toBe(1);
+    });
+});

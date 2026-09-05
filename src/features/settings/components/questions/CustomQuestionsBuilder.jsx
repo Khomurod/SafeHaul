@@ -1,6 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { Plus, Eye, EyeOff, HelpCircle, Save, Shield } from 'lucide-react';
-import { Button, Card, Badge, FieldMessage } from '@/design-system/components';
+import {
+    Badge, Button, Card, FieldMessage, Input, Select, Textarea,
+} from '@/design-system/components';
 import { EmptyState } from '@design-system/patterns';
 import { QuestionEditor } from './QuestionEditor';
 import { INITIAL_QUESTION_STATE } from './QuestionConfig';
@@ -62,14 +64,20 @@ export function CustomQuestionsBuilder({ questions = [], onChange, onSave, loadi
     };
 
     const renderPreviewInput = (q) => {
-        const commonClasses = "w-full rounded-ds-md border border-ds-border bg-ds-surface p-ds-3 text-ds-content opacity-75";
-
-        // Preview controls are non-interactive visual mockups; the real,
-        // labelled inputs live in the public application. They are hidden from
-        // assistive tech (the question label above conveys the meaning).
+        /*
+         * Preview controls are non-interactive visual mockups; the real,
+         * labelled inputs live in the public application. They are hidden from
+         * assistive tech (the question label above conveys the meaning).
+         *
+         * They render through the design system's own controls rather than a
+         * hand-written class list, which is the point of a preview: what the
+         * recruiter is shown here is the control the applicant will actually
+         * meet, dimmed by the same `:disabled` treatment every other disabled
+         * control in the app uses.
+         */
         switch (q.type) {
             case 'paragraph':
-                return <textarea className={commonClasses} rows="3" disabled aria-hidden="true" tabIndex={-1} placeholder="Long answer text..." />;
+                return <Textarea rows="3" disabled aria-hidden="true" tabIndex={-1} placeholder="Long answer text..." />;
             case 'multipleChoice':
                 return (
                     <div className="space-y-ds-2">
@@ -94,10 +102,10 @@ export function CustomQuestionsBuilder({ questions = [], onChange, onSave, loadi
                 );
             case 'dropdown':
                 return (
-                    <select className={commonClasses} disabled aria-hidden="true" tabIndex={-1}>
+                    <Select disabled aria-hidden="true" tabIndex={-1}>
                         <option>Select an option...</option>
                         {q.options?.map((opt, i) => <option key={i}>{opt}</option>)}
-                    </select>
+                    </Select>
                 );
             case 'fileUpload':
                 return (
@@ -106,9 +114,9 @@ export function CustomQuestionsBuilder({ questions = [], onChange, onSave, loadi
                     </div>
                 );
             case 'date':
-                return <input type="date" className={commonClasses} disabled aria-hidden="true" tabIndex={-1} />;
+                return <Input type="date" disabled aria-hidden="true" tabIndex={-1} />;
             case 'time':
-                return <input type="time" className={commonClasses} disabled aria-hidden="true" tabIndex={-1} />;
+                return <Input type="time" disabled aria-hidden="true" tabIndex={-1} />;
             case 'linearScale':
                 return (
                     <div className="flex items-center justify-between rounded-ds-md border border-ds-border-subtle bg-ds-surface-subtle px-ds-4 py-ds-2">
@@ -122,7 +130,7 @@ export function CustomQuestionsBuilder({ questions = [], onChange, onSave, loadi
                     </div>
                 );
             default:
-                return <input type="text" className={commonClasses} disabled aria-hidden="true" tabIndex={-1} placeholder="Short answer text" />;
+                return <Input type="text" disabled aria-hidden="true" tabIndex={-1} placeholder="Short answer text" />;
         }
     };
 

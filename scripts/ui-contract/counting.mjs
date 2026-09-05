@@ -6,6 +6,7 @@
  * is the entire point of the styled-control rules.
  */
 
+import { hoistedStyledElements } from './bindings.mjs';
 import {
     CSS_RULES, RULES, STYLED_CONTROL_RULES, STYLING_SIGNAL,
 } from './rules.mjs';
@@ -37,10 +38,20 @@ export function openTagAttributes(code, name) {
     return out;
 }
 
-export function countStyledControls(code, rule) {
-    return openTagAttributes(code, rule.element).filter(
+/**
+ * @param {string} code
+ * @param {{element: string}} rule
+ * @param {string[]} [hoisted] tag names whose class list is held in a variable
+ *   (`./bindings.mjs`) — the same controls, spelled the one way a text scan
+ *   cannot read. Passed in rather than computed here so one parse serves all
+ *   three styled-control rules.
+ */
+export function countStyledControls(code, rule, hoisted = []) {
+    const inline = openTagAttributes(code, rule.element).filter(
         (attributes) => /className\s*=/.test(attributes) && STYLING_SIGNAL.test(attributes),
     ).length;
+    const isTarget = new RegExp(`^(?:${rule.element})$`);
+    return inline + hoisted.filter((tag) => isTarget.test(tag)).length;
 }
 
 /** `<input type="file">`, wherever the attribute sits in the tag. */
@@ -144,9 +155,15 @@ export function countViolations(source, only = null, { html = false } = {}) {
         const found = subject.match(rule.pattern);
         if (found?.length) counts[rule.name] = found.length;
     }
-    for (const rule of STYLED_CONTROL_RULES) {
-        if (!wanted(rule.name)) continue;
-        const found = countStyledControls(code, rule);
+    /*
+     * One parse for the three styled-control rules, and only when one of them is
+     * actually wanted — a stylesheet or an HTML document is not a JSX module and
+     * must never be handed to the parser.
+     */
+    const styledControlRules = STYLED_CONTROL_RULES.filter((rule) => wanted(rule.name));
+    const hoisted = styledControlRules.length > 0 ? hoistedStyledElements(code) : [];
+    for (const rule of styledControlRules) {
+        const found = countStyledControls(code, rule, hoisted);
         if (found) counts[rule.name] = found;
     }
     return counts;
