@@ -330,6 +330,24 @@ component itself as well.
   below had the right shape all along — *"would look identical today and would
   mean that re-tuning the console surface silently restyles a picture of a
   phone"*. That is the argument, and it is the one recorded now.
+- **Signature ink is a literal in four places, and must stay one.** The canvas a
+  signature is drawn on is rasterised to a PNG and stored as part of a signed
+  document — `SignatureSheet.jsx` into a sealed PDF, `SignaturePad.jsx` through
+  `onSignatureChange`, and `lib/signature.js` through `getSignatureDataUrl()` into
+  the driver's submitted application. Re-theming the product can never be allowed
+  to retint a signature somebody has already given, so the ink does not follow a
+  token. `SignatureSheet.jsx` had documented exactly this in its own source since
+  it was written; the other three were the same decision, undocumented.
+
+  **All four were invisible to `check:ui-contract` until 2026-09-05**, because
+  `raw-hex-colour` matched only arbitrary-value classes (`bg-[#hex]`) and
+  CSS-style declarations (`color: #hex`). It now also reads SVG presentation
+  attributes (`fill="#004C68"`) and JS assignments (`ctx.strokeStyle = '#333'`),
+  which is how every raw colour left in this tree is actually spelled. The rule
+  stays deliberately narrow about what a `#` is: an anchor target, a gradient
+  reference, an id selector and a placeholder that looks like a hex are all left
+  alone, and the ratchet suite pins each.
+
 - **`DeviceMockup` keeps literal greys and `text-[10px]` — it is artwork, not
   interface.** The component draws a picture of a physical phone. The status-bar
   time is that small because a real one is, and the bezel, side buttons and

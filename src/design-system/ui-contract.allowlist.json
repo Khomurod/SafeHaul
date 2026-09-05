@@ -166,6 +166,12 @@
         "raw-file-input": "a prop-recording sidebar double inside the vitest harness for the editor-shell suites \u2014 it stands in for the real sidebar's upload control so the suites can drive the same handleFileChange the shell hands down. It renders only under vitest, never in the product. Moved verbatim from EnvelopeCreator.editor.test.jsx (source-size split), which the scanner excluded as a test file; the support module is scanned, so the double is recorded here instead."
       }
     },
+    "src/features/signing/components/SignatureSheet.jsx": {
+      "raw-hex-colour": 1,
+      "reasons": {
+        "raw-hex-colour": "roadmap \u00a75 \u2014 signature ink, rasterised into a legal record. The canvas this colour strokes is converted to a PNG (adopted by the signing room and stamped into a sealed PDF) and stored as part of a signed document, so it must not follow a theme: re-theming the application can never be allowed to retint a signature somebody has already given. Same argument as SignatureSheet.jsx, which has documented it in its own source since it was written. Found on 2026-09-05 when raw-hex-colour was widened to JS assignments \u2014 it had been invisible because the rule matched only arbitrary-value classes and CSS-style declarations."
+      }
+    },
     "src/features/signing/components/envelope-creator/AiSuggestionOverlay.jsx": {
       "hand-styled-button": 2,
       "reasons": {
@@ -250,6 +256,12 @@
         "raw-table": "roadmap \u00a75 \u2014 three <table> elements: two visible native tables with per-row actions, which apply ds-native-table and so read the --ds-table-* header, divider and density roles, plus one sr-only table that is the text equivalent of the chart above it. DataTable is a display-table contract and does not cover per-row actions in two linked tables sharing one scroll region. All three carry ds-native-table, the hidden one included: the guard has no hidden-table exemption, because deciding whether a class list is hidden at every breakpoint is not decidable (sr-only xl:not-sr-only is hidden on a phone and visible on a desktop, and that pattern is already in this repo). Measured first \u2014 sr-only keeps position:absolute and clip:rect(0,0,0,0), so the contract changes the box and nothing visible."
       }
     },
+    "src/lib/signature.js": {
+      "raw-hex-colour": 2,
+      "reasons": {
+        "raw-hex-colour": "roadmap \u00a75 \u2014 signature ink, rasterised into a legal record. The canvas this colour strokes is converted to a PNG (read back by getSignatureDataUrl() and submitted with the driver's application from Step9_Consent) and stored as part of a signed document, so it must not follow a theme: re-theming the application can never be allowed to retint a signature somebody has already given. Same argument as SignatureSheet.jsx, which has documented it in its own source since it was written. Found on 2026-09-05 when raw-hex-colour was widened to JS assignments \u2014 it had been invisible because the rule matched only arbitrary-value classes and CSS-style declarations. Two sites: the initial stroke style and the one clearCanvas restores, which must agree or a cleared pad would sign in a different colour."
+      }
+    },
     "src/shared/components/layout/Stepper.jsx": {
       "hand-styled-button": 1,
       "reasons": {
@@ -272,6 +284,12 @@
       "hand-styled-field": 2,
       "reasons": {
         "hand-styled-field": "Two inline numeric goal editors inside a labelled chip. Both are already tokenised, carry an aria-label and aria-invalid, and use the shared focus ring. `Input` is a 44px bordered full-width control and would destroy the compact inline chip; overriding it back would be worse than this. See the inline-editable-value gap in \u00a75."
+      }
+    },
+    "src/shared/components/signature/SignaturePad.jsx": {
+      "raw-hex-colour": 1,
+      "reasons": {
+        "raw-hex-colour": "roadmap \u00a75 \u2014 signature ink, rasterised into a legal record. The canvas this colour strokes is converted to a PNG (handed to the parent as a data URL by onSignatureChange) and stored as part of a signed document, so it must not follow a theme: re-theming the application can never be allowed to retint a signature somebody has already given. Same argument as SignatureSheet.jsx, which has documented it in its own source since it was written. Found on 2026-09-05 when raw-hex-colour was widened to JS assignments \u2014 it had been invisible because the rule matched only arbitrary-value classes and CSS-style declarations."
       }
     },
     "src/shared/components/table/ModernDriverTable.jsx": {
