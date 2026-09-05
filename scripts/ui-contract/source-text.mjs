@@ -9,6 +9,25 @@
 import { TOKEN_DEFINITION_FILES } from './paths.mjs';
 import { CSS_RULE_NAMES } from './rules.mjs';
 
+/**
+ * The rules a *story* is held to.
+ *
+ * Stories used to be skipped entirely, as "catalog furniture already covered by
+ * `test:stories`". That reasoning does not hold: `test:stories` runs axe, not
+ * this, and a story is the design system's own published example of how to build
+ * something — a raw palette class or an off-scale type size in one is being
+ * taught, not merely tolerated.
+ *
+ * So they are scanned, but only for the rules that read a **class list**. The
+ * markup-shaped rules are left off deliberately, for two reasons that both apply
+ * only to the catalog: a story legitimately *demonstrates* the pattern (the
+ * permissions matrix in `Checkbox.stories` is a native `<table>`, which is the
+ * approved case for one), and a story's documentation *discusses* it — three of
+ * these rules fired on prose like "Do not hand-write `target=\"_blank\"`",
+ * because class names live inside string literals so string literals cannot be
+ * stripped. Allowlisting a sentence that tells people the right thing would be
+ * an inventory entry that teaches nothing.
+ */
 export const STORY_RULE_NAMES = [
     'raw-palette-class',
     'raw-hex-colour',

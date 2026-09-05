@@ -125,7 +125,3 @@ export function countViolations(source, only = null) {
 export const REMEDIES = Object.fromEntries(
     [...RULES, ...CSS_RULES, ...STYLED_CONTROL_RULES].map((rule) => [rule.name, rule.remedy]),
 );
-
-/* ------------------------------------------------------------------ *
- * Run
- * ------------------------------------------------------------------ */

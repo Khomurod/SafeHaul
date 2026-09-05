@@ -63,6 +63,34 @@ console.log('\nK. Guards that stay guards');
         visualStep !== null && !/continue-on-error:\s*true/.test(visualStep),
         'a pixel-baseline lane that cannot fail is a report, not a guard');
 
+    /*
+     * K1b — the rest of the design-system family, pinned for the same reason.
+     *
+     * K1 above holds the visual lane because that lane spent its whole existence
+     * advisory and red. It is the same argument for its four siblings, and until
+     * 2026-09-04 nothing made it: they were blocking only because nobody had
+     * added `continue-on-error` to them, which is not the same as being unable
+     * to. That gap was found while correcting section 6 of the roadmap, which
+     * had claimed the whole family was "permanently blocking" — the claim is
+     * true now because of this assertion, and was aspirational before it.
+     *
+     * Each entry names the step AND asserts it exists, because renaming a step
+     * makes an assertion about it vacuously true — the failure mode K1's own
+     * first assertion exists to catch.
+     */
+    for (const [step, script] of [
+        ['Visual contract (geometry)', 'check:visual-contract'],
+        ['Story render + accessibility checks', 'test:stories'],
+        ['Table layout check', 'check:table-layout'],
+    ]) {
+        const block = stepBlock(step);
+        assert(`K1b. the "${step}" step exists`, block !== null,
+            `renaming it would make the blocking assertion below vacuous (runs ${script})`);
+        assert(`K1b. and it is blocking`,
+            block !== null && !/continue-on-error:\s*true/.test(block),
+            'a design-system gate that cannot fail the run is a report, not a gate');
+    }
+
     assert('K2. no workflow step excludes the accessibility specs',
         !/--grep-invert[^\n]*@a11y/.test(workflowText),
         'the axe specs belong in the blocking lane, not behind a grep-invert');

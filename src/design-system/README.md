@@ -23,7 +23,10 @@ Before changing UI code, read:
   holds `EmptyState`, `ErrorState` and `LoadingState`, which own the
   announcement each state needs as well as its appearance.
 - `layouts/` contains business-neutral page and region composition.
-- `icons/` documents and exports the approved icon contract.
+- `icons/` holds a **placeholder README and nothing else** — no `Icon` component, no
+  glyph set, no exports. Icons are imported directly from `lucide-react` at 178 call
+  sites today. The contract that README describes is built in the icon-foundation
+  slice; until then this directory documents an intention, not an API.
 - `stories/` is the component catalog, built with Storybook 10 and configured in
   `.storybook/`. Run it with `npm run storybook`; `npm run test:stories` renders
   every story and runs axe over it. See `stories/README.md`.
@@ -238,20 +241,18 @@ the design system rather than the call site.
 Each page records an explicit **Approved** / **Needs review** / **Temporary**
 status and names what is unresolved. Read that status before reusing something:
 the catalog is deliberately not a list of things that are all finished. The
-`Introduction` page is the authority on what does **not** exist yet — as of
-2026-08-25 that is Combobox/Listbox, an indeterminate checkbox outside
-`DataTable`, a compact icon-button step for a control overlaying PDF geometry, a
-filter chip, an overflow menu, a split panel, a sticky page footer, a
-card-section disclosure, a section rail with per-item status, a bottom app bar
-that is deliberately not being built, and — the largest of them, measured on
-2026-08-25 — a **status notice / callout**: a tinted bordered block with an icon
-and a sentence, rebuilt at every call site because `FieldMessage` is scoped to a
-form field, `Badge` is a chip and `PageState` is a whole slot. Roadmap §5 records
-the measurement and why it was not attempted the same day. Tabs, Link, FileInput, Switch,
-SegmentedControl, Disclosure, the three page states and `ConfirmDialog` all
-exist and all have consumers — *every* consumer, as of 2026-08-25. Do not
-hand-roll any of them, and do not hand-roll the ones that are missing either;
-record the need in the roadmap.
+**One list is authoritative, and it is not this one.** What does not exist yet
+lives in `docs/SAFEHAUL_DESIGN_SYSTEM_ROADMAP.md` section 5, "Missing primitives
+that live code is waiting on" — with, for each gap, the call sites that cite it
+and the reason the nearest primitive does not fit. This paragraph used to repeat
+that list, the `Introduction` page claimed to be the authority on it, and §5 held
+a third copy; three copies of a list that changes every slice is three chances to
+read a stale one. Go to §5.
+
+Tabs, Link, FileInput, Switch, SegmentedControl, Disclosure, the three page
+states and `ConfirmDialog` all exist and all have consumers — *every* consumer,
+as of 2026-08-25. Do not hand-roll any of them, and do not hand-roll the ones
+that are missing either; record the need in §5.
 
 The trap that caught this product twice is worth naming here: a **hand-composed
 pattern** — `Card` + `StatusMedallion` + heading + body + actions, or a `Modal`
