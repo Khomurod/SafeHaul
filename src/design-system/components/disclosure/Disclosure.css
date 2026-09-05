@@ -87,3 +87,104 @@
     transition: none;
   }
 }
+
+/*
+ * ## `variant="card"`
+ *
+ * A prominent titled section: a leading slot, a `heading-sm` title, a
+ * description line under it, and a large chevron in the link colour. The rail
+ * appearance above is a 12px uppercase micro-label running edge to edge in a
+ * sidebar; nothing about it scales up, which is why this is a second set of
+ * rules rather than a size.
+ *
+ * It does NOT draw a card. The consumer wraps it in `Card`, which owns the
+ * surface, border, radius and padding — this variant only takes the rail chrome
+ * off so a disclosure sits correctly inside one. It is named for where it goes
+ * rather than for what it paints, and the README says so in as many words.
+ */
+.ds-disclosure[data-variant='card'] {
+  border-bottom: 0;
+}
+
+.ds-disclosure[data-variant='card'] .ds-disclosure__trigger {
+  min-height: 0;
+  gap: var(--ds-space-3);
+  padding: 0;
+  border-radius: var(--ds-radius-lg);
+  color: var(--ds-color-content);
+  font-size: var(--ds-font-size-heading-sm);
+  /*
+   * `inherit`, not a weight token: the description sits inside this button and
+   * must render at the body weight. The heading above sets `font: inherit`, so
+   * this resolves to the page's normal weight, and the title below re-asserts
+   * bold for itself. A number here would be an off-scale value; there is no
+   * `--ds-font-weight-normal`, deliberately.
+   */
+  font-weight: inherit;
+  letter-spacing: normal;
+  line-height: var(--ds-line-height-tight);
+  text-transform: none;
+}
+
+/*
+ * The rail tints on hover because it is one of a stack of identical rows and
+ * the tint says which row the pointer is on. A card header is the only control
+ * in its card, so a full-width tint distinguishes nothing and reads as a
+ * misfire; the pointer cursor and the chevron are the affordance.
+ */
+.ds-disclosure[data-variant='card'] .ds-disclosure__trigger:hover {
+  background: transparent;
+}
+
+/*
+ * Outside rather than inside. The rail's trigger is flush to its container, so
+ * an inset ring is the only one that shows; this trigger has the card's padding
+ * around it and the ring reads better with room to breathe.
+ */
+.ds-disclosure[data-variant='card'] .ds-disclosure__trigger:focus-visible {
+  outline-offset: 2px;
+}
+
+.ds-disclosure__leading {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+}
+
+.ds-disclosure__text {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--ds-space-1);
+}
+
+/*
+ * The rail truncates its title, because a rail row is one line by construction.
+ * A card header has the width of a card and a description under it already, so
+ * it wraps: a truncated sentence here would drop real words.
+ */
+.ds-disclosure[data-variant='card'] .ds-disclosure__title {
+  overflow: visible;
+  font-weight: var(--ds-font-weight-bold);
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.ds-disclosure__description {
+  color: var(--ds-color-content-muted);
+  font-size: var(--ds-font-size-sm);
+  line-height: var(--ds-line-height-body);
+}
+
+.ds-disclosure[data-variant='card'] .ds-disclosure__chevron {
+  width: var(--ds-icon-size-2xl);
+  height: var(--ds-icon-size-2xl);
+  margin-inline-start: auto;
+  color: var(--ds-color-content-link);
+}
+
+.ds-disclosure[data-variant='card'] .ds-disclosure__panel {
+  padding: 0;
+  margin-top: var(--ds-space-6);
+}

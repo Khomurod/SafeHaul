@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Badge, Button, Card, Disclosure } from '@design-system/components';
+import { HelpCircle, Icon } from '@design-system/icons';
 import { Stack } from '@design-system/layouts';
 
 const meta = {
@@ -38,6 +39,18 @@ const meta = {
           '- Content is **unmounted** when closed, not `hidden`. A stale focus target inside a',
           '  collapsed section is otherwise reachable by find-in-page and by browse mode.',
           '- `headingLevel` matches the surrounding outline; default `3`.',
+          '',
+          '### `variant="card"`',
+          '',
+          'A prominent titled section meant to sit **inside** a `Card` — leading slot,',
+          '`heading-sm` title, a `description` line, a 24px chevron in the link colour. It',
+          'does not draw the card: `Card` owns the surface, border, radius and padding, and',
+          'the variant only takes off the rail chrome that would fight it.',
+          '',
+          '`description` and `leading` throw on the rail, whose 12px uppercase micro-label',
+          'has room for neither; `meta` throws on a card, where it would compete with the',
+          'chevron for the same slot. The description is part of the trigger\'s accessible',
+          'name, because the whole header is one control.',
         ].join('\n'),
       },
     },
@@ -105,6 +118,59 @@ export const NarrowViewport = {
         Body content.
       </Disclosure>
       <Disclosure title="Optional fields">Body content.</Disclosure>
+    </Card>
+  ),
+};
+
+/**
+ * `variant="card"`: a prominent titled section meant to sit inside a `Card`.
+ *
+ * It does **not** draw the card — `Card` owns the surface, border, radius and
+ * padding, and the variant only takes off the rail chrome that would fight it.
+ */
+export const CardVariant = {
+  render: () => (
+    <Card padding="md" style={{ maxWidth: 560 }}>
+      <Disclosure
+        variant="card"
+        title="How to connect a mailbox"
+        description="Step-by-step guides for three providers"
+        leading={
+          <span className="rounded-ds-md bg-ds-action-primary p-ds-2">
+            <Icon icon={HelpCircle} size="2xl" className="text-ds-content-inverse" />
+          </span>
+        }
+        defaultOpen
+      >
+        <Stack gap="md">
+          <p style={{ margin: 0, color: 'var(--ds-color-content-secondary)' }}>
+            Generate an app password, then paste it into the password field above.
+          </p>
+          <p style={{ margin: 0, color: 'var(--ds-color-content-secondary)' }}>
+            Port 587 with STARTTLS works for all three.
+          </p>
+        </Stack>
+      </Disclosure>
+    </Card>
+  ),
+};
+
+/** Closed, and with a title long enough to wrap rather than truncate. */
+export const CardVariantClosed = {
+  render: () => (
+    <Card padding="md" style={{ maxWidth: 420 }}>
+      <Disclosure
+        variant="card"
+        title="How to connect a mailbox from a provider that needs an app password"
+        description="Step-by-step guides for three providers"
+        leading={
+          <span className="rounded-ds-md bg-ds-action-primary p-ds-2">
+            <Icon icon={HelpCircle} size="2xl" className="text-ds-content-inverse" />
+          </span>
+        }
+      >
+        Body content.
+      </Disclosure>
     </Card>
   ),
 };

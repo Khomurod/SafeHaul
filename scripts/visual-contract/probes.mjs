@@ -15,6 +15,54 @@
  */
 export const PROBES = [
     {
+        story: 'components-disclosure--card-variant',
+        label: 'the card disclosure, and the rail chrome it takes off',
+        /*
+         * Every one of these is a property the rail sets and the card variant
+         * has to override — and an override that stops resolving looks exactly
+         * like the design working. The trigger's `paddingLeft` is the one a
+         * screenshot would never catch at a glance: the rail's `space-4` inset
+         * inside a `Card`'s own padding reads as a slightly indented header
+         * rather than as a broken one.
+         *
+         * `fontWeight` is on the list for the reason the stylesheet spells it
+         * `inherit`: the description sits inside the trigger and must not come
+         * out bold. Reading the TITLE's weight and the DESCRIPTION's separately
+         * is what proves the two did not collapse into one.
+         */
+        selectors: {
+            'section': '.ds-disclosure[data-variant=\'card\']',
+            'trigger': '.ds-disclosure[data-variant=\'card\'] .ds-disclosure__trigger',
+            'title': '.ds-disclosure[data-variant=\'card\'] .ds-disclosure__title',
+            'description': '.ds-disclosure[data-variant=\'card\'] .ds-disclosure__description',
+            'chevron': '.ds-disclosure[data-variant=\'card\'] .ds-disclosure__chevron',
+            'panel': '.ds-disclosure[data-variant=\'card\'] .ds-disclosure__panel',
+        },
+        properties: [
+            'paddingLeft', 'fontSize', 'fontWeight', 'textTransform', 'letterSpacing',
+            'width', 'height', 'color', 'marginTop', 'borderBottomWidth',
+        ],
+    },
+    {
+        story: 'components-disclosure--default',
+        label: 'the rail disclosure the card variant must not have moved',
+        /*
+         * The other half of the same contract. Every card rule is scoped under
+         * `[data-variant=\'card\']` and the rail renders no such attribute, so
+         * the rail should read exactly as it did before the variant existed —
+         * asserted here rather than assumed, because "I scoped it correctly" is
+         * the claim a specificity accident quietly falsifies.
+         */
+        selectors: {
+            'trigger': '.ds-disclosure:not([data-variant]) .ds-disclosure__trigger',
+            'chevron': '.ds-disclosure:not([data-variant]) .ds-disclosure__chevron',
+        },
+        properties: [
+            'paddingLeft', 'minHeight', 'fontSize', 'fontWeight', 'textTransform',
+            'letterSpacing', 'width', 'height',
+        ],
+    },
+    {
         story: 'patterns-modal-chrome--sizes',
         label: 'the dialog chrome, and the eight widths that replaced thirty class lists',
         /*

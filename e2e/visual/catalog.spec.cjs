@@ -101,6 +101,7 @@ const SUBJECTS = [
     ['components-segmentedcontrol--toned-grid', 'segmented-toned-grid'],
     ['components-segmentedcontrol--with-disabled-option', 'segmented-disabled'],
     ['components-disclosure--default', 'disclosure'],
+    ['components-disclosure--card-variant', 'disclosure-card'],
     ['components-progressbar--tones', 'progress-bar-tones'],
     ['components-statusmedallion--tones', 'status-medallion-tones'],
     ['components-sectionnavigation--with-icons', 'section-navigation'],

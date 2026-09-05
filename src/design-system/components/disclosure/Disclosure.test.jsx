@@ -90,4 +90,80 @@ describe('Disclosure', () => {
     );
     expect((await axe(container)).violations).toEqual([]);
   });
+
+  describe('variant="card"', () => {
+    it('keeps the same trigger-inside-a-heading shape as the rail', () => {
+      // The appearance changes; the structure that makes it a disclosure does
+      // not. This is also what `hand-rolled-disclosure` reads for, so a rewrite
+      // that moved the button out of the heading would silently make the guard
+      // stop covering the thing it was written for.
+      render(
+        <Disclosure variant="card" title="How to set up delivery" description="Three providers">
+          Body
+        </Disclosure>,
+      );
+      const heading = screen.getByRole('heading', { level: 3 });
+      expect(heading.querySelector('button')).toHaveAttribute('aria-expanded', 'false');
+    });
+
+    it('reads the description as part of the trigger name, as the hand-built one did', () => {
+      // Deliberately unchanged from the markup this replaced: the whole header
+      // is one control, so everything visible in it is in its name. Written
+      // down because a consumer choosing a description is choosing a name.
+      render(
+        <Disclosure variant="card" title="How to set up delivery" description="Three providers">
+          Body
+        </Disclosure>,
+      );
+      expect(screen.getByRole('button', { name: 'How to set up delivery Three providers' }))
+        .toBeInTheDocument();
+    });
+
+    it('hides the leading slot from assistive technology by construction', () => {
+      // The wrapper carries `aria-hidden`, not the caller. A slot that trusts
+      // every consumer to remember is a slot that gets it wrong once.
+      render(
+        <Disclosure variant="card" title="Guide" leading={<span>TILE</span>}>Body</Disclosure>,
+      );
+      expect(screen.getByText('TILE').closest('[aria-hidden="true"]')).not.toBeNull();
+      expect(screen.getByRole('button')).toHaveAccessibleName('Guide');
+    });
+
+    it('refuses a description on the rail, which has nowhere to put one', () => {
+      expect(() => render(<Disclosure title="Fields" description="x">Body</Disclosure>))
+        .toThrow(/description requires variant="card"/i);
+    });
+
+    it('refuses a leading slot on the rail', () => {
+      expect(() => render(<Disclosure title="Fields" leading={<span />}>Body</Disclosure>))
+        .toThrow(/leading requires variant="card"/i);
+    });
+
+    it('refuses meta on a card, where it would fight the chevron for one slot', () => {
+      expect(() => render(<Disclosure variant="card" title="Guide" meta="3">Body</Disclosure>))
+        .toThrow(/meta is not supported by variant="card"/i);
+    });
+
+    it('refuses a blank description rather than rendering an empty line', () => {
+      expect(() => render(<Disclosure variant="card" title="Guide" description="  ">B</Disclosure>))
+        .toThrow(/description must be a non-empty string/i);
+    });
+
+    it('rejects a variant it does not have', () => {
+      expect(() => render(<Disclosure variant="panel" title="Guide">Body</Disclosure>))
+        .toThrow(/Unsupported Disclosure variant/i);
+    });
+
+    it('leaves the rail markup untouched, so its baseline cannot move', () => {
+      // Every card rule is scoped under `[data-variant='card']`, and the rail
+      // renders no `data-variant` at all. Asserted rather than assumed: this is
+      // the one property that makes the variant a zero-risk addition to a
+      // component that already has a committed pixel baseline.
+      const { container } = render(<Disclosure title="Signature fields">Body</Disclosure>);
+      expect(container.querySelector('.ds-disclosure')).not.toHaveAttribute('data-variant');
+      expect(container.querySelector('.ds-disclosure__text')).toBeNull();
+      expect(container.querySelector('.ds-disclosure__description')).toBeNull();
+      expect(container.querySelector('.ds-disclosure__leading')).toBeNull();
+    });
+  });
 });

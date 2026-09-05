@@ -1,15 +1,18 @@
 #!/usr/bin/env node
 /**
- * The three rules that read a control's STATE or its identity —
- * `hand-rolled-toggle`, `hand-rolled-current` and `hand-rolled-avatar`.
+ * The four rules that read a control's STATE, its identity or its place —
+ * `hand-rolled-toggle`, `hand-rolled-current`, `hand-rolled-avatar` and
+ * `hand-rolled-disclosure`.
  *
  * Split out of `test-ui-contract.mjs` on 2026-09-05, when the avatar rule took
  * that file to 528 lines and past the 500-line maximum. The split is by
- * responsibility and not by line count: these three share one difficulty that
- * none of the other fifteen rules has, which is that **the correct shape and the
- * wrong one are nearly the same markup**. A `<Button aria-pressed>` and a
+ * responsibility and not by line count: these share one difficulty that none of
+ * the other fifteen rules has, which is that **the correct shape and the wrong
+ * one are nearly the same markup**. A `<Button aria-pressed>` and a
  * `<button aria-pressed>` differ by a capital letter; a person's avatar and an
- * empty-state medallion are both a centred round box with a fixed size. Every
+ * empty-state medallion are both a centred round box with a fixed size; a
+ * disclosure trigger and a menu trigger are both a button wearing
+ * `aria-expanded`, and what tells them apart is the element WRAPPING it. Every
  * assertion here is about that boundary, and each was driven by a mutation that
  * moved it.
  *
@@ -37,8 +40,8 @@ function assert(name, condition, detail = '') {
  * needs to read an element name or a body that a regex over the attribute
  * cannot see. If one ever loses its counter it has silently stopped counting.
  */
-assert('P0. all three state rules are counter-backed',
-    ['hand-rolled-toggle', 'hand-rolled-current', 'hand-rolled-avatar']
+assert('P0. all four state rules are counter-backed',
+    ['hand-rolled-toggle', 'hand-rolled-current', 'hand-rolled-avatar', 'hand-rolled-disclosure']
         .every((rule) => typeof COUNTERS[rule] === 'function'));
 
 /* ========================================================================== */
@@ -224,6 +227,87 @@ assert('P16. Avatar is silent',
 assert('P17. all three shape signals are required',
     discs('<span className="rounded-ds-full items-center flex">{initials}</span>') === 0
     && discs('<span className="h-10 w-10 items-center flex">{initials}</span>') === 0);
+
+const sections = (code) => countViolations(code)['hand-rolled-disclosure'] ?? 0;
+
+const RAW_DISCLOSURE = '<h3 className="m-0"><button type="button" aria-expanded={showGuide} '
+    + 'aria-controls="guide" className="flex w-full items-center">Title</button></h3>';
+
+// P18. The shape the rule exists for — the one site this slice migrated.
+assert('P18. a <button aria-expanded> inside a heading is one violation',
+    sections(RAW_DISCLOSURE) === 1);
+
+/*
+ * P19. The assertion that makes this rule right, and the reason it reads the
+ * enclosing HEADING rather than the attribute. "A raw `<button aria-expanded>`"
+ * was written first and measured at two matches in the whole tree — the site
+ * above and a bottom app-bar tab that would then have needed a recorded reason.
+ * Meanwhile eleven live sites wear `aria-expanded`, and ten of them are menus,
+ * a combobox, a navigation group, a drawer trigger, a filter toggle and a row
+ * expander. `Disclosure` replaces none of them.
+ * Mutation: drop the heading scope and every one of these lights up.
+ */
+assert('P19. the same button outside a heading is left alone',
+    sections('<nav><button type="button" aria-expanded={openSheet === key}>Open Fields</button></nav>') === 0
+    && sections('<div className="relative"><button aria-expanded={isOpen} aria-haspopup="menu" /></div>') === 0
+    && sections('<input type="text" aria-expanded={open} aria-autocomplete="list" />') === 0);
+
+/*
+ * P20. The same capital-letter boundary P2 records, one rule over: a DS
+ * `<Button aria-expanded>` inside a heading is a correct call site handing the
+ * state to the contract.
+ * Mutation: make `openTagAttributes`'s start pattern case-insensitive.
+ */
+assert('P20. a <Button aria-expanded> inside a heading is silent',
+    sections('<h2><Button aria-expanded={rulesOpen} aria-controls="rules">Rules</Button></h2>') === 0);
+
+/*
+ * P21. `Disclosure` itself renders exactly the shape this rule points at, and
+ * yet needs no entry in `CONTRACT_EXEMPT_RULES` — it spells the heading as
+ * `<Heading>`, a capitalised binding for the caller's level, and the counter
+ * reads lowercase `h1`-`h6` only. That is worth pinning, because an exemption
+ * is the thing to be suspicious of and this rule avoided needing one.
+ */
+assert('P21. the primitive is silent by its own structure, with no exemption',
+    sections('<Heading id={headingId}><button aria-expanded={isOpen} /></Heading>') === 0
+    && CONTRACT_EXEMPT_RULES.length === 2
+    && !CONTRACT_EXEMPT_RULES.includes('hand-rolled-disclosure'));
+
+/*
+ * P22. A self-closing heading, and the reason it needs its own branch. Without
+ * one, its region runs on to the NEXT heading's close tag and counts that
+ * heading's trigger a SECOND time — measured at 2 while writing this, which is
+ * a false positive a reader would have no way to explain.
+ *
+ * This is also where the brace-aware scan earns its place. Knowing the tag
+ * closed itself means reading its real attribute text to the end, and under
+ * `indexOf('>')` the arrow in the second case below ends it early, the trailing
+ * `/` is never seen, and the count goes back to 2.
+ *
+ * The first version of this assertion claimed `indexOf('>')` broke the OFFSET
+ * instead. That was written without running the mutation, and running it showed
+ * the count unchanged — the body region still contained the trigger. Corrected
+ * rather than deleted, because a test that survives its own mutation is the
+ * defect this campaign found in `classAndAttributeCount` three slices ago.
+ */
+assert('P22. a self-closing heading does not borrow the next heading\'s trigger',
+    sections('<h3 className="x" /><h3><button aria-expanded={o} /></h3>') === 1
+    && sections('<h3 onClick={() => f()} /><h3><button aria-expanded={o} /></h3>') === 1
+    && sections('<h3><button aria-expanded={a} /></h3><h3><button aria-expanded={b} /></h3>') === 2);
+
+// P22b. And the open tag may still hold an arrow function in the ordinary case.
+assert('P22b. a heading whose open tag holds an arrow function still reads its body',
+    sections('<h3 onClick={() => focus()}><button aria-expanded={open} /></h3>') === 1);
+
+// P23. A heading that holds no trigger, and one that holds nothing at all.
+assert('P23. a heading without an expanding button is left alone',
+    sections('<h3 className="m-0">Plain section title</h3>') === 0
+    && sections('<h3 />') === 0
+    && sections('<h3><button type="button" onClick={save}>Save</button></h3>') === 0);
+
+// P24. All six levels, because a rule that reads only <h3> covers one spelling.
+assert('P24. every heading level is covered',
+    [1, 2, 3, 4, 5, 6].every((n) => sections(`<h${n}><button aria-expanded={o} /></h${n}>`) === 1));
 
 /* ========================================================================== */
 console.log(failures === 0
