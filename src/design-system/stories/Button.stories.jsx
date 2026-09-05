@@ -176,14 +176,58 @@ export const Sizes = {
 };
 
 /**
- * `tone="success"` layers an affirmative colour over a variant. The label still
- * has to say what happens — the tone is reinforcement, never the message.
+ * `tone` layers a status colour over a variant. The label still has to say what
+ * happens — the tone is reinforcement, never the message, because colour alone
+ * is not a status.
+ *
+ * **It means two different things, and the variant decides which.** On a
+ * `primary` it FILLS, and only `success` is allowed: a primary action already
+ * carries the strongest emphasis on the page, so a second colour on top competes
+ * with that rather than adding to it. Until 2026-09-05 a single rule applied the
+ * fill to every variant, which is why the secondary button below used to be
+ * solid green and is now a tint — the tint is the point.
  */
 export const SuccessTone = {
   render: (args) => (
     <div className="sb-row">
       <Button {...args} variant="primary" tone="success">Approve and continue</Button>
       <Button {...args} variant="secondary" tone="success">Mark as complete</Button>
+    </div>
+  ),
+};
+
+/**
+ * The status tints, on `secondary`. Eleven controls were drawing this trio by
+ * hand — a border, a tinted background and status text — because `Button` could
+ * not say "this action means warning".
+ *
+ * `danger` and `link` take no tone at all: `danger` is already one, and `link`
+ * has no box to tint. Both throw rather than rendering an untoned button, so an
+ * unsupported pairing names its call site instead of looking deliberate.
+ */
+export const StatusTones = {
+  render: (args) => (
+    <div className="sb-row">
+      <Button {...args} variant="secondary" tone="neutral">Neutral</Button>
+      <Button {...args} variant="secondary" tone="info">Info</Button>
+      <Button {...args} variant="secondary" tone="success">Success</Button>
+      <Button {...args} variant="secondary" tone="warning">Warning</Button>
+      <Button {...args} variant="secondary" tone="danger">Danger</Button>
+      <Button {...args} variant="secondary" tone="accent">Accent</Button>
+    </div>
+  ),
+};
+
+/** The same six on `ghost`, where the tint is the only chrome the control has. */
+export const GhostTones = {
+  render: (args) => (
+    <div className="sb-row">
+      <Button {...args} variant="ghost" tone="neutral">Neutral</Button>
+      <Button {...args} variant="ghost" tone="info">Info</Button>
+      <Button {...args} variant="ghost" tone="success">Success</Button>
+      <Button {...args} variant="ghost" tone="warning">Warning</Button>
+      <Button {...args} variant="ghost" tone="danger">Danger</Button>
+      <Button {...args} variant="ghost" tone="accent">Accent</Button>
     </div>
   ),
 };

@@ -171,15 +171,85 @@
  * `[data-tone]` so these rules outrank `.ds-button[data-variant='primary']`;
  * a single-class utility such as `bg-ds-status-success-fg` cannot, which is why
  * feature-side background overrides on a Button were silently dead CSS.
+ *
+ * The two blocks below are two DIFFERENT MEANINGS of the same prop, and the
+ * split is the point of this slice. On a `primary` the tone fills, and only
+ * `success` ever reaches it — `Button.jsx` refuses the rest, so an unsupported
+ * pair names its call site rather than rendering something nobody chose. On a
+ * `secondary` or `ghost` it is the status tint trio, which is precisely what
+ * the envelope field palette and the sandbox Magic Fill were drawing by hand.
+ *
+ * Until this slice one variant-agnostic rule served both, so
+ * `variant="secondary" tone="success"` rendered FILLED. One catalog story used
+ * that pairing and is the only rendered change here.
  */
-.ds-button[data-tone='success'][data-variant] {
+.ds-button[data-tone='success'][data-variant='primary'] {
   border-color: transparent;
   background: var(--ds-color-action-success);
   color: var(--ds-color-content-inverse);
 }
 
-.ds-button[data-tone='success'][data-variant]:hover:not(:disabled) {
+.ds-button[data-tone='success'][data-variant='primary']:hover:not(:disabled) {
   background: var(--ds-color-action-success-hover);
+}
+
+.ds-button[data-tone][data-variant='secondary'],
+.ds-button[data-tone][data-variant='ghost'] {
+  border-color: var(--ds-button-tone-border);
+  background: var(--ds-button-tone-bg);
+  color: var(--ds-button-tone-fg);
+}
+
+/*
+ * Hover lifts the surface and keeps the tone's own text and border, so the
+ * control does not change meaning under the cursor. `surface-subtle` is what
+ * the hand-rolled controls used, so this is their behaviour rather than a new
+ * one.
+ */
+.ds-button[data-tone][data-variant='secondary']:hover:not(:disabled),
+.ds-button[data-tone][data-variant='ghost']:hover:not(:disabled) {
+  background: var(--ds-color-surface-subtle);
+}
+
+/*
+ * Each tone supplies only its three colours; the treatment above is stated
+ * once. A seventh tone is one line, and cannot accidentally give itself a
+ * different treatment.
+ */
+.ds-button[data-tone='neutral'] {
+  --ds-button-tone-border: var(--ds-color-status-neutral-border);
+  --ds-button-tone-bg: var(--ds-color-status-neutral-bg);
+  --ds-button-tone-fg: var(--ds-color-status-neutral-fg);
+}
+
+.ds-button[data-tone='info'] {
+  --ds-button-tone-border: var(--ds-color-status-info-border);
+  --ds-button-tone-bg: var(--ds-color-status-info-bg);
+  --ds-button-tone-fg: var(--ds-color-status-info-fg);
+}
+
+.ds-button[data-tone='success'] {
+  --ds-button-tone-border: var(--ds-color-status-success-border);
+  --ds-button-tone-bg: var(--ds-color-status-success-bg);
+  --ds-button-tone-fg: var(--ds-color-status-success-fg);
+}
+
+.ds-button[data-tone='warning'] {
+  --ds-button-tone-border: var(--ds-color-status-warning-border);
+  --ds-button-tone-bg: var(--ds-color-status-warning-bg);
+  --ds-button-tone-fg: var(--ds-color-status-warning-fg);
+}
+
+.ds-button[data-tone='danger'] {
+  --ds-button-tone-border: var(--ds-color-status-danger-border);
+  --ds-button-tone-bg: var(--ds-color-status-danger-bg);
+  --ds-button-tone-fg: var(--ds-color-status-danger-fg);
+}
+
+.ds-button[data-tone='accent'] {
+  --ds-button-tone-border: var(--ds-color-status-accent-border);
+  --ds-button-tone-bg: var(--ds-color-status-accent-bg);
+  --ds-button-tone-fg: var(--ds-color-status-accent-fg);
 }
 
 .ds-button[data-full-width='true'] {

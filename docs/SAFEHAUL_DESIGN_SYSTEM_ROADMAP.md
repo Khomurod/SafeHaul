@@ -445,10 +445,19 @@ component itself as well.
   around it.
 - ~~**`EnvelopeSidebar`'s `RailSection` disclosure header.**~~ **RETIRED
   2026-08-25.** It is `Disclosure`, the consumer that primitive was built for.
-- **`EnvelopeSidebar`'s field-palette tiles stay raw `<button>`s.** They are
-  colour-coded per field type — domain-to-visual mapping the feature owns, and
-  `Button` has no API for it. Same family as the PEV FMCSA rows: there is no
-  approved SelectableCard/Listbox primitive.
+- ~~**`EnvelopeSidebar`'s field-palette tiles stay raw `<button>`s.**~~
+  **RETIRED 2026-09-05.** `Button` has an API for it now — a status tone on a
+  `secondary` — and the tiles are `<Button variant="secondary" tone={…}
+  fullWidth justify="start">`. Which field type reads as which colour stays in
+  `fieldDefinitions.jsx`, because that is domain knowledge; what a tone LOOKS
+  like moved to the design system, where it was always meant to be.
+
+  **And the "same family as the PEV FMCSA rows" claim was wrong**, which is why
+  this exception outlived the primitive that could have retired it. The tiles
+  carry `aria-label="Add … field"`, no `aria-pressed` and no selected state:
+  clicking one ADDS a field rather than selecting one. They are toned actions,
+  not single-select options, and citing them under SelectableCard would have had
+  that primitive built partly for a consumer it does not have.
 - **`LoginScreen`'s hero wash and `IntegrationsTab`'s Facebook tile keep raw
   hexes.** The hero's three blobs are artwork: blurred over 256–384px,
   `aria-hidden`, no information in them. Everything on that panel that carries
@@ -515,10 +524,10 @@ procedure in §7 is the broad one.
 
 | Primitive | Status | Cited by |
 |---|---|---|
-| **Toned `Button` variant** | **Still open** | `EnvelopeSidebar.jsx`'s eight field-palette buttons. `Button` exposes only primary/secondary/ghost/danger/link and has no semantic status tone; the tone is load-bearing because `ResizableDraggableField` colour-codes each placed overlay by field type, so these buttons are the legend for what appears on the PDF. They already use `--ds-*` status tokens, a 44px activation height, a focus ring and unique names |
+| **Toned `Button` variant** | **[x] RESOLVED 2026-09-05** | Built. `tone` now takes `default / neutral / info / success / warning / danger / accent`, and means two different things by variant: on `primary` it FILLS and only `success` is allowed (a primary already carries the page's strongest emphasis, so a second colour competes rather than adds); on `secondary` and `ghost` it is the status tint trio. `danger` and `link` refuse a tone at all — `danger` is one, and `link` has no box to tint — checked in `Button.jsx` so an unsupported pair names its call site instead of rendering an untoned button. Retired both consumers: `EnvelopeSidebar`'s eight field-palette tiles (the legend for what `ResizableDraggableField` draws on the PDF) and `Stepper`'s sandbox-only Magic Fill, whose own code comment said it would go "as soon as the roadmap's remaining Button tones land" |
 | **Inline editable value** | **Open**, found 2026-08-21 | `ManageTeamModal`'s two per-member goal editors and `InlineLeaderboard`'s two date-range fields — a borderless field inside a labelled chip. `Input` is a 44px bordered full-width control and would destroy the chip; overriding it back would be worse. All four are tokenised, labelled and carry the shared focus ring |
 | **Tinted chip link** | **Open**, found 2026-08-21 | `CallOutcomeModalUI`'s phone chip and the candidate list's per-row call chip — a status-tinted pill that is also a `tel:` link. `Link` is underlined text and `ButtonLink` is button-shaped; neither is an inline tinted chip. `Badge` is the right shape but is not interactive |
-| **SelectableCard / Listbox / Combobox** | **Open**, widened 2026-08-25, widened again 2026-09-04 | A row of *record content* that behaves as a single-select option: the PEV FMCSA suggestion rows (three lines each), `EnvelopeSidebar`'s field-palette tiles, `VirtualLeadList`'s exclusion rows, `CompanyChooserModal`'s company rows, `PageThumbnailRail`'s page thumbnails. `SegmentedControl` takes a string label and cannot express any of them, which is why it did not retire the FMCSA rows as this file previously claimed. The **combobox** half is the same gap one step further: `EmployerNameAutocomplete.jsx` hand-builds the full ARIA combobox — `role="combobox"` with `aria-expanded`, `aria-controls` and `aria-activedescendant` over a `role="listbox"` — because there is no primitive for a text input that filters a list. It is written correctly, which is exactly why it is worth promoting rather than leaving as one feature's private achievement |
+| **SelectableCard / Listbox / Combobox** | **Open**, widened 2026-08-25, widened again 2026-09-04 | A row of *record content* that behaves as a single-select option: the PEV FMCSA suggestion rows (three lines each), `VirtualLeadList`'s exclusion rows, `CompanyChooserModal`'s company rows, `PageThumbnailRail`'s page thumbnails. `SegmentedControl` takes a string label and cannot express any of them, which is why it did not retire the FMCSA rows as this file previously claimed. **`EnvelopeSidebar`'s field-palette tiles were listed here until 2026-09-05 and should not have been**: they have no selected state and adding a field is not selecting one, so they were toned ACTIONS and retired to `Button`'s new `tone` instead. A gap that cites a consumer it does not have gets a primitive built for the wrong shape. The **combobox** half is the same gap one step further: `EmployerNameAutocomplete.jsx` hand-builds the full ARIA combobox — `role="combobox"` with `aria-expanded`, `aria-controls` and `aria-activedescendant` over a `role="listbox"` — because there is no primitive for a text input that filters a list. It is written correctly, which is exactly why it is worth promoting rather than leaving as one feature's private achievement |
 | **Filter chip** | **Open**, first consumer named 2026-08-25 | `AudienceBuilder`'s application-status chips are **multi**-select over a `status` array, and 12px rather than the 44px control height; `SegmentedControl` is single-select by contract and would triple their height inside a filter panel. `CompanyCandidatesListPage`'s pipeline strip is the single-select sibling |
 | **Compact icon-button step** | **Open** | Below `sm` (36px). The candidate list's 24px column-sort toggles, the corner badges on a PDF field box whose minimum size is 8px, `AiSuggestionOverlay`'s accept/reject pair |
 | **Card-section disclosure** | **Open**, found 2026-08-25 | `Disclosure` has exactly one appearance — a rail-section header at 12px, bold, uppercase — because that is the shape its consumer needed. `EmailSettingsTab`'s SMTP setup guide is a `heading-sm` card section with a description line, and one consumer does not justify a second variant |

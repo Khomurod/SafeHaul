@@ -9,7 +9,7 @@ import Step7_General from '../../../features/driver-app/components/application/s
 import Step8_Review from '../../../features/driver-app/components/application/steps/Step8_Review';
 import Step9_Consent from '../../../features/driver-app/components/application/steps/Step9_Consent';
 import { DynamicQuestionsStep } from '../../../features/driver-app/components/application/steps/DynamicQuestionsStep';
-import { ProgressBar } from '@/design-system/components';
+import { Button, ProgressBar } from '@/design-system/components';
 import { initializeSignatureCanvas, clearCanvas } from '@/lib/signature';
 
 export function buildSemanticStepOrder(hasCustomQuestions) {
@@ -168,23 +168,24 @@ const Stepper = ({
         <>
             {isSandboxMode && typeof onMagicFillStep === 'function' && (
                 <div className="fixed bottom-ds-6 right-ds-6 z-ds-sticky">
-                    {/* DOCUMENTED EXCEPTION — raw button.
-                        The sandbox test control must stay visually distinct from
-                        every production action so nobody mistakes the sandbox
-                        wizard for the real one. The approved `Button` supports
-                        only `default` and `success` tones, and a feature-side
-                        background utility cannot override the variant's own
-                        `background` rule (see the note in `Button.css`). This
-                        composition is replaced as soon as the roadmap's
-                        remaining Button tones land; it renders only when
+                    {/* The sandbox test control stays visually distinct from every
+                        production action so nobody mistakes the sandbox wizard for
+                        the real one — and that distinction is now the design
+                        system's `warning` tone rather than a hand-written class
+                        list. The exception this replaced said it would go "as soon
+                        as the roadmap's remaining Button tones land"; they have.
+                        `shadow-ds-lg` stays: it lifts a floating control off the
+                        page, which is position, not appearance. Renders only when
                         `isSandboxMode` is true, never on `/apply/:slug`. */}
-                    <button
-                        type="button"
+                    <Button
+                        variant="secondary"
+                        tone="warning"
+                        size="sm"
                         onClick={() => onMagicFillStep()}
-                        className="rounded-ds-lg border border-ds-status-warning-border bg-ds-status-warning-bg px-ds-4 py-ds-2 text-ds-sm font-semibold text-ds-status-warning-fg shadow-ds-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ds-focus"
+                        className="shadow-ds-lg"
                     >
                         🧪 Magic Fill Step
-                    </button>
+                    </Button>
                 </div>
             )}
             <div className="border-b border-ds-border-subtle bg-ds-surface-subtle px-ds-6 py-ds-4">

@@ -116,6 +116,32 @@ const PROBES = [
         properties: ['height', 'fontSize', 'backgroundColor', 'borderColor', 'color'],
     },
     {
+        /*
+         * The two meanings of `tone`, as numbers.
+         *
+         * On a `primary` it FILLS; on a `secondary` it TINTS. Until 2026-09-05 a
+         * single variant-agnostic rule filled both, so this pair is the whole
+         * point of the slice and the thing most likely to be undone by a later
+         * edit that "simplifies" the two blocks back into one. A screenshot
+         * would say a picture changed; this says `backgroundColor:
+         * rgb(22, 163, 74) -> rgb(220, 252, 231)`, which says what changed.
+         *
+         * It matters more than usual here because the two consumers this slice
+         * retired — the envelope editor's field palette and the sandbox Magic
+         * Fill — have NO app-screen baseline between them: the editor is not one
+         * of the 15 photographed screens and `/sandbox/*` is deliberately
+         * excluded as a harness route. Without this probe the migration would
+         * rest on unit tests and reading alone.
+         */
+        story: 'components-button--success-tone',
+        label: 'a tone fills a primary and tints a secondary',
+        selectors: {
+            'primary[success]': ".ds-button[data-tone='success'][data-variant='primary']",
+            'secondary[success]': ".ds-button[data-tone='success'][data-variant='secondary']",
+        },
+        properties: ['backgroundColor', 'color', 'borderColor', 'borderRadius'],
+    },
+    {
         story: 'components-button--link-variant',
         label: 'the one variant that leaves the control scale, and the one that does not',
         selectors: {

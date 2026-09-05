@@ -317,16 +317,18 @@ export function EnvelopeSidebar({
                                     {category.items.map((item) => {
                                         const IconComp = item.icon;
                                         return (
-                                            <button
+                                            <Button
                                                 key={item.templateId}
-                                                type="button"
+                                                variant="secondary"
+                                                tone={item.tone}
+                                                fullWidth
+                                                justify="start"
                                                 onClick={() => addField(item.templateId)}
                                                 aria-label={`Add ${item.label} field`}
-                                                className={`flex min-h-11 w-full items-center gap-ds-2 rounded-ds-lg border px-ds-3 py-ds-2 text-left transition-colors focus-visible:outline-none focus-visible:shadow-ds-focus ${item.color}`}
                                             >
                                                 <IconComp size={15} aria-hidden="true" />
                                                 <span className="text-ds-xs font-semibold">{item.label}</span>
-                                            </button>
+                                            </Button>
                                         );
                                     })}
                                 </div>

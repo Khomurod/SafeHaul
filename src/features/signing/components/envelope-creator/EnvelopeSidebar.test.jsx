@@ -301,11 +301,20 @@ describe('EnvelopeSidebar — field palette', () => {
         expect(handlers.addField).toHaveBeenCalledWith(templateId);
     });
 
-    it('uses semantic tone tokens rather than the legacy palette', () => {
+    it('maps each field type to a tone, and lets the design system draw it', () => {
         const { container } = renderSidebar(withFile);
         expect(container.innerHTML).not.toMatch(/bg-(yellow|orange|green|blue|indigo|purple)-\d{2,3}/);
-        expect(screen.getByRole('button', { name: 'Add Signature field' }).className)
-            .toContain('bg-ds-status-warning-bg');
+        // The tone is an attribute now, not a class list: the four hand-written
+        // trios this file used to carry are one `data-tone` and six CSS rules.
+        expect(screen.getByRole('button', { name: 'Add Signature field' }))
+            .toHaveAttribute('data-tone', 'warning');
+        expect(screen.getByRole('button', { name: 'Add Date Signed field' }))
+            .toHaveAttribute('data-tone', 'success');
+        expect(screen.getByRole('button', { name: 'Add Email field' }))
+            .toHaveAttribute('data-tone', 'info');
+        expect(screen.getByRole('button', { name: 'Add Checkbox field' }))
+            .toHaveAttribute('data-tone', 'accent');
+        expect(container.innerHTML).not.toMatch(/bg-ds-status-\w+-bg/);
     });
 });
 
@@ -404,21 +413,28 @@ describe('EnvelopeSidebar — presentation and accessibility', () => {
         }
     });
 
-    it('keeps the palette buttons as the one documented non-Button exception', () => {
-        // The approved Button has no semantic status tone, and the tone here is the
-        // legend for the PDF overlay colours. Recorded in-code and in the roadmap.
+    it('builds every palette tile from the approved Button', () => {
+        /*
+         * This assertion used to say the opposite, and named its reason: "the
+         * approved Button has no semantic status tone". It has one now, so the
+         * exception is retired and the inversion is the proof. The tone is still
+         * the feature's decision — which field type reads as which colour is
+         * domain knowledge — but what that tone LOOKS like is the design
+         * system's, and is no longer four hand-written class lists.
+         */
         renderSidebar({ file: { name: 'artificial.pdf' } });
         const palette = screen.getAllByRole('button', { name: /^Add .* field$/ });
         expect(palette).toHaveLength(8);
         for (const button of palette) {
-            expect(button).not.toHaveClass('ds-button');
-            expect(button.className).toContain('min-h-11');
-            expect(button.className).toContain('focus-visible:shadow-ds-focus');
-            expect(button.className).toMatch(/bg-ds-status-(warning|success|info|accent)-bg/);
+            expect(button).toHaveClass('ds-button');
+            expect(button).toHaveAttribute('data-variant', 'secondary');
+            expect(button).toHaveAttribute('data-tone', expect.stringMatching(/^(warning|success|info|accent)$/));
+            expect(button).toHaveAttribute('data-full-width', 'true');
+            expect(button).toHaveAttribute('data-justify', 'start');
         }
     });
 
-    it('leaves no other raw button in the sidebar', () => {
+    it('leaves no raw button in the sidebar at all', () => {
         const { container } = renderSidebar({
             file: { name: 'artificial.pdf' },
             fields: [FIELD_A, FIELD_B],
@@ -428,18 +444,12 @@ describe('EnvelopeSidebar — presentation and accessibility', () => {
         const raw = Array.from(container.querySelectorAll('button'))
             .filter((b) => ![...b.classList].some((c) => c.startsWith('ds-')))
             .map((b) => b.getAttribute('aria-label') || b.textContent.trim());
-        // Only the eight documented palette buttons: the rail-section triggers
-        // are `Disclosure`'s now, and carry `ds-disclosure__trigger`.
-        expect(raw).toEqual([
-            'Add Signature field',
-            'Add Initial field',
-            'Add Date Signed field',
-            'Add Name field',
-            'Add Email field',
-            'Add Company field',
-            'Add Text field',
-            'Add Checkbox field',
-        ]);
+        /*
+         * None left. The eight palette tiles were the last, and they listed here
+         * by name for as long as the exception stood; the rail-section triggers
+         * are `Disclosure`'s and carry `ds-disclosure__trigger`.
+         */
+        expect(raw).toEqual([]);
     });
 
     it('uses no unsupported 9px or 10px interface text and no raw hex colours', () => {

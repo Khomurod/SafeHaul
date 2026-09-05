@@ -96,6 +96,60 @@ describe('Button tone', () => {
   });
 
   /*
+   * The status tints, and the reason they are a SECOND meaning of `tone` rather
+   * than a widening of the first. Eleven controls were drawing this trio by
+   * hand — the envelope field palette and the sandbox Magic Fill — because
+   * `Button` had no way to say "this action means warning".
+   */
+  it.each(['neutral', 'info', 'success', 'warning', 'danger', 'accent'])(
+    'carries the %s status tint on a secondary button',
+    (tone) => {
+      render(<Button variant="secondary" tone={tone}>Act</Button>);
+      const button = screen.getByRole('button', { name: 'Act' });
+      expect(button).toHaveAttribute('data-tone', tone);
+      expect(button).toHaveAttribute('data-variant', 'secondary');
+    },
+  );
+
+  it.each(['neutral', 'info', 'warning', 'danger', 'accent'])(
+    'carries the %s status tint on a ghost button too',
+    (tone) => {
+      render(<Button variant="ghost" tone={tone}>Act</Button>);
+      expect(screen.getByRole('button', { name: 'Act' })).toHaveAttribute('data-tone', tone);
+    },
+  );
+
+  /*
+   * The two refusals. Both are checked in JS rather than left to CSS so the
+   * failure names the call site: a pairing CSS simply has no rule for renders
+   * as an untoned button, which looks deliberate and is not.
+   */
+  it('refuses any tone but success on a primary, and says why', () => {
+    expect(() => render(<Button variant="primary" tone="warning">Act</Button>))
+      .toThrow(/cannot carry tone="warning"/);
+    expect(() => render(<Button variant="primary" tone="warning">Act</Button>))
+      .toThrow(/strongest emphasis/);
+  });
+
+  it('refuses a tone on a danger button, which is already one', () => {
+    expect(() => render(<Button variant="danger" tone="warning">Act</Button>))
+      .toThrow(/already a tone/);
+  });
+
+  it('refuses a tone on a link, which has no box to tint', () => {
+    expect(() => render(<Button variant="link" tone="info">Act</Button>))
+      .toThrow(/no box to tint/);
+  });
+
+  it('keeps the one pairing that predates the scale', () => {
+    // `primary` + `success` is the signing submit, and it fills rather than
+    // tints. Twelve live call sites depend on it looking exactly as it did.
+    render(<Button variant="primary" tone="success">Finish</Button>);
+    expect(screen.getByRole('button', { name: 'Finish' }))
+      .toHaveAttribute('data-tone', 'success');
+  });
+
+  /*
    * Regression guard for the P2 raised in review on PR #114. The green submit
    * treatment was previously applied with a `bg-ds-status-success-fg` utility,
    * which has one class and therefore loses to Button's own two-selector
