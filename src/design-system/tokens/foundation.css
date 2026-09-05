@@ -175,11 +175,22 @@
    * covered the topbar's drop shadow — a two-pixel band that CI's visual lane
    * caught at both widths. Pick the layer by what the thing sits between.
    *
-   * `layer-1` … `layer-4` are missing on purpose: they are local layers inside
-   * an `isolate` context in the envelope editor, and they arrive in the slice
-   * that gives them consumers. `tokens.consumers.test.js` refuses a token
-   * nothing reads, which is exactly the rule that keeps this list a vocabulary.
+   * `layer-1` … `layer-4` are a DIFFERENT KIND of thing from the seven above,
+   * and the small numbers say so. The seven are application layers: a dialog is
+   * above a drawer everywhere in the product. The four are LOCAL — they order
+   * things inside one container against each other and mean nothing outside it,
+   * which is why 1..4 rather than another rung of the same ladder.
+   *
+   * A local layer only stays local if its container forms a stacking context,
+   * so every consumer sits inside one — either an `isolate` (the PDF page
+   * wrapper) or an ancestor that already carries its own `z-index`. Without
+   * that, a `z-index: 2` competes with the application scale and loses to
+   * everything.
    */
+  --ds-z-layer-1: 1;
+  --ds-z-layer-2: 2;
+  --ds-z-layer-3: 3;
+  --ds-z-layer-4: 4;
   --ds-z-raised: 10;
   --ds-z-sticky: 20;
   --ds-z-dropdown: 30;

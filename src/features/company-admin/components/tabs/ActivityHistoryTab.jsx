@@ -217,7 +217,7 @@ export function ActivityHistoryTab({ companyId, applicationId, collectionName })
                                         {/* Icon Container */}
                                         <span
                                             aria-hidden="true"
-                                            className="absolute left-0 top-0 z-10 flex h-8 w-8 items-center justify-center rounded-ds-full border border-ds-border-subtle bg-ds-surface shadow-ds-xs"
+                                            className="absolute left-0 top-0 z-ds-raised flex h-8 w-8 items-center justify-center rounded-ds-full border border-ds-border-subtle bg-ds-surface shadow-ds-xs"
                                         >
                                             {getIcon(log.type, log.action)}
                                         </span>

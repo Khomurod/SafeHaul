@@ -354,7 +354,7 @@ export function AudienceBuilder({ companyId, filters, onChange, campaignScopeKey
                         halves of the panel read from the same roles. */}
                     <div className="flex h-[650px] flex-col overflow-hidden rounded-ds-xl border border-ds-border-inverse bg-ds-surface-inverse p-ds-1 text-ds-content-on-inverse shadow-ds-lg">
                         {/* Preview Header */}
-                        <div className="z-10 border-b border-ds-border-inverse bg-ds-surface-inverse p-ds-6">
+                        <div className="z-ds-raised border-b border-ds-border-inverse bg-ds-surface-inverse p-ds-6">
                             <div className="flex items-end justify-between gap-ds-4">
                                 <div className="min-w-0">
                                     <div className="mb-ds-1 text-ds-sm font-bold uppercase tracking-wide text-ds-status-info-fg-on-inverse">

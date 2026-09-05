@@ -55,7 +55,10 @@ export function EditorTopBar({
     };
 
     return (
-        <div className="z-30 flex shrink-0 flex-wrap items-center justify-between gap-ds-3 border-b border-ds-border-subtle bg-ds-surface px-ds-4 py-ds-2 shadow-ds-xs">
+        <div
+            data-testid="envelope-editor-top-bar"
+            className="z-ds-sticky flex shrink-0 flex-wrap items-center justify-between gap-ds-3 border-b border-ds-border-subtle bg-ds-surface px-ds-4 py-ds-2 shadow-ds-xs"
+        >
             <div className="flex min-w-0 flex-1 items-center gap-ds-3">
                 <Button variant="ghost" size="sm" className="shrink-0" onClick={onBack}>
                     <ArrowLeft size={16} aria-hidden="true" />

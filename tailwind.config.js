@@ -43,6 +43,12 @@ export default {
         'ds-drawer': 'var(--ds-z-drawer)',
         'ds-modal': 'var(--ds-z-modal)',
         'ds-toast': 'var(--ds-z-toast)',
+        // Local layers — see `foundation.css`. They order siblings inside one
+        // stacking context and mean nothing outside it.
+        'ds-layer-1': 'var(--ds-z-layer-1)',
+        'ds-layer-2': 'var(--ds-z-layer-2)',
+        'ds-layer-3': 'var(--ds-z-layer-3)',
+        'ds-layer-4': 'var(--ds-z-layer-4)',
       },
 
       colors: {

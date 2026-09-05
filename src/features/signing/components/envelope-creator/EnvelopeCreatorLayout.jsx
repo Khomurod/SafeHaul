@@ -325,7 +325,7 @@ export function EnvelopeCreatorLayout({
                         aria-label="Document inspector"
                         className={`shrink-0 overflow-hidden border-l border-ds-border-subtle bg-ds-surface shadow-ds-lg ${
                             inspectorOpen
-                                ? 'fixed inset-y-0 right-0 z-40 w-full max-w-sm lg:static lg:z-auto lg:w-80 lg:max-w-none'
+                                ? 'fixed inset-y-0 right-0 z-ds-drawer w-full max-w-sm lg:static lg:z-auto lg:w-80 lg:max-w-none'
                                 : 'hidden lg:block lg:w-80'
                         }`}
                     >

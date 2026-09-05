@@ -259,6 +259,38 @@ describe('design tokens', () => {
     expect(new Set(layers).size).toBe(layers.length);
   });
 
+  /*
+   * The local layers are a different kind of thing, and the test says so.
+   *
+   * `raised` … `toast` are application layers: a dialog is above a drawer
+   * everywhere in the product. `layer-1` … `layer-4` order siblings inside ONE
+   * container and mean nothing outside it — which only holds while every one of
+   * them sits in a stacking context, so they must stay below the smallest
+   * application layer. If they ever overlapped, a "local" value would start
+   * competing with the real scale and lose to all of it.
+   */
+  it('keeps the four local layers below the whole application scale', () => {
+    const local = [1, 2, 3, 4].map((n) => Number(resolveToken(`ds-z-layer-${n}`)));
+    expect(local).toEqual([1, 2, 3, 4]);
+    const smallestAppLayer = Number(resolveToken('ds-z-raised'));
+    expect(Math.max(...local)).toBeLessThan(smallestAppLayer);
+  });
+
+  it('gives every consumer of a local layer a stacking context to be local in', () => {
+    /*
+     * The load-bearing half. A `z-index: 2` outside a stacking context is not a
+     * local layer at all — it is an application-scale value that loses to
+     * everything. Two containers are isolated by hand for exactly this reason,
+     * and both are asserted here because deleting the `isolate` is a silent
+     * change that nothing else would catch.
+     */
+    const reads = (file) => fs.readFileSync(path.resolve(tokenRoot, '../..', file), 'utf8');
+    const workbench = reads('features/signing/components/envelope-creator/PdfFieldWorkbench.jsx');
+    expect(workbench).toMatch(/className=\{`relative isolate inline-block/);
+    const matrix = reads('features/super-admin/components/FeaturesView.jsx');
+    expect(matrix).toMatch(/className="isolate min-h-0 flex-1 overflow-auto/);
+  });
+
   it('keeps the workspace drawer off the dialog layer', () => {
     // The bug this scale exists for, asserted where it lived: the drawer read
     // `--ds-z-modal`, so every dialog opened over it lost.
@@ -273,7 +305,9 @@ describe('design tokens', () => {
   it('bridges every stacking layer to a Tailwind utility', () => {
     // A layer with no utility is a layer a class list cannot name, which is how
     // fourteen different raw numbers accumulated in the first place.
-    for (const role of ['raised', 'sticky', 'dropdown', 'drawer-backdrop', 'drawer', 'modal', 'toast']) {
+    const roles = ['raised', 'sticky', 'dropdown', 'drawer-backdrop', 'drawer', 'modal', 'toast',
+      'layer-1', 'layer-2', 'layer-3', 'layer-4'];
+    for (const role of roles) {
       expect(tailwindConfig.theme.extend.zIndex[`ds-${role}`]).toBe(`var(--ds-z-${role})`);
     }
   });

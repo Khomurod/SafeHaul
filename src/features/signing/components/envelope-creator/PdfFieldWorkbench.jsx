@@ -83,13 +83,23 @@ export function PdfFieldWorkbench({
                                 key={pageNum}
                                 ref={(el) => (pageRefs.current[pageNum] = el)}
                                 data-page-num={pageNum}
-                                className={`relative inline-block border-2 bg-ds-surface shadow-ds-lg ${
+                                /*
+                                 * `isolate` is what makes the four `layer-*`
+                                 * values below LOCAL. Without a stacking context
+                                 * here, a `z-index: 2` overlay would be competing
+                                 * with the application scale — where 2 loses to
+                                 * everything — instead of with its own siblings.
+                                 * Safe to isolate: every dialog in this editor is
+                                 * rendered by `EnvelopeCreatorLayout` as a sibling
+                                 * of the workbench, never inside a page.
+                                 */
+                                className={`relative isolate inline-block border-2 bg-ds-surface shadow-ds-lg ${
                                     activePage === pageNum ? 'border-ds-action-primary' : 'border-ds-border'
                                 }`}
                             >
                                 {/* FEAT-1: Page label badge */}
                                 <div
-                                    className={`absolute left-2 top-2 z-20 rounded-ds-md px-2 py-1 text-ds-xs font-bold ${
+                                    className={`absolute left-2 top-2 z-ds-layer-2 rounded-ds-md px-2 py-1 text-ds-xs font-bold ${
                                         activePage === pageNum
                                             ? 'bg-ds-action-primary text-ds-content-inverse'
                                             : 'bg-ds-status-neutral-bg text-ds-status-neutral-fg'
@@ -104,7 +114,7 @@ export function PdfFieldWorkbench({
                                     renderAnnotationLayer={false}
                                     renderTextLayer={false}
                                 />
-                                <div className="absolute inset-0 z-10 pointer-events-none">
+                                <div className="absolute inset-0 z-ds-layer-1 pointer-events-none">
                                     {fields.filter(f => f.page === pageNum).map((field) => (
                                         <ResizableDraggableField
                                             key={field.id}
@@ -131,7 +141,7 @@ export function PdfFieldWorkbench({
                                     position itself, which is announced by the
                                     field's own accessible name. */}
                                 {dragGuides?.page === pageNum && dragGuides.guides.length > 0 && (
-                                    <div className="pointer-events-none absolute inset-0 z-30" aria-hidden="true">
+                                    <div className="pointer-events-none absolute inset-0 z-ds-layer-3" aria-hidden="true">
                                         {dragGuides.guides.map((guide) => (
                                             guide.axis === 'x' ? (
                                                 <span
@@ -151,7 +161,7 @@ export function PdfFieldWorkbench({
                                 )}
                                 {aiSuggestions.length > 0 && (
                                     <div
-                                        className="absolute inset-0 z-20 pointer-events-none"
+                                        className="absolute inset-0 z-ds-layer-2 pointer-events-none"
                                         aria-label={`AI field suggestions on page ${pageNum}`}
                                         role="group"
                                     >

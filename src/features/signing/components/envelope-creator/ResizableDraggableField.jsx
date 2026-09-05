@@ -183,10 +183,10 @@ export const ResizableDraggableField = React.memo(({ field, pageNum, pageWidth, 
                 }}
                 className={`group absolute flex cursor-move flex-col rounded-ds-sm border pointer-events-auto transition-shadow motion-reduce:transition-none focus-visible:outline-none focus-visible:shadow-ds-focus
                     ${isSelected
-                        ? 'z-[60] border-ds-action-primary shadow-ds-md ring-2 ring-ds-focus ring-offset-1'
+                        ? 'z-ds-layer-3 border-ds-action-primary shadow-ds-md ring-2 ring-ds-focus ring-offset-1'
                         : isMultiSelected
-                            ? 'z-[55] border-ds-action-primary shadow-ds-sm'
-                            : `z-50 shadow-ds-xs hover:shadow-ds-sm ${tone.border}`}`
+                            ? 'z-ds-layer-2 border-ds-action-primary shadow-ds-sm'
+                            : `z-ds-layer-1 shadow-ds-xs hover:shadow-ds-sm ${tone.border}`}`
                 }
                 style={{ width: size.width, height: size.height }}
             >
@@ -201,7 +201,7 @@ export const ResizableDraggableField = React.memo(({ field, pageNum, pageWidth, 
                 />
 
                 {/* Compact type + label chip. */}
-                <div className="relative z-10 flex shrink-0 items-center gap-ds-1 overflow-hidden px-ds-1 py-0.5">
+                <div className="relative z-ds-layer-1 flex shrink-0 items-center gap-ds-1 overflow-hidden px-ds-1 py-0.5">
                     <span aria-hidden="true" className="shrink-0 text-ds-content">{getIcon(field.type)}</span>
                     {size.width > 40 && (
                         <input
@@ -236,7 +236,7 @@ export const ResizableDraggableField = React.memo(({ field, pageNum, pageWidth, 
                             type="button"
                             aria-label={`Remove ${fieldName} from page ${pageNum}`}
                             onMouseDown={(e) => { e.stopPropagation(); onRemove(field.id); }}
-                            className="absolute -right-2 -top-2 z-[70] rounded-ds-full bg-ds-action-danger p-0.5 text-ds-content-inverse shadow-ds-sm focus-visible:outline-none focus-visible:shadow-ds-focus"
+                            className="absolute -right-2 -top-2 z-ds-layer-2 rounded-ds-full bg-ds-action-danger p-0.5 text-ds-content-inverse shadow-ds-sm focus-visible:outline-none focus-visible:shadow-ds-focus"
                         >
                             <X size={10} aria-hidden="true" />
                         </button>
@@ -246,7 +246,7 @@ export const ResizableDraggableField = React.memo(({ field, pageNum, pageWidth, 
                             mathematics above is frozen. Keyboard resizing is Alt+arrows on the
                             field itself, so nothing is pointer-only overall. */}
                         <div
-                            className="resize-handle absolute bottom-0 right-0 z-[70] flex h-3 w-3 cursor-se-resize items-end justify-end p-0.5 opacity-60 transition motion-reduce:transition-none group-hover:opacity-100"
+                            className="resize-handle absolute bottom-0 right-0 z-ds-layer-2 flex h-3 w-3 cursor-se-resize items-end justify-end p-0.5 opacity-60 transition motion-reduce:transition-none group-hover:opacity-100"
                             onMouseDown={handleMouseDown}
                             aria-hidden="true"
                         >

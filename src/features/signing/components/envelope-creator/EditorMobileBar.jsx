@@ -36,7 +36,7 @@ export function EditorMobileBar({ openSheet = null, onOpenSheet, fieldCount = 0,
     return (
         <nav
             aria-label="Editor sections"
-            className="z-30 flex shrink-0 items-stretch border-t border-ds-border bg-ds-surface lg:hidden"
+            className="z-ds-sticky flex shrink-0 items-stretch border-t border-ds-border bg-ds-surface lg:hidden"
         >
             {ITEMS.map(({ key, label, icon: Icon }) => {
                 const count = countFor(key);

@@ -208,7 +208,7 @@ export function ViewCompanyAppsModal({ companyId, companyName, onClose }) {
                   <caption className="sr-only">
                     Driver applications for {companyName}
                   </caption>
-                  <thead className="sticky top-0 z-10 bg-ds-table-header-bg text-ds-table-header-fg shadow-ds-xs">
+                  <thead className="sticky top-0 z-ds-sticky bg-ds-table-header-bg text-ds-table-header-fg shadow-ds-xs">
                       <tr>
                           <th scope="col">Driver Name</th>
                           <th scope="col">Contact</th>

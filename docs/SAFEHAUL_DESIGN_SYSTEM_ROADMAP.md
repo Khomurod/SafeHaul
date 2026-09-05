@@ -1051,6 +1051,50 @@ removes is a trap the next "open a dialog from the navigation" would have fallen
 into; the nine `z-[60]`/`z-[70]` overlays in the tree were compensating for
 *each other* and for the tables beneath them, not for the drawer.
 
+### Local layers, and the two tests that were pinned to a paint colour
+
+Added 2026-09-05, finishing the stacking work. **74 raw `z-*` sites became one**
+— `VOEDocument.jsx:93`'s `-z-10`, which the allowlist already records with the
+frozen-document reason.
+
+The last 34 fell into two kinds, and telling them apart is the whole point.
+Eleven were application layers nobody had named: pinned chrome bars in the
+signing room and the envelope editor (`sticky`), a slide-in inspector panel that
+is a drawer by any reading (`drawer`), sidebars and in-panel headers (`raised`).
+The rest were **local** — they order siblings inside one container and mean
+nothing outside it — and those get `--ds-z-layer-1..4`, deliberately 1..4 rather
+than another rung of the same ladder.
+
+**A local layer is only local inside a stacking context**, and that is the part
+worth checking rather than assuming: a `z-index: 2` with no context around it is
+not a small local value, it is an application value that loses to everything.
+Two containers are isolated by hand for exactly this — the PDF page wrapper in
+`PdfFieldWorkbench` and the feature matrix's scroll region — and
+`tokens.test.js` asserts both, because deleting an `isolate` is a silent change
+nothing else would catch. Both were checked for the one thing that makes
+isolation dangerous: a dialog rendered *inside* an isolated container would be
+trapped behind page content. Neither contains one; every dialog in the envelope
+editor is rendered by `EnvelopeCreatorLayout` as a sibling of the workbench.
+
+**And renaming the classes found two tests pinned to how something looks.**
+
+    AxeBuilder.include('.z-30')            // the editor top bar
+    AxeBuilder.include('.rounded-t-ds-xl') // the mobile bottom sheet
+
+Both selected a region to audit by a *styling* utility. The first threw when its
+class disappeared, which is how it was noticed. The second did not, and the
+difference is instructive: it passes a second `include` as well, and axe throws
+only when NO include matches — so a broken sheet selector would have quietly
+shrunk that audit to "the editor nav only" and still reported green. Measured by
+pointing it at a placement that does not exist: **the test passed.**
+
+Both are rescoped — one to a `data-testid`, one to the chrome contract
+(`.ds-modal[data-placement="bottom"]`) — and the second now asserts its own
+scope matches before running axe. The general rule is the one this whole
+programme rests on: **a test that targets a utility class is coupled to how the
+thing looks, and how a thing looks is exactly what this work frees up to
+change.**
+
 ### The second rule that parses — a class list held in a variable
 
 Added 2026-09-05, and it is the paragraph above ("the rest of the file still

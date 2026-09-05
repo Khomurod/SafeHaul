@@ -120,8 +120,19 @@ test.describe('E-Doc envelope creator shell slice', () => {
     await openCreator(page, 'request');
     await expect(page.getByLabel('Document title')).toBeVisible({ timeout: 15_000 });
 
-    // Scoped to the editor top bar.
-    const { violations } = await new AxeBuilder({ page }).include('.z-30').analyze();
+    /*
+     * Scoped by a test hook, not by a styling class.
+     *
+     * This read `.include('.z-30')` until 2026-09-05, when the raw stacking
+     * numbers were replaced by named layers and the selector silently matched
+     * nothing — axe then threw rather than passing vacuously, which is the only
+     * reason it was noticed. A test that targets a utility class is coupled to
+     * how the thing looks, and the whole point of the design-system work is
+     * that how a thing looks is free to change.
+     */
+    const { violations } = await new AxeBuilder({ page })
+        .include('[data-testid="envelope-editor-top-bar"]')
+        .analyze();
     const serious = violations
       .filter((v) => v.impact === 'serious' || v.impact === 'critical')
       .map((v) => `${v.id} [${v.impact}] x${v.nodes.length}`);

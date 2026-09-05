@@ -47,6 +47,11 @@ export function getSignerFieldBoxStyle(field) {
         width: `${widthVal}${isPercent ? '%' : 'px'}`,
         height: `${heightVal}${isPercent ? '%' : 'px'}`,
         position: 'absolute',
-        zIndex: 20,
+        /*
+         * A local layer, not an application one: these fields are absolutely
+         * positioned inside one signing page and only order against each other.
+         * Was a bare `20`, which read as the sticky layer and was not.
+         */
+        zIndex: 'var(--ds-z-layer-2)',
     };
 }

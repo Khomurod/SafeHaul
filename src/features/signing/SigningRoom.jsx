@@ -355,7 +355,7 @@ export default function SigningRoom() {
         // h-screen class is the fallback where dvh is unsupported.
         <div className="flex h-screen flex-col bg-ds-canvas" style={{ height: '100dvh' }}>
             <header
-                className="z-30 flex shrink-0 items-center justify-between gap-ds-2 bg-ds-surface px-ds-3 py-ds-2 shadow-ds-xs md:px-ds-4 md:py-ds-3"
+                className="z-ds-sticky flex shrink-0 items-center justify-between gap-ds-2 bg-ds-surface px-ds-3 py-ds-2 shadow-ds-xs md:px-ds-4 md:py-ds-3"
                 style={{ paddingTop: 'max(0.5rem, env(safe-area-inset-top))' }}
             >
                 <div className="min-w-0">
@@ -412,7 +412,7 @@ export default function SigningRoom() {
             {/* Desktop keeps the floating jump pill; mobile gets a fixed action
                 bar with zoom + next/finish (thumb-reachable, above safe area). */}
             {firstIncompleteField && (
-                <div className="hidden md:block fixed bottom-6 right-6 z-40">
+                <div className="hidden md:block fixed bottom-6 right-6 z-ds-sticky">
                     <Button
                         variant="primary"
                         className="shadow-ds-lg motion-safe:animate-bounce"
@@ -425,7 +425,7 @@ export default function SigningRoom() {
             )}
 
             <div
-                className="z-40 flex shrink-0 items-center gap-ds-2 border-t border-ds-border bg-ds-surface px-ds-3 py-ds-2 md:hidden"
+                className="z-ds-sticky flex shrink-0 items-center gap-ds-2 border-t border-ds-border bg-ds-surface px-ds-3 py-ds-2 md:hidden"
                 style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}
             >
                 {zoomControls}

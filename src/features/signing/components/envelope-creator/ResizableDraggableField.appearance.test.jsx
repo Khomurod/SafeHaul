@@ -96,12 +96,22 @@ describe('ResizableDraggableField — appearance states', () => {
     });
 
     it('raises the selected field above its neighbours', () => {
+        /*
+         * The three states are LOCAL layers, not application ones: a field only
+         * has to outrank the fields beside it, inside a PDF page that carries
+         * `isolate` for exactly that reason. They were `z-50` / `z-[55]` /
+         * `z-[60]`, which looked like the dialog scale and never was.
+         */
         const plain = renderField();
-        expect(box(plain.container).className).toContain('z-50');
+        expect(box(plain.container).className).toContain('z-ds-layer-1');
         plain.unmount();
 
+        const multi = renderField({}, { isMultiSelected: true });
+        expect(box(multi.container).className).toContain('z-ds-layer-2');
+        multi.unmount();
+
         const selected = renderField({}, { isSelected: true });
-        expect(box(selected.container).className).toContain('z-[60]');
+        expect(box(selected.container).className).toContain('z-ds-layer-3');
     });
 
     it('has no accessibility violations while selected', async () => {
