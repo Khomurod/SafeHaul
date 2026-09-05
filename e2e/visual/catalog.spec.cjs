@@ -105,6 +105,7 @@ const SUBJECTS = [
     ['components-progressbar--tones', 'progress-bar-tones'],
     ['components-statusmedallion--tones', 'status-medallion-tones'],
     ['components-sectionnavigation--with-icons', 'section-navigation'],
+    ['components-sectionnavigation--wizard-steps', 'section-navigation-steps'],
     ['components-form-structure--all-field-states', 'form-all-field-states'],
     ['components-form-structure--section', 'form-section'],
     ['components-form-structure--inline-in-chips', 'form-inline-fields'],

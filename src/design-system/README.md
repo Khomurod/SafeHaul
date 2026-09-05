@@ -80,6 +80,10 @@ this one true rather than aspirational.
 - The email settings tab's SMTP setup guide consumes
   `Disclosure variant="card"` (2026-09-05). The variant does not draw a card;
   `Card` still owns the surface it sits on.
+- The campaign editor's step rail consumes `SectionNavigation` with
+  `currentType="step"`, per-item `status` and `frame="none"` (2026-09-05),
+  alongside the Super Admin sidebar and company settings, which use the same
+  component as page rails.
 - The topbar, the dossier header, the notes and activity tabs, the Super Admin
   user list, the team modal and the campaign lead preview consume `Avatar`
   (2026-09-05).
