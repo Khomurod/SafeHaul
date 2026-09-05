@@ -236,3 +236,108 @@ describe('Modal (C4 accessible dialog)', () => {
         expect(document.activeElement).toBe(last);
     });
 });
+
+/**
+ * The chrome contract.
+ *
+ * These assert on `data-*` attributes rather than on class strings, because the
+ * attributes ARE the contract: `Modal.css` is written entirely against them, and
+ * the geometry each one resolves to is measured in a real browser by
+ * `check:visual-contract`. What a unit test can prove is that the right
+ * attribute reaches the DOM, that a misspelling is refused, and — the load-
+ * bearing one for this slice — that a legacy caller is untouched.
+ */
+describe('Modal chrome', () => {
+    const panelOf = () => screen.getByRole('dialog');
+    const overlayOf = () => screen.getByRole('dialog').parentElement;
+
+    it('defaults to a centred lg panel that scrolls as a whole', () => {
+        render(<Modal label="Chrome dialog"><p>Body</p></Modal>);
+        expect(panelOf()).toHaveClass('ds-modal__panel');
+        expect(panelOf()).toHaveAttribute('data-size', 'lg');
+        expect(panelOf()).toHaveAttribute('data-scroll', 'panel');
+        expect(panelOf()).toHaveAttribute('data-tone', 'neutral');
+        expect(panelOf()).not.toHaveAttribute('data-fill');
+        expect(overlayOf()).toHaveClass('ds-modal');
+        expect(overlayOf()).toHaveAttribute('data-placement', 'center');
+        expect(overlayOf()).toHaveAttribute('data-mobile', 'inset');
+    });
+
+    it('puts every chosen axis on the element that styles it', () => {
+        render(
+            <Modal
+                label="Sheet"
+                size="7xl"
+                scroll="body"
+                fill
+                mobile="fullscreen"
+                placement="bottom"
+                tone="danger"
+            >
+                <p>Body</p>
+            </Modal>,
+        );
+        expect(panelOf()).toHaveAttribute('data-size', '7xl');
+        expect(panelOf()).toHaveAttribute('data-scroll', 'body');
+        expect(panelOf()).toHaveAttribute('data-fill', 'true');
+        expect(panelOf()).toHaveAttribute('data-tone', 'danger');
+        expect(overlayOf()).toHaveAttribute('data-placement', 'bottom');
+        expect(overlayOf()).toHaveAttribute('data-mobile', 'fullscreen');
+    });
+
+    it.each([
+        ['size', '3xl'],
+        ['scroll', 'page'],
+        ['mobile', 'sheet'],
+        ['placement', 'top'],
+        ['tone', 'warning'],
+    ])('refuses an unsupported %s rather than rendering something plausible', (prop, value) => {
+        // A silent fallback to the default is exactly how thirty spellings of
+        // six intentions accumulated: nothing ever said no.
+        expect(() => render(<Modal label="x" {...{ [prop]: value }}><p>b</p></Modal>))
+            .toThrow(TypeError);
+    });
+
+    it('leaves a legacy caller exactly as it was, chrome attributes included', () => {
+        // The whole reason this slice is non-breaking. A caller that replaces the
+        // class list must not also inherit half the contract's attributes, or its
+        // own class list would be fighting `Modal.css` for the same properties.
+        render(
+            <Modal
+                label="Legacy"
+                overlayClassName="fixed inset-0 z-50 flex"
+                className="w-full max-w-4xl bg-ds-surface"
+            >
+                <p>Body</p>
+            </Modal>,
+        );
+        expect(panelOf()).toHaveClass('w-full', 'max-w-4xl');
+        expect(panelOf()).not.toHaveClass('ds-modal__panel');
+        expect(overlayOf()).toHaveClass('fixed', 'inset-0', 'z-50');
+        expect(overlayOf()).not.toHaveClass('ds-modal');
+        for (const attribute of ['data-size', 'data-scroll', 'data-fill', 'data-tone']) {
+            expect(panelOf()).not.toHaveAttribute(attribute);
+        }
+        for (const attribute of ['data-placement', 'data-mobile']) {
+            expect(overlayOf()).not.toHaveAttribute(attribute);
+        }
+    });
+
+    it('treats a legacy panel and a legacy overlay as the same decision', () => {
+        // Half the contract and half a class list is the one combination that
+        // cannot be reasoned about, so either legacy prop opts the whole dialog out.
+        render(<Modal label="Half" className="max-w-2xl"><p>Body</p></Modal>);
+        expect(panelOf()).toHaveClass('max-w-2xl');
+        expect(panelOf()).not.toHaveAttribute('data-size');
+        // ...and the overlay falls back to what such a caller used to inherit,
+        // not to the contract — otherwise this slice would move its z-index.
+        expect(overlayOf()).not.toHaveClass('ds-modal');
+        expect(overlayOf()).toHaveClass('ds-modal--legacy');
+    });
+
+    it('gives a legacy overlay the panel a legacy caller used to inherit', () => {
+        render(<Modal label="Half" overlayClassName="fixed inset-0 bg-ds-overlay"><p>Body</p></Modal>);
+        expect(panelOf()).not.toHaveClass('ds-modal__panel');
+        expect(panelOf()).toHaveClass('ds-modal__panel--legacy');
+    });
+});

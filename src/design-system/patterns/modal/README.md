@@ -4,14 +4,75 @@
 one confirmation shape the product uses.
 
 **Every overlay goes through `Modal`.** A repository-wide scan for
-`fixed inset-0` should return only `Modal.jsx` and callers passing it an
-`overlayClassName`. Anything else is a hand-built dialog, and every hand-built
-dialog this migration replaced was missing the same four behaviours:
+`fixed inset-0` should return only `Modal.css` and callers still passing an
+`overlayClassName` (see *Chrome contract* below, which is retiring those).
+Anything else is a hand-built dialog, and every hand-built dialog this
+migration replaced was missing the same four behaviours:
 
 - `role="dialog"` + `aria-modal="true"`, with a label by construction;
 - focus moved into the dialog on open and restored to the trigger on close;
 - Tab / Shift+Tab trapped inside while open;
 - Escape and backdrop dismissal, each optional.
+
+## Chrome contract
+
+Added 2026-09-05. Before it, `Modal` took a `className` and an
+`overlayClassName` that **replace** the panel and backdrop wholesale, and 38 of
+the 41 call sites used them — writing 30 different spellings of the same handful
+of intentions. A hairline border here and none there; `max-h-[85vh]` beside
+`max-h-[92vh]`; `backdrop-blur-md` beside `backdrop-blur-sm`. None of it was
+visible to any guard, because every one of those classes is perfectly
+on-contract. The variation was the problem, not the classes.
+
+So the chrome moved into `Modal.css` and the variation became six enumerated
+props:
+
+| Prop | Values | Default | For |
+|---|---|---|---|
+| `size` | `sm` `md` `lg` `xl` `2xl` `4xl` `5xl` `7xl` | `lg` | panel width |
+| `scroll` | `panel` `body` | `panel` | `body` pins a header and footer inside the panel |
+| `fill` | boolean | `false` | fixes the height, for a viewer that must not resize |
+| `mobile` | `inset` `fullscreen` | `inset` | below 640px |
+| `placement` | `center` `bottom` | `center` | `bottom` is a sheet |
+| `tone` | `neutral` `danger` | `neutral` | borders a destructive dialog |
+
+**What a caller does not choose:** surface, border, radius, shadow, overlay
+colour, blur and stacking layer. Those are what makes a dialog look like this
+product's dialog, so they are fixed chrome with no prop at all.
+
+**An unsupported value throws.** A silent fallback to the default is exactly how
+thirty spellings accumulated without anyone noticing.
+
+`scroll="body"` deserves the emphasis it gets: without it, a dialog whose
+content grows scrolls its footer out of reach on a short viewport, and the
+confirm button becomes unreachable. It is the commonest dialog layout defect
+there is.
+
+### The legacy props, and when they go
+
+`className` and `overlayClassName` still work and still replace the chrome, so
+every unmigrated call site renders **exactly** as it did. They warn once per
+distinct class list in development.
+
+They are one decision, not two: passing either opts the whole dialog out, and
+the other falls back to what such a caller used to inherit. That is deliberate —
+20 of the 41 sites pass only `className`, and handing those the contract's
+overlay would have moved their stacking layer from 50 to 60 in a slice that
+promises no change. Half the contract and half a class list is also the one
+combination that cannot be reasoned about, since the two would fight over the
+same properties.
+
+The slice that finishes migrating the call sites deletes both and throws on
+either.
+
+## Stacking
+
+The overlay sits at `--ds-z-modal`, which is not a caller's decision. It matters
+because the mobile navigation drawer sits at the same layer and every dialog
+still writing its own overlay writes a bare `z-50` — which renders it **behind**
+the drawer. Nine hand-written workarounds for that exist in the tree.
+`check:visual-contract` reads the overlay's `zIndex` on every run so the
+contract's own layer cannot drift back down.
 
 ## Rendering convention
 

@@ -1,0 +1,175 @@
+/**
+ * The dialog chrome, as a contract rather than as 30 class lists.
+ *
+ * `Modal` shipped with a `className` and an `overlayClassName` that REPLACE the
+ * panel and backdrop wholesale, and 38 of the 41 call sites used them — writing
+ * 30 different spellings of the same handful of intentions. Every one of those
+ * spellings is a second dialog contract: a hairline border here and none there,
+ * `max-h-[85vh]` beside `max-h-[92vh]`, `backdrop-blur-md` beside
+ * `backdrop-blur-sm`, all of it invisible to every guard because the classes
+ * themselves are on-contract.
+ *
+ * So the chrome moves here and the variation becomes props. What a caller may
+ * still choose is size, scroll behaviour, fill, mobile treatment, placement and
+ * tone — six axes, enumerated, each rejected loudly when misspelled. What a
+ * caller may NOT choose is the surface, the border, the radius, the shadow, the
+ * overlay colour, the blur or the stacking layer, because those are what makes
+ * a dialog look like this product's dialog.
+ */
+
+.ds-modal {
+  position: fixed;
+  inset: 0;
+  z-index: var(--ds-z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--ds-dialog-inset);
+  background: var(--ds-color-overlay);
+  backdrop-filter: blur(var(--ds-overlay-blur));
+}
+
+/*
+ * A bottom sheet is the mobile editing surface — it rises from the edge the
+ * thumb is nearest, and the page stays visible above it, which is the whole
+ * reason to prefer one over a centred dialog for a quick edit.
+ */
+.ds-modal[data-placement='bottom'] {
+  align-items: flex-end;
+  padding: 0;
+}
+
+.ds-modal__panel {
+  position: relative;
+  width: 100%;
+  max-width: var(--ds-dialog-width-lg);
+  max-height: var(--ds-dialog-max-height);
+  overflow: hidden;
+  border: 1px solid var(--ds-color-border-subtle);
+  border-radius: var(--ds-radius-xl);
+  background: var(--ds-color-surface);
+  box-shadow: var(--ds-shadow-lg);
+}
+
+/*
+ * The eight steps the 38 hand-written class lists already resolved to. Naming
+ * them changes no width; it makes the width reviewable.
+ */
+.ds-modal__panel[data-size='sm'] { max-width: var(--ds-dialog-width-sm); }
+.ds-modal__panel[data-size='md'] { max-width: var(--ds-dialog-width-md); }
+.ds-modal__panel[data-size='lg'] { max-width: var(--ds-dialog-width-lg); }
+.ds-modal__panel[data-size='xl'] { max-width: var(--ds-dialog-width-xl); }
+.ds-modal__panel[data-size='2xl'] { max-width: var(--ds-dialog-width-2xl); }
+.ds-modal__panel[data-size='4xl'] { max-width: var(--ds-dialog-width-4xl); }
+.ds-modal__panel[data-size='5xl'] { max-width: var(--ds-dialog-width-5xl); }
+.ds-modal__panel[data-size='7xl'] { max-width: var(--ds-dialog-width-7xl); }
+
+/*
+ * Two scroll models, and the difference is the single commonest dialog defect.
+ *
+ * `panel` scrolls the whole panel, which is right when the dialog is a
+ * paragraph and two buttons. `body` makes the panel a column and scrolls
+ * nothing itself, so a header and a footer inside it stay pinned while the
+ * middle child scrolls — without which the footer actions scroll out of reach
+ * on a short viewport, and the confirm button becomes unreachable.
+ */
+.ds-modal__panel[data-scroll='panel'] { overflow-y: auto; }
+
+.ds-modal__panel[data-scroll='body'] {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/*
+ * `fill` fixes the height rather than capping it, for a dialog whose content is
+ * a viewer rather than a document: a PDF preview or a dossier should not resize
+ * as the user pages through it.
+ */
+.ds-modal__panel[data-fill='true'] { height: var(--ds-dialog-max-height); }
+
+/* A destructive dialog is bordered, not coloured: the tone belongs on the
+   action inside it, and a red panel reads as an error that has happened. */
+.ds-modal__panel[data-tone='danger'] { border-color: var(--ds-color-status-danger-border); }
+
+.ds-modal[data-placement='bottom'] .ds-modal__panel {
+  max-width: none;
+  max-height: var(--ds-sheet-max-height);
+  border-right: 0;
+  border-bottom: 0;
+  border-left: 0;
+  border-radius: var(--ds-radius-xl) var(--ds-radius-xl) 0 0;
+}
+
+/*
+ * Fullscreen on a phone, for the dialogs that are really a screen — a signing
+ * sheet, a document preview, a dossier. `100dvh` rather than `100vh` because a
+ * mobile browser's chrome eats the difference, and a footer 60px below the fold
+ * is a footer nobody can press.
+ *
+ * 639px is the step below Tailwind's `sm` (640px), which is where the rest of
+ * this system's responsive decisions are made.
+ */
+@media (max-width: 639px) {
+  .ds-modal[data-mobile='fullscreen'] { padding: 0; }
+
+  .ds-modal[data-mobile='fullscreen'] .ds-modal__panel {
+    width: 100vw;
+    max-width: none;
+    height: 100dvh;
+    max-height: none;
+    border: 0;
+    border-radius: 0;
+  }
+}
+
+/*
+ * The legacy chrome, kept verbatim so an unmigrated call site renders unchanged.
+ *
+ * These two rules are literally what `className` and `overlayClassName`
+ * defaulted to before the contract existed:
+ *
+ *   overlay: fixed inset-0 z-50 flex items-center justify-center
+ *            bg-ds-overlay backdrop-blur-sm p-4
+ *   panel:   bg-ds-surface rounded-ds-xl shadow-ds-lg w-full max-w-lg
+ *            overflow-hidden
+ *
+ * They are needed because the two legacy props are ONE decision and callers
+ * pass them separately: 20 of the 41 sites replace only the panel and used to
+ * inherit the overlay default, and handing those the contract's overlay instead
+ * would move their stacking layer from 50 to 60 in a slice that promises no
+ * change.
+ *
+ * Here rather than as a string in `Modal.jsx` for a reason worth recording:
+ * `check:ui-contract`'s `hand-built-overlay` rule matches `fixed inset-0` and
+ * exempts it only inside an `overlayClassName=` attribute value, so hoisting
+ * the default out of the parameter list and into a `const` turned the dialog
+ * primitive itself into a reported hand-built overlay. It fired the moment the
+ * refactor landed, and the baseline correctly refused to let it be recorded —
+ * the base carried no such violation, so it was mine. Expressing the same box
+ * in CSS is the honest fix rather than widening the rule for every file.
+ *
+ * The z-index is deliberately the raw 50 these callers already render at, NOT
+ * `--ds-z-modal`: this block is a snapshot of the old behaviour, and it is
+ * deleted whole when the last call site migrates.
+ */
+.ds-modal--legacy {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--ds-dialog-inset);
+  background: var(--ds-color-overlay);
+  backdrop-filter: blur(var(--ds-overlay-blur));
+}
+
+.ds-modal__panel--legacy {
+  width: 100%;
+  max-width: var(--ds-dialog-width-lg);
+  overflow: hidden;
+  border-radius: var(--ds-radius-xl);
+  background: var(--ds-color-surface);
+  box-shadow: var(--ds-shadow-lg);
+}

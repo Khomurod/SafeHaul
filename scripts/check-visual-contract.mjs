@@ -53,6 +53,41 @@ const MIME = {
  */
 const PROBES = [
     {
+        story: 'patterns-modal-chrome--sizes',
+        label: 'the dialog chrome, and the eight widths that replaced thirty class lists',
+        /*
+         * Specimens rather than eight dialogs, because eight `position: fixed`
+         * overlays would each cover the last and nothing could be measured. What
+         * is under test is the CSS contract, and this reads it directly: the
+         * widths, plus the surface, hairline border, radius and shadow that a
+         * caller may no longer choose. A `className` slipping back onto a call
+         * site is invisible to every static rule; a width that stops resolving
+         * is not invisible here.
+         */
+        selectors: Object.fromEntries(
+            ['sm', 'md', 'lg', 'xl', '2xl', '4xl', '5xl', '7xl'].map(
+                (size) => [`panel[${size}]`, `.ds-modal__panel[data-size='${size}']`],
+            ),
+        ),
+        properties: [
+            'maxWidth', 'maxHeight', 'borderRadius', 'borderTopWidth', 'borderTopColor',
+            'backgroundColor', 'boxShadow',
+        ],
+    },
+    {
+        story: 'components-modal--default',
+        label: 'the dialog overlay, whose stacking layer is not a caller decision',
+        /*
+         * `zIndex` is the point. The mobile navigation drawer sits at
+         * `--ds-z-modal` too, and every dialog that still replaces its own
+         * overlay writes a bare `z-50` — which renders it BEHIND the drawer.
+         * Nine hand-written workarounds exist for that. This reading is what
+         * stops the contract's own overlay drifting back down.
+         */
+        selectors: { overlay: '.ds-modal' },
+        properties: ['zIndex', 'backgroundColor', 'paddingTop', 'alignItems'],
+    },
+    {
         story: 'foundations-control-scale--input-and-button',
         label: 'the control scale, and the pairing it exists for',
         selectors: {

@@ -191,6 +191,37 @@
      height — it is an illustration inside a card, not something you press. */
   --ds-metric-icon-size: 40px;
 
+  /*
+   * Dialog geometry, as roles rather than as 30 hand-written class lists.
+   *
+   * Before this existed, every `<Modal>` in the product replaced the panel's
+   * whole class list to pick a width, and the 38 that did wrote **30 different
+   * spellings** of the same handful of intentions. The widths below are the
+   * Tailwind `max-w-*` steps those class lists already resolved to, so naming
+   * them moves nothing — what changes is that `size="4xl"` is now a decision the
+   * design system can see, measure and keep consistent, rather than a string.
+   *
+   * `7xl` is a `min()` rather than a fixed step because it is the widest case —
+   * a dossier or a document preview — and 80rem exceeds a 1280px viewport.
+   *
+   * The heights are separate roles because a sheet and a dialog are different
+   * shapes: a centred dialog may take 90% of the viewport, a bottom sheet must
+   * leave the page visible above it. The migration caps 80/85/92/95vh onto the
+   * single 90vh below, which is a deliberate normalisation.
+   */
+  --ds-dialog-width-sm: 24rem;
+  --ds-dialog-width-md: 28rem;
+  --ds-dialog-width-lg: 32rem;
+  --ds-dialog-width-xl: 36rem;
+  --ds-dialog-width-2xl: 42rem;
+  --ds-dialog-width-4xl: 56rem;
+  --ds-dialog-width-5xl: 64rem;
+  --ds-dialog-width-7xl: min(80rem, 90vw);
+  --ds-dialog-max-height: 90vh;
+  --ds-sheet-max-height: 80vh;
+  --ds-dialog-inset: var(--ds-space-4);
+  --ds-overlay-blur: 4px;
+
   /* Responsive workspace geometry. Feature shells provide navigation content. */
   --ds-workspace-navigation-width-collapsed: 64px;
   --ds-workspace-navigation-width-expanded: 256px;

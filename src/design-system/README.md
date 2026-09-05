@@ -324,6 +324,15 @@ zero-tolerance, for no better reason than that the walk started at `src/`.
 `content` array is not covered by a scan target. Allowlist keys are repo-relative
 from version 2 as a consequence.
 
+**A dialog's chrome is props, not a class list.** Since 2026-09-05 `Modal`
+carries `size`, `scroll`, `fill`, `mobile`, `placement` and `tone`, and owns its
+surface, border, radius, shadow, overlay colour, blur and stacking layer
+outright. Before that, 38 of the 41 call sites replaced the panel or backdrop
+wholesale and wrote 30 spellings of the same six intentions — every class of it
+on-contract, which is why no rule ever saw it. `patterns/modal/README.md` has
+the table; the legacy props still work and are removed once the call sites are
+migrated.
+
 **A hand-styled control is found however its class list is spelled.** Since
 2026-09-05 the styled-control rules read the class list an element actually
 renders, not the characters inside its opening tag — because

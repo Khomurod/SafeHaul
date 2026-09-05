@@ -162,7 +162,19 @@ The reverse directions are prohibited and enforced by
   working around the old limit are correct and need no change.
 - **Every overlay goes through `Modal`** (`@design-system/patterns`). No
   hand-built `fixed inset-0` dialog. A repository-wide scan should return only
-  `Modal` itself and callers passing it an `overlayClassName`.
+  `Modal.css` and callers still passing an `overlayClassName`.
+- **A dialog's chrome is `size`/`scroll`/`fill`/`mobile`/`placement`/`tone`, not
+  a class list.** Added 2026-09-05. `Modal`'s `className` and `overlayClassName`
+  REPLACE the panel and backdrop, and 38 of the 41 call sites used them to write
+  **30 different spellings** of the same handful of intentions — a hairline
+  border here and none there, `max-h-[85vh]` beside `max-h-[92vh]`,
+  `backdrop-blur-md` beside `backdrop-blur-sm`. Every one of those classes is
+  on-contract, which is exactly why no guard saw it: the variation was the
+  defect. Surface, border, radius, shadow, overlay colour, blur and stacking
+  layer now have no prop at all, and an unsupported value on the six that do
+  **throws** — a silent fallback to the default is how thirty spellings
+  accumulated. The two legacy props still work, warn in development, and are
+  removed in the slice that finishes migrating the call sites.
 - **No blocking browser dialogs.** `confirm()` and `alert()`, with or without a
   `window.` prefix, are rejected by a ratchet test — use `ConfirmDialog`.
 - **Scroll regions must be keyboard-reachable and named**, and every row action
@@ -1500,6 +1512,7 @@ every consumer that can use it does:
 | Family | Owned by | Closed |
 |---|---|---|
 | Dialog shell | `patterns/modal` | 2026-08-22 |
+| Dialog **chrome** (size / scroll / fill / mobile / placement / tone) | `patterns/modal` → `Modal.css` | **open** — contract shipped 2026-09-05, 38 call sites still on the legacy `className` |
 | Confirmation dialog | `patterns/modal` → `ConfirmDialog` | 2026-08-25 |
 | Toast / notification | `shared/components/feedback/ToastProvider` — **not in the design system** | consumers complete; primitive not promoted |
 | Empty / error / loading state | `patterns/page-state` | 2026-08-25 |
