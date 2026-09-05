@@ -314,6 +314,16 @@ slice that owed each one; that debt reached zero on 2026-08-25 and the `debt`
 escape hatch went with it, so an entry is now a decision someone wrote down
 rather than a promise to come back.
 
+**The scan follows Tailwind's `content`, not a directory.** Since 2026-09-05 it
+reads the repository-root `index.html` alongside `src/`, because Tailwind
+compiles that file too — a class written there ships in the application's
+stylesheet exactly like one written in a component. `<body class="bg-gray-50">`
+sat there for the whole campaign, invisible to a check the README called
+zero-tolerance, for no better reason than that the walk started at `src/`.
+`test-ui-contract-scope.mjs` §S2f now fails if any static root in Tailwind's
+`content` array is not covered by a scan target. Allowlist keys are repo-relative
+from version 2 as a consequence.
+
 **And since 2026-09-04 the inventory is compared against git, not taken on
 trust.** A written reason answers "is it written down"; only the base commit
 answers "was it already there". An audit reproduced two ways through in one

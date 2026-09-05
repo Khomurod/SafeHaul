@@ -60,19 +60,22 @@ import {
 } from '../source-size-baseline.mjs';
 import { countViolations } from './counting.mjs';
 import { rulesFor } from './source-text.mjs';
+import { normaliseAllowlist } from './allowlist.mjs';
 import { compareAllowlist, growthJustifiedByBase } from './direction.mjs';
 
 /** Repo-relative, because git is asked about it — the CLI resolves its own copy. */
 export const ALLOWLIST_PATH = 'src/design-system/ui-contract.allowlist.json';
 
 /**
- * An allowlist key is `src/`-relative; git wants a repo-relative path.
+ * An allowlist key IS a repo-relative path, as of allowlist version 2.
  *
- * One function rather than string concatenation at three call sites, because
- * Phase 2a widens the scan to `index.html` and the keys become repo-relative —
- * at which point this becomes the identity and nothing else moves.
+ * It was `src/`-relative before the scan reached `index.html`, and this was the
+ * concatenation that bridged the two. It is the identity now, kept as a named
+ * function because it is the one place that would have to change again if the
+ * scan ever grew a third root — and because `readAllowlistAt` normalising a v1
+ * base into v2 keys is what makes the identity safe (see `./allowlist.mjs`).
  */
-export const repoPathForKey = (key) => `src/${key}`;
+export const repoPathForKey = (key) => key;
 
 function defaultRun(args, cwd) {
     const result = spawnSync('git', args, { cwd, encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 });
@@ -111,7 +114,18 @@ export function readAllowlistAt(ref, { cwd = repoRootPath, readSizes = readSizes
             error: `unreadable at ${ref.slice(0, 8)}: ${found.error}`,
         };
     }
-    return { document: found.document, files: found.document?.files || {}, absent: false, error: null };
+    /*
+     * Normalised, because the base may be version 1 — `src/`-relative keys —
+     * while the branch is version 2. Comparing those raw would report all 43
+     * entries deleted and all 43 added, and every addition would be refused as a
+     * new exemption, which is how a key-format change becomes unlandable.
+     */
+    return {
+        document: found.document,
+        files: normaliseAllowlist(found.document),
+        absent: false,
+        error: null,
+    };
 }
 
 /**
@@ -182,7 +196,7 @@ export function measureAt(ref, keys, { cwd = repoRootPath, readSizes = readSizes
          * component renamed to `X.stories.jsx` is held to the story rule set from
          * the moment it is one.
          */
-        counts[key] = countViolations(source, rulesFor(key));
+        counts[key] = countViolations(source, rulesFor(key), { html: key.endsWith('.html') });
     }
     return counts;
 }

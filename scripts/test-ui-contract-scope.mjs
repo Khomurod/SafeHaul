@@ -33,16 +33,16 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { MINIMUM_SCANNED_FILES } from './check-ui-contract.mjs';
 import {
-    SOURCE_FILE_PATTERN, TOKEN_DEFINITION_FILES, isTestFile, sourceFiles, srcRoot,
+    SOURCE_FILE_PATTERN, TOKEN_DEFINITION_FILES, isTestFile, scanTargets, sourceFiles,
 } from './ui-contract/paths.mjs';
 import { CSS_RULE_NAMES, RULES, STYLED_CONTROL_RULES } from './ui-contract/rules.mjs';
-import { STORY_RULE_NAMES, rulesFor } from './ui-contract/source-text.mjs';
+import { HTML_RULE_NAMES, STORY_RULE_NAMES, rulesFor } from './ui-contract/source-text.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '..');
@@ -61,7 +61,8 @@ function assert(name, condition, detail = '') {
 console.log('\nS1. Which files count as source');
 
 {
-    const accepts = ['Button.jsx', 'helpers.js', 'types.ts', 'Card.tsx', 'Button.css'];
+    const accepts = ['Button.jsx', 'helpers.js', 'types.ts', 'Card.tsx', 'Button.css',
+        'index.html'];
     const rejects = [
         'data.json', 'README.md', 'logo.svg', 'Button.test.jsx.snap', 'photo.png',
         'schema.graphql', 'notes.txt',
@@ -99,7 +100,7 @@ console.log('\nS2. The walker reaches every format it claims to cover');
         Number.isInteger(MINIMUM_SCANNED_FILES) && MINIMUM_SCANNED_FILES >= 400,
         String(MINIMUM_SCANNED_FILES));
 
-    const files = sourceFiles(srcRoot());
+    const files = scanTargets().flatMap(sourceFiles);
     const ending = (suffix) => files.filter((file) => file.endsWith(suffix)).length;
 
     assert('S2b. the live scan is comfortably above the floor',
@@ -116,11 +117,46 @@ console.log('\nS2. The walker reaches every format it claims to cover');
         ending('.stories.jsx') + ending('.stories.tsx') >= 30,
         `${ending('.stories.jsx') + ending('.stories.tsx')} story files`);
 
+    // The repository-root shell, which Tailwind compiles and the walk missed
+    // for the whole campaign. Mutation: drop it from `scanTargets()`.
+    assert('S2e. the repository-root index.html is scanned',
+        ending('index.html') === 1, `${ending('index.html')} html files`);
+
+    /*
+     * S2f is the assertion that makes the widening durable rather than a
+     * one-off. The set of files Tailwind compiles is defined by its `content`
+     * array, NOT by a directory this guard happens to walk — so every static
+     * prefix there must be covered by a scan target. Mutation: add a
+     * `"./emails/**"` entry to `tailwind.config.js` and this fails until the
+     * walk covers it.
+     */
+    /*
+     * Comments stripped FIRST. The `content` array carries a long explanation of
+     * why stories are excluded, and that prose contains the quoted word
+     * "shadow" — which the extractor below read as a glob, reporting Tailwind as
+     * compiling a directory called `shadow`. A check that fires on its own
+     * documentation is one this repository has already had to fix twice.
+     */
+    const config = readFileSync(resolve(repoRoot, 'tailwind.config.js'), 'utf8')
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .replace(/^\s*\/\/.*$/gm, '');
+    const contentBlock = config.slice(config.indexOf('content: ['), config.indexOf(']', config.indexOf('content: [')));
+    const globs = [...contentBlock.matchAll(/"([^"]+)"/g)].map((match) => match[1])
+        .filter((glob) => !glob.startsWith('!'));
+    const targets = scanTargets().map((target) => resolve(target));
+    const uncovered = globs.filter((glob) => {
+        const prefix = resolve(repoRoot, glob.split('*')[0].replace(/\/$/, ''));
+        return !targets.some((target) => prefix === target || prefix.startsWith(`${target}/`));
+    });
+    assert('S2f. every Tailwind content root is covered by a scan target',
+        uncovered.length === 0,
+        `${uncovered.join(', ')} — Tailwind compiles it, so the guard must read it`);
+
     // And the CLI reports the same number it walked, rather than a stale one.
     const intact = execFileSync('node', [resolve(here, 'check-ui-contract.mjs')],
         { cwd: repoRoot, encoding: 'utf8' });
     const reported = Number(intact.match(/intact: (\d+) files scanned/)?.[1] ?? 0);
-    assert('S2e. the number the CLI prints is the number it walked',
+    assert('S2g. the number the CLI prints is the number it walked',
         reported === files.length, `printed ${reported}, walked ${files.length}`);
 }
 
@@ -137,7 +173,8 @@ console.log('\nS3. The only files exempt by path, and why');
      * Mutation: add a third path. Every path-based exemption is a hole nothing
      * else can see, so the set is pinned by content, not merely by size.
      */
-    const expected = ['design-system/tokens/foundation.css', 'design-system/tokens/semantic.css'];
+    const expected = ['src/design-system/tokens/foundation.css',
+        'src/design-system/tokens/semantic.css'];
     assert('S3a. exactly the two token-definition stylesheets are exempt by path',
         TOKEN_DEFINITION_FILES.size === expected.length
         && expected.every((file) => TOKEN_DEFINITION_FILES.has(file)),
@@ -146,7 +183,7 @@ console.log('\nS3. The only files exempt by path, and why');
     // Mutation: rename a token file and leave the exemption behind. A path-based
     // exemption for a file that does not exist is an exemption nobody notices is
     // dead — and the renamed file is then scanned with rules written for others.
-    const missing = [...TOKEN_DEFINITION_FILES].filter((file) => !existsSync(join(srcRoot(), file)));
+    const missing = [...TOKEN_DEFINITION_FILES].filter((file) => !existsSync(join(repoRoot, file)));
     assert('S3b. every exempt path still exists', missing.length === 0, missing.join(', '));
 
     assert('S3c. and the exemption is what `rulesFor` actually applies',
@@ -173,6 +210,13 @@ console.log('\nS6. Which rules each kind of file is held to');
         rulesFor('design-system/components/button/Button.css') === CSS_RULE_NAMES
         && CSS_RULE_NAMES.length > 0
         && CSS_RULE_NAMES.every((name) => ruleNames.includes(name)));
+
+    assert('S6a2. an HTML document gets the class-list rules only',
+        rulesFor('index.html') === HTML_RULE_NAMES
+        && HTML_RULE_NAMES.length > 0
+        && HTML_RULE_NAMES.every((name) => ruleNames.includes(name))
+        && !HTML_RULE_NAMES.includes('raw-table'),
+        'index.html is a shell — it has no tables or controls, but every class on it ships');
 
     assert('S6c. a story gets the reduced class-list set',
         rulesFor('design-system/stories/Button.stories.jsx') === STORY_RULE_NAMES

@@ -203,6 +203,33 @@ assert('T3. a parse failure is a failure, not a fallback',
 assert('T4. an allowlist entry arms the check rather than exempting the file',
     untetheredTables(tableEntry(99), () => '<table className={cls} />').length === 1);
 
+/*
+ * T6. `DataTable` is the display-table contract and does not consume the native
+ * one, so it is exempt — and the exemption is matched as a PATH SEGMENT rather
+ * than a prefix. It read `startsWith('design-system/')` until allowlist v2 moved
+ * the keys to repo-relative, at which point `src/design-system/…` stopped
+ * matching and `DataTable.jsx` was reported as an untethered table. It failed
+ * closed, which is survivable, but a hardcoded prefix a key-format change can
+ * invalidate is the defect either way. Both spellings are pinned so the next
+ * format change cannot reintroduce it.
+ */
+for (const key of ['design-system/components/data-table/DataTable.jsx',
+    'src/design-system/components/data-table/DataTable.jsx']) {
+    assert(`T6. the design-system exemption holds for ${key.split('/')[0]}-relative keys`,
+        untetheredTables(
+            { files: { [key]: { 'raw-table': 1, reasons: { 'raw-table': reason } } } },
+            () => { throw new Error('should not be read'); },
+        ).length === 0);
+}
+
+// ...and it is an exemption for the design system, not for any path that
+// happens to contain the words. Mutation: match on `includes` and this drops.
+assert('T6b. a feature file merely mentioning the phrase is still checked',
+    untetheredTables(
+        { files: { 'src/features/notes/design-system-notes.jsx': { 'raw-table': 1, reasons: { 'raw-table': reason } } } },
+        () => '<table className={cls} />',
+    ).length === 1);
+
 assert('T5. a file with no raw-table entry is not parsed at all',
     untetheredTables({ files: { 'x.jsx': withReason('raw-hex-colour', 1) } },
         () => { throw new Error('should not be read'); }).length === 0);

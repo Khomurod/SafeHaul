@@ -42,6 +42,26 @@ export const STORY_RULE_NAMES = [
 ];
 
 /**
+ * The rules an HTML document is held to.
+ *
+ * The class-list rules only. `index.html` is a shell — it has no components to
+ * hand-build, no tables and no form controls — but every class on it IS
+ * compiled by Tailwind into the application's stylesheet, so a raw palette
+ * class there ships exactly like one in a component. That is how
+ * `<body class="bg-gray-50">` survived the whole campaign: the guard walked
+ * `src/`, and Tailwind's `content` array does not.
+ */
+export const HTML_RULE_NAMES = [
+    'raw-palette-class',
+    'raw-hex-colour',
+    'sub-12px-type',
+    'off-scale-type',
+    'arbitrary-type-size',
+    'tailwind-radius',
+    'tailwind-shadow',
+];
+
+/**
  * Which rules apply to a file.
  *
  * Stylesheets get the two rules that mean anything in CSS — a raw colour and
@@ -51,12 +71,24 @@ export const STORY_RULE_NAMES = [
  * invisible to a check the README called zero-tolerance.
  */
 export function rulesFor(relativePath) {
+    if (relativePath.endsWith('.html')) return HTML_RULE_NAMES;
     if (relativePath.endsWith('.css')) {
         if (TOKEN_DEFINITION_FILES.has(relativePath)) return [];
         return CSS_RULE_NAMES;
     }
     if (/\.stories\.[jt]sx?$/.test(relativePath)) return STORY_RULE_NAMES;
     return null; // null = every JSX rule
+}
+
+/**
+ * Strips `<!-- … -->` while keeping everything else.
+ *
+ * For HTML, where the JavaScript comment forms mean nothing and `//` appears
+ * inside every absolute URL — the same reason `stripBlockComments` exists for
+ * CSS. Newlines are preserved so offsets stay usable.
+ */
+export function stripHtmlComments(source) {
+    return source.replace(/<!--[\s\S]*?-->/g, (comment) => comment.replace(/[^\n]/g, ''));
 }
 
 /**

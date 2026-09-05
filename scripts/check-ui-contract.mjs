@@ -80,7 +80,7 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { allowlistPath, repoRoot, sourceFiles, srcRoot } from './ui-contract/paths.mjs';
+import { allowlistPath, repoRoot, scanTargets, sourceFiles } from './ui-contract/paths.mjs';
 import { loadAllowlist, scan } from './ui-contract/scan.mjs';
 import { evaluate } from './ui-contract/verdict.mjs';
 import { untetheredTables } from './ui-contract/tether.mjs';
@@ -114,7 +114,7 @@ async function main() {
     const allowlist = loadAllowlist();
     const measured = scan();
 
-    const scanned = sourceFiles(srcRoot()).length;
+    const scanned = scanTargets().flatMap(sourceFiles).length;
     if (scanned < MINIMUM_SCANNED_FILES) {
         reportBrokenScan(scanned);
         process.exit(1);
@@ -176,7 +176,9 @@ async function main() {
     const { problems, toleratedTotal, unexplained, stale } = evaluate(measured, allowlist);
     const untethered = untetheredTables(
         allowlist,
-        (file) => readFileSync(path.join(srcRoot(), file), 'utf8'),
+        // Repo-relative since allowlist v2; it was `srcRoot()` while every key
+        // was `src/`-relative.
+        (file) => readFileSync(path.join(repoRoot(), file), 'utf8'),
     );
 
     if (problems.length > 0) {

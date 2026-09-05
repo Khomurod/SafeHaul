@@ -78,9 +78,19 @@ export function untetheredTables(allowlist, readSource) {
     const untethered = [];
     for (const [file, allowed] of Object.entries(allowlist.files ?? {})) {
         if (typeof allowed['raw-table'] !== 'number') continue;
-        // `DataTable` IS the display-table contract; it does not consume the
-        // native one.
-        if (file.startsWith('design-system/')) continue;
+        /*
+         * `DataTable` IS the display-table contract; it does not consume the
+         * native one.
+         *
+         * Matched as a PATH SEGMENT, not a prefix. This read
+         * `startsWith('design-system/')` until allowlist v2 moved the keys to
+         * repo-relative, at which point `src/design-system/…` stopped matching
+         * and `DataTable.jsx` was reported as an untethered table. It failed
+         * closed, which is the survivable direction — but a hardcoded prefix
+         * that a key-format change can invalidate is the defect either way, and
+         * the next format change would reintroduce it. §T6 pins both spellings.
+         */
+        if (/(?:^|\/)design-system\//.test(file)) continue;
         let result;
         try {
             result = tablesOffContract(readSource(file), NATIVE_TABLE_CONTRACT);

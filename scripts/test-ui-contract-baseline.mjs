@@ -47,6 +47,7 @@ import {
 } from './ui-contract/direction.mjs';
 import { ALLOWLIST_PATH, checkAllowlistDirection, measureAt } from './ui-contract/baseline.mjs';
 import { additions } from './ui-contract/update.mjs';
+import { ALLOWLIST_VERSION, normaliseAllowlist } from './ui-contract/allowlist.mjs';
 
 let failures = 0;
 function assert(name, condition, detail = '') {
@@ -222,7 +223,10 @@ function repo(label) {
         mkdirSync(dirname(resolve(dir, path)), { recursive: true });
         writeFileSync(resolve(dir, path), text);
     };
-    const allowlist = (files) => write(ALLOWLIST_PATH, `${JSON.stringify({ files }, null, 2)}\n`);
+    const allowlist = (files) => write(
+        ALLOWLIST_PATH,
+        `${JSON.stringify({ version: ALLOWLIST_VERSION, files }, null, 2)}\n`,
+    );
     const commit = (message) => { git('add', '-A'); git('commit', '-q', '-m', message); };
     const check = (files, options = {}) => checkAllowlistDirection({
         current: files, requireBaseline: true, env: {}, cwd: dir, ...options,
@@ -242,13 +246,13 @@ const palette = (n) => `export const X = () => (\n  <div className="${
     // cover violations the change itself wrote.
     const r = repo('raise');
     r.write('src/a.jsx', palette(5));
-    r.allowlist({ 'a.jsx': entry({ 'raw-palette-class': 5 }) });
+    r.allowlist({ 'src/a.jsx': entry({ 'raw-palette-class': 5 }) });
     r.commit('base');
     r.write('src/a.jsx', palette(8));
-    r.allowlist({ 'a.jsx': entry({ 'raw-palette-class': 8 }) });
+    r.allowlist({ 'src/a.jsx': entry({ 'raw-palette-class': 8 }) });
     r.commit('grow it and cover it');
 
-    const grown = r.check({ 'a.jsx': entry({ 'raw-palette-class': 8 }) });
+    const grown = r.check({ 'src/a.jsx': entry({ 'raw-palette-class': 8 }) });
     assert('G1. a ceiling raised to cover new code is caught through git',
         grown.problems.some((p) => /carries only 5/.test(p)),
         `${grown.describe} — ${grown.problems.join('; ') || 'nothing reported'}`);
@@ -256,7 +260,7 @@ const palette = (n) => `export const X = () => (\n  <div className="${
         /HEAD~1/.test(grown.describe) && !grown.describe.includes(r.git('rev-parse', 'HEAD').slice(0, 8)),
         grown.describe);
     assert('G3. the same machinery passes an inventory that only shrank',
-        r.check({ 'a.jsx': entry({ 'raw-palette-class': 4 }) }).problems.length === 0);
+        r.check({ 'src/a.jsx': entry({ 'raw-palette-class': 4 }) }).problems.length === 0);
     r.done();
 }
 
@@ -264,14 +268,14 @@ const palette = (n) => `export const X = () => (\n  <div className="${
     // G4–G5: bypass 2 — a new file, five violations, one plausible sentence.
     const r = repo('invent');
     r.write('src/a.jsx', palette(5));
-    r.allowlist({ 'a.jsx': entry({ 'raw-palette-class': 5 }) });
+    r.allowlist({ 'src/a.jsx': entry({ 'raw-palette-class': 5 }) });
     r.commit('base');
     r.write('src/invented.jsx', palette(5));
     r.commit('add a file and exempt it');
 
     const invented = r.check({
-        'a.jsx': entry({ 'raw-palette-class': 5 }),
-        'invented.jsx': entry({ 'raw-palette-class': 5 }),
+        'src/a.jsx': entry({ 'raw-palette-class': 5 }),
+        'src/invented.jsx': entry({ 'raw-palette-class': 5 }),
     });
     assert('G4. a new file cannot carry an entry, however well it is worded',
         invented.problems.some((p) => /invented\.jsx does not exist at/.test(p)),
@@ -299,9 +303,9 @@ const palette = (n) => `export const X = () => (\n  <div className="${
     r.commit('widen the rule');
 
     assert('G6. an entry for violations the base already carried is allowed',
-        r.check({ 'a.jsx': entry({ 'raw-palette-class': 5 }) }).problems.length === 0);
+        r.check({ 'src/a.jsx': entry({ 'raw-palette-class': 5 }) }).problems.length === 0);
     assert('G7. but not for one more than it carried',
-        r.check({ 'a.jsx': entry({ 'raw-palette-class': 6 }) }).problems.length === 1);
+        r.check({ 'src/a.jsx': entry({ 'raw-palette-class': 6 }) }).problems.length === 1);
     r.done();
 }
 
@@ -312,10 +316,10 @@ const palette = (n) => `export const X = () => (\n  <div className="${
     r.write('src/a.jsx', palette(5));
     r.commit('before the allowlist existed');
     const before = r.git('rev-parse', 'HEAD');
-    r.allowlist({ 'a.jsx': entry({ 'raw-palette-class': 5 }) });
+    r.allowlist({ 'src/a.jsx': entry({ 'raw-palette-class': 5 }) });
     r.commit('introduce the allowlist');
 
-    const overridden = r.check({ 'a.jsx': entry({ 'raw-palette-class': 5 }) }, {
+    const overridden = r.check({ 'src/a.jsx': entry({ 'raw-palette-class': 5 }) }, {
         env: { SOURCE_SIZE_BASE: before },
         overrideValidated: () => true,
     });
@@ -325,11 +329,11 @@ const palette = (n) => `export const X = () => (\n  <div className="${
 
     // The same absent base reached WITHOUT an override is the bootstrap commit,
     // and it is judged entry by entry against the base's content instead.
-    const bootstrap = r.check({ 'a.jsx': entry({ 'raw-palette-class': 5 }) });
+    const bootstrap = r.check({ 'src/a.jsx': entry({ 'raw-palette-class': 5 }) });
     assert('G9. the same base reached automatically judges each entry instead',
         bootstrap.problems.length === 0, bootstrap.problems.join('; '));
 
-    const inflated = r.check({ 'a.jsx': entry({ 'raw-palette-class': 9 }) });
+    const inflated = r.check({ 'src/a.jsx': entry({ 'raw-palette-class': 9 }) });
     assert('G9b. and refuses one the bootstrap base did not carry',
         inflated.problems.length === 1, inflated.problems.join('; '));
     r.done();
@@ -343,13 +347,13 @@ const palette = (n) => `export const X = () => (\n  <div className="${
     r.commit('base');
     r.write('src/a.css', '.x { color: #ff0000; }\n.y { display: block; }\n');
     r.commit('touch it');
-    const css = measureAt(r.git('rev-parse', 'HEAD~1'), ['a.css'], { cwd: r.dir });
+    const css = measureAt(r.git('rev-parse', 'HEAD~1'), ['src/a.css'], { cwd: r.dir });
     assert('G10. a stylesheet at the base is measured with the CSS rules',
-        css['a.css']['css-raw-colour'] === 1, JSON.stringify(css));
+        css['src/a.css']['css-raw-colour'] === 1, JSON.stringify(css));
 
-    const absent = measureAt(r.git('rev-parse', 'HEAD~1'), ['never-existed.jsx'], { cwd: r.dir });
+    const absent = measureAt(r.git('rev-parse', 'HEAD~1'), ['src/never-existed.jsx'], { cwd: r.dir });
     assert('G11. a file absent at the base is omitted, not recorded as clean',
-        !('never-existed.jsx' in absent),
+        !('src/never-existed.jsx' in absent),
         'mutation: default it to `{}` and every invented file gets a ceiling of zero it can meet');
     r.done();
 }
@@ -363,17 +367,17 @@ const palette = (n) => `export const X = () => (\n  <div className="${
      */
     const r = repo('rename');
     r.write('src/old.jsx', palette(5));
-    r.allowlist({ 'old.jsx': entry({ 'raw-palette-class': 5 }) });
+    r.allowlist({ 'src/old.jsx': entry({ 'raw-palette-class': 5 }) });
     r.commit('base');
     r.git('mv', 'src/old.jsx', 'src/new.jsx');
-    r.allowlist({ 'new.jsx': entry({ 'raw-palette-class': 5 }) });
+    r.allowlist({ 'src/new.jsx': entry({ 'raw-palette-class': 5 }) });
     r.commit('rename it');
 
     assert('G12. a pure rename carries its entry to the new path',
-        r.check({ 'new.jsx': entry({ 'raw-palette-class': 5 }) }).problems.length === 0,
+        r.check({ 'src/new.jsx': entry({ 'raw-palette-class': 5 }) }).problems.length === 0,
         'mutation: drop -M from the diff and this deadlocks');
 
-    const laundered = r.check({ 'new.jsx': entry({ 'raw-palette-class': 7 }) });
+    const laundered = r.check({ 'src/new.jsx': entry({ 'raw-palette-class': 7 }) });
     assert('G13. but a rename cannot launder a violation the move introduced',
         laundered.problems.length === 1, laundered.problems.join('; '));
     r.done();
@@ -384,23 +388,94 @@ const palette = (n) => `export const X = () => (\n  <div className="${
     // exempt classes move into a new path that still needs an entry.
     const r = repo('split');
     r.write('src/whole.jsx', palette(10));
-    r.allowlist({ 'whole.jsx': entry({ 'raw-palette-class': 10 }) });
+    r.allowlist({ 'src/whole.jsx': entry({ 'raw-palette-class': 10 }) });
     r.commit('base');
     r.write('src/whole.jsx', palette(4));
     r.write('src/piece.jsx', palette(10));
     r.allowlist({
-        'whole.jsx': entry({ 'raw-palette-class': 4 }),
-        'piece.jsx': entry({ 'raw-palette-class': 6 }),
+        'src/whole.jsx': entry({ 'raw-palette-class': 4 }),
+        'src/piece.jsx': entry({ 'raw-palette-class': 6 }),
     });
     r.commit('split it');
 
     const split = r.check({
-        'whole.jsx': entry({ 'raw-palette-class': 4 }),
-        'piece.jsx': entry({ 'raw-palette-class': 6 }),
+        'src/whole.jsx': entry({ 'raw-palette-class': 4 }),
+        'src/piece.jsx': entry({ 'raw-palette-class': 6 }),
     });
     assert('G14. a split attributes the piece to the file it came from',
         split.problems.length === 0,
         `${split.describe} — ${split.problems.join('; ') || 'nothing reported'}`);
+    r.done();
+}
+
+/* ========================================================================== */
+console.log('\nV. The allowlist version, and the migration that needed it');
+
+{
+    /*
+     * `normaliseAllowlist` as a pure function first.
+     *
+     * Version 1 keyed entries relative to `src/`; version 2 keys them from the
+     * repository root, because the scan reached `index.html` and there is no
+     * honest `src/`-relative name for a file outside `src/`.
+     */
+    assert('V1. a version-1 document is lifted to repo-relative keys',
+        Object.keys(normaliseAllowlist({ files: { 'features/A.jsx': {} } }))[0]
+            === 'src/features/A.jsx');
+    assert('V2. a version-2 document is returned unchanged',
+        Object.keys(normaliseAllowlist({ version: 2, files: { 'index.html': {} } }))[0]
+            === 'index.html');
+    // Mutation: drop the version check and normalising twice yields
+    // `src/src/features/A.jsx`, which matches no file at all.
+    assert('V3. normalising is idempotent through the version field',
+        Object.keys(normaliseAllowlist({
+            version: ALLOWLIST_VERSION,
+            files: normaliseAllowlist({ files: { 'features/A.jsx': {} } }),
+        }))[0] === 'src/features/A.jsx');
+    assert('V4. a future version is left alone rather than re-prefixed',
+        Object.keys(normaliseAllowlist({ version: 99, files: { 'index.html': {} } }))[0]
+            === 'index.html');
+}
+
+{
+    /*
+     * V5 is the one that matters, and it is why the normaliser exists at all.
+     *
+     * The base commit is version 1 and the branch is version 2. Compared raw,
+     * every entry reads as ADDED, because `a.jsx` and `src/a.jsx` are different
+     * strings.
+     *
+     * The assertion is on the count of additions, not just on the absence of
+     * problems, and that is a correction worth recording: the first version
+     * asserted `problems.length === 0` and **passed with the normaliser
+     * removed**. It passed for a different reason than the one claimed —
+     * `growthJustifiedByBase` measures the base's own content, the file is there
+     * with the same five violations, so each "addition" justifies itself and the
+     * run comes out clean. A true statement, proving nothing about the code it
+     * was written for.
+     *
+     * What the normaliser actually buys is that the entries are not treated as
+     * additions at all: 43 real entries would otherwise each be re-justified
+     * against base content, which re-opens every recorded ceiling to whatever
+     * the base measures under today's rules. So the count is what is pinned.
+     */
+    const r = repo('version');
+    r.write('src/a.jsx', palette(5));
+    r.write(ALLOWLIST_PATH, `${JSON.stringify({ files: { 'a.jsx': entry({ 'raw-palette-class': 5 }) } }, null, 2)}\n`);
+    r.commit('base, at version 1');
+    r.allowlist({ 'src/a.jsx': entry({ 'raw-palette-class': 5 }) });
+    r.commit('migrate to version 2');
+
+    const migrated = r.check({ 'src/a.jsx': entry({ 'raw-palette-class': 5 }) });
+    assert('V5. a version-1 base and a version-2 branch compare equal',
+        migrated.problems.length === 0 && !/addition/.test(migrated.describe),
+        `${migrated.describe} — ${migrated.problems.join('; ') || 'nothing reported'}`);
+
+    // And the migration must not be a way to smuggle a higher ceiling past the
+    // comparison under cover of the rename.
+    const inflated = r.check({ 'src/a.jsx': entry({ 'raw-palette-class': 9 }) });
+    assert('V6. but it cannot carry a raised count across the version bump',
+        inflated.problems.length === 1, inflated.problems.join('; '));
     r.done();
 }
 

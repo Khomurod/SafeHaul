@@ -11,7 +11,7 @@
  * hoist any of these into a module-level `const`.
  */
 
-import { readdirSync } from 'node:fs';
+import { readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -53,8 +53,8 @@ export const isTestFile = (name) => /\.(test|spec)\.[jt]sx?$/.test(name);
  * defect as one hard-coded in a screen.
  */
 export const TOKEN_DEFINITION_FILES = new Set([
-    'design-system/tokens/foundation.css',
-    'design-system/tokens/semantic.css',
+    'src/design-system/tokens/foundation.css',
+    'src/design-system/tokens/semantic.css',
 ]);
 
 /**
@@ -69,15 +69,41 @@ export const TOKEN_DEFINITION_FILES = new Set([
  * `scripts/test-ui-contract-scope.mjs` §S1 and §S2 pin both halves: the pattern
  * itself, and that the live scan still reaches each format it claims to cover.
  */
-export const SOURCE_FILE_PATTERN = /\.(?:[jt]sx?|css)$/;
+export const SOURCE_FILE_PATTERN = /\.(?:[jt]sx?|css|html)$/;
 
-export function sourceFiles(directory) {
-    return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-        const target = path.join(directory, entry.name);
-        if (entry.isDirectory()) return sourceFiles(target);
+/**
+ * Everything the guard walks.
+ *
+ * `src/` plus the repository-root `index.html`, and the second one is the point:
+ * Tailwind compiles `index.html` (`tailwind.config.js` lists it first in
+ * `content`), so a utility class written there ships in the application's
+ * stylesheet exactly like one written in a component — but the guard walked only
+ * `src/`, so `<body class="bg-gray-50">` sat there unseen for the whole
+ * campaign. **A check must not take its scope from a directory when the thing it
+ * is checking is defined by a build config.** `test-ui-contract-scope.mjs` §S2f
+ * asserts every static prefix in that `content` array is covered here.
+ */
+export function scanTargets() {
+    return [srcRoot(), path.join(repoRoot(), 'index.html')];
+}
+
+/**
+ * The files under a target, which may itself be a file.
+ *
+ * `scanTargets()` returns a directory and a file, and a walker that assumed
+ * directories would simply have thrown on the second — so the single-file case
+ * is handled here rather than at every call site.
+ */
+export function sourceFiles(target) {
+    if (!statSync(target).isDirectory()) {
+        return SOURCE_FILE_PATTERN.test(path.basename(target)) ? [target] : [];
+    }
+    return readdirSync(target, { withFileTypes: true }).flatMap((entry) => {
+        const child = path.join(target, entry.name);
+        if (entry.isDirectory()) return sourceFiles(child);
         if (!SOURCE_FILE_PATTERN.test(entry.name)) return [];
         // Tests assert on the very strings these rules forbid.
         if (isTestFile(entry.name)) return [];
-        return [target];
+        return [child];
     });
 }

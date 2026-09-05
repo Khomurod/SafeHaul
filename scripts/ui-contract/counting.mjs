@@ -9,7 +9,7 @@
 import {
     CSS_RULES, RULES, STYLED_CONTROL_RULES, STYLING_SIGNAL,
 } from './rules.mjs';
-import { stripBlockComments, stripComments } from './source-text.mjs';
+import { stripBlockComments, stripComments, stripHtmlComments } from './source-text.mjs';
 
 export function openTagAttributes(code, name) {
     const out = [];
@@ -93,9 +93,17 @@ export const COUNTERS = {
  * @param {string} source
  * @param {string[] | null} [only] Restrict to these rule names; `null` = all.
  */
-export function countViolations(source, only = null) {
-    const isCss = Array.isArray(only) && only.every((name) => name.startsWith('css-'));
-    const code = isCss ? stripBlockComments(source) : stripComments(source);
+export function countViolations(source, only = null, { html = false } = {}) {
+    const isCss = Array.isArray(only) && only.length > 0
+        && only.every((name) => name.startsWith('css-'));
+    /*
+     * Three comment syntaxes, three strippers. HTML is opt-in by flag rather
+     * than inferred from the rule set, because the HTML rules are the same
+     * class-list rules a story is held to — there is nothing in the NAMES to
+     * tell the two apart.
+     */
+    const code = html ? stripHtmlComments(source)
+        : isCss ? stripBlockComments(source) : stripComments(source);
     const counts = {};
     const wanted = (name) => only === null || only.includes(name);
 
