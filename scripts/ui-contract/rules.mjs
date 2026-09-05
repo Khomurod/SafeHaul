@@ -30,8 +30,34 @@ export const RULES = [
     },
     {
         name: 'raw-hex-colour',
-        // In a className or a style value. `#` in a URL or an id selector is not a colour.
-        pattern: /(?:bg|text|border|ring|fill|stroke|shadow)-\[#[0-9a-fA-F]{3,8}\]|(?:color|background|border|fill|stroke)\s*:\s*['"]?#[0-9a-fA-F]{3,8}\b/g,
+        /*
+         * Four shapes, because a colour is written four ways here and the rule
+         * saw two of them until 2026-09-05.
+         *
+         *   1. an arbitrary-value class      `bg-[#ff0000]`
+         *   2. a CSS-ish declaration          `color: #ff0000`
+         *   3. an SVG presentation ATTRIBUTE  `fill="#004C68"`      <- was invisible
+         *   4. a JS assignment                `ctx.strokeStyle = '#333'`  <- was invisible
+         *
+         * Shapes 3 and 4 are how every remaining raw colour in this tree is
+         * spelled, which is why the guard reported none of them: the logo, the
+         * loader and the favicon carried the brand hexes as attributes, and the
+         * signature pads assign theirs to a canvas context. Widening the rule to
+         * cover them found four live sites the inventory had never recorded.
+         *
+         * `#` is not always a colour, so the shapes are deliberately narrow:
+         * attribute matching is limited to the presentation attributes that take
+         * one, which keeps `href="#main"` and `placeholder="#1234567"` out; and
+         * assignment matching needs a quoted hex on the right of an `=`, which
+         * keeps `url(#id)`, `currentColor`, `none` and `var(--…)` out.
+         */
+        pattern: new RegExp([
+            String.raw`(?:bg|text|border|ring|fill|stroke|shadow)-\[#[0-9a-fA-F]{3,8}\]`,
+            String.raw`(?:color|background|border|fill|stroke)\s*:\s*['"]?#[0-9a-fA-F]{3,8}\b`,
+            String.raw`\b(?:fill|stroke|stopColor|stop-color|floodColor|flood-color`
+                + String.raw`|lightingColor|lighting-color|color)\s*=\s*["']#[0-9a-fA-F]{3,8}["']`,
+            String.raw`(?:^[ \t]*|\b(?:const|let|var)\s+)[\w.$]+\s*=\s*['"]#[0-9a-fA-F]{3,8}['"]`,
+        ].join('|'), 'gm'),
         remedy: 'Use a `--ds-*` semantic role. An exported document or a brand asset that '
             + 'genuinely cannot resolve a custom property is an exception — record it.',
     },

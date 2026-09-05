@@ -25,6 +25,14 @@ describe('the guard fires on the defects it exists for', () => {
     it.each([
         ['raw-palette-class', '<div className="bg-blue-600 text-gray-500" />'],
         ['raw-hex-colour', '<div className="bg-[#ff0000]" />'],
+        // The two shapes the rule could not see until 2026-09-05. Every raw
+        // colour still in this tree is spelled one of these ways: the brand
+        // marks used SVG attributes, and the signature pads assign to a canvas
+        // context. Widening the rule to cover them found four unrecorded sites.
+        ['raw-hex-colour in an SVG attribute', '<path fill="#004C68" />'],
+        ['raw-hex-colour on a gradient stop', '<stop stopColor="#0CE1A5" />'],
+        ['raw-hex-colour assigned to a canvas context', "ctx.strokeStyle = '#333';"],
+        ['raw-hex-colour in a declaration', "const SIGNATURE_INK = '#0f172a';"],
         ['sub-12px-type', '<span className="text-[10px]">x</span>'],
         ['off-scale-type', '<span className="text-xs">x</span>'],
         ['arbitrary-type-size', '<span className="text-[17px]">x</span>'],
@@ -37,7 +45,8 @@ describe('the guard fires on the defects it exists for', () => {
         ['tailwind-shadow', '<div className="shadow-sm" />'],
         ['jsx-label-on-throwing-primitive', '<FormField id="x" label={(<span>Date</span>)}>{c}</FormField>'],
     ])('catches %s', (rule, source) => {
-        expect(count(source, rule)).toBeGreaterThan(0);
+        // The label carries the shape for readability; the rule is its first word.
+        expect(count(source, rule.split(' ')[0])).toBeGreaterThan(0);
     });
 
     it('counts every occurrence, not just the first', () => {
@@ -101,6 +110,24 @@ describe('the guard stays silent on correct code', () => {
         }
         expect(count('<PageHeader title={<span>x</span>} />', 'jsx-label-on-throwing-primitive')).toBe(0);
         expect(count('<Badge label={<span>x</span>} />', 'jsx-label-on-throwing-primitive')).toBe(0);
+    });
+
+    /*
+     * A `#` is only sometimes a colour, and the widened rule has to tell the
+     * difference. These are the forms that live in this tree and must stay
+     * silent — a rule that fires on `url(#grad)` or an anchor target would be
+     * switched off within a day.
+     */
+    it.each([
+        ['currentColor', '<path fill="currentColor" />'],
+        ['an explicit no-fill', '<path fill="none" />'],
+        ['a token reference', '<path fill="var(--ds-color-brand-deep)" />'],
+        ['a gradient reference', '<path fill="url(#paint0_linear_logo)" />'],
+        ['an in-page anchor', '<a href="#main">Skip to content</a>'],
+        ['a placeholder that looks like a hex', '<input placeholder="#1234567" />'],
+        ['an id selector in a query', "const node = document.querySelector('#signature-canvas');"],
+    ])('does not read %s as a colour', (_name, source) => {
+        expect(count(source, 'raw-hex-colour')).toBe(0);
     });
 
     it('does not flag an overlayClassName passed to Modal', () => {
