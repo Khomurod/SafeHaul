@@ -50,20 +50,30 @@ there is.
 
 ### The legacy props, and when they go
 
-`className` and `overlayClassName` still work and still replace the chrome, so
-every unmigrated call site renders **exactly** as it did. They warn once per
-distinct class list in development.
+**Every call site is migrated as of 2026-09-05** — all 41 of them, and there is
+no `overlayClassName` left anywhere in `src/`. `className` and `overlayClassName`
+still exist and still replace the chrome, and they warn once per distinct class
+list in development; the next slice deletes both and throws on either.
 
 They are one decision, not two: passing either opts the whole dialog out, and
-the other falls back to what such a caller used to inherit. That is deliberate —
-20 of the 41 sites pass only `className`, and handing those the contract's
-overlay would have moved their stacking layer from 50 to 60 in a slice that
-promises no change. Half the contract and half a class list is also the one
+the other falls back to what such a caller used to inherit. That mattered during
+the migration — 20 of the 41 sites passed only `className`, and handing those the
+contract's overlay would have moved their stacking layer from 50 to 60 in a slice
+that promised no change. Half the contract and half a class list is also the one
 combination that cannot be reasoned about, since the two would fight over the
 same properties.
 
-The slice that finishes migrating the call sites deletes both and throws on
-either.
+### Nested dialogs need no stacking prop
+
+Four dialogs open inside another one: the document preview inside the driver
+dossier, the delete confirmation inside the dossier and inside the team dialog,
+and the request history inside the PEV tab. Each used to carry a bigger number
+than its parent — `z-[65]`, `z-[70]`, `z-[100]` — and none of them needed to.
+
+A nested dialog's overlay is a DOM **descendant** of its parent's, and the parent
+sets a `z-index`, so the parent forms a stacking context. A positioned descendant
+with `z-index >= 0` paints above its ancestor's content whatever number it
+carries. The numbers were compensating for nothing, and they are gone.
 
 ## Stacking
 

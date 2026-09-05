@@ -20,8 +20,8 @@ export function EditorBottomSheet({ title, onClose, children }) {
         <Modal
             labelledBy={headingId}
             onClose={onClose}
-            overlayClassName="fixed inset-0 z-50 flex items-end justify-center bg-ds-overlay backdrop-blur-sm"
-            className="flex max-h-[80vh] w-full flex-col overflow-hidden rounded-t-ds-xl bg-ds-surface shadow-ds-lg"
+            placement="bottom"
+            scroll="body"
         >
             <div className="flex shrink-0 items-center justify-between gap-ds-2 border-b border-ds-border-subtle px-ds-4 py-ds-3">
                 <h2 id={headingId} className="text-ds-body font-bold text-ds-content">{title}</h2>
