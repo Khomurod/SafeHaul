@@ -17,6 +17,7 @@ import { describe, expect, it } from 'vitest';
 // inside that rewrite. `scripts/test-ui-contract.mjs` pins that nothing under
 // `src/` imports `check-ui-contract.mjs`.
 import { countViolations } from '../../scripts/ui-contract/counting.mjs';
+import { CSS_RULE_NAMES } from '../../scripts/ui-contract/rules.mjs';
 import { stripComments } from '../../scripts/ui-contract/source-text.mjs';
 
 const count = (source, rule) => countViolations(source)[rule] ?? 0;
@@ -107,6 +108,21 @@ describe('the guard stays silent on correct code', () => {
         ['the ds shadow scale', '<div className="shadow-ds-xs" />'],
     ])('the bare rules do not fire on %s', (_name, source) => {
         expect(count(source, 'bare-tailwind-radius') + count(source, 'bare-tailwind-shadow')).toBe(0);
+    });
+
+    /*
+     * `@apply` is a class list wearing a stylesheet's clothes, and every
+     * class-list rule read a `className` and nothing else — so it was a way to
+     * write exactly the forbidden thing where nothing looked. The counter runs
+     * the real rules rather than restating them, so the two cannot drift.
+     */
+    it('holds an @apply class list to the same rules as a className', () => {
+        const count2 = (source) => countViolations(source, CSS_RULE_NAMES)['css-apply-off-contract'] ?? 0;
+        expect(count2('.x { @apply bg-blue-600 rounded-lg; }')).toBe(2);
+        expect(count2('.x { @apply rounded; }')).toBe(1);
+        // The ds utilities are the whole point of `@apply`, and must stay silent.
+        expect(count2('.x { @apply bg-ds-surface rounded-ds-md text-ds-body; }')).toBe(0);
+        expect(count2('.x { color: var(--ds-color-content); }')).toBe(0);
     });
 
     it('does not read a ds surface role as raw black or white', () => {

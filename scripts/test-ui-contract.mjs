@@ -39,7 +39,7 @@
  */
 
 import { COUNTERS, REMEDIES, countViolations } from './ui-contract/counting.mjs';
-import { CSS_RULE_NAMES, RULES, STYLED_CONTROL_RULES } from './ui-contract/rules.mjs';
+import { CSS_RULES, CSS_RULE_NAMES, RULES, STYLED_CONTROL_RULES } from './ui-contract/rules.mjs';
 import { MIN_REASON_LENGTH, evaluate } from './ui-contract/verdict.mjs';
 import { regenerate, serialise } from './ui-contract/update.mjs';
 import { untetheredTables } from './ui-contract/tether.mjs';
@@ -78,9 +78,18 @@ const orphanRemedies = Object.keys(REMEDIES).filter((name) => !uniqueRuleNames.i
 assert('S4c. no remedy names a rule that does not exist',
     orphanRemedies.length === 0, orphanRemedies.join(', '));
 
-// S4d. Mutation: give a rule `pattern: null` without adding a COUNTER, or add a
-// COUNTER for a rule that already has a pattern. Either way one of them is dead.
-const patternless = RULES.filter((rule) => rule.pattern === null).map((rule) => rule.name);
+/*
+ * S4d. Mutation: give a rule `pattern: null` without adding a COUNTER, or add a
+ * COUNTER for a rule that already has a pattern. Either way one of them is dead.
+ *
+ * Scoped across BOTH tables, which is a correction: it read only `RULES`, and
+ * `css-apply-off-contract` is a counter-backed rule in `CSS_RULES` — so the
+ * assertion failed the moment one arrived, claiming a counter had no rule. The
+ * claim is about every rule the guard has; taking its scope from one of the two
+ * tables was the same mistake this file records one level up.
+ */
+const patternless = [...RULES, ...CSS_RULES].filter((rule) => rule.pattern === null)
+    .map((rule) => rule.name);
 const counterNames = Object.keys(COUNTERS);
 assert('S4d. patternless rules and COUNTERS are the same set',
     patternless.length === counterNames.length
