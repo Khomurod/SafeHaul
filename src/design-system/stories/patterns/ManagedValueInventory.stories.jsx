@@ -1,18 +1,9 @@
 import React, { useState } from 'react';
 import { fn } from 'storybook/test';
 import {
-    AlertTriangle,
-    CheckCircle2,
-    Eye,
-    EyeOff,
-    Pencil,
-    Plus,
-    RefreshCw,
-    ShieldAlert,
-    ShieldCheck,
-    Trash2,
-    UploadCloud,
-} from 'lucide-react';
+    Icon, AlertTriangle, CheckCircle2, Eye, EyeOff, Pencil, Plus, RefreshCw, ShieldAlert,
+    ShieldCheck, Trash2, UploadCloud
+} from '@design-system/icons';
 import { Badge, Card, DataTable, IconButton, MetricCard } from '@design-system/components';
 import { PageContainer, PageHeader, ResponsiveGrid, Stack } from '@design-system/layouts';
 
@@ -143,7 +134,7 @@ function ValueCell({ entry, state, seconds = 30, onToggle }) {
 
                 {state === 'unavailable' && (
                     <span style={{ ...muted, display: 'flex', gap: 'var(--ds-space-1)' }} role="status">
-                        <ShieldAlert size={14} aria-hidden="true" />
+                        <Icon icon={ShieldAlert} size="sm" />
                         The source does not permit reading the saved value.
                     </span>
                 )}
@@ -157,7 +148,7 @@ function ValueCell({ entry, state, seconds = 30, onToggle }) {
                 disabled={!entry.can.reveal}
                 onClick={onToggle}
             >
-                {revealed ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />}
+                {revealed ? <Icon icon={EyeOff} size="md" /> : <Icon icon={Eye} size="md" />}
             </IconButton>
         </div>
     );
@@ -197,7 +188,7 @@ function ActionCell({ entry }) {
                         aria-disabled={allowed ? undefined : true}
                         onClick={allowed ? fn() : undefined}
                     >
-                        <action.icon size={16} aria-hidden="true" />
+                        <Icon icon={action.icon} size="md" />
                     </IconButton>
                 );
             })}

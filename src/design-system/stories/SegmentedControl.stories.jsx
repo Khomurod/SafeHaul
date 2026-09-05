@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { Ban, CheckCircle, Clock, LayoutGrid, List, Rows3, XCircle } from 'lucide-react';
+import {
+    Icon, Ban, CheckCircle, Clock, LayoutGrid, List, Rows3, XCircle
+} from '@design-system/icons';
 import { Card, SegmentedControl } from '@design-system/components';
 import { Stack } from '@design-system/layouts';
 

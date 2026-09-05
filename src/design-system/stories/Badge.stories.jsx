@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertTriangle, Check, Clock, Info, Star, X } from 'lucide-react';
+import { Icon, AlertTriangle, Check, Clock, Info, Star, X } from '@design-system/icons';
 import { Badge } from '@design-system/components';
 
 /**

@@ -1,6 +1,6 @@
 import React from 'react';
 import { fn } from 'storybook/test';
-import { Activity, FileText, Inbox, TrendingUp } from 'lucide-react';
+import { Icon, Activity, FileText, Inbox, TrendingUp } from '@design-system/icons';
 import { Badge, Button, Card, MetricCard } from '@design-system/components';
 import { Inline, ResponsiveGrid, Stack } from '@design-system/layouts';
 
@@ -129,12 +129,12 @@ export const WithHeaderAndActions = {
 export const MetricCardTones = {
   render: () => (
     <ResponsiveGrid minItemWidth="200px">
-      <MetricCard label="Total records" value="1,284" tone="neutral" icon={<FileText size={20} />} />
-      <MetricCard label="In review" value="36" tone="info" icon={<Activity size={20} />} />
-      <MetricCard label="Completed" value="912" tone="success" icon={<TrendingUp size={20} />} />
-      <MetricCard label="Expiring soon" value="18" tone="warning" icon={<Inbox size={20} />} />
-      <MetricCard label="Blocked" value="4" tone="danger" icon={<Inbox size={20} />} />
-      <MetricCard label="Priority" value="7" tone="accent" icon={<Activity size={20} />} />
+      <MetricCard label="Total records" value="1,284" tone="neutral" icon={<Icon icon={FileText} size="xl" />} />
+      <MetricCard label="In review" value="36" tone="info" icon={<Icon icon={Activity} size="xl" />} />
+      <MetricCard label="Completed" value="912" tone="success" icon={<Icon icon={TrendingUp} size="xl" />} />
+      <MetricCard label="Expiring soon" value="18" tone="warning" icon={<Icon icon={Inbox} size="xl" />} />
+      <MetricCard label="Blocked" value="4" tone="danger" icon={<Icon icon={Inbox} size="xl" />} />
+      <MetricCard label="Priority" value="7" tone="accent" icon={<Icon icon={Activity} size="xl" />} />
     </ResponsiveGrid>
   ),
 };

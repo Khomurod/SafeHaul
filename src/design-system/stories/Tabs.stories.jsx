@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Archive, FileText, LayoutTemplate, Send } from 'lucide-react';
+import { Icon, Archive, FileText, LayoutTemplate, Send } from '@design-system/icons';
 import { Badge, Card, TabList, TabPanel } from '@design-system/components';
 import { Stack } from '@design-system/layouts';
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Download, ExternalLink, FileText } from 'lucide-react';
+import { Icon, Download, ExternalLink, FileText } from '@design-system/icons';
 import { ButtonLink, Button, IconButtonLink, Link } from '@design-system/components';
 import { Inline, Stack } from '@design-system/layouts';
 
@@ -104,12 +104,12 @@ export const BesideAButton = {
   render: () => (
     <Inline gap="sm">
       <ButtonLink href="/export.csv" variant="primary">
-        <Download aria-hidden="true" />
+        <Icon icon={Download} />
         Download report
       </ButtonLink>
       <Button variant="secondary">Regenerate</Button>
       <IconButtonLink href="/report.pdf" label="Open the report">
-        <FileText aria-hidden="true" />
+        <Icon icon={FileText} />
       </IconButtonLink>
     </Inline>
   ),
@@ -158,7 +158,7 @@ export const KeyboardFocus = {
         <Link href="#one">Inline link</Link>
         <ButtonLink href="#two" variant="secondary">Button-shaped</ButtonLink>
         <IconButtonLink href="#three" label="Open in a new place">
-          <ExternalLink aria-hidden="true" />
+          <Icon icon={ExternalLink} />
         </IconButtonLink>
       </Inline>
     </Stack>
@@ -171,7 +171,7 @@ export const NarrowViewport = {
   render: () => (
     <Stack gap="md">
       <ButtonLink href="/export.csv" variant="primary" fullWidth>
-        <Download aria-hidden="true" />
+        <Icon icon={Download} />
         Download report
       </ButtonLink>
       <p style={{ margin: 0, color: 'var(--ds-color-content)' }}>

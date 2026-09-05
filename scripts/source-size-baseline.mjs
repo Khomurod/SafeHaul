@@ -352,6 +352,10 @@ export function readSizesAt(ref, paths, { cwd = repoRoot, countLines } = {}) {
  */
 export function checkBacklogDirection({
   current, measured = [], countLines, path, requireBaseline = false,
+  // What `countLines` counts. `source-size` counts lines; `check:icon-contract`
+  // reuses this whole ratchet to count glyph imports, and a refusal has to name
+  // the thing it measured.
+  unit = 'lines',
   env = process.env, cwd = repoRoot,
   lastValidatedBase = () => null, overrideValidated = () => false,
   automaticLookupComplete = () => true,
@@ -408,8 +412,8 @@ export function checkBacklogDirection({
       return { problems: requireBaseline ? [`${why}, so the entries cannot be justified`] : [], describe: why };
     }
     const sizes = readSizes(ref, Object.keys(current), { cwd, countLines });
-    const problems = bootstrapProblems(sizes, current, ref, path);
-    if (problems.length === 0) problems.push(...compareBacklogSizes(sizes, measured, current));
+    const problems = bootstrapProblems(sizes, current, ref, path, unit);
+    if (problems.length === 0) problems.push(...compareBacklogSizes(sizes, measured, current, unit));
     return { problems, describe: `${at} — every entry checked against it` };
   }
 
@@ -421,7 +425,7 @@ export function checkBacklogDirection({
   if (problems.length === 0 && countLines) {
     const backlogged = Object.keys(current);
     problems.push(...compareBacklogSizes(
-      readSizes(ref, backlogged, { cwd, countLines }), measured, current,
+      readSizes(ref, backlogged, { cwd, countLines }), measured, current, unit,
     ));
   }
   return { problems, describe: `compared against ${ref.slice(0, 8)} (${source})` };

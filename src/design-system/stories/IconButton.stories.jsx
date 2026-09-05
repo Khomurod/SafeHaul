@@ -1,6 +1,6 @@
 import React from 'react';
 import { fn } from 'storybook/test';
-import { Download, MoreHorizontal, Pencil, Trash2, X } from 'lucide-react';
+import { Icon, Download, MoreHorizontal, Pencil, Trash2, X } from '@design-system/icons';
 import { Button, IconButton } from '@design-system/components';
 
 /**
@@ -12,7 +12,7 @@ const meta = {
   component: IconButton,
   args: {
     label: 'Close',
-    children: <X size={18} aria-hidden="true" />,
+    children: <Icon icon={X} size="lg" />,
     onClick: fn(),
   },
   argTypes: {
@@ -80,10 +80,10 @@ export const Default = {};
 export const Variants = {
   render: (args) => (
     <div className="sb-row">
-      <IconButton {...args} variant="primary" label="Download file"><Download size={18} aria-hidden="true" /></IconButton>
-      <IconButton {...args} variant="secondary" label="Edit record"><Pencil size={18} aria-hidden="true" /></IconButton>
-      <IconButton {...args} variant="ghost" label="More actions"><MoreHorizontal size={18} aria-hidden="true" /></IconButton>
-      <IconButton {...args} variant="danger" label="Delete record"><Trash2 size={18} aria-hidden="true" /></IconButton>
+      <IconButton {...args} variant="primary" label="Download file"><Icon icon={Download} size="lg" /></IconButton>
+      <IconButton {...args} variant="secondary" label="Edit record"><Icon icon={Pencil} size="lg" /></IconButton>
+      <IconButton {...args} variant="ghost" label="More actions"><Icon icon={MoreHorizontal} size="lg" /></IconButton>
+      <IconButton {...args} variant="danger" label="Delete record"><Icon icon={Trash2} size="lg" /></IconButton>
     </div>
   ),
 };
@@ -92,9 +92,9 @@ export const Variants = {
 export const Sizes = {
   render: (args) => (
     <div className="sb-row">
-      <IconButton {...args} size="sm" label="Edit record (small)"><Pencil size={14} aria-hidden="true" /></IconButton>
-      <IconButton {...args} size="md" label="Edit record (medium)"><Pencil size={18} aria-hidden="true" /></IconButton>
-      <IconButton {...args} size="lg" label="Edit record (large)"><Pencil size={20} aria-hidden="true" /></IconButton>
+      <IconButton {...args} size="sm" label="Edit record (small)"><Icon icon={Pencil} size="sm" /></IconButton>
+      <IconButton {...args} size="md" label="Edit record (medium)"><Icon icon={Pencil} size="lg" /></IconButton>
+      <IconButton {...args} size="lg" label="Edit record (large)"><Icon icon={Pencil} size="xl" /></IconButton>
     </div>
   ),
 };
@@ -103,9 +103,9 @@ export const Sizes = {
 export const LoadingAndDisabled = {
   render: (args) => (
     <div className="sb-row">
-      <IconButton {...args} variant="secondary" loading label="Downloading file"><Download size={18} aria-hidden="true" /></IconButton>
-      <IconButton {...args} variant="secondary" disabled label="Edit record (unavailable)"><Pencil size={18} aria-hidden="true" /></IconButton>
-      <IconButton {...args} variant="danger" disabled label="Delete record (unavailable)"><Trash2 size={18} aria-hidden="true" /></IconButton>
+      <IconButton {...args} variant="secondary" loading label="Downloading file"><Icon icon={Download} size="lg" /></IconButton>
+      <IconButton {...args} variant="secondary" disabled label="Edit record (unavailable)"><Icon icon={Pencil} size="lg" /></IconButton>
+      <IconButton {...args} variant="danger" disabled label="Delete record (unavailable)"><Icon icon={Trash2} size="lg" /></IconButton>
     </div>
   ),
 };
@@ -121,15 +121,15 @@ export const IconOnlyVersusLabelled = {
       <div className="sb-specimen">
         <span className="sb-specimen__label">Fine — universal icons, tight space</span>
         <div className="sb-row">
-          <IconButton {...args} variant="ghost" label="Close"><X size={18} aria-hidden="true" /></IconButton>
-          <IconButton {...args} variant="ghost" label="Delete record"><Trash2 size={18} aria-hidden="true" /></IconButton>
+          <IconButton {...args} variant="ghost" label="Close"><Icon icon={X} size="lg" /></IconButton>
+          <IconButton {...args} variant="ghost" label="Delete record"><Icon icon={Trash2} size="lg" /></IconButton>
         </div>
       </div>
       <div className="sb-specimen">
         <span className="sb-specimen__label">Better — meaning needs words</span>
         <div className="sb-row">
           <Button {...args} variant="secondary" size="sm">
-            <Download size={16} aria-hidden="true" />
+            <Icon icon={Download} size="md" />
             Export CSV
           </Button>
         </div>
@@ -150,9 +150,9 @@ export const KeyboardFocus = {
         not clipped by the neighbouring control.
       </p>
       <div className="sb-row">
-        <IconButton {...args} size="sm" variant="ghost" label="Edit record"><Pencil size={14} aria-hidden="true" /></IconButton>
-        <IconButton {...args} size="sm" variant="ghost" label="Download file"><Download size={14} aria-hidden="true" /></IconButton>
-        <IconButton {...args} size="sm" variant="ghost" label="More actions"><MoreHorizontal size={14} aria-hidden="true" /></IconButton>
+        <IconButton {...args} size="sm" variant="ghost" label="Edit record"><Icon icon={Pencil} size="sm" /></IconButton>
+        <IconButton {...args} size="sm" variant="ghost" label="Download file"><Icon icon={Download} size="sm" /></IconButton>
+        <IconButton {...args} size="sm" variant="ghost" label="More actions"><Icon icon={MoreHorizontal} size="sm" /></IconButton>
       </div>
     </div>
   ),

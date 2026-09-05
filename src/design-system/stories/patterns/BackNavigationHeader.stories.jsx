@@ -1,6 +1,6 @@
 import React from 'react';
 import { fn } from 'storybook/test';
-import { ArrowLeft, Download, MoreHorizontal, Share2 } from 'lucide-react';
+import { Icon, ArrowLeft, Download, MoreHorizontal, Share2 } from '@design-system/icons';
 import { Badge, Button, Card, IconButton } from '@design-system/components';
 import { Inline, PageContainer, PageHeader, Stack } from '@design-system/layouts';
 
@@ -72,7 +72,7 @@ export default meta;
 function BackLink({ children = 'Back to records' }) {
   return (
     <Button variant="ghost" size="sm" onClick={fn()}>
-      <ArrowLeft size={16} aria-hidden="true" />
+      <Icon icon={ArrowLeft} size="md" />
       {children}
     </Button>
   );
@@ -91,7 +91,7 @@ export const Default = {
             actions={(
               <>
                 <Button variant="secondary" onClick={fn()}>
-                  <Download size={16} aria-hidden="true" />
+                  <Icon icon={Download} size="md" />
                   Export
                 </Button>
                 <Button variant="primary" onClick={fn()}>Open record</Button>
@@ -148,12 +148,12 @@ export const WithOverflowActions = {
             actions={(
               <>
                 <Button variant="secondary" onClick={fn()}>
-                  <Share2 size={16} aria-hidden="true" />
+                  <Icon icon={Share2} size="md" />
                   Share
                 </Button>
                 <Button variant="primary" onClick={fn()}>Open record</Button>
                 <IconButton variant="ghost" label="More actions" onClick={fn()}>
-                  <MoreHorizontal size={18} aria-hidden="true" />
+                  <Icon icon={MoreHorizontal} size="lg" />
                 </IconButton>
               </>
             )}

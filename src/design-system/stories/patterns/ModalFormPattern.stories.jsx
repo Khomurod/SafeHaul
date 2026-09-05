@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { fn } from 'storybook/test';
-import { X } from 'lucide-react';
+import { Icon, X } from '@design-system/icons';
 import {
     Button,
     Checkbox,
@@ -63,7 +63,7 @@ function ModalForm({ error = null, saving = false, invalid = false, startOpen = 
                                 onClick={close}
                                 disabled={saving}
                             >
-                                <X size={18} aria-hidden="true" />
+                                <Icon icon={X} size="lg" />
                             </IconButton>
                         </div>
 

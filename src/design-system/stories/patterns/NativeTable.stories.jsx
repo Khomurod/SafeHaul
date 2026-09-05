@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Trash2 } from 'lucide-react';
+import { Icon, Trash2 } from '@design-system/icons';
 import {
   Badge, Button, Card, IconButton, Input, Switch,
 } from '@design-system/components';
@@ -48,7 +48,7 @@ function Matrix({ density }) {
             </td>
             <td className="text-right">
               <IconButton variant="ghost" size="sm" label={`Remove ${row.reference}`}>
-                <Trash2 aria-hidden="true" />
+                <Icon icon={Trash2} />
               </IconButton>
             </td>
           </tr>

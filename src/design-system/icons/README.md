@@ -82,17 +82,37 @@ call site being migrated should never need one — but adding one is not an even
 
 ## The migration, and what ends it
 
-178 files still import from `lucide-react` directly. Until that reaches zero,
-`Icon` also accepts a bare icon component and design-system containers resolve
-their `icon` prop through `glyphComponent`, because those files still hand raw
-components across prop boundaries — `<PageState icon={AlertTriangle} />` has to
-keep working while its file is unmigrated.
+178 files still import from `lucide-react` directly, recorded in
+`lucide-import.backlog.json`. Until that reaches zero, `Icon` also accepts a
+bare icon component and design-system containers resolve their `icon` prop
+through `glyphComponent`, because those files still hand raw components across
+prop boundaries — `<PageState icon={AlertTriangle} />` has to keep working while
+its file is unmigrated.
 
-The guard that refuses a NEW `lucide-react` import, and the recorded list of the
-178 that exist, land with the migration campaign rather than here: a backlog
-file nothing reads is a list, not a ratchet. When it is drained the only source
-of a glyph is this directory, every value flowing into `icon` is a token, and
-the passthrough branch is deleted with nothing left for it to catch.
+`check:icon-contract` enforces the campaign over `src/` — the application, the
+same scope `check:ui-contract` governs, because that is what Vite bundles and a
+fixture in `scripts/` describing an import is not an import. The backlog is a
+**record of debt, not an allowlist**: a file not listed may not name the
+package at all; a
+listed file may never take more glyphs than its recorded count; a listed file
+that reaches zero must lose its entry, and the check fails until it does; an
+entry for a path that no longer exists fails too, so a rename cannot carry an
+exemption. When the last entry goes, so does the file.
+
+It is deliberately **not** an allowlist rule in `check:ui-contract`. That
+records an exception as a hand-written reason naming the roadmap row it rests
+on, which is right for a decision and wrong for 178 entries whose reason is "not
+migrated yet" — 178 boilerplate reasons is the `debt` escape hatch this
+repository already deleted once, renamed.
+
+And the direction is measured against **git, not the branch**: a change that
+adds a file together with its own entry, or raises a count to match a file it
+just grew, is refused, because a gate must not take its scope from the branch it
+is gating.
+
+When it is drained the only source of a glyph is this directory, every value
+flowing into `icon` is a token, and the passthrough branch is deleted with
+nothing left for it to catch.
 
 ## Branded artwork is not an icon
 

@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { Bell, FileText, History, Settings, Shield, SlidersHorizontal } from 'lucide-react';
+import {
+    Icon, Bell, FileText, History, Settings, Shield, SlidersHorizontal
+} from '@design-system/icons';
 import { Card, SectionNavigation } from '@design-system/components';
 import { Stack } from '@design-system/layouts';
 import { NAVIGATION_GROUPS } from './fixtures';

@@ -1,6 +1,6 @@
 import React from 'react';
 import { fn } from 'storybook/test';
-import { Eye } from 'lucide-react';
+import { Icon, Eye } from '@design-system/icons';
 import { Badge, Button, DataTable, IconButton } from '@design-system/components';
 import { PageContainer, PageHeader, Stack } from '@design-system/layouts';
 import { NOT_PROVIDED, RECORDS } from '../fixtures';
@@ -79,7 +79,7 @@ const compactColumns = [
     stopPropagation: true,
     render: (row) => (
       <IconButton size="sm" variant="ghost" label={`View ${row.reference}`} onClick={fn()}>
-        <Eye size={16} aria-hidden="true" />
+        <Icon icon={Eye} size="md" />
       </IconButton>
     ),
   },

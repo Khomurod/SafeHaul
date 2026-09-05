@@ -1,6 +1,6 @@
 import React from 'react';
 import { fn } from 'storybook/test';
-import { ArrowRight, Check, Filter, Plus, Search, Trash2 } from 'lucide-react';
+import { Icon, ArrowRight, Check, Filter, Plus, Search, Trash2 } from '@design-system/icons';
 import {
   Button,
   FormField,
@@ -108,11 +108,11 @@ export const InputAndButton = {
               onChange={fn()}
             />
             <Button size={size} variant="primary">
-              <Search aria-hidden="true" />
+              <Icon icon={Search} />
               Search
             </Button>
             <IconButton size={size} label={`Filter results (${size})`}>
-              <Filter aria-hidden="true" />
+              <Icon icon={Filter} />
             </IconButton>
           </Inline>
         </div>
@@ -176,15 +176,15 @@ export const IconNormalisation = {
         The numbers below are what the call site asked for. None of them is what renders.
       </p>
       <Inline gap="sm">
-        <Button variant="primary"><Plus size={24} aria-hidden="true" />size 24</Button>
-        <Button variant="secondary"><Check size={12} aria-hidden="true" />size 12</Button>
-        <Button variant="danger"><Trash2 size={20} aria-hidden="true" />size 20</Button>
-        <Button variant="ghost"><ArrowRight size={32} aria-hidden="true" />size 32</Button>
+        <Button variant="primary"><Icon icon={Plus} size="2xl" />size 24</Button>
+        <Button variant="secondary"><Icon icon={Check} size="xs" />size 12</Button>
+        <Button variant="danger"><Icon icon={Trash2} size="xl" />size 20</Button>
+        <Button variant="ghost"><Icon icon={ArrowRight} size="3xl" />size 32</Button>
       </Inline>
       <Inline gap="sm">
-        <Button size="sm"><Plus size={24} aria-hidden="true" />sm</Button>
-        <Button size="md"><Plus size={24} aria-hidden="true" />md</Button>
-        <Button size="lg"><Plus size={24} aria-hidden="true" />lg</Button>
+        <Button size="sm"><Icon icon={Plus} size="2xl" />sm</Button>
+        <Button size="md"><Icon icon={Plus} size="2xl" />md</Button>
+        <Button size="lg"><Icon icon={Plus} size="2xl" />lg</Button>
       </Inline>
     </Stack>
   ),
@@ -219,13 +219,13 @@ export const NarrowViewport = {
       <Inline gap="sm">
         <Input aria-label="Search records" placeholder="Search records" onChange={fn()} />
         <Button variant="primary" fullWidth>
-          <Search aria-hidden="true" />
+          <Icon icon={Search} />
           Search
         </Button>
       </Inline>
       <Button size="lg" variant="primary" fullWidth>
         Continue
-        <ArrowRight aria-hidden="true" />
+        <Icon icon={ArrowRight} />
       </Button>
     </Stack>
   ),

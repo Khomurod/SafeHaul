@@ -81,15 +81,20 @@ export function compareBacklog(previous, current, label = 'the backlog') {
  * a dated record of where the campaign started, not a live ceiling somebody has
  * to remember to lower. The two rules together mean a backlogged file may never
  * exceed EITHER its 2026-08-26 size or its size on the branch it came from.
+ *
+ * `unit` names what is being counted, because this ratchet is shared: the icon
+ * campaign counts glyph imports through the same code, and a refusal reading
+ * "is 9 lines, up from 4" about an import count names something that was never
+ * measured. It defaults to `lines`, so the size campaign is untouched.
  */
-export function compareBacklogSizes(previousSizes, measured, backlog) {
+export function compareBacklogSizes(previousSizes, measured, backlog, unit = 'lines') {
   const problems = [];
   for (const file of measured) {
     if (!(file.path in backlog)) continue;
     const before = previousSizes[file.path];
     if (before === undefined || file.lines === null) continue;
     if (file.lines > before) {
-      problems.push(`${file.path} is ${file.lines} lines, up from ${before} at the base of this `
+      problems.push(`${file.path} is ${file.lines} ${unit}, up from ${before} at the base of this `
         + 'change. A file in the backlog may not grow — not past its recorded count, and not past '
         + 'the size it had on the branch this change came from.');
     }
@@ -129,7 +134,7 @@ export function compareBacklogSizes(previousSizes, measured, backlog) {
  * comes back under must be removed", so restating the limit would add a constant
  * to keep in step for nothing.
  */
-export function bootstrapProblems(sizesAtBase, current, ref, label = 'the backlog') {
+export function bootstrapProblems(sizesAtBase, current, ref, label = 'the backlog', unit = 'lines') {
   // Same reason `compareBacklog` opens this way: `lines > before` is false for a
   // NaN, so `{"big.js": "unbounded"}` would sail past the second rule below with
   // nothing reported. `evaluate` also refuses it, but a rule that only holds
@@ -146,7 +151,7 @@ export function bootstrapProblems(sizesAtBase, current, ref, label = 'the backlo
       continue;
     }
     if (lines > before) {
-      problems.push(`${label} records ${path} at ${lines} lines, but it was ${before} at ${at}. `
+      problems.push(`${label} records ${path} at ${lines} ${unit}, but it was ${before} at ${at}. `
         + 'An entry may only record how big a file already was; recording the size it grew to '
         + 'would let a file cross the limit and be exempted in the same change.');
     }
