@@ -162,6 +162,27 @@
   --ds-card-padding-spacious: var(--ds-space-6);
   --ds-card-border: var(--ds-color-border-subtle);
   --ds-card-shadow: var(--ds-shadow-xs);
+  /*
+   * Disabled dimming, as two roles rather than nine hand-picked numbers.
+   *
+   * A disabled control is dimmed in nine places in this system and was dimmed to
+   * five different values: 0.45, 0.5, 0.55 (x4), 0.6 (x2) and 0.72. Nothing was
+   * wrong with any of them individually; together they mean "disabled" does not
+   * look like one thing.
+   *
+   * `disabled` is the plain one — the control fades and nothing else changes.
+   * `disabled-soft` is a genuine second role rather than a rounding of the
+   * first: `FormControls` also RECOLOURS a disabled field, so it needs less
+   * dimming on top to stay readable. Two roles, two reasons.
+   *
+   * Migrated on 2026-09-05 only where the value already matched, so this change
+   * moves no pixels. The four sites that diverge — DataTable 0.45 and 0.5,
+   * Switch 0.6, ChoiceControls 0.6 — are a deliberate visual normalisation and
+   * belong in a slice that re-records the baselines they move.
+   */
+  --ds-opacity-disabled: 0.55;
+  --ds-opacity-disabled-soft: 0.72;
+
   --ds-page-gutter: var(--ds-space-6);
   --ds-page-gutter-mobile: var(--ds-space-4);
   --ds-section-gap: var(--ds-space-6);

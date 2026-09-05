@@ -1,7 +1,15 @@
 .ds-page-container {
   width: 100%;
   margin-inline: auto;
-  padding: var(--ds-space-6);
+  /*
+   * The gutter ROLES, not the raw spacing scale they resolve to. Both roles
+   * existed and neither was read here — `--ds-page-gutter-mobile` had no
+   * consumer at all, which is what `tokens.consumers.test.js` reported on the
+   * day it was written. Identical values, so nothing moves; what changes is that
+   * re-tuning the page gutter is now one edit in `semantic.css` instead of a
+   * search for every place that happened to pick `--ds-space-6`.
+   */
+  padding: var(--ds-page-gutter);
 }
 
 .ds-page-container[data-width='standard'] {
@@ -93,7 +101,7 @@
 
 @media (max-width: 767px) {
   .ds-page-container {
-    padding: var(--ds-space-4);
+    padding: var(--ds-page-gutter-mobile);
   }
 
   .ds-page-header {

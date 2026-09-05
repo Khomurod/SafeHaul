@@ -95,7 +95,7 @@
 
 .ds-segmented__option:disabled {
   cursor: not-allowed;
-  opacity: 0.55;
+  opacity: var(--ds-opacity-disabled);
 }
 
 /* A multi-column grid of cards is unusable at phone width; stack it. */

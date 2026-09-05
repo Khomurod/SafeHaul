@@ -41,6 +41,26 @@ call site. Changing one of these changes the product, which is the point.
   `--ds-field-gap`). One card and page rhythm.
 - **Table roles** (`--ds-table-*`). Header height, row heights per density, cell
   padding, and the column widths a table may not paint outside of.
+- **Disabled dimming** (`--ds-opacity-disabled`, `--ds-opacity-disabled-soft`).
+  Two roles, not one: `disabled` is the plain fade, and `soft` is for a control
+  that also *recolours* when disabled — `FormControls` does — so it needs less
+  dimming on top to stay readable. Nine sites were dimming to five different
+  values before these existed.
+
+**A token nothing references is deleted, not kept.** Fifteen had outlived their
+consumers by 2026-09-05 — five palette steps, two duplicates of the brand
+colours under an older name, two spacing steps, three type roles, a duration and
+a z-index — and nothing noticed, because a token costs nothing to keep. That is
+the problem: a vocabulary nobody prunes stops being a vocabulary and becomes a
+list, and the next reader cannot tell which entry is live.
+`tests/tokens.consumers.test.js` is what stops the next fifteen. It compares
+whole names rather than substrings, and it does not count a **test** as a
+consumer: a token asserted on only by a test is still dead in the product.
+
+The consequence is a sequencing rule worth stating: **declare a token in the
+change that gives it a consumer, not before.** `--ds-z-dropdown` was declared
+ahead of the layering work and sat unused; the rest of the z scale arrives with
+the migration that reads it.
 
 Something that is *not* a control must not read a control height. Two did:
 `MetricCard`'s icon chip and the table's selection hit area both followed

@@ -6,25 +6,36 @@
   --ds-color-slate-200: #e2e8f0;
   --ds-color-slate-300: #cbd5e1;
   --ds-color-slate-400: #94a3b8;
-  --ds-color-slate-500: #64748b;
   --ds-color-slate-600: #475569;
   --ds-color-slate-700: #334155;
   --ds-color-slate-800: #1e293b;
   --ds-color-slate-900: #0f172a;
 
-  /* Brand. The two colours of the SafeHaul mark itself — the logo paths, the
+  /* Brand. The FOUR colours of the SafeHaul mark itself — the logo paths, the
      loader and the favicon are drawn from them. They are a *brand* identity,
      not an interface role: nothing here should be re-tuned to fix a contrast
-     problem on some screen. Use the semantic roles below, never these directly. */
+     problem on some screen. Use the semantic roles below, never these directly.
+
+     The gradient pair is the mark's leading facet, and its start is ONE UNIT
+     off `brand-mint` (#0CE1A5 against #0BE2A4). That is the artwork as it was
+     authored, and it is preserved rather than tidied: collapsing the two would
+     be a change to the mark, which is an owner's call and not a refactor's.
+
+     `Logo.jsx` and `SafeHaulLoader.jsx` read these through `var()`. The favicon
+     cannot — a `data:` URI has no document to resolve a custom property
+     against — so it carries the same four values literally, and
+     `src/tests/brandAssets.test.js` pins that its literals still equal these
+     tokens. That test is the only thing standing between the tab icon and the
+     mark drifting apart, which they already had. */
   --ds-color-brand-deep: #004C68;
   --ds-color-brand-mint: #0BE2A4;
+  --ds-color-brand-mint-gradient-start: #0CE1A5;
+  --ds-color-brand-mint-gradient-end: #077B5A;
 
   /* Existing SafeHaul interface palette */
   --ds-color-blue-50: #eff6ff;
   --ds-color-blue-100: #dbeafe;
-  --ds-color-blue-200: #bfdbfe;
   --ds-color-blue-300: #93c5fd;
-  --ds-color-blue-500: #3b82f6;
   --ds-color-blue-600: #2563eb;
   --ds-color-blue-700: #1d4ed8;
   --ds-color-purple-100: #ede9fe;
@@ -43,13 +54,8 @@
   --ds-color-red-600: #dc2626;
   --ds-color-red-700: #b91c1c;
   --ds-color-red-800: #991b1b;
-  --ds-color-teal-500: #14b8a6;
-  --ds-color-teal-700: #0f766e;
-  --ds-color-safehaul-navy: #004c68;
-  --ds-color-safehaul-mint: #0be2a4;
 
   /* Spacing: 4px base with an 8px primary rhythm */
-  --ds-space-0: 0;
   --ds-space-1: 4px;
   --ds-space-2: 8px;
   --ds-space-3: 12px;
@@ -59,7 +65,6 @@
   --ds-space-8: 32px;
   --ds-space-10: 40px;
   --ds-space-12: 48px;
-  --ds-space-16: 64px;
 
   /* Typography: 12px is the supported minimum for interface text */
   --ds-font-family-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -67,7 +72,6 @@
   --ds-font-size-sm: 13px;
   --ds-font-size-body: 14px;
   --ds-font-size-body-lg: 15px;
-  --ds-font-size-label: 14px;
   --ds-font-size-heading-sm: 16px;
   --ds-font-size-heading-md: 18px;
   --ds-font-size-heading-lg: 20px;
@@ -89,8 +93,6 @@
   --ds-font-size-control-mobile: 16px;
   --ds-line-height-tight: 1.25;
   --ds-line-height-body: 1.5;
-  --ds-line-height-relaxed: 1.75;
-  --ds-font-weight-regular: 400;
   --ds-font-weight-medium: 500;
   --ds-font-weight-semibold: 600;
   --ds-font-weight-bold: 700;
@@ -144,10 +146,8 @@
   --ds-control-icon-md: 16px;
   --ds-control-icon-lg: 18px;
   --ds-duration-fast: 150ms;
-  --ds-duration-normal: 200ms;
   --ds-duration-slow: 300ms;
   --ds-ease-standard: ease;
-  --ds-z-dropdown: 10;
   --ds-z-sticky: 20;
   --ds-z-modal-backdrop: 50;
   --ds-z-modal: 60;

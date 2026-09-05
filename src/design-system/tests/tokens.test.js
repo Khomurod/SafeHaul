@@ -189,6 +189,28 @@ describe('design tokens', () => {
   });
 
   /**
+   * Disabled dimming. Two roles, and the second is a genuine second role rather
+   * than a rounding of the first — `FormControls` also recolours a disabled
+   * field, so it needs less dimming on top to stay readable.
+   */
+  it.each(['ds-opacity-disabled', 'ds-opacity-disabled-soft'])(
+    'publishes %s as a number strictly between transparent and opaque',
+    (token) => {
+      const value = Number(resolveToken(token));
+      expect(Number.isFinite(value)).toBe(true);
+      expect(value).toBeGreaterThan(0);
+      expect(value).toBeLessThan(1);
+    },
+  );
+
+  it('dims less for the role that also recolours', () => {
+    // Mutation: swap the two values and this fails. `soft` must be the lighter
+    // touch, or the role that changes two things at once is the harsher one.
+    expect(Number(resolveToken('ds-opacity-disabled-soft')))
+      .toBeGreaterThan(Number(resolveToken('ds-opacity-disabled')));
+  });
+
+  /**
    * Surface geometry. Cards that each picked their own padding and radius were
    * visibly different sizes beside one another, so the roles exist to be
    * referenced rather than re-decided.

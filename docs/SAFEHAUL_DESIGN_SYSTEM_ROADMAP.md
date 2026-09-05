@@ -1502,11 +1502,32 @@ code had already written them by hand more than once.
 `--ds-color-brand-accent` (#0BE2A4) are the mark's own two colours, and the
 product had carried them as bare hexes since the beginning — in the logo SVG, the
 loader, the favicon, and the login hero, which is the one place they are used as
-*interface* colour rather than inside artwork. `tokens.test.js` pins the resolved
-values, so a brand change is now a deliberate edit rather than a drift between
-four copies of a hex. The accent is blessed as a foreground on the inverse
-surface only: on a light surface the same colour is about 1.6:1, which is exactly
-the mistake a named token invites if nobody writes it down.
+*interface* colour rather than inside artwork. The accent is blessed as a
+foreground on the inverse surface only: on a light surface the same colour is
+about 1.6:1, which is exactly the mistake a named token invites if nobody writes
+it down.
+
+**Naming them did not stop the drift, and it took until 2026-09-05 to notice.**
+This paragraph used to end "so a brand change is now a deliberate edit rather
+than a drift between four copies of a hex". Only the login hero had actually
+moved onto the token; the logo, the loader and the favicon still carried
+literals, so there were still three copies and nothing compared them — and one
+had already diverged. **The favicon filled the mark's leading facet with a flat
+`#0CE1A5` where the logo fills it with a gradient running to `#077B5A`**, so the
+tab icon and the logo were two different pictures.
+
+Closed properly now. There are **four** brand values, not two: the gradient pair
+joins the deep and the mint, and its start sits one unit off `brand-mint`
+(#0CE1A5 against #0BE2A4) — the artwork as authored, preserved rather than
+tidied, because collapsing them would be a change to the mark. `Logo.jsx` and
+`SafeHaulLoader.jsx` read all four through `var()` and contain no hex at all.
+The favicon cannot — a `data:` URI has no document to resolve a custom property
+against — so it keeps the four literally, and `src/tests/brandAssets.test.js`
+compares them against the tokens, compares the four path shapes against the
+logo's, compares the gradient geometry, and fails if either component grows a
+literal back. **A copy nothing compares is a copy that diverges**, which is the
+general form of the lesson and the reason the fix is a test rather than an
+edit.
 
 **`Button variant="link"`.** Six screens had hand-written "an action that reads
 as inline text" — all of them using the correct tokens, and between them using

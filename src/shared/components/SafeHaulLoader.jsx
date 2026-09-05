@@ -20,7 +20,7 @@ export const SafeHaulLoader = ({ className = "", size = "h-16 w-16" }) => {
                 {/* Middle/Bottom Part - Dark Blue */}
                 <path
                     d="M76.26 51.5H115.994C118.229 51.5 120.362 52.4346 121.876 54.0776L143.684 77.7336C146.805 81.1193 147.211 86.1988 144.667 90.037L120.983 125.763C120.057 127.16 118.492 128 116.816 128H68.9479C68.5459 128 68.3082 127.549 68.5353 127.218L96.563 86.2541C98.8806 82.8668 98.613 78.3405 95.9123 75.2499L75.8835 52.329C75.6009 52.0056 75.8306 51.5 76.26 51.5Z"
-                    fill="#004C68"
+                    style={{ fill: 'var(--ds-color-brand-deep)' }}
                     className="animate-s-float"
                     style={{ animationDelay: '0.15s' }}
                 />
@@ -28,7 +28,7 @@ export const SafeHaulLoader = ({ className = "", size = "h-16 w-16" }) => {
                 {/* Top Right Part - Light Green */}
                 <path
                     d="M145.426 0.0370348L97.1296 0.476095C95.4834 0.49106 93.9501 1.31535 93.0296 2.68018L67.603 40.3817C66.7071 41.7101 67.6589 43.5 69.2612 43.5H111.534C114.663 43.5 117.611 42.0361 119.501 39.5439L147.038 3.24572C148.042 1.92198 147.088 0.0219304 145.426 0.0370348Z"
-                    fill="#0BE2A4"
+                    style={{ fill: 'var(--ds-color-brand-mint)' }}
                     className="animate-s-float"
                     style={{ animationDelay: '0.3s' }}
                 />
@@ -36,15 +36,15 @@ export const SafeHaulLoader = ({ className = "", size = "h-16 w-16" }) => {
                 {/* Bottom Left Part - Dark Blue */}
                 <path
                     d="M83.603 85.5H34.9709C33.4135 85.5 31.9451 86.2257 30.9991 87.4627L2.45845 124.785C1.45208 126.101 2.39046 128 4.04717 128H51.8679C55.0895 128 58.1139 126.448 59.9923 123.83L85.2279 88.6661C86.1775 87.3428 85.2318 85.5 83.603 85.5Z"
-                    fill="#004C68"
+                    style={{ fill: 'var(--ds-color-brand-deep)' }}
                     className="animate-s-float"
                     style={{ animationDelay: '0.45s' }}
                 />
 
                 <defs>
                     <linearGradient id="loader_paint0_linear" x1="42.5" y1="55" x2="83" y2="75.5" gradientUnits="userSpaceOnUse">
-                        <stop offset="0.283654" stopColor="#0CE1A5" />
-                        <stop offset="0.913462" stopColor="#077B5A" />
+                        <stop offset="0.283654" style={{ stopColor: 'var(--ds-color-brand-mint-gradient-start)' }} />
+                        <stop offset="0.913462" style={{ stopColor: 'var(--ds-color-brand-mint-gradient-end)' }} />
                     </linearGradient>
                 </defs>
             </svg>
