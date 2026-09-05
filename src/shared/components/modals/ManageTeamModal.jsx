@@ -4,7 +4,7 @@ import { db, functions } from '@lib/firebase';
 import { collection, query, where, doc, setDoc, onSnapshot, getDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { useToast } from '@shared/components/feedback';
-import { Avatar, Badge, Button, FieldMessage, IconButton } from '@/design-system/components';
+import { Avatar, Badge, Button, FieldMessage, IconButton, Input } from '@/design-system/components';
 import { Modal } from '@design-system/patterns';
 const DEFAULT_GOALS = { callGoal: 150, contactGoal: 50 };
 
@@ -274,12 +274,23 @@ export function ManageTeamModal({ companyId, onClose }) {
                                             <Phone size={14} className="text-ds-content-link" aria-hidden="true" />
                                             <div className="flex flex-col">
                                                 <span className="text-ds-xs font-bold uppercase text-ds-content-muted">Dials</span>
-                                                <input
+                                                {/* The name LEADS with the visible word. WCAG 2.5.3
+                                                    (Label in Name) requires the spoken name to contain
+                                                    the visible text, and "Daily dial goal for Maria
+                                                    Garcia" does not contain "Dials" — it contains
+                                                    "dial", singular — so a speech-input user saying
+                                                    "Dials" could not reach this field. The rest of the
+                                                    name stays, because the row repeats per member and
+                                                    "Dials" alone would name eight fields the same. */}
+                                                <Input
                                                     type="number"
-                                                    aria-label={`Daily dial goal for ${memberName}`}
+                                                    variant="inline"
+                                                    size="sm"
+                                                    align="center"
+                                                    width="compact"
+                                                    aria-label={`Dials — daily goal for ${memberName}`}
                                                     aria-describedby={goalError ? goalErrorId : undefined}
                                                     aria-invalid={goalError ? true : undefined}
-                                                    className="w-14 rounded-ds-sm bg-transparent text-center text-ds-sm font-bold text-ds-content outline-none focus-visible:shadow-ds-focus"
                                                     defaultValue={member.callGoal}
                                                     onBlur={(e) => handleSaveGoal(member.id, 'callGoal', e.target.value)}
                                                 />
@@ -290,12 +301,23 @@ export function ManageTeamModal({ companyId, onClose }) {
                                             <Users size={14} className="text-ds-status-success-fg" aria-hidden="true" />
                                             <div className="flex flex-col">
                                                 <span className="text-ds-xs font-bold uppercase text-ds-content-muted">Contacts</span>
-                                                <input
+                                                {/* The name LEADS with the visible word. WCAG 2.5.3
+                                                    (Label in Name) requires the spoken name to contain
+                                                    the visible text, and "Daily contact goal for Maria
+                                                    Garcia" does not contain "Contacts" — it contains
+                                                    "contact", singular — so a speech-input user saying
+                                                    "Contacts" could not reach this field. The rest of the
+                                                    name stays, because the row repeats per member and
+                                                    "Contacts" alone would name eight fields the same. */}
+                                                <Input
                                                     type="number"
-                                                    aria-label={`Daily contact goal for ${memberName}`}
+                                                    variant="inline"
+                                                    size="sm"
+                                                    align="center"
+                                                    width="compact"
+                                                    aria-label={`Contacts — daily goal for ${memberName}`}
                                                     aria-describedby={goalError ? goalErrorId : undefined}
                                                     aria-invalid={goalError ? true : undefined}
-                                                    className="w-14 rounded-ds-sm bg-transparent text-center text-ds-sm font-bold text-ds-content outline-none focus-visible:shadow-ds-focus"
                                                     defaultValue={member.contactGoal}
                                                     onBlur={(e) => handleSaveGoal(member.id, 'contactGoal', e.target.value)}
                                                 />

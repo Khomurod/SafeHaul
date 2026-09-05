@@ -124,6 +124,10 @@ Closed on 2026-09-05:
   `{ base, sm }` size and the circle-for-a-person/square-for-an-organisation rule
   come from. It is always `aria-hidden` with no way to opt out — five of the eight
   discs it replaced were announcing a bare initial beside the name it abbreviates.
+- **`Input variant="inline"`**, a field inside running content rather than a
+  form. It is deliberately *not* the published `InlineEdit` pattern — none of
+  its consumers has a read view — and it refuses to render without a name,
+  because it has no `FormField` wrapper to give it one.
 - A raw `<button>` carrying `aria-pressed` or `aria-current`, and a round disc
   holding a person's initial, are refused from here on. `SegmentedControl` and `Chip` are the toggle shapes, a `Button` with
   `pressed` is the third, and `SelectableCard` is the card. A step indicator that

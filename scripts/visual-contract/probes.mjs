@@ -152,6 +152,24 @@ export const PROBES = [
          * size everywhere — which is the change this slice researched and
          * decided against.
          */
+        /*
+         * The claim the inline variant rests on: it changes the CHROME and
+         * leaves the control scale alone. If a future edit gave the variant its
+         * own height it would drift off the scale silently — the field would
+         * still look fine on its own and would stop lining up with the button
+         * beside it, which is the failure `.ds-form-control`'s own comment
+         * records from when `md` was 40px against a 44px input.
+         */
+        story: 'components-form-structure--inline-in-chips',
+        label: 'the inline field keeps the control height and drops only the box',
+        selectors: {
+            'input[inline,compact]': ".ds-form-control[data-variant='inline'][data-width='compact']",
+            'input[inline,auto]': ".ds-form-control[data-variant='inline']:not([data-width])",
+            'input[default]': ".ds-form-control:not([data-variant])",
+        },
+        properties: ['height', 'borderTopColor', 'backgroundColor', 'width'],
+    },
+    {
         story: 'components-avatar--responsive-header',
         label: 'the avatar that is two sizes, and only a two-width probe can tell',
         selectors: {

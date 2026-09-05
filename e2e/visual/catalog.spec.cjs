@@ -106,6 +106,7 @@ const SUBJECTS = [
     ['components-sectionnavigation--with-icons', 'section-navigation'],
     ['components-form-structure--all-field-states', 'form-all-field-states'],
     ['components-form-structure--section', 'form-section'],
+    ['components-form-structure--inline-in-chips', 'form-inline-fields'],
 
     // Tables, at both densities and in every async state.
     ['components-datatable--default', 'data-table'],

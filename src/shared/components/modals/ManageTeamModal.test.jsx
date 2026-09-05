@@ -152,7 +152,7 @@ describe('ManageTeamModal', () => {
             expect(await screen.findByText('noname@example.test')).toBeInTheDocument();
             expect(screen.queryByText('Unknown')).toBeNull();
             expect(screen.queryByText('No email on file')).toBeNull();
-            expect(screen.getByRole('spinbutton', { name: 'Daily dial goal for noname@example.test' }))
+            expect(screen.getByRole('spinbutton', { name: 'Dials — daily goal for noname@example.test' }))
                 .toHaveValue(150);
         });
 
@@ -251,14 +251,37 @@ describe('ManageTeamModal', () => {
     it('applies default goals when no goal document exists', async () => {
         fs.goals = {};
         await renderLoaded();
-        expect(screen.getByRole('spinbutton', { name: 'Daily dial goal for Artificial One' })).toHaveValue(150);
-        expect(screen.getByRole('spinbutton', { name: 'Daily contact goal for Artificial One' })).toHaveValue(50);
+        expect(screen.getByRole('spinbutton', { name: 'Dials — daily goal for Artificial One' })).toHaveValue(150);
+        expect(screen.getByRole('spinbutton', { name: 'Contacts — daily goal for Artificial One' })).toHaveValue(50);
     });
 
     it('shows stored goal values with member-specific labels', async () => {
         await renderLoaded();
-        expect(screen.getByRole('spinbutton', { name: 'Daily dial goal for Artificial One' })).toHaveValue(200);
-        expect(screen.getByRole('spinbutton', { name: 'Daily contact goal for Artificial One' })).toHaveValue(80);
+        expect(screen.getByRole('spinbutton', { name: 'Dials — daily goal for Artificial One' })).toHaveValue(200);
+        expect(screen.getByRole('spinbutton', { name: 'Contacts — daily goal for Artificial One' })).toHaveValue(80);
+    });
+
+    /*
+     * WCAG 2.5.3 (Label in Name). Each goal field shows a visible `DIALS` or
+     * `CONTACTS` above it, and the spoken name has to CONTAIN that word or a
+     * speech-input user saying it cannot reach the field. The old names were
+     * "Daily dial goal for …" and "Daily contact goal for …" — singular, so
+     * neither contained its own visible label, and both failed the rule.
+     *
+     * The rest of the name has to stay: the row repeats per member, and the
+     * visible word alone would name every member's field identically.
+     */
+    it('leads each goal name with the word shown above it', async () => {
+        await renderLoaded();
+        for (const visible of ['Dials', 'Contacts']) {
+            // The list renders one chip per member, so the visible word repeats.
+            expect(screen.getAllByText(visible).length).toBeGreaterThan(0);
+            const named = screen.getByRole('spinbutton', {
+                name: `${visible} — daily goal for Artificial One`,
+            });
+            expect(named.getAttribute('aria-label')).toContain(visible);
+            expect(named.getAttribute('aria-label')).toContain('Artificial One');
+        }
     });
 
     it('renders the empty state when there are no memberships', async () => {
@@ -276,7 +299,7 @@ describe('ManageTeamModal', () => {
 
     it('saves a goal on blur with the exact path, numeric payload, and merge', async () => {
         await renderLoaded();
-        const dial = screen.getByRole('spinbutton', { name: 'Daily dial goal for Artificial One' });
+        const dial = screen.getByRole('spinbutton', { name: 'Dials — daily goal for Artificial One' });
         fireEvent.change(dial, { target: { value: '250' } });
         fireEvent.blur(dial);
 
@@ -292,7 +315,7 @@ describe('ManageTeamModal', () => {
         fs.setDoc.mockRejectedValueOnce(new Error('offline'));
         const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
         await renderLoaded();
-        const contact = screen.getByRole('spinbutton', { name: 'Daily contact goal for Artificial One' });
+        const contact = screen.getByRole('spinbutton', { name: 'Contacts — daily goal for Artificial One' });
         fireEvent.blur(contact);
 
         expect(await screen.findByRole('alert')).toHaveTextContent('Error saving goal');
@@ -305,7 +328,7 @@ describe('ManageTeamModal', () => {
         fs.setDoc.mockRejectedValueOnce(new Error('offline'));
         const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
         await renderLoaded();
-        const contact = screen.getByRole('spinbutton', { name: 'Daily contact goal for Artificial One' });
+        const contact = screen.getByRole('spinbutton', { name: 'Contacts — daily goal for Artificial One' });
         fireEvent.blur(contact);
         await screen.findByRole('alert');
 

@@ -75,6 +75,8 @@ this one true rather than aspirational.
 
 - The company chooser, the PEV carrier picker, the campaign lead preview and the
   e-doc page rail consume `SelectableCard` (2026-09-05).
+- The team modal's goal editors and the leaderboard's date range consume
+  `Input variant="inline"` (2026-09-05).
 - The topbar, the dossier header, the notes and activity tabs, the Super Admin
   user list, the team modal and the campaign lead preview consume `Avatar`
   (2026-09-05).
