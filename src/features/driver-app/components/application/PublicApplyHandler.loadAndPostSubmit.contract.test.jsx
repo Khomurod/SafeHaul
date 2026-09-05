@@ -203,11 +203,26 @@ describe('the Required Documents that follow a submission', () => {
 
     await openDocument();
 
-    await waitFor(() => expect(showSuccess).toHaveBeenCalledWith('This document is already completed.'));
+    /*
+     * Wait on the RENDER, not on the toast. The callable resolving fires
+     * `showSuccess` and schedules a state update in the same continuation, but
+     * only the first of those has happened when the toast spy is called — the
+     * re-render lands a tick later. Waiting on the spy and then reading the DOM
+     * synchronously is two different moments, and on a loaded CI runner the gap
+     * opens: this failed there on 2026-09-05 while passing locally every time,
+     * alone and in a full run, which is exactly the signature the repository's
+     * own notes record for the `EditUserBodies` leak.
+     *
+     * The disabled button and the progress line are rendered from one and the
+     * same `docStates` entry, so waiting on either one waits for both.
+     */
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Open Direct Deposit' })).toBeDisabled();
+    });
+    expect(showSuccess).toHaveBeenCalledWith('This document is already completed.');
     expect(navigateSpy).not.toHaveBeenCalled();
     expect(isRequestSigned('company-1', 'req-9')).toBe(true);
     expect(screen.getByTestId('required-documents-progress')).toHaveTextContent('1 of 1 completed');
-    expect(screen.getByRole('button', { name: 'Open Direct Deposit' })).toBeDisabled();
     expect(savePostApplySessionSpy).toHaveBeenLastCalledWith('company-1', expect.objectContaining({
       docs: { 'tpl-1': { status: 'completed', requestId: 'req-9', error: null } },
     }));
@@ -220,10 +235,14 @@ describe('the Required Documents that follow a submission', () => {
 
     await openDocument();
 
-    await waitFor(() => expect(showError).toHaveBeenCalledWith(PERMISSION_DENIED_MESSAGE));
+    // Same shape as the test above, fixed with it: the row's message is the
+    // rendered half of the state update the toast only announces.
+    const row = await screen.findByTestId('post-apply-doc-tpl-1');
+    await waitFor(() => {
+      expect(within(row).getByText(PERMISSION_DENIED_MESSAGE)).toBeInTheDocument();
+    });
+    expect(showError).toHaveBeenCalledWith(PERMISSION_DENIED_MESSAGE);
     expect(navigateSpy).not.toHaveBeenCalled();
-    const row = screen.getByTestId('post-apply-doc-tpl-1');
-    expect(within(row).getByText(PERMISSION_DENIED_MESSAGE)).toBeInTheDocument();
     expect(within(row).getByRole('button', { name: /Retry/ })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Open Direct Deposit' })).toBeEnabled();
     expect(savePostApplySessionSpy).toHaveBeenLastCalledWith('company-1', expect.objectContaining({

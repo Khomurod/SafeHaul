@@ -384,6 +384,29 @@ real time. None were code defects; all were tooling mistakes.
    actually failed has been converted, so treat this as a live hazard rather than
    a closed one.
 
+7. **Waiting on a mock is not waiting on the render it precedes.** A promise that
+   resolves and both calls a spy and sets state does the first of those
+   immediately and the second on the next tick, so
+   `await waitFor(() => expect(showSuccess).toHaveBeenCalledWith(…))` followed by
+   a synchronous `expect(screen.getBy…)` reads the DOM one render too early.
+   Locally the tick almost always lands inside `waitFor`'s own polling and the
+   test passes; on a loaded CI runner the gap opens.
+
+   This cost a CI failure on 2026-09-05:
+   `PublicApplyHandler.loadAndPostSubmit.contract.test.jsx` failed
+   `frontend-quality` on a commit whose source was byte-identical to a green one
+   (the push added two PNGs), and passed locally alone and in a full run. **Wait
+   on the rendered consequence instead** — the assertion you were going to make
+   anyway, moved inside `waitFor` — and assert the spy afterwards, when the
+   render proves the continuation finished.
+
+   The direction of the DOM assertion is what decides whether a site is exposed.
+   Asserting something *appeared* can read too early and fail; asserting
+   something is *absent or unchanged* passes either way, so it is safe. A scan on
+   2026-09-05 found seven sites of this shape in `src/`: the two positive ones,
+   both converted, and five in the `PublicApplyHandler.discard*` files that
+   assert absence and are therefore fine where they are.
+
 Also avoid editing files that are in the module graph while a Playwright suite is
 running: the dev server hot-reloads and the in-flight tests can fail spuriously.
 
