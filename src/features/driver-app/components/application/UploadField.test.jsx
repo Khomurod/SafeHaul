@@ -152,6 +152,46 @@ describe('UploadField upload lifecycle', () => {
  * in the commit that created it, and the applicant never learns that a second
  * file was turned away. Found in review on 2026-08-26.
  */
+describe('UploadField unmounting mid-upload', () => {
+  /*
+   * The fake-progress interval was cleared on success and on failure and
+   * nowhere else, so unmounting while an upload was still in flight left a
+   * 200ms timer calling `setProgress` on a component that no longer existed —
+   * for the life of the tab, for anyone who navigated away mid-upload. React 19
+   * does not warn about that, so nothing said so.
+   *
+   * It surfaced as `ReferenceError: window is not defined` in CI, the timer
+   * outliving jsdom's teardown, on a pull request that did not touch this file.
+   * Adding one unrelated test file shifted the scheduling that had been hiding
+   * it — the tell for a leak rather than a flake, since nothing here is
+   * timing-dependent except whether teardown wins the race.
+   *
+   * Reproduced before it was fixed: without the unmount cleanup this leaves a
+   * pending timer and the assertion below fails.
+   */
+  it('leaves no timer running after it is unmounted', async () => {
+    vi.useFakeTimers();
+    try {
+      // An upload that never settles, so the interval is still live at unmount.
+      const onUpload = vi.fn(() => new Promise(() => {}));
+      const { unmount } = renderField({ onUpload });
+
+      await act(async () => {
+        fireEvent.change(input(), { target: { files: [file()] } });
+      });
+
+      // The interval is running: advancing time schedules progress updates.
+      expect(vi.getTimerCount()).toBeGreaterThan(0);
+
+      unmount();
+
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
 describe('UploadField rejected-drop feedback', () => {
   beforeEach(() => vi.clearAllMocks());
 
