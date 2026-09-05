@@ -9,7 +9,7 @@ import {
     Mail,
     History,
 } from 'lucide-react';
-import { ButtonLink, TabList } from '@design-system/components';
+import { Avatar, ButtonLink, TabList } from '@design-system/components';
 import { StatusBadge } from '@shared/components/badges/StatusBadge';
 import { useCompactViewport } from './useCompactViewport';
 
@@ -86,12 +86,14 @@ export function DossierSidebar({
             {/* Identity Header */}
             <div className="border-b border-ds-border-subtle bg-ds-surface p-ds-4 sm:p-ds-6">
                 <div className="flex items-center gap-ds-4">
-                    <span
-                        aria-hidden="true"
-                        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-ds-full border-2 border-ds-surface bg-ds-status-info-bg text-ds-body-lg font-bold text-ds-status-info-fg shadow-ds-xs sm:h-16 sm:w-16 sm:text-ds-heading-sm"
-                    >
+                    {/* 48px on a phone, 64px from 640px up — unchanged, and now
+                        expressed through the contract's own responsive size
+                        rather than a hand-written `sm:` pair. Primer types its
+                        avatar the same way, for the same reason: a profile
+                        header wants a larger disc where there is room. */}
+                    <Avatar size={{ base: 'lg', sm: 'xl' }} tone="info" bordered>
                         {initials}
-                    </span>
+                    </Avatar>
                     <div className="min-w-0">
                         {/*
                           `<h2>` under the dialog's own accessible name. The name

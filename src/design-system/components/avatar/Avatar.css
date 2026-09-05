@@ -1,0 +1,143 @@
+/*
+ * A fixed square whose size the layout chooses — see `Avatar.jsx` for the
+ * published scales this one matches.
+ */
+.ds-avatar {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--ds-radius-full);
+  background: var(--ds-avatar-bg);
+  color: var(--ds-avatar-fg);
+  font-weight: var(--ds-font-weight-bold);
+  line-height: 1;
+  overflow: hidden;
+  text-transform: uppercase;
+  user-select: none;
+}
+
+/*
+ * Height, width AND type step together. A disc that grows without its initial
+ * growing looks like a mistake, and every call site this replaced set both by
+ * hand — which is how two of them ended up with the same 40px disc carrying
+ * different text sizes.
+ */
+.ds-avatar[data-size='xs'] {
+  width: var(--ds-avatar-size-xs);
+  height: var(--ds-avatar-size-xs);
+  font-size: var(--ds-font-size-xs);
+}
+.ds-avatar[data-size='sm'] {
+  width: var(--ds-avatar-size-sm);
+  height: var(--ds-avatar-size-sm);
+  font-size: var(--ds-font-size-sm);
+}
+.ds-avatar[data-size='md'] {
+  width: var(--ds-avatar-size-md);
+  height: var(--ds-avatar-size-md);
+  font-size: var(--ds-font-size-body);
+}
+.ds-avatar[data-size='lg'] {
+  width: var(--ds-avatar-size-lg);
+  height: var(--ds-avatar-size-lg);
+  font-size: var(--ds-font-size-body-lg);
+}
+.ds-avatar[data-size='xl'] {
+  width: var(--ds-avatar-size-xl);
+  height: var(--ds-avatar-size-xl);
+  font-size: var(--ds-font-size-heading-sm);
+}
+
+/*
+ * The responsive step. Written as its own block at the same weight rather than
+ * inside each size rule, so the two halves of a responsive size cannot drift:
+ * `data-size` is what shows below 640px and `data-size-sm` is what replaces it
+ * above, whatever the pair.
+ */
+@media (min-width: 640px) {
+  .ds-avatar[data-size-sm='xs'] {
+    width: var(--ds-avatar-size-xs);
+    height: var(--ds-avatar-size-xs);
+    font-size: var(--ds-font-size-xs);
+  }
+  .ds-avatar[data-size-sm='sm'] {
+    width: var(--ds-avatar-size-sm);
+    height: var(--ds-avatar-size-sm);
+    font-size: var(--ds-font-size-sm);
+  }
+  .ds-avatar[data-size-sm='md'] {
+    width: var(--ds-avatar-size-md);
+    height: var(--ds-avatar-size-md);
+    font-size: var(--ds-font-size-body);
+  }
+  .ds-avatar[data-size-sm='lg'] {
+    width: var(--ds-avatar-size-lg);
+    height: var(--ds-avatar-size-lg);
+    font-size: var(--ds-font-size-body-lg);
+  }
+  .ds-avatar[data-size-sm='xl'] {
+    width: var(--ds-avatar-size-xl);
+    height: var(--ds-avatar-size-xl);
+    font-size: var(--ds-font-size-heading-sm);
+  }
+}
+
+/* A person is a circle; an organisation or a bot is not. Primer's rule. */
+.ds-avatar[data-shape='square'] {
+  border-radius: var(--ds-radius-md);
+}
+
+.ds-avatar[data-bordered] {
+  border: 2px solid var(--ds-color-surface);
+  box-shadow: var(--ds-shadow-xs);
+}
+
+.ds-avatar[data-tone='neutral'] {
+  --ds-avatar-bg: var(--ds-color-status-neutral-bg);
+  --ds-avatar-fg: var(--ds-color-status-neutral-fg);
+}
+.ds-avatar[data-tone='info'] {
+  --ds-avatar-bg: var(--ds-color-status-info-bg);
+  --ds-avatar-fg: var(--ds-color-status-info-fg);
+}
+.ds-avatar[data-tone='success'] {
+  --ds-avatar-bg: var(--ds-color-status-success-bg);
+  --ds-avatar-fg: var(--ds-color-status-success-fg);
+}
+.ds-avatar[data-tone='warning'] {
+  --ds-avatar-bg: var(--ds-color-status-warning-bg);
+  --ds-avatar-fg: var(--ds-color-status-warning-fg);
+}
+.ds-avatar[data-tone='danger'] {
+  --ds-avatar-bg: var(--ds-color-status-danger-bg);
+  --ds-avatar-fg: var(--ds-color-status-danger-fg);
+}
+.ds-avatar[data-tone='accent'] {
+  --ds-avatar-bg: var(--ds-color-status-accent-bg);
+  --ds-avatar-fg: var(--ds-color-status-accent-fg);
+}
+/* A filled disc, for a person the interface is treating as the subject. */
+.ds-avatar[data-tone='primary'] {
+  --ds-avatar-bg: var(--ds-color-action-primary);
+  --ds-avatar-fg: var(--ds-color-content-inverse);
+}
+/* On the console-dark panel, where the light tints are close to invisible. */
+.ds-avatar[data-tone='inverse'] {
+  --ds-avatar-bg: var(--ds-color-surface-inverse-subtle);
+  --ds-avatar-fg: var(--ds-color-content-on-inverse);
+}
+
+/*
+ * The ring on the inverse surface is the CONTENT-muted role, not the border one.
+ *
+ * `--ds-color-border-inverse` is slate-700, and these discs sit on slate-900:
+ * measured side by side the ring all but disappears, which is the opposite of
+ * what a ring is for. The lead-preview row that needed one had already chosen
+ * `content-on-inverse-muted` (slate-400) by hand and said why — it reads on both
+ * the excluded and included row, and matches the selection indicator beside it.
+ * Taking the darker role would have quietly lost that.
+ */
+.ds-avatar[data-tone='inverse'][data-bordered] {
+  border-color: var(--ds-color-content-on-inverse-muted);
+}

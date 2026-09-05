@@ -5,7 +5,7 @@ import { getPortalUser } from '@features/auth/services/userService';
 import { Send, MessageSquare, Clock, History } from 'lucide-react';
 import { logActivity } from '@shared/utils/activityLogger';
 import { sanitizeUserContent } from '@shared/utils/sanitizeUserContent';
-import { Badge, Button, Card, FieldMessage, FormField, Textarea } from '@/design-system/components';
+import { Avatar, Badge, Button, Card, FieldMessage, FormField, Textarea } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { EmptyState, LoadingState } from '@design-system/patterns';
 
@@ -233,12 +233,9 @@ export function NotesTab({ companyId, applicationId, collectionName = 'applicati
                                         <History size={14} />
                                     </span>
                                 ) : (
-                                    <span
-                                        aria-hidden="true"
-                                        className="flex h-8 w-8 items-center justify-center rounded-ds-full bg-ds-surface-subtle text-ds-xs font-bold text-ds-content-secondary"
-                                    >
+                                    <Avatar size="sm" tone="neutral">
                                         {note.author ? note.author.charAt(0).toUpperCase() : 'A'}
-                                    </span>
+                                    </Avatar>
                                 )}
                             </div>
 

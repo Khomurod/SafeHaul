@@ -99,6 +99,50 @@ export function countHandRolledCurrent(code) {
 }
 
 /**
+ * A hand-rolled avatar: a sized round disc whose content is a person's initial.
+ *
+ * ## Why the content and not just the shape
+ *
+ * The obvious rule — "a `rounded-ds-full` box with a fixed square size" — was
+ * measured before it was written, and it matched **25 elements of which only 8
+ * were avatars.** The other seventeen are four different things that happen to
+ * be circles: a glyph in a disc (an empty-state medallion, which
+ * `StatusMedallion` already owns), an unread-count badge, a numbered step
+ * marker in a progress indicator, a radio dot and a selection indicator.
+ *
+ * A rule that cannot tell them apart would demand `Avatar` for all of them, and
+ * `Avatar` is the wrong answer for every one — the same mistake
+ * `hand-rolled-current` avoids by staying on `<button>`. So the rule reads what
+ * the disc HOLDS. An avatar holds a person's initial, and in this tree that is
+ * derived exactly three ways: an `initials` binding, `.charAt(0)`, or `name[0]`.
+ * Measured against the live tree: 8 matched, 17 left alone, and after the
+ * migration 0 and 17.
+ */
+const DISC_ROUND = /\brounded-ds-full\b/;
+const DISC_CENTRED = /\bitems-center\b/;
+const DISC_SIZED = /\b[hw]-\d+\b/;
+const FROM_A_NAME = /\binitials?\b|\.charAt\(0\)|\bname\s*\[\s*0\s*\]/i;
+
+export function countHandRolledAvatars(code) {
+    let total = 0;
+    for (const match of code.matchAll(/<(span|div)(?=[\s/>])/g)) {
+        const rest = code.slice(match.index);
+        const attributes = openTagAttributes(rest, match[1])[0] ?? '';
+        if (!(DISC_ROUND.test(attributes) && DISC_CENTRED.test(attributes)
+            && DISC_SIZED.test(attributes))) continue;
+        /*
+         * The body up to the first close tag. An avatar's child is a single
+         * expression, so this never needs to balance nesting — and reading
+         * further would start matching the NEXT element's content.
+         */
+        const open = rest.indexOf('>');
+        const body = rest.slice(open + 1, open + 300).split('</')[0];
+        if (FROM_A_NAME.test(body)) total += 1;
+    }
+    return total;
+}
+
+/**
  * The primitives that validate `label` and throw on anything but a non-empty
  * string. Kept beside the counter that reads them so the two cannot drift.
  */
@@ -159,6 +203,7 @@ export const COUNTERS = {
     'jsx-label-on-throwing-primitive': countJsxLabelsOnThrowingPrimitives,
     'hand-rolled-toggle': countHandRolledToggles,
     'hand-rolled-current': countHandRolledCurrent,
+    'hand-rolled-avatar': countHandRolledAvatars,
 };
 
 /**

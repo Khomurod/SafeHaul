@@ -143,6 +143,37 @@ export const PROBES = [
         properties: ['borderTopWidth', 'boxShadow', 'borderTopColor', 'backgroundColor'],
     },
     {
+        /*
+         * The whole point of the responsive step, measured at both widths
+         * because that is the only way to see it: this probe runs at 412 and
+         * 1440, so one snapshot entry reads 48px and the other 64px from the
+         * SAME element. A single-width check would pass over a media query that
+         * had stopped applying, and the dossier header would quietly become one
+         * size everywhere — which is the change this slice researched and
+         * decided against.
+         */
+        story: 'components-avatar--responsive-header',
+        label: 'the avatar that is two sizes, and only a two-width probe can tell',
+        selectors: {
+            'avatar[lg→xl]': ".ds-avatar[data-size='lg'][data-size-sm='xl']",
+        },
+        properties: ['width', 'height', 'fontSize'],
+    },
+    {
+        /*
+         * The scale as numbers, because it is a claim about matching published
+         * systems rather than a matter of taste: these five are GitHub Primer's
+         * avatar steps. A step that drifted would still look fine and would no
+         * longer be the standard the README cites.
+         */
+        story: 'components-avatar--sizes',
+        label: 'the five steps, which are Primer\'s steps',
+        selectors: Object.fromEntries(
+            ['xs', 'sm', 'md', 'lg', 'xl'].map((step) => [`avatar[${step}]`, `.ds-avatar[data-size='${step}']`]),
+        ),
+        properties: ['width', 'height'],
+    },
+    {
         story: 'components-chip--sizes',
         label: 'the chip steps, measured against the controls they claim to match',
         selectors: {

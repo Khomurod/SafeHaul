@@ -1,5 +1,5 @@
 import React from 'react';
-import { Chip, IconButton, defineTableColumns } from '@/design-system/components';
+import { Avatar, Chip, IconButton, defineTableColumns } from '@/design-system/components';
 import {
     Icon as DsIcon,
     Phone, User, Briefcase, MapPin, Calendar, ArrowUp, ArrowDown,
@@ -277,9 +277,9 @@ export function buildCandidateColumns({ sortConfig, handleDateSort, handlePhoneC
                 if (item.assignedToName) {
                     return (
                         <span className="inline-flex items-center gap-1.5 text-ds-xs font-medium text-ds-content bg-ds-surface-subtle px-2 py-1 rounded-ds-full border border-ds-border-subtle">
-                            <span className="w-5 h-5 bg-ds-status-accent-bg text-ds-status-accent-fg rounded-ds-full flex items-center justify-center text-ds-xs font-bold" aria-hidden="true">
+                            <Avatar size="xs" tone="accent">
                                 {item.assignedToName.charAt(0)}
-                            </span>
+                            </Avatar>
                             {item.assignedToName}
                         </span>
                     );

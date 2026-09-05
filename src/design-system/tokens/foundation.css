@@ -182,6 +182,27 @@
    * planned `Avatar` own; giving them icon names would settle that vocabulary in
    * the wrong place before it is designed.
    */
+  /*
+   * The avatar scale — a disc standing for a person or an organisation.
+   *
+   * Its own scale, not the control-height or icon one, because an avatar is
+   * neither a control nor a glyph: it is a fixed square whose size the LAYOUT
+   * chooses. Every step is a step in GitHub Primer's avatar scale, which is the
+   * closest published reference for an application this dense (base-4 to 32px,
+   * then base-8 to 48, with 64 the largest). Shopify Polaris and Atlassian
+   * overlap it at 20, 32, 40 and 48.
+   *
+   * 36px is deliberately absent, and two call sites used it: Primer's scale
+   * skips it for the same reason (base-4 stops at 32 and base-8 starts there),
+   * so those two moved to 40. 24px is absent because the one 24px disc in the
+   * tree is a numbered step marker in a progress indicator, not an avatar.
+   */
+  --ds-avatar-size-xs: 20px;
+  --ds-avatar-size-sm: 32px;
+  --ds-avatar-size-md: 40px;
+  --ds-avatar-size-lg: 48px;
+  --ds-avatar-size-xl: 64px;
+
   --ds-icon-size-xs: 12px;
   --ds-icon-size-sm: 14px;
   --ds-icon-size-md: 16px;

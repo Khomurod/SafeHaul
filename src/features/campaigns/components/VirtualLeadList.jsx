@@ -3,7 +3,7 @@ import { Virtuoso } from 'react-virtuoso';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/lib/firebase/config';
 import { CheckCircle2, Inbox, Loader2, XCircle } from 'lucide-react';
-import { Badge, Button, SelectableCard } from '@/design-system/components';
+import { Avatar, Badge, Button, SelectableCard } from '@/design-system/components';
 import { EmptyState, ErrorState, LoadingState } from '@/design-system/patterns';
 
 /**
@@ -143,9 +143,9 @@ export default function VirtualLeadList({ companyId, filters, excludedIds = [], 
                     panel when they are not, so any single fill is invisible against one
                     of the two. The ring reads on both, and matches the selection
                     indicator beside it. */}
-                <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-ds-full border border-ds-content-on-inverse-muted text-ds-sm font-bold text-ds-content-on-inverse">
+                <Avatar size="md" tone="inverse" bordered>
                     {name[0] || '?'}
-                </span>
+                </Avatar>
 
                 {/* Info */}
                 <span className="min-w-0 flex-1">
