@@ -1107,7 +1107,17 @@ business logic; `src/app` owns routing and composition.
 Reuse approved components and semantic `--ds-*` tokens. Do not add a local
 button, modal, form control, table, status treatment, arbitrary color or
 unsupported font size unless the roadmap records the gap and the code documents
-the temporary exception. **No 9px or 10px body text.** Update the roadmap with
+the temporary exception. **No 9px or 10px body text.**
+
+Two contracts have no exception route at all, because both are enforced by the
+code refusing to run rather than by a check that has to notice. A dialog goes
+through `Modal` and takes its size and shape from the chrome contract — the
+props that used to let a call site replace that wholesale now throw. And every
+glyph comes from `@design-system/icons` at a step on the icon scale
+(`xs`…`3xl`, 12–32px): the registry hands out **tokens**, not components, so
+`<Trash2 size={13} />` throws by name at the call site. 178 files outside the
+design system still import `lucide-react` directly; they are migrated area by
+area, and the guard that refuses a new one lands with that campaign. Update the roadmap with
 evidence in the same task, and never mark an item complete without the
 functional, visual, mobile, accessibility, documentation and diff checks
 actually having run.
@@ -1125,7 +1135,7 @@ nothing looked:
 | `npm run check:table-layout` | yes | A cell narrower than its content, in a real browser at 412px and 1440px — for `DataTable` and the `ds-native-table` contract |
 | `npm run check:visual-contract` | yes | A change to computed geometry — control heights, cell padding, radii, resolved colours, and a frozen table column losing its opaque background |
 | `npm run test:stories` | yes | A story that fails to render, or fails axe |
-| `npm run test:visual` | **yes**, since 2026-08-25 | A change to how anything *looks*, across 71 catalog subjects and 15 real screens at both widths |
+| `npm run test:visual` | **yes**, since 2026-08-25 | A change to how anything *looks*, across 78 catalog subjects and 15 real screens at both widths |
 | `npm run test:e2e -- --grep "@a11y"` | **yes**, since 2026-08-25 | Real-browser axe on the mobile-critical journeys, plus keyboard behaviour: roving `tabIndex`, arrow/Home/End, and that every control a Tab press reaches shows the product's focus ring |
 
 Two of those became blocking on 2026-08-25, and the pixel lane is the one worth

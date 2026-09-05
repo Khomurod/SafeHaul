@@ -1,4 +1,5 @@
 import React, { useId } from 'react';
+import { Icon as DsIcon } from '../../icons';
 import './SectionNavigation.css';
 
 const KEYBOARD_KEYS = new Set(['ArrowDown', 'ArrowUp', 'Home', 'End']);
@@ -88,10 +89,10 @@ export function SectionNavigation({
                         onKeyDown={moveItemFocus}
                       >
                         {Icon && (
-                          <Icon
+                          <DsIcon
+                            icon={Icon}
+                            size="xl"
                             className="ds-section-navigation__icon"
-                            size={20}
-                            aria-hidden="true"
                           />
                         )}
                         <span className="ds-section-navigation__label">{item.label}</span>

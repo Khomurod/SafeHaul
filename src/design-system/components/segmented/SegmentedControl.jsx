@@ -1,4 +1,5 @@
 import React from 'react';
+import { Icon as DsIcon } from '../../icons';
 import './SegmentedControl.css';
 
 /**
@@ -84,7 +85,7 @@ export function SegmentedControl({
             data-tone={option.tone || 'neutral'}
             data-selected={isSelected || undefined}
           >
-            {Icon && <Icon aria-hidden="true" />}
+            {Icon && <DsIcon icon={Icon} size="md" />}
             <span className="ds-segmented__label">{option.label}</span>
           </button>
         );

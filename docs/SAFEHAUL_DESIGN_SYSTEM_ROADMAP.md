@@ -123,6 +123,28 @@ The reverse directions are prohibited and enforced by
   `.ds-button__content`, so a call site does not set it either.
   `check:visual-contract` measures both halves at all three sizes; until
   2026-08-25 it measured only the icon.
+- **Every glyph comes from `@design-system/icons`, at a step on the scale.**
+  `--ds-icon-size-{xs,sm,md,lg,xl,2xl,3xl}` is 12 / 14 / 16 / 18 / 20 / 24 / 32px,
+  and `--ds-control-icon-{sm,md,lg}` — which named three of those numbers first —
+  are aliases of it, because two vocabularies for one set of numbers is a
+  guarantee that they drift. Nothing below 12px: a stroked glyph loses its
+  interior and reads as a smudge.
+
+  A glyph is imported as a **token**, not a component, so `<Trash2 size={13} />`
+  throws by name at the call site. That is deliberate and is the whole point:
+  re-exporting the components would have let every one of 209 files move to the
+  new import path while keeping whatever pixel number it already passed. A static
+  rule cannot close that, because the commonest shape hides the name entirely —
+  `const Glyph = ICONS[status]; <Glyph size={16} />`.
+
+  `Icon.css` states its sizes through `:where()`, at zero specificity, so the
+  rule above — a container sizes the glyph it contains — still wins every
+  argument. Written as a plain class selector it would have silently made every
+  icon in every button 16px.
+
+  Decorative glyphs are `aria-hidden`; a glyph that *is* the control takes
+  `label` and becomes `role="img"` with that name. A blank `label` throws rather
+  than announcing an image and then saying nothing about it.
 - **Status is never colour alone** — always text or icon plus tone.
 - **A state must announce itself.** Loading and empty are `role="status"`
   (polite); errors are `role="alert"`. Use `EmptyState` / `ErrorState` /
@@ -1608,11 +1630,17 @@ every consumer that can use it does:
 | Single-select toggle group | `components/segmented` | 2026-08-25 |
 | File picker | `components/file-input` | 2026-08-25 |
 | Table (display and native) | `components/data-table` + `ds-native-table` | 2026-08-25 |
+| Icons | `icons/` (`Icon` + 171 glyph tokens) | 2026-09-05 |
 
-Families still in progress — inputs, select/textarea, icons, loading primitives
-beyond `ProgressBar` — are tracked by the guardrail work in §7 rather than by a
-list of screens, because the screens are done and what remains is preventing
-regression.
+Families still in progress — inputs, select/textarea, loading primitives beyond
+`ProgressBar` — are tracked by the guardrail work in §7 rather than by a list of
+screens, because the screens are done and what remains is preventing regression.
+
+The icon row means the **contract** is complete and the design system is on it:
+`Icon`, the scale, the accessible-name rule, and every container that receives a
+glyph as a prop. It does not mean the migration is finished — 178 files outside
+the design system still import `lucide-react`, and the family is not closed
+until the last of them is migrated and the guard refusing a new one is absolute.
 
 **"A primitive existing is not the same as the exception being gone."** That
 sentence sat in this section for four days while being untrue of five of the

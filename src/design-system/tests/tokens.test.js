@@ -186,6 +186,50 @@ describe('design tokens', () => {
         expect(resolveToken(`ds-control-icon-${step}`)).toBeTruthy();
       }
     });
+
+    /**
+     * The icon scale. Six steps, and the three control aliases that named the
+     * same numbers first.
+     */
+    it.each([['xs', 12], ['sm', 14], ['md', 16], ['lg', 18], ['xl', 20], ['2xl', 24], ['3xl', 32]])(
+      'publishes the %s icon step as %ipx',
+      (step, px) => {
+        expect(resolveToken(`ds-icon-size-${step}`)).toBe(`${px}px`);
+      },
+    );
+
+    it('keeps the control icon aliases resolving to the same three steps', () => {
+      // Two vocabularies for one set of numbers is a guarantee that they drift.
+      // `--ds-control-icon-*` stayed because 12 stylesheets read it; it now
+      // reads from the scale, and `resolveToken` follows the reference, so this
+      // fails the moment either side is edited on its own.
+      for (const step of ['sm', 'md', 'lg']) {
+        expect(resolveToken(`ds-control-icon-${step}`)).toBe(resolveToken(`ds-icon-size-${step}`));
+      }
+    });
+
+    it('starts the scale at 12px, which is the floor a stroked glyph survives', () => {
+      const sizes = ['xs', 'sm', 'md', 'lg', 'xl', '2xl', '3xl']
+        .map((step) => Number.parseInt(resolveToken(`ds-icon-size-${step}`), 10));
+      expect(Math.min(...sizes)).toBeGreaterThanOrEqual(12);
+      expect([...sizes].sort((a, b) => a - b)).toEqual(sizes);
+    });
+
+    it('states the icon sizes at zero specificity so containers still win', () => {
+      /*
+       * The single most losable property of this file. `Button.css` and
+       * `Tabs.css` size the glyph a control contains, and have since before the
+       * icon contract existed. Written as `.ds-icon[data-size='md']` (0-2-0)
+       * these rules would outrank both and every icon in every button would
+       * become 16px — silently, because a wrong size is not an error.
+       */
+      const iconCss = readCss('../icons/Icon.css');
+      const sizeRules = [...iconCss.matchAll(/^([^\n{]*\[data-size[^\n{]*)\{/gm)].map((m) => m[1].trim());
+      expect(sizeRules.length).toBe(7);
+      for (const selector of sizeRules) {
+        expect(selector.startsWith(':where(')).toBe(true);
+      }
+    });
   });
 
   /**

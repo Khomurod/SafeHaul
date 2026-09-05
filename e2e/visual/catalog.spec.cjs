@@ -45,6 +45,8 @@ const SUBJECTS = [
     ['foundations-control-scale--every-control', 'control-scale-every-control'],
     ['foundations-control-scale--icon-normalisation', 'control-scale-icons'],
     ['foundations-control-scale--labelled-field-with-action', 'control-scale-labelled-field'],
+    ['foundations-icons--sizes', 'icon-sizes'],
+    ['foundations-icons--inside-controls', 'icon-inside-controls'],
 
     // Primitives. Each subject is the story that shows the *most states*, not
     // the `--default` one: a first draft of this list used `badge--default`,

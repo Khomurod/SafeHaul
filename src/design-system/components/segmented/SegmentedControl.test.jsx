@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CheckCircle, Clock } from 'lucide-react';
+import { CheckCircle, Clock } from '../../icons';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { axe } from 'vitest-axe';
 import { describe, expect, it, vi } from 'vitest';

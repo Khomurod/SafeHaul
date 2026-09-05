@@ -142,9 +142,43 @@
    * size is the design system's decision and a call site cannot diverge from it.
    * A nested multi-line tile keeps its own composition; see the note there.
    */
-  --ds-control-icon-sm: 14px;
-  --ds-control-icon-md: 16px;
-  --ds-control-icon-lg: 18px;
+  /*
+   * The icon scale, and the control aliases that were here first.
+   *
+   * `--ds-control-icon-*` named three sizes for the glyphs a CONTROL renders —
+   * a button's leading icon, a tab's marker. They are still the same three
+   * numbers and every consumer is untouched; they now read from the general
+   * scale below, because an icon inside a button and an icon on its own are the
+   * same six sizes, and having two vocabularies for that guarantees they drift.
+   *
+   * Seven steps. Nothing smaller than 12px: below that a stroked glyph loses its
+   * interior and reads as a smudge, which is the same floor the type scale has
+   * for the same reason — and 13 call sites at 10px and 11px move up to it.
+   *
+   * `xs` through `2xl` are the text-adjacent steps and sit 2px apart, because
+   * that is the resolution at which a glyph beside a word can be wrong. `3xl` is
+   * the display step and jumps to 32: it is the glyph ABOVE a sentence — an
+   * empty state, an error state — where nothing has to line up with type. It is
+   * here because 738 measured glyph uses put 14 of them at exactly 32px,
+   * including `DataTable`'s own two, and a scale that cannot say what the design
+   * system itself renders is a scale people work around.
+   *
+   * The measurement's remaining outliers — 36, 40 and 48 — are deliberately NOT
+   * steps. Those are discs and medallions, which `StatusMedallion` and the
+   * planned `Avatar` own; giving them icon names would settle that vocabulary in
+   * the wrong place before it is designed.
+   */
+  --ds-icon-size-xs: 12px;
+  --ds-icon-size-sm: 14px;
+  --ds-icon-size-md: 16px;
+  --ds-icon-size-lg: 18px;
+  --ds-icon-size-xl: 20px;
+  --ds-icon-size-2xl: 24px;
+  --ds-icon-size-3xl: 32px;
+
+  --ds-control-icon-sm: var(--ds-icon-size-sm);
+  --ds-control-icon-md: var(--ds-icon-size-md);
+  --ds-control-icon-lg: var(--ds-icon-size-lg);
   --ds-duration-fast: 150ms;
   --ds-duration-slow: 300ms;
   --ds-ease-standard: ease;

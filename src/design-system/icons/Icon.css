@@ -1,0 +1,32 @@
+/**
+ * Icon geometry.
+ *
+ * ## Why `:where()`
+ *
+ * Two rules already size the glyphs a container owns:
+ *
+ *     .ds-button__content > svg { width: var(--ds-button-icon-size); … }
+ *     .ds-tab > svg             { width: var(--ds-control-icon-md);  … }
+ *
+ * That is deliberate and older than this file — a button decides how big the
+ * icon inside it is, so a call site cannot make one button's icon bigger than
+ * the next one's. `:where()` has zero specificity, so `[data-size]` here states
+ * the default and those container rules still win, exactly as they did when the
+ * glyph came straight from the package.
+ *
+ * Written the obvious way (`.ds-icon[data-size='md']`, specificity 0-2-0) this
+ * file would have quietly overridden both, and every icon in every button would
+ * have become 16px regardless of the button's size.
+ */
+
+:where(.ds-icon) {
+  flex-shrink: 0;
+}
+
+:where(.ds-icon[data-size='xs']) { width: var(--ds-icon-size-xs); height: var(--ds-icon-size-xs); }
+:where(.ds-icon[data-size='sm']) { width: var(--ds-icon-size-sm); height: var(--ds-icon-size-sm); }
+:where(.ds-icon[data-size='md']) { width: var(--ds-icon-size-md); height: var(--ds-icon-size-md); }
+:where(.ds-icon[data-size='lg']) { width: var(--ds-icon-size-lg); height: var(--ds-icon-size-lg); }
+:where(.ds-icon[data-size='xl']) { width: var(--ds-icon-size-xl); height: var(--ds-icon-size-xl); }
+:where(.ds-icon[data-size='2xl']) { width: var(--ds-icon-size-2xl); height: var(--ds-icon-size-2xl); }
+:where(.ds-icon[data-size='3xl']) { width: var(--ds-icon-size-3xl); height: var(--ds-icon-size-3xl); }

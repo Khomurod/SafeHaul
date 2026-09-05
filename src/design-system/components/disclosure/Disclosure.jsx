@@ -1,5 +1,5 @@
 import React, { useId } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Icon } from '../../icons';
 import './Disclosure.css';
 
 /**
@@ -89,7 +89,7 @@ export function Disclosure({
         >
           <span className="ds-disclosure__title">{title}</span>
           {meta && <span className="ds-disclosure__meta">{meta}</span>}
-          <ChevronDown className="ds-disclosure__chevron" aria-hidden="true" />
+          <Icon icon={ChevronDown} className="ds-disclosure__chevron" />
         </button>
       </Heading>
       {/*

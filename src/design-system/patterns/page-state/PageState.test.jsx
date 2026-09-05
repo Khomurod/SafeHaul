@@ -1,5 +1,5 @@
 import React from 'react';
-import { Inbox, Loader, RefreshCw } from 'lucide-react';
+import { Icon, Inbox, Loader, RefreshCw } from '../../icons';
 import { render, screen } from '@testing-library/react';
 import { axe } from 'vitest-axe';
 import { describe, expect, it } from 'vitest';
@@ -198,7 +198,7 @@ describe('the way forward', () => {
       <ErrorState
         title="Could not load"
         description="The connection was interrupted."
-        actions={<Button variant="secondary"><RefreshCw aria-hidden="true" />Try again</Button>}
+        actions={<Button variant="secondary"><Icon icon={RefreshCw} />Try again</Button>}
       />,
     );
     expect(screen.getByRole('button', { name: /Try again/ })).toBeInTheDocument();
