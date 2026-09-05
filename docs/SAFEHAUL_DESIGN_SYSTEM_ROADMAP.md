@@ -745,7 +745,7 @@ weaken or delete one without replacing the guarantee.
 | `src/tests/noBlockingBrowserDialogs.test.js` | No `confirm(` / `alert(` anywhere under `src/`, with or without a `window.` prefix. It walks every non-test file, strips comments and string literals, and is proven to catch a real call rather than passing vacuously |
 | `npm run test:stories` (`src/tests/designSystemStories.a11y.test.jsx`) | Every catalog story renders and passes axe |
 | `npm run check:table-layout` (`scripts/check-table-layout.mjs`) | Measures the built catalog in a real browser at 412px and 1440px: a cell must contain its content (`scrollWidth > clientWidth` is a violation unless the column opts into `truncate`), and no region may reserve a gutter it never scrolls into. Covers `DataTable` **and** the `ds-native-table` contract — until 2026-08-25 no native table was measured anywhere, so the fifteen tables across eleven files that are not `DataTable` had no layout guard at all. Honours `PW_CHROMIUM_EXECUTABLE`, so it runs in a sandbox whose Chromium is not the pinned build — a guard that cannot run gets skipped |
-| `npm run check:ui-contract` (`scripts/check-ui-contract.mjs`) | The design-system contract, zero-tolerance. Raw palette classes, raw hex, sub-12px text, off-scale type, **Tailwind radii and shadows** (whose names collide with the `--ds-*` ones one step off), hand-built overlays, raw tables, hand-styled buttons/fields/anchors, **hand-rolled tablists, raw file inputs and hand-written `target="_blank"`** — in JSX, in stories and in CSS. Measured against `src/design-system/ui-contract.allowlist.json`: anything unlisted fails, so does a count *lower* than recorded, so does an entry that does not say why it is allowed, and so does an approved native table that does not apply `ds-native-table` — counted **per `<table>`**, not per file, because the first version of that rule was satisfied by one class in a file with three tables, and one of the eleven approved files has exactly that. There is no exemption for an invisible table: that carve-out was removed after review round eight, because deciding "is this hidden?" from a class list means deciding it across Tailwind's whole variant space. **Since 2026-09-05 the scan reaches `index.html`** as well as `src/`, because Tailwind compiles it and a class written there ships in the application stylesheet exactly like one written in a component — which is how `<body class="bg-gray-50">` survived the whole campaign unseen. Allowlist keys are repo-relative from version 2 as a result. **Since 2026-09-04 the allowlist is itself compared against the base commit** (`scripts/ui-contract/baseline.mjs`, sharing the size guard's `SOURCE_SIZE_BASE`): an entry may only record a violation the base already carried, `--update` refuses to write an addition, and CI passes `--require-baseline` from `callable-contract`, which no lane selection can skip |
+| `npm run check:ui-contract` (`scripts/check-ui-contract.mjs`) | The design-system contract, zero-tolerance. Raw palette classes, raw hex, sub-12px text, off-scale type, **Tailwind radii and shadows** (whose names collide with the `--ds-*` ones one step off), hand-built overlays, raw tables, hand-styled buttons/fields/anchors, **hand-rolled tablists, raw file inputs and hand-written `target="_blank"`** — in JSX, in stories and in CSS. Measured against `src/design-system/ui-contract.allowlist.json`: anything unlisted fails, so does a count *lower* than recorded, so does an entry that does not say why it is allowed, and so does an approved native table that does not apply `ds-native-table` — counted **per `<table>`**, not per file, because the first version of that rule was satisfied by one class in a file with three tables, and one of the eleven approved files has exactly that. There is no exemption for an invisible table: that carve-out was removed after review round eight, because deciding "is this hidden?" from a class list means deciding it across Tailwind's whole variant space. **Since 2026-09-05 the styled-control rules resolve a hoisted class list** (`scripts/ui-contract/bindings.mjs`) rather than reading the characters inside the opening tag, so moving a class list to a `const` is no longer an exemption. **Since 2026-09-05 the scan reaches `index.html`** as well as `src/`, because Tailwind compiles it and a class written there ships in the application stylesheet exactly like one written in a component — which is how `<body class="bg-gray-50">` survived the whole campaign unseen. Allowlist keys are repo-relative from version 2 as a result. **Since 2026-09-04 the allowlist is itself compared against the base commit** (`scripts/ui-contract/baseline.mjs`, sharing the size guard's `SOURCE_SIZE_BASE`): an entry may only record a violation the base already carried, `--update` refuses to write an addition, and CI passes `--require-baseline` from `callable-contract`, which no lane selection can skip |
 | `npm run check:visual-contract` (`scripts/check-visual-contract.mjs`) | Computed geometry in a real browser at both widths — control heights, cell padding, radii, resolved token colours — against a committed snapshot. This is the blocking visual guard, because the numbers are portable across machines and a failure names what moved (`button[md].height: 44px -> 40px`). 62 measurements as of 2026-08-25. Four of the recent ones are a frozen table column's background — a `sticky` cell that loses its own surface lets the scrolled columns paint through it, and that regression is now `rgb(255, 255, 255) -> rgba(0, 0, 0, 0)` in a diff rather than something found on a screen. The last six are the **gap between a glyph and its label**, which the design system owns (`.ds-button` sets `gap: var(--ds-space-2)`, `.ds-button__content` inherits it) and nothing measured: the icon *size* had a probe and the spacing beside it did not, so a re-tuned gap would have surfaced as a pixel diff on `button-with-icons` — a screenshot changed — instead of `columnGap: 8px -> 12px`, which says what moved. Mutation-proven with exactly that diff |
 | `npm run test:visual` (`e2e/visual/`) | Pixel baselines for **71 catalog subjects and 15 application screens**, at 1440px and 412px, committed to the repository. **Blocking as of 2026-08-25** — see below. The catalog describe is deliberately **not** `mode: 'serial'`: it was until 2026-08-25, and a serial group stops at its first failure, so 142 of the lane's 174 tests could report one regression and skip the rest |
 | `npm run test:e2e -- --grep "@a11y"` (`e2e/a11y.spec.cjs` and friends) | Real-browser axe on the mobile-critical journeys, plus the keyboard behaviour axe cannot see: roving `tabIndex`, arrow/Home/End on a tab strip, `aria-pressed` on a segmented group, a focusable file input named by its field, and that every control a Tab press reaches shows the product's focus ring rather than the browser's black one. **Blocking as of 2026-08-25**, inside the `frontend-e2e` lane |
@@ -1002,6 +1002,70 @@ The rule for anyone touching this file: **if a check needs a third fix, change
 what it asks rather than how carefully it looks** — and check whether the same
 shape exists in the sibling rules, because twice now it did and nobody swept for
 it.
+
+### The second rule that parses — a class list held in a variable
+
+Added 2026-09-05, and it is the paragraph above ("the rest of the file still
+matches text") coming due in the way that paragraph predicted.
+
+The styled-control rules read the characters inside an opening tag and ask
+whether they carry geometry or colour. That works for the way a class list is
+usually written:
+
+    <input className="w-full rounded-ds-md border bg-ds-surface p-ds-3" />
+
+and it is blind to the way it is sometimes written:
+
+    const commonClasses = "w-full rounded-ds-md border bg-ds-surface p-ds-3";
+    <input className={commonClasses} />
+
+Nothing between `<input` and `/>` says anything about geometry, so the rule saw a
+bare, unstyled control. **Measured before the fix: the hoisted form counted 0 and
+the identical inline form counted 1** — moving one string to a `const` was a
+complete exemption from `hand-styled-button`, `hand-styled-field` and
+`hand-styled-anchor` alike, available to anyone, recorded nowhere.
+
+It is the same question the native-table tether had to stop asking. "Does this
+text appear inside the tag" is not "what class list does this element render",
+and no widening of the regex closes the gap: the widened regex would have to
+answer *what is this identifier bound to*, which is a question about the whole
+file. A regex that guesses reads `className={props.className}` — a pass-through
+that styles nothing — as a violation on every component in the tree that forwards
+one.
+
+So it parses. `scripts/ui-contract/bindings.mjs` resolves the identifier and
+requires proof, and the shared reading both rules now need moved to
+`scripts/ui-contract/jsx.mjs` rather than being copied — `lastClassSetter` in
+particular, which encodes round seven above and whose copy would have started at
+round one.
+
+**What it refuses to judge is the design.** A name is resolved only when the file
+binds it exactly once, that binding is a variable declarator with an initialiser,
+and the initialiser can be proved to yield styling text down every path — the same
+`certainlyText` walk, with the same small accepted set, that the table rule shrank
+to after round six. Two declarations, a later assignment, a function parameter of
+the same name, an import, a destructure: unresolvable, and nothing is counted.
+This rule may under-report and must never fire on a control it cannot prove is
+styled, because the shape it reads is also how React forwards a prop.
+
+Two boundaries are pinned separately in `test-ui-contract.mjs` §H, because either
+one alone looks sufficient and is not. **The rule set:** only the full JSX set and
+the story set ask for the styled-control rules, so a stylesheet or an HTML
+document never reaches the parser however its text reads. **The pre-filter:**
+inside the JSX set, a file with no `className={identifier}` is not parsed at all,
+which is what keeps the whole-tree scan at a third of a second. H1 and H2 were
+written first as an ordinary stylesheet and an ordinary HTML page, and *both
+passed with the rule-set layer deleted* — neither text contains the shape, so the
+pre-filter was quietly answering. They now carry the shape inside a string, which
+is how a stylesheet really acquires one (a `content:` value), and each mutation
+now names the check it breaks.
+
+Live result: **five violations in one file**, `CustomQuestionsBuilder.jsx` —
+question-preview controls sharing one hand-written class list. They were migrated
+rather than recorded, to `Input`, `Select` and `Textarea`, which is what a preview
+should have been rendering anyway: what the recruiter is shown is now the control
+the applicant will actually meet, dimmed by the same `:disabled` treatment as
+every other disabled control in the app.
 
 ### The one guard that is a person, and why it is not a script
 

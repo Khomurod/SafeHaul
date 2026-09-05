@@ -38,8 +38,10 @@
  * with different mutations, and one file doing both was heading past 400 lines.
  */
 
+import { HOISTED_CLASS_NAME } from './ui-contract/bindings.mjs';
 import { COUNTERS, REMEDIES, countViolations } from './ui-contract/counting.mjs';
 import { CSS_RULES, CSS_RULE_NAMES, RULES, STYLED_CONTROL_RULES } from './ui-contract/rules.mjs';
+import { HTML_RULE_NAMES, STORY_RULE_NAMES } from './ui-contract/source-text.mjs';
 import { MIN_REASON_LENGTH, evaluate } from './ui-contract/verdict.mjs';
 import { regenerate, serialise } from './ui-contract/update.mjs';
 import { untetheredTables } from './ui-contract/tether.mjs';
@@ -242,6 +244,83 @@ assert('T6b. a feature file merely mentioning the phrase is still checked',
 assert('T5. a file with no raw-table entry is not parsed at all',
     untetheredTables({ files: { 'x.jsx': withReason('raw-hex-colour', 1) } },
         () => { throw new Error('should not be read'); }).length === 0);
+
+/* ========================================================================== */
+console.log('\nH. A class list held in a variable reaches the parser, and only there');
+
+/*
+ * `bindings.mjs` is the second rule that needs a parser, and a parser is the one
+ * thing in this guard that can be handed input it cannot read. `src/tests/
+ * uiContract.ratchet.test.js` proves what the rule counts; what is pinned here
+ * is the boundary — which files are parsed at all.
+ *
+ * TWO layers keep a non-module out of the parser, and they are pinned
+ * separately because either one alone looks sufficient and is not:
+ *
+ *   1. the rule set. `STYLED_CONTROL_RULES` are asked for by the full JSX set
+ *      and the story set only, so a stylesheet or an HTML document never
+ *      reaches the parser however its text reads.
+ *   2. the pre-filter. Within the JSX set, a file with no
+ *      `className={identifier}` is not parsed either — which is what keeps the
+ *      whole-tree scan at a third of a second.
+ *
+ * H1 and H2 were written as an ordinary stylesheet and an ordinary HTML page
+ * first, and BOTH passed with layer 1 deleted: neither text contains the shape,
+ * so layer 2 was answering. A test that passes with the code it tests removed
+ * is not a test, so each source below carries the shape inside a string — the
+ * real way a stylesheet acquires one is a `content:` value — which leaves layer
+ * 1 as the only thing standing between the parser and a file it cannot read.
+ */
+/*
+ * Counted through a `try`, because the way layer 1 fails is a thrown
+ * `SyntaxError` rather than a wrong number — and a suite that dies on the first
+ * one reports "the process exited 1" where it could name the check.
+ */
+const countedOrThrew = (...args) => {
+    try { return countViolations(...args); } catch (error) { return { threw: error.name }; }
+};
+
+assert('H1. a stylesheet is never handed to the JSX parser',
+    Object.keys(countedOrThrew(
+        String.raw`.x::after { content: "className={c}"; color: var(--ds-color-content); }`,
+        CSS_RULE_NAMES,
+    )).length === 0);
+
+assert('H2. an HTML document is never handed to the JSX parser',
+    countedOrThrew(
+        '<!doctype html>\n<body class="bg-gray-50" data-hint="className={c}"></body>',
+        HTML_RULE_NAMES, { html: true },
+    )['raw-palette-class'] === 1);
+
+// H3. The story set DOES include the styled-control rules, so a story is parsed.
+// A hoisted class list in the catalog teaches the bypass by example.
+assert('H3. a story is parsed, because the catalog is taught from',
+    countViolations('const c = "p-ds-3 border rounded-ds-md";\n<input className={c} />',
+        STORY_RULE_NAMES)['hand-styled-field'] === 1);
+
+/*
+ * H4. Mutation: catch the parse error and return `[]`. That is the same fallback
+ * T3 refuses for tables, and it is worse here — a file that fails to parse is a
+ * file whose every hoisted class list is invisible, silently.
+ */
+let parseFailureSurfaced = false;
+try {
+    countViolations('const c = "p-ds-3 border";\n<input className={c} ');
+} catch { parseFailureSurfaced = true; }
+assert('H4. a parse failure is a failure, not a fallback', parseFailureSurfaced);
+
+/*
+ * H5. ...and the parse is paid for only where there is something to find. The
+ * pre-filter is what keeps the whole-tree scan at a third of a second, so a file
+ * with no `className={identifier}` must survive being unparseable.
+ */
+assert('H5. a file without the shape is not parsed, so bad syntax there is harmless',
+    countedOrThrew('<input className="border rounded-ds-md px-ds-3" /> ) } ]')['hand-styled-field'] === 1);
+
+assert('H6. the pre-filter matches the shape the rule reads, and not the inline one',
+    HOISTED_CLASS_NAME.test('<input className={commonClasses} />')
+    && !HOISTED_CLASS_NAME.test('<input className="border px-ds-3" />')
+    && !HOISTED_CLASS_NAME.test('<input className={props.className} />'));
 
 /* ========================================================================== */
 console.log('\nX. The rule engine stands alone');

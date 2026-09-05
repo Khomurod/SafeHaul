@@ -324,6 +324,18 @@ zero-tolerance, for no better reason than that the walk started at `src/`.
 `content` array is not covered by a scan target. Allowlist keys are repo-relative
 from version 2 as a consequence.
 
+**A hand-styled control is found however its class list is spelled.** Since
+2026-09-05 the styled-control rules read the class list an element actually
+renders, not the characters inside its opening tag — because
+`const c = "..."; <input className={c} />` and the same classes written inline
+are the same control, and until then one counted and the other did not. Resolving
+an identifier is a question about the whole file rather than a run of characters,
+so `scripts/ui-contract/bindings.mjs` parses; it counts only what it can prove
+(one binding, no reassignment, no shadow, styling text down every path) and stays
+silent on the `className={props.className}` pass-through it must never fire on.
+`test-ui-contract.mjs` §H pins the two layers that keep a stylesheet out of the
+JSX parser.
+
 **And since 2026-09-04 the inventory is compared against git, not taken on
 trust.** A written reason answers "is it written down"; only the base commit
 answers "was it already there". An audit reproduced two ways through in one
