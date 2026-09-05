@@ -274,6 +274,25 @@ export const CSS_RULES = [
             + 'are the only files allowed to name a colour, and they are exempt by path.',
     },
     {
+        name: 'css-apply-off-contract',
+        /*
+         * `@apply` is a class list wearing a stylesheet's clothes.
+         *
+         * Every class-list rule in `RULES` reads a `className`, and none of them
+         * reads a stylesheet — so `@apply bg-blue-600 rounded-lg;` was a way to
+         * write exactly the forbidden thing in the one place nothing looked.
+         * Rather than restate those rules here (two copies that drift), the
+         * counter extracts each `@apply` class list and runs the real rules over
+         * it. Whatever the JSX rules forbid, `@apply` forbids.
+         *
+         * Zero live violations today: every `@apply` in `src/index.css` uses
+         * `ds-*` utilities. This is a preventive rule, not a remedial one.
+         */
+        pattern: null,
+        remedy: 'An `@apply` class list is held to the same rules as a `className`. Use the '
+            + '`ds-*` utilities, or write the declaration with `var(--ds-*)` directly.',
+    },
+    {
         name: 'css-sub-12px-type',
         pattern: /font-size:\s*(?:[0-9]|1[01])(?:\.\d+)?px\b/g,
         remedy: 'The interface floor is 12px. Use `var(--ds-font-size-xs)` or a larger step.',

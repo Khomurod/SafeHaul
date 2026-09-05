@@ -84,7 +84,29 @@ export function countJsxLabelsOnThrowingPrimitives(code) {
     return total;
 }
 
+/**
+ * Every violation inside an `@apply` class list.
+ *
+ * Runs the real class-list rules rather than restating them, so the two can
+ * never drift: a rule added to `RULES` is enforced inside `@apply` the same day.
+ * Only rules with a plain `pattern` participate — the counter-backed ones
+ * (`raw-file-input`, the JSX-label rule) are about markup, and an `@apply` list
+ * has none.
+ */
+export function countApplyOffContract(code) {
+    let found = 0;
+    for (const match of code.matchAll(/@apply\s+([^;{}]+);/g)) {
+        const classList = match[1];
+        for (const rule of RULES) {
+            if (!rule.pattern) continue;
+            found += (classList.match(rule.pattern) || []).length;
+        }
+    }
+    return found;
+}
+
 export const COUNTERS = {
+    'css-apply-off-contract': countApplyOffContract,
     'raw-file-input': countFileInputs,
     'jsx-label-on-throwing-primitive': countJsxLabelsOnThrowingPrimitives,
 };
