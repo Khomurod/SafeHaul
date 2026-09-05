@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 /**
@@ -18,6 +19,9 @@ import { describe, expect, it } from 'vitest';
  * A copy nothing compares is a copy that diverges. These tests are the
  * comparison.
  */
+
+import { Logo } from '@/shared/components/Logo';
+import { SafeHaulLoader } from '@/shared/components/SafeHaulLoader';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const read = (relative) => fs.readFileSync(path.join(repoRoot, relative), 'utf8');
@@ -116,5 +120,44 @@ describe('the brand mark is one mark', () => {
       expect(source).toMatch(/y2=['"]75\.5['"]/);
       expect(source).toMatch(/gradientUnits=['"]userSpaceOnUse['"]/);
     }
+  });
+
+  /*
+   * ...and the colours have to survive the render, which is a different claim
+   * from "the source names a token" and turned out to be the one that mattered.
+   *
+   * When the raw hexes were replaced with `style={{ fill: 'var(--ds-…)' }}` on
+   * 2026-09-05, three of `SafeHaulLoader`'s paths ended up with TWO `style`
+   * attributes — the new fill, and the animation delay that was already there.
+   * JSX keeps the last one, so the fill was dropped and three quarters of the
+   * loading mark rendered unfilled. Every existing check passed: the source
+   * contains the token, contains no hex, and draws the right paths.
+   *
+   * Vite printed a warning about it, and a warning in a build log is not a
+   * guard. This renders both marks and reads what actually reached the DOM.
+   */
+  it('renders every solid shape with a brand fill that survived to the DOM', () => {
+    for (const [name, element] of [['Logo', <Logo />], ['SafeHaulLoader', <SafeHaulLoader />]]) {
+      const { container, unmount } = render(element);
+      const paths = [...container.querySelectorAll('path')];
+      expect(paths.length, `${name} drew no paths`).toBeGreaterThan(0);
+
+      for (const [index, node] of paths.entries()) {
+        // One path is the gradient facet, filled by `fill="url(#…)"`.
+        if ((node.getAttribute('fill') || '').startsWith('url(')) continue;
+        const fill = node.style.getPropertyValue('fill');
+        expect(fill, `${name} path ${index} lost its fill`).toMatch(/var\(--ds-color-brand-/);
+      }
+      unmount();
+    }
+  });
+
+  it('keeps the loader animating, which is what overwrote the fill', () => {
+    // Both halves of the merged style object, so a fix in either direction fails.
+    const { container } = render(<SafeHaulLoader />);
+    const delays = [...container.querySelectorAll('path')]
+      .map((node) => node.style.getPropertyValue('animation-delay'))
+      .filter(Boolean);
+    expect(delays).toEqual(['0s', '0.15s', '0.3s', '0.45s']);
   });
 });

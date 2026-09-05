@@ -39,7 +39,7 @@ function QueueNotice({ tone, assertive = false, icon: Icon, iconClassName = '', 
     };
 
     return (
-        <div className="fixed bottom-4 right-4 z-50 animate-in fade-in slide-in-from-bottom-2">
+        <div className="fixed bottom-4 right-4 z-ds-toast animate-in fade-in slide-in-from-bottom-2">
             <div
                 role={assertive ? 'alert' : 'status'}
                 className={`flex items-center gap-ds-2 rounded-ds-md border px-ds-4 py-ds-3 shadow-ds-lg ${TONE_CLASSES[tone]}`}

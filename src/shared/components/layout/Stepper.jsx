@@ -167,7 +167,7 @@ const Stepper = ({
     return (
         <>
             {isSandboxMode && typeof onMagicFillStep === 'function' && (
-                <div className="fixed bottom-ds-6 right-ds-6 z-20">
+                <div className="fixed bottom-ds-6 right-ds-6 z-ds-sticky">
                     {/* DOCUMENTED EXCEPTION — raw button.
                         The sandbox test control must stay visually distinct from
                         every production action so nobody mistakes the sandbox

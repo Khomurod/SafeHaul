@@ -137,7 +137,7 @@ export function CustomQuestionsBuilder({ questions = [], onChange, onSave, loadi
     return (
         <div className="space-y-ds-6">
 
-            <Card className="sticky top-0 z-20 flex flex-col items-start justify-between gap-ds-4 sm:flex-row sm:items-center">
+            <Card className="sticky top-0 z-ds-sticky flex flex-col items-start justify-between gap-ds-4 sm:flex-row sm:items-center">
                 <div>
                     <h4 className="text-ds-body font-bold text-ds-content">Custom Questions</h4>
                     <p className="text-ds-sm text-ds-content-muted" role="status">{questions.length} questions added</p>

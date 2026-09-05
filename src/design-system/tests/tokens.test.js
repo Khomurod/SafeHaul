@@ -244,6 +244,41 @@ describe('design tokens', () => {
   });
 
   /*
+   * The stacking scale.
+   *
+   * Strict ordering is the contract: `drawer` BELOW `modal` is what stops a
+   * dialog rendering behind the mobile navigation drawer, which is what nine
+   * `z-[60]`/`z-[70]`/`z-[9999]` workarounds across the tree were compensating
+   * for. Swap any neighbouring pair and this fails.
+   */
+  it('orders the stacking layers, drawer below modal', () => {
+    const layers = ['raised', 'sticky', 'dropdown', 'drawer-backdrop', 'drawer', 'modal', 'toast']
+      .map((role) => Number(resolveToken(`ds-z-${role}`)));
+    expect(layers.every(Number.isFinite)).toBe(true);
+    expect(layers).toEqual([...layers].sort((a, b) => a - b));
+    expect(new Set(layers).size).toBe(layers.length);
+  });
+
+  it('keeps the workspace drawer off the dialog layer', () => {
+    // The bug this scale exists for, asserted where it lived: the drawer read
+    // `--ds-z-modal`, so every dialog opened over it lost.
+    const frameCss = fs.readFileSync(
+      path.resolve(tokenRoot, '../layouts/workspace/WorkspaceFrame.css'), 'utf8',
+    ).replace(/\/\*[\s\S]*?\*\//g, '');
+    expect(frameCss).toMatch(/z-index:\s*var\(--ds-z-drawer\)/);
+    expect(frameCss).toMatch(/z-index:\s*var\(--ds-z-drawer-backdrop\)/);
+    expect(frameCss).not.toMatch(/z-index:\s*var\(--ds-z-modal\)/);
+  });
+
+  it('bridges every stacking layer to a Tailwind utility', () => {
+    // A layer with no utility is a layer a class list cannot name, which is how
+    // fourteen different raw numbers accumulated in the first place.
+    for (const role of ['raised', 'sticky', 'dropdown', 'drawer-backdrop', 'drawer', 'modal', 'toast']) {
+      expect(tailwindConfig.theme.extend.zIndex[`ds-${role}`]).toBe(`var(--ds-z-${role})`);
+    }
+  });
+
+  /*
    * Dialog geometry.
    *
    * These exist because 38 of 41 `<Modal>` call sites replaced the panel's whole

@@ -122,7 +122,7 @@ export function CompanySettings() {
             className="min-h-screen min-w-0 bg-ds-canvas text-ds-content"
             data-testid="company-settings-shell"
         >
-            <div className="min-h-16 bg-ds-surface border-b border-ds-border-subtle mb-ds-8 flex items-center px-ds-4 sm:px-ds-6 lg:px-ds-8 sticky top-0 z-10">
+            <div className="min-h-16 bg-ds-surface border-b border-ds-border-subtle mb-ds-8 flex items-center px-ds-4 sm:px-ds-6 lg:px-ds-8 sticky top-0 z-ds-sticky">
                 <Button
                     variant="ghost"
                     justify="start"

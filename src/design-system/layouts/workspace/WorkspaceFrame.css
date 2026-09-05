@@ -94,7 +94,13 @@
   .ds-workspace__navigation,
   .ds-workspace__navigation[data-expanded='true'] {
     position: fixed;
-    z-index: var(--ds-z-modal);
+    /*
+     * The drawer is a drawer, not a dialog. It rendered at `--ds-z-modal` until
+     * 2026-09-05, which put it ABOVE every `<Modal>` — so a dialog opened while
+     * the drawer was out rendered behind it, and nine `z-[60]`/`z-[70]`/
+     * `z-[9999]` workarounds across the tree existed to climb over it.
+     */
+    z-index: var(--ds-z-drawer);
     inset: 0 auto 0 0;
     width: min(
       var(--ds-workspace-navigation-width-mobile),
@@ -114,7 +120,7 @@
   .ds-workspace__backdrop {
     display: block;
     position: fixed;
-    z-index: var(--ds-z-modal-backdrop);
+    z-index: var(--ds-z-drawer-backdrop);
     inset: 0;
     width: 100%;
     height: 100%;

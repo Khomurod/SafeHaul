@@ -128,7 +128,7 @@ export function NotificationBell({ userId }) {
             </IconButton>
 
             {isOpen && (
-                <div className="absolute right-0 z-[9999] mt-2 w-80 overflow-hidden rounded-ds-lg border border-ds-border-subtle bg-ds-surface shadow-ds-lg sm:w-96">
+                <div className="absolute right-0 z-ds-dropdown mt-2 w-80 overflow-hidden rounded-ds-lg border border-ds-border-subtle bg-ds-surface shadow-ds-lg sm:w-96">
 
                     <TabList
                         ariaLabel="Notification categories"

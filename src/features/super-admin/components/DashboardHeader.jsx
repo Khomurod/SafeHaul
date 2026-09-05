@@ -36,7 +36,7 @@ export function DashboardHeader({
     const searchId = useId();
 
     return (
-        <header className="sticky top-0 z-10 border-b border-ds-border-subtle bg-ds-surface shadow-ds-md">
+        <header className="sticky top-0 z-ds-sticky border-b border-ds-border-subtle bg-ds-surface shadow-ds-md">
             <div className="container mx-auto flex flex-wrap items-center justify-between gap-ds-4 p-ds-4">
 
                 <div className="flex items-center gap-ds-3">
