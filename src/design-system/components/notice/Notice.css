@@ -1,0 +1,122 @@
+/*
+ * The chrome every notice shares, which is the whole reason this exists: the
+ * 2026-09-05 audit found 66 hand-built ones, and they had drifted apart in
+ * radius, padding, gap and glyph size while every one of them used correct
+ * `--ds-*` roles. Colour drift a rule can see. This kind it cannot.
+ */
+.ds-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--ds-space-3);
+  border: 1px solid var(--ds-color-status-info-border);
+  border-radius: var(--ds-radius-md);
+  padding: var(--ds-space-4);
+  background: var(--ds-color-status-info-bg);
+  color: var(--ds-color-status-info-fg);
+  font-size: var(--ds-font-size-body);
+  line-height: var(--ds-line-height-body);
+  text-align: start;
+}
+
+/*
+ * `flex-start`, not `center`. A one-line notice looks identical either way, and
+ * the majority shape here is a title with a body under it (27 of 64) — where
+ * centring floats the glyph into the middle of a paragraph.
+ */
+
+.ds-notice[data-tone='neutral'] {
+  border-color: var(--ds-color-status-neutral-border);
+  background: var(--ds-color-status-neutral-bg);
+  color: var(--ds-color-status-neutral-fg);
+}
+
+.ds-notice[data-tone='success'] {
+  border-color: var(--ds-color-status-success-border);
+  background: var(--ds-color-status-success-bg);
+  color: var(--ds-color-status-success-fg);
+}
+
+.ds-notice[data-tone='warning'] {
+  border-color: var(--ds-color-status-warning-border);
+  background: var(--ds-color-status-warning-bg);
+  color: var(--ds-color-status-warning-fg);
+}
+
+.ds-notice[data-tone='danger'] {
+  border-color: var(--ds-color-status-danger-border);
+  background: var(--ds-color-status-danger-bg);
+  color: var(--ds-color-status-danger-fg);
+}
+
+.ds-notice[data-tone='accent'] {
+  border-color: var(--ds-color-status-accent-border);
+  background: var(--ds-color-status-accent-bg);
+  color: var(--ds-color-status-accent-fg);
+}
+
+.ds-notice[data-size='sm'] {
+  gap: var(--ds-space-2);
+  padding: var(--ds-space-3);
+  font-size: var(--ds-font-size-sm);
+}
+
+/*
+ * The glyph inherits the tone's foreground rather than naming a colour of its
+ * own, so a tone added later needs no second rule here, and a tone whose
+ * contrast is re-tuned takes its icon with it.
+ */
+.ds-notice__icon {
+  flex: 0 0 auto;
+  width: var(--ds-icon-size-xl);
+  height: var(--ds-icon-size-xl);
+  /* Optical alignment with the first line of text rather than its box. */
+  margin-top: 1px;
+  color: currentColor;
+}
+
+.ds-notice[data-size='sm'] .ds-notice__icon {
+  width: var(--ds-icon-size-md);
+  height: var(--ds-icon-size-md);
+}
+
+.ds-notice__body {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--ds-space-1);
+}
+
+.ds-notice__title {
+  margin: 0;
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.ds-notice__message {
+  min-width: 0;
+  /* A long token — an id, a URL, an email — must not push the notice wider. */
+  overflow-wrap: anywhere;
+}
+
+.ds-notice__actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--ds-space-2);
+}
+
+/*
+ * Below the small breakpoint the actions drop under the message rather than
+ * squeezing it: 9 consumers carry a button, and a button beside a sentence at
+ * 412px leaves neither enough room.
+ */
+@media (max-width: 639px) {
+  .ds-notice:has(.ds-notice__actions) {
+    flex-wrap: wrap;
+  }
+
+  .ds-notice__actions {
+    width: 100%;
+    padding-inline-start: calc(var(--ds-icon-size-xl) + var(--ds-space-3));
+  }
+}

@@ -1,4 +1,80 @@
 {
+  "mobile · the notice chrome, and the six tints that replaced 66 hand-built blocks · notice[neutral]": {
+    "borderTopWidth": "1px",
+    "borderTopColor": "rgb(203, 213, 225)",
+    "borderRadius": "8px",
+    "paddingTop": "16px",
+    "backgroundColor": "rgb(241, 245, 249)",
+    "color": "rgb(51, 65, 85)",
+    "alignItems": "flex-start",
+    "columnGap": "12px"
+  },
+  "mobile · the notice chrome, and the six tints that replaced 66 hand-built blocks · notice[info]": {
+    "borderTopWidth": "1px",
+    "borderTopColor": "rgb(147, 197, 253)",
+    "borderRadius": "8px",
+    "paddingTop": "16px",
+    "backgroundColor": "rgb(219, 234, 254)",
+    "color": "rgb(29, 78, 216)",
+    "alignItems": "flex-start",
+    "columnGap": "12px"
+  },
+  "mobile · the notice chrome, and the six tints that replaced 66 hand-built blocks · notice[success]": {
+    "borderTopWidth": "1px",
+    "borderTopColor": "rgb(187, 247, 208)",
+    "borderRadius": "8px",
+    "paddingTop": "16px",
+    "backgroundColor": "rgb(220, 252, 231)",
+    "color": "rgb(22, 101, 52)",
+    "alignItems": "flex-start",
+    "columnGap": "12px"
+  },
+  "mobile · the notice chrome, and the six tints that replaced 66 hand-built blocks · notice[warning]": {
+    "borderTopWidth": "1px",
+    "borderTopColor": "rgb(253, 230, 138)",
+    "borderRadius": "8px",
+    "paddingTop": "16px",
+    "backgroundColor": "rgb(254, 243, 199)",
+    "color": "rgb(146, 64, 14)",
+    "alignItems": "flex-start",
+    "columnGap": "12px"
+  },
+  "mobile · the notice chrome, and the six tints that replaced 66 hand-built blocks · notice[danger]": {
+    "borderTopWidth": "1px",
+    "borderTopColor": "rgb(254, 202, 202)",
+    "borderRadius": "8px",
+    "paddingTop": "16px",
+    "backgroundColor": "rgb(254, 226, 226)",
+    "color": "rgb(153, 27, 27)",
+    "alignItems": "flex-start",
+    "columnGap": "12px"
+  },
+  "mobile · the notice chrome, and the six tints that replaced 66 hand-built blocks · notice[accent]": {
+    "borderTopWidth": "1px",
+    "borderTopColor": "rgb(221, 214, 254)",
+    "borderRadius": "8px",
+    "paddingTop": "16px",
+    "backgroundColor": "rgb(237, 233, 254)",
+    "color": "rgb(109, 40, 217)",
+    "alignItems": "flex-start",
+    "columnGap": "12px"
+  },
+  "mobile · the compact notice, which must differ from the default in three places only · compact": {
+    "paddingTop": "12px",
+    "columnGap": "8px",
+    "fontSize": "13px",
+    "borderRadius": "8px",
+    "width": "348px",
+    "height": "45.5px"
+  },
+  "mobile · the compact notice, which must differ from the default in three places only · compact-icon": {
+    "paddingTop": "0px",
+    "columnGap": "normal",
+    "fontSize": "13px",
+    "borderRadius": "0px",
+    "width": "16px",
+    "height": "16px"
+  },
   "mobile · the step rail: a third column, two status colours, and no frame · frameless": {
     "gridTemplateColumns": "none",
     "borderTopWidth": "0px",
@@ -557,6 +633,82 @@
     "padding": "0px",
     "fontSize": "14px",
     "maxWidth": "378px"
+  },
+  "desktop · the notice chrome, and the six tints that replaced 66 hand-built blocks · notice[neutral]": {
+    "borderTopWidth": "1px",
+    "borderTopColor": "rgb(203, 213, 225)",
+    "borderRadius": "8px",
+    "paddingTop": "16px",
+    "backgroundColor": "rgb(241, 245, 249)",
+    "color": "rgb(51, 65, 85)",
+    "alignItems": "flex-start",
+    "columnGap": "12px"
+  },
+  "desktop · the notice chrome, and the six tints that replaced 66 hand-built blocks · notice[info]": {
+    "borderTopWidth": "1px",
+    "borderTopColor": "rgb(147, 197, 253)",
+    "borderRadius": "8px",
+    "paddingTop": "16px",
+    "backgroundColor": "rgb(219, 234, 254)",
+    "color": "rgb(29, 78, 216)",
+    "alignItems": "flex-start",
+    "columnGap": "12px"
+  },
+  "desktop · the notice chrome, and the six tints that replaced 66 hand-built blocks · notice[success]": {
+    "borderTopWidth": "1px",
+    "borderTopColor": "rgb(187, 247, 208)",
+    "borderRadius": "8px",
+    "paddingTop": "16px",
+    "backgroundColor": "rgb(220, 252, 231)",
+    "color": "rgb(22, 101, 52)",
+    "alignItems": "flex-start",
+    "columnGap": "12px"
+  },
+  "desktop · the notice chrome, and the six tints that replaced 66 hand-built blocks · notice[warning]": {
+    "borderTopWidth": "1px",
+    "borderTopColor": "rgb(253, 230, 138)",
+    "borderRadius": "8px",
+    "paddingTop": "16px",
+    "backgroundColor": "rgb(254, 243, 199)",
+    "color": "rgb(146, 64, 14)",
+    "alignItems": "flex-start",
+    "columnGap": "12px"
+  },
+  "desktop · the notice chrome, and the six tints that replaced 66 hand-built blocks · notice[danger]": {
+    "borderTopWidth": "1px",
+    "borderTopColor": "rgb(254, 202, 202)",
+    "borderRadius": "8px",
+    "paddingTop": "16px",
+    "backgroundColor": "rgb(254, 226, 226)",
+    "color": "rgb(153, 27, 27)",
+    "alignItems": "flex-start",
+    "columnGap": "12px"
+  },
+  "desktop · the notice chrome, and the six tints that replaced 66 hand-built blocks · notice[accent]": {
+    "borderTopWidth": "1px",
+    "borderTopColor": "rgb(221, 214, 254)",
+    "borderRadius": "8px",
+    "paddingTop": "16px",
+    "backgroundColor": "rgb(237, 233, 254)",
+    "color": "rgb(109, 40, 217)",
+    "alignItems": "flex-start",
+    "columnGap": "12px"
+  },
+  "desktop · the compact notice, which must differ from the default in three places only · compact": {
+    "paddingTop": "12px",
+    "columnGap": "8px",
+    "fontSize": "13px",
+    "borderRadius": "8px",
+    "width": "420px",
+    "height": "45.5px"
+  },
+  "desktop · the compact notice, which must differ from the default in three places only · compact-icon": {
+    "paddingTop": "0px",
+    "columnGap": "normal",
+    "fontSize": "13px",
+    "borderRadius": "0px",
+    "width": "16px",
+    "height": "16px"
   },
   "desktop · the step rail: a third column, two status colours, and no frame · frameless": {
     "gridTemplateColumns": "none",

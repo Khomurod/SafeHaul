@@ -84,6 +84,10 @@ this one true rather than aspirational.
   `currentType="step"`, per-item `status` and `frame="none"` (2026-09-05),
   alongside the Super Admin sidebar and company settings, which use the same
   component as page rails.
+- `Notice` shipped 2026-09-05 with **no consumers yet**, deliberately: the
+  audit found 66 hand-built ones and migrating them is slices 6c–6e, split by
+  area. It is the one primitive in this system allowed to sit unused for a
+  slice, and only because the migration is already scheduled.
 - The topbar, the dossier header, the notes and activity tabs, the Super Admin
   user list, the team modal and the campaign lead preview consume `Avatar`
   (2026-09-05).

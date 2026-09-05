@@ -23,6 +23,47 @@ import { SYSTEM_PROBES } from './probes-system.mjs';
 
 const COMPONENT_PROBES = [
     {
+        story: 'components-notice--tones',
+        label: 'the notice chrome, and the six tints that replaced 66 hand-built blocks',
+        /*
+         * Every property here is one that had DRIFTED across the 66 hand-built
+         * notices the 6a audit found — different radii, different padding,
+         * different gaps, different glyph sizes — while every one of them used
+         * correct `--ds-*` colour roles. That is the whole point of this probe:
+         * the colours were never the problem and no colour rule would have
+         * caught any of it.
+         *
+         * All six tones are read, not one. A tone whose border stops resolving
+         * renders as a borderless tinted block, which looks deliberate.
+         */
+        selectors: Object.fromEntries(
+            ['neutral', 'info', 'success', 'warning', 'danger', 'accent'].map(
+                (tone) => [`notice[${tone}]`, `.ds-notice[data-tone='${tone}']`],
+            ),
+        ),
+        properties: [
+            'borderTopWidth', 'borderTopColor', 'borderRadius', 'paddingTop',
+            'backgroundColor', 'color', 'alignItems', 'columnGap',
+        ],
+    },
+    {
+        story: 'components-notice--compact',
+        label: 'the compact notice, which must differ from the default in three places only',
+        /*
+         * `sm` exists for a notice inside an already-tight panel, and the risk
+         * with a second size is that it drifts into being a second design. It
+         * changes padding, gap and type size — and nothing else. The glyph
+         * shrinks with it, which is read here rather than assumed.
+         */
+        selectors: {
+            'compact': '.ds-notice[data-size=\'sm\']',
+            'compact-icon': '.ds-notice[data-size=\'sm\'] .ds-notice__icon',
+        },
+        properties: [
+            'paddingTop', 'columnGap', 'fontSize', 'borderRadius', 'width', 'height',
+        ],
+    },
+    {
         story: 'components-sectionnavigation--wizard-steps',
         label: 'the step rail: a third column, two status colours, and no frame',
         /*

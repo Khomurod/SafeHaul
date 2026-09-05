@@ -182,7 +182,6 @@
     "src/shared/components/badges/statusIcon.js": 9,
     "src/shared/components/feedback/ErrorBoundary.jsx": 2,
     "src/shared/components/feedback/FeatureErrorBoundary.jsx": 2,
-    "src/shared/components/feedback/InlineValidationNote.jsx": 3,
     "src/shared/components/feedback/NotificationBell.jsx": 3,
     "src/shared/components/feedback/NotificationItem.jsx": 5,
     "src/shared/components/feedback/PaywallMessage.jsx": 2,
