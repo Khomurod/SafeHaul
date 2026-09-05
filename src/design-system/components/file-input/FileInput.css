@@ -70,7 +70,7 @@
 
 .ds-file-input__control[data-disabled] {
   cursor: not-allowed;
-  opacity: 0.55;
+  opacity: var(--ds-opacity-disabled);
 }
 
 /*

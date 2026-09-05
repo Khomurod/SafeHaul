@@ -21,6 +21,15 @@ export default {
   ],
   theme: {
     extend: {
+      /*
+       * Disabled dimming as a utility, so a JSX control can reach the same role
+       * a stylesheet does instead of picking `opacity-75` and hoping.
+       */
+      opacity: {
+        'ds-disabled': 'var(--ds-opacity-disabled)',
+        'ds-disabled-soft': 'var(--ds-opacity-disabled-soft)',
+      },
+
       colors: {
         'ds-canvas': 'var(--ds-color-canvas)',
         'ds-surface': 'var(--ds-color-surface)',
