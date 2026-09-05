@@ -30,6 +30,7 @@
  */
 
 import { compareAllowlist } from './direction.mjs';
+import { ALLOWLIST_VERSION } from './allowlist.mjs';
 
 /**
  * Recompute the inventory from a fresh scan, preserving written reasons.
@@ -69,9 +70,17 @@ export function regenerate(measured, allowlist) {
     return { files, total };
 }
 
-/** The on-disk form: two keys, two-space indent, trailing newline. */
+/**
+ * The on-disk form: three keys, two-space indent, trailing newline.
+ *
+ * `version` is written unconditionally at the current value rather than echoed
+ * from the input — a regeneration writes today's key format, so it must declare
+ * today's version or the next reader normalises a v2 document as v1.
+ */
 export function serialise(allowlist, files) {
-    return `${JSON.stringify({ $comment: allowlist.$comment, files }, null, 2)}\n`;
+    return `${JSON.stringify(
+        { $comment: allowlist.$comment, version: ALLOWLIST_VERSION, files }, null, 2,
+    )}\n`;
 }
 
 /**
