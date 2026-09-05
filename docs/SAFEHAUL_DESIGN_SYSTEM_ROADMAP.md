@@ -161,8 +161,14 @@ The reverse directions are prohibited and enforced by
   the two that used to fail. Existing `content-secondary` call sites that were
   working around the old limit are correct and need no change.
 - **Every overlay goes through `Modal`** (`@design-system/patterns`). No
-  hand-built `fixed inset-0` dialog. A repository-wide scan should return only
-  `Modal.css` and callers still passing an `overlayClassName`.
+  hand-built `fixed inset-0` dialog. A repository-wide scan returns `Modal.css`
+  and nothing else — true since 2026-09-05, when `overlayClassName` was removed
+  and `hand-built-overlay` lost the `prepare` step that used to strip it.
+- **A stacking layer has a name.** `z-ds-raised` / `sticky` / `dropdown` /
+  `drawer` / `modal` / `toast` for the application scale, `z-ds-layer-1..4` for
+  something that only orders siblings inside one `isolate` container.
+  `raw-z-index` and `css-raw-z-index` refuse a bare number in either spelling.
+  The one recorded exception is `VOEDocument`'s `-z-10` watermark.
 - **A dialog's chrome is `size`/`scroll`/`fill`/`mobile`/`placement`/`tone`, not
   a class list.** Added 2026-09-05, and every one of the 41 call sites was
   migrated the same day; no `overlayClassName` remains in `src/`. `Modal`'s `className` and `overlayClassName`
@@ -174,8 +180,8 @@ The reverse directions are prohibited and enforced by
   defect. Surface, border, radius, shadow, overlay colour, blur and stacking
   layer now have no prop at all, and an unsupported value on the six that do
   **throws** — a silent fallback to the default is how thirty spellings
-  accumulated. The two legacy props still work, warn in development, and are
-  removed in the slice that finishes migrating the call sites.
+  accumulated. The two legacy props were removed on 2026-09-05 and now throw
+  too; there is no styling escape hatch left.
 - **No blocking browser dialogs.** `confirm()` and `alert()`, with or without a
   `window.` prefix, are rejected by a ratchet test — use `ConfirmDialog`.
 - **Scroll regions must be keyboard-reachable and named**, and every row action
@@ -1592,7 +1598,8 @@ every consumer that can use it does:
 | Family | Owned by | Closed |
 |---|---|---|
 | Dialog shell | `patterns/modal` | 2026-08-22 |
-| Dialog **chrome** (size / scroll / fill / mobile / placement / tone) | `patterns/modal` → `Modal.css` | consumers complete 2026-09-05 — all 41 sites migrated, no `overlayClassName` left; the legacy props are deleted in the slice that adds the `raw-z-index` rules |
+| Dialog **chrome** (size / scroll / fill / mobile / placement / tone) | `patterns/modal` → `Modal.css` | 2026-09-05 |
+| **Stacking layers** | `tokens/foundation.css` → `--ds-z-*` | 2026-09-05 — 74 raw values to one recorded exception |
 | Confirmation dialog | `patterns/modal` → `ConfirmDialog` | 2026-08-25 |
 | Toast / notification | `shared/components/feedback/ToastProvider` — **not in the design system** | consumers complete; primitive not promoted |
 | Empty / error / loading state | `patterns/page-state` | 2026-08-25 |
