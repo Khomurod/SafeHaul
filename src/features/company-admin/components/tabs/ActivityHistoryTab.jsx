@@ -6,7 +6,7 @@ import {
     Mail, Phone, ShieldCheck, Filter, Calendar, Zap,
     Settings, CheckCircle2, XCircle
 } from 'lucide-react';
-import { Badge, Card, FormField, Select } from '@/design-system/components';
+import { Avatar, Badge, Card, FormField, Select } from '@/design-system/components';
 
 /**
  * Audit trail for one application or lead.
@@ -244,12 +244,9 @@ export function ActivityHistoryTab({ companyId, applicationId, collectionName })
 
                                             <div className="mt-ds-3 flex flex-wrap items-center justify-between gap-ds-2 border-t border-ds-border-subtle pt-ds-3">
                                                 <div className="flex items-center gap-1.5 text-ds-xs font-semibold text-ds-content-secondary">
-                                                    <span
-                                                        aria-hidden="true"
-                                                        className="flex h-5 w-5 items-center justify-center rounded-ds-full bg-ds-status-accent-bg text-ds-xs text-ds-status-accent-fg"
-                                                    >
+                                                    <Avatar size="xs" tone="accent">
                                                         {log.performedByName?.charAt(0) || 'S'}
-                                                    </span>
+                                                    </Avatar>
                                                     {log.performedByName || 'System Auto'}
                                                 </div>
 

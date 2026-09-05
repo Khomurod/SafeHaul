@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "prebuild": "node -e \"const fs=require('fs');fs.copyFileSync('node_modules/pdfjs-dist/build/pdf.worker.min.mjs','public/pdf.worker.min.mjs');console.log('✅ PDF worker synced from node_modules')\"",
+    "prebuild": "node -e \"const fs=require('fs');fs.copyFileSync('node_modules/pdfjs-dist/build/pdf.worker.min.mjs','public/pdf.worker.min.mjs');console.log('\u2705 PDF worker synced from node_modules')\"",
     "build": "vite build",
     "lint": "npm run lint:frontend && npm run lint:backend && npm run check:public-claims",
     "lint:frontend": "eslint .",
@@ -40,7 +40,7 @@
     "check:ui-contract": "node scripts/check-ui-contract.mjs",
     "check:icon-contract": "node scripts/check-icon-contract.mjs",
     "test:icon-contract": "node scripts/test-icon-contract.mjs && node scripts/test-icon-contract-ci.mjs",
-    "test:ui-contract": "node scripts/test-ui-contract.mjs && node scripts/test-ui-contract-scope.mjs && node scripts/test-ui-contract-baseline.mjs && node scripts/test-ui-contract-ci.mjs",
+    "test:ui-contract": "node scripts/test-ui-contract.mjs && node scripts/test-ui-contract-state.mjs && node scripts/test-ui-contract-scope.mjs && node scripts/test-ui-contract-baseline.mjs && node scripts/test-ui-contract-ci.mjs",
     "check:visual-contract": "node scripts/check-visual-contract.mjs",
     "test:visual": "playwright test --config=playwright.visual.config.cjs",
     "test:visual:update": "playwright test --config=playwright.visual.config.cjs --update-snapshots",

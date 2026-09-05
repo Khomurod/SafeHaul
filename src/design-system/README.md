@@ -75,6 +75,9 @@ this one true rather than aspirational.
 
 - The company chooser, the PEV carrier picker, the campaign lead preview and the
   e-doc page rail consume `SelectableCard` (2026-09-05).
+- The topbar, the dossier header, the notes and activity tabs, the Super Admin
+  user list, the team modal and the campaign lead preview consume `Avatar`
+  (2026-09-05).
 - Company candidate lists consume `DataTable`, and — since 2026-09-05 — `Chip`
   for the pipeline segment strip and the per-row call affordance, and
   `IconButton` with `pressed` for the two column sort arrows.

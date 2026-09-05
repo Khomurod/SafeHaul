@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useData } from '@/context/DataContext';
 import { LogOut, ArrowLeftRight, Menu } from 'lucide-react';
-import { IconButton } from '@/design-system/components';
+import { Avatar, IconButton } from '@/design-system/components';
 import { NotificationDropdown } from '../components/NotificationDropdown';
 import { getPortalUser } from '@features/auth';
 
@@ -95,9 +95,9 @@ export const CompanyTopbar = ({
                     </div>
 
                     {/* Avatar */}
-                    <div className="w-9 h-9 rounded-ds-full bg-ds-action-primary flex items-center justify-center text-ds-body font-bold text-ds-content-inverse shadow-ds-xs" aria-hidden="true">
+                    <Avatar size="md" tone="primary">
                         {initials}
-                    </div>
+                    </Avatar>
                 </div>
 
                 <div className="h-8 w-px bg-ds-border-subtle mx-1 hidden md:block" aria-hidden="true" />

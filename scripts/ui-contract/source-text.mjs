@@ -47,6 +47,7 @@ export const STORY_RULE_NAMES = [
     // publishing the thing `Chip` and `SegmentedControl` exist to replace.
     'hand-rolled-toggle',
     'hand-rolled-current',
+    'hand-rolled-avatar',
 ];
 
 /**

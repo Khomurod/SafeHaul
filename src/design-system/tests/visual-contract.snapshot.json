@@ -170,6 +170,31 @@
     "borderTopColor": "rgb(37, 99, 235)",
     "backgroundColor": "rgb(219, 234, 254)"
   },
+  "mobile · the avatar that is two sizes, and only a two-width probe can tell · avatar[lg→xl]": {
+    "width": "48px",
+    "height": "48px",
+    "fontSize": "15px"
+  },
+  "mobile · the five steps, which are Primer's steps · avatar[xs]": {
+    "width": "20px",
+    "height": "20px"
+  },
+  "mobile · the five steps, which are Primer's steps · avatar[sm]": {
+    "width": "32px",
+    "height": "32px"
+  },
+  "mobile · the five steps, which are Primer's steps · avatar[md]": {
+    "width": "40px",
+    "height": "40px"
+  },
+  "mobile · the five steps, which are Primer's steps · avatar[lg]": {
+    "width": "48px",
+    "height": "48px"
+  },
+  "mobile · the five steps, which are Primer's steps · avatar[xl]": {
+    "width": "64px",
+    "height": "64px"
+  },
   "mobile · the chip steps, measured against the controls they claim to match · chip[xs]": {
     "height": "24px",
     "borderRadius": "9999px"
@@ -531,6 +556,31 @@
     "boxShadow": "rgb(37, 99, 235) 0px 0px 0px 1px inset",
     "borderTopColor": "rgb(37, 99, 235)",
     "backgroundColor": "rgb(219, 234, 254)"
+  },
+  "desktop · the avatar that is two sizes, and only a two-width probe can tell · avatar[lg→xl]": {
+    "width": "64px",
+    "height": "64px",
+    "fontSize": "16px"
+  },
+  "desktop · the five steps, which are Primer's steps · avatar[xs]": {
+    "width": "20px",
+    "height": "20px"
+  },
+  "desktop · the five steps, which are Primer's steps · avatar[sm]": {
+    "width": "32px",
+    "height": "32px"
+  },
+  "desktop · the five steps, which are Primer's steps · avatar[md]": {
+    "width": "40px",
+    "height": "40px"
+  },
+  "desktop · the five steps, which are Primer's steps · avatar[lg]": {
+    "width": "48px",
+    "height": "48px"
+  },
+  "desktop · the five steps, which are Primer's steps · avatar[xl]": {
+    "width": "64px",
+    "height": "64px"
   },
   "desktop · the chip steps, measured against the controls they claim to match · chip[xs]": {
     "height": "24px",

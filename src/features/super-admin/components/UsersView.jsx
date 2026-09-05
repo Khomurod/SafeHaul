@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useId } from 'react';
 import { getFieldValue } from '@shared/utils/helpers.js';
 import { Users, Briefcase, Edit2, Trash2, Search, ChevronLeft, ChevronRight, ShieldCheck } from 'lucide-react';
-import { Badge, Button, Card, IconButton, Input, Select } from '@/design-system/components';
+import { Avatar, Badge, Button, Card, IconButton, Input, Select } from '@/design-system/components';
 import { SafeHaulLoader } from '@shared/components/SafeHaulLoader';
 
 /**
@@ -124,9 +124,9 @@ export function UsersView({
                                     <tr key={user.id} className="transition-colors">
                                         <th scope="row" className="font-normal">
                                             <div className="flex items-center gap-ds-3">
-                                                <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-ds-full border border-ds-status-accent-border bg-ds-status-accent-bg text-ds-sm font-bold text-ds-status-accent-fg">
+                                                <Avatar size="md" tone="accent">
                                                     {userName.charAt(0).toUpperCase()}
-                                                </span>
+                                                </Avatar>
                                                 <span className="min-w-0">
                                                     <span className="block truncate text-ds-sm font-bold text-ds-content">{userName}</span>
                                                     <span className="block truncate text-ds-xs text-ds-content-muted">{getFieldValue(user.email)}</span>

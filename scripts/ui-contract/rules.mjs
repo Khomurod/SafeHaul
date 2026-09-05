@@ -280,6 +280,24 @@ export const RULES = [
     },
     {
         /*
+         * A disc standing for a person.
+         *
+         * Scoped by what the disc HOLDS rather than by its shape, because the
+         * shape alone is shared by five different components — see
+         * `countHandRolledAvatars` for the measurement that settled it. The
+         * seventeen non-avatar discs in this tree are `StatusMedallion`'s, a
+         * count badge's, a step marker's and a radio dot's business; demanding
+         * `Avatar` for any of them would be the rule naming the wrong remedy.
+         */
+        name: 'hand-rolled-avatar',
+        pattern: null,
+        remedy: 'Use `Avatar`. It owns the size scale (20/32/40/48/64, the steps GitHub '
+            + 'Primer publishes), the tone, and `aria-hidden` — an initial beside the name '
+            + 'it abbreviates is noise to a screen reader, and five of the eight discs this '
+            + 'replaced were announcing one. A disc holding a GLYPH is `StatusMedallion`.',
+    },
+    {
+        /*
          * "Which one of this set you are on" — a page, a step, a location.
          *
          * A sibling of `hand-rolled-toggle` and a different question: `pressed`
