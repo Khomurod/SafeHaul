@@ -11,12 +11,26 @@
   --ds-color-slate-800: #1e293b;
   --ds-color-slate-900: #0f172a;
 
-  /* Brand. The two colours of the SafeHaul mark itself — the logo paths, the
+  /* Brand. The FOUR colours of the SafeHaul mark itself — the logo paths, the
      loader and the favicon are drawn from them. They are a *brand* identity,
      not an interface role: nothing here should be re-tuned to fix a contrast
-     problem on some screen. Use the semantic roles below, never these directly. */
+     problem on some screen. Use the semantic roles below, never these directly.
+
+     The gradient pair is the mark's leading facet, and its start is ONE UNIT
+     off `brand-mint` (#0CE1A5 against #0BE2A4). That is the artwork as it was
+     authored, and it is preserved rather than tidied: collapsing the two would
+     be a change to the mark, which is an owner's call and not a refactor's.
+
+     `Logo.jsx` and `SafeHaulLoader.jsx` read these through `var()`. The favicon
+     cannot — a `data:` URI has no document to resolve a custom property
+     against — so it carries the same four values literally, and
+     `src/tests/brandAssets.test.js` pins that its literals still equal these
+     tokens. That test is the only thing standing between the tab icon and the
+     mark drifting apart, which they already had. */
   --ds-color-brand-deep: #004C68;
   --ds-color-brand-mint: #0BE2A4;
+  --ds-color-brand-mint-gradient-start: #0CE1A5;
+  --ds-color-brand-mint-gradient-end: #077B5A;
 
   /* Existing SafeHaul interface palette */
   --ds-color-blue-50: #eff6ff;
