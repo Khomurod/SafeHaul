@@ -252,6 +252,68 @@
   --ds-button-tone-fg: var(--ds-color-status-accent-fg);
 }
 
+/*
+ * The pressed state of a two-state control.
+ *
+ * Written at 0-3-0 — class plus two attributes — on purpose. The candidate
+ * list's sort toggles marked the active direction with a `text-ds-action-primary`
+ * utility at 0-1-0 against `.ds-button[data-variant='ghost']`'s `color` at
+ * 0-2-0, so a feature could not express "pressed" from outside at all; P-2
+ * recorded that as the reason those two toggles could not migrate. Anything a
+ * caller writes now loses to this, which is the point.
+ *
+ * A fill AND an inset ring, never a colour swap: the toggles' old pressed state
+ * was colour ONLY, and colour is the signal that disappears in forced-colours
+ * mode. The ring is what survives there, the same reasoning
+ * `SegmentedControl.css` records for its selected option.
+ *
+ * `primary` and `danger` are already filled, so they take the ring alone — a
+ * second fill on top of a solid one says nothing.
+ */
+.ds-button[data-variant='secondary'][data-pressed],
+.ds-button[data-variant='ghost'][data-pressed] {
+  border-color: var(--ds-color-action-primary);
+  background: var(--ds-color-surface-selected);
+  color: var(--ds-color-action-primary);
+  box-shadow: inset 0 0 0 1px var(--ds-color-action-primary);
+}
+
+.ds-button[data-variant='secondary'][data-pressed]:hover:not(:disabled),
+.ds-button[data-variant='ghost'][data-pressed]:hover:not(:disabled) {
+  background: var(--ds-color-surface-selected);
+  color: var(--ds-color-action-primary);
+}
+
+.ds-button[data-variant='primary'][data-pressed],
+.ds-button[data-variant='danger'][data-pressed] {
+  box-shadow: inset 0 0 0 2px var(--ds-color-content-inverse);
+}
+
+/*
+ * `link` has no box, so a ring has nothing to sit on. It takes weight instead,
+ * which is the one non-colour signal a run of inline text can carry.
+ */
+.ds-button[data-variant='link'][data-pressed] {
+  font-weight: var(--ds-font-weight-bold);
+}
+
+/*
+ * `.ds-button:focus-visible` sets `box-shadow` at 0-2-0, so every rule above
+ * would have silently deleted the focus ring on a pressed control — the exact
+ * class of loss this whole block exists to stop, one property over. The two
+ * shadows are composed instead of chosen between, so a pressed toggle keeps
+ * saying it is pressed while it has focus.
+ */
+.ds-button[data-variant='secondary'][data-pressed]:focus-visible,
+.ds-button[data-variant='ghost'][data-pressed]:focus-visible {
+  box-shadow: var(--ds-focus-ring), inset 0 0 0 1px var(--ds-color-action-primary);
+}
+
+.ds-button[data-variant='primary'][data-pressed]:focus-visible,
+.ds-button[data-variant='danger'][data-pressed]:focus-visible {
+  box-shadow: var(--ds-focus-ring), inset 0 0 0 2px var(--ds-color-content-inverse);
+}
+
 .ds-button[data-full-width='true'] {
   width: 100%;
 }

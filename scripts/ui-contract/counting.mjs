@@ -62,6 +62,24 @@ export function countFileInputs(code) {
 }
 
 /**
+ * A raw `<button>` or `<a>` carrying `aria-pressed`.
+ *
+ * Read off the open tag rather than matched with a regex, because that is the
+ * only way to tell a lowercase element from a component: `<Button aria-pressed>`
+ * is nineteen correct call sites and `<button aria-pressed>` is a second toggle
+ * contract, and the two differ by one capital letter that a regex over the
+ * attribute cannot see. `openTagAttributes` is case-sensitive and requires
+ * `[\s/>]` after the name, so `<abbr>` and `<article>` are not `<a>`.
+ */
+export function countHandRolledToggles(code) {
+    return ['button', 'a'].reduce(
+        (total, element) => total + openTagAttributes(code, element)
+            .filter((attributes) => /\baria-pressed\s*=/.test(attributes)).length,
+        0,
+    );
+}
+
+/**
  * The primitives that validate `label` and throw on anything but a non-empty
  * string. Kept beside the counter that reads them so the two cannot drift.
  */
@@ -120,6 +138,7 @@ export const COUNTERS = {
     'css-apply-off-contract': countApplyOffContract,
     'raw-file-input': countFileInputs,
     'jsx-label-on-throwing-primitive': countJsxLabelsOnThrowingPrimitives,
+    'hand-rolled-toggle': countHandRolledToggles,
 };
 
 /**

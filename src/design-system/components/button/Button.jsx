@@ -82,17 +82,42 @@ function normalizeOption(value, options, fallback, name) {
   return normalized;
 }
 
+/**
+ * A two-state control: `pressed` makes the button say which of the options is
+ * on, in the contract rather than in a caller's class list.
+ *
+ * It exists because of a specificity trap this repository has now recorded
+ * twice. The candidate list's two sort toggles marked the active direction with
+ * a `text-ds-action-primary` utility at 0-1-0, and `.ds-button[data-variant]`
+ * sets `color` at 0-2-0 — so migrating them without this prop would have
+ * silently dropped the only indication of which sort was applied, exactly as
+ * `Button.css` already records one property over for background overrides.
+ *
+ * `data-pressed` is styled at 0-3-0, where nothing feature-side can lose to it,
+ * and it draws a fill and an inset ring rather than a colour swap: those
+ * toggles' pressed state was colour ONLY, which is the signal that disappears
+ * in forced-colours mode.
+ *
+ * A bare `aria-pressed` keeps working and is not the same thing. Nineteen call
+ * sites already say `<Button aria-pressed={on} variant={on ? 'primary' : 'secondary'}>`,
+ * which draws the pressed state out of the contract's own variants and is a
+ * perfectly good answer. Use `pressed` when you want the toggle appearance
+ * WITHOUT changing the variant — which is the case the sort toggles could not
+ * express, and the reason this prop exists.
+ */
 export const Button = forwardRef(function Button({
   children,
   variant = 'secondary',
   size = 'md',
   tone = 'default',
+  pressed,
   loading = false,
   disabled = false,
   fullWidth = false,
   justify = 'center',
   className = '',
   type = 'button',
+  'aria-pressed': ariaPressed,
   ...props
 }, ref) {
   const normalizedVariant = normalizeOption(variant, VARIANTS, 'secondary', 'variant');
@@ -112,9 +137,14 @@ export const Button = forwardRef(function Button({
       data-variant={normalizedVariant}
       data-size={normalizedSize}
       data-tone={normalizedTone === 'default' ? undefined : normalizedTone}
+      data-pressed={pressed === true || undefined}
       data-full-width={fullWidth || undefined}
       data-justify={justify}
       disabled={disabled || loading}
+      /* `aria-pressed` is destructured rather than left to the spread because
+         this attribute sits after it: written as a conditional expression it
+         would overwrite a caller's own value with `undefined` and delete it. */
+      aria-pressed={pressed === undefined ? ariaPressed : pressed === true}
       aria-busy={loading || undefined}
     >
       {loading && <span className="ds-button__spinner" aria-hidden="true" />}

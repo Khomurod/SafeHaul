@@ -73,7 +73,9 @@ this one true rather than aspirational.
 
 ## Current approved consumers
 
-- Company candidate lists consume `DataTable`.
+- Company candidate lists consume `DataTable`, and — since 2026-09-05 — `Chip`
+  for the pipeline segment strip and the per-row call affordance, and
+  `IconButton` with `pressed` for the two column sort arrows.
 - The Company workspace shell and dashboard consume workspace/page layouts,
   Button/IconButton, Card/MetricCard, Badge, and DataTable.
 - The Company Settings Personal Profile compatibility slice consumes the

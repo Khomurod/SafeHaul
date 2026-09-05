@@ -20,7 +20,9 @@ Features own labels, icons, permission checks, and callbacks.
     inline links overlap, and an overlapping target is worse than a small one.
   - `IconButton` throws on `variant="link"`. `.ds-icon-button` sets only the
     width, so the result would be a 44×16px target with a bare glyph in it.
-- Supported sizes are `sm` (36px), `md` (44px, the default) and `lg` (52px).
+- Supported sizes are `sm` (36px), `md` (44px, the default) and `lg` (52px), plus
+  `xs` (24px) which **only `IconButton` reaches** — `Button` throws on it, because
+  12px text cannot sit in a 24px box with any padding.
   This is the **shared control scale**: `Input`, `Select` and `Textarea` read the
   same three tokens, so a button and the control beside it are the same height
   without anything being set at the call site.
@@ -44,11 +46,39 @@ Features own labels, icons, permission checks, and callbacks.
   different-looking internal spacing. A button that instead composes a
   multi-line tile — a larger glyph beside heading-sized text inside a wrapper —
   keeps its own sizing, because flattening it would be a downgrade.
-- Supported tones are `default` and `success`. A tone recolours the button while
-  the variant keeps owning shape, size, focus, disabled and loading. Use
-  `tone="success"` only where completion is part of the action's meaning — the
-  signing room's **Finish & Submit** is the reference case. Tone is never the
-  only signal: the label still has to say what the action does.
+  - `xs` clears WCAG 2.2 SC 2.5.8 (Minimum) exactly, with nothing to spare, so it
+    is for a control that has no room for more — a badge on the corner of a PDF
+    field, a sort arrow in a dense column header. `shape="round"` cuts it as a
+    disc, for one sitting **on** another element where a rounded square reads as
+    a second nested box.
+- Supported tones are `default`, `neutral`, `info`, `success`, `warning`,
+  `danger` and `accent`, and a tone means different things by variant. A tone
+  recolours the button while the variant keeps owning shape, size, focus,
+  disabled and loading. Tone is never the only signal: the label still has to say
+  what the action does.
+  - On `primary` it **fills**, and only `success` is allowed. A primary action
+    already carries the page's strongest emphasis, so a second colour competes
+    with it rather than adding to it. The signing room's **Finish & Submit** is
+    the reference case, and it predates the scale.
+  - On `secondary` and `ghost` it is the status **tint** trio — border, tinted
+    background, status text.
+  - `danger` and `link` refuse a tone: `danger` is one, and `link` has no box to
+    tint. The pair is checked in `Button.jsx`, so an unsupported combination
+    names its call site instead of rendering something nobody chose.
+- **`pressed` is for a two-state control** — a toggle that must keep its
+  variant. It sets `aria-pressed` and draws a fill plus an inset ring, at 0-3-0
+  specificity where nothing a feature writes can beat it. That is the whole
+  reason it exists: the candidate list's sort arrows marked the active direction
+  with a `text-ds-action-primary` utility at 0-1-0, losing to the variant rule's
+  `color` at 0-2-0, so "which sort is applied" could not be said from outside.
+  - A ring as well as a fill, because those arrows' pressed state was colour
+    only, and colour is what disappears in forced-colours mode.
+  - A bare `aria-pressed` still works and is **not** the same thing. Nineteen
+    call sites pass it through and draw the state with a variant swap
+    (`variant={on ? 'primary' : 'secondary'}`), which is a perfectly good answer.
+    Reach for `pressed` when the variant has to stay put.
+  - For a pill-shaped toggle — a filter strip, a tag row — use `Chip` instead.
+    `check:ui-contract` refuses a raw `<button aria-pressed>` either way.
 
 Do not recolour a `Button` with a background utility class from a feature. The
 component's own `[data-variant]` rules carry two selectors, so a single-class

@@ -1,8 +1,9 @@
 import React from 'react';
-import { IconButton, defineTableColumns } from '@/design-system/components';
+import { Chip, IconButton, defineTableColumns } from '@/design-system/components';
 import {
-    Phone, User, Briefcase, MapPin, Calendar, ArrowUp, ArrowDown
-} from 'lucide-react';
+    Icon as DsIcon,
+    Phone, User, Briefcase, MapPin, Calendar, ArrowUp, ArrowDown,
+} from '@design-system/icons';
 import { getFieldValue, formatPhoneNumber, toTitleCase } from '@shared/utils/helpers';
 import { StatusBadge } from '@shared/components/badges/StatusBadge';
 
@@ -110,15 +111,21 @@ export function buildCandidateColumns({ sortConfig, handleDateSort, handlePhoneC
                                 )}
                             </div>
                             <div className="mt-1">
-                                <button
-                                    type="button"
+                                {/* `sm` is 36px on the shared control scale. The
+                                    hand-written chip was 32px, so this is the one
+                                    place the migration rounds UP rather than down:
+                                    it was the only site with a real touch target,
+                                    and putting it on the scale should not cost it.
+                                    Measured off the baselines: the row pitch stays
+                                    92px, because the two-line stack had the slack. */}
+                                <Chip
+                                    size="sm"
+                                    icon={Phone}
                                     onClick={(e) => handlePhoneClick(e, item)}
                                     aria-label={`Call ${name} at ${formatPhoneNumber(getFieldValue(item.phone))}`}
-                                    className="min-h-8 text-ds-xs rounded-ds-sm px-2 inline-flex items-center gap-1 transition-colors border text-ds-content-secondary border-ds-border-subtle hover:bg-ds-surface-subtle hover:text-ds-content focus-visible:outline-none focus-visible:shadow-ds-focus"
                                 >
-                                    <Phone size={12} aria-hidden="true" />
                                     {formatPhoneNumber(getFieldValue(item.phone))}
-                                </button>
+                                </Chip>
                             </div>
                         </div>
                     );
@@ -163,7 +170,7 @@ export function buildCandidateColumns({ sortConfig, handleDateSort, handlePhoneC
                 return (
                     <div>
                         <div className="flex items-center gap-1.5 text-ds-body font-semibold text-ds-content">
-                            <Briefcase size={12} className="text-ds-content-muted" aria-hidden="true" />
+                            <DsIcon icon={Briefcase} size="xs" className="text-ds-content-muted" />
                             {position}
                         </div>
                         <div className="flex flex-wrap items-center gap-1.5 mt-1">
@@ -174,7 +181,7 @@ export function buildCandidateColumns({ sortConfig, handleDateSort, handlePhoneC
                             )}
                             {item.state && (
                                 <span className="flex items-center gap-0.5 text-ds-xs text-ds-content-secondary font-medium bg-ds-surface-subtle px-1.5 py-0.5 rounded-ds-sm">
-                                    <MapPin size={12} className="text-ds-content-muted" aria-hidden="true" /> {item.state}
+                                    <DsIcon icon={MapPin} size="xs" className="text-ds-content-muted" /> {item.state}
                                 </span>
                             )}
                         </div>
@@ -192,37 +199,35 @@ export function buildCandidateColumns({ sortConfig, handleDateSort, handlePhoneC
             key: 'addedDate',
             header: (
                 <span className="inline-flex items-center justify-center gap-1">
-                    <Calendar size={12} className="text-ds-content-muted" aria-hidden="true" />
+                    <DsIcon icon={Calendar} size="xs" className="text-ds-content-muted" />
                     Added Date
                     <span className="inline-flex items-center gap-0.5" onClick={e => e.stopPropagation()}>
-                        {/* Up arrow = Earliest first (asc) */}
-                        <button
-                            type="button"
+                        {/* Up arrow = Earliest first (asc). `pressed` rather than a
+                            colour utility: the active direction used to be marked
+                            with `text-ds-action-primary`, which loses to the
+                            variant's own `color` and would have left the table
+                            with nothing on screen saying how it is sorted. */}
+                        <IconButton
+                            label="Sort by earliest added date"
+                            variant="ghost"
+                            size="xs"
                             onClick={() => handleDateSort('asc')}
                             title="Earliest first"
-                            aria-label="Sort by earliest added date"
-                            aria-pressed={isDateSorted && sortConfig.direction === 'asc'}
-                            className={`h-6 w-6 inline-flex items-center justify-center rounded-ds-sm leading-none transition-colors focus-visible:outline-none focus-visible:shadow-ds-focus ${isDateSorted && sortConfig.direction === 'asc'
-                                ? 'text-ds-action-primary'
-                                : 'text-ds-content-muted hover:bg-ds-surface hover:text-ds-content'
-                                }`}
+                            pressed={isDateSorted && sortConfig.direction === 'asc'}
                         >
-                            <ArrowUp size={13} strokeWidth={2.5} aria-hidden="true" />
-                        </button>
+                            <DsIcon icon={ArrowUp} size="xs" />
+                        </IconButton>
                         {/* Down arrow = Latest first (desc) */}
-                        <button
-                            type="button"
+                        <IconButton
+                            label="Sort by latest added date"
+                            variant="ghost"
+                            size="xs"
                             onClick={() => handleDateSort('desc')}
                             title="Latest first"
-                            aria-label="Sort by latest added date"
-                            aria-pressed={isDateSorted && sortConfig.direction === 'desc'}
-                            className={`h-6 w-6 inline-flex items-center justify-center rounded-ds-sm leading-none transition-colors focus-visible:outline-none focus-visible:shadow-ds-focus ${isDateSorted && sortConfig.direction === 'desc'
-                                ? 'text-ds-action-primary'
-                                : 'text-ds-content-muted hover:bg-ds-surface hover:text-ds-content'
-                                }`}
+                            pressed={isDateSorted && sortConfig.direction === 'desc'}
                         >
-                            <ArrowDown size={13} strokeWidth={2.5} aria-hidden="true" />
-                        </button>
+                            <DsIcon icon={ArrowDown} size="xs" />
+                        </IconButton>
                     </span>
                 </span>
             ),
@@ -236,7 +241,7 @@ export function buildCandidateColumns({ sortConfig, handleDateSort, handlePhoneC
                 }
                 return (
                     <span className="inline-flex items-center gap-1 text-ds-xs text-ds-content-secondary font-medium">
-                        <Calendar size={12} className="text-ds-content-muted" aria-hidden="true" />
+                        <DsIcon icon={Calendar} size="xs" className="text-ds-content-muted" />
                         {dateStr}
                     </span>
                 );
@@ -281,7 +286,7 @@ export function buildCandidateColumns({ sortConfig, handleDateSort, handlePhoneC
                 }
                 return (
                     <span className="text-ds-xs text-ds-content-muted italic flex items-center gap-1">
-                        <User size={12} aria-hidden="true" /> Unassigned
+                        <DsIcon icon={User} size="xs" /> Unassigned
                     </span>
                 );
             },
@@ -312,7 +317,7 @@ export function buildCandidateColumns({ sortConfig, handleDateSort, handlePhoneC
                             label={`Call ${name}`}
                             onClick={(e) => handlePhoneClick(e, item)}
                         >
-                            <Phone aria-hidden="true" />
+                            <DsIcon icon={Phone} />
                         </IconButton>
                     </div>
                 );

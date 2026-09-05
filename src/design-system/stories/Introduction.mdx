@@ -100,6 +100,22 @@ Closed on 2026-08-21, so the exceptions that cited them are retired:
   catalog used to document the composition and ask you to copy it, which is a
   component waiting to be written.
 
+Closed on 2026-09-05:
+
+- **Chip / ChipGroup**, the interactive twin of `Badge`: the same pill, the same
+  12px semibold text, the same six tints, plus a pointer, a focus ring and a
+  pressed state. It closed **two** recorded gaps that turned out to be one
+  primitive — the filter chip and the tinted chip link. Six exceptions retired
+  across four files, and one screen-reader repair on the way: the candidate
+  list's pipeline strip had neither a group name nor `aria-pressed`.
+- **`pressed` on Button and IconButton**, for a toggle that must keep its
+  variant. It draws a fill and an inset ring at a specificity nothing
+  feature-side can beat — which is the point, because the two sort arrows it was
+  built for marked the active direction with a text utility that lost to the
+  variant's own `color` rule, and lost silently.
+- A raw `<button aria-pressed>` is refused from here on. `SegmentedControl` and
+  `Chip` are the two shapes; a `Button` with `pressed` is the third.
+
 Closed on 2026-08-25:
 
 - **`Button variant="link"`** — an action that reads as inline text. Six screens

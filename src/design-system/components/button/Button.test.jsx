@@ -27,6 +27,18 @@ function classAndAttributeCount(selector) {
   return (selector.match(/\.[\w-]+|\[[^\]]+\]/g) || []).length;
 }
 
+/**
+ * The WEAKEST selector in a comma-separated group, which is the one that decides
+ * whether a rule can lose. Counting the group as one string is what
+ * `classAndAttributeCount` does, and a mutation proved that hides the answer: a
+ * pressed rule weakened to a single `.ds-button[data-pressed]` still summed to
+ * four across its two-selector group and passed a test asserting it outranked a
+ * two-selector variant rule. Reproduced before this existed.
+ */
+function weakestInGroup(selectorGroup) {
+  return Math.min(...selectorGroup.split(',').map((one) => classAndAttributeCount(one)));
+}
+
 function selectorFor(declaration) {
   const match = BUTTON_CSS.match(new RegExp(`([^{}]+)\\{[^}]*${declaration}`));
   if (!match) throw new Error(`No rule found declaring ${declaration}`);
@@ -303,5 +315,86 @@ describe('Button variant="link"', () => {
   it('refuses to be an icon-only button, which would drop under the target size', () => {
     expect(() => render(<IconButton label="Close" variant="link"><svg /></IconButton>))
       .toThrow(/cannot use variant="link"/);
+  });
+});
+
+describe('Button pressed', () => {
+  it('says nothing about pressing unless asked', () => {
+    render(<Button>Filter</Button>);
+    const button = screen.getByRole('button', { name: 'Filter' });
+    expect(button).not.toHaveAttribute('aria-pressed');
+    expect(button).not.toHaveAttribute('data-pressed');
+  });
+
+  it('reports both states and marks only the pressed one for CSS', () => {
+    const { rerender } = render(<Button pressed={false}>Filter</Button>);
+    const off = screen.getByRole('button', { name: 'Filter' });
+    expect(off).toHaveAttribute('aria-pressed', 'false');
+    expect(off).not.toHaveAttribute('data-pressed');
+
+    rerender(<Button pressed>Filter</Button>);
+    const on = screen.getByRole('button', { name: 'Filter' });
+    expect(on).toHaveAttribute('aria-pressed', 'true');
+    expect(on).toHaveAttribute('data-pressed', 'true');
+  });
+
+  /*
+   * Nineteen call sites already pass `aria-pressed` straight through and draw
+   * the state with a variant swap. `aria-pressed` sits AFTER the prop spread in
+   * the element, so writing it as a conditional expression would overwrite
+   * every one of those with `undefined` and delete the attribute. Reproduced
+   * before the destructure was added; this is the guard.
+   */
+  it('does not eat an aria-pressed passed straight through', () => {
+    render(<Button aria-pressed variant="primary">SMS</Button>);
+    expect(screen.getByRole('button', { name: 'SMS' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('reaches an icon-only toggle at the compact step', () => {
+    render(<IconButton label="Sort by earliest" variant="ghost" size="xs" pressed><svg /></IconButton>);
+    const button = screen.getByRole('button', { name: 'Sort by earliest' });
+    expect(button).toHaveAttribute('aria-pressed', 'true');
+    expect(button).toHaveAttribute('data-size', 'xs');
+  });
+
+  /*
+   * The whole reason the prop exists. P-2 recorded that the candidate list's
+   * sort toggles could not migrate because their pressed colour was a
+   * `text-ds-action-primary` utility at one class, losing to the variant rule
+   * at two. The contract's own pressed rule has to outrank the variant rule or
+   * it repeats the defect it was built to fix.
+   */
+  it('defines pressed at higher specificity than the variant it sits on', () => {
+    const pressed = selectorFor('color: var\\(--ds-color-action-primary\\);\\s*box-shadow');
+    const variant = selectorFor('background: var\\(--ds-color-action-primary\\)');
+    expect(pressed).toContain('[data-pressed]');
+    expect(weakestInGroup(pressed)).toBeGreaterThan(weakestInGroup(variant));
+  });
+
+  /*
+   * Colour is the signal that disappears in forced-colours mode, so the fill is
+   * never the whole story: an inset ring is drawn with it. The old hand-rolled
+   * toggles marked the active sort with colour alone.
+   */
+  it('draws a ring as well as a fill, on every variant', () => {
+    const rings = BUTTON_CSS.match(/\[data-pressed\][^{]*\{[^}]*box-shadow:\s*inset/g) || [];
+    expect(rings.length).toBeGreaterThanOrEqual(2);
+  });
+
+  /*
+   * `.ds-button:focus-visible` sets `box-shadow` at two selectors, so every
+   * pressed rule above outranks it and would have silently deleted the focus
+   * ring — the same class of loss the pressed rule exists to prevent. The two
+   * shadows are composed rather than chosen between.
+   */
+  it('keeps the focus ring on a pressed control', () => {
+    const focused = BUTTON_CSS.match(
+      /\[data-pressed\]:focus-visible[^{]*\{[^}]*box-shadow:[^;]*;/g,
+    ) || [];
+    expect(focused.length).toBeGreaterThanOrEqual(2);
+    for (const rule of focused) {
+      expect(rule).toContain('var(--ds-focus-ring)');
+      expect(rule).toContain('inset');
+    }
   });
 });

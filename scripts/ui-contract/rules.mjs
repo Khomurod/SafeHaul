@@ -278,6 +278,34 @@ export const RULES = [
             + 'the only form that announces the new tab; `target` plus `rel` written by hand '
             + 'does not (WCAG 3.2.5).',
     },
+    {
+        /*
+         * A two-state control the design system already builds.
+         *
+         * Counter-backed rather than a regex, for the reason `openTagAttributes`
+         * exists at all: the shape has to be read off the OPEN TAG, so that a
+         * `<Button aria-pressed>` — nineteen live call sites, all correct — is
+         * silent while a raw `<button aria-pressed>` is not. A regex over the
+         * attribute alone cannot tell those apart, and one that tried to match
+         * `<button[^>]*aria-pressed` would stop at the first `>` inside an arrow
+         * function, which is the defect this module records twice already.
+         *
+         * `<a aria-pressed>` counts too. It is invalid ARIA — a link goes
+         * somewhere, it is not on or off — so the rule catching it is a bonus
+         * rather than the point. `Chip` refuses the same combination at runtime.
+         *
+         * Scope is the two elements the design system has primitives for. A
+         * `<div role="button" aria-pressed>` is a different and rarer mistake,
+         * and inventing coverage for a shape nobody has written would be a rule
+         * nobody could test against a real file.
+         */
+        name: 'hand-rolled-toggle',
+        pattern: null,
+        remedy: 'Use `Chip` for a filter or a tag, `SegmentedControl` for a set of cards, or '
+            + '`Button`/`IconButton` with `pressed` for a toggle that keeps its variant. '
+            + 'Wrap a set in `ChipGroup` so the group is named — "pressed" alone does not say '
+            + 'what was chosen.',
+    },
 ];
 
 /**
@@ -396,3 +424,16 @@ export const STYLING_SIGNAL = /\b(?:p|px|py|pt|pb|pl|pr)-(?:\d|ds-)|\bbg-|\bbord
  * be: it needs to find the `>` that closes the open tag, and nothing shorter
  * than brace-and-quote tracking finds it reliably.
  */
+
+/**
+ * Every rule a JSX module is held to — which is what `rulesFor` returning `null`
+ * means, spelled out so a caller can subtract from it.
+ *
+ * Derived rather than listed, so a rule added to either array is covered without
+ * anybody remembering this line. It must stay in sync with the `only === null`
+ * branch of `countViolations`, and `test-ui-contract.mjs` pins that it does.
+ */
+export const JSX_RULE_NAMES = [
+    ...RULES.map((rule) => rule.name),
+    ...STYLED_CONTROL_RULES.map((rule) => rule.name),
+];

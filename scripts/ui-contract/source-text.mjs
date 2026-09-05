@@ -7,7 +7,7 @@
  */
 
 import { TOKEN_DEFINITION_FILES } from './paths.mjs';
-import { CSS_RULE_NAMES } from './rules.mjs';
+import { CSS_RULE_NAMES, JSX_RULE_NAMES } from './rules.mjs';
 
 /**
  * The rules a *story* is held to.
@@ -43,6 +43,9 @@ export const STORY_RULE_NAMES = [
     // A story that writes its own stacking number is teaching one, and the
     // catalog is the last place a `z-[9999]` should be able to start.
     'raw-z-index',
+    // Same argument, one shape over: a story hand-rolling a pressed control is
+    // publishing the thing `Chip` and `SegmentedControl` exist to replace.
+    'hand-rolled-toggle',
 ];
 
 /**
@@ -69,6 +72,23 @@ export const HTML_RULE_NAMES = [
 ];
 
 /**
+ * The design system's own source, and the rules it is exempt from.
+ *
+ * Exactly one, and it is the shape of exemption to be suspicious of: a rule that
+ * says "use the primitive" cannot also fire on the primitive. `SegmentedControl`
+ * IS the `role="group"` of `<button aria-pressed>` that `hand-rolled-toggle`
+ * points people at, and `Chip` is the other one. Anywhere else, an exemption
+ * this broad would be a hole — so it is a NAMED LIST rather than a path skip:
+ * every other rule still applies inside `src/design-system/`, and adding a
+ * second name here is a decision somebody has to write down.
+ *
+ * Catalog stories are not covered by this: they are routed to
+ * `STORY_RULE_NAMES` first, which holds them to the rule deliberately.
+ */
+export const CONTRACT_ROOT = 'src/design-system/';
+export const CONTRACT_EXEMPT_RULES = ['hand-rolled-toggle'];
+
+/**
  * Which rules apply to a file.
  *
  * Stylesheets get the two rules that mean anything in CSS — a raw colour and
@@ -84,6 +104,9 @@ export function rulesFor(relativePath) {
         return CSS_RULE_NAMES;
     }
     if (/\.stories\.[jt]sx?$/.test(relativePath)) return STORY_RULE_NAMES;
+    if (relativePath.startsWith(CONTRACT_ROOT)) {
+        return JSX_RULE_NAMES.filter((name) => !CONTRACT_EXEMPT_RULES.includes(name));
+    }
     return null; // null = every JSX rule
 }
 

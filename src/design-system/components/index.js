@@ -1,6 +1,7 @@
 export { Badge } from './badge';
 export { Button, IconButton } from './button';
 export { Card, MetricCard } from './card';
+export { Chip, ChipGroup } from './chip';
 export { Disclosure } from './disclosure';
 export { FileInput } from './file-input';
 export { ButtonLink, IconButtonLink, Link } from './link';
