@@ -83,6 +83,25 @@ describe('the brand mark is one mark', () => {
     expect(faviconSvg).not.toMatch(/fill='#0CE1A5'/);
   });
 
+  /*
+   * A FIFTH literal copy of a brand value lives in the same file, three lines
+   * above the favicon, and nothing compared it until 2026-09-06:
+   *
+   *     <meta name="theme-color" content="#004C68">
+   *
+   * It paints the browser chrome on Android and the iOS status bar — the first
+   * SafeHaul colour a phone user sees, before a single pixel of the app. The
+   * UI-contract scan reaches `index.html` but runs only the CLASS-LIST rules
+   * there (`rulesFor('index.html') === HTML_RULE_NAMES`), so a raw hex in an
+   * attribute is outside what that guard claims to check, by design. It was
+   * therefore guarded by nothing at all, which is the exact condition this file
+   * opens by describing: a copy nothing compares is a copy that diverges.
+   */
+  it('paints the browser chrome with the brand colour, not a copy of it', () => {
+    const themeColour = html.match(/<meta name="theme-color" content="(#[0-9A-Fa-f]{6})"/)[1];
+    expect(themeColour.toUpperCase()).toBe(brandTokens['--ds-color-brand-deep']);
+  });
+
   it('draws the same shape as the logo, path for path', () => {
     const fromLogo = pathData(logo, '"');
     const fromFavicon = pathData(faviconSvg, "'");

@@ -2,12 +2,6 @@
   "$comment": "Every UI-contract violation the product deliberately keeps, and why. `npm run check:ui-contract` fails on anything not listed here, on a count higher OR lower than recorded, and on any entry whose rule has no `reasons` text. This began as a shrink-only inventory of 660 violations carrying `debt` tags for the migration slices that owed the work; that debt reached zero on 2026-08-25 and the `debt` escape hatch was removed with it. An entry here is now a decision someone wrote down, not a promise to come back. Since 2026-09-04 it is also compared against the base commit: an entry may only record a violation the base already carried, so a recorded exception is a frozen ceiling and a file this change creates can never carry one. `--update` therefore only SHRINKS — it refuses to write an addition and tells you to write it by hand with a reason. Keys are repo-relative as of version 2 (2026-09-05), when the scan reached `index.html` — Tailwind compiles it, so a class there ships like any other, and there is no honest `src/`-relative name for a file outside `src/`. Regenerate with `npm run check:ui-contract -- --update`.",
   "version": 2,
   "files": {
-    "index.html": {
-      "raw-palette-class": 1,
-      "reasons": {
-        "raw-palette-class": "roadmap §2 — `<body class=\"bg-gray-50\">`, the application's page background. This is not an approved exception: it is the first thing the widened scan found, recorded here so the widening lands separately from the fix. Fixing it is one character-for-character swap to `bg-ds-canvas` (the utility exists), but the two colours are NOT identical — Tailwind's gray-50 is #f9fafb and --ds-color-canvas resolves to slate-50 #f8fafc — and nothing else paints the body, so the change moves every application-screen pixel baseline. Those can only be re-recorded from CI's visual-regression-diff artifact (local Chromium and CI's do not agree), which is why it is its own slice. Retire this entry there."
-      }
-    },
     "src/design-system/components/data-table/DataTable.jsx": {
       "raw-table": 1,
       "reasons": {

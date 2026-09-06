@@ -1174,6 +1174,16 @@ every rule above while being a second implementation of `patterns/page-state` or
 `ConfirmDialog`. Use the pattern; roadmap §7 records the review step that finds
 these.
 
+**And a second thing, in `index.html`.** The scan reaches that file but runs only
+the class-list rules there, so nothing in it is held by a rule alone. Two values
+are therefore pinned by tests instead: the page ground (`<body class="bg-ds-canvas">`,
+`src/tests/pageShell.test.js`) — because `raw-palette-class` refuses raw palette
+names and a swap to a *different* `--ds-*` role passes, while the pixel lane
+cannot resolve the colour at all — and the `theme-color` meta, a literal copy of
+`--ds-color-brand-deep` that paints the phone's browser chrome
+(`src/tests/brandAssets.test.jsx`). Both were measured, not assumed; roadmap §7,
+"The one class no guard could hold".
+
 ---
 
 ## 12. Known limitations, retired features and intentional exceptions
