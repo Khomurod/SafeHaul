@@ -365,6 +365,18 @@ zero-tolerance, for no better reason than that the walk started at `src/`.
 `content` array is not covered by a scan target. Allowlist keys are repo-relative
 from version 2 as a consequence.
 
+**The body reads `bg-ds-canvas` since 2026-09-06, and a test holds it — not the
+guard.** Retiring that entry was one word, and the interesting part is what the
+swap proved: it is invisible to every automated check here, in both directions.
+`raw-palette-class` refuses raw *palette* names, so deleting the class or
+swapping it for another role such as `bg-ds-surface` passes with "none new"
+(measured). And the pixel lane cannot resolve the colour at all — slate-50
+`#f8fafc` against gray-50 `#f9fafb` is one unit on red and one on blue, which
+Playwright's own pixelmatch scores as **0 differing pixels** at the lane's
+`threshold: 0.02` (40,000 of 40,000 at `threshold: 0`, so the tolerance is what
+absorbs it). A guard that refuses the wrong *kind* of value does not thereby pin
+the right one; `src/tests/pageShell.test.js` names it.
+
 **A dialog's chrome is props, not a class list.** Since 2026-09-05 `Modal`
 carries `size`, `scroll`, `fill`, `mobile`, `placement` and `tone`, and owns its
 surface, border, radius, shadow, overlay colour, blur and stacking layer

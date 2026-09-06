@@ -798,7 +798,7 @@ weaken or delete one without replacing the guarantee.
 | `src/tests/noBlockingBrowserDialogs.test.js` | No `confirm(` / `alert(` anywhere under `src/`, with or without a `window.` prefix. It walks every non-test file, strips comments and string literals, and is proven to catch a real call rather than passing vacuously |
 | `npm run test:stories` (`src/tests/designSystemStories.a11y.test.jsx`) | Every catalog story renders and passes axe |
 | `npm run check:table-layout` (`scripts/check-table-layout.mjs`) | Measures the built catalog in a real browser at 412px and 1440px: a cell must contain its content (`scrollWidth > clientWidth` is a violation unless the column opts into `truncate`), and no region may reserve a gutter it never scrolls into. Covers `DataTable` **and** the `ds-native-table` contract — until 2026-08-25 no native table was measured anywhere, so the fifteen tables across eleven files that are not `DataTable` had no layout guard at all. Honours `PW_CHROMIUM_EXECUTABLE`, so it runs in a sandbox whose Chromium is not the pinned build — a guard that cannot run gets skipped |
-| `npm run check:ui-contract` (`scripts/check-ui-contract.mjs`) | The design-system contract, zero-tolerance. Raw palette classes, raw hex, sub-12px text, off-scale type, **Tailwind radii and shadows** (whose names collide with the `--ds-*` ones one step off), hand-built overlays, raw tables, hand-styled buttons/fields/anchors, **hand-rolled tablists, hand-rolled toggles, current-item controls and avatar discs, raw file inputs and hand-written `target="_blank"`** — in JSX, in stories and in CSS. Measured against `src/design-system/ui-contract.allowlist.json`: anything unlisted fails, so does a count *lower* than recorded, so does an entry that does not say why it is allowed, and so does an approved native table that does not apply `ds-native-table` — counted **per `<table>`**, not per file, because the first version of that rule was satisfied by one class in a file with three tables, and one of the eleven approved files has exactly that. There is no exemption for an invisible table: that carve-out was removed after review round eight, because deciding "is this hidden?" from a class list means deciding it across Tailwind's whole variant space. **Since 2026-09-05 the styled-control rules resolve a hoisted class list** (`scripts/ui-contract/bindings.mjs`) rather than reading the characters inside the opening tag, so moving a class list to a `const` is no longer an exemption. **Since 2026-09-05 the scan reaches `index.html`** as well as `src/`, because Tailwind compiles it and a class written there ships in the application stylesheet exactly like one written in a component — which is how `<body class="bg-gray-50">` survived the whole campaign unseen. Allowlist keys are repo-relative from version 2 as a result. **Since 2026-09-04 the allowlist is itself compared against the base commit** (`scripts/ui-contract/baseline.mjs`, sharing the size guard's `SOURCE_SIZE_BASE`): an entry may only record a violation the base already carried, `--update` refuses to write an addition, and CI passes `--require-baseline` from `callable-contract`, which no lane selection can skip |
+| `npm run check:ui-contract` (`scripts/check-ui-contract.mjs`) | The design-system contract, zero-tolerance. Raw palette classes, raw hex, sub-12px text, off-scale type, **Tailwind radii and shadows** (whose names collide with the `--ds-*` ones one step off), hand-built overlays, raw tables, hand-styled buttons/fields/anchors, **hand-rolled tablists, hand-rolled toggles, current-item controls and avatar discs, raw file inputs and hand-written `target="_blank"`** — in JSX, in stories and in CSS. Measured against `src/design-system/ui-contract.allowlist.json`: anything unlisted fails, so does a count *lower* than recorded, so does an entry that does not say why it is allowed, and so does an approved native table that does not apply `ds-native-table` — counted **per `<table>`**, not per file, because the first version of that rule was satisfied by one class in a file with three tables, and one of the eleven approved files has exactly that. There is no exemption for an invisible table: that carve-out was removed after review round eight, because deciding "is this hidden?" from a class list means deciding it across Tailwind's whole variant space. **Since 2026-09-05 the styled-control rules resolve a hoisted class list** (`scripts/ui-contract/bindings.mjs`) rather than reading the characters inside the opening tag, so moving a class list to a `const` is no longer an exemption. **Since 2026-09-05 the scan reaches `index.html`** as well as `src/`, because Tailwind compiles it and a class written there ships in the application stylesheet exactly like one written in a component — which is how `<body class="bg-gray-50">` survived the whole campaign unseen — **fixed to `bg-ds-canvas` on 2026-09-06**, the last thing the campaign left recorded rather than approved, and pinned by `src/tests/pageShell.test.js` because this rule cannot hold it (it refuses raw *palette* names, so a swap to another role passes). Allowlist keys are repo-relative from version 2 as a result. **Since 2026-09-04 the allowlist is itself compared against the base commit** (`scripts/ui-contract/baseline.mjs`, sharing the size guard's `SOURCE_SIZE_BASE`): an entry may only record a violation the base already carried, `--update` refuses to write an addition, and CI passes `--require-baseline` from `callable-contract`, which no lane selection can skip |
 | `npm run test:ui-contract` (`scripts/test-ui-contract.mjs`) | The contract's own decisions, on fixtures. **Since 2026-09-05 §P covers the four rules that read a control's state, identity or place — `hand-rolled-toggle`, `hand-rolled-current`, `hand-rolled-avatar` and `hand-rolled-disclosure` — and lives in its own suite** (`scripts/test-ui-contract-state.mjs`, split out when the avatar rule took the parent to 528 lines). The split is by responsibility: these three share a difficulty none of the other fifteen rules has, which is that the correct shape and the wrong one are nearly the same markup — a `<Button aria-pressed>` and a `<button aria-pressed>` differ by a capital letter, an avatar and an empty-state medallion are both a centred round box with a fixed size, and a disclosure trigger and a menu trigger are both a button wearing `aria-expanded` where what tells them apart is the element WRAPPING it. **And §P22 records what a hollow assertion looks like when you catch one.** Its first version claimed that replacing the brace-aware tag scan with `indexOf('>')` would break the disclosure counter's body offset; running that mutation left the count unchanged, because the body region still contained the trigger. Running it also turned up a real defect the assertion had not been looking for — a self-closing `<h3 />` above a real disclosure counted **2**, its region running on to the next heading's close tag — so the counter gained a self-closing branch, and the assertion now pins that instead, with the naive attribute read as the mutation that breaks it. A test that survives its own mutation is the defect this campaign found in `classAndAttributeCount` three slices earlier; the difference is that this one was caught by running the mutation rather than by a later review. `test-ui-contract-ci.mjs` §W6 reads the suite list off DISK, so a split cannot leave a file unrun, whose whole difficulty is that the correct shape and the wrong one differ by one capital letter: nineteen live sites pass `aria-pressed` straight to `Button`, and `<button aria-pressed>` is a second toggle contract. The counter reads the element name off the open tag rather than matching the attribute, and §P drives four mutations against that — a case-insensitive tag reader, a widened design-system exemption, a `JSX_RULE_NAMES` that stopped covering the styled-control rules, and the story routing dropped. The design system is exempt from these two rules and no others (`SegmentedControl` **is** the `<button aria-pressed>` group the toggle remedy points at, and `SectionNavigation` **is** the `<button aria-current>` rail), and the exemption is a named list rather than a path skip. §P6 is deliberately not "exactly N rules" — an assertion people edit routinely stops being read — but a SET assertion: every exempt name must be a real rule, and the difference between the full JSX rule set and what the design system gets must be exactly that list. §P7 is the other half, and a mutation proved it needed to be: it named one rule, so dropping the second from the story rule set passed. An exemption and its catalog counterpart are two halves of one decision, and it is now driven over the set |
 | `npm run check:icon-contract` (`scripts/check-icon-contract.mjs`) | A file under `src/`, outside `src/design-system/icons/`, importing `lucide-react` — or a recorded one importing more glyphs than it did. Scoped to the application because it was briefly the whole tree, and its first honest verdict was that its own test file "imports 8 glyphs": the fixtures there are real import statements inside string literals, and a text scanner cannot tell one from a description of one. Campaign semantics borrowed from `source-size` rather than an allowlist rule: 178 boilerplate reasons would be the `debt` hatch renamed. Direction is read out of the newest validated ancestor via `checkBacklogDirection`, so a change cannot record its own exemption — and `scripts/test-icon-contract-ci.mjs` (X1-X14) pins that CI runs it unskippably, with `--require-baseline`, before which its own tests have run |
 | `npm run check:visual-contract` (`scripts/check-visual-contract.mjs`) | Computed geometry in a real browser at both widths — control heights, cell padding, radii, resolved token colours — against a committed snapshot. This is the blocking visual guard, because the numbers are portable across machines and a failure names what moved (`button[md].height: 44px -> 40px`). 62 measurements as of 2026-08-25. Four of the recent ones are a frozen table column's background — a `sticky` cell that loses its own surface lets the scrolled columns paint through it, and that regression is now `rgb(255, 255, 255) -> rgba(0, 0, 0, 0)` in a diff rather than something found on a screen. The last six are the **gap between a glyph and its label**, which the design system owns (`.ds-button` sets `gap: var(--ds-space-2)`, `.ds-button__content` inherits it) and nothing measured: the icon *size* had a probe and the spacing beside it did not, so a re-tuned gap would have surfaced as a pixel diff on `button-with-icons` — a screenshot changed — instead of `columnGap: 8px -> 12px`, which says what moved. Mutation-proven with exactly that diff |
@@ -1491,6 +1491,62 @@ The lesson is the one this file keeps relearning at a smaller scale: two spellin
 of one idea are tolerable in *appearance* and dangerous in a *rule*, because a
 rule has to decide.
 
+### The one class no guard could hold
+
+The campaign's very last recorded violation was a single word, and it is worth a
+section because of what removing it measured rather than because of what it cost.
+
+`<body class="bg-gray-50">` in the repository-root `index.html` painted the whole
+application's page ground. Widening the scan to Tailwind's `content` found it on
+2026-09-05; the fix landed separately on 2026-09-06 because the allowlist entry
+predicted the swap would "move every application-screen pixel baseline", and
+those can only be re-recorded from CI's `visual-regression-diff` artifact.
+
+**That prediction was wrong, and the arithmetic says so.** `--ds-color-canvas`
+resolves to slate-50 `#f8fafc`; Tailwind's gray-50 is `#f9fafb`. One unit on red,
+none on green, one on blue. Run through Playwright's own bundled pixelmatch at
+the pixel lane's own `threshold: 0.02` (`e2e/visual/settle.cjs`), two 200×200
+fills of those two colours produce **0** differing pixels against a budget of
+100 — and 40,000 of 40,000 at `threshold: 0`, so the tolerance is what absorbs
+it, not a mistake in the comparison. No baseline moved. **A reason recorded in
+good faith is still a claim, and this file's own standard is that a claim gets
+measured before it is spent** — a slice was scheduled around a re-recording that
+was never going to be needed.
+
+The second measurement is the one that mattered more. **Neither guard that reads
+this file can hold the fixed value in place**, in either direction:
+
+- `raw-palette-class` refuses raw *palette* names. Swapping the body to another
+  semantic role — `bg-ds-surface`, say, which is white and would visibly flatten
+  every screen — reports `none new`. Reproduced.
+- The pixel lane cannot resolve the colour, per the measurement above.
+
+So the class could be deleted or pointed at the wrong role and everything would
+stay green. `src/tests/pageShell.test.js` pins it: the body carries `bg-ds-canvas`,
+carries exactly one background utility, and that role is declared. **A guard that
+refuses the wrong kind of value has not thereby pinned the right one** — which is
+the same sentence as "a check must not take its scope from something narrower
+than the claim it is making", one step over.
+
+Retiring the entry turned up a third thing in the same file, unguarded by
+anything and unrelated to the class list. `<meta name="theme-color"
+content="#004C68">` is a fifth literal copy of `--ds-color-brand-deep` — the
+first SafeHaul colour a phone user sees, before a pixel of the application — and
+the UI-contract scan deliberately runs only the class-list rules on HTML, so a
+hex in an attribute there is outside what that guard claims to check.
+`brandAssets.test.jsx` exists precisely because "a copy nothing compares is a copy
+that diverges", and it was comparing the favicon three lines below while this one
+sat uncompared. It compares both now.
+
+**One adjacent finding, recorded and not fixed.** `.bg-gray-50` is still compiled
+into the shipped stylesheet, now with no user at all: Tailwind's extractor pulls
+candidate class names out of any scanned text including prose, and three source
+files mention the class in historical comments. `tailwind.config.js` already
+documents this hazard for stories — a story writing the word "shadow" compiled a
+`.shadow` rule into the production bundle — so this is that same defect in a
+second place. Rewording accurate history to satisfy an extractor is the wrong
+trade for ~85 bytes; it is written down here instead.
+
 ### Still open
 
 - `[x]` **Ratcheting rules for arbitrary colours and unsupported type sizes.**
@@ -1637,6 +1693,15 @@ this paragraph. What is worth stating once, here, is the shape of what changed:
 - **Every remaining exception rests on a reason that is true**, recorded where it
   is taken as well as in the allowlist; the falsified `VOEDocument` premise was
   replaced with the surviving one.
+
+**One entry outlived the close by two days, deliberately.** `index.html`'s
+`bg-gray-50` was recorded rather than approved when the scan first reached that
+file, so the widening could land separately from the fix; the fix went in on
+2026-09-06 and the entry is gone. Its recorded reason predicted a full
+re-recording of the application-screen baselines, and measuring that prediction
+showed no baseline moves at all — see "The one class no guard could hold" in
+section 7, which also records the two blind spots the swap exposed and the test
+written to cover them.
 
 **The screen inventory is complete: 19 of 19 areas migrated, closed 2026-07-28**,
 covering the company workspace and settings, login/auth, the public driver
