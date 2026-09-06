@@ -54,7 +54,7 @@ function submit() {
 }
 
 beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
     addDoc.mockResolvedValue({ id: 'lead-1' });
     authState.currentUser = { uid: 'user-1', displayName: 'Test Recruiter' };
     vi.spyOn(console, 'error').mockImplementation(() => {});

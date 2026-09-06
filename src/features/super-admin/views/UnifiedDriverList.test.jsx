@@ -49,7 +49,7 @@ function renderView(props = {}) {
 }
 
 beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
     vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 

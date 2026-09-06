@@ -19,7 +19,7 @@ const args = ['co1', 'app1', 'applications'];
 
 describe('useApplicationChanges', () => {
     beforeEach(() => {
-        vi.clearAllMocks();
+        vi.resetAllMocks();
         mockSnapshotDocs = [];
         mockCallable.mockResolvedValue({ data: { applied: ['firstName'] } });
     });

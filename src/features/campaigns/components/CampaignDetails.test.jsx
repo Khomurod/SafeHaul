@@ -44,7 +44,7 @@ function renderDetails(campaign = makeCampaign(), onClose = vi.fn()) {
 }
 
 beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
     useDataMock.mockReturnValue({ currentCompanyProfile: { id: 'company123' } });
     callables.pauseBulkSession.mockResolvedValue({ data: {} });
     callables.resumeBulkSession.mockResolvedValue({ data: { success: true } });

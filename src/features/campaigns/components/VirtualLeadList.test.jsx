@@ -49,7 +49,7 @@ const lead = (id, over = {}) => ({
 });
 
 beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
     callableNames.length = 0;
     virtuosoProps.length = 0;
     mockCallable.mockResolvedValue(page([], null));

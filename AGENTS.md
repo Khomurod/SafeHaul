@@ -377,12 +377,22 @@ real time. None were code defects; all were tooling mistakes.
    four-case throwaway spec: under `clearAllMocks` the leaked value comes back,
    under `resetAllMocks` it does not.
 
-   Use `vi.resetAllMocks()` in `beforeEach` when a file queues any `*Once` value,
-   and re-establish the implementations immediately after — which such a
-   `beforeEach` is already doing, so nothing else changes. **At least twelve test
-   files here still pair `clearAllMocks` with `Once` queues**; only the one that
-   actually failed has been converted, so treat this as a live hazard rather than
-   a closed one.
+   Use `vi.resetAllMocks()` in `beforeEach` (or `afterEach`) when a file queues
+   any `*Once` value. Under Vitest 4, `mockReset` reverts a `vi.fn(impl)` —
+   including one built inside a `vi.mock` factory or `vi.hoisted` — to that
+   original `impl`, so a default given at creation survives the reset. Only a
+   default chained on afterwards (`vi.fn().mockResolvedValue(x)` at module scope)
+   is wiped to `undefined`; write it as `vi.fn(async () => x)`, or set it in
+   `beforeEach`. **Closed on 2026-09-06.** The audit measured the hazard at 23
+   files, not the twelve an earlier scan had counted; all 23 were converted in
+   one change, seven chained module-scope defaults in two of them were rewritten
+   as originals, and `src/tests/mockResetHygiene.test.js` now fails `npm test`
+   for any file under `src/` that pairs `clearAllMocks` with a `*Once` queue, so
+   the family cannot regrow. Still open: 18 Jest files under `functions/` pair
+   `jest.clearAllMocks` with `*Once` queues — the same leak — and were left as
+   they are, because Jest 30's `mockReset` — unlike Vitest 4's — replaces every
+   implementation with one returning `undefined`, so converting them means
+   re-establishing each default in `beforeEach`: a separate, measured change.
 
 7. **Waiting on a mock is not waiting on the render it precedes.** A promise that
    resolves and both calls a spy and sets state does the first of those

@@ -55,7 +55,7 @@ const renderModal = (props = {}) => {
 };
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  vi.resetAllMocks();
   h2cMock.fn.mockResolvedValue({ width: 800, height: 1000, toDataURL: () => 'data:image/png;base64,X' });
 });
 afterEach(cleanup);

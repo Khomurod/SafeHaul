@@ -40,7 +40,7 @@ function renderModal(props = {}) {
 }
 
 beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
     fs.getDocs.mockResolvedValue({ docs: [] });
     retryFn.mockResolvedValue({ data: { success: true, targetCount: 3 } });
 });

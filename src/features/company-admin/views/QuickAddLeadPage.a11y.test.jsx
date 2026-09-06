@@ -57,7 +57,7 @@ function submit() {
 }
 
 beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
     dataMock.value = {
         currentCompanyProfile: { id: COMPANY_ID },
         currentUser: { uid: 'artificial-user-1' },

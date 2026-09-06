@@ -18,7 +18,7 @@ import { describeError, useApplicationPrepDraft } from './useApplicationPrepDraf
 const ACME = { companyName: 'Acme Trucking', dotNumber: 'USDOT 123456' };
 
 beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
     callables.httpsCallable.mockReturnValue(callables.call);
     callables.call.mockResolvedValue({ data: { saved: true, applicantKey: 'key-1', lockedEmployers: [] } });
 });

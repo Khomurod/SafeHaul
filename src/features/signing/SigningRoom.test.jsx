@@ -94,7 +94,7 @@ async function renderRoomPastConsent() {
 
 describe('SigningRoom', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
     getEnvelopeFn.mockResolvedValue({
       data: {
         title: 'Employment Agreement',

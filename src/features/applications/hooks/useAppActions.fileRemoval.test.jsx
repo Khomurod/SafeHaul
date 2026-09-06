@@ -68,7 +68,7 @@ function Harness({ canEdit = true }) {
 }
 
 beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
     fs.updateDoc.mockResolvedValue(undefined);
     st.deleteObject.mockResolvedValue(undefined);
     logActivity.mockResolvedValue(undefined);

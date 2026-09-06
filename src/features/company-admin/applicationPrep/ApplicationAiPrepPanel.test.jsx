@@ -63,7 +63,7 @@ function renderPanel(props = {}) {
 }
 
 beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
     mocks.httpsCallable.mockReturnValue(mocks.call);
     mocks.extractDocuments.mockResolvedValue({
         documents: { psp: { text: 'PSP body' } }, methods: { psp: 'text' }, failures: {},
