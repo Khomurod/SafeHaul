@@ -46,12 +46,14 @@ import { failureCount } from './release-promotion-tests/harness.mjs';
 import { runGateScenarios } from './release-promotion-tests/gateScenarios.mjs';
 import { runWorkflowPins } from './release-promotion-tests/workflowPins.mjs';
 import { runStatusView } from './release-promotion-tests/statusView.mjs';
+import { runRetirementScenarios } from './release-promotion-tests/retirement.mjs';
 
 console.log('Production promotion gate');
 
 await runGateScenarios();
 await runWorkflowPins();
 await runStatusView();
+await runRetirementScenarios();
 
 const failures = failureCount();
 console.log(failures === 0 ? '\nAll promotion-gate checks passed.' : `\n${failures} check(s) failed.`);

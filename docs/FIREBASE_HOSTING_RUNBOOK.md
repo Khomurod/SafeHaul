@@ -379,49 +379,47 @@ The retired function:
 
 Retiring a function in `functions/index.js` does not remove it from Cloud. The
 deploy scripts (`scripts/deploy-functions-*.mjs`) only ever run
-`--only functions:<name>` for functions that still exist, and the workflow's one
-deletion step removes `onLeadSubmitted` alone. So the six callables `LD-R3`
-retired on 2026-08-29 — `submitLandingLead` (v2 `onRequest`),
+`--only functions:<name>` for functions that still exist, so the six callables
+`LD-R3` retired on 2026-08-29 — `submitLandingLead` (v2 `onRequest`),
 `getLandingPageSettings`, `updateLandingTelegramConfig`,
 `setLandingTelegramEnabled`, `sendLandingTelegramTest` and
 `retryLandingLeadDelivery` (v2 `onCall`), all in `us-central1` — **were still
-deployed on 2026-09-02**, verified without a credential: a deployed function
+deployed on 2026-09-06**, verified without a credential: a deployed function
 answers on its public URL,
 `https://us-central1-truckerapp-system.cloudfunctions.net/<name>` (a callable
 returns `400 INVALID_ARGUMENT` to a bare GET; the `onRequest` returns `405`),
-while a name that does not exist gets Cloud's `404 Page not found`. All six
-answered; a made-up name did not. The same probe is the verification in step 4.
+while a name that does not exist gets Cloud's `404 Page not found`.
 
-The operator procedure, in order:
+**Since 2026-09-06 the deletion is the last step of `promote-production.yml`**,
+not a manual procedure. It is the *contract* half of expand → promote → contract
+(see "Shared-backend rules" below), and it runs at the one moment it is safe:
+after the promoted release is verified live on `app.safehaul.io` and recorded,
+so no Production frontend still calls the six. `scripts/retire-landing-functions.mjs`
+does, in order:
 
-1. **Check the precondition first.** Deleting a callable is the *contract* half
-   of expand → promote → contract (see "Shared-backend rules" below). The
-   Production frontend must be serving a release at or after `f7c89d4` (#56,
-   `LD-R3` merged), because the older Super Admin "Landing Page Settings" screen
-   called five of these. Read it from Super Admin → Releases, or from
-   `https://app.safehaul.io/release.json`. **As of 2026-09-02 it is not met**:
-   that manifest reports `765c49f` (#33, built 2026-08-10), which predates both
-   `LD-R2` and `LD-R3`, and `safehaul.io` still serves the marketing page whose
-   `main.js` posts to `/api/landing-lead`, which the Production Hosting rewrite
-   still routes to `submitLandingLead` (a GET there returns the function's own
-   `405`). Deleting any of the six before the promotion would break the live
-   lead form for visitors and the live Super Admin screen. Wait for the
-   promotion; do not work around it.
-2. **Compare deployed against intended.** `firebase functions:list --project
-   truckerapp-system` against the exports in `functions/index.js`; the
-   difference should be exactly the six names above. Anything else on the list
-   that the file does not export is a separate question — do not delete it under
-   this procedure.
-3. **Delete only the six**, region-qualified:
-   `firebase functions:delete submitLandingLead getLandingPageSettings
-   updateLandingTelegramConfig setLandingTelegramEnabled sendLandingTelegramTest
-   retryLandingLeadDelivery --region us-central1 --project truckerapp-system --force`.
-   `listLandingLeads` stays: it is the only path to the archive.
-4. **Verify**: run `functions:list` again, or the URL probe above — each of the
-   six must now return `404`, and `listLandingLeads` must still answer `400`.
-5. **Touch no data.** The `landing_leads` collection and `platform_settings/
+1. **Proves the promoted release carries `LD-R3`** (`git merge-base
+   --is-ancestor f7c89d4 <sha>`; the promotion checkout has full history for
+   this). A release that predates it — a rollback to the 2026-08-10 build, say —
+   still calls the six, so nothing is deleted and the step says so. "Cannot
+   prove" is treated the same way.
+2. **Probes each of the six** by URL and plans to delete only the ones that
+   still answer, so a re-run after a partial failure finishes the job instead of
+   erroring on names already gone.
+3. **Deletes only those**, region-qualified, `--force --non-interactive`.
+   `listLandingLeads` is never in the set: it is the only path to the archive.
+4. **Verifies**: every one of the six must now return `404`, and
+   `listLandingLeads` must still answer. Either failing fails the step — after
+   the release is already live and recorded, which is the right order.
+5. **Touches no data.** The `landing_leads` collection and `platform_settings/
    landing_page` are preserved by owner ruling; deleting a function deletes no
-   documents, and nothing in this procedure should either.
+   documents, and nothing in this procedure does either.
+
+`scripts/test-release-promotion.mjs` scenarios 19–22 pin the planning rules and
+that the workflow runs the step after `record-release.mjs`, guarded by
+`already_live`. **Manual fallback**, if the step fails and cannot be re-run
+through a promotion (it is skipped when Production already serves the release):
+`firebase functions:delete <the names that still answer> --region us-central1
+--project truckerapp-system --force`, then probe as in step 4.
 
 Never place Telegram credentials in HTML, browser JavaScript, `.env` files that
 are committed, GitHub secrets, or GitHub Actions. **This rule does not retire with
