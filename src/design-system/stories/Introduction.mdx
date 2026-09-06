@@ -58,8 +58,14 @@ import { Icon, Trash2 } from '@/design-system/icons';
 Sizes are the seven steps `xs sm md lg xl 2xl 3xl` (12–32px), never a pixel
 number — `<Trash2 size={13} />` throws by name. A container that already sizes
 the glyph inside it (`Button`, `IconButton`, `Tabs`, `SegmentedControl`,
-`FileInput`) still wins, so an icon in a small button is small because the button
-says so. See **Foundations → Icons**.
+`FileInput`, `Chip`, `StatusMedallion`) still wins, so an icon in a small button
+is small because the button says so.
+
+**Every file in the application is on this contract** as of 2026-09-06 — the
+migration drained 178 files and its backlog file was deleted, so the rule has no
+exception list to add to. Where a container's real geometry cannot be expressed on
+the scale (a 12px drag handle, a 128px logo frame), the container carries the size
+and the arithmetic is recorded at the call site. See **Foundations → Icons**.
 
 ## Known gaps
 
