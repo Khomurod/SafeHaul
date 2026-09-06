@@ -75,6 +75,13 @@
     "width": "16px",
     "height": "16px"
   },
+  "mobile · the notice action row, which sits under the message rather than beside it · notice-actions": {
+    "marginTop": "4px",
+    "columnGap": "8px",
+    "flexWrap": "wrap",
+    "alignItems": "center",
+    "display": "flex"
+  },
   "mobile · the step rail: a third column, two status colours, and no frame · frameless": {
     "gridTemplateColumns": "none",
     "borderTopWidth": "0px",
@@ -709,6 +716,13 @@
     "borderRadius": "0px",
     "width": "16px",
     "height": "16px"
+  },
+  "desktop · the notice action row, which sits under the message rather than beside it · notice-actions": {
+    "marginTop": "4px",
+    "columnGap": "8px",
+    "flexWrap": "wrap",
+    "alignItems": "center",
+    "display": "flex"
   },
   "desktop · the step rail: a third column, two status colours, and no frame · frameless": {
     "gridTemplateColumns": "none",

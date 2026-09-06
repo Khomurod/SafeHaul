@@ -4,6 +4,7 @@ import './Notice.css';
 
 const SIZES = new Set(['md', 'sm']);
 const ANNOUNCE = { off: undefined, polite: 'status', assertive: 'alert' };
+const TITLE_ELEMENTS = new Set(['p', 'h2', 'h3', 'h4', 'h5', 'h6']);
 
 /*
  * The per-tone glyph, chosen from what the application already reaches for
@@ -74,10 +75,48 @@ const TONES = {
  * `polite` renders `role="status"`, `assertive` renders `role="alert"`. Both are
  * mounted whether or not there is anything to say, because a live region added
  * to the DOM at the same moment as its content is not reliably announced.
+ *
+ * ## `actions` sit UNDER the message, and that is the second measurement
+ *
+ * This shipped with the actions in a trailing slot beside the message, wrapping
+ * underneath below 640px. The first migration area disagreed, so it was checked
+ * rather than defended: Atlassian's `SectionMessage` renders actions after the
+ * content ("this placement allows users to read the full message before
+ * encountering available actions"), Polaris' `Banner` puts its primary and
+ * secondary actions in a footer under the body, and the tinted blocks in this
+ * tree that carry a button put it under the message 2 to 1. Carbon's inline
+ * notification is the one published system that keeps it inline — and it moves
+ * it underneath at narrow widths, which is the tell.
+ *
+ * So actions render inside the body column, after the message. The whole
+ * `@media (max-width: 639px)` block that used to unwind the trailing placement
+ * is gone with it: an action that was never beside the message has nothing to
+ * wrap out of.
+ *
+ * ## `titleAs`, because eight titles in this tree are real headings
+ *
+ * The title renders as a `<p>` by default, which is what 11 of the 19 titled
+ * blocks here do. Eight use an actual `<h2>`, `<h3>` or `<h4>` — a dialog's
+ * disclosure heading, a status screen's own heading — and both Polaris' `Banner`
+ * and Atlassian's `SectionMessage` render their title as a heading. Flattening
+ * those eight to a paragraph would take them out of the document outline a
+ * screen-reader user navigates by, silently and invisibly.
+ *
+ * `titleAs` takes the element, never a level the component picked: `p` when
+ * there is no outline to join, `h2`-`h6` when the caller knows where it sits.
+ * The look does not change with it — the design system owns that.
+ *
+ * ## It draws a focus ring because it is a focus target
+ *
+ * `forwardRef` plus the `tabIndex` pass-through exist so a form can move focus
+ * to the error summary it just rendered — three consumers in the first area do
+ * exactly that. Moving the caret somewhere with no visible ring is worse than
+ * not moving it, so the ring is the component's, not a caller's utility class.
  */
 export const Notice = React.forwardRef(function Notice({
   tone = 'info',
   title,
+  titleAs = 'p',
   icon,
   actions,
   size = 'md',
@@ -98,6 +137,9 @@ export const Notice = React.forwardRef(function Notice({
   if (title !== undefined && (typeof title !== 'string' || title.trim() === '')) {
     throw new TypeError('Notice title must be a non-empty string.');
   }
+  if (!TITLE_ELEMENTS.has(titleAs)) {
+    throw new TypeError(`Unsupported Notice titleAs: ${titleAs}`);
+  }
 
   /*
    * `null` hides the glyph; `undefined` takes the tone's own. The two are
@@ -117,10 +159,10 @@ export const Notice = React.forwardRef(function Notice({
     >
       {Glyph && <DsIcon icon={Glyph} className="ds-notice__icon" />}
       <div className="ds-notice__body">
-        {title && <p className="ds-notice__title">{title}</p>}
+        {title && React.createElement(titleAs, { className: 'ds-notice__title' }, title)}
         {children && <div className="ds-notice__message">{children}</div>}
+        {actions && <div className="ds-notice__actions">{actions}</div>}
       </div>
-      {actions && <div className="ds-notice__actions">{actions}</div>}
     </div>
   );
 });

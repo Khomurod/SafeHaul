@@ -73,7 +73,12 @@ export const WithTitle = {
   ),
 };
 
-/** Nine consumers carry a button. Below 640px it drops under the message. */
+/**
+ * Actions sit under the message, aligned with the text rather than the glyph —
+ * the same order Atlassian's `SectionMessage` and Polaris' `Banner` use, and the
+ * one the blocks this replaced already used 2 to 1. Two buttons wrap; they never
+ * squeeze the sentence.
+ */
 export const WithActions = {
   render: () => (
     <Stack gap="md" style={{ maxWidth: 560 }}>
@@ -86,6 +91,38 @@ export const WithActions = {
       </Notice>
       <Notice tone="info" actions={<Button size="sm" variant="secondary">Review</Button>}>
         Three entries were changed since you last looked.
+      </Notice>
+      <Notice
+        tone="warning"
+        actions={(
+          <>
+            <Button size="sm" variant="secondary">Keep both</Button>
+            <Button size="sm" variant="ghost">Discard mine</Button>
+          </>
+        )}
+      >
+        This record was edited elsewhere while you had it open, so there are two
+        versions of it and only one of them can be kept.
+      </Notice>
+    </Stack>
+  ),
+};
+
+/**
+ * `titleAs` puts the title in the document outline where a caller has one —
+ * eight titled blocks in this application use a real heading. The type does not
+ * change with the element; the design system owns that.
+ */
+export const HeadingTitle = {
+  render: () => (
+    <Stack gap="md" style={{ maxWidth: 560 }}>
+      <Notice tone="info" title="What gets sent" titleAs="h3">
+        Images of the pages you choose are rendered in your browser and sent for
+        analysis. Nothing is saved, and nothing is sent to the recipient.
+      </Notice>
+      <Notice tone="info" title="What gets sent">
+        The same title as a paragraph, for comparison — identical type, absent
+        from the outline.
       </Notice>
     </Stack>
   ),
@@ -117,6 +154,8 @@ export const NarrowViewport = {
   globals: { viewport: { value: 'safehaulMobile' } },
   render: () => (
     <Stack gap="md">
+      {/* At 412px the action needs no special rule: it is already under the
+          message, so nothing has to wrap out of a trailing slot. */}
       <Notice tone="danger" title="Could not send" actions={<Button size="sm" variant="secondary">Retry</Button>}>
         The connection closed before the message was accepted.
       </Notice>

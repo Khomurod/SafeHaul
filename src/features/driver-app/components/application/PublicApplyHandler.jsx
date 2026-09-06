@@ -37,7 +37,7 @@ import { useDraftLifecycle } from './useDraftLifecycle';
 import { usePostSubmitDocuments } from './usePostSubmitDocuments';
 
 // Bulletproof submission imports
-import { Card } from '@/design-system/components';
+import { Card, Notice } from '@/design-system/components';
 import { getMagicFillPatchForStep } from '@features/sandbox/utils/dummyDataGenerator';
 import { SandboxActionPanel } from '@features/sandbox/SandboxActionPanel';
 import { SANDBOX_APP_SLUG } from '@features/sandbox/sandboxConstants';
@@ -416,9 +416,13 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
         <div className="mx-auto flex max-w-4xl flex-col gap-ds-2">
           <p className="font-bold text-ds-content">{company.companyName}</p>
           {sandbox && (
-            <p className="rounded-ds-lg border border-ds-status-warning-border bg-ds-status-warning-bg px-ds-3 py-ds-2 text-center text-ds-xs font-medium text-ds-status-warning-fg">
+            /* `text-center` does not survive: `Notice` sets `text-align: start`
+               and its `className` is margin and width only. That is also the
+               right answer on its own merits — once the banner has a leading
+               glyph, centring the text beside it reads as a mistake. */
+            <Notice tone="warning" size="sm">
               Testing mode — applications are stored under tenant <strong>SANDBOX</strong>. Use Super Admin actions after submit to delete or transfer.
-            </p>
+            </Notice>
           )}
         </div>
       </header>

@@ -1,12 +1,12 @@
 import React, { useEffect } from 'react';
-import { AlertCircle, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import InputField from '@shared/components/form/InputField';
 import DateTripletField from '@shared/components/form/DateTripletField';
 import RadioGroup from '@shared/components/form/RadioGroup';
 import DynamicRow from '@shared/components/form/DynamicRow';
 import { YES_NO_OPTIONS } from '@/config/form-options';
 import { normalizeApplicationAnswers } from '@/config/applicationRules';
-import { Button, FieldMessage, FormField, FormSection, Textarea } from '@/design-system/components';
+import { Button, FieldMessage, FormField, FormSection, Notice, Textarea } from '@/design-system/components';
 import { useData } from '@/context/DataContext';
 import { useApplicationAgreements } from '@features/driver-app/hooks/useApplicationAgreements';
 import { useStepGate } from '@features/driver-app/hooks/useApplicationRules';
@@ -170,13 +170,12 @@ const Step4_Violations = ({ formData, updateFormData, onNavigate, onPartialSubmi
                     </div>
                 )}
                 {agreementsError && !agreementsLoading && (
-                    <div role="alert" className="flex items-start gap-ds-3 rounded-ds-md border border-ds-status-danger-border bg-ds-status-danger-bg p-ds-3 text-ds-sm text-ds-status-danger-fg">
-                        <AlertCircle size={16} className="mt-px shrink-0" aria-hidden="true" />
-                        <div className="space-y-ds-2">
-                            <p>{agreementsError}</p>
-                            <Button variant="secondary" size="sm" onClick={retry}>Try again</Button>
-                        </div>
-                    </div>
+                    /* The retry button was already under the message here, which
+                       is one of the two sites that decided `Notice`'s action
+                       placement. It moves into the `actions` slot unchanged. */
+                    <Notice announce="assertive" tone="danger" actions={<Button variant="secondary" size="sm" onClick={retry}>Try again</Button>}>
+                        {agreementsError}
+                    </Notice>
                 )}
                 {mvrAgreement && (
                     <div

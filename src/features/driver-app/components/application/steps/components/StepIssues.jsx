@@ -1,5 +1,5 @@
 import React, { forwardRef } from 'react';
-import { AlertCircle, AlertTriangle } from 'lucide-react';
+import { Notice } from '@/design-system/components';
 
 /**
  * The company's Application Rules, told to the applicant on the step itself.
@@ -12,6 +12,16 @@ import { AlertCircle, AlertTriangle } from 'lucide-react';
  * The wording is the rule engine's own, which is also what the server says when
  * it refuses the same submission — so the applicant never reads one explanation
  * on the page and a different one at the end.
+ *
+ * Both blocks are `Notice`s as of the 6c migration. Neither passes an `icon`:
+ * `AlertCircle` for danger and `AlertTriangle` for warning are already the
+ * tones' own glyphs, so this is one of the sites where the default was read off
+ * what the application was doing rather than imposed on it.
+ *
+ * Both take the default `md` rather than `sm`. `sm` is for a notice inside a
+ * panel that is already tight; this is a step's own summary at full width. The
+ * text goes 13px to 14px as a result — the size the design system says a notice
+ * reads at, and the reason `md` is the default at all.
  */
 export const StepIssues = forwardRef(function StepIssues({ blocking = [], warnings = [], showBlocking = true }, ref) {
     const hasBlocking = showBlocking && blocking.length > 0;
@@ -20,30 +30,28 @@ export const StepIssues = forwardRef(function StepIssues({ blocking = [], warnin
     return (
         <div className="space-y-ds-3">
             {hasBlocking && (
-                <div
+                <Notice
                     ref={ref}
                     tabIndex={-1}
-                    role="alert"
+                    announce="assertive"
+                    tone="danger"
                     data-testid="step-blocking-issues"
-                    className="flex items-start gap-ds-3 rounded-ds-md border border-ds-status-danger-border bg-ds-status-danger-bg px-ds-4 py-ds-3 text-ds-sm text-ds-status-danger-fg focus-visible:shadow-ds-focus"
                 >
-                    <AlertCircle size={18} className="mt-px shrink-0" aria-hidden="true" />
                     <ul className="space-y-ds-1">
                         {blocking.map((issue) => <li key={issue.code}>{issue.message}</li>)}
                     </ul>
-                </div>
+                </Notice>
             )}
             {warnings.length > 0 && (
-                <div
-                    role="status"
+                <Notice
+                    announce="polite"
+                    tone="warning"
                     data-testid="step-warning-issues"
-                    className="flex items-start gap-ds-3 rounded-ds-md border border-ds-status-warning-border bg-ds-status-warning-bg px-ds-4 py-ds-3 text-ds-sm text-ds-status-warning-fg"
                 >
-                    <AlertTriangle size={18} className="mt-px shrink-0" aria-hidden="true" />
                     <ul className="space-y-ds-1">
                         {warnings.map((issue) => <li key={issue.code}>{issue.message}</li>)}
                     </ul>
-                </div>
+                </Notice>
             )}
         </div>
     );

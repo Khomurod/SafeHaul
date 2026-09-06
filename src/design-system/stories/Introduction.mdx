@@ -144,6 +144,10 @@ Closed on 2026-09-05:
   26 of the 64 announce themselves today, and each tone's glyph is the one the
   application already reaches for. Six tinted blocks in the tree hold form
   controls instead of a message; those are regions, and this is not for them.
+  Its **actions sit under the message**, the order Atlassian's `SectionMessage`
+  and Polaris' `Banner` both use and the one the blocks it replaces already used
+  2 to 1 — corrected after the first migration slice disagreed with the shipped
+  placement, along with `titleAs` for the eight titles that are real headings.
 - A raw `<button>` carrying `aria-pressed` or `aria-current`, a round disc
   holding a person's initial, and a `<button aria-expanded>` **inside a
   heading**, are refused from here on. That last scope is the whole rule: ten

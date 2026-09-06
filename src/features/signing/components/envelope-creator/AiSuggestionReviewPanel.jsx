@@ -1,6 +1,6 @@
 import React, { useId } from 'react';
 import { AlertTriangle, Check, RotateCcw, Sparkles, Undo2, X } from 'lucide-react';
-import { Badge, Button, Checkbox, FormField, Input, ProgressBar, Select } from '@/design-system/components';
+import { Badge, Button, Checkbox, FormField, Input, Notice, ProgressBar, Select } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import {
     HIGH_CONFIDENCE_THRESHOLD,
@@ -118,41 +118,51 @@ export function AiSuggestionReviewPanel({
                     )}
 
                     {truncatedPages > 0 && (
-                        <p className="rounded-ds-lg border border-ds-status-info-border bg-ds-status-info-bg p-ds-3 text-ds-xs text-ds-content-secondary">
+                        /* Gains the info glyph, and its text moves from
+                           `content-secondary` to the info tone's own foreground
+                           — the tint and the words now come from one role. */
+                        <Notice tone="info" size="sm">
                             One scan covers at most {MAX_SCAN_PAGES} pages, so {truncatedPages} page
                             {truncatedPages === 1 ? '' : 's'} you selected {truncatedPages === 1 ? 'was' : 'were'}{' '}
                             left out. Scan the rest in a second pass.
-                        </p>
+                        </Notice>
                     )}
 
                     {error && (
-                        <div
-                            role="alert"
-                            className="rounded-ds-lg border border-ds-status-danger-border bg-ds-status-danger-bg p-ds-3"
+                        <Notice
+                            announce="assertive"
+                            tone="danger"
+                            size="sm"
+                            actions={(
+                                <Button variant="secondary" size="sm" onClick={onRescan}>
+                                    <RotateCcw size={14} aria-hidden="true" /> Try again
+                                </Button>
+                            )}
                         >
-                            <p className="text-ds-sm text-ds-status-danger-fg">{error}</p>
+                            <p>{error}</p>
                             {partial && (
-                                <p className="mt-ds-1 text-ds-xs text-ds-content-secondary">
+                                <p className="mt-ds-1">
                                     The pages that were analysed before this happened are still listed below —
                                     you can review and apply them, then rescan the rest.
                                 </p>
                             )}
-                            <Button variant="secondary" size="sm" className="mt-ds-2" onClick={onRescan}>
-                                <RotateCcw size={14} aria-hidden="true" /> Try again
-                            </Button>
-                        </div>
+                        </Notice>
                     )}
 
                     {manualReview.length > 0 && (
-                        <div className="rounded-ds-lg border border-ds-status-warning-border bg-ds-status-warning-bg p-ds-3">
-                            <h4 className="flex items-center gap-ds-2 text-ds-xs font-bold uppercase tracking-wide text-ds-content">
-                                <AlertTriangle size={14} aria-hidden="true" />
-                                Needs manual placement
-                            </h4>
-                            <ul className="mt-ds-2 flex flex-col gap-ds-2">
+                        /* The glyph moves out of the heading and into the leading
+                           slot, which is where it belongs once the block has one:
+                           `AlertTriangle` was already the warning tone's own. */
+                        <Notice tone="warning" size="sm" title="Needs manual placement" titleAs="h4">
+                            {/* The entries drop their own `text-ds-xs` and
+                                `content-secondary`/`content` colours: inside a
+                                warning tint they were three type colours in one
+                                block, and the tone's foreground is what the
+                                border and background already agreed on. */}
+                            <ul className="flex flex-col gap-ds-2">
                                 {manualReview.map((entry) => (
-                                    <li key={`${entry.page}-${entry.kind}`} className="text-ds-xs text-ds-content-secondary">
-                                        <span className="font-bold text-ds-content">
+                                    <li key={`${entry.page}-${entry.kind}`}>
+                                        <span className="font-bold">
                                             {entry.page ? `Page ${entry.page}: ` : ''}
                                             {entry.detail || entry.kind}
                                         </span>
@@ -160,7 +170,7 @@ export function AiSuggestionReviewPanel({
                                     </li>
                                 ))}
                             </ul>
-                        </div>
+                        </Notice>
                     )}
 
                     {status === 'ready' && suggestions.length === 0 && (

@@ -7,7 +7,7 @@ import DynamicRow from '@shared/components/form/DynamicRow';
 import { useUtils } from '@shared/hooks/useUtils';
 import { useData } from '@/context/DataContext';
 import { YES_NO_OPTIONS, LICENSE_CLASS_OPTIONS, ENDORSEMENT_OPTIONS } from '@/config/form-options';
-import { Checkbox, ChoiceGroup, FieldMessage, FormField, FormSection, Select } from '@/design-system/components';
+import { Checkbox, ChoiceGroup, FieldMessage, FormField, FormSection, Notice, Select } from '@/design-system/components';
 import { StepNavigation } from './components/StepNavigation';
 import { StateSelectField } from './components/StateSelectField';
 import { StepIssues } from './components/StepIssues';
@@ -154,14 +154,16 @@ const Step3_License = ({ formData, updateFormData, handleFileUpload, onNavigate,
         <div id="page-3" className="form-step space-y-ds-6">
             <StepIssues ref={issuesRef} blocking={blocking} showBlocking={attempted} />
             {validationError && (
-                <p
+                /* One of the six sites in this area that GAIN a glyph: it had
+                   none, so it takes the danger tone's `AlertCircle`. */
+                <Notice
                     ref={validationErrorRef}
                     tabIndex={-1}
-                    role="alert"
-                    className="rounded-ds-md border border-ds-status-danger-border bg-ds-status-danger-bg px-ds-4 py-ds-3 text-ds-sm text-ds-status-danger-fg focus-visible:shadow-ds-focus"
+                    announce="assertive"
+                    tone="danger"
                 >
                     {validationError}
-                </p>
+                </Notice>
             )}
 
             {/*

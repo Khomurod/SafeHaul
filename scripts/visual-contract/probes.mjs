@@ -64,6 +64,26 @@ const COMPONENT_PROBES = [
         ],
     },
     {
+        story: 'components-notice--with-actions',
+        label: 'the notice action row, which sits under the message rather than beside it',
+        /*
+         * This placement was CHANGED after the component shipped, so it is the
+         * kind that gets quietly reverted by the next person who thinks a
+         * trailing slot looks tidier. Atlassian's `SectionMessage` renders
+         * actions after the content and Polaris' `Banner` puts them in a footer
+         * under the body; the tinted blocks in this tree that carry a button
+         * already did the same, 2 to 1.
+         *
+         * `marginTop` is what carries the separation now that the row is a body
+         * child rather than a flex sibling of the glyph, and it is the property
+         * that silently reads 0 if the rule is dropped.
+         */
+        selectors: {
+            'notice-actions': '.ds-notice__actions',
+        },
+        properties: ['marginTop', 'columnGap', 'flexWrap', 'alignItems', 'display'],
+    },
+    {
         story: 'components-sectionnavigation--wizard-steps',
         label: 'the step rail: a third column, two status colours, and no frame',
         /*
