@@ -4,7 +4,7 @@ import { useData } from '@/context/DataContext';
 import { auth } from '@lib/firebase';
 import { getPortalUser } from '@features/auth';
 import { useToast } from '@shared/components/feedback/ToastProvider';
-import { Button, Card, MetricCard } from '@/design-system/components';
+import { Button, Card, MetricCard, Notice } from '@/design-system/components';
 import {
     PageContainer,
     PageHeader,
@@ -82,20 +82,22 @@ export function CompanyAdminDashboard() {
 
                     <Section aria-label="Company activity summary">
                     {dashboard.statsFetchError && (
-                        <Card
-                            padding="sm"
-                            className="mb-4 flex flex-wrap items-center justify-between gap-2 border-ds-status-warning-border bg-ds-status-warning-bg text-ds-status-warning-fg"
-                            role="status"
+                        <Notice
+                            announce="polite"
+                            tone="warning"
+                            className="mb-4"
+                            actions={(
+                                <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={() => dashboard.refreshData()}
+                                >
+                                    Retry
+                                </Button>
+                            )}
                         >
-                            <span>Some dashboard numbers could not load: {dashboard.statsFetchError}</span>
-                            <Button
-                                variant="secondary"
-                                size="sm"
-                                onClick={() => dashboard.refreshData()}
-                            >
-                                Retry
-                            </Button>
-                        </Card>
+                            Some dashboard numbers could not load: {dashboard.statsFetchError}
+                        </Notice>
                     )}
                         <ResponsiveGrid minItemWidth="210px">
                             <MetricCard

@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import { formatDate } from '@shared/utils/helpers';
 import { formatIsoDateUs, formatMonthYearUs } from '@shared/utils/dateFormHelpers';
-import { Badge, Card, IconButton, Link } from '@/design-system/components';
+import { Badge, Card, IconButton, Link, Notice } from '@/design-system/components';
 
 /** Safely convert Firestore Timestamps, ISO strings, or epoch values to a Date (or null). */
 function formatTimelineDate(val) {
@@ -238,19 +238,15 @@ function SafetyCard({ appData }) {
     if (!hasIncidents && !declaredWithoutDetail) {
         const explicit = violationsAnswer === 'no' && accidentsAnswer === 'no';
         return (
-            <Card padding="md" className="flex items-center gap-ds-4 border-ds-status-success-border bg-ds-status-success-bg">
-                <span className="rounded-ds-full bg-ds-surface p-ds-2 text-ds-status-success-fg">
-                    <CheckCircle size={24} aria-hidden="true" />
-                </span>
-                <div className="min-w-0">
-                    <h4 className="font-bold text-ds-status-success-fg">Clean Record</h4>
-                    <p className="text-ds-sm text-ds-status-success-fg">
-                        {explicit
-                            ? 'The applicant answered No to moving violations and No to accidents in the past 3 years.'
-                            : 'No violations or accidents reported on this application.'}
-                    </p>
-                </div>
-            </Card>
+            /* The glyph loses its white disc. That disc was a hand-composed
+               `StatusMedallion` inside a message, and `Notice` puts the mark in
+               its leading slot on the tint — one treatment for a mark rather
+               than two stacked. */
+            <Notice tone="success" title="Clean Record" titleAs="h4">
+                {explicit
+                    ? 'The applicant answered No to moving violations and No to accidents in the past 3 years.'
+                    : 'No violations or accidents reported on this application.'}
+            </Notice>
         );
     }
 

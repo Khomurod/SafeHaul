@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { MessageSquare, Mail, Zap, Info, Plus } from 'lucide-react';
 import { DeviceMockup } from './DeviceMockup';
-import { Card, FormField, Input, Textarea, Button } from '@/design-system/components';
+import { Card, FormField, Input, Notice, Textarea, Button } from '@/design-system/components';
 
 export function ContentComposer({ messageConfig, onChange }) {
     const messageRef = useRef(null);
@@ -156,25 +156,22 @@ export function ContentComposer({ messageConfig, onChange }) {
                         </DeviceMockup>
                     </div>
 
-                    <div className="rounded-ds-xl border border-ds-status-info-border bg-ds-status-info-bg p-ds-6">
-                        <h3 className="mb-ds-4 flex items-center gap-ds-2 font-bold text-ds-status-info-fg">
-                            <Zap size={18} aria-hidden="true" /> Pro Tips
-                        </h3>
-                        <ul className="flex flex-col gap-ds-3">
-                            <li className="flex gap-ds-3 text-ds-sm text-ds-status-info-fg">
-                                <Info size={16} aria-hidden="true" className="mt-0.5 shrink-0" />
-                                <span>Keep SMS under 160 characters to avoid splitting.</span>
-                            </li>
-                            <li className="flex gap-ds-3 text-ds-sm text-ds-status-info-fg">
-                                <Info size={16} aria-hidden="true" className="mt-0.5 shrink-0" />
-                                <span>Use <strong>[Driver Name]</strong> to increase engagement by 35%.</span>
-                            </li>
-                            <li className="flex gap-ds-3 text-ds-sm text-ds-status-info-fg">
-                                <Info size={16} aria-hidden="true" className="mt-0.5 shrink-0" />
-                                <span>End with a clear question to prompt a reply.</span>
-                            </li>
+                    {/* `Zap` is passed explicitly. The info tone's own glyph is
+                        `Info`, and letting the default win would turn an
+                        encouraging panel clerical — one of the four glyph
+                        substitutions 6c's audit flagged as wrong.
+                        The three per-item `Info` glyphs go: one leading mark
+                        states the kind once, and repeating it on every line was
+                        the hand-built way of drawing a list. Disc markers carry
+                        the enumeration, which is also what assistive technology
+                        reads as a list. */}
+                    <Notice tone="info" icon={Zap} title="Pro Tips" titleAs="h3">
+                        <ul className="list-inside list-disc">
+                            <li>Keep SMS under 160 characters to avoid splitting.</li>
+                            <li>Use <strong>[Driver Name]</strong> to increase engagement by 35%.</li>
+                            <li>End with a clear question to prompt a reply.</li>
                         </ul>
-                    </div>
+                    </Notice>
                 </div>
             </div>
         </div>

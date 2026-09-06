@@ -30,7 +30,7 @@
 
 import React from 'react';
 import { Building2, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
-import { SelectableCard } from '@/design-system/components';
+import { Notice, SelectableCard } from '@/design-system/components';
 import { mapFmcsaRowToPevContact } from '@shared/services/fmcsaEmployerSocrata';
 
 /** Stable key for an FMCSA census row (DOT number + index). Shared with the container. */
@@ -131,14 +131,14 @@ export function FmcsaCarrierPicker({
             )}
 
             {selectedFmcsaKey != null && lastFmcsaRowHadContact === false && (
-                <div className="flex gap-ds-2 rounded-ds-md border border-ds-status-warning-border bg-ds-status-warning-bg p-ds-3 text-ds-xs text-ds-status-warning-fg">
-                    <AlertCircle size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
-                    <p>
-                        <span className="font-semibold">No email or fax from this registry row.</span>
-                        {' '}
-                        Type the recipient email or fax below, or choose <strong>Download / Print</strong> so you do not need either.
-                    </p>
-                </div>
+                /* The bold lead sentence becomes the `title`, which is the job
+                   it was already doing by hand. The glyph normalises from
+                   `AlertCircle` to the warning tone's own `AlertTriangle`: a
+                   registry row with no contact details is a warning, and the
+                   circle is what this application uses for danger. */
+                <Notice tone="warning" size="sm" title="No email or fax from this registry row.">
+                    Type the recipient email or fax below, or choose <strong>Download / Print</strong> so you do not need either.
+                </Notice>
             )}
 
             <p className="text-ds-xs leading-snug text-ds-content-secondary">

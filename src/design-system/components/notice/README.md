@@ -338,3 +338,78 @@ assertions across this area's tests would fail if it happened. Every message's
 wording is unchanged, `verification-error-summary` and the two `step-*-issues`
 test ids ride through the prop spread, and the three focus targets keep their
 `ref` and `tabIndex` — with a ring the component now draws itself.
+
+---
+
+# What 6d found: company-admin, campaigns and shared
+
+**34 candidates → 12 notices.** The largest drop of any slice, and the seventh
+consecutive one where a shape-only signature named the wrong component.
+
+## The finding is bigger than the migration: 17 tinted ICON TILES
+
+Of the 22 candidates that are not notices, **seventeen are a small tinted square
+or circle holding exactly one glyph** — a section-header mark, a modal-header
+mark, a row marker, a locked-feature badge. `applicationTabCards:310` ·
+`NewDocumentDialog:81` · `TemplateLibraryPanel:107` · `NotesTab:229` ·
+`LaunchPad:96` · `InlineLeaderboard:164` and `:202` · `PEVRequestModal:221` ·
+`QuickLeadModal:154` · `VOEPreviewModal:121` and `:276` ·
+`DriverProfileModal:250` · `PEVTabParts:63` · `NotificationItem:81` ·
+`PaywallMessage:23` · `CompanyChooserModal:139` · `FeatureLockedModal:52`.
+
+With the four the roadmap already recorded, that is **at least 21 sites across
+six tints and five sizes** — now the largest un-owned shape left in the
+application, and invisible to every rule for the same reason the notice was.
+It is not built here: widening a migration slice to build a second primitive is
+how a slice stops being reviewable.
+
+The other five non-notices are a tinted list row (`DocumentsOverview:134`), an
+unread-row tint (`NotificationDropdown:112`), a modal header band
+(`FeatureDeactivationWarning:149`), a chat bubble (`NotesTab:242`, whose
+`rounded-tl-none` is the speech corner) and the badge-tone map already recorded.
+
+## The two guesses are settled, and the answer is that they stay guesses
+
+`neutral`'s `Info` and `accent`'s `Sparkles` are recorded above as guesses
+because nothing used those tones. 6d had six candidates that could have closed
+them. **Every one is a tile, a medallion or a bubble.** So in this application
+the accent and neutral tints are not message tints at all — they mark identity —
+and neither default can ever be measured from this codebase.
+
+**Both tones stay on the component anyway.** Polaris' default `Banner` is
+exactly a neutral notice, and Atlassian's `SectionMessage` ships `discovery` —
+an accent-toned notice for announcing something new. This codebase simply has
+not written one. Removing them to match today's consumers would make the
+component narrower than the standard it was built against, and the first person
+who wants an announcement banner would hand-roll it, which is the failure this
+phase exists to end.
+
+## Two migrations that needed reading, not a table
+
+- **`DQFileTab:321` is wrapped in an always-mounted `<div role="alert">`.** That
+  wrapper is the live region and it stays; the `Notice` inside takes the default
+  `announce="off"`. Moving the role onto the notice would look like a faithful
+  migration and would quietly stop the announcement, because a live region added
+  to the DOM at the same moment as its content is not reliably announced. The
+  same reasoning `announce` is documented under, applied in reverse.
+- **`LaunchPad`'s two blocks are the two outcomes of one pre-flight check**, and
+  they had drifted apart: the failure was left-aligned with a heading, the
+  success centred without one. Migrating only the failure would have made that
+  worse. Both migrate and now share one treatment, left-aligned inside a centred
+  card — which is what a block of content does under a centred headline.
+
+## Glyphs passed explicitly, and why
+
+Three sites keep a chosen glyph rather than taking the tone's, following the
+rule 6c derived: **the default is for sites with no glyph.**
+
+| site | glyph | why not the default |
+|---|---|---|
+| `ContentComposer:159` | `Zap` | the info tone's `Info` would make an encouraging "Pro Tips" panel clerical — one of the four substitutions 6c flagged as wrong |
+| `PEVRequestModal:333` | `Info` | a deliberately calm legal note; the warning tone's `AlertTriangle` would escalate it. 6c named this the borderline case |
+| `BulkUploadLayout:161` | `HelpCircle` | guidance on how to do the task, not information about its state |
+
+Two lists lose their per-item glyphs (`LaunchPad`'s errors, `ContentComposer`'s
+tips): one leading mark states the kind once, and repeating it on every line was
+the hand-built way of drawing a list. Disc markers carry the enumeration, which
+is also what assistive technology reads as a list.

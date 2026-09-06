@@ -91,8 +91,12 @@ this one true rather than aspirational.
   trailing slot to under the message, `titleAs` was added because eight titles
   in the tree are real headings, and the focus ring became the component's
   rather than three call sites' utility classes. Had all 65 migrated in one
-  change, each of those would have been baked into 52 files first. Company
-  admin, campaigns, shared, super admin and settings are 6d and 6e.
+  change, each of those would have been baked into 52 files first. 6d then took
+  company admin, campaigns and shared (12 blocks of 34 candidates, 2026-09-06)
+  and found something larger than the migration: **17 of the 22 that are not
+  notices are tinted ICON TILES**, which makes that the biggest un-owned shape
+  left — see the roadmap's Tinted icon tile row, re-counted from four sites to
+  at least 21. Super admin and settings are 6e.
 - The topbar, the dossier header, the notes and activity tabs, the Super Admin
   user list, the team modal and the campaign lead preview consume `Avatar`
   (2026-09-05).
