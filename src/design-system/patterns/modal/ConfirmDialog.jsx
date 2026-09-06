@@ -1,6 +1,6 @@
 import React, { useId, useRef } from 'react';
-import { AlertTriangle, HelpCircle, Icon as DsIcon, Info } from '../../icons';
-import { Button, StatusMedallion } from '@design-system/components';
+import { AlertTriangle, HelpCircle, Icon as DsIcon } from '../../icons';
+import { Button, Notice, StatusMedallion } from '@design-system/components';
 import { Modal } from './Modal';
 
 /**
@@ -147,13 +147,23 @@ export function ConfirmDialog({
                 )}
                 {children && <div className="mt-ds-4 text-left">{children}</div>}
 
-                {/* Always mounted so the live region can announce a failure into it. */}
+                {/*
+                  * Always mounted so the live region can announce a failure into
+                  * it — which is why the `Notice` inside takes the default
+                  * `announce="off"`. A second live region here would say the
+                  * failure twice, and moving the role onto the conditional
+                  * notice would stop it being said at all.
+                  *
+                  * This block is the reason 6a ruled that `hand-composed-notice`
+                  * does NOT exempt `src/design-system/`: a pattern that
+                  * hand-builds the component it sits beside is the drift, not an
+                  * exception to it. The glyph normalises from `Info` to the
+                  * danger tone's own `AlertCircle`, and `text-left` goes because
+                  * `Notice` sets `text-align: start` itself.
+                  */}
                 <div role="alert" className="mt-ds-3">
                     {error && (
-                        <p className="flex items-start gap-ds-2 rounded-ds-md border border-ds-status-danger-border bg-ds-status-danger-bg p-ds-3 text-left text-ds-sm text-ds-status-danger-fg [overflow-wrap:anywhere]">
-                            <DsIcon icon={Info} className="mt-0.5 shrink-0" />
-                            {error}
-                        </p>
+                        <Notice tone="danger" size="sm">{error}</Notice>
                     )}
                 </div>
             </div>

@@ -309,6 +309,88 @@ assert('P23. a heading without an expanding button is left alone',
 assert('P24. every heading level is covered',
     [1, 2, 3, 4, 5, 6].every((n) => sections(`<h${n}><button aria-expanded={o} /></h${n}>`) === 1));
 
+
+/* ========================================================================== */
+/* `hand-composed-notice` — the tinted block that carries a message.          */
+/*                                                                            */
+/* The rule that reads what an element's own BODY holds, and the reason it    */
+/* does is the third instance of one lesson this campaign kept paying for: a  */
+/* text window cannot tell a child from a sibling, a diff hunk cannot tell a  */
+/* child from a neighbour, and a subtree scan cannot tell a SLOT from         */
+/* anything inside it. Two glyph findings recorded in this repository turned  */
+/* out to be a button's icon read as a block's mark.                          */
+/* ========================================================================== */
+
+const notices = (code) => countViolations(code)['hand-composed-notice'] ?? 0;
+
+const TINT = 'rounded-ds-md border border-ds-status-warning-border bg-ds-status-warning-bg p-ds-3';
+
+// P25. The shape itself.
+assert('P25. a tinted block carrying words is counted',
+    notices(`<div className="${TINT}">Two items still need attention.</div>`) === 1);
+
+/*
+ * P26. The scope, and the whole reason the rule reads a body rather than a
+ * signature. 25 tinted ICON TILES exist in this tree — a square or circle
+ * holding one glyph — and the signature alone matches every one. Allowlisting
+ * them would be 25 boilerplate reasons, which Phase 4 already ruled is the
+ * `debt` hatch under another name.
+ */
+assert('P26. a tinted ICON TILE holds a glyph and no words, and is left alone',
+    notices('<span aria-hidden="true" className="flex h-10 w-10 items-center justify-center '
+        + 'rounded-ds-lg border border-ds-status-accent-border bg-ds-status-accent-bg">'
+        + '<FileText size={20} /></span>') === 0
+    // ...and the same tile with a sentence in it IS a notice, so the test is not vacuous.
+    && notices('<span className="rounded-ds-lg border border-ds-status-accent-border '
+        + 'bg-ds-status-accent-bg"><FileText size={20} /> Saved to the library.</span>') === 1);
+
+// P27. A block that FRAMES something rather than saying something.
+assert('P27. a region holding a control, a table or a nested Card is not a notice',
+    notices(`<div className="${TINT}"><p>Pick one</p><Select id="x" /></div>`) === 0
+    && notices(`<div className="${TINT}"><h4>Done</h4><Card padding="md">rows</Card></div>`) === 0
+    && notices(`<div className="${TINT}">Uploading<ProgressBar value={2} /></div>`) === 0);
+
+/*
+ * P28. BOTH halves of the signature, on the element itself. A tint with no
+ * matching border is an unread-row highlight, a chip or a selected state —
+ * three shapes this tree really uses.
+ */
+assert('P28. tint without its matching border is not the signature',
+    notices('<div className="bg-ds-status-info-bg px-2 py-0.5">Unread</div>') === 0
+    && notices('<div className="border border-ds-status-info-border p-ds-3">No tint</div>') === 0
+    // A tint whose border names a DIFFERENT tone is not the signature either.
+    && notices('<div className="border border-ds-status-danger-border '
+        + 'bg-ds-status-info-bg p-ds-3">Mixed</div>') === 0);
+
+/*
+ * P29. The body is depth-counted on the element's own name.
+ *
+ * **The first version of this assertion was hollow**, and running the mutation
+ * is what showed it: the fixture put the words INSIDE the nested element, so
+ * truncating the body at the first `</div>` still found them and the count did
+ * not move. Two fixtures pin it now, one in each direction, and both change
+ * their verdict when the depth counting goes:
+ *
+ * - words after the nested element: truncation loses them, 1 becomes 0;
+ * - a CONTROL after it: truncation hides it, and the rule fires on a region.
+ *
+ * The second is the one that matters. Reading a body too short does not merely
+ * miss things — it makes the rule accuse a block that frames a form.
+ *
+ * Third hollow assertion this campaign has caught by running the mutation
+ * rather than reasoning about it, after `classAndAttributeCount` and P22.
+ */
+assert('P29. a nested element of the same name does not end the body early',
+    notices(`<div className="${TINT}"><div className="min-w-0"><b>!</b></div>Could not send</div>`) === 1
+    && notices(`<div className="${TINT}"><div>Pick one</div><Select id="x" /></div>`) === 0);
+
+// P30. Every host element the rule scans, because a rule that reads only <div>
+// covers one spelling of the same block.
+assert('P30. every host element is covered',
+    ['div', 'p', 'span', 'section', 'li', 'aside', 'Card'].every(
+        (tag) => notices(`<${tag} className="${TINT}">A message.</${tag}>`) === 1,
+    ));
+
 /* ========================================================================== */
 console.log(failures === 0
     ? '\nAll state-rule checks passed.'

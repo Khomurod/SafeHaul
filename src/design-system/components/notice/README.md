@@ -510,3 +510,73 @@ This is the same lesson at a third level:
 - 6e — **a subtree scan cannot tell a slot from anything inside it.**
 
 A glyph is a claim about a slot. 6f's rule has to count slots, not subtrees.
+
+---
+
+# 6f: the guard, and what it found
+
+`hand-composed-notice` landed 2026-09-06 and closes this family.
+
+## The scope is a SLOT test, and that is the whole design
+
+An element is a hand-composed notice when it carries **both halves** of the
+signature — `bg-ds-status-X-bg` and `border-ds-status-X-border`, on the element
+itself — and its own body holds **words** and holds **no control, table or
+nested `Card`**.
+
+The obvious rule, "an element with the status tint", was run over the tree
+first. It matched **25 tinted icon tiles**: a square or circle holding one glyph
+and no words. Allowlisting those would have been 25 boilerplate reasons, which
+Phase 4 already ruled is the `debt` escape hatch under another name. The body
+test excludes every one of them structurally instead.
+
+That the test reads a **body** and not a subtree is the third instance of one
+lesson this campaign kept paying for:
+
+| | the lesson |
+|---|---|
+| 6a | a text window cannot tell a child from a sibling |
+| 6c | a diff hunk boundary cannot tell a child from a neighbour |
+| 6e | a subtree scan cannot tell a **slot** from anything inside it |
+
+Two glyph findings recorded in this repository turned out to be a button's icon
+read as a block's mark. A rule built on the same mistake would have inherited it.
+
+## The rule found what three audits had not
+
+Run for the first time, it matched **four sites nobody had classified**:
+
+- **`ReviewChangePortal:132`** and **`SandboxActionPanel:127` and `:133`** —
+  three genuine notices in `driver-changes` and `sandbox`, **two feature areas
+  none of 6c, 6d or 6e covered.** The plan named three migration areas and they
+  did not add up to the application. Nobody noticed until something scoped to the
+  whole tree ran over the whole tree.
+- **`ConfirmDialog:153`**, inside `src/design-system/` itself — the sixth
+  instance of the always-mounted live wrapper, and 6a's ruling honoured: the rule
+  does **not** exempt the design system, because a pattern that hand-builds the
+  component sitting beside it is the drift rather than an exception to it.
+
+**An audit covers what it was pointed at; a rule covers what exists.** All four
+migrated rather than being allowlisted — adding an entry to make a rule pass is
+the dishonesty this campaign refuses.
+
+## 19 tolerated entries, each a judgement
+
+228 → 247 violations across 34 → 46 files, and the count going up is the guard
+improving, per the §7 precedent. What the rule deliberately cannot decide is the
+judgement the three migrations made by hand: whether a tinted block that *does*
+carry words is a message, a labelled data block, a chat bubble, a list row or a
+modal header band. So the §7 review step stays, narrowed to exactly that.
+
+Stories are held to the rule. The catalog demonstrates `Notice`; it does not
+demonstrate the thing `Notice` replaced.
+
+## P29 was hollow, and running the mutation is what showed it
+
+The first version pinned depth-counted body reading with a fixture whose words
+sat *inside* the nested element — so truncating the body at the first close tag
+still found them, and the count did not move. Rewritten with two fixtures that
+each change verdict, the sharper being that **a body read too short makes the
+rule accuse a block that frames a form**. Third hollow assertion this campaign
+has caught by running the mutation rather than reasoning about it, after
+`classAndAttributeCount` and P22.

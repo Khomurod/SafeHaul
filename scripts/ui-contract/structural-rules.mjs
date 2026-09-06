@@ -21,6 +21,9 @@
  *   nineteen correct call sites stays silent.
  * - `hand-rolled-disclosure` requires the enclosing HEADING. Eleven live
  *   `aria-expanded` sites, and only one of them is a disclosure.
+ * - `hand-composed-notice` reads the element's own BODY. The signature alone
+ *   matched 25 tinted icon tiles — a square holding one glyph and no words —
+ *   and allowlisting those would have been 25 boilerplate reasons.
  *
  * That is the pattern worth keeping if these are ever rewritten: **a rule that
  * points at a primitive must be scoped to what the primitive actually
@@ -166,5 +169,33 @@ export const STRUCTURAL_RULES = [
         remedy: 'Use `Disclosure` — `variant="card"` for a titled section inside a `Card`, '
             + 'the default for a sidebar rail. A menu, combobox, drawer or sheet trigger is '
             + 'not this: those wear `aria-expanded` too and belong on `Button`/`IconButton`.',
+    },
+    {
+        /*
+         * The tinted message block — the shape this whole phase was about, and
+         * the one no colour rule could ever see, because every one of the 65
+         * hand-built copies used correct `--ds-*` status roles. Composition
+         * drift, not palette drift.
+         *
+         * The scope is a SLOT test rather than a signature match, and the
+         * reasoning is in `countHandComposedNotices`. Short version: the obvious
+         * rule matched 25 tinted ICON TILES, and allowlisting those would be 25
+         * boilerplate reasons — the `debt` hatch Phase 4 already refused, at a
+         * smaller scale.
+         *
+         * The tolerated entries below it are the exception list three migration
+         * slices produced by reading every candidate, each with its own recorded
+         * reason: modal header bands, tinted list rows, a chat bubble, labelled
+         * DATA blocks, `PageState`-style panels, PDF field overlays, a
+         * call-to-action panel, a named landmark and two action panels. The
+         * count going UP is the guard improving, not the tree getting worse —
+         * the §7 precedent.
+         */
+        name: 'hand-composed-notice',
+        // counted by `countHandComposedNotices`, which needs the element body
+        pattern: null,
+        remedy: 'A tinted block carrying a message is `Notice`. Give it a `tone`, and `announce` '
+            + 'only if it should be read out — and when the caller already owns an always-mounted '
+            + 'live region, leave `announce` off so it is not announced twice.',
     },
 ];

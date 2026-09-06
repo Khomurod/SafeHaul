@@ -51,6 +51,12 @@ export const STORY_RULE_NAMES = [
     // And one more: a story that hand-builds a collapsible section is
     // publishing the markup `Disclosure` exists to stop being rewritten.
     'hand-rolled-disclosure',
+    // The same argument at the end of the same list. A story hand-building a
+    // tinted message block is publishing the single most copy-pasted shape in
+    // this application — 65 copies across 52 files — from the one place that is
+    // supposed to be the reference. The catalog demonstrates `Notice`; it does
+    // not demonstrate the thing `Notice` replaced.
+    'hand-composed-notice',
 ];
 
 /**

@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { functions } from '@lib/firebase';
 import { useData } from '@/context/DataContext';
 import { Loader2, Trash2, ArrowRightCircle, ShieldAlert } from 'lucide-react';
-import { Button, Card, FormField, Select, StatusMedallion } from '@/design-system/components';
+import { Button, Card, FormField, Notice, Select, StatusMedallion } from '@/design-system/components';
 
 /**
  * Post-submit actions for sandbox applications. Delete / transfer require Super Admin (callable enforces).
@@ -124,18 +124,15 @@ export function SandboxActionPanel({
         )}
 
         {!isSuperAdmin && (
-          <p className="rounded-ds-md border border-ds-status-warning-border bg-ds-status-warning-bg px-ds-4 py-ds-3 text-ds-sm text-ds-status-warning-fg">
+          <Notice tone="warning" size="sm">
             Sign in as a Super Admin to delete or transfer this test application.
-          </p>
+          </Notice>
         )}
 
         {error && (
-          <p
-            role="alert"
-            className="rounded-ds-md border border-ds-status-danger-border bg-ds-status-danger-bg px-ds-4 py-ds-3 text-ds-sm text-ds-status-danger-fg [overflow-wrap:anywhere]"
-          >
+          <Notice announce="assertive" tone="danger" size="sm">
             {error}
-          </p>
+          </Notice>
         )}
 
         <div className="space-y-ds-4">
