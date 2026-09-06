@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, Wifi, WifiOff, Activity } from 'lucide-react';
+import { Icon, Check, Wifi, WifiOff, Activity } from '@design-system/icons';
 import { Badge, Card, IconButton, Select } from '@/design-system/components';
 import { MISSING_TOKEN, lineDisplay } from '../../utils/linePhone';
 
@@ -44,7 +44,7 @@ export function DefaultLineSection({
             <div className="mb-ds-4 flex items-start justify-between">
                 <div>
                     <h3 className="flex items-center gap-ds-2 font-bold text-ds-content">
-                        <Check className="text-ds-status-success-fg" size={18} aria-hidden="true" /> Company Default Line
+                        <Icon icon={Check} size="lg" className="text-ds-status-success-fg" /> Company Default Line
                     </h3>
                     <p className="mt-ds-1 text-ds-xs text-ds-content-muted">
                         Used for automated system messages and unassigned recruiters.
@@ -86,9 +86,9 @@ export function DefaultLineSection({
                         loading={isVerifying}
                     >
                         {!isVerifying && (
-                            status?.success ? <Wifi size={16} className="text-ds-status-success-fg" />
-                                : status?.success === false ? <WifiOff size={16} className="text-ds-status-danger-fg" />
-                                    : <Activity size={16} />
+                            status?.success ? <Icon icon={Wifi} className="text-ds-status-success-fg" />
+                                : status?.success === false ? <Icon icon={WifiOff} className="text-ds-status-danger-fg" />
+                                    : <Icon icon={Activity} />
                         )}
                     </IconButton>
                 )}

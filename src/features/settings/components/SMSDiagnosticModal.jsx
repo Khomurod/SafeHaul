@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Send, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Icon, Send, CheckCircle, AlertTriangle } from '@design-system/icons';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
 import { useToast } from '@shared/components/feedback/ToastProvider';
@@ -126,7 +126,7 @@ export function SMSDiagnosticModal({ companyId, inventory, onClose }) {
                             disabled={verifying}
                             loading={verifying}
                         >
-                            {!verifying && <CheckCircle size={18} aria-hidden="true" />}
+                            {!verifying && <Icon icon={CheckCircle} size="lg" />}
                             {verifying ? 'Verifying...' : 'Verify Configuration'}
                         </Button>
 
@@ -135,7 +135,7 @@ export function SMSDiagnosticModal({ companyId, inventory, onClose }) {
                                 tone={verificationResult.success ? 'success' : 'error'}
                                 role={verificationResult.success ? 'status' : 'alert'}
                             >
-                                {verificationResult.success ? <CheckCircle size={14} aria-hidden="true" /> : <AlertTriangle size={14} aria-hidden="true" />}
+                                {verificationResult.success ? <Icon icon={CheckCircle} size="sm" /> : <Icon icon={AlertTriangle} size="sm" />}
                                 {' '}{verificationResult.message}
                             </FieldMessage>
                         )}
@@ -147,7 +147,7 @@ export function SMSDiagnosticModal({ companyId, inventory, onClose }) {
                             disabled={sending}
                             loading={sending}
                         >
-                            {!sending && <Send size={18} aria-hidden="true" />}
+                            {!sending && <Icon icon={Send} size="lg" />}
                             {sending ? 'Sending Test...' : 'Send Test Message'}
                         </Button>
                     </Stack>

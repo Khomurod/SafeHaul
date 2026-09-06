@@ -1,5 +1,5 @@
 import React, { useId } from 'react';
-import { Building } from 'lucide-react';
+import { Icon, Building } from '@design-system/icons';
 import { FieldMessage, FileInput } from '@/design-system/components';
 
 /**
@@ -41,12 +41,25 @@ export function BrandingSection({
                         className="h-full w-full object-contain"
                     />
                 ) : (
+                    /*
+                      The FRAME owns this glyph's size, the same answer 7a gave
+                      `StatusMedallion` — and 48px is deliberate rather than
+                      off-scale carelessness. The frame is 128px, so 48 is 37.5%,
+                      the bottom of the published band (Tailwind UI 50%, Material 3
+                      50-60%, shadcn's avatar fallback 40%, this product's own
+                      medallion 37.5% at `md`). The contract's scale tops out at
+                      `3xl` = 32, which here would be 25% — below every one of
+                      those, and a third smaller on a screen people see. So the size
+                      stays and lives on the container, where resizing the frame
+                      carries it. Recorded in the roadmap's open "Tinted icon tile"
+                      row as its second measured instance.
+                    */
                     <span
                         role="img"
                         aria-label="No company logo set"
-                        className="flex h-full w-full items-center justify-center"
+                        className="flex h-full w-full items-center justify-center [&>svg]:h-12 [&>svg]:w-12"
                     >
-                        <Building className="text-ds-content-muted" size={48} aria-hidden="true" />
+                        <Icon icon={Building} className="text-ds-content-muted" />
                     </span>
                 )}
             </div>

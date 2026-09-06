@@ -1,7 +1,5 @@
 import React, { useId } from 'react';
-import {
-    Trash2, Plus, X, Shield, Lock, AlertTriangle, ChevronUp, ChevronDown, GripVertical,
-} from 'lucide-react';
+import { Icon, Trash2, Plus, X, Shield, Lock, AlertTriangle, ChevronUp, ChevronDown, GripVertical } from '@design-system/icons';
 import {
     Button,
     Checkbox,
@@ -59,7 +57,12 @@ export function QuestionEditor({
         onChange(index, { ...question, ...updates });
     };
 
-    const TypeIcon = QUESTION_TYPES.find(t => t.id === question.type)?.icon;
+    /*
+     * `QUESTION_TYPES[].icon` is a glyph TOKEN from `@design-system/icons`, not a
+     * component — `QuestionConfig.js` moved onto the contract in the same slice.
+     * So it is rendered through `Icon` below; rendering it directly throws.
+     */
+    const typeGlyph = QUESTION_TYPES.find(t => t.id === question.type)?.icon;
 
     return (
         <div
@@ -77,10 +80,10 @@ export function QuestionEditor({
                         disabled={!canMoveUp}
                         onClick={() => onMoveUp?.(index)}
                     >
-                        <ChevronUp size={16} aria-hidden="true" />
+                        <Icon icon={ChevronUp} />
                     </IconButton>
                     <span className="text-ds-content-muted" {...dragHandleProps} aria-hidden="true">
-                        <GripVertical size={16} />
+                        <Icon icon={GripVertical} />
                     </span>
                     <IconButton
                         label={`Move question ${number} down`}
@@ -89,7 +92,7 @@ export function QuestionEditor({
                         disabled={!canMoveDown}
                         onClick={() => onMoveDown?.(index)}
                     >
-                        <ChevronDown size={16} aria-hidden="true" />
+                        <Icon icon={ChevronDown} />
                     </IconButton>
                 </div>
 
@@ -123,7 +126,7 @@ export function QuestionEditor({
                         variant="ghost"
                         onClick={() => onDelete(index)}
                     >
-                        <Trash2 size={18} aria-hidden="true" />
+                        <Icon icon={Trash2} size="lg" />
                     </IconButton>
                 </div>
             </div>
@@ -143,7 +146,7 @@ export function QuestionEditor({
                         <legend className="text-ds-sm font-semibold text-ds-content">Answer options</legend>
                         {question.options?.map((opt, i) => (
                             <div key={i} className="flex items-center gap-ds-3">
-                                {TypeIcon && <TypeIcon size={16} className="shrink-0 text-ds-content-muted" aria-hidden="true" />}
+                                {typeGlyph && <Icon icon={typeGlyph} className="shrink-0 text-ds-content-muted" />}
                                 <Input
                                     type="text"
                                     aria-label={`Question ${number} option ${i + 1}`}
@@ -157,12 +160,12 @@ export function QuestionEditor({
                                     variant="ghost"
                                     onClick={() => removeOption(i)}
                                 >
-                                    <X size={16} aria-hidden="true" />
+                                    <Icon icon={X} />
                                 </IconButton>
                             </div>
                         ))}
                         <Button variant="ghost" size="sm" onClick={addOption}>
-                            <Plus size={16} aria-hidden="true" /> Add Option
+                            <Icon icon={Plus} /> Add Option
                         </Button>
                     </fieldset>
                 )}
@@ -176,7 +179,7 @@ export function QuestionEditor({
                 {/* DOT/FMCSA Compliance Section */}
                 <div className="space-y-ds-3 border-t border-ds-border-subtle pt-ds-4">
                     <div className="flex items-center gap-ds-2">
-                        <Shield size={16} className="text-ds-status-warning-fg" aria-hidden="true" />
+                        <Icon icon={Shield} className="text-ds-status-warning-fg" />
                         <span className="text-ds-xs font-semibold uppercase tracking-wide text-ds-content-muted">
                             Compliance Settings
                         </span>
@@ -197,11 +200,8 @@ export function QuestionEditor({
                                 checked={question.dotRequired || false}
                                 onChange={(e) => handleChange('dotRequired', e.target.checked)}
                             />
-                            <Shield
-                                size={14}
-                                className={question.dotRequired ? 'text-ds-status-warning-fg' : 'text-ds-content-muted'}
-                                aria-hidden="true"
-                            />
+                            <Icon icon={Shield} size="sm"
+                                className={question.dotRequired ? 'text-ds-status-warning-fg' : 'text-ds-content-muted'} />
                         </div>
 
                         {question.dotRequired && (
@@ -224,7 +224,7 @@ export function QuestionEditor({
                                 checked={!(question.canCompanyHide ?? true)}
                                 onChange={(e) => handleChange('canCompanyHide', !e.target.checked)}
                             />
-                            <Lock size={14} className="text-ds-content-muted" aria-hidden="true" />
+                            <Icon icon={Lock} size="sm" className="text-ds-content-muted" />
                         </div>
 
                         <div className="flex items-center gap-ds-2">
@@ -234,7 +234,7 @@ export function QuestionEditor({
                                 checked={!(question.canCompanyModify ?? true)}
                                 onChange={(e) => handleChange('canCompanyModify', !e.target.checked)}
                             />
-                            <AlertTriangle size={14} className="text-ds-content-muted" aria-hidden="true" />
+                            <Icon icon={AlertTriangle} size="sm" className="text-ds-content-muted" />
                         </div>
                     </div>
                 </div>

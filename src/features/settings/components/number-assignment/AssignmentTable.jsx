@@ -1,5 +1,5 @@
 import React from 'react';
-import { Users as UsersIcon } from 'lucide-react';
+import { Icon, Users as UsersIcon } from '@design-system/icons';
 import { Card } from '@/design-system/components';
 import { AssignmentRow } from './AssignmentRow';
 
@@ -25,7 +25,7 @@ export function AssignmentTable({ users, ...rowProps }) {
         <Card padding="none" className="overflow-hidden">
             <div className="border-b border-ds-border-subtle p-ds-6">
                 <h3 className="flex items-center gap-ds-2 font-bold text-ds-content">
-                    <UsersIcon className="text-ds-status-accent-fg" size={18} aria-hidden="true" /> Recruiter Assignments
+                    <Icon icon={UsersIcon} size="lg" className="text-ds-status-accent-fg" /> Recruiter Assignments
                 </h3>
                 <p className="mt-ds-1 text-ds-xs text-ds-content-muted">Assign strict 1:1 lines for your team members.</p>
             </div>

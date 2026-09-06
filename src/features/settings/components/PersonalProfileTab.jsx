@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { doc, getDoc, updateDoc, setDoc } from "firebase/firestore";
 import { db } from '@lib/firebase';
-import { Save, Loader2, Link as LinkIcon, Copy, CheckCircle } from 'lucide-react';
+import { Icon, Save, Loader2, Link as LinkIcon, Copy, CheckCircle } from '@design-system/icons';
 import {
     Button,
     Card,
@@ -125,7 +125,7 @@ export function PersonalProfileTab({ currentUser, currentCompanyProfile }) {
                             className="p-3 rounded-ds-md shadow-ds-xs bg-ds-surface text-ds-status-info-fg shrink-0"
                             aria-hidden="true"
                         >
-                            <LinkIcon size={24} />
+                            <Icon icon={LinkIcon} size="2xl" />
                         </div>
                         <div className="flex-1 min-w-0">
                             <h2
@@ -144,7 +144,7 @@ export function PersonalProfileTab({ currentUser, currentCompanyProfile }) {
                                     className="flex items-center gap-2 text-ds-sm text-ds-content-secondary"
                                     role="status"
                                 >
-                                    <Loader2 className="animate-spin" size={16} aria-hidden="true" />
+                                    <Icon icon={Loader2} className="animate-spin" />
                                     Generating unique code...
                                 </div>
                             ) : (
@@ -163,8 +163,8 @@ export function PersonalProfileTab({ currentUser, currentCompanyProfile }) {
                                         aria-live="polite"
                                     >
                                         {copied
-                                            ? <CheckCircle size={16} aria-hidden="true" />
-                                            : <Copy size={16} aria-hidden="true" />}
+                                            ? <Icon icon={CheckCircle} />
+                                            : <Icon icon={Copy} />}
                                         {copied ? "Copied" : "Copy"}
                                     </Button>
                                 </div>
@@ -203,7 +203,7 @@ export function PersonalProfileTab({ currentUser, currentCompanyProfile }) {
                             onClick={handleSavePersonal}
                             loading={loading}
                         >
-                            {!loading && <Save size={18} aria-hidden="true" />}
+                            {!loading && <Icon icon={Save} size="lg" />}
                             Update Profile
                         </Button>
                     </div>

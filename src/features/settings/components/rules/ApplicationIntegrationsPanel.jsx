@@ -1,5 +1,5 @@
 import React, { useId } from 'react';
-import { Blocks } from 'lucide-react';
+import { Icon, Blocks } from '@design-system/icons';
 import { Card, Switch } from '@/design-system/components';
 
 /**
@@ -39,7 +39,7 @@ export function ApplicationIntegrationsPanel({ integrations, onChange, readOnly 
     return (
         <Card padding="none" className="overflow-hidden" aria-labelledby={titleId}>
             <div className="flex items-center gap-ds-2 border-b border-ds-border-subtle bg-ds-surface-subtle p-ds-4">
-                <Blocks size={18} className="text-ds-content-muted" aria-hidden="true" />
+                <Icon icon={Blocks} size="lg" className="text-ds-content-muted" />
                 <h4 id={titleId} className="text-ds-body font-bold text-ds-content">Application Integrations</h4>
             </div>
             <p className="border-b border-ds-border-subtle px-ds-4 py-ds-3 text-ds-sm text-ds-content-muted">

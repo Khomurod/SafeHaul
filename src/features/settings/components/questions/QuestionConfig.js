@@ -1,7 +1,4 @@
-import {
-    AlignLeft, AlignJustify, CheckSquare, List, Circle,
-    UploadCloud, Calendar, Clock, Hash, Grid
-} from 'lucide-react';
+import { AlignLeft, AlignJustify, CheckSquare, List, Circle, UploadCloud, Calendar, Clock, Hash, Grid } from '@design-system/icons';
 
 export const QUESTION_TYPES = [
     {

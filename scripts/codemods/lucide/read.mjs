@@ -162,6 +162,35 @@ export function maskCommentsAndStrings(source) {
         }
         const ch = source[i];
         if (ch === '"' || ch === "'" || ch === '`') {
+            /*
+             * An apostrophe BETWEEN LETTERS is prose, not a string opener.
+             *
+             * `<p>We couldn't find any numbers</p>` is JSX text, and reading its
+             * apostrophe as a quote opened a string that ran to the next one and
+             * blanked everything between — which is to say, the rest of the file
+             * whenever the count is odd. Measured on
+             * `NumberAssignmentManager.jsx` on 2026-09-06: three contractions,
+             * `elementUses` reported ONE of four `<Phone>`/`<Beaker>`/`<Save>`
+             * tags, and the three it could not see survived the migration as raw
+             * glyph renders that throw `TypeError: Phone is an icon token`.
+             *
+             * A string literal never opens after a letter with a letter next:
+             * `x = 'abc'` has a space or `=` before it. `return'abc'` would be
+             * missed by this rule, and that is the safe direction — a `<Name` seen
+             * inside a string is a false FLAG somebody reads, while a `<Name` the
+             * scan cannot see is a silent miss that reaches a screen.
+             *
+             * The post-condition in `migrate()` is what actually closes the class:
+             * whatever the mask gets wrong, a glyph tag left in the output that no
+             * flag accounts for is reported and fails the run.
+             */
+            const isInWordApostrophe = ch === "'"
+                && i > 0 && /[A-Za-z0-9]/.test(source[i - 1])
+                && /[A-Za-z]/.test(source[i + 1] || '');
+            if (isInWordApostrophe) {
+                i += 1;
+                continue;
+            }
             let k = i + 1;
             while (k < source.length && source[k] !== ch) {
                 if (source[k] === '\\') k += 1;
@@ -174,6 +203,61 @@ export function maskCommentsAndStrings(source) {
         i += 1;
     }
     return out.join('');
+}
+
+/**
+ * Comments blanked, strings LEFT ALONE — a deliberately more conservative read
+ * than `maskCommentsAndStrings`, for the post-condition that checks the scan.
+ *
+ * The point is that it does not share the string masker's blindness. A quote is
+ * ambiguous in JSX (`couldn't` is prose, `"x"` is an attribute) and getting it
+ * wrong hides code; `//` and `/* *\/` are not ambiguous. So a self-check built on
+ * comments alone can see a tag the scan missed, which a self-check built on the
+ * same mask never can — that one only ever agrees with itself.
+ *
+ * It over-reports by design: a glyph tag written inside a STRING (documentation
+ * prose quoting `<Trash2 />`, say) counts here and does not count for the scan.
+ * That is a loud false alarm somebody reads, against a silent miss that reaches
+ * a screen.
+ */
+export function maskCommentsOnly(source) {
+    const out = source.split('');
+    let i = 0;
+    const blank = (from, to) => {
+        for (let k = from; k < to && k < out.length; k += 1) {
+            if (out[k] !== '\n' && out[k] !== '\r') out[k] = ' ';
+        }
+    };
+    while (i < source.length) {
+        const two = source.slice(i, i + 2);
+        if (two === '//') {
+            const end = source.indexOf('\n', i);
+            blank(i, end === -1 ? source.length : end);
+            i = end === -1 ? source.length : end;
+            continue;
+        }
+        if (two === '/*') {
+            const end = source.indexOf('*/', i + 2);
+            blank(i, end === -1 ? source.length : end + 2);
+            i = end === -1 ? source.length : end + 2;
+            continue;
+        }
+        i += 1;
+    }
+    return out.join('');
+}
+
+/** `<Name` openings outside comments — the post-condition's count. */
+export function tagOccurrencesOutsideComments(source, name) {
+    const lines = [];
+    const opener = new RegExp(`<${name}(?=[\\s/>])`, 'g');
+    const masked = maskCommentsOnly(source);
+    let match = opener.exec(masked);
+    while (match) {
+        lines.push(lineOf(source, match.index));
+        match = opener.exec(masked);
+    }
+    return lines;
 }
 
 /** Every `<Name …>` open tag in the file, outermost first. */
