@@ -26,11 +26,15 @@ Before changing UI code, read:
 - `icons/` holds the approved icon contract: `Icon`, a seven-step size scale, the
   accessible-name rule, and a registry of 171 **glyph tokens** that cannot be
   rendered except through `Icon` — so a call site cannot go back to passing its own
-  pixel number. 178 files outside the design system still import `lucide-react`
-  directly; they are recorded in `icons/lucide-import.backlog.json`, enforced
-  across `src/` by `npm run check:icon-contract`, and drained area by area. Until that is done,
-  `Icon` also accepts a bare component, because those files hand raw glyphs to
-  design-system containers as props. See `icons/README.md`.
+  pixel number. **The migration finished on 2026-09-06**: 178 files and 800 glyph
+  imports drained in nine slices, the backlog file was deleted, and
+  `npm run check:icon-contract` now refuses a `lucide-react` import anywhere under
+  `src/` outside this directory, with nothing recorded and nothing exempt. One file
+  opens a glyph by hand — `VOEDocument.jsx`, through `glyphComponent`, because the
+  exported §391.23 document must carry no `ds-*` class and `Icon` stamps one; the
+  reason is written above the calls. `Icon` still accepts a bare component, which
+  is what lets a design-system container resolve an `icon` prop. See
+  `icons/README.md`.
 - `stories/` is the component catalog, built with Storybook 10 and configured in
   `.storybook/`. Run it with `npm run storybook`; `npm run test:stories` renders
   every story and runs axe over it. See `stories/README.md`.

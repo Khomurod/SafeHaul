@@ -183,6 +183,24 @@ console.log('\nX. The icon contract is enforced in CI, and cannot go blind');
      * So it is pinned here, beside the guard whose blind spot it covers, and
      * pinned as `error` — a warning is a note in a log nobody reads.
      */
+    /*
+     * X17: the campaign's endpoint, pinned now that it has been reached. The
+     * backlog file was deleted on 2026-09-06 when its last entry drained, and the
+     * checker refuses an EMPTY one so that recreating it is not a way to start
+     * over quietly. That refusal lives in the CLI rather than in `evaluate`,
+     * which is where the fixture tests reach, so it would otherwise be the one
+     * rule in this guard with nothing behind it.
+     *
+     * `I1` in `test-icon-contract.mjs` covers the absolute rule itself — an
+     * importer refused against an EMPTY backlog, which is exactly the live state
+     * now that the file is gone.
+     */
+    const checker = readFileSync(resolvePath(repoRoot, 'scripts/check-icon-contract.mjs'), 'utf8');
+    assert('X17. an empty backlog file is refused, so it cannot be quietly recreated',
+        /Object\.keys\(backlog\)\.length === 0 && existsSync\(backlogFile\)/.test(checker)
+        && /an empty list is an invitation to add to it/.test(checker),
+        'the campaign ended by deleting the file; an empty one must not be a fresh start');
+
     const eslintConfig = readFileSync(resolvePath(repoRoot, 'eslint.config.js'), 'utf8');
     assert('X15. lint refuses a JSX tag whose component is not in scope',
         /'react\/jsx-no-undef':\s*'error'/.test(eslintConfig),

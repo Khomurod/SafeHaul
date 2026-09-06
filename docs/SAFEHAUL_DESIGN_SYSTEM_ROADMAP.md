@@ -1616,6 +1616,28 @@ rule has to decide.
 
 ## 8. Migration state
 
+**The programme is closed.** The eight-phase plan opened on 2026-09-04 with a
+six-auditor finding that the green `check:ui-contract` did **not** prove
+conformance — the gate could be loosened from inside a pull request, whole
+categories of off-contract markup were structurally invisible to it, nine
+primitives were missing, and the documentation carried at least thirteen
+statements that would have sent the next contributor to redo finished work. Each
+of those is now answered, and the answers are in the sections above rather than in
+this paragraph. What is worth stating once, here, is the shape of what changed:
+
+- **The gate judges every change against git**, not against the branch making the
+  change, so a pull request can no longer raise its own ceiling.
+- **What the gate can see is wider**: the application's front page, colours inside
+  SVG attributes and JavaScript assignments, `@apply`, bare `rounded`/`shadow`,
+  and a class list hoisted into a variable.
+- **Nine primitives shipped with their consumers**, each with a rule that refuses
+  the hand-rolled shape, so none of them sits unused.
+- **Two campaigns ran to zero and deleted their own lists** — the status notice
+  and the icon contract — which is the only ending that makes a rule absolute.
+- **Every remaining exception rests on a reason that is true**, recorded where it
+  is taken as well as in the allowlist; the falsified `VOEDocument` premise was
+  replaced with the surviving one.
+
 **The screen inventory is complete: 19 of 19 areas migrated, closed 2026-07-28**,
 covering the company workspace and settings, login/auth, the public driver
 application, the driver dossier, PEV/VOE, e-docs and the signing experience,
@@ -1691,7 +1713,7 @@ every consumer that can use it does:
 | Single-select toggle group | `components/segmented` | 2026-08-25 |
 | File picker | `components/file-input` | 2026-08-25 |
 | Table (display and native) | `components/data-table` + `ds-native-table` | 2026-08-25 |
-| Icons | `icons/` (`Icon` + 171 glyph tokens) | 2026-09-05 |
+| **Icons** | `icons/` (`Icon` + 171 glyph tokens) | 2026-09-06 — contract 2026-09-05, **migration closed 2026-09-06**: 178 files and 800 glyph imports drained in nine slices, `lucide-import.backlog.json` deleted, the rule absolute. One recorded exception: `VOEDocument.jsx` opens three glyphs through `glyphComponent` because the exported regulatory document must carry no `ds-*` class |
 | **Interactive pill / chip** | `components/chip` (`Chip` + `ChipGroup`) | 2026-09-05 — 6 violations across 4 files, and every citer migrated |
 | **Pressed state** | `components/button` → `pressed` + `components/chip` | 2026-09-05 — `hand-rolled-toggle` refuses a raw `<button aria-pressed>`; **0 recorded** since `SelectableCard` landed |
 | **Editable-in-place value** | `components/form` → `Input variant="inline"` | 2026-09-05 — 4 violations across 2 files, both leave the allowlist; one WCAG 2.5.3 name repaired on the way |
@@ -1705,19 +1727,32 @@ Families still in progress — inputs, select/textarea, loading primitives beyon
 `ProgressBar` — are tracked by the guardrail work in §7 rather than by a list of
 screens, because the screens are done and what remains is preventing regression.
 
-The icon row means the **contract** is complete, the design system is entirely
-on it — catalog included — and `check:icon-contract` refuses a new importer. It
-does not mean the migration is finished: 178 files outside the design system
-still import `lucide-react`, recorded in `icons/lucide-import.backlog.json`, and
-the family is not closed until that file is deleted, which is the moment the
-rule becomes absolute. **That moment arrived on 2026-09-06**: the last of the 178
-files drained in 7i, `lucide-import.backlog.json` was deleted, and
-`check:icon-contract` now refuses a `lucide-react` import anywhere under `src/`
-outside the registry itself — with nothing recorded, nothing exempt, and no list
-to add to. Along the way `candidateListColumns.jsx` drained on its way through the
-chip slice and two more went with the Notice migration, because a file being
-rewritten to use `Icon` is the cheapest moment to finish it, and the campaign only
-shrank.
+The icon row closed in two steps, and the distance between them is the point.
+The **contract** was complete on 2026-09-05 — the design system entirely on it,
+catalog included, `check:icon-contract` refusing a new importer — while 178 files
+outside the design system still named `lucide-react` directly. A contract nobody
+outside has adopted is a rule with an exception list, so the family was not closed
+until that list was empty and the file holding it was gone.
+
+**It went on 2026-09-06.** Nine slices, smallest area first, drained 178 files and
+800 glyph imports to zero; the checker then refused the empty list in as many
+words — *"the campaign is finished, so delete the file — an empty list is an
+invitation to add to it"* — and `lucide-import.backlog.json` was deleted. Nothing
+under `src/` outside the registry may import the package, nothing is recorded, and
+there is no list to add to. Three files drained early, on their way through other
+work (`candidateListColumns.jsx` in the chip slice, two more with the Notice
+migration), because a file being rewritten to use `Icon` is the cheapest moment to
+finish it.
+
+**One exception survives, and it is recorded where it is taken.**
+`VOEDocument.jsx` opens three glyphs by hand through `glyphComponent`, the
+contract's own opener, because `VOEPreviewModal.export.test.jsx` asserts the
+exported §391.23 document carries no `ds-*` class anywhere — its class list is a
+rasteriser's capture surface, and a themeable role must never reach a signed
+regulatory artefact — while `Icon` stamps `ds-icon` on everything it renders. Both
+ordinary doors are shut, so the file uses the named one and says why above the
+calls. It still imports from `@design-system/icons` like every other file, which
+is what keeps it inside the contract rather than beside it.
 
 **Phase 7 opened by measuring what it is actually migrating**, and the number
 that mattered was not the file count. Across all 175 files there are **607 glyph

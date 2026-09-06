@@ -63,6 +63,30 @@ function renderNameForm(props = {}) {
     return { ...utils, onSave };
 }
 
+/*
+ * WAIT FOR A MEMBERSHIP ROW, NOT FOR THE COMPANY'S NAME.
+ *
+ * `findByText('Artificial Freight Co')` looks like it waits for the row. It does
+ * not: the add-company form lists every company as an `<option>` with that same
+ * text, and that form renders from `allCompaniesMap`, which is a prop — present
+ * on the first paint — while the rows come from `getMembershipsForUser`, which
+ * resolves later. So the await is satisfied by the option and the assertion after
+ * it reads a list that has not arrived.
+ *
+ * That cost a `frontend-quality` failure on 2026-09-06, on a change that touched
+ * only documentation and tooling. Reproduced by resolving the memberships one
+ * macrotask later: three tests fail with the exact CI messages.
+ *
+ * This is AGENTS.md rule 7 in a third spelling. The first two were about the same
+ * element rendering before its content; this one is a DIFFERENT element that
+ * happens to carry the same text. The criterion is unchanged — wait for something
+ * that cannot exist until the state you are asserting on does — and the role
+ * select inside a row is exactly that.
+ */
+async function firstMembershipRow(timeout = { timeout: 5000 }) {
+    return screen.findByLabelText('Role for Artificial Freight Co', {}, timeout);
+}
+
 function renderMemberships(props = {}) {
     const onDataUpdate = vi.fn();
     const utils = render(
@@ -245,8 +269,9 @@ describe('UserMembershipsManager — listing contract', () => {
     it('loads memberships for the user and names the company', async () => {
         renderMemberships();
         await waitFor(() => expect(getMembershipsForUser).toHaveBeenCalledWith('user-1'));
-        expect(await screen.findByText('Artificial Freight Co', {}, INITIAL_LOAD)).toBeInTheDocument();
+        await firstMembershipRow(INITIAL_LOAD);
         expect(screen.getByText('ID: co-1')).toBeInTheDocument();
+        expect(screen.getByText('Artificial Freight Co')).toBeInTheDocument();
     });
 
     it('keeps the Unknown Company fallback for an unmapped id', async () => {
@@ -300,10 +325,9 @@ describe('UserMembershipsManager — listing contract', () => {
 
     it('keeps the two differing role vocabularies', async () => {
         renderMemberships();
-        await screen.findByText('Artificial Freight Co');
 
         // Per-row select says "Company Admin".
-        const rowSelect = screen.getByLabelText('Role for Artificial Freight Co');
+        const rowSelect = await firstMembershipRow();
         expect([...rowSelect.options].map((o) => o.textContent)).toEqual(['HR User', 'Company Admin']);
 
         // Add form says "Admin". Scoped to the add form: the per-row label also
@@ -414,7 +438,7 @@ describe('UserMembershipsManager — mutation contracts', () => {
 describe('Edit User bodies — accessibility', () => {
     it('names the three previously title-only icon controls', async () => {
         renderMemberships();
-        await screen.findByText('Artificial Freight Co');
+        await firstMembershipRow();
         expect(screen.getByRole('button', { name: 'Refresh membership list' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Remove access to Artificial Freight Co' })).toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Grant access to the selected company' })).toBeInTheDocument();
@@ -423,7 +447,7 @@ describe('Edit User bodies — accessibility', () => {
 
     it('makes the membership list a named, focusable scroll region', async () => {
         renderMemberships();
-        await screen.findByText('Artificial Freight Co');
+        await firstMembershipRow();
         const region = screen.getByRole('region', { name: 'Access & Permissions' });
         expect(region).toHaveAttribute('tabindex', '0');
     });
@@ -441,7 +465,7 @@ describe('Edit User bodies — accessibility', () => {
 
     it('has no jsdom axe violations — memberships with rows', async () => {
         const { container } = renderMemberships();
-        await screen.findByText('Artificial Freight Co');
+        await firstMembershipRow();
         expect((await axe(container)).violations).toEqual([]);
     });
 
