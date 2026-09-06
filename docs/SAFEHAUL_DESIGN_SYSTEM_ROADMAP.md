@@ -643,15 +643,25 @@ design-system blockers: none of them gates a primitive, a token or a baseline.
   so `FeaturesView` could not import it and used a `Checkbox` instead,
   announcing the wrong role for a control that saves immediately. Both call
   sites migrate with their feature families.
-- `[!]` **Decide how an employer signs the verification portal without a
-  mouse.** A canvas cannot be drawn on with a keyboard, so `SignaturePad` — the
-  legally operative mark on a 49 CFR §391.23 response — has **no keyboard or
-  assistive-technology path to producing a signature**. Everything around it is
-  accessible and axe reports zero serious/critical violations, because axe
-  cannot detect a missing input modality. A typed fallback is the obvious remedy
-  and the product already has the concept (`TEXT_SIGNATURE:` on the VOE side),
-  but a typed mark that is indistinguishable in the stored PNG from a drawn one
-  is a **legal-semantics decision, not a styling one**.
+- `[x]` **Decide how an employer signs the verification portal without a
+  mouse. RESOLVED 2026-09-06 — drawn or typed, method recorded (audit step J).**
+  A canvas cannot be drawn on with a keyboard, so `SignaturePad` alone — the
+  legally operative mark on a 49 CFR §391.23 response — had **no keyboard or
+  assistive-technology path to producing a signature**, and axe could not see it
+  because axe cannot detect a missing input modality. The standard settled the
+  legal half: ESIGN (15 U.S.C. §7006(5)) and UETA define an electronic signature
+  as any symbol or process adopted with intent to sign, so a typed name is one,
+  and every mainstream e-signature product offers Draw and Type side by side.
+  What made it safe here was the record, not the picture: `SignatureInput`
+  (`shared/components/signature`) wraps the pad with a `SegmentedControl`
+  Draw | Type choice; a typed name is stored as `TEXT_SIGNATURE:<name>` — the
+  driver application's own convention — and is **never rasterised**; the method
+  travels with the response, the server refuses any other form or a mislabelled
+  method, and the DQ-file PDF prints the typed name in an oblique face under a
+  "(typed)" label. Switching method clears the mark, the same "what is stored is
+  what you can see" invariant the pad keeps on resize. Draw stays the default so
+  the pad's contract tests and the ink-measuring E2E specs are untouched; a
+  keyboard-only E2E test signs by typing and submits.
 - `[x]` **Align control heights across the primitives. RESOLVED 2026-08-21.**
   One scale — `--ds-control-height-sm/md/lg` = 36 / 44 / 52px — read by `Button`,
   `IconButton`, `Input`, `Select` and `Textarea`, all defaulting to `md`.

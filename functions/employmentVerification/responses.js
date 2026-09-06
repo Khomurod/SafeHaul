@@ -10,6 +10,7 @@ const { checkRateLimit } = require("../shared/rateLimiter");
 const { logger } = require("firebase-functions");
 const { generateVerificationPDF } = require("./pdf");
 const { notifyCarrierVerificationComplete } = require("./notifications");
+const { normaliseSignature } = require("./signature");
 
 // ============================================================
 // 3. SUBMIT VERIFICATION RESPONSE (Public endpoint — token-based)
@@ -60,6 +61,11 @@ exports.submitVerificationResponse = onCall({ cors: true, memory: '1GiB', timeou
             throw new HttpsError('invalid-argument', 'Respondent name, title, and phone are required.');
         }
 
+        // The signature is validated here, before anything is stored: a drawn
+        // PNG or a typed name (`TEXT_SIGNATURE:<name>`), nothing else. See
+        // ./signature.js for what is refused and why.
+        const signature = normaliseSignature(formResponse.signatureData, formResponse.signatureMethod);
+
         // PEV-VAL-1 FIX: Server-side length limits to prevent oversized PDF / memory exhaustion
         if (formResponse.violationDetails && formResponse.violationDetails.length > 2000) {
             throw new HttpsError('invalid-argument', 'Violation details cannot exceed 2000 characters.');
@@ -109,18 +115,19 @@ exports.submitVerificationResponse = onCall({ cors: true, memory: '1GiB', timeou
             userAgent: request.rawRequest?.headers?.['user-agent'] || 'unknown',
         };
 
-        // Handle signature data (base64 image → Cloud Storage)
-        let signaturePath = null;
-        if (formResponse.signatureData && formResponse.signatureData.startsWith('data:image')) {
-            const base64Data = formResponse.signatureData.split(';base64,').pop();
-            const buffer = Buffer.from(base64Data, 'base64');
-            signaturePath = `companies/${verificationData.companyId}/pev_signatures/${token}.png`;
-
+        // Signature (validated above). A drawn mark is a PNG in Cloud Storage
+        // referenced by path; a typed mark is stored as text. The method is
+        // recorded from what was validated, not from what the client claimed.
+        responseData.signatureMethod = signature.kind === 'none' ? null : signature.kind;
+        if (signature.kind === 'drawn') {
+            const signaturePath = `companies/${verificationData.companyId}/pev_signatures/${token}.png`;
             const bucket = storage.bucket();
-            await bucket.file(signaturePath).save(buffer, {
+            await bucket.file(signaturePath).save(signature.png, {
                 metadata: { contentType: 'image/png' },
             });
             responseData.signaturePath = signaturePath;
+        } else if (signature.kind === 'typed') {
+            responseData.signatureText = signature.name;
         }
 
         // Store the response in a subcollection
