@@ -440,6 +440,44 @@ real time. None were code defects; all were tooling mistakes.
    Reproduced before it was fixed, by resolving the membership mock one
    macrotask later: the same message, then 30/30 green under the same delay.
 
+   **And a THIRD spelling, on 2026-09-06, in the same file again.** This one is
+   not about an element rendering before its own content — it is a *different*
+   element that happens to carry the same text:
+
+   ```js
+   await screen.findByText('Artificial Freight Co');            // resolves…
+   screen.getByLabelText('Role for Artificial Freight Co');     // …too early
+   ```
+
+   The add-company form lists every company as an `<option>` with that exact
+   text, and that form renders from `allCompaniesMap` — a **prop**, present on the
+   first paint — while the rows come from `getMembershipsForUser`, which resolves
+   later. So the await was satisfied by the option, and the row was not there yet.
+   It failed `frontend-quality` on a change that touched only documentation and
+   tooling, and reproduced immediately by resolving the memberships one macrotask
+   late: three tests, the exact CI messages, then 30/30 green after the fix under
+   the same delay.
+
+   **The tell, and it is worth scanning by.** A bare `await
+   screen.findByText('literal')` is dangerous when the literal is **domain data**
+   — a person's or a company's name — rather than **copy**: a message, a heading, an
+   error, a probe id. Copy belongs to exactly one element. A name is exactly the
+   thing a picker, a filter or a summary will also render, from a *different*
+   source that may arrive at a *different* time.
+
+   A scan on 2026-09-06 found **97** bare awaits of that shape in `src/`. Most
+   await copy and are sound. Of the ones awaiting a name, each was checked against
+   its own component, and all but this file render that name from a single source
+   — `ManageTeamModal`, `NumberAssignmentManager`, `WebsiteLeadsView`,
+   `CampaignResultsTable`, `VirtualLeadList`, `superAdminModals` — so converting
+   them would be noise. `EditUserBodies` is the only component in the tree that
+   renders the same name from **two sources with different arrival times**, which
+   is what made it the third victim of one rule.
+
+   The fix in all three spellings is the same sentence: **wait for something that
+   cannot exist until the state you are asserting on does.** Here that is the
+   row's own role select, behind a named helper with the reason above it.
+
 Also avoid editing files that are in the module graph while a Playwright suite is
 running: the dev server hot-reloads and the in-flight tests can fail spuriously.
 
