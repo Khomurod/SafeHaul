@@ -4,6 +4,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { loginUser, resetPassword } from '../services/authService';
 import { getPortalUser, getMembershipsForUser } from '../services/userService';
 import {
+  Icon,
   ArrowRight,
   CheckCircle2,
   Users,
@@ -12,7 +13,7 @@ import {
   Eye,
   EyeOff,
   AlertCircle,
-} from 'lucide-react';
+} from '@design-system/icons';
 
 import { Logo } from '@shared/components/Logo';
 import { Modal } from '@design-system/patterns';
@@ -24,6 +25,7 @@ import {
     Input,
     Label,
     Notice,
+    StatusMedallion,
 } from '@/design-system/components';
 
 // Stable id for the reset dialog's current heading. Only one heading is
@@ -197,7 +199,7 @@ export function LoginScreen() {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-1 top-1/2 -translate-y-1/2"
                 >
-                  {showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
+                  {showPassword ? <Icon icon={EyeOff} size="lg" /> : <Icon icon={Eye} size="lg" />}
                 </IconButton>
               </div>
               <div className="text-right">
@@ -215,7 +217,7 @@ export function LoginScreen() {
               loading={loading}
             >
               Sign In
-              {!loading && <ArrowRight size={18} aria-hidden="true" />}
+              {!loading && <Icon icon={ArrowRight} size="lg" />}
             </Button>
           </form>
 
@@ -231,7 +233,7 @@ export function LoginScreen() {
                 href="mailto:info@safehaul.io"
                 className="inline-flex items-center gap-2 text-ds-sm text-ds-content-link hover:gap-3 font-bold transition-all"
               >
-                Contact SafeHaul <ArrowRight size={16} aria-hidden="true" />
+                Contact SafeHaul <Icon icon={ArrowRight} />
               </a>
             </Card>
           </div>
@@ -278,7 +280,7 @@ export function LoginScreen() {
             <div className="mb-ds-10 flex flex-col gap-ds-4 text-left">
               <div className="flex items-start gap-ds-4 rounded-ds-xl border border-ds-border-inverse bg-ds-surface-inverse-subtle p-ds-4 backdrop-blur-sm transition-colors hover:bg-ds-surface-inverse-hover">
                 <div aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-ds-lg bg-ds-brand-accent-soft">
-                  <Briefcase size={20} className="text-ds-brand-accent" />
+                  <Icon icon={Briefcase} size="xl" className="text-ds-brand-accent" />
                 </div>
                 <div>
                   <h3 className="mb-ds-1 font-semibold text-ds-content-on-inverse">For Drivers</h3>
@@ -288,7 +290,7 @@ export function LoginScreen() {
 
               <div className="flex items-start gap-ds-4 rounded-ds-xl border border-ds-border-inverse bg-ds-surface-inverse-subtle p-ds-4 backdrop-blur-sm transition-colors hover:bg-ds-surface-inverse-hover">
                 <div aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-ds-lg bg-ds-brand-accent-soft">
-                  <Users size={20} className="text-ds-brand-accent" />
+                  <Icon icon={Users} size="xl" className="text-ds-brand-accent" />
                 </div>
                 <div>
                   <h3 className="mb-ds-1 font-semibold text-ds-content-on-inverse">For Companies</h3>
@@ -313,12 +315,12 @@ export function LoginScreen() {
             </div>
 
             <div className="mt-ds-10 flex items-center justify-center gap-ds-2 text-ds-body text-ds-content-on-inverse-muted">
-              <CheckCircle2 size={16} aria-hidden="true" className="text-ds-brand-accent" />
+              <Icon icon={CheckCircle2} className="text-ds-brand-accent" />
               <span>DOT Compliant</span>
               {/* A pipe is read out as "vertical line" by some screen readers; it
                   is a visual separator between two claims, nothing more. */}
               <span aria-hidden="true" className="mx-ds-2">|</span>
-              <CheckCircle2 size={16} aria-hidden="true" className="text-ds-brand-accent" />
+              <Icon icon={CheckCircle2} className="text-ds-brand-accent" />
               <span>FMCSA Approved</span>
             </div>
           </div>
@@ -337,9 +339,14 @@ export function LoginScreen() {
           <div className="p-8">
             {resetEmailSent ? (
               <div className="text-center">
-                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-ds-full bg-ds-status-success-bg">
-                  <CheckCircle2 size={32} className="text-ds-status-success-fg" aria-hidden="true" />
-                </div>
+                {/* A hand-built medallion: a 64px success-tinted circle around a
+                    glyph is `StatusMedallion` at `md`, exactly. It is not one of
+                    the rounded-square brand tiles the roadmap records as still
+                    un-owned — those carry a domain glyph on a brand colour. The
+                    glyph goes 32 → 24, which is the medallion's own ratio. */}
+                <StatusMedallion tone="success" className="mx-auto mb-4">
+                  <Icon icon={CheckCircle2} />
+                </StatusMedallion>
                 <h3 id={RESET_DIALOG_TITLE_ID} className="mb-2 text-ds-heading-md font-bold text-ds-content">
                   Check your email
                 </h3>
@@ -363,7 +370,7 @@ export function LoginScreen() {
                     control height and target size. */}
                 <div className="mb-ds-4">
                   <Button variant="ghost" size="sm" onClick={closeForgotPassword}>
-                    <ArrowLeft aria-hidden="true" />
+                    <Icon icon={ArrowLeft} />
                     Back to login
                   </Button>
                 </div>

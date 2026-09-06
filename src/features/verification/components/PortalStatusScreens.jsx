@@ -1,6 +1,6 @@
 import React from 'react';
-import { Loader2, CheckCircle, AlertTriangle, Clock, ShieldCheck } from 'lucide-react';
-import { Card, Notice } from '@/design-system/components';
+import { Icon, Loader2, CheckCircle, AlertTriangle, Clock, ShieldCheck } from '@design-system/icons';
+import { Card, Notice, StatusMedallion } from '@/design-system/components';
 
 /**
  * Full-page status screens for the public PEV portal. Presentation migrated;
@@ -17,29 +17,28 @@ function StatusShell({ children, role, className = '' }) {
     );
 }
 
-// Literal token classes (Tailwind scans complete class strings, not
-// dynamically-built ones).
-const STATUS_ICON_TONES = {
-    danger: 'bg-ds-status-danger-bg text-ds-status-danger-fg',
-    warning: 'bg-ds-status-warning-bg text-ds-status-warning-fg',
-    success: 'bg-ds-status-success-bg text-ds-status-success-fg',
-};
-
-function StatusIcon({ icon: Icon, tone }) {
-    return (
-        <span
-            aria-hidden="true"
-            className={`mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-ds-lg ${STATUS_ICON_TONES[tone]}`}
-        >
-            <Icon className="h-9 w-9" />
-        </span>
-    );
-}
+/*
+ * `StatusIcon` lived here until 2026-09-06 — a 64px tinted square holding a 36px
+ * glyph, with its own three-tone class map, in a file that already imported from
+ * the design system. It is `StatusMedallion`, hand-built.
+ *
+ * Two things brought it out. The 36px is not a step on the icon scale, and an
+ * off-scale size is the signal that a container is missing. And `StatusIcon`
+ * rendered its `icon` prop DIRECTLY — `<Icon className="h-9 w-9" />` — which
+ * throws the moment a glyph name becomes a token, on this public portal, in a
+ * branch no unit test reaches.
+ *
+ * The four screens below are also consistent for the first time: the loading one
+ * had a bare spinner where the other three had a disc.
+ */
+const MEDALLION = 'mx-auto mb-4';
 
 export function LoadingScreen() {
     return (
         <StatusShell role="status">
-            <Loader2 className="mx-auto mb-4 h-12 w-12 animate-spin text-ds-content-link" aria-hidden="true" />
+            <StatusMedallion tone="info" className={MEDALLION}>
+                <Icon icon={Loader2} className="animate-spin" />
+            </StatusMedallion>
             <h1 className="text-ds-heading-md font-bold text-ds-content">Loading verification request...</h1>
         </StatusShell>
     );
@@ -48,7 +47,7 @@ export function LoadingScreen() {
 export function ErrorScreen({ error }) {
     return (
         <StatusShell role="alert">
-            <StatusIcon icon={AlertTriangle} tone="danger" />
+            <StatusMedallion tone="danger" className={MEDALLION}><Icon icon={AlertTriangle} /></StatusMedallion>
             <h1 className="mb-2 text-ds-heading-md font-bold text-ds-content">Verification Error</h1>
             <p className="text-ds-body text-ds-content-secondary">{error}</p>
         </StatusShell>
@@ -58,7 +57,7 @@ export function ErrorScreen({ error }) {
 export function ExpiredScreen() {
     return (
         <StatusShell role="alert">
-            <StatusIcon icon={Clock} tone="warning" />
+            <StatusMedallion tone="warning" className={MEDALLION}><Icon icon={Clock} /></StatusMedallion>
             <h1 className="mb-2 text-ds-heading-md font-bold text-ds-content">Link Expired</h1>
             <p className="text-ds-body text-ds-content-secondary">
                 This verification request has expired. Please contact the requesting company for a new link.
@@ -70,7 +69,7 @@ export function ExpiredScreen() {
 export function AlreadyCompletedScreen() {
     return (
         <StatusShell role="status">
-            <StatusIcon icon={CheckCircle} tone="success" />
+            <StatusMedallion tone="success" className={MEDALLION}><Icon icon={CheckCircle} /></StatusMedallion>
             <h1 className="mb-2 text-ds-heading-md font-bold text-ds-content">Already Completed</h1>
             <p className="text-ds-body text-ds-content-secondary">
                 This verification has already been submitted. Thank you for your cooperation.
@@ -82,7 +81,7 @@ export function AlreadyCompletedScreen() {
 export function CompletedScreen({ verificationData, token }) {
     return (
         <StatusShell role="status" className="max-w-lg">
-            <StatusIcon icon={CheckCircle} tone="success" />
+            <StatusMedallion tone="success" className={MEDALLION}><Icon icon={CheckCircle} /></StatusMedallion>
             <h1 className="mb-2 text-ds-heading-lg font-bold text-ds-content">Verification Submitted Successfully</h1>
             <p className="mb-6 text-ds-body text-ds-content-secondary">
                 Thank you for completing the employment verification for{' '}

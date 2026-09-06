@@ -133,6 +133,23 @@ describe('PreservedApplicationView', () => {
         expect(screen.getByText(/Nothing was preserved for this submission/)).toBeInTheDocument();
     });
 
+    /*
+     * Pins what the `EmptyState` migration had to preserve, because both halves
+     * were properties of the hand-built markup it replaced and both are easy to
+     * lose silently. The block announced itself politely — a `role="status"` on
+     * the wrapper — and it must still, from the pattern rather than by hand. And
+     * the message is now a real heading rather than a bold paragraph, at level 3
+     * because this renders inside a tab under an `h2`.
+     */
+    it('still announces itself politely, and its message is in the outline', () => {
+        render(<PreservedApplicationView record={null} />);
+        const region = screen.getByRole('status');
+        expect(region).toBeInTheDocument();
+        expect(region).toHaveTextContent(/Nothing was preserved for this submission/);
+        expect(screen.getByRole('heading', { level: 3 }))
+            .toHaveTextContent('Nothing was preserved for this submission.');
+    });
+
     it('omits a section the record does not carry rather than showing an empty heading', () => {
         render(<PreservedApplicationView record={{ ...RECORD, customAnswers: [], agreements: [], coverage: null }} />);
         expect(screen.queryByText('Supplemental Questions')).toBeNull();

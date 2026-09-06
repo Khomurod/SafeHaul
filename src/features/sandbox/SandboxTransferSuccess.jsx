@@ -1,7 +1,7 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Building2 } from 'lucide-react';
-import { Badge, Button, Card } from '@/design-system/components';
+import { Icon, Building2 } from '@design-system/icons';
+import { Badge, Button, Card, StatusMedallion } from '@/design-system/components';
 import { Inline, Stack } from '@/design-system/layouts';
 
 /** Shown after sandbox transfer (navigate state from SandboxActionPanel). */
@@ -14,12 +14,16 @@ export function SandboxTransferSuccess() {
     <div className="flex min-h-screen items-center justify-center bg-ds-canvas p-ds-4">
       <Card as="main" padding="lg" className="w-full max-w-md text-center">
         <Stack gap="md" className="items-center">
-          <span
-            className="flex h-14 w-14 items-center justify-center rounded-ds-lg bg-ds-status-success-bg text-ds-status-success-fg"
-            aria-hidden="true"
-          >
-            <Building2 size={28} />
-          </span>
+          {/*
+            A hand-built medallion until 2026-09-06: a 56px tinted square holding
+            a 28px glyph, `aria-hidden`, in a file that already imported from the
+            design system. The 28 is what flagged it — it is not a step on the
+            icon scale, and an off-scale size is the signal that a container is
+            missing rather than that the scale is short.
+          */}
+          <StatusMedallion tone="success">
+            <Icon icon={Building2} />
+          </StatusMedallion>
           <h1 className="text-ds-heading-xl font-bold text-ds-content">Transfer complete</h1>
           <p className="text-ds-body text-ds-content-secondary">
             The application is now under{' '}

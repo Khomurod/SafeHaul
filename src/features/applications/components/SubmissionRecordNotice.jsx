@@ -10,33 +10,23 @@
 //
 // DESIGN-SYSTEM NOTE
 // ------------------
-// Composed from approved semantic `--ds-*` status tokens and spacing scale. It
-// is deliberately NOT a new visual primitive: the tone/border/background triple
-// matches the established callout pattern already used in features (see
-// LaunchPad). Nothing here introduces an arbitrary colour or font size.
+// This file used to carry its own tone map — three `border-*`/`bg-*`/`text-*`
+// triples — and hand-build the block around them. The comment here said that was
+// fine because the triples were approved `--ds-*` tokens, and that was true and
+// beside the point: the colours were never the problem. The SHAPE was, and it
+// was the shape `Notice` now owns.
+//
+// It survived Phase 6 for a mechanical reason worth recording. `hand-composed-
+// notice` matches an element carrying both halves of the signature as literal
+// classes; here the tint arrived through `TONES[tone]`, so the rule saw a `div`
+// with a template string and nothing else. 6a counted that case separately and
+// said a literal-class scanner cannot resolve a computed one. Phase 7 found it
+// anyway, from the other end: the glyph was held in a local `let` and rendered
+// directly, which throws the moment the name is a token.
 
 import React from 'react';
-import { ShieldCheck, AlertTriangle, History } from 'lucide-react';
-
-/**
- * Tone triples drawn straight from the approved status tokens.
- * `neutral` is used for the good case so a correct record stays quiet rather
- * than competing with real warnings for attention.
- */
-const TONES = {
-    neutral: {
-        wrapper: 'border-ds-status-neutral-border bg-ds-status-neutral-bg',
-        text: 'text-ds-status-neutral-fg',
-    },
-    warning: {
-        wrapper: 'border-ds-status-warning-border bg-ds-status-warning-bg',
-        text: 'text-ds-status-warning-fg',
-    },
-    info: {
-        wrapper: 'border-ds-status-info-border bg-ds-status-info-bg',
-        text: 'text-ds-status-info-fg',
-    },
-};
+import { ShieldCheck, AlertTriangle, History } from '@design-system/icons';
+import { Notice } from '@/design-system/components';
 
 /** Readable submitted date; falls back to the raw value rather than inventing one. */
 function formatSubmittedAt(value) {
@@ -47,6 +37,40 @@ function formatSubmittedAt(value) {
 }
 
 /**
+ * The three provenance states, each with the tone and glyph that says it.
+ *
+ * `neutral` for the good case so a correct record stays quiet rather than
+ * competing with real warnings for attention — the reason the old tone map gave,
+ * kept because it is still the right one.
+ */
+function presentation(record, submittedOn) {
+    if (!record.isPreserved) {
+        return {
+            tone: 'warning',
+            icon: AlertTriangle,
+            title: 'No preserved submission record',
+            body: record.notice,
+        };
+    }
+    if (record.isReconstructed) {
+        return {
+            tone: 'info',
+            icon: History,
+            title: 'Reconstructed record',
+            body: record.notice,
+        };
+    }
+    return {
+        tone: 'neutral',
+        icon: ShieldCheck,
+        title: 'Preserved original submission',
+        body: submittedOn
+            ? `Exactly as submitted on ${submittedOn}. Wording and answers are frozen.`
+            : 'Exactly as submitted. Wording and answers are frozen.',
+    };
+}
+
+/**
  * @param {object} props
  * @param {object|null} props.record  Output of `presentSubmission`.
  * @param {string} [props.className]
@@ -54,51 +78,24 @@ function formatSubmittedAt(value) {
 export function SubmissionRecordNotice({ record, className = '' }) {
     if (!record) return null;
 
-    const submittedOn = formatSubmittedAt(record.submittedAt);
-
-    let tone;
-    let Icon;
-    let heading;
-    let body;
-
-    if (!record.isPreserved) {
-        tone = 'warning';
-        Icon = AlertTriangle;
-        heading = 'No preserved submission record';
-        body = record.notice;
-    } else if (record.isReconstructed) {
-        tone = 'info';
-        Icon = History;
-        heading = 'Reconstructed record';
-        body = record.notice;
-    } else {
-        tone = 'neutral';
-        Icon = ShieldCheck;
-        heading = 'Preserved original submission';
-        body = submittedOn
-            ? `Exactly as submitted on ${submittedOn}. Wording and answers are frozen.`
-            : 'Exactly as submitted. Wording and answers are frozen.';
-    }
-
-    const { wrapper, text } = TONES[tone];
+    const { tone, icon, title, body } = presentation(record, formatSubmittedAt(record.submittedAt));
     const notes = Array.isArray(record.reconstructionNotes) ? record.reconstructionNotes : [];
 
     return (
-        <div
-            role="status"
-            className={`flex items-start gap-ds-3 rounded-ds-lg border p-ds-4 ${wrapper} ${className}`}
-        >
-            <Icon size={18} aria-hidden="true" className={`${text} mt-px shrink-0`} />
-            <div className={`text-ds-sm ${text}`}>
-                <p className="font-semibold">{heading}</p>
-                {body ? <p className="mt-ds-1">{body}</p> : null}
-                {notes.length > 0 ? (
-                    <ul className="mt-ds-2 list-disc space-y-ds-1 pl-ds-4">
-                        {notes.map((note) => <li key={note}>{note}</li>)}
-                    </ul>
-                ) : null}
-            </div>
-        </div>
+        /*
+         * `announce="polite"` rather than an outer `role="status"`: the block IS
+         * the live region, and it is rendered conditionally, so the role has to
+         * be on the thing that appears. Wrapping it in a second one would
+         * announce twice.
+         */
+        <Notice tone={tone} icon={icon} title={title} announce="polite" size="sm" className={className}>
+            {body ? <p>{body}</p> : null}
+            {notes.length > 0 ? (
+                <ul className="mt-ds-2 list-disc space-y-ds-1 pl-ds-4">
+                    {notes.map((note) => <li key={note}>{note}</li>)}
+                </ul>
+            ) : null}
+        </Notice>
     );
 }
 

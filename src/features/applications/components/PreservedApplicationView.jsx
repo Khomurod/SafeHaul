@@ -23,8 +23,9 @@
 // uses.
 
 import React from 'react';
-import { FileText, ShieldCheck, ShieldOff, ShieldAlert } from 'lucide-react';
+import { Icon as DsIcon, FileText, ShieldCheck, ShieldOff, ShieldAlert } from '@design-system/icons';
 import { Badge, Card, FieldDisplay } from '@/design-system/components';
+import { EmptyState } from '@/design-system/patterns';
 
 /** A value the driver did not supply, said in words rather than left blank. */
 const NOT_PROVIDED_TONE = 'italic text-ds-content-muted';
@@ -122,7 +123,12 @@ function AgreementRow({ agreement }) {
         <li className="rounded-ds-md border border-ds-border-subtle p-ds-3">
             <div className="flex flex-wrap items-center justify-between gap-ds-2">
                 <p className="flex min-w-0 items-center gap-ds-2 text-ds-sm font-semibold text-ds-content">
-                    <Icon size={16} aria-hidden="true" className="shrink-0" />
+                    {/* `Icon` here is a glyph out of the map above, so it is a
+                        TOKEN and cannot be rendered as a component — `DsIcon`
+                        opens it. Rendering it directly used to work and now
+                        throws, which is the whole point of a token: the failure
+                        is at the call site rather than a silently wrong size. */}
+                    <DsIcon icon={Icon} className="shrink-0" />
                     <span className="min-w-0">{agreement.title}</span>
                 </p>
                 <Badge tone={tone}>{agreement.summary}</Badge>
@@ -145,18 +151,33 @@ function AgreementRow({ agreement }) {
  */
 export function PreservedApplicationView({ record }) {
     if (!record || !record.isPreserved) {
+        /*
+         * A hand-composed `EmptyState` until 2026-09-06: a bordered box with
+         * `role="status"`, a large decorative glyph, a bold line and a
+         * supporting line. That is the pattern exactly, and roadmap §7 records
+         * this shape as the drift no rule can see — every piece is an approved
+         * primitive, so nothing complains.
+         *
+         * The 40px glyph is what surfaced it. It is not a step on the icon
+         * scale, snapping it to 32 would have been a visible change made for no
+         * reason, and the honest answer to "which container owns this size" is
+         * the one that owns the whole block.
+         *
+         * The live region moves rather than doubling: `EmptyState` announces
+         * politely and renders the `role="status"` itself, so the hand-written
+         * one goes with the `div` that carried it. And the bold paragraph
+         * becomes the state's heading, which puts an empty state's message in
+         * the document outline where it belongs — `headingLevel={3}` because
+         * this renders inside a tab under an `h2`.
+         */
         return (
-            <div
-                role="status"
-                className="flex flex-col items-center justify-center rounded-ds-lg border border-ds-border-subtle py-ds-10 text-center text-ds-content-secondary"
-            >
-                <FileText size={40} className="mb-ds-3 text-ds-content-muted" aria-hidden="true" />
-                <p className="font-medium text-ds-content">Nothing was preserved for this submission.</p>
-                <p className="mt-ds-1 max-w-prose text-ds-sm">
-                    {record?.notice
-                        || 'This application was submitted before submitted applications were archived.'}
-                </p>
-            </div>
+            <EmptyState
+                icon={FileText}
+                headingLevel={3}
+                title="Nothing was preserved for this submission."
+                description={record?.notice
+                    || 'This application was submitted before submitted applications were archived.'}
+            />
         );
     }
 

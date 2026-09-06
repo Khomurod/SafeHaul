@@ -3,8 +3,8 @@ import { useParams } from 'react-router-dom';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
-import { Loader2, Check, X, Pencil, ShieldCheck, CheckCircle2 } from 'lucide-react';
-import { Button, Card, Input, Notice, SegmentedControl } from '@/design-system/components';
+import { Icon, Loader2, Check, X, Pencil, ShieldCheck, CheckCircle2 } from '@design-system/icons';
+import { Button, Card, Input, Notice, SegmentedControl, StatusMedallion } from '@/design-system/components';
 
 const MOCK_REVIEW = {
     applicantName: 'Test Driver',
@@ -113,8 +113,14 @@ export function ReviewChangePortal() {
                     surfaces in the product. */}
                 <div className="bg-ds-surface-inverse p-ds-6 text-ds-content-on-inverse">
                     <div className="flex items-center gap-ds-3">
+                        {/* A tinted icon tile — the shape the roadmap records as
+                            open and deliberately un-owned. Not a medallion: that
+                            is circular and carries a status tone, and this is a
+                            square on the primary action colour. The glyph was 22,
+                            which is not a step; 24 is, and two pixels was never a
+                            decision anyone made. */}
                         <span aria-hidden="true" className="rounded-ds-lg bg-ds-action-primary p-ds-2">
-                            <ShieldCheck size={22} />
+                            <Icon icon={ShieldCheck} size="2xl" />
                         </span>
                         <div className="min-w-0">
                             <h1 className="text-ds-heading-md font-bold">Review changes to your application</h1>
@@ -126,19 +132,23 @@ export function ReviewChangePortal() {
                 <div className="p-ds-6">
                     {loading ? (
                         <div role="status" className="flex items-center justify-center py-16 text-ds-content-muted">
-                            <Loader2 className="mr-2 animate-spin" size={20} aria-hidden="true" /> Loading…
+                            <Icon icon={Loader2} size="xl" className="mr-2 animate-spin" /> Loading…
                         </div>
                     ) : error ? (
                         <Notice announce="assertive" tone="danger">{error}</Notice>
                     ) : done ? (
                         <div role="status" className="py-12 text-center">
-                            <CheckCircle2 size={48} className="mx-auto mb-4 text-ds-status-success-fg" aria-hidden="true" />
+                            <StatusMedallion tone="success" className="mx-auto mb-ds-4">
+                                <Icon icon={CheckCircle2} />
+                            </StatusMedallion>
                             <h2 className="mb-1 text-ds-heading-lg font-bold text-ds-content">Thank you!</h2>
                             <p className="text-ds-sm text-ds-content-secondary">Your responses have been recorded.</p>
                         </div>
                     ) : pending.length === 0 ? (
                         <div role="status" className="py-12 text-center">
-                            <CheckCircle2 size={40} className="mx-auto mb-3 text-ds-status-success-fg" aria-hidden="true" />
+                            <StatusMedallion tone="success" className="mx-auto mb-ds-3">
+                                <Icon icon={CheckCircle2} />
+                            </StatusMedallion>
                             <p className="text-ds-sm text-ds-content-secondary">There are no changes left to review.</p>
                         </div>
                     ) : (

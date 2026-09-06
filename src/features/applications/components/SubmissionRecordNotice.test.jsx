@@ -54,12 +54,22 @@ describe('SubmissionRecordNotice', () => {
         expect(screen.getByRole('status')).toBeInTheDocument();
     });
 
-    it('uses only approved status tokens, never raw palette colours', () => {
+    /*
+     * The same question, asked of the current spelling.
+     *
+     * Until 2026-09-06 this file hand-built its block and carried its own tone
+     * map, so the check was "is `ds-status-warning` in the wrapper's class
+     * list". It renders a `Notice` now: the tone is an attribute and the colours
+     * live in `Notice.css`, so the class assertion is `data-tone`. The half that
+     * matters is unchanged — no raw palette colour, in any spelling.
+     */
+    it('states its tone through the design system, never a raw palette colour', () => {
         const { container } = render(<SubmissionRecordNotice record={presentSubmission(null)} />);
-        const cls = container.firstChild.className;
-        expect(cls).toMatch(/ds-status-warning/);
+        const block = container.firstChild;
+        expect(block).toHaveAttribute('data-tone', 'warning');
+        expect(block.className).toMatch(/ds-notice/);
         // Guards the design-system rule: no arbitrary Tailwind palette colours.
-        expect(cls).not.toMatch(/bg-(amber|red|blue|green|slate)-\d/);
+        expect(block.className).not.toMatch(/bg-(amber|red|blue|green|slate)-\d/);
     });
 
     it('survives a record whose date is unusable rather than inventing one', () => {

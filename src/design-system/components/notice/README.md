@@ -580,3 +580,36 @@ each change verdict, the sharper being that **a body read too short makes the
 rule accuse a block that frames a form**. Third hollow assertion this campaign
 has caught by running the mutation rather than reasoning about it, after
 `classAndAttributeCount` and P22.
+
+## The rule's one blind spot, and the two files that were sitting in it
+
+`hand-composed-notice` matches an element carrying **both halves of the signature
+as literal classes**. A block whose tint arrives through a lookup is invisible to
+it:
+
+```jsx
+const { wrapper, text } = TONES[tone];
+<div role="status" className={`… border p-ds-4 ${wrapper} ${text}`}>
+```
+
+That is not a hole somebody left open — 6a counted this case separately for
+exactly this reason, because a scanner reading class strings cannot resolve a
+computed one, and the alternatives (evaluate the module, or match any `div` with
+a template literal) are respectively out of scope and useless.
+
+**Two files were still hand-composed notices this way on 2026-09-06, and they are
+the same two 6a's plan had named for absorption**: `SubmissionRecordNotice.jsx`
+and `QueueStatusIndicator.jsx`. Neither was absorbed, and neither showed up when
+the rule ran.
+
+**Phase 7 found both from the other end.** Each held its glyph in a local
+binding — a `let` filled in by a three-branch `if`, and a local `QueueNotice`
+taking an `icon` prop — and rendered it directly, which throws the moment the
+glyph name becomes a token. The icon migration's own detector looks for a
+capitalised JSX tag whose name the file neither imported nor declared, and both
+files came straight out of it.
+
+`SubmissionRecordNotice` migrated in slice 7b; `QueueStatusIndicator` belongs to
+the shared slice. The lesson is the shape of the campaign rather than either
+file: **two independent checks looking for different things found the same
+drift, and the one that was pointed at it missed.**
