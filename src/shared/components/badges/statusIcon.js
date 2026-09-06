@@ -1,14 +1,4 @@
-import {
-    Sparkles,
-    Clock,
-    CheckCircle2,
-    PauseCircle,
-    XCircle,
-    ShieldCheck,
-    Send,
-    Archive,
-    Circle,
-} from 'lucide-react';
+import { Sparkles, Clock, CheckCircle2, PauseCircle, XCircle, ShieldCheck, Send, Archive, Circle } from '@design-system/icons';
 
 /**
  * Map a status string to a lucide icon component (C3, WCAG 1.4.1).

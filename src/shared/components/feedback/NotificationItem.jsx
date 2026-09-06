@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clock, Calendar, ExternalLink, Check, X } from 'lucide-react';
+import { Icon, Clock, Calendar, ExternalLink, Check, X } from '@design-system/icons';
 import { updateNotificationStatus } from '@lib/notificationService';
 import { Badge, IconButton } from '@/design-system/components';
 
@@ -79,7 +79,7 @@ export function NotificationItem({ notification, onClick }) {
         if (isCompleted) {
             return (
                 <span aria-hidden="true" className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-ds-full bg-ds-status-success-bg text-ds-status-success-fg">
-                    <Check size={16} />
+                    <Icon icon={Check} />
                 </span>
             );
         }
@@ -89,7 +89,7 @@ export function NotificationItem({ notification, onClick }) {
                 : 'bg-ds-status-warning-bg text-ds-status-warning-fg';
             return (
                 <span aria-hidden="true" className={`mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-ds-full ${iconTone}`}>
-                    <Clock size={16} />
+                    <Icon icon={Clock} />
                 </span>
             );
         }
@@ -139,7 +139,7 @@ export function NotificationItem({ notification, onClick }) {
                 <div className="mt-ds-2 flex items-center gap-ds-2 text-ds-xs text-ds-content-secondary">
                     {isCallback ? (
                         <>
-                            <Calendar size={12} aria-hidden="true" /> {scheduledDate.toLocaleDateString()}
+                            <Icon icon={Calendar} size="xs" /> {scheduledDate.toLocaleDateString()}
                             {isOverdue && !isCompleted && <span className="ml-auto font-bold text-ds-status-danger-fg">Overdue</span>}
                             {!isOverdue && isSoon && !isCompleted && <span className="ml-auto font-bold text-ds-status-warning-fg">Due Soon</span>}
                         </>
@@ -165,7 +165,7 @@ export function NotificationItem({ notification, onClick }) {
                         size="sm"
                         onClick={(e) => handleAction(e, 'completed')}
                     >
-                        <Check size={12} aria-hidden="true" className="text-ds-status-success-fg" />
+                        <Icon icon={Check} size="xs" className="text-ds-status-success-fg" />
                     </IconButton>
                 )}
 
@@ -175,13 +175,13 @@ export function NotificationItem({ notification, onClick }) {
                     size="sm"
                     onClick={(e) => handleAction(e, 'dismissed')}
                 >
-                    <X size={12} aria-hidden="true" />
+                    <Icon icon={X} size="xs" />
                 </IconButton>
             </div>
 
             {link && (
                 <span className="absolute bottom-2 right-2 text-ds-content-secondary">
-                    <ExternalLink size={12} aria-hidden="true" />
+                    <Icon icon={ExternalLink} size="xs" />
                     <span className="sr-only">Opens a linked page</span>
                 </span>
             )}

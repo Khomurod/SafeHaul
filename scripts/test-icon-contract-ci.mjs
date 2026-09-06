@@ -170,6 +170,26 @@ console.log('\nX. The icon contract is enforced in CI, and cannot go blind');
     assert('X14. neither step can be conditioned away or made advisory',
         !/\n\s+if:/.test(checkStep) && !/\n\s+if:/.test(testStep)
         && !/continue-on-error/.test(checkStep) && !/continue-on-error/.test(testStep));
+
+    /*
+     * X15/X16: the checker counts `lucide-react` imports, so it is blind to the
+     * one way a migrated file breaks at RUN TIME — rendering `<Icon …>` without
+     * importing `Icon`. The codemod cannot leave that behind (it adds the import
+     * whenever it writes a tag), but a site it FLAGGED and a person repaired by
+     * hand can, and three did in the `shared` slice: two error-boundary
+     * fallbacks and an offline-queue banner, all on paths no test renders. Lint
+     * is what sees it, and only if the rule is on: plain `no-undef` does not
+     * resolve JSX identifiers, which is why `react/jsx-no-undef` exists.
+     * So it is pinned here, beside the guard whose blind spot it covers, and
+     * pinned as `error` — a warning is a note in a log nobody reads.
+     */
+    const eslintConfig = readFileSync(resolvePath(repoRoot, 'eslint.config.js'), 'utf8');
+    assert('X15. lint refuses a JSX tag whose component is not in scope',
+        /'react\/jsx-no-undef':\s*'error'/.test(eslintConfig),
+        'without it, `<Icon icon={X} />` with no `Icon` import ships and throws when rendered');
+    assert('X16. and a CI job actually runs that lint',
+        jobIds.some((job) => /run: npm run lint(:frontend)?\n/.test(jobBlock(job) || '')),
+        'a rule nothing runs is a rule that catches nothing');
 }
 
 console.log(failures === 0

@@ -14,7 +14,7 @@
     "own entry, or raises a count to match a file it just grew, is refused. A gate must not take",
     "its scope from the branch it is gating.",
     "",
-    "The counts here are glyph NAMES, not lines: 146 files, 646 imports (178 files and 800 imports on 2026-09-05, before Phase 7 began draining areas)."
+    "The counts here are glyph NAMES, not lines: 131 files, 578 imports (178 files and 800 imports on 2026-09-05, before Phase 7 began draining areas)."
   ],
   "files": {
     "src/features/company-admin/applicationPrep/ApplicationAiPrepPanel.jsx": 3,
@@ -147,21 +147,6 @@
     "src/features/super-admin/views/EnvironmentIntegrationsView.jsx": 6,
     "src/features/super-admin/views/ReleaseManagementView.jsx": 9,
     "src/features/super-admin/views/UnifiedDriverList.jsx": 2,
-    "src/features/super-admin/views/WebsiteLeadsView.jsx": 2,
-    "src/shared/components/admin/BulkUploadLayout.jsx": 7,
-    "src/shared/components/badges/statusIcon.js": 9,
-    "src/shared/components/feedback/ErrorBoundary.jsx": 2,
-    "src/shared/components/feedback/FeatureErrorBoundary.jsx": 2,
-    "src/shared/components/feedback/NotificationBell.jsx": 3,
-    "src/shared/components/feedback/NotificationItem.jsx": 5,
-    "src/shared/components/feedback/PaywallMessage.jsx": 2,
-    "src/shared/components/feedback/QueueStatusIndicator.jsx": 4,
-    "src/shared/components/feedback/ToastProvider.jsx": 5,
-    "src/shared/components/form/DynamicRow.jsx": 2,
-    "src/shared/components/modals/CallOutcomeModalUI.jsx": 12,
-    "src/shared/components/modals/CompanyChooserModal.jsx": 2,
-    "src/shared/components/modals/FeatureLockedModal.jsx": 4,
-    "src/shared/components/modals/ManageTeamModal.jsx": 6,
-    "src/shared/components/table/ModernDriverTable.jsx": 3
+    "src/features/super-admin/views/WebsiteLeadsView.jsx": 2
   }
 }

@@ -1,8 +1,5 @@
 import React, { useId } from 'react';
-import {
-  Phone, X, Save, MessageSquare, CheckCircle, XCircle,
-  Clock, AlertCircle, Ban, ThumbsDown, Briefcase, BellPlus
-} from 'lucide-react';
+import { Icon, Phone, X, Save, MessageSquare, CheckCircle, XCircle, Clock, AlertCircle, Ban, ThumbsDown, Briefcase, BellPlus } from '@design-system/icons';
 import { formatPhoneNumber } from '@shared/utils/helpers';
 import { EXPERIENCE_OPTIONS } from '../../../config/form-options';
 import {
@@ -145,10 +142,10 @@ export function CallOutcomeModalUI({
     >
       <div className="flex shrink-0 items-center justify-between gap-ds-2 border-b border-ds-border-subtle bg-ds-surface-subtle p-ds-4">
         <h2 id={titleId} className="flex items-center gap-ds-2 font-bold text-ds-content">
-          <Phone size={20} className="text-ds-content-link" aria-hidden="true" /> Log Call Result
+          <Icon icon={Phone} size="xl" className="text-ds-content-link" /> Log Call Result
         </h2>
         <IconButton label="Close call result" variant="ghost" size="sm" onClick={onClose}>
-          <X size={20} aria-hidden="true" />
+          <Icon icon={X} size="xl" />
         </IconButton>
       </div>
 
@@ -190,7 +187,7 @@ export function CallOutcomeModalUI({
           {outcome === 'no_answer' && (
             <div className="flex justify-center">
               <Button variant="secondary" size="sm" onClick={handleQuickReminder}>
-                <BellPlus size={14} aria-hidden="true" /> Remind me in 1 Hour
+                <Icon icon={BellPlus} size="sm" /> Remind me in 1 Hour
               </Button>
             </div>
           )}
@@ -198,7 +195,7 @@ export function CallOutcomeModalUI({
           {showCallbackSelect && (
             <div className="rounded-ds-md border border-ds-status-info-border bg-ds-status-info-bg p-ds-3">
               <p className="mb-ds-2 flex items-center gap-1 text-ds-xs font-bold uppercase text-ds-status-info-fg">
-                <Clock size={12} aria-hidden="true" /> Schedule Callback
+                <Icon icon={Clock} size="xs" /> Schedule Callback
               </p>
               <div className="grid grid-cols-2 gap-ds-3">
                 <FormField id={callbackDateId} label="Date">
@@ -279,7 +276,7 @@ export function CallOutcomeModalUI({
           disabled={saving}
           loading={saving}
         >
-          {!saving && <Save size={16} aria-hidden="true" />}
+          {!saving && <Icon icon={Save} />}
           {showCallbackSelect ? 'Schedule & Save' : 'Save Result'}
         </Button>
       </div>

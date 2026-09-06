@@ -39,6 +39,7 @@ export default [
     rules: {
       ...reactHooks.configs.recommended.rules,
       'react/jsx-uses-vars': 'warn',
+      'react/jsx-no-undef': 'error',
       'react-hooks/rules-of-hooks': 'warn',
       'no-case-declarations': 'warn',
       'no-unused-vars': ['warn', {

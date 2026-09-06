@@ -1,5 +1,5 @@
 import React, { useId, useState, useRef, useEffect } from 'react';
-import { Bell, Check, Phone } from 'lucide-react';
+import { Icon, Bell, Check, Phone } from '@design-system/icons';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '@shared/hooks/useNotifications';
 import { NotificationItem } from './NotificationItem';
@@ -112,8 +112,8 @@ export function NotificationBell({ userId }) {
                 className="relative"
             >
                 {upcomingCount > 0
-                    ? <Phone size={20} aria-hidden="true" className="text-ds-status-warning-fg" />
-                    : <Bell size={20} aria-hidden="true" />}
+                    ? <Icon icon={Phone} size="xl" className="text-ds-status-warning-fg" />
+                    : <Icon icon={Bell} size="xl" />}
 
                 {totalUnread > 0 && (
                     <span
@@ -157,7 +157,7 @@ export function NotificationBell({ userId }) {
                         </span>
                         {unreadFor(activeTab) > 0 && (
                             <Button variant="ghost" size="sm" onClick={() => markListAsRead(activeTab)}>
-                                <Check size={12} aria-hidden="true" /> Mark read
+                                <Icon icon={Check} size="xs" /> Mark read
                             </Button>
                         )}
                     </div>
@@ -176,7 +176,7 @@ export function NotificationBell({ userId }) {
                         {activeTab === 'callbacks' ? (
                             callbacks.length === 0 ? (
                                 <p role="status" className="p-ds-10 text-center text-ds-sm text-ds-content-secondary">
-                                    <Phone size={32} className="mx-auto mb-ds-2 block" aria-hidden="true" />
+                                    <Icon icon={Phone} size="3xl" className="mx-auto mb-ds-2 block" />
                                     No scheduled callbacks.
                                 </p>
                             ) : (
@@ -193,7 +193,7 @@ export function NotificationBell({ userId }) {
                         ) : (
                             general.length === 0 ? (
                                 <p role="status" className="p-ds-10 text-center text-ds-sm text-ds-content-secondary">
-                                    <Bell size={32} className="mx-auto mb-ds-2 block" aria-hidden="true" />
+                                    <Icon icon={Bell} size="3xl" className="mx-auto mb-ds-2 block" />
                                     No notifications yet.
                                 </p>
                             ) : (

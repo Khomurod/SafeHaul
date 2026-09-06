@@ -1710,7 +1710,7 @@ on it — catalog included — and `check:icon-contract` refuses a new importer.
 does not mean the migration is finished: 178 files outside the design system
 still import `lucide-react`, recorded in `icons/lucide-import.backlog.json`, and
 the family is not closed until that file is deleted, which is the moment the
-rule becomes absolute. **146 as of 2026-09-06**: `candidateListColumns.jsx`
+rule becomes absolute. **131 as of 2026-09-06**: `candidateListColumns.jsx`
 drained on its way through the chip slice and two more went with the Notice
 migration, because a file being rewritten to use `Icon` is the cheapest moment to
 finish it, and the campaign only shrinks.
@@ -1795,6 +1795,74 @@ and twelve still ahead, concentrated in `super-admin` (4), `signing` (3),
 21-file local-binding list, so none can be missed; the flag now says the extra
 sentence when the tag is called `Icon`, so the next twelve slices do not each
 rediscover it.
+
+**7e drained `shared`: 146 → 131 files, 646 → 578 imports.** Twelve decisions
+across fifteen files, the densest ratio of any area — six were "the container
+already owns it" (four glyphs inside `Button`, two inside `StatusMedallion`,
+which only became true in 7a), two were snaps, one was the flag's own stated
+exception (a heading level held in a prop), and two were real local bindings.
+
+`PaywallMessage:27` **confirms the Tinted icon tile row rather than shrinking
+it**: an 80px rounded SQUARE with a shadow on a warning tint is the half of that
+shape no primitive owns, so it keeps its tile and the glyph snaps 40 → 32,
+exactly as `ReviewChangePortal:117` did. `ModernDriverTable:218` snaps 36 → 32
+for a different reason worth recording: it is the DEFAULT for an overridable
+`emptyIcon` prop, so moving it into a container would change every caller's
+empty state rather than this one.
+
+**`QueueStatusIndicator` was NOT absorbed into `Notice`, and that is a revised
+judgement rather than an omission.** 6a's plan named it, and 7b's note repeated
+that intent. Reading the file changes the answer: it is a **fixed-position
+floating banner** (`fixed bottom-4 right-4 z-ds-toast`, `shadow-ds-lg`), and
+`Notice` deliberately owns neither positioning nor elevation — its `className`
+contract is margin and width only. Absorbing it therefore needs a decision about
+whether `Notice` should carry a shadow, which is a component change rather than a
+migration, and widening a migration slice to make one is what this campaign has
+refused since 6d. Its local binding is fixed here because that is the icon
+contract's actual requirement; the absorption stays open, with this reason
+instead of the old one.
+
+**And 7e is where the campaign found the defect it had been able to ship all
+along.** Three of the fifteen files — `ErrorBoundary`, `FeatureErrorBoundary`
+and `QueueStatusIndicator` — went out of the slice rendering `<Icon icon={X} />`
+while their import line read `import { Home, RefreshCw } from
+'@design-system/icons'`, with no `Icon` in it. Every one of them throws
+`ReferenceError: Icon is not defined` the moment it renders, and
+`QueueStatusIndicator` mounts at the App root, so going offline took the whole
+application down.
+
+The codemod cannot leave that behind: it sets `needsIcon` whenever it writes a
+tag and puts `Icon` at the head of the import it emits. It is a **hand repair of
+a site the codemod FLAGGED** that can — a flagged site is by definition one the
+tool refused to decide, so the import it wrote is correct for what it wrote and
+wrong for what a person adds afterwards. Six slices had that exposure; this is
+the first time it was taken.
+
+What is worth recording is how nearly it escaped. Not one of 5,170 unit tests
+saw it, because these three surfaces render only on a crash or an offline queue
+and none had ever been rendered. `check:icon-contract` counts `lucide-react`
+imports and is structurally blind to what a file renders. `check:ui-contract`
+reads class lists. Lint was silent because plain `no-undef` does not resolve JSX
+identifiers — that is the whole reason `react/jsx-no-undef` exists, and it was
+off. The **only** thing that failed was the `@a11y` end-to-end lane, at a
+180-second timeout whose message named a checkbox.
+
+So the fix is the rule, not the three files: `react/jsx-no-undef` is now `error`
+in `eslint.config.js`. Measured before enabling it — exactly five violations
+across the whole tracked tree, all three of them these files, so nothing from
+7a–7d had reached `main` carrying it and the rule cost nothing to turn on. It is
+pinned by `test-icon-contract-ci.mjs` **X15** (the rule is `error`, not `warn` —
+a warning is a note in a log nobody reads) and **X16** (a CI job actually runs
+that lint), both mutation-proven: downgrading it, deleting it, and stubbing out
+both lint invocations in `main.yml` each fail. `CrashAndQueueSurfaces.contract.test.jsx`
+is the specific half — nine tests that render all three surfaces and every one of
+the queue banner's four branches, five of which go red against the original
+import lines.
+
+The lesson is one this repository already has in another spelling: **a guard's
+subject is not the same as its blast radius.** `check:icon-contract` makes a
+claim about which files import `lucide-react`, and that claim was true on every
+run while three files it had "drained" could not render at all.
 
 **The catalog was teaching the habit.** The guard's first live run refused 23
 story files — the design system's own catalog, still importing the package

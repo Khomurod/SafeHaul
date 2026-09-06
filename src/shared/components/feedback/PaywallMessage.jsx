@@ -1,5 +1,5 @@
 import React from 'react';
-import { Lock, Mail } from 'lucide-react';
+import { Icon, Lock, Mail } from '@design-system/icons';
 import { Button } from '@/design-system/components';
 
 /**
@@ -24,7 +24,10 @@ export function PaywallMessage({ title, message, headingLevel: Heading = 'h3' })
                 aria-hidden="true"
                 className="mb-ds-6 flex h-20 w-20 items-center justify-center rounded-ds-xl bg-ds-status-warning-bg text-ds-status-warning-fg shadow-ds-md"
             >
-                <Lock size={40} />
+                {/* A tinted icon TILE — a rounded square with a shadow, which is the
+                    half of that shape no primitive owns yet. Not a medallion:
+                    that is a circle. 40 is not a step, so the glyph snaps. */}
+                <Icon icon={Lock} size="3xl" />
             </span>
             <Heading className="mb-ds-3 text-ds-heading-sm font-bold text-ds-content">{title || 'Paid Feature'}</Heading>
             <p className="mb-ds-6 max-w-md leading-relaxed text-ds-content-secondary">
@@ -34,7 +37,7 @@ export function PaywallMessage({ title, message, headingLevel: Heading = 'h3' })
                 variant="primary"
                 onClick={() => window.open('https://t.me/tomr_robins0n', '_blank')}
             >
-                <Mail size={18} aria-hidden="true" /> Contact Sales
+                <Icon icon={Mail} size="lg" /> Contact Sales
             </Button>
         </div>
     );

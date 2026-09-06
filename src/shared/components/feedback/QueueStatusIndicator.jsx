@@ -22,7 +22,7 @@
  */
 
 import React from 'react';
-import { AlertCircle, CloudUpload, Loader2, WifiOff } from 'lucide-react';
+import { Icon, AlertCircle, CloudUpload, Loader2, WifiOff } from '@design-system/icons';
 import { Button } from '@design-system/components';
 import { useSubmissionQueue } from '@/hooks/useSubmissionQueue';
 
@@ -31,7 +31,12 @@ import { useSubmissionQueue } from '@/hooks/useSubmissionQueue';
  * four states ended up with four different tints from three different palettes
  * (amber, blue, red, yellow) for what is one component.
  */
-function QueueNotice({ tone, assertive = false, icon: Icon, iconClassName = '', children }) {
+/*
+ * `icon: Glyph`, not `icon: Icon`: the contract's component is called `Icon` and
+ * this file imports it, so the parameter would shadow it and the shadowed value
+ * is a glyph token, which throws when rendered.
+ */
+function QueueNotice({ tone, assertive = false, icon: Glyph, iconClassName = '', children }) {
     const TONE_CLASSES = {
         warning: 'border-ds-status-warning-border bg-ds-status-warning-bg text-ds-status-warning-fg',
         info: 'border-ds-status-info-border bg-ds-status-info-bg text-ds-status-info-fg',
@@ -44,7 +49,7 @@ function QueueNotice({ tone, assertive = false, icon: Icon, iconClassName = '', 
                 role={assertive ? 'alert' : 'status'}
                 className={`flex items-center gap-ds-2 rounded-ds-md border px-ds-4 py-ds-3 shadow-ds-lg ${TONE_CLASSES[tone]}`}
             >
-                <Icon size={18} aria-hidden="true" className={iconClassName} />
+                <Icon icon={Glyph} size="lg" className={iconClassName} />
                 {children}
             </div>
         </div>
