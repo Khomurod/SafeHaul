@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Icon, Loader2 } from '@design-system/icons';
 import { useToast } from '@shared/components/feedback';
 // The Firebase persistence paths — the "Correct"/"Edit Template" hydration
 // and the save/send action — live in utils/envelopePersistence.js since the
@@ -329,7 +329,8 @@ export default function EnvelopeCreator({
     if (hydrating) {
         return (
             <div role="status" className="flex h-screen flex-col items-center justify-center gap-ds-3 bg-ds-canvas">
-                <Loader2 className="animate-spin text-ds-action-primary" size={36} aria-hidden="true" />
+                {/* 36 -> `3xl` (32): a loading spinner four pixels off a step, not a decision. */}
+                <Icon icon={Loader2} size="3xl" className="animate-spin text-ds-action-primary" />
                 <p className="text-ds-sm font-medium text-ds-content-secondary">Loading document for editing...</p>
             </div>
         );

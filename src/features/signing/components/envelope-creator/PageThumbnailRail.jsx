@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { Document, Page } from 'react-pdf';
-import { Sparkles } from 'lucide-react';
+import { Icon, Sparkles } from '@design-system/icons';
 import { SelectableCard } from '@/design-system/components';
 
 /** Rendered width of a thumbnail, in px. Small on purpose — see below. */
@@ -157,9 +157,11 @@ export function PageThumbnailRail({
                                             {fieldCount}
                                         </span>
                                     )}
+                                    {/* 10 -> `xs` (12): two pixels, and it lands on the same
+                                        step as the caption text beside it. */}
                                     {suggestionCount > 0 && (
                                         <span className="text-ds-status-accent-fg">
-                                            <Sparkles size={10} />
+                                            <Icon icon={Sparkles} size="xs" />
                                         </span>
                                     )}
                                     {needsReview && <span className="text-ds-status-warning-fg">!</span>}

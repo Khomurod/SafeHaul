@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { db } from '@lib/firebase';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { FileText, CheckCircle, Clock, Download, Loader2, AlertCircle, Copy, MessageSquare, Mail, Ban, Info } from 'lucide-react';
+import { Icon, FileText, CheckCircle, Clock, Download, Loader2, AlertCircle, Copy, MessageSquare, Mail, Ban, Info } from '@design-system/icons';
 import { useToast } from '@shared/components/feedback';
 import { useIsMobile } from '@shared/hooks/useIsMobile';
 import { ConfirmDialog } from '@design-system/patterns';
@@ -181,10 +181,21 @@ export default function EnvelopeHistory({
         const s = (docItem.status || '').toLowerCase();
         const preset = STATUS_PRESENTATION[s];
         if (preset) {
-            const Icon = preset.icon;
+            /*
+             * `Glyph`, not `Icon`: the contract's own component is called `Icon`
+             * and this file imports it, so holding the preset's glyph under that
+             * name would shadow the import — and what the shadow holds is a
+             * token, which throws when rendered.
+             *
+             * `size="xs"` stays explicit: `Badge` sizes the glyph it takes through
+             * its `icon` PROP and has no rule for one passed as a CHILD, which is
+             * the roadmap's open "Badge does not size its glyph" gap. Passing the
+             * glyph as the prop instead would drop the spin class this needs.
+             */
+            const Glyph = preset.icon;
             const badge = (
                 <Badge tone={preset.tone}>
-                    <Icon size={12} aria-hidden="true" className={preset.spin ? 'animate-spin' : undefined} />
+                    <Icon icon={Glyph} size="xs" className={preset.spin ? 'animate-spin' : undefined} />
                     {preset.label}
                 </Badge>
             );
@@ -224,7 +235,7 @@ export default function EnvelopeHistory({
                     title="Review the delivery or sealing failure"
                     onClick={() => setDetailsDocument(docItem)}
                 >
-                    <AlertCircle size={14} aria-hidden="true" /> Review
+                    <Icon icon={AlertCircle} size="sm" /> Review
                 </Button>
             );
         } else if (docItem.status === 'signed') {
@@ -236,7 +247,7 @@ export default function EnvelopeHistory({
                     title="Download the signed document"
                     onClick={() => handleDownload(docItem.signedPdfUrl || docItem.storagePath)}
                 >
-                    <Download size={14} aria-hidden="true" /> Download
+                    <Icon icon={Download} size="sm" /> Download
                 </Button>
             );
         } else if (docItem.status === 'sent') {
@@ -249,7 +260,7 @@ export default function EnvelopeHistory({
                     title="Copy full signing link"
                     onClick={() => handleCopyLink(docItem)}
                 >
-                    {copyingId !== docItem.id && <Copy size={14} aria-hidden="true" />} Copy link
+                    {copyingId !== docItem.id && <Icon icon={Copy} size="sm" />} Copy link
                 </Button>
             );
         } else {
@@ -261,7 +272,7 @@ export default function EnvelopeHistory({
                     title="Open document details"
                     onClick={() => setDetailsDocument(docItem)}
                 >
-                    <Info size={14} aria-hidden="true" /> View details
+                    <Icon icon={Info} size="sm" /> View details
                 </Button>
             );
         }
@@ -287,7 +298,7 @@ export default function EnvelopeHistory({
                 const title = docItem.title || 'Untitled';
                 return (
                     <span className="flex items-start gap-ds-2 font-medium text-ds-content" title={title}>
-                        <FileText size={16} className="mt-0.5 shrink-0 text-ds-action-primary" aria-hidden="true" />
+                        <Icon icon={FileText} className="mt-0.5 shrink-0 text-ds-action-primary" />
                         <span className="line-clamp-2 min-w-0 [overflow-wrap:anywhere]">{title}</span>
                     </span>
                 );

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useId } from 'react';
 import Draggable from 'react-draggable';
-import { X, Scaling } from 'lucide-react';
+import { Icon, X, Scaling } from '@design-system/icons';
 import { IconButton } from '@/design-system/components';
 
 /**
@@ -247,19 +247,30 @@ export const ResizableDraggableField = React.memo(({ field, pageNum, pageWidth, 
                             onMouseDown={(e) => { e.stopPropagation(); onRemove(field.id); }}
                             className="absolute -right-3 -top-3 z-ds-layer-2 shadow-ds-sm"
                         >
-                            <X size={12} aria-hidden="true" />
+                            <Icon icon={X} size="xs" />
                         </IconButton>
 
                         {/* The resize affordance stays a pointer-only control: react-draggable
                             cancels dragging on `.resize-handle`, and the mousemove/mouseup
                             mathematics above is frozen. Keyboard resizing is Alt+arrows on the
                             field itself, so nothing is pointer-only overall. */}
+                            {/*
+                              The HANDLE owns this glyph, and 10px is its geometry
+                              rather than a size somebody picked. The handle is
+                              `h-3 w-3` (12px) with `p-0.5`, so the inner box is 8px;
+                              the scale's smallest step is `xs` = 12, which would
+                              overflow the handle it sits in. Off-scale either way,
+                              so it goes on the container, where resizing the handle
+                              carries it. (The 12px hit target is the separate,
+                              already-recorded WCAG 2.5.8 owner checkpoint from P-2,
+                              not this slice's business.)
+                            */}
                         <div
-                            className="resize-handle absolute bottom-0 right-0 z-ds-layer-2 flex h-3 w-3 cursor-se-resize items-end justify-end p-0.5 opacity-60 transition motion-reduce:transition-none group-hover:opacity-100"
+                            className="resize-handle absolute bottom-0 right-0 z-ds-layer-2 flex h-3 w-3 cursor-se-resize items-end justify-end p-0.5 opacity-60 transition motion-reduce:transition-none group-hover:opacity-100 [&>svg]:h-2.5 [&>svg]:w-2.5"
                             onMouseDown={handleMouseDown}
                             aria-hidden="true"
                         >
-                            <Scaling size={10} className="text-ds-content-secondary" />
+                            <Icon icon={Scaling} className="text-ds-content-secondary" />
                         </div>
                     </>
                 )}

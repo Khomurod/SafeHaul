@@ -1,5 +1,5 @@
 import React, { useId, useRef, useState } from 'react';
-import { Sparkles, X } from 'lucide-react';
+import { Icon, Sparkles, X } from '@design-system/icons';
 import { Modal } from '@design-system/patterns';
 import { Button, ChoiceGroup, IconButton, Input, Notice, Radio } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
@@ -39,7 +39,7 @@ export function AiScanOptionsDialog({ activePage, numPages, onClose, onStart }) 
             <div className="flex items-start justify-between gap-ds-4 border-b border-ds-border-subtle bg-ds-surface-subtle p-ds-5">
                 <div className="min-w-0">
                     <h2 id={titleId} className="flex items-center gap-ds-2 text-ds-heading-sm font-bold text-ds-content">
-                        <Sparkles size={18} className="text-ds-status-accent-fg" aria-hidden="true" />
+                        <Icon icon={Sparkles} size="lg" className="text-ds-status-accent-fg" />
                         AI Field Assistant
                     </h2>
                     <p id={descriptionId} className="mt-ds-1 text-ds-xs text-ds-content-secondary">
@@ -48,7 +48,7 @@ export function AiScanOptionsDialog({ activePage, numPages, onClose, onStart }) 
                     </p>
                 </div>
                 <IconButton label="Close" variant="ghost" onClick={onClose}>
-                    <X size={20} aria-hidden="true" />
+                    <Icon icon={X} size="xl" />
                 </IconButton>
             </div>
 
@@ -132,7 +132,7 @@ export function AiScanOptionsDialog({ activePage, numPages, onClose, onStart }) 
                     disabled={rangeInvalid}
                     onClick={() => onStart({ scope, selectedPages })}
                 >
-                    <Sparkles size={16} aria-hidden="true" />
+                    <Icon icon={Sparkles} />
                     Scan pages
                 </Button>
             </div>

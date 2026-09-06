@@ -1,8 +1,5 @@
 import React from 'react';
-import {
-    Plus, Type, CheckSquare, Calendar, PenTool, Mail,
-    User, Building2, Fingerprint
-} from 'lucide-react';
+import { Icon, Plus, Type, CheckSquare, Calendar, PenTool, Mail, User, Building2, Fingerprint } from '@design-system/icons';
 
 /**
  * Field palette definitions for the envelope/template creator.
@@ -66,11 +63,11 @@ export const FIELD_CATEGORIES = [
 /** Icon for a field type — extracted from the getIcon useCallback (stable identity). */
 export const getFieldIcon = (type) => {
     switch (type) {
-        case 'signature': return <PenTool size={14} />;
-        case 'initial': return <Fingerprint size={14} />;
-        case 'text': return <Type size={14} />;
-        case 'checkbox': return <CheckSquare size={14} />;
-        case 'date': return <Calendar size={14} />;
-        default: return <Plus size={14} />;
+        case 'signature': return <Icon icon={PenTool} size="sm" />;
+        case 'initial': return <Icon icon={Fingerprint} size="sm" />;
+        case 'text': return <Icon icon={Type} size="sm" />;
+        case 'checkbox': return <Icon icon={CheckSquare} size="sm" />;
+        case 'date': return <Icon icon={Calendar} size="sm" />;
+        default: return <Icon icon={Plus} size="sm" />;
     }
 };

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Lock } from 'lucide-react';
+import { Icon, Lock } from '@design-system/icons';
 import { Checkbox, FormField, Input, Select, Textarea } from '@/design-system/components';
 
 /** Field types that carry no text content, so they expose no prefill/default/format options. */
@@ -64,7 +64,7 @@ export const FieldPropertiesPanel = React.memo(({ activeField, updateActiveField
                             updateActiveField('prefillPolicy', nextReadOnly ? 'locked' : 'editable');
                         }}
                     />
-                    <Lock size={12} className="text-ds-content-muted" aria-hidden="true" />
+                    <Icon icon={Lock} size="xs" className="text-ds-content-muted" />
                 </div>
 
                 {hasTextOptions && (

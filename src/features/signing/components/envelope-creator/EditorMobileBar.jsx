@@ -1,5 +1,5 @@
 import React from 'react';
-import { Files, LayoutGrid, PlusSquare, Settings2, SlidersHorizontal, Sparkles } from 'lucide-react';
+import { Icon, Files, LayoutGrid, PlusSquare, Settings2, SlidersHorizontal, Sparkles } from '@design-system/icons';
 
 /**
  * Bottom toolbar for the compact editor.
@@ -38,7 +38,12 @@ export function EditorMobileBar({ openSheet = null, onOpenSheet, fieldCount = 0,
             aria-label="Editor sections"
             className="z-ds-sticky flex shrink-0 items-stretch border-t border-ds-border bg-ds-surface lg:hidden"
         >
-            {ITEMS.map(({ key, label, icon: Icon }) => {
+            {/*
+                `icon: Glyph`, not `icon: Icon`: the contract's component is called
+                `Icon` and this file imports it, so the destructured name would
+                shadow it — and what the shadow holds is a token, which throws.
+            */}
+            {ITEMS.map(({ key, label, icon: Glyph }) => {
                 const count = countFor(key);
                 return (
                     <button
@@ -59,7 +64,7 @@ export function EditorMobileBar({ openSheet = null, onOpenSheet, fieldCount = 0,
                                 : 'text-ds-content-secondary hover:bg-ds-surface-subtle'
                         }`}
                     >
-                        <Icon size={18} aria-hidden="true" />
+                        <Icon icon={Glyph} size="lg" />
                         <span aria-hidden="true" className="text-ds-xs font-medium">
                             {label}
                             {count > 0 ? ` ${count}` : ''}

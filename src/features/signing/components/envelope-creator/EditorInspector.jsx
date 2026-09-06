@@ -1,5 +1,5 @@
 import React, { useId } from 'react';
-import { MousePointerSquareDashed, Sparkles } from 'lucide-react';
+import { MousePointerSquareDashed, Sparkles } from '@design-system/icons';
 import { Badge, Button, TabList, TabPanel } from '@/design-system/components';
 import { INSPECTOR_TABS } from '@features/signing/utils/editorSaveState';
 

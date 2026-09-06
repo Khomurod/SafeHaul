@@ -1,5 +1,5 @@
 import React, { useId } from 'react';
-import { AlertTriangle, Check, RotateCcw, Sparkles, Undo2, X } from 'lucide-react';
+import { Icon, AlertTriangle, Check, RotateCcw, Sparkles, Undo2, X } from '@design-system/icons';
 import { Badge, Button, Checkbox, FormField, Input, Notice, ProgressBar, Select } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import {
@@ -77,7 +77,7 @@ export function AiSuggestionReviewPanel({
             <header className="flex items-start justify-between gap-ds-2 border-b border-ds-border-subtle p-ds-4">
                 <div className="min-w-0">
                     <h3 id={headingId} className="flex items-center gap-ds-2 text-ds-body font-bold text-ds-content">
-                        <Sparkles size={16} className="text-ds-status-accent-fg" aria-hidden="true" />
+                        <Icon icon={Sparkles} className="text-ds-status-accent-fg" />
                         AI Field Assistant
                     </h3>
                     <p className="mt-ds-1 text-ds-xs text-ds-content-secondary">
@@ -135,7 +135,7 @@ export function AiSuggestionReviewPanel({
                             size="sm"
                             actions={(
                                 <Button variant="secondary" size="sm" onClick={onRescan}>
-                                    <RotateCcw size={14} aria-hidden="true" /> Try again
+                                    <Icon icon={RotateCcw} size="sm" /> Try again
                                 </Button>
                             )}
                         >
@@ -250,11 +250,8 @@ export function AiSuggestionReviewPanel({
                                                                 </Badge>
                                                                 {item.overlapsFieldId && (
                                                                     <>
-                                                                        <AlertTriangle
-                                                                            size={12}
-                                                                            aria-hidden="true"
-                                                                            className="shrink-0 text-ds-status-warning-fg"
-                                                                        />
+                                                                        <Icon icon={AlertTriangle} size="xs"
+                                                                            className="shrink-0 text-ds-status-warning-fg" />
                                                                         <span className="ds-visually-hidden">
                                                                             overlaps an existing field
                                                                         </span>
@@ -274,7 +271,7 @@ export function AiSuggestionReviewPanel({
 
                                                                 {item.overlapsFieldId && (
                                                                     <p className="mt-ds-2 flex items-start gap-ds-1 text-ds-xs text-ds-status-warning-fg">
-                                                                        <AlertTriangle size={12} className="mt-0.5 shrink-0" aria-hidden="true" />
+                                                                        <Icon icon={AlertTriangle} size="xs" className="mt-0.5 shrink-0" />
                                                                         Overlaps your existing field “{item.overlapsFieldLabel}”. Applying it
                                                                         adds a second field on top; your field is never replaced.
                                                                     </p>
@@ -358,7 +355,7 @@ export function AiSuggestionReviewPanel({
                         disabled={acceptedCount === 0}
                         onClick={onApplySelected}
                     >
-                        <Check size={16} aria-hidden="true" />
+                        <Icon icon={Check} />
                         Apply selected ({acceptedCount})
                     </Button>
                     <Button
@@ -370,18 +367,18 @@ export function AiSuggestionReviewPanel({
                     </Button>
                     <div className="grid grid-cols-2 gap-ds-2">
                         <Button variant="secondary" onClick={onRescan}>
-                            <RotateCcw size={14} aria-hidden="true" /> Rescan
+                            <Icon icon={RotateCcw} size="sm" /> Rescan
                         </Button>
                         <Button
                             variant="secondary"
                             disabled={!canUndo}
                             onClick={onUndo}
                         >
-                            <Undo2 size={14} aria-hidden="true" /> Undo apply
+                            <Icon icon={Undo2} size="sm" /> Undo apply
                         </Button>
                     </div>
                     <Button variant="ghost" fullWidth disabled={suggestions.length === 0} onClick={onDiscardAll}>
-                        <X size={14} aria-hidden="true" /> Discard all suggestions
+                        <Icon icon={X} size="sm" /> Discard all suggestions
                     </Button>
                 </footer>
             )}

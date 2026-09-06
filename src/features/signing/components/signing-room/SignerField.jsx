@@ -1,5 +1,5 @@
 import React from 'react';
-import { PenTool, Fingerprint } from 'lucide-react';
+import { Icon, PenTool, Fingerprint } from '@design-system/icons';
 import { isFieldLocked } from '@features/signing/utils/prefillEngine';
 import { SignerFieldOverlay } from '@features/signing/components/SignerFieldOverlay';
 
@@ -159,7 +159,7 @@ export function SignerField({
                             />
                         ) : (
                             <span className={`${palette.text} flex items-center gap-1 text-ds-xs font-medium`}>
-                                {isInitial ? <Fingerprint size={12} /> : <PenTool size={14} />}
+                                {isInitial ? <Icon icon={Fingerprint} size="xs" /> : <Icon icon={PenTool} size="sm" />}
                                 {isInitial ? 'Initial' : 'Sign'}
                             </span>
                         )}

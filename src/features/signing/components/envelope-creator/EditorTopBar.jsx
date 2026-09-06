@@ -1,5 +1,5 @@
 import React, { useEffect, useId, useState } from 'react';
-import { ArrowLeft, Eye, Redo2, Save, Undo2 } from 'lucide-react';
+import { Icon, ArrowLeft, Eye, Redo2, Save, Undo2 } from '@design-system/icons';
 import { Badge, Button, IconButton, Input } from '@/design-system/components';
 import {
     SAVE_STATES,
@@ -61,7 +61,7 @@ export function EditorTopBar({
         >
             <div className="flex min-w-0 flex-1 items-center gap-ds-3">
                 <Button variant="ghost" size="sm" className="shrink-0" onClick={onBack}>
-                    <ArrowLeft size={16} aria-hidden="true" />
+                    <Icon icon={ArrowLeft} />
                     {!compact && 'Back to Documents'}
                     {compact && <span className="ds-visually-hidden">Back to Documents</span>}
                 </Button>
@@ -105,19 +105,19 @@ export function EditorTopBar({
 
             <div className="flex shrink-0 flex-wrap items-center gap-ds-2">
                 <IconButton label="Undo" variant="ghost" size="sm" disabled={!canUndo} onClick={onUndo}>
-                    <Undo2 size={16} aria-hidden="true" />
+                    <Icon icon={Undo2} />
                 </IconButton>
                 <IconButton label="Redo" variant="ghost" size="sm" disabled={!canRedo} onClick={onRedo}>
-                    <Redo2 size={16} aria-hidden="true" />
+                    <Icon icon={Redo2} />
                 </IconButton>
 
                 <Button variant="secondary" size="sm" disabled={previewDisabled} onClick={onPreview}>
-                    <Eye size={14} aria-hidden="true" />
+                    <Icon icon={Eye} size="sm" />
                     {compact ? <span className="ds-visually-hidden">Preview as signer</span> : 'Preview as signer'}
                 </Button>
 
                 <Button variant="primary" size="sm" disabled={saving} loading={saving} onClick={onSave}>
-                    {!saving && <Save size={14} aria-hidden="true" />}
+                    {!saving && <Icon icon={Save} size="sm" />}
                     {presentation.action}
                 </Button>
             </div>
