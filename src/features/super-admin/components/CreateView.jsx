@@ -2,11 +2,10 @@ import React, { useEffect, useId, useRef, useState } from 'react';
 import { createNewCompany, loadCompanies } from '@features/companies';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
+import { UserPlus, X, Briefcase } from 'lucide-react';
 import {
-    UserPlus, X, Briefcase, CheckCircle, AlertCircle,
-} from 'lucide-react';
-import {
-    Button, Card,
+    Button,
+    Notice,
     TabList,
     TabPanel,
 } from '@/design-system/components';
@@ -284,20 +283,18 @@ function CreateOutcome({ outcome }) {
 
     return (
         <>
+            {/* Both wrappers are ALWAYS MOUNTED and own the live region, so each
+                `Notice` inside takes the default `announce="off"`. Two nested
+                live regions announce twice; moving the role onto the conditional
+                child stops the announcement altogether. */}
             <div role="status">
                 {outcome && !isError && (
-                    <Card padding="md" className="flex items-start gap-ds-3 border-ds-status-success-border bg-ds-status-success-bg">
-                        <CheckCircle size={20} aria-hidden="true" className="mt-0.5 shrink-0 text-ds-status-success-fg" />
-                        <p className="break-words text-ds-sm font-medium text-ds-status-success-fg">{outcome.message}</p>
-                    </Card>
+                    <Notice tone="success">{outcome.message}</Notice>
                 )}
             </div>
             <div role="alert">
                 {isError && (
-                    <Card padding="md" className="flex items-start gap-ds-3 border-ds-status-danger-border bg-ds-status-danger-bg">
-                        <AlertCircle size={20} aria-hidden="true" className="mt-0.5 shrink-0 text-ds-status-danger-fg" />
-                        <p className="break-words text-ds-sm font-medium text-ds-status-danger-fg">{outcome.message}</p>
-                    </Card>
+                    <Notice tone="danger">{outcome.message}</Notice>
                 )}
             </div>
         </>

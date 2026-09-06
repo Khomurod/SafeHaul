@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
-import { AlertCircle, AlertTriangle, CheckCircle, History, Play } from 'lucide-react';
-import { Badge, Button, Card, ProgressBar } from '@/design-system/components';
+import { CheckCircle, History, Play } from 'lucide-react';
+import { Badge, Button, Card, Notice, ProgressBar } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { ConfirmDialog } from '@design-system/patterns';
 
@@ -259,11 +259,13 @@ export function HistoricalMigrationPanel() {
                 )}
 
                 {unreadable > 0 && (
-                    <Card padding="md" role="alert" className="border-ds-status-warning-border bg-ds-status-warning-bg">
-                        <h4 className="mb-1 font-semibold text-ds-content">
-                            {unreadable} application{unreadable === 1 ? '' : 's'} could not be read
-                        </h4>
-                        <p className="text-ds-sm text-ds-content-secondary">
+                    <Notice
+                        announce="assertive"
+                        tone="warning"
+                        title={`${unreadable} application${unreadable === 1 ? '' : 's'} could not be read`}
+                        titleAs="h4"
+                    >
+                        <p>
                             These need a person to look at them. They are never treated as drafts,
                             because that would hide a broken record behind a harmless count.
                             {' '}
@@ -272,17 +274,13 @@ export function HistoricalMigrationPanel() {
                                 .map((company) => `${company.companyName}: ${company.unreadableApplicationIds.map(shortId).join(', ')}`)
                                 .join(' · ')}
                         </p>
-                    </Card>
+                    </Notice>
                 )}
 
                 {error && (
-                    <Card padding="md" role="alert" className="flex items-start gap-ds-3 border-ds-status-danger-border bg-ds-status-danger-bg">
-                        <AlertCircle size={20} aria-hidden="true" className="mt-0.5 shrink-0 text-ds-status-danger-fg" />
-                        <div>
-                            <h4 className="mb-1 font-semibold text-ds-status-danger-fg">Something went wrong</h4>
-                            <p className="break-words text-ds-sm text-ds-status-danger-fg">{error}</p>
-                        </div>
-                    </Card>
+                    <Notice announce="assertive" tone="danger" title="Something went wrong" titleAs="h4">
+                        {error}
+                    </Notice>
                 )}
 
                 {progress.length > 0 && (
@@ -336,22 +334,16 @@ export function HistoricalMigrationPanel() {
                 )}
 
                 {phase === 'incomplete' && (
-                    <Card padding="md" role="status" className="border-ds-status-warning-border bg-ds-status-warning-bg">
-                        <div className="flex items-start gap-ds-3">
-                            <AlertTriangle size={20} aria-hidden="true" className="mt-0.5 shrink-0 text-ds-content" />
-                            <div>
-                                <h4 className="mb-1 font-semibold text-ds-content">Work still remains</h4>
-                                <p className="text-ds-sm text-ds-content-secondary">
+                    <Notice announce="polite" tone="warning" title="Work still remains" titleAs="h4">
+                        <p>
                                     {runTotals.reconstructed} record{runTotals.reconstructed === 1 ? '' : 's'} and{' '}
                                     {runTotals.pdfs} PDF{runTotals.pdfs === 1 ? '' : 's'} were written.{' '}
                                     {remaining} application{remaining === 1 ? '' : 's'} still eligible
                                     {missingPdfs > 0 ? `, and ${missingPdfs} preserved record${missingPdfs === 1 ? '' : 's'} still without a PDF` : ''}.
                                     Nothing was overwritten, and running again is safe — it adds only what
-                                    is missing. This panel stays until the count reaches zero.
-                                </p>
-                            </div>
-                        </div>
-                    </Card>
+                            is missing. This panel stays until the count reaches zero.
+                        </p>
+                    </Notice>
                 )}
 
                 <div className="flex flex-wrap items-center gap-ds-3">

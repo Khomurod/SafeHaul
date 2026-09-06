@@ -1,9 +1,9 @@
 import React, { useId, useState } from 'react';
-import { X, Key, CheckCircle, AlertCircle, Plug } from 'lucide-react';
+import { X, Key, CheckCircle, Plug } from 'lucide-react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
 import { useToast } from '@shared/components/feedback/ToastProvider';
-import { Button, Checkbox, FormField, IconButton, Input, Textarea } from '@/design-system/components';
+import { Button, Checkbox, FormField, IconButton, Input, Notice, Textarea } from '@/design-system/components';
 import { Modal } from '@design-system/patterns';
 
 /**
@@ -244,20 +244,19 @@ export function AddLineModal({ companyId, onClose, onSuccess, sharedCredentials 
 
                 {/* Test Result */}
                 {testResult && (
-                    <div
-                        role="status"
-                        className={`rounded-ds-md border p-ds-3 text-ds-sm ${testResult.success
-                            ? 'border-ds-status-success-border bg-ds-status-success-bg text-ds-status-success-fg'
-                            : 'border-ds-status-danger-border bg-ds-status-danger-bg text-ds-status-danger-fg'
-                            }`}
+                    /* Tone follows the same test the hand-built glyph pair
+                       already ran, so the per-branch glyphs go: each tone
+                       carries its own. `announce` stays polite for both, which
+                       is what the single `role="status"` here always did — a
+                       connection test the operator just pressed does not need
+                       to interrupt. */
+                    <Notice
+                        tone={testResult.success ? 'success' : 'danger'}
+                        announce="polite"
+                        size="sm"
+                        title={testResult.success ? 'Connection Successful!' : 'Connection Failed'}
                     >
-                        <div className="flex items-center gap-ds-2">
-                            {testResult.success ? <CheckCircle size={16} aria-hidden="true" /> : <AlertCircle size={16} aria-hidden="true" />}
-                            <span className="font-medium">
-                                {testResult.success ? 'Connection Successful!' : 'Connection Failed'}
-                            </span>
-                        </div>
-                        <p className="mt-1 text-ds-xs">{testResult.message}</p>
+                        <p>{testResult.message}</p>
                         {testResult.availableNumbers?.length > 0 && (
                             <div className="mt-ds-2 text-ds-xs">
                                 <span className="font-medium">Available Numbers: </span>
@@ -265,7 +264,7 @@ export function AddLineModal({ companyId, onClose, onSuccess, sharedCredentials 
                                 {testResult.availableNumbers.length > 3 && ` +${testResult.availableNumbers.length - 3} more`}
                             </div>
                         )}
-                    </div>
+                    </Notice>
                 )}
 
                 {/* Action Buttons */}

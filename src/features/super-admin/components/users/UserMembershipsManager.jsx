@@ -5,9 +5,14 @@ import {
   updateMembershipRole,
   deleteMembership
 } from '@features/auth/services/userService';
-import { Trash2, Plus, AlertCircle, RefreshCw } from 'lucide-react';
+import { Trash2, Plus, RefreshCw } from 'lucide-react';
 import {
-  Card, FieldMessage, FormField, IconButton, Select,
+    Card,
+    FieldMessage,
+    FormField,
+    IconButton,
+    Notice,
+    Select,
 } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { ConfirmDialog } from '@design-system/patterns';
@@ -311,12 +316,11 @@ export function UserMembershipsManager({ userId, allCompaniesMap, onDataUpdate }
         </IconButton>
       </form>
 
+      {/* The wrapper is always mounted and owns the live region, so the notice
+          takes the default `announce="off"`. */}
       <div role="alert">
         {addError && (
-          <div className="mt-ds-3 flex items-start gap-ds-2 rounded-ds-lg border border-ds-status-danger-border bg-ds-status-danger-bg p-ds-3">
-            <AlertCircle size={16} aria-hidden="true" className="mt-0.5 shrink-0 text-ds-status-danger-fg" />
-            <span className="break-words text-ds-sm text-ds-status-danger-fg">{addError}</span>
-          </div>
+          <Notice tone="danger" size="sm" className="mt-ds-3">{addError}</Notice>
         )}
       </div>
 

@@ -17,12 +17,13 @@ import {
 import { Logo } from '@shared/components/Logo';
 import { Modal } from '@design-system/patterns';
 import {
-  Button,
-  Card,
-  FormField,
-  IconButton,
-  Input,
-  Label,
+    Button,
+    Card,
+    FormField,
+    IconButton,
+    Input,
+    Label,
+    Notice,
 } from '@/design-system/components';
 
 // Stable id for the reset dialog's current heading. Only one heading is
@@ -153,13 +154,14 @@ export function LoginScreen() {
           </div>
 
           {error && (
-            <div
-              role="alert"
-              className="mb-6 flex items-center gap-3 rounded-ds-lg border border-ds-status-danger-border bg-ds-status-danger-bg p-ds-4 animate-in fade-in slide-in-from-top-2"
-            >
-              <AlertCircle size={18} className="shrink-0 text-ds-status-danger-fg" aria-hidden="true" />
-              <p className="text-ds-sm font-semibold text-ds-status-danger-fg">{error}</p>
-            </div>
+            /* The entrance animation goes. `Notice`'s `className` is margin and
+               width only, and `animate-in slide-in-from-top-2` is neither — but
+               it is also the right answer on its own: that class carries no
+               `prefers-reduced-motion` guard, and an alert sliding into view is
+               exactly the case where motion should be reduced. */
+            <Notice announce="assertive" tone="danger" className="mb-6">
+              {error}
+            </Notice>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-ds-5">
