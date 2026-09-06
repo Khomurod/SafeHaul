@@ -12,7 +12,7 @@ const ROWS = [{ dot_number: '42', legal_name: 'Swift LLC' }];
 
 describe('useFmcsaEmployerLookup', () => {
     beforeEach(() => {
-        vi.clearAllMocks();
+        vi.resetAllMocks();
         fetchFmcsaCarrierCandidatesForPev.mockResolvedValue(ROWS);
     });
 

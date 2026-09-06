@@ -22,7 +22,7 @@ import StatsBackfillPanel from './StatsBackfillPanel';
 let callable;
 
 beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
     vi.spyOn(console, 'error').mockImplementation(() => {});
     callable = vi.fn().mockResolvedValue({ data: { dryRun: true, totalActivitiesProcessed: 5 } });
     httpsCallable.mockReturnValue(callable);

@@ -14,7 +14,7 @@ import { useApplicationDelete } from './useApplicationDelete';
 
 describe('useApplicationDelete', () => {
     beforeEach(() => {
-        vi.clearAllMocks();
+        vi.resetAllMocks();
         mockCallable.mockResolvedValue({ data: { success: true } });
     });
 

@@ -59,7 +59,7 @@ function renderManager(props = {}) {
 }
 
 beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
     snapState.exists = true;
     snapState.data = {
         inventory: INVENTORY,

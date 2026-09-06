@@ -15,7 +15,7 @@ vi.mock('@lib/firebase', () => ({ functions: {} }));
 import { useInviteLink } from './useInviteLink';
 
 beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
     callables.httpsCallable.mockReturnValue(callables.call);
     callables.call.mockResolvedValue({ data: { inviteToken: 'tok-abc', applicantKey: 'key-1', expiresInDays: 14 } });
     // jsdom defines `navigator.clipboard` as a getter, so it is redefined rather

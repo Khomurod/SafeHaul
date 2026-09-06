@@ -48,7 +48,7 @@ function renderView(props = {}) {
 }
 
 beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
     getDoc.mockResolvedValue({ exists: () => false });
     vi.spyOn(console, 'error').mockImplementation(() => {});
 });

@@ -46,7 +46,7 @@ function renderPortal(token = 'tok-1') {
 
 afterEach(cleanup);
 beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
     loadResolves(REVIEW);
 });
 

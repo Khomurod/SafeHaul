@@ -71,7 +71,7 @@ function submitCompanyForm() {
 }
 
 beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
     loadCompanies.mockResolvedValue({ docs: COMPANY_OPTIONS });
     createNewCompany.mockResolvedValue({ id: 'new-co-9' });
     createPortalUser.mockResolvedValue({ data: { userId: 'new-user-9' } });

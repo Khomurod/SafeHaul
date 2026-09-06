@@ -2,24 +2,28 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useSubmissionQueue } from './useSubmissionQueue';
 
+// Defaults are given AS the implementation (`vi.fn(async () => x)`), not chained on
+// with `mockResolvedValue`, because `vi.resetAllMocks()` in `beforeEach` reverts a
+// mock to the implementation it was created with and wipes anything chained on
+// afterwards. AGENTS.md rule 6.
 const queueMocks = vi.hoisted(() => ({
-  initQueue: vi.fn().mockResolvedValue(undefined),
-  getAllPending: vi.fn().mockResolvedValue([{ id: 'q1' }]),
-  getQueueCount: vi.fn().mockResolvedValue(1),
+  initQueue: vi.fn(async () => undefined),
+  getAllPending: vi.fn(async () => [{ id: 'q1' }]),
+  getQueueCount: vi.fn(async () => 1),
   processQueue: vi.fn(),
   isSupported: vi.fn(() => true),
 }));
 
 const firebaseFunctionMocks = vi.hoisted(() => ({
-  submitGuestApplication: vi.fn().mockResolvedValue({ data: { success: true } }),
+  submitGuestApplication: vi.fn(async () => ({ data: { success: true } })),
   httpsCallable: vi.fn(),
 }));
 
 const firestoreMocks = vi.hoisted(() => ({
   doc: vi.fn(() => ({ __docRef: true })),
-  setDoc: vi.fn().mockResolvedValue(undefined),
+  setDoc: vi.fn(async () => undefined),
   // FUNC-005: mergeApplicationDoc reads existence first. exists:false => create path.
-  getDoc: vi.fn().mockResolvedValue({ exists: () => false }),
+  getDoc: vi.fn(async () => ({ exists: () => false })),
   serverTimestamp: vi.fn(() => '__server_timestamp__'),
 }));
 
@@ -55,7 +59,7 @@ vi.mock('@sentry/react', () => ({
 
 describe('useSubmissionQueue frontend-backend alignment', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
     localStorage.clear();
     firebaseFunctionMocks.httpsCallable.mockReturnValue(firebaseFunctionMocks.submitGuestApplication);
     queueMocks.getAllPending.mockResolvedValue([{ id: 'q1' }]);

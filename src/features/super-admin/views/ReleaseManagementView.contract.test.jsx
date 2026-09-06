@@ -38,7 +38,7 @@ const reauthenticateWithCredential = vi.fn();
 vi.mock('firebase/functions', () => ({ httpsCallable: (...args) => httpsCallable(...args) }));
 vi.mock('@lib/firebase', () => ({
     functions: { __functions: true },
-    auth: { currentUser: { email: 'ops@example.test', getIdToken: vi.fn().mockResolvedValue('token') } },
+    auth: { currentUser: { email: 'ops@example.test', getIdToken: vi.fn(async () => 'token') } },
     db: {},
 }));
 vi.mock('firebase/auth', () => ({
@@ -114,7 +114,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
 });
 
 const releaseButton = () => screen.getByRole('button', { name: /Release Testing version to Production/i });
