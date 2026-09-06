@@ -7,7 +7,7 @@ import { ageFromIsoDate } from '@shared/utils/dateFormHelpers';
 import RadioGroup from '@shared/components/form/RadioGroup';
 import { useUtils } from '@shared/hooks/useUtils';
 import { useData } from '@/context/DataContext';
-import { AlertCircle } from 'lucide-react';
+import { Icon, AlertCircle } from '@design-system/icons';
 import { useToast } from '@shared/components/feedback';
 import { Checkbox, FieldMessage, FormSection } from '@/design-system/components';
 import { StepNavigation } from './components/StepNavigation';
@@ -29,7 +29,7 @@ import { useStepGate } from '@features/driver-app/hooks/useApplicationRules';
  */
 const ValidationWarning = ({ message }) => (
     <p role="status" className="mt-ds-1 flex items-center gap-ds-1 text-ds-xs font-medium text-ds-status-warning-fg">
-        <AlertCircle size={12} aria-hidden="true" />
+        <Icon icon={AlertCircle} size="xs" />
         <span>{message}</span>
     </p>
 );

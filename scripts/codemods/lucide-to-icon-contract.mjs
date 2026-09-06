@@ -107,13 +107,30 @@ const SIZING_CONTAINERS = /<(?:Button|IconButton|Tab|Tabs|Badge|Chip|SegmentedCo
  */
 const LUCIDE_IMPORT = /^import\s*\{([^}]*)\}\s*from\s*(['"])lucide-react\2;[ \t]*\r?\n/m;
 
-/** The names one `import { … } from 'lucide-react'` brings in. */
-function importedNames(block) {
+/**
+ * The specifiers one `import { … } from 'lucide-react'` brings in, as
+ * `{ imported, local }`.
+ *
+ * The two are not always the same, and collapsing them is a run-time break the
+ * first version shipped. `import { Image as ImageIcon }` renders `<ImageIcon>`;
+ * taking the imported name for both wrote `Image` into the new import, left
+ * `<ImageIcon>` untouched because nothing matched it, and produced
+ * `ReferenceError: ImageIcon is not defined` on the driver's upload field.
+ *
+ * So the LOCAL name is what the file writes and what element matching uses, and
+ * the IMPORTED name is what the registry exports — the rewritten import carries
+ * both, exactly as the original did. Five files in the campaign are aliased:
+ * `Image as ImageIcon`, `Link as LinkIcon` twice, `Users as UsersIcon`.
+ */
+function importSpecifiers(block) {
     return block
         .split(',')
         .map((entry) => entry.trim())
         .filter(Boolean)
-        .map((entry) => entry.split(/\s+as\s+/)[0].trim());
+        .map((entry) => {
+            const [imported, local] = entry.split(/\s+as\s+/).map((part) => part.trim());
+            return { imported, local: local || imported };
+        });
 }
 
 /**
@@ -231,7 +248,7 @@ function lineOf(source, index) {
  * already removed, so the caller never has to strip them twice.
  */
 function resolveSize(tag) {
-    const pixels = tag.match(/\ssize=\{(\d+)\}/);
+    const pixels = tag.match(/\s+size=\{(\d+)\}/);
     if (pixels) {
         const value = Number(pixels[1]);
         const step = STEP_FOR_PIXELS.get(value);
@@ -247,7 +264,7 @@ function resolveSize(tag) {
         return { step, tag: tag.replace(pixels[0], '') };
     }
 
-    const geometry = tag.match(/\sclassName="([^"]*)"/);
+    const geometry = tag.match(/\s+className="([^"]*)"/);
     if (geometry) {
         const height = geometry[1].match(/(?:^|\s)h-(\d+(?:\.5)?)(?=\s|$)/);
         const width = geometry[1].match(/(?:^|\s)w-(\d+(?:\.5)?)(?=\s|$)/);
@@ -268,6 +285,9 @@ function resolveSize(tag) {
                 .replace(/\s+/g, ' ')
                 .trim();
             const attribute = stripped ? ` className="${stripped}"` : '';
+            // The whole run of whitespace was consumed with the attribute, so a
+            // surviving className brings its own single space back.
+
             return { step, tag: tag.replace(geometry[0], attribute) };
         }
     }
@@ -281,12 +301,28 @@ function resolveSize(tag) {
     };
 }
 
-/** Attributes the contract now supplies, which a call site should stop stating. */
+/**
+ * Attributes the contract now supplies, which a call site should stop stating.
+ *
+ * `\s+` and not `\s`, because a tag written across several lines puts a newline
+ * and an indent in front of each attribute. Consuming one space left the rest
+ * behind, and a four-line tag came out with two whitespace-only lines in the
+ * middle of it:
+ *
+ *     <Icon icon={FileSignature} size="lg"
+ *
+ *
+ *         className={…} />
+ *
+ * Lint passes on that and a reviewer should not have to. Taking the whole run
+ * closes the gap the attribute leaves, so a one-line tag stays on one line and a
+ * multi-line tag keeps its shape with one fewer line.
+ */
 function dropDefaults(tag) {
     return tag
-        .replace(/\saria-hidden=(?:"true"|\{true\})/g, '')
-        .replace(/\sstrokeWidth=\{2\}/g, '')
-        .replace(/\sfocusable="false"/g, '');
+        .replace(/\s+aria-hidden=(?:"true"|\{true\})/g, '')
+        .replace(/\s+strokeWidth=\{2\}/g, '')
+        .replace(/\s+focusable="false"/g, '');
 }
 
 /** Rewrite one file. Returns `{ source, rewritten, flags, names, needsIcon }`. */
@@ -300,7 +336,8 @@ export function migrate(source, { path = '<source>' } = {}) {
         };
     }
 
-    const names = importedNames(importMatch[1]);
+    const specifiers = importSpecifiers(importMatch[1]);
+    const names = specifiers.map((specifier) => specifier.local);
     let out = source;
     let rewritten = 0;
     let needsIcon = false;
@@ -391,10 +428,12 @@ export function migrate(source, { path = '<source>' } = {}) {
      * `Icon` leads the list and the glyph names keep their order. Sorting them
      * would put a rename in every migrated file's diff for no reason.
      */
-    const specifiers = needsIcon ? ['Icon', ...names] : names;
+    const written = specifiers.map(
+        ({ imported, local }) => (imported === local ? local : `${imported} as ${local}`),
+    );
     out = out.replace(
         LUCIDE_IMPORT,
-        `import { ${specifiers.join(', ')} } from '@design-system/icons';\n`,
+        `import { ${(needsIcon ? ['Icon', ...written] : written).join(', ')} } from '@design-system/icons';\n`,
     );
 
     return { source: out, rewritten, flags, notes, names, needsIcon, skipped: false, path };

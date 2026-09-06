@@ -1,5 +1,5 @@
 import React, { useId } from 'react';
-import { Wand2, PencilLine } from 'lucide-react';
+import { Icon, Wand2, PencilLine } from '@design-system/icons';
 import { Button, Card } from '@/design-system/components';
 
 /**
@@ -46,7 +46,7 @@ export function IntakeChooser({ companyName, onChooseAutoFill, onChooseManual, c
           >
             <span className="flex flex-col items-start gap-ds-2 py-ds-4 text-left">
               <span className="flex items-center gap-ds-3">
-                <Wand2 className="shrink-0 text-ds-action-primary" size={20} aria-hidden="true" />
+                <Icon icon={Wand2} size="xl" className="shrink-0 text-ds-action-primary" />
                 <span className="text-ds-body-lg font-semibold text-ds-content">Upload CDL for Auto-Fill (Fastest)</span>
               </span>
               <span className="text-ds-sm font-normal text-ds-content-secondary">
@@ -64,7 +64,7 @@ export function IntakeChooser({ companyName, onChooseAutoFill, onChooseManual, c
           >
             <span className="flex flex-col items-start gap-ds-2 py-ds-4 text-left">
               <span className="flex items-center gap-ds-3">
-                <PencilLine className="shrink-0 text-ds-content-secondary" size={20} aria-hidden="true" />
+                <Icon icon={PencilLine} size="xl" className="shrink-0 text-ds-content-secondary" />
                 <span className="text-ds-body-lg font-semibold text-ds-content">Fill Out Manually</span>
               </span>
               <span className="text-ds-sm font-normal text-ds-content-secondary">

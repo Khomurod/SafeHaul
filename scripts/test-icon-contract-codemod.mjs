@@ -103,6 +103,39 @@ console.log('\nA. The import statement');
         out.skipped === true && out.source === "import React from 'react';\n<div />\n");
 }
 
+/*
+ * A7 is a run-time break the first version shipped, and the pilot's tests are
+ * what caught it: `ReferenceError: ImageIcon is not defined` on the driver's
+ * upload field, in nine tests across three files.
+ *
+ * `import { Image as ImageIcon }` renders `<ImageIcon>`. Taking the imported
+ * name for both roles wrote `Image` into the new import AND left `<ImageIcon>`
+ * untouched, because nothing matched it — so the file imported a name it never
+ * used and used a name it never imported. Five files in the campaign are
+ * aliased.
+ */
+{
+    const out = migrate(file({
+        names: 'Image as ImageIcon, X',
+        body: '<ImageIcon size={16} aria-hidden="true" />\n<X size={20} aria-hidden="true" />',
+    }));
+    assert('A7. an aliased specifier keeps its alias AND is matched by its local name',
+        out.source.includes("import { Icon, Image as ImageIcon, X } from '@design-system/icons';")
+        && out.source.includes('<Icon icon={ImageIcon} />')
+        && out.rewritten === 2,
+        out.source);
+}
+
+{
+    const out = migrate(file({
+        names: 'Image as ImageIcon',
+        body: '<Image size={16} aria-hidden="true" />',
+    }));
+    assert('A8. the IMPORTED name is not a tag — only the local one is',
+        out.rewritten === 0 && out.source.includes('<Image size={16} aria-hidden="true" />'),
+        out.source);
+}
+
 console.log('\nB. Size — what is provable');
 
 {
@@ -138,6 +171,23 @@ console.log('\nB. Size — what is provable');
     const out = migrate(file({ names: 'Dot', body: '<Dot className="h-4 w-4" aria-hidden="true" />' }));
     assert('B6. a className that was ONLY geometry is removed rather than left empty',
         out.source.includes('<Icon icon={Dot} />') && !out.source.includes('className=""'), out.source);
+}
+
+/*
+ * D5 is a formatting defect the pilot's diff caught rather than any test: a tag
+ * written across four lines came out with two whitespace-only lines in the
+ * middle, because dropping an attribute consumed one space and left the newline
+ * and indent that preceded it.
+ */
+{
+    const out = migrate(file({
+        names: 'FileSignature',
+        body: '<FileSignature\n    size={18}\n    aria-hidden="true"\n    className="mt-ds-1 shrink-0"\n/>',
+    }));
+    assert('D5. a multi-line tag loses its dropped attributes without leaving blank lines',
+        out.source.includes('<Icon icon={FileSignature} size="lg"\n    className="mt-ds-1 shrink-0" />')
+        && !/\n[ \t]+\n/.test(out.source),
+        JSON.stringify(out.source));
 }
 
 console.log('\nC. Size — what is a decision, and is therefore refused');

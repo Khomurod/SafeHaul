@@ -34,7 +34,7 @@
  */
 
 import React from 'react';
-import { Shield } from 'lucide-react';
+import { Shield } from '@design-system/icons';
 import DateTripletField from '@shared/components/form/DateTripletField';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import { StepNavigation } from './components/StepNavigation';

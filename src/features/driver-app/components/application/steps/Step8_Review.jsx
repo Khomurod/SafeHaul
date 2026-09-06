@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Edit2, FileCheck } from 'lucide-react';
+import { Icon, Edit2, FileCheck } from '@design-system/icons';
 import { Button, Card, FieldDisplay, Notice } from '@/design-system/components';
 import { useData } from '@/context/DataContext';
 import { buildApplicationReview } from '@/config/applicationDefinition';
@@ -67,7 +67,7 @@ function ReviewSection({ title, onEdit, children }) {
                 <h2 className="text-ds-body font-bold text-ds-content">{title}</h2>
                 {onEdit && (
                     <Button variant="ghost" size="md" onClick={onEdit} aria-label={`Edit ${title}`}>
-                        <Edit2 size={14} aria-hidden="true" /> Edit
+                        <Icon icon={Edit2} size="sm" /> Edit
                     </Button>
                 )}
             </div>
@@ -179,7 +179,7 @@ const Step8_Review = ({ formData, onNavigate }) => {
                 onBack={() => onNavigate('back')}
                 onContinue={() => onNavigate('next')}
                 continueLabel="Confirm & Proceed"
-                continueIcon={<FileCheck size={18} aria-hidden="true" />}
+                continueIcon={<Icon icon={FileCheck} size="lg" />}
                 continueTone="success"
             />
         </div>
