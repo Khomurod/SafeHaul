@@ -293,6 +293,38 @@ export function countValueUses(source, name) {
 }
 
 /**
+ * React API property names that a glyph can never be. Everything else spelled as
+ * `<a.b …>` is reported, because a member expression is exactly the shape this
+ * tool cannot rewrite: it scans for `<Name`, and `<item.icon` has no name to
+ * match — so it neither converts the site nor says anything about it.
+ */
+const REACT_MEMBER_TAGS = new Set(['Provider', 'Consumer', 'Fragment', 'StrictMode', 'Suspense', 'Profiler']);
+
+/**
+ * `<a.b …>` tags, which are invisible to every other scan in this file.
+ *
+ * Found on 2026-09-06 in `CompanySidebar.jsx`, which renders
+ * `<item.icon size={20} />` where `item.icon` comes from a lookup of glyph
+ * names. After the import moves, that is a token, and rendering a token throws —
+ * on the company navigation, on every page. The codemod had rewritten the file,
+ * reported no flags for it, and left it broken; three tests caught it.
+ *
+ * The `localRenderedTags` scan could not see it either, because that one also
+ * matches a bare capitalised name. This is a different SHAPE, not a different
+ * spelling, which is why it needs its own reader rather than a wider regex.
+ */
+export function memberExpressionTags(source) {
+    const found = new Map();
+    const masked = maskCommentsAndStrings(source);
+    for (const match of masked.matchAll(/<([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)+)(?=[\s/>])/g)) {
+        const tag = match[1];
+        if (REACT_MEMBER_TAGS.has(tag.split('.').pop())) continue;
+        if (!found.has(tag)) found.set(tag, lineOf(source, match.index));
+    }
+    return [...found].map(([tag, line]) => ({ tag, line }));
+}
+
+/**
  * Capitalised JSX tags whose name is a LOCAL BINDING — not imported, and not a
  * component this file declares.
  *

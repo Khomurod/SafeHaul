@@ -1,12 +1,5 @@
 import React, { useId, useMemo } from 'react';
-import {
-    AlertCircle,
-    CheckCircle,
-    Clock,
-    FileText,
-    Loader2,
-    MailWarning,
-} from 'lucide-react';
+import { Icon, AlertCircle, CheckCircle, Clock, FileText, Loader2, MailWarning } from '@design-system/icons';
 import { Badge, Button, Card, MetricCard } from '@/design-system/components';
 import { ResponsiveGrid, Stack } from '@/design-system/layouts';
 import {
@@ -61,7 +54,7 @@ export function DocumentsOverview({
                 role="status"
                 className="flex items-center justify-center gap-ds-2 py-ds-12 text-ds-sm text-ds-content-secondary"
             >
-                <Loader2 size={20} aria-hidden="true" className="animate-spin" />
+                <Icon icon={Loader2} size="xl" className="animate-spin" />
                 Loading document overview
             </div>
         );
@@ -77,27 +70,27 @@ export function DocumentsOverview({
                     <MetricCard
                         label="Awaiting signature"
                         value={summary.awaitingSignature}
-                        icon={<Clock size={20} />}
+                        icon={<Icon icon={Clock} size="xl" />}
                         tone="info"
                         onActivate={onViewSentDocuments}
                     />
                     <MetricCard
                         label="Completed"
                         value={summary.completed}
-                        icon={<CheckCircle size={20} />}
+                        icon={<Icon icon={CheckCircle} size="xl" />}
                         tone="success"
                     />
                     <MetricCard
                         label="Needs attention"
                         value={summary.needsAttention}
-                        icon={<AlertCircle size={20} />}
+                        icon={<Icon icon={AlertCircle} size="xl" />}
                         tone={summary.needsAttention > 0 ? 'danger' : 'neutral'}
                         onActivate={onViewNeedsAttention}
                     />
                     <MetricCard
                         label="Active templates"
                         value={templatesLoading ? '—' : templates.length}
-                        icon={<FileText size={20} />}
+                        icon={<Icon icon={FileText} size="xl" />}
                         tone="neutral"
                         onActivate={onViewTemplates}
                     />

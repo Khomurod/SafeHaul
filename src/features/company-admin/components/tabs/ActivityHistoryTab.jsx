@@ -1,11 +1,7 @@
 import React, { useEffect, useId, useState, useMemo } from 'react';
 import { collection, query, orderBy, getDocs } from 'firebase/firestore';
 import { db } from '@lib/firebase';
-import {
-    CircleDot, User, FileText, RefreshCcw, MessageSquare,
-    Mail, Phone, ShieldCheck, Filter, Calendar, Zap,
-    Settings, CheckCircle2, XCircle
-} from 'lucide-react';
+import { Icon, CircleDot, User, FileText, RefreshCcw, MessageSquare, Mail, Phone, ShieldCheck, Filter, Calendar, Zap, Settings, CheckCircle2, XCircle } from '@design-system/icons';
 import { Avatar, Badge, Card, FormField, Select } from '@/design-system/components';
 
 /**
@@ -101,21 +97,21 @@ export function ActivityHistoryTab({ companyId, applicationId, collectionName })
         const lowerAction = (action || '').toLowerCase();
         const lowerType = (type || '').toLowerCase();
 
-        if (lowerType === 'call' || lowerAction.includes('call')) return <Phone size={16} className={TONE.success} />;
-        if (lowerAction.includes('note')) return <MessageSquare size={16} className={TONE.neutral} />;
-        if (lowerAction.includes('email')) return <Mail size={16} className={TONE.info} />;
-        if (lowerAction.includes('assigned')) return <RefreshCcw size={16} className={TONE.warning} />;
+        if (lowerType === 'call' || lowerAction.includes('call')) return <Icon icon={Phone} className={TONE.success} />;
+        if (lowerAction.includes('note')) return <Icon icon={MessageSquare} className={TONE.neutral} />;
+        if (lowerAction.includes('email')) return <Icon icon={Mail} className={TONE.info} />;
+        if (lowerAction.includes('assigned')) return <Icon icon={RefreshCcw} className={TONE.warning} />;
         if (lowerAction.includes('status')) {
-            if (lowerAction.includes('approved') || lowerAction.includes('hired')) return <CheckCircle2 size={16} className={TONE.accent} />;
-            if (lowerAction.includes('rejected') || lowerAction.includes('disqualified')) return <XCircle size={16} className={TONE.danger} />;
-            return <CircleDot size={16} className={TONE.info} />;
+            if (lowerAction.includes('approved') || lowerAction.includes('hired')) return <Icon icon={CheckCircle2} className={TONE.accent} />;
+            if (lowerAction.includes('rejected') || lowerAction.includes('disqualified')) return <Icon icon={XCircle} className={TONE.danger} />;
+            return <Icon icon={CircleDot} className={TONE.info} />;
         }
-        if (lowerType === 'upload' || lowerAction.includes('file') || lowerAction.includes('document')) return <FileText size={16} className={TONE.success} />;
-        if (lowerAction.includes('pev') || lowerAction.includes('verification')) return <ShieldCheck size={16} className={TONE.warning} />;
-        if (lowerAction.includes('converted')) return <Zap size={16} className={TONE.warning} />;
-        if (lowerAction.includes('settings') || lowerAction.includes('updated')) return <Settings size={16} className={TONE.neutral} />;
+        if (lowerType === 'upload' || lowerAction.includes('file') || lowerAction.includes('document')) return <Icon icon={FileText} className={TONE.success} />;
+        if (lowerAction.includes('pev') || lowerAction.includes('verification')) return <Icon icon={ShieldCheck} className={TONE.warning} />;
+        if (lowerAction.includes('converted')) return <Icon icon={Zap} className={TONE.warning} />;
+        if (lowerAction.includes('settings') || lowerAction.includes('updated')) return <Icon icon={Settings} className={TONE.neutral} />;
 
-        return <User size={16} className={TONE.neutral} />;
+        return <Icon icon={User} className={TONE.neutral} />;
     };
 
     const filteredLogs = useMemo(() => {
@@ -168,13 +164,13 @@ export function ActivityHistoryTab({ companyId, applicationId, collectionName })
             {/* Filter Header */}
             <div className="flex flex-wrap items-center justify-between gap-ds-3 border-b border-ds-border-subtle bg-ds-surface-subtle p-ds-4">
                 <div className="flex items-center gap-ds-2">
-                    <Calendar size={18} className="text-ds-content-secondary" aria-hidden="true" />
+                    <Icon icon={Calendar} size="lg" className="text-ds-content-secondary" />
                     <h3 id={timelineLabelId} className="text-ds-sm font-bold uppercase tracking-wider text-ds-content-secondary">
                         Audit Trail
                     </h3>
                 </div>
                 <div className="flex items-center gap-ds-2">
-                    <Filter size={14} className="text-ds-content-secondary" aria-hidden="true" />
+                    <Icon icon={Filter} size="sm" className="text-ds-content-secondary" />
                     <FormField id={filterFieldId} label="Filter activities">
                         <Select value={filterType} onChange={(e) => setFilterType(e.target.value)}>
                             {FILTERS.map(({ value, label }) => (
@@ -193,7 +189,7 @@ export function ActivityHistoryTab({ companyId, applicationId, collectionName })
             >
                 {logs.length === 0 ? (
                     <div className="flex h-64 flex-col items-center justify-center rounded-ds-lg border-2 border-dashed border-ds-border-subtle text-ds-content-secondary">
-                        <FileText size={32} className="mb-ds-2" aria-hidden="true" />
+                        <Icon icon={FileText} size="3xl" className="mb-ds-2" />
                         <p className="text-ds-sm">No activity recorded for this driver.</p>
                     </div>
                 ) : filteredLogs.length === 0 ? (

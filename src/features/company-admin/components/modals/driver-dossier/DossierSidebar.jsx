@@ -1,14 +1,5 @@
 import React from 'react';
-import {
-    LayoutDashboard,
-    FileText,
-    ShieldCheck,
-    Activity,
-    StickyNote,
-    Phone,
-    Mail,
-    History,
-} from 'lucide-react';
+import { Icon, LayoutDashboard, FileText, ShieldCheck, Activity, StickyNote, Phone, Mail, History } from '@design-system/icons';
 import { Avatar, ButtonLink, TabList } from '@design-system/components';
 import { StatusBadge } from '@shared/components/badges/StatusBadge';
 import { useCompactViewport } from './useCompactViewport';
@@ -121,12 +112,13 @@ export function DossierSidebar({
                             fullWidth
                             className="h-auto flex-col gap-ds-1 py-ds-2 text-ds-xs"
                         >
-                            <Phone aria-hidden="true" />
+                            {/* Inside `ButtonLink`, whose `.ds-button__content > svg` rule owns the size. */}
+                            <Icon icon={Phone} />
                             <span>Call</span>
                         </ButtonLink>
                     ) : (
                         <p className="flex min-h-11 flex-col items-center justify-center gap-ds-1 rounded-ds-md border border-ds-border-subtle bg-ds-surface-subtle text-ds-xs font-medium text-ds-content-secondary">
-                            <Phone size={18} aria-hidden="true" />
+                            <Icon icon={Phone} size="lg" />
                             <span>No phone</span>
                         </p>
                     )}
@@ -138,12 +130,12 @@ export function DossierSidebar({
                             fullWidth
                             className="h-auto flex-col gap-ds-1 py-ds-2 text-ds-xs"
                         >
-                            <Mail aria-hidden="true" />
+                            <Icon icon={Mail} />
                             <span>Email</span>
                         </ButtonLink>
                     ) : (
                         <p className="flex min-h-11 flex-col items-center justify-center gap-ds-1 rounded-ds-md border border-ds-border-subtle bg-ds-surface-subtle text-ds-xs font-medium text-ds-content-secondary">
-                            <Mail size={18} aria-hidden="true" />
+                            <Icon icon={Mail} size="lg" />
                             <span>No email</span>
                         </p>
                     )}

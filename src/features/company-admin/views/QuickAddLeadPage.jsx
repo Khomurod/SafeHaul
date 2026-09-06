@@ -4,7 +4,7 @@ import { useData } from '@/context/DataContext';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import { db } from '@lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { Save, X } from 'lucide-react';
+import { Icon, Save, X } from '@design-system/icons';
 import { ATS_STATUS_NEW } from '@shared/constants/atsStatus';
 import {
     Button, Card, FormField, FormSection, Input, Select, Textarea,
@@ -302,7 +302,7 @@ export const QuickAddLeadPage = () => {
                                         variant="secondary"
                                         onClick={() => navigate('/company/dashboard')}
                                     >
-                                        <X size={16} aria-hidden="true" /> Cancel
+                                        <Icon icon={X} /> Cancel
                                     </Button>
                                     <Button
                                         type="submit"
@@ -310,7 +310,7 @@ export const QuickAddLeadPage = () => {
                                         disabled={isSaving}
                                         loading={isSaving}
                                     >
-                                        {!isSaving && <Save size={16} aria-hidden="true" />}
+                                        {!isSaving && <Icon icon={Save} />}
                                         {isSaving ? 'Saving...' : 'Save Lead'}
                                     </Button>
                                 </div>

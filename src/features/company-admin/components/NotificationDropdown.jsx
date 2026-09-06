@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bell, Check, Clock, User, Briefcase, FileText } from 'lucide-react';
+import { Icon, Bell, Check, Clock, User, Briefcase, FileText } from '@design-system/icons';
 import { Badge, Button, IconButton } from '@/design-system/components';
 import { useCompanyNotifications } from '../hooks/useCompanyNotifications';
 
 // Icon mapping for notification types
 const getNotificationIcon = (type) => {
     switch (type) {
-        case 'lead_assigned': return <Briefcase size={16} className="text-ds-status-info-fg" />;
-        case 'status_change': return <FileText size={16} className="text-ds-status-success-fg" />;
-        case 'team_activity': return <User size={16} className="text-ds-status-accent-fg" />;
-        default: return <Bell size={16} className="text-ds-content-muted" />;
+        case 'lead_assigned': return <Icon icon={Briefcase} className="text-ds-status-info-fg" />;
+        case 'status_change': return <Icon icon={FileText} className="text-ds-status-success-fg" />;
+        case 'team_activity': return <Icon icon={User} className="text-ds-status-accent-fg" />;
+        default: return <Icon icon={Bell} className="text-ds-content-muted" />;
     }
 };
 
@@ -60,7 +60,7 @@ export function NotificationDropdown({ companyId }) {
                 aria-expanded={isOpen}
                 aria-haspopup="true"
             >
-                <Bell size={20} aria-hidden="true" />
+                <Icon icon={Bell} size="xl" />
                 {unreadCount > 0 && (
                     <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 bg-ds-action-danger text-ds-content-inverse text-ds-xs font-bold rounded-ds-full flex items-center justify-center border-2 border-ds-surface shadow-ds-xs">
                         {unreadCount > 9 ? '9+' : unreadCount}
@@ -87,7 +87,7 @@ export function NotificationDropdown({ companyId }) {
                                 size="sm"
                                 onClick={markAllAsRead}
                             >
-                                <Check size={12} aria-hidden="true" /> Mark all read
+                                <Icon icon={Check} size="xs" /> Mark all read
                             </Button>
                         )}
                     </div>
@@ -102,7 +102,7 @@ export function NotificationDropdown({ companyId }) {
                         ) : notifications.length === 0 ? (
                             <div className="p-8 text-center">
                                 <div className="w-12 h-12 bg-ds-surface-subtle rounded-ds-full flex items-center justify-center mx-auto mb-3">
-                                    <Bell size={24} className="text-ds-content-muted" />
+                                    <Icon icon={Bell} size="2xl" className="text-ds-content-muted" />
                                 </div>
                                 <p className="text-ds-body font-medium text-ds-content">All caught up!</p>
                                 <p className="text-ds-xs text-ds-content-muted mt-1">No new notifications</p>
@@ -126,7 +126,7 @@ export function NotificationDropdown({ companyId }) {
                                                 {notif.message}
                                             </p>
                                             <p className="text-ds-xs text-ds-content-muted mt-1 flex items-center gap-1">
-                                                <Clock size={12} aria-hidden="true" />
+                                                <Icon icon={Clock} size="xs" />
                                                 {timeAgo(notif.createdAt)}
                                             </p>
                                         </div>

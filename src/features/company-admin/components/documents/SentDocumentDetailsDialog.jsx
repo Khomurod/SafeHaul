@@ -1,5 +1,5 @@
 import React, { useId, useRef } from 'react';
-import { Ban, Copy, Download, Edit3, X } from 'lucide-react';
+import { Icon, Ban, Copy, Download, Edit3, X } from '@design-system/icons';
 import { Modal } from '@design-system/patterns';
 import { Badge, Button, IconButton, Notice } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
@@ -68,7 +68,7 @@ export function SentDocumentDetailsDialog({
                     {title}
                 </h2>
                 <IconButton label="Close" variant="ghost" onClick={onClose}>
-                    <X size={20} aria-hidden="true" />
+                    <Icon icon={X} size="xl" />
                 </IconButton>
             </div>
 
@@ -110,21 +110,21 @@ export function SentDocumentDetailsDialog({
                         variant="secondary"
                         onClick={() => onDownload(document.signedPdfUrl || document.storagePath)}
                     >
-                        <Download size={14} aria-hidden="true" /> Download
+                        <Icon icon={Download} size="sm" /> Download
                     </Button>
                 ) : status === 'voided' ? null : (
                     <>
                         <Button variant="secondary" loading={copying} onClick={() => onCopyLink(document)}>
-                            {!copying && <Copy size={14} aria-hidden="true" />} Copy Link
+                            {!copying && <Icon icon={Copy} size="sm" />} Copy Link
                         </Button>
                         {status === 'sent' && onCorrect && (
                             <Button variant="secondary" onClick={() => onCorrect(document)}>
-                                <Edit3 size={14} aria-hidden="true" /> Correct
+                                <Icon icon={Edit3} size="sm" /> Correct
                             </Button>
                         )}
                         {status === 'sent' && (
                             <Button variant="danger" onClick={() => onVoid(document)}>
-                                <Ban size={14} aria-hidden="true" /> Void
+                                <Icon icon={Ban} size="sm" /> Void
                             </Button>
                         )}
                     </>

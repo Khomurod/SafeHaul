@@ -1,8 +1,5 @@
 import React from 'react';
-import {
-    Briefcase, FileText, CheckCircle2, AlertTriangle, Clock, ShieldCheck,
-    Send, ExternalLink, Plus, RefreshCcw, X,
-} from 'lucide-react';
+import { Icon, Briefcase, FileText, CheckCircle2, AlertTriangle, Clock, ShieldCheck, Send, ExternalLink, Plus, RefreshCcw, X } from '@design-system/icons';
 import { getFieldValue } from '@shared/utils/helpers';
 import { Modal } from '@design-system/patterns';
 import { Badge, Button, Card, IconButton } from '@/design-system/components';
@@ -67,7 +64,7 @@ export function PEVEmployerCard({
                                     : 'bg-ds-surface-subtle text-ds-content-secondary'
                                     }`}
                             >
-                                <Briefcase size={24} />
+                                <Icon icon={Briefcase} size="2xl" />
                             </span>
                             <div className="min-w-0">
                                 <div className="flex flex-wrap items-center gap-ds-2">
@@ -78,19 +75,19 @@ export function PEVEmployerCard({
                                 </div>
                                 <div className="mt-ds-1 flex flex-wrap items-center gap-x-ds-4 gap-y-ds-1">
                                     <span className="flex items-center gap-ds-1 text-ds-xs font-medium text-ds-content-secondary">
-                                        <Clock size={12} aria-hidden="true" /> {getFieldValue(emp.startDate)} to {getFieldValue(emp.endDate)}
+                                        <Icon icon={Clock} size="xs" /> {getFieldValue(emp.startDate)} to {getFieldValue(emp.endDate)}
                                     </span>
                                     <span className="text-ds-xs font-medium text-ds-content-secondary">
                                         {getFieldValue(emp.city)}, {getFieldValue(emp.state)}
                                     </span>
                                     {vStatus.method && (
                                         <span className="flex items-center gap-ds-1 text-ds-xs font-semibold text-ds-content-link">
-                                            <Send size={12} aria-hidden="true" /> Sent via {vStatus.method}
+                                            <Icon icon={Send} size="xs" /> Sent via {vStatus.method}
                                         </span>
                                     )}
                                     {vStatus.respondentName && (
                                         <span className="flex items-center gap-ds-1 text-ds-xs font-semibold text-ds-status-success-fg">
-                                            <CheckCircle2 size={12} aria-hidden="true" /> Responded by: {vStatus.respondentName}
+                                            <Icon icon={CheckCircle2} size="xs" /> Responded by: {vStatus.respondentName}
                                         </span>
                                     )}
                                 </div>
@@ -104,7 +101,7 @@ export function PEVEmployerCard({
                                     size="sm"
                                     onClick={() => handleInitiate(emp, index)}
                                 >
-                                    <ShieldCheck size={14} aria-hidden="true" /> Initiate PEV
+                                    <Icon icon={ShieldCheck} size="sm" /> Initiate PEV
                                 </Button>
                             ) : (
                                 <>
@@ -116,7 +113,7 @@ export function PEVEmployerCard({
                                             disabled={loadingResultUrl === index}
                                             loading={loadingResultUrl === index}
                                         >
-                                            {loadingResultUrl === index ? null : <FileText size={14} aria-hidden="true" />}
+                                            {loadingResultUrl === index ? null : <Icon icon={FileText} size="sm" />}
                                             View Result
                                         </Button>
                                     )}
@@ -129,7 +126,7 @@ export function PEVEmployerCard({
                                                 showSuccess('Verification link copied to clipboard!');
                                             }}
                                         >
-                                            <ExternalLink size={14} aria-hidden="true" /> Copy Link
+                                            <Icon icon={ExternalLink} size="sm" /> Copy Link
                                         </Button>
                                     )}
                                     {vStatus.status === 'Sent' && (
@@ -143,7 +140,7 @@ export function PEVEmployerCard({
                                             disabled={uploadingResult}
                                             loading={uploadingResult && uploadTargetIndex === index}
                                         >
-                                            {uploadingResult && uploadTargetIndex === index ? null : <Plus size={14} aria-hidden="true" />}
+                                            {uploadingResult && uploadTargetIndex === index ? null : <Icon icon={Plus} size="sm" />}
                                             Upload Result
                                         </Button>
                                     )}
@@ -152,7 +149,7 @@ export function PEVEmployerCard({
                                         size="sm"
                                         onClick={() => setHistoryTargetIndex(index)}
                                     >
-                                        <FileText size={14} aria-hidden="true" /> View History
+                                        <Icon icon={FileText} size="sm" /> View History
                                     </Button>
                                     {/* Named, not `title`-only: this was an unlabelled
                                         icon-only button. */}
@@ -162,7 +159,7 @@ export function PEVEmployerCard({
                                         label={`Resend verification request to ${employerName}`}
                                         onClick={() => handleInitiate(emp, index)}
                                     >
-                                        <RefreshCcw size={16} aria-hidden="true" />
+                                        <Icon icon={RefreshCcw} />
                                     </IconButton>
                                 </>
                             )}
@@ -203,7 +200,7 @@ export function PEVHistoryModal({
                 label="Close verification history"
                 onClick={() => setHistoryTargetIndex(null)}
             >
-                <X size={20} aria-hidden="true" />
+                <Icon icon={X} size="xl" />
             </IconButton>
         </div>
 

@@ -6,7 +6,7 @@ import { useData } from '@/context/DataContext';
 import EnvelopeCreator from '@features/signing/EnvelopeCreator';
 import { useSigningRequests } from '@features/signing/hooks/useSigningRequests';
 import { GlobalLoadingState } from '@shared/components/feedback';
-import { LayoutDashboard, Send, FileText, ClipboardList, ArrowLeft, Plus } from 'lucide-react';
+import { Icon, LayoutDashboard, Send, FileText, ClipboardList, ArrowLeft, Plus } from '@design-system/icons';
 import { useToast } from '@shared/components/feedback';
 import { SendTemplateWizard } from '../components/documents/SendTemplateWizard';
 import { DocumentsOverview } from '../components/documents/DocumentsOverview';
@@ -315,7 +315,7 @@ export default function DocumentsManager() {
                             className="-ml-ds-3 self-start"
                             onClick={() => navigate('/company/dashboard')}
                         >
-                            <ArrowLeft size={16} aria-hidden="true" /> Back to Dashboard
+                            <Icon icon={ArrowLeft} /> Back to Dashboard
                         </Button>
                         {/* The header is allowed to wrap so the two actions drop onto
                             their own line rather than overflowing at narrow widths;
@@ -328,10 +328,10 @@ export default function DocumentsManager() {
                             actions={
                                 <Inline gap="sm">
                                     <Button onClick={() => setActiveTab('templates')}>
-                                        <FileText size={18} aria-hidden="true" /> Manage Templates
+                                        <Icon icon={FileText} size="lg" /> Manage Templates
                                     </Button>
                                     <Button variant="primary" onClick={() => setShowNewDocumentDialog(true)}>
-                                        <Plus size={20} aria-hidden="true" /> New Document
+                                        <Icon icon={Plus} size="xl" /> New Document
                                     </Button>
                                 </Inline>
                             }

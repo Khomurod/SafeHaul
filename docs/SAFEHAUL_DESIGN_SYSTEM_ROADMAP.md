@@ -1710,7 +1710,7 @@ on it — catalog included — and `check:icon-contract` refuses a new importer.
 does not mean the migration is finished: 178 files outside the design system
 still import `lucide-react`, recorded in `icons/lucide-import.backlog.json`, and
 the family is not closed until that file is deleted, which is the moment the
-rule becomes absolute. **88 as of 2026-09-06**: `candidateListColumns.jsx`
+rule becomes absolute. **46 as of 2026-09-06**: `candidateListColumns.jsx`
 drained on its way through the chip slice and two more went with the Notice
 migration, because a file being rewritten to use `Icon` is the cheapest moment to
 finish it, and the campaign only shrinks.
@@ -1960,6 +1960,53 @@ defect, in three more files, on the very next area. `react/jsx-no-undef` named a
 three by file and line. That is the difference between a rule and a lesson: the
 lesson was written down in 7e and the same mistake was made anyway, and the rule
 caught it in seconds rather than in a 180-second end-to-end timeout.
+
+**7h drained `company-admin`: 88 → 46 files, 395 → 201 imports.** The largest
+area, and by flag ratio one of the easiest — fifteen decisions across forty-two
+files. Four local bindings (three shadowing `Icon`), two bare glyphs inside
+`ButtonLink`/`IconButtonLink` whose `.ds-button__content > svg` rule owns them,
+two padding-sized tinted tiles snapping 22 → `xl`, and three page-level state
+glyphs.
+
+**Those three fixed a rule the campaign had been applying case by case.** A glyph
+in a **fixed** container takes its size from the container — `BrandingSection`'s
+128px logo frame in 7f, the 12px resize handles in 7g. A glyph in a **fluid** one
+has no ratio to hold, so it snaps, and `3xl` (32) is this product's answer for a
+page-level state glyph because that is what an `lg` `StatusMedallion` and
+`PageState` have rendered since 7a. `ApplicationTab:125` (48), `DocumentsTab:103`
+(40) and `PEVTab:352` (40) are all the fluid case.
+
+**And two shapes came out of this slice that nothing had seen before.**
+
+**`VOEDocument` cannot use `Icon` at all**, and its own guard is what says so.
+`VOEPreviewModal.export.test.jsx` asserts the exported document carries no `ds-*`
+class anywhere, because its class list is the capture surface for a rasteriser and
+a themeable role must never reach a signed regulatory artefact — and `Icon` stamps
+`ds-icon` on everything it renders. A token throws if rendered directly. So the
+file opens its three glyphs by hand through **`glyphComponent`**, the contract's
+own documented opener: it still imports from `@design-system/icons` like every
+other file, `check:icon-contract` is satisfied, and the exception is three named
+calls in one place rather than a `lucide-react` import nobody would question. The
+400px watermark is a print dimension, two orders of magnitude past where the scale
+stops. This is the only file in the application that opens a token by hand.
+
+**`CompanySidebar` renders `<item.icon size={20} />`** — a **member expression**,
+and the eighth codemod defect. The tool scans for `<Name`; `<item.icon` has no
+name, so it neither rewrote the site nor flagged it, and `localRenderedTags` was
+blind for the same reason. The post-condition could not see it either. After the
+import moved, `item.icon` was a token and the company navigation threw on every
+page; three tests caught it.
+
+That is a different **shape**, not a different spelling, which is why it gets its
+own reader (`memberExpressionTags`) rather than a wider regex, and why it is
+FLAGGED rather than rewritten — the tool cannot know what the expression resolves
+to. React's own member tags (`Provider`, `Consumer`, `Fragment`, `StrictMode`,
+`Suspense`, `Profiler`) are excluded by property name, because a glyph can never be
+one. A tree-wide scan found **13 member-expression tags in `src/`**: eleven are
+those React shapes, and the two that are not — `EnvironmentActions:79`
+`<action.icon>` and `ReleaseManagementView:236` `<phasePresentation.Icon>` — are
+both in `super-admin`, so 7i will meet them as flags rather than as a broken
+screen. Pinned by `test-icon-contract-reading.mjs` M1–M4.
 
 **The catalog was teaching the habit.** The guard's first live run refused 23
 story files — the design system's own catalog, still importing the package

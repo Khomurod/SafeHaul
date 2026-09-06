@@ -1,24 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { Button, IconButton } from '@/design-system/components';
-import {
-  LayoutDashboard,
-  Users,
-  Building2,
-  User,
-  Search,
-  FileText,
-  Megaphone,
-  Upload,
-  PlusCircle,
-  Settings,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
-  GitBranch,
-  Hourglass,
-  X,
-} from 'lucide-react';
+import { Icon, LayoutDashboard, Users, Building2, User, Search, FileText, Megaphone, Upload, PlusCircle, Settings, ChevronRight, ChevronsLeft, ChevronsRight, GitBranch, Hourglass, X } from '@design-system/icons';
 import { useData } from '@/context/DataContext';
 import { isCompanyAdminForRoute } from '@app/auth/roles';
 import {
@@ -176,9 +159,15 @@ export const CompanySidebar = ({
       >
         {({ isActive }) => (
           <>
-            <item.icon
-              size={20}
-              aria-hidden="true"
+            {/*
+              `item.icon` is a glyph TOKEN off `ICON_MAP`, and a MEMBER EXPRESSION
+              rather than a bare name — which is why the codemod could neither
+              rewrite it nor flag it: it scans for `<Name`, and `<item.icon` has no
+              name to match. Rendering a token throws, so it goes through `Icon`.
+            */}
+            <Icon
+              icon={item.icon}
+              size="xl"
               className={isActive
                 ? 'text-ds-action-primary'
                 : 'text-ds-content-muted group-hover:text-ds-content'}
@@ -245,7 +234,7 @@ export const CompanySidebar = ({
           className="md:hidden"
           onClick={onNavigate}
         >
-          <X size={20} aria-hidden="true" />
+          <Icon icon={X} size="xl" />
         </IconButton>
       </div>
 
@@ -279,19 +268,17 @@ export const CompanySidebar = ({
                         `}
                   aria-expanded={isExpanded ? isGroupActive : false}
                 >
-                  <GroupIcon
-                    size={20}
-                    aria-hidden="true"
+                  {/* A glyph TOKEN off `ICON_MAP`, so it goes through `Icon`. */}
+                  <Icon
+                    icon={GroupIcon}
+                    size="xl"
                     className={hasActiveChild ? 'text-ds-action-primary' : 'text-ds-content-muted'}
                   />
                   {isExpanded && (
                     <>
                       <span className="flex-1 text-left font-medium text-ds-body">{group.label}</span>
-                      <ChevronRight
-                        size={16}
-                        aria-hidden="true"
-                        className={isGroupActive ? 'rotate-90 transition-transform' : 'transition-transform'}
-                      />
+                      <Icon icon={ChevronRight}
+                        className={isGroupActive ? 'rotate-90 transition-transform' : 'transition-transform'} />
                     </>
                   )}
                 </Button>
@@ -320,8 +307,8 @@ export const CompanySidebar = ({
           onClick={toggleSidebar}
         >
           {isExpanded
-            ? <ChevronsLeft size={20} aria-hidden="true" />
-            : <ChevronsRight size={20} aria-hidden="true" />}
+            ? <Icon icon={ChevronsLeft} size="xl" />
+            : <Icon icon={ChevronsRight} size="xl" />}
         </IconButton>
       </div>
     </div>

@@ -1,5 +1,5 @@
 import React, { useId, useMemo } from 'react';
-import { Search } from 'lucide-react';
+import { Icon, Search } from '@design-system/icons';
 import EnvelopeHistory from '@features/signing/components/EnvelopeHistory';
 import { Button, Checkbox, FormField, Input, Select } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
@@ -109,7 +109,7 @@ export function SentDocumentsPanel({
                 </div>
 
                 <p role="status" className="mt-ds-2 flex items-center gap-ds-1 text-ds-xs text-ds-content-secondary">
-                    <Search size={12} aria-hidden="true" />
+                    <Icon icon={Search} size="xs" />
                     {isLoading
                         ? 'Loading documents…'
                         : `Showing ${visibleDocuments.length} of ${documents.length} document${documents.length === 1 ? '' : 's'}.`}

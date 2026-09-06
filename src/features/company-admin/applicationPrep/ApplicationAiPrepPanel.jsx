@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
-import { AlertCircle, Loader2, Sparkles } from 'lucide-react';
+import { Icon, AlertCircle, Loader2, Sparkles } from '@design-system/icons';
 
 import { functions } from '@lib/firebase';
 import { Badge, Button, Card, FieldMessage } from '@/design-system/components';
@@ -133,8 +133,8 @@ export function ApplicationAiPrepPanel({ companyId, files, blobs, formData, onAp
                     data-testid="read-documents"
                 >
                     {state === 'reading'
-                        ? <><Loader2 className="animate-spin" size={14} aria-hidden="true" /> Reading…</>
-                        : <><Sparkles size={14} aria-hidden="true" /> Read {readable.length || 'the'} document{readable.length === 1 ? '' : 's'}</>}
+                        ? <><Icon icon={Loader2} size="sm" className="animate-spin" /> Reading…</>
+                        : <><Icon icon={Sparkles} size="sm" /> Read {readable.length || 'the'} document{readable.length === 1 ? '' : 's'}</>}
                 </Button>
 
                 {elsewhere.length > 0 && (
@@ -153,7 +153,7 @@ export function ApplicationAiPrepPanel({ companyId, files, blobs, formData, onAp
 
                 {error && (
                     <FieldMessage tone="error" role="alert">
-                        <AlertCircle size={14} className="mr-ds-1 inline" aria-hidden="true" />{error}
+                        <Icon icon={AlertCircle} size="sm" className="mr-ds-1 inline" />{error}
                     </FieldMessage>
                 )}
 

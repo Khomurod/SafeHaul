@@ -1,13 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback, useId } from 'react';
-import {
-    X,
-    Mail,
-    Printer,
-    Send,
-    ShieldCheck,
-    Info,
-    FileText,
-} from 'lucide-react';
+import { Icon, X, Mail, Printer, Send, ShieldCheck, Info, FileText } from '@design-system/icons';
 import {
     mapFmcsaRowToPevContact,
     normalizeEmployerStateToFmcsaPhyState,
@@ -220,7 +212,7 @@ export function PEVRequestModal({ employer, applicant: _applicant, onClose, onPr
                 <div className="min-w-0">
                     <div className="mb-ds-2 flex items-center gap-ds-3">
                         <span aria-hidden="true" className="shrink-0 rounded-ds-md bg-ds-status-info-bg p-ds-2 text-ds-status-info-fg">
-                            <ShieldCheck size={24} />
+                            <Icon icon={ShieldCheck} size="2xl" />
                         </span>
                         {/* `<h4>` under the dossier header's `<h3>` section title. */}
                         <h4 id={titleId} className="text-ds-heading-sm font-bold text-ds-content">Initiate Verification</h4>
@@ -238,7 +230,7 @@ export function PEVRequestModal({ employer, applicant: _applicant, onClose, onPr
                     label="Close verification request"
                     onClick={onClose}
                 >
-                    <X size={20} aria-hidden="true" />
+                    <Icon icon={X} size="xl" />
                 </IconButton>
             </div>
 
@@ -346,7 +338,7 @@ export function PEVRequestModal({ employer, applicant: _applicant, onClose, onPr
                     Cancel
                 </Button>
                 <Button variant="primary" fullWidth onClick={handleContinue}>
-                    <Send size={18} aria-hidden="true" />
+                    <Icon icon={Send} size="lg" />
                     {deliveryMethod === 'manual' ? 'Preview & Print' : 'Continue to Preview'}
                 </Button>
             </div>

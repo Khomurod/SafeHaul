@@ -1,6 +1,6 @@
 // src/features/company-admin/components/LeadAssignmentModal.jsx
 import React, { useId, useRef, useState, useEffect } from 'react';
-import { X, Users, User, CheckCircle } from 'lucide-react';
+import { Icon, X, Users, User, CheckCircle } from '@design-system/icons';
 import { db } from '@lib/firebase';
 import { collection, query, where, getDocs, doc, getDoc, writeBatch, serverTimestamp } from 'firebase/firestore';
 import { logActivity } from '@shared/utils/activityLogger';
@@ -204,14 +204,14 @@ export function LeadAssignmentModal({ companyId, selectedLeadIds, onClose, onSuc
             <div className="flex items-center justify-between gap-ds-3 border-b border-ds-border-subtle bg-ds-surface-subtle p-ds-5">
                 <div className="min-w-0">
                     <h2 id={titleId} className="flex items-center gap-ds-2 text-ds-heading-sm font-bold text-ds-content">
-                        <Users className="text-ds-content-link" size={20} aria-hidden="true" /> Assign Leads
+                        <Icon icon={Users} size="xl" className="text-ds-content-link" /> Assign Leads
                     </h2>
                     <p id={descriptionId} className="text-ds-xs text-ds-content-secondary">
                         Assigning <strong className="text-ds-content">{selectedLeadIds.length}</strong> selected leads
                     </p>
                 </div>
                 <IconButton label="Close assign leads" variant="ghost" size="sm" onClick={onClose}>
-                    <X size={20} aria-hidden="true" />
+                    <Icon icon={X} size="xl" />
                 </IconButton>
             </div>
 
@@ -230,7 +230,7 @@ export function LeadAssignmentModal({ companyId, selectedLeadIds, onClose, onSuc
                                 className="flex-1"
                                 onClick={() => setMode('manual')}
                             >
-                                <User size={20} aria-hidden="true" />
+                                <Icon icon={User} size="xl" />
                                 Manual Pick
                             </Button>
                             <Button
@@ -239,7 +239,7 @@ export function LeadAssignmentModal({ companyId, selectedLeadIds, onClose, onSuc
                                 className="flex-1"
                                 onClick={() => setMode('round_robin')}
                             >
-                                <Users size={20} aria-hidden="true" />
+                                <Icon icon={Users} size="xl" />
                                 Round Robin
                             </Button>
                         </div>
@@ -319,7 +319,7 @@ export function LeadAssignmentModal({ companyId, selectedLeadIds, onClose, onSuc
                     disabled={processing || loadingTeam}
                     loading={processing}
                 >
-                    {!processing && <CheckCircle size={16} aria-hidden="true" />}
+                    {!processing && <Icon icon={CheckCircle} />}
                     {processing ? 'Assigning...' : 'Confirm Assignment'}
                 </Button>
             </div>

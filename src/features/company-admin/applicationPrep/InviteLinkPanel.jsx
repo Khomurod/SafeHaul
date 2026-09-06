@@ -1,5 +1,5 @@
 import React from 'react';
-import { Copy, Link2, RefreshCw } from 'lucide-react';
+import { Icon, Copy, Link2, RefreshCw } from '@design-system/icons';
 import { Button, Card, FieldMessage } from '@/design-system/components';
 
 /**
@@ -33,10 +33,10 @@ export function InviteLinkPanel({ link, busy, error, copied, canMint, onMint, on
                         </code>
                         <div className="flex flex-wrap gap-ds-2">
                             <Button variant="primary" size="sm" onClick={onCopy}>
-                                <Copy size={14} aria-hidden="true" /> {copied ? 'Copied' : 'Copy link'}
+                                <Icon icon={Copy} size="sm" /> {copied ? 'Copied' : 'Copy link'}
                             </Button>
                             <Button variant="ghost" size="sm" onClick={onMint} disabled={busy}>
-                                <RefreshCw size={14} aria-hidden="true" /> Create a new link
+                                <Icon icon={RefreshCw} size="sm" /> Create a new link
                             </Button>
                         </div>
                         <p className="text-ds-xs text-ds-content-muted" role="status">
@@ -46,7 +46,7 @@ export function InviteLinkPanel({ link, busy, error, copied, canMint, onMint, on
                     </div>
                 ) : (
                     <Button variant="primary" onClick={onMint} disabled={busy || !canMint}>
-                        <Link2 size={14} aria-hidden="true" /> Create the driver's link
+                        <Icon icon={Link2} size="sm" /> Create the driver's link
                     </Button>
                 )}
             </div>

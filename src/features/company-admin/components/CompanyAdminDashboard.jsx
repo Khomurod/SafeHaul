@@ -19,9 +19,7 @@ import { InlineLeaderboard } from './InlineLeaderboard';
 import { QuickLeadModal } from './modals/QuickLeadModal';
 
 
-import {
-    FileText, Briefcase, User, CheckCircle
-} from 'lucide-react';
+import { Icon, FileText, Briefcase, User, CheckCircle } from '@design-system/icons';
 
 export function CompanyAdminDashboard() {
     const { currentCompanyProfile, returnToCompanyChooser, currentUserClaims, logout } = useData();
@@ -103,7 +101,7 @@ export function CompanyAdminDashboard() {
                             <MetricCard
                                 label="Applications"
                                 value={dashboard.counts?.applications || 0}
-                                icon={<FileText size={20} />}
+                                icon={<Icon icon={FileText} size="xl" />}
                                 tone="info"
                                 onActivate={() => navigate('/company/drivers/applications')}
                             />
@@ -111,7 +109,7 @@ export function CompanyAdminDashboard() {
                             <MetricCard
                                 label="Company Leads"
                                 value={dashboard.counts?.companyLeads || 0}
-                                icon={<Briefcase size={20} />}
+                                icon={<Icon icon={Briefcase} size="xl" />}
                                 tone="warning"
                                 onActivate={() => navigate('/company/drivers/leads/company')}
                             />
@@ -119,7 +117,7 @@ export function CompanyAdminDashboard() {
                                 id="stat-card-my_leads"
                                 label="My Leads"
                                 value={dashboard.counts?.myLeads || 0}
-                                icon={<User size={20} />}
+                                icon={<Icon icon={User} size="xl" />}
                                 tone="accent"
                                 onActivate={() => navigate('/company/drivers/leads/my')}
                             />
@@ -127,7 +125,7 @@ export function CompanyAdminDashboard() {
                                 id="stat-card-hired"
                                 label="Hired"
                                 value={dashboard.counts?.hired || 0}
-                                icon={<CheckCircle size={20} />}
+                                icon={<Icon icon={CheckCircle} size="xl" />}
                                 tone="success"
                                 onActivate={() => navigate('/company/drivers/applications')}
                             />

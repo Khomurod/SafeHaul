@@ -1,5 +1,5 @@
 import React, { useId, useState } from 'react';
-import { Wrench } from 'lucide-react';
+import { Icon, Wrench } from '@design-system/icons';
 import { useBulkImport } from '@shared/hooks';
 import { useCompanyLeadUpload } from '../hooks/useCompanyLeadUpload';
 import { BulkUploadLayout } from '@shared/components/admin/BulkUploadLayout';
@@ -222,7 +222,7 @@ export function CompanyBulkUpload({ companyId, onClose, onUploadComplete, isEmbe
             onClick={handleRepairClick}
             title="Fix leads where phone numbers were pasted into the email field"
         >
-            <Wrench size={14} aria-hidden="true" /> Fix Data Mismatch
+            <Icon icon={Wrench} size="sm" /> Fix Data Mismatch
         </Button>
     ) : null;
 

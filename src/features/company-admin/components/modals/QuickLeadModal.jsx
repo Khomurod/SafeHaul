@@ -1,5 +1,5 @@
 import React, { useId, useRef, useState } from 'react';
-import { X, UserPlus } from 'lucide-react';
+import { Icon, X, UserPlus } from '@design-system/icons';
 import { db, auth } from '@lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@shared/components/feedback/ToastProvider';
@@ -155,7 +155,7 @@ export function QuickLeadModal({ companyId, onClose, onSuccess }) {
                         aria-hidden="true"
                         className="flex h-10 w-10 shrink-0 items-center justify-center rounded-ds-lg bg-ds-status-success-bg text-ds-status-success-fg"
                     >
-                        <UserPlus size={20} />
+                        <Icon icon={UserPlus} size="xl" />
                     </span>
                     <div className="min-w-0">
                         <h2 id={titleId} className="text-ds-heading-sm font-bold text-ds-content">
@@ -167,7 +167,7 @@ export function QuickLeadModal({ companyId, onClose, onSuccess }) {
                     </div>
                 </div>
                 <IconButton label="Close quick add lead" variant="ghost" size="sm" onClick={onClose}>
-                    <X size={20} aria-hidden="true" />
+                    <Icon icon={X} size="xl" />
                 </IconButton>
             </div>
 
@@ -250,7 +250,7 @@ export function QuickLeadModal({ companyId, onClose, onSuccess }) {
                             disabled={saving}
                             loading={saving}
                         >
-                            {!saving && <UserPlus size={18} aria-hidden="true" />}
+                            {!saving && <Icon icon={UserPlus} size="lg" />}
                             {saving ? 'Adding...' : 'Add Lead'}
                         </Button>
                     </div>

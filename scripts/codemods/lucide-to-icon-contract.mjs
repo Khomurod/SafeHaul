@@ -69,7 +69,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 
 import {
     LUCIDE_IMPORT, countValueUses, elementUses, importSpecifiers, lineOf, localRenderedTags,
-    tagOccurrencesOutsideComments,
+    memberExpressionTags, tagOccurrencesOutsideComments,
 } from './lucide/read.mjs';
 import { dropDefaults, resolveSize } from './lucide/decide.mjs';
 
@@ -159,6 +159,18 @@ export function migrate(source, { path = '<source>' } = {}) {
                         + 'so rename the LOCAL binding (`icon: Glyph`) rather than writing '
                         + '`<Icon icon={Icon} />`. Thirteen files in the campaign do this.'
                     : ''),
+        });
+    }
+
+    for (const { tag, line } of memberExpressionTags(source)) {
+        flags.push({
+            line,
+            name: tag,
+            reason: `<${tag}> is a MEMBER EXPRESSION, which this tool can neither rewrite nor `
+                + 'match: it scans for `<Name`, and this tag has no name. If a glyph can reach '
+                + `it, that glyph is rendered directly and a token throws — on a screen, not in `
+                + `a test. Rewrite it as \`<Icon icon={${tag}} size="…" />\` and add \`Icon\` to `
+                + 'this file\'s import, or satisfy yourself no glyph reaches it.',
         });
     }
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Lock, Unlock } from 'lucide-react';
+import { Icon, Lock, Unlock } from '@design-system/icons';
 import DynamicRow from '@shared/components/form/DynamicRow';
 import InputField from '@shared/components/form/InputField';
 import DateTripletField from '@shared/components/form/DateTripletField';
@@ -40,8 +40,8 @@ export function PreparedEmployersPanel({ formData, updateFormData, lockedEmploye
                         onClick={() => (locked ? onUnlock(signature) : onLock([item]))}
                     >
                         {locked
-                            ? <><Unlock size={14} aria-hidden="true" /> Unlock</>
-                            : <><Lock size={14} aria-hidden="true" /> Lock this employer</>}
+                            ? <><Icon icon={Unlock} size="sm" /> Unlock</>
+                            : <><Icon icon={Lock} size="sm" /> Lock this employer</>}
                     </Button>
                 </div>
                 <InputField

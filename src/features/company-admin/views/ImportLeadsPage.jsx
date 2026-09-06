@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useData } from '@/context/DataContext';
 import { CompanyBulkUpload } from '@features/company-admin/components/CompanyBulkUpload';
-import { ShieldAlert } from 'lucide-react';
+import { ShieldAlert } from '@design-system/icons';
 import { Button } from '@/design-system/components';
 import { PageState } from '@design-system/patterns';
 import { PageContainer, PageHeader, Stack } from '@/design-system/layouts';
