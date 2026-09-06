@@ -72,6 +72,12 @@ jobs:
       - uses: actions/checkout@v5
         with:
           ref: ${{ inputs.sha }}
+          # Full history, because the retirement step below proves with
+          # `git merge-base --is-ancestor` that the promoted release already
+          # carries the removal of the landing form (LD-R3) before it deletes the
+          # callables that form used. A shallow checkout cannot answer that, and
+          # "cannot prove" must mean "do not delete".
+          fetch-depth: 0
 
       - name: Use Node.js 22.x
         uses: actions/setup-node@v5
@@ -177,6 +183,25 @@ jobs:
           # the release identity is passed explicitly rather than inherited.
           RELEASE_SHA: ${{ inputs.sha }}
         run: node scripts/record-release.mjs
+
+      # THE CONTRACT PHASE of expand → promote → contract.
+      #
+      # Retiring a function from `functions/index.js` deletes nothing in Cloud.
+      # The six callables behind the removed marketing-site lead form (LD-R3,
+      # 2026-08-29) therefore stayed deployed and publicly reachable, because the
+      # Production frontend still called them — and the moment that stops being
+      # true is exactly here: the promoted release is live (verified above) and
+      # recorded. The script proves the release carries LD-R3, probes which of the
+      # six still answer, deletes only those, re-probes, and confirms
+      # `listLandingLeads` (the archive's only reader) still answers. Idempotent
+      # and read-only on data; a real deletion error fails this job AFTER the
+      # release is recorded, which is the right order. Procedure and manual
+      # fallback: docs/FIREBASE_HOSTING_RUNBOOK.md.
+      - name: Retire the landing callables this release no longer needs
+        if: steps.release.outputs.already_live != 'true'
+        env:
+          CANDIDATE_SHA: ${{ inputs.sha }}
+        run: node scripts/retire-landing-functions.mjs "$CANDIDATE_SHA"
 
       # `reason` is free text typed by a human, so it never reaches the shell as
       # source. Everything here goes through the environment.

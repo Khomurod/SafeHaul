@@ -1068,12 +1068,6 @@ jobs:
         run: npm ci
         working-directory: ./functions
 
-      # Legacy trigger removed from driverSync.js — Cloud still had it; deploy --non-interactive refuses to delete without confirmation.
-      # Safe to ignore failure once the function is already gone (continue-on-error).
-      - name: Delete retired function onLeadSubmitted (if present)
-        continue-on-error: true
-        run: npx firebase functions:delete onLeadSubmitted --region us-central1 --project "$FIREBASE_PROJECT_ID" --non-interactive --force
-
       - name: Validate function export wiring parser
         run: npm run check:function-exports
 
