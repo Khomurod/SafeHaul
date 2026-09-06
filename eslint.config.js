@@ -40,7 +40,11 @@ export default [
       ...reactHooks.configs.recommended.rules,
       'react/jsx-uses-vars': 'warn',
       'react/jsx-no-undef': 'error',
-      'react-hooks/rules-of-hooks': 'warn',
+      // An error, not a warning, since 2026-09-06: the three violations this
+      // rule reported were all one early return in `DocumentsManager.jsx`, and it
+      // crashed the screen when the E-Docs flag changed on a mounted view. A
+      // conditional hook is never a style choice; React throws at run time.
+      'react-hooks/rules-of-hooks': 'error',
       'no-case-declarations': 'warn',
       'no-unused-vars': ['warn', {
         varsIgnorePattern: '^React$',

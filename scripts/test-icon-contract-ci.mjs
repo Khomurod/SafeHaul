@@ -208,6 +208,12 @@ console.log('\nX. The icon contract is enforced in CI, and cannot go blind');
     assert('X16. and a CI job actually runs that lint',
         jobIds.some((job) => /run: npm run lint(:frontend)?\n/.test(jobBlock(job) || '')),
         'a rule nothing runs is a rule that catches nothing');
+    // Same family as X15: a lint rule whose violation is a run-time crash must be
+    // an error. Three conditional hooks in `DocumentsManager.jsx` sat at "warn"
+    // and crashed the screen when the E-Docs flag changed on a mounted view.
+    assert('X18. lint refuses a hook called conditionally',
+        /'react-hooks\/rules-of-hooks':\s*'error'/.test(eslintConfig),
+        'React throws "Rendered fewer hooks than expected" at run time; a warning does not stop the push');
 }
 
 console.log(failures === 0

@@ -188,7 +188,6 @@ export function IntegrationManager({ companyId, companyName, onBack }) {
 
                 if (result.data.inventoryCount === 0 && meta) {
                     msg += ` - User: ${meta.identity || 'Unknown'} - Diagnostics: Acc(${meta.accCount}) Ext(${meta.extCount}) RawTotal(${meta.rawCount})`;
-                    console.log("RingCentral Diagnostic Meta:", meta);
                 }
 
                 showSuccess(msg);

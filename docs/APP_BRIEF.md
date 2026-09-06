@@ -1261,10 +1261,12 @@ cannot resolve the colour at all — and the `theme-color` meta, a literal copy 
   pre-correction build and still carries the bullet. Production never deploys
   automatically (§10), so publishing the correction needs an explicit promotion
   through Super Admin → Releases.
-- **Frontend coverage thresholds are a low ratchet** (statements 16 %, lines
-  16 %, branches 13 %, functions 13 %) — deliberately set just under the current
-  baseline to block regressions, not to describe good coverage. Raise them as
-  coverage genuinely improves; never lower them to make a build pass.
+- **Frontend coverage thresholds are a ratchet** (statements 70 %, lines 72 %,
+  branches 66 %, functions 72 % since 2026-09-06) — set a few points under the
+  measured coverage (73 / 75 / 69 / 75) to block a real drop, not to describe
+  good coverage. The June 2026 values (16 / 16 / 13 / 13) sat untouched while
+  coverage quadrupled, which made the gate decorative. Raise them as coverage
+  genuinely improves; never lower them to make a build pass.
 - **Mixed Functions v1/v2** — intentional, not a defect. It has two real
   consequences worth knowing before touching either: the two generations default
   to *different* runtime service accounts, so (a) a credential can be readable by

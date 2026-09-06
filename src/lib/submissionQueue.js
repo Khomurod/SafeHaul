@@ -382,10 +382,7 @@ export async function recoverOrphanedEntries() {
  */
 export async function processQueue(submitFn) {
     // BUG-4 FIX: Recover any orphaned 'processing' entries first
-    const recovered = await recoverOrphanedEntries();
-    if (recovered > 0) {
-        console.log(`[SubmissionQueue] Recovered ${recovered} orphaned entries`);
-    }
+    await recoverOrphanedEntries();
 
     const pending = await getAllPending();
     // Processing pending submissions

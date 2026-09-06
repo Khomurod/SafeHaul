@@ -19,7 +19,6 @@ export async function getUserClaims(user, forceRefresh = false) {
 export async function handleLogin(email, password) {
     try {
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        console.log("User logged in:", userCredential.user.uid);
         return userCredential;
     } catch (error) {
         console.error("Login Error:", error.code, error.message);

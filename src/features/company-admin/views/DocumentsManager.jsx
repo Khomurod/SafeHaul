@@ -78,10 +78,6 @@ export default function DocumentsManager() {
         retry: retrySigningRequests,
     } = useSigningRequests(isE2EEdocMock ? null : currentCompanyProfile?.id);
 
-    if (currentCompanyProfile?.features?.eDocs === false) {
-        return <FeatureLockedModal featureName="E-Docs" onClose={() => navigate('/company/dashboard')} />;
-    }
-
     // Fetch Templates
     useEffect(() => {
         if (!currentCompanyProfile?.id) return;
@@ -278,6 +274,14 @@ export default function DocumentsManager() {
         setCreatorInitialMode('request');
         setViewMode('create');
     };
+
+    // BELOW every hook on purpose. Until 2026-09-06 this returned before three
+    // hooks, so a profile arriving with E-Docs off after the first paint changed
+    // the hook count and React threw ("Rendered fewer hooks than expected")
+    // instead of showing the lock. The views test flips the flag on a mounted screen.
+    if (currentCompanyProfile?.features?.eDocs === false) {
+        return <FeatureLockedModal featureName="E-Docs" onClose={() => navigate('/company/dashboard')} />;
+    }
 
     if (viewMode === 'create') {
         return (

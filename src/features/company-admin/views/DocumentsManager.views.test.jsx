@@ -32,6 +32,7 @@ import {
     navigateMock,
     firestoreMocks,
     functionsMocks,
+    useDataMock,
 } from './DocumentsManager.support';
 
 const renderManager = makeRenderManager(DocumentsManager, MemoryRouter);
@@ -188,6 +189,34 @@ describe('DocumentsManager views', () => {
 describe('DocumentsManager gating', () => {
     it('locks the workspace when E-Docs is disabled for the company', () => {
         renderManager({ currentCompanyProfile: { ...company, features: { eDocs: false } } });
+        expect(screen.queryByRole('heading', { level: 1, name: 'Documents' })).not.toBeInTheDocument();
+    });
+
+    /*
+     * The transition, not the state. Until 2026-09-06 the locked check returned
+     * BEFORE `useEffect`, `useTemplateSendFlow` and `usePostSubmitForms`, so a
+     * company whose profile arrived (or was edited) with E-Docs off after the
+     * first paint changed the hook count between renders — the one thing React
+     * forbids — and the screen threw instead of showing the lock. The static test
+     * above renders locked from the start and can never see that; this one flips
+     * the flag on a mounted screen, which is what the audit's lint warnings were
+     * pointing at (three `react-hooks/rules-of-hooks` sites, all in this file).
+     */
+    it('survives E-Docs being switched off while the screen is open', () => {
+        const { rerender } = renderManager();
+        expect(screen.getByRole('heading', { level: 1, name: 'Documents' })).toBeInTheDocument();
+
+        useDataMock.mockReturnValue({
+            currentCompanyProfile: { ...company, features: { eDocs: false } },
+            loading: false,
+        });
+        expect(() => rerender(
+            <MemoryRouter initialEntries={['/company/e-docs']}>
+                <DocumentsManager />
+            </MemoryRouter>,
+        )).not.toThrow();
+
+        expect(screen.getByRole('heading', { level: 2, name: 'E-Docs' })).toBeInTheDocument();
         expect(screen.queryByRole('heading', { level: 1, name: 'Documents' })).not.toBeInTheDocument();
     });
 });

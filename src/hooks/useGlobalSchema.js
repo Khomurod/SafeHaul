@@ -34,7 +34,6 @@ export function useGlobalSchema() {
                 setSchema(snapshot.data());
             } else {
                 // Seed with initial schema if not exists
-                console.log('[useGlobalSchema] No schema found, seeding...');
                 await setDoc(schemaRef, {
                     ...GLOBAL_SCHEMA_SEED,
                     createdAt: serverTimestamp(),

@@ -299,7 +299,7 @@ export function BlogPostsView() {
             {deleteTarget && (
                 <ConfirmDialog
                     title="Delete this article?"
-                    description={`"${deleteTarget.title}" will be removed from the landing page, /news, its own page, the sitemap and the feed immediately.`}
+                    description={`"${deleteTarget.title}" will be removed from /news, its own page, the sitemap and the feed immediately.`}
                     tone="danger"
                     confirmLabel="Delete article"
                     cancelLabel="Keep article"

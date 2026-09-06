@@ -1,17 +1,25 @@
 /**
- * Operator-safety regression guard for the Unified Driver Database bulk actions
- * (2026-07-28).
+ * Operator-safety regression guard for the Unified Driver Database's bulk
+ * actions — third and final shape (2026-09-06).
  *
- * Before this change, Message / Assign / Move Status / Archive were placeholders
- * that fired a **success** toast and did nothing. Archive additionally asked
- * `window.confirm("Are you sure you want to archive N records?")` first, so an
- * operator could confirm a destructive-sounding bulk action on real driver records
- * and be told it had succeeded.
+ * The history this file guards against, in order:
  *
- * This file fails if any of that comes back: no success toast, no `window.confirm`,
- * and the four controls must stay disabled with an explanation until a real
- * implementation is specified by the owner. `Clear` must keep working, and the
- * per-record delete path — which *is* real — must be unaffected.
+ *  1. Message / Assign / Move Status / Archive were placeholders that fired a
+ *     **success** toast and did nothing. Archive also asked
+ *     `window.confirm("Are you sure you want to archive N records?")`, so an
+ *     operator could confirm a destructive-sounding action on real driver records
+ *     and be told it had succeeded.
+ *  2. From 2026-07-28 the four controls stayed visible but disabled and labelled
+ *     unavailable, so the owner decision stayed visible too.
+ *  3. The decision (2026-09-06): controls that do nothing are not shown. The bar
+ *     and the row-selection checkboxes that existed only to feed it are removed.
+ *     A real bulk action returns together with its selection when a recruiter
+ *     asks for one.
+ *
+ * This file fails if any earlier shape comes back: no selection checkboxes, no
+ * bulk group, no success toast from anything but a real action, no
+ * `window.confirm`. The per-record delete path — which *is* real — must be
+ * unaffected.
  */
 import React from 'react';
 import { fireEvent, render, screen, within } from '@testing-library/react';
@@ -32,8 +40,6 @@ import { UnifiedDriverList } from './UnifiedDriverList';
 const APPLICATIONS = [
     {
         id: 'a1', companyId: 'co-1', applicantName: 'Test Driver One',
-        // The row-action names are built from firstName/lastName, the selection
-        // checkbox name from applicantName; both are needed to query unambiguously.
         firstName: 'Test', lastName: 'DriverOne',
         sourceType: 'application', status: 'New Application', phone: '5550001111',
     },
@@ -61,85 +67,43 @@ function renderList(props = {}) {
     );
 }
 
-/** Selects the first row so the bulk bar appears. */
-function selectFirstRow() {
-    fireEvent.click(screen.getByRole('checkbox', { name: /^Select Test Driver One$/ }));
-}
-
-/**
- * The view also renders per-row "Message" and "Delete" actions, so every bulk
- * query is scoped to the bulk bar's own named group.
- */
-function bulkBar() {
-    return screen.getByRole('group', { name: 'Bulk actions for selected records' });
-}
-
 beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
     deleteDoc.mockResolvedValue(undefined);
     vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 
-describe('UnifiedDriverList — bulk actions must not report false success', () => {
-    it('shows the bulk bar once a record is selected', () => {
+describe('UnifiedDriverList — no bulk controls, because none does anything', () => {
+    it('renders no selection checkboxes', () => {
         renderList();
-        selectFirstRow();
-        expect(within(bulkBar()).getByText('1 selected')).toBeInTheDocument();
+        // Rows and the header once carried "Select Test Driver One" / "Select all".
+        expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
     });
 
-    it.each(['Message', 'Assign', 'Move Status', 'Archive'])(
-        '%s is disabled rather than reporting success',
-        (name) => {
-            renderList();
-            selectFirstRow();
-            const button = within(bulkBar()).getByRole('button', { name: new RegExp(`^${name}`) });
-            expect(button).toBeDisabled();
-        },
-    );
-
-    it('never fires a success toast from a bulk control', () => {
+    it('renders no bulk-action group and none of the four placeholder controls', () => {
         renderList();
-        selectFirstRow();
-
-        for (const name of ['Message', 'Assign', 'Move Status', 'Archive']) {
-            fireEvent.click(within(bulkBar()).getByRole('button', { name: new RegExp(`^${name}`) }));
+        expect(screen.queryByRole('group', { name: 'Bulk actions for selected records' })).not.toBeInTheDocument();
+        for (const name of ['Assign', 'Move Status', 'Archive']) {
+            expect(screen.queryByRole('button', { name: new RegExp(`^${name}`) })).not.toBeInTheDocument();
         }
-
-        expect(toastMocks.showSuccess).not.toHaveBeenCalled();
+        // "Message" survives only as the real per-record action, never as a bulk one.
+        for (const button of screen.queryAllByRole('button', { name: /^Message/ })) {
+            expect(button).not.toBeDisabled();
+            expect(button.getAttribute('aria-describedby')).toBeNull();
+        }
     });
 
-    it('never asks for a confirmation it will not honour', () => {
+    it('never fires a success toast or a confirm() just from rendering and clicking around', () => {
         const confirmSpy = vi.fn(() => true);
         vi.stubGlobal('confirm', confirmSpy);
 
         renderList();
-        selectFirstRow();
-        fireEvent.click(within(bulkBar()).getByRole('button', { name: /^Archive/ }));
+        // The first data row (index 0 is the header row).
+        fireEvent.click(screen.getAllByRole('row')[1]);
 
         expect(confirmSpy).not.toHaveBeenCalled();
         expect(toastMocks.showSuccess).not.toHaveBeenCalled();
         vi.unstubAllGlobals();
-    });
-
-    it('explains why the controls are unavailable, and wires the explanation to each', () => {
-        const { container } = renderList();
-        selectFirstRow();
-
-        const button = within(bulkBar()).getByRole('button', { name: /^Archive/ });
-        const noteId = button.getAttribute('aria-describedby');
-        expect(noteId).toBeTruthy();
-        expect(container.querySelector(`#${noteId}`)).toHaveTextContent(
-            /Bulk Message, Assign, Move Status and Archive are not available yet/,
-        );
-    });
-
-    it('keeps Clear working', () => {
-        renderList();
-        selectFirstRow();
-        expect(within(bulkBar()).getByText('1 selected')).toBeInTheDocument();
-
-        fireEvent.click(within(bulkBar()).getByRole('button', { name: /^Clear/ }));
-        expect(screen.queryByRole('group', { name: 'Bulk actions for selected records' })).not.toBeInTheDocument();
     });
 
     it('leaves the real per-record delete path intact', async () => {

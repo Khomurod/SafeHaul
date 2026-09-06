@@ -2,7 +2,7 @@
  * Shared Application Schema - Source of Truth
  * 
  * This file defines the complete structure of the driver application form.
- * Both the public application steps (input) and ApplicationDetailViewV2 (output)
+ * Both the public application steps (input) and the application views (output)
  * should reference this schema to ensure consistency.
  * 
  * Adding a field here ensures it appears in both the driver app and recruiter dashboard,

@@ -80,7 +80,6 @@ Brief §12) · payment processing · any named carrier endorsement.
 | Vite | 7 | Build tool & dev server |
 | React Router | 7 | Client-side routing |
 | TailwindCSS | 3.4 | Utility-first styling |
-| Recharts | 3.6 | Data visualization |
 | Lucide React | 0.552 | Icon library |
 | jsPDF | 4.0 | Client-side PDF generation |
 | pdfjs-dist / react-pdf | 5.4 / 10.2 | PDF rendering (E-Docs editor, signing room) |
@@ -130,6 +129,7 @@ SafeHaul/
 │   ├── context/             # DataContext — auth, roles, selected company
 │   ├── design-system/       # Business-neutral visual contract (see its README)
 │   ├── features/            # Domain modules (driver-app, company-admin, signing, …)
+│   ├── hooks/               # Cross-feature hooks (global schema, submission queue)
 │   ├── lib/                 # firebase.js, applicationId.js, submissionQueue.js
 │   ├── shared/              # Cross-feature components, hooks, utils, workers
 │   ├── firestore.rules      # Firestore security rules — deployed from here
@@ -215,6 +215,8 @@ Production reads the six Firebase values from Firebase Hosting's reserved
 | `VITE_FIREBASE_MESSAGING_SENDER_ID` | FCM sender ID |
 | `VITE_FIREBASE_APP_ID` | Firebase app ID |
 | `VITE_SENTRY_DSN` | Sentry error tracking DSN |
+| `VITE_SENTRY_TRACES_SAMPLE_RATE` | Sentry performance sampling, 0–1 (optional) |
+| `VITE_DRIVER_APP_URL` | Base URL written into driver invite links; defaults to the current origin |
 | `VITE_FACEBOOK_APP_ID` | Facebook Lead Ads integration |
 | `VITE_SOCRATA_APP_TOKEN` | FMCSA carrier autocomplete |
 | `VITE_SUPER_ADMIN_EMAIL` | Super admin fallback email |
