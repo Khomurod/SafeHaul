@@ -111,3 +111,26 @@ describe('RadioGroup repeated-row scoping (defect regression)', () => {
     expect(document.getElementById('has-twic-no')).toHaveAttribute('name', 'has-twic');
   });
 });
+
+describe('RadioGroup element ids stay valid for any option value', () => {
+  it('slugs a value that contains whitespace, and keeps the real value on the input', () => {
+    // `EXPERIENCE_OPTIONS` really carries "0-6 months". Interpolated raw, the id
+    // was invalid HTML (no ASCII whitespace allowed) and axe hung on the selector
+    // it built from it under happy-dom 20.4+ (found 2026-09-06).
+    render(
+      <RadioGroup
+        label="Experience"
+        name="experience"
+        options={[{ label: '0-6 Months', value: '0-6 months' }, { label: '5+ Years', value: '5+' }]}
+        value=""
+        onChange={vi.fn()}
+      />,
+    );
+    const first = document.getElementById('experience-0-6-months');
+    expect(first).not.toBeNull();
+    expect(first).toHaveAttribute('value', '0-6 months');
+    expect(document.querySelector('label[for="experience-0-6-months"]')).toHaveTextContent('0-6 Months');
+    expect(document.getElementById('experience-5-')).toHaveAttribute('value', '5+');
+    for (const input of document.querySelectorAll('input[id]')) expect(input.id).not.toMatch(/\s|\+/);
+  });
+});

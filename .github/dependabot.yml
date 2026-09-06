@@ -1,0 +1,61 @@
+# Dependabot: version and security updates, opened as ordinary pull requests
+# that the full pipeline in main.yml tests like any other change.
+#
+# Added 2026-09-06 (audit plan, step E) after the audit found 53 known
+# vulnerabilities in the root tree and 22 under functions/, none of them
+# noticed because nothing was watching. Three decisions worth keeping:
+#
+# - A seven-day cooldown on every update. The 2025 npm supply-chain worms
+#   shipped malicious versions that were pulled within days; waiting a week
+#   before adopting a release is the cheapest defence against a compromised
+#   package, and a security fix Dependabot raises for a known advisory is not
+#   delayed by it.
+# - Minor and patch updates arrive grouped, one pull request per manifest per
+#   week, so the owner reads two or three pull requests instead of forty. A
+#   major version always gets its own pull request, because it may need work
+#   (firebase-admin 14 and exceljs 3.x are the two known ones today).
+# - The five GitHub Actions the workflows pin are grouped too.
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    cooldown:
+      default-days: 7
+    groups:
+      production-minor-and-patch:
+        dependency-type: "production"
+        update-types: ["minor", "patch"]
+      development-minor-and-patch:
+        dependency-type: "development"
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: "npm"
+    directory: "/functions"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    cooldown:
+      default-days: 7
+    groups:
+      production-minor-and-patch:
+        dependency-type: "production"
+        update-types: ["minor", "patch"]
+      development-minor-and-patch:
+        dependency-type: "development"
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ["*"]

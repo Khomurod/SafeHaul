@@ -1,5 +1,6 @@
 import React from 'react';
 import { ChoiceGroup, Radio } from '@/design-system/components';
+import { domIdSegment } from '@shared/utils/domId';
 
 /**
  * Compatibility adapter over the approved `ChoiceGroup` / `Radio` primitives.
@@ -38,7 +39,9 @@ const RadioGroup = ({
     disabled = false,
 }) => {
     // Payload key stays `name`; only the DOM id base and the browser's grouping
-    // name may be scoped by the caller.
+    // name may be scoped by the caller. The option VALUE is slugged for the id
+    // (an id may not contain whitespace; "0-6 months" is a real value here) and
+    // kept verbatim for `value`, which is what the form saves.
     const optionIdBase = idPrefix || name;
     const radioName = groupName || name;
 
@@ -56,7 +59,7 @@ const RadioGroup = ({
             {options.map((option) => (
                 <Radio
                     key={option.value}
-                    id={`${optionIdBase}-${option.value}`}
+                    id={`${optionIdBase}-${domIdSegment(option.value)}`}
                     name={radioName}
                     value={option.value}
                     label={option.label}

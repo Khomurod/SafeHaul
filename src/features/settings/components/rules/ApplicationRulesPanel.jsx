@@ -7,6 +7,7 @@ import {
     resolveApplicationRules,
 } from '@/config/applicationRules';
 import { EXPERIENCE_OPTIONS } from '@/config/form-options';
+import { domIdSegment } from '@/shared/utils/domId';
 
 /**
  * Application Rules — what happens when an answer, a missing answer or a date
@@ -37,6 +38,10 @@ function optionsFor(rule) {
 function RuleRow({ rule, rules, configured, readOnly, onChange }) {
     const rawId = useId().replace(/:/g, '');
     const baseId = `rule-${rule.id}-${rawId}`;
+    // Option values such as "0-6 months" are not valid inside an id (no ASCII
+    // whitespace, per the HTML spec), and axe builds a selector from the id when
+    // it names an element. `domIdSegment` makes the id safe; `name`/`value` keep
+    // the real option value, which is what is saved.
     const value = rules[rule.id];
     const set = (next) => onChange({ ...rules, [rule.id]: next });
 
@@ -61,7 +66,7 @@ function RuleRow({ rule, rules, configured, readOnly, onChange }) {
                     {options.map((option) => (
                         <Radio
                             key={option.value}
-                            id={`${baseId}-${option.value}`}
+                            id={`${baseId}-${domIdSegment(option.value)}`}
                             name={baseId}
                             value={option.value}
                             label={option.label}
@@ -97,7 +102,7 @@ function RuleRow({ rule, rules, configured, readOnly, onChange }) {
                     {optionsFor(rule).map((option) => (
                         <Checkbox
                             key={option.id}
-                            id={`${baseId}-${option.id}`}
+                            id={`${baseId}-${domIdSegment(option.id)}`}
                             name={`${baseId}-${option.id}`}
                             label={option.label}
                             checked={!hidden.includes(option.id)}
@@ -119,7 +124,7 @@ function RuleRow({ rule, rules, configured, readOnly, onChange }) {
                     {rule.help && <FieldMessage tone="help">{rule.help}</FieldMessage>}
                     <div className="grid grid-cols-1 gap-ds-3 sm:grid-cols-2">
                         {optionsFor(rule).map((option) => (
-                            <FormField key={option.id} id={`${baseId}-${option.id}`} label={option.label}>
+                            <FormField key={option.id} id={`${baseId}-${domIdSegment(option.id)}`} label={option.label}>
                                 <Input
                                     value={labels[option.id] || ''}
                                     placeholder={option.label}
