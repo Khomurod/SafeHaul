@@ -105,7 +105,7 @@ export function SandboxActionPanel({
     >
       <Card padding="lg" className="w-full max-w-lg space-y-ds-6">
         <div className="flex items-start gap-ds-3">
-          <StatusMedallion tone="warning"><ShieldAlert className="h-6 w-6" /></StatusMedallion>
+          <StatusMedallion tone="warning"><ShieldAlert /></StatusMedallion>
           <div className="min-w-0">
             <h1 id={headingId} className="text-ds-heading-sm font-bold text-ds-content">Sandbox submission complete</h1>
             <p className="mt-ds-1 text-ds-sm text-ds-content-secondary">

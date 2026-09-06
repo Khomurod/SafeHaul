@@ -48,7 +48,7 @@ export function FeatureLockedModal({ onClose, featureName = "Search For Drivers"
 
             <div className="flex flex-col items-center bg-ds-surface-subtle p-ds-12 text-center">
                 <div className="relative mb-ds-8">
-                    <StatusMedallion tone="info" size="lg"><Lock size={40} /></StatusMedallion>
+                    <StatusMedallion tone="info" size="lg"><Lock /></StatusMedallion>
                     <span
                         aria-hidden="true"
                         className="absolute -bottom-1 -right-1 rounded-ds-full border-2 border-ds-surface bg-ds-status-warning-bg p-1.5 text-ds-status-warning-fg"

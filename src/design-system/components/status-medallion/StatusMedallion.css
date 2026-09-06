@@ -18,6 +18,58 @@
   height: 5rem;
 }
 
+/*
+ * The medallion sizes its own glyph, like every other container that holds one.
+ *
+ * ## Why this rule was missing, and what it cost
+ *
+ * `Button`, `Tabs`, `Chip`, `FileInput` and `SegmentedControl` each carry a
+ * `> svg` rule so a call site cannot make one button's icon bigger than the next
+ * one's. The medallion did not, so every caller picked a number: 24 in the
+ * catalog and in both patterns that render one, 28 in the signing room, 40 in
+ * the locked-feature modal, 48 after a bulk upload. Nobody chose any of them —
+ * `PageState` and `ConfirmDialog` both say so in a comment, because 24 is simply
+ * what a bare lucide glyph rendered before the icon contract existed.
+ *
+ * ## Why 24 at `md` and 32 at `lg`
+ *
+ * A glyph centred in a tinted disc is a published pattern with a published
+ * ratio. Tailwind UI's feature-icon block is a 48px disc holding a 24px glyph;
+ * Material 3 puts a 24px glyph in a 40-48px container. Nothing published sits
+ * below about 40%.
+ *
+ * At 24px the medallion was 37.5% at `md` (64px) and **30% at `lg`** (80px).
+ * The `lg` figure is under every published band, which is exactly why three
+ * callers reached past it. So `md` keeps 24 — every specimen and both patterns
+ * render identically — and `lg` becomes 32, which is 40% and already a step on
+ * the icon scale. Nothing that was ever deliberately chosen moves.
+ *
+ * A plain class selector rather than `:where()`, and the reason is narrower than
+ * it first looks — which was worth finding out by trying it.
+ *
+ * Rewriting these two as `:where(...)` changes NOTHING measurable today: both
+ * would then be zero-specificity, `Icon.css`'s default is zero-specificity too,
+ * and a tie is settled by source order, which currently loads this file after
+ * that one. So the visual probe stays green either way.
+ *
+ * That is precisely the argument for the plain selector. `StatusMedallion` does
+ * not import `Icon`, so nothing in the module graph fixes their relative order;
+ * it is an accident of how the bundle happens to come out. Written at real
+ * specificity the rule wins because it is the container's rule, not because of
+ * where it landed. The mutation that DOES bite is deleting these two blocks —
+ * every medallion glyph collapses to the 16px `md` default and the story still
+ * looks composed.
+ */
+.ds-status-medallion[data-size='md'] > svg {
+  width: var(--ds-icon-size-2xl);
+  height: var(--ds-icon-size-2xl);
+}
+
+.ds-status-medallion[data-size='lg'] > svg {
+  width: var(--ds-icon-size-3xl);
+  height: var(--ds-icon-size-3xl);
+}
+
 .ds-status-medallion[data-tone='neutral'] {
   --ds-medallion-bg: var(--ds-color-status-neutral-bg);
   --ds-medallion-fg: var(--ds-color-status-neutral-fg);

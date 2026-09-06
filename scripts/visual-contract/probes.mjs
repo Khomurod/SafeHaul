@@ -23,6 +23,41 @@ import { SYSTEM_PROBES } from './probes-system.mjs';
 
 const COMPONENT_PROBES = [
     {
+        /*
+         * The medallion, and the glyph it now sizes.
+         *
+         * Added 2026-09-06 with the `> svg` rule itself. Until that day the
+         * medallion set only its own diameter and every caller picked the glyph:
+         * 24 in this catalog and in both patterns that render one, 28 in the
+         * signing room, 40 in the locked-feature modal, 48 after a bulk upload.
+         * None of those was a decision — `PageState` and `ConfirmDialog` each
+         * carried a comment saying 24 was simply what a bare lucide glyph
+         * rendered before the icon contract.
+         *
+         * Both halves are read together on purpose. A disc measured without its
+         * glyph cannot see the ratio, and the ratio is the thing that was
+         * decided: 24 in 64 at `md`, 32 in 80 at `lg` — 37.5% and 40%, against a
+         * published band that starts around 40%. The `lg` step USED to be 30%,
+         * which is why three callers reached past it.
+         *
+         * The mutation this probe is here for is the RULE BEING LOST, not the rule
+         * being written differently. Deleting the two `> svg` blocks reports
+         * `24px -> 16px` and `32px -> 16px` at both widths; rewriting them with
+         * `:where()` reports nothing, because `Icon.css`'s default is
+         * zero-specificity too and the tie falls to source order. Both were run.
+         * `StatusMedallion.css` says why the plain selector is still right.
+         */
+        story: 'components-statusmedallion--sizes',
+        label: 'the medallion sizes its own glyph, and the ratio is the decision',
+        selectors: {
+            'medallion[md]': ".ds-status-medallion[data-size='md']",
+            'glyph in medallion[md]': ".ds-status-medallion[data-size='md'] > svg",
+            'medallion[lg]': ".ds-status-medallion[data-size='lg']",
+            'glyph in medallion[lg]': ".ds-status-medallion[data-size='lg'] > svg",
+        },
+        properties: ['width', 'height'],
+    },
+    {
         story: 'components-notice--tones',
         label: 'the notice chrome, and the six tints that replaced 66 hand-built blocks',
         /*

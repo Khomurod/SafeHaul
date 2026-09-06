@@ -1386,6 +1386,53 @@ visual divergence. Only four actually rendered differently from their
 that were already fully exempt: the VOE export document and the `DeviceMockup`
 artwork.
 
+### A container that did not own its glyph, and the measurement that found it
+
+Phase 4's plan says design-system containers size the glyph they hold, and names
+seven. Measured against the CSS on 2026-09-06, **five did** — `Button`, `Tabs`,
+`Chip`, `FileInput` and `SegmentedControl` each carry a `> svg` rule. `Badge`,
+`DataTable`, `SectionNavigation` and, the one that mattered, `StatusMedallion`
+did not.
+
+So every caller of the medallion chose its own glyph size:
+
+| call site | medallion | glyph |
+|---|---|---|
+| the catalog, every specimen | `md` and `lg` | 24 |
+| `PageState` | `lg` | 24 |
+| `ConfirmDialog` | `md` | 24 |
+| `SandboxActionPanel`, `NumberAssignmentManager` ×2 | `md` | 24 |
+| `FeatureDeactivationWarning` | `lg` | 24 |
+| `StatusScreens` | `md` | **28** |
+| `FeatureLockedModal` | `lg` | **40** |
+| `BulkUploadLayout` | `lg` | **48** |
+
+**Nobody chose 24 either**, and the code said so: `PageState` and
+`ConfirmDialog` each carried a comment recording that 24 was simply what a bare
+lucide glyph rendered before the icon contract. A library default, frozen into
+the stories and then cited as the standard.
+
+**What found it was an off-scale number, and that is the transferable part.**
+Phase 7's first measurement asked the whole tree what sizes its 607 glyph uses
+actually take: 546 (90%) are already a step on the scale, 29 state no size at
+all, and 32 are off it. Of those 32, **sixteen are one role wearing four
+numbers** — a large glyph announcing a page-level state, at 28, 40, 48 or
+`h-12 w-12`. A size that is not on the scale is the signal that a container is
+missing, not that the scale is too short.
+
+**The ratio was researched rather than decided in-house.** Tailwind UI's
+feature-icon block is a 48px disc holding a 24px glyph; Material 3 puts 24px in
+a 40–48px container. Nothing published sits below about 40%. At 24px the
+medallion was 37.5% at `md` (64px) and **30% at `lg`** (80px) — under every
+published band, which is exactly why three callers reached past it. So `md`
+keeps 24 and `lg` becomes 32: 40%, already a step on the icon scale, and nothing
+that was ever deliberately chosen moves. The reasoning lives in
+`StatusMedallion.css` beside the rule.
+
+The probe `components-statusmedallion--sizes` reads the disc **and** its glyph
+at both steps, together — a disc measured without its glyph cannot see the
+ratio, and the ratio is the decision.
+
 ### Raw Tailwind spacing is left alone, deliberately
 
 The final audit also counted **512 raw Tailwind spacing utilities** (`p-4`,
@@ -1663,9 +1710,32 @@ on it — catalog included — and `check:icon-contract` refuses a new importer.
 does not mean the migration is finished: 178 files outside the design system
 still import `lucide-react`, recorded in `icons/lucide-import.backlog.json`, and
 the family is not closed until that file is deleted, which is the moment the
-rule becomes absolute. **177 as of 2026-09-05**: `candidateListColumns.jsx`
-drained on its way through the chip slice, because a file being rewritten to use
-`Icon` is the cheapest moment to finish it, and the campaign only shrinks.
+rule becomes absolute. **175 as of 2026-09-06**: `candidateListColumns.jsx`
+drained on its way through the chip slice and two more went with the Notice
+migration, because a file being rewritten to use `Icon` is the cheapest moment to
+finish it, and the campaign only shrinks.
+
+**Phase 7 opened by measuring what it is actually migrating**, and the number
+that mattered was not the file count. Across all 175 files there are **607 glyph
+element uses**: 546 (90%) already state a size that is a step on the scale, 29
+state none at all, and 32 are off it. So nine tenths of the migration is
+mechanical, and the policy only has to answer the other tenth — which it does
+once, here, rather than per area:
+
+- **A delta of 1–4px was never a decision.** 10, 11, 15, 22 and 36 sit within
+  four pixels of a step, which is the entire premise of having a scale. Snap
+  them, and read the three PDF-overlay sites whose geometry comes from document
+  coordinates rather than from taste.
+- **28, 40 and 48 are one role wearing three numbers.** All sixteen are a large
+  glyph announcing a page-level state. Snapping 48 to 32 is a 33% reduction, so
+  the container owns this size instead — see *A container that did not own its
+  glyph* in §7, which is the gap this measurement exposed and the slice that
+  closed it.
+- **No size at all is the trap, not the easy case.** lucide renders 24px with no
+  `size` and the contract renders 16, so a bare glyph is `2xl` when it stands
+  alone and takes no size when a container sizes it — and those two are
+  indistinguishable in the source. Every one is flagged for a person.
+- **400px is `VOEDocument`**, the print document, already a recorded exception.
 
 **The catalog was teaching the habit.** The guard's first live run refused 23
 story files — the design system's own catalog, still importing the package

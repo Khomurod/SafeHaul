@@ -144,12 +144,12 @@ export function PageState({
       {Icon && (
         <StatusMedallion tone={tone} size="lg">
           {/*
-            `2xl` is the 24px this rendered before the icon contract, when the
-            glyph came straight from the package and took its default. The
-            medallion does not size its child, so this is the only place that
-            number lives — stated rather than inherited from a library default.
+            No size: the medallion sizes its own glyph, 32px at `lg`. This used
+            to state `2xl` because it had to — the medallion had no `> svg` rule
+            and 24px was simply what a bare lucide glyph rendered before the icon
+            contract. See `StatusMedallion.css` for where 32 comes from.
           */}
-          <DsIcon icon={Icon} size="2xl" />
+          <DsIcon icon={Icon} />
         </StatusMedallion>
       )}
       <Heading

@@ -173,7 +173,7 @@ export function EsignConsentScreen({ title, onAgree }) {
         <StatusPage labelledBy={headingId}>
             <Card padding="lg" className="w-full max-w-lg">
                 <div className="mb-ds-5 flex items-center gap-ds-3">
-                    <StatusMedallion tone="info"><ShieldCheck size={28} /></StatusMedallion>
+                    <StatusMedallion tone="info"><ShieldCheck /></StatusMedallion>
                     <div>
                         <h1 id={headingId} className="text-ds-heading-sm font-bold text-ds-content">
                             Electronic Signature Consent
