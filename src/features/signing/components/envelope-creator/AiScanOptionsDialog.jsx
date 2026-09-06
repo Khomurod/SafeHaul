@@ -1,7 +1,7 @@
 import React, { useId, useRef, useState } from 'react';
 import { Sparkles, X } from 'lucide-react';
 import { Modal } from '@design-system/patterns';
-import { Button, ChoiceGroup, IconButton, Input, Radio } from '@/design-system/components';
+import { Button, ChoiceGroup, IconButton, Input, Notice, Radio } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { parsePageRange } from '@features/signing/utils/pageRange';
 
@@ -115,17 +115,12 @@ export function AiScanOptionsDialog({ activePage, numPages, onClose, onStart }) 
                     {/* Explicit, plain-language disclosure. This is the only place the
                         operator is told what leaves the browser, so it is never hidden
                         behind a tooltip or a details toggle. */}
-                    <div className="rounded-ds-lg border border-ds-status-info-border bg-ds-status-info-bg p-ds-3">
-                        <h3 className="text-ds-xs font-bold uppercase tracking-wide text-ds-content">
-                            What gets sent
-                        </h3>
-                        <p className="mt-ds-1 text-ds-xs leading-snug text-ds-content-secondary">
-                            Images of the pages you choose are rendered in your browser and sent to the
-                            configured AI provider for analysis. Nothing is saved or sent to the recipient,
-                            no template is changed, and the rendered images are not stored after the scan.
-                            Suggestions are placed for your review only — you decide what gets applied.
-                        </p>
-                    </div>
+                    <Notice tone="info" size="sm" title="What gets sent" titleAs="h3">
+                        Images of the pages you choose are rendered in your browser and sent to the
+                        configured AI provider for analysis. Nothing is saved or sent to the recipient,
+                        no template is changed, and the rendered images are not stored after the scan.
+                        Suggestions are placed for your review only — you decide what gets applied.
+                    </Notice>
                 </Stack>
             </div>
 

@@ -106,6 +106,8 @@ const SUBJECTS = [
     ['components-statusmedallion--tones', 'status-medallion-tones'],
     ['components-notice--tones', 'notice'],
     ['components-notice--with-title', 'notice-title'],
+    ['components-notice--with-actions', 'notice-actions'],
+    ['components-notice--heading-title', 'notice-heading-title'],
     ['components-sectionnavigation--with-icons', 'section-navigation'],
     ['components-sectionnavigation--wizard-steps', 'section-navigation-steps'],
     ['components-form-structure--all-field-states', 'form-all-field-states'],

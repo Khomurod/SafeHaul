@@ -15,8 +15,8 @@
  */
 import React, { useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import { AlertTriangle, ShieldCheck, Send } from 'lucide-react';
-import { Button } from '@/design-system/components';
+import { ShieldCheck, Send } from 'lucide-react';
+import { Button, Notice } from '@/design-system/components';
 import { useVerificationPortal } from './hooks/useVerificationPortal';
 import {
     LoadingScreen,
@@ -121,33 +121,35 @@ export function VerificationPortal() {
             {/* Form errors summary */}
             {errorCount > 0 && (
                 <div className="mx-auto mt-4 max-w-3xl px-4">
-                    <div
+                    {/* The form moves focus here when it refuses submission, so
+                        the focus ring is load-bearing — it is `Notice`'s own now
+                        rather than a `focus-visible:` utility this file has to
+                        remember. `AlertTriangle` normalises to the danger tone's
+                        `AlertCircle`. */}
+                    <Notice
                         ref={errorSummaryRef}
                         data-testid="verification-error-summary"
                         tabIndex={-1}
-                        role="alert"
-                        className="flex items-start gap-3 rounded-ds-lg border border-ds-status-danger-border bg-ds-status-danger-bg p-ds-4 focus-visible:outline-none focus-visible:shadow-ds-focus"
+                        announce="assertive"
+                        tone="danger"
+                        title="Please fix the following errors:"
                     >
-                        <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-ds-status-danger-fg" aria-hidden="true" />
-                        <div className="min-w-0">
-                            <p className="text-ds-sm font-bold text-ds-status-danger-fg">Please fix the following errors:</p>
-                            {/*
-                              DEFECT FIX: entries were built by splitting the
-                              camelCase state key, so the summary read
-                              "was Employed: Required" and "signature Data:
-                              Please provide your electronic signature" — not the
-                              wording of any question on the page, and read out
-                              letter-fragment by letter-fragment by a screen
-                              reader. Entries now use the field's real label. The
-                              messages themselves are unchanged.
-                            */}
-                            <ul className="mt-1 list-inside list-disc text-ds-xs text-ds-status-danger-fg">
-                                {Object.entries(formErrors).map(([key, msg]) => (
-                                    <li key={key}>{FIELD_LABELS[key] || key}: {msg}</li>
-                                ))}
-                            </ul>
-                        </div>
-                    </div>
+                        {/*
+                          DEFECT FIX: entries were built by splitting the
+                          camelCase state key, so the summary read
+                          "was Employed: Required" and "signature Data: Please
+                          provide your electronic signature" — not the wording of
+                          any question on the page, and read out letter-fragment
+                          by letter-fragment by a screen reader. Entries now use
+                          the field's real label. The messages themselves are
+                          unchanged.
+                        */}
+                        <ul className="list-inside list-disc">
+                            {Object.entries(formErrors).map(([key, msg]) => (
+                                <li key={key}>{FIELD_LABELS[key] || key}: {msg}</li>
+                            ))}
+                        </ul>
+                    </Notice>
                 </div>
             )}
 

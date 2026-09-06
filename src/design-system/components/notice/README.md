@@ -14,13 +14,15 @@ catalog entry only.
 |---|---|---|---|
 | `tone` | neutral · info · success · warning · danger · accent | `info` | replaces two hand-written tone lookup tables |
 | `title` | string | — | the majority shape: 27 of 64 |
+| `titleAs` | p · h2-h6 | `p` | 11 of 19 titles are paragraphs; 8 are real headings |
 | `icon` | a registry glyph, or `null` | the tone's own | `null` hides it; `undefined` takes the tone's |
-| `actions` | node | — | 9 consumers carry a button |
+| `actions` | node | — | 9 consumers carry a button; renders **under** the message |
 | `size` | md · sm | `md` | |
 | `announce` | off · polite · assertive | **`off`** | only 26 of 64 announce today |
 | `className` | string | — | margin and width only |
 
-`forwardRef` so a form can move focus to it; pass `tabIndex={-1}` alongside.
+`forwardRef` so a form can move focus to it; pass `tabIndex={-1}` alongside. The
+focus ring is the component's own — see below.
 
 ### The glyph is decorative
 
@@ -68,11 +70,50 @@ cannot tell a message from a container, a legend, or a button in a tinted box.
 A one-line notice looks identical either way. The majority shape is a title with
 a body under it, where centring floats the glyph into the middle of a paragraph.
 
-### Actions wrap below 640px
+### Actions sit under the message — changed after the first migration
 
-Nine consumers carry a button, and a button beside a sentence at 412px leaves
-neither enough room. Below the breakpoint the actions drop under the message and
-indent to align with it.
+This shipped in 6b with the actions in a trailing slot beside the message and a
+`@media (max-width: 639px)` block that dropped them underneath on small screens.
+6c's first consumers disagreed, so it was checked rather than defended:
+
+- **Atlassian's `SectionMessage`** renders actions after the content — "this
+  placement allows users to read the full message before encountering available
+  actions".
+- **Polaris' `Banner`** puts its primary and secondary actions in a footer under
+  the body.
+- **Carbon's inline notification** is the one published system that keeps the
+  action inline, and it moves it underneath at narrow widths.
+- **This tree already agreed 2 to 1**: `Step4_Violations` and `Step9_Consent`
+  had the button under the message; only `UploadField` put it beside.
+
+So the action row is a child of the body column, after the message, at every
+width. The breakpoint rule was the evidence rather than the solution — **a
+placement that has to be undone on small screens was never the right
+placement** — and it is deleted. `flex-wrap` stays, because two buttons at
+412px still need somewhere to go.
+
+### `titleAs`, because eight titles here are real headings
+
+The title renders as a `<p>`, which is what 11 of the 19 titled blocks in this
+tree do. Eight use an actual `<h2>`, `<h3>` or `<h4>`, and both Polaris and
+Atlassian render a banner title as a heading. Flattening those eight would take
+them out of the document outline a screen-reader user navigates by — silently,
+because the page looks identical either way.
+
+`titleAs` takes the element and never a level the component picked: `p` when
+there is no outline to join, `h2`-`h6` when the caller knows where it sits.
+`h1` throws: a notice is never the page's own heading. The look does not change
+with the element; the design system owns that.
+
+### The focus ring belongs to the component
+
+`forwardRef` plus the `tabIndex` pass-through exist so a form can move focus to
+the error summary it just rendered — `StepIssues`, `Step3_License` and
+`VerificationPortal` all do exactly that. Every one of them carried its own
+`focus-visible:shadow-ds-focus` utility, which is a thing each new caller has to
+remember and one of them eventually will not. Focus that lands somewhere
+unmarked is worse than focus that does not move, so `.ds-notice:focus-visible`
+draws the standard ring.
 
 ---
 
@@ -209,3 +250,91 @@ tinted for identity, not to carry a message.
 
 Nothing here is a decision waiting on an owner. The one thing to surface in the
 migration is the added icons.
+
+---
+
+# What 6c found: the first migration area
+
+**driver-app + verification + signing.** The audit above listed 20 sites here.
+**Seventeen migrated.** Three came off the list on reading, which is the sixth
+consecutive slice where a shape-only signature named the wrong component:
+
+| site | why it is not a notice |
+|---|---|
+| `UploadField` uploading state | a `ProgressBar` and a percentage readout. The text labels the widget; the widget is the content. An info glyph beside a progress bar states nothing the bar does not. |
+| `UploadField` success state | a file row: thumbnail, filename, status line, view and remove controls. A leading tick would displace the thumbnail and push the controls under the filename. |
+| `StatusScreens:191` | a `<section aria-labelledby>` — a named **region** a screen-reader user can jump to and re-read the ESIGN terms in. `Notice` has no way to be a landmark: it would need `role="region"` plus an `id` on its own title. One consumer is not enough evidence to design a `titleId` prop around, so this is recorded as a gap rather than closed with a prop that would have a single caller — the same reasoning that records `accent`'s glyph as a guess. |
+
+Three more were already excluded before the slice began — `Step9_Consent:301`
+and `SafetySection:43` hold form controls, and `EnvelopeSidebar:272` is a
+`<Button>` and its helper text inside a tint. Reading the whole of each changed
+file also turned up three tinted blocks the audit never listed and that are
+correctly not notices: a signed-confirmation pill (`Step9_Consent:266`), a
+selected-state highlight in the suggestion list (`AiSuggestionReviewPanel:207`),
+and the tone lookup map at the top of `PortalStatusScreens`.
+
+## What changed in the component because of this area
+
+Three things, each forced by a real consumer rather than chosen:
+
+1. **Actions moved under the message** (see above) — the local majority and two
+   published systems agreed against the shipped placement.
+2. **`titleAs`** — eight titles in the tree are real headings.
+3. **The focus ring** — three consumers here are the focus target a form moves
+   to, and each was carrying its own utility class for it.
+
+This is the whole reason 6b shipped with **zero consumers on purpose**. Had the
+65 migrated in the same change, all three would have been baked into 52 files
+before anyone read the first one.
+
+## The visible changes this area makes, stated rather than slipped in
+
+Seventeen blocks, each read individually. Every figure below is parsed off the
+files as they were before the change, not counted off diff hunks — a hunk
+boundary cannot tell a child from a neighbour, which is the same trap 6a's line
+counting fell into three times.
+
+**Glyphs**
+
+| | sites |
+|---|---|
+| gains one, having had none | 7 |
+| keeps the one it had, unchanged | 6 |
+| `AlertTriangle` normalised to danger's `AlertCircle` | 2 |
+| same glyph, moved from inside the text to the leading slot | 2 |
+
+`PortalStatusScreens` is the only site passing `icon` explicitly: `ShieldCheck`
+says *securely recorded*, which the success tick does not. It is also one of the
+two that move — the glyph was inline in the sentence and is now leading, which
+is better for a message that wraps and is a visible change either way.
+
+**Type and geometry**
+
+| | before | after |
+|---|---|---|
+| type size | 12px ×6, 13px ×8, inherited ×3 | 13px ×8 (`sm`), 14px ×9 (`md`) |
+| radius | `lg` ×10, `md` ×6, none ×1 | `md` ×17 |
+
+`size="sm"` is used at eight sites, each genuinely inside a tight container: the
+sandbox banner, the upload error, and the six blocks in the AI panel, the scan
+dialog and the 20rem preview rail. Everywhere else takes `md` — `sm` exists for
+a notice inside a panel that is already tight, not as a way to preserve every
+site's old size.
+
+**One-offs, each stated because nothing else would catch it**
+
+- a 4px left rail becomes a 1px border on four sides (`ApplicantDetailsCard`);
+- `text-center` is dropped, because `Notice` sets `text-align: start` and its
+  `className` is margin and width only (`PublicApplyHandler`);
+- the retry button moves from beside the sentence to under it (`UploadField`) —
+  the one site the new action placement visibly changes.
+
+**What did NOT change, and is asserted**
+
+Live regions balance exactly: **8 `role="alert"` became 8 `announce="assertive"`,
+1 `role="status"` became 1 `announce="polite"`.** Getting one wrong either
+silences a real error or interrupts over nothing, and 14 `getByRole('alert')`
+assertions across this area's tests would fail if it happened. Every message's
+wording is unchanged, `verification-error-summary` and the two `step-*-issues`
+test ids ride through the prop spread, and the three focus targets keep their
+`ref` and `tabIndex` — with a ring the component now draws itself.

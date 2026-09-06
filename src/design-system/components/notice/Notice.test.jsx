@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { axe } from 'vitest-axe';
@@ -99,9 +101,45 @@ describe('Notice', () => {
     expect(container.querySelector('.ds-notice__message')).toHaveTextContent('But not finished.');
   });
 
-  it('renders an actions slot beside the body', () => {
+  it('renders the title as a paragraph by default', () => {
+    const { container } = render(<Notice title="Saved">All of it.</Notice>);
+    expect(container.querySelector('.ds-notice__title').tagName).toBe('P');
+    expect(screen.queryByRole('heading')).toBeNull();
+  });
+
+  it('renders the title as a heading when the caller has an outline to join', () => {
+    // Eight titled blocks in this tree use a real heading. Flattening those to
+    // a paragraph removes them from the outline a screen-reader user navigates
+    // by — invisibly, because the page still looks identical.
+    render(<Notice title="What gets sent" titleAs="h3">Images of the pages you choose.</Notice>);
+    expect(screen.getByRole('heading', { level: 3, name: 'What gets sent' })).toBeInTheDocument();
+  });
+
+  it('pins the title size itself rather than inheriting a heading-s', () => {
+    // `titleAs` can make this an <h2>-<h6>, and a heading's user-agent size
+    // would otherwise decide how a notice looks. Tailwind's preflight resets it
+    // today, so this holds even if that base layer is ever turned off.
+    const rules = readFileSync(path.join(__dirname, 'Notice.css'), 'utf8');
+    expect(rules).toMatch(/\.ds-notice__title\s*\{[^}]*font-size:\s*inherit/);
+  });
+
+  it('rejects a title element it does not have', () => {
+    // Including `h1`: a notice is never the page's own heading.
+    expect(() => render(<Notice title="x" titleAs="h1">y</Notice>)).toThrow(TypeError);
+    expect(() => render(<Notice title="x" titleAs="div">y</Notice>)).toThrow(TypeError);
+  });
+
+  it('puts the actions under the message, inside the body column', () => {
+    // Not beside it. Atlassian's SectionMessage renders actions after the
+    // content and Polaris' Banner puts them in a footer under the body; the
+    // tinted blocks in this tree that carry a button already do the same, 2 to
+    // 1. Asserted by CONTAINMENT rather than by class, because the class alone
+    // was true of the trailing slot this replaced.
     const { container } = render(<Notice actions={<button type="button">Retry</button>}>Failed.</Notice>);
-    expect(container.querySelector('.ds-notice__actions')).toBeInTheDocument();
+    const body = container.querySelector('.ds-notice__body');
+    const actions = container.querySelector('.ds-notice__actions');
+    expect(body).toContainElement(actions);
+    expect(body.lastElementChild).toBe(actions);
     expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
   });
 
@@ -117,6 +155,17 @@ describe('Notice', () => {
     render(<Notice ref={ref} tabIndex={-1}>Fix these errors.</Notice>);
     expect(ref.current).toBeInstanceOf(HTMLElement);
     expect(ref.current).toHaveAttribute('tabindex', '-1');
+  });
+
+  it('draws its own focus ring, because a form moves focus to it', () => {
+    // Three consumers in the first migration area are the error summary a step
+    // focuses when it refuses Continue. A caller must not have to remember a
+    // `focus-visible:` utility to make that visible, so the rule is here.
+    // `__dirname`, not `import.meta.url` — Vitest rewrites the latter, which
+    // is the same hazard `uiContract.ratchet.test.js` was retargeted for.
+    const rules = readFileSync(path.join(__dirname, 'Notice.css'), 'utf8');
+    expect(rules).toMatch(/\.ds-notice:focus-visible\s*\{[^}]*outline:\s*2px solid var\(--ds-color-focus\)/);
+    expect(rules).not.toMatch(/@media[^{]*max-width:\s*639px/);
   });
 
   it('omits data-size at the default, so md needs no attribute', () => {

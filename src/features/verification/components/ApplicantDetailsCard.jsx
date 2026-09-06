@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, FieldDisplay } from '@/design-system/components';
+import { Card, FieldDisplay, Notice } from '@/design-system/components';
 
 /**
  * FMCSA info banner + applicant details. Presentation migrated; the displayed
@@ -13,14 +13,15 @@ export function ApplicantDetailsCard({ verificationData }) {
 
     return (
         <Card padding="lg" aria-label="Applicant details">
-            <div className="mb-ds-6 rounded-ds-md border-l-4 border-ds-status-info-border bg-ds-status-info-bg p-ds-4">
-                <p className="text-ds-sm leading-relaxed text-ds-status-info-fg">
-                    Under <strong>FMCSA 49 CFR Part 391.23</strong>, prospective employers of commercial motor vehicle
-                    drivers are required to investigate the driver&apos;s employment record for the preceding 3 years.
-                    Your cooperation in providing this information is <strong>required by federal regulation</strong>.
-                    Previous employers must respond within <strong>30 days</strong> of receiving this request.
-                </p>
-            </div>
+            {/* The 4px left rail becomes the contract's 1px border on all four
+                sides, and the block gains the info tone's glyph. `mb-ds-6` is
+                margin, which is what `Notice`'s `className` is for. */}
+            <Notice tone="info" className="mb-ds-6">
+                Under <strong>FMCSA 49 CFR Part 391.23</strong>, prospective employers of commercial motor vehicle
+                drivers are required to investigate the driver&apos;s employment record for the preceding 3 years.
+                Your cooperation in providing this information is <strong>required by federal regulation</strong>.
+                Previous employers must respond within <strong>30 days</strong> of receiving this request.
+            </Notice>
 
             <h2 className="mb-3 border-b border-ds-border-subtle pb-2 text-ds-heading-sm font-bold text-ds-content">
                 Applicant Details

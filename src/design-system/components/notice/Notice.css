@@ -87,8 +87,16 @@
   gap: var(--ds-space-1);
 }
 
+/*
+ * `font-size: inherit` is load-bearing, not defensive tidiness: `titleAs` can
+ * make this an `<h2>`-`<h6>`, and a heading's user-agent size would otherwise
+ * decide how a notice looks. Tailwind's preflight happens to reset it today —
+ * which means the type scale would depend on a base-layer reset staying
+ * enabled, and that is not a thing the design system should be able to lose.
+ */
 .ds-notice__title {
   margin: 0;
+  font-size: inherit;
   font-weight: var(--ds-font-weight-semibold);
 }
 
@@ -98,25 +106,36 @@
   overflow-wrap: anywhere;
 }
 
+/*
+ * Under the message, inside the body column — so the actions line up with the
+ * text they follow rather than with the glyph, at every width.
+ *
+ * This began as a trailing slot beside the message with a `@media` block to
+ * unwind it below 640px. Both are gone. Atlassian's `SectionMessage` renders
+ * actions after the content, Polaris' `Banner` puts them in a footer under the
+ * body, and the tinted blocks here that carry a button already put it under the
+ * message 2 to 1. The breakpoint rule was the evidence: a placement that has to
+ * be undone on small screens was never the right placement.
+ *
+ * `flex-wrap` stays, because two buttons at 412px still need somewhere to go.
+ */
 .ds-notice__actions {
   display: flex;
-  flex: 0 0 auto;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--ds-space-2);
+  /* Body gap is space-1; this makes the message-to-button distance space-2. */
+  margin-top: var(--ds-space-1);
 }
 
 /*
- * Below the small breakpoint the actions drop under the message rather than
- * squeezing it: 9 consumers carry a button, and a button beside a sentence at
- * 412px leaves neither enough room.
+ * A notice is a focus target: `forwardRef` and the `tabIndex` pass-through are
+ * there so a form can move focus to the error summary it just rendered. Focus
+ * that lands somewhere unmarked is worse than focus that does not move, so the
+ * ring belongs to the component rather than to each caller's class list.
  */
-@media (max-width: 639px) {
-  .ds-notice:has(.ds-notice__actions) {
-    flex-wrap: wrap;
-  }
-
-  .ds-notice__actions {
-    width: 100%;
-    padding-inline-start: calc(var(--ds-icon-size-xl) + var(--ds-space-3));
-  }
+.ds-notice:focus-visible {
+  outline: 2px solid var(--ds-color-focus);
+  outline-offset: 2px;
+  box-shadow: var(--ds-focus-ring);
 }

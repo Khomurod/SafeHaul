@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useData } from '@/context/DataContext';
-import { FileSignature, CheckCircle, Save, Eraser, Loader2, AlertCircle } from 'lucide-react';
+import { FileSignature, CheckCircle, Save, Eraser, Loader2 } from 'lucide-react';
 import { getSignatureDataUrl, clearCanvas, initializeSignatureCanvas } from '@/lib/signature';
 import { isE2ETestMode } from '@lib/runtime/e2eMode';
-import { Button, Checkbox, FieldMessage } from '@/design-system/components';
+import { Button, Checkbox, FieldMessage, Notice } from '@/design-system/components';
 import { StepNavigation } from './components/StepNavigation';
 import { useApplicationAgreements } from '@features/driver-app/hooks/useApplicationAgreements';
 
@@ -160,16 +160,12 @@ const Step9_Consent = ({ formData, updateFormData, onNavigate, onFinalSubmit, is
             {/* There is nothing legitimate to sign if the agreements did not load,
                 so this blocks submission rather than degrading quietly. */}
             {agreementsError && !agreementsLoading && (
-                <div
-                    role="alert"
-                    className="flex items-start gap-ds-3 rounded-ds-lg border border-ds-status-danger-border bg-ds-status-danger-bg p-ds-4 text-ds-sm text-ds-status-danger-fg"
-                >
-                    <AlertCircle size={18} className="mt-px shrink-0" aria-hidden="true" />
-                    <div className="space-y-ds-3">
-                        <p>{agreementsError} You cannot submit until they load, because you must be able to read what you are signing.</p>
-                        <Button variant="secondary" size="sm" onClick={retry}>Try again</Button>
-                    </div>
-                </div>
+                /* The other site that decided the action placement: the button
+                   was already under the message. Radius normalises `lg` to the
+                   contract's `md`. */
+                <Notice announce="assertive" tone="danger" actions={<Button variant="secondary" size="sm" onClick={retry}>Try again</Button>}>
+                    {agreementsError} You cannot submit until they load, because you must be able to read what you are signing.
+                </Notice>
             )}
 
             <div className="space-y-ds-4">

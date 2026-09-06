@@ -1,7 +1,7 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { X, CheckCircle, RefreshCw, FileText, Image as ImageIcon, AlertCircle } from 'lucide-react';
 import {
-    Button, FileInput, IconButton, IconButtonLink, ProgressBar,
+    Button, FileInput, IconButton, IconButtonLink, Notice, ProgressBar,
 } from '@/design-system/components';
 import { ConfirmDialog } from '@design-system/patterns';
 
@@ -207,23 +207,30 @@ const UploadField = ({
                 )}
             </span>
 
-            {/* ERROR STATE */}
+            {/* ERROR STATE — the one of this field's three tinted blocks that is
+                actually a message. The other two hold a progress widget and a
+                file row; see the note above the uploading state. Retry moves
+                from beside the sentence to under it, which is the placement
+                `Notice` settled on. */}
             {status === 'error' && (
-                <div
-                    role="alert"
-                    className="flex flex-wrap items-center justify-between gap-ds-2 rounded-ds-md border border-ds-status-danger-border bg-ds-status-danger-bg px-ds-3 py-ds-3"
+                <Notice
+                    announce="assertive"
+                    tone="danger"
+                    size="sm"
+                    actions={(
+                        <Button variant="secondary" size="md" onClick={handleRetry}>
+                            <RefreshCw size={12} aria-hidden="true" /> Retry
+                        </Button>
+                    )}
                 >
-                    <span className="flex min-w-0 items-center gap-ds-2 text-ds-sm font-medium text-ds-status-danger-fg">
-                        <AlertCircle size={18} aria-hidden="true" className="shrink-0" />
-                        <span className="[overflow-wrap:anywhere]">{errorMsg}</span>
-                    </span>
-                    <Button variant="secondary" size="md" onClick={handleRetry}>
-                        <RefreshCw size={12} aria-hidden="true" /> Retry
-                    </Button>
-                </div>
+                    {errorMsg}
+                </Notice>
             )}
 
-            {/* UPLOADING STATE */}
+            {/* UPLOADING STATE — a tinted block, and deliberately NOT a `Notice`.
+                Its content is a `ProgressBar` and a percentage readout; the text
+                labels the widget rather than being the message. Putting an info
+                glyph beside a progress bar states nothing the bar does not. */}
             {status === 'uploading' && (
                 <div className="space-y-ds-2 rounded-ds-md border border-ds-status-info-border bg-ds-status-info-bg p-ds-4">
                     <p className="flex justify-between text-ds-xs font-semibold text-ds-status-info-fg" role="status">
@@ -239,7 +246,10 @@ const UploadField = ({
                 </div>
             )}
 
-            {/* SUCCESS / VIEW STATE */}
+            {/* SUCCESS / VIEW STATE — also not a `Notice`. This is a file row:
+                a thumbnail, a filename, a status line and two controls. A
+                leading tick would displace the thumbnail and the controls would
+                fall under the filename. */}
             {(hasValue && status !== 'uploading' && status !== 'error') && (
                 <div className="flex items-center gap-ds-3 rounded-ds-md border border-ds-status-success-border bg-ds-status-success-bg p-ds-3">
                     <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-ds-md bg-ds-surface text-ds-status-success-fg">

@@ -1,8 +1,8 @@
 import React, { useId, useMemo, useRef, useState } from 'react';
 import { Document, Page } from 'react-pdf';
-import { AlertTriangle, ChevronLeft, ChevronRight, Eye, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Eye, X } from 'lucide-react';
 import { Modal } from '@design-system/patterns';
-import { Badge, Button, IconButton } from '@/design-system/components';
+import { Badge, Button, IconButton, Notice } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { SignerField } from '@features/signing/components/signing-room/SignerField';
 import {
@@ -180,25 +180,24 @@ export function SignerPreviewDialog({
                         </h3>
 
                         {preview.usedSampleRecipient && (
-                            <p className="rounded-ds-lg border border-ds-status-info-border bg-ds-status-info-bg p-ds-2 text-ds-xs text-ds-content-secondary">
+                            /* `sm`, because this rail is 20rem wide: the size
+                               exists for a notice inside a panel that is already
+                               tight, and this is the tightest one in the area. */
+                            <Notice tone="info" size="sm">
                                 No recipient entered yet, so prefilled fields show sample values
                                 (“{SAMPLE_RECIPIENT.name}”). The real recipient's details replace them when you send.
-                            </p>
+                            </Notice>
                         )}
 
                         {preview.missingLockedRequired.length > 0 && (
-                            <div
-                                role="alert"
-                                className="rounded-ds-lg border border-ds-status-danger-border bg-ds-status-danger-bg p-ds-2"
-                            >
-                                <p className="flex items-start gap-ds-1 text-ds-xs text-ds-status-danger-fg">
-                                    <AlertTriangle size={12} className="mt-0.5 shrink-0" aria-hidden="true" />
-                                    <span>
-                                        These locked required fields have no value, so the document cannot be sent
-                                        yet: {preview.missingLockedRequired.join(', ')}.
-                                    </span>
-                                </p>
-                            </div>
+                            /* `AlertTriangle` normalises to the danger tone's own
+                               `AlertCircle`: 13 of the 19 danger blocks in the
+                               tree already used it, and a triangle beside a
+                               danger tint says warning twice in two shapes. */
+                            <Notice announce="assertive" tone="danger" size="sm">
+                                These locked required fields have no value, so the document cannot be sent
+                                yet: {preview.missingLockedRequired.join(', ')}.
+                            </Notice>
                         )}
 
                         <p className="text-ds-xs text-ds-content-secondary">

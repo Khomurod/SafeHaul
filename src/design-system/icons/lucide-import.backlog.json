@@ -83,7 +83,6 @@
     "src/features/driver-app/components/application/steps/Step8_Review.jsx": 3,
     "src/features/driver-app/components/application/steps/Step9_Consent.jsx": 6,
     "src/features/driver-app/components/application/steps/components/EmploymentCoveragePrompt.jsx": 2,
-    "src/features/driver-app/components/application/steps/components/StepIssues.jsx": 2,
     "src/features/driver-changes/ReviewChangePortal.jsx": 7,
     "src/features/sandbox/SandboxActionPanel.jsx": 4,
     "src/features/sandbox/SandboxTransferSuccess.jsx": 1,

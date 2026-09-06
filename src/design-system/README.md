@@ -84,10 +84,15 @@ this one true rather than aspirational.
   `currentType="step"`, per-item `status` and `frame="none"` (2026-09-05),
   alongside the Super Admin sidebar and company settings, which use the same
   component as page rails.
-- `Notice` shipped 2026-09-05 with **no consumers yet**, deliberately: the
-  audit found 66 hand-built ones and migrating them is slices 6c–6e, split by
-  area. It is the one primitive in this system allowed to sit unused for a
-  slice, and only because the migration is already scheduled.
+- `Notice` shipped 2026-09-05 with **no consumers yet**, deliberately, and the
+  first migration slice paid that back within a day. Moving the driver
+  application, the verification portal and the signing editor onto it (17
+  blocks, 2026-09-06) changed the component three times: actions moved from a
+  trailing slot to under the message, `titleAs` was added because eight titles
+  in the tree are real headings, and the focus ring became the component's
+  rather than three call sites' utility classes. Had all 65 migrated in one
+  change, each of those would have been baked into 52 files first. Company
+  admin, campaigns, shared, super admin and settings are 6d and 6e.
 - The topbar, the dossier header, the notes and activity tabs, the Super Admin
   user list, the team modal and the campaign lead preview consume `Avatar`
   (2026-09-05).

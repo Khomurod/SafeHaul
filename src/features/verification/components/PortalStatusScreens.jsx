@@ -1,6 +1,6 @@
 import React from 'react';
 import { Loader2, CheckCircle, AlertTriangle, Clock, ShieldCheck } from 'lucide-react';
-import { Card } from '@/design-system/components';
+import { Card, Notice } from '@/design-system/components';
 
 /**
  * Full-page status screens for the public PEV portal. Presentation migrated;
@@ -89,12 +89,15 @@ export function CompletedScreen({ verificationData, token }) {
                 <strong className="text-ds-content">{verificationData?.applicantName}</strong>.
                 Your response has been securely recorded and the requesting company has been notified.
             </p>
-            <div className="rounded-ds-lg border border-ds-status-success-border bg-ds-status-success-bg p-ds-4 text-left">
-                <p className="text-ds-sm font-medium text-ds-status-success-fg">
-                    <ShieldCheck className="mr-1 inline h-4 w-4" aria-hidden="true" />
-                    A PDF record has been generated and added to the applicant&apos;s Qualification file.
-                </p>
-            </div>
+            {/* `ShieldCheck` is passed explicitly rather than falling to the
+                success tone's tick: it says *securely recorded*, which a generic
+                tick does not. The glyph does move — it was inline in the
+                sentence and is now in the leading slot, which is better for a
+                message that wraps but is a visible change either way.
+                `Notice` sets `text-align: start`, so `text-left` is redundant. */}
+            <Notice tone="success" icon={ShieldCheck}>
+                A PDF record has been generated and added to the applicant&apos;s Qualification file.
+            </Notice>
             <p className="mt-6 text-ds-xs text-ds-content-muted">Verification ID: {token}</p>
         </StatusShell>
     );

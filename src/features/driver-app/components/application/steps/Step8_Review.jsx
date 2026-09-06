@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
-import { CheckCircle2, Edit2, FileCheck } from 'lucide-react';
-import { Button, Card, FieldDisplay } from '@/design-system/components';
+import { Edit2, FileCheck } from 'lucide-react';
+import { Button, Card, FieldDisplay, Notice } from '@/design-system/components';
 import { useData } from '@/context/DataContext';
 import { buildApplicationReview } from '@/config/applicationDefinition';
 import { StepNavigation } from './components/StepNavigation';
@@ -125,15 +125,12 @@ const Step8_Review = ({ formData, onNavigate }) => {
                 <p className="mt-ds-1 text-ds-content-muted">Please ensure all details are accurate before signing.</p>
             </div>
 
-            <Card padding="md" className="flex items-start gap-ds-3 border-ds-status-success-border bg-ds-status-success-bg">
-                <CheckCircle2 className="mt-ds-1 shrink-0 text-ds-status-success-fg" size={24} aria-hidden="true" />
-                <div className="min-w-0">
-                    <p className="font-bold text-ds-status-success-fg">Almost Done!</p>
-                    <p className="mt-ds-1 text-ds-sm text-ds-status-success-fg">
-                        Review your application below. If you need to make changes, tap the <strong>Edit</strong> button on any section.
-                    </p>
-                </div>
-            </Card>
+            {/* A toned `Card` carrying nothing but a glyph, a title and a
+                sentence — which is a `Notice` with extra chrome, not a card.
+                `CheckCircle2` is already the success tone's own glyph. */}
+            <Notice tone="success" title="Almost Done!">
+                Review your application below. If you need to make changes, tap the <strong>Edit</strong> button on any section.
+            </Notice>
 
             {sections.map((section) => {
                 const step = STEP_BY_SECTION[section.id];
