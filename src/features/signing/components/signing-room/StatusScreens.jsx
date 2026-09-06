@@ -1,7 +1,5 @@
 import React, { useId } from 'react';
-import {
-    CheckCircle, AlertTriangle, ShieldCheck, FileText, Ban,
-} from 'lucide-react';
+import { Icon, CheckCircle, AlertTriangle, ShieldCheck, FileText, Ban } from '@design-system/icons';
 import { Button, Card, StatusMedallion } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { ErrorState, LoadingState, PageState } from '@design-system/patterns';
@@ -173,7 +171,7 @@ export function EsignConsentScreen({ title, onAgree }) {
         <StatusPage labelledBy={headingId}>
             <Card padding="lg" className="w-full max-w-lg">
                 <div className="mb-ds-5 flex items-center gap-ds-3">
-                    <StatusMedallion tone="info"><ShieldCheck /></StatusMedallion>
+                    <StatusMedallion tone="info"><Icon icon={ShieldCheck} /></StatusMedallion>
                     <div>
                         <h1 id={headingId} className="text-ds-heading-sm font-bold text-ds-content">
                             Electronic Signature Consent
@@ -193,7 +191,7 @@ export function EsignConsentScreen({ title, onAgree }) {
                         className="rounded-ds-lg border border-ds-status-info-border bg-ds-status-info-bg p-ds-4"
                     >
                         <h2 id={disclosureId} className="mb-ds-2 flex items-center gap-ds-2 font-semibold text-ds-status-info-fg">
-                            <FileText size={16} aria-hidden="true" /> Electronic Records &amp; Signature Disclosure
+                            <Icon icon={FileText} /> Electronic Records &amp; Signature Disclosure
                         </h2>
                         <ul className="list-inside list-disc space-y-1 text-ds-xs text-ds-status-info-fg">
                             <li>Your electronic signature is legally binding under the ESIGN Act (15 U.S.C. Sec. 7001) and UETA.</li>
@@ -213,7 +211,7 @@ export function EsignConsentScreen({ title, onAgree }) {
                         Decline
                     </Button>
                     <Button variant="primary" fullWidth onClick={onAgree}>
-                        <ShieldCheck size={18} aria-hidden="true" />
+                        <Icon icon={ShieldCheck} size="lg" />
                         I Agree - Proceed to Sign
                     </Button>
                 </div>

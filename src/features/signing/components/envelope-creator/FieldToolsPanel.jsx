@@ -1,17 +1,5 @@
 import React, { useId, useState } from 'react';
-import {
-    AlignCenter,
-    AlignCenterVertical,
-    AlignEndVertical,
-    AlignLeft,
-    AlignRight,
-    AlignStartVertical,
-    Copy,
-    CopyPlus,
-    MoveHorizontal,
-    MoveVertical,
-    Ruler,
-} from 'lucide-react';
+import { Icon, AlignCenter, AlignCenterVertical, AlignEndVertical, AlignLeft, AlignRight, AlignStartVertical, Copy, CopyPlus, MoveHorizontal, MoveVertical, Ruler } from '@design-system/icons';
 import { Button, FormField, IconButton, Select } from '@/design-system/components';
 
 /**
@@ -85,7 +73,7 @@ export function FieldToolsPanel({
                 Align
             </h5>
             <div role="group" aria-labelledby={alignLabelId} className="mb-ds-3 grid grid-cols-6 gap-ds-1">
-                {ALIGNMENTS.map(({ mode, label, icon: Icon }) => (
+                {ALIGNMENTS.map(({ mode, label, icon: Glyph }) => (
                     <IconButton
                         key={mode}
                         label={label}
@@ -94,7 +82,7 @@ export function FieldToolsPanel({
                         disabled={!canArrange}
                         onClick={() => onAlign(mode)}
                     >
-                        <Icon size={14} aria-hidden="true" />
+                        <Icon icon={Glyph} size="sm" />
                     </IconButton>
                 ))}
             </div>
@@ -103,7 +91,7 @@ export function FieldToolsPanel({
                 Match size
             </h5>
             <div role="group" aria-labelledby={sizeLabelId} className="mb-ds-3 grid grid-cols-3 gap-ds-1">
-                {SIZE_MATCHES.map(({ dimension, label, icon: Icon }) => (
+                {SIZE_MATCHES.map(({ dimension, label, icon: Glyph }) => (
                     <IconButton
                         key={dimension}
                         label={label}
@@ -112,13 +100,13 @@ export function FieldToolsPanel({
                         disabled={!canArrange}
                         onClick={() => onMatchSize(dimension)}
                     >
-                        <Icon size={14} aria-hidden="true" />
+                        <Icon icon={Glyph} size="sm" />
                     </IconButton>
                 ))}
             </div>
 
             <Button variant="secondary" size="sm" fullWidth className="mb-ds-3" onClick={onDuplicate}>
-                <CopyPlus size={14} aria-hidden="true" />
+                <Icon icon={CopyPlus} size="sm" />
                 Duplicate {plural}
             </Button>
 
@@ -136,7 +124,7 @@ export function FieldToolsPanel({
                     </FormField>
                     <div className="mt-ds-2 grid grid-cols-1 gap-ds-1">
                         <Button variant="secondary" size="sm" onClick={() => onCopyToPage(targetPage)}>
-                            <Copy size={14} aria-hidden="true" />
+                            <Icon icon={Copy} size="sm" />
                             Copy to page {targetPage}
                         </Button>
                         <Button variant="ghost" size="sm" onClick={onCopyToAllPages}>

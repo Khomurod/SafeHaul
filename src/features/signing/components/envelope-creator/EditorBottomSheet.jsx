@@ -1,5 +1,5 @@
 import React, { useId } from 'react';
-import { X } from 'lucide-react';
+import { Icon, X } from '@design-system/icons';
 import { Modal } from '@design-system/patterns';
 import { IconButton } from '@/design-system/components';
 
@@ -26,7 +26,7 @@ export function EditorBottomSheet({ title, onClose, children }) {
             <div className="flex shrink-0 items-center justify-between gap-ds-2 border-b border-ds-border-subtle px-ds-4 py-ds-3">
                 <h2 id={headingId} className="text-ds-body font-bold text-ds-content">{title}</h2>
                 <IconButton label={`Close ${title}`} variant="ghost" size="sm" onClick={onClose}>
-                    <X size={18} aria-hidden="true" />
+                    <Icon icon={X} size="lg" />
                 </IconButton>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>

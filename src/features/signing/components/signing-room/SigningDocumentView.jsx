@@ -12,7 +12,7 @@ import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 import { Button } from '@/design-system/components';
 import { ErrorState } from '@design-system/patterns';
 import { Document, Page, pdfjs } from 'react-pdf';
-import { Loader2, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Icon, Loader2, AlertTriangle, RefreshCw } from '@design-system/icons';
 
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
@@ -165,7 +165,7 @@ export function SigningDocumentView({
 
                     {!isPageReady && (
                         <div role="status" className="absolute inset-0 flex items-center justify-center gap-ds-2 text-ds-sm text-ds-content-secondary">
-                            <Loader2 className="animate-spin" size={18} aria-hidden="true" /> Rendering page {pageNumber}…
+                            <Icon icon={Loader2} size="lg" className="animate-spin" /> Rendering page {pageNumber}…
                         </div>
                     )}
 
@@ -200,7 +200,7 @@ export function SigningDocumentView({
                                 setDocReloadKey((k) => k + 1);
                             }}
                         >
-                            <RefreshCw size={16} aria-hidden="true" /> Try again
+                            <Icon icon={RefreshCw} /> Try again
                         </Button>
                     )}
                 />
@@ -226,7 +226,7 @@ export function SigningDocumentView({
                         }}
                         loading={(
                             <div role="status" className="flex items-center gap-ds-2 py-16 text-ds-content-secondary">
-                                <Loader2 className="animate-spin" size={20} aria-hidden="true" /> Loading document…
+                                <Icon icon={Loader2} size="xl" className="animate-spin" /> Loading document…
                             </div>
                         )}
                         className="flex flex-col items-center gap-4 md:gap-6"

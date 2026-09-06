@@ -1,6 +1,6 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import SignatureCanvas from 'react-signature-canvas';
-import { ChevronLeft, Eraser } from 'lucide-react';
+import { Icon, ChevronLeft, Eraser } from '@design-system/icons';
 import { Button } from '@/design-system/components';
 import { Modal } from '@design-system/patterns';
 
@@ -112,13 +112,13 @@ export function SignatureSheet({ kind = 'signature', onCancel, onAdopt }) {
                 style={{ paddingTop: 'max(0.75rem, env(safe-area-inset-top))' }}
             >
                 <Button variant="ghost" size="sm" onClick={onCancel}>
-                    <ChevronLeft size={20} aria-hidden="true" /> Cancel
+                    <Icon icon={ChevronLeft} size="xl" /> Cancel
                 </Button>
                 <h2 id={headingId} className="text-ds-body font-bold text-ds-content">
                     {title}
                 </h2>
                 <Button variant="ghost" size="sm" onClick={clear}>
-                    <Eraser size={16} aria-hidden="true" /> Clear
+                    <Icon icon={Eraser} /> Clear
                 </Button>
             </div>
 

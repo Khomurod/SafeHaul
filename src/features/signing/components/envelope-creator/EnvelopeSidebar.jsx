@@ -1,5 +1,5 @@
 import React, { useId, useRef, useState } from 'react';
-import { X, Mail, MessageSquare, Copy, Send, Sparkles, FileText } from 'lucide-react';
+import { Icon, X, Mail, MessageSquare, Copy, Send, Sparkles, FileText } from '@design-system/icons';
 import {
     Button, Disclosure, FileInput, IconButton, SegmentedControl,
 } from '@/design-system/components';
@@ -182,7 +182,7 @@ export function EnvelopeSidebar({
                     />
                 ) : (
                     <div className="flex items-center gap-ds-2 rounded-ds-lg border border-ds-border bg-ds-surface-subtle p-ds-2">
-                        <FileText size={16} aria-hidden="true" className="shrink-0 text-ds-content-secondary" />
+                        <Icon icon={FileText} className="shrink-0 text-ds-content-secondary" />
                         <span className="truncate text-ds-xs font-medium text-ds-content" title={file.name}>
                             {file.name}
                         </span>
@@ -278,7 +278,7 @@ export function EnvelopeSidebar({
                             aria-describedby={aiHelpId}
                             onClick={onOpenAiAssistant}
                         >
-                            <Sparkles size={14} aria-hidden="true" />
+                            <Icon icon={Sparkles} size="sm" />
                             Auto-place fields
                         </Button>
                         <p id={aiHelpId} className="mt-ds-2 text-ds-xs leading-snug text-ds-content-secondary">
@@ -315,7 +315,8 @@ export function EnvelopeSidebar({
                                 </h4>
                                 <div className="flex flex-col gap-ds-1">
                                     {category.items.map((item) => {
-                                        const IconComp = item.icon;
+                                        // A glyph TOKEN off `FIELD_CATEGORIES`, so it goes through `Icon`.
+                                        const itemGlyph = item.icon;
                                         return (
                                             <Button
                                                 key={item.templateId}
@@ -326,7 +327,7 @@ export function EnvelopeSidebar({
                                                 onClick={() => addField(item.templateId)}
                                                 aria-label={`Add ${item.label} field`}
                                             >
-                                                <IconComp size={15} aria-hidden="true" />
+                                                <Icon icon={itemGlyph} size="sm" />
                                                 <span className="text-ds-xs font-semibold">{item.label}</span>
                                             </Button>
                                         );
@@ -428,7 +429,7 @@ export function EnvelopeSidebar({
                                             className="shrink-0"
                                             onClick={(e) => { e.stopPropagation(); removeField(f.id); }}
                                         >
-                                            <X size={12} aria-hidden="true" />
+                                            <Icon icon={X} size="xs" />
                                         </IconButton>
                                     </li>
                                 );

@@ -35,9 +35,7 @@ import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 import { useIsMobile } from '@shared/hooks';
 import { useToast } from '@shared/components/feedback';
 import { Button, IconButton } from '@/design-system/components';
-import {
-    CheckCircle, ChevronDown, AlertTriangle, ZoomIn, ZoomOut,
-} from 'lucide-react';
+import { Icon, CheckCircle, ChevronDown, AlertTriangle, ZoomIn, ZoomOut } from '@design-system/icons';
 
 // Focused fields smaller than this (CSS px) trigger an automatic zoom bump on
 // touch devices — at fit-width on a phone, a 5%-height field is ~18px and
@@ -329,9 +327,9 @@ export default function SigningRoom() {
             }`}
         >
             {remainingCount === 0 ? (
-                <><CheckCircle size={14} aria-hidden="true" /> <span className="hidden sm:inline">All fields complete</span><span className="sm:hidden">Done</span></>
+                <><Icon icon={CheckCircle} size="sm" /> <span className="hidden sm:inline">All fields complete</span><span className="sm:hidden">Done</span></>
             ) : (
-                <><AlertTriangle size={14} aria-hidden="true" /> {remainingCount} <span className="hidden sm:inline">field{remainingCount > 1 ? 's' : ''} remaining</span><span className="sm:hidden">left</span></>
+                <><Icon icon={AlertTriangle} size="sm" /> {remainingCount} <span className="hidden sm:inline">field{remainingCount > 1 ? 's' : ''} remaining</span><span className="sm:hidden">left</span></>
             )}
         </p>
     );
@@ -339,13 +337,13 @@ export default function SigningRoom() {
     const zoomControls = (
         <div role="group" aria-label="Document zoom" className="flex items-center gap-ds-1 rounded-ds-lg bg-ds-surface-subtle p-ds-1">
             <IconButton label="Zoom out" variant="ghost" size="sm" onClick={zoomOut}>
-                <ZoomOut size={18} aria-hidden="true" />
+                <Icon icon={ZoomOut} size="lg" />
             </IconButton>
             <span className="w-11 text-center text-ds-xs font-bold tabular-nums text-ds-content-secondary" aria-live="polite">
                 {zoomLabel}
             </span>
             <IconButton label="Zoom in" variant="ghost" size="sm" onClick={zoomIn}>
-                <ZoomIn size={18} aria-hidden="true" />
+                <Icon icon={ZoomIn} size="lg" />
             </IconButton>
         </div>
     );
@@ -378,7 +376,7 @@ export default function SigningRoom() {
                         loading={submitting}
                         onClick={handleFinishSigning}
                     >
-                        {!submitting && <CheckCircle size={16} aria-hidden="true" />}
+                        {!submitting && <Icon icon={CheckCircle} />}
                         Finish &amp; Submit
                     </Button>
                 </div>
@@ -418,7 +416,7 @@ export default function SigningRoom() {
                         className="shadow-ds-lg motion-safe:animate-bounce"
                         onClick={() => scrollToField(firstIncompleteField)}
                     >
-                        <ChevronDown size={18} aria-hidden="true" />
+                        <Icon icon={ChevronDown} size="lg" />
                         Jump to next field (Page {Number(firstIncompleteField.pageNumber) || 1})
                     </Button>
                 </div>
@@ -432,7 +430,7 @@ export default function SigningRoom() {
                 <div className="flex-1" />
                 {remainingCount > 0 && firstIncompleteField ? (
                     <Button variant="primary" onClick={() => scrollToField(firstIncompleteField)}>
-                        <ChevronDown size={16} aria-hidden="true" /> Next field
+                        <Icon icon={ChevronDown} /> Next field
                     </Button>
                 ) : (
                     /* Same approved success tone as the desktop CTA. */
@@ -442,7 +440,7 @@ export default function SigningRoom() {
                         loading={submitting}
                         onClick={handleFinishSigning}
                     >
-                        {!submitting && <CheckCircle size={16} aria-hidden="true" />}
+                        {!submitting && <Icon icon={CheckCircle} />}
                         Finish &amp; Submit
                     </Button>
                 )}

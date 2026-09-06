@@ -1,15 +1,5 @@
 import React, { useId } from 'react';
-import {
-    ChevronLeft,
-    ChevronRight,
-    Eye,
-    Maximize2,
-    MoveHorizontal,
-    Redo2,
-    Undo2,
-    ZoomIn,
-    ZoomOut,
-} from 'lucide-react';
+import { Icon, ChevronLeft, ChevronRight, Eye, Maximize2, MoveHorizontal, Redo2, Undo2, ZoomIn, ZoomOut } from '@design-system/icons';
 import { Button, IconButton } from '@/design-system/components';
 import {
     PDF_VIEWPORT_WIDTH_DEFAULT,
@@ -67,7 +57,7 @@ export function EditorCanvasToolbar({
                     disabled={activePage <= 1}
                     onClick={onPreviousPage}
                 >
-                    <ChevronLeft size={16} aria-hidden="true" />
+                    <Icon icon={ChevronLeft} />
                 </IconButton>
                 <span className="min-w-[5.5rem] text-center text-ds-sm font-medium text-ds-content">
                     Page {activePage} / {total || 1}
@@ -79,7 +69,7 @@ export function EditorCanvasToolbar({
                     disabled={total === 0 || activePage >= total}
                     onClick={onNextPage}
                 >
-                    <ChevronRight size={16} aria-hidden="true" />
+                    <Icon icon={ChevronRight} />
                 </IconButton>
             </div>
 
@@ -94,7 +84,7 @@ export function EditorCanvasToolbar({
                     size="sm"
                     onClick={() => setPdfViewportWidth((width) => clampPdfViewportWidth(width - 48))}
                 >
-                    <ZoomOut size={16} aria-hidden="true" />
+                    <Icon icon={ZoomOut} />
                 </IconButton>
                 <Button
                     variant="secondary"
@@ -111,17 +101,17 @@ export function EditorCanvasToolbar({
                     size="sm"
                     onClick={() => setPdfViewportWidth((width) => clampPdfViewportWidth(width + 48))}
                 >
-                    <ZoomIn size={16} aria-hidden="true" />
+                    <Icon icon={ZoomIn} />
                 </IconButton>
             </div>
 
             {/* Fit */}
             <div className="flex items-center gap-ds-1">
                 <Button variant="ghost" size="sm" onClick={onFitWidth}>
-                    <MoveHorizontal size={14} aria-hidden="true" /> Fit Width
+                    <Icon icon={MoveHorizontal} size="sm" /> Fit Width
                 </Button>
                 <Button variant="ghost" size="sm" onClick={onFitPage}>
-                    <Maximize2 size={14} aria-hidden="true" /> Fit Page
+                    <Icon icon={Maximize2} size="sm" /> Fit Page
                 </Button>
             </div>
 
@@ -132,10 +122,10 @@ export function EditorCanvasToolbar({
                 narrow screens. */}
             <div className="flex items-center gap-ds-1">
                 <IconButton label="Undo" variant="ghost" size="sm" disabled={!canUndo} onClick={onUndo}>
-                    <Undo2 size={16} aria-hidden="true" />
+                    <Icon icon={Undo2} />
                 </IconButton>
                 <IconButton label="Redo" variant="ghost" size="sm" disabled={!canRedo} onClick={onRedo}>
-                    <Redo2 size={16} aria-hidden="true" />
+                    <Icon icon={Redo2} />
                 </IconButton>
                 <IconButton
                     label="Preview as signer"
@@ -144,7 +134,7 @@ export function EditorCanvasToolbar({
                     disabled={previewDisabled}
                     onClick={onPreview}
                 >
-                    <Eye size={16} aria-hidden="true" />
+                    <Icon icon={Eye} />
                 </IconButton>
             </div>
 

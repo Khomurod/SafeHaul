@@ -1,6 +1,6 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import Draggable from 'react-draggable';
-import { Check, Scaling, Sparkles, X } from 'lucide-react';
+import { Icon, Check, Scaling, Sparkles, X } from '@design-system/icons';
 import { IconButton } from '@/design-system/components';
 
 /**
@@ -136,7 +136,9 @@ export function AiSuggestionOverlay({
             >
                 <div className="flex shrink-0 items-center gap-ds-1 overflow-hidden px-ds-1 py-0.5">
                     <span aria-hidden="true" className="shrink-0 text-ds-status-accent-fg">
-                        {accepted ? <Check size={11} /> : <Sparkles size={11} />}
+                        {/* 11 -> `xs` (12): one pixel, and it matches the `text-ds-xs`
+                            label it sits beside. */}
+                        {accepted ? <Icon icon={Check} size="xs" /> : <Icon icon={Sparkles} size="xs" />}
                     </span>
                     {size.width > 56 && (
                         <span className="truncate text-ds-xs font-bold uppercase text-ds-content">
@@ -171,7 +173,7 @@ export function AiSuggestionOverlay({
                         onReject(suggestion.suggestionId);
                     }}
                 >
-                    <X size={12} aria-hidden="true" />
+                    <Icon icon={X} size="xs" />
                 </IconButton>
                 <IconButton
                     label={`${accepted ? 'Unselect' : 'Select'} AI suggestion ${suggestion.label} on page ${pageNum}`}
@@ -186,15 +188,17 @@ export function AiSuggestionOverlay({
                         onAccept(suggestion.suggestionId);
                     }}
                 >
-                    <Check size={12} aria-hidden="true" />
+                    <Icon icon={Check} size="xs" />
                 </IconButton>
 
+                {/* Same handle geometry as `ResizableDraggableField`, and the same
+                    reason: the container owns a size the scale cannot express. */}
                 <div
-                    className="resize-handle absolute bottom-0 right-0 flex h-3 w-3 cursor-se-resize items-end justify-end p-0.5 opacity-60 transition group-hover:opacity-100"
+                    className="resize-handle absolute bottom-0 right-0 flex h-3 w-3 cursor-se-resize items-end justify-end p-0.5 opacity-60 transition group-hover:opacity-100 [&>svg]:h-2.5 [&>svg]:w-2.5"
                     onMouseDown={handleResizeMouseDown}
                     aria-hidden="true"
                 >
-                    <Scaling size={10} className="text-ds-content-secondary" />
+                    <Icon icon={Scaling} className="text-ds-content-secondary" />
                 </div>
             </div>
         </Draggable>

@@ -1,6 +1,6 @@
 import React, { useId, useMemo, useRef, useState } from 'react';
 import { Document, Page } from 'react-pdf';
-import { ChevronLeft, ChevronRight, Eye, X } from 'lucide-react';
+import { Icon, ChevronLeft, ChevronRight, Eye, X } from '@design-system/icons';
 import { Modal } from '@design-system/patterns';
 import { Badge, Button, IconButton, Notice } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
@@ -76,7 +76,7 @@ export function SignerPreviewDialog({
             <div className="flex flex-wrap items-start justify-between gap-ds-3 border-b border-ds-border-subtle bg-ds-surface-subtle p-ds-4">
                 <div className="min-w-0">
                     <h2 id={titleId} className="flex items-center gap-ds-2 text-ds-heading-sm font-bold text-ds-content">
-                        <Eye size={18} className="text-ds-action-primary" aria-hidden="true" />
+                        <Icon icon={Eye} size="lg" className="text-ds-action-primary" />
                         Preview as signer
                     </h2>
                     <p id={descriptionId} className="mt-ds-1 text-ds-xs text-ds-content-secondary">
@@ -85,7 +85,7 @@ export function SignerPreviewDialog({
                     </p>
                 </div>
                 <IconButton label="Close preview" variant="ghost" onClick={onClose}>
-                    <X size={20} aria-hidden="true" />
+                    <Icon icon={X} size="xl" />
                 </IconButton>
             </div>
 
@@ -100,7 +100,7 @@ export function SignerPreviewDialog({
                             disabled={page <= 1}
                             onClick={() => setPage((value) => Math.max(1, value - 1))}
                         >
-                            <ChevronLeft size={16} aria-hidden="true" />
+                            <Icon icon={ChevronLeft} />
                         </IconButton>
                         <span className="text-ds-sm font-medium text-ds-content">
                             Page {page} of {total}
@@ -112,7 +112,7 @@ export function SignerPreviewDialog({
                             disabled={page >= total}
                             onClick={() => setPage((value) => Math.min(total, value + 1))}
                         >
-                            <ChevronRight size={16} aria-hidden="true" />
+                            <Icon icon={ChevronRight} />
                         </IconButton>
                     </div>
 

@@ -1710,7 +1710,7 @@ on it — catalog included — and `check:icon-contract` refuses a new importer.
 does not mean the migration is finished: 178 files outside the design system
 still import `lucide-react`, recorded in `icons/lucide-import.backlog.json`, and
 the family is not closed until that file is deleted, which is the moment the
-rule becomes absolute. **110 as of 2026-09-06**: `candidateListColumns.jsx`
+rule becomes absolute. **88 as of 2026-09-06**: `candidateListColumns.jsx`
 drained on its way through the chip slice and two more went with the Notice
 migration, because a file being rewritten to use `Icon` is the cheapest moment to
 finish it, and the campaign only shrinks.
@@ -1925,6 +1925,41 @@ shape as the 7e defect one level out. Scanned rather than assumed: across all
 remaining backlog files exactly three exported data values hold a glyph
 (`QUESTION_TYPES`, `FIELD_CATEGORIES`, `NAV_ICONS`) and **every consumer of each
 is inside its own area**, so each remaining slice is self-contained on this axis.
+
+**7g drained `signing`: 110 → 88 files, 494 → 395 imports.** Eleven flags, in two
+clusters that needed different answers.
+
+**Four local bindings, three of them shadowing `Icon`.** `EnvelopeHistory:184`,
+`EditorMobileBar:41` and `FieldToolsPanel:76`/`:94` all held a glyph under the
+name `Icon`, which is the contract's own export — so the repair is to rename the
+LOCAL binding (`Glyph`), never to write `<Icon icon={Icon} />`.
+`EnvelopeSidebar:318` held one as `IconComp`, which does not shadow but is still a
+token; it became `itemGlyph`. `EnvelopeHistory` also keeps `size="xs"` explicitly,
+because `Badge` sizes the glyph it takes through its `icon` PROP and has no rule
+for one passed as a CHILD — the roadmap's open "Badge does not size its glyph"
+gap, met in the wild for the first time.
+
+**Three sites where the container's geometry is real, not taste.** The sizing
+policy singles the PDF overlays out for exactly this. Two resize handles
+(`ResizableDraggableField:258`, `AiSuggestionOverlay:193`) are `h-3 w-3` — 12px —
+with `p-0.5`, so the inner box is 8px and the scale's *smallest* step, `xs` = 12,
+would overflow the handle it sits in. Off the scale either way, so the handle owns
+it, the same shape as `BrandingSection`'s logo frame in 7f. `PageThumbnailRail:162`
+is the opposite case and snaps: 10 → `xs`, two pixels, landing on the same step as
+the caption beside it. (The 12px hit target is the separate, already-recorded WCAG
+2.5.8 owner checkpoint from P-2 and was left alone.)
+
+The rest were ordinary: `AiSuggestionOverlay:139` 11 → `xs` beside its
+`text-ds-xs` label, `EnvelopeCreator:332` 36 → `3xl`, `EnvelopeSidebar:329`
+15 → `sm`, and `StatusScreens:174` a bare glyph the medallion has owned since 7a.
+
+**And the new lint rule earned its keep on its first slice.** Three files came out
+of the hand repairs rendering `<Icon …>` without importing `Icon` —
+`EnvelopeCreator`, `EditorMobileBar`, `PageThumbnailRail` — the identical 7e
+defect, in three more files, on the very next area. `react/jsx-no-undef` named all
+three by file and line. That is the difference between a rule and a lesson: the
+lesson was written down in 7e and the same mistake was made anyway, and the rule
+caught it in seconds rather than in a 180-second end-to-end timeout.
 
 **The catalog was teaching the habit.** The guard's first live run refused 23
 story files — the design system's own catalog, still importing the package
