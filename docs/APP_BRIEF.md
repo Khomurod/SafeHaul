@@ -1305,6 +1305,17 @@ cannot resolve the colour at all — and the `theme-color` meta, a literal copy 
   manual publication check all need real credentials in a deployed environment.
   Nothing in the repository can substitute for them, and a green test run is not
   evidence that any of them passed.
+- **22 known dependency advisories remain, all behind a major version.** The
+  2026-09-06 audit counted 53 in the root tree and 22 under `functions/`, none
+  watched. Every fix inside the declared ranges was applied that day (root
+  53 → 10 moderate, functions 22 → 12 moderate); what is left needs `exceljs`
+  3.x, `firebase-admin` 14 or `firebase-functions-test` 0.3, each a
+  deliberate, separate change. `.github/dependabot.yml` now raises weekly
+  grouped update pull requests for the root, `functions/` and the GitHub
+  Actions, majors on their own, with a **seven-day cooldown** so a package
+  compromised and pulled within days never reaches this tree — the standard
+  answer to the 2025 npm supply-chain worms. Advisory-driven security fixes are
+  not delayed by the cooldown.
 - **Several one-time backfill callables are still exported** (`backfillUserCompanyIds`,
   `backfillDriverCompanyIds`, `backfillPublicProfiles`, `migrateEmailSettings`,
   `backfillApplicationSearchFields`, stats and SMS-phone backfills). They are

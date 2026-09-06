@@ -82,6 +82,16 @@ describe('ApplicationRulesPanel', () => {
         expect(screen.getByRole('checkbox', { name: 'Student / Recent Grad' })).toBeDisabled();
     });
 
+    it('builds every element id without whitespace, so a selector can name it', () => {
+        // `EXPERIENCE_OPTIONS` carries "0-6 months"; interpolated raw, that made an
+        // invalid id, and axe hung on the selector happy-dom 20.4+ refuses (2026-09-06).
+        const { container } = render(<ApplicationRulesPanel rules={{}} onChange={vi.fn()} />);
+        const ids = [...container.querySelectorAll('[id]')].map((el) => el.id);
+        expect(ids.length).toBeGreaterThan(10);
+        expect(ids.filter((id) => /\s/.test(id))).toEqual([]);
+        expect(ids.filter((id) => id.endsWith('-0-6-months'))).toHaveLength(1);
+    });
+
     it('has no serious accessibility violations', async () => {
         const { container } = render(<ApplicationRulesPanel rules={{}} onChange={vi.fn()} />);
         const results = await axe(container);

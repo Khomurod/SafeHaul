@@ -23,6 +23,7 @@ import {
     Textarea,
 } from '@design-system/components';
 import InputField from '@shared/components/form/InputField';
+import { domIdSegment } from '@shared/utils/domId';
 
 // Field type constants for type checking (matches config schema string types)
 const FIELD_TYPES = {
@@ -150,7 +151,7 @@ function renderInputMode(definition, value, onChange, isRequired, error, onBlur)
                         <Radio
                             key={opt.value}
                             name={key}
-                            id={`${key}-${opt.value}`}
+                            id={`${key}-${domIdSegment(opt.value)}`}
                             label={opt.label}
                             value={opt.value}
                             checked={value === opt.value}
@@ -224,7 +225,7 @@ function renderDisplayMode(definition, value, onChange, isEditing, fileUrls = {}
                             <Radio
                                 key={opt.value}
                                 name={key}
-                                id={`${key}-edit-${opt.value}`}
+                                id={`${key}-edit-${domIdSegment(opt.value)}`}
                                 label={opt.label}
                                 value={opt.value}
                                 checked={value === opt.value}
