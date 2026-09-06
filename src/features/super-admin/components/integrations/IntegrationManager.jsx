@@ -3,7 +3,7 @@ import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { useToast } from '@shared/components/feedback/ToastProvider';
-import { Save, Send, Database, ArrowLeft, CheckCircle } from 'lucide-react';
+import { Icon, Save, Send, Database, ArrowLeft, CheckCircle } from '@design-system/icons';
 import { Badge, Button, Card, Checkbox, FormField, Input, Notice } from '@/design-system/components';
 import { SafeHaulLoader } from '@shared/components/SafeHaulLoader';
 import { LineManager } from './LineManager';
@@ -240,12 +240,12 @@ export function IntegrationManager({ companyId, companyName, onBack }) {
         <Card padding="lg">
             <div className="mb-ds-4 flex flex-wrap items-center justify-between gap-ds-3">
                 <h2 className="flex items-center gap-ds-2 text-ds-heading-sm font-bold text-ds-content">
-                    <Database className="text-ds-content-link" size={24} aria-hidden="true" />
+                    <Icon icon={Database} size="2xl" className="text-ds-content-link" />
                     <span>SMS Integration <span className="font-normal text-ds-content-muted">for</span> {companyName || 'Company'}</span>
                 </h2>
                 {onBack && (
                     <Button variant="ghost" size="sm" onClick={onBack}>
-                        <ArrowLeft size={16} aria-hidden="true" /> Back to List
+                        <Icon icon={ArrowLeft} /> Back to List
                     </Button>
                 )}
             </div>
@@ -420,12 +420,12 @@ export function IntegrationManager({ companyId, companyName, onBack }) {
                             loading={isTesting}
                             disabled={!testPhone}
                         >
-                            <Send size={14} aria-hidden="true" /> Test
+                            <Icon icon={Send} size="sm" /> Test
                         </Button>
                     </div>
 
                     <Button type="submit" variant="primary" tone="success" loading={isLoading}>
-                        <Save size={18} aria-hidden="true" /> Secure Save
+                        <Icon icon={Save} size="lg" /> Secure Save
                     </Button>
                 </div>
 

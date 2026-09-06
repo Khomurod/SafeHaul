@@ -1,15 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import {
-    AlertTriangle,
-    CheckCircle2,
-    Clock,
-    History,
-    Loader2,
-    RefreshCw,
-    Rocket,
-    ServerCog,
-    XCircle,
-} from 'lucide-react';
+import { Icon, AlertTriangle, CheckCircle2, Clock, History, Loader2, RefreshCw, Rocket, ServerCog, XCircle } from '@design-system/icons';
 import { Badge, Button, Card } from '@/design-system/components';
 import { Inline, ResponsiveGrid, Stack } from '@/design-system/layouts';
 import { useToast } from '@shared/components/feedback';
@@ -88,13 +78,13 @@ function ReleaseFact({ label, children }) {
  * this is deciding whether to change what customers see, not debugging CI.
  */
 function ReadinessRow({ ok, pending, label }) {
-    const Icon = ok ? CheckCircle2 : (pending ? Clock : XCircle);
+    // `Glyph`, not `Icon`: this file imports the contract's own `Icon`.
+    const Glyph = ok ? CheckCircle2 : (pending ? Clock : XCircle);
     const tone = ok ? 'text-ds-content' : 'text-ds-content-secondary';
     return (
         <li className={`flex items-center gap-ds-2 text-ds-sm ${tone}`}>
             <Icon
-                size={16}
-                aria-hidden="true"
+                icon={Glyph}
                 className={ok ? 'text-ds-status-success-fg' : (pending ? 'text-ds-status-warning-fg' : 'text-ds-status-danger-fg')}
             />
             <span>{label}</span>
@@ -210,7 +200,7 @@ export function ReleaseManagementView() {
             {error && (
                 <Card padding="md" role="alert">
                     <Inline gap="sm">
-                        <AlertTriangle size={18} aria-hidden="true" className="text-ds-status-danger-fg" />
+                        <Icon icon={AlertTriangle} size="lg" className="text-ds-status-danger-fg" />
                         <span className="text-ds-sm text-ds-content">{error}</span>
                     </Inline>
                 </Card>
@@ -220,7 +210,7 @@ export function ReleaseManagementView() {
                 <Card padding="md" role="status">
                     <Stack gap="sm">
                         <Inline gap="sm">
-                            <ServerCog size={18} aria-hidden="true" className="text-ds-status-warning-fg" />
+                            <Icon icon={ServerCog} size="lg" className="text-ds-status-warning-fg" />
                             <span className="text-ds-sm font-semibold text-ds-content">
                                 Not connected to the deployment pipeline yet
                             </span>
@@ -233,9 +223,14 @@ export function ReleaseManagementView() {
             {phasePresentation && (
                 <Card padding="md" role="status" aria-live="polite">
                     <Inline gap="sm">
-                        <phasePresentation.Icon
-                            size={18}
-                            aria-hidden="true"
+                        {/*
+                          A MEMBER EXPRESSION holding a glyph token — the shape 7h
+                          added a reader for, met here as a flag rather than as a
+                          screen that throws.
+                        */}
+                        <Icon
+                            icon={phasePresentation.Icon}
+                            size="lg"
                             className={phasePresentation.spin ? 'animate-spin' : undefined}
                         />
                         <span className="text-ds-sm font-semibold text-ds-content">
@@ -345,7 +340,7 @@ export function ReleaseManagementView() {
                         {previousProduction && (
                             <div className="rounded-ds-md bg-ds-surface-subtle p-ds-3">
                                 <Inline gap="sm">
-                                    <History size={16} aria-hidden="true" className="text-ds-content-secondary" />
+                                    <Icon icon={History} className="text-ds-content-secondary" />
                                     <span className="text-ds-sm text-ds-content-secondary">
                                         Previous release{' '}
                                         <code className="font-mono">{shortSha(previousProduction.sha)}</code>
@@ -364,19 +359,19 @@ export function ReleaseManagementView() {
                     disabled={!canRelease}
                     onClick={() => openDialog('promote')}
                 >
-                    <Rocket size={16} aria-hidden="true" />
+                    <Icon icon={Rocket} />
                     Release Testing version to Production
                 </Button>
 
                 {canRollBack && (
                     <Button variant="secondary" onClick={() => openDialog('rollback')}>
-                        <History size={16} aria-hidden="true" />
+                        <Icon icon={History} />
                         Roll back to previous release
                     </Button>
                 )}
 
                 <Button variant="ghost" onClick={() => reload()} disabled={loading}>
-                    <RefreshCw size={16} aria-hidden="true" />
+                    <Icon icon={RefreshCw} />
                     Refresh
                 </Button>
             </Inline>

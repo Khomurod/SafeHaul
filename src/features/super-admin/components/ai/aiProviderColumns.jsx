@@ -7,7 +7,7 @@
  */
 
 import React from 'react';
-import { Trash2 } from 'lucide-react';
+import { Icon, Trash2 } from '@design-system/icons';
 import {
     Badge,
     Button,
@@ -295,7 +295,7 @@ export function buildProviderColumns({
                                         setDeleteTarget({ provider, field: target, kind: 'ai' });
                                     }}
                                 >
-                                    <Trash2 size={14} aria-hidden="true" /> Delete
+                                    <Icon icon={Trash2} size="sm" /> Delete
                                 </Button>
                             );
                         })()}

@@ -3,7 +3,7 @@ import { updateUser } from '@features/auth/services/userService';
 import { auth, functions } from '@lib/firebase';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { httpsCallable } from 'firebase/functions';
-import { KeyRound, Trash2 } from 'lucide-react';
+import { Icon, KeyRound, Trash2 } from '@design-system/icons';
 import { Button, Card, FieldMessage, FormField, Input } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { ConfirmDialog } from '@design-system/patterns';
@@ -175,7 +175,7 @@ export function EditUserNameForm({ userId, initialName, email, companyId, onSave
                             disabled={resetLoading}
                             loading={resetLoading}
                         >
-                            {!resetLoading && <KeyRound size={16} aria-hidden="true" />}
+                            {!resetLoading && <Icon icon={KeyRound} />}
                             Send Password Reset
                         </Button>
 
@@ -186,7 +186,7 @@ export function EditUserNameForm({ userId, initialName, email, companyId, onSave
                             disabled={deleteLoading}
                             loading={deleteLoading}
                         >
-                            {!deleteLoading && <Trash2 size={16} aria-hidden="true" />}
+                            {!deleteLoading && <Icon icon={Trash2} />}
                             Delete User
                         </Button>
                     </div>

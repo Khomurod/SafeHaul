@@ -1,5 +1,5 @@
 import React, { useId, useRef, useState } from 'react';
-import { ShieldCheck } from 'lucide-react';
+import { Icon, ShieldCheck } from '@design-system/icons';
 import { Button, FieldMessage, FormField, Input } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { Modal } from '@design-system/patterns';
@@ -59,7 +59,7 @@ export function ReauthenticateModal({ onSuccess, onCancel }) {
             <form onSubmit={handleSubmit}>
                 <Stack gap="md" className="p-ds-6">
                     <div className="flex items-start gap-ds-3">
-                        <ShieldCheck size={20} aria-hidden="true" className="mt-1 shrink-0 text-ds-content-link" />
+                        <Icon icon={ShieldCheck} size="xl" className="mt-1 shrink-0 text-ds-content-link" />
                         <div>
                             <h2 id={titleId} className="text-ds-heading-md font-bold text-ds-content">
                                 Confirm it is you

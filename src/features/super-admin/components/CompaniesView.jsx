@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useId } from 'react';
 import { getFieldValue } from '@shared/utils/helpers.js';
-import { Building, FileText, Edit2, Trash2, Search, ChevronLeft, ChevronRight, Crown, Shield, MessageSquare, Phone, Database, CheckCircle, XCircle } from 'lucide-react';
+import { Icon, Building, FileText, Edit2, Trash2, Search, ChevronLeft, ChevronRight, Crown, Shield, MessageSquare, Phone, Database, CheckCircle, XCircle } from '@design-system/icons';
 import { db } from '@lib/firebase';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { SafeHaulLoader } from '@shared/components/SafeHaulLoader';
@@ -164,13 +164,14 @@ export function CompaniesView({
     };
 
     const title = isIntegrationMode ? "SMS Integrations Hub" : "Manage Companies";
-    const TitleIcon = isIntegrationMode ? MessageSquare : Building;
+    // A glyph TOKEN either way, so it is rendered through `Icon` below.
+    const titleGlyph = isIntegrationMode ? MessageSquare : Building;
 
     return (
         <Card padding="none" className="flex h-full flex-col overflow-hidden">
             <div className="shrink-0 border-b border-ds-border-subtle p-ds-5">
                 <h2 className="flex items-center gap-ds-2 text-ds-heading-sm font-bold text-ds-content">
-                    <TitleIcon size={20} className="text-ds-content-link" aria-hidden="true" />
+                    <Icon icon={titleGlyph} size="xl" className="text-ds-content-link" />
                     {title}
                 </h2>
             </div>
@@ -189,7 +190,7 @@ export function CompaniesView({
                         value={companySearch}
                         onChange={(e) => setCompanySearch(e.target.value)}
                     />
-                    <Search size={16} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ds-content-muted" />
+                    <Icon icon={Search} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ds-content-muted" />
                 </div>
             </div>
 
@@ -302,8 +303,8 @@ export function CompaniesView({
                                                 }))}
                                             >
                                                 {isActive
-                                                    ? <><CheckCircle size={12} aria-hidden="true" /> Active</>
-                                                    : <><XCircle size={12} aria-hidden="true" /> Inactive</>}
+                                                    ? <><Icon icon={CheckCircle} size="xs" /> Active</>
+                                                    : <><Icon icon={XCircle} size="xs" /> Inactive</>}
                                                 <span className="sr-only">
                                                     {` — ${companyName}, click to ${isActive ? 'deactivate' : 'activate'}`}
                                                 </span>
@@ -313,7 +314,7 @@ export function CompaniesView({
                                             <div className="flex justify-end gap-ds-2">
                                                 {isIntegrationMode ? (
                                                     <Button variant="primary" size="sm" onClick={rowAction(() => onEdit(company))}>
-                                                        <Database size={14} aria-hidden="true" /> Manage API
+                                                        <Icon icon={Database} size="sm" /> Manage API
                                                         <span className="sr-only"> for {companyName}</span>
                                                     </Button>
                                                 ) : (
@@ -324,7 +325,7 @@ export function CompaniesView({
                                                             size="sm"
                                                             onClick={rowAction(() => onViewApps({ id: company.id, name: company.companyName }))}
                                                         >
-                                                            <FileText size={18} aria-hidden="true" />
+                                                            <Icon icon={FileText} size="lg" />
                                                         </IconButton>
                                                         <IconButton
                                                             label={`Edit ${companyName}`}
@@ -332,7 +333,7 @@ export function CompaniesView({
                                                             size="sm"
                                                             onClick={rowAction(() => onEdit(company.id))}
                                                         >
-                                                            <Edit2 size={18} aria-hidden="true" />
+                                                            <Icon icon={Edit2} size="lg" />
                                                         </IconButton>
                                                         <IconButton
                                                             label={`Delete ${companyName}`}
@@ -340,7 +341,7 @@ export function CompaniesView({
                                                             size="sm"
                                                             onClick={rowAction(() => onDelete({ id: company.id, name: company.companyName }))}
                                                         >
-                                                            <Trash2 size={18} aria-hidden="true" className="text-ds-status-danger-fg" />
+                                                            <Icon icon={Trash2} size="lg" className="text-ds-status-danger-fg" />
                                                         </IconButton>
                                                     </>
                                                 )}
@@ -382,7 +383,7 @@ export function CompaniesView({
                             onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                             disabled={currentPage === 1}
                         >
-                            <ChevronLeft size={16} aria-hidden="true" />
+                            <Icon icon={ChevronLeft} />
                         </IconButton>
                         <IconButton
                             label="Next page"
@@ -391,7 +392,7 @@ export function CompaniesView({
                             onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                             disabled={currentPage >= totalPages}
                         >
-                            <ChevronRight size={16} aria-hidden="true" />
+                            <Icon icon={ChevronRight} />
                         </IconButton>
                     </div>
                 </div>

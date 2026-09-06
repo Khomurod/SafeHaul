@@ -1119,15 +1119,14 @@ glyph comes from `@design-system/icons` at a step on the icon scale
 design-system container states no step at all** — `Button`, `IconButton`, `Tabs`,
 `Chip`, `SegmentedControl`, `FileInput` and `StatusMedallion` each size the glyph
 they hold, so two controls of the same size can never carry differently-sized
-glyphs. The files outside the
-design system that still import `lucide-react` directly are recorded in
-`src/design-system/icons/lucide-import.backlog.json`; `npm run
-check:icon-contract` prints the current count and refuses a new importer
-anywhere under `src/`, refuses a listed file that grows, and refuses an entry
-the base commit does not justify. **That list only shrinks** — which is why the
-number belongs in the checker's output rather than in this paragraph, where it
-was wrong within a week of being written (46 on 2026-09-06, against the 178
-recorded here). Update the roadmap with
+glyphs. **Every file outside the registry is on the contract**: the migration campaign
+finished on 2026-09-06, its backlog file was deleted, and `npm run
+check:icon-contract` now refuses a `lucide-react` import anywhere under `src/`
+outside `src/design-system/icons/` — with nothing recorded and nothing exempt.
+The one file that opens a glyph by hand is `VOEDocument.jsx`, through the
+contract's own `glyphComponent`, because the exported verification document must
+carry no `ds-*` class and `Icon` stamps one; the reason is written above the
+calls. Update the roadmap with
 evidence in the same task, and never mark an item complete without the
 functional, visual, mobile, accessibility, documentation and diff checks
 actually having run.

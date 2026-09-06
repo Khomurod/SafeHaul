@@ -7,11 +7,7 @@
  */
 
 import React from 'react';
-import {
-    Building2,
-    Globe,
-    UploadCloud,
-} from 'lucide-react';
+import { Icon, Building2, Globe, UploadCloud } from '@design-system/icons';
 import {
     Badge,
 } from '@/design-system/components';
@@ -54,8 +50,8 @@ export function buildEnvironmentColumns({ handleAction, revealed }) {
             render: (row) => (
                 <span className="flex items-center gap-ds-1 text-ds-sm">
                     {row.scope === 'company'
-                        ? <Building2 size={14} aria-hidden="true" />
-                        : <Globe size={14} aria-hidden="true" />}
+                        ? <Icon icon={Building2} size="sm" />
+                        : <Icon icon={Globe} size="sm" />}
                     {row.scope === 'company' ? (row.companyName || row.companyId) : 'Global'}
                 </span>
             ),

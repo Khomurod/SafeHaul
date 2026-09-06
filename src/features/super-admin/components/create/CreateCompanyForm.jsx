@@ -7,9 +7,7 @@
  */
 
 import React from 'react';
-import {
-    UserPlus, Save, Shield, Crown, Truck, Briefcase,
-} from 'lucide-react';
+import { Icon, UserPlus, Save, Shield, Crown, Truck, Briefcase } from '@design-system/icons';
 import {
     Button, Card, Checkbox, ChoiceGroup, FormField, Input, Radio, Select,
 } from '@/design-system/components';
@@ -36,7 +34,7 @@ export function CreateCompanyForm({
                                 <Card padding="none" className="overflow-hidden">
                                     <div className="border-b border-ds-border-subtle bg-ds-surface-subtle px-ds-5 py-ds-4">
                                         <h3 className="flex items-center gap-ds-3 text-ds-heading-sm font-semibold text-ds-content">
-                                            <Briefcase className="text-ds-content-link" size={20} aria-hidden="true" />
+                                            <Icon icon={Briefcase} size="xl" className="text-ds-content-link" />
                                             Company Details
                                         </h3>
                                     </div>
@@ -68,7 +66,7 @@ export function CreateCompanyForm({
                                             {/* Slug & DOT */}
                                             <Card padding="md" className="bg-ds-surface-subtle">
                                                 <h4 className="mb-ds-3 flex items-center gap-ds-2 text-ds-sm font-bold text-ds-content-link">
-                                                    <Truck size={16} aria-hidden="true" /> Carrier Information
+                                                    <Icon icon={Truck} /> Carrier Information
                                                 </h4>
                                                 <ResponsiveGrid minItemWidth="200px">
                                                     <FormField id="appSlug" label="URL Slug" required>
@@ -164,7 +162,7 @@ export function CreateCompanyForm({
                                 <Card padding="none" className="overflow-hidden">
                                     <div className="border-b border-ds-border-subtle bg-ds-surface-subtle px-ds-5 py-ds-4">
                                         <h3 className="flex items-center gap-ds-3 text-ds-heading-sm font-semibold text-ds-content">
-                                            <UserPlus className="text-ds-status-accent-fg" size={20} aria-hidden="true" />
+                                            <Icon icon={UserPlus} size="xl" className="text-ds-status-accent-fg" />
                                             Initial User Setup
                                         </h3>
                                     </div>
@@ -229,7 +227,7 @@ export function CreateCompanyForm({
 
                                 <div className="flex justify-end">
                                     <Button type="submit" variant="primary" disabled={loading} loading={loading}>
-                                        {!loading && <Save size={20} aria-hidden="true" />} Create Company
+                                        {!loading && <Icon icon={Save} size="xl" />} Create Company
                                     </Button>
                                 </div>
                             </Stack>

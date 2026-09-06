@@ -1,5 +1,5 @@
 import React, { useId } from 'react';
-import { ArrowRight } from 'lucide-react';
+import { Icon, ArrowRight } from '@design-system/icons';
 
 import { Badge, Button, FieldDisplay } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
@@ -144,7 +144,7 @@ export function AiTransactionModal({ entry, onClose }) {
 
                                                 {attempt.nextProviderId && (
                                                     <p className="mt-ds-2 flex items-center gap-ds-1 text-ds-xs text-ds-content-secondary">
-                                                        <ArrowRight size={12} aria-hidden="true" />
+                                                        <Icon icon={ArrowRight} size="xs" />
                                                         Fell back to {attempt.nextProviderId}
                                                     </p>
                                                 )}

@@ -6,11 +6,7 @@
  */
 
 import React from 'react';
-import {
-    Trash2, Eye, MessageSquare,
-    Clock,
-    MapPin
-} from 'lucide-react';
+import { Icon, Trash2, Eye, MessageSquare, Clock, MapPin } from '@design-system/icons';
 import { formatPhoneNumber } from '@shared/utils/helpers';
 import { StatusBadge } from '@shared/components/badges';
 import { IconButton } from '@/design-system/components';
@@ -70,7 +66,7 @@ export function buildDriverListColumns({
                 <div>
                     {(item.city || item.state) ? (
                         <p className="text-ds-body font-semibold text-ds-content flex items-center gap-1">
-                            <MapPin size={12} className="text-ds-content-muted" />
+                            <Icon icon={MapPin} size="xs" className="text-ds-content-muted" />
                             {item.city}{item.city && item.state ? ', ' : ''}{item.state}
                         </p>
                     ) : (
@@ -111,7 +107,7 @@ export function buildDriverListColumns({
             header: 'Activity',
             render: (item) => (
                 <span className="inline-flex items-center gap-1 text-ds-xs text-ds-content-muted">
-                    <Clock size={12} />
+                    <Icon icon={Clock} size="xs" />
                     {getRelativeTime(item.updatedAt || item.createdAt)}
                 </span>
             ),
@@ -135,14 +131,16 @@ export function buildDriverListColumns({
                             size="sm"
                             onClick={(e) => { e.stopPropagation(); onAppClick(item); }}
                         >
-                            <Eye size={15} aria-hidden="true" />
+                            {/* 15 -> `sm` (14): one pixel, following the same snap
+                                `candidateListColumns` took in the chip slice. */}
+                            <Icon icon={Eye} size="sm" />
                         </IconButton>
                         <IconButton
                             label={`Message ${who}`}
                             variant="ghost"
                             size="sm"
                         >
-                            <MessageSquare size={15} aria-hidden="true" />
+                            <Icon icon={MessageSquare} size="sm" />
                         </IconButton>
                         <IconButton
                             label={`Delete ${who}`}
@@ -151,7 +149,7 @@ export function buildDriverListColumns({
                             loading={deletingId === item.id}
                             onClick={(e) => { e.stopPropagation(); setPendingDelete(item); }}
                         >
-                            <Trash2 size={15} aria-hidden="true" className="text-ds-status-danger-fg" />
+                            <Icon icon={Trash2} size="sm" className="text-ds-status-danger-fg" />
                         </IconButton>
                     </div>
                 );

@@ -6,7 +6,7 @@
  */
 
 import React, { useMemo, useState } from 'react';
-import { AlertCircle, CheckCircle, RefreshCw } from 'lucide-react';
+import { Icon, AlertCircle, CheckCircle, RefreshCw } from '@design-system/icons';
 import { CustomQuestionsBuilder } from '@/features/settings/components/questions/CustomQuestionsBuilder';
 import { useGlobalSchema } from '@/hooks/useGlobalSchema';
 import { sanitizeQuestionPayload } from '@shared/utils/sanitizeUserContent';
@@ -122,11 +122,12 @@ export function GlobalQuestionsManager() {
     if (error) {
         return (
             <Card padding="lg" className="text-center">
-                <AlertCircle className="mx-auto mb-ds-3 text-ds-status-danger-fg" size={40} aria-hidden="true" />
+                {/* Page-level state glyph in a fluid Card: 40 -> `3xl` (32), the 7h rule. */}
+                <Icon icon={AlertCircle} size="3xl" className="mx-auto mb-ds-3 text-ds-status-danger-fg" />
                 <h3 className="text-ds-heading-sm font-bold text-ds-status-danger-fg">Failed to load schema</h3>
                 <p role="alert" className="mb-ds-4 mt-ds-1 text-ds-sm text-ds-status-danger-fg">{error}</p>
                 <Button variant="danger" onClick={refetch}>
-                    <RefreshCw size={16} aria-hidden="true" /> Retry
+                    <Icon icon={RefreshCw} /> Retry
                 </Button>
             </Card>
         );
@@ -150,7 +151,7 @@ export function GlobalQuestionsManager() {
                     </div>
                     {saveSuccess && (
                         <div role="status" className="flex items-center gap-ds-2 rounded-ds-md bg-ds-status-success-bg px-ds-4 py-ds-2 text-ds-status-success-fg">
-                            <CheckCircle size={18} aria-hidden="true" />
+                            <Icon icon={CheckCircle} size="lg" />
                             <span className="font-medium">Saved successfully!</span>
                         </div>
                     )}

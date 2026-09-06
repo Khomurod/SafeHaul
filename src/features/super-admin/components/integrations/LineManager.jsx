@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useId } from 'react';
-import { Phone, Plus, Trash2, AlertCircle, CheckCircle, User } from 'lucide-react';
+import { Icon, Phone, Plus, Trash2, AlertCircle, CheckCircle, User } from '@design-system/icons';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@lib/firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
@@ -104,7 +104,7 @@ export function LineManager({ companyId, companyName }) {
             <div className="flex flex-col gap-ds-3 border-b border-ds-border-subtle bg-ds-surface-subtle px-ds-6 py-ds-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h3 className="flex items-center gap-ds-2 font-bold text-ds-content">
-                        <Phone className="text-ds-content-link" size={20} aria-hidden="true" />
+                        <Icon icon={Phone} size="xl" className="text-ds-content-link" />
                         Phone Line Wallet
                     </h3>
                     <p className="mt-0.5 text-ds-xs text-ds-content-muted">
@@ -112,7 +112,7 @@ export function LineManager({ companyId, companyName }) {
                     </p>
                 </div>
                 <Button variant="primary" size="sm" onClick={() => setShowAddModal(true)}>
-                    <Plus size={16} aria-hidden="true" />
+                    <Icon icon={Plus} />
                     Add Line
                 </Button>
             </div>
@@ -121,14 +121,14 @@ export function LineManager({ companyId, companyName }) {
             {inventory.length === 0 ? (
                 <div className="p-12 text-center">
                     <div className="mx-auto mb-ds-4 flex h-16 w-16 items-center justify-center rounded-ds-full bg-ds-surface-subtle">
-                        <Phone className="text-ds-content-muted" size={32} aria-hidden="true" />
+                        <Icon icon={Phone} size="3xl" className="text-ds-content-muted" />
                     </div>
                     <h4 className="mb-ds-2 font-bold text-ds-content">No Phone Lines</h4>
                     <p className="mx-auto mb-ds-6 max-w-sm text-ds-sm text-ds-content-muted">
                         Add phone lines to enable SMS functionality. Each line requires its own JWT token from RingCentral.
                     </p>
                     <Button variant="primary" onClick={() => setShowAddModal(true)}>
-                        <Plus size={16} aria-hidden="true" />
+                        <Icon icon={Plus} />
                         Add First Line
                     </Button>
                 </div>
@@ -190,7 +190,7 @@ export function LineManager({ companyId, companyName }) {
                                             loading={removingLine === line.phoneNumber}
                                             onClick={() => setPendingRemove(line)}
                                         >
-                                            <Trash2 size={16} aria-hidden="true" className="text-ds-status-danger-fg" />
+                                            <Icon icon={Trash2} className="text-ds-status-danger-fg" />
                                         </IconButton>
                                     </td>
                                 </tr>
@@ -203,7 +203,7 @@ export function LineManager({ companyId, companyName }) {
             {/* Security Notice */}
             <div className="border-t border-ds-border-subtle bg-ds-surface-subtle px-ds-6 py-ds-3">
                 <p className="flex items-center gap-1.5 text-ds-xs text-ds-content-muted">
-                    <AlertCircle size={12} aria-hidden="true" />
+                    <Icon icon={AlertCircle} size="xs" />
                     JWT tokens are encrypted and never exposed to Company Admins
                 </p>
             </div>

@@ -1,7 +1,7 @@
 import React, { useId, useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
-import { Play, CheckCircle } from 'lucide-react';
+import { Icon, Play, CheckCircle } from '@design-system/icons';
 import { Button, Card, FormField, Input, Notice } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { ConfirmDialog } from '@design-system/patterns';
@@ -146,7 +146,7 @@ export default function StatsBackfillPanel() {
                             disabled={loading || !companyId.trim()}
                             loading={loading}
                         >
-                            {!loading && <Play size={16} aria-hidden="true" />}
+                            {!loading && <Icon icon={Play} />}
                             Dry-Run (Preview)
                         </Button>
                         <Button
@@ -156,7 +156,7 @@ export default function StatsBackfillPanel() {
                             disabled={loading || !companyId.trim()}
                             loading={loading}
                         >
-                            {!loading && <CheckCircle size={16} aria-hidden="true" />}
+                            {!loading && <Icon icon={CheckCircle} />}
                             Run Actual Backfill
                         </Button>
                     </div>
@@ -177,7 +177,7 @@ export default function StatsBackfillPanel() {
                             disabled={loading}
                             loading={loading}
                         >
-                            {!loading && <Play size={16} aria-hidden="true" />}
+                            {!loading && <Icon icon={Play} />}
                             Dry-Run All
                         </Button>
                         <Button
@@ -186,7 +186,7 @@ export default function StatsBackfillPanel() {
                             disabled={loading}
                             loading={loading}
                         >
-                            {!loading && <CheckCircle size={16} aria-hidden="true" />}
+                            {!loading && <Icon icon={CheckCircle} />}
                             Run All Companies
                         </Button>
                     </div>
@@ -207,7 +207,7 @@ export default function StatsBackfillPanel() {
                 {result && (
                     <Card padding="md" role="status" className="border-ds-status-success-border bg-ds-status-success-bg">
                         <div className="mb-ds-4 flex items-start gap-ds-3">
-                            <CheckCircle size={20} aria-hidden="true" className="mt-0.5 shrink-0 text-ds-status-success-fg" />
+                            <Icon icon={CheckCircle} size="xl" className="mt-0.5 shrink-0 text-ds-status-success-fg" />
                             <div>
                                 <h4 className="mb-1 font-semibold text-ds-status-success-fg">
                                     {result.dryRun ? 'Dry-Run Complete' : 'Backfill Complete'}

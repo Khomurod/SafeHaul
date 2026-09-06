@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Inbox, RefreshCw } from 'lucide-react';
+import { Icon, Inbox, RefreshCw } from '@design-system/icons';
 
 import {
     Badge,
@@ -206,7 +206,7 @@ export function AiLogsPanel({ providers = [] }) {
                             Clear filters
                         </Button>
                         <Button variant="secondary" size="sm" loading={loading} onClick={() => load(filters)}>
-                            <RefreshCw size={14} aria-hidden="true" /> Refresh
+                            <Icon icon={RefreshCw} size="sm" /> Refresh
                         </Button>
                     </div>
                 </div>

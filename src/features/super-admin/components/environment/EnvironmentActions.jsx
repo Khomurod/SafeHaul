@@ -1,5 +1,5 @@
 import React from 'react';
-import { PlugZap, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { Icon, PlugZap, Pencil, Plus, RefreshCw, Trash2 } from '@design-system/icons';
 import { Badge, IconButton } from '@/design-system/components';
 
 /**
@@ -76,7 +76,8 @@ export function EnvironmentActions({ entry, onAction }) {
                         aria-disabled={allowed ? undefined : true}
                         onClick={allowed ? () => onAction(action.id, entry) : undefined}
                     >
-                        <action.icon size={16} aria-hidden="true" />
+                        {/* A member expression holding a glyph token. */}
+                        <Icon icon={action.icon} />
                     </IconButton>
                 );
             })}

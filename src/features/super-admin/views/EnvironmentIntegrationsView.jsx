@@ -1,12 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import {
-    AlertTriangle,
-    CheckCircle2,
-    KeyRound,
-    RefreshCw,
-    ShieldCheck,
-    UploadCloud,
-} from 'lucide-react';
+import { Icon, AlertTriangle, CheckCircle2, KeyRound, RefreshCw, ShieldCheck, UploadCloud } from '@design-system/icons';
 import {
     Badge,
     Button,
@@ -200,7 +193,7 @@ export function EnvironmentIntegrationsView() {
         <Stack gap="lg">
             <header>
                 <h2 className="flex items-center gap-ds-2 text-ds-heading-lg font-bold text-ds-content">
-                    <KeyRound className="text-ds-content-link" aria-hidden="true" /> Environment &amp; Integrations
+                    <Icon icon={KeyRound} size="2xl" className="text-ds-content-link" /> Environment &amp; Integrations
                 </h2>
                 <p className="mt-1 text-ds-sm text-ds-content-secondary">
                     Every environment variable, deployment secret and stored integration credential SafeHaul uses,
@@ -210,7 +203,7 @@ export function EnvironmentIntegrationsView() {
 
             <Card padding="md" aria-labelledby="environment-security-notice">
                 <h3 id="environment-security-notice" className="flex items-center gap-ds-2 text-ds-heading-sm font-semibold text-ds-content">
-                    <ShieldCheck size={18} aria-hidden="true" /> How values are handled
+                    <Icon icon={ShieldCheck} size="lg" /> How values are handled
                 </h3>
                 <ul className="mt-ds-2 list-disc space-y-1 pl-ds-5 text-ds-sm text-ds-content-secondary">
                     <li>Values are masked until you reveal one, and a reveal returns exactly one key.</li>
@@ -221,11 +214,11 @@ export function EnvironmentIntegrationsView() {
             </Card>
 
             <ResponsiveGrid minItemWidth="180px" aria-label="Inventory summary">
-                <MetricCard label="Total keys" value={summary.total} icon={<KeyRound size={18} />} />
-                <MetricCard label="Configured" value={summary.configured} tone="success" icon={<CheckCircle2 size={18} />} />
-                <MetricCard label="Missing" value={summary.missing} tone="danger" icon={<AlertTriangle size={18} />} />
-                <MetricCard label="Protected" value={summary.protected} tone="info" icon={<ShieldCheck size={18} />} />
-                <MetricCard label="Needs deployment" value={summary.needsDeployment} tone="warning" icon={<UploadCloud size={18} />} />
+                <MetricCard label="Total keys" value={summary.total} icon={<Icon icon={KeyRound} size="lg" />} />
+                <MetricCard label="Configured" value={summary.configured} tone="success" icon={<Icon icon={CheckCircle2} size="lg" />} />
+                <MetricCard label="Missing" value={summary.missing} tone="danger" icon={<Icon icon={AlertTriangle} size="lg" />} />
+                <MetricCard label="Protected" value={summary.protected} tone="info" icon={<Icon icon={ShieldCheck} size="lg" />} />
+                <MetricCard label="Needs deployment" value={summary.needsDeployment} tone="warning" icon={<Icon icon={UploadCloud} size="lg" />} />
             </ResponsiveGrid>
 
             <Card padding="md" aria-labelledby="environment-filters-heading">
@@ -312,7 +305,7 @@ export function EnvironmentIntegrationsView() {
             {inventory.companyError && (
                 <Card padding="sm">
                     <p role="status" className="flex items-start gap-ds-2 text-ds-sm text-ds-content-secondary">
-                        <AlertTriangle size={16} aria-hidden="true" className="mt-0.5 shrink-0" />
+                        <Icon icon={AlertTriangle} className="mt-0.5 shrink-0" />
                         {inventory.companyError} Global configuration below is complete.
                     </p>
                 </Card>
@@ -321,7 +314,7 @@ export function EnvironmentIntegrationsView() {
             {revealed.error && (
                 <Card padding="sm">
                     <p role="alert" className="flex items-start gap-ds-2 text-ds-sm text-ds-content-secondary">
-                        <AlertTriangle size={16} aria-hidden="true" className="mt-0.5 shrink-0" />
+                        <Icon icon={AlertTriangle} className="mt-0.5 shrink-0" />
                         {describeVaultError(revealed.error.error, 'That value could not be revealed.')}
                     </p>
                 </Card>
@@ -353,7 +346,7 @@ export function EnvironmentIntegrationsView() {
                         Recent configuration activity
                     </h3>
                     <Button variant="ghost" size="sm" onClick={inventory.reload}>
-                        <RefreshCw size={14} aria-hidden="true" /> Refresh
+                        <Icon icon={RefreshCw} size="sm" /> Refresh
                     </Button>
                 </div>
                 <p className="mt-1 text-ds-sm text-ds-content-secondary">

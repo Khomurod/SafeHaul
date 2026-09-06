@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
-import { CheckCircle, History, Play } from 'lucide-react';
+import { Icon, CheckCircle, History, Play } from '@design-system/icons';
 import { Badge, Button, Card, Notice, ProgressBar } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { ConfirmDialog } from '@design-system/patterns';
@@ -211,7 +211,7 @@ export function HistoricalMigrationPanel() {
                 <div className="flex flex-wrap items-start justify-between gap-ds-3">
                     <div>
                         <h3 className="mb-ds-2 flex items-center gap-ds-2 text-ds-heading-sm font-semibold text-ds-content">
-                            <History size={18} aria-hidden="true" />
+                            <Icon icon={History} size="lg" />
                             Historical application records
                         </h3>
                         <p className="max-w-prose text-ds-sm text-ds-content-secondary">
@@ -353,7 +353,7 @@ export function HistoricalMigrationPanel() {
                         disabled={busy || outstanding === 0}
                         loading={busy}
                     >
-                        {!busy && <Play size={16} aria-hidden="true" />}
+                        {!busy && <Icon icon={Play} />}
                         {phase === 'verifying'
                             ? 'Verifying…'
                             : phase === 'running'
@@ -367,7 +367,7 @@ export function HistoricalMigrationPanel() {
                     </Button>
                     {outstanding === 0 && (
                         <span className="flex items-center gap-ds-2 text-ds-sm text-ds-content-secondary">
-                            <CheckCircle size={16} aria-hidden="true" />
+                            <Icon icon={CheckCircle} />
                             Nothing eligible remains; resolve the items above to retire this panel.
                         </span>
                     )}

@@ -27,12 +27,13 @@
  * Run by `npm run test:icon-contract`.
  */
 
+import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { migrate } from './codemods/lucide-to-icon-contract.mjs';
-import { BACKLOG_PATH } from './icon-contract/scope.mjs';
+import { BACKLOG_PATH, countLucideImports, isGoverned } from './icon-contract/scope.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -382,17 +383,47 @@ console.log('\nG. The live backlog, which is the claim this tool actually makes'
  * check must not take its scope from something narrower than the claim it is
  * making.
  */
+/*
+ * And it has two live states, because the campaign it measures ENDS. While the
+ * backlog exists, the claim is that the matcher reaches every file on it. Once
+ * the last entry drains the file is deleted — that is the documented endpoint,
+ * and the moment the rule becomes absolute — so the claim becomes the stronger
+ * one: nothing under `src/` imports the package at all.
+ *
+ * Written as two branches rather than one, because "the backlog is gone" must
+ * not be allowed to mean "there is nothing to check". A test that quietly
+ * stops asserting when its subject disappears is the same failure this file
+ * exists to catch, one level up.
+ */
 {
-    const backlog = JSON.parse(readFileSync(resolve(repoRoot, BACKLOG_PATH), 'utf8'));
-    const paths = Object.keys(backlog.files).filter(
-        (path) => existsSync(resolve(repoRoot, path)),
-    );
-    const unreached = paths.filter(
-        (path) => migrate(readFileSync(resolve(repoRoot, path), 'utf8')).skipped,
-    );
-    assert(`G1. every one of the ${paths.length} recorded files has its import recognised`,
-        paths.length > 0 && unreached.length === 0,
-        unreached.length ? `unreached: ${unreached.slice(0, 5).join(', ')}` : 'the backlog is empty');
+    const backlogPath = resolve(repoRoot, BACKLOG_PATH);
+    if (existsSync(backlogPath)) {
+        const backlog = JSON.parse(readFileSync(backlogPath, 'utf8'));
+        const paths = Object.keys(backlog.files).filter(
+            (path) => existsSync(resolve(repoRoot, path)),
+        );
+        const unreached = paths.filter(
+            (path) => migrate(readFileSync(resolve(repoRoot, path), 'utf8')).skipped,
+        );
+        assert(`G1. every one of the ${paths.length} recorded files has its import recognised`,
+            paths.length > 0 && unreached.length === 0,
+            unreached.length ? `unreached: ${unreached.slice(0, 5).join(', ')}` : 'the backlog is empty');
+    } else {
+        /*
+         * `isGoverned` is the CHECKER'S OWN scope, not a second opinion — the
+         * registry under `src/design-system/icons/` is the one place the package
+         * is allowed, and a test that re-decided that would eventually disagree
+         * with the thing it is guarding.
+         */
+        const tracked = execFileSync('git', ['ls-files', '-z', 'src'], { cwd: repoRoot, maxBuffer: 1 << 28 })
+            .toString('utf8').split('\0').filter(isGoverned);
+        const importers = tracked.filter(
+            (path) => countLucideImports(readFileSync(resolve(repoRoot, path), 'utf8')) > 0,
+        );
+        assert('G1. the campaign is finished, so NOTHING under src/ imports the package',
+            tracked.length > 0 && importers.length === 0,
+            importers.length ? `still importing: ${importers.slice(0, 5).join(', ')}` : 'no tracked source files');
+    }
 }
 
 console.log(failures === 0

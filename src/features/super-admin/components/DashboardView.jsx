@@ -1,5 +1,5 @@
 import React from 'react';
-import { Building, Users, FileText } from 'lucide-react';
+import { Icon, Building, Users, FileText } from '@design-system/icons';
 import { MetricCard } from '@/design-system/components';
 import { ResponsiveGrid, Stack } from '@/design-system/layouts';
 import { HistoricalMigrationPanel } from './HistoricalMigrationPanel';
@@ -48,7 +48,8 @@ export function DashboardView({ stats, statsLoading, statsError }) {
       </p>
 
       <ResponsiveGrid minItemWidth="240px">
-        {METRICS.map(({ key, title, icon: Icon, field }) => {
+        {/* `icon: Glyph`, not `icon: Icon`: the contract's component is called `Icon` and this file imports it, so holding a glyph under that name would shadow it — and a token throws. */}
+        {METRICS.map(({ key, title, icon: Glyph, field }) => {
           const hasError = Boolean(statsError[key]);
           let value = stats[field];
           if (statsLoading) value = '...';
@@ -60,7 +61,7 @@ export function DashboardView({ stats, statsLoading, statsError }) {
               label={title}
               value={value}
               tone={hasError ? 'danger' : 'info'}
-              icon={<Icon size={24} aria-hidden="true" />}
+              icon={<Icon icon={Glyph} size="2xl" />}
             />
           );
         })}

@@ -1,22 +1,5 @@
 import React, { useMemo } from 'react';
-import {
-  LayoutDashboard,
-  Building,
-  Users,
-  FileText,
-  Layers,
-  Plus,
-  BarChart3,
-  Activity,
-  MessageSquare,
-  RefreshCw,
-  KeyRound,
-  Sparkles,
-  Globe,
-  Inbox,
-  Newspaper,
-  Rocket,
-} from "lucide-react";
+import { LayoutDashboard, Building, Users, FileText, Layers, Plus, BarChart3, Activity, MessageSquare, RefreshCw, KeyRound, Sparkles, Globe, Inbox, Newspaper, Rocket } from '@design-system/icons';
 import { SectionNavigation } from '@/design-system/components';
 import { SUPER_ADMIN_NAV_ITEMS } from '../config/views';
 

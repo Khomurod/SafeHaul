@@ -1,7 +1,7 @@
 import React, { useId, useState, useEffect } from 'react';
 import { db } from '@lib/firebase';
 import { doc, getDoc } from "firebase/firestore";
-import { X } from 'lucide-react';
+import { Icon, X } from '@design-system/icons';
 import { Button, IconButton } from '@/design-system/components';
 import { Modal } from '@design-system/patterns';
 
@@ -59,7 +59,7 @@ export function EditUserModal({ userId, companyId, allCompaniesMap, onClose, onS
         <header className="flex shrink-0 items-center justify-between border-b border-ds-border-subtle p-ds-5">
           <h2 id={titleId} className="text-ds-heading-sm font-bold text-ds-content">Edit User</h2>
           <IconButton data-testid="modal-close" label="Close" variant="ghost" size="sm" onClick={onClose}>
-            <X size={20} aria-hidden="true" />
+            <Icon icon={X} size="xl" />
           </IconButton>
         </header>
 

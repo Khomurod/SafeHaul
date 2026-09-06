@@ -7,11 +7,7 @@
  */
 
 import React from 'react';
-import {
-    Trash2, MessageSquare, UserPlus,
-    FileText, User, Briefcase, Share2,
-    ChevronUp
-} from 'lucide-react';
+import { Icon, Trash2, MessageSquare, UserPlus, FileText, User, Briefcase, Share2, ChevronUp } from '@design-system/icons';
 import { Badge, Button } from '@/design-system/components';
 import { ConfirmDialog } from '@design-system/patterns';
 
@@ -69,19 +65,19 @@ const BulkActionBar = ({ selectedCount, onClearSelection, unavailableNoteId }) =
         </div>
         <div className="flex flex-wrap items-center gap-ds-2">
             <Button variant="secondary" size="sm" disabled aria-describedby={unavailableNoteId}>
-                <MessageSquare size={14} aria-hidden="true" /> Message
+                <Icon icon={MessageSquare} size="sm" /> Message
                 <span className="sr-only">{` ${selectedCount} selected records`}</span>
             </Button>
             <Button variant="secondary" size="sm" disabled aria-describedby={unavailableNoteId}>
-                <UserPlus size={14} aria-hidden="true" /> Assign
+                <Icon icon={UserPlus} size="sm" /> Assign
                 <span className="sr-only">{` ${selectedCount} selected records`}</span>
             </Button>
             <Button variant="secondary" size="sm" disabled aria-describedby={unavailableNoteId}>
-                <ChevronUp size={14} aria-hidden="true" /> Move Status
+                <Icon icon={ChevronUp} size="sm" /> Move Status
                 <span className="sr-only">{` for ${selectedCount} selected records`}</span>
             </Button>
             <Button variant="danger" size="sm" disabled aria-describedby={unavailableNoteId}>
-                <Trash2 size={14} aria-hidden="true" /> Archive
+                <Icon icon={Trash2} size="sm" /> Archive
                 <span className="sr-only">{` ${selectedCount} selected records`}</span>
             </Button>
         </div>

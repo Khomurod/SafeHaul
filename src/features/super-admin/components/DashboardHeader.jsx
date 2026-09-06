@@ -1,5 +1,5 @@
 import React, { useId } from 'react';
-import { Building2, Search, X, LogOut, Wrench } from 'lucide-react';
+import { Icon, Building2, Search, X, LogOut, Wrench } from '@design-system/icons';
 import { Button, IconButton, Input } from '@/design-system/components';
 
 /**
@@ -44,7 +44,7 @@ export function DashboardHeader({
                         aria-hidden="true"
                         className="rounded-ds-md bg-ds-action-primary p-ds-2 text-ds-content-inverse"
                     >
-                        <Building2 size={24} />
+                        <Icon icon={Building2} size="2xl" />
                     </span>
                     <h1 className="text-ds-heading-md font-bold text-ds-content">Super Admin</h1>
                 </div>
@@ -61,11 +61,8 @@ export function DashboardHeader({
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                     />
-                    <Search
-                        size={20}
-                        aria-hidden="true"
-                        className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ds-content-muted"
-                    />
+                    <Icon icon={Search} size="xl"
+                        className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ds-content-muted" />
                     {searchQuery && (
                         <IconButton
                             label="Clear search"
@@ -74,7 +71,7 @@ export function DashboardHeader({
                             className="absolute right-1 top-1/2 -translate-y-1/2"
                             onClick={() => setSearchQuery('')}
                         >
-                            <X size={20} aria-hidden="true" />
+                            <Icon icon={X} size="xl" />
                         </IconButton>
                     )}
                 </div>
@@ -87,7 +84,7 @@ export function DashboardHeader({
                         loading={backfillingEmployers}
                         title="Backfill employer field names in all existing applications"
                     >
-                        {!backfillingEmployers && <Wrench size={16} aria-hidden="true" />}
+                        {!backfillingEmployers && <Icon icon={Wrench} />}
                         {backfillingEmployers ? "Backfilling..." : "Backfill Employers"}
                     </Button>
 
@@ -96,7 +93,7 @@ export function DashboardHeader({
                         variant="danger"
                         onClick={onLogout}
                     >
-                        <LogOut size={18} aria-hidden="true" />
+                        <Icon icon={LogOut} size="lg" />
                         <span className="hidden sm:inline">Logout</span>
                         <span className="sr-only sm:hidden">Log out</span>
                     </Button>

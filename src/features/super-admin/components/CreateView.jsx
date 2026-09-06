@@ -2,7 +2,7 @@ import React, { useEffect, useId, useRef, useState } from 'react';
 import { createNewCompany, loadCompanies } from '@features/companies';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
-import { UserPlus, X, Briefcase } from 'lucide-react';
+import { Icon, UserPlus, X, Briefcase } from '@design-system/icons';
 import {
     Button,
     Notice,
@@ -220,7 +220,7 @@ export function CreateView({ onDataUpdate, setActiveView }) {
                             variant="ghost"
                             onClick={() => setActiveView(SUPER_ADMIN_VIEWS.COMPANIES)}
                         >
-                            <X size={20} aria-hidden="true" /> Close
+                            <Icon icon={X} size="xl" /> Close
                         </Button>
                     )}
                 </header>

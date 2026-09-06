@@ -1,8 +1,5 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
-import {
-    Activity, Play, Pause, RotateCcw, Terminal, Server, Database, HardDrive, ShieldCheck,
-    Wrench, RefreshCw, DatabaseZap, CheckCircle, AlertCircle, Clock
-} from 'lucide-react';
+import { Icon, Activity, Play, Pause, RotateCcw, Terminal, Server, Database, HardDrive, ShieldCheck, Wrench, RefreshCw, DatabaseZap, CheckCircle, AlertCircle, Clock } from '@design-system/icons';
 import { Badge, Button, Card, ProgressBar } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { ConfirmDialog } from '@design-system/patterns';
@@ -99,7 +96,8 @@ export function SystemHealthView() {
     }, [logs]);
 
     const presentation = STATUS_PRESENTATION[status] || STATUS_PRESENTATION.idle;
-    const StatusIcon = presentation.icon;
+    // A glyph TOKEN off `STATUS_PRESENTATION`, so it goes through `Icon`.
+    const statusGlyph = presentation.icon;
 
     // Reset only needs a guard when there is unfinished progress to discard. A
     // completed run had none before the migration either.
@@ -115,7 +113,8 @@ export function SystemHealthView() {
         <Stack gap="lg">
             <header>
                 <h2 className="flex items-center gap-ds-2 text-ds-heading-lg font-bold text-ds-content">
-                    <Activity className="text-ds-content-link" aria-hidden="true" /> System Health &amp; Diagnostics
+                    {/* Standalone in an `<h2>`, so it is `2xl` — lucide rendered 24 bare. */}
+                    <Icon icon={Activity} size="2xl" className="text-ds-content-link" /> System Health &amp; Diagnostics
                 </h2>
                 <p className="mt-1 text-ds-sm text-ds-content-secondary">
                     Deep inspection of Storage, Database, and Cloud Function integrity.
@@ -126,7 +125,7 @@ export function SystemHealthView() {
                 `title` tooltip on each button. */}
             <Card padding="md">
                 <h3 className="mb-ds-4 flex items-center gap-ds-2 font-bold text-ds-content">
-                    <Wrench size={18} aria-hidden="true" /> Maintenance Actions
+                    <Icon icon={Wrench} size="lg" /> Maintenance Actions
                 </h3>
                 <Stack gap="md">
                     <MaintenanceAction
@@ -174,7 +173,7 @@ export function SystemHealthView() {
                             Status
                         </h3>
                         <div className="mb-ds-4">
-                            <Badge tone={presentation.tone} icon={StatusIcon}>{presentation.label}</Badge>
+                            <Badge tone={presentation.tone} icon={statusGlyph}>{presentation.label}</Badge>
                         </div>
 
                         <span id={progressLabelId} className="sr-only">Diagnostic progress</span>
@@ -193,27 +192,27 @@ export function SystemHealthView() {
 
                     <Card padding="md">
                         <h3 className="mb-ds-4 flex items-center gap-ds-2 font-bold text-ds-content">
-                            <ShieldCheck size={20} aria-hidden="true" /> Control Center
+                            <Icon icon={ShieldCheck} size="xl" /> Control Center
                         </h3>
 
                         <Stack gap="sm">
                             {status === 'running' ? (
                                 <Button variant="secondary" fullWidth onClick={pauseDiagnostics}>
-                                    <Pause size={20} aria-hidden="true" /> Pause Test
+                                    <Icon icon={Pause} size="xl" /> Pause Test
                                 </Button>
                             ) : status === 'paused' ? (
                                 <Button variant="primary" fullWidth onClick={() => runDiagnostics(true)}>
-                                    <Play size={20} aria-hidden="true" /> Resume Test
+                                    <Icon icon={Play} size="xl" /> Resume Test
                                 </Button>
                             ) : (
                                 <Button variant="primary" fullWidth onClick={() => runDiagnostics(false)}>
-                                    <Play size={20} aria-hidden="true" /> Start Deep Diagnostic
+                                    <Icon icon={Play} size="xl" /> Start Deep Diagnostic
                                 </Button>
                             )}
 
                             {(status === 'paused' || status === 'error' || status === 'success') && (
                                 <Button variant="ghost" fullWidth onClick={requestReset}>
-                                    <RotateCcw size={16} aria-hidden="true" /> Reset
+                                    <Icon icon={RotateCcw} /> Reset
                                 </Button>
                             )}
                         </Stack>
@@ -232,7 +231,7 @@ export function SystemHealthView() {
                 <div className="lg:col-span-2">
                     <div className="flex h-[500px] max-h-[70vh] flex-col overflow-hidden rounded-ds-lg bg-ds-surface-inverse shadow-ds-lg">
                         <div className="flex items-center gap-ds-2 border-b border-ds-border-inverse bg-ds-surface-inverse-subtle p-ds-3">
-                            <Terminal size={18} className="text-ds-content-on-inverse-muted" aria-hidden="true" />
+                            <Icon icon={Terminal} size="lg" className="text-ds-content-on-inverse-muted" />
                             <h3 id={logRegionId} className="font-mono text-ds-sm font-semibold text-ds-content-on-inverse">
                                 System Output Log
                             </h3>
@@ -284,7 +283,11 @@ export function SystemHealthView() {
  * explanation that used to live only in a `title` tooltip, and an announced
  * outcome. `error` previously changed nothing on screen.
  */
-function MaintenanceAction({ description, status, successLabel, onRun, icon: Icon, label }) {
+/*
+ * `icon: Glyph`, not `icon: Icon`: the contract's component is called `Icon` and this file imports it, so
+ * holding a glyph under that name would shadow it — and a token throws.
+ */
+function MaintenanceAction({ description, status, successLabel, onRun, icon: Glyph, label }) {
     const descriptionId = useId();
     const running = status === 'running';
 
@@ -306,7 +309,7 @@ function MaintenanceAction({ description, status, successLabel, onRun, icon: Ico
                     loading={running}
                     aria-describedby={descriptionId}
                 >
-                    {!running && <Icon size={18} aria-hidden="true" />}
+                    {!running && <Icon icon={Glyph} size="lg" />}
                     {label}
                 </Button>
             </div>

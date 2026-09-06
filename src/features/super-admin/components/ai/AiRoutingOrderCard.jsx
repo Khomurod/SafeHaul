@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowDown, ArrowUp, GripVertical, RotateCcw } from 'lucide-react';
+import { Icon, ArrowDown, ArrowUp, GripVertical, RotateCcw } from '@design-system/icons';
 
 import { Badge, Button, Card, IconButton } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
@@ -170,11 +170,8 @@ export function AiRoutingOrderCard({
                                     draggingId === providerId ? 'border-ds-action-primary' : ''
                                 }`}
                             >
-                                <GripVertical
-                                    size={14}
-                                    aria-hidden="true"
-                                    className="text-ds-content-secondary"
-                                />
+                                <Icon icon={GripVertical} size="sm"
+                                    className="text-ds-content-secondary" />
                                 <Badge tone="neutral">{index + 1}</Badge>
                                 <span className="font-semibold text-ds-content">{provider.displayName}</span>
                                 <Badge tone={state.tone}>{state.label}</Badge>
@@ -192,7 +189,7 @@ export function AiRoutingOrderCard({
                                         }}
                                         onClick={() => moveBy(providerId, -1, 'up')}
                                     >
-                                        <ArrowUp size={14} aria-hidden="true" />
+                                        <Icon icon={ArrowUp} size="sm" />
                                     </IconButton>
                                     <IconButton
                                         size="sm"
@@ -206,7 +203,7 @@ export function AiRoutingOrderCard({
                                         }}
                                         onClick={() => moveBy(providerId, 1, 'down')}
                                     >
-                                        <ArrowDown size={14} aria-hidden="true" />
+                                        <Icon icon={ArrowDown} size="sm" />
                                     </IconButton>
                                 </span>
                             </li>
@@ -226,7 +223,7 @@ export function AiRoutingOrderCard({
                             Save routing order
                         </Button>
                         <Button variant="secondary" disabled={saving} onClick={handleReset}>
-                            <RotateCcw size={14} aria-hidden="true" /> Discard changes
+                            <Icon icon={RotateCcw} size="sm" /> Discard changes
                         </Button>
                     </div>
                 )}
