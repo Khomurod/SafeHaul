@@ -139,7 +139,7 @@ export function useApplicationView(companyId, applicationId, onStatusUpdate, onC
             case 'add-note': setActiveSection('notes'); break;
             case 'send-offer': setShowOfferModal(true); break;
             case 'background': handleStatusUpdate('Background Check'); break;
-            default: console.log('Workflow action:', action);
+            default: break;
         }
     };
 

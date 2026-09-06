@@ -1,5 +1,5 @@
 ---
-name: SafeHaul Marketing Site
+name: SafeHaul Public Site
 description: Engineering documentation for a record that has to be inspected — paper ground, graphite ink, colour reserved for meaning, and every figure drawn rather than photographed.
 colors:
   paper: "#F7F7F5"

@@ -28,12 +28,14 @@
  *  6. `SourceBadge` and the docs-status text were legacy-palette pills.
  *  7. Dead `FilterChip` component removed (never rendered).
  *
- * PRODUCT BLOCKER — deliberately NOT changed: the bulk action bar's Message,
- * Assign, Move Status and Archive buttons are **placeholders that do nothing but
- * show a success toast**. Archiving 50 records reports success and archives
- * nothing. Implementing them would be inventing a workflow, and the toast
- * wording is a frozen contract, so the behaviour is preserved exactly and
- * recorded in the roadmap for an owner decision.
+ * Bulk actions — REMOVED 2026-09-06. Message, Assign, Move Status and Archive
+ * were placeholders: first they reported a false success, then (2026-07-28) they
+ * sat disabled and labelled unavailable while an owner decision was pending. The
+ * decision, per the bulk-action UX guidance (never show controls that do
+ * nothing): the bar and the row-selection checkboxes that fed it are gone. A
+ * real bulk action returns together with its selection when a recruiter asks for
+ * one — "Export" first, and "Archive" only once an archived state is defined.
+ * `UnifiedDriverList.bulkSafety.test.jsx` pins the absence.
  */
 import React, { useId, useState, useMemo, useCallback } from 'react';
 import { db } from '@lib/firebase';
@@ -44,11 +46,7 @@ import { ModernDriverTable } from '@shared/components/table';
 import { Button, Card, Input, Select } from '@/design-system/components';
 
 // ========== SOURCE BADGE COMPONENT ==========
-import {
-    BulkActionBar,
-    FILTERS,
-    DeleteRecordDialog,
-} from '../components/driver-list/UnifiedDriverListParts';
+import { FILTERS, DeleteRecordDialog } from '../components/driver-list/UnifiedDriverListParts';
 import { buildDriverListColumns } from '../components/driver-list/driverListColumns';
 
 // ========== MAIN COMPONENT ==========
@@ -65,7 +63,6 @@ export function UnifiedDriverList({
     const { showSuccess, showError } = useToast();
     const searchId = useId();
     const filterIdBase = useId();
-    const bulkUnavailableNoteId = useId();
 
     // --- Search & Filters ---
     const [search, setSearch] = useState('');
@@ -79,8 +76,7 @@ export function UnifiedDriverList({
     // --- Sorting ---
     const [sortConfig, setSortConfig] = useState({ key: 'date', direction: 'desc' });
 
-    // --- Selection & Bulk ---
-    const [selectedIds, setSelectedIds] = useState(new Set());
+    // --- Delete ---
     const [deletingId, setDeletingId] = useState(null);
     const [pendingDelete, setPendingDelete] = useState(null);
 
@@ -189,28 +185,6 @@ export function UnifiedDriverList({
         return filteredData.slice(start, start + itemsPerPage);
     }, [filteredData, currentPage, itemsPerPage]);
 
-    // --- Selection Handlers ---
-    const toggleSelectAll = useCallback(() => {
-        if (selectedIds.size === paginatedData.length) {
-            setSelectedIds(new Set());
-        } else {
-            setSelectedIds(new Set(paginatedData.map(item => item.id)));
-        }
-    }, [selectedIds, paginatedData]);
-
-    const toggleSelect = useCallback((id, e) => {
-        e.stopPropagation();
-        setSelectedIds(prev => {
-            const newSet = new Set(prev);
-            if (newSet.has(id)) {
-                newSet.delete(id);
-            } else {
-                newSet.add(id);
-            }
-            return newSet;
-        });
-    }, []);
-
     // --- Sort Handler ---
     const handleSort = useCallback((key) => {
         setSortConfig(prev => ({
@@ -244,11 +218,6 @@ export function UnifiedDriverList({
             setDeletingId(null);
         }
     };
-
-    // --- Bulk Action Handlers ---
-    // Removed 2026-07-28: four placeholder handlers that only fired a *success*
-    // toast without doing any work (see the `BulkActionBar` note). The controls are
-    // now disabled and labelled unavailable rather than reporting a false success.
 
     // --- Clear Filters ---
     const clearAllFilters = () => {
@@ -327,15 +296,6 @@ export function UnifiedDriverList({
             {/* Table Container */}
             <div className="flex-1 overflow-hidden flex flex-col">
 
-                {/* Bulk Action Bar */}
-                {selectedIds.size > 0 && (
-                    <BulkActionBar
-                        selectedCount={selectedIds.size}
-                        onClearSelection={() => setSelectedIds(new Set())}
-                        unavailableNoteId={bulkUnavailableNoteId}
-                    />
-                )}
-
                 {/* Modern Driver Table */}
                 <ModernDriverTable
                     data={paginatedData}
@@ -351,13 +311,7 @@ export function UnifiedDriverList({
                     ) : undefined}
                     // Names the table, its caption, its scroll region and its pager.
                     ariaLabel="Unified driver database"
-                    // Gives each row's selection checkbox a record-specific name
-                    // instead of eight identical "Select row" controls.
-                    getRowLabel={(item) => item.applicantName || item.name || `record ${item.id}`}
-                    showCheckboxes={true}
-                    selectedIds={selectedIds}
-                    onToggleSelect={(id, e) => toggleSelect(id, e || { stopPropagation: () => { } })}
-                    onToggleSelectAll={toggleSelectAll}
+                    showCheckboxes={false}
                     pagination={{
                         currentPage,
                         totalPages: totalPages || 1,

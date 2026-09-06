@@ -19,9 +19,9 @@ Two people, one purchase.
   bars of signal, and to paperwork that stalls waiting on a signature. They use
   it for speed.
 
-Confirmed by the user: the owner buys, the recruiter uses. The marketing site
-must carry both arcs — survive the audit *and* hire faster — without saying
-either weakly.
+Confirmed by the user: the owner buys, the recruiter uses. Anything that
+describes the product publicly must carry both arcs — survive the audit *and*
+hire faster — without saying either weakly.
 
 A third audience touches the product but is not the buyer: the **driver
 applicant**, on a phone, often on a bad connection, filling in a nine-step

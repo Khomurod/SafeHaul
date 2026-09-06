@@ -37,13 +37,16 @@ export default defineConfig({
                 'src/design-system/stories/fixtures.js',
             ],
             thresholds: {
-                // Baseline measured 2026-06 (stmts 17.5 / br 14.8 / fns 14.9 /
-                // lines 17.9); set ~1.5% below so the gate passes today but blocks
-                // regressions. Ratchet upward over time, never down.
-                statements: 16,
-                branches: 13,
-                functions: 13,
-                lines: 16,
+                // Re-measured 2026-09-06: stmts 73.2 / br 69.4 / fns 75.1 /
+                // lines 74.7. The June 2026 baseline (17.5 / 14.8 / 14.9 / 17.9)
+                // had been left in place for three months while coverage rose to
+                // four times the gate, so deleting half the tests would have
+                // passed. Set ~3 points under today's numbers so the gate passes
+                // now and blocks a real drop. Ratchet upward over time, never down.
+                statements: 70,
+                branches: 66,
+                functions: 72,
+                lines: 72,
             },
         },
     },

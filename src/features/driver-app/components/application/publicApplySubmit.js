@@ -301,7 +301,6 @@ export async function submitPublicApplication({
             // applicant may have started a different application on the same page.
             ...submittedDraftIdentity(submitMark),
           });
-          console.log(`[PublicApplyHandler] Queued submission ${queueId}`);
         } catch (queueError) {
           console.warn('[PublicApplyHandler] Queue failed:', queueError);
         }

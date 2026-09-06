@@ -268,7 +268,7 @@ Dotfiles count as their own format: `.gcloudignore` has its dot at index 0, and
 the first version of that test read it as "no extension", which is a second way
 for a format to escape.
 That last one is a **known limitation, not a clean exclusion**:
-`.github/workflows/main.yml` is 1148 lines, `.github/` is outside the roots this
+`.github/workflows/main.yml` is well over 1,000 lines, `.github/` is outside the roots this
 standard covers, and its structure is pinned job by job by `npm run check:ci-plan`
 rather than by length.
 

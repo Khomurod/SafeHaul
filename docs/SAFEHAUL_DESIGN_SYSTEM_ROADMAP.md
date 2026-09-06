@@ -610,16 +610,20 @@ design-system blockers: none of them gates a primitive, a token or a baseline.
   the two accessibility fixes made to it on the way out — an accessible name on
   the close control, and step progress announced in text rather than by a
   coloured dot — are the baseline to start from.
-- `[!]` **Decide what the Unified Driver Database bulk actions should do.**
-  Message, Assign, Move Status and Archive were placeholders that fired a
-  *success* toast and did nothing. The false success is removed (controls are
-  disabled and labelled unavailable), which is the safe end state but not the
-  intended one. A real implementation **cannot be inferred from the
-  repository**: `LeadAssignmentModal` does bulk assignment but only within one
-  company's `leads`, and this view spans every company and mixes applications
-  with leads; campaigns own bulk SMS with their own consent and throttling
-  rules; nothing anywhere defines an "archived" state, so Archive is not delete.
-  Each needs an owner decision on cross-tenant policy and audit-log shape.
+- `[x]` **Decide what the Unified Driver Database bulk actions should do.
+  RESOLVED 2026-09-06 — removed.** Message, Assign, Move Status and Archive were
+  placeholders that fired a *success* toast and did nothing; from 2026-07-28 they
+  sat disabled and labelled unavailable so the decision stayed visible. The
+  decision follows the bulk-action UX guidance (a control that does nothing is
+  not shown): the bar and the row-selection checkboxes that existed only to feed
+  it are gone, and `UnifiedDriverList.bulkSafety.test.jsx` pins the absence. A
+  real bulk action returns together with its selection when a recruiter asks for
+  one — "Export" first, because it is safe and useful; "Archive" only once an
+  archived state is defined, since nothing in the repository defines one and
+  Archive is not delete. The cross-tenant reasons that blocked inventing an
+  implementation (`LeadAssignmentModal` is single-company; campaigns own bulk SMS
+  with their own consent rules) still hold and still bind whoever adds the first
+  real action.
 - `[x]` **Move `Modal` and `ConfirmDialog` into `design-system/patterns`.
   RESOLVED 2026-08-21.** Both moved together, as required, to
   `design-system/patterns/modal`, with their tests and their four catalog

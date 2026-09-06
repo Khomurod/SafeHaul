@@ -77,7 +77,6 @@ export function useSuperAdminData() {
     const loadRecentData = useCallback(async () => {
         setLoading(true);
         setStatsError({ companies: false, users: false, apps: false });
-        console.log("🚀 Fetching initial dashboard data (Paginated)...");
 
         // Helper to safely fetch with logging
         const safeFetch = async (promise, label, fallback = []) => {
@@ -260,7 +259,6 @@ export function useSuperAdminData() {
         if (type === 'companies' && (!lastCompanyDoc || !hasMoreCompanies)) return;
         if (type === 'applications' && (!lastAppDoc && !lastLeadDoc && !hasMoreApps)) return;
 
-        console.log(`📡 Loading more ${type}...`);
 
         loadMoreInFlight.current[type] = true;
         setLoadingMore(prev => ({ ...prev, [type]: true }));
@@ -366,7 +364,6 @@ export function useSuperAdminData() {
     const performClientSearch = useCallback(async (term) => {
         setIsSearching(true);
         setLoading(true);
-        console.log(`🔍 Performing Client Search for: "${term}"`);
 
         try {
             const queryTerm = term;

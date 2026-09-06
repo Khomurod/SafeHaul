@@ -51,7 +51,6 @@ export function useLineAssignments(companyId) {
             setConfigError(null);
             if (snap.exists()) {
                 const data = snap.data();
-                console.log("[SMS Config] Loaded Data:", data);
                 setConfigDoc(data);
 
                 // Sanitize incoming assignments
@@ -69,7 +68,6 @@ export function useLineAssignments(companyId) {
                 setDefaultTokenOverride(null);
                 setSavedDefaultToken(data.defaultLineToken || '');
             } else {
-                console.log("[SMS Config] Document does not exist.");
                 setConfigDoc(null);
             }
             setLoading(false);
