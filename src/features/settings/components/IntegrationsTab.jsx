@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Facebook, CheckCircle, Loader2, Blocks } from 'lucide-react';
+import { Icon, Facebook, CheckCircle, Loader2, Blocks } from '@design-system/icons';
 import { functions } from '@lib/firebase';
 import { httpsCallable } from 'firebase/functions';
 import { useToast } from '@shared/components/feedback/ToastProvider';
@@ -160,7 +160,7 @@ export function IntegrationsTab({ companyId }) {
                     <div className="flex flex-col items-start justify-between gap-ds-4 sm:flex-row">
                         <div className="flex min-w-0 items-start gap-ds-4">
                             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-ds-lg bg-[#1877F2]/10 text-[#1877F2]">
-                                <Facebook size={24} aria-hidden="true" />
+                                <Icon icon={Facebook} size="2xl" />
                             </div>
                             <div className="min-w-0">
                                 <h2 className="flex flex-wrap items-center gap-ds-2 font-bold text-ds-content">
@@ -173,7 +173,7 @@ export function IntegrationsTab({ companyId }) {
                                 </p>
                                 {connectedPage && (
                                     <p className="mt-ds-2 flex items-center gap-ds-1 text-ds-xs text-ds-content-muted">
-                                        <CheckCircle size={12} className="text-ds-status-success-fg" aria-hidden="true" />
+                                        <Icon icon={CheckCircle} size="xs" className="text-ds-status-success-fg" />
                                         Active Page: <span className="truncate font-medium text-ds-content">{connectedPage}</span>
                                     </p>
                                 )}
@@ -193,13 +193,13 @@ export function IntegrationsTab({ companyId }) {
                                     disabled={connecting || !isSdkLoaded}
                                     loading={connecting}
                                 >
-                                    {!connecting && <Facebook size={16} aria-hidden="true" />}
+                                    {!connecting && <Icon icon={Facebook} />}
                                     {connecting ? 'Connecting...' : 'Connect Facebook'}
                                 </Button>
                             )}
                             {!isSdkLoaded && !connecting && (
                                 <FieldMessage tone="help" role="status" className="mt-ds-1 text-center">
-                                    <Loader2 size={12} className="animate-spin" aria-hidden="true" /> SDK Loading...
+                                    <Icon icon={Loader2} size="xs" className="animate-spin" /> SDK Loading...
                                 </FieldMessage>
                             )}
                         </div>
@@ -224,7 +224,7 @@ export function IntegrationsTab({ companyId }) {
                 */}
                 <Card padding="md" className="flex flex-col items-center justify-center border-dashed text-center">
                     <div className="mb-ds-3 flex h-10 w-10 items-center justify-center rounded-ds-full bg-ds-surface-subtle text-ds-content-muted">
-                        <Blocks size={20} aria-hidden="true" />
+                        <Icon icon={Blocks} size="xl" />
                     </div>
                     <h2 className="font-semibold text-ds-content-muted">More Integrations Coming Soon</h2>
                     <p className="mt-ds-1 text-ds-xs text-ds-content-muted">Tenstreet, Driver Pulse, and more.</p>

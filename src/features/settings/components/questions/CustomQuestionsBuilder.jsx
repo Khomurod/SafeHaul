@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Plus, Eye, EyeOff, HelpCircle, Save, Shield } from 'lucide-react';
+import { Icon, Plus, Eye, EyeOff, HelpCircle, Save, Shield } from '@design-system/icons';
 import {
     Badge, Button, Card, FieldMessage, Input, Select, Textarea,
 } from '@/design-system/components';
@@ -149,7 +149,7 @@ export function CustomQuestionsBuilder({ questions = [], onChange, onSave, loadi
                         onClick={() => setPreviewMode(!previewMode)}
                         aria-pressed={previewMode}
                     >
-                        {previewMode ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
+                        {previewMode ? <Icon icon={EyeOff} size="lg" /> : <Icon icon={Eye} size="lg" />}
                         {previewMode ? 'Edit Mode' : 'Preview'}
                     </Button>
                     <Button
@@ -158,7 +158,7 @@ export function CustomQuestionsBuilder({ questions = [], onChange, onSave, loadi
                         onClick={onSave}
                         loading={loading}
                     >
-                        {!loading && <Save size={18} aria-hidden="true" />}
+                        {!loading && <Icon icon={Save} size="lg" />}
                         Save Changes
                     </Button>
                 </div>
@@ -177,7 +177,7 @@ export function CustomQuestionsBuilder({ questions = [], onChange, onSave, loadi
                         title="No questions yet."
                         actions={(
                             <Button variant="ghost" size="sm" onClick={addQuestion}>
-                                <Plus size={16} aria-hidden="true" /> Add your first question
+                                <Icon icon={Plus} /> Add your first question
                             </Button>
                         )}
                     />
@@ -234,7 +234,7 @@ export function CustomQuestionsBuilder({ questions = [], onChange, onSave, loadi
             {!previewMode && questions.length > 0 && (
                 <div className="flex justify-center pt-ds-4">
                     <Button variant="ghost" size="md" onClick={addQuestion}>
-                        <Plus size={20} aria-hidden="true" /> Add Question
+                        <Icon icon={Plus} size="xl" /> Add Question
                     </Button>
                 </div>
             )}

@@ -1,5 +1,5 @@
 import React, { useId } from 'react';
-import { Settings } from 'lucide-react';
+import { Icon, Settings } from '@design-system/icons';
 import { Card, FieldMessage, Switch } from '@/design-system/components';
 import { resolveApplicationGate } from '@/config/applicationGates';
 
@@ -59,7 +59,7 @@ export function StandardQuestionsConfig({ config, onChange }) {
     return (
         <Card padding="none" className="mb-8 overflow-hidden" aria-labelledby={titleId}>
             <div className="flex items-center gap-ds-2 border-b border-ds-border-subtle bg-ds-surface-subtle p-ds-4">
-                <Settings size={18} className="text-ds-content-muted" aria-hidden="true" />
+                <Icon icon={Settings} size="lg" className="text-ds-content-muted" />
                 <h4 id={titleId} className="text-ds-body font-bold text-ds-content">
                     Standard DOT Questions Configuration
                 </h4>

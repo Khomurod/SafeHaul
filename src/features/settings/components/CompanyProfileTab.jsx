@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { saveCompanySettings } from '@features/companies';
 import { uploadCompanyLogo } from '@lib/firebase';
-import { Save, Edit2, Info, ListChecks, SlidersHorizontal, Blocks, FileSignature } from 'lucide-react';
+import { Icon, Save, Edit2, Info, ListChecks, SlidersHorizontal, Blocks, FileSignature } from '@design-system/icons';
 import { useToast } from '@shared/components/feedback';
 import { useData } from '@/context/DataContext';
 import { Button, TabList, TabPanel } from '@/design-system/components';
@@ -127,7 +127,7 @@ export function CompanyProfileTab({ currentCompanyProfile }) {
                         ref={editButtonRef}
                         onClick={() => setIsEditing(true)}
                     >
-                        <Edit2 size={16} aria-hidden="true" />
+                        <Icon icon={Edit2} />
                         Edit Profile
                     </Button>
                 )}
@@ -144,7 +144,7 @@ export function CompanyProfileTab({ currentCompanyProfile }) {
                             loading={loading}
                             onClick={handleSaveCompany}
                         >
-                            {!loading && <Save size={16} aria-hidden="true" />}
+                            {!loading && <Icon icon={Save} />}
                             Save Changes
                         </Button>
                     </div>
@@ -188,7 +188,7 @@ export function CompanyProfileTab({ currentCompanyProfile }) {
                         {isCompanyAdmin && (
                             <div className="flex justify-end">
                                 <Button variant="primary" loading={loading} onClick={handleSaveCompany}>
-                                    {!loading && <Save size={16} aria-hidden="true" />}
+                                    {!loading && <Icon icon={Save} />}
                                     Save Application Rules
                                 </Button>
                             </div>
@@ -208,7 +208,7 @@ export function CompanyProfileTab({ currentCompanyProfile }) {
                         {isCompanyAdmin && (
                             <div className="flex justify-end">
                                 <Button variant="primary" loading={loading} onClick={handleSaveCompany}>
-                                    {!loading && <Save size={16} aria-hidden="true" />}
+                                    {!loading && <Icon icon={Save} />}
                                     Save Integrations
                                 </Button>
                             </div>

@@ -69,6 +69,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 
 import {
     LUCIDE_IMPORT, countValueUses, elementUses, importSpecifiers, lineOf, localRenderedTags,
+    tagOccurrencesOutsideComments,
 } from './lucide/read.mjs';
 import { dropDefaults, resolveSize } from './lucide/decide.mjs';
 
@@ -195,6 +196,39 @@ export function migrate(source, { path = '<source>' } = {}) {
     }
 
     /*
+     * POST-CONDITION: nothing this tool could not SEE is left behind silently.
+     *
+     * The scan reads a masked copy of the file, and a mask is a small parser
+     * pretending to be a big one — it has now been wrong twice, once about
+     * comments and once about the apostrophe in `couldn't`, and the second one
+     * hid three tags in a file it reported as finished. So the tool checks its
+     * own work: after every edit, a glyph name may still appear as a tag ONLY
+     * because a flag says so. Any other survivor is a MISS, and a miss is louder
+     * than a flag because nobody asked for it.
+     *
+     * **The check must not read the file the way the scan does.** Asking the same
+     * mask a second time only ever gets the same answer — a region the scan could
+     * not see is a region the check cannot see either, so the 2026-09-06 defect
+     * would have passed its own post-condition. It counts through
+     * `maskCommentsOnly` instead: comments are unambiguous, strings are not, so
+     * the conservative reading sees everything the scan sees and more.
+     *
+     * That over-reports on a glyph tag written inside a string, which is the
+     * direction to fail in. Counted rather than matched by line, because an edit
+     * that drops `aria-hidden` can remove one. (A local binding sharing a glyph's
+     * name would inflate the flag count and soften this by one; no file in the
+     * campaign does.)
+     */
+    const missed = [];
+    for (const name of names) {
+        const remaining = tagOccurrencesOutsideComments(out, name);
+        const flagged = flags.filter((flag) => flag.name === name).length;
+        if (remaining.length > flagged) {
+            missed.push({ name, count: remaining.length - flagged, lines: remaining });
+        }
+    }
+
+    /*
      * `Icon` leads the list and the glyph names keep their order. Sorting them
      * would put a rename in every migrated file's diff for no reason.
      */
@@ -206,7 +240,7 @@ export function migrate(source, { path = '<source>' } = {}) {
         `import { ${(needsIcon ? ['Icon', ...written] : written).join(', ')} } from '@design-system/icons';\n`,
     );
 
-    return { source: out, rewritten, flags, notes, names, needsIcon, skipped: false, path };
+    return { source: out, rewritten, flags, notes, names, needsIcon, missed, skipped: false, path };
 }
 
 function main(argv) {
@@ -219,6 +253,7 @@ function main(argv) {
 
     let flagged = 0;
     let noted = 0;
+    let missed = 0;
     for (const path of paths) {
         const before = readFileSync(path, 'utf8');
         const result = migrate(before, { path });
@@ -239,14 +274,24 @@ function main(argv) {
             noted += 1;
             process.stdout.write(`     NOTE ${path}:${note.line} <${note.name}> — ${note.reason}\n`);
         }
+        for (const miss of result.missed) {
+            missed += 1;
+            process.stdout.write(
+                `     MISS ${path}:${miss.lines.join(',')} <${miss.name}> — ${miss.count} tag(s) `
+                + 'left unrewritten that no flag accounts for. The scan could not SEE them, so '
+                + 'they would survive as raw glyph renders and throw. Do not hand-patch the file '
+                + 'and move on: find out what the mask got wrong.\n',
+            );
+        }
         if (apply && result.source !== before) writeFileSync(path, result.source);
     }
 
     process.stdout.write(
         `\n${flagged} site(s) flagged — a size decision, and nothing flagged was changed.`
-        + `\n${noted} site(s) noted — rewritten, and the accessible reading needs confirming.\n`,
+        + `\n${noted} site(s) noted — rewritten, and the accessible reading needs confirming.`
+        + `\n${missed} site(s) MISSED — the scan went blind; the run fails.\n`,
     );
-    return 0;
+    return missed === 0 ? 0 : 1;
 }
 
 if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split('/').pop())) {

@@ -1710,7 +1710,7 @@ on it — catalog included — and `check:icon-contract` refuses a new importer.
 does not mean the migration is finished: 178 files outside the design system
 still import `lucide-react`, recorded in `icons/lucide-import.backlog.json`, and
 the family is not closed until that file is deleted, which is the moment the
-rule becomes absolute. **131 as of 2026-09-06**: `candidateListColumns.jsx`
+rule becomes absolute. **110 as of 2026-09-06**: `candidateListColumns.jsx`
 drained on its way through the chip slice and two more went with the Notice
 migration, because a file being rewritten to use `Icon` is the cheapest moment to
 finish it, and the campaign only shrinks.
@@ -1863,6 +1863,68 @@ The lesson is one this repository already has in another spelling: **a guard's
 subject is not the same as its blast radius.** `check:icon-contract` makes a
 claim about which files import `lucide-react`, and that claim was true on every
 run while three files it had "drained" could not render at all.
+
+**7f drained `settings`: 131 → 110 files, 578 → 494 imports.** Five flags across
+twenty-one files, the lightest ratio of any area — two glyphs a `StatusMedallion`
+already sizes, one snap (`AutomatedSmsTab:77`, 22 → `xl`, two pixels), one real
+token reaching a local binding (`QuestionEditor`'s `TypeIcon`, fed by
+`QuestionConfig.js` in the same slice — renamed `typeGlyph` and rendered through
+`Icon`), and one that needed measuring rather than deciding.
+
+**`BrandingSection:49` is the measured one, and the answer is not a snap.** The
+"no company logo set" placeholder is a 48px glyph in a **128px** frame — 37.5%,
+which is the bottom of the published band and exactly the ratio 7a measured for
+`StatusMedallion` at `md`: Tailwind UI's feature-icon block is 50%, Material 3 is
+50–60%, shadcn's avatar fallback is 40%, and nothing published sits below about
+37%. The contract's scale tops out at `3xl` = 32, which in a 128px frame is
+**25%** — below every one of those figures, and a third smaller on a screen
+people look at. So the frame owns the glyph, the same answer 7a gave the
+medallion, and the size is recorded at the call site with the arithmetic that
+chose it. It joins `PaywallMessage` as the **Tinted icon tile** row's second
+measured instance; a primitive would absorb both.
+
+**And 7f found the seventh codemod defect — the one that produced an absence.**
+`NumberAssignmentManager.jsx` reports "Couldn't Load SMS Settings" and "We
+couldn't find any phone numbers". The scanner masks strings before looking for
+tags, an apostrophe reads as a string opening, and with an odd number of them the
+mask blanks **the rest of the file**. It found one of four tags. The three it
+could not see — `<Phone>`, `<Beaker>`, `<Save>` — survived the migration as raw
+glyph renders, and a glyph token throws by construction, so the SMS settings
+screen died on `TypeError: Phone is an icon token`. Twenty-five tests caught it,
+which is why it never reached a branch.
+
+Two fixes, and the second is the one that matters. The **cause**: an apostrophe
+between two letters is prose, not a delimiter, so `couldn't` no longer opens a
+string while `const doc = 'renders <Bell />'` is still masked exactly as before
+(`test-icon-contract-reading.mjs` H5–H7). The **class**: `migrate()` now checks
+its own work — after every edit, a glyph name may appear as a tag only because a
+flag says so, and any other survivor is reported as a **MISS** and fails the run.
+
+That check had to be built twice, and the first version is the lesson. It counted
+through the same mask the scan uses, which means it could only ever agree with
+itself: a region the scan cannot see is a region the check cannot see, so it
+would have passed the very defect that prompted it. It reads through
+`maskCommentsOnly` instead — comments are unambiguous, strings are not — so the
+conservative reading sees everything the scan sees and more. Verified by
+restoring the apostrophe bug: the check names three misses at lines 135, 144 and
+153, **without being told what the cause was**. That is the property worth
+having, because defect eight will not be an apostrophe.
+
+Also on 7f: the codemod's tests outgrew 500 lines and split by responsibility
+rather than by size — `test-icon-contract-codemod.mjs` pins what the tool
+**writes**, `test-icon-contract-reading.mjs` pins what it **reads**. The split is
+along how the two halves fail: a bad rewrite is visible in the diff, a bad read
+produces an absence. `test-icon-contract-ci.mjs` X6 derives the suite list from
+disk and refused the new file until `package.json` chained it — mutation-proven,
+and the reason X6 was written that way.
+
+**A leak scan the same day found no cross-slice hazard.** A slice converts a
+file, so its glyph names become tokens; if that file exports one as data and a
+file in a not-yet-converted area renders it directly, that file throws — the same
+shape as the 7e defect one level out. Scanned rather than assumed: across all
+remaining backlog files exactly three exported data values hold a glyph
+(`QUESTION_TYPES`, `FIELD_CATEGORIES`, `NAV_ICONS`) and **every consumer of each
+is inside its own area**, so each remaining slice is self-contained on this axis.
 
 **The catalog was teaching the habit.** The guard's first live run refused 23
 story files — the design system's own catalog, still importing the package

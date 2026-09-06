@@ -1,5 +1,5 @@
 import React from 'react';
-import { HelpCircle } from 'lucide-react';
+import { Icon, HelpCircle } from '@design-system/icons';
 import { Card } from '@/design-system/components';
 import { CustomQuestionsBuilder } from '../questions/CustomQuestionsBuilder';
 import { StandardQuestionsConfig } from '../questions/StandardQuestionsConfig';
@@ -40,7 +40,7 @@ export function QuestionsTabContent({
             <section aria-labelledby="custom-questions-heading" className="border-t border-ds-border-subtle pt-ds-6">
                 <div className="mb-ds-6">
                     <h3 id="custom-questions-heading" className="flex items-center gap-ds-2 text-ds-heading-sm font-bold text-ds-content">
-                        <HelpCircle size={20} className="text-ds-action-primary" aria-hidden="true" /> Custom Questions
+                        <Icon icon={HelpCircle} size="xl" className="text-ds-action-primary" /> Custom Questions
                     </h3>
                     <p className="text-ds-sm text-ds-content-muted">
                         Add specific questions for your company (e.g. "Do you have flatbed experience?").

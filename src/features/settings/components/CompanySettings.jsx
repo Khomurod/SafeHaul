@@ -1,10 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useData } from '@/context/DataContext';
-import {
-    Building, User, CreditCard,
-    Blocks, ArrowLeft, Users, Mail, MessageSquare, Send
-} from 'lucide-react';
+import { Icon, Building, User, CreditCard, Blocks, ArrowLeft, Users, Mail, MessageSquare, Send } from '@design-system/icons';
 
 import { SmsSettingsTab } from './SmsSettingsTab';
 
@@ -142,7 +139,7 @@ export function CompanySettings() {
                     justify="start"
                     onClick={() => navigate('/company/dashboard')}
                 >
-                    <ArrowLeft size={20} aria-hidden="true" />
+                    <Icon icon={ArrowLeft} size="xl" />
                     Back to Dashboard
                 </Button>
             </div>

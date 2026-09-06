@@ -1,10 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { httpsCallable } from "firebase/functions";
 import { functions } from '@lib/firebase';
-import {
-    Save, Loader2, CheckCircle, AlertTriangle, Mail, Server,
-    HelpCircle, TestTube,
-} from 'lucide-react';
+import { Icon, Save, Loader2, CheckCircle, AlertTriangle, Mail, Server, HelpCircle, TestTube } from '@design-system/icons';
 import { useToast } from '@shared/components/feedback';
 import {
     Badge,
@@ -186,7 +183,7 @@ export function EmailSettingsTab({ currentCompanyProfile }) {
                     role="status"
                     className="flex items-center justify-center gap-ds-2 py-24 text-ds-content-muted"
                 >
-                    <Loader2 className="animate-spin" size={32} aria-hidden="true" />
+                    <Icon icon={Loader2} size="3xl" className="animate-spin" />
                     Loading email settings…
                 </p>
             </div>
@@ -296,7 +293,7 @@ export function EmailSettingsTab({ currentCompanyProfile }) {
                         disabled={!emailSettings.smtpHost || !emailSettings.smtpUser || !smtpPassInput}
                         onClick={handleTestConnection}
                     >
-                        {!testing && <TestTube size={18} aria-hidden="true" />}
+                        {!testing && <Icon icon={TestTube} size="lg" />}
                         Test Connection
                     </Button>
 
@@ -344,7 +341,7 @@ export function EmailSettingsTab({ currentCompanyProfile }) {
                     description="Step-by-step guides for Gmail, Outlook, and SendGrid"
                     leading={
                         <span className="rounded-ds-md bg-ds-action-primary p-ds-2">
-                            <HelpCircle className="text-ds-content-inverse" size={24} aria-hidden="true" />
+                            <Icon icon={HelpCircle} size="2xl" className="text-ds-content-inverse" />
                         </span>
                     }
                     open={showGuide}
@@ -354,7 +351,7 @@ export function EmailSettingsTab({ currentCompanyProfile }) {
                         {/* Gmail Guide */}
                         <div className="rounded-ds-md border border-ds-border-subtle bg-ds-surface p-5 shadow-ds-xs">
                             <h4 className="font-bold text-ds-content text-ds-heading-md mb-ds-3 flex items-center gap-2">
-                                <Mail className="text-ds-status-danger-fg" size={20} />
+                                <Icon icon={Mail} size="xl" className="text-ds-status-danger-fg" />
                                 Gmail / Google Workspace
                             </h4>
                             <ol className="space-y-ds-2 text-ds-body text-ds-content-secondary list-decimal list-inside">
@@ -379,7 +376,7 @@ export function EmailSettingsTab({ currentCompanyProfile }) {
                         {/* Outlook Guide */}
                         <div className="rounded-ds-md border border-ds-border-subtle bg-ds-surface p-5 shadow-ds-xs">
                             <h4 className="font-bold text-ds-content text-ds-heading-md mb-ds-3 flex items-center gap-2">
-                                <Mail className="text-ds-status-info-fg" size={20} />
+                                <Icon icon={Mail} size="xl" className="text-ds-status-info-fg" />
                                 Outlook / Microsoft 365
                             </h4>
                             <ol className="space-y-ds-2 text-ds-body text-ds-content-secondary list-decimal list-inside">
@@ -401,7 +398,7 @@ export function EmailSettingsTab({ currentCompanyProfile }) {
                         {/* SendGrid Guide */}
                         <div className="rounded-ds-md border border-ds-border-subtle bg-ds-surface p-5 shadow-ds-xs">
                             <h4 className="font-bold text-ds-content text-ds-heading-md mb-ds-3 flex items-center gap-2">
-                                <Server className="text-ds-status-accent-fg" size={20} />
+                                <Icon icon={Server} size="xl" className="text-ds-status-accent-fg" />
                                 SendGrid (Recommended for High Volume)
                             </h4>
                             <ol className="space-y-ds-2 text-ds-body text-ds-content-secondary list-decimal list-inside">
@@ -434,7 +431,7 @@ export function EmailSettingsTab({ currentCompanyProfile }) {
                     disabled={!emailSettings.smtpHost || !emailSettings.smtpUser || (!smtpPassInput && !hasExistingPassword)}
                     onClick={handleSaveEmailSettings}
                 >
-                    {!loading && <Save size={18} aria-hidden="true" />}
+                    {!loading && <Icon icon={Save} size="lg" />}
                     Save Settings
                 </Button>
             </div>

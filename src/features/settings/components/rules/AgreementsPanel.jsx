@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
-import { FileSignature, History, Loader2 } from 'lucide-react';
+import { Icon, FileSignature, History, Loader2 } from '@design-system/icons';
 import { functions } from '@lib/firebase';
 import { Button, Card, FieldMessage, FormField, Textarea } from '@/design-system/components';
 import { useToast } from '@shared/components/feedback';
@@ -62,7 +62,7 @@ function AgreementCard({ agreement, canPublish, busy, onPublish, onRevert }) {
             {agreement.versions.length > 0 && (
                 <details className="text-ds-sm">
                     <summary className="flex cursor-pointer items-center gap-ds-2 font-medium text-ds-content">
-                        <History size={14} aria-hidden="true" /> Version history ({agreement.versions.length})
+                        <Icon icon={History} size="sm" /> Version history ({agreement.versions.length})
                     </summary>
                     <ul className="mt-ds-2 space-y-ds-2">
                         {agreement.versions.map((version) => (
@@ -154,7 +154,7 @@ export function AgreementsPanel({ companyId, canPublish = false }) {
         <section aria-labelledby="agreements-heading" className="space-y-ds-4">
             <div>
                 <h3 id="agreements-heading" className="flex items-center gap-ds-2 text-ds-heading-sm font-bold text-ds-content">
-                    <FileSignature size={20} className="text-ds-action-primary" aria-hidden="true" /> Agreements
+                    <Icon icon={FileSignature} size="xl" className="text-ds-action-primary" /> Agreements
                 </h3>
                 <p className="text-ds-sm text-ds-content-muted">
                     The legal authorizations your applicants read and accept. Every version is kept, and an application
@@ -166,7 +166,7 @@ export function AgreementsPanel({ companyId, canPublish = false }) {
             </div>
             {loading && (
                 <p role="status" className="flex items-center gap-ds-2 text-ds-sm text-ds-content-muted">
-                    <Loader2 className="animate-spin" size={16} aria-hidden="true" /> Loading agreements…
+                    <Icon icon={Loader2} className="animate-spin" /> Loading agreements…
                 </p>
             )}
             {error && <FieldMessage tone="error">{error}</FieldMessage>}

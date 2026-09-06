@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
-import { Plus } from 'lucide-react';
+import { Icon, Plus } from '@design-system/icons';
 import { useToast } from '@shared/components/feedback';
 import { Button, FormField, FormSection, Input, Select } from '@/design-system/components';
 
@@ -90,7 +90,7 @@ export function TeamManagementTab({ currentCompanyProfile, isCompanyAdmin, onSho
                     </div>
                     <div className="flex justify-end pt-ds-2">
                         <Button type="submit" variant="primary" loading={addUserLoading}>
-                            {!addUserLoading && <Plus size={18} aria-hidden="true" />}
+                            {!addUserLoading && <Icon icon={Plus} size="lg" />}
                             Create User
                         </Button>
                     </div>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertCircle, ShieldCheck, Activity } from 'lucide-react';
+import { Icon, AlertCircle, ShieldCheck, Activity } from '@design-system/icons';
 import { Badge, IconButton, Select } from '@/design-system/components';
 import { MISSING_TOKEN, lineDisplay, sanitizePhone } from '../../utils/linePhone';
 
@@ -126,7 +126,7 @@ export function AssignmentRow({
                             loading={isVerifyingRow}
                         >
                             {!isVerifyingRow && (
-                                <Activity size={14} className={rowStatus ? 'text-ds-content-link' : 'text-ds-content-muted'} />
+                                <Icon icon={Activity} size="sm" className={rowStatus ? 'text-ds-content-link' : 'text-ds-content-muted'} />
                             )}
                         </IconButton>
                         {rowStatus ? (

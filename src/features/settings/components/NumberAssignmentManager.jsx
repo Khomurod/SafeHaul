@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Phone, AlertCircle, Save, Beaker } from 'lucide-react';
+import { Icon, Phone, AlertCircle, Save, Beaker } from '@design-system/icons';
 import { Badge, Button, Card, StatusMedallion } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { SMSDiagnosticModal } from './SMSDiagnosticModal';
@@ -81,7 +81,7 @@ export function NumberAssignmentManager({ companyId }) {
                 padding="lg"
                 className="border-ds-status-danger-border bg-ds-status-danger-bg text-center"
             >
-                <StatusMedallion tone="danger" className="mx-auto mb-ds-2"><AlertCircle /></StatusMedallion>
+                <StatusMedallion tone="danger" className="mx-auto mb-ds-2"><Icon icon={AlertCircle} /></StatusMedallion>
                 <h3 className="font-bold text-ds-status-danger-fg">Couldn't Load SMS Settings</h3>
                 <p role="alert" className="mt-ds-1 text-ds-sm text-ds-status-danger-fg">
                     We couldn't reach your SMS configuration. Check your connection and try again, or
@@ -98,7 +98,7 @@ export function NumberAssignmentManager({ companyId }) {
                 padding="lg"
                 className="border-ds-status-warning-border bg-ds-status-warning-bg text-center"
             >
-                <StatusMedallion tone="warning" className="mx-auto mb-ds-2"><AlertCircle /></StatusMedallion>
+                <StatusMedallion tone="warning" className="mx-auto mb-ds-2"><Icon icon={AlertCircle} /></StatusMedallion>
                 <h3 className="font-bold text-ds-status-warning-fg">SMS Integration Not Active</h3>
                 <p className="mt-ds-1 text-ds-sm text-ds-status-warning-fg">Please contact a Super Admin to enable SMS for your company.</p>
             </Card>
@@ -120,7 +120,7 @@ export function NumberAssignmentManager({ companyId }) {
     if (inventory.length === 0) {
         return (
             <Card data-testid="number-assignment-manager" padding="lg" className="text-center">
-                <Phone className="mx-auto mb-ds-3 text-ds-content-muted" size={32} />
+                <Icon icon={Phone} size="3xl" className="mx-auto mb-ds-3 text-ds-content-muted" />
                 <h3 className="font-bold text-ds-content">No Numbers Found</h3>
                 <p className="mt-ds-1 text-ds-sm text-ds-content-muted">We couldn't find any phone numbers connected to your provider account.</p>
             </Card>
@@ -132,7 +132,7 @@ export function NumberAssignmentManager({ companyId }) {
             <div className="flex items-center justify-between border-b border-ds-border-subtle pb-ds-4">
                 <div>
                     <h2 className="flex items-center gap-ds-2 text-ds-heading-sm font-bold text-ds-content">
-                        <Phone className="text-ds-content-link" size={24} aria-hidden="true" /> Number Assignments
+                        <Icon icon={Phone} size="2xl" className="text-ds-content-link" /> Number Assignments
                     </h2>
                     <p className="mt-ds-1 text-ds-sm text-ds-content-muted">inventory: {inventory.length} numbers available</p>
                 </div>
@@ -141,7 +141,7 @@ export function NumberAssignmentManager({ companyId }) {
                         <Badge tone="warning" icon={AlertCircle}>Unsaved changes</Badge>
                     )}
                     <Button variant="secondary" onClick={() => setShowTestModal(true)}>
-                        <Beaker size={16} aria-hidden="true" />
+                        <Icon icon={Beaker} />
                         Diagnostic Lab
                     </Button>
                     <Button
@@ -150,7 +150,7 @@ export function NumberAssignmentManager({ companyId }) {
                         disabled={saving}
                         loading={saving}
                     >
-                        {!saving && <Save size={18} aria-hidden="true" />}
+                        {!saving && <Icon icon={Save} size="lg" />}
                         {hasChanges ? 'Save Changes Now' : 'Save Changes'}
                     </Button>
                 </div>

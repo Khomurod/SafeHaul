@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@lib/firebase';
-import { Loader2, Save } from 'lucide-react';
+import { Icon, Loader2, Save } from '@design-system/icons';
 import { useToast } from '@shared/components/feedback';
 import {
     Button,
@@ -74,7 +74,9 @@ export function AutomatedSmsTab({ companyId }) {
                     role="status"
                     className="flex items-center justify-center gap-ds-2 py-24 text-ds-content-muted"
                 >
-                    <Loader2 className="animate-spin" size={22} aria-hidden="true" />
+                    {/* 22 was never a decision — two pixels off `xl`, and the migrated
+                        loading lines that keep a size all use `xl`. */}
+                    <Icon icon={Loader2} size="xl" className="animate-spin" />
                     Loading…
                 </p>
             </div>
@@ -143,7 +145,7 @@ export function AutomatedSmsTab({ companyId }) {
                         loading={saving}
                         onClick={handleSave}
                     >
-                        {!saving && <Save size={18} aria-hidden="true" />}
+                        {!saving && <Icon icon={Save} size="lg" />}
                         Save templates
                     </Button>
                 </div>
