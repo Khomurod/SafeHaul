@@ -104,10 +104,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Use Node.js 20.x
+      - name: Use Node.js 22.x
         uses: actions/setup-node@v5
         with:
-          node-version: 20.x
+          node-version: 22.x
 
       # No `npm ci`: the planner uses only Node builtins, deliberately, so the
       # first job of every run does not wait on an install.
@@ -147,10 +147,10 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-      - name: Use Node.js 20.x
+      - name: Use Node.js 22.x
         uses: actions/setup-node@v5
         with:
-          node-version: 20.x
+          node-version: 22.x
       - name: Scan what this change introduces, and the tree it produces
         env:
           # Empty on push and pull_request; only a dispatch can set it.
@@ -189,10 +189,10 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-      - name: Use Node.js 20.x
+      - name: Use Node.js 22.x
         uses: actions/setup-node@v5
         with:
-          node-version: 20.x
+          node-version: 22.x
           cache: 'npm'
 
       # Installed for ONE reason: the UI-contract guard's native-table rule
@@ -351,10 +351,10 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Use Node.js 20.x
+      - name: Use Node.js 22.x
         uses: actions/setup-node@v5
         with:
-          node-version: 20.x
+          node-version: 22.x
           cache: 'npm'
           cache-dependency-path: functions/package-lock.json
 
@@ -374,10 +374,10 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Use Node.js 20.x
+      - name: Use Node.js 22.x
         uses: actions/setup-node@v5
         with:
-          node-version: 20.x
+          node-version: 22.x
           cache: 'npm'
 
       - run: npm ci
@@ -397,10 +397,10 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Use Node.js 20.x
+      - name: Use Node.js 22.x
         uses: actions/setup-node@v5
         with:
-          node-version: 20.x
+          node-version: 22.x
           cache: 'npm'
 
       - name: Install Dependencies
@@ -427,10 +427,10 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Use Node.js 20.x
+      - name: Use Node.js 22.x
         uses: actions/setup-node@v5
         with:
-          node-version: 20.x
+          node-version: 22.x
           cache: 'npm'
 
       - name: Install Dependencies
@@ -515,10 +515,10 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Use Node.js 20.x
+      - name: Use Node.js 22.x
         uses: actions/setup-node@v5
         with:
-          node-version: 20.x
+          node-version: 22.x
           cache: 'npm'
 
       # `npm ci` (not `npm install`) so the catalog is built from the committed
@@ -634,10 +634,10 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Use Node.js 20.x
+      - name: Use Node.js 22.x
         uses: actions/setup-node@v5
         with:
-          node-version: 20.x
+          node-version: 22.x
           cache: 'npm'
 
       - name: Setup Java for Firebase emulators
@@ -693,10 +693,10 @@ jobs:
     # blocks a release.
     steps:
       - uses: actions/checkout@v5
-      - name: Use Node.js 20.x
+      - name: Use Node.js 22.x
         uses: actions/setup-node@v5
         with:
-          node-version: 20.x
+          node-version: 22.x
           cache: 'npm'
       - name: Install Dependencies
         run: npm ci
@@ -732,10 +732,10 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Use Node.js 20.x
+      - name: Use Node.js 22.x
         uses: actions/setup-node@v5
         with:
-          node-version: 20.x
+          node-version: 22.x
 
       # Each lane must be accounted for: it ran green here, or it was skipped
       # with a reason this job can verify. Anything else fails.
@@ -905,10 +905,10 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Use Node.js 20.x
+      - name: Use Node.js 22.x
         uses: actions/setup-node@v5
         with:
-          node-version: 20.x
+          node-version: 22.x
           cache: 'npm'
 
       - name: Authenticate to Google Cloud
@@ -1044,10 +1044,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Use Node.js 20.x
+      - name: Use Node.js 22.x
         uses: actions/setup-node@v5
         with:
-          node-version: 20.x
+          node-version: 22.x
           cache: 'npm'
           cache-dependency-path: |
             package-lock.json
@@ -1180,10 +1180,10 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Use Node.js 20.x
+      - name: Use Node.js 22.x
         uses: actions/setup-node@v5
         with:
-          node-version: 20.x
+          node-version: 22.x
 
       # 1. Did the deploy jobs run at all?
       - name: Confirm both deploys ran
@@ -1253,10 +1253,10 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Use Node.js 20.x
+      - name: Use Node.js 22.x
         uses: actions/setup-node@v5
         with:
-          node-version: 20.x
+          node-version: 22.x
 
       - name: Mark the Testing release promotable
         env:

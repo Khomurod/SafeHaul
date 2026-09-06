@@ -92,7 +92,7 @@ Brief §12) · payment processing · any named carrier endorsement.
 
 ### Backend (Firebase)
 
-Cloud Functions run on **Node 20**.
+Cloud Functions run on **Node 22** (moved from Node 20 on 2026-09-06, ahead of Google's 2026-10-30 decommission of the Node 20 runtime).
 
 | Technology | Version | Purpose |
 |---|---|---|
@@ -135,7 +135,7 @@ SafeHaul/
 │   ├── firestore.rules      # Firestore security rules — deployed from here
 │   ├── storage.rules        # Storage security rules — deployed from here
 │   └── tests/               # Frontend tests
-├── functions/               # Cloud Functions (Node 20, v1 + v2)
+├── functions/               # Cloud Functions (Node 22, v1 + v2)
 │   ├── index.js             # The authoritative function export registry
 │   ├── ai/                  # Shared AI platform (router, providers, tasks)
 │   ├── blog/                # News & Insights pipeline + public rendering
