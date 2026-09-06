@@ -1,6 +1,6 @@
 import React, { useId } from 'react';
 import { getFieldValue } from '@shared/utils/helpers.js';
-import { Building, Users, FileText, Edit2 } from 'lucide-react';
+import { Icon, Building, Users, FileText, Edit2 } from '@design-system/icons';
 import { Badge, Button, Card } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 
@@ -63,7 +63,7 @@ export function GlobalSearchResults({
 
       <section aria-labelledby={companiesId}>
         <h3 id={companiesId} className="mb-ds-4 flex items-center gap-ds-2 text-ds-heading-sm font-semibold text-ds-content-secondary">
-          <Building size={20} aria-hidden="true" /> Companies ({companies.length})
+          <Icon icon={Building} size="xl" /> Companies ({companies.length})
         </h3>
         <Stack gap="md">
           {companies.length > 0 ? (
@@ -75,11 +75,11 @@ export function GlobalSearchResults({
                 </div>
                 <div className="flex shrink-0 justify-end gap-ds-2">
                   <Button variant="secondary" size="sm" onClick={() => onViewApps({ id: company.id, name: company.companyName })}>
-                    <FileText size={14} aria-hidden="true" /> View Apps
+                    <Icon icon={FileText} size="sm" /> View Apps
                     <span className="sr-only"> for {getFieldValue(company.companyName)}</span>
                   </Button>
                   <Button variant="secondary" size="sm" onClick={() => onEditCompany(company.id)}>
-                    <Edit2 size={14} aria-hidden="true" /> Edit
+                    <Icon icon={Edit2} size="sm" /> Edit
                     <span className="sr-only"> {getFieldValue(company.companyName)}</span>
                   </Button>
                 </div>
@@ -91,7 +91,7 @@ export function GlobalSearchResults({
 
       <section aria-labelledby={usersId}>
         <h3 id={usersId} className="mb-ds-4 flex items-center gap-ds-2 text-ds-heading-sm font-semibold text-ds-content-secondary">
-          <Users size={20} aria-hidden="true" /> Users ({users.length})
+          <Icon icon={Users} size="xl" /> Users ({users.length})
         </h3>
         <Stack gap="md">
           {users.length > 0 ? (
@@ -103,7 +103,7 @@ export function GlobalSearchResults({
                 </div>
                 <div className="flex shrink-0 justify-end gap-ds-2">
                   <Button variant="secondary" size="sm" onClick={() => onEditUser({ id: user.id })}>
-                    <Edit2 size={14} aria-hidden="true" /> Edit
+                    <Icon icon={Edit2} size="sm" /> Edit
                     <span className="sr-only"> {getFieldValue(user.name)}</span>
                   </Button>
                 </div>
@@ -115,7 +115,7 @@ export function GlobalSearchResults({
 
       <section aria-labelledby={appsId}>
         <h3 id={appsId} className="mb-ds-4 flex items-center gap-ds-2 text-ds-heading-sm font-semibold text-ds-content-secondary">
-          <FileText size={20} aria-hidden="true" /> Driver Applications ({applications.length})
+          <Icon icon={FileText} size="xl" /> Driver Applications ({applications.length})
         </h3>
         <Stack gap="md">
           {applications.length > 0 ? (

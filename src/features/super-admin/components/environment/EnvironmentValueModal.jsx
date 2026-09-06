@@ -1,5 +1,5 @@
 import React, { useId, useRef, useState } from 'react';
-import { AlertTriangle } from 'lucide-react';
+import { Icon, AlertTriangle } from '@design-system/icons';
 import { Button, Card, FieldMessage, FormField, Input, Select } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { Modal } from '@design-system/patterns';
@@ -95,7 +95,7 @@ export function EnvironmentValueModal({ entry, mode, onSubmit, onCancel }) {
 
                     {entry.requiresDeployment && (
                         <p className="flex items-start gap-ds-2 text-ds-sm text-ds-content-secondary">
-                            <AlertTriangle size={16} aria-hidden="true" className="mt-0.5 shrink-0" />
+                            <Icon icon={AlertTriangle} className="mt-0.5 shrink-0" />
                             <span>
                                 This value only reaches the running application after a deployment. Saving it
                                 here does not change the live app.

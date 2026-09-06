@@ -1,5 +1,5 @@
 import React from 'react';
-import { Eye, EyeOff, Loader2, ShieldAlert } from 'lucide-react';
+import { Icon, Eye, EyeOff, Loader2, ShieldAlert } from '@design-system/icons';
 import { IconButton } from '@/design-system/components';
 
 /**
@@ -51,7 +51,7 @@ export function EnvironmentValueCell({
 
                 {isRevealed && revealedValue === null && (
                     <span className="flex items-start gap-ds-1 text-ds-sm text-ds-content-secondary" role="status">
-                        <ShieldAlert size={14} aria-hidden="true" className="mt-0.5 shrink-0" />
+                        <Icon icon={ShieldAlert} size="sm" className="mt-0.5 shrink-0" />
                         <span>{unavailableReason}</span>
                     </span>
                 )}
@@ -66,8 +66,8 @@ export function EnvironmentValueCell({
                 onClick={() => onToggle(entry)}
             >
                 {isPending
-                    ? <Loader2 size={16} aria-hidden="true" className="animate-spin" />
-                    : (isRevealed ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />)}
+                    ? <Icon icon={Loader2} className="animate-spin" />
+                    : (isRevealed ? <Icon icon={EyeOff} /> : <Icon icon={Eye} />)}
             </IconButton>
         </div>
     );

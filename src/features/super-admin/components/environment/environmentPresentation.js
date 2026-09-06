@@ -6,11 +6,7 @@
  * words describe.
  */
 
-import {
-    AlertTriangle,
-    CheckCircle2,
-    ShieldCheck,
-} from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ShieldCheck } from '@design-system/icons';
 
 const STATUS_PRESENTATION = {
     configured: { tone: 'success', label: 'Configured', icon: CheckCircle2 },

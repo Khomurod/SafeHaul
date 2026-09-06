@@ -38,9 +38,7 @@
 import React, { useId, useState, useMemo, useCallback } from 'react';
 import { db } from '@lib/firebase';
 import { doc, deleteDoc } from 'firebase/firestore';
-import {
-    Search, Filter,
-} from 'lucide-react';
+import { Icon, Search, Filter } from '@design-system/icons';
 import { useToast } from '@shared/components/feedback';
 import { ModernDriverTable } from '@shared/components/table';
 import { Button, Card, Input, Select } from '@/design-system/components';
@@ -292,14 +290,14 @@ export function UnifiedDriverList({
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                         />
-                        <Search size={16} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ds-content-muted" />
+                        <Icon icon={Search} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ds-content-muted" />
                     </div>
                 </div>
 
                 {/* Filters */}
                 <div className="flex flex-wrap items-center gap-ds-2">
                     <span className="flex items-center gap-1 text-ds-xs font-semibold uppercase tracking-wide text-ds-content-muted">
-                        <Filter size={12} aria-hidden="true" /> Filters:
+                        <Icon icon={Filter} size="xs" /> Filters:
                     </span>
 
                     {FILTERS.map(({ key, label, options }) => (
@@ -347,7 +345,7 @@ export function UnifiedDriverList({
                     emptyMessage="No drivers match your filters."
                     emptyIcon={hasActiveFilters ? (
                         <div className="text-center">
-                            <Search size={32} className="mx-auto mb-ds-3 text-ds-content-secondary" aria-hidden="true" />
+                            <Icon icon={Search} size="3xl" className="mx-auto mb-ds-3 text-ds-content-secondary" />
                             <Button variant="ghost" size="sm" onClick={clearAllFilters}>Clear Filters</Button>
                         </div>
                     ) : undefined}

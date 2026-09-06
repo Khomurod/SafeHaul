@@ -7,7 +7,7 @@
  */
 
 import React from 'react';
-import { ScrollText } from 'lucide-react';
+import { Icon, ScrollText } from '@design-system/icons';
 import { Button, Card } from '@/design-system/components';
 
 export function AiRecentActivityCard({ telemetry, onOpenLogs }) {
@@ -27,7 +27,7 @@ export function AiRecentActivityCard({ telemetry, onOpenLogs }) {
                         size="sm"
                         onClick={onOpenLogs}
                     >
-                        <ScrollText size={14} aria-hidden="true" /> Open logs
+                        <Icon icon={ScrollText} size="sm" /> Open logs
                     </Button>
                 </div>
             </Card>

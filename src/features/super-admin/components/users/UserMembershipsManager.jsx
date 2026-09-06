@@ -5,7 +5,7 @@ import {
   updateMembershipRole,
   deleteMembership
 } from '@features/auth/services/userService';
-import { Trash2, Plus, RefreshCw } from 'lucide-react';
+import { Icon, Trash2, Plus, RefreshCw } from '@design-system/icons';
 import {
     Card,
     FieldMessage,
@@ -125,7 +125,7 @@ function MembershipItem({ membership, companyName, onUpdate, onRemove }) {
             disabled={loading || removeLoading}
             onClick={() => setConfirmingRemove(true)}
           >
-            <Trash2 size={16} aria-hidden="true" className="text-ds-status-danger-fg" />
+            <Icon icon={Trash2} className="text-ds-status-danger-fg" />
           </IconButton>
         </div>
       </div>
@@ -240,7 +240,7 @@ export function UserMembershipsManager({ userId, allCompaniesMap, onDataUpdate }
           Access &amp; Permissions
         </h3>
         <IconButton label="Refresh membership list" variant="ghost" size="sm" onClick={renderUserMemberships}>
-          <RefreshCw size={16} aria-hidden="true" />
+          <Icon icon={RefreshCw} />
         </IconButton>
       </div>
 
@@ -312,7 +312,7 @@ export function UserMembershipsManager({ userId, allCompaniesMap, onDataUpdate }
           variant="primary"
           disabled={availableCompanies.length === 0}
         >
-          <Plus size={20} aria-hidden="true" />
+          <Icon icon={Plus} size="xl" />
         </IconButton>
       </form>
 

@@ -6,9 +6,7 @@
  */
 
 import React from 'react';
-import {
-    UserPlus, User,
-} from 'lucide-react';
+import { Icon, UserPlus, User } from '@design-system/icons';
 import {
     Button, Card, FormField, Input, Select,
 } from '@/design-system/components';
@@ -27,7 +25,7 @@ export function CreateUserForm({
                                 <Card padding="none" className="overflow-hidden">
                                     <div className="border-b border-ds-border-subtle bg-ds-surface-subtle px-ds-5 py-ds-4">
                                         <h3 className="flex items-center gap-ds-3 text-ds-heading-sm font-semibold text-ds-content">
-                                            <User className="text-ds-status-accent-fg" size={20} aria-hidden="true" />
+                                            <Icon icon={User} size="xl" className="text-ds-status-accent-fg" />
                                             Create Standalone User
                                         </h3>
                                     </div>
@@ -97,7 +95,7 @@ export function CreateUserForm({
 
                                 <div className="flex justify-end">
                                     <Button type="submit" variant="primary" disabled={loading} loading={loading}>
-                                        {!loading && <UserPlus size={20} aria-hidden="true" />} Create User
+                                        {!loading && <Icon icon={UserPlus} size="xl" />} Create User
                                     </Button>
                                 </div>
                             </Stack>

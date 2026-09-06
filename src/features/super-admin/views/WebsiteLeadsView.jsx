@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Download, RefreshCw } from 'lucide-react';
+import { Icon, Download, RefreshCw } from '@design-system/icons';
 
 import { Badge, Button, Card, DataTable, FieldMessage } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
@@ -193,14 +193,14 @@ export function WebsiteLeadsView() {
                 </div>
                 <div className="flex flex-wrap items-center gap-ds-2">
                     <Button variant="secondary" onClick={load} disabled={loading}>
-                        <RefreshCw size={14} aria-hidden="true" /> Refresh
+                        <Icon icon={RefreshCw} size="sm" /> Refresh
                     </Button>
                     <Button
                         variant="primary"
                         onClick={exportCsv}
                         disabled={loading || leads.length === 0}
                     >
-                        <Download size={14} aria-hidden="true" /> Export CSV
+                        <Icon icon={Download} size="sm" /> Export CSV
                     </Button>
                 </div>
             </div>

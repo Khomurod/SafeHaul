@@ -1710,10 +1710,14 @@ on it — catalog included — and `check:icon-contract` refuses a new importer.
 does not mean the migration is finished: 178 files outside the design system
 still import `lucide-react`, recorded in `icons/lucide-import.backlog.json`, and
 the family is not closed until that file is deleted, which is the moment the
-rule becomes absolute. **46 as of 2026-09-06**: `candidateListColumns.jsx`
-drained on its way through the chip slice and two more went with the Notice
-migration, because a file being rewritten to use `Icon` is the cheapest moment to
-finish it, and the campaign only shrinks.
+rule becomes absolute. **That moment arrived on 2026-09-06**: the last of the 178
+files drained in 7i, `lucide-import.backlog.json` was deleted, and
+`check:icon-contract` now refuses a `lucide-react` import anywhere under `src/`
+outside the registry itself — with nothing recorded, nothing exempt, and no list
+to add to. Along the way `candidateListColumns.jsx` drained on its way through the
+chip slice and two more went with the Notice migration, because a file being
+rewritten to use `Icon` is the cheapest moment to finish it, and the campaign only
+shrank.
 
 **Phase 7 opened by measuring what it is actually migrating**, and the number
 that mattered was not the file count. Across all 175 files there are **607 glyph
@@ -2007,6 +2011,37 @@ those React shapes, and the two that are not — `EnvironmentActions:79`
 `<action.icon>` and `ReleaseManagementView:236` `<phasePresentation.Icon>` — are
 both in `super-admin`, so 7i will meet them as flags rather than as a broken
 screen. Pinned by `test-icon-contract-reading.mjs` M1–M4.
+
+**7i drained `super-admin` and finished the campaign: 46 → 0 files, 201 → 0
+imports.** Sixteen flags — the fourteen the pre-slice sizing predicted, plus the
+**two member expressions 7h's new reader added**: `EnvironmentActions:79`
+`<action.icon>` and `ReleaseManagementView:236` `<phasePresentation.Icon>`. Both
+were met as flags rather than as screens that throw, which is the whole point of
+adding the reader in the slice before rather than after.
+
+Five local bindings (four shadowing `Icon`, renamed `Glyph`; `CompaniesView`'s
+`TitleIcon` and `SystemHealthView`'s `StatusIcon` renamed for clarity), three
+`size={15}` snaps to `sm` following the precedent `candidateListColumns` set, one
+page-level error state snapping 40 → `3xl` under 7h's fixed-versus-fluid rule, and
+five bare glyphs standing alone in headings taking `2xl` — which is what lucide
+rendered for them before, so nothing moved on screen.
+
+**And then the file went.** With the last entry drained the checker refuses an
+empty list in as many words — *"the campaign is finished, so delete the file — an
+empty list is an invitation to add to it"* — so
+`src/design-system/icons/lucide-import.backlog.json` is deleted and the rule is
+absolute.
+
+`test-icon-contract-reading.mjs` **G1 had to grow a second state for that**, and
+the reason is this section's own principle: G1 asserted that the matcher reaches
+every recorded file, and with no backlog it would simply have crashed, or worse,
+passed over nothing. It now branches — while a backlog exists, the old claim;
+once it is gone, the stronger one, that **nothing governed imports the package at
+all** — and it takes its scope from `isGoverned`, the checker's own function,
+rather than re-deciding which directory is exempt. Mutation-proven: one restored
+`lucide-react` import in `AnalyticsView.jsx` fails it by name. A test that quietly
+stops asserting when its subject disappears is the same failure this campaign
+spent eight defects learning to see.
 
 **The catalog was teaching the habit.** The guard's first live run refused 23
 story files — the design system's own catalog, still importing the package

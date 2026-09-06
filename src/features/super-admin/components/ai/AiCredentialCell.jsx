@@ -1,5 +1,5 @@
 import React from 'react';
-import { Eye, EyeOff, Loader2, ShieldAlert } from 'lucide-react';
+import { Icon, Eye, EyeOff, Loader2, ShieldAlert } from '@design-system/icons';
 import { IconButton } from '@/design-system/components';
 import { credentialSlotId } from '../../hooks/useRevealedCredential';
 import { MASKED_PLACEHOLDER } from './aiProviderPresentation';
@@ -58,7 +58,7 @@ export function AiCredentialCell({
 
                 {isRevealed && revealedValue === null && (
                     <span className="flex items-center gap-ds-1 text-ds-sm text-ds-content-secondary">
-                        <ShieldAlert size={14} aria-hidden="true" />
+                        <Icon icon={ShieldAlert} size="sm" />
                         {unavailableReason}
                     </span>
                 )}
@@ -73,8 +73,8 @@ export function AiCredentialCell({
                 onClick={() => onToggle(providerId, field.name)}
             >
                 {isPending
-                    ? <Loader2 size={16} className="animate-spin" aria-hidden="true" />
-                    : (isRevealed ? <EyeOff size={16} aria-hidden="true" /> : <Eye size={16} aria-hidden="true" />)}
+                    ? <Icon icon={Loader2} className="animate-spin" />
+                    : (isRevealed ? <Icon icon={EyeOff} /> : <Icon icon={Eye} />)}
             </IconButton>
         </div>
     );

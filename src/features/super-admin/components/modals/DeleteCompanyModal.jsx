@@ -1,7 +1,7 @@
 import React, { useId, useState } from 'react';
 import { httpsCallable } from "firebase/functions";
 import { functions } from '@lib/firebase';
-import { AlertTriangle, X } from 'lucide-react';
+import { Icon, AlertTriangle, X } from '@design-system/icons';
 import { Button, IconButton, Notice } from '@/design-system/components';
 import { Modal } from '@design-system/patterns';
 
@@ -61,11 +61,12 @@ export function DeleteCompanyModal({ companyId, companyName, onClose, onConfirm 
             id={titleId}
             className="flex items-center gap-ds-2 text-ds-heading-sm font-bold text-ds-status-danger-fg"
           >
-            <AlertTriangle aria-hidden="true" />
+            {/* Bare in lucide rendered 24, so `2xl` keeps what is on screen. */}
+            <Icon icon={AlertTriangle} size="2xl" />
             Delete Company?
           </h2>
           <IconButton data-testid="modal-close" label="Close" variant="ghost" size="sm" onClick={onClose} disabled={loading}>
-            <X size={20} aria-hidden="true" />
+            <Icon icon={X} size="xl" />
           </IconButton>
         </header>
 

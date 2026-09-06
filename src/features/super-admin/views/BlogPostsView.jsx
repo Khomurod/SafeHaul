@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ExternalLink, RefreshCw, Trash2 } from 'lucide-react';
+import { Icon, ExternalLink, RefreshCw, Trash2 } from '@design-system/icons';
 
 import { Badge, Button, Card, DataTable, FieldMessage } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
@@ -211,7 +211,7 @@ export function BlogPostsView() {
                                     variant="ghost"
                                     onClick={() => window.open(`/news/${post.slug}`, '_blank', 'noopener')}
                                 >
-                                    <ExternalLink size={14} aria-hidden="true" /> View
+                                    <Icon icon={ExternalLink} size="sm" /> View
                                 </Button>
                             )}
                             <Button
@@ -222,7 +222,7 @@ export function BlogPostsView() {
                                     setDeleteTarget(post);
                                 }}
                             >
-                                <Trash2 size={14} aria-hidden="true" /> Delete
+                                <Icon icon={Trash2} size="sm" /> Delete
                             </Button>
                         </>
                     )}
@@ -254,7 +254,7 @@ export function BlogPostsView() {
                     onClick={() => { load(); loadRuns(); }}
                     disabled={loading}
                 >
-                    <RefreshCw size={14} aria-hidden="true" /> Refresh
+                    <Icon icon={RefreshCw} size="sm" /> Refresh
                 </Button>
                 <Button variant="secondary" loading={publishing} onClick={handlePublishNow}>
                     Run today&rsquo;s publication check
@@ -266,7 +266,7 @@ export function BlogPostsView() {
                     <FieldMessage tone="error">{loadError}</FieldMessage>
                     <div className="mt-ds-2">
                         <Button variant="secondary" onClick={load}>
-                            <RefreshCw size={14} aria-hidden="true" /> Try again
+                            <Icon icon={RefreshCw} size="sm" /> Try again
                         </Button>
                     </div>
                 </Card>

@@ -1,7 +1,7 @@
 import React, { useId, useState, useEffect } from 'react';
 import { updateCompany } from '@features/companies';
 import { uploadCompanyLogo } from '@lib/firebase';
-import { X, CreditCard, SlidersHorizontal } from 'lucide-react';
+import { Icon, X, CreditCard, SlidersHorizontal } from '@design-system/icons';
 import {
   Button,
   ChoiceGroup,
@@ -162,7 +162,7 @@ export function EditCompanyModal({ companyDoc, onClose, onSave }) {
         <header className="flex shrink-0 items-center justify-between border-b border-ds-border-subtle p-ds-5">
           <h2 id={titleId} className="text-ds-heading-sm font-bold text-ds-content">Edit Company</h2>
           <IconButton data-testid="modal-close" label="Close" variant="ghost" size="sm" onClick={onClose} disabled={loading}>
-            <X size={20} aria-hidden="true" />
+            <Icon icon={X} size="xl" />
           </IconButton>
         </header>
 
@@ -170,11 +170,8 @@ export function EditCompanyModal({ companyDoc, onClose, onSave }) {
 
           {/* --- Subscription Plan Section --- */}
           <div className="rounded-ds-lg border border-ds-status-info-border bg-ds-status-info-bg p-ds-4">
-            <CreditCard
-              size={20}
-              aria-hidden="true"
-              className="mb-ds-2 inline-block text-ds-status-info-fg"
-            />
+            <Icon icon={CreditCard} size="xl"
+              className="mb-ds-2 inline-block text-ds-status-info-fg" />
             <ChoiceGroup
               id={planGroupId}
               legend="Subscription Plan"
@@ -247,7 +244,7 @@ export function EditCompanyModal({ companyDoc, onClose, onSave }) {
               aria-expanded={rulesOpen}
               aria-controls="edit-company-application-rules"
             >
-              <SlidersHorizontal size={16} aria-hidden="true" />
+              <Icon icon={SlidersHorizontal} />
               {rulesOpen ? 'Hide application rules' : 'Application rules for this company'}
             </Button>
             {rulesOpen && (

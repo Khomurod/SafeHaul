@@ -1,6 +1,6 @@
 import React, { useId, useState, useEffect, useMemo } from 'react';
 import { loadApplications } from '@features/applications/services/applicationService';
-import { X, Search, FileText, Calendar, User } from 'lucide-react';
+import { Icon, X, Search, FileText, Calendar, User } from '@design-system/icons';
 import { Badge, Button, IconButton, Input } from '@/design-system/components';
 import { SafeHaulLoader } from '@shared/components/SafeHaulLoader';
 import { EmptyState, ErrorState, Modal } from '@design-system/patterns';
@@ -143,14 +143,14 @@ export function ViewCompanyAppsModal({ companyId, companyName, onClose }) {
         <header className="flex shrink-0 items-center justify-between gap-ds-4 border-b border-ds-border-subtle bg-ds-surface-subtle p-ds-5">
           <div className="min-w-0">
             <h2 id={titleId} className="flex items-center gap-ds-2 text-ds-heading-sm font-bold text-ds-content">
-                <FileText className="text-ds-content-link" aria-hidden="true" /> Driver Applications
+                <Icon icon={FileText} size="2xl" className="text-ds-content-link" /> Driver Applications
             </h2>
             <p className="text-ds-sm text-ds-content-muted">
               Viewing records for <span className="font-semibold text-ds-content">{companyName}</span>
             </p>
           </div>
           <IconButton data-testid="modal-close" label="Close" variant="ghost" size="sm" onClick={onClose}>
-            <X size={24} aria-hidden="true" />
+            <Icon icon={X} size="2xl" />
           </IconButton>
         </header>
 
@@ -168,11 +168,8 @@ export function ViewCompanyAppsModal({ companyId, companyName, onClose }) {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
-            <Search
-              size={18}
-              aria-hidden="true"
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ds-content-muted"
-            />
+            <Icon icon={Search} size="lg"
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ds-content-muted" />
           </div>
         </div>
 
@@ -236,7 +233,7 @@ export function ViewCompanyAppsModal({ companyId, companyName, onClose }) {
                             </td>
                             <td className="text-right text-ds-sm text-ds-content-muted">
                                 <div className="flex items-center justify-end gap-1">
-                                    <Calendar size={12} aria-hidden="true" />
+                                    <Icon icon={Calendar} size="xs" />
                                     {app.submittedAt?.seconds
                                         ? new Date(app.submittedAt.seconds * 1000).toLocaleDateString()
                                         : (app.createdAt?.seconds

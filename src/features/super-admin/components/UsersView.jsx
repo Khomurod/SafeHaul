@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useId } from 'react';
 import { getFieldValue } from '@shared/utils/helpers.js';
-import { Users, Briefcase, Edit2, Trash2, Search, ChevronLeft, ChevronRight, ShieldCheck } from 'lucide-react';
+import { Icon, Users, Briefcase, Edit2, Trash2, Search, ChevronLeft, ChevronRight, ShieldCheck } from '@design-system/icons';
 import { Avatar, Badge, Button, Card, IconButton, Input, Select } from '@/design-system/components';
 import { SafeHaulLoader } from '@shared/components/SafeHaulLoader';
 
@@ -67,7 +67,7 @@ export function UsersView({
         <Card padding="none" className="flex h-full flex-col overflow-hidden">
             <div className="shrink-0 border-b border-ds-border-subtle p-ds-5">
                 <h2 className="flex items-center gap-ds-2 text-ds-heading-sm font-bold text-ds-content">
-                    <Users size={20} className="text-ds-content-link" aria-hidden="true" />
+                    <Icon icon={Users} size="xl" className="text-ds-content-link" />
                     Manage All Users
                 </h2>
             </div>
@@ -86,7 +86,7 @@ export function UsersView({
                         value={userSearch}
                         onChange={(e) => setUserSearch(e.target.value)}
                     />
-                    <Search size={16} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ds-content-muted" />
+                    <Icon icon={Search} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ds-content-muted" />
                 </div>
             </div>
 
@@ -156,7 +156,7 @@ export function UsersView({
                                                     size="sm"
                                                     onClick={() => onEdit({ id: user.id })}
                                                 >
-                                                    <Edit2 size={18} aria-hidden="true" />
+                                                    <Icon icon={Edit2} size="lg" />
                                                 </IconButton>
                                                 <IconButton
                                                     label={`Delete ${userName}`}
@@ -164,7 +164,7 @@ export function UsersView({
                                                     size="sm"
                                                     onClick={() => onDelete({ id: user.id, name: user.name })}
                                                 >
-                                                    <Trash2 size={18} aria-hidden="true" className="text-ds-status-danger-fg" />
+                                                    <Icon icon={Trash2} size="lg" className="text-ds-status-danger-fg" />
                                                 </IconButton>
                                             </div>
                                         </td>
@@ -204,7 +204,7 @@ export function UsersView({
                             onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                             disabled={currentPage === 1}
                         >
-                            <ChevronLeft size={16} aria-hidden="true" />
+                            <Icon icon={ChevronLeft} />
                         </IconButton>
                         <IconButton
                             label="Next page"
@@ -213,7 +213,7 @@ export function UsersView({
                             onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                             disabled={currentPage >= totalPages}
                         >
-                            <ChevronRight size={16} aria-hidden="true" />
+                            <Icon icon={ChevronRight} />
                         </IconButton>
                     </div>
                 </div>

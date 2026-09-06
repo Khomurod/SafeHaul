@@ -1,8 +1,5 @@
 import React, { useId, useState } from 'react';
-import {
-    BarChart3, Download, Users, Phone,
-    Zap, TrendingUp, ArrowUpRight, User
-} from 'lucide-react';
+import { Icon, BarChart3, Download, Users, Phone, Zap, TrendingUp, ArrowUpRight, User } from '@design-system/icons';
 import { useAnalytics } from '@features/analytics';
 import {
     Badge, Button, Card, MetricCard, TabList, TabPanel,
@@ -202,7 +199,7 @@ export function AnalyticsView() {
             >
                 <div>
                     <h2 className="flex items-center gap-ds-2 text-ds-heading-sm font-bold text-ds-content">
-                        <BarChart3 className="text-ds-content-link" aria-hidden="true" /> Platform Analytics
+                        <Icon icon={BarChart3} size="2xl" className="text-ds-content-link" /> Platform Analytics
                     </h2>
                     <p className="text-ds-sm text-ds-content-muted">Monitor usage and performance across all companies.</p>
                 </div>
@@ -227,17 +224,17 @@ export function AnalyticsView() {
                     </div>
 
                     <Button variant="primary" onClick={handleExport}>
-                        <Download size={16} aria-hidden="true" /> Export {activeTab === 'users' ? 'Recruiters' : 'Companies'}
+                        <Icon icon={Download} /> Export {activeTab === 'users' ? 'Recruiters' : 'Companies'}
                     </Button>
                 </div>
             </Card>
 
             {/* 2. Summary Cards */}
             <ResponsiveGrid minItemWidth="220px" className="shrink-0">
-                <MetricCard label="Total Calls" value={stats.summary.totalCalls} tone="info" icon={<Phone size={20} aria-hidden="true" />} />
-                <MetricCard label="Active Companies" value={stats.companyPerformance.length} tone="accent" icon={<Users size={20} aria-hidden="true" />} />
-                <MetricCard label="Active Recruiters" value={stats.summary.activeRecruiters} tone="warning" icon={<User size={20} aria-hidden="true" />} />
-                <MetricCard label="Platform Health" value="100%" tone="success" icon={<Zap size={20} aria-hidden="true" />} />
+                <MetricCard label="Total Calls" value={stats.summary.totalCalls} tone="info" icon={<Icon icon={Phone} size="xl" />} />
+                <MetricCard label="Active Companies" value={stats.companyPerformance.length} tone="accent" icon={<Icon icon={Users} size="xl" />} />
+                <MetricCard label="Active Recruiters" value={stats.summary.activeRecruiters} tone="warning" icon={<Icon icon={User} size="xl" />} />
+                <MetricCard label="Platform Health" value="100%" tone="success" icon={<Icon icon={Zap} size="xl" />} />
             </ResponsiveGrid>
 
             {/* 3. Tabs & Content */}
@@ -261,7 +258,7 @@ export function AnalyticsView() {
                         <Stack gap="lg">
                             <Card padding="lg">
                                 <h3 className="mb-ds-6 flex items-center gap-ds-2 text-ds-sm font-bold text-ds-content">
-                                    <TrendingUp size={16} className="text-ds-content-link" aria-hidden="true" /> Daily Activity Trend
+                                    <Icon icon={TrendingUp} className="text-ds-content-link" /> Daily Activity Trend
                                 </h3>
                                 <ActivityTrendChart data={stats.dailyTrend} />
                             </Card>

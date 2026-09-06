@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useId } from 'react';
-import { RefreshCw } from 'lucide-react';
+import { Icon, RefreshCw } from '@design-system/icons';
 
 import { Badge, Button, Card, Checkbox, FieldMessage, FormField, Select } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
@@ -63,7 +63,7 @@ export function BlogRunLedger({ runs, loading, error, truncated, unavailable, re
                     </p>
                 </div>
                 <Button variant="secondary" size="sm" onClick={onRefresh} disabled={loading}>
-                    <RefreshCw size={14} aria-hidden="true" /> Refresh runs
+                    <Icon icon={RefreshCw} size="sm" /> Refresh runs
                 </Button>
             </div>
 

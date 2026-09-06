@@ -1,5 +1,5 @@
 import React, { useId, useState } from 'react';
-import { X, Key, CheckCircle, Plug } from 'lucide-react';
+import { Icon, X, Key, CheckCircle, Plug } from '@design-system/icons';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
 import { useToast } from '@shared/components/feedback/ToastProvider';
@@ -146,11 +146,11 @@ export function AddLineModal({ companyId, onClose, onSuccess, sharedCredentials 
             {/* Header */}
             <div className="flex items-center justify-between border-b border-ds-border-subtle bg-ds-surface-subtle px-ds-6 py-ds-4">
                 <h3 id={titleId} className="flex items-center gap-ds-2 font-bold text-ds-content">
-                    <Plug size={18} aria-hidden="true" className="text-ds-content-link" />
+                    <Icon icon={Plug} size="lg" className="text-ds-content-link" />
                     Add Phone Line
                 </h3>
                 <IconButton label="Close" variant="ghost" size="sm" onClick={onClose}>
-                    <X size={20} aria-hidden="true" />
+                    <Icon icon={X} size="xl" />
                 </IconButton>
             </div>
 
@@ -208,7 +208,7 @@ export function AddLineModal({ companyId, onClose, onSuccess, sharedCredentials 
                 {needsCredentials && (
                     <div className="mt-ds-5 space-y-ds-4 border-t border-ds-border-subtle pt-ds-5">
                         <div className="flex items-center gap-ds-2 rounded-ds-md bg-ds-status-info-bg p-ds-2 text-ds-sm text-ds-status-info-fg">
-                            <Key size={14} aria-hidden="true" />
+                            <Icon icon={Key} size="sm" />
                             <span className="font-medium">
                                 {sharedCredentials?.hasCredentials
                                     ? 'Per-Line Credentials (Multi-Tenant Mode)'
@@ -277,12 +277,12 @@ export function AddLineModal({ companyId, onClose, onSuccess, sharedCredentials 
                         loading={isTesting}
                         disabled={!jwt.trim()}
                     >
-                        <Plug size={16} aria-hidden="true" />
+                        <Icon icon={Plug} />
                         Test Connection
                     </Button>
 
                     <Button type="submit" variant="primary" fullWidth loading={isSubmitting}>
-                        <CheckCircle size={18} aria-hidden="true" />
+                        <Icon icon={CheckCircle} size="lg" />
                         Verify &amp; Add Line
                     </Button>
                     <p className="text-center text-ds-xs text-ds-content-muted">

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useId, useMemo, useState } from 'react';
-import { ListChecks, RefreshCw, ScrollText } from 'lucide-react';
+import { Icon, ListChecks, RefreshCw, ScrollText } from '@design-system/icons';
 
 import {
     Button,
@@ -428,7 +428,7 @@ export function AiIntegrationsView() {
                     <FieldMessage tone="error">{loadError}</FieldMessage>
                     <div className="mt-ds-2">
                         <Button variant="secondary" onClick={load}>
-                            <RefreshCw size={14} aria-hidden="true" /> Try again
+                            <Icon icon={RefreshCw} size="sm" /> Try again
                         </Button>
                     </div>
                 </Card>

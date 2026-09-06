@@ -1,7 +1,7 @@
 import React, { useId, useState, useMemo } from 'react';
 import { db } from '@lib/firebase';
 import { doc, updateDoc, writeBatch } from 'firebase/firestore';
-import { Search, Zap, Loader2, Calendar, X, Clock, BarChart2 } from 'lucide-react';
+import { Icon, Search, Zap, Loader2, Calendar, X, Clock, BarChart2 } from '@design-system/icons';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import { collection, getDocs } from 'firebase/firestore';
 import { Button, Card, IconButton, Input, Switch } from '@/design-system/components';
@@ -228,7 +228,7 @@ export function FeaturesView({ companyList, onDataUpdate }) {
                 <Card padding="none" className="flex min-h-0 flex-1 flex-col overflow-hidden">
                     <div className="shrink-0 border-b border-ds-border-subtle p-ds-5">
                         <h2 className="flex items-center gap-ds-2 text-ds-heading-sm font-bold text-ds-content">
-                            <Zap size={20} className="text-ds-status-accent-fg" aria-hidden="true" />
+                            <Icon icon={Zap} size="xl" className="text-ds-status-accent-fg" />
                             Company Feature Overrides
                         </h2>
                     </div>
@@ -244,7 +244,7 @@ export function FeaturesView({ companyList, onDataUpdate }) {
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                             />
-                            <Search size={16} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ds-content-muted" />
+                            <Icon icon={Search} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ds-content-muted" />
                         </div>
                     </div>
 
@@ -311,14 +311,14 @@ export function FeaturesView({ companyList, onDataUpdate }) {
                                                                 size="sm"
                                                                 onClick={() => openScheduleModal(company, f.key)}
                                                             >
-                                                                <Calendar size={16} aria-hidden="true" />
+                                                                <Icon icon={Calendar} />
                                                             </IconButton>
                                                         )}
                                                     </div>
                                                     {schedule && (
                                                         <div className="flex flex-col items-center justify-center gap-1 rounded-ds-sm bg-ds-status-warning-bg px-1.5 py-1 text-ds-xs leading-tight text-ds-status-warning-fg">
                                                             <div className="flex items-center gap-1">
-                                                                <Clock size={12} aria-hidden="true" />
+                                                                <Icon icon={Clock} size="xs" />
                                                                 <span>{new Date(schedule).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}</span>
                                                                 <IconButton
                                                                     label={`Cancel scheduled deactivation of ${f.label} for ${company.companyName}`}
@@ -326,7 +326,7 @@ export function FeaturesView({ companyList, onDataUpdate }) {
                                                                     size="sm"
                                                                     onClick={() => cancelSchedule(company, f.key)}
                                                                 >
-                                                                    <X size={12} aria-hidden="true" />
+                                                                    <Icon icon={X} size="xs" />
                                                                 </IconButton>
                                                             </div>
                                                             <Button
@@ -334,7 +334,7 @@ export function FeaturesView({ companyList, onDataUpdate }) {
                                                                 size="sm"
                                                                 onClick={() => openStatsModal(company, f.key)}
                                                             >
-                                                                <BarChart2 size={12} aria-hidden="true" /> Alerts
+                                                                <Icon icon={BarChart2} size="xs" /> Alerts
                                                                 <span className="sr-only">{` for ${f.label} at ${company.companyName}`}</span>
                                                             </Button>
                                                         </div>
@@ -390,10 +390,10 @@ function ScheduleDeactivationDialog({ info, date, time, onDateChange, onTimeChan
         >
             <div className="flex items-center justify-between border-b border-ds-border-subtle bg-ds-status-warning-bg p-ds-5">
                 <h2 id={titleId} className="flex items-center gap-ds-2 text-ds-heading-sm font-bold text-ds-status-warning-fg">
-                    <Clock size={24} aria-hidden="true" /> Schedule Deactivation
+                    <Icon icon={Clock} size="2xl" /> Schedule Deactivation
                 </h2>
                 <IconButton label="Close" variant="ghost" size="sm" onClick={onCancel}>
-                    <X size={20} aria-hidden="true" />
+                    <Icon icon={X} size="xl" />
                 </IconButton>
             </div>
             <div className="space-y-ds-4 p-ds-6">
@@ -447,10 +447,10 @@ function AlertStatsDialog({ info, stats, loading, onClose }) {
         >
             <div className="flex shrink-0 items-center justify-between border-b border-ds-border-subtle bg-ds-status-info-bg p-ds-5">
                 <h2 id={titleId} className="flex items-center gap-ds-2 text-ds-heading-sm font-bold text-ds-status-info-fg">
-                    <BarChart2 size={24} aria-hidden="true" /> Alert Interactions
+                    <Icon icon={BarChart2} size="2xl" /> Alert Interactions
                 </h2>
                 <IconButton label="Close" variant="ghost" size="sm" onClick={onClose}>
-                    <X size={20} aria-hidden="true" />
+                    <Icon icon={X} size="xl" />
                 </IconButton>
             </div>
             <div className="min-h-0 flex-1 overflow-auto p-ds-6">
@@ -460,7 +460,7 @@ function AlertStatsDialog({ info, stats, loading, onClose }) {
 
                 {loading ? (
                     <div role="status" className="flex justify-center p-ds-8">
-                        <Loader2 className="animate-spin text-ds-content-link" size={32} aria-hidden="true" />
+                        <Icon icon={Loader2} size="3xl" className="animate-spin text-ds-content-link" />
                         <span className="sr-only">Loading alert stats</span>
                     </div>
                 ) : stats.length === 0 ? (
