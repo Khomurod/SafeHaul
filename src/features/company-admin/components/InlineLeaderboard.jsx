@@ -1,7 +1,7 @@
 // src/features/company-admin/components/InlineLeaderboard.jsx
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
-import { Calendar, Medal, RefreshCw, Trophy } from 'lucide-react';
+import { Icon, Calendar, Medal, RefreshCw, Trophy } from '@design-system/icons';
 import {
     Badge,
     Card,
@@ -200,7 +200,7 @@ export function InlineLeaderboard({ companyId }) {
             <div className="p-4 border-b border-ds-border-subtle flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
                 <div className="flex items-center gap-3">
                     <span className="w-10 h-10 inline-flex items-center justify-center bg-ds-status-warning-bg rounded-ds-md text-ds-status-warning-fg" aria-hidden="true">
-                        <Trophy size={20} />
+                        <Icon icon={Trophy} size="xl" />
                     </span>
                     <div>
                         <h2 id="team-leaderboard-title" className="text-ds-heading-md font-bold text-ds-content">
@@ -221,7 +221,7 @@ export function InlineLeaderboard({ companyId }) {
                     }}
                 >
                     <div className="flex items-center gap-2 bg-ds-surface-subtle px-3 py-1 rounded-ds-md border border-ds-border-subtle text-ds-xs">
-                        <Calendar size={14} className="text-ds-content-muted" aria-hidden="true" />
+                        <Icon icon={Calendar} size="sm" className="text-ds-content-muted" />
                         <Input
                             type="date"
                             variant="inline"
@@ -248,7 +248,7 @@ export function InlineLeaderboard({ companyId }) {
                         type="submit"
                         loading={loading}
                     >
-                        <RefreshCw size={16} aria-hidden="true" />
+                        <Icon icon={RefreshCw} />
                     </IconButton>
                 </form>
             </div>

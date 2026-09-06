@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useData } from '@/context/DataContext';
-import { LogOut, ArrowLeftRight, Menu } from 'lucide-react';
+import { Icon, LogOut, ArrowLeftRight, Menu } from '@design-system/icons';
 import { Avatar, IconButton } from '@/design-system/components';
 import { NotificationDropdown } from '../components/NotificationDropdown';
 import { getPortalUser } from '@features/auth';
@@ -69,7 +69,7 @@ export const CompanyTopbar = ({
                     aria-expanded={isNavigationOpen}
                     aria-haspopup="dialog"
                 >
-                    <Menu size={20} aria-hidden="true" />
+                    <Icon icon={Menu} size="xl" />
                 </IconButton>
                 <p className="text-ds-heading-md font-semibold text-ds-content truncate">
                     {currentCompanyProfile?.companyName || currentCompanyProfile?.name || 'Dashboard'}
@@ -109,7 +109,7 @@ export const CompanyTopbar = ({
                     onClick={returnToCompanyChooser}
                     title="Switch Company"
                 >
-                    <ArrowLeftRight size={18} aria-hidden="true" />
+                    <Icon icon={ArrowLeftRight} size="lg" />
                 </IconButton>
 
                 {/* Logout Button */}
@@ -119,7 +119,7 @@ export const CompanyTopbar = ({
                     onClick={onLogout}
                     title="Logout"
                 >
-                    <LogOut size={18} aria-hidden="true" />
+                    <Icon icon={LogOut} size="lg" />
                 </IconButton>
             </div>
         </header>

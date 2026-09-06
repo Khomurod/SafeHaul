@@ -2,7 +2,7 @@ import React, { useId, useState, useEffect } from 'react';
 import { useData } from '@/context/DataContext';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@lib/firebase';
-import { AlertTriangle, X } from 'lucide-react';
+import { Icon, AlertTriangle, X } from '@design-system/icons';
 import { Button, IconButton, StatusMedallion } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { Modal } from '@design-system/patterns';
@@ -149,10 +149,10 @@ export function FeatureDeactivationWarning() {
             <div className="relative flex flex-col items-center border-b border-ds-status-danger-border bg-ds-status-danger-bg p-ds-6 text-center">
                 <div className="absolute right-ds-4 top-ds-4">
                     <IconButton label="Dismiss deactivation notice" variant="ghost" size="sm" onClick={handleClose}>
-                        <X size={24} aria-hidden="true" />
+                        <Icon icon={X} size="2xl" />
                     </IconButton>
                 </div>
-                <StatusMedallion tone="danger" size="lg" className="mb-ds-4"><AlertTriangle /></StatusMedallion>
+                <StatusMedallion tone="danger" size="lg" className="mb-ds-4"><Icon icon={AlertTriangle} /></StatusMedallion>
                 <h2 id={titleId} className="text-ds-heading-lg font-bold uppercase tracking-wider text-ds-status-danger-fg">
                     Notice of Deactivation
                 </h2>

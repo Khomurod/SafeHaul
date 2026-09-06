@@ -1,6 +1,6 @@
 import React, { useId, useRef, useState } from 'react';
 import DateTripletField from '@shared/components/form/DateTripletField';
-import { Check, Copy, Mail, MessageSquare, Send, User, X } from 'lucide-react';
+import { Icon, Check, Copy, Mail, MessageSquare, Send, User, X } from '@design-system/icons';
 import { Modal } from '@design-system/patterns';
 import { Badge, Button, FormField, IconButton, Input, Label } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
@@ -104,7 +104,7 @@ export function SendTemplateWizard({
                         </p>
                     </div>
                     <IconButton label="Close" variant="ghost" disabled={sending} onClick={onClose}>
-                        <X size={20} aria-hidden="true" />
+                        <Icon icon={X} size="xl" />
                     </IconButton>
                 </div>
 
@@ -124,7 +124,7 @@ export function SendTemplateWizard({
                                             : 'bg-ds-surface text-ds-content-secondary'
                                     }`}
                                 >
-                                    {isDone && <Check size={12} aria-hidden="true" />}
+                                    {isDone && <Icon icon={Check} size="xs" />}
                                     {index + 1}. {item.label}
                                 </span>
                             </li>
@@ -204,7 +204,7 @@ export function SendTemplateWizard({
                                                 aria-hidden="true"
                                                 className="rounded-ds-md border border-ds-border-subtle bg-ds-surface p-1.5 text-ds-content-secondary"
                                             >
-                                                <User size={14} />
+                                                <Icon icon={User} size="sm" />
                                             </span>
                                             <span className="min-w-0 flex-1 text-left">
                                                 <span className="block truncate text-ds-xs font-bold text-ds-content">
@@ -352,7 +352,9 @@ export function SendTemplateWizard({
                                 className="grid grid-cols-2 gap-ds-2 sm:grid-cols-4"
                             >
                                 {DELIVERY_METHODS.map((option) => {
-                                    const Icon = option.icon;
+                                    // A glyph TOKEN off the option map, and `Icon` is the
+                                    // contract's own export — so this must not shadow it.
+                                    const optionGlyph = option.icon;
                                     const selected = deliveryMethod === option.key;
                                     return (
                                         <Button
@@ -362,7 +364,7 @@ export function SendTemplateWizard({
                                             aria-pressed={selected}
                                             onClick={() => setDeliveryMethod(option.key)}
                                         >
-                                            {selected ? <Check size={14} aria-hidden="true" /> : <Icon size={14} aria-hidden="true" />}
+                                            {selected ? <Icon icon={Check} size="sm" /> : <Icon icon={optionGlyph} size="sm" />}
                                             {option.label}
                                         </Button>
                                     );
@@ -438,9 +440,9 @@ export function SendTemplateWizard({
                         onClick={executeTemplateSend}
                     >
                         {deliveryMethod === 'copy' ? (
-                            <><Copy size={16} aria-hidden="true" /> Copy Signing Link</>
+                            <><Icon icon={Copy} /> Copy Signing Link</>
                         ) : (
-                            <><Send size={16} aria-hidden="true" /> Send Document</>
+                            <><Icon icon={Send} /> Send Document</>
                         )}
                     </Button>
                 )}

@@ -317,6 +317,53 @@ console.log('\nE. Reading the open tag');
         JSON.stringify(out.source));
 }
 
+console.log('\nM. Member-expression tags, which every other scan is blind to');
+
+/*
+ * M1-M4 exist because `CompanySidebar.jsx` renders `<item.icon size={20} />`,
+ * where `item.icon` comes from a lookup of glyph names. After the import moved,
+ * that was a token, and rendering a token throws — on the company navigation, on
+ * every page. The codemod rewrote the file, reported no flags for it, and left it
+ * broken; three tests caught it on 2026-09-06.
+ *
+ * Neither the element scan nor `localRenderedTags` could see it, because both
+ * match a bare capitalised NAME and `<item.icon` has none. The post-condition
+ * could not see it either, for the same reason. This is a different SHAPE rather
+ * than a different spelling, which is why it gets its own reader instead of a
+ * wider regex — and why it is FLAGGED rather than rewritten: the tool cannot know
+ * what the expression resolves to.
+ */
+{
+    const out = migrate(file({
+        names: 'Search',
+        body: '<item.icon size={20} />\n<Search size={16} aria-hidden="true" />',
+    }));
+    assert('M1. a member-expression tag is flagged, not silently passed over',
+        out.flags.some((flag) => flag.name === 'item.icon'),
+        JSON.stringify(out.flags.map((flag) => flag.name)));
+    assert('M2. and the ordinary tag beside it still rewrites',
+        out.rewritten === 1 && out.source.includes('<Icon icon={Search} />'),
+        out.source);
+}
+
+{
+    const out = migrate(file({
+        names: 'Search',
+        body: '<Ctx.Provider><React.Fragment><Search size={16} aria-hidden="true" /></React.Fragment></Ctx.Provider>',
+    }));
+    assert('M3. React\'s own member tags are not flagged — a glyph can never be one',
+        out.flags.length === 0, JSON.stringify(out.flags.map((flag) => flag.name)));
+}
+
+{
+    const out = migrate(file({
+        names: 'Search',
+        body: '// a comment mentioning <item.icon size={20} />\n<Search size={16} aria-hidden="true" />',
+    }));
+    assert('M4. nor one quoted inside a comment',
+        out.flags.length === 0, JSON.stringify(out.flags.map((flag) => flag.name)));
+}
+
 console.log('\nG. The live backlog, which is the claim this tool actually makes');
 
 /*

@@ -1,5 +1,5 @@
 import React, { useId, useMemo } from 'react';
-import { X, Download, Trash2 } from 'lucide-react';
+import { Icon, X, Download, Trash2 } from '@design-system/icons';
 import {
     NoPreservedPdfError,
     downloadPreservedApplicationPdf,
@@ -198,7 +198,7 @@ export function DossierHeader({
                     label="Download application PDF"
                     onClick={handleDownload}
                 >
-                    <Download size={20} aria-hidden="true" />
+                    <Icon icon={Download} size="xl" />
                 </IconButton>
 
                 {canDelete && (
@@ -207,7 +207,7 @@ export function DossierHeader({
                         label="Delete application"
                         onClick={onDelete}
                     >
-                        <Trash2 size={20} aria-hidden="true" className="text-ds-status-danger-fg" />
+                        <Icon icon={Trash2} size="xl" className="text-ds-status-danger-fg" />
                     </IconButton>
                 )}
 
@@ -218,7 +218,7 @@ export function DossierHeader({
                     label="Close driver dossier"
                     onClick={onClose}
                 >
-                    <X size={24} aria-hidden="true" />
+                    <Icon icon={X} size="2xl" />
                 </IconButton>
             </div>
         </>

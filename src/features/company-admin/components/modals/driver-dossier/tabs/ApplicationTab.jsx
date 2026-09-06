@@ -1,11 +1,5 @@
 import React, { useState } from 'react';
-import {
-    AlertTriangle,
-    ShieldCheck,
-    FileText,
-    Pencil,
-    Link2,
-} from 'lucide-react';
+import { Icon, AlertTriangle, ShieldCheck, FileText, Pencil, Link2 } from '@design-system/icons';
 import { APPLICATION_SCHEMA } from '@/config/applicationSchema';
 import { SchemaSection } from '@shared/components/schema/SchemaRenderer';
 import { useApplicationChanges } from '@features/applications/hooks/useApplicationChanges';
@@ -122,7 +116,11 @@ export function ApplicationTab({ appData, fileUrls = {}, canEdit = false, compan
                 role="status"
                 className="flex flex-col items-center justify-center py-ds-12 text-center text-ds-content-secondary"
             >
-                <FileText size={48} className="mb-ds-4 text-ds-content-muted" aria-hidden="true" />
+                {/* A page-level state glyph in a FLUID container, so unlike
+                    `BrandingSection`'s 128px frame there is no ratio to hold. `3xl`
+                    (32) is this product's answer for the role — it is what an `lg`
+                    `StatusMedallion` and `PageState` have rendered since 7a. */}
+                <Icon icon={FileText} size="3xl" className="mb-ds-4 text-ds-content-muted" />
                 <p className="font-medium text-ds-content">Application details are not available.</p>
                 <p className="mt-ds-1 text-ds-sm">This record may have been removed, or you may not have access to it.</p>
             </div>
@@ -164,7 +162,7 @@ export function ApplicationTab({ appData, fileUrls = {}, canEdit = false, compan
                             disabled={linking}
                             loading={linking}
                         >
-                            {linking ? null : <Link2 size={14} aria-hidden="true" />}
+                            {linking ? null : <Icon icon={Link2} size="sm" />}
                             Copy driver review link
                         </Button>
                     )}
@@ -190,7 +188,7 @@ export function ApplicationTab({ appData, fileUrls = {}, canEdit = false, compan
                 <div className="flex flex-wrap items-center gap-ds-2">
                     {!editing ? (
                         <Button variant="secondary" size="sm" onClick={startEdit}>
-                            <Pencil size={14} aria-hidden="true" /> Edit application
+                            <Icon icon={Pencil} size="sm" /> Edit application
                         </Button>
                     ) : (
                         <>
@@ -244,7 +242,7 @@ export function ApplicationTab({ appData, fileUrls = {}, canEdit = false, compan
                 <SubmissionRecordNotice record={submissionRecord} />
             ) : (
                 <p role="status" className="flex items-center gap-ds-2 text-ds-sm text-ds-content-secondary">
-                    <AlertTriangle size={14} aria-hidden="true" className="shrink-0" />
+                    <Icon icon={AlertTriangle} size="sm" className="shrink-0" />
                     <span>
                         This is the current record, which company edits and driver updates can change.
                         {hasPreservedRecord ? ' Choose “As Submitted” for the frozen original.' : ''}

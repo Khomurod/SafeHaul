@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { FileText, Eye, Download, X } from 'lucide-react';
+import { Icon, FileText, Eye, Download, X } from '@design-system/icons';
 import { formatDate } from '@shared/utils/helpers';
 import { EmptyState, Modal } from '@design-system/patterns';
 import { Card, IconButton, IconButtonLink } from '@/design-system/components';
@@ -100,9 +100,12 @@ export function DocumentsTab({ fileUrls = {}, appData }) {
                                 className="group relative flex aspect-[3/4] w-full flex-col text-left focus-visible:outline-none focus-visible:shadow-ds-focus"
                             >
                                 <span className="flex flex-1 items-center justify-center bg-ds-surface-subtle p-ds-4">
-                                    <FileText
-                                        size={40}
-                                        aria-hidden="true"
+                                    {/* A thumbnail placeholder in an `aspect-[3/4]` card whose
+                                        width is fluid, so 40 -> `3xl` (32) rather than a size on
+                                        the container: there is no fixed frame to take a ratio from. */}
+                                    <Icon
+                                        icon={FileText}
+                                        size="3xl"
                                         className="text-ds-content-muted transition-colors group-hover:text-ds-action-primary"
                                     />
                                     <span className="ds-visually-hidden">Preview {doc.label}</span>
@@ -120,7 +123,7 @@ export function DocumentsTab({ fileUrls = {}, appData }) {
                                     className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 transition-opacity group-hover:opacity-100"
                                 >
                                     <span className="rounded-ds-full bg-ds-surface p-ds-2 text-ds-content shadow-ds-md">
-                                        <Eye size={16} />
+                                        <Icon icon={Eye} />
                                     </span>
                                 </span>
                             </button>
@@ -163,7 +166,7 @@ export function DocumentsTab({ fileUrls = {}, appData }) {
                                 variant="ghost"
                                 label={`Download ${previewDoc.label}`}
                             >
-                                <Download aria-hidden="true" />
+                                <Icon icon={Download} />
                             </IconButtonLink>
                             <IconButton
                                 ref={closePreviewRef}
@@ -171,7 +174,7 @@ export function DocumentsTab({ fileUrls = {}, appData }) {
                                 label={`Close preview of ${previewDoc.label}`}
                                 onClick={() => setPreviewDoc(null)}
                             >
-                                <X size={24} aria-hidden="true" />
+                                <Icon icon={X} size="2xl" />
                             </IconButton>
                         </div>
                     </div>

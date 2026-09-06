@@ -5,7 +5,7 @@ import { auth, storage, db } from '@lib/firebase';
 import { updateProfile, updatePassword, updateEmail, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { doc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { User, Mail, Lock, Save } from 'lucide-react';
+import { Icon, User, Mail, Lock, Save } from '@design-system/icons';
 import { getPortalUser } from '@features/auth/services/userService';
 import {
     Button,
@@ -279,7 +279,7 @@ export const UserProfilePage = () => {
                 <PageHeader
                     title={(
                         <span className="inline-flex items-center gap-ds-2">
-                            <User size={24} className="text-ds-action-primary" aria-hidden="true" />
+                            <Icon icon={User} size="2xl" className="text-ds-action-primary" />
                             My Profile
                         </span>
                     )}
@@ -344,7 +344,7 @@ export const UserProfilePage = () => {
                                         size="sm"
                                         onClick={() => setIsEditingEmail(true)}
                                     >
-                                        <Mail size={16} aria-hidden="true" />
+                                        <Icon icon={Mail} />
                                         Change Email
                                     </Button>
                                 </div>
@@ -403,7 +403,7 @@ export const UserProfilePage = () => {
                                     onClick={handleSaveProfile}
                                     loading={isSavingProfile}
                                 >
-                                    {!isSavingProfile && <Save size={18} aria-hidden="true" />}
+                                    {!isSavingProfile && <Icon icon={Save} size="lg" />}
                                     {isSavingProfile ? 'Saving...' : 'Save Changes'}
                                 </Button>
                             </div>
@@ -454,7 +454,7 @@ export const UserProfilePage = () => {
                                     onClick={handleChangePassword}
                                     loading={isSavingPassword}
                                 >
-                                    {!isSavingPassword && <Lock size={18} aria-hidden="true" />}
+                                    {!isSavingPassword && <Icon icon={Lock} size="lg" />}
                                     {isSavingPassword ? 'Changing...' : 'Change Password'}
                                 </Button>
                             </div>

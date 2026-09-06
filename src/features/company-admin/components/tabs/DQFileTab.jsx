@@ -2,7 +2,7 @@ import React, { useId, useRef, useState, useEffect, useMemo } from 'react';
 import { db, storage } from '@lib/firebase';
 import { collection, addDoc, getDoc, deleteDoc, doc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { Upload, Trash2, FileText, Download } from 'lucide-react';
+import { Icon, Upload, Trash2, FileText, Download } from '@design-system/icons';
 import { logActivity } from '@shared/utils/activityLogger';
 import {
   Badge, Button, Card, FieldMessage, FileInput, FormField, IconButton, IconButtonLink,
@@ -307,7 +307,7 @@ export function DQFileTab({ companyId, applicationId, collectionName = 'applicat
               disabled={isUploading || !fileToUpload}
               loading={isUploading}
             >
-              {!isUploading && <Upload size={20} aria-hidden="true" />}
+              {!isUploading && <Icon icon={Upload} size="xl" />}
               {isUploading ? 'Uploading...' : 'Upload File'}
             </Button>
             {/* Always mounted so the live region can announce into it. */}
@@ -353,7 +353,7 @@ export function DQFileTab({ companyId, applicationId, collectionName = 'applicat
                 className="flex items-center justify-between gap-ds-3 rounded-ds-md border border-ds-border-subtle bg-ds-surface-subtle p-ds-3"
               >
                 <div className="flex min-w-0 items-center gap-ds-3">
-                  <FileText size={20} className="shrink-0 text-ds-content-link" aria-hidden="true" />
+                  <Icon icon={FileText} size="xl" className="shrink-0 text-ds-content-link" />
                   <div className="min-w-0">
                     <p className="truncate text-ds-sm font-medium text-ds-content">{file.fileType}</p>
                     <div className="flex flex-wrap items-center gap-ds-2">
@@ -380,7 +380,7 @@ export function DQFileTab({ companyId, applicationId, collectionName = 'applicat
                       variant="ghost"
                       onClick={() => handleAuditedDownload(file)}
                     >
-                      <Download size={18} aria-hidden="true" className="text-ds-status-info-fg" />
+                      <Icon icon={Download} size="lg" className="text-ds-status-info-fg" />
                     </IconButton>
                   ) : (
                     /*
@@ -398,7 +398,7 @@ export function DQFileTab({ companyId, applicationId, collectionName = 'applicat
                       variant="secondary"
                       label={`Download ${file.fileType}: ${file.fileName}`}
                     >
-                      <Download aria-hidden="true" />
+                      <Icon icon={Download} />
                     </IconButtonLink>
                   )}
                   {/*
@@ -413,7 +413,7 @@ export function DQFileTab({ companyId, applicationId, collectionName = 'applicat
                       variant="ghost"
                       onClick={() => setPendingDelete(file)}
                     >
-                      <Trash2 size={18} aria-hidden="true" className="text-ds-status-danger-fg" />
+                      <Icon icon={Trash2} size="lg" className="text-ds-status-danger-fg" />
                     </IconButton>
                   )}
                 </div>

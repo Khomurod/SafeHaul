@@ -1,5 +1,5 @@
 import React, { useId, useRef, useState } from 'react';
-import { Loader2, AlertTriangle } from 'lucide-react';
+import { Icon, Loader2, AlertTriangle } from '@design-system/icons';
 import { useApplicationView } from '@features/company-admin/hooks/useApplicationView';
 import { useApplicationDelete } from '@features/applications/hooks/useApplicationDelete';
 import { useData } from '@/context/DataContext';
@@ -209,7 +209,7 @@ export function DriverProfileModal({
                                      */
                                     className="absolute inset-0 z-ds-raised flex flex-col items-center justify-center gap-ds-2 bg-ds-surface/80"
                                 >
-                                    <Loader2 className="h-8 w-8 animate-spin text-ds-action-primary" aria-hidden="true" />
+                                    <Icon icon={Loader2} size="3xl" className="animate-spin text-ds-action-primary" />
                                     <p className="text-ds-sm font-medium text-ds-content-secondary">Loading driver dossier…</p>
                                 </div>
                             ) : error ? (
@@ -248,7 +248,8 @@ export function DriverProfileModal({
                     <div className="p-ds-6">
                         <div className="mb-ds-3 flex items-center gap-ds-3">
                             <span className="rounded-ds-md bg-ds-status-danger-bg p-ds-2 text-ds-status-danger-fg">
-                                <AlertTriangle size={22} aria-hidden="true" />
+                                {/* Same padding-sized tile, same two-pixel snap. */}
+                                <Icon icon={AlertTriangle} size="xl" />
                             </span>
                             <h2 id="delete-app-title" className="text-ds-body-lg font-bold text-ds-content">Delete this application?</h2>
                         </div>

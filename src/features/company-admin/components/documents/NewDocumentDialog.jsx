@@ -1,5 +1,5 @@
 import React, { useId, useRef } from 'react';
-import { FilePlus2, FileText, Send, X } from 'lucide-react';
+import { Icon, FilePlus2, FileText, Send, X } from '@design-system/icons';
 import { Modal } from '@design-system/patterns';
 import { Button, IconButton } from '@/design-system/components';
 
@@ -56,14 +56,17 @@ export function NewDocumentDialog({ onClose, onChoose, templateCount = 0 }) {
                     </p>
                 </div>
                 <IconButton label="Close" variant="ghost" onClick={onClose}>
-                    <X size={20} aria-hidden="true" />
+                    <Icon icon={X} size="xl" />
                 </IconButton>
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto p-ds-5">
                 <ul className="flex flex-col gap-ds-3">
                     {CHOICES.map((choice, index) => {
-                        const Icon = choice.icon;
+                        /* `Glyph`, not `Icon`: the contract's own component is called `Icon` and this
+                         * file imports it, so holding a glyph under that name would shadow the
+                         * import — and what the shadow holds is a token, which throws. */
+                        const choiceGlyph = choice.icon;
                         // "Send from template" stays enabled with no templates: it
                         // opens the template library, which says there are none and
                         // how to make one. A disabled option would be a dead end.
@@ -82,7 +85,7 @@ export function NewDocumentDialog({ onClose, onChoose, templateCount = 0 }) {
                                         aria-hidden="true"
                                         className="flex h-10 w-10 shrink-0 items-center justify-center rounded-ds-lg bg-ds-status-accent-bg text-ds-status-accent-fg"
                                     >
-                                        <Icon size={18} />
+                                        <Icon icon={choiceGlyph} size="lg" />
                                     </span>
                                     <span className="min-w-0 flex-1">
                                         <span className="block font-bold text-ds-content">{choice.title}</span>

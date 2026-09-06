@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
-import { RefreshCw } from 'lucide-react';
+import { Icon, RefreshCw } from '@design-system/icons';
 
 import { functions } from '@lib/firebase';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
@@ -204,7 +204,7 @@ export function UnfinishedApplicationsPage() {
 
                 <div className="flex flex-wrap gap-ds-2">
                     <Button variant="secondary" onClick={load} disabled={loading}>
-                        <RefreshCw size={14} aria-hidden="true" /> Refresh
+                        <Icon icon={RefreshCw} size="sm" /> Refresh
                     </Button>
                 </div>
 
@@ -213,7 +213,7 @@ export function UnfinishedApplicationsPage() {
                         <FieldMessage tone="error">{error}</FieldMessage>
                         <div className="mt-ds-2">
                             <Button variant="secondary" onClick={load}>
-                                <RefreshCw size={14} aria-hidden="true" /> Try again
+                                <Icon icon={RefreshCw} size="sm" /> Try again
                             </Button>
                         </div>
                     </Card>

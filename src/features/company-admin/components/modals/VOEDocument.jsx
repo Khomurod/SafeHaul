@@ -1,6 +1,27 @@
 import React from 'react';
-import { ShieldCheck, AlertCircle } from 'lucide-react';
+import { ShieldCheck, AlertCircle, glyphComponent } from '@design-system/icons';
 import { getFieldValue } from '@shared/utils/helpers';
+
+/*
+ * THE ONE FILE IN THE APPLICATION THAT OPENS GLYPH TOKENS BY HAND, and it is
+ * `VOEPreviewModal.export.test.jsx` that requires it.
+ *
+ * That guard asserts the exported document carries **no `ds-*` class anywhere**,
+ * because its class list is the capture surface for a rasteriser and a themeable
+ * role must never reach a signed regulatory artefact. The contract's `Icon`
+ * stamps `ds-icon` on everything it renders, so it cannot be used inside this
+ * document — and a token throws if rendered directly, by construction.
+ *
+ * `glyphComponent` is the contract's own documented opener, so this file stays ON
+ * the contract: it imports from `@design-system/icons` like every other file,
+ * `check:icon-contract` is satisfied, and the exception is three named calls in
+ * one place rather than a `lucide-react` import nobody would question. The pixel
+ * sizes below are print dimensions frozen with the rest of the document, not
+ * steps on any scale — 400 for the watermark is two orders of magnitude past
+ * where the scale stops.
+ */
+const PrintShieldCheck = glyphComponent(ShieldCheck);
+const PrintAlertCircle = glyphComponent(AlertCircle);
 
 /**
  * The generated 49 CFR §391.23 verification document, extracted verbatim from
@@ -90,13 +111,14 @@ export function VOEDocument({ employer, applicant, companyName, auditId, signatu
             {/* Section 3: Authorization (Signature Box) */}
             <div className="mb-12 border-2 border-slate-900 p-8 relative overflow-hidden bg-slate-50/30">
                 {/* Watermark */}
+                {/* 400px is a print dimension, not a step — see `PrintShieldCheck` above. */}
                 <div className="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none rotate-12 -z-10">
-                    <ShieldCheck size={400} />
+                    <PrintShieldCheck size={400} />
                 </div>
 
                 <div className="flex items-center gap-3 mb-6">
                     <div className="p-2 bg-blue-600 text-white rounded-lg">
-                        <ShieldCheck size={20} />
+                        <PrintShieldCheck size={20} />
                     </div>
                     <h4 className="text-xl font-bold uppercase underline decoration-blue-600 decoration-4 underline-offset-4">Legal Release & Authorization</h4>
                 </div>
@@ -115,7 +137,7 @@ export function VOEDocument({ employer, applicant, companyName, auditId, signatu
                                 <span className="font-serif italic text-4xl text-slate-900">/s/ {signatureText}</span>
                             ) : (
                                 <div className="text-center">
-                                    <AlertCircle size={24} className="mx-auto text-red-500 mb-2" />
+                                    <PrintAlertCircle size={24} className="mx-auto text-red-500 mb-2" />
                                     <span className="text-red-500 text-xs font-bold block uppercase tracking-tighter">DRIVER SIGNATURE MISSING</span>
                                     <span className="text-[10px] text-red-400">Application must be signed before transmission</span>
                                 </div>

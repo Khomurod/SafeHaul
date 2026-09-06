@@ -9,19 +9,7 @@
  */
 
 import React, { useState } from 'react';
-import {
-    User,
-    MapPin,
-    Phone,
-    Mail,
-    CreditCard,
-    Truck,
-    AlertTriangle,
-    CheckCircle,
-    Eye,
-    EyeOff,
-    PenTool,
-} from 'lucide-react';
+import { Icon, User, MapPin, Phone, Mail, CreditCard, Truck, AlertTriangle, CheckCircle, Eye, EyeOff, PenTool } from '@design-system/icons';
 import { formatDate } from '@shared/utils/helpers';
 import { formatIsoDateUs, formatMonthYearUs } from '@shared/utils/dateFormHelpers';
 import { Badge, Card, IconButton, Link, Notice } from '@/design-system/components';
@@ -82,7 +70,7 @@ function IdentityCard({ appData }) {
                             label={showSSN ? 'Hide SSN' : 'Show SSN'}
                             onClick={() => setShowSSN(!showSSN)}
                         >
-                            {showSSN ? <EyeOff size={14} aria-hidden="true" /> : <Eye size={14} aria-hidden="true" />}
+                            {showSSN ? <Icon icon={EyeOff} size="sm" /> : <Icon icon={Eye} size="sm" />}
                         </IconButton>
                     )}
                 </div>
@@ -95,7 +83,12 @@ function IdentityCard({ appData }) {
  * Shared shell for the read-only summary cards: approved `Card` plus the toned
  * icon disc and the card heading, so the five cards cannot drift apart.
  */
-function DossierSummaryCard({ icon: Icon, title, tone = 'info', children }) {
+/*
+ * `icon: Glyph`, not `icon: Icon`: the contract's component is called `Icon` and
+ * this file imports it, so the destructured name would shadow it — and what the
+ * shadow holds is a token, which throws when rendered.
+ */
+function DossierSummaryCard({ icon: Glyph, title, tone = 'info', children }) {
     const toneClass = {
         info: 'bg-ds-status-info-bg text-ds-status-info-fg',
         accent: 'bg-ds-status-accent-bg text-ds-status-accent-fg',
@@ -108,7 +101,7 @@ function DossierSummaryCard({ icon: Icon, title, tone = 'info', children }) {
         <Card padding="md" className="h-full">
             <div className="mb-ds-4 flex items-center gap-ds-2">
                 <span className={`rounded-ds-md p-ds-2 ${toneClass}`}>
-                    <Icon size={20} aria-hidden="true" />
+                    <Icon icon={Glyph} size="xl" />
                 </span>
                 <h4 className="font-bold text-ds-content">{title}</h4>
             </div>
@@ -304,7 +297,7 @@ function ExperienceTimeline({ appData }) {
         <Card padding="md">
             <div className="mb-ds-6 flex items-center gap-ds-2">
                 <span className="rounded-ds-md bg-ds-status-neutral-bg p-ds-2 text-ds-status-neutral-fg">
-                    <Truck size={20} aria-hidden="true" />
+                    <Icon icon={Truck} size="xl" />
                 </span>
                 <h4 className="font-bold text-ds-content">Employment History</h4>
                 <Badge tone="neutral">{history.length}</Badge>
@@ -339,37 +332,37 @@ function ExperienceTimeline({ appData }) {
                             <div className="mt-ds-2 grid grid-cols-1 gap-x-ds-6 gap-y-ds-1 text-ds-sm sm:grid-cols-2">
                                 {(employerAddress || job.city || job.state) && (
                                     <p className="flex items-center gap-ds-1 text-ds-content-secondary">
-                                        <MapPin size={12} className="shrink-0 text-ds-content-muted" aria-hidden="true" />
+                                        <Icon icon={MapPin} size="xs" className="shrink-0 text-ds-content-muted" />
                                         <span>{[employerAddress, job.city, job.state].filter(Boolean).join(', ')}</span>
                                     </p>
                                 )}
                                 {job.phone && (
                                     <p className="flex items-center gap-ds-1 text-ds-content-secondary">
-                                        <Phone size={12} className="shrink-0 text-ds-content-muted" aria-hidden="true" />
+                                        <Icon icon={Phone} size="xs" className="shrink-0 text-ds-content-muted" />
                                         <span>{job.phone}</span>
                                     </p>
                                 )}
                                 {job.companyEmail && (
                                     <p className="flex items-center gap-ds-1 text-ds-content-secondary">
-                                        <Mail size={12} className="shrink-0 text-ds-content-muted" aria-hidden="true" />
+                                        <Icon icon={Mail} size="xs" className="shrink-0 text-ds-content-muted" />
                                         <span className="[overflow-wrap:anywhere]">{job.companyEmail}</span>
                                     </p>
                                 )}
                                 {job.supervisorName && (
                                     <p className="flex items-center gap-ds-1 text-ds-content-secondary">
-                                        <User size={12} className="shrink-0 text-ds-content-muted" aria-hidden="true" />
+                                        <Icon icon={User} size="xs" className="shrink-0 text-ds-content-muted" />
                                         <span>Supervisor: {job.supervisorName}</span>
                                     </p>
                                 )}
                                 {job.supervisorPhone && (
                                     <p className="flex items-center gap-ds-1 text-ds-content-secondary">
-                                        <Phone size={12} className="shrink-0 text-ds-content-muted" aria-hidden="true" />
+                                        <Icon icon={Phone} size="xs" className="shrink-0 text-ds-content-muted" />
                                         <span>{job.supervisorPhone}</span>
                                     </p>
                                 )}
                                 {job.supervisorEmail && (
                                     <p className="flex items-center gap-ds-1 text-ds-content-secondary">
-                                        <Mail size={12} className="shrink-0 text-ds-content-muted" aria-hidden="true" />
+                                        <Icon icon={Mail} size="xs" className="shrink-0 text-ds-content-muted" />
                                         <span className="[overflow-wrap:anywhere]">{job.supervisorEmail}</span>
                                     </p>
                                 )}
@@ -443,7 +436,7 @@ function ConsentCard({ appData }) {
                                     {/* Icon + text; the accepted/declined state is also
                                         announced, never carried by colour alone. */}
                                     {isAccepted ? (
-                                        <CheckCircle size={14} className="shrink-0 text-ds-status-success-fg" aria-hidden="true" />
+                                        <Icon icon={CheckCircle} size="sm" className="shrink-0 text-ds-status-success-fg" />
                                     ) : (
                                         <span aria-hidden="true" className="h-3.5 w-3.5 shrink-0 rounded-ds-full border-2 border-ds-border" />
                                     )}

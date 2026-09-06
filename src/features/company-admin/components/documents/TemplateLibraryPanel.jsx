@@ -1,5 +1,5 @@
 import React, { useId, useMemo } from 'react';
-import { Copy, Edit3, FileText, Loader2, Send, Settings, Trash2 } from 'lucide-react';
+import { Icon, Copy, Edit3, FileText, Loader2, Send, Settings, Trash2 } from '@design-system/icons';
 import { Badge, Button, Card, FormField, Input, Select } from '@/design-system/components';
 import { ResponsiveGrid, Stack } from '@/design-system/layouts';
 import {
@@ -82,7 +82,7 @@ export function TemplateLibraryPanel({
                     role="status"
                     className="flex items-center justify-center gap-ds-2 py-ds-12 text-ds-sm text-ds-content-secondary"
                 >
-                    <Loader2 size={20} aria-hidden="true" className="animate-spin" />
+                    <Icon icon={Loader2} size="xl" className="animate-spin" />
                     Loading templates
                 </div>
             ) : visibleTemplates.length === 0 ? (
@@ -108,7 +108,7 @@ export function TemplateLibraryPanel({
                                         aria-hidden="true"
                                         className="flex h-12 w-12 shrink-0 items-center justify-center rounded-ds-lg bg-ds-status-accent-bg text-ds-status-accent-fg"
                                     >
-                                        <FileText size={24} />
+                                        <Icon icon={FileText} size="2xl" />
                                     </span>
                                     <div className="min-w-0">
                                         <h3 className="text-ds-body font-bold text-ds-content [overflow-wrap:anywhere]">
@@ -135,14 +135,14 @@ export function TemplateLibraryPanel({
                                         aria-label={`Send ${actionTitle}`}
                                         onClick={() => onSend(template)}
                                     >
-                                        <Send size={14} aria-hidden="true" /> Send
+                                        <Icon icon={Send} size="sm" /> Send
                                     </Button>
                                     <div className="grid grid-cols-2 gap-ds-2">
                                         <Button
                                             aria-label={`Edit ${actionTitle}`}
                                             onClick={() => onEdit(template)}
                                         >
-                                            <Edit3 size={14} aria-hidden="true" /> Edit
+                                            <Icon icon={Edit3} size="sm" /> Edit
                                         </Button>
                                         {/* Only offered when the stored schema can be copied
                                             safely: a template without its PDF, or carrying a
@@ -160,7 +160,7 @@ export function TemplateLibraryPanel({
                                             onClick={() => onDuplicate(template)}
                                         >
                                             {duplicatingTemplateId !== template.id && (
-                                                <Copy size={14} aria-hidden="true" />
+                                                <Icon icon={Copy} size="sm" />
                                             )}
                                             Duplicate
                                         </Button>
@@ -169,14 +169,14 @@ export function TemplateLibraryPanel({
                                             aria-label={`Configure ${actionTitle}`}
                                             onClick={() => onConfigure(template)}
                                         >
-                                            <Settings size={14} aria-hidden="true" /> Configure
+                                            <Icon icon={Settings} size="sm" /> Configure
                                         </Button>
                                         <Button
                                             variant="danger"
                                             aria-label={`Delete ${actionTitle}`}
                                             onClick={() => onDelete(template.id)}
                                         >
-                                            <Trash2 size={14} aria-hidden="true" /> Delete
+                                            <Icon icon={Trash2} size="sm" /> Delete
                                         </Button>
                                     </div>
                                 </div>

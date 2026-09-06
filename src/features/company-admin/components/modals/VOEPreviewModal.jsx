@@ -1,5 +1,5 @@
 import React, { useRef, useState, useMemo, useId } from 'react';
-import { X, Mail, Printer, ShieldCheck, Download, AlertCircle } from 'lucide-react';
+import { Icon, X, Mail, Printer, ShieldCheck, Download, AlertCircle } from '@design-system/icons';
 import { getFieldValue } from '@shared/utils/helpers';
 import { useData } from '@/context/DataContext';
 import html2canvas from 'html2canvas';
@@ -119,7 +119,9 @@ export function VOEPreviewModal({ employer, applicant, onClose, onSend }) {
                 <div className="p-ds-6" role="alert">
                     <div className="mb-ds-3 flex items-center gap-ds-3">
                         <span aria-hidden="true" className="rounded-ds-md bg-ds-status-danger-bg p-ds-2 text-ds-status-danger-fg">
-                            <AlertCircle size={22} />
+                            {/* 22 -> `xl` (20): two pixels, and this tile is padding-sized,
+                                so unlike a fixed frame it has no ratio to hold. */}
+                            <Icon icon={AlertCircle} size="xl" />
                         </span>
                         <h4 id={titleId} className="text-ds-body-lg font-bold text-ds-content">
                             Verification document unavailable
@@ -274,7 +276,7 @@ export function VOEPreviewModal({ employer, applicant, onClose, onSend }) {
             <div className="flex shrink-0 items-center justify-between gap-ds-3 border-b border-ds-border-subtle bg-ds-surface px-ds-6 py-ds-4">
                 <div className="flex min-w-0 items-center gap-ds-3">
                     <span aria-hidden="true" className="shrink-0 rounded-ds-md bg-ds-status-info-bg p-ds-2 text-ds-status-info-fg">
-                        <ShieldCheck size={20} />
+                        <Icon icon={ShieldCheck} size="xl" />
                     </span>
                     <div className="min-w-0">
                         {/* `<h4>` under the dossier header's `<h3>` section title. */}
@@ -288,7 +290,7 @@ export function VOEPreviewModal({ employer, applicant, onClose, onSend }) {
                     label="Close verification preview"
                     onClick={onClose}
                 >
-                    <X size={20} aria-hidden="true" />
+                    <Icon icon={X} size="xl" />
                 </IconButton>
             </div>
 
@@ -312,7 +314,7 @@ export function VOEPreviewModal({ employer, applicant, onClose, onSend }) {
                             onClick={handlePrint}
                             disabled={isPreparingPrint}
                         >
-                            <Printer size={14} aria-hidden="true" /> Print
+                            <Icon icon={Printer} size="sm" /> Print
                         </Button>
                         <Button
                             variant="secondary"
@@ -321,7 +323,7 @@ export function VOEPreviewModal({ employer, applicant, onClose, onSend }) {
                             disabled={isDownloading}
                             loading={isDownloading}
                         >
-                            {isDownloading ? null : <Download size={14} aria-hidden="true" />}
+                            {isDownloading ? null : <Icon icon={Download} size="sm" />}
                             {isDownloading ? 'Generating...' : 'Download PDF'}
                         </Button>
                     </div>
@@ -392,7 +394,7 @@ export function VOEPreviewModal({ employer, applicant, onClose, onSend }) {
                     disabled={!canTransmit}
                     aria-describedby={canTransmit ? undefined : transmitHintId}
                 >
-                    <Mail size={20} aria-hidden="true" /> Transmit Request Now
+                    <Icon icon={Mail} size="xl" /> Transmit Request Now
                 </Button>
             </div>
         </Modal>

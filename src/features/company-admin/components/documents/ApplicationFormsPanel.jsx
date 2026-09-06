@@ -1,5 +1,5 @@
 import React, { useId } from 'react';
-import { ArrowDown, ArrowUp, Loader2, Save } from 'lucide-react';
+import { Icon, ArrowDown, ArrowUp, Loader2, Save } from '@design-system/icons';
 import { Button, Card, Checkbox, IconButton } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 
@@ -55,7 +55,7 @@ export function ApplicationFormsPanel({
                             loading={savingPostSubmitTemplates}
                             onClick={handleSavePostSubmitTemplates}
                         >
-                            {!savingPostSubmitTemplates && <Save size={14} aria-hidden="true" />}
+                            {!savingPostSubmitTemplates && <Icon icon={Save} size="sm" />}
                             Save forms
                         </Button>
                     </div>
@@ -104,7 +104,7 @@ export function ApplicationFormsPanel({
                                                 title={isFirst ? `${title} is already first` : `Move ${title} up`}
                                                 onClick={() => movePostSubmitTemplate(templateId, 'up')}
                                             >
-                                                <ArrowUp size={14} aria-hidden="true" />
+                                                <Icon icon={ArrowUp} size="sm" />
                                             </IconButton>
                                             <IconButton
                                                 label={`Move ${title} down`}
@@ -114,7 +114,7 @@ export function ApplicationFormsPanel({
                                                 title={isLast ? `${title} is already last` : `Move ${title} down`}
                                                 onClick={() => movePostSubmitTemplate(templateId, 'down')}
                                             >
-                                                <ArrowDown size={14} aria-hidden="true" />
+                                                <Icon icon={ArrowDown} size="sm" />
                                             </IconButton>
                                         </div>
                                     </li>
@@ -132,7 +132,7 @@ export function ApplicationFormsPanel({
                     </h2>
                     {templatesLoading ? (
                         <p role="status" className="flex items-center gap-ds-2 text-ds-sm text-ds-content-secondary">
-                            <Loader2 size={16} aria-hidden="true" className="animate-spin" />
+                            <Icon icon={Loader2} className="animate-spin" />
                             Loading templates
                         </p>
                     ) : templates.length === 0 ? (

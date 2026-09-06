@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useId } from 'react';
-import { Briefcase, CheckCircle2, ShieldCheck, Info } from 'lucide-react';
+import { Icon, Briefcase, CheckCircle2, ShieldCheck, Info } from '@design-system/icons';
 import { getFieldValue } from '@shared/utils/helpers';
 import { logActivity } from '@shared/utils/activityLogger';
 import { useToast } from '@shared/components/feedback/ToastProvider';
@@ -305,19 +305,19 @@ export function PEVTab({ companyId, applicationId, appData, collectionName = 'ap
                     label="Total Employers"
                     value={stats.total}
                     tone="info"
-                    icon={<Briefcase size={24} />}
+                    icon={<Icon icon={Briefcase} size="2xl" />}
                 />
                 <MetricCard
                     label="Completed"
                     value={stats.completed}
                     tone="success"
-                    icon={<CheckCircle2 size={24} />}
+                    icon={<Icon icon={CheckCircle2} size="2xl" />}
                 />
                 <MetricCard
                     label="Compliance Status"
                     value="Audit in Progress"
                     tone="warning"
-                    icon={<ShieldCheck size={24} />}
+                    icon={<Icon icon={ShieldCheck} size="2xl" />}
                 />
             </div>
 
@@ -330,7 +330,7 @@ export function PEVTab({ companyId, applicationId, appData, collectionName = 'ap
 
                 <div className="space-y-ds-4">
                     <p className="flex items-start gap-ds-2 rounded-ds-md border border-ds-border-subtle bg-ds-surface-subtle p-ds-3 text-ds-xs font-medium text-ds-content-secondary">
-                        <Info size={14} className="mt-0.5 shrink-0 text-ds-action-primary" aria-hidden="true" />
+                        <Icon icon={Info} size="sm" className="mt-0.5 shrink-0 text-ds-action-primary" />
                         FMCSA 391.23(a)(2) requires investigation of employment history for the previous 3 years from the date of the application.
                     </p>
 
@@ -349,7 +349,8 @@ export function PEVTab({ companyId, applicationId, appData, collectionName = 'ap
 
                     {employers.length === 0 ? (
                         <div className="rounded-ds-lg border-2 border-dashed border-ds-border p-ds-12 text-center">
-                            <Briefcase size={40} className="mx-auto mb-ds-3 text-ds-content-muted" aria-hidden="true" />
+                            {/* Page-level empty state in a fluid box: 40 -> `3xl` (32). */}
+                            <Icon icon={Briefcase} size="3xl" className="mx-auto mb-ds-3 text-ds-content-muted" />
                             <p className="italic text-ds-content-secondary">No historical employers detected in this application.</p>
                         </div>
                     ) : (

@@ -2,7 +2,7 @@ import React, { useId, useRef, useState, useEffect } from 'react';
 import { db, auth } from '@lib/firebase';
 import { collection, query, orderBy, getDocs, addDoc, serverTimestamp, doc, getDoc } from 'firebase/firestore';
 import { getPortalUser } from '@features/auth/services/userService';
-import { Send, MessageSquare, Clock, History } from 'lucide-react';
+import { Icon, Send, MessageSquare, Clock, History } from '@design-system/icons';
 import { logActivity } from '@shared/utils/activityLogger';
 import { sanitizeUserContent } from '@shared/utils/sanitizeUserContent';
 import { Avatar, Badge, Button, Card, FieldMessage, FormField, Textarea } from '@/design-system/components';
@@ -199,7 +199,7 @@ export function NotesTab({ companyId, applicationId, collectionName = 'applicati
                             disabled={!newNote.trim() || sending}
                             loading={sending}
                         >
-                            {!sending && <Send size={16} aria-hidden="true" />}
+                            {!sending && <Icon icon={Send} />}
                             Add Note
                         </Button>
                     </div>
@@ -230,7 +230,7 @@ export function NotesTab({ companyId, applicationId, collectionName = 'applicati
                                         aria-hidden="true"
                                         className="flex h-8 w-8 items-center justify-center rounded-ds-full border border-ds-status-accent-border bg-ds-status-accent-bg text-ds-status-accent-fg"
                                     >
-                                        <History size={14} />
+                                        <Icon icon={History} size="sm" />
                                     </span>
                                 ) : (
                                     <Avatar size="sm" tone="neutral">
@@ -260,7 +260,7 @@ export function NotesTab({ companyId, applicationId, collectionName = 'applicati
                                         )}
                                     </div>
                                     <span className="flex items-center gap-1 text-ds-xs text-ds-content-secondary">
-                                        <Clock size={12} aria-hidden="true" />
+                                        <Icon icon={Clock} size="xs" />
                                         {note.createdAt?.seconds
                                             ? new Date(note.createdAt.seconds * 1000).toLocaleString()
                                             : new Date(note.createdAt).toLocaleString() !== 'Invalid Date'

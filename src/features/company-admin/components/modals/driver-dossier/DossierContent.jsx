@@ -1,5 +1,5 @@
 import React, { Suspense } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Icon, Loader2 } from '@design-system/icons';
 import { ApplicationTab } from './tabs/ApplicationTab';
 import { DocumentsTab } from './tabs/DocumentsTab';
 import { DQFileTab } from '@features/company-admin/components/tabs/DQFileTab';
@@ -36,7 +36,7 @@ export function DossierContent({
     // Shared Loading Fallback
     const TabLoading = () => (
         <div role="status" className="flex items-center justify-center py-ds-12 text-ds-content-secondary">
-            <Loader2 size={24} className="mr-ds-2 animate-spin" aria-hidden="true" /> Loading Tab...
+            <Icon icon={Loader2} size="2xl" className="mr-ds-2 animate-spin" /> Loading Tab...
         </div>
     );
 

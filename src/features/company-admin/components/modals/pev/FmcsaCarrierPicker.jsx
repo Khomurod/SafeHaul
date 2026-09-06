@@ -29,7 +29,7 @@
 //   assistive technology what the group of rows was for.
 
 import React from 'react';
-import { Building2, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Icon, Building2, Loader2, CheckCircle2, AlertCircle } from '@design-system/icons';
 import { Notice, SelectableCard } from '@/design-system/components';
 import { mapFmcsaRowToPevContact } from '@shared/services/fmcsaEmployerSocrata';
 
@@ -54,7 +54,7 @@ export function FmcsaCarrierPicker({
             className="space-y-ds-2 rounded-ds-md border border-ds-border-subtle bg-ds-surface-subtle p-ds-4"
         >
             <h5 className="flex items-center gap-ds-2 text-ds-xs font-bold uppercase tracking-wider text-ds-content-secondary">
-                <Building2 size={14} className="text-ds-action-primary" aria-hidden="true" />
+                <Icon icon={Building2} size="sm" className="text-ds-action-primary" />
                 FMCSA company match
             </h5>
             {fmcsaStateCode && (
@@ -73,7 +73,7 @@ export function FmcsaCarrierPicker({
             <div role="status">
                 {fmcsaLoading && (
                     <p className="flex items-center gap-ds-2 text-ds-sm text-ds-content-secondary">
-                        <Loader2 size={16} className="animate-spin text-ds-action-primary" aria-hidden="true" />
+                        <Icon icon={Loader2} className="animate-spin text-ds-action-primary" />
                         Searching Transportation.gov registry…
                     </p>
                 )}
@@ -115,7 +115,7 @@ export function FmcsaCarrierPicker({
                                             </span>
                                         </span>
                                         {selected && (
-                                            <CheckCircle2 size={20} className="mt-0.5 shrink-0 text-ds-action-primary" aria-hidden="true" />
+                                            <Icon icon={CheckCircle2} size="xl" className="mt-0.5 shrink-0 text-ds-action-primary" />
                                         )}
                                     </span>
                                     {selected && (

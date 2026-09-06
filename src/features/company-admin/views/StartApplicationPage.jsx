@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
-import { ArrowLeft, ArrowRight, Plus, Save } from 'lucide-react';
+import { Icon, ArrowLeft, ArrowRight, Plus, Save } from '@design-system/icons';
 
 import { functions } from '@lib/firebase';
 import { useData } from '@/context/DataContext';
@@ -154,7 +154,7 @@ export function StartApplicationPage() {
                     />
                     <div className="flex flex-wrap gap-ds-2">
                         <Button variant="primary" onClick={startNew} disabled={!companyId}>
-                            <Plus size={14} aria-hidden="true" /> Start an application
+                            <Icon icon={Plus} size="sm" /> Start an application
                         </Button>
                     </div>
                     {listError && <Card padding="md"><FieldMessage tone="error">{listError}</FieldMessage></Card>}
@@ -209,10 +209,10 @@ export function StartApplicationPage() {
                     {prep.error && <Card padding="md"><FieldMessage tone="error">{prep.error}</FieldMessage></Card>}
                     <div className="flex flex-wrap gap-ds-2">
                         <Button variant="ghost" onClick={() => setView('mode')}>
-                            <ArrowLeft size={14} aria-hidden="true" /> Back
+                            <Icon icon={ArrowLeft} size="sm" /> Back
                         </Button>
                         <Button variant="primary" onClick={() => setView('editor')} disabled={isUploading}>
-                            Continue to review &amp; edit <ArrowRight size={14} aria-hidden="true" />
+                            Continue to review &amp; edit <Icon icon={ArrowRight} size="sm" />
                         </Button>
                     </div>
                 </Stack>
@@ -229,10 +229,10 @@ export function StartApplicationPage() {
                 />
                 <div className="flex flex-wrap gap-ds-2">
                     <Button variant="ghost" onClick={backToList}>
-                        <ArrowLeft size={14} aria-hidden="true" /> Back to the list
+                        <Icon icon={ArrowLeft} size="sm" /> Back to the list
                     </Button>
                     <Button variant="secondary" onClick={prep.save} disabled={!prep.identityComplete || prep.busy || isUploading}>
-                        <Save size={14} aria-hidden="true" /> {prep.busy ? 'Saving…' : 'Save'}
+                        <Icon icon={Save} size="sm" /> {prep.busy ? 'Saving…' : 'Save'}
                     </Button>
                 </div>
 
