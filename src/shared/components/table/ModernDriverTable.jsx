@@ -1,6 +1,6 @@
 // src/shared/components/table/ModernDriverTable.jsx
 import React, { memo, useId } from 'react';
-import { ChevronLeft, ChevronRight, Inbox } from 'lucide-react';
+import { Icon, ChevronLeft, ChevronRight, Inbox } from '@design-system/icons';
 import { Checkbox, IconButton } from '@/design-system/components';
 
 /**
@@ -215,7 +215,10 @@ export const ModernDriverTable = memo(function ModernDriverTable({
                                     className="py-16 text-center"
                                 >
                                     <div role="status" className="flex flex-col items-center gap-ds-2 text-ds-content-secondary">
-                                        {emptyIcon || <Inbox size={36} aria-hidden="true" />}
+                                        {/* The default for an overridable `emptyIcon`, so moving it into a
+                                            container would change every caller's empty state
+                                            rather than this one. 36 is not a step; 32 is. */}
+                                        {emptyIcon || <Icon icon={Inbox} size="3xl" />}
                                         <p className="text-ds-sm font-medium">{emptyMessage}</p>
                                     </div>
                                 </td>
@@ -297,7 +300,7 @@ export const ModernDriverTable = memo(function ModernDriverTable({
                             onClick={pagination.onPrev}
                             disabled={!pagination.hasPrev}
                         >
-                            <ChevronLeft size={16} aria-hidden="true" />
+                            <Icon icon={ChevronLeft} />
                         </IconButton>
                         <span className="px-ds-2 text-ds-xs font-medium text-ds-content-secondary">
                             Page <span className="font-bold text-ds-content">{pagination.currentPage}</span> of <span className="font-bold text-ds-content">{pagination.totalPages || 1}</span>
@@ -309,7 +312,7 @@ export const ModernDriverTable = memo(function ModernDriverTable({
                             onClick={pagination.onNext}
                             disabled={!pagination.hasNext}
                         >
-                            <ChevronRight size={16} aria-hidden="true" />
+                            <Icon icon={ChevronRight} />
                         </IconButton>
                     </div>
                 </nav>

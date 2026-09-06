@@ -1,8 +1,5 @@
 import React, { useId } from 'react';
-import {
-    Link as LinkIcon, X, CheckCircle,
-    Download, HelpCircle, RotateCcw, ArrowRight,
-} from 'lucide-react';
+import { Icon, Link as LinkIcon, X, CheckCircle, Download, HelpCircle, RotateCcw, ArrowRight } from '@design-system/icons';
 import {
     Button, ChoiceGroup, DataTable, FieldMessage, FileInput, FormField,
     IconButton, Input, Notice, ProgressBar, Radio, StatusMedallion,
@@ -122,7 +119,7 @@ export function BulkUploadLayout({
                                         ? 'border-ds-action-primary bg-ds-surface text-ds-action-primary'
                                         : 'border-ds-border-subtle bg-ds-surface text-ds-content-muted'}`}
                             >
-                                {isComplete ? <CheckCircle size={14} /> : idx + 1}
+                                {isComplete ? <Icon icon={CheckCircle} size="sm" /> : idx + 1}
                             </span>
                             <span className="text-ds-sm font-medium">{s.label}</span>
                             <span className="sr-only">
@@ -187,7 +184,7 @@ export function BulkUploadLayout({
             {onDownloadTemplate && (
                 <div className="flex justify-end">
                     <Button variant="ghost" size="sm" onClick={onDownloadTemplate}>
-                        <Download size={14} aria-hidden="true" /> Download CSV Template
+                        <Icon icon={Download} size="sm" /> Download CSV Template
                     </Button>
                 </div>
             )}
@@ -233,7 +230,7 @@ export function BulkUploadLayout({
                             disabled={!sheetUrl || processingSheet}
                             loading={processingSheet}
                         >
-                            {!processingSheet && <LinkIcon size={18} aria-hidden="true" />}
+                            {!processingSheet && <Icon icon={LinkIcon} size="lg" />}
                             Import
                         </Button>
                     </div>
@@ -271,7 +268,7 @@ export function BulkUploadLayout({
                         Preview ({csvData?.length || 0} records)
                     </span>
                     <Button variant="ghost" size="sm" onClick={reset}>
-                        <RotateCcw size={14} aria-hidden="true" /> Reset
+                        <Icon icon={RotateCcw} size="sm" /> Reset
                     </Button>
                 </div>
                 {/*
@@ -321,7 +318,7 @@ export function BulkUploadLayout({
                 disabled={uploading}
                 loading={uploading}
             >
-                Confirm Upload {!uploading && <ArrowRight size={18} aria-hidden="true" />}
+                Confirm Upload {!uploading && <Icon icon={ArrowRight} size="lg" />}
             </Button>
         </Stack>
     );
@@ -329,7 +326,7 @@ export function BulkUploadLayout({
     const renderSuccessStep = () => (
         <div className="py-ds-8 text-center">
             <StatusMedallion tone="success" size="lg" className="mx-auto mb-ds-4">
-                <CheckCircle />
+                <Icon icon={CheckCircle} />
             </StatusMedallion>
             <h3 className="mb-ds-2 text-ds-heading-sm font-bold text-ds-content">Upload Complete!</h3>
             <div className="mb-ds-6 flex justify-center gap-ds-6 text-ds-sm text-ds-content-secondary">
@@ -357,7 +354,7 @@ export function BulkUploadLayout({
                       a screen-reader user cannot resolve.
                     */}
                     <IconButton label="Close import" variant="ghost" size="sm" onClick={onClose}>
-                        <X size={20} aria-hidden="true" />
+                        <Icon icon={X} size="xl" />
                     </IconButton>
                 </div>
             </div>

@@ -72,6 +72,22 @@ import {
 } from './lucide/read.mjs';
 import { dropDefaults, resolveSize } from './lucide/decide.mjs';
 
+/*
+ * ONE HAZARD THIS TOOL CANNOT CLOSE, AND IT COST A REAL DEFECT.
+ *
+ * The import written below carries `Icon` only when this tool wrote a tag
+ * (`needsIcon`). That is correct for what it wrote and WRONG for what a person
+ * adds afterwards: a FLAGGED site is by definition one this tool refused to
+ * decide, so repairing it by hand as `<Icon icon={X} …>` renders a component the
+ * import does not carry. Three files shipped out of the `shared` slice that way
+ * on 2026-09-06 — two crash screens and an App-root offline banner — each
+ * throwing `ReferenceError: Icon is not defined` on render.
+ *
+ * After repairing any flag, CHECK THE IMPORT LINE. `npm run lint:frontend` is
+ * what proves it: `react/jsx-no-undef` is `error` for this reason and is pinned
+ * by `scripts/test-icon-contract-ci.mjs` X15/X16.
+ */
+
 /** Rewrite one file. Returns `{ source, rewritten, flags, names, needsIcon }`. */
 export function migrate(source, { path = '<source>' } = {}) {
     const flags = [];
@@ -132,9 +148,10 @@ export function migrate(source, { path = '<source>' } = {}) {
             name: tag,
             reason: `<${tag}> renders a LOCAL BINDING, not an imported component. If a glyph `
                 + 'can reach it, that glyph is rendered directly and a token throws — on a '
-                + `screen, not in a test. Either rewrite it as \`<Icon icon={${tag}} />\`, or `
-                + 'satisfy yourself no glyph reaches it: a heading level held in a prop has '
-                + 'this exact shape and is fine.'
+                + `screen, not in a test. Either rewrite it as \`<Icon icon={${tag}} />\` `
+                + '— AND ADD `Icon` TO THIS FILE\'S IMPORT, which this tool does not do for a '
+                + 'flag it refused to decide — or satisfy yourself no glyph reaches it: a '
+                + 'heading level held in a prop has this exact shape and is fine.'
                 + (tag === 'Icon'
                     ? ' AND THIS ONE IS NAMED `Icon`, which is the contract\'s own component: '
                         + 'the import this codemod adds is shadowed inside whatever declares it, '

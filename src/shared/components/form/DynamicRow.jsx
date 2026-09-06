@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo } from 'react';
-import { MinusCircle, PlusCircle } from 'lucide-react';
+import { Icon, MinusCircle, PlusCircle } from '@design-system/icons';
 import { Button, IconButton } from '@/design-system/components';
 
 /**
@@ -69,13 +69,13 @@ const DynamicRow = ({ listKey, formData, updateFormData, renderRow, initialItemS
                             label={'Remove ' + itemNoun + ' #' + (index + 1)}
                             onClick={() => handleDelete(index)}
                         >
-                            <MinusCircle size={20} aria-hidden="true" />
+                            <Icon icon={MinusCircle} size="xl" />
                         </IconButton>
                     </div>
                 ))}
             </div>
             <Button variant="ghost" size="md" onClick={handleAdd}>
-                <PlusCircle size={16} aria-hidden="true" />
+                <Icon icon={PlusCircle} />
                 <span>{addButtonLabel}</span>
             </Button>
         </div>

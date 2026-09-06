@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, RefreshCw } from 'lucide-react';
+import { Icon, Home, RefreshCw } from '@design-system/icons';
 import * as Sentry from '@sentry/react';
 import { Button } from '@design-system/components';
 import { PageState } from '@design-system/patterns';
@@ -57,11 +57,11 @@ class FeatureErrorBoundary extends React.Component {
             actions={(
               <>
                 <Button variant="primary" onClick={this.handleRetry}>
-                  <RefreshCw aria-hidden="true" />
+                  <Icon icon={RefreshCw} />
                   Retry section
                 </Button>
                 <Button variant="secondary" onClick={() => window.location.assign('/')}>
-                  <Home aria-hidden="true" />
+                  <Icon icon={Home} />
                   Go home
                 </Button>
               </>

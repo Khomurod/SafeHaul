@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, RefreshCw } from 'lucide-react';
+import { Icon, Home, RefreshCw } from '@design-system/icons';
 import * as Sentry from '@sentry/react';
 import { Button } from '@design-system/components';
 import { ErrorState } from '@design-system/patterns';
@@ -56,11 +56,11 @@ class ErrorBoundary extends React.Component {
               actions={(
                 <>
                   <Button variant="primary" onClick={this.handleReload}>
-                    <RefreshCw aria-hidden="true" />
+                    <Icon icon={RefreshCw} />
                     Reload page
                   </Button>
                   <Button variant="secondary" onClick={this.handleGoHome}>
-                    <Home aria-hidden="true" />
+                    <Icon icon={Home} />
                     Go home
                   </Button>
                 </>

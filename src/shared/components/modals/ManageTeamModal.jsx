@@ -1,5 +1,5 @@
 import React, { useId, useState, useEffect } from 'react';
-import { Users, Link as LinkIcon, Phone, Trash2, X, AlertTriangle } from 'lucide-react';
+import { Icon, Users, Link as LinkIcon, Phone, Trash2, X, AlertTriangle } from '@design-system/icons';
 import { db, functions } from '@lib/firebase';
 import { collection, query, where, doc, setDoc, onSnapshot, getDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
@@ -199,14 +199,14 @@ export function ManageTeamModal({ companyId, onClose }) {
             <header className="flex items-center justify-between gap-ds-4 border-b border-ds-border-subtle bg-ds-surface-subtle p-ds-6">
                 <div className="min-w-0">
                     <h2 id="manage-team-title" className="flex items-center gap-2 text-ds-heading-md font-bold text-ds-content">
-                        <Users className="text-ds-content-link" aria-hidden="true" /> Manage Team &amp; Links
+                        <Icon icon={Users} size="2xl" className="text-ds-content-link" /> Manage Team &amp; Links
                     </h2>
                     <p id="manage-team-desc" className="text-ds-sm text-ds-content-muted">
                         Set goals and get tracking links for your recruiters.
                     </p>
                 </div>
                 <IconButton label="Close" variant="ghost" onClick={onClose}>
-                    <X size={20} aria-hidden="true" />
+                    <Icon icon={X} size="xl" />
                 </IconButton>
             </header>
 
@@ -271,7 +271,7 @@ export function ManageTeamModal({ companyId, onClose }) {
 
                                     <div className="flex w-full flex-wrap items-center gap-ds-4 lg:w-auto">
                                         <div className="flex items-center gap-ds-2 rounded-ds-md border border-ds-border-subtle bg-ds-surface-subtle p-ds-2">
-                                            <Phone size={14} className="text-ds-content-link" aria-hidden="true" />
+                                            <Icon icon={Phone} size="sm" className="text-ds-content-link" />
                                             <div className="flex flex-col">
                                                 <span className="text-ds-xs font-bold uppercase text-ds-content-muted">Dials</span>
                                                 {/* The name LEADS with the visible word. WCAG 2.5.3
@@ -298,7 +298,7 @@ export function ManageTeamModal({ companyId, onClose }) {
                                         </div>
 
                                         <div className="flex items-center gap-ds-2 rounded-ds-md border border-ds-border-subtle bg-ds-surface-subtle p-ds-2">
-                                            <Users size={14} className="text-ds-status-success-fg" aria-hidden="true" />
+                                            <Icon icon={Users} size="sm" className="text-ds-status-success-fg" />
                                             <div className="flex flex-col">
                                                 <span className="text-ds-xs font-bold uppercase text-ds-content-muted">Contacts</span>
                                                 {/* The name LEADS with the visible word. WCAG 2.5.3
@@ -330,7 +330,7 @@ export function ManageTeamModal({ companyId, onClose }) {
                                             aria-label={`Copy tracking link for ${memberName}`}
                                             onClick={() => handleCopyLink(member.id)}
                                         >
-                                            <LinkIcon size={14} aria-hidden="true" /> Link
+                                            <Icon icon={LinkIcon} size="sm" /> Link
                                         </Button>
 
                                         <IconButton
@@ -340,7 +340,7 @@ export function ManageTeamModal({ companyId, onClose }) {
                                             loading={deleteLoading === member.id}
                                             onClick={() => handleDeleteUser(member.id, memberName)}
                                         >
-                                            <Trash2 size={14} aria-hidden="true" />
+                                            <Icon icon={Trash2} size="sm" />
                                         </IconButton>
                                     </div>
 

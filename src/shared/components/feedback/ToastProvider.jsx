@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
-import { X, CheckCircle, AlertCircle, Info, AlertTriangle } from 'lucide-react';
+import { Icon, X, CheckCircle, AlertCircle, Info, AlertTriangle } from '@design-system/icons';
 import { IconButton } from '@/design-system/components';
 
 const ToastContext = createContext();
@@ -115,7 +115,13 @@ export function ToastProvider({ children }) {
       <div className="pointer-events-none fixed bottom-ds-6 left-ds-4 right-ds-4 z-ds-toast flex max-h-[calc(100vh-3rem)] flex-col items-end gap-ds-3 overflow-hidden sm:left-auto sm:right-ds-6">
         {toasts.map((toast) => {
           const variant = TOAST_VARIANTS[toast.type] || TOAST_VARIANTS.info;
-          const Icon = variant.icon;
+          /*
+           * `Glyph`, not `Icon`. The contract's own component is called `Icon`
+           * and this file imports it, so holding the variant's glyph under that
+           * name would shadow the import — and what the shadow holds is a token,
+           * which throws when rendered.
+           */
+          const Glyph = variant.icon;
 
           return (
             <div
@@ -125,7 +131,7 @@ export function ToastProvider({ children }) {
             >
               <div className={`shrink-0 rounded-ds-full p-1 ${variant.badge}`}>
                 {/* Decorative: the severity word and the message carry the meaning. */}
-                <Icon size={18} aria-hidden="true" />
+                <Icon icon={Glyph} size="lg" />
               </div>
 
               <p className="min-w-0 break-words pr-ds-4 text-ds-sm font-medium">
@@ -153,7 +159,7 @@ export function ToastProvider({ children }) {
                 className="ml-auto shrink-0"
                 onClick={() => removeToast(toast.id)}
               >
-                <X size={16} aria-hidden="true" />
+                <Icon icon={X} />
               </IconButton>
             </div>
           );

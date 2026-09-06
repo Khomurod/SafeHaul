@@ -1,5 +1,5 @@
 import React, { useId } from 'react';
-import { X, Lock, Zap, Database } from 'lucide-react';
+import { Icon, X, Lock, Zap, Database } from '@design-system/icons';
 import { Badge, Button, IconButton, StatusMedallion } from '@/design-system/components';
 import { Modal } from '@design-system/patterns';
 /**
@@ -42,18 +42,18 @@ export function FeatureLockedModal({ onClose, featureName = "Search For Drivers"
         >
             <div className="absolute right-ds-4 top-ds-4 z-ds-raised">
                 <IconButton label={`Close the ${featureName} notice`} variant="ghost" size="sm" onClick={onClose}>
-                    <X size={20} aria-hidden="true" />
+                    <Icon icon={X} size="xl" />
                 </IconButton>
             </div>
 
             <div className="flex flex-col items-center bg-ds-surface-subtle p-ds-12 text-center">
                 <div className="relative mb-ds-8">
-                    <StatusMedallion tone="info" size="lg"><Lock /></StatusMedallion>
+                    <StatusMedallion tone="info" size="lg"><Icon icon={Lock} /></StatusMedallion>
                     <span
                         aria-hidden="true"
                         className="absolute -bottom-1 -right-1 rounded-ds-full border-2 border-ds-surface bg-ds-status-warning-bg p-1.5 text-ds-status-warning-fg"
                     >
-                        <Database size={14} />
+                        <Icon icon={Database} size="sm" />
                     </span>
                 </div>
 

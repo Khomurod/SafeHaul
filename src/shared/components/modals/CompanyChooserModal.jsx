@@ -1,7 +1,7 @@
 import React, { useId, useState, useEffect } from 'react';
 import { useData } from '@/context/DataContext';
 import { getCompanyProfile } from '@features/companies';
-import { Briefcase, LogOut } from 'lucide-react';
+import { Icon, Briefcase, LogOut } from '@design-system/icons';
 import { Button, SelectableCard } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { Modal } from '@design-system/patterns';
@@ -140,7 +140,7 @@ export function CompanyChooserModal() {
                     aria-hidden="true"
                     className="flex shrink-0 items-center justify-center rounded-ds-full bg-ds-status-info-bg p-ds-2 text-ds-status-info-fg"
                   >
-                    <Briefcase size={20} />
+                    <Icon icon={Briefcase} size="xl" />
                   </span>
                   <span className="min-w-0">
                     <span className="block truncate text-ds-heading-sm font-semibold text-ds-content">
@@ -161,7 +161,7 @@ export function CompanyChooserModal() {
 
         <div className="mt-ds-6">
           <Button id="logout-button-modal" variant="secondary" fullWidth onClick={handleLogout}>
-            <LogOut size={16} aria-hidden="true" />
+            <Icon icon={LogOut} />
             Logout
           </Button>
         </div>
