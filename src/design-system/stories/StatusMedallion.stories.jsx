@@ -13,7 +13,7 @@ import { Stack } from '@design-system/layouts';
 const meta = {
   title: 'Components/StatusMedallion',
   component: StatusMedallion,
-  args: { tone: 'info', size: 'md', children: <DsIcon icon={Check} size="2xl" /> },
+  args: { tone: 'info', size: 'md', children: <DsIcon icon={Check} /> },
   argTypes: {
     tone: {
       control: 'inline-radio',
@@ -86,7 +86,7 @@ export const Tones = {
       ].map(({ tone, glyph }) => (
         <div className="sb-specimen" key={tone}>
           <span className="sb-specimen__label">{tone}</span>
-          <StatusMedallion tone={tone}><DsIcon icon={glyph} size="2xl" /></StatusMedallion>
+          <StatusMedallion tone={tone}><DsIcon icon={glyph} /></StatusMedallion>
         </div>
       ))}
     </div>
@@ -99,11 +99,11 @@ export const Sizes = {
     <div className="sb-row" data-align="start">
       <div className="sb-specimen">
         <span className="sb-specimen__label">md</span>
-        <StatusMedallion tone="success" size="md"><DsIcon icon={Check} size="2xl" /></StatusMedallion>
+        <StatusMedallion tone="success" size="md"><DsIcon icon={Check} /></StatusMedallion>
       </div>
       <div className="sb-specimen">
         <span className="sb-specimen__label">lg</span>
-        <StatusMedallion tone="success" size="lg"><DsIcon icon={Check} size="2xl" /></StatusMedallion>
+        <StatusMedallion tone="success" size="lg"><DsIcon icon={Check} /></StatusMedallion>
       </div>
     </div>
   ),
@@ -148,7 +148,7 @@ export const InStatusScreens = {
       ].map(({ tone, glyph, title, body, action }) => (
         <Card key={title}>
           <Stack gap="sm">
-            <StatusMedallion tone={tone}><DsIcon icon={glyph} size="2xl" /></StatusMedallion>
+            <StatusMedallion tone={tone}><DsIcon icon={glyph} /></StatusMedallion>
             <h2 style={{ margin: 0 }}>{title}</h2>
             <p style={{ margin: 0 }}>{body}</p>
             {action && <div><Button variant="secondary" onClick={fn()}>{action}</Button></div>}
@@ -165,7 +165,7 @@ export const LongContent = {
     <div className="sb-measure">
       <Card>
         <Stack gap="sm">
-          <StatusMedallion tone="warning" size="lg"><DsIcon icon={AlertTriangle} size="2xl" /></StatusMedallion>
+          <StatusMedallion tone="warning" size="lg"><DsIcon icon={AlertTriangle} /></StatusMedallion>
           <h2 style={{ margin: 0 }}>
             This record cannot be completed until every listed organisation has responded
           </h2>
@@ -185,7 +185,7 @@ export const NarrowViewport = {
   render: () => (
     <Card>
       <Stack gap="sm">
-        <StatusMedallion tone="success" size="lg"><DsIcon icon={Check} size="2xl" /></StatusMedallion>
+        <StatusMedallion tone="success" size="lg"><DsIcon icon={Check} /></StatusMedallion>
         <h2 style={{ margin: 0 }}>Everything is complete</h2>
         <p style={{ margin: 0 }}>A copy has been sent to the address on the record.</p>
       </Stack>

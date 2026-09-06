@@ -1,4 +1,20 @@
 {
+  "mobile · the medallion sizes its own glyph, and the ratio is the decision · medallion[md]": {
+    "width": "64px",
+    "height": "64px"
+  },
+  "mobile · the medallion sizes its own glyph, and the ratio is the decision · glyph in medallion[md]": {
+    "width": "24px",
+    "height": "24px"
+  },
+  "mobile · the medallion sizes its own glyph, and the ratio is the decision · medallion[lg]": {
+    "width": "80px",
+    "height": "80px"
+  },
+  "mobile · the medallion sizes its own glyph, and the ratio is the decision · glyph in medallion[lg]": {
+    "width": "32px",
+    "height": "32px"
+  },
   "mobile · the notice chrome, and the six tints that replaced 66 hand-built blocks · notice[neutral]": {
     "borderTopWidth": "1px",
     "borderTopColor": "rgb(203, 213, 225)",
@@ -640,6 +656,22 @@
     "padding": "0px",
     "fontSize": "14px",
     "maxWidth": "378px"
+  },
+  "desktop · the medallion sizes its own glyph, and the ratio is the decision · medallion[md]": {
+    "width": "64px",
+    "height": "64px"
+  },
+  "desktop · the medallion sizes its own glyph, and the ratio is the decision · glyph in medallion[md]": {
+    "width": "24px",
+    "height": "24px"
+  },
+  "desktop · the medallion sizes its own glyph, and the ratio is the decision · medallion[lg]": {
+    "width": "80px",
+    "height": "80px"
+  },
+  "desktop · the medallion sizes its own glyph, and the ratio is the decision · glyph in medallion[lg]": {
+    "width": "32px",
+    "height": "32px"
   },
   "desktop · the notice chrome, and the six tints that replaced 66 hand-built blocks · notice[neutral]": {
     "borderTopWidth": "1px",

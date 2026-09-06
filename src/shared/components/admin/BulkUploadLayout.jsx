@@ -329,7 +329,7 @@ export function BulkUploadLayout({
     const renderSuccessStep = () => (
         <div className="py-ds-8 text-center">
             <StatusMedallion tone="success" size="lg" className="mx-auto mb-ds-4">
-                <CheckCircle size={48} />
+                <CheckCircle />
             </StatusMedallion>
             <h3 className="mb-ds-2 text-ds-heading-sm font-bold text-ds-content">Upload Complete!</h3>
             <div className="mb-ds-6 flex justify-center gap-ds-6 text-ds-sm text-ds-content-secondary">

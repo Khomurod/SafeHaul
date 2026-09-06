@@ -131,8 +131,8 @@ export function ConfirmDialog({
         >
             <div className="overflow-y-auto p-ds-5 text-center">
                 <StatusMedallion tone={medallion} className="mx-auto mb-ds-3">
-                    {/* 24px, which is what the bare glyph rendered here before. */}
-                    <DsIcon icon={Icon} size="2xl" />
+                    {/* No size: the medallion sizes its own glyph, 24px at `md`. */}
+                    <DsIcon icon={Icon} />
                 </StatusMedallion>
                 <h2 id={titleId} className="text-ds-heading-sm font-bold text-ds-content [overflow-wrap:anywhere]">
                     {title}

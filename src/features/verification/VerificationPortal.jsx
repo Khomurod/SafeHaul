@@ -15,7 +15,7 @@
  */
 import React, { useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import { ShieldCheck, Send } from 'lucide-react';
+import { Icon, ShieldCheck, Send } from '@design-system/icons';
 import { Button, Notice } from '@/design-system/components';
 import { useVerificationPortal } from './hooks/useVerificationPortal';
 import {
@@ -112,7 +112,7 @@ export function VerificationPortal() {
             */}
             <header className="border-b border-ds-border-subtle bg-ds-surface px-ds-4 py-ds-6 text-center">
                 <div className="mb-1 flex items-center justify-center gap-ds-2">
-                    <ShieldCheck className="h-6 w-6 text-ds-status-info-fg" aria-hidden="true" />
+                    <Icon icon={ShieldCheck} size="2xl" className="text-ds-status-info-fg" />
                     <h1 className="text-ds-heading-md font-bold text-ds-content">Previous Employment Verification</h1>
                 </div>
                 <p className="text-ds-sm font-medium text-ds-content-secondary">FMCSA 49 CFR Part 391.23 Compliance</p>
@@ -184,7 +184,7 @@ export function VerificationPortal() {
                             'Submitting...'
                         ) : (
                             <>
-                                <Send className="h-5 w-5" aria-hidden="true" />
+                                <Icon icon={Send} size="xl" />
                                 Submit Verification Response
                             </>
                         )}

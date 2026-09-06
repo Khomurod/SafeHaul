@@ -52,10 +52,11 @@ The token catches it, and every other spelling, without knowing any of them.
 
 ## Containers still size their own glyph
 
-`Button`, `IconButton`, `Tabs` and `FileInput` each decide how big the glyph
-inside them is, and they still do. `Icon.css` states its sizes through
-`:where()`, which has zero specificity, so those container rules win every
-argument exactly as they did when the glyph came straight from the package.
+`Button`, `IconButton`, `Tabs`, `Chip`, `SegmentedControl`, `FileInput` and
+`StatusMedallion` each decide how big the glyph inside them is, and they still
+do. `Icon.css` states its sizes through `:where()`, which has zero specificity,
+so those container rules win every argument exactly as they did when the glyph
+came straight from the package.
 
 Written the obvious way (`.ds-icon[data-size='md']`, specificity 0-2-0) this
 file would have silently overridden them and made every icon in every button
@@ -64,6 +65,28 @@ file would have silently overridden them and made every icon in every button
 `Icon` also never passes `size` through to the glyph. That would set width and
 height **attributes**, which a stylesheet cannot override at a breakpoint — and
 the container rules depend on being able to.
+
+## The medallion was on that list before it was true
+
+**`StatusMedallion` joined that list on 2026-09-06, and the day it did not
+belong on it is worth keeping.** Phase 4 wrote the sentence above as though it
+were already true of every container that holds a glyph. Measured against the
+CSS, only five carried a `> svg` rule; the medallion set its own diameter and
+left the glyph to the call site. So every call site chose: 24 in the catalog and
+in both patterns that render one, 28 in the signing room, 40 in the
+locked-feature modal, 48 after a bulk upload. `PageState` and `ConfirmDialog`
+each carried a comment admitting 24 was not a decision — it was what a bare
+lucide glyph rendered before this contract existed.
+
+Phase 7 found it, because a size that is not on the scale is exactly the signal
+that a container is missing: sixteen of the thirty-two off-scale glyph sizes in
+the whole application are one role — a large glyph announcing a page-level
+state — wearing four different numbers.
+
+`Badge`, `DataTable` and `SectionNavigation` still do not size their glyphs.
+Nothing off-scale lands in them today, so that is a note rather than a defect;
+`StatusMedallion.css` records the ratio the medallion's two steps come from, and
+is the model if one of those three ever needs the same treatment.
 
 ## Announced, or not — never neither
 

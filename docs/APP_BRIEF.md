@@ -1115,14 +1115,18 @@ through `Modal` and takes its size and shape from the chrome contract — the
 props that used to let a call site replace that wholesale now throw. And every
 glyph comes from `@design-system/icons` at a step on the icon scale
 (`xs`…`3xl`, 12–32px): the registry hands out **tokens**, not components, so
-`<Trash2 size={13} />` throws by name at the call site. The files outside the
+`<Trash2 size={13} />` throws by name at the call site. A glyph **inside a
+design-system container states no step at all** — `Button`, `IconButton`, `Tabs`,
+`Chip`, `SegmentedControl`, `FileInput` and `StatusMedallion` each size the glyph
+they hold, so two controls of the same size can never carry differently-sized
+glyphs. The files outside the
 design system that still import `lucide-react` directly are recorded in
 `src/design-system/icons/lucide-import.backlog.json`; `npm run
 check:icon-contract` prints the current count and refuses a new importer
 anywhere under `src/`, refuses a listed file that grows, and refuses an entry
 the base commit does not justify. **That list only shrinks** — which is why the
 number belongs in the checker's output rather than in this paragraph, where it
-was wrong within a week of being written (175 on 2026-09-06, against the 178
+was wrong within a week of being written (166 on 2026-09-06, against the 178
 recorded here). Update the roadmap with
 evidence in the same task, and never mark an item complete without the
 functional, visual, mobile, accessibility, documentation and diff checks

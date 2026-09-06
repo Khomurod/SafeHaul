@@ -1,7 +1,7 @@
 // src/features/companies/components/DashboardToolbar.jsx
 
 import React, { useState, useMemo, memo } from 'react';
-import { Search, Filter, X, Briefcase, Users, UserCircle } from 'lucide-react';
+import { Icon, Search, Filter, X, Briefcase, Users, UserCircle } from '@design-system/icons';
 import { Button, FormField, Input, Select } from '@design-system/components';
 
 /**
@@ -88,7 +88,7 @@ export const DashboardToolbar = memo(function DashboardToolbar({
                 <div className="flex flex-wrap items-center gap-ds-4">
                     <div>
                         <h2 className="flex items-center gap-ds-2 text-ds-heading-md font-bold text-ds-content">
-                            {activeTab === 'company_leads' && <Briefcase size={18} aria-hidden="true" className="text-ds-status-warning-fg" />}
+                            {activeTab === 'company_leads' && <Icon icon={Briefcase} size="lg" className="text-ds-status-warning-fg" />}
                             {getTabTitle()}
                         </h2>
                         <p className="text-ds-xs font-medium text-ds-content-muted">
@@ -99,7 +99,7 @@ export const DashboardToolbar = memo(function DashboardToolbar({
                     {canAssign && selectedCount > 0 && (
                         <div className="border-l border-ds-border-subtle pl-ds-4 animate-in fade-in slide-in-from-left-2">
                             <Button variant="primary" onClick={onAssignLeads}>
-                                <Users aria-hidden="true" />
+                                <Icon icon={Users} />
                                 Assign ({selectedCount})
                             </Button>
                         </div>
@@ -118,7 +118,7 @@ export const DashboardToolbar = memo(function DashboardToolbar({
                             aria-pressed={myAssignmentsOnly}
                             onClick={() => onToggleMyAssignments?.(!myAssignmentsOnly)}
                         >
-                            <UserCircle aria-hidden="true" />
+                            <Icon icon={UserCircle} />
                             <span className="hidden sm:inline">{myAssignmentsLabel}</span>
                             <span className="sm:hidden ds-visually-hidden">{myAssignmentsLabel}</span>
                         </Button>
@@ -126,7 +126,7 @@ export const DashboardToolbar = memo(function DashboardToolbar({
 
                     <div className="relative flex-1 sm:w-64">
                         <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-ds-3">
-                            <Search size={16} aria-hidden="true" className="text-ds-content-muted" />
+                            <Icon icon={Search} className="text-ds-content-muted" />
                         </span>
                         <Input
                             type="search"
@@ -144,7 +144,7 @@ export const DashboardToolbar = memo(function DashboardToolbar({
                         aria-expanded={showFilters}
                         onClick={() => setShowFilters(!showFilters)}
                     >
-                        <Filter aria-hidden="true" />
+                        <Icon icon={Filter} />
                         <span className="hidden sm:inline">Filters</span>
                         <span className="sm:hidden ds-visually-hidden">Filters</span>
                         {/* The dot repeats what the label already says, for a
@@ -211,7 +211,7 @@ export const DashboardToolbar = memo(function DashboardToolbar({
 
                     <div className="mt-ds-3">
                         <Button variant="danger" fullWidth className="sm:w-auto" onClick={clearFilters}>
-                            <X aria-hidden="true" />
+                            <Icon icon={X} />
                             Clear all filters
                         </Button>
                     </div>
