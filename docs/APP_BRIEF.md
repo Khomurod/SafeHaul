@@ -89,7 +89,7 @@ Single Firebase project **`truckerapp-system`**, region **`us-central1`**.
 | Part | Location | Notes |
 |---|---|---|
 | React SPA | `src/` | React 19 + Vite 7 + React Router 7 + Tailwind 3.4. Builds to `dist/` |
-| Cloud Functions | `functions/` | Node 20, **mixed v1 and v2** (both production-stable; full v2 migration planned, not urgent) |
+| Cloud Functions | `functions/` | Node 22 (since 2026-09-06; Node 20 is decommissioned by Google on 2026-10-30), **mixed v1 and v2** (both production-stable; full v2 migration planned, not urgent) |
 | Firestore rules | `src/firestore.rules` | Deployed from here, not the repo root |
 | Storage rules | `src/storage.rules` | |
 | Public site | `web/` | Hand-written CSS, **no build step, no framework**. Serves the server-rendered blog's assets and a standalone privacy page, and redirects `/` to `/news`. The marketing site that lived in `landing/` was removed; see [`DESIGN.md`](../DESIGN.md) |
