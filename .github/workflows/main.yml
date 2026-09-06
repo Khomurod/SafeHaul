@@ -330,6 +330,13 @@ jobs:
 
       - name: Icon contract ratchet
         run: npm run check:icon-contract -- --require-baseline
+
+      # The first-download budget's own tests (Node builtins only): every refusal
+      # in scripts/check-bundle-budget.mjs is driven against throwaway builds here,
+      # in the one job no lane selection can skip; the check itself runs in
+      # frontend-build, where the build is.
+      - name: Verify the bundle-budget guard
+        run: npm run test:bundle-budget
         env:
           # The same three again, and the same shared override: one baseline
           # question, one answer, one place an operator can get it wrong.
@@ -382,6 +389,14 @@ jobs:
 
       - run: npm ci
       - run: npm run build
+
+      # The first download a driver's phone makes — entry script, module
+      # preloads and stylesheets from dist/index.html, gzip-summed — against the
+      # ceiling in scripts/check-bundle-budget.mjs. Measured 517 kB before audit
+      # step I (2026-09-06) and 363 kB after; the check exists so it cannot creep
+      # back without somebody deciding it should.
+      - name: Check the first-download budget
+        run: npm run check:bundle-budget
 
   frontend-quality:
     # Frontend lint plus unit tests and the coverage baseline-ratchet gate.

@@ -10,6 +10,7 @@
  */
 
 import { pdfjs } from 'react-pdf';
+import '@lib/pdf/pdfWorker';
 
 /** Rendered width sent to the provider. Enough to read 8pt form labels. */
 export const RASTER_MAX_WIDTH = 1300;

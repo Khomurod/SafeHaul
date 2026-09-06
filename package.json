@@ -44,7 +44,9 @@
     "check:visual-contract": "node scripts/check-visual-contract.mjs",
     "test:visual": "playwright test --config=playwright.visual.config.cjs",
     "test:visual:update": "playwright test --config=playwright.visual.config.cjs --update-snapshots",
-    "check:public-claims": "node scripts/check-public-claims.mjs"
+    "check:public-claims": "node scripts/check-public-claims.mjs",
+    "check:bundle-budget": "node scripts/check-bundle-budget.mjs",
+    "test:bundle-budget": "node scripts/test-bundle-budget.mjs"
   },
   "dependencies": {
     "@sentry/react": "^10.32.1",
