@@ -1,11 +1,11 @@
 import React, { useState, useRef, useId } from 'react';
-import { Rocket, AlertTriangle, AlertCircle, CheckCircle, Clock } from 'lucide-react';
+import { Rocket, Clock } from 'lucide-react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
-import { Badge, Button, Card } from '@/design-system/components';
+import { Badge, Button, Card, Notice } from '@/design-system/components';
 import { Modal } from '@design-system/patterns';
 
 export function LaunchPad({ companyId, campaign, onLaunchSuccess }) {
@@ -103,28 +103,37 @@ export function LaunchPad({ companyId, campaign, onLaunchSuccess }) {
                 </p>
 
                 {errors.length > 0 ? (
-                    /* Failure is stated by an icon + heading text, never colour alone. */
-                    <div role="alert" className="mb-ds-8 rounded-ds-lg border border-ds-status-danger-border bg-ds-status-danger-bg p-ds-6 text-left">
-                        <h3 className="mb-ds-3 flex items-center gap-ds-2 font-bold text-ds-status-danger-fg">
-                            <AlertTriangle size={18} aria-hidden="true" /> Pre-Flight Checks Failed
-                        </h3>
-                        <ul className="flex flex-col gap-ds-2">
-                            {errors.map((err, i) => (
-                                <li key={i} className="flex items-center gap-ds-2 text-ds-sm text-ds-status-danger-fg">
-                                    <AlertCircle size={14} aria-hidden="true" className="shrink-0" /> {err}
-                                </li>
-                            ))}
+                    /* Failure is stated by a glyph and heading text, never
+                       colour alone — `Notice` keeps both. The per-item
+                       `AlertCircle`s go: one leading mark on the block says
+                       "these are failures" once, and repeating it on every line
+                       was the hand-built way of drawing a list. Disc markers
+                       carry the enumeration, which is also what assistive
+                       technology reads as a list. */
+                    <Notice
+                        announce="assertive"
+                        tone="danger"
+                        title="Pre-Flight Checks Failed"
+                        titleAs="h3"
+                        className="mb-ds-8"
+                    >
+                        <ul className="list-inside list-disc">
+                            {errors.map((err, i) => <li key={i}>{err}</li>)}
                         </ul>
-                    </div>
+                    </Notice>
                 ) : (
-                    <div role="status" className="mb-ds-8 flex flex-col items-center justify-center gap-ds-2 rounded-ds-lg border border-ds-status-success-border bg-ds-status-success-bg p-ds-6 font-bold text-ds-status-success-fg">
-                        <div className="flex items-center gap-ds-2">
-                            <CheckCircle size={20} aria-hidden="true" /> All Systems Go
-                        </div>
+                    /* Migrated together with the failure branch above, and that
+                       is the reason rather than a side effect: these are the two
+                       outcomes of ONE pre-flight check and were drawn
+                       differently — one left-aligned with a heading, one centred
+                       without. They now share one treatment. Both are
+                       left-aligned inside a centred card, which is what a block
+                       of content does under a centred headline. */
+                    <Notice announce="polite" tone="success" title="All Systems Go" className="mb-ds-8">
                         {campaign.matchCount > 0 && (
                             <Badge tone="success" icon={Clock}>Est. Duration: ~{estimatedMinutes} min</Badge>
                         )}
-                    </div>
+                    </Notice>
                 )}
 
                 <div className="flex gap-ds-4">

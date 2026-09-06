@@ -2,11 +2,11 @@ import React, { useId, useRef, useState, useEffect, useMemo } from 'react';
 import { db, storage } from '@lib/firebase';
 import { collection, addDoc, getDoc, deleteDoc, doc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { Upload, Trash2, FileText, Download, AlertTriangle } from 'lucide-react';
+import { Upload, Trash2, FileText, Download } from 'lucide-react';
 import { logActivity } from '@shared/utils/activityLogger';
 import {
   Badge, Button, Card, FieldMessage, FileInput, FormField, IconButton, IconButtonLink,
-  Select,
+  Notice, Select,
 } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { ConfirmDialog } from '@design-system/patterns';
@@ -316,11 +316,15 @@ export function DQFileTab({ companyId, applicationId, collectionName = 'applicat
             </div>
           </div>
 
+          {/* The live region is this WRAPPER, and it stays. It is mounted
+              whether or not there is an error, which is the whole point — a live
+              region added to the DOM at the same moment as its content is not
+              reliably announced. So the `Notice` inside takes `announce="off"`:
+              moving the role onto it would look like a faithful migration and
+              would quietly stop the announcement. */}
           <div role="alert">
             {error && (
-              <p className="flex items-center gap-ds-2 rounded-ds-md border border-ds-status-danger-border bg-ds-status-danger-bg p-ds-3 text-ds-sm text-ds-status-danger-fg">
-                <AlertTriangle size={16} aria-hidden="true" className="shrink-0" /> {error}
-              </p>
+              <Notice tone="danger" size="sm">{error}</Notice>
             )}
           </div>
         </Stack>

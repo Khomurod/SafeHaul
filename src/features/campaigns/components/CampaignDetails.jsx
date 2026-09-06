@@ -10,7 +10,7 @@ import { httpsCallable } from 'firebase/functions';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import { ConfirmDialog } from '@design-system/patterns';
 import { useData } from '@/context/DataContext';
-import { Badge, Button, Card, FieldMessage, IconButton } from '@/design-system/components';
+import { Badge, Button, Card, FieldMessage, IconButton, Notice } from '@/design-system/components';
 
 // Feature-owned domain → visual mapping (design system only knows generic tones).
 // Tones preserve the previous appearance: active=success, completed=info,
@@ -243,17 +243,13 @@ export function CampaignDetails({ campaign, onClose }) {
                     {/* Failure reason — surface why a session failed so it's diagnosable
                         instead of just showing a red "FAILED" with no explanation. */}
                     {campaign.status === 'failed' && (campaign.error || campaign.failureReason) && (
-                        <Card className="border-ds-status-danger-border bg-ds-status-danger-bg">
-                            <div className="flex items-start gap-ds-3">
-                                <AlertCircle size={20} className="mt-0.5 shrink-0 text-ds-status-danger-fg" aria-hidden="true" />
-                                <div className="min-w-0">
-                                    <p className="mb-ds-1 text-ds-xs font-bold uppercase tracking-wide text-ds-status-danger-fg">Why this campaign failed</p>
-                                    <FieldMessage tone="error" className="[overflow-wrap:anywhere]">
-                                        {campaign.error || campaign.failureReason}
-                                    </FieldMessage>
-                                </div>
-                            </div>
-                        </Card>
+                        /* `FieldMessage` is scoped to ONE FORM FIELD and was
+                           standing in for a notice here; `Notice` is the right
+                           owner and already wraps long tokens, so the
+                           `[overflow-wrap:anywhere]` goes with it. */
+                        <Notice tone="danger" title="Why this campaign failed">
+                            {campaign.error || campaign.failureReason}
+                        </Notice>
                     )}
 
                     {/* Stats Cards */}

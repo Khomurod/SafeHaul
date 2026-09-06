@@ -12,7 +12,7 @@ import { useApplicationChanges } from '@features/applications/hooks/useApplicati
 import { useSubmissionRecord } from '@features/applications/hooks/useSubmissionRecord';
 import { SubmissionRecordNotice } from '@features/applications/components/SubmissionRecordNotice';
 import { PreservedApplicationView } from '@features/applications/components/PreservedApplicationView';
-import { Badge, Button, Card, SegmentedControl } from '@/design-system/components';
+import { Badge, Button, Card, Notice, SegmentedControl } from '@/design-system/components';
 import {
     IdentityCard,
     LicenseCard,
@@ -153,12 +153,10 @@ export function ApplicationTab({ appData, fileUrls = {}, canEdit = false, compan
         <div className="space-y-ds-6">
             {/* Pending company edits — awaiting driver approval */}
             {pendingChanges.length > 0 && (
-                <Card padding="md" className="border-ds-status-warning-border bg-ds-status-warning-bg">
-                    <div className="mb-ds-2 flex flex-wrap items-center justify-between gap-ds-3">
-                        <p className="flex items-center gap-ds-2 text-ds-sm font-semibold text-ds-status-warning-fg">
-                            <AlertTriangle size={16} aria-hidden="true" />
-                            {pendingChanges.length} field(s) edited by company — pending driver approval
-                        </p>
+                <Notice
+                    tone="warning"
+                    title={`${pendingChanges.length} field(s) edited by company — pending driver approval`}
+                    actions={(
                         <Button
                             variant="secondary"
                             size="sm"
@@ -169,10 +167,11 @@ export function ApplicationTab({ appData, fileUrls = {}, canEdit = false, compan
                             {linking ? null : <Link2 size={14} aria-hidden="true" />}
                             Copy driver review link
                         </Button>
-                    </div>
+                    )}
+                >
                     <ul className="space-y-ds-1">
                         {pendingChanges.map((c) => (
-                            <li key={c.id} className="flex flex-wrap items-center gap-ds-1 text-ds-xs text-ds-status-warning-fg">
+                            <li key={c.id} className="flex flex-wrap items-center gap-ds-1 text-ds-xs">
                                 <span className="font-semibold">{c.fieldLabel || c.fieldKey}:</span>
                                 <span className="line-through">{previewValue(c.originalValue)}</span>
                                 <span aria-hidden="true">→</span>
@@ -183,7 +182,7 @@ export function ApplicationTab({ appData, fileUrls = {}, canEdit = false, compan
                             </li>
                         ))}
                     </ul>
-                </Card>
+                </Notice>
             )}
 
             {/* Edit controls */}

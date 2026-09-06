@@ -1,7 +1,7 @@
 import React, { useId, useRef } from 'react';
 import { Ban, Copy, Download, Edit3, X } from 'lucide-react';
 import { Modal } from '@design-system/patterns';
-import { Badge, Button, IconButton } from '@/design-system/components';
+import { Badge, Button, IconButton, Notice } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { formatTimestamp } from '@features/company-admin/utils/documentsWorkspace';
 
@@ -89,18 +89,16 @@ export function SentDocumentDetailsDialog({
                     </dl>
 
                     {(deliveryFailed || sealFailed) && (
-                        <div
-                            role="alert"
-                            className="rounded-ds-lg border border-ds-status-danger-border bg-ds-status-danger-bg p-ds-3"
+                        <Notice
+                            announce="assertive"
+                            tone="danger"
+                            size="sm"
+                            title={deliveryFailed ? 'Delivery error' : 'Sealing error'}
+                            titleAs="h3"
                         >
-                            <h3 className="text-ds-xs font-bold uppercase tracking-wide text-ds-content">
-                                {deliveryFailed ? 'Delivery error' : 'Sealing error'}
-                            </h3>
-                            <p className="mt-ds-1 text-ds-xs text-ds-status-danger-fg [overflow-wrap:anywhere]">
-                                {(deliveryFailed ? document.emailError : document.errorLog) ||
-                                    'No further detail was recorded.'}
-                            </p>
-                        </div>
+                            {(deliveryFailed ? document.emailError : document.errorLog)
+                                || 'No further detail was recorded.'}
+                        </Notice>
                     )}
                 </Stack>
             </div>

@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import {
     Button, ChoiceGroup, DataTable, FieldMessage, FileInput, FormField,
-    IconButton, Input, ProgressBar, Radio, StatusMedallion,
+    IconButton, Input, Notice, ProgressBar, Radio, StatusMedallion,
 } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { Modal } from '@design-system/patterns';
@@ -158,13 +158,13 @@ export function BulkUploadLayout({
     const renderUploadStep = () => (
         <Stack gap="lg">
             {instructions && (
-                <div className="flex items-start gap-ds-3 rounded-ds-lg border border-ds-status-info-border bg-ds-status-info-bg p-ds-4 text-ds-sm text-ds-status-info-fg">
-                    <HelpCircle size={18} className="mt-0.5 shrink-0" aria-hidden="true" />
-                    <div>
-                        <h3 className="mb-ds-1 font-bold">Instructions</h3>
-                        <div className="whitespace-pre-line leading-relaxed">{instructions}</div>
-                    </div>
-                </div>
+                /* `HelpCircle` is passed explicitly rather than falling to the
+                   info tone's `Info`: this is guidance on how to do the task,
+                   not information about its state, and the question mark says
+                   so. */
+                <Notice tone="info" icon={HelpCircle} title="Instructions" titleAs="h3">
+                    <div className="whitespace-pre-line">{instructions}</div>
+                </Notice>
             )}
 
             <ChoiceGroup legend="Import method" orientation="horizontal">

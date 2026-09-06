@@ -21,6 +21,7 @@ import {
     FormField,
     IconButton,
     Input,
+    Notice,
     Radio,
 } from '@/design-system/components';
 
@@ -330,12 +331,13 @@ export function PEVRequestModal({ employer, applicant: _applicant, onClose, onPr
                 )}
 
                 {/* Legal Note */}
-                <div className="flex gap-ds-3 rounded-ds-md border border-ds-status-warning-border bg-ds-status-warning-bg p-ds-3">
-                    <Info size={18} className="shrink-0 text-ds-status-warning-fg" aria-hidden="true" />
-                    <p className="text-ds-xs font-medium leading-relaxed text-ds-status-warning-fg">
-                        Verifications are performed in compliance with FMCSA 49 CFR Part 391.23. The driver&apos;s signed authorization is attached to the request automatically.
-                    </p>
-                </div>
+                {/* `Info` is passed explicitly: the warning tone's own glyph is
+                    `AlertTriangle`, and this is a deliberately calm legal note
+                    rather than a warning about anything. Letting the default win
+                    would escalate it — the borderline case 6c's audit named. */}
+                <Notice tone="warning" size="sm" icon={Info}>
+                    Verifications are performed in compliance with FMCSA 49 CFR Part 391.23. The driver&apos;s signed authorization is attached to the request automatically.
+                </Notice>
             </div>
 
             {/* Footer */}
