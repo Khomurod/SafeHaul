@@ -247,6 +247,61 @@ console.log('\nD. Attributes the contract now owns');
         `notes=${out.notes.length} ${out.source}`);
 }
 
+console.log('\nH. Comments and strings are not call sites');
+
+/*
+ * H1/H2 exist because this codebase documents its own markup, and the codemod
+ * reported two comments as call sites needing a size decision:
+ *
+ *     //  *  children were a decorative `<Bell>`/`<Phone>` and a bare number.
+ *     //  * an icon-only button whose only child was a decorative `<X>`.
+ *
+ * Both happened to be FLAGGED rather than rewritten, so nothing was damaged.
+ * A comment quoting `<Bell size={16} />` would have had its prose rewritten
+ * into `<Icon icon={Bell} />`, and the diff would have looked deliberate.
+ */
+{
+    const out = migrate(file({
+        names: 'Bell',
+        body: '/* a decorative `<Bell size={16} />` beside the count */\n<Bell size={20} aria-hidden="true" />',
+    }));
+    assert('H1. a tag quoted inside a block comment is not a call site',
+        out.rewritten === 1
+        && out.source.includes('/* a decorative `<Bell size={16} />` beside the count */')
+        && out.source.includes('<Icon icon={Bell} size="xl" />'),
+        out.source);
+}
+
+{
+    const out = migrate(file({
+        names: 'Bell',
+        body: '// the old `<Bell size={16} />` had no name\n<Bell size={20} aria-hidden="true" />',
+    }));
+    assert('H2. and neither is one inside a line comment',
+        out.rewritten === 1 && out.source.includes('// the old `<Bell size={16} />` had no name'),
+        out.source);
+}
+
+{
+    const out = migrate(file({
+        names: 'Bell',
+        body: "const doc = 'renders <Bell size={16} />';\n<Bell size={20} aria-hidden=\"true\" />",
+    }));
+    assert('H3. nor one inside a string literal',
+        out.rewritten === 1 && out.source.includes("const doc = 'renders <Bell size={16} />';"),
+        out.source);
+}
+
+{
+    const out = migrate(file({
+        names: 'Bell',
+        body: '// see https://example.test/docs\n<Bell size={20} aria-hidden="true" />',
+    }));
+    assert('H4. a URL inside a comment does not swallow the line after it',
+        out.rewritten === 1 && out.source.includes('<Icon icon={Bell} size="xl" />'),
+        out.source);
+}
+
 console.log('\nF. A glyph used as a value, not as a tag');
 
 {
