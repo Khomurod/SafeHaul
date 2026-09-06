@@ -68,6 +68,18 @@
         "tailwind-radius": "roadmap §5 — device artwork. The bezel and side-button radii describe a moulded plastic case, not a SafeHaul surface, and they are part of the same DEVICE palette exception as its colours."
       }
     },
+    "src/features/company-admin/components/FeatureDeactivationWarning.jsx": {
+      "hand-composed-notice": 1,
+      "reasons": {
+        "hand-composed-notice": "A modal HEADER BAND, not a message: the tint runs edge to edge across the dialog head and holds a StatusMedallion, the dialog title and its dismiss control. Reviewed in slice 6d."
+      }
+    },
+    "src/features/company-admin/components/documents/DocumentsOverview.jsx": {
+      "hand-composed-notice": 1,
+      "reasons": {
+        "hand-composed-notice": "One tinted LIST ROW per document needing attention. Five stacked Notices would say the same thing five times where a list says it once. Reviewed in slice 6d."
+      }
+    },
     "src/features/company-admin/components/modals/VOEDocument.jsx": {
       "raw-palette-class": 100,
       "bare-tailwind-radius": 1,
@@ -96,10 +108,22 @@
         "tailwind-radius": "the two 8px recipient/applicant status dots in the sub-header — pre-existing chrome, kept byte-identical when the generated §391.23 document moved to VOEDocument.jsx (source-size split); converting them to rounded-ds-full is the roadmap's call, not a refactor's."
       }
     },
+    "src/features/company-admin/components/tabs/NotesTab.jsx": {
+      "hand-composed-notice": 1,
+      "reasons": {
+        "hand-composed-notice": "A CHAT BUBBLE — rounded-tl-none is the speech corner — carrying a shared note's author, time and body. Tinted for identity, not to carry a message. Reviewed in slice 6d."
+      }
+    },
     "src/features/company-admin/components/tabs/PEVTab.jsx": {
       "raw-file-input": 1,
       "reasons": {
         "raw-file-input": "roadmap §5 — a PROGRAMMATIC picker: one hidden input opened by whichever per-employer \"Upload Result\" row action was activated. `FileInput` is a visible control by contract (a real input behind a real label), and there is no visible picker here to be — the affordance is a table row action. It carries an accessible name and the `hidden` attribute as well as the class, so it leaves the accessibility tree without depending on CSS."
+      }
+    },
+    "src/features/company-admin/views/candidateListColumns.jsx": {
+      "hand-composed-notice": 1,
+      "reasons": {
+        "hand-composed-notice": "A badge-tone lookup applied to pipeline cells. Tinted for identity, recorded before this phase began and re-confirmed in slice 6a."
       }
     },
     "src/features/driver-app/components/application/IntakeChooser.jsx": {
@@ -108,16 +132,46 @@
         "raw-file-input": "roadmap §5 — a PROGRAMMATIC picker. The visible affordance is one of two mutually exclusive intake choice cards (\"Scan my CDL\" beside \"Fill Out Manually\"), so it has to look like its sibling card rather than like a picker; `FileInput` is a visible control by contract. The input is `aria-hidden` and out of the tab order because the card is the control, and the card is a keyboard-reachable approved `Button`."
       }
     },
+    "src/features/driver-app/components/application/RequiredDocumentsChecklist.jsx": {
+      "hand-composed-notice": 2,
+      "reasons": {
+        "hand-composed-notice": "Checklist ROWS, one per required document, tinted to show which are complete. A row in a list, not a message about the list. Recorded in slice 6a."
+      }
+    },
+    "src/features/driver-app/components/application/UploadField.jsx": {
+      "hand-composed-notice": 1,
+      "reasons": {
+        "hand-composed-notice": "The uploaded-file ROW: a thumbnail, a filename, a status line and two controls. A leading tick would displace the thumbnail. Reviewed in slice 6c."
+      }
+    },
     "src/features/driver-app/components/application/steps/components/EmployerNameAutocomplete.jsx": {
       "hand-styled-button": 1,
       "reasons": {
         "hand-styled-button": "roadmap §5 — an ARIA combobox option must carry role=\"option\" inside the listbox, and `Button` renders role=\"button\", which would break the combobox contract. No Combobox/Listbox primitive exists yet."
       }
     },
+    "src/features/settings/components/EmailSettingsTab.jsx": {
+      "hand-composed-notice": 3,
+      "reasons": {
+        "hand-composed-notice": "Three labelled DATA blocks inside a setup guide, listing host, port and username. A label over data is not a notice; a label over prose is. Reviewed in slice 6e."
+      }
+    },
     "src/features/settings/components/IntegrationsTab.jsx": {
       "raw-hex-colour": 2,
       "reasons": {
         "raw-hex-colour": "roadmap §5 — #1877F2 is Facebook's brand blue on the Facebook connection tile. A third-party mark is not a SafeHaul role and must not be re-tuned by a change to this product's palette, so it stays literal, the same way the SafeHaul mark's own colours are pinned rather than derived."
+      }
+    },
+    "src/features/settings/components/NumberAssignmentManager.jsx": {
+      "hand-composed-notice": 2,
+      "reasons": {
+        "hand-composed-notice": "Two full-panel states with a StatusMedallion and a heading — the whole slot is empty or failed, which is what PageState owns rather than Notice. Reviewed in slice 6e."
+      }
+    },
+    "src/features/settings/components/PersonalProfileTab.jsx": {
+      "hand-composed-notice": 1,
+      "reasons": {
+        "hand-composed-notice": "A tinted ICON TILE holding LinkIcon, beside a heading and a copy control, inside a named region. One of the 25 tiles the Tinted icon tile roadmap row now records. Reviewed in slice 6e."
       }
     },
     "src/features/settings/components/number-assignment/AssignmentTable.jsx": {
@@ -146,10 +200,22 @@
         "raw-hex-colour": "roadmap §5 — signature ink, rasterised into a legal record. The canvas this colour strokes is converted to a PNG (adopted by the signing room and stamped into a sealed PDF) and stored as part of a signed document, so it must not follow a theme: re-theming the application can never be allowed to retint a signature somebody has already given. Same argument as SignatureSheet.jsx, which has documented it in its own source since it was written. Found on 2026-09-05 when raw-hex-colour was widened to JS assignments — it had been invisible because the rule matched only arbitrary-value classes and CSS-style declarations."
       }
     },
+    "src/features/signing/components/envelope-creator/AiSuggestionOverlay.jsx": {
+      "hand-composed-notice": 1,
+      "reasons": {
+        "hand-composed-notice": "A PDF field OVERLAY tinted by suggestion confidence. Tinted for identity on a document surface, not to carry a message. Recorded in slice 6a."
+      }
+    },
     "src/features/signing/components/envelope-creator/EditorMobileBar.jsx": {
       "hand-styled-button": 1,
       "reasons": {
         "hand-styled-button": "roadmap §5 — a mobile bottom app bar. Its items are equal-width stacked icon-over-label targets at 56px, which is the platform convention for a bottom bar and deliberately taller than the 44px control step; `Button` is an inline 44px control and cannot be either. No primitive covers a bottom app bar and one consumer does not justify writing one. Tokenised, each item named \"Open <section>\" so it does not collide with the heading inside the sheet it opens."
+      }
+    },
+    "src/features/signing/components/envelope-creator/EnvelopeSidebar.jsx": {
+      "hand-composed-notice": 1,
+      "reasons": {
+        "hand-composed-notice": "A call-to-action PANEL: a Button and its own helper text inside a tint, which is the AI field assistant's entry point. Found while scoping slice 6c, and the reason accent has no notice consumer."
       }
     },
     "src/features/signing/components/envelope-creator/ResizableDraggableField.jsx": {
@@ -159,13 +225,21 @@
       }
     },
     "src/features/signing/components/signing-room/SignerField.jsx": {
-      "off-scale-type": 2,
+      "hand-composed-notice": 2,
       "hand-styled-button": 1,
       "hand-styled-field": 3,
+      "off-scale-type": 2,
       "reasons": {
+        "hand-composed-notice": "PDF signer-field OVERLAYS tinted by field state. Tinted for identity on a document surface. Recorded in slice 6a.",
+        "hand-styled-button": "roadmap §5 — the signature affordance overlays an author-placed PDF field box, whose size comes from the document's coordinates and can be as small as 8px. Every approved control carries the shared 36/44/52px control height and inline padding, which would break alignment with the PDF underneath. Same constraint already recorded for this file's inputs.",
         "hand-styled-field": "roadmap §5 — these inputs overlay author-placed PDF field boxes, whose geometry comes from the document's own coordinates and can be as small as 8px. The approved controls carry the shared 36/44/52px control height and inline padding, which would break alignment with the PDF. Same constraint already recorded for the signature button in this file.",
-        "off-scale-type": "roadmap §5 — `text-base` is the 16px iOS no-zoom size. The design system solved this for `.ds-form-control` on 2026-08-25 (`--ds-font-size-control-mobile`), but these inputs are deliberately NOT `.ds-form-control`: they overlay author-placed PDF field boxes and cannot take the shared control styling, per the geometry exception above. The fix does not reach them, so they keep their own 16px.",
-        "hand-styled-button": "roadmap §5 — the signature affordance overlays an author-placed PDF field box, whose size comes from the document's coordinates and can be as small as 8px. Every approved control carries the shared 36/44/52px control height and inline padding, which would break alignment with the PDF underneath. Same constraint already recorded for this file's inputs."
+        "off-scale-type": "roadmap §5 — `text-base` is the 16px iOS no-zoom size. The design system solved this for `.ds-form-control` on 2026-08-25 (`--ds-font-size-control-mobile`), but these inputs are deliberately NOT `.ds-form-control`: they overlay author-placed PDF field boxes and cannot take the shared control styling, per the geometry exception above. The fix does not reach them, so they keep their own 16px."
+      }
+    },
+    "src/features/signing/components/signing-room/StatusScreens.jsx": {
+      "hand-composed-notice": 1,
+      "reasons": {
+        "hand-composed-notice": "A section with aria-labelledby — a named REGION a screen-reader user can jump to and re-read the ESIGN terms in. Notice cannot be a landmark, and one consumer is not enough evidence to design a prop around. Recorded as a gap in slice 6c."
       }
     },
     "src/features/super-admin/components/CompaniesView.jsx": {
@@ -181,8 +255,10 @@
       }
     },
     "src/features/super-admin/components/StatsBackfillPanel.jsx": {
+      "hand-composed-notice": 1,
       "raw-table": 1,
       "reasons": {
+        "hand-composed-notice": "A danger-zone ACTION PANEL: a heading, a caution sentence and two run buttons. Its glyphs belong to the buttons, which is how two recorded glyph findings turned out to be wrong. Reviewed in slice 6e.",
         "raw-table": "roadmap §5 — an operator console with six per-row actions and live progress. Uses the --ds-table-* roles. Per-row interactive rows are the case §5 approves a native table for."
       }
     },

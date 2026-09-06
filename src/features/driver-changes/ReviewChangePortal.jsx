@@ -3,8 +3,8 @@ import { useParams } from 'react-router-dom';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
-import { Loader2, Check, X, Pencil, ShieldCheck, CheckCircle2, AlertCircle } from 'lucide-react';
-import { Button, Card, Input, SegmentedControl } from '@/design-system/components';
+import { Loader2, Check, X, Pencil, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { Button, Card, Input, Notice, SegmentedControl } from '@/design-system/components';
 
 const MOCK_REVIEW = {
     applicantName: 'Test Driver',
@@ -129,9 +129,7 @@ export function ReviewChangePortal() {
                             <Loader2 className="mr-2 animate-spin" size={20} aria-hidden="true" /> Loading…
                         </div>
                     ) : error ? (
-                        <div role="alert" className="flex items-start gap-2 rounded-ds-lg border border-ds-status-danger-border bg-ds-status-danger-bg p-ds-4 text-ds-sm text-ds-status-danger-fg">
-                            <AlertCircle size={18} className="mt-0.5 shrink-0" aria-hidden="true" /> {error}
-                        </div>
+                        <Notice announce="assertive" tone="danger">{error}</Notice>
                     ) : done ? (
                         <div role="status" className="py-12 text-center">
                             <CheckCircle2 size={48} className="mx-auto mb-4 text-ds-status-success-fg" aria-hidden="true" />

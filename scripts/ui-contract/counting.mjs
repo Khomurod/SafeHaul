@@ -258,6 +258,105 @@ export function countHandRolledDisclosures(code) {
     return total;
 }
 
+/*
+ * The tinted-block signature, and the ELEMENT BODY that tells a notice from
+ * everything else wearing the same colours.
+ *
+ * Both halves must sit on the element itself. Tint alone is not the shape: a
+ * table row, a chip and a selected-state highlight all take a status background
+ * without a matching border.
+ */
+const NOTICE_TINT = /bg-ds-status-(\w+)-bg/;
+/*
+ * A control, a nested Card, a table or a progress bar means the block is a
+ * REGION or a PANEL — it frames something rather than saying something. The 6a
+ * audit found six form-control regions; 6d and 6e found results and action
+ * panels built the same way.
+ */
+const NOTICE_STRUCTURE = /<(?:input|select|textarea|table|Input|Select|Textarea|Checkbox|Radio|RadioGroup|ChoiceGroup|Switch|FileInput|ProgressBar|Card|DataTable)(?=[\s/>])/;
+/* Three or more letters rendered as text, outside every tag. */
+const NOTICE_WORDS = /(?:^|>)[^<>]*[A-Za-z]{3,}[^<>]*(?:<|$)/;
+
+/**
+ * The body of the element opening at `start`, or `null` when it self-closes or
+ * never closes. Depth-counted on the element's own name, so a nested `<div>`
+ * inside a `<div>` does not end the search early.
+ */
+export function elementBody(code, start, name) {
+    const attributes = openTagAttributes(code.slice(start), name)[0];
+    if (attributes === undefined) return null;
+    if (attributes.trimEnd().endsWith('/')) return null;
+    const bodyStart = start + `<${name}`.length + attributes.length + 1;
+    const open = new RegExp(`<${name}(?=[\\s/>])`, 'g');
+    const close = new RegExp(`</${name}\\s*>`, 'g');
+    let depth = 1;
+    let i = bodyStart;
+    while (i < code.length && depth > 0) {
+        open.lastIndex = i;
+        close.lastIndex = i;
+        const nextOpen = open.exec(code);
+        const nextClose = close.exec(code);
+        if (!nextClose) return null;
+        if (nextOpen && nextOpen.index < nextClose.index) {
+            depth += 1;
+            i = nextOpen.index + 1;
+        } else {
+            depth -= 1;
+            if (depth === 0) return code.slice(bodyStart, nextClose.index);
+            i = nextClose.index + 1;
+        }
+    }
+    return null;
+}
+
+/**
+ * A tinted block carrying a message, hand-built instead of rendered by `Notice`.
+ *
+ * **The scope is a SLOT test, and that is the whole design.** The obvious rule —
+ * "an element with the status tint" — was run over the tree and matched the
+ * shape three separate migrations proved it is not: 25 tinted ICON TILES, a
+ * small square or circle holding one glyph and no words. Allowlisting 25 tiles
+ * would be 25 boilerplate reasons, which Phase 4 already ruled is the `debt`
+ * hatch under another name.
+ *
+ * So the rule reads what the element's own body HOLDS:
+ *
+ * - **words** — a tile holds a glyph, a notice holds a sentence;
+ * - **no control, table, nested `Card` or `ProgressBar`** — those frame
+ *   something rather than say something.
+ *
+ * That the test is about the body rather than the subtree is the lesson three
+ * slices paid for, one level apart each time: a text window cannot tell a child
+ * from a sibling (6a), a diff hunk cannot tell a child from a neighbour (6c),
+ * and a subtree scan cannot tell a slot from anything inside it (6e). Two glyph
+ * findings recorded in this repository turned out to be a button's icon read as
+ * a block's mark, both from that last mistake.
+ *
+ * Measured over the tree the day it landed: 22 matches, 19 of them the recorded
+ * exception list — and **three genuine notices in `driver-changes` and
+ * `sandbox`, two feature areas none of the three migration slices covered.**
+ * An audit covers what it was pointed at; a rule covers what exists.
+ */
+export function countHandComposedNotices(code) {
+    let total = 0;
+    for (const host of ['div', 'p', 'span', 'section', 'li', 'aside', 'Card']) {
+        const opening = new RegExp(`<${host}(?=[\\s/>])`, 'g');
+        for (const match of code.matchAll(opening)) {
+            const attributes = openTagAttributes(code.slice(match.index), host)[0];
+            if (attributes === undefined) continue;
+            const tone = attributes.match(NOTICE_TINT);
+            if (!tone) continue;
+            if (!new RegExp(`border-ds-status-${tone[1]}-border`).test(attributes)) continue;
+            const body = elementBody(code, match.index, host);
+            if (body === null) continue;
+            if (NOTICE_STRUCTURE.test(body)) continue;
+            if (!NOTICE_WORDS.test(body)) continue;
+            total += 1;
+        }
+    }
+    return total;
+}
+
 export const COUNTERS = {
     'css-apply-off-contract': countApplyOffContract,
     'raw-file-input': countFileInputs,
@@ -266,6 +365,7 @@ export const COUNTERS = {
     'hand-rolled-current': countHandRolledCurrent,
     'hand-rolled-avatar': countHandRolledAvatars,
     'hand-rolled-disclosure': countHandRolledDisclosures,
+    'hand-composed-notice': countHandComposedNotices,
 };
 
 /**
