@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Virtuoso } from 'react-virtuoso';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/lib/firebase/config';
-import { CheckCircle2, Inbox, Loader2, XCircle } from 'lucide-react';
+import { Icon, CheckCircle2, Inbox, Loader2, XCircle } from '@design-system/icons';
 import { Avatar, Badge, Button, SelectableCard } from '@/design-system/components';
 import { EmptyState, ErrorState, LoadingState } from '@/design-system/patterns';
 
@@ -135,7 +135,7 @@ export default function VirtualLeadList({ companyId, filters, excludedIds = [], 
                             ? 'border-ds-content-on-inverse-muted bg-transparent text-ds-content-on-inverse-muted'
                             : 'border-ds-action-primary bg-ds-action-primary text-ds-content-inverse'}`}
                 >
-                    <StateIcon size={14} />
+                    <Icon icon={StateIcon} size="sm" />
                 </span>
 
                 {/* Monogram. A ring rather than a filled disc: the row behind it is
@@ -244,7 +244,7 @@ export default function VirtualLeadList({ companyId, filters, excludedIds = [], 
                         Footer: () => (
                             loading ? (
                                 <div role="status" className="flex items-center justify-center gap-ds-2 p-ds-4 text-ds-xs text-ds-content-on-inverse-muted">
-                                    <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" /> Fetching more...
+                                    <Icon icon={Loader2} size="xs" className="animate-spin" /> Fetching more...
                                 </div>
                             ) : <div className="h-4" />
                         )

@@ -3,7 +3,7 @@ import { useCampaignTargeting } from '../hooks/useCampaignTargeting';
 import { useCompanyTeam } from '@/shared/hooks/useCompanyTeam';
 import { useData } from '@/context/DataContext';
 import { APPLICATION_STATUSES, LAST_CALL_RESULTS } from '../constants/campaignConstants';
-import { Filter, Users, RefreshCw, CheckCircle2, FileSpreadsheet } from 'lucide-react';
+import { Icon, Filter, Users, RefreshCw, CheckCircle2, FileSpreadsheet } from '@design-system/icons';
 import { useBulkImport } from '@/shared/hooks/useBulkImport';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import VirtualLeadList from './VirtualLeadList';
@@ -194,7 +194,7 @@ export function AudienceBuilder({ companyId, filters, onChange, campaignScopeKey
                             {activeTab === 'crm' ? (
                                 <>
                                     <h3 className="mb-ds-6 flex items-center gap-ds-2 border-b border-ds-border-subtle pb-ds-4 font-bold text-ds-content">
-                                        <Filter size={18} className="text-ds-action-primary" aria-hidden="true" /> Filter Criteria
+                                        <Icon icon={Filter} size="lg" className="text-ds-action-primary" /> Filter Criteria
                                     </h3>
                                     <div className="flex flex-col gap-ds-6">
                                         {/* Source */}
@@ -305,7 +305,9 @@ export function AudienceBuilder({ companyId, filters, onChange, campaignScopeKey
                                             />
                                         ) : (
                                             <div className="flex flex-col gap-ds-3 rounded-ds-lg border border-ds-border-subtle p-ds-6">
-                                                <FileSpreadsheet className="mx-auto text-ds-status-success-fg" size={40} aria-hidden="true" />
+                                                {/* A section lead-in rather than a page state, so it snaps to
+                                                    the nearest step rather than moving into a container. */}
+                                                <Icon icon={FileSpreadsheet} size="3xl" className="mx-auto text-ds-status-success-fg" />
                                                 <h3 className="text-center font-bold text-ds-content">Paste Sheet URL</h3>
                                                 <FormField
                                                     label="Google Sheet URL"
@@ -360,7 +362,9 @@ export function AudienceBuilder({ companyId, filters, onChange, campaignScopeKey
                                         <span className="text-ds-body font-medium text-ds-content-on-inverse-muted">recipients</span>
                                     </p>
                                 </div>
-                                {isCountLoading && <RefreshCw className="animate-spin text-ds-status-info-fg-on-inverse" aria-hidden="true" />}
+                                {/* Bare, and standing alone rather than inside a control: lucide
+                                    rendered it at 24, so `2xl` is what keeps it there. */}
+                                {isCountLoading && <Icon icon={RefreshCw} size="2xl" className="animate-spin text-ds-status-info-fg-on-inverse" />}
                             </div>
 
                             {/* Announce the recipient count and its loading state. */}
@@ -404,7 +408,7 @@ export function AudienceBuilder({ companyId, filters, onChange, campaignScopeKey
                                 fullWidth
                                 onClick={() => onChange(localFilters, finalCount)}
                             >
-                                <CheckCircle2 size={20} aria-hidden="true" />
+                                <Icon icon={CheckCircle2} size="xl" />
                                 Confirm Audience ({finalCount})
                             </Button>
                         </div>

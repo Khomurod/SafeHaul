@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Icon, Loader2 } from '@design-system/icons';
 import InputField from '@shared/components/form/InputField';
 import DateTripletField from '@shared/components/form/DateTripletField';
 import RadioGroup from '@shared/components/form/RadioGroup';
@@ -166,7 +166,7 @@ const Step4_Violations = ({ formData, updateFormData, onNavigate, onPartialSubmi
                 </p>
                 {agreementsLoading && (
                     <div role="status" className="flex items-center gap-ds-2 py-ds-2 text-ds-sm text-ds-content-muted">
-                        <Loader2 className="animate-spin" size={16} aria-hidden="true" /> Loading the authorization wording…
+                        <Icon icon={Loader2} className="animate-spin" /> Loading the authorization wording…
                     </div>
                 )}
                 {agreementsError && !agreementsLoading && (

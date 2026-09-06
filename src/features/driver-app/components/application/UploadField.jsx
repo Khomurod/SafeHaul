@@ -1,5 +1,5 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
-import { X, CheckCircle, RefreshCw, FileText, Image as ImageIcon, AlertCircle } from 'lucide-react';
+import { Icon, X, CheckCircle, RefreshCw, FileText, Image as ImageIcon, AlertCircle } from '@design-system/icons';
 import {
     Button, FileInput, IconButton, IconButtonLink, Notice, ProgressBar,
 } from '@/design-system/components';
@@ -219,7 +219,7 @@ const UploadField = ({
                     size="sm"
                     actions={(
                         <Button variant="secondary" size="md" onClick={handleRetry}>
-                            <RefreshCw size={12} aria-hidden="true" /> Retry
+                            <Icon icon={RefreshCw} size="xs" /> Retry
                         </Button>
                     )}
                 >
@@ -256,7 +256,7 @@ const UploadField = ({
                         {isImage && fileUrl ? (
                             <img src={fileUrl} alt={`${label} preview`} loading="lazy" className="h-full w-full object-cover" />
                         ) : (
-                            <FileText size={20} aria-hidden="true" />
+                            <Icon icon={FileText} size="xl" />
                         )}
                     </span>
                     <div className="min-w-0 flex-1">
@@ -266,7 +266,7 @@ const UploadField = ({
                         {/* Announced when the upload lands, so a screen-reader user is
                             told the file was accepted instead of having to re-read. */}
                         <p role="status" className="flex items-center gap-ds-1 text-ds-xs text-ds-status-success-fg">
-                            <CheckCircle size={12} aria-hidden="true" /> Uploaded Successfully
+                            <Icon icon={CheckCircle} size="xs" /> Uploaded Successfully
                         </p>
                     </div>
                     <div className="flex shrink-0 items-center gap-ds-1">
@@ -280,7 +280,7 @@ const UploadField = ({
                                 variant="ghost"
                                 label={`View ${label} file`}
                             >
-                                <ImageIcon aria-hidden="true" />
+                                <Icon icon={ImageIcon} />
                             </IconButtonLink>
                         )}
                         <IconButton
@@ -289,7 +289,7 @@ const UploadField = ({
                             label={`Remove ${label} file`}
                             onClick={requestClear}
                         >
-                            <X size={18} aria-hidden="true" />
+                            <Icon icon={X} size="lg" />
                         </IconButton>
                     </div>
                 </div>
@@ -353,7 +353,7 @@ const UploadField = ({
                     role="alert"
                     className="flex items-start gap-ds-2 text-ds-xs text-ds-status-danger-fg [overflow-wrap:anywhere]"
                 >
-                    <AlertCircle size={14} aria-hidden="true" className="mt-0.5 shrink-0" />
+                    <Icon icon={AlertCircle} size="sm" className="mt-0.5 shrink-0" />
                     {dropRejection}
                 </p>
             )}

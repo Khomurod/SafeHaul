@@ -1710,7 +1710,7 @@ on it — catalog included — and `check:icon-contract` refuses a new importer.
 does not mean the migration is finished: 178 files outside the design system
 still import `lucide-react`, recorded in `icons/lucide-import.backlog.json`, and
 the family is not closed until that file is deleted, which is the moment the
-rule becomes absolute. **166 as of 2026-09-06**: `candidateListColumns.jsx`
+rule becomes absolute. **146 as of 2026-09-06**: `candidateListColumns.jsx`
 drained on its way through the chip slice and two more went with the Notice
 migration, because a file being rewritten to use `Icon` is the cheapest moment to
 finish it, and the campaign only shrinks.
@@ -1757,6 +1757,44 @@ it), the last on the public verification portal.
 `verification` — six areas chosen because they are small and DIVERSE, so the
 codemod and the review discipline were proved on a broad sample before 46
 super-admin files ride on them.
+
+**7c then drained `driver-app`: 166 → 156 files, 723 → 695 imports** — and its
+tests caught a fourth defect in the codemod, which is the clearest argument yet
+for having migrated the small areas first.
+
+`UploadField.jsx` writes `import { Image as ImageIcon } from 'lucide-react'` and
+renders `<ImageIcon>`. The codemod took the IMPORTED name for both roles, so it
+wrote `Image` into the new import and left `<ImageIcon>` untouched because
+nothing matched it: the file then imported a name it never used and used a name
+it never imported. **`ReferenceError: ImageIcon is not defined`**, in eighteen
+tests across three files, including the whole CDL and medical-card gate suite.
+
+The local name is what the file writes and what element matching must use; the
+imported name is what the registry exports; the rewritten import carries both.
+**Five files in the campaign are aliased** — `Image as ImageIcon`,
+`Link as LinkIcon` twice, `Users as UsersIcon` — so this would have broken four
+more files in `settings` and `shared`, in areas whose tests are thinner. `A7` and
+`A8` pin it, and both halves reproduce red.
+
+**7d drained `campaigns`: 156 → 146 files, 695 → 646 imports**, and found the
+hazard the local-binding detector had been reporting without naming.
+
+`CampaignDetails.jsx` declares `function StatCard({ icon: Icon, … })` and renders
+`<Icon size={20} />`. That is the local-binding shape, so the detector flagged
+it — but the repair is not the usual one. **The contract's own component is
+called `Icon`**, and the migration adds `import { Icon } from
+'@design-system/icons'` to the same file. The parameter then shadows the import
+inside that function, and what the shadow holds is a glyph token, which throws
+when rendered. Writing `<Icon icon={Icon} />` is nonsense; **the LOCAL binding is
+what has to be renamed**, because the name was free before the contract existed
+and is not any more.
+
+**Thirteen files in the campaign have a local binding named `Icon`** — one here
+and twelve still ahead, concentrated in `super-admin` (4), `signing` (3),
+`company-admin` (3) and `shared` (2). Every one of them is already in the
+21-file local-binding list, so none can be missed; the flag now says the extra
+sentence when the tag is called `Icon`, so the next twelve slices do not each
+rediscover it.
 
 **The catalog was teaching the habit.** The guard's first live run refused 23
 story files — the design system's own catalog, still importing the package

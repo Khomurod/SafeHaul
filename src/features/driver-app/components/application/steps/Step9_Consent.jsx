@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useData } from '@/context/DataContext';
-import { FileSignature, CheckCircle, Save, Eraser, Loader2 } from 'lucide-react';
+import { Icon, FileSignature, CheckCircle, Save, Eraser, Loader2 } from '@design-system/icons';
 import { getSignatureDataUrl, clearCanvas, initializeSignatureCanvas } from '@/lib/signature';
 import { isE2ETestMode } from '@lib/runtime/e2eMode';
 import { Button, Checkbox, FieldMessage, Notice } from '@/design-system/components';
@@ -152,7 +152,7 @@ const Step9_Consent = ({ formData, updateFormData, onNavigate, onFinalSubmit, is
 
             {agreementsLoading && (
                 <div role="status" className="flex items-center gap-ds-2 py-ds-8 text-ds-content-muted">
-                    <Loader2 className="animate-spin" size={20} aria-hidden="true" />
+                    <Icon icon={Loader2} size="xl" className="animate-spin" />
                     Loading the required agreements…
                 </div>
             )}
@@ -211,7 +211,7 @@ const Step9_Consent = ({ formData, updateFormData, onNavigate, onFinalSubmit, is
             {/* 5. Final Certification & E-Signature */}
             <fieldset className="mt-ds-6 space-y-ds-4 rounded-ds-lg border border-ds-border bg-ds-surface p-ds-4 shadow-ds-xs">
                 <legend className="flex items-center gap-ds-2 px-ds-2 text-ds-body-lg font-semibold text-ds-content">
-                    <FileSignature size={20} className="text-ds-action-primary" aria-hidden="true" /> Final Certification &amp; Signature
+                    <Icon icon={FileSignature} size="xl" className="text-ds-action-primary" /> Final Certification &amp; Signature
                 </legend>
 
                 {/* Frozen legal text. Keyboard-focusable so a keyboard-only
@@ -261,7 +261,7 @@ const Step9_Consent = ({ formData, updateFormData, onNavigate, onFinalSubmit, is
                                         role="status"
                                         className="flex items-center gap-ds-2 rounded-ds-xl bg-ds-status-success-bg px-ds-6 py-ds-2 text-ds-sm font-bold tracking-wide text-ds-status-success-fg shadow-ds-md"
                                     >
-                                        <CheckCircle size={18} aria-hidden="true" /> Signature Saved &amp; Locked
+                                        <Icon icon={CheckCircle} size="lg" /> Signature Saved &amp; Locked
                                     </p>
                                 </div>
                             )}
@@ -278,7 +278,7 @@ const Step9_Consent = ({ formData, updateFormData, onNavigate, onFinalSubmit, is
                             {!isSigned ? (
                                 <>
                                     <Button variant="primary" size="lg" fullWidth onClick={handleSaveSignature}>
-                                        <Save size={18} aria-hidden="true" /> Save Signature
+                                        <Icon icon={Save} size="lg" /> Save Signature
                                     </Button>
                                     {isE2ETestMode && (
                                         <Button variant="secondary" size="lg" fullWidth onClick={handleUseE2ESignature}>
@@ -288,7 +288,7 @@ const Step9_Consent = ({ formData, updateFormData, onNavigate, onFinalSubmit, is
                                 </>
                             ) : (
                                 <Button variant="secondary" size="lg" fullWidth onClick={handleClearSignature}>
-                                    <Eraser size={18} aria-hidden="true" /> Clear / Re-draw Signature
+                                    <Icon icon={Eraser} size="lg" /> Clear / Re-draw Signature
                                 </Button>
                             )}
                         </div>
@@ -318,7 +318,7 @@ const Step9_Consent = ({ formData, updateFormData, onNavigate, onFinalSubmit, is
                 onBack={() => onNavigate('back')}
                 onContinue={onFinalSubmit}
                 continueLabel={isSubmitting ? 'Submitting...' : 'Submit Full Application'}
-                continueIcon={isSubmitting ? null : <CheckCircle size={20} aria-hidden="true" />}
+                continueIcon={isSubmitting ? null : <Icon icon={CheckCircle} size="xl" />}
                 continueTone="success"
                 continueLoading={isSubmitting}
                 continueDisabled={!isFinalCertified || !isSigned || !allAgreementsAccepted || isUploading}

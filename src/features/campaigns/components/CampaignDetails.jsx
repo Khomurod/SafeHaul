@@ -1,9 +1,5 @@
 import React, { useState } from 'react';
-import {
-    ArrowLeft, Users, MessageSquare,
-    BarChart3, Clock, CheckCircle2, AlertCircle, RefreshCw,
-    Pause, Play, XCircle
-} from 'lucide-react';
+import { Icon, ArrowLeft, Users, MessageSquare, BarChart3, Clock, CheckCircle2, AlertCircle, RefreshCw, Pause, Play, XCircle } from '@design-system/icons';
 import { CampaignResultsTable } from './CampaignResultsTable';
 import { functions } from '@lib/firebase';
 import { httpsCallable } from 'firebase/functions';
@@ -35,7 +31,15 @@ function statusPresentation(status) {
     return { tone, label };
 }
 
-function StatCard({ icon: Icon, label, value, tone }) {
+/*
+ * `icon: Glyph`, not `icon: Icon`. The contract's own component is called
+ * `Icon` and this file imports it, so destructuring the prop under that name
+ * shadows it inside this function — and the shadowed value is a glyph token,
+ * which throws when rendered. Twelve more files in the campaign have a local
+ * binding named `Icon`; renaming the local is the repair, because the name was
+ * free before the contract existed and is not any more.
+ */
+function StatCard({ icon: Glyph, label, value, tone }) {
     const chip = {
         info: 'bg-ds-status-info-bg text-ds-status-info-fg',
         success: 'bg-ds-status-success-bg text-ds-status-success-fg',
@@ -45,7 +49,7 @@ function StatCard({ icon: Icon, label, value, tone }) {
         <Card>
             <div className="mb-ds-2 flex items-center gap-ds-3">
                 <span className={`rounded-ds-md p-ds-2 ${chip}`} aria-hidden="true">
-                    <Icon size={20} />
+                    <Icon icon={Glyph} size="xl" />
                 </span>
                 <span className="text-ds-xs font-bold uppercase tracking-wide text-ds-content-muted">{label}</span>
             </div>
@@ -190,14 +194,14 @@ export function CampaignDetails({ campaign, onClose }) {
             <div className="flex min-h-16 shrink-0 flex-wrap items-center justify-between gap-ds-3 border-b border-ds-border bg-ds-surface px-ds-6 py-ds-3">
                 <div className="flex min-w-0 items-center gap-ds-3">
                     <IconButton label="Back to campaigns" variant="ghost" size="sm" onClick={onClose}>
-                        <ArrowLeft size={20} aria-hidden="true" />
+                        <Icon icon={ArrowLeft} size="xl" />
                     </IconButton>
                     <div className="min-w-0">
                         <h2 className="truncate text-ds-heading-sm font-bold text-ds-content">{campaign.name || 'Untitled Campaign'}</h2>
                         <div className="mt-ds-1 flex flex-wrap items-center gap-ds-2">
                             <Badge tone={tone}>{label}</Badge>
                             <span className="flex items-center gap-ds-1 text-ds-xs font-medium text-ds-content-muted">
-                                <Clock size={12} aria-hidden="true" /> {formatDate(campaign.createdAt)}
+                                <Icon icon={Clock} size="xs" /> {formatDate(campaign.createdAt)}
                             </span>
                         </div>
                     </div>
@@ -207,7 +211,7 @@ export function CampaignDetails({ campaign, onClose }) {
                 <div className="flex flex-wrap items-center gap-ds-2">
                     {isActive && (
                         <Button variant="secondary" size="sm" onClick={handlePause} loading={pausing}>
-                            {!pausing && <Pause size={14} aria-hidden="true" />}
+                            {!pausing && <Icon icon={Pause} size="sm" />}
                             {pausing ? 'Pausing...' : 'Pause'}
                         </Button>
                     )}
@@ -215,21 +219,21 @@ export function CampaignDetails({ campaign, onClose }) {
                     {/* Resume — wired to resumeBulkSession Cloud Function */}
                     {isPaused && (
                         <Button variant="primary" size="sm" onClick={handleResume} loading={resuming}>
-                            {!resuming && <Play size={14} aria-hidden="true" />}
+                            {!resuming && <Icon icon={Play} size="sm" />}
                             {resuming ? 'Resuming...' : 'Resume'}
                         </Button>
                     )}
 
                     {(isActive || isPaused) && (
                         <Button variant="secondary" size="sm" onClick={() => setPendingCancel(true)} loading={cancelling}>
-                            {!cancelling && <XCircle size={14} aria-hidden="true" />}
+                            {!cancelling && <Icon icon={XCircle} size="sm" />}
                             {cancelling ? 'Cancelling...' : 'Details & Cancel'}
                         </Button>
                     )}
 
                     {hasFailures && !isActive && (
                         <Button variant="danger" size="sm" onClick={() => setPendingRetry(true)} loading={retrying}>
-                            {!retrying && <RefreshCw size={14} aria-hidden="true" />}
+                            {!retrying && <Icon icon={RefreshCw} size="sm" />}
                             {retrying ? 'Starting...' : 'Retry Failed'}
                         </Button>
                     )}
@@ -278,7 +282,7 @@ export function CampaignDetails({ campaign, onClose }) {
                     {campaign.progress && (
                         <Card>
                             <h3 className="mb-ds-4 flex items-center gap-ds-2 text-ds-sm font-bold uppercase tracking-wide text-ds-content">
-                                <BarChart3 size={16} className="text-ds-action-primary" aria-hidden="true" /> Campaign Progress
+                                <Icon icon={BarChart3} className="text-ds-action-primary" /> Campaign Progress
                             </h3>
                             <div
                                 className="mb-ds-2 h-4 w-full overflow-hidden rounded-ds-full bg-ds-surface-subtle"
@@ -303,7 +307,7 @@ export function CampaignDetails({ campaign, onClose }) {
                     {/* Message Configuration */}
                     <Card>
                         <h3 className="mb-ds-4 flex items-center gap-ds-2 text-ds-sm font-bold uppercase tracking-wide text-ds-content">
-                            <MessageSquare size={16} className="text-ds-status-accent-fg" aria-hidden="true" /> Message Content
+                            <Icon icon={MessageSquare} className="text-ds-status-accent-fg" /> Message Content
                         </h3>
                         <div className="whitespace-pre-wrap rounded-ds-lg border border-ds-border-subtle bg-ds-surface-subtle p-ds-4 font-medium text-ds-content-secondary [overflow-wrap:anywhere]">
                             {campaign.messageConfig?.message || 'No message content defined.'}

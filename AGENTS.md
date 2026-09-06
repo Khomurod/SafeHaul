@@ -407,6 +407,39 @@ real time. None were code defects; all were tooling mistakes.
    both converted, and five in the `PublicApplyHandler.discard*` files that
    assert absence and are therefore fine where they are.
 
+   **That scan was too narrow, and CI proved it on 2026-09-06.**
+   `EditUserBodies.contract.test.jsx:276` failed `frontend-quality` with
+   `expected [ '', 'co-1', 'co-2', 'co-3' ] to deeply equal [ '', 'co-2', 'co-3' ]`
+   — the identical message this file already records under rule 6, on the
+   identical test, from a completely different cause. The once-queue leak was
+   real and was fixed; this is rule 7 wearing a spelling the scan did not look
+   for:
+
+   ```js
+   const select = await screen.findByLabelText(/^Add to Company/);
+   expect([...select.options].map((o) => o.value)).toEqual(['', 'co-2', 'co-3']);
+   ```
+
+   `findBy*` is `waitFor` + `getBy`, so `await findBy…` followed by a
+   **synchronous assertion on the returned element** is exactly the same hazard
+   as `await waitFor(…)` followed by a synchronous `getBy`. The scan searched
+   only for the second form.
+
+   **The sharper rule, and the one to scan by:** the shape is dangerous when the
+   element you awaited **renders before the state your assertion depends on**.
+   Here the `<select>` exists immediately and the membership load — the thing
+   that removes the company the user is already in — resolves later, so the
+   assertion reads the unfiltered list. A scan for the wider form finds **51
+   sites in `src/`, and 50 are safe**, because the element and the content
+   asserted on it arrive in the same render: an `alert` that only exists once
+   there is an error to show, a `dialog` and the text inside it, a `select` whose
+   options are a static list. Converting all 51 would be noise. Look for the
+   container that is populated later — a list filtered by a fetch, rows that
+   arrive after the frame — and move the assertion inside `waitFor` there.
+
+   Reproduced before it was fixed, by resolving the membership mock one
+   macrotask later: the same message, then 30/30 green under the same delay.
+
 Also avoid editing files that are in the module graph while a Playwright suite is
 running: the dev server hot-reloads and the in-flight tests can fail spuriously.
 

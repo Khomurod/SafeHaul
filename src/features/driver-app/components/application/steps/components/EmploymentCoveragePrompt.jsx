@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Icon, AlertTriangle, CheckCircle2 } from '@design-system/icons';
 import { Button, Card } from '@/design-system/components';
 
 /**
@@ -69,11 +69,8 @@ export function EmploymentCoverageSummary({ coverage }) {
         return (
             <Card padding="sm" className="border-l-4 border-l-ds-status-success-border">
                 <p className="flex items-start gap-ds-2 text-ds-sm text-ds-content-secondary">
-                    <CheckCircle2
-                        size={18}
-                        className="mt-0.5 shrink-0 text-ds-status-success-fg"
-                        aria-hidden="true"
-                    />
+                    <Icon icon={CheckCircle2} size="lg"
+                        className="mt-0.5 shrink-0 text-ds-status-success-fg" />
                     <span>
                         Your history accounts for all {coverage.requiredMonths} months of the last{' '}
                         {describePeriod(coverage.requiredMonths)}.
@@ -86,11 +83,8 @@ export function EmploymentCoverageSummary({ coverage }) {
     return (
         <Card padding="sm" className="border-l-4 border-l-ds-status-warning-border">
             <p className="flex items-start gap-ds-2 text-ds-sm text-ds-content-secondary">
-                <AlertTriangle
-                    size={18}
-                    className="mt-0.5 shrink-0 text-ds-status-warning-fg"
-                    aria-hidden="true"
-                />
+                <Icon icon={AlertTriangle} size="lg"
+                    className="mt-0.5 shrink-0 text-ds-status-warning-fg" />
                 <span>
                     Your history accounts for{' '}
                     <strong className="text-ds-content">
@@ -136,10 +130,14 @@ export function EmploymentCoveragePrompt({ coverage, onAddHistory, onContinueAny
         >
             <div className="space-y-ds-4">
                 <div className="flex items-start gap-ds-3">
-                    <AlertTriangle
-                        size={22}
+                    {/* 22 is not a step on the scale, and this is a leading mark
+                        beside a heading rather than a state glyph in a container —
+                        so it snaps to the nearest step. Two pixels, and nobody
+                        chose 22 in the first place. */}
+                    <Icon
+                        icon={AlertTriangle}
+                        size="2xl"
                         className="mt-0.5 shrink-0 text-ds-status-warning-fg"
-                        aria-hidden="true"
                     />
                     <div className="space-y-ds-2">
                         <h3

@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { MessageSquare, Mail, Zap, Info, Plus } from 'lucide-react';
+import { Icon, MessageSquare, Mail, Zap, Info, Plus } from '@design-system/icons';
 import { DeviceMockup } from './DeviceMockup';
 import { Card, FormField, Input, Notice, Textarea, Button } from '@/design-system/components';
 
@@ -66,7 +66,7 @@ export function ContentComposer({ messageConfig, onChange }) {
                             aria-pressed={messageConfig.method === 'sms'}
                             onClick={() => handleChange('method', 'sms')}
                         >
-                            <MessageSquare size={16} aria-hidden="true" /> SMS
+                            <Icon icon={MessageSquare} /> SMS
                         </Button>
                         <Button
                             variant={isEmail ? 'primary' : 'ghost'}
@@ -74,7 +74,7 @@ export function ContentComposer({ messageConfig, onChange }) {
                             aria-pressed={isEmail}
                             onClick={() => handleChange('method', 'email')}
                         >
-                            <Mail size={16} aria-hidden="true" /> Email
+                            <Icon icon={Mail} /> Email
                         </Button>
                     </div>
 
@@ -116,7 +116,7 @@ export function ContentComposer({ messageConfig, onChange }) {
                                             aria-label={`Insert ${v.label} placeholder`}
                                             onClick={() => insertVariable(v.value)}
                                         >
-                                            <Plus size={14} aria-hidden="true" /> {v.label}
+                                            <Icon icon={Plus} size="sm" /> {v.label}
                                         </Button>
                                     ))}
                                 </div>

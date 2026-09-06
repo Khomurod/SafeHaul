@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { collection, getDocs, limit, orderBy, query } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
-import { X, RotateCcw } from 'lucide-react';
+import { Icon, X, RotateCcw } from '@design-system/icons';
 import { db, functions } from '@lib/firebase';
 import { useToast } from '@shared/components/feedback';
 import { ConfirmDialog, Modal } from '@design-system/patterns';
@@ -106,12 +106,12 @@ export default function DetailedReportModal({ companyId, sessionId, isOpen, onCl
                                 onClick={() => setPendingRetry(true)}
                                 loading={retrying}
                             >
-                                {!retrying && <RotateCcw size={14} aria-hidden="true" />}
+                                {!retrying && <Icon icon={RotateCcw} size="sm" />}
                                 {retrying ? 'Starting...' : 'Retry Failed Requests'}
                             </Button>
                         )}
                         <IconButton label="Close" size="sm" variant="ghost" onClick={onClose}>
-                            <X size={18} aria-hidden="true" />
+                            <Icon icon={X} size="lg" />
                         </IconButton>
                     </div>
                 </div>

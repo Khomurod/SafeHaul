@@ -270,10 +270,32 @@ describe('UserMembershipsManager — listing contract', () => {
         expect(await screen.findByText('Could not load memberships. Check permissions.', {}, INITIAL_LOAD)).toBeInTheDocument();
     });
 
+    /*
+     * The assertion waits, and it has to.
+     *
+     * `findByLabelText` resolves as soon as the SELECT exists — which is before
+     * the memberships load resolves, and it is that load which removes the
+     * company the user is already in. Reading `select.options` synchronously
+     * after it therefore reads the list one render too early, and the value it
+     * gets is `['', 'co-1', 'co-2', 'co-3']`: everything, unfiltered.
+     *
+     * Locally the load almost always resolves inside `findBy`'s own polling and
+     * this passes. On a loaded CI runner the gap opens, and it did: this exact
+     * message, on 2026-08-26 and again on 2026-09-06.
+     *
+     * `AGENTS.md` rule 7 is the general form — wait on the rendered consequence,
+     * which is the assertion you were going to make anyway. Note the shape it
+     * takes here: rule 7's scan looked for `await waitFor(...)` followed by a
+     * synchronous `expect(screen.getBy…)`, and this site is
+     * `await findBy…` followed by a synchronous assertion on the RESULT. Same
+     * hazard, different spelling, and the scan did not look for it.
+     */
     it('offers only companies the user is not already in', async () => {
         renderMemberships();
         const select = await screen.findByLabelText(/^Add to Company/);
-        expect([...select.options].map((o) => o.value)).toEqual(['', 'co-2', 'co-3']);
+        await waitFor(() => {
+            expect([...select.options].map((o) => o.value)).toEqual(['', 'co-2', 'co-3']);
+        });
     });
 
     it('keeps the two differing role vocabularies', async () => {

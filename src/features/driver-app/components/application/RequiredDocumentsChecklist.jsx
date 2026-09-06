@@ -1,7 +1,5 @@
 import React from 'react';
-import {
-    FileSignature, ArrowRight, CheckCircle2, Circle, AlertTriangle, RotateCcw,
-} from 'lucide-react';
+import { Icon, FileSignature, ArrowRight, CheckCircle2, Circle, AlertTriangle, RotateCcw } from '@design-system/icons';
 import { Badge, Button, Card } from '@/design-system/components';
 import { DOC_STATUS } from './postApplyDocsStorage';
 
@@ -59,11 +57,11 @@ function DocumentRow({ template, docState, openingTemplateId, onOpen }) {
                 <span className="flex min-w-0 items-center gap-ds-2">
                     {/* Icon + text + badge: status is never carried by colour alone. */}
                     {isCompleted ? (
-                        <CheckCircle2 size={16} className="shrink-0 text-ds-status-success-fg" aria-hidden="true" />
+                        <Icon icon={CheckCircle2} className="shrink-0 text-ds-status-success-fg" />
                     ) : isError ? (
-                        <AlertTriangle size={16} className="shrink-0 text-ds-status-danger-fg" aria-hidden="true" />
+                        <Icon icon={AlertTriangle} className="shrink-0 text-ds-status-danger-fg" />
                     ) : (
-                        <Circle size={16} className="shrink-0 text-ds-content-muted" aria-hidden="true" />
+                        <Icon icon={Circle} className="shrink-0 text-ds-content-muted" />
                     )}
                     <span className="truncate text-ds-sm font-medium text-ds-content">{title}</span>
                 </span>
@@ -78,9 +76,9 @@ function DocumentRow({ template, docState, openingTemplateId, onOpen }) {
                         aria-label={`Open ${title}`}
                     >
                         {isOpening ? null : isCompleted ? (
-                            <CheckCircle2 size={16} aria-hidden="true" />
+                            <Icon icon={CheckCircle2} />
                         ) : (
-                            <ArrowRight size={16} aria-hidden="true" />
+                            <Icon icon={ArrowRight} />
                         )}
                     </Button>
                 </span>
@@ -91,7 +89,7 @@ function DocumentRow({ template, docState, openingTemplateId, onOpen }) {
                         {docState?.error || 'Could not open this document.'}
                     </span>
                     <Button variant="ghost" size="md" onClick={() => onOpen(template)}>
-                        <RotateCcw size={12} aria-hidden="true" /> Retry
+                        <Icon icon={RotateCcw} size="xs" /> Retry
                     </Button>
                 </div>
             )}
@@ -127,11 +125,8 @@ export function RequiredDocumentsChecklist({
                     data-testid="required-documents-section"
                 >
                     <div className="mb-ds-1 flex items-start gap-ds-2">
-                        <FileSignature
-                            size={18}
-                            aria-hidden="true"
-                            className={`mt-ds-1 shrink-0 ${allRequiredComplete ? 'text-ds-status-success-fg' : 'text-ds-status-info-fg'}`}
-                        />
+                        <Icon icon={FileSignature} size="lg"
+                            className={`mt-ds-1 shrink-0 ${allRequiredComplete ? 'text-ds-status-success-fg' : 'text-ds-status-info-fg'}`} />
                         <div className="min-w-0">
                             <h2 className={`text-ds-sm font-bold ${allRequiredComplete ? 'text-ds-status-success-fg' : 'text-ds-status-info-fg'}`}>
                                 Required Documents

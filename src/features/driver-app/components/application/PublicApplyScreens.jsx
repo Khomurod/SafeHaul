@@ -1,5 +1,5 @@
 import React, { useId } from 'react';
-import { AlertCircle, Building2 } from 'lucide-react';
+import { AlertCircle, Building2 } from '@design-system/icons';
 import { Button } from '@/design-system/components';
 import { ErrorState, LoadingState, PageState } from '@design-system/patterns';
 import { RequiredDocumentsChecklist } from './RequiredDocumentsChecklist';

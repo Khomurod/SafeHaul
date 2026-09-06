@@ -1,8 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import {
-    Plus, Rocket, History, LayoutGrid,
-    Users, Zap, Loader2
-} from 'lucide-react';
+import { Icon, Plus, Rocket, History, LayoutGrid, Users, Zap, Loader2 } from '@design-system/icons';
 import { collection, query, orderBy, onSnapshot, doc, setDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@lib/firebase';
@@ -267,7 +264,7 @@ export function CampaignsDashboard({ companyId }) {
                         description="Design and deploy bulk engagement sequences to reactivate your driver database."
                         actions={
                             <Button variant="primary" onClick={handleNewCampaign}>
-                                <Plus size={18} aria-hidden="true" />
+                                <Icon icon={Plus} size="lg" />
                                 Create Campaign
                             </Button>
                         }
@@ -279,14 +276,14 @@ export function CampaignsDashboard({ companyId }) {
                                 id="campaigns-stat-live"
                                 label="Live Campaigns"
                                 value={liveCount}
-                                icon={<Zap size={20} />}
+                                icon={<Icon icon={Zap} size="xl" />}
                                 tone="info"
                             />
                             <MetricCard
                                 id="campaigns-stat-outreach"
                                 label="Total Outreach"
                                 value={totalOutreach}
-                                icon={<Users size={20} />}
+                                icon={<Icon icon={Users} size="xl" />}
                                 tone="success"
                             />
                         </ResponsiveGrid>
@@ -307,7 +304,10 @@ export function CampaignsDashboard({ companyId }) {
                                     role="status"
                                     className="flex flex-col items-center justify-center gap-ds-4 py-ds-12 text-ds-content-muted"
                                 >
-                                    <Loader2 size={40} className="animate-spin" aria-hidden="true" />
+                                    {/* 40 is not a step. `3xl` is, and it is what the empty state
+                                        beside it already uses — so the two states in
+                                        this panel finally match. */}
+                                    <Icon icon={Loader2} size="3xl" className="animate-spin" />
                                     <span className="text-ds-sm font-semibold uppercase tracking-wide">Synchronizing…</span>
                                 </div>
                             ) : visibleCampaigns.length === 0 ? (
@@ -316,7 +316,7 @@ export function CampaignsDashboard({ companyId }) {
                                         aria-hidden="true"
                                         className="flex h-16 w-16 items-center justify-center rounded-ds-full bg-ds-surface-subtle text-ds-content-muted"
                                     >
-                                        <Rocket size={32} />
+                                        <Icon icon={Rocket} size="3xl" />
                                     </span>
                                     <h2 className="text-ds-heading-md font-bold text-ds-content">
                                         No {activeTab === 'drafts' ? 'Drafts' : 'Campaigns'} Found

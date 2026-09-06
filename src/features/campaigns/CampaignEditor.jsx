@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { ArrowLeft, Save } from 'lucide-react';
+import { Icon, ArrowLeft, Save } from '@design-system/icons';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@lib/firebase';
 import { useCampaignDraft } from './hooks/useCampaignDraft';
@@ -121,7 +121,7 @@ export function CampaignEditor({ companyId, campaignId, onClose }) {
             <aside className="flex shrink-0 flex-col border-b border-ds-border bg-ds-surface md:w-64 md:border-b-0 md:border-r">
                 <div className="flex h-16 shrink-0 items-center border-b border-ds-border-subtle px-ds-4">
                     <Button variant="ghost" size="sm" onClick={onClose}>
-                        <ArrowLeft size={16} aria-hidden="true" /> Exit
+                        <Icon icon={ArrowLeft} /> Exit
                     </Button>
                 </div>
 
@@ -162,7 +162,7 @@ export function CampaignEditor({ companyId, campaignId, onClose }) {
                 <div className="mt-auto border-t border-ds-border-subtle p-ds-4">
                     <div className="flex items-center justify-between text-ds-xs font-bold text-ds-content-muted">
                         <span role="status" aria-live="polite">{isSaving ? 'Saving...' : 'Auto-Saved'}</span>
-                        <Save size={14} className={isSaving ? 'animate-pulse text-ds-action-primary' : ''} aria-hidden="true" />
+                        <Icon icon={Save} size="sm" className={isSaving ? 'animate-pulse text-ds-action-primary' : ''} />
                     </div>
                 </div>
             </aside>
