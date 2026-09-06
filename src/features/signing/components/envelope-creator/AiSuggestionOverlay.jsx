@@ -191,10 +191,12 @@ export function AiSuggestionOverlay({
                     <Icon icon={Check} size="xs" />
                 </IconButton>
 
-                {/* Same handle geometry as `ResizableDraggableField`, and the same
-                    reason: the container owns a size the scale cannot express. */}
+                {/* Same handle geometry as `ResizableDraggableField` — a 24x24 pointer
+                    target centred on the corner (WCAG 2.2 SC 2.5.8) with the 10px glyph
+                    drawn where it always was — and the same reason for the glyph's
+                    size: the container owns a size the scale cannot express. */}
                 <div
-                    className="resize-handle absolute bottom-0 right-0 flex h-3 w-3 cursor-se-resize items-end justify-end p-0.5 opacity-60 transition group-hover:opacity-100 [&>svg]:h-2.5 [&>svg]:w-2.5"
+                    className="resize-handle absolute -bottom-3 -right-3 flex h-6 w-6 cursor-se-resize items-start justify-start p-0.5 opacity-60 transition group-hover:opacity-100 [&>svg]:h-2.5 [&>svg]:w-2.5"
                     onMouseDown={handleResizeMouseDown}
                     aria-hidden="true"
                 >
