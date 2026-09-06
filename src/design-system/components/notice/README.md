@@ -413,3 +413,100 @@ Two lists lose their per-item glyphs (`LaunchPad`'s errors, `ContentComposer`'s
 tips): one leading mark states the kind once, and repeating it on every line was
 the hand-built way of drawing a list. Disc markers carry the enumeration, which
 is also what assistive technology reads as a list.
+
+---
+
+# What 6e found: super-admin, settings, auth and the signing room
+
+The last migration area. **34 candidates → 16 notices.** A 50% drop, against
+6d's 65% and 6c's 15%.
+
+## The rule this area added: a caller may already own the live region
+
+**Five sites wrap the tinted block in a permanently-mounted `role="status"` or
+`role="alert"`** and render the block conditionally inside it: `CreateView:289`
+and `:297`, `UserMembershipsManager:316`, and `DQFileTab:321` migrated in 6d.
+
+**When a caller already owns an always-mounted live region, the notice must not
+take one.** Both failure modes are silent:
+
+- two nested live regions announce the same text twice;
+- moving the role onto the conditionally-rendered notice stops the announcement
+  altogether, because a live region added to the DOM at the same moment as its
+  content is not reliably announced.
+
+So those sites keep their wrapper and pass the default `announce="off"`. This is
+the same reasoning `announce` is documented under, applied in reverse, and it is
+a pattern rather than a coincidence — worth checking for before every migration.
+
+## Four sites compute their tone
+
+`EmailSettingsTab:303` and `AddLineModal:247` pick tone — and one of them the
+live role too — from a `testResult.success` ternary. These are the "tone from a
+lookup" shape 6a counted separately and could not classify from a line at all.
+They migrate as `tone={x ? 'success' : 'danger'}`, which is precisely what `tone`
+and `announce` being props is for. `EmailSettingsTab` also loses an inner
+`Badge` that was standing in for a title: a chip inside a message says the state
+twice once the block carries a glyph of its own.
+
+## Where the line falls between two blocks that look identical
+
+`IntegrationManager:328` and `EmailSettingsTab:365` are both info-tinted blocks
+with a bold label. One migrates and one does not:
+
+**A label over PROSE is a notice; a label over DATA is not.** `:328` explains
+what shared credentials do and where phone lines are managed. `:365` lists host,
+port and username. `IntegrationManager:384` is prose too — it is *how to find*
+the values, a sequence of steps, and it becomes an `<ol>` so assistive
+technology reads it as one.
+
+## The audit was wrong about one site, and reading the file caught it
+
+`StatsBackfillPanel:207` was listed as a notice. It is a **results panel**: the
+heading and sentence are followed by a nested summary card and a preview table.
+The test the plan already stated — *a toned card becomes a `Notice` unless the
+card carries other structure* — disqualifies it, and the enumeration could not
+see that because a title and a sentence at the top look identical either way.
+17 → 16.
+
+## Two glyph decisions
+
+- **`IntegrationManager:254` normalises `Activity` → the warning tone's
+  `AlertTriangle`.** `Activity` is the integration-health domain mark and reads
+  as decoration on a `role="alert"` fetch failure. Contrast the three glyphs
+  6d kept explicitly: those said something the tone did not.
+- **`LoginScreen:156` loses `animate-in slide-in-from-top-2`.** `Notice`'s
+  `className` is margin and width only, and an animation is neither — but it is
+  also the right answer on its own merits: that class carries no
+  `prefers-reduced-motion` guard, and an alert sliding into view is exactly the
+  case where motion should be reduced.
+
+## The tile count rises a third time
+
+Four more of the 18 non-notices are tinted icon tiles — `PersonalProfileTab:119`
+(whose mark is `LinkIcon`, in a named region), `LoginScreen:338`, and
+`AnalyticsView:276` and `:302`, the last two holding a **number** rather than a
+glyph. That takes the roadmap's Tinted icon tile row from at least 21 to **at
+least 25**.
+
+The rest: two modal header bands, two full-panel states that belong to
+`PageState`, three labelled data blocks, one section label, three chips, one
+action panel, one inline toast, one form container.
+
+## Two recorded claims disproved, both the same defect
+
+6c's audit named four glyph substitutions that would be wrong. **Two of them
+were not real.** `StatsBackfillPanel`'s `CheckCircle → AlertTriangle` and
+`PersonalProfileTab`'s `Loader2 → Info` both came from a scan that returned a
+CONTROL'S icon as the block's leading mark — a button's icon in the first case,
+a copy button's loading spinner 28 lines away in the second. The other two,
+`ShieldCheck` and `Zap`, hold up and were each verified by reading before being
+acted on.
+
+This is the same lesson at a third level:
+
+- 6a — a text window cannot tell a child from a sibling;
+- 6c — a diff hunk boundary cannot tell a child from a neighbour;
+- 6e — **a subtree scan cannot tell a slot from anything inside it.**
+
+A glyph is a claim about a slot. 6f's rule has to count slots, not subtrees.

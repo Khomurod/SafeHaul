@@ -4,7 +4,7 @@ import { Building, FileText, Edit2, Trash2, Search, ChevronLeft, ChevronRight, C
 import { db } from '@lib/firebase';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { SafeHaulLoader } from '@shared/components/SafeHaulLoader';
-import { Badge, Button, Card, IconButton, Input, Select } from '@/design-system/components';
+import { Badge, Button, Card, IconButton, Input, Notice, Select } from '@/design-system/components';
 import { ConfirmDialog } from '@design-system/patterns';
 
 /**
@@ -194,9 +194,12 @@ export function CompaniesView({
             </div>
 
             {toggleError && (
-                <p role="alert" className="border-b border-ds-status-danger-border bg-ds-status-danger-bg px-ds-4 py-ds-3 text-ds-sm text-ds-status-danger-fg">
+                /* Gains the danger glyph, and its single bottom rule becomes a
+                   border on four sides — a full-width strip under the toolbar
+                   becomes a bounded block, which is the contract's shape. */
+                <Notice announce="assertive" tone="danger" size="sm">
                     {toggleError}
-                </p>
+                </Notice>
             )}
 
             {/* Keyboard-focusable, named scroll region: below `sm` the table

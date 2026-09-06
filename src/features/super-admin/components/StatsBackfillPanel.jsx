@@ -1,8 +1,8 @@
 import React, { useId, useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
-import { Play, CheckCircle, AlertCircle } from 'lucide-react';
-import { Button, Card, FormField, Input } from '@/design-system/components';
+import { Play, CheckCircle } from 'lucide-react';
+import { Button, Card, FormField, Input, Notice } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { ConfirmDialog } from '@design-system/patterns';
 
@@ -194,15 +194,16 @@ export default function StatsBackfillPanel() {
 
                 {/* Results Display */}
                 {error && (
-                    <Card padding="md" role="alert" className="flex items-start gap-ds-3 border-ds-status-danger-border bg-ds-status-danger-bg">
-                        <AlertCircle size={20} aria-hidden="true" className="mt-0.5 shrink-0 text-ds-status-danger-fg" />
-                        <div>
-                            <h4 className="mb-1 font-semibold text-ds-status-danger-fg">Error</h4>
-                            <p className="break-words text-ds-sm text-ds-status-danger-fg">{error}</p>
-                        </div>
-                    </Card>
+                    <Notice announce="assertive" tone="danger" title="Error" titleAs="h4">
+                        {error}
+                    </Notice>
                 )}
 
+                {/* NOT a `Notice`, and the audit had this one wrong. It is a
+                    RESULTS PANEL: the heading and sentence are followed by a
+                    nested summary card and a preview table. `Notice` owns a
+                    tinted block carrying a message; a card carrying other
+                    structure stays a card. */}
                 {result && (
                     <Card padding="md" role="status" className="border-ds-status-success-border bg-ds-status-success-bg">
                         <div className="mb-ds-4 flex items-start gap-ds-3">

@@ -96,7 +96,10 @@ this one true rather than aspirational.
   and found something larger than the migration: **17 of the 22 that are not
   notices are tinted ICON TILES**, which makes that the biggest un-owned shape
   left — see the roadmap's Tinted icon tile row, re-counted from four sites to
-  at least 21. Super admin and settings are 6e.
+  at least 25. **6e closed the migration** (super admin, settings, auth and
+  the signing room; 16 blocks of 34 candidates, 2026-09-06) and added the one
+  rule the other areas had not needed: when a caller already owns an
+  always-mounted live region, the notice inside must take `announce="off"`.
 - The topbar, the dossier header, the notes and activity tabs, the Super Admin
   user list, the team modal and the campaign lead preview consume `Avatar`
   (2026-09-05).

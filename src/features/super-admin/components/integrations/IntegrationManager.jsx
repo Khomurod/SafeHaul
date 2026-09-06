@@ -3,8 +3,8 @@ import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { useToast } from '@shared/components/feedback/ToastProvider';
-import { Save, Send, Database, ArrowLeft, Activity, CheckCircle } from 'lucide-react';
-import { Badge, Button, Card, Checkbox, FormField, Input } from '@/design-system/components';
+import { Save, Send, Database, ArrowLeft, CheckCircle } from 'lucide-react';
+import { Badge, Button, Card, Checkbox, FormField, Input, Notice } from '@/design-system/components';
 import { SafeHaulLoader } from '@shared/components/SafeHaulLoader';
 import { LineManager } from './LineManager';
 
@@ -251,13 +251,14 @@ export function IntegrationManager({ companyId, companyName, onBack }) {
             </div>
 
             {fetchError && (
-                <div
-                    role="alert"
-                    className="mb-ds-6 flex items-center gap-ds-3 rounded-ds-md border border-ds-status-warning-border bg-ds-status-warning-bg p-ds-4 text-ds-sm text-ds-status-warning-fg"
-                >
-                    <Activity size={18} aria-hidden="true" />
+                /* `Activity` normalises to the warning tone's own
+                   `AlertTriangle`. It is the integration-health domain mark and
+                   reads as decoration on a `role="alert"` fetch failure; the
+                   triangle is what this application uses to say something went
+                   wrong. */
+                <Notice announce="assertive" tone="warning" className="mb-ds-6">
                     {fetchError}
-                </div>
+                </Notice>
             )}
 
             <form onSubmit={handleSave} className="space-y-ds-6">
@@ -325,10 +326,13 @@ export function IntegrationManager({ companyId, companyName, onBack }) {
                                     placeholder={hasExistingCredentials ? "(Leave blank to keep existing)" : "Enter Client Secret"}
                                 />
                             </FormField>
-                            <div className="rounded-ds-md border border-ds-status-info-border bg-ds-status-info-bg p-ds-3 text-ds-sm text-ds-status-info-fg">
-                                <p className="mb-1 font-bold">Global Integration Note:</p>
+                            {/* A label over PROSE, so a notice. The three
+                                `EmailSettingsTab` blocks that look identical are
+                                labels over DATA — host, port, username — and
+                                stay as they are. */}
+                            <Notice tone="info" size="sm" title="Global Integration Note:">
                                 These shared credentials allow the system to interact with your {provider} App. Individual phone lines and their JWTs are managed separately in the <b>Digital Wallet</b> section below.
-                            </div>
+                            </Notice>
                         </>
                     )}
 
@@ -381,12 +385,16 @@ export function IntegrationManager({ companyId, companyName, onBack }) {
                                     placeholder="+1234567890 (your 8x8 provisioned number)"
                                 />
                             </FormField>
-                            <div className="rounded-ds-md border border-ds-status-info-border bg-ds-status-info-bg p-ds-3 text-ds-sm text-ds-status-info-fg">
-                                <p className="mb-1 font-bold">How to find these values:</p>
-                                <p>1. Log into <b>8x8 Admin Console</b> → API Keys → copy <b>Key</b> & <b>Secret</b></p>
-                                <p>2. <b>SubAccount ID</b>: found under Pricing/SubAccounts (usually ends with <code>_hq</code>)</p>
-                                <p>3. <b>Sender Phone Number</b>: your SMS-enabled number from 8x8 (check under Numbers/DID)</p>
-                            </div>
+                            {/* Also a label over prose — these are STEPS, not
+                                values. The numbers become an ordered list, which
+                                is what assistive technology reads as a sequence. */}
+                            <Notice tone="info" size="sm" title="How to find these values:">
+                                <ol className="list-inside list-decimal">
+                                    <li>Log into <b>8x8 Admin Console</b> → API Keys → copy <b>Key</b> & <b>Secret</b></li>
+                                    <li><b>SubAccount ID</b>: found under Pricing/SubAccounts (usually ends with <code>_hq</code>)</li>
+                                    <li><b>Sender Phone Number</b>: your SMS-enabled number from 8x8 (check under Numbers/DID)</li>
+                                </ol>
+                            </Notice>
                         </>
                     )}
 

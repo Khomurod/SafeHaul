@@ -15,6 +15,7 @@ import {
     FormSection,
     Input,
     Link,
+    Notice,
     Textarea,
 } from '@/design-system/components';
 
@@ -300,20 +301,22 @@ export function EmailSettingsTab({ currentCompanyProfile }) {
                     </Button>
 
                     {testResult && (
-                        <div
-                            role={testResult.success ? 'status' : 'alert'}
-                            className={`mt-ds-4 rounded-ds-lg border p-ds-4 ${testResult.success
-                                ? 'border-ds-status-success-border bg-ds-status-success-bg'
-                                : 'border-ds-status-danger-border bg-ds-status-danger-bg'}`}
+                        /* Tone and announcement both follow the same test the
+                           hand-built version already ran. This is the "tone from
+                           a lookup" shape 6a counted separately and could not
+                           classify from a line — and it is exactly what `tone`
+                           and `announce` being props is for.
+                           The inner `Badge` goes: it was standing in for a
+                           title, and a chip inside a message says the state
+                           twice once the block has a glyph of its own. */
+                        <Notice
+                            tone={testResult.success ? 'success' : 'danger'}
+                            announce={testResult.success ? 'polite' : 'assertive'}
+                            title={testResult.success ? 'Connection Connected & Saved!' : 'Connection Failed'}
+                            className="mt-ds-4"
                         >
-                            <Badge
-                                tone={testResult.success ? 'success' : 'danger'}
-                                icon={testResult.success ? CheckCircle : AlertTriangle}
-                            >
-                                {testResult.success ? 'Connection Connected & Saved!' : 'Connection Failed'}
-                            </Badge>
-                            <p className="mt-ds-2 text-ds-sm text-ds-content">{testResult.message}</p>
-                        </div>
+                            {testResult.message}
+                        </Notice>
                     )}
                 </div>
             </FormSection>

@@ -2,7 +2,7 @@ import React, { useId, useState } from 'react';
 import { httpsCallable } from "firebase/functions";
 import { functions } from '@lib/firebase';
 import { AlertTriangle, X } from 'lucide-react';
-import { Button, IconButton } from '@/design-system/components';
+import { Button, IconButton, Notice } from '@/design-system/components';
 import { Modal } from '@design-system/patterns';
 
 /**
@@ -69,13 +69,15 @@ export function DeleteUserModal({ userId, userName, onClose, onConfirm }) {
             This cannot be undone.
           </p>
           {error && (
-            <p
+            <Notice
               id="delete-user-error"
-              role="alert"
-              className="mb-ds-4 rounded-ds-lg border border-ds-status-danger-border bg-ds-status-danger-bg p-ds-3 text-ds-sm text-ds-status-danger-fg"
+              announce="assertive"
+              tone="danger"
+              size="sm"
+              className="mb-ds-4"
             >
               {error}
-            </p>
+            </Notice>
           )}
         </div>
 
