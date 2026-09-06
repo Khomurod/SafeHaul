@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useId } from 'react';
 import { collection, query, limit, getDocs, orderBy } from 'firebase/firestore';
 import { db } from '@lib/firebase';
-import { CheckCircle2, AlertCircle, Clock, Search } from 'lucide-react';
+import { Icon, CheckCircle2, AlertCircle, Clock, Search } from '@design-system/icons';
 import { Card, Badge, Input, Label } from '@/design-system/components';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 
@@ -84,7 +84,7 @@ export function CampaignResultsTable({ companyId, campaignId }) {
             <div className="flex flex-col gap-ds-3 border-b border-ds-border-subtle bg-ds-surface-subtle p-ds-4 sm:flex-row sm:items-center sm:justify-between">
                 <h3 className="text-ds-sm font-bold uppercase tracking-wide text-ds-content">Recipient Log</h3>
                 <div className="flex items-center gap-ds-2">
-                    <Search className="text-ds-content-muted" size={16} aria-hidden="true" />
+                    <Icon icon={Search} className="text-ds-content-muted" />
                     <Label htmlFor={searchId} className="sr-only">Search recipients by name or contact</Label>
                     <Input
                         id={searchId}
@@ -141,7 +141,7 @@ export function CampaignResultsTable({ companyId, campaignId }) {
                                         </td>
                                         <td className="align-top">
                                             <span className="inline-flex items-center gap-ds-1 text-ds-xs font-medium text-ds-content-muted">
-                                                <Clock size={12} aria-hidden="true" />
+                                                <Icon icon={Clock} size="xs" />
                                                 {log.timestamp?.toDate ? log.timestamp.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Pending'}
                                             </span>
                                         </td>

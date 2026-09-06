@@ -1,5 +1,5 @@
 import React, { useState, useRef, useId } from 'react';
-import { Rocket, Clock } from 'lucide-react';
+import { Icon, Rocket, Clock } from '@design-system/icons';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
 import { useNavigate } from 'react-router-dom';
@@ -94,7 +94,7 @@ export function LaunchPad({ companyId, campaign, onLaunchSuccess }) {
         <div className="mx-auto max-w-2xl pt-ds-12 text-center">
             <Card padding="lg">
                 <span aria-hidden="true" className="mx-auto mb-ds-4 flex h-16 w-16 items-center justify-center rounded-ds-full bg-ds-status-info-bg text-ds-status-info-fg">
-                    <Rocket size={32} />
+                    <Icon icon={Rocket} size="3xl" />
                 </span>
 
                 <h2 className="mb-ds-2 text-ds-heading-lg font-bold text-ds-content">Ready for Liftoff?</h2>
@@ -144,7 +144,7 @@ export function LaunchPad({ companyId, campaign, onLaunchSuccess }) {
                         loading={isLaunching}
                         onClick={() => setShowConfirm(true)}
                     >
-                        {!isLaunching && <Rocket size={24} aria-hidden="true" />}
+                        {!isLaunching && <Icon icon={Rocket} size="2xl" />}
                         Launch Immediately
                     </Button>
                 </div>

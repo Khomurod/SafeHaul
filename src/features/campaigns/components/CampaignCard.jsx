@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Calendar, Users, MessageSquare, ChevronRight, MoreVertical, Trash2, Ban } from 'lucide-react';
+import { Icon, Calendar, Users, MessageSquare, ChevronRight, MoreVertical, Trash2, Ban } from '@design-system/icons';
 import { Badge, Button, Card, IconButton } from '@/design-system/components';
 import { isCancellableSessionStatus } from '../constants/campaignConstants';
 
@@ -69,7 +69,7 @@ export function CampaignCard({ campaign, onClick, onDelete, onCancel, onViewRepo
                         aria-expanded={showMenu}
                         onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }}
                     >
-                        <MoreVertical size={18} aria-hidden="true" />
+                        <Icon icon={MoreVertical} size="lg" />
                     </IconButton>
 
                     {showMenu && (
@@ -87,7 +87,7 @@ export function CampaignCard({ campaign, onClick, onDelete, onCancel, onViewRepo
                                     onClick={(e) => { e.stopPropagation(); setShowMenu(false); onCancel(campaign); }}
                                     className="flex w-full items-center gap-ds-2 px-ds-4 py-ds-2 text-left text-ds-sm font-medium text-ds-status-warning-fg hover:bg-ds-surface-subtle focus-visible:bg-ds-surface-subtle focus-visible:outline-none"
                                 >
-                                    <Ban size={14} aria-hidden="true" /> Cancel Campaign
+                                    <Icon icon={Ban} size="sm" /> Cancel Campaign
                                 </button>
                             ) : (
                                 <button
@@ -96,7 +96,7 @@ export function CampaignCard({ campaign, onClick, onDelete, onCancel, onViewRepo
                                     onClick={(e) => { e.stopPropagation(); setShowMenu(false); onDelete && onDelete(campaign); }}
                                     className="flex w-full items-center gap-ds-2 px-ds-4 py-ds-2 text-left text-ds-sm font-medium text-ds-status-danger-fg hover:bg-ds-surface-subtle focus-visible:bg-ds-surface-subtle focus-visible:outline-none"
                                 >
-                                    <Trash2 size={14} aria-hidden="true" /> Delete Campaign
+                                    <Icon icon={Trash2} size="sm" /> Delete Campaign
                                 </button>
                             )}
                         </div>
@@ -147,11 +147,11 @@ export function CampaignCard({ campaign, onClick, onDelete, onCancel, onViewRepo
                 ) : (
                     <div className="grid grid-cols-2 gap-ds-4">
                         <div className="flex items-center gap-ds-2 text-ds-content-muted">
-                            <Users size={16} aria-hidden="true" />
+                            <Icon icon={Users} />
                             <span className="text-ds-xs font-bold text-ds-content-secondary">{campaign.matchCount || 0} leads</span>
                         </div>
                         <div className="flex items-center gap-ds-2 text-ds-content-muted">
-                            <MessageSquare size={16} aria-hidden="true" />
+                            <Icon icon={MessageSquare} />
                             <span className="text-ds-xs font-bold uppercase text-ds-content-secondary">{method}</span>
                         </div>
                     </div>
@@ -160,7 +160,7 @@ export function CampaignCard({ campaign, onClick, onDelete, onCancel, onViewRepo
 
             <div className="mt-ds-4 flex items-center justify-between gap-ds-2 text-ds-xs font-bold uppercase tracking-wide">
                 <span className="flex items-center gap-ds-1 text-ds-content-muted">
-                    <Calendar size={12} aria-hidden="true" />
+                    <Icon icon={Calendar} size="xs" />
                     {campaign.updatedAt?.toDate() ? new Date(campaign.updatedAt.toDate()).toLocaleDateString() : 'Just now'}
                 </span>
 
@@ -178,7 +178,7 @@ export function CampaignCard({ campaign, onClick, onDelete, onCancel, onViewRepo
                         onClick={(e) => { e.stopPropagation(); onClick?.(); }}
                         className="flex items-center gap-0.5 rounded-ds-sm text-ds-content-muted transition-colors hover:text-ds-action-primary group-hover:text-ds-action-primary focus-visible:outline-none focus-visible:shadow-ds-focus"
                     >
-                        Details <ChevronRight size={12} aria-hidden="true" />
+                        Details <Icon icon={ChevronRight} size="xs" />
                     </button>
                 </div>
             </div>

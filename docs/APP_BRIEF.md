@@ -1126,7 +1126,7 @@ check:icon-contract` prints the current count and refuses a new importer
 anywhere under `src/`, refuses a listed file that grows, and refuses an entry
 the base commit does not justify. **That list only shrinks** — which is why the
 number belongs in the checker's output rather than in this paragraph, where it
-was wrong within a week of being written (156 on 2026-09-06, against the 178
+was wrong within a week of being written (146 on 2026-09-06, against the 178
 recorded here). Update the roadmap with
 evidence in the same task, and never mark an item complete without the
 functional, visual, mobile, accessibility, documentation and diff checks

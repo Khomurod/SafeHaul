@@ -14,19 +14,9 @@
     "own entry, or raises a count to match a file it just grew, is refused. A gate must not take",
     "its scope from the branch it is gating.",
     "",
-    "The counts here are glyph NAMES, not lines: 156 files, 695 imports (178 files and 800 imports on 2026-09-05, before Phase 7 began draining areas)."
+    "The counts here are glyph NAMES, not lines: 146 files, 646 imports (178 files and 800 imports on 2026-09-05, before Phase 7 began draining areas)."
   ],
   "files": {
-    "src/features/campaigns/CampaignEditor.jsx": 7,
-    "src/features/campaigns/CampaignsDashboard.jsx": 7,
-    "src/features/campaigns/components/AudienceBuilder.jsx": 5,
-    "src/features/campaigns/components/CampaignCard.jsx": 7,
-    "src/features/campaigns/components/CampaignDetails.jsx": 11,
-    "src/features/campaigns/components/CampaignResultsTable.jsx": 4,
-    "src/features/campaigns/components/ContentComposer.jsx": 5,
-    "src/features/campaigns/components/DetailedReportModal.jsx": 2,
-    "src/features/campaigns/components/LaunchPad.jsx": 5,
-    "src/features/campaigns/components/VirtualLeadList.jsx": 4,
     "src/features/company-admin/applicationPrep/ApplicationAiPrepPanel.jsx": 3,
     "src/features/company-admin/applicationPrep/ApplicationModeChooser.jsx": 2,
     "src/features/company-admin/applicationPrep/InviteLinkPanel.jsx": 3,

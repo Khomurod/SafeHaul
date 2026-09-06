@@ -387,7 +387,13 @@ export function migrate(source, { path = '<source>' } = {}) {
                 + 'can reach it, that glyph is rendered directly and a token throws — on a '
                 + `screen, not in a test. Either rewrite it as \`<Icon icon={${tag}} />\`, or `
                 + 'satisfy yourself no glyph reaches it: a heading level held in a prop has '
-                + 'this exact shape and is fine.',
+                + 'this exact shape and is fine.'
+                + (tag === 'Icon'
+                    ? ' AND THIS ONE IS NAMED `Icon`, which is the contract\'s own component: '
+                        + 'the import this codemod adds is shadowed inside whatever declares it, '
+                        + 'so rename the LOCAL binding (`icon: Glyph`) rather than writing '
+                        + '`<Icon icon={Icon} />`. Thirteen files in the campaign do this.'
+                    : ''),
         });
     }
 
