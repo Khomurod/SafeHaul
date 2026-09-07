@@ -330,19 +330,23 @@ jobs:
 
       - name: Icon contract ratchet
         run: npm run check:icon-contract -- --require-baseline
-
-      # The first-download budget's own tests (Node builtins only): every refusal
-      # in scripts/check-bundle-budget.mjs is driven against throwaway builds here,
-      # in the one job no lane selection can skip; the check itself runs in
-      # frontend-build, where the build is.
-      - name: Verify the bundle-budget guard
-        run: npm run test:bundle-budget
         env:
           # The same three again, and the same shared override: one baseline
           # question, one answer, one place an operator can get it wrong.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_PR_BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
           SOURCE_SIZE_BASE: ${{ github.event.inputs.source_size_base || '' }}
+
+      # The first-download budget's own tests (Node builtins only): every refusal
+      # in scripts/check-bundle-budget.mjs is driven against throwaway builds here,
+      # in the one job no lane selection can skip; the check itself runs in
+      # frontend-build, where the build is. No token and no base: the harness
+      # compares nothing against history, so it must NOT sit between another
+      # step's `run:` and its `env:` — which is exactly where its first version
+      # landed, taking the icon ratchet's token with it (caught by
+      # test-icon-contract-ci.mjs X9/X11/X12 on 2026-09-07).
+      - name: Verify the bundle-budget guard
+        run: npm run test:bundle-budget
 
   # ---------------------------------------------------------------------------
   # Lanes — each runs when relevant and not already proven for this exact tree
