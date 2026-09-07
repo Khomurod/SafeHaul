@@ -7,6 +7,7 @@ import { collection, getDocs } from 'firebase/firestore';
 import { Button, Card, IconButton, Input, Switch } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { Modal } from '@design-system/patterns';
+import { ScheduleDeactivationDialog } from './ScheduleDeactivationDialog';
 
 /**
  * Global feature-override matrix: one row per company, one column per feature.
@@ -375,66 +376,6 @@ export function FeaturesView({ companyList, onDataUpdate }) {
     );
 }
 
-function ScheduleDeactivationDialog({ info, date, time, onDateChange, onTimeChange, loading, onCancel, onConfirm }) {
-    const titleId = useId();
-    const dateId = useId();
-    const timeId = useId();
-
-    return (
-        <Modal
-            onClose={onCancel}
-            labelledBy={titleId}
-            closeOnBackdrop={false}
-            size="lg"
-            scroll="body"
-        >
-            <div className="flex items-center justify-between border-b border-ds-border-subtle bg-ds-status-warning-bg p-ds-5">
-                <h2 id={titleId} className="flex items-center gap-ds-2 text-ds-heading-sm font-bold text-ds-status-warning-fg">
-                    <Icon icon={Clock} size="2xl" /> Schedule Deactivation
-                </h2>
-                <IconButton label="Close" variant="ghost" size="sm" onClick={onCancel}>
-                    <Icon icon={X} size="xl" />
-                </IconButton>
-            </div>
-            <div className="space-y-ds-4 p-ds-6">
-                <p className="text-ds-sm text-ds-content-secondary">
-                    Select when you want the feature <strong>{info?.featureKey}</strong> to be deactivated automatically for <strong>{info?.company?.companyName}</strong>.
-                </p>
-                <div className="flex flex-col gap-ds-2">
-                    <label htmlFor={dateId} className="text-ds-sm font-medium text-ds-content-secondary">Date</label>
-                    <Input
-                        id={dateId}
-                        type="date"
-                        value={date}
-                        onChange={(e) => onDateChange(e.target.value)}
-                        min={new Date().toISOString().split('T')[0]}
-                    />
-                </div>
-                <div className="flex flex-col gap-ds-2">
-                    <label htmlFor={timeId} className="text-ds-sm font-medium text-ds-content-secondary">Time</label>
-                    <Input
-                        id={timeId}
-                        type="time"
-                        value={time}
-                        onChange={(e) => onTimeChange(e.target.value)}
-                    />
-                </div>
-                <div className="mt-ds-6 flex justify-end gap-ds-2">
-                    <Button variant="secondary" onClick={onCancel}>Cancel</Button>
-                    <Button
-                        variant="primary"
-                        onClick={onConfirm}
-                        disabled={loading || !date || !time}
-                        loading={loading}
-                    >
-                        {loading ? "Scheduling..." : "Schedule"}
-                    </Button>
-                </div>
-            </div>
-        </Modal>
-    );
-}
-
 function AlertStatsDialog({ info, stats, loading, onClose }) {
     const titleId = useId();
 
@@ -466,8 +407,13 @@ function AlertStatsDialog({ info, stats, loading, onClose }) {
                 ) : stats.length === 0 ? (
                     <p className="rounded-ds-lg bg-ds-surface-subtle p-ds-8 text-center text-ds-content-muted">No alert interactions recorded yet.</p>
                 ) : (
-                    <div className="overflow-x-auto">
-                        <table className="ds-native-table overflow-hidden rounded-ds-lg border border-ds-border-subtle">
+                    <div
+                        role="region"
+                        aria-label="Alert interactions by user. Scroll horizontally to view all columns."
+                        tabIndex={0}
+                        className="overflow-x-auto focus-visible:outline-none focus-visible:shadow-ds-focus"
+                    >
+                        <table className="ds-native-table overflow-hidden rounded-ds-lg border border-ds-border-subtle" data-pin-first-column>
                             <caption className="sr-only">Alert interactions by user</caption>
                             <thead>
                                 <tr>
@@ -497,3 +443,4 @@ function AlertStatsDialog({ info, stats, loading, onClose }) {
         </Modal>
     );
 }
+

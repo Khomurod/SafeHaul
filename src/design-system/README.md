@@ -377,6 +377,14 @@ Playwright's own pixelmatch scores as **0 differing pixels** at the lane's
 absorbs it). A guard that refuses the wrong *kind* of value does not thereby pin
 the right one; `src/tests/pageShell.test.js` names it.
 
+**A table on a phone follows one rule.** Since 2026-09-06 a table whose rows
+are compared keeps the table — labelled horizontal scroll, sticky header, first
+column pinned (`DataTable` by default; `data-pin-first-column` on a native
+table) — and a matrix of per-row controls worked one record at a time becomes
+one card per row under 768px (`data-mobile-presentation="cards"`). The rule and
+its source are in `components/data-table/README.md`; `check:visual-contract`
+measures both shapes at 412px and 1440px.
+
 **A dialog's chrome is props, not a class list.** Since 2026-09-05 `Modal`
 carries `size`, `scroll`, `fill`, `mobile`, `placement` and `tone`, and owns its
 surface, border, radius, shadow, overlay colour, blur and stacking layer

@@ -139,7 +139,7 @@ export function LineManager({ companyId, companyName }) {
                     tabIndex={0}
                     className="overflow-auto focus-visible:outline-none focus-visible:shadow-ds-focus"
                 >
-                    <table className="ds-native-table">
+                    <table className="ds-native-table" data-pin-first-column>
                         <caption id={tableRegionId} className="sr-only">Provisioned phone lines</caption>
                         <thead>
                             <tr>

@@ -305,7 +305,9 @@ component itself as well.
   `ds-native-table` (`components/data-table/nativeTable.css`) is that contract — using `height` on body cells rather than `min-height`, which CSS leaves undefined on a table-cell box and browsers ignore, so the density role was a no-op until 2026-08-25:
   header surface and foreground, divider, row background, hover, cell padding and
   row height from the same roles `DataTable` reads, including the narrower inline
-  padding under 768px that `DataTable` has always had. All eleven apply it,
+  padding under 768px that `DataTable` has always had — and, since 2026-09-06,
+  the two phone-behaviour attributes, `data-pin-first-column` and
+  `data-mobile-presentation="cards"` (§6, tables on phones). All eleven apply it,
   `check:ui-contract` fails any approved `raw-table` file that does not, and
   `check:table-layout` measures native tables in a real browser — until then **no
   native table was measured anywhere**, so the guard written because a Delete
@@ -733,16 +735,35 @@ design-system blockers: none of them gates a primitive, a token or a baseline.
   is a read-only report on whether any leads were stranded under a uid while the
   fault was live; no migration was written, because whether stranded records are
   real drivers or test noise is not something the code can tell.
-- `[!]` **Decide the responsive/interaction strategy for editable matrices**
+- `[x]` **Decide the responsive/interaction strategy for editable matrices**
   (per-row form controls), starting with the SMS number-assignment recruiter
-  matrix. Converting an editable matrix to a scroll table or stacked cards needs
-  an owner decision and a proof of behavior parity. This is why that slice is
-  NO-GO.
-- `[!]` **Decide table responsive behavior per remaining use case** (horizontal
-  scroll, priority columns, stacked cards, or a specialized interactive grid).
-  There is no safe universal conversion. The candidate list settled on a dense
-  native table with labelled horizontal overflow so no field or action
-  disappears; other tables still need individual decisions.
+  matrix. **RESOLVED 2026-09-06 — one card per row under 768px, the same DOM at
+  every width (audit step K).** The matrix is worked one member at a time and
+  nothing in it is compared across rows, so the shape that fits a phone is a
+  card per team member with every value under the label of its column, in
+  column order — `data-mobile-presentation="cards"` on the `ds-native-table`
+  contract, labels from the feature's own `data-label`s, roles stated
+  explicitly so `display: block` cannot drop them. Behaviour parity is by
+  construction: the `<select>`s, verify buttons and status text are the same
+  elements at 412px and 1440px, so the frozen 15-case suite and the a11y suite
+  cover both, and the catalog's `CardsOnMobile` story is the real-browser
+  picture. Above 768px the matrix is a table with its name column pinned.
+- `[x]` **Decide table responsive behavior per remaining use case.**
+  **RESOLVED 2026-09-06 — one rule, applied to every table (audit step K).**
+  Nielsen Norman Group's mobile-table guidance is the standard: a table whose
+  rows are *compared* keeps the table on a phone — labelled, focusable
+  horizontal scroll, sticky header, and the first column pinned so the row's
+  label stays in view (*"the leftmost column … should be locked in place"*).
+  `DataTable` pins by default (`pinFirstColumn={false}` opts out; with a
+  selection the checkbox and the identifying column pin together); the eleven
+  comparative native tables carry `data-pin-first-column`; four scroll regions
+  that were unlabelled (`AnalyticsView` ×2, `StatsBackfillPanel`, the feature
+  alert-stats dialog) are now named and focusable. A matrix worked one record at
+  a time becomes cards (the row above); the Super Admin feature matrix, whose
+  frozen header and frozen column cross, is the one specialized grid and keeps
+  its hand-layered cells. The rule, its source and its guards are in
+  `components/data-table/README.md` ("Tables on phones"), `pinnedColumn.css`
+  and the `Patterns/Native table` story docs.
   - **Decided 2026-08-17 — AI Integrations → Logs (`AiLogsPanel.jsx`):**
     `DataTable` at `density="compact"`, `minWidth="wide"`, with the default
     labelled horizontal scroll on mobile. Chosen over stacked cards because the
