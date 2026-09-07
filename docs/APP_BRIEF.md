@@ -1116,6 +1116,15 @@ button, modal, form control, table, status treatment, arbitrary color or
 unsupported font size unless the roadmap records the gap and the code documents
 the temporary exception. **No 9px or 10px body text.**
 
+**Tables on phones (since 2026-09-06).** A table whose rows are compared keeps
+the table: a labelled, focusable horizontal-scroll region, a sticky header and
+the first column pinned so the row's label stays in view (`DataTable` by
+default, `data-pin-first-column` on a native table). A matrix of per-row form
+controls worked one record at a time — the SMS recruiter-assignment matrix —
+becomes one card per row under 768px (`data-mobile-presentation="cards"`), the
+same elements at every width. The Super Admin feature matrix is the one
+specialized grid. Source and guards: `src/design-system/components/data-table/README.md`.
+
 Two contracts have no exception route at all, because both are enforced by the
 code refusing to run rather than by a check that has to notice. A dialog goes
 through `Modal` and takes its size and shape from the chrome contract — the

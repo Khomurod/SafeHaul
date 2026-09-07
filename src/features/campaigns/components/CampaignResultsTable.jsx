@@ -103,7 +103,7 @@ export function CampaignResultsTable({ companyId, campaignId }) {
                 tabIndex={0}
                 className="custom-scrollbar max-h-[400px] overflow-auto focus-visible:outline-none focus-visible:shadow-ds-focus"
             >
-                <table className="ds-native-table min-w-[640px]" data-density="compact" data-row-hover>
+                <table className="ds-native-table min-w-[640px]" data-density="compact" data-row-hover data-pin-first-column>
                     <caption className="sr-only">Recipient delivery log</caption>
                     <thead className="sticky top-0 z-ds-sticky">
                         <tr>

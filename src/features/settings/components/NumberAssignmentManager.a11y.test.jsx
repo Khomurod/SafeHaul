@@ -139,13 +139,35 @@ describe('NumberAssignmentManager — 12px floor (defect: text-[9px]/text-[10px]
 });
 
 describe('NumberAssignmentManager — mobile overflow (defect: unlabelled/unbounded table)', () => {
-    it('wraps the assignment table in a labelled, focusable horizontal-scroll region', async () => {
+    it('wraps the assignment table in a labelled, focusable scroll region', async () => {
         await renderLoaded();
-        const region = screen.getByRole('region', {
-            name: 'Recruiter assignments. Scroll horizontally to view all columns.',
-        });
+        // The name no longer promises a horizontal scroll: under 768px the
+        // matrix is one card per member and nothing scrolls sideways.
+        const region = screen.getByRole('region', { name: 'Recruiter assignments' });
         expect(region).toHaveAttribute('tabindex', '0');
         expect(within(region).getByRole('table')).toBeInTheDocument();
+    });
+
+    it('stacks into cards on a phone with its table semantics stated explicitly (audit step K)', async () => {
+        await renderLoaded();
+        const table = screen.getByRole('table', { name: 'Recruiter number assignments' });
+        // The attribute is the contract: nativeTable.css turns the rows into
+        // cards under 768px, and pinnedColumn.css pins the name column above it.
+        expect(table).toHaveAttribute('data-mobile-presentation', 'cards');
+        expect(table).toHaveAttribute('data-pin-first-column');
+        // `display: block` can drop implicit table roles, so every element
+        // states its own — redundant as a table, load-bearing as cards.
+        expect(table).toHaveAttribute('role', 'table');
+        for (const header of screen.getAllByRole('columnheader')) {
+            expect(header).toHaveAttribute('role', 'columnheader');
+        }
+        const row = screen.getByText('Artificial Recruiter').closest('tr');
+        expect(row).toHaveAttribute('role', 'row');
+        expect(within(row).getByRole('rowheader')).toHaveAttribute('role', 'rowheader');
+        // Every value carries the label of its column, in the table's own words.
+        const cells = within(row).getAllByRole('cell');
+        expect(cells.map((cell) => cell.getAttribute('data-label')))
+            .toEqual(['Role', 'Assigned number', 'Connection', 'Status']);
     });
 
     it('marks every column header with scope="col"', async () => {

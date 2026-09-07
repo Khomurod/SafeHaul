@@ -227,3 +227,112 @@
     padding-left: var(--ds-space-4);
   }
 }
+
+/*
+ * CARDS ON A PHONE: `data-mobile-presentation="cards"`.
+ *
+ * ## The decision (audit step K, 2026-09-06)
+ *
+ * The rule for a table on a phone is in `pinnedColumn.css`: a table whose rows
+ * are COMPARED keeps the table, scrolls sideways and pins its first column.
+ * This is the other shape the roadmap left open — a matrix of per-row form
+ * controls that is worked one record at a time, starting with the SMS
+ * recruiter-assignment matrix. Nothing in that matrix is read across rows; an
+ * operator finds one team member and changes that member's line. Under 768px
+ * the shape that fits is one card per row, every value under the label of the
+ * column it came from, in the column order the table already has. A `<select>`
+ * and its verify action 400px apart inside a horizontally scrolling form is the
+ * worst case for a thumb, and the sideways scroll would have been the only
+ * thing the table gained by staying one.
+ *
+ * ## What it does, and what the caller must do
+ *
+ * One attribute on the `<table>`. Under 768px the table, its `tbody`, rows and
+ * cells become blocks; the `thead` leaves the visual flow but stays in the tree;
+ * a body row header (`<th scope="row">`) becomes the card's title; and every
+ * `<td data-label="…">` is a two-column grid whose first column is the label —
+ * `attr(data-label)`, written by the feature in the feature's own vocabulary,
+ * because this file must never learn what a recruiter is. Above 768px nothing
+ * here applies and the table is a table.
+ *
+ * `display: block` on table elements is known to make some browser and screen
+ * reader pairs drop the table semantics, so a table that takes this attribute
+ * states them explicitly — `role="table"` on the `<table>`, `rowgroup` on
+ * `<thead>`/`<tbody>`, `row`, `columnheader`, `rowheader`, `cell` — which is
+ * redundant while it is a table and load-bearing while it is cards. The
+ * `CardsOnMobile` story is the shape to copy, and `check:table-layout` and
+ * `check:visual-contract` measure it at 412px.
+ */
+@media (max-width: 767px) {
+  .ds-native-table[data-mobile-presentation='cards'] {
+    display: block;
+    /* Beats a `min-w-[…]` utility the table carries for its desktop layout. */
+    min-width: 0;
+  }
+
+  .ds-native-table[data-mobile-presentation='cards'] > thead {
+    /*
+     * Present for assistive technology, out of the visual flow. The labels are
+     * repeated beside each value by the cells' own `data-label`.
+     */
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .ds-native-table[data-mobile-presentation='cards'] > tbody,
+  .ds-native-table[data-mobile-presentation='cards'] > tfoot,
+  .ds-native-table[data-mobile-presentation='cards'] > tbody > tr,
+  .ds-native-table[data-mobile-presentation='cards'] > tfoot > tr,
+  .ds-native-table[data-mobile-presentation='cards'] > tbody > tr > th,
+  .ds-native-table[data-mobile-presentation='cards'] > tbody > tr > td,
+  .ds-native-table[data-mobile-presentation='cards'] > tfoot > tr > th,
+  .ds-native-table[data-mobile-presentation='cards'] > tfoot > tr > td {
+    display: block;
+  }
+
+  /* One card per row; the row divider and surface it already has become the card's. */
+  .ds-native-table[data-mobile-presentation='cards'] > tbody > tr {
+    padding: var(--ds-space-4);
+  }
+
+  .ds-native-table[data-mobile-presentation='cards'] > tbody > tr > th,
+  .ds-native-table[data-mobile-presentation='cards'] > tbody > tr > td {
+    height: auto;
+    padding: var(--ds-space-2) 0;
+    text-align: start;
+  }
+
+  /* The row header is the card's title. */
+  .ds-native-table[data-mobile-presentation='cards'] > tbody > tr > th[scope='row'] {
+    margin-bottom: var(--ds-space-1);
+    padding-top: 0;
+    padding-bottom: var(--ds-space-3);
+    border-bottom: 1px solid var(--ds-table-divider);
+    font-weight: var(--ds-font-weight-semibold);
+  }
+
+  /* A value, under the label of the column it came from. */
+  .ds-native-table[data-mobile-presentation='cards'] > tbody > tr > td[data-label] {
+    display: grid;
+    grid-template-columns: minmax(96px, 2fr) minmax(0, 3fr);
+    column-gap: var(--ds-space-3);
+    align-items: center;
+  }
+
+  .ds-native-table[data-mobile-presentation='cards'] > tbody > tr > td[data-label]::before {
+    content: attr(data-label);
+    color: var(--ds-table-header-fg);
+    font-size: var(--ds-font-size-xs);
+    font-weight: var(--ds-font-weight-bold);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+}
