@@ -682,11 +682,21 @@ design-system blockers: none of them gates a primitive, a token or a baseline.
   approved tokens; there is no longer a reason to invent a colour for one.
   (Call sites that moved to `surface-subtle` while this was blocked — such as
   `PEVRequestModal`'s header — were not migrated back, and do not need to be.)
-- `[!]` **Decide whether the VOE document's small print may be recoloured.**
-  Real-browser axe reports 4 serious `color-contrast` nodes inside the generated
-  document (2.56:1, 1.95:1, two at 2.45:1). They are conventional grey legal
-  small print on a printed-form facsimile; changing them changes every exported
-  PDF and needs approval plus a re-proof of export parity.
+- `[x]` **Decide whether the VOE document's small print may be recoloured.
+  RESOLVED 2026-09-06 — recoloured to the nearest AA greys (audit step G).**
+  Real-browser axe reported 4 serious `color-contrast` nodes inside the generated
+  document (2.56:1, 1.95:1, two at 2.45:1): conventional grey legal small print
+  on a printed-form facsimile. The standard settled it — WCAG 2.2 SC 1.4.3 has no
+  exemption for legal small print, only for logotypes, decoration and disabled
+  controls — so the question was never *whether* but *how little*: the same
+  slate family, sizes untouched, `text-slate-400` → `500` (4.76:1 on white,
+  4.55:1 on the slate-50 box) everywhere except inside the 80%-opacity
+  questionnaire, where the fade blends 500 down to 3.25:1 and `700` (5.74:1) is
+  the first shade that clears. The missing-signature warning's `red-400`/`red-500`
+  text (2.6:1 / 3.76:1) went to `red-600` (4.83:1) by the same rule. Export parity
+  is re-proved by the `voe-print-export` lane, whose axe scan now includes the
+  document instead of excluding it; the allowlist counts are unchanged because
+  a raw shade replaced a raw shade, and its reason records the one-off.
 - `[x]` **The Facebook Integrations tenant binding. FIXED 2026-08-25.**
   `connectFacebookPage` derived the tenant from `request.auth.uid` under a
   comment assuming a 1:1 user-to-company mapping, which this application has
