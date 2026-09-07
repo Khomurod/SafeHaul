@@ -207,6 +207,13 @@ into tamper-evident PDFs. Signing is unlimited and not billed per envelope.
 
 **Previous employment verification (PEV).** A company admin sends a request to a
 past employer, who answers through a token portal with a reminder cycle (§8).
+The employer signs the response **drawn or typed** (since 2026-09-06): a typed
+name is stored as `TEXT_SIGNATURE:<name>` — never rendered into an image — and
+the method (`signatureMethod`: `drawn` | `typed`) is recorded with the
+response and printed on the DQ-file PDF, so the two stay distinguishable. ESIGN
+(15 U.S.C. §7006(5)) and UETA treat a typed name adopted with intent to sign as a
+valid electronic signature; the server refuses any other form and any
+mislabelled method (`functions/employmentVerification/signature.js`).
 
 **Driver-approved corrections.** Company admins cannot silently rewrite a
 submitted application — see §5.
