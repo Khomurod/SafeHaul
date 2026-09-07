@@ -1384,6 +1384,22 @@ in none of its lists. See `AGENTS.md`.
 CI runs Playwright as a 4-way shard matrix with `workers: 1` and `retries: 2`
 per shard.
 
+**The first download has a budget.** Measured on 2026-09-06 against the
+production build: the public application on a phone downloaded **517 kB (gzip)**
+before a line of it ran — a 1.18 MB entry script, a 399 kB pdf.js chunk
+preloaded on a page that renders no PDF, and Sentry's Session Replay recorder
+inside the entry. Moving the pdf.js worker wiring out of the entry
+(`src/lib/pdf/pdfWorker.js`, imported by the PDF features, which are already
+lazy chunks) and attaching Replay after load (`src/lib/monitoring/sentry.js`,
+Sentry's own bundler guidance) took it to **363 kB**, with no route or screen
+changed. `npm run check:bundle-budget` sums the entry script, its module
+preloads and its stylesheets from `dist/index.html` and fails the
+`frontend-build` job above **380 kB gzip**, refuses any preload of the pdf.js
+chunk, and refuses a Replay recorder in the entry; `npm run test:bundle-budget`
+drives each refusal on throwaway builds in `callable-contract`, and
+`check:ci-plan` (K1c) pins both steps. The ceiling may only move down with a
+new measurement. Figures are gzip; Hosting also serves brotli, which is smaller.
+
 `npm run typecheck` is a **non-blocking** baseline (`continue-on-error` in the
 workflow) and currently reports pre-existing errors in
 `src/config/applicationDefinition.js`. A red typecheck is not a broken build;
