@@ -8,6 +8,7 @@ import { randomBytes } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { FIRST_DOWNLOAD_GZIP_CEILING, firstDownloadAssets, measureFirstDownload } from './check-bundle-budget.mjs';
+import { removeTree } from './lib/throwaway.mjs';
 
 let failures = 0;
 const assert = (label, condition, detail = '') => {
@@ -46,46 +47,46 @@ console.log('\nB. Bundle budget');
     const dir = fakeDist();
     const r = measureFirstDownload(dir);
     assert('B2. a small clean build passes with the three assets measured', r.problems.length === 0 && r.assets.length === 2 && r.gzipTotal > 0, r.problems.join('; '));
-    rmSync(dir, { recursive: true, force: true });
+    removeTree(dir);
 }
 {
     // Random bytes are incompressible, so gzip cannot shrink them under the ceiling.
     const dir = fakeDist({ entry: randomBytes(64 * 1024) });
     const r = measureFirstDownload(dir, { ceiling: 40_000 });
     assert('B3. an entry over the ceiling is refused, naming the overrun', r.problems.some((p) => /over the 40000 ceiling by \d+/.test(p)), r.problems.join('; '));
-    rmSync(dir, { recursive: true, force: true });
+    removeTree(dir);
 }
 {
     const dir = fakeDist({ preloads: { 'pdfjs-Zz9.js': 'export const p = 1;' } });
     const r = measureFirstDownload(dir);
     assert('B4. a preloaded pdf.js chunk is refused even when the total is tiny', r.problems.some((p) => /pdfjs-Zz9\.js is preloaded/.test(p)), r.problems.join('; '));
-    rmSync(dir, { recursive: true, force: true });
+    removeTree(dir);
 }
 {
     const dir = fakeDist({ entry: 'const recorder = "rrweb"; console.log(recorder);' });
     const r = measureFirstDownload(dir);
     assert('B5. a Session Replay recorder inside the entry is refused', r.problems.some((p) => /contains "rrweb"/.test(p)), r.problems.join('; '));
-    rmSync(dir, { recursive: true, force: true });
+    removeTree(dir);
 }
 {
     const dir = fakeDist();
     rmSync(join(dir, 'assets', 'main-abc.css'));
     const r = measureFirstDownload(dir);
     assert('B6. an asset index.html references but the build lacks is refused', r.problems.some((p) => /main-abc\.css is referenced but not in the build/.test(p)), r.problems.join('; '));
-    rmSync(dir, { recursive: true, force: true });
+    removeTree(dir);
 }
 {
     const dir = mkdtempSync(join(tmpdir(), 'bundle-budget-empty-'));
     const r = measureFirstDownload(dir);
     assert('B7. a missing build is a refusal, not a pass over nothing', r.problems.length === 1 && /no index\.html/.test(r.problems[0]), r.problems.join('; '));
-    rmSync(dir, { recursive: true, force: true });
+    removeTree(dir);
 }
 {
     const dir = fakeDist();
     writeFileSync(join(dir, 'index.html'), '<!doctype html><html><head><link rel="stylesheet" href="/assets/main-abc.css"></head><body></body></html>');
     const r = measureFirstDownload(dir);
     assert('B8. an index.html with no module entry is refused as vacuous', r.problems.some((p) => /no module entry script/.test(p)), r.problems.join('; '));
-    rmSync(dir, { recursive: true, force: true });
+    removeTree(dir);
 }
 assert('B9. the ceiling is pinned: 380,000 bytes gzip, and may only move down with a new measurement', FIRST_DOWNLOAD_GZIP_CEILING === 380_000, String(FIRST_DOWNLOAD_GZIP_CEILING));
 
