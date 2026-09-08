@@ -14,7 +14,7 @@ const { assertCompanyAccessForRequest } = require('../shared/companyAccess');
 const { generateApplicantKey } = require('../shared/buildApplicationDoc');
 const draft = require('../shared/applicationDraft');
 const prepared = require('../shared/companyPreparedDraft');
-const { docId, text } = require('../drafts/identity');
+const { applicantKeyOf, docId, text } = require('../drafts/identity');
 
 /** Generous: a recruiter proofreading a long application saves repeatedly. */
 const SAVE_LIMIT = Object.freeze({ limit: 60, windowSeconds: 300 });
@@ -61,7 +61,18 @@ exports.saveCompanyPreparedApplication = onCall({ cors: true }, async (request) 
     }
 
     const { applicantKey, applicantKeyFull } = generateApplicantKey(companyId, email, phone);
-    const lockedEmployers = prepared.normalizeLockedEmployers(request.data?.lockedEmployers);
+    /**
+     * Against the rows in the same payload, not merely normalised.
+     *
+     * A lock is a snapshot of an employer's identity, and the carrier goes on
+     * editing the rows afterwards — so deleting a locked row used to leave the
+     * lock behind as a requirement the driver was blocked on at submission and
+     * could not satisfy, for a row that was no longer on the application at all.
+     * The carrier's editor also renders a locked row's identity read-only now, so
+     * the two halves cannot drift; this is the half that handles a deletion, which
+     * leaves nothing to render. See `reconcileLockedEmployers`.
+     */
+    const lockedEmployers = prepared.reconcileLockedEmployers(request.data?.lockedEmployers, formData);
     const ref = draft.draftsCollection(companyId).doc(applicantKey);
 
     /**
@@ -126,6 +137,35 @@ exports.saveCompanyPreparedApplication = onCall({ cors: true }, async (request) 
             'failed-precondition',
             'The driver has started filling this in, so it can no longer be edited here.',
         );
+    }
+
+    /**
+     * The key this application was at before the carrier corrected a typo.
+     *
+     * The id is `sha256(company:email:phone)`, so fixing either one addresses a
+     * different document and the old one was simply left behind — a second row in
+     * the worklist for one driver, and if a link had been minted for it, a live
+     * link to answers nobody is editing any more.
+     *
+     * Authorized by the same company access the save just used, and refused for a
+     * draft the driver has taken over or one the carrier did not author: a
+     * client-supplied key may not become a way to delete a driver's work. Failure
+     * is logged and swallowed, as `supersedeOtherDrafts` does — a tidy-up must not
+     * fail the save it follows, and the straggler expires with the 30-day TTL.
+     */
+    const previousKey = applicantKeyOf(request.data?.previousApplicantKey);
+    if (previousKey && previousKey !== applicantKey) {
+        try {
+            const previousRef = draft.draftsCollection(companyId).doc(previousKey);
+            const previous = await previousRef.get();
+            const data = previous.exists ? previous.data() || {} : null;
+            if (data && prepared.isCompanyPrepared(data)
+                && data.status !== prepared.PREPARED_STATUSES.DRIVER_IN_PROGRESS) {
+                await previousRef.delete();
+            }
+        } catch (error) {
+            console.error(`[companyApplications] Could not retire the superseded draft: ${error?.message || 'unknown'}`);
+        }
     }
 
     return { saved: true, applicantKey, lockedEmployers };

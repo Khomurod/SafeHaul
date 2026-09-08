@@ -66,6 +66,7 @@ const PREPARED_STATUSES = Object.freeze({
  */
 const {
     MAX_LOCKED_EMPLOYERS, employerSignature, normalizeLockedEmployers,
+    reconcileLockedEmployers,
 } = require('./applicationLockedFields');
 
 function text(value, max = 120) {
@@ -176,6 +177,7 @@ module.exports = {
     employerSignature,
     isCompanyPrepared,
     normalizeLockedEmployers,
+    reconcileLockedEmployers,
     toCompanyDraft,
     toCompanySummary,
 };
