@@ -197,6 +197,27 @@ vision AI — and only the text (or, for an unreadable document, the images) lea
 the browser, to one AI task. Any subset of the four documents is valid; a photo of
 a card (JPG/PNG/WebP) is read as readily as a PDF.
 
+**A signed URL is a capability, not a property of the document.** An upload used
+to leave `{name, url, storagePath}` in the form data, and that `url` is a signed
+read URL with a **fifteen-minute** life. It was persisted into the draft verbatim
+and handed to the driver by the invite exchange, so a document a recruiter
+attached on Tuesday was a broken image and a Storage error page by the time the
+driver opened their link — and the same for a recruiter reopening their own draft
+an hour later. The durable identifier was sitting beside it, unused, and the
+company's own dossier view had already been re-signing from it for the same
+reason. Nothing is stored now: `useSignedUploadPreview` mints one from
+`storagePath` when somebody is looking. Access is unchanged —
+`getSignedGuestUploadUrl` authorizes exactly as before, and `storagePath` was
+already in the draft, so whoever could read the draft could already reach the
+file. Found and fixed 2026-09-08.
+
+An expired signature, a deleted object and a refusal all rendered as the same
+broken thumbnail and the same XML page in a new tab, so "your link expired" was
+indistinguishable from "your file is gone" — and only the second means anything
+has to be sent again. `not-found` is the file and says so; anything else is that
+attempt and offers to retry, with the row still reading as attached, because the
+upload gates key on presence and a preview is a courtesy.
+
 **Progress survives, from the first page onward.** Every forward step writes a
 local copy synchronously and a server-side draft in the background, so a closed
 tab, a dropped connection, a failed CDL scan or a page error no longer costs an

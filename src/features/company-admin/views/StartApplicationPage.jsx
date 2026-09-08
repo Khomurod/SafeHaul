@@ -204,6 +204,7 @@ export function StartApplicationPage() {
                     />
                     <Card padding="md">
                         <ApplicationDocumentsPanel
+                            companyId={companyId}
                             formData={prep.formData}
                             onUpload={uploadDocument}
                             onChange={onFileChange}
@@ -265,6 +266,7 @@ export function StartApplicationPage() {
 
                 {!readOnlyNotice && (
                     <ApplicationPrepEditor
+                        companyId={companyId}
                         formData={prep.formData}
                         updateField={prep.updateField}
                         updateList={updateList}

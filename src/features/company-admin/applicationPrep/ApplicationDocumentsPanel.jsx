@@ -22,7 +22,7 @@ export const PREP_DOCUMENTS = Object.freeze([
     { name: 'mvr-upload', label: 'Motor vehicle record' },
 ]);
 
-export function ApplicationDocumentsPanel({ formData, onUpload, onChange }) {
+export function ApplicationDocumentsPanel({ companyId, formData, onUpload, onChange }) {
     return (
         <FormSection
             title="Documents you already have"
@@ -35,6 +35,9 @@ export function ApplicationDocumentsPanel({ formData, onUpload, onChange }) {
                         label={document.label}
                         name={document.name}
                         value={formData[document.name]}
+                        // For re-signing a preview: the stored URL is a
+                        // fifteen-minute signature and a draft outlives it.
+                        companyId={companyId}
                         onUpload={onUpload}
                         onChange={onChange}
                     />
