@@ -10,7 +10,10 @@
  * The exchange is served by the fixture in `applicationDraftService.js`, gated on
  * the E2E flag and refused outright in a production build, for the same reason
  * the resume fixture is: an E2E run points at an unreachable Firebase project on
- * purpose, so a flow that lives behind a callable is otherwise unreachable.
+ * purpose, so a flow that lives behind a callable is otherwise unreachable. That
+ * fixture THROWS for an unknown token, exactly as the callable does, so the
+ * failure path below is a real test of the client's handling rather than of the
+ * double.
  */
 const { test, expect } = require('@playwright/test');
 const {
@@ -67,8 +70,29 @@ test.describe('an application a carrier prepared', () => {
         await expect(page.locator('#emp-reason-0')).toBeVisible();
     });
 
-    test('a link that opens nothing leaves the driver an ordinary blank application', async ({ page }) => {
+    test('a link that opens nothing says so, and lets the driver continue', async ({ page }) => {
         await page.goto('/apply/e2e-company?invite=not-a-real-token');
+
+        /*
+         * This used to fall through in silence, and that behaviour was pinned here
+         * as correct on the grounds that a driver following a stale link should
+         * land on the ordinary application rather than a diagnostic. Two things
+         * were wrong with it. The driver could not tell a dead link from a working
+         * one — and worse, the fall-through never claims the invitation, so the
+         * carrier's locked employers go unenforced and it receives a second,
+         * unprepared application, losing the 49 CFR 391.21 employment history it
+         * had prepared. Changed 2026-09-08.
+         */
+        await expect(
+            page.getByRole('heading', { level: 1, name: 'This link could not be opened' }),
+        ).toBeVisible();
+        // Wrong and expired are deliberately one message, so nothing here says
+        // which of the two it was; and neither is worth retrying.
+        await expect(page.getByRole('button', { name: 'Try again' })).toHaveCount(0);
+
+        // Starting fresh is now an explicit choice rather than something that
+        // happens to them.
+        await page.getByRole('button', { name: 'Continue to the application' }).click();
 
         await expectStep(page, 'Personal Information');
         await expect(page.locator('#first-name')).toHaveValue('');

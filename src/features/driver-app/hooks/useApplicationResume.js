@@ -5,14 +5,12 @@ import {
     resolveWizardStepIndex,
 } from '@shared/components/layout/Stepper';
 import { markDraftSynced } from '../components/application/applicationDraftStorage';
+import { useResumeTokenOwnership } from './useResumeTokenOwnership';
 import {
-    clearResumeToken,
     findResumableApplication,
-    readResumeToken,
     resumeApplicationDraft,
     saveApplicationProgress,
     startNewApplication,
-    writeResumeToken,
 } from '../services/applicationDraftService';
 
 /**
@@ -84,14 +82,17 @@ export function useApplicationResume({
     const [promptError, setPromptError] = useState(null);
 
     /**
-     * Whether this browser has already been offered the prompt.
+     * Which application this tab holds a credential for.
      *
-     * A ref, not state: repeated Next clicks on page one must not re-ask, and a
-     * state update would not have landed before the second click.
+     * `askedRef` and `ownsDraftRef` used to live here; they moved into
+     * `useResumeTokenOwnership` together with the token itself, because all three
+     * answer one question and the token half was being answered by re-reading
+     * shared storage at the moment each answer was needed. See that file.
      */
-    const askedRef = useRef(false);
-    /** True once a save has landed, so this browser owns the draft for this identity. */
-    const ownsDraftRef = useRef(false);
+    const {
+        askedRef, ownsDraftRef, heldToken, adoptResumeToken,
+        restampApplicantKey, releaseIfStillOurs, forgetOwnership,
+    } = useResumeTokenOwnership(slug);
     /** Set while a save is in flight; the newest payload waits in `pendingRef`. */
     const savingRef = useRef(false);
     /**
@@ -170,8 +171,10 @@ export function useApplicationResume({
         askedRef.current = true;
 
         // A device holding a token has already restored, or is about to. Asking
-        // would be asking a question we know the answer to.
-        if (readResumeToken(slug)) return 'proceed';
+        // would be asking a question we know the answer to. This TAB's token, not
+        // the shared slot: another tab's invite landing in the slot must not make
+        // this tab skip a question it has never been asked.
+        if (heldToken()) return 'proceed';
 
         const found = await findResumableApplication({
             companyId,
@@ -202,7 +205,7 @@ export function useApplicationResume({
             lastSemanticStep: found.lastSemanticStep || null,
         });
         return gate.promise;
-    }, [companyId, slug]);
+    }, [companyId, slug, heldToken]);
 
     /** One round trip. Swallows everything: see the file header. */
     const sendSave = useCallback(async ({ formData, stepIndex, localSeq, draftId }) => {
@@ -212,7 +215,10 @@ export function useApplicationResume({
         // moments, and the application may have been discarded in between.
         if (discardedRef.current?.()) return;
         const semanticOrder = buildSemanticStepOrder(hasCustomQuestions);
-        const stored = readResumeToken(slug);
+        // The token THIS TAB was issued, never the shared slot re-read at transmit
+        // time — see `useResumeTokenOwnership` for the cross-applicant write that
+        // caused.
+        const stored = heldToken();
         const result = await saveApplicationProgress({
             companyId,
             email: formData?.email || '',
@@ -267,12 +273,12 @@ export function useApplicationResume({
             // holding a credential for a deleted document: cross-session resume was
             // gone, and now that changing an existing draft requires proof of
             // ownership, background saves would be refused as well.
-            writeResumeToken(slug, {
+            adoptResumeToken({
                 resumeToken: result.resumeToken,
                 applicantKey: result.applicantKey,
             });
         }
-    }, [companyId, slug, hasCustomQuestions]);
+    }, [companyId, slug, hasCustomQuestions, heldToken, adoptResumeToken]);
 
     /**
      * Saves progress in the background.
@@ -326,7 +332,7 @@ export function useApplicationResume({
      */
     const restoreFromStoredToken = useCallback(async () => {
         if (!enabled) return null;
-        const stored = readResumeToken(slug);
+        const stored = heldToken();
         if (!stored) return null;
         // This browser holds the draft, so there is nothing to be asked about.
         askedRef.current = true;
@@ -338,9 +344,19 @@ export function useApplicationResume({
                 resumeToken: stored.resumeToken,
             });
             if (!result?.draft) return null;
+            // The server's own name for the document this token opened. It used to
+            // be dropped here, which meant no caller COULD ask "is this the
+            // applicant I opened?" — and that is the question the invite path has to
+            // ask before merging this browser's leftovers into a carrier's prepared
+            // application. `continueExisting` one function below already used it.
+            const applicantKey = result.draft.applicantKey || null;
+            // Resolved to a different document than this tab named: a fall-through
+            // in `findByToken`, which is what a corrected contact detail looks like.
+            restampApplicantKey(applicantKey);
             return {
                 formData: result.draft.formData || {},
                 stepIndex: stepIndexFor(result.draft),
+                applicantKey,
                 // Carried through so the page can reconcile the two copies rather
                 // than assume the server holds the newer one.
                 clientSeq: Number.isInteger(result.draft.clientSeq) ? result.draft.clientSeq : null,
@@ -349,12 +365,21 @@ export function useApplicationResume({
             // An expired or discarded draft. Drop the token rather than retrying
             // it on every load, and let the applicant start normally — including
             // being offered a match, since this browser no longer owns anything.
-            clearResumeToken(slug);
-            askedRef.current = false;
-            ownsDraftRef.current = false;
+            //
+            // Conditionally, exactly as `startOver` does twelve lines below. This
+            // call is a round trip and `localStorage` is shared, so a carrier's
+            // invite can have minted and stored a fresh token in the window — and
+            // clearing that took away the ONLY thing authorizing the invited
+            // driver's autosave, since a carrier-prepared draft carries no identity
+            // HMAC. The ownership refs move with it: resetting them while the slot
+            // has moved on would make this tab re-ask for an application it owns.
+            if (releaseIfStillOurs(stored.resumeToken)) {
+                askedRef.current = false;
+                ownsDraftRef.current = false;
+            }
             return null;
         }
-    }, [enabled, companyId, slug, stepIndexFor]);
+    }, [enabled, companyId, stepIndexFor, heldToken, restampApplicantKey, releaseIfStillOurs]);
 
     /**
      * Continue: restores the saved answers.
@@ -371,12 +396,11 @@ export function useApplicationResume({
                 resumeToken: prompt.resumeToken,
             });
             if (!result?.draft) throw new Error('empty');
-            writeResumeToken(slug, {
+            adoptResumeToken({
                 resumeToken: prompt.resumeToken,
                 applicantKey: result.draft.applicantKey,
             });
             setPrompt(null);
-            ownsDraftRef.current = true;
             // Drops the queued save, which holds pre-restore answers.
             settleGate('discard');
             return {
@@ -395,7 +419,7 @@ export function useApplicationResume({
         } finally {
             setBusy(false);
         }
-    }, [prompt, companyId, slug, stepIndexFor, settleGate]);
+    }, [prompt, companyId, stepIndexFor, settleGate, adoptResumeToken]);
 
     /**
      * Start over: discards the unfinished application.
@@ -415,9 +439,7 @@ export function useApplicationResume({
             // the meantime and been issued a token for *its* application, and taking
             // that away would cost the applicant the ownership proof for work nobody
             // discarded.
-            if (readResumeToken(slug)?.resumeToken === prompt.resumeToken) {
-                clearResumeToken(slug);
-            }
+            releaseIfStillOurs(prompt.resumeToken);
             setPrompt(null);
             // The queued save is now the beginning of the new application.
             settleGate('proceed');
@@ -428,7 +450,7 @@ export function useApplicationResume({
         } finally {
             setBusy(false);
         }
-    }, [prompt, companyId, slug, settleGate]);
+    }, [prompt, companyId, settleGate, releaseIfStillOurs]);
 
     /**
      * Forgets that this browser owns a draft.
@@ -440,18 +462,20 @@ export function useApplicationResume({
      * nothing: the next save asks first.
      */
     const forgetDraftOwnership = useCallback(() => {
-        askedRef.current = false;
-        ownsDraftRef.current = false;
+        forgetOwnership();
         pendingRef.current = null;
         setPrompt(null);
         setPromptError(null);
         // Anything waiting on the resume question is released as a discard: the
         // payload it holds belongs to an application that no longer exists.
         settleGate('discard');
-    }, [settleGate]);
+    }, [settleGate, forgetOwnership]);
 
     return {
         resumePrompt: prompt,
+        // Exposed so the invite path adopts its token through this hook rather than
+        // writing the shared slot behind its back — see `useResumeTokenOwnership`.
+        adoptResumeToken,
         resumeBusy: busy,
         resumeError: promptError,
         saveProgressToServer,

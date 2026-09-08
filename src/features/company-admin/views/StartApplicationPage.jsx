@@ -9,6 +9,7 @@ import { PageContainer, PageHeader, Stack } from '@/design-system/layouts';
 import { useGuestFileUpload } from '@features/driver-app/hooks/useGuestFileUpload';
 import { useApplicationPrepDraft, describeError } from '../applicationPrep/useApplicationPrepDraft';
 import { useInviteLink } from '../applicationPrep/useInviteLink';
+import { PREP_ACTIONS, prepActionPreflight } from '../applicationPrep/prepActionPreflight';
 import ApplicationModeChooser from '../applicationPrep/ApplicationModeChooser';
 import ApplicationDocumentsPanel from '../applicationPrep/ApplicationDocumentsPanel';
 import ApplicationPrepEditor from '../applicationPrep/ApplicationPrepEditor';
@@ -41,6 +42,20 @@ import PreparedApplicationsTable from '../applicationPrep/PreparedApplicationsTa
  * The only fields a driver cannot later change are the employers a PSP report
  * named, which stay locked to their identity.
  */
+/**
+ * Move focus to a field the preflight named.
+ *
+ * `SchemaRenderer` suffixes its ids with `-edit` in edit mode, which is the mode
+ * this screen is always in — the driver's wizard renders the same fields as
+ * `#email`, which is what the e2e specs there point at. The preflight names the
+ * logical field and this resolves it, so neither has to know about the other's
+ * renderer. Tried in that order because this screen only ever has the first.
+ */
+function focusPrepField(fieldId) {
+    const field = document.getElementById(`${fieldId}-edit`) || document.getElementById(fieldId);
+    field?.focus();
+}
+
 export function StartApplicationPage() {
     const { currentCompanyProfile } = useData();
     const companyId = currentCompanyProfile?.id;
@@ -61,6 +76,26 @@ export function StartApplicationPage() {
     const [listLoading, setListLoading] = useState(true);
     const [listError, setListError] = useState(null);
     const [readOnlyNotice, setReadOnlyNotice] = useState(null);
+    /**
+     * The reader is running, on whichever step is mounted.
+     *
+     * Held here rather than in the panel because there are two instances of it —
+     * one on the upload step, one in the editor — and moving between them unmounts
+     * the first and mounts the second as idle. A read started on the upload step
+     * would otherwise let a second one start in the editor while it was still in
+     * flight.
+     */
+    const [readerBusy, setReaderBusy] = useState(false);
+    /**
+     * What the last press of an action found missing.
+     *
+     * Save and "Create the driver's link" used to be `disabled` whenever their
+     * prerequisites were unmet, with nothing on screen saying what those were —
+     * and the link's real precondition, "save first", appeared nowhere at all. The
+     * controls are clickable now and the press explains itself. See
+     * `prepActionPreflight`.
+     */
+    const [actionProblem, setActionProblem] = useState(null);
 
     const prep = useApplicationPrepDraft(companyId);
     const invite = useInviteLink({ companyId, appSlug });
@@ -92,6 +127,7 @@ export function StartApplicationPage() {
         invite.reset();
         setDocumentBlobs({});
         setReadOnlyNotice(null);
+        setReaderBusy(false);
     }, [invite, prep]);
 
     const startNew = useCallback(() => { clearForNew(); setView('mode'); }, [clearForNew]);
@@ -114,6 +150,50 @@ export function StartApplicationPage() {
         setIntakeMode('ai');
         setView('editor');
     }, [invite, prep]);
+
+    /**
+     * Run an action, or say what it needs.
+     *
+     * Focus moves to the first field at fault — schema fields carry `id={key}`, so
+     * `#email` and `#phone` are the real controls, which is what the e2e specs
+     * already rely on.
+     */
+    const attempt = useCallback(async (action, run) => {
+        const verdict = prepActionPreflight(action, {
+            formData: prep.formData,
+            applicantKey: prep.applicantKey,
+            dirty: prep.dirty,
+            hasLink: Boolean(invite.linkFor(prep.applicantKey)),
+        });
+        if (!verdict.ok) {
+            setActionProblem({ ...verdict, action });
+            const target = verdict.problems.find((problem) => problem.fieldId)?.fieldId;
+            if (target) focusPrepField(target);
+            return null;
+        }
+        setActionProblem(null);
+        return run();
+    }, [invite, prep.applicantKey, prep.dirty, prep.formData]);
+
+    const saveNow = useCallback(() => attempt(PREP_ACTIONS.SAVE, prep.save), [attempt, prep.save]);
+
+    /** Save, then mint — the one press the "save first" message would otherwise cost. */
+    const saveThenLink = useCallback(async () => {
+        setActionProblem(null);
+        const saved = await prep.save();
+        if (!saved?.applicantKey) return;
+        await invite.mint(saved.applicantKey);
+    }, [invite, prep]);
+
+    const createLink = useCallback(
+        () => attempt(PREP_ACTIONS.LINK, () => invite.mint(prep.applicantKey)),
+        [attempt, invite, prep.applicantKey],
+    );
+
+    const copyLink = useCallback(
+        () => attempt(PREP_ACTIONS.COPY, invite.copy),
+        [attempt, invite],
+    );
 
     const uploadDocument = useCallback(async (fieldName, file) => {
         const uploaded = await handleFileUpload(fieldName, file);
@@ -193,6 +273,7 @@ export function StartApplicationPage() {
                     />
                     <Card padding="md">
                         <ApplicationDocumentsPanel
+                            companyId={companyId}
                             formData={prep.formData}
                             onUpload={uploadDocument}
                             onChange={onFileChange}
@@ -202,9 +283,10 @@ export function StartApplicationPage() {
                         companyId={companyId}
                         files={prep.formData}
                         blobs={documentBlobs}
-                        formData={prep.formData}
-                        onApply={prep.setFormData}
-                        onLockCarriers={prep.lockEmployers}
+                        applicantKey={prep.applicantKey}
+                        onApplyExtraction={prep.applyExtraction}
+                        busy={readerBusy}
+                        onBusyChange={setReaderBusy}
                     />
                     {prep.error && <Card padding="md"><FieldMessage tone="error">{prep.error}</FieldMessage></Card>}
                     <div className="flex flex-wrap gap-ds-2">
@@ -231,10 +313,39 @@ export function StartApplicationPage() {
                     <Button variant="ghost" onClick={backToList}>
                         <Icon icon={ArrowLeft} size="sm" /> Back to the list
                     </Button>
-                    <Button variant="secondary" onClick={prep.save} disabled={!prep.identityComplete || prep.busy || isUploading}>
-                        <Icon icon={Save} size="sm" /> {prep.busy ? 'Saving…' : 'Save'}
+                    {/* Clickable even when something is missing: the press says what.
+                        `loading` is the one honest `disabled` — an operation in
+                        flight — and it brings the spinner and `aria-busy` with it.
+                        The LABEL stays "Save": a label that changes to "Saving…" is
+                        ordinary content rather than an announcement, and it moves
+                        the control's accessible name out from under anything
+                        looking for it. The live region beside it is what speaks,
+                        and it exists when idle so that filling it is announced. */}
+                    <Button variant="secondary" onClick={saveNow} loading={prep.busy || isUploading}>
+                        <Icon icon={Save} size="sm" /> Save
                     </Button>
+                    <p role="status" className="self-center text-ds-xs text-ds-content-secondary">
+                        {prep.busy ? 'Saving…' : ''}
+                    </p>
                 </div>
+
+                {actionProblem && (
+                    <Card padding="md">
+                        {/* No `role="alert"` here: `FieldMessage tone="error"` sets
+                            its own, and nesting one alert inside another announces
+                            the same text twice. The primitive owns the region. */}
+                        <div className="space-y-ds-2">
+                            {actionProblem.problems.map((problem) => (
+                                <FieldMessage key={problem.message} tone="error">{problem.message}</FieldMessage>
+                            ))}
+                            {actionProblem.needsSave && actionProblem.action === PREP_ACTIONS.LINK && (
+                                <Button variant="primary" size="sm" onClick={saveThenLink} loading={prep.busy}>
+                                    <Icon icon={Save} size="sm" /> Save and create the link
+                                </Button>
+                            )}
+                        </div>
+                    </Card>
+                )}
 
                 {readOnlyNotice && <Card padding="md"><FieldMessage tone="help">{readOnlyNotice}</FieldMessage></Card>}
                 {prep.error && <Card padding="md"><FieldMessage tone="error">{prep.error}</FieldMessage></Card>}
@@ -244,14 +355,16 @@ export function StartApplicationPage() {
                         companyId={companyId}
                         files={prep.formData}
                         blobs={documentBlobs}
-                        formData={prep.formData}
-                        onApply={prep.setFormData}
-                        onLockCarriers={prep.lockEmployers}
+                        applicantKey={prep.applicantKey}
+                        onApplyExtraction={prep.applyExtraction}
+                        busy={readerBusy}
+                        onBusyChange={setReaderBusy}
                     />
                 )}
 
                 {!readOnlyNotice && (
                     <ApplicationPrepEditor
+                        companyId={companyId}
                         formData={prep.formData}
                         updateField={prep.updateField}
                         updateList={updateList}
@@ -264,14 +377,23 @@ export function StartApplicationPage() {
                     />
                 )}
 
+                {/*
+                  * Deliberately outside the `!readOnlyNotice` guard its two
+                  * neighbours carry. A driver who has taken the application over
+                  * may still have lost their link, and the boundary that used to
+                  * make this button dangerous is now enforced server-side: after
+                  * takeover the exchange returns no answers and no resume token.
+                  * The panel says so rather than implying a read it cannot do.
+                  */}
                 <InviteLinkPanel
                     link={invite.linkFor(prep.applicantKey)}
                     busy={invite.busy}
                     error={invite.error}
                     copied={invite.copied}
-                    canMint={Boolean(prep.applicantKey)}
-                    onMint={() => invite.mint(prep.applicantKey)}
-                    onCopy={invite.copy}
+                    copyFailed={invite.copyFailed}
+                    driverStarted={prep.status === 'driver_in_progress'}
+                    onMint={createLink}
+                    onCopy={copyLink}
                 />
             </Stack>
         </PageContainer>
