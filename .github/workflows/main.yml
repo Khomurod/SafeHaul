@@ -100,12 +100,12 @@ jobs:
       # push's previous head, and a shallow clone has neither. A planner that
       # cannot read the diff falls back to the full suite, so a shallow clone
       # here would silently cost ~20 minutes per run rather than break anything.
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Use Node.js 22.x
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
           node-version: 22.x
 
@@ -144,11 +144,11 @@ jobs:
     steps:
       # Full history: the scanner resolves base..head itself, and a merge needs
       # both parents' ancestry to be present.
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Use Node.js 22.x
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
           node-version: 22.x
       - name: Scan what this change introduces, and the tree it produces
@@ -163,7 +163,7 @@ jobs:
       # Redacted by construction: rule, file, line and commit only, never a value.
       - name: Upload the redacted secret-scan report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: secret-scan-report
           path: ${{ runner.temp }}/secret-scan
@@ -186,11 +186,11 @@ jobs:
       # reading its previous version out of git, and a depth-1 checkout has no
       # previous version to read. Without this the guard refuses (which is the
       # designed behaviour) rather than passing on an unverified backlog.
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Use Node.js 22.x
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
           node-version: 22.x
           cache: 'npm'
@@ -360,10 +360,10 @@ jobs:
         working-directory: ./functions
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Use Node.js 22.x
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
           node-version: 22.x
           cache: 'npm'
@@ -383,10 +383,10 @@ jobs:
     needs: plan
     if: needs.plan.outputs.run_frontend_build == 'true'
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Use Node.js 22.x
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
           node-version: 22.x
           cache: 'npm'
@@ -414,10 +414,10 @@ jobs:
     needs: plan
     if: needs.plan.outputs.run_frontend_unit == 'true'
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Use Node.js 22.x
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
           node-version: 22.x
           cache: 'npm'
@@ -444,10 +444,10 @@ jobs:
       matrix:
         shard: [1, 2, 3, 4]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Use Node.js 22.x
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
           node-version: 22.x
           cache: 'npm'
@@ -463,7 +463,7 @@ jobs:
       # Browsers only. No credential, token or build output is cached here.
       - name: Cache the Playwright browser
         id: playwright-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
@@ -532,10 +532,10 @@ jobs:
       PROCESS_BULK_BATCH_URL: ''
       BULK_WORKER_SECRET: ''
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Use Node.js 22.x
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
           node-version: 22.x
           cache: 'npm'
@@ -566,7 +566,7 @@ jobs:
       # one already pinned by the lockfile rather than a second copy.
       - name: Cache the Playwright browser
         id: playwright-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
@@ -618,7 +618,7 @@ jobs:
       # blocked merge and the diff is how you triage it.
       - name: Upload the visual diff
         if: always() && steps.visual-regression.outcome == 'failure'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: visual-regression-diff
           path: |
@@ -635,7 +635,7 @@ jobs:
                "'npm run test:visual:update' and commit the baselines."
 
       - name: Upload the static catalog
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: storybook-static
           path: storybook-static
@@ -651,22 +651,22 @@ jobs:
     # that cannot touch rules at all.
     if: needs.plan.outputs.run_rules == 'true'
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Use Node.js 22.x
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
           node-version: 22.x
           cache: 'npm'
 
       - name: Setup Java for Firebase emulators
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           distribution: 'temurin'
           java-version: '21'
 
       - name: Cache Firebase emulator jars
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/firebase/emulators
           key: ${{ runner.os }}-firebase-emulators-${{ hashFiles('package-lock.json') }}
@@ -683,7 +683,7 @@ jobs:
 
       - name: Upload emulator logs on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: rules-emulator-logs
           if-no-files-found: ignore
@@ -711,9 +711,9 @@ jobs:
     # time; intentionally NOT part of the release-validation lane set so it never
     # blocks a release.
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Use Node.js 22.x
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
           node-version: 22.x
           cache: 'npm'
@@ -749,10 +749,10 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Use Node.js 22.x
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
           node-version: 22.x
 
@@ -806,7 +806,7 @@ jobs:
 
       - name: Attest frontend_build
         if: github.event_name == 'pull_request' && needs.frontend-build.result == 'success'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: validated-${{ needs.plan.outputs.tree_sha }}-frontend_build
           path: validation-receipt.json
@@ -815,7 +815,7 @@ jobs:
 
       - name: Attest frontend_unit
         if: github.event_name == 'pull_request' && needs.frontend-quality.result == 'success'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: validated-${{ needs.plan.outputs.tree_sha }}-frontend_unit
           path: validation-receipt.json
@@ -824,7 +824,7 @@ jobs:
 
       - name: Attest frontend_e2e
         if: github.event_name == 'pull_request' && needs.frontend-e2e.result == 'success'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: validated-${{ needs.plan.outputs.tree_sha }}-frontend_e2e
           path: validation-receipt.json
@@ -833,7 +833,7 @@ jobs:
 
       - name: Attest storybook
         if: github.event_name == 'pull_request' && needs.storybook-build.result == 'success'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: validated-${{ needs.plan.outputs.tree_sha }}-storybook
           path: validation-receipt.json
@@ -842,7 +842,7 @@ jobs:
 
       - name: Attest functions
         if: github.event_name == 'pull_request' && needs.test-functions.result == 'success'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: validated-${{ needs.plan.outputs.tree_sha }}-functions
           path: validation-receipt.json
@@ -851,7 +851,7 @@ jobs:
 
       - name: Attest rules
         if: github.event_name == 'pull_request' && needs.rules-emulator.result == 'success'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: validated-${{ needs.plan.outputs.tree_sha }}-rules
           path: validation-receipt.json
@@ -922,10 +922,10 @@ jobs:
       FIREBASE_LANDING_TARGET: landing-testing
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Use Node.js 22.x
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
           node-version: 22.x
           cache: 'npm'
@@ -1059,12 +1059,12 @@ jobs:
       FIREBASE_PROJECT_ID: truckerapp-system
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Use Node.js 22.x
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
           node-version: 22.x
           cache: 'npm'
@@ -1191,10 +1191,10 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Use Node.js 22.x
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
           node-version: 22.x
 
@@ -1264,10 +1264,10 @@ jobs:
       deployments: write
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Use Node.js 22.x
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
           node-version: 22.x
 

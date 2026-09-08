@@ -37,7 +37,15 @@ export default [
       },
     },
     rules: {
-      ...reactHooks.configs.recommended.rules,
+      // Deliberately NOT `...reactHooks.configs.recommended.rules`. Under
+      // eslint-plugin-react-hooks 5 that spread was exactly the two rules declared
+      // below; under 7 it also switches on the seven React Compiler rules
+      // (set-state-in-effect, refs, immutability, purity,
+      // preserve-manual-memoization, static-components, globals) as errors —
+      // measured on 2026-09-08 at 89 errors across 69 files. Adopting those is a
+      // migration of component code, not a linter bump, so the policy here stays
+      // what it was and the compiler rules become a deliberate opt-in when that
+      // migration is scheduled.
       'react/jsx-uses-vars': 'warn',
       'react/jsx-no-undef': 'error',
       // An error, not a warning, since 2026-09-06: the three violations this

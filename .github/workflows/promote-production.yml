@@ -69,7 +69,7 @@ jobs:
     steps:
       # Checked out at the CANDIDATE SHA, not at main. The public site is
       # deployed from this tree, so the checkout is part of the release contract.
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.sha }}
           # Full history, because the retirement step below proves with
@@ -80,7 +80,7 @@ jobs:
           fetch-depth: 0
 
       - name: Use Node.js 22.x
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
           node-version: 22.x
           cache: 'npm'

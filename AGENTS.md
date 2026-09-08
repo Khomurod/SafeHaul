@@ -488,6 +488,19 @@ real time. None were code defects; all were tooling mistakes.
    cannot exist until the state you are asserting on does.** Here that is the
    row's own role select, behind a named helper with the reason above it.
 
+8. **A test must settle every promise it starts.** `src/tests/auth.test.jsx`
+   mocked the sign-in to resolve after a 100 ms `setTimeout`, asserted the button
+   was disabled, and ended. The timer fired after the file's environment had begun
+   tearing down; the component's `catch` called `console.error`, and Vitest
+   reported `EnvironmentTeardownError: Closing rpc while "onUserConsoleLog" was
+   pending` — all 5210 tests passed and the run failed anyway. It cost two
+   consecutive `frontend-quality` failures on 2026-09-08, on a pull request that
+   changed only `functions/`, while the identical root tree passed on `main`: the
+   race is whether the worker closes inside that 100 ms. `Errors 1` on one run and
+   `Errors 2` on the next is the tell — a deterministic failure repeats its count.
+   Settle the promise inside the test (a deferred the test resolves or rejects)
+   and wait for the rendered consequence, exactly as rule 7 says.
+
 Also avoid editing files that are in the module graph while a Playwright suite is
 running: the dev server hot-reloads and the in-flight tests can fail spuriously.
 
