@@ -8,6 +8,7 @@ import {
 } from '../../icons';
 import { defineTableColumns } from './tableColumnContract';
 import './DataTable.css';
+import './pinnedColumn.css';
 
 function SelectionCheckbox({ checked, indeterminate = false, label, onChange }) {
   const inputRef = useRef(null);
@@ -109,6 +110,13 @@ function LoadingRows({ columns, showSelection, loadingLabel }) {
  * Features own data, column content, actions, sorting, and pagination
  * callbacks. This component owns the visual column contract, state treatment,
  * selection mechanics, keyboard row activation, and responsive scrolling.
+ *
+ * On a phone the table scrolls sideways inside its labelled region and, by
+ * default, pins its first column so the row's label stays in view — the
+ * checkbox column too when there is a selection, with the identifying column
+ * pinned beside it. `pinFirstColumn={false}` opts out for a table whose first
+ * column is not what identifies the row. See pinnedColumn.css for the rule and
+ * the standard it applies.
  */
 export const DataTable = memo(function DataTable({
   ariaLabel,
@@ -121,6 +129,7 @@ export const DataTable = memo(function DataTable({
   density = 'comfortable',
   minWidth = 'wide',
   mobilePresentation = 'scroll',
+  pinFirstColumn = true,
   mobileHint = 'Swipe horizontally to view all columns and actions.',
   embedded = false,
   isLoading = false,
@@ -171,6 +180,8 @@ export const DataTable = memo(function DataTable({
       className="ds-data-table"
       data-density={density}
       data-mobile-presentation={mobilePresentation}
+      data-pin-first-column={pinFirstColumn || undefined}
+      data-has-selection={showSelection || undefined}
       data-embedded={embedded || undefined}
       aria-busy={isLoading || undefined}
     >

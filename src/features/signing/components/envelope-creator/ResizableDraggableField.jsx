@@ -254,19 +254,21 @@ export const ResizableDraggableField = React.memo(({ field, pageNum, pageWidth, 
                             cancels dragging on `.resize-handle`, and the mousemove/mouseup
                             mathematics above is frozen. Keyboard resizing is Alt+arrows on the
                             field itself, so nothing is pointer-only overall. */}
-                            {/*
-                              The HANDLE owns this glyph, and 10px is its geometry
-                              rather than a size somebody picked. The handle is
-                              `h-3 w-3` (12px) with `p-0.5`, so the inner box is 8px;
-                              the scale's smallest step is `xs` = 12, which would
-                              overflow the handle it sits in. Off-scale either way,
-                              so it goes on the container, where resizing the handle
-                              carries it. (The 12px hit target is the separate,
-                              already-recorded WCAG 2.5.8 owner checkpoint from P-2,
-                              not this slice's business.)
-                            */}
+                        {/*
+                          The HANDLE is a 24x24 pointer target centred on the field's
+                          corner (`-bottom-3 -right-3 h-6 w-6`) — the WCAG 2.2 SC 2.5.8
+                          minimum, met on 2026-09-06 the way the badge on the opposite
+                          corner meets it: half the box over the page, half over the
+                          field, so its footprint inside the field is the 12x12 it
+                          always was. The glyph sits in the box's top-left behind 2px of
+                          padding, which is where it has always drawn. 10px is the
+                          glyph's geometry rather than a size somebody picked: the
+                          scale's smallest step is `xs` = 12 and would outgrow the
+                          corner, so it goes on the container, where resizing the
+                          handle carries it.
+                        */}
                         <div
-                            className="resize-handle absolute bottom-0 right-0 z-ds-layer-2 flex h-3 w-3 cursor-se-resize items-end justify-end p-0.5 opacity-60 transition motion-reduce:transition-none group-hover:opacity-100 [&>svg]:h-2.5 [&>svg]:w-2.5"
+                            className="resize-handle absolute -bottom-3 -right-3 z-ds-layer-2 flex h-6 w-6 cursor-se-resize items-start justify-start p-0.5 opacity-60 transition motion-reduce:transition-none group-hover:opacity-100 [&>svg]:h-2.5 [&>svg]:w-2.5"
                             onMouseDown={handleMouseDown}
                             aria-hidden="true"
                         >

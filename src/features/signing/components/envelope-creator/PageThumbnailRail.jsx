@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { Document, Page } from 'react-pdf';
+import '@lib/pdf/pdfWorker';
 import { Icon, Sparkles } from '@design-system/icons';
 import { SelectableCard } from '@/design-system/components';
 

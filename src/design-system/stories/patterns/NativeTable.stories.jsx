@@ -128,14 +128,36 @@ const meta = {
           'it on the cell; `FeaturesView` had no role at all, so filtering the matrix down to',
           'nothing was silent. The `EmptyRow` story is the shape to copy.',
           '',
+          '### Tables on phones: the rule (audit step K, 2026-09-06)',
+          '',
+          'A table whose rows are **compared** keeps the table on a phone: a labelled,',
+          'focusable horizontal-scroll region, a sticky header, and the first column pinned so',
+          'the row label stays in view while the rest scrolls — Nielsen Norman Group\'s guidance',
+          'for mobile tables (*"the leftmost column … should be locked in place, so users can',
+          'see the necessary labels at all times"*). A matrix of per-row form controls that is',
+          'worked **one record at a time** becomes one card per row under 768px. Both are one',
+          'attribute on the `<table>`:',
+          '',
+          '| Attribute | Does |',
+          '| --- | --- |',
+          '| `data-pin-first-column` | Freezes the first column (header corner included) with its own surface, hover tint and — under 768px — a 1px seam; the table isolates its own stacking. `DataTable` does the same by default |',
+          '| `data-mobile-presentation="cards"` | Under 768px: one card per row, the row header as its title, every `<td data-label="…">` as label + value. The caller states the table roles explicitly, because `display: block` may drop them |',
+          '',
           '### A frozen first column',
           '',
-          'One rule the contract has to state that `DataTable` never needed: **a `sticky`',
-          'cell gets its own background from the contract.** The row paints the surface, not',
-          'the cell, so a frozen column with a transparent background lets the other columns',
-          'text paint straight through it as they scroll under. Add `sticky left-0` (and a',
-          'stacking context) and the surface, the hover tint and the padding follow. The',
-          '`StickyFirstColumn` story is the one to scroll sideways.',
+          'One rule the contract has to state that `DataTable` never needed: **a frozen cell',
+          'gets its own background from the contract.** The row paints the surface, not the',
+          'cell, so a frozen column with a transparent background lets the other columns\' text',
+          'paint straight through it as they scroll under. `data-pin-first-column` supplies the',
+          'surface, the hover tint, the stacking order and the seam (`pinnedColumn.css`); the',
+          'hand-written `sticky left-0` form is kept only by the feature matrix, whose three',
+          'layers cross. The `StickyFirstColumn` story is the one to scroll sideways.',
+          '',
+          '### Cards on a phone',
+          '',
+          'The `CardsOnMobile` story is the shape to copy for an editable matrix: the same',
+          '`<table>` at 1440px, one card per row at 412px, labels from `data-label`, roles',
+          'stated on every element. Nothing is hidden and nothing is reordered.',
         ].join('\n'),
       },
     },
@@ -201,20 +223,20 @@ export const EmptyRow = {
 
 /**
  * A frozen first column, which is the case that needs the contract's sticky rule:
- * the row paints the surface, not the cell, so a transparent `sticky` cell lets
- * the scrolled columns paint through it. Scroll this one sideways.
+ * the row paints the surface, not the cell, so a transparent frozen cell lets
+ * the scrolled columns paint through it. Since 2026-09-06 the whole of it is one
+ * attribute — surface, hover tint, stacking and the seam. Scroll this one
+ * sideways.
  */
 export const StickyFirstColumn = {
   render: () => (
     <Card padding="none">
-      {/* `isolate` is what makes the two layers below local to this table:
-          a sticky first column only has to outrank the cells beside it. */}
-      <div className="isolate overflow-x-auto">
-        <table className="ds-native-table min-w-[1100px]" data-density="compact" data-row-hover>
+      <div className="overflow-x-auto">
+        <table className="ds-native-table min-w-[1100px]" data-density="compact" data-row-hover data-pin-first-column>
           <caption className="ds-visually-hidden">Reference allocation matrix, wide</caption>
           <thead>
             <tr>
-              <th scope="col" className="sticky left-0 z-ds-layer-2">Reference</th>
+              <th scope="col">Reference</th>
               {['Owner', 'Quota', 'Region', 'Contact', 'Renewal', 'Notes', 'Reviewer'].map((h) => (
                 <th key={h} scope="col">{h}</th>
               ))}
@@ -223,9 +245,7 @@ export const StickyFirstColumn = {
           <tbody>
             {ROWS.map((row) => (
               <tr key={row.id}>
-                <th scope="row" className="sticky left-0 z-ds-layer-1 border-r border-ds-border-subtle">
-                  {row.reference}
-                </th>
+                <th scope="row">{row.reference}</th>
                 <td>{row.owner}</td>
                 <td>{row.quota}</td>
                 <td>Northern</td>
@@ -233,6 +253,58 @@ export const StickyFirstColumn = {
                 <td>2027-01-01</td>
                 <td>Renewed early, pending review</td>
                 <td>A. Reviewer</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Card>
+  ),
+};
+
+/**
+ * The editable matrix as a phone sees it. One `<table>`: at 1440px the matrix
+ * above; at 412px (`data-mobile-presentation="cards"`) one card per row, every
+ * value under the label of its column, in column order, nothing hidden. The
+ * roles are stated on every element because `display: block` can drop the
+ * implicit ones — redundant while it is a table, load-bearing while it is cards.
+ */
+export const CardsOnMobile = {
+  globals: { viewport: { value: 'safehaulMobile' } },
+  render: () => (
+    <Card padding="none">
+      <div role="region" aria-label="Reference allocation" tabIndex={0} className="overflow-x-auto">
+        <table
+          className="ds-native-table min-w-[720px]"
+          role="table"
+          data-density="compact"
+          data-pin-first-column
+          data-mobile-presentation="cards"
+        >
+          <caption className="ds-visually-hidden">Reference allocation matrix, stacked on a phone</caption>
+          <thead role="rowgroup">
+            <tr role="row">
+              <th scope="col" role="columnheader">Reference</th>
+              <th scope="col" role="columnheader">Owner</th>
+              <th scope="col" role="columnheader">Quota</th>
+              <th scope="col" role="columnheader" className="text-center">State</th>
+              <th scope="col" role="columnheader" className="text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody role="rowgroup">
+            {ROWS.map((row) => (
+              <tr key={row.id} role="row">
+                <th scope="row" role="rowheader">{row.reference}</th>
+                <td role="cell" data-label="Owner">{row.owner}</td>
+                <td role="cell" data-label="Quota">
+                  <Input size="sm" defaultValue={row.quota} aria-label={`Quota for ${row.reference}`} />
+                </td>
+                <td role="cell" data-label="State" className="text-center"><Badge tone={row.tone}>{row.state}</Badge></td>
+                <td role="cell" data-label="Actions" className="text-right">
+                  <IconButton variant="ghost" size="sm" label={`Remove ${row.reference}`}>
+                    <Icon icon={Trash2} />
+                  </IconButton>
+                </td>
               </tr>
             ))}
           </tbody>

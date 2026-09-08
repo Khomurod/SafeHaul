@@ -36,7 +36,7 @@ function fillMinimumValidForm(result) {
     act(() => result.current.updateField('respondentName', 'Artificial Respondent'));
     act(() => result.current.updateField('respondentTitle', 'Safety Director'));
     act(() => result.current.updateField('respondentPhone', '555-000-1111'));
-    act(() => result.current.updateField('signatureData', 'data:image/png;base64,artificial'));
+    act(() => result.current.updateSignature({ data: 'data:image/png;base64,artificial', method: 'drawn' }));
 }
 
 describe('useVerificationPortal — token-load and submission contract', () => {
@@ -162,6 +162,7 @@ describe('useVerificationPortal — token-load and submission contract', () => {
                 respondentPhone: '555-000-1111',
                 respondentEmail: '',
                 signatureData: 'data:image/png;base64,artificial',
+                signatureMethod: 'drawn',
             },
         });
         expect(result.current.completed).toBe(true);

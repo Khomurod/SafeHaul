@@ -1,4 +1,5 @@
 import { pdfjs } from 'react-pdf';
+import '@lib/pdf/pdfWorker';
 
 /**
  * A PDF's own text, where it has any.

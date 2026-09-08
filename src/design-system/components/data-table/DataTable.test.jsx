@@ -167,6 +167,32 @@ describe('DataTable', () => {
     expect(screen.getByRole('button', { name: 'Next page' })).toBeEnabled();
   });
 
+  it('pins the first column by default, and the identifying column beside a selection checkbox', () => {
+    const { container, rerender } = render(
+      <DataTable ariaLabel="Example records" columns={columns} data={rows} />,
+    );
+    const root = () => container.querySelector('.ds-data-table');
+    // The attribute is the contract: pinnedColumn.css reads it at every width.
+    expect(root()).toHaveAttribute('data-pin-first-column');
+    expect(root()).not.toHaveAttribute('data-has-selection');
+
+    rerender(
+      <DataTable
+        ariaLabel="Example records"
+        columns={columns}
+        data={rows}
+        selection={{ selectedIds: new Set(), onToggleRow: vi.fn(), onToggleAll: vi.fn() }}
+      />,
+    );
+    expect(root()).toHaveAttribute('data-pin-first-column');
+    expect(root()).toHaveAttribute('data-has-selection');
+
+    rerender(
+      <DataTable ariaLabel="Example records" columns={columns} data={rows} pinFirstColumn={false} />,
+    );
+    expect(root()).not.toHaveAttribute('data-pin-first-column');
+  });
+
   it('has no structural accessibility violations', async () => {
     const { container } = render(
       <DataTable

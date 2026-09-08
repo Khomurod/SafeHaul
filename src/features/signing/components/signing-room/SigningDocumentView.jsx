@@ -12,6 +12,7 @@ import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 import { Button } from '@/design-system/components';
 import { ErrorState } from '@design-system/patterns';
 import { Document, Page, pdfjs } from 'react-pdf';
+import '@lib/pdf/pdfWorker';
 import { Icon, Loader2, AlertTriangle, RefreshCw } from '@design-system/icons';
 
 import 'react-pdf/dist/Page/AnnotationLayer.css';

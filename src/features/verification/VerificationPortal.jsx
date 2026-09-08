@@ -71,6 +71,7 @@ export function VerificationPortal() {
         formData,
         formErrors,
         updateField,
+        updateSignature,
         handleSubmit,
     } = useVerificationPortal(token);
 
@@ -175,6 +176,7 @@ export function VerificationPortal() {
                         formData={formData}
                         formErrors={formErrors}
                         updateField={updateField}
+                        updateSignature={updateSignature}
                         isE2EVerifyMock={isE2EVerifyMock}
                     />
 

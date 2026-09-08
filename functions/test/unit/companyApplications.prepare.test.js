@@ -140,6 +140,32 @@ describe('preparing an application', () => {
         expect(storedDraft().lockedEmployers).toHaveLength(1);
     });
 
+    it('drops a lock whose employer is not on the application', async () => {
+        // A lock is a snapshot of a row's identity, and the carrier goes on editing
+        // the rows. Deleting a locked row used to leave the lock behind as a
+        // requirement the driver was blocked on at submission and could not
+        // satisfy, for an employer that was no longer on the application at all.
+        const result = await prepare({
+            formData: { ...PREPARED_FORM, employers: [] },
+            lockedEmployers: [{ companyName: 'Acme Trucking', dotNumber: '123456' }],
+        });
+
+        expect(result.lockedEmployers).toEqual([]);
+        expect(storedDraft().lockedEmployers).toEqual([]);
+    });
+
+    it('keeps a lock whose row changed only where the driver may change it', async () => {
+        const result = await prepare({
+            formData: {
+                ...PREPARED_FORM,
+                employers: [{ companyName: 'Acme Trucking', dotNumber: '123456', reasonForLeaving: 'Route' }],
+            },
+            lockedEmployers: [{ companyName: 'Acme Trucking', dotNumber: '123456' }],
+        });
+
+        expect(result.lockedEmployers).toHaveLength(1);
+    });
+
     it('reads and writes in one transaction, so two recruiters cannot overwrite each other', async () => {
         await prepare();
         expect(mockRunTransactionCalls).toHaveLength(1);
