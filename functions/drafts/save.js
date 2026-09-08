@@ -15,7 +15,8 @@ const draft = require('../shared/applicationDraft');
 const prepared = require('../shared/companyPreparedDraft');
 const {
     applicantKeyOf, clientIp, docId, identityKeyOrNull, liveDraftForToken,
-    mayModifyExistingDraft, recordMatchAttempt, supersedeOtherDrafts, text,
+    mayModifyExistingDraft, recordMatchAttempt, retirePreparedSource,
+    supersedeOtherDrafts, text,
 } = require('./identity');
 
 /**
@@ -198,8 +199,45 @@ exports.saveApplicationProgress = functions
                 Object.assign(update, prepared.carriedPreparedFields(preparedSource.data()));
             }
 
+            /**
+             * The driver was actually shown the carrier's employers.
+             *
+             * `inviteClaimedAt` is the sole gate on locked-employer enforcement at
+             * submission, and `exchangeApplicationInvite` used to stamp it. That
+             * made the CARRIER able to arm the refusal by opening its own link
+             * once — after which a driver who applied at `/apply/:slug` instead of
+             * through the link was blocked at submission by rows nobody had ever
+             * shown them, which is the exact failure the field exists to prevent.
+             *
+             * So the exchange records which resume token it minted and the claim is
+             * stamped here, by a save presenting that token. That proves both halves:
+             * the link was opened, and the session holding the carrier's answers is
+             * the one writing. Cleared as it is stamped — being shown the rows is a
+             * fact about this driver, not a standing property of the token.
+             *
+             * Deliberately after `carriedPreparedFields`, which carries an
+             * already-stamped claim across a contact correction and would otherwise
+             * overwrite this one.
+             */
+            if (preparedSource && presentedToken && draft.resumeTokenMatches(
+                preparedSource.data()?.inviteResumeTokenHash, presentedToken,
+            )) {
+                update.inviteClaimedAt = preparedSource.data()?.inviteClaimedAt
+                    || draft.serverTimestamp();
+                update.inviteResumeTokenHash = null;
+            }
+
             transaction.set(ref, update, { merge: true });
-            return { refused: false, token };
+            return {
+                refused: false,
+                token,
+                // The document the applicant just moved off, for the retirement
+                // below. Carried out of the transaction rather than recomputed,
+                // because ownership of it was proven in here.
+                movedFromPreparedKey: preparedSource && preparedSource.id !== applicantKey
+                    ? preparedSource.id
+                    : null,
+            };
         });
 
         if (attempt.refused) {
@@ -266,6 +304,22 @@ exports.saveApplicationProgress = functions
         if (identityKey && supersedeToken) {
             // Per draft, never per identity. See `supersedeOtherDrafts`.
             await supersedeOtherDrafts(companyId, identityKey, applicantKey, {
+                resumeToken: supersedeToken,
+            });
+        }
+
+        /**
+         * The carrier-prepared document, which the sweep above cannot reach.
+         *
+         * It queries `identityKey`, and a prepared draft has none — the carrier
+         * does not know the SSN the HMAC is built from. So a driver correcting
+         * their email before their first save had landed left it alive, with its
+         * invite token hash intact: two live drafts answering one link, which
+         * `shared/companyPreparedDraft.js` calls the worse problem of the two.
+         * Same ownership bar; see `retirePreparedSource`.
+         */
+        if (attempt.movedFromPreparedKey && supersedeToken) {
+            await retirePreparedSource(companyId, attempt.movedFromPreparedKey, {
                 resumeToken: supersedeToken,
             });
         }

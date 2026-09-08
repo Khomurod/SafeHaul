@@ -88,6 +88,67 @@ export const buildPostApplyDocErrorMessage = (error) => {
   return error?.message || 'Could not open this form. Please try again.';
 };
 
+/**
+ * What to tell a driver whose carrier link would not open, and whether trying
+ * again is worth their time.
+ *
+ * Built on the same vocabulary as `buildPostApplyDocErrorMessage` above, because
+ * it is the same job on a neighbouring surface — the machinery existed and the
+ * invite path simply was not using it. Until 2026-09-08 every failure resolved to
+ * `null` and the driver was dropped into the ordinary application with nothing
+ * said, so a rate-limited exchange, a Firestore hiccup (the limiter fails closed)
+ * and a temporary outage were indistinguishable from having followed no link at
+ * all.
+ *
+ * `unopenable` is deliberately one message for wrong, expired, already-submitted,
+ * superseded and discarded. The server answers all of them identically on purpose
+ * — "that link expired" and "that link is wrong" are different facts an attacker
+ * would happily learn — and saying the same thing here is what keeps that promise
+ * on this side of the wire. Nothing below reveals whether an application exists,
+ * whose it is, or who prepared it.
+ *
+ * `retryable` is not cosmetic. A silent fall-through never stamps
+ * `inviteClaimedAt`, so the carrier's locked employers go unenforced and it
+ * receives a second, unprepared application — losing the 49 CFR 391.21 employment
+ * history it had prepared. When the cause is transient, retrying is what prevents
+ * that duplicate, so retry leads for those cases and continuing leads for the
+ * ones that will never succeed.
+ *
+ * @returns {{message: string, retryable: boolean}|null} null when there is
+ *   nothing to say — no link was followed, or one opened.
+ */
+export const buildApplyLinkOutcomeMessage = (outcome) => {
+  switch (outcome?.status) {
+    case 'unopenable':
+      return {
+        message: 'This application link cannot be opened. It may have expired, or a newer link may have '
+          + 'replaced it. Ask the company to send you a new one.',
+        retryable: false,
+      };
+    case 'invalid':
+      return { message: 'That application link is not valid.', retryable: false };
+    case 'throttled':
+      // The frozen sentence from the post-application document flow, verbatim.
+      return { message: 'Too many attempts. Please wait a minute and try again.', retryable: true };
+    case 'closed':
+      return {
+        message: outcome.message
+          || 'This company is not accepting applications right now. Please contact them directly.',
+        retryable: true,
+      };
+    case 'unavailable':
+      return {
+        message: 'We hit a network problem opening your application link. Please try again.',
+        retryable: true,
+      };
+    default:
+      // `absent`, `opened`, `requires_identity` and `pending`. The first two have
+      // nothing to report; `requires_identity` is not a failure — the driver is
+      // asked for their details by the ordinary resume flow underneath.
+      return null;
+  }
+};
+
 export const parseIsoFromLooseDate = (raw) => {
   const text = String(raw || '').trim();
   if (!text) return '';

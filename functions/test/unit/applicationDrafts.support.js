@@ -26,10 +26,25 @@
  *
  * `AGENTS.md` records that `clearAllMocks` does not drain a `*Once` queue, and
  * that splitting a file changes test ordering — the timing that makes such a leak
- * surface. These tests queue no `*Once` value anywhere (verified before the
- * split), so `resetDraftState` keeps using `clearAllMocks` exactly as before.
- * **If you add a `mockResolvedValueOnce` here, switch it to `resetAllMocks` and
- * re-establish the implementations below.**
+ * surface. `resetDraftState` therefore keeps using `clearAllMocks`, and
+ * re-establishes the implementations below afterwards.
+ *
+ * **That is not the same as the hazard being absent, and the original wording here
+ * claimed it was.** Suites DO queue `*Once` values — `companyApplications.invite`
+ * and `.invite.expiry` both do — and a queued value the test never consumes
+ * survives `clearAllMocks` *and* survives the `mockResolvedValue` defaults below,
+ * because a once-queue outranks a default. It leaked for real on 2026-09-08: a
+ * `mockCheckRateLimit.mockResolvedValueOnce(false)` written for a callable that
+ * did not yet consult the limiter surfaced in the NEXT test's `prepare()`.
+ *
+ * Switching this helper to `resetAllMocks` is the textbook answer and is not
+ * available: Jest 30's `mockReset` replaces every implementation with one
+ * returning `undefined`, so it would have to re-establish all six doubles, which
+ * is the separate measured change `AGENTS.md` describes for the 18 files under
+ * `functions/`. **So a suite that queues a `*Once` value drains it itself** —
+ * `mockReset()` on that one double, before calling `resetDraftState`, which then
+ * puts its implementation back. `companyApplications.invite.expiry.test.js` shows
+ * the pattern.
  */
 
 /** An in-memory Firestore, keyed by full path, with the queries these callables use. */
@@ -96,6 +111,12 @@ function mockCollectionRef(path) {
 function mockDocRef(path) {
     return {
         path,
+        // A real `DocumentReference` carries its own id, and code that compares
+        // "is the document I read the one I am writing?" reads it. Missing here
+        // until 2026-09-08, it made every such comparison see `undefined` and
+        // answer "different" — so a correct guard looked like a bug, and an
+        // incorrect one would have passed. Same reasoning as the `ref` note above.
+        id: path.split('/').pop(),
         get: async () => mockMakeDoc(path),
         set: async (patch, options) => {
             if (mockFailWritesOn && path.includes(mockFailWritesOn)) throw new Error('firestore unavailable');
