@@ -1522,6 +1522,33 @@ cannot resolve the colour at all — and the `theme-color` meta, a literal copy 
   readable. Deliberately not solved by fetching the signed URL back into a Blob:
   that is a cross-origin `fetch` against the Storage bucket, and whether it works
   depends on bucket CORS configuration this repository does not set.
+- **A carrier-prepared draft has no cross-device recovery when the company hides
+  the SSN question.** The invite link stops being a credential once the driver
+  takes the application over (§5), and the driver proves who they are through
+  `findResumableApplication`, which needs last name + date of birth + SSN digits
+  plus a contact detail already on the record. Their first save is what supplies
+  the identity HMAC that lookup matches — but `ssn` is a configurable gate
+  (`GATE_DEFAULT_REQUIRED.ssn` is `true`), so a company that sets it to Optional
+  or Hidden leaves `identityKey: null` and no way for that driver to resume on a
+  second device. Their own browser's resume token still works, and the carrier can
+  still send a replacement link, which takes them to the identity challenge they
+  cannot then pass.
+  Narrow on purpose: 49 CFR 391.21 requires the Social Security Number on the
+  application, so a company in that configuration is already outside the
+  regulation. The fix that closes it properly is out-of-band delivery — minting
+  emails or texts the link to the `contactEmail`/`contactPhone` on the draft and
+  returns only a redacted confirmation, so the carrier never holds it — which is
+  DocuSign's Resend model and depends on per-company email configuration this
+  change did not take on.
+- **A driver cannot dispute a locked employer that is satisfiable but wrong.** A
+  PSP report is an FCRA consumer report and the driver has dispute rights over its
+  contents, but the application holds them to whichever carriers the report named:
+  the identity of a locked row is a record rather than a field for them, by design
+  (§5). Every *unsatisfiable* lock state is gone as of 2026-09-08 — a lock always
+  names a row that is on the application — so nobody is blocked by a requirement
+  they cannot meet. What is missing is the route to say "that carrier is not mine",
+  which is its own feature with its own policy questions about what the carrier
+  then sees.
 - **HEIC photos cannot be read.** The reader accepts PDF, JPG, PNG and WebP;
   browsers cannot decode HEIC (an iPhone's default), so such a photo is refused
   with a message naming the accepted formats. (This is the surviving edge after
