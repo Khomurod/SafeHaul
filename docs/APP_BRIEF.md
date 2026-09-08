@@ -191,6 +191,36 @@ closure's own copies. A failed second pass also no longer discards the first: th
 retry is its own `try`, and losing it falls back to the first pass rather than to
 nothing, while still winning wherever it succeeds. All found 2026-09-08.
 
+**A control that cannot be pressed cannot explain itself.** Save and "Create the
+driver's link" were `disabled` whenever their prerequisites were unmet, and
+nothing on the screen said what those were. The link's real precondition was
+*"save first"* — `canMint` was `Boolean(applicantKey)`, which only a save sets —
+and that sentence appeared nowhere at all; the other one was already written on
+the server (`prepare.js`: "Enter the driver's email or phone first — it
+identifies the application") and was unreachable, because the client guard stopped
+the request ever being made. Both are clickable now and the press validates:
+`prepActionPreflight` returns what is missing and which field, modelled on
+`publicApplyPreflight.js`, which does the same job for submission. Clickable is
+not a licence to skip the check — nothing is saved, minted or copied when the
+prerequisites are unmet. `disabled` remains for the one thing it is honest about,
+an operation in flight, through the design system's `loading`; the label stays
+"Save" and a live region beside it speaks, because a label that changes to
+"Saving…" is content rather than an announcement.
+
+Two things the link actions could not previously notice, because no dirty flag
+existed: unsaved edits, which would hand the driver the answers as they were, and
+a **corrected contact detail**, which is worse — `applicantKey` is the key of the
+last save, so minting after one addressed a *different document*, leaving the new
+email on screen beside a link that opens the old record, with `identityLocked`
+then freezing that mismatch in place. Both are refused with an offer to save and
+mint in one press. A carrier's contact correction also retires the document it
+moved off, so one driver is not two rows in the worklist. Email or phone is still
+enough — never both — and each supplied one is now format-checked, which neither
+side did: `dana@` used to become an application's primary key. A refused clipboard
+says so and points at the link, which is on screen and selectable either way.
+Driven through the real fields and the real controls by
+`StartApplicationPage.actions.contract.test.jsx`. All found 2026-09-08.
+
 The reader extracts text in the recruiter's own browser first — a PDF's own text
 layer, else Tesseract OCR of the rendered pages, else the page images sent to the
 vision AI — and only the text (or, for an unreadable document, the images) leaves

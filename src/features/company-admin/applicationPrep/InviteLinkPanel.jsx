@@ -29,7 +29,7 @@ import { Button, Card, FieldMessage } from '@/design-system/components';
  * own application and asks them to confirm who they are. Hiding the button would
  * remove a workflow the boundary does not require removing.
  */
-export function InviteLinkPanel({ link, busy, error, copied, canMint, driverStarted, onMint, onCopy }) {
+export function InviteLinkPanel({ link, busy, error, copied, copyFailed, driverStarted, onMint, onCopy }) {
     return (
         <Card padding="md">
             <div className="space-y-ds-3">
@@ -59,10 +59,20 @@ export function InviteLinkPanel({ link, busy, error, copied, canMint, driverStar
                             <Button variant="primary" size="sm" onClick={onCopy}>
                                 <Icon icon={Copy} size="sm" /> {copied ? 'Copied' : 'Copy link'}
                             </Button>
-                            <Button variant="ghost" size="sm" onClick={onMint} disabled={busy}>
+                            <Button variant="ghost" size="sm" onClick={onMint} loading={busy}>
                                 <Icon icon={RefreshCw} size="sm" /> Create a new link
                             </Button>
                         </div>
+                        {/* A refused clipboard used to be silent — the label simply
+                            never changed to "Copied", which reads as nothing having
+                            happened. The link is selectable above either way, so
+                            this is a lost convenience rather than a lost link, and
+                            saying so is the whole fix. */}
+                        {copyFailed && (
+                            <FieldMessage tone="error">
+                                Your browser would not let us copy it. Select the link above and copy it yourself.
+                            </FieldMessage>
+                        )}
                         <p className="text-ds-xs text-ds-content-muted" role="status">
                             Works for {link.expiresInDays} days. Copy it now — it is shown once. Creating a new link
                             retires this one: it stops working about ten minutes later, so a driver part-way through
@@ -71,7 +81,10 @@ export function InviteLinkPanel({ link, busy, error, copied, canMint, driverStar
                         </p>
                     </div>
                 ) : (
-                    <Button variant="primary" onClick={onMint} disabled={busy || !canMint}>
+                    /* Clickable with nothing saved yet: the press explains that a
+                       link addresses a saved application, and offers to save. The
+                       precondition used to be an undocumented `disabled`. */
+                    <Button variant="primary" onClick={onMint} loading={busy}>
                         <Icon icon={Link2} size="sm" /> {driverStarted ? 'Create a replacement link' : "Create the driver's link"}
                     </Button>
                 )}

@@ -48,7 +48,11 @@ function callableError(code) {
 }
 
 beforeEach(() => {
-    vi.clearAllMocks();
+    // `resetAllMocks`, not `clearAllMocks`: this file queues a `*Once` value, and
+    // `clearAllMocks` does not drain that queue (AGENTS.md rule 6) — a value the
+    // test never consumes leaks into the next one. `src/tests/mockResetHygiene.test.js`
+    // fails the build for the pair, which is how this was caught.
+    vi.resetAllMocks();
     mocks.httpsCallable.mockReturnValue(mocks.call);
     mocks.call.mockResolvedValue({ data: { success: true, url: 'https://signed.example/fresh' } });
 });

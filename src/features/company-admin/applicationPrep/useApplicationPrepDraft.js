@@ -32,6 +32,16 @@ export function useApplicationPrepDraft(companyId) {
     const [lockedEmployers, setLockedEmployers] = useState([]);
     const [applicantKey, setApplicantKey] = useState(null);
     const [status, setStatus] = useState('draft');
+    /**
+     * Something on screen has not reached the server.
+     *
+     * There was no such flag, and the link actions had no way to notice: a
+     * recruiter could save, keep typing, then mint or copy, and the driver got the
+     * answers as they were at the save. Worse for a contact change — `applicantKey`
+     * is the key of the LAST save, so minting after one addressed a different
+     * document entirely.
+     */
+    const [dirty, setDirty] = useState(false);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState(null);
 
@@ -52,6 +62,7 @@ export function useApplicationPrepDraft(companyId) {
     latestFormData.current = formData;
 
     const updateField = useCallback((key, value) => {
+        setDirty(true);
         setFormData((previous) => ({
             ...previous,
             [key]: typeof value === 'function' ? value(previous[key]) : value,
@@ -102,10 +113,17 @@ export function useApplicationPrepDraft(companyId) {
                 phone: contactPhone,
                 formData: payloadFormData,
                 lockedEmployers: savedLocks,
+                // Which document this application was at before, so a corrected
+                // typo does not leave the old key behind as a second row in the
+                // worklist — with its own live link, if one had been minted. The
+                // key is derived from the email and phone, so correcting either one
+                // addresses a different document.
+                previousApplicantKey: applicantKey || null,
             });
             setApplicantKey(result.applicantKey);
             setLockedEmployers(result.lockedEmployers || []);
             setStatus((previous) => (previous === 'draft' ? 'prepared' : previous));
+            setDirty(false);
             return result;
         } catch (saveError) {
             setError(describeError(saveError));
@@ -113,7 +131,7 @@ export function useApplicationPrepDraft(companyId) {
         } finally {
             setBusy(false);
         }
-    }, [call, contactEmail, contactPhone, savedLocks, payloadFormData]);
+    }, [applicantKey, call, contactEmail, contactPhone, savedLocks, payloadFormData]);
 
     /**
      * Put what the reader found into the application.
@@ -140,6 +158,7 @@ export function useApplicationPrepDraft(companyId) {
      */
     const applyExtraction = useCallback((extracted, options = {}) => {
         const applied = applyExtractedFields(latestFormData.current, extracted, options);
+        setDirty(true);
         setFormData(applied.formData);
         if (applied.lockedCarriers.length > 0) {
             setLockedEmployers((previous) => normalizeLockedEmployers([
@@ -160,6 +179,7 @@ export function useApplicationPrepDraft(companyId) {
             const result = await call('getCompanyPreparedDraft', { applicantKey: key });
             setApplicantKey(result.applicantKey);
             setStatus(result.status);
+            setDirty(false);
             if (result.readable) {
                 setFormData(result.formData || {});
                 setLockedEmployers(result.lockedEmployers || []);
@@ -193,6 +213,7 @@ export function useApplicationPrepDraft(companyId) {
      * two locks and locking a blank row is not a lock nothing can satisfy.
      */
     const lockEmployers = useCallback((rows) => {
+        setDirty(true);
         // A carrier from a PSP report names itself `name`; an employer row calls
         // the same thing `companyName`. Accepting both here means the reader and
         // the row's own Lock button reach one list without a translation step at
@@ -205,6 +226,7 @@ export function useApplicationPrepDraft(companyId) {
     }, []);
 
     const unlockEmployer = useCallback((signature) => {
+        setDirty(true);
         setLockedEmployers((previous) => previous.filter((entry) => entry.signature !== signature));
     }, []);
 
@@ -223,13 +245,14 @@ export function useApplicationPrepDraft(companyId) {
         setApplicantKey(null);
         setStatus('draft');
         setError(null);
+        setDirty(false);
     }, []);
 
     return {
         formData, setFormData, updateField, applyExtraction,
         contactEmail, contactPhone, identityComplete,
         lockedEmployers, lockEmployers, unlockEmployer,
-        applicantKey, status, busy, error,
+        applicantKey, status, busy, error, dirty,
         save, load, reset,
     };
 }
