@@ -163,10 +163,15 @@ not in `App.jsx`. The company manifest drives both the routes and the sidebar.
 
 | Requirement | Version |
 |---|---|
-| Node.js | 20.x |
+| Node.js | 22.x |
 | npm | 10.x+ |
 | Firebase CLI | 15.x+ |
 | Git | 2.x+ |
+
+Node 22 is what CI and Cloud Functions run (since 2026-09-06). `@babel/parser` 8,
+which the UI-contract guards parse with, is the first root dependency to require
+it (`^22.18.0 || >=24.11.0`), and `package.json` now declares `engines.node` so a
+machine on an older Node is told at install time rather than by a failing guard.
 
 ### Installation
 

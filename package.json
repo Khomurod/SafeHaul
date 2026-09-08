@@ -3,6 +3,9 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=22.18.0"
+  },
   "scripts": {
     "dev": "vite",
     "prebuild": "node -e \"const fs=require('fs');fs.copyFileSync('node_modules/pdfjs-dist/build/pdf.worker.min.mjs','public/pdf.worker.min.mjs');console.log('✅ PDF worker synced from node_modules')\"",
@@ -69,7 +72,7 @@
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.11.3",
-    "@babel/parser": "7.29.7",
+    "@babel/parser": "8.0.4",
     "@eslint/js": "^9.36.0",
     "@firebase/rules-unit-testing": "^4.0.1",
     "@playwright/test": "^1.57.0",
