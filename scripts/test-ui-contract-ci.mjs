@@ -121,8 +121,10 @@ console.log('\nW. The UI contract is enforced in CI, and cannot go blind');
         /check:ui-contract -- --require-baseline/.test(checkStep),
         'without the flag a run that cannot find a base passes instead of refusing');
 
+    // Any major of actions/checkout will do: the claim is about history depth,
+    // not the action's version, so a Dependabot bump of the action must not fail it.
     assert('W8. and that job has the history the proof needs',
-        /- uses: actions\/checkout@v5\n\s+with:\n\s+fetch-depth: 0/.test(jobBody),
+        /- uses: actions\/checkout@v\d+\n\s+with:\n\s+fetch-depth: 0/.test(jobBody),
         'a depth-1 checkout has no previous allowlist to compare against');
 
     /*
