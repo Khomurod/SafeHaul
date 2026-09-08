@@ -3,7 +3,7 @@ import { Icon, Lock, Unlock } from '@design-system/icons';
 import DynamicRow from '@shared/components/form/DynamicRow';
 import InputField from '@shared/components/form/InputField';
 import DateTripletField from '@shared/components/form/DateTripletField';
-import { Badge, Button, FormSection } from '@/design-system/components';
+import { Badge, Button, FieldDisplay, FormSection } from '@/design-system/components';
 import { EMPTY_EMPLOYER } from '@features/driver-app/components/application/steps/components/employmentRowShapes';
 import { employerSignature, isLockedEmployerRow } from '@/config/applicationLockedFields';
 
@@ -20,6 +20,23 @@ import { employerSignature, isLockedEmployerRow } from '@/config/applicationLock
  * row being filled in. What it does to the driver is narrow and stated on the
  * button: the name and USDOT number stop being editable, and everything else about
  * the row stays theirs.
+ *
+ * ## A locked row's identity is read-only HERE too, which it was not
+ *
+ * The lock stores a snapshot of the row's identity, and this panel let the carrier
+ * go on editing the very fields that snapshot is taken from. The two drifted, and
+ * four ordinary edits produced an application the driver was blocked on at
+ * submission and could not fix — the sharpest being a corrected NAME on a row
+ * locked by USDOT number, which trips `locked-employer-changed` while the wizard
+ * renders that identity as a record rather than a field, so the driver was blocked
+ * on the one field they are not allowed to touch. Found 2026-09-08.
+ *
+ * So the identity is a read-only display while the lock exists, and correcting it
+ * means Unlock → correct → Lock, which mints a lock that matches. That is the same
+ * rule the design system already states for a field its viewer may not change, and
+ * the same shape the driver's wizard uses — the wording differs because the
+ * audience does. The other half of the fix is `reconcileLockedEmployers`, for the
+ * edit that leaves nothing to render: a deleted row.
  */
 export function PreparedEmployersPanel({ formData, updateFormData, lockedEmployers, onLock, onUnlock }) {
     const ty = new Date().getFullYear();
@@ -40,25 +57,44 @@ export function PreparedEmployersPanel({ formData, updateFormData, lockedEmploye
                         onClick={() => (locked ? onUnlock(signature) : onLock([item]))}
                     >
                         {locked
-                            ? <><Icon icon={Unlock} size="sm" /> Unlock</>
+                            ? <><Icon icon={Unlock} size="sm" /> Unlock to correct</>
                             : <><Icon icon={Lock} size="sm" /> Lock this employer</>}
                     </Button>
                 </div>
-                <InputField
-                    label="Company name"
-                    id={`prep-emp-name-${index}`}
-                    name="companyName"
-                    value={item.companyName}
-                    onChange={handleChange}
-                />
-                <InputField
-                    label="USDOT number"
-                    id={`prep-emp-dot-${index}`}
-                    name="dotNumber"
-                    value={item.dotNumber}
-                    onChange={handleChange}
-                    placeholder="Optional"
-                />
+                {locked ? (
+                    <div
+                        className="space-y-ds-2 rounded-ds-md border border-ds-border-subtle bg-ds-surface-subtle p-ds-3"
+                        data-testid={`prep-emp-locked-${index}`}
+                    >
+                        <FieldDisplay label="Company name" emphasis="strong">
+                            {item.companyName || `USDOT ${item.dotNumber}`}
+                        </FieldDisplay>
+                        {item.dotNumber && <FieldDisplay label="USDOT number">{item.dotNumber}</FieldDisplay>}
+                        <p className="text-ds-xs text-ds-content-muted">
+                            The driver signs an application that says this is who they drove for, so it is fixed
+                            while the lock is on. Unlock to correct it — that removes the lock, and you can put it
+                            back afterwards.
+                        </p>
+                    </div>
+                ) : (
+                    <>
+                        <InputField
+                            label="Company name"
+                            id={`prep-emp-name-${index}`}
+                            name="companyName"
+                            value={item.companyName}
+                            onChange={handleChange}
+                        />
+                        <InputField
+                            label="USDOT number"
+                            id={`prep-emp-dot-${index}`}
+                            name="dotNumber"
+                            value={item.dotNumber}
+                            onChange={handleChange}
+                            placeholder="Optional"
+                        />
+                    </>
+                )}
                 <InputField
                     label="Position held"
                     id={`prep-emp-position-${index}`}

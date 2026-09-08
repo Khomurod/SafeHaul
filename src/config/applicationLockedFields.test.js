@@ -19,6 +19,7 @@ import {
     lockedEmployerIssues,
     lockedSignatureSet,
     normalizeLockedEmployers,
+    reconcileLockedEmployers,
 } from './applicationLockedFields';
 
 const require = createRequire(import.meta.url);
@@ -132,5 +133,82 @@ describe('what a locked employer refuses', () => {
         expect(lockedEmployerIssues([], { employers: [] })).toEqual([]);
         expect(lockedEmployerIssues(undefined, { employers: [ACME] })).toEqual([]);
         expect(lockedEmployerIssues(null, {})).toEqual([]);
+    });
+});
+
+/**
+ * Keeping the lock list in step with the rows it names.
+ *
+ * Four ordinary carrier edits used to produce an application the driver was
+ * blocked on at submission and could not fix. Two of them cannot happen any more
+ * — the carrier's editor renders a locked row's identity read-only, so a
+ * signature cannot drift while the lock exists — and the other two are what this
+ * function is for. All four are driven here anyway: a rule is worth stating over
+ * the whole family, not only over the part that is still reachable.
+ */
+describe('reconciling locks against the rows', () => {
+    it('drops a lock whose row the carrier deleted', () => {
+        // The sharpest of the four in practice: the row's own Unlock button went
+        // with the row, so nothing on the carrier's screen could even see the lock
+        // that was left behind.
+        expect(reconcileLockedEmployers(LOCKED, { employers: [BY_NAME] }))
+            .toEqual([{ signature: 'name:beta freight', companyName: 'Beta Freight', dotNumber: '' }]);
+    });
+
+    it('drops a lock whose name was rewritten out from under it', () => {
+        expect(reconcileLockedEmployers(LOCKED, {
+            employers: [ACME, { ...BY_NAME, companyName: 'Beta Freight LLC' }],
+        }).map((entry) => entry.signature)).toEqual(['dot:123456']);
+    });
+
+    it('drops a lock whose row has acquired a USDOT number', () => {
+        // `name:beta freight` becomes `dot:998877`, and no row can satisfy the old
+        // signature while carrying that number — so before this, the driver could
+        // not complete the application at all.
+        expect(reconcileLockedEmployers(LOCKED, {
+            employers: [ACME, { ...BY_NAME, dotNumber: '998877' }],
+        }).map((entry) => entry.signature)).toEqual(['dot:123456']);
+    });
+
+    it('keeps a lock whose row is still there, changed only where the driver may change it', () => {
+        expect(reconcileLockedEmployers(LOCKED, {
+            employers: [
+                { ...ACME, startDate: '2020-01', reasonForLeaving: 'Better route' },
+                BY_NAME,
+            ],
+        })).toEqual(LOCKED);
+    });
+
+    it('leaves rows the driver added alone, and normalises as it goes', () => {
+        const reconciled = reconcileLockedEmployers(
+            [{ companyName: 'Acme Trucking', dotNumber: 'USDOT 123456' }, { companyName: '', dotNumber: '' }],
+            { employers: [ACME, { companyName: 'Their Own Job', dotNumber: '777' }] },
+        );
+
+        expect(reconciled).toEqual([
+            { signature: 'dot:123456', companyName: 'Acme Trucking', dotNumber: '123456' },
+        ]);
+    });
+
+    it('is a no-op when nothing is locked', () => {
+        expect(reconcileLockedEmployers([], { employers: [ACME] })).toEqual([]);
+        expect(reconcileLockedEmployers(undefined, {})).toEqual([]);
+    });
+
+    it('drops every lock when the application has no employers at all', () => {
+        expect(reconcileLockedEmployers(LOCKED, {})).toEqual([]);
+    });
+
+    it('leaves nothing for `lockedEmployerIssues` to refuse', () => {
+        // The property that matters, stated as one: after reconciling, the driver
+        // is never blocked by a lock the application cannot satisfy.
+        for (const formData of [
+            { employers: [BY_NAME] },
+            { employers: [ACME, { ...BY_NAME, dotNumber: '998877' }] },
+            { employers: [] },
+            {},
+        ]) {
+            expect(lockedEmployerIssues(reconcileLockedEmployers(LOCKED, formData), formData)).toEqual([]);
+        }
     });
 });
