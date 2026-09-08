@@ -67,6 +67,9 @@ export function useVerificationPortal(token) {
         respondentPhone: '',
         respondentEmail: '',
         signatureData: null,
+        // 'drawn' | 'typed' | null — recorded with the response so the PDF and the
+        // audit trail say how the mark was made (audit step J, 2026-09-06).
+        signatureMethod: null,
     });
 
     const [formErrors, setFormErrors] = useState({});
@@ -136,6 +139,12 @@ export function useVerificationPortal(token) {
         if (formErrors[field]) {
             setFormErrors(prev => { const n = { ...prev }; delete n[field]; return n; });
         }
+    };
+
+    /** `{ data, method }` from SignatureInput, or null when nothing is signed. Both fields move together. */
+    const updateSignature = (signature) => {
+        updateField('signatureData', signature?.data ?? null);
+        updateField('signatureMethod', signature?.method ?? null);
     };
 
     // Validation
@@ -212,6 +221,7 @@ export function useVerificationPortal(token) {
         formData,
         formErrors,
         updateField,
+        updateSignature,
         handleSubmit,
     };
 }

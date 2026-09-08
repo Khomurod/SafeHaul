@@ -124,10 +124,12 @@ test.describe('Super Admin views', () => {
     await gotoView(page, 'Analytics');
 
     const tablist = page.getByRole('tablist', { name: 'Analytics views' });
-    // Analytics needs its own hook to settle; skip cleanly if it never renders
-    // in the offline environment rather than asserting something unreachable.
-    const appeared = await tablist.isVisible().catch(() => false);
-    test.skip(!appeared, 'Analytics requires data that is unreachable offline.');
+    // Offline, Firestore points at a closed port (see the header), so the hook's
+    // fetch fails, `loading` clears and the strip renders over empty data — the
+    // same settled state every other view here is asserted in. Wait for it.
+    // Until 2026-09-06 this sampled `isVisible()` once, during "Loading
+    // analytics...", and skipped on every CI run (audit step H).
+    await expect(tablist).toBeVisible({ timeout: 30_000 });
 
     await page.getByRole('tab', { name: 'Activity Overview' }).focus();
     await page.keyboard.press('ArrowRight');

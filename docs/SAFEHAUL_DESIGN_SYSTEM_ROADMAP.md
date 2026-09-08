@@ -305,7 +305,9 @@ component itself as well.
   `ds-native-table` (`components/data-table/nativeTable.css`) is that contract — using `height` on body cells rather than `min-height`, which CSS leaves undefined on a table-cell box and browsers ignore, so the density role was a no-op until 2026-08-25:
   header surface and foreground, divider, row background, hover, cell padding and
   row height from the same roles `DataTable` reads, including the narrower inline
-  padding under 768px that `DataTable` has always had. All eleven apply it,
+  padding under 768px that `DataTable` has always had — and, since 2026-09-06,
+  the two phone-behaviour attributes, `data-pin-first-column` and
+  `data-mobile-presentation="cards"` (§6, tables on phones). All eleven apply it,
   `check:ui-contract` fails any approved `raw-table` file that does not, and
   `check:table-layout` measures native tables in a real browser — until then **no
   native table was measured anywhere**, so the guard written because a Delete
@@ -530,7 +532,7 @@ procedure in §7 is the broad one.
 | **SelectableCard / Listbox / Combobox** | **[x] PARTLY RESOLVED 2026-09-05** | `SelectableCard` is built and all four cited card consumers are migrated: the PEV FMCSA suggestion rows, `VirtualLeadList`'s exclusion rows (plus its deliberately non-interactive twin, which is why `as="div"` exists and refuses a state), `CompanyChooserModal`'s company rows and `PageThumbnailRail`'s page thumbnails. The audit's finding was that three recorded gap NAMES were one shape: a card carrying multi-line structured content that a person picks, which `SegmentedControl` could never take because its `label` is a string — and this file's earlier claim that it had retired the FMCSA rows was wrong, corrected 2026-09-04. **Three ARIA states across four sites, kept apart rather than averaged**: `selected` → `aria-pressed` (a choice you can turn off), `current` → `aria-current` (which of a set you are on), and neither (the company chooser, where picking signs you in rather than selecting). Both together throws. They render identically on purpose — they differ in what they TELL assistive technology, not in what they look like — and `check:visual-contract` measures both so they cannot drift apart unseen, which no screenshot would catch because nothing puts the two side by side. **`EnvelopeSidebar`'s field-palette tiles were listed here until 2026-09-05 and should not have been**: they have no selected state, so they were toned ACTIONS and went to `Button`'s `tone` instead. A gap that cites a consumer it does not have gets a primitive built for the wrong shape. **The combobox half stays open**: `EmployerNameAutocomplete.jsx` hand-builds the full ARIA combobox — `role="combobox"` with `aria-expanded`, `aria-controls` and `aria-activedescendant` over a `role="listbox"` — because there is no primitive for a text input that filters a list. It is written correctly, which is exactly why it is worth promoting rather than leaving as one feature's private achievement |
 | **Filter chip** | **[x] RESOLVED 2026-09-05** | Built as `Chip` / `ChipGroup`, together with the **Tinted chip link** row above — the audit found one primitive under two gap names. A chip is the interactive twin of `Badge`: same pill, same 12px semibold text, same six status tints, same 12px leading glyph, plus a pointer, a focus ring and a pressed state. Two sizes, named after the shared control-height steps rather than a private scale so one vocabulary covers the control family — `xs` is the same 24px as `IconButton size="xs"` and `sm` the same 36px as `Button size="sm"`. `pressed` sets `aria-pressed` **and** draws a leading check, because the fill is what disappears in forced-colours mode. `ChipGroup` refuses to render unnamed: "pressed" alone does not say what was chosen. Retired six violations across four files. **Two normalisations worth naming**: the four sites carried three radii and three heights for one affordance, so radius went to the pill two of them already had, and the candidate list's 32px call chip went UP to 36px rather than down to 24px — it was the one site with a real touch target, and putting it on the scale should not cost it. **Measured off the baselines rather than predicted**: the row pitch is unchanged at 92px either way, because the row is sized by its two-line stack and had the slack; what did move is the pipeline strip, 8px SHORTER at the 24px step, which shows one more table row at 1440x900. **And one a11y repair**: `CompanyCandidatesListPage`'s pipeline strip had neither a group name nor `aria-pressed`, so a screen-reader user heard six unrelated buttons and no indication of which one the table was filtered by |
 | **Pressed state on `Button`** | **[x] RESOLVED 2026-09-05** | Not a gap this file had recorded, and it is the reason the candidate list's sort toggles could not migrate in the previous slice. `pressed` sets `aria-pressed` and `data-pressed`, styled at 0-3-0 (`.ds-button[data-variant='ghost'][data-pressed]`) — above anything a feature can write, which is the whole point: the toggles marked the active direction with a `text-ds-action-primary` utility at 0-1-0 against the variant rule's `color` at 0-2-0. It draws a fill AND an inset ring rather than a colour swap, because the toggles' old pressed state was colour only. A bare `aria-pressed` still works and is not the same thing: nineteen call sites pass it through and draw the state with a variant swap, which is a perfectly good answer; `pressed` is for a toggle that must keep its variant. The focus ring is composed with the pressed ring rather than chosen between — `.ds-button:focus-visible` sets `box-shadow` at 0-2-0, so every pressed rule outranks it and would otherwise have silently deleted it, which is the same class of loss the prop exists to prevent |
-| **Compact icon-button step** | **[x] RESOLVED 2026-09-05** | Built as `xs`: 24px — the WCAG 2.2 SC 2.5.8 (AA) target-size MINIMUM — and icon-only, because 12px text cannot sit in 24px with any padding, so `Button` refuses the step and only `IconButton` reaches it. `shape="round"` cuts it as a disc, for a control sitting ON another element's corner where a rounded square reads as a second nested box. **Owner decision, 2026-09-05.** The three PDF corner badges measured **14x14** (a 10px glyph in 2px of padding). The minimum was reachable two ways: every placed field ALSO has a conformant 36x36 Remove control in the field list, which is exactly the equivalent-control exception 2.5.8 allows, so the badges could have stayed small with that measurement written down. The owner chose to meet the minimum on the badge itself. The cost is real and was shown before the choice: on a 28x27 checkbox field a 24px badge is nearly as wide as the field it sits on. Retired `ResizableDraggableField` (1) and `AiSuggestionOverlay` (2). **The candidate list's sort toggles did NOT migrate, and the recorded reason was wrong about why.** It named the compact-step gap, which this closes — and the toggles are already `h-6 w-6`, so size was never their blocker. The real one is the PRESSED state: each shows the active sort direction with `text-ds-action-primary`, and `.ds-button[data-variant='ghost']` sets `color` at 0-2-0 specificity, so a feature-side text utility at 0-1-0 loses and migrating them today would silently drop the only indication of which sort is applied — the same trap `Button.css` records for background overrides, one property over. They need a `pressed` API, which shipped in the next slice on 2026-09-05 — see the **Pressed state on `Button`** row — and both toggles migrated there |
+| **Compact icon-button step** | **[x] RESOLVED 2026-09-05** | Built as `xs`: 24px — the WCAG 2.2 SC 2.5.8 (AA) target-size MINIMUM — and icon-only, because 12px text cannot sit in 24px with any padding, so `Button` refuses the step and only `IconButton` reaches it. `shape="round"` cuts it as a disc, for a control sitting ON another element's corner where a rounded square reads as a second nested box. **Owner decision, 2026-09-05.** The three PDF corner badges measured **14x14** (a 10px glyph in 2px of padding). The minimum was reachable two ways: every placed field ALSO has a conformant 36x36 Remove control in the field list, which is exactly the equivalent-control exception 2.5.8 allows, so the badges could have stayed small with that measurement written down. The owner chose to meet the minimum on the badge itself. The cost is real and was shown before the choice: on a 28x27 checkbox field a 24px badge is nearly as wide as the field it sits on. Retired `ResizableDraggableField` (1) and `AiSuggestionOverlay` (2). **The candidate list's sort toggles did NOT migrate, and the recorded reason was wrong about why.** It named the compact-step gap, which this closes — and the toggles are already `h-6 w-6`, so size was never their blocker. The real one is the PRESSED state: each shows the active sort direction with `text-ds-action-primary`, and `.ds-button[data-variant='ghost']` sets `color` at 0-2-0 specificity, so a feature-side text utility at 0-1-0 loses and migrating them today would silently drop the only indication of which sort is applied — the same trap `Button.css` records for background overrides, one property over. They need a `pressed` API, which shipped in the next slice on 2026-09-05 — see the **Pressed state on `Button`** row — and both toggles migrated there. **Closed out 2026-09-06 (audit step F):** the two resize handles (`ResizableDraggableField`, `AiSuggestionOverlay`), the last sub-minimum pointer targets in the editor, became 24×24 boxes centred on the field corner — the badge's own idiom on the opposite corner — with the 10px glyph drawn where it always was. Neither exception fitted them: Spacing fails because the handle sits on the field, which is itself a target, and Alt+arrows is keyboard-only, so Equivalent does not reach a pointer user. The appearance test pins the geometry |
 | **Step indicator (read, not operated)** | **Open**, found 2026-09-05 | Found while scoping `hand-rolled-current`. `BulkUploadLayout.jsx:111` is a `<li>` and `SendTemplateWizard.jsx:120` a `<span>`, both carrying `aria-current="step"` on a progress display a person READS rather than operates. Neither primitive fits: `SelectableCard` is for something selectable and `SectionNavigation` is a navigation rail. Both are correct markup today, which is why the rule is scoped to `<button>` and does not fire on them — a rule is the wrong instrument for "we have not built this yet", and leaving them to be caught by one would mean demanding a component that does not exist. Recorded here instead so it is not forgotten |
 | **Card-section disclosure** | **[x] RESOLVED 2026-09-05** | Built as `Disclosure variant="card"`, and this is the first §5 row in four slices whose recorded claim survived its own audit unchanged — worth saying, because P-3, P-4 and P-5 each found theirs wrong. The variant overrides the rail CHROME only: the section's bottom border, the trigger's padding, the hover tint and the uppercase micro-label. It deliberately does **not** draw a card — `Card` owns the surface, border, radius and padding, and the variant only takes off what would fight it — so the name says where it goes, not what it paints. `description` and `leading` throw on the rail and `meta` throws on a card, each being a layout nobody has built or reviewed. **The audit's real finding was about the RULE, not the shape.** The plan proposed `hand-rolled-disclosure` on a raw `<button aria-expanded>`; run over the tree that matched **two** elements — this one and `EditorMobileBar`'s bottom app-bar tab, which would then have needed a second recorded reason. Meanwhile eleven live sites wear `aria-expanded` and ten are not disclosures at all: four menu triggers, a combobox (where the attribute sits on an `<input>`), a navigation group, a drawer trigger, a filter toggle and a row expander, nine of them already on `Button` or `IconButton`. Scoping the rule to a `<button aria-expanded>` **inside a heading** — the WAI-ARIA disclosure-section shape, and the one structural feature separating the one from the ten — matched exactly the migrating site and **added zero allowlist entries**. Retired `EmailSettingsTab`'s single entry, so the file leaves the allowlist |
 | **Tinted icon tile** | **Open**, found 2026-09-05, RE-COUNTED 2026-09-06 | Found while building the card disclosure's `leading` slot, and this row was wrong in three ways until 6d read every tinted block in company-admin, campaigns and shared. **It said four sites; there are at least 25.** Seventeen more are in that area alone: `applicationTabCards:310` (Truck), `NewDocumentDialog:81`, `TemplateLibraryPanel:107`, `NotesTab:229`, `LaunchPad:96` (Rocket), `InlineLeaderboard:164` (initials) and `:202` (Trophy), `PEVRequestModal:221`, `QuickLeadModal:154`, `VOEPreviewModal:121` and `:276`, `DriverProfileModal:250`, `PEVTabParts:63`, `NotificationItem:81`, `PaywallMessage:23`, `CompanyChooserModal:139`, `FeatureLockedModal:52` — alongside the four originally recorded (`EmailSettingsTab`, `DashboardHeader`, `ReviewChangePortal`, `CompanySidebar`) — and four more that 6e added: `PersonalProfileTab:119`, `LoginScreen:338`, and `AnalyticsView:276` and `:302`, the last two holding a NUMBER rather than a glyph, which is the rank-disc category P-5's avatar audit already named. **It said "filled with the primary action colour"; they span six status tints** — info, success, warning, danger, accent and neutral — which is why the row is renamed from *Filled* to *Tinted*. **And it implied one size**: they are 32, 40, 48, 64 and 80px, square and round. `StatusMedallion` is the near miss and still does not fit: it is a circle with status tones, and half of these are rounded squares carrying a brand or domain glyph rather than a status. **This is now the largest un-owned shape left in the application** — larger than the status notice was at 65 — and it is invisible to every rule for exactly the same reason: every one uses correct `--ds-*` roles, so this is composition drift, not palette drift. It is also why `Notice`'s `accent` and `neutral` glyph defaults will stay recorded guesses: in this codebase those two tints are spoken for by the tile, not by any message. Deliberately NOT built inside 6d — widening a migration slice to build a second primitive is how a slice stops being reviewable. **7b took one off the list and found a second the count had never reached, and the test it used is the one to reuse.** `LoginScreen:338` was recorded here; `SandboxTransferSuccess:17` was not, because no enumeration had covered `sandbox` — the same gap 6f's rule found for notices. Neither is a tile: a status-tinted CIRCLE around a glyph is `StatusMedallion` exactly, and both migrated. What stays on this row is the other half — a rounded SQUARE carrying a brand or domain glyph on a brand colour, which no primitive owns; `ReviewChangePortal:117` is the clean example, a shield on `bg-ds-action-primary`, and it keeps its tile with the glyph snapped from 22 to a step. So: circle plus status tone is a medallion today; square plus brand colour is the shape still waiting to be built. At least 23 remain |
@@ -643,15 +645,25 @@ design-system blockers: none of them gates a primitive, a token or a baseline.
   so `FeaturesView` could not import it and used a `Checkbox` instead,
   announcing the wrong role for a control that saves immediately. Both call
   sites migrate with their feature families.
-- `[!]` **Decide how an employer signs the verification portal without a
-  mouse.** A canvas cannot be drawn on with a keyboard, so `SignaturePad` — the
-  legally operative mark on a 49 CFR §391.23 response — has **no keyboard or
-  assistive-technology path to producing a signature**. Everything around it is
-  accessible and axe reports zero serious/critical violations, because axe
-  cannot detect a missing input modality. A typed fallback is the obvious remedy
-  and the product already has the concept (`TEXT_SIGNATURE:` on the VOE side),
-  but a typed mark that is indistinguishable in the stored PNG from a drawn one
-  is a **legal-semantics decision, not a styling one**.
+- `[x]` **Decide how an employer signs the verification portal without a
+  mouse. RESOLVED 2026-09-06 — drawn or typed, method recorded (audit step J).**
+  A canvas cannot be drawn on with a keyboard, so `SignaturePad` alone — the
+  legally operative mark on a 49 CFR §391.23 response — had **no keyboard or
+  assistive-technology path to producing a signature**, and axe could not see it
+  because axe cannot detect a missing input modality. The standard settled the
+  legal half: ESIGN (15 U.S.C. §7006(5)) and UETA define an electronic signature
+  as any symbol or process adopted with intent to sign, so a typed name is one,
+  and every mainstream e-signature product offers Draw and Type side by side.
+  What made it safe here was the record, not the picture: `SignatureInput`
+  (`shared/components/signature`) wraps the pad with a `SegmentedControl`
+  Draw | Type choice; a typed name is stored as `TEXT_SIGNATURE:<name>` — the
+  driver application's own convention — and is **never rasterised**; the method
+  travels with the response, the server refuses any other form or a mislabelled
+  method, and the DQ-file PDF prints the typed name in an oblique face under a
+  "(typed)" label. Switching method clears the mark, the same "what is stored is
+  what you can see" invariant the pad keeps on resize. Draw stays the default so
+  the pad's contract tests and the ink-measuring E2E specs are untouched; a
+  keyboard-only E2E test signs by typing and submits.
 - `[x]` **Align control heights across the primitives. RESOLVED 2026-08-21.**
   One scale — `--ds-control-height-sm/md/lg` = 36 / 44 / 52px — read by `Button`,
   `IconButton`, `Input`, `Select` and `Textarea`, all defaulting to `md`.
@@ -682,11 +694,21 @@ design-system blockers: none of them gates a primitive, a token or a baseline.
   approved tokens; there is no longer a reason to invent a colour for one.
   (Call sites that moved to `surface-subtle` while this was blocked — such as
   `PEVRequestModal`'s header — were not migrated back, and do not need to be.)
-- `[!]` **Decide whether the VOE document's small print may be recoloured.**
-  Real-browser axe reports 4 serious `color-contrast` nodes inside the generated
-  document (2.56:1, 1.95:1, two at 2.45:1). They are conventional grey legal
-  small print on a printed-form facsimile; changing them changes every exported
-  PDF and needs approval plus a re-proof of export parity.
+- `[x]` **Decide whether the VOE document's small print may be recoloured.
+  RESOLVED 2026-09-06 — recoloured to the nearest AA greys (audit step G).**
+  Real-browser axe reported 4 serious `color-contrast` nodes inside the generated
+  document (2.56:1, 1.95:1, two at 2.45:1): conventional grey legal small print
+  on a printed-form facsimile. The standard settled it — WCAG 2.2 SC 1.4.3 has no
+  exemption for legal small print, only for logotypes, decoration and disabled
+  controls — so the question was never *whether* but *how little*: the same
+  slate family, sizes untouched, `text-slate-400` → `500` (4.76:1 on white,
+  4.55:1 on the slate-50 box) everywhere except inside the 80%-opacity
+  questionnaire, where the fade blends 500 down to 3.25:1 and `700` (5.74:1) is
+  the first shade that clears. The missing-signature warning's `red-400`/`red-500`
+  text (2.6:1 / 3.76:1) went to `red-600` (4.83:1) by the same rule. Export parity
+  is re-proved by the `voe-print-export` lane, whose axe scan now includes the
+  document instead of excluding it; the allowlist counts are unchanged because
+  a raw shade replaced a raw shade, and its reason records the one-off.
 - `[x]` **The Facebook Integrations tenant binding. FIXED 2026-08-25.**
   `connectFacebookPage` derived the tenant from `request.auth.uid` under a
   comment assuming a 1:1 user-to-company mapping, which this application has
@@ -713,16 +735,35 @@ design-system blockers: none of them gates a primitive, a token or a baseline.
   is a read-only report on whether any leads were stranded under a uid while the
   fault was live; no migration was written, because whether stranded records are
   real drivers or test noise is not something the code can tell.
-- `[!]` **Decide the responsive/interaction strategy for editable matrices**
+- `[x]` **Decide the responsive/interaction strategy for editable matrices**
   (per-row form controls), starting with the SMS number-assignment recruiter
-  matrix. Converting an editable matrix to a scroll table or stacked cards needs
-  an owner decision and a proof of behavior parity. This is why that slice is
-  NO-GO.
-- `[!]` **Decide table responsive behavior per remaining use case** (horizontal
-  scroll, priority columns, stacked cards, or a specialized interactive grid).
-  There is no safe universal conversion. The candidate list settled on a dense
-  native table with labelled horizontal overflow so no field or action
-  disappears; other tables still need individual decisions.
+  matrix. **RESOLVED 2026-09-06 — one card per row under 768px, the same DOM at
+  every width (audit step K).** The matrix is worked one member at a time and
+  nothing in it is compared across rows, so the shape that fits a phone is a
+  card per team member with every value under the label of its column, in
+  column order — `data-mobile-presentation="cards"` on the `ds-native-table`
+  contract, labels from the feature's own `data-label`s, roles stated
+  explicitly so `display: block` cannot drop them. Behaviour parity is by
+  construction: the `<select>`s, verify buttons and status text are the same
+  elements at 412px and 1440px, so the frozen 15-case suite and the a11y suite
+  cover both, and the catalog's `CardsOnMobile` story is the real-browser
+  picture. Above 768px the matrix is a table with its name column pinned.
+- `[x]` **Decide table responsive behavior per remaining use case.**
+  **RESOLVED 2026-09-06 — one rule, applied to every table (audit step K).**
+  Nielsen Norman Group's mobile-table guidance is the standard: a table whose
+  rows are *compared* keeps the table on a phone — labelled, focusable
+  horizontal scroll, sticky header, and the first column pinned so the row's
+  label stays in view (*"the leftmost column … should be locked in place"*).
+  `DataTable` pins by default (`pinFirstColumn={false}` opts out; with a
+  selection the checkbox and the identifying column pin together); the eleven
+  comparative native tables carry `data-pin-first-column`; four scroll regions
+  that were unlabelled (`AnalyticsView` ×2, `StatsBackfillPanel`, the feature
+  alert-stats dialog) are now named and focusable. A matrix worked one record at
+  a time becomes cards (the row above); the Super Admin feature matrix, whose
+  frozen header and frozen column cross, is the one specialized grid and keeps
+  its hand-layered cells. The rule, its source and its guards are in
+  `components/data-table/README.md` ("Tables on phones"), `pinnedColumn.css`
+  and the `Patterns/Native table` story docs.
   - **Decided 2026-08-17 — AI Integrations → Logs (`AiLogsPanel.jsx`):**
     `DataTable` at `density="compact"`, `minWidth="wide"`, with the default
     labelled horizontal scroll on mobile. Chosen over stacked cards because the
@@ -1743,6 +1784,34 @@ reads as broken, leaves the tab order and takes its label with it; enforcement
 lives in `applicationLockedFields.js` regardless, so the markup's job is to
 explain rather than to prevent.
 
+**Updated 2026-09-08: the carrier's side was not actually following that rule,
+and this paragraph read as if it were.** `PreparedEmployersPanel` left a locked
+row's name and USDOT number as ordinary editable inputs, which is worse than a
+disabled input rather than better — the lock stores a snapshot of that identity,
+so editing the fields it was taken from drifted the two apart and produced an
+application the driver was blocked on at submission and could not fix (the
+sharpest case: a corrected name on a row locked by USDOT number, which the
+wizard renders as a record for them, so they were blocked on the one field they
+are not allowed to touch). A locked row's identity is now a `FieldDisplay` +
+`Badge` record with an explicit **Unlock to correct** action, matching the
+driver's `LockedEmployerIdentity` in shape while keeping carrier-facing wording,
+because the audience differs. The worklist also renders the
+`lockedEmployerCount` it has always been served, so the number is checkable.
+
+**Also 2026-09-08, in the same area and from the same review:** Save and "Create
+the driver's link" were `disabled` whenever their prerequisites were unmet, which
+is the same mistake one level up — a control that cannot be pressed cannot
+explain itself, and the link's real precondition ("save first") appeared nowhere
+on the screen. Both are clickable now and validate on press, with the message in
+`FieldMessage tone="error"` (which owns its own `role="alert"` — do not nest one
+inside another) and focus moved to the offending field. `disabled` is kept only
+for an operation in flight, through `Button`'s `loading`; the **label stays
+"Save"** and a `role="status"` region beside it carries "Saving…", because a
+label that changes is content rather than an announcement and it moves the
+control's accessible name out from under anything looking for it. One new screen,
+`ApplyLinkProblemScreen`, is `patterns/page-state`'s `ErrorState` with actions —
+no new primitive.
+
 One design decision in that set is worth recording because it is a safety
 property, not a preference: **the resume dialog uses two sequential
 `ConfirmDialog`s rather than one dialog with two destructive choices.**
@@ -2054,8 +2123,9 @@ with `p-0.5`, so the inner box is 8px and the scale's *smallest* step, `xs` = 12
 would overflow the handle it sits in. Off the scale either way, so the handle owns
 it, the same shape as `BrandingSection`'s logo frame in 7f. `PageThumbnailRail:162`
 is the opposite case and snaps: 10 → `xs`, two pixels, landing on the same step as
-the caption beside it. (The 12px hit target is the separate, already-recorded WCAG
-2.5.8 owner checkpoint from P-2 and was left alone.)
+the caption beside it. (The 12px hit target was the separate WCAG 2.5.8 checkpoint from
+P-2; it closed on 2026-09-06 with a 24×24 pointer box centred on the corner and
+the glyph drawn where it always was — see the P-2 row.)
 
 The rest were ordinary: `AiSuggestionOverlay:139` 11 → `xs` beside its
 `text-ds-xs` label, `EnvelopeCreator:332` 36 → `3xl`, `EnvelopeSidebar:329`

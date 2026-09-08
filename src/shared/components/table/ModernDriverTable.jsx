@@ -177,7 +177,7 @@ export const ModernDriverTable = memo(function ModernDriverTable({
                 tabIndex={0}
                 className="min-h-0 flex-1 overflow-auto focus-visible:outline-none focus-visible:shadow-ds-focus"
             >
-                <table className="ds-native-table" data-row-hover>
+                <table className="ds-native-table" data-row-hover data-pin-first-column>
                     <caption id={captionId} className="sr-only">
                         {ariaLabel}. Scroll horizontally to view all columns.
                     </caption>

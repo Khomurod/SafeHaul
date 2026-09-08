@@ -201,7 +201,7 @@ export function ViewCompanyAppsModal({ companyId, companyName, onClose }) {
           )}
 
           {!loading && !error && filteredApplications.length > 0 && (
-              <table className="ds-native-table" data-density="compact">
+              <table className="ds-native-table" data-density="compact" data-pin-first-column>
                   <caption className="sr-only">
                     Driver applications for {companyName}
                   </caption>

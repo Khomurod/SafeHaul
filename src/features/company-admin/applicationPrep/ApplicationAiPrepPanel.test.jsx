@@ -32,6 +32,7 @@ vi.mock('firebase/functions', () => ({ httpsCallable: mocks.httpsCallable }));
 vi.mock('@lib/firebase', () => ({ functions: {} }));
 
 import { ApplicationAiPrepPanel } from './ApplicationAiPrepPanel';
+import { applyExtractedFields } from './applyExtractedFields';
 
 /** What an upload leaves in the form data. Not readable, by itself. */
 const UPLOADED = { name: 'psp.pdf', url: 'https://signed.example/psp.pdf', storagePath: 'companies/co-1/applications/psp.pdf' };
@@ -45,21 +46,52 @@ const EXTRACTED = {
     unreadable: [],
 };
 
+/**
+ * The real `applyExtraction`, standing in for the hook's.
+ *
+ * It reads the answers as they are NOW rather than a snapshot the panel captured
+ * when the button was pressed — which is the whole of the defect this suite grew
+ * to cover — so the double holds mutable state the test can change mid-read, the
+ * way a recruiter typing does.
+ */
+function makeApplyExtraction(initial = {}) {
+    const box = { formData: { ...initial }, calls: [] };
+    const applyExtraction = vi.fn((extracted) => {
+        const applied = applyExtractedFields(box.formData, extracted);
+        box.formData = applied.formData;
+        box.calls.push(extracted);
+        return applied;
+    });
+    return { box, applyExtraction };
+}
+
 function renderPanel(props = {}) {
-    const onApply = vi.fn();
-    const onLockCarriers = vi.fn();
-    render(
+    const { box, applyExtraction } = makeApplyExtraction(props.initialFormData);
+    const onBusyChange = vi.fn();
+    const { rerender } = render(
         <ApplicationAiPrepPanel
             companyId="co-1"
             files={{ 'psp-report-upload': UPLOADED }}
             blobs={{ 'psp-report-upload': FILE }}
-            formData={{}}
-            onApply={onApply}
-            onLockCarriers={onLockCarriers}
+            applicantKey="key-1"
+            onApplyExtraction={applyExtraction}
+            onBusyChange={onBusyChange}
             {...props}
         />,
     );
-    return { onApply, onLockCarriers };
+    const update = (next) => rerender(
+        <ApplicationAiPrepPanel
+            companyId="co-1"
+            files={{ 'psp-report-upload': UPLOADED }}
+            blobs={{ 'psp-report-upload': FILE }}
+            applicantKey="key-1"
+            onApplyExtraction={applyExtraction}
+            onBusyChange={onBusyChange}
+            {...props}
+            {...next}
+        />,
+    );
+    return { box, applyExtraction, onBusyChange, update };
 }
 
 beforeEach(() => {
@@ -83,17 +115,19 @@ describe('reading what is attached', () => {
     });
 
     it('applies what it found and locks the carriers the report named', async () => {
-        const { onApply, onLockCarriers } = renderPanel();
+        const { box, applyExtraction } = renderPanel();
 
         fireEvent.click(screen.getByTestId('read-documents'));
 
-        await waitFor(() => expect(onApply).toHaveBeenCalled());
-        expect(onApply.mock.calls[0][0]).toMatchObject({ firstName: 'Dana', cdlNumber: 'TX1234567' });
-        expect(onLockCarriers).toHaveBeenCalledWith([{ name: 'Acme Trucking', dotNumber: '123456' }]);
+        await waitFor(() => expect(applyExtraction).toHaveBeenCalled());
+        expect(box.formData).toMatchObject({ firstName: 'Dana', cdlNumber: 'TX1234567' });
+        // Locking travels with the application now, inside the hook, so a caller
+        // cannot do one and forget the other.
+        expect(box.formData.employers).toHaveLength(1);
     });
 
     it('says what it filled and what it left alone', async () => {
-        renderPanel({ formData: { firstName: 'Dana Marie' } });
+        renderPanel({ initialFormData: { firstName: 'Dana Marie' } });
 
         fireEvent.click(screen.getByTestId('read-documents'));
 
@@ -111,7 +145,7 @@ describe('reading what is attached', () => {
             .mockResolvedValueOnce({ data: { success: true, extracted: EXTRACTED, methods: { medical: 'unreadable' } } })
             .mockResolvedValueOnce({ data: { success: true, extracted: { ...EXTRACTED, license: { medCardExpiration: '2027-06-30' } }, methods: { medical: 'vision' } } });
 
-        const { onApply, onLockCarriers } = renderPanel({
+        const { box } = renderPanel({
             files: { 'medical-card-upload': UPLOADED },
             blobs: { 'medical-card-upload': FILE },
         });
@@ -120,7 +154,7 @@ describe('reading what is attached', () => {
         await waitFor(() => expect(mocks.call).toHaveBeenCalledTimes(2));
         expect(mocks.call.mock.calls[1][0].documents.medical.pages).toHaveLength(1);
         // The second pass is what the recruiter sees the result of.
-        expect(onApply.mock.calls[0][0].medCardExpiration).toBe('2027-06-30');
+        await waitFor(() => expect(box.formData.medCardExpiration).toBe('2027-06-30'));
         expect(await screen.findByText(/worth checking/)).toBeInTheDocument();
     });
 
@@ -135,12 +169,12 @@ describe('reading what is attached', () => {
         const failure = new Error('nope');
         failure.code = 'functions/failed-precondition';
         mocks.call.mockRejectedValue(failure);
-        const { onApply } = renderPanel();
+        const { applyExtraction } = renderPanel();
 
         fireEvent.click(screen.getByTestId('read-documents'));
 
         expect(await screen.findByRole('alert')).toHaveTextContent(/nope/);
-        expect(onApply).not.toHaveBeenCalled();
+        expect(applyExtraction).not.toHaveBeenCalled();
     });
 
     it('says so when none of the files could even be opened', async () => {
@@ -175,18 +209,131 @@ describe('reading what is attached', () => {
                 },
             });
 
-        const { onApply, onLockCarriers } = renderPanel({
+        const { box, applyExtraction } = renderPanel({
             files: { 'psp-report-upload': UPLOADED, 'medical-card-upload': UPLOADED },
             blobs: { 'psp-report-upload': FILE, 'medical-card-upload': FILE },
         });
         fireEvent.click(screen.getByTestId('read-documents'));
 
-        await waitFor(() => expect(onApply).toHaveBeenCalled());
-        const applied = onApply.mock.calls[0][0];
-        expect(applied.medCardExpiration).toBe('2027-06-30');
-        expect(applied.cdlNumber).toBe('TX1234567');
-        expect(applied.employers).toHaveLength(1);
-        expect(onLockCarriers).toHaveBeenCalledWith([{ name: 'Acme Trucking', dotNumber: '123456' }]);
+        await waitFor(() => expect(applyExtraction).toHaveBeenCalled());
+        expect(box.formData.medCardExpiration).toBe('2027-06-30');
+        expect(box.formData.cdlNumber).toBe('TX1234567');
+        expect(box.formData.employers).toHaveLength(1);
+    });
+});
+
+/**
+ * A read takes up to two minutes per pass, twice, and the recruiter keeps working
+ * through it. Everything below is a thing that happens in that window.
+ */
+describe('what can change while the reader is running', () => {
+    /** A callable whose answer the test decides when to deliver. */
+    function deferredCall(data) {
+        let release;
+        const gate = new Promise((resolve) => { release = resolve; });
+        mocks.call.mockImplementation(() => gate.then(() => ({ data })));
+        return () => release();
+    }
+
+    it('keeps what the recruiter typed while it was reading', async () => {
+        const release = deferredCall({ success: true, extracted: EXTRACTED, methods: { psp: 'text' } });
+        const { box, applyExtraction } = renderPanel();
+
+        fireEvent.click(screen.getByTestId('read-documents'));
+        await waitFor(() => expect(mocks.call).toHaveBeenCalled());
+
+        // Typed after the button was pressed and before the answer came back. The
+        // panel used to merge into the `formData` PROP it captured at click time
+        // and hand the whole object to the raw setter, so this was silently
+        // reverted — and "fill only what is blank" was judged against the snapshot
+        // too, so a field blank at click time was overwritten rather than kept.
+        box.formData = { ...box.formData, firstName: 'Dana Marie', cdlNumber: 'CORRECTED-1' };
+        release();
+
+        await waitFor(() => expect(applyExtraction).toHaveBeenCalled());
+        // The structural property, not just the outcome: the panel hands over the
+        // RAW extraction and does not merge anything itself, so there is no
+        // snapshot of the answers for it to merge into. That is what stops this
+        // defect coming back by a different route.
+        expect(box.calls[0]).toEqual(EXTRACTED);
+        expect(box.formData.firstName).toBe('Dana Marie');
+        expect(box.formData.cdlNumber).toBe('CORRECTED-1');
+        // And the recruiter is told, rather than left to notice.
+        expect(await screen.findByText(/Kept what you had already typed in/)).toBeInTheDocument();
+    });
+
+    it('does not apply one driver\'s answers to another', async () => {
+        const release = deferredCall({ success: true, extracted: EXTRACTED, methods: { psp: 'text' } });
+        const { applyExtraction, update } = renderPanel();
+
+        fireEvent.click(screen.getByTestId('read-documents'));
+        await waitFor(() => expect(mocks.call).toHaveBeenCalled());
+
+        // The recruiter went back to the list and opened somebody else. `onApply`
+        // belongs to the page, which outlives this panel, so without a correlation
+        // check the first driver's answers — and their PSP carrier LOCKS — landed
+        // under the second driver's key.
+        update({ applicantKey: 'key-2' });
+        release();
+
+        await waitFor(() => expect(mocks.call).toHaveBeenCalledTimes(1));
+        expect(applyExtraction).not.toHaveBeenCalled();
+    });
+
+    it('does not apply an answer about documents that have since been replaced', async () => {
+        const release = deferredCall({ success: true, extracted: EXTRACTED, methods: { psp: 'text' } });
+        const { applyExtraction, update } = renderPanel();
+
+        fireEvent.click(screen.getByTestId('read-documents'));
+        await waitFor(() => expect(mocks.call).toHaveBeenCalled());
+
+        update({ blobs: { 'psp-report-upload': new File(['%PDF-1.4 v2'], 'psp.pdf', { type: 'application/pdf' }) } });
+        release();
+
+        await waitFor(() => expect(mocks.call).toHaveBeenCalledTimes(1));
+        expect(applyExtraction).not.toHaveBeenCalled();
+    });
+
+    it('keeps the first pass when the second one fails', async () => {
+        // Both calls used to sit in one `try`, so one failed vision retry on a
+        // medical card threw away a licence and a PSP report that had read
+        // perfectly — the failure `mergeExtractionResults` was written to prevent,
+        // one layer up.
+        mocks.extractDocuments
+            .mockResolvedValueOnce({ documents: { psp: { text: 'PSP body' }, medical: { text: 'garbled' } }, methods: { psp: 'text', medical: 'ocr' }, failures: {} })
+            .mockResolvedValueOnce({ documents: { medical: { pages: ['data:image/jpeg;base64,p1'] } }, methods: { medical: 'pages' }, failures: {} });
+        mocks.call
+            .mockResolvedValueOnce({ data: { success: true, extracted: EXTRACTED, methods: { psp: 'text', medical: 'unreadable' } } })
+            .mockRejectedValueOnce(Object.assign(new Error('vision down'), { code: 'functions/unavailable' }));
+
+        const { box, applyExtraction } = renderPanel({
+            files: { 'psp-report-upload': UPLOADED, 'medical-card-upload': UPLOADED },
+            blobs: { 'psp-report-upload': FILE, 'medical-card-upload': FILE },
+        });
+        fireEvent.click(screen.getByTestId('read-documents'));
+
+        await waitFor(() => expect(applyExtraction).toHaveBeenCalled());
+        expect(box.formData.cdlNumber).toBe('TX1234567');
+        expect(box.formData.employers).toHaveLength(1);
+        // Reported as read, not as an error: the recruiter got most of it.
+        expect(await screen.findByTestId('read-summary')).toBeInTheDocument();
+    });
+
+    it('reports that it is busy, so a second read cannot start on another step', async () => {
+        const release = deferredCall({ success: true, extracted: EXTRACTED, methods: { psp: 'text' } });
+        const { onBusyChange } = renderPanel();
+
+        fireEvent.click(screen.getByTestId('read-documents'));
+
+        await waitFor(() => expect(onBusyChange).toHaveBeenCalledWith(true));
+        release();
+        await waitFor(() => expect(onBusyChange).toHaveBeenCalledWith(false));
+    });
+
+    it('is refused while another step is already reading', () => {
+        renderPanel({ busy: true });
+
+        expect(screen.getByTestId('read-documents')).toBeDisabled();
     });
 });
 

@@ -124,7 +124,7 @@ export default function DetailedReportModal({ companyId, sessionId, isOpen, onCl
                     role="group"
                     aria-label="Delivery results"
                 >
-                    <table className="ds-native-table min-w-full" data-density="compact">
+                    <table className="ds-native-table min-w-full" data-density="compact" data-pin-first-column>
                         <caption className="sr-only">Per-recipient delivery results</caption>
                         <thead className="sticky top-0">
                             <tr>

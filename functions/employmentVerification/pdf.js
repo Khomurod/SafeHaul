@@ -27,6 +27,7 @@ async function generateVerificationPDF(verificationData, responseData, token) {
         const pdfDoc = await PDFDocument.create();
         const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
         const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+        const fontOblique = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
         const fontSize = 10;
         const headerSize = 14;
         const subHeaderSize = 11;
@@ -200,10 +201,22 @@ async function generateVerificationPDF(verificationData, responseData, token) {
             y -= 16;
         }
 
-        // Embed signature if available
-        if (responseData.signaturePath) {
+        // ---- SIGNATURE ----
+        // A typed mark is the name the respondent adopted as their signature
+        // (ESIGN, 15 U.S.C. §7006(5)), set in an oblique face so the page reads
+        // as signed rather than merely filled in; a drawn mark is the PNG saved
+        // to Cloud Storage by responses.js. Both carry the method in the label.
+        if (responseData.signatureText) {
             y -= 10;
-            drawText('Electronic Signature:', 50, y, { font: fontBold });
+            drawText('Electronic Signature (typed):', 50, y, { font: fontBold });
+            y -= 22;
+            drawText(responseData.signatureText, 50, y, { font: fontOblique, size: 16 });
+            y -= 14;
+            drawText('Typed by the respondent and adopted as their signature.', 50, y, { size: 8, color: rgb(0.5, 0.5, 0.5) });
+            y -= 10;
+        } else if (responseData.signaturePath) {
+            y -= 10;
+            drawText('Electronic Signature (drawn):', 50, y, { font: fontBold });
             y -= 6;
 
             try {

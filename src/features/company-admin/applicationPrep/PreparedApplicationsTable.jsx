@@ -51,6 +51,31 @@ export function PreparedApplicationsTable({ applications, loading, onOpen }) {
             },
         },
         {
+            /**
+             * How many employers this application holds the driver to.
+             *
+             * `listCompanyPreparedApplications` has always returned
+             * `lockedEmployerCount` and nothing rendered it, which is how an
+             * orphaned lock — one whose row the carrier deleted — stayed invisible
+             * while it blocked the driver's submission. The count cannot be
+             * orphaned any more (`reconcileLockedEmployers`), and showing it is
+             * what makes the number checkable rather than a thing to trust.
+             */
+            key: 'locked',
+            header: 'Locked employers',
+            priority: 'tertiary',
+            width: 'sm',
+            render: (entry) => {
+                const count = Number.isInteger(entry.lockedEmployerCount) ? entry.lockedEmployerCount : 0;
+                if (count === 0) return <span className="text-ds-sm text-ds-content-muted">None</span>;
+                return (
+                    <Badge tone="info">
+                        {count === 1 ? '1 employer' : `${count} employers`}
+                    </Badge>
+                );
+            },
+        },
+        {
             key: 'prepared',
             header: 'Started by',
             priority: 'tertiary',

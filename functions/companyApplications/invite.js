@@ -15,19 +15,71 @@
  * Only the SHA-256 is stored, as everywhere else here: a leaked database row is not
  * a usable link.
  *
- * ## What the exchange hands back
+ * ## Validity belongs to a TOKEN, not to the document
  *
- * Everything the ordinary resumed session already needs — the answers, the applicant
- * key, and a freshly minted **resume** token. A carrier-prepared draft carries no
- * identity HMAC (the carrier does not know the driver's Social Security Number), so
- * without that token the driver's own autosave would be refused by the ordinary
- * ownership rules. Minting it here is what makes the rest of the wizard behave
- * exactly like any other resumed application.
+ * This is the shape of a defect found on 2026-09-08, and the reason the code below
+ * looks the way it does. Matching accepted the current hash *or* any prior hash,
+ * while validity read a single document-level `inviteTokenExpiresAt` that every
+ * mint rewrote unconditionally — two independent questions composed into one
+ * answer. So regenerating did not retire the old link, it **revived** it: a link
+ * that had been dead for a week opened again, with a fresh resume token, for
+ * another fourteen days. The panel meanwhile told the recruiter that "creating a
+ * new one retires this one".
  *
- * It also stamps `inviteClaimedAt`. That is the fact submission reads to decide
- * whether locked employers apply: a driver who never opened the link never saw the
- * carrier's employers, and must not be refused for leaving out rows nobody showed
- * them.
+ * So each accepted hash now carries its own expiry, and `liveInviteFor` asks both
+ * questions of one entry — which is what makes the old composition impossible to
+ * write again. The prior hash is kept for the reason it always claimed: a driver
+ * who opened the old link a moment ago should not find it dead mid-page. That is a
+ * minutes-scale concern, so it is a minutes-scale grace.
+ *
+ * ## What the exchange hands back, and why it depends on whose words are in the draft
+ *
+ * While the draft is still `prepared` or `sent` the answers are the CARRIER's own,
+ * so the link hands over everything an ordinary resumed session needs: the answers,
+ * the applicant key, and a freshly minted **resume** token. A carrier-prepared
+ * draft carries no identity HMAC (the carrier does not know the driver's Social
+ * Security Number), so without that token the driver's own autosave would be
+ * refused by the ordinary ownership rules. Minting it here is what makes the rest
+ * of the wizard behave exactly like any other resumed application.
+ *
+ * Once the driver has saved — `driver_in_progress` — the answers are theirs, and
+ * `shared/companyPreparedDraft.js` says the carrier stops being able to read them.
+ * That cutoff was enforced at only one of the two doors: `companyApplications/read.js`
+ * consulted `companyMayReadAnswers`, while this file consulted `isCompanyPrepared`,
+ * which tests `origin` — a field recording who *created* the draft, which
+ * deliberately never changes. So a carrier could mint a link, exchange it itself,
+ * and recover exactly the answers the cutoff had just withheld, plus a resume token
+ * that could rewrite them. The driver's first save does not clear
+ * `inviteTokenHash` either, so the ORIGINAL link already did this — gating the mint
+ * would not have closed it. Found and fixed 2026-09-08.
+ *
+ * So the link is **tiered**. After takeover it opens nothing by itself: no answers,
+ * no resume token, just `requiresIdentity`, and the driver proves who they are
+ * through the challenge that already exists for every returning applicant
+ * (`findResumableApplication`: last name, date of birth and SSN digits, plus a
+ * contact detail already on the record). The carrier cannot pass it — a prepared
+ * draft never holds an SSN — and the driver can, on any device, because their first
+ * save is what supplied the identity HMAC. This is the ordinary shape for a
+ * long-lived link: it grants access, and sensitive data behind it wants a second
+ * factor.
+ *
+ * Returning no token after takeover also stops the exchange demoting the driver's
+ * live one. It used to rotate unconditionally, pushing the driver's token into
+ * `priorResumeTokenHashes`, which grants liveness but never write authorization —
+ * so a carrier opening its own link a few times could silently stop the driver's
+ * autosave.
+ *
+ * ## `inviteClaimedAt` is stamped by the driver's first save, not by the exchange
+ *
+ * It is the fact submission reads to decide whether locked employers apply: a
+ * driver who never opened the link never saw the carrier's employers and must not
+ * be refused for leaving out rows nobody showed them. Stamping it on the exchange
+ * let the CARRIER arm that refusal by opening its own link once — after which a
+ * driver who applied at `/apply/:slug` instead of through the link would be blocked
+ * at submission by rows they had never been shown. So the exchange records *which*
+ * resume token it minted (`inviteResumeTokenHash`), and `drafts/save.js` stamps the
+ * claim when a save presents that token — which proves both that the link was
+ * opened and that the session holding the carrier's answers is the one saving.
  */
 
 const crypto = require('crypto');
@@ -51,11 +103,29 @@ const { applicantKeyOf, clientIp, docId, text } = require('../drafts/identity');
  */
 const INVITE_DAYS = 14;
 
-/** Prior hashes kept live through a regeneration, so an open tab is not killed. */
-const MAX_PRIOR_INVITE_HASHES = 2;
+/**
+ * How long the link a regeneration replaced keeps working.
+ *
+ * The whole reason to keep a prior hash at all is the driver who is mid-page on the
+ * old link at the moment the recruiter presses "Create a new link". Ten minutes
+ * covers that and nothing else. It is a ceiling and never an extension: a prior
+ * entry expires at `min(its own expiry, now + this)`, so replacing a link that had
+ * two minutes left does not give it ten.
+ */
+const INVITE_GRACE_MS = 10 * 60 * 1000;
+
+/** Prior hashes kept live through a regeneration. One, as the brief has always said. */
+const MAX_PRIOR_INVITE_HASHES = 1;
 
 /** Tight: an invite token is a bearer credential and guessing it is the attack. */
 const EXCHANGE_LIMIT = Object.freeze({ limit: 10, windowSeconds: 60 });
+
+/**
+ * Minting is cheap for a recruiter and useful to an attacker who has a session:
+ * every regeneration retires the driver's live link, so an unbounded loop is a way
+ * to keep an application permanently unopenable. Generous for real proofreading.
+ */
+const MINT_LIMIT = Object.freeze({ limit: 20, windowSeconds: 300 });
 
 function hashInvite(token) {
     return crypto.createHash('sha256').update(String(token || '')).digest('hex');
@@ -68,29 +138,101 @@ function inviteMatches(storedHash, token) {
     return crypto.timingSafeEqual(expected, actual);
 }
 
-/** Now, or before the last regeneration — a link in flight is not cut off mid-open. */
-function inviteNamesDraft(data, token) {
-    if (inviteMatches(data?.inviteTokenHash, token)) return true;
-    const prior = Array.isArray(data?.priorInviteTokenHashes) ? data.priorInviteTokenHashes : [];
-    return prior.some((hash) => inviteMatches(hash, token));
+/**
+ * Milliseconds, from whatever the store handed back.
+ *
+ * Firestore returns a `Timestamp` with `toDate()`; a value written in the same
+ * process — and everything in the test double — is a plain `Date`. Reading only
+ * one of the two shapes measures the other as "no expiry", which fails in whichever
+ * direction the reader happens to default to. Both are read, and anything else is
+ * `null`, which every caller below treats as expired.
+ */
+function expiryMillis(value) {
+    if (value && typeof value.toDate === 'function') {
+        const date = value.toDate();
+        return date instanceof Date ? date.getTime() : null;
+    }
+    if (value instanceof Date) return value.getTime();
+    return typeof value === 'number' ? value : null;
+}
+
+/**
+ * Every hash that could open this draft, newest first, each with its own expiry.
+ *
+ * `priorInviteTokenHashes` is the legacy shape: bare strings, with no expiry of
+ * their own. There is no honest expiry to give them — the only one that ever
+ * existed was the document-level field a later mint had already rewritten, which
+ * is the defect — so they are not returned at all, i.e. treated as dead. The worst
+ * case is one driver, mid-open at the moment of deployment, being asked for a fresh
+ * link; the alternative is honouring exactly the amnesty this change removes.
+ */
+function inviteEntries(data) {
+    const source = data || {};
+    const entries = [];
+    if (typeof source.inviteTokenHash === 'string') {
+        entries.push({ hash: source.inviteTokenHash, expiresAt: source.inviteTokenExpiresAt });
+    }
+    if (Array.isArray(source.priorInvites)) {
+        for (const entry of source.priorInvites) {
+            if (entry && typeof entry.hash === 'string') {
+                entries.push({ hash: entry.hash, expiresAt: entry.expiresAt });
+            }
+        }
+    }
+    return entries;
+}
+
+/**
+ * Does this token open this draft, right now?
+ *
+ * One function on purpose. "Does the token name the draft" and "is the expiry in
+ * the future" used to be two, and composing them independently is precisely what
+ * let an expired token ride on a newer token's expiry. Asked of a single entry, the
+ * expired case cannot be expressed.
+ *
+ * A hash that matches but has expired returns `null` rather than continuing the
+ * scan: the token *is* that entry, and that entry is dead. (Two entries cannot
+ * share a hash — each is 32 random bytes.)
+ *
+ * @returns {{hash: string, expiresAt: *}|null} the live entry, or null
+ */
+function liveInviteFor(data, token, now = Date.now()) {
+    for (const entry of inviteEntries(data)) {
+        if (!inviteMatches(entry.hash, token)) continue;
+        const expires = expiryMillis(entry.expiresAt);
+        return typeof expires === 'number' && expires > now ? entry : null;
+    }
+    return null;
 }
 
 function inviteExpiresAt(now = Date.now()) {
     return new Date(now + INVITE_DAYS * 24 * 60 * 60 * 1000);
 }
 
-function inviteStillValid(data, now = Date.now()) {
-    const expires = data?.inviteTokenExpiresAt?.toDate?.()?.getTime?.();
-    return typeof expires === 'number' ? expires > now : false;
+/**
+ * The entries a mint carries forward, each capped at the grace window.
+ *
+ * Reads `inviteEntries`, so the hash being replaced is first and therefore the one
+ * that survives `slice`. An entry already past its expiry is dropped rather than
+ * extended — that is the difference between a grace and a revival.
+ */
+function carriedPriorInvites(data, now = Date.now()) {
+    const graceEnd = now + INVITE_GRACE_MS;
+    const carried = [];
+    for (const entry of inviteEntries(data)) {
+        const expires = expiryMillis(entry.expiresAt);
+        if (typeof expires !== 'number' || expires <= now) continue;
+        carried.push({ hash: entry.hash, expiresAt: new Date(Math.min(expires, graceEnd)) });
+        if (carried.length >= MAX_PRIOR_INVITE_HASHES) break;
+    }
+    return carried;
 }
 
 /**
  * Mint (or regenerate) the link for one prepared application.
  *
- * The raw token is returned exactly once. Regenerating keeps the previous hash
- * alive for the same reason resume tokens do — a driver who opened the old link a
- * moment ago should not find it dead mid-page — while the newest link is the one
- * that will still work tomorrow.
+ * The raw token is returned exactly once. Regenerating retires the link it
+ * replaces — after the short grace above — which is what the recruiter is told.
  */
 exports.mintApplicationInvite = onCallV2({ cors: true }, async (request) => {
     const companyId = docId(request.data?.companyId, 100);
@@ -101,23 +243,33 @@ exports.mintApplicationInvite = onCallV2({ cors: true }, async (request) => {
 
     await assertCompanyAccessForRequest(request, companyId, 'mintApplicationInvite');
 
+    // Both of these were missing until 2026-09-08, which made this the only one of
+    // the five prepared-application callables with neither.
+    await assertCompanyAcceptingIntake(db, companyId);
+    const allowed = await checkRateLimit(
+        `company_invite_${companyId}_${request.auth.uid}`,
+        MINT_LIMIT.limit, MINT_LIMIT.windowSeconds, 'closed',
+    );
+    if (!allowed) {
+        throw new HttpsErrorV2('resource-exhausted', 'Too many links in a row. Wait a moment and try again.');
+    }
+
     const token = crypto.randomBytes(32).toString('hex');
     const ref = draft.draftsCollection(companyId).doc(applicantKey);
+    const now = Date.now();
 
     const outcome = await db.runTransaction(async (transaction) => {
         const doc = await transaction.get(ref);
         if (!doc.exists || !prepared.isCompanyPrepared(doc.data())) return { missing: true };
         const data = doc.data() || {};
 
-        const priorHashes = [
-            typeof data.inviteTokenHash === 'string' ? data.inviteTokenHash : null,
-            ...(Array.isArray(data.priorInviteTokenHashes) ? data.priorInviteTokenHashes : []),
-        ].filter(Boolean).slice(0, MAX_PRIOR_INVITE_HASHES);
-
         transaction.set(ref, {
             inviteTokenHash: hashInvite(token),
-            priorInviteTokenHashes: priorHashes,
-            inviteTokenExpiresAt: inviteExpiresAt(),
+            priorInvites: carriedPriorInvites(data, now),
+            // Emptied rather than left behind: the legacy list is no longer read,
+            // and a stale copy of it is exactly the amnesty this change removes.
+            priorInviteTokenHashes: [],
+            inviteTokenExpiresAt: inviteExpiresAt(now),
             invitedAt: draft.serverTimestamp(),
             // `sent` records that a link exists. The driver taking it over is a
             // separate, later fact and must not be walked back by a regeneration.
@@ -165,12 +317,15 @@ exports.exchangeApplicationInvite = functions
         await assertCompanyAcceptingIntake(db, companyId);
 
         const collection = draft.draftsCollection(companyId);
+        const opens = (doc) => Boolean(
+            doc && prepared.isCompanyPrepared(doc.data()) && liveInviteFor(doc.data(), inviteToken),
+        );
         let candidate = null;
         if (applicantKey) {
             // The link carries the key, so this is one read. It is a hint and not a
-            // claim: the token hash on that document still has to match.
+            // claim: the token still has to name a live invite on that document.
             const doc = await collection.doc(applicantKey).get();
-            if (doc.exists && inviteNamesDraft(doc.data(), inviteToken)) candidate = doc;
+            if (doc.exists && opens(doc)) candidate = doc;
         }
         if (!candidate) {
             const recent = await collection
@@ -178,50 +333,92 @@ exports.exchangeApplicationInvite = functions
                 .orderBy('updatedAt', 'desc')
                 .limit(50)
                 .get();
-            candidate = recent.docs.find((doc) => inviteNamesDraft(doc.data(), inviteToken)) || null;
+            candidate = recent.docs.find((doc) => opens(doc)) || null;
         }
 
-        if (!candidate
-            || !prepared.isCompanyPrepared(candidate.data())
-            || !inviteStillValid(candidate.data())) {
+        if (!candidate) {
             throw new functions.https.HttpsError('not-found', 'That application link could not be opened.');
         }
 
         // A resume token per open, so the driver's autosave is authorized the way
         // every other resumed session is. The superseded hash stays live for the
         // same reason it does on a resume lookup: a second tab must not be killed.
+        //
+        // The status is re-read inside the transaction rather than taken from the
+        // candidate: the driver's first save can land between the two, and it is
+        // the one fact that decides whether this open hands over answers at all.
         const resumeToken = draft.mintResumeToken();
-        const restored = await db.runTransaction(async (transaction) => {
+        const outcome = await db.runTransaction(async (transaction) => {
             const fresh = await transaction.get(candidate.ref);
             if (!fresh.exists) return null;
             const stored = fresh.data() || {};
+
+            if (stored.status === prepared.PREPARED_STATUSES.DRIVER_IN_PROGRESS) {
+                // Theirs now. Nothing is written — not the token, not the claim —
+                // so a carrier holding this link cannot read the driver's answers,
+                // cannot rewrite them, and cannot displace the token the driver's
+                // own browser is saving with.
+                return { requiresIdentity: true };
+            }
+
             const prior = [
                 typeof stored.resumeTokenHash === 'string' ? stored.resumeTokenHash : null,
                 ...(Array.isArray(stored.priorResumeTokenHashes) ? stored.priorResumeTokenHashes : []),
             ].filter(Boolean).slice(0, 2);
 
+            /**
+             * The last moment the employer rows are provably the carrier's.
+             *
+             * A lock whose row the carrier deleted is an invisible requirement the
+             * driver is blocked on at submission and cannot satisfy. `prepare.js`
+             * stops that being written from now on, but drafts already carrying one
+             * need healing — and it has to happen before the driver can influence
+             * the rows, or "delete the row" would become "delete the lock", which
+             * is the whole thing the lock prevents. Here, in the transaction that
+             * hands the application over, is exactly that moment: the status is
+             * still `prepared` or `sent`, so nobody but the carrier has written a
+             * word of it.
+             */
+            const healedLocks = prepared.reconcileLockedEmployers(
+                stored.lockedEmployers, stored.formData,
+            );
+
             transaction.set(candidate.ref, {
                 resumeTokenHash: resumeToken.hash,
                 priorResumeTokenHashes: prior,
-                // The fact submission reads to decide whether the locked employers
-                // apply: this driver was actually shown them.
-                inviteClaimedAt: stored.inviteClaimedAt || draft.serverTimestamp(),
+                lockedEmployers: healedLocks,
+                // Which token the claim belongs to. `drafts/save.js` stamps
+                // `inviteClaimedAt` when a save presents this one, and clears this
+                // field doing so — see the header for why the claim is not stamped
+                // here.
+                inviteResumeTokenHash: resumeToken.hash,
                 updatedAt: draft.serverTimestamp(),
                 expiresAt: draft.expiresAt(),
             }, { merge: true });
-            return stored;
+            return { requiresIdentity: false, stored, healedLocks };
         });
 
-        if (!restored) {
+        if (!outcome) {
             throw new functions.https.HttpsError('not-found', 'That application link could not be opened.');
         }
 
+        if (outcome.requiresIdentity) {
+            // `applicantKey` is already in the link's own query string, so saying it
+            // back discloses nothing. Everything else is withheld, including who
+            // prepared it.
+            return { opened: true, requiresIdentity: true, applicantKey: candidate.id };
+        }
+
+        const restored = outcome.stored;
         return {
             opened: true,
+            requiresIdentity: false,
             applicantKey: candidate.id,
             resumeToken: resumeToken.token,
             formData: restored.formData || {},
-            lockedEmployers: Array.isArray(restored.lockedEmployers) ? restored.lockedEmployers : [],
+            // The healed list, so the rows the wizard renders as locked are exactly
+            // the rows submission will enforce.
+            lockedEmployers: outcome.healedLocks,
             preparedBy: restored.preparedBy?.name || null,
         };
     });
@@ -229,10 +426,14 @@ exports.exchangeApplicationInvite = functions
 exports.__private = {
     EXCHANGE_LIMIT,
     INVITE_DAYS,
+    INVITE_GRACE_MS,
     MAX_PRIOR_INVITE_HASHES,
+    MINT_LIMIT,
+    carriedPriorInvites,
+    expiryMillis,
     hashInvite,
+    inviteEntries,
     inviteExpiresAt,
     inviteMatches,
-    inviteNamesDraft,
-    inviteStillValid,
+    liveInviteFor,
 };

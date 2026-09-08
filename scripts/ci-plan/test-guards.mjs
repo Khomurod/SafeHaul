@@ -91,6 +91,33 @@ console.log('\nK. Guards that stay guards');
             'a design-system gate that cannot fail the run is a report, not a gate');
     }
 
+    /*
+     * K1c — the first-download budget (audit step I, 2026-09-06). A size ceiling
+     * that is not enforced after every build is a number in a document. The
+     * check runs in the job that builds, after the build, and is blocking; its
+     * own tests run in the job no plan can skip.
+     */
+    {
+        const jobStart = workflowText.indexOf('\n  frontend-build:');
+        const jobEnd = workflowText.indexOf('\n  frontend-quality:');
+        const frontendBuild = jobStart >= 0 && jobEnd > jobStart ? workflowText.slice(jobStart, jobEnd) : '';
+        const buildAt = frontendBuild.indexOf('npm run build');
+        const budgetAt = frontendBuild.indexOf('- name: Check the first-download budget');
+        assert('K1c. the first-download budget is checked in frontend-build, after the build',
+            buildAt >= 0 && budgetAt > buildAt && /npm run check:bundle-budget/.test(frontendBuild),
+            'a ceiling nobody measures against after building is a number in a document');
+        const budgetStep = stepBlock('Check the first-download budget');
+        assert('K1c. and it is blocking',
+            budgetStep !== null && !/continue-on-error:\s*true/.test(budgetStep),
+            'a budget that cannot fail the run is a report, not a gate');
+        const guardTests = stepBlock('Verify the bundle-budget guard');
+        assert('K1c. and the guard\'s own refusals are tested in callable-contract',
+            guardTests !== null && /npm run test:bundle-budget/.test(guardTests)
+                && workflowText.indexOf('- name: Verify the bundle-budget guard') > workflowText.indexOf('\n  callable-contract:')
+                && workflowText.indexOf('- name: Verify the bundle-budget guard') < workflowText.indexOf('\n  frontend-build:'),
+            'the checker must be seen to fail on a fixture before it is trusted to fail on a build');
+    }
+
     assert('K2. no workflow step excludes the accessibility specs',
         !/--grep-invert[^\n]*@a11y/.test(workflowText),
         'the axe specs belong in the blocking lane, not behind a grep-invert');
