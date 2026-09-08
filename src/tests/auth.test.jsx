@@ -126,12 +126,26 @@ describe('Authentication Flow', () => {
         });
     });
 
-    it('should show loading state during authentication', async () => {
+    /**
+     * The pending sign-in is settled INSIDE the test.
+     *
+     * The first version mocked the sign-in to resolve after a 100 ms `setTimeout`,
+     * asserted the button was disabled, and returned. The timer then fired while
+     * the file's environment was tearing down; `loginUser` threw on
+     * `undefined.user`, `LoginScreen`'s catch called `console.error`, and Vitest
+     * failed the whole run with `EnvironmentTeardownError: Closing rpc while
+     * "onUserConsoleLog" was pending` — 5210 tests passed, exit code 1. Twice in a
+     * row in CI on 2026-09-08, on a change that touched only `functions/`.
+     *
+     * So the promise is a deferred the test rejects, and the test waits for the
+     * rendered consequence before it ends (AGENTS.md, rule 7).
+     */
+    it('disables Sign in while authentication is pending, and re-enables it after', async () => {
         const { signInWithEmailAndPassword } = await import('firebase/auth');
 
-        // Mock slow login
+        let settle;
         signInWithEmailAndPassword.mockImplementation(
-            () => new Promise((resolve) => setTimeout(resolve, 100))
+            () => new Promise((_resolve, reject) => { settle = reject; })
         );
 
         render(
@@ -150,5 +164,12 @@ describe('Authentication Flow', () => {
 
         // Button should be disabled during loading
         expect(submitButton).toBeDisabled();
+
+        settle(new Error('Network error'));
+
+        await waitFor(() => {
+            expect(screen.getByText('An unexpected error occurred. Please try again.')).toBeInTheDocument();
+            expect(submitButton).not.toBeDisabled();
+        });
     });
 });

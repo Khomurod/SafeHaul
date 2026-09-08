@@ -118,8 +118,10 @@ console.log('\nG. The standard is enforced in CI, and cannot go blind');
     assert('G8. CI proves the backlog did not grow, rather than trusting it',
         /check:source-size -- --require-baseline/.test(jobBody),
         'without the flag the guard skips the comparison when it cannot find a base');
+    // Any major of actions/checkout will do: the claim is about history depth,
+    // not the action's version, so a Dependabot bump of the action must not fail it.
     assert('G9. and that job has the history the proof needs',
-        /- uses: actions\/checkout@v5\n\s+with:\n\s+fetch-depth: 0/.test(jobBody),
+        /- uses: actions\/checkout@v\d+\n\s+with:\n\s+fetch-depth: 0/.test(jobBody),
         'a depth-1 checkout has no previous backlog to compare against, so the '
         + 'guard would refuse every run');
     /*
