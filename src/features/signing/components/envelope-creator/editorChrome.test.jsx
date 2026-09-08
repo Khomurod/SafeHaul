@@ -6,6 +6,7 @@ import { axe } from 'vitest-axe';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('react-pdf', () => ({
+  pdfjs: { GlobalWorkerOptions: {} },
     Document: ({ children }) => <div data-testid="pdf-document">{children}</div>,
     Page: ({ pageNumber, width }) => <div data-testid="pdf-thumb" data-page={pageNumber} data-width={width} />,
 }));

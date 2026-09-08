@@ -1,5 +1,6 @@
 import React from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
+import '@lib/pdf/pdfWorker';
 import { ResizableDraggableField } from './ResizableDraggableField';
 import { AiSuggestionOverlay } from './AiSuggestionOverlay';
 

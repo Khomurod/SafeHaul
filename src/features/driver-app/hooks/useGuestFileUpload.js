@@ -5,7 +5,8 @@
  * application. The server reserves the storage path and validates tenant/rate
  * limits (getSignedUploadUrl); the client then uploads via the Firebase SDK —
  * avoiding a browser PUT to storage.googleapis.com (bucket CORS / signed URL
- * extension headers) — and mints a read URL for preview.
+ * extension headers). Previewing is `useSignedUploadPreview`'s job, and the
+ * comment beside `fileData` says why it is not done here.
  */
 import { useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
@@ -66,13 +67,20 @@ export function useGuestFileUpload(companyId) {
       const fileRef = ref(storage, storagePath);
       await uploadBytes(fileRef, file, { contentType: fileType });
 
-      const getGuestReadUrl = httpsCallable(functions, 'getSignedGuestUploadUrl');
-      const { data: readData } = await getGuestReadUrl({ companyId, storagePath });
-      if (!readData?.url) {
-        throw new Error('Upload preview URL failed.');
-      }
-
-      const fileData = { name: file.name, url: readData.url, storagePath };
+      /*
+       * No `url` is stored, deliberately.
+       *
+       * `getSignedGuestUploadUrl` mints a read URL that lives FIFTEEN MINUTES, and
+       * this used to bake it into the form data — which is persisted into the draft
+       * and handed to the driver by the invite exchange. So a document a recruiter
+       * attached on Tuesday was a broken image and a Storage error page by the time
+       * the driver opened the link. A signed URL is a short-lived capability, not a
+       * property of the document; `storagePath` is the durable identifier, and
+       * `useSignedUploadPreview` mints a URL from it when somebody is looking.
+       *
+       * That also drops a round trip from every upload.
+       */
+      const fileData = { name: file.name, storagePath };
       showSuccess("File uploaded successfully.");
       return fileData;
     } catch (error) {

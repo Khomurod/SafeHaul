@@ -14,6 +14,7 @@
 
 const { db } = require('../firebaseAdmin');
 const draft = require('../shared/applicationDraft');
+const prepared = require('../shared/companyPreparedDraft');
 function clientIp(context) {
     return context.rawRequest?.ip || 'unknown_guest';
 }
@@ -318,6 +319,55 @@ async function supersedeOtherDrafts(companyId, identityKey, keepApplicantKey, pr
 }
 
 /**
+ * Retires the carrier-prepared document an applicant has just moved off.
+ *
+ * `supersedeOtherDrafts` above cannot reach it, and that is not an oversight in
+ * this function — it is a consequence of what it queries. It sweeps by
+ * `identityKey`, and a carrier-prepared draft has none: the HMAC is built from the
+ * driver's own last name, date of birth and SSN digits, and the carrier does not
+ * know the SSN, so `prepare.js` writes `identityKey: null` and says so. A driver
+ * who corrects their email before their first save has landed therefore left the
+ * prepared document alive — with its invite token hash intact — which contradicts
+ * what `shared/companyPreparedDraft.js` says the non-travel of those hashes is
+ * for: "two live drafts answering one link is a worse problem than a claimed link
+ * that has to be sent again". Found 2026-09-08.
+ *
+ * Same bar as every other deletion here, and for the same reason: the caller must
+ * hold **that document's own** current token. That is exactly what
+ * `preparedSourceFor` established a moment earlier, so this is a re-check rather
+ * than a new privilege — and re-checking is what keeps the rule "a draft is
+ * retired only by a caller holding its token" true of every call site instead of
+ * true of most of them.
+ *
+ * Everything the carrier recorded has already travelled by the time this runs; see
+ * `carriedPreparedFields`. What is left is a duplicate row and a live link to it.
+ *
+ * @param {{ resumeToken?: string }} [proof]
+ */
+async function retirePreparedSource(companyId, applicantKey, proof = {}) {
+    const { resumeToken } = proof;
+    if (!applicantKey || !resumeToken) return false;
+    try {
+        const ref = draft.draftsCollection(companyId).doc(applicantKey);
+        const doc = await ref.get();
+        if (!doc.exists) return false;
+        const data = doc.data() || {};
+        // Only a carrier-prepared one. A driver-authored draft at another key is
+        // somebody's own work and is `supersedeOtherDrafts`' business, under the
+        // identity rules that function documents at length.
+        if (!prepared.isCompanyPrepared(data)) return false;
+        if (!draft.resumeTokenMatches(data.resumeTokenHash, resumeToken)) return false;
+        await ref.delete();
+        return true;
+    } catch (error) {
+        // A tidy-up failure must not fail the save it follows — the same bargain
+        // `supersedeOtherDrafts` makes. The straggler expires with the 30-day TTL.
+        console.error(`[applicationDrafts] Could not retire the prepared source: ${error?.message || 'unknown'}`);
+        return false;
+    }
+}
+
+/**
  * Locates a draft by resume token, in constant-ish time.
  *
  * When the applicant key is known the document is read directly. When it is not —
@@ -349,6 +399,7 @@ module.exports = {
     mayModifyExistingDraft,
     priorHashesAfterRotation,
     recordMatchAttempt,
+    retirePreparedSource,
     supersedeOtherDrafts,
     text,
     tokenNamesDraft,

@@ -1,11 +1,10 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { Icon, AlertCircle, Loader2, Sparkles } from '@design-system/icons';
 
 import { functions } from '@lib/firebase';
 import { Badge, Button, Card, FieldMessage } from '@/design-system/components';
 import { describeError } from './useApplicationPrepDraft';
-import { applyExtractedFields } from './applyExtractedFields';
 import { extractDocuments } from './extraction/documentExtractionPipeline';
 import { attachedDocuments } from './attachedDocuments';
 import { mergeExtractionResults } from './mergeExtractionResults';
@@ -31,6 +30,27 @@ import { mergeExtractionResults } from './mergeExtractionResults';
  * read. Those documents are sent again as page images, to the models that read
  * pictures — the case this catches is a photograph whose OCR produced fluent
  * nonsense, which no amount of client-side checking would have caught.
+ *
+ * **A failure in that second pass used to discard the first.** Both calls sat in
+ * one `try`, so one failed vision retry on a medical card threw away a licence and
+ * a PSP report that had read perfectly — the exact failure `mergeExtractionResults`
+ * was written to prevent, one layer up. The second pass is its own `try` now, and
+ * losing it falls back to the first pass rather than to nothing. It still WINS
+ * where it succeeds, which is why the fallback is "apply the first pass" and not
+ * "apply the first pass eagerly, then top it up": a value the first pass reported
+ * for a document the model admitted it could not read is precisely the value not
+ * to trust.
+ *
+ * ## A result belongs to one application and one set of documents
+ *
+ * There was nothing tying a response to what it was asked about — no applicant
+ * key, no document set, no request id. `onApply` belongs to the *page*, which
+ * outlives this panel, so a read started for one driver and resolved after the
+ * recruiter opened another wrote the first driver's answers, and the first
+ * driver's PSP carrier LOCKS, under the second driver's key. That manufactures
+ * exactly the unsatisfiable lock state `reconcileLockedEmployers` exists to
+ * prevent, on a driver who never had those employers. Both facts are captured
+ * before the call and checked after it.
  */
 
 const METHOD_LABELS = Object.freeze({
@@ -49,71 +69,134 @@ const DOCUMENT_LABELS = Object.freeze({
     mvr: 'Motor vehicle record',
 });
 
-export function ApplicationAiPrepPanel({ companyId, files, blobs, formData, onApply, onLockCarriers }) {
+/**
+ * Which documents a read was asked about.
+ *
+ * Compared for inequality only, so a document replaced or removed while the read
+ * was open makes the answer stale rather than merely different. Name and size
+ * because a recruiter who re-attaches a corrected scan keeps the file name.
+ */
+function documentSetOf(readable) {
+    return readable
+        .map((entry) => `${entry.field}:${entry.file?.name || ''}:${entry.file?.size || 0}`)
+        .sort()
+        .join('|');
+}
+
+export function ApplicationAiPrepPanel({
+    companyId, files, blobs, applicantKey, onApplyExtraction, busy, onBusyChange,
+}) {
     const [state, setState] = useState('idle');
     const [error, setError] = useState(null);
     const [methods, setMethods] = useState({});
     const [summary, setSummary] = useState(null);
+
+    /**
+     * Still on screen.
+     *
+     * The read outlives this panel: moving from the upload step to the editor
+     * unmounts one instance and mounts another, and `onApplyExtraction` belongs to
+     * the page, so the result lands either way. What must not happen is this
+     * instance setting state after it has gone.
+     */
+    const mounted = useRef(true);
+    useEffect(() => () => { mounted.current = false; }, []);
 
     // What the application holds, and which of those this tab can actually read.
     // See `attachedDocuments`: an upload leaves metadata behind, not bytes.
     const attached = attachedDocuments(files, blobs);
     const readable = attached.filter((entry) => entry.file);
     const elsewhere = attached.filter((entry) => !entry.file);
+    const documentSet = documentSetOf(readable);
+    /**
+     * What is on screen NOW, for the check at the end of the read.
+     *
+     * A ref and not the closure's own values: `read` is a `useCallback`, so the
+     * in-flight one holds the applicant and the document set as they were when the
+     * button was pressed — comparing those against themselves always agrees, which
+     * is a guard that cannot fire. This is the same reason the answers are read
+     * through `latestFormData` in the hook.
+     */
+    const onScreen = useRef({ applicantKey, documentSet });
+    onScreen.current = { applicantKey, documentSet };
 
     const read = useCallback(async () => {
+        // Which application and which documents this answer will belong to.
+        const askedFor = { applicantKey, documentSet };
         setState('reading');
         setError(null);
         setSummary(null);
+        onBusyChange?.(true);
         try {
             const extraction = await extractDocuments(readable);
             if (Object.keys(extraction.documents).length === 0) {
+                if (!mounted.current) return;
                 setError('None of the attached files could be opened. You can still type the details in.');
                 setState('error');
                 return;
             }
 
             const call = httpsCallable(functions, 'extractCompanyApplicationDocuments', { timeout: 120000 });
-            let { data } = await call({ companyId, documents: extraction.documents });
+            const { data: first } = await call({ companyId, documents: extraction.documents });
+
+            let extracted = first.extracted;
+            let readMethods = { ...extraction.methods, ...first.methods };
 
             // Documents the model itself could not read go again, as pictures.
-            const unreadable = Object.entries(data.methods || {})
+            const unreadable = Object.entries(first.methods || {})
                 .filter(([, method]) => method === 'unreadable')
                 .map(([kind]) => kind);
             if (unreadable.length > 0) {
-                const pages = await extractDocuments(
-                    readable.filter((entry) => unreadable.includes(entry.kind)),
-                    { forcePages: true },
-                );
-                const asPages = Object.fromEntries(Object.entries(pages.documents)
-                    .filter(([kind]) => unreadable.includes(kind))
-                    .map(([kind, value]) => [kind, value.pages ? value : { pages: [] }]));
-                if (Object.values(asPages).some((entry) => entry.pages.length > 0)) {
-                    const second = await call({ companyId, documents: asPages });
-                    data = {
-                        ...second.data,
+                try {
+                    const pages = await extractDocuments(
+                        readable.filter((entry) => unreadable.includes(entry.kind)),
+                        { forcePages: true },
+                    );
+                    const asPages = Object.fromEntries(Object.entries(pages.documents)
+                        .filter(([kind]) => unreadable.includes(kind))
+                        .map(([kind, value]) => [kind, value.pages ? value : { pages: [] }]));
+                    if (Object.values(asPages).some((entry) => entry.pages.length > 0)) {
+                        const second = await call({ companyId, documents: asPages });
                         // Nested, not spread: the second pass answers for the
                         // unreadable documents only, so its empty sections would
                         // otherwise erase everything the first pass read. See
                         // `mergeExtractionResults`.
-                        extracted: mergeExtractionResults(data.extracted, second.data.extracted),
-                        methods: { ...data.methods, ...second.data.methods },
-                    };
+                        extracted = mergeExtractionResults(extracted, second.data.extracted);
+                        readMethods = { ...readMethods, ...second.data.methods };
+                    }
+                } catch (secondError) {
+                    // Its own `try` so the first pass survives it. A licence and a
+                    // PSP report that read perfectly are not worth losing to one
+                    // failed retry on a medical card; the documents it could not
+                    // read stay flagged as such in the summary either way.
+                    console.warn('[ApplicationAiPrepPanel] second pass failed:', secondError?.code || secondError?.message);
                 }
             }
 
-            const applied = applyExtractedFields(formData, data.extracted);
-            onApply(applied.formData);
-            if (applied.lockedCarriers.length > 0) onLockCarriers(applied.lockedCarriers);
+            // The answer has to belong to what was asked. `onApplyExtraction`
+            // reaches the page, which outlives this panel, so without this a read
+            // started for one driver and resolved after the recruiter opened
+            // another writes the first driver's answers — and their PSP carrier
+            // locks — under the second driver's key.
+            if (!mounted.current) return;
+            const now = onScreen.current;
+            if (askedFor.applicantKey !== now.applicantKey || askedFor.documentSet !== now.documentSet) {
+                setState('idle');
+                return;
+            }
 
-            setMethods({ ...extraction.methods, ...data.methods });
+            const applied = onApplyExtraction(extracted);
+            setMethods(readMethods);
             setSummary(applied);
             setState('done');
         } catch (readError) {
+            if (!mounted.current) return;
             setError(describeError(readError));
             setState('error');
+        } finally {
+            onBusyChange?.(false);
         }
-    }, [companyId, formData, onApply, onLockCarriers, readable]);
+    }, [companyId, applicantKey, documentSet, onApplyExtraction, onBusyChange, readable]);
 
     return (
         <Card padding="md">
@@ -129,7 +212,7 @@ export function ApplicationAiPrepPanel({ companyId, files, blobs, formData, onAp
                 <Button
                     variant="primary"
                     onClick={read}
-                    disabled={readable.length === 0 || state === 'reading'}
+                    disabled={readable.length === 0 || state === 'reading' || busy}
                     data-testid="read-documents"
                 >
                     {state === 'reading'

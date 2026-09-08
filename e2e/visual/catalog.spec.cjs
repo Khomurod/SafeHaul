@@ -164,6 +164,9 @@ const SUBJECTS = [
      */
     ['patterns-native-table--empty-row', 'pattern-native-table-empty'],
     ['patterns-native-table--sticky-first-column', 'pattern-native-table-sticky'],
+    // Audit step K, 2026-09-06: the same matrix as a table at 1440px and as one
+    // card per row at 412px, so both halves of the phone rule have a picture.
+    ['patterns-native-table--cards-on-mobile', 'pattern-native-table-cards'],
     ['patterns-filter-panel--default', 'pattern-filter-panel'],
     ['patterns-filter-panel--no-matching-results', 'pattern-filter-no-results'],
     ['patterns-title-deletion-list--default', 'pattern-deletion-list'],

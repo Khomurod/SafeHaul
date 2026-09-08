@@ -101,7 +101,7 @@ export function UsersView({
                     tabIndex={0}
                     className="min-h-0 flex-1 overflow-auto bg-ds-canvas focus-visible:outline-none focus-visible:shadow-ds-focus"
                 >
-                <table className="ds-native-table" data-row-hover>
+                <table className="ds-native-table" data-row-hover data-pin-first-column>
                     <caption className="sr-only">All platform users</caption>
                     <thead className="sticky top-0 z-ds-sticky bg-ds-table-header-bg shadow-ds-xs">
                         <tr>

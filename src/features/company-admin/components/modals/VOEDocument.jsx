@@ -48,7 +48,7 @@ export function VOEDocument({ employer, applicant, companyName, auditId, signatu
                 <div className="text-left">
                     <h1 className="text-2xl font-black uppercase tracking-tighter mb-1">SAFEHAUL</h1>
                     <p className="text-xs font-bold uppercase tracking-widest text-slate-500">Compliance & Verification Services</p>
-                    <p className="text-[10px] text-slate-400 mt-2 font-sans italic">Generated on {new Date().toLocaleDateString()} at {new Date().toLocaleTimeString()}</p>
+                    <p className="text-[10px] text-slate-500 mt-2 font-sans italic">Generated on {new Date().toLocaleDateString()} at {new Date().toLocaleTimeString()}</p>
                 </div>
                 <div className="text-right">
                     <h2 className="text-xl font-bold uppercase tracking-widest border-2 border-slate-900 px-4 py-2">VOE-391.23</h2>
@@ -90,19 +90,19 @@ export function VOEDocument({ employer, applicant, companyName, auditId, signatu
                 <h4 className="text-[10px] font-black uppercase text-slate-700 mb-4 tracking-widest">Subject Applicant Information</h4>
                 <div className="grid grid-cols-2 gap-x-8 gap-y-4 text-sm font-bold">
                     <div className="border-b border-slate-200 pb-1">
-                        <span className="text-[10px] uppercase text-slate-400 block mb-0.5">Full Name</span>
+                        <span className="text-[10px] uppercase text-slate-500 block mb-0.5">Full Name</span>
                         {getFieldValue(applicant.firstName)} {getFieldValue(applicant.lastName)}
                     </div>
                     <div className="border-b border-slate-200 pb-1">
-                        <span className="text-[10px] uppercase text-slate-400 block mb-0.5">Social Security Number</span>
+                        <span className="text-[10px] uppercase text-slate-500 block mb-0.5">Social Security Number</span>
                         {applicant.ssn ? `***-**-${applicant.ssn.slice(-4)}` : 'REDACTED (ON FILE)'}
                     </div>
                     <div className="border-b border-slate-200 pb-1">
-                        <span className="text-[10px] uppercase text-slate-400 block mb-0.5">Date of Birth</span>
+                        <span className="text-[10px] uppercase text-slate-500 block mb-0.5">Date of Birth</span>
                         {applicant.dob || 'NOT DISCLOSED'}
                     </div>
                     <div className="border-b border-slate-200 pb-1">
-                        <span className="text-[10px] uppercase text-slate-400 block mb-0.5">Reported Service Dates</span>
+                        <span className="text-[10px] uppercase text-slate-500 block mb-0.5">Reported Service Dates</span>
                         {getFieldValue(employer.startDate)} to {getFieldValue(employer.endDate)}
                     </div>
                 </div>
@@ -138,19 +138,19 @@ export function VOEDocument({ employer, applicant, companyName, auditId, signatu
                             ) : (
                                 <div className="text-center">
                                     <PrintAlertCircle size={24} className="mx-auto text-red-500 mb-2" />
-                                    <span className="text-red-500 text-xs font-bold block uppercase tracking-tighter">DRIVER SIGNATURE MISSING</span>
-                                    <span className="text-[10px] text-red-400">Application must be signed before transmission</span>
+                                    <span className="text-red-600 text-xs font-bold block uppercase tracking-tighter">DRIVER SIGNATURE MISSING</span>
+                                    <span className="text-[10px] text-red-600">Application must be signed before transmission</span>
                                 </div>
                             )}
                         </div>
-                        <p className="text-[9px] text-slate-400 mt-3 uppercase tracking-tighter">Attested to under penalty of perjury &bull; IP: {applicant.ipAddress || 'Verified'}</p>
+                        <p className="text-[9px] text-slate-500 mt-3 uppercase tracking-tighter">Attested to under penalty of perjury &bull; IP: {applicant.ipAddress || 'Verified'}</p>
                     </div>
                     <div className="w-56">
                         <p className="text-[10px] font-black text-slate-500 uppercase mb-3 tracking-widest text-right">Date of Authorization</p>
                         <div className="h-24 border-b-2 border-slate-900 flex items-center justify-end pb-2">
                             <div className="text-right">
                                 <span className="text-2xl font-bold text-slate-900">{applicant['signature-date'] || new Date().toLocaleDateString()}</span>
-                                <p className="text-[10px] text-slate-400 mt-1 uppercase">Valid for 30 Days</p>
+                                <p className="text-[10px] text-slate-500 mt-1 uppercase">Valid for 30 Days</p>
                             </div>
                         </div>
                     </div>
@@ -158,6 +158,11 @@ export function VOEDocument({ employer, applicant, companyName, auditId, signatu
             </div>
 
             {/* Questionnaire Section */}
+            {/* Labels inside this faded block are text-slate-700, two steps darker than the
+                text-slate-500 the rest of the form uses, because the block renders at 80%
+                opacity: slate-500 blends to 3.25:1 here and slate-700 to 5.74:1. WCAG 2.2 SC
+                1.4.3 (AA, 4.5:1) has no exemption for legal small print — recoloured
+                2026-09-06 from slate-400 (2.56:1 / 2.07:1 faded), the audit's item 7. */}
             <div className="opacity-80 pointer-events-none grayscale border-t-2 border-dashed border-slate-300 pt-8 mt-12 bg-slate-50/20 p-8 rounded-xl">
                 <h4 className="text-[11px] font-black uppercase text-slate-800 mb-8 tracking-widest text-center border-b border-slate-200 pb-2">Employment History Questionnaire (To be completed by Recipient)</h4>
 
@@ -169,11 +174,11 @@ export function VOEDocument({ employer, applicant, companyName, auditId, signatu
                             <div className="flex gap-4">
                                 <div className="flex items-center gap-1.5">
                                     <div className="w-4 h-4 border border-slate-400 rounded-sm"></div>
-                                    <span className="text-[10px] font-bold text-slate-400">YES</span>
+                                    <span className="text-[10px] font-bold text-slate-700">YES</span>
                                 </div>
                                 <div className="flex items-center gap-1.5">
                                     <div className="w-4 h-4 border border-slate-400 rounded-sm"></div>
-                                    <span className="text-[10px] font-bold text-slate-400">NO</span>
+                                    <span className="text-[10px] font-bold text-slate-700">NO</span>
                                 </div>
                             </div>
                         </div>
@@ -184,16 +189,16 @@ export function VOEDocument({ employer, applicant, companyName, auditId, signatu
                                 <div className="flex gap-4">
                                     <div className="flex items-center gap-1.5">
                                         <div className="w-4 h-4 border border-slate-400 rounded-sm"></div>
-                                        <span className="text-[10px] font-bold text-slate-400">YES</span>
+                                        <span className="text-[10px] font-bold text-slate-700">YES</span>
                                     </div>
                                     <div className="flex items-center gap-1.5">
                                         <div className="w-4 h-4 border border-slate-400 rounded-sm"></div>
-                                        <span className="text-[10px] font-bold text-slate-400">NO</span>
+                                        <span className="text-[10px] font-bold text-slate-700">NO</span>
                                     </div>
                                 </div>
                             </div>
                             <div className="mt-2 flex items-end gap-2">
-                                <span className="text-[9px] uppercase text-slate-400 font-bold whitespace-nowrap">If no, explain:</span>
+                                <span className="text-[9px] uppercase text-slate-700 font-bold whitespace-nowrap">If no, explain:</span>
                                 <div className="flex-1 border-b border-slate-300 h-4"></div>
                             </div>
                         </div>
@@ -209,16 +214,16 @@ export function VOEDocument({ employer, applicant, companyName, auditId, signatu
                                 <div className="flex gap-4">
                                     <div className="flex items-center gap-1.5">
                                         <div className="w-4 h-4 border border-slate-400 rounded-sm"></div>
-                                        <span className="text-[10px] font-bold text-slate-400">YES</span>
+                                        <span className="text-[10px] font-bold text-slate-700">YES</span>
                                     </div>
                                     <div className="flex items-center gap-1.5">
                                         <div className="w-4 h-4 border border-slate-400 rounded-sm"></div>
-                                        <span className="text-[10px] font-bold text-slate-400">NO</span>
+                                        <span className="text-[10px] font-bold text-slate-700">NO</span>
                                     </div>
                                 </div>
                             </div>
                             <div className="mt-2 flex items-end gap-2">
-                                <span className="text-[9px] uppercase text-slate-400 font-bold whitespace-nowrap">If no, explain:</span>
+                                <span className="text-[9px] uppercase text-slate-700 font-bold whitespace-nowrap">If no, explain:</span>
                                 <div className="flex-1 border-b border-slate-300 h-4"></div>
                             </div>
                         </div>
@@ -226,23 +231,23 @@ export function VOEDocument({ employer, applicant, companyName, auditId, signatu
 
                     {/* Row 2: Accident History */}
                     <div className="pt-4 border-t border-slate-200">
-                        <h5 className="text-[10px] font-black uppercase text-slate-500 mb-4 tracking-widest">Safety Performance (Accidents)</h5>
+                        <h5 className="text-[10px] font-black uppercase text-slate-700 mb-4 tracking-widest">Safety Performance (Accidents)</h5>
                         <div className="flex flex-col border-b border-slate-200 pb-3">
                             <div className="flex justify-between items-center w-full">
                                 <span className="text-xs font-bold text-slate-700">Did the driver have any DOT-recordable accidents?</span>
                                 <div className="flex gap-4">
                                     <div className="flex items-center gap-1.5">
                                         <div className="w-4 h-4 border border-slate-400 rounded-sm"></div>
-                                        <span className="text-[10px] font-bold text-slate-400">YES</span>
+                                        <span className="text-[10px] font-bold text-slate-700">YES</span>
                                     </div>
                                     <div className="flex items-center gap-1.5">
                                         <div className="w-4 h-4 border border-slate-400 rounded-sm"></div>
-                                        <span className="text-[10px] font-bold text-slate-400">NO</span>
+                                        <span className="text-[10px] font-bold text-slate-700">NO</span>
                                     </div>
                                 </div>
                             </div>
                             <div className="mt-3 flex items-end gap-2">
-                                <span className="text-[9px] uppercase text-slate-400 font-bold whitespace-nowrap">If yes, please provide dates and details:</span>
+                                <span className="text-[9px] uppercase text-slate-700 font-bold whitespace-nowrap">If yes, please provide dates and details:</span>
                                 <div className="flex-1 border-b border-slate-300 h-4"></div>
                             </div>
                             <div className="mt-4 border-b border-slate-300 h-4"></div>
@@ -251,7 +256,7 @@ export function VOEDocument({ employer, applicant, companyName, auditId, signatu
 
                     {/* Row 3: Drug & Alcohol */}
                     <div className="pt-4 border-t border-slate-200">
-                        <h5 className="text-[10px] font-black uppercase text-slate-500 mb-4 tracking-widest">Drug & Alcohol Compliance (Part 40)</h5>
+                        <h5 className="text-[10px] font-black uppercase text-slate-700 mb-4 tracking-widest">Drug & Alcohol Compliance (Part 40)</h5>
                         <div className="grid grid-cols-1 gap-6">
                             {[
                                 "Did the driver refuse to take a required drug or alcohol test?",
@@ -264,16 +269,16 @@ export function VOEDocument({ employer, applicant, companyName, auditId, signatu
                                         <div className="flex gap-4">
                                             <div className="flex items-center gap-1.5">
                                                 <div className="w-4 h-4 border border-slate-400 rounded-sm"></div>
-                                                <span className="text-[10px] font-bold text-slate-400">YES</span>
+                                                <span className="text-[10px] font-bold text-slate-700">YES</span>
                                             </div>
                                             <div className="flex items-center gap-1.5">
                                                 <div className="w-4 h-4 border border-slate-400 rounded-sm"></div>
-                                                <span className="text-[10px] font-bold text-slate-400">NO</span>
+                                                <span className="text-[10px] font-bold text-slate-700">NO</span>
                                             </div>
                                         </div>
                                     </div>
                                     <div className="mt-3 flex items-end gap-2">
-                                        <span className="text-[9px] uppercase text-slate-400 font-bold whitespace-nowrap">If yes, explain:</span>
+                                        <span className="text-[9px] uppercase text-slate-700 font-bold whitespace-nowrap">If yes, explain:</span>
                                         <div className="flex-1 border-b border-slate-300 h-4"></div>
                                     </div>
                                 </div>
@@ -285,7 +290,7 @@ export function VOEDocument({ employer, applicant, companyName, auditId, signatu
 
             {/* Compliance Footer */}
             <div className="mt-20 border-t border-slate-200 pt-4 text-center">
-                <p className="text-[8px] text-slate-400 font-sans uppercase tracking-[0.2em]">
+                <p className="text-[8px] text-slate-500 font-sans uppercase tracking-[0.2em]">
                     Protected by SafeHaul Encryption Services &bull; Secure Audit ID: {auditId}
                 </p>
             </div>

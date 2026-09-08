@@ -52,11 +52,13 @@ import { Button, FieldMessage } from '@/design-system/components';
  *  - **Raw palette classes** (`border-gray-300`, `text-blue-600`, …) replaced
  *    with `--ds-*` tokens.
  *
- * KNOWN, UNRESOLVED — a canvas cannot be signed with a keyboard, so this control
- * has no keyboard path to producing a signature. Recorded as an open owner
- * decision in the roadmap rather than papered over: a typed fallback would have
- * to be legally distinguishable from a drawn mark (as `TEXT_SIGNATURE:` already
- * is on the VOE side), and that is a product decision, not a styling one.
+ * RESOLVED 2026-09-06 (audit step J) — a canvas cannot be signed with a keyboard,
+ * so this control alone had no keyboard or assistive-technology path to a
+ * signature. `SignatureInput` now wraps it with a Draw | Type choice: a typed
+ * name is stored as `TEXT_SIGNATURE:<name>` (the driver application's own
+ * convention), is never rasterised into a PNG, and the method travels with the
+ * response — so the mark stays legally distinguishable from a drawn one. This
+ * pad itself is unchanged.
  *
  * NOTE: The public application flow uses `src/lib/signature.js` (DOM-id based)
  * and the signing room uses `react-signature-canvas` (SignatureSheet). Those

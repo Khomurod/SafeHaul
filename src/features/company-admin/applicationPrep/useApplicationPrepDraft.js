@@ -1,7 +1,8 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
-import { normalizeLockedEmployers } from '@/config/applicationLockedFields';
+import { normalizeLockedEmployers, reconcileLockedEmployers } from '@/config/applicationLockedFields';
+import { applyExtractedFields } from './applyExtractedFields';
 
 /**
  * One carrier-prepared application, from the recruiter's side.
@@ -31,6 +32,16 @@ export function useApplicationPrepDraft(companyId) {
     const [lockedEmployers, setLockedEmployers] = useState([]);
     const [applicantKey, setApplicantKey] = useState(null);
     const [status, setStatus] = useState('draft');
+    /**
+     * Something on screen has not reached the server.
+     *
+     * There was no such flag, and the link actions had no way to notice: a
+     * recruiter could save, keep typing, then mint or copy, and the driver got the
+     * answers as they were at the save. Worse for a contact change — `applicantKey`
+     * is the key of the LAST save, so minting after one addressed a different
+     * document entirely.
+     */
+    const [dirty, setDirty] = useState(false);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState(null);
 
@@ -39,7 +50,19 @@ export function useApplicationPrepDraft(companyId) {
         [companyId],
     );
 
+    /**
+     * The answers as they are *now*, for the writers that arrive later than the
+     * render they were started from.
+     *
+     * The document reader is the only one, and it is a long one — up to two
+     * minutes per pass, twice. Same device as `latestDraftRef` on the driver's
+     * side, and for the same reason.
+     */
+    const latestFormData = useRef(formData);
+    latestFormData.current = formData;
+
     const updateField = useCallback((key, value) => {
+        setDirty(true);
         setFormData((previous) => ({
             ...previous,
             [key]: typeof value === 'function' ? value(previous[key]) : value,
@@ -52,10 +75,33 @@ export function useApplicationPrepDraft(companyId) {
     /** True once there is enough to key the draft — the Save gate. */
     const identityComplete = Boolean(contactEmail || contactPhone);
 
+    /**
+     * The lock list as it will be SAVED, with anything no longer answered by a row
+     * on the application dropped.
+     *
+     * A lock is a snapshot of an employer's identity, and the editor goes on
+     * changing the rows. `PreparedEmployersPanel` now renders a locked row's
+     * identity read-only so a signature cannot drift, which leaves the edit that
+     * leaves nothing to render: a deleted row, whose lock stayed behind as a
+     * requirement the driver was blocked on at submission and could not satisfy.
+     *
+     * Reconciled at the save boundary and not on every render, deliberately. A
+     * lock with no matching row is already invisible on screen — `isLockedEmployerRow`
+     * is only ever asked about rows that exist — so filtering the exposed list
+     * changes nothing a recruiter sees, while it *would* break `lockEmployers`'
+     * own contract in the window before the rows it names have landed in state.
+     * What is stored is the thing that matters, and the server reconciles it again
+     * because the server is the authority. See `reconcileLockedEmployers`.
+     */
+    const savedLocks = useMemo(
+        () => reconcileLockedEmployers(lockedEmployers, formData),
+        [lockedEmployers, formData],
+    );
+
     /** The answers, plus the lock list the server records beside them. */
     const payloadFormData = useMemo(
-        () => ({ ...formData, lockedEmployers }),
-        [formData, lockedEmployers],
+        () => ({ ...formData, lockedEmployers: savedLocks }),
+        [formData, savedLocks],
     );
 
     const save = useCallback(async () => {
@@ -66,11 +112,18 @@ export function useApplicationPrepDraft(companyId) {
                 email: contactEmail,
                 phone: contactPhone,
                 formData: payloadFormData,
-                lockedEmployers,
+                lockedEmployers: savedLocks,
+                // Which document this application was at before, so a corrected
+                // typo does not leave the old key behind as a second row in the
+                // worklist — with its own live link, if one had been minted. The
+                // key is derived from the email and phone, so correcting either one
+                // addresses a different document.
+                previousApplicantKey: applicantKey || null,
             });
             setApplicantKey(result.applicantKey);
             setLockedEmployers(result.lockedEmployers || []);
             setStatus((previous) => (previous === 'draft' ? 'prepared' : previous));
+            setDirty(false);
             return result;
         } catch (saveError) {
             setError(describeError(saveError));
@@ -78,7 +131,46 @@ export function useApplicationPrepDraft(companyId) {
         } finally {
             setBusy(false);
         }
-    }, [call, contactEmail, contactPhone, lockedEmployers, payloadFormData]);
+    }, [applicantKey, call, contactEmail, contactPhone, savedLocks, payloadFormData]);
+
+    /**
+     * Put what the reader found into the application.
+     *
+     * **This is the fix for a defect, and the shape is the fix.** The panel used
+     * to do `applyExtractedFields(formData, extracted)` on the `formData` PROP it
+     * captured when the button was clicked, and hand the result to the raw
+     * `setFormData`. So it was not "conflicting edits lose" — the whole answers
+     * object was replaced from a stale snapshot, and every field the recruiter
+     * typed during the read vanished. The window is the length of the read.
+     *
+     * Worse, "fill only what is blank" was evaluated against that snapshot too, so
+     * a field that was blank at click time and typed during the read was
+     * overwritten rather than kept.
+     *
+     * Reading `latestFormData` instead means the merge sees everything typed since,
+     * `applyExtractedFields` leaves it alone because it is no longer blank, and the
+     * summary says it was kept. The summary is returned rather than derived from a
+     * later render, because the caller renders it immediately.
+     *
+     * Locking travels with it: a PSP carrier the reader named is exactly the claim
+     * a lock makes, and doing both here means a caller cannot do one and forget
+     * the other.
+     */
+    const applyExtraction = useCallback((extracted, options = {}) => {
+        const applied = applyExtractedFields(latestFormData.current, extracted, options);
+        setDirty(true);
+        setFormData(applied.formData);
+        if (applied.lockedCarriers.length > 0) {
+            setLockedEmployers((previous) => normalizeLockedEmployers([
+                ...previous,
+                ...applied.lockedCarriers.map((row) => ({
+                    companyName: row?.companyName || row?.name || '',
+                    dotNumber: row?.dotNumber || '',
+                })),
+            ]));
+        }
+        return applied;
+    }, []);
 
     const load = useCallback(async (key) => {
         setBusy(true);
@@ -87,6 +179,7 @@ export function useApplicationPrepDraft(companyId) {
             const result = await call('getCompanyPreparedDraft', { applicantKey: key });
             setApplicantKey(result.applicantKey);
             setStatus(result.status);
+            setDirty(false);
             if (result.readable) {
                 setFormData(result.formData || {});
                 setLockedEmployers(result.lockedEmployers || []);
@@ -120,6 +213,7 @@ export function useApplicationPrepDraft(companyId) {
      * two locks and locking a blank row is not a lock nothing can satisfy.
      */
     const lockEmployers = useCallback((rows) => {
+        setDirty(true);
         // A carrier from a PSP report names itself `name`; an employer row calls
         // the same thing `companyName`. Accepting both here means the reader and
         // the row's own Lock button reach one list without a translation step at
@@ -132,6 +226,7 @@ export function useApplicationPrepDraft(companyId) {
     }, []);
 
     const unlockEmployer = useCallback((signature) => {
+        setDirty(true);
         setLockedEmployers((previous) => previous.filter((entry) => entry.signature !== signature));
     }, []);
 
@@ -150,13 +245,14 @@ export function useApplicationPrepDraft(companyId) {
         setApplicantKey(null);
         setStatus('draft');
         setError(null);
+        setDirty(false);
     }, []);
 
     return {
-        formData, setFormData, updateField,
+        formData, setFormData, updateField, applyExtraction,
         contactEmail, contactPhone, identityComplete,
         lockedEmployers, lockEmployers, unlockEmployer,
-        applicantKey, status, busy, error,
+        applicantKey, status, busy, error, dirty,
         save, load, reset,
     };
 }

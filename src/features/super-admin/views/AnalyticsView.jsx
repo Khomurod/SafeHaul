@@ -315,8 +315,14 @@ export function AnalyticsView() {
                     )}
 
                     {activeTab === 'companies' && (
-                        <Card padding="none" className="overflow-x-auto">
-                            <table className="ds-native-table" data-density="compact" data-row-hover>
+                        <Card
+                    padding="none"
+                    role="region"
+                    aria-label="Company performance. Scroll horizontally to view all columns."
+                    tabIndex={0}
+                    className="overflow-x-auto focus-visible:outline-none focus-visible:shadow-ds-focus"
+                >
+                            <table className="ds-native-table" data-density="compact" data-row-hover data-pin-first-column>
                                 <caption className="sr-only">Company performance for the selected period</caption>
                                 <thead className="bg-ds-table-header-bg text-ds-table-header-fg">
                                     <tr>
@@ -350,8 +356,14 @@ export function AnalyticsView() {
                     )}
 
                     {activeTab === 'users' && (
-                        <Card padding="none" className="overflow-x-auto">
-                            <table className="ds-native-table" data-density="compact" data-row-hover>
+                        <Card
+                    padding="none"
+                    role="region"
+                    aria-label="Recruiter performance. Scroll horizontally to view all columns."
+                    tabIndex={0}
+                    className="overflow-x-auto focus-visible:outline-none focus-visible:shadow-ds-focus"
+                >
+                            <table className="ds-native-table" data-density="compact" data-row-hover data-pin-first-column>
                                 <caption className="sr-only">Recruiter performance for the selected period</caption>
                                 <thead className="bg-ds-table-header-bg text-ds-table-header-fg">
                                     <tr>

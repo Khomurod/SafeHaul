@@ -170,11 +170,83 @@ are never in a draft), reviews and signs. It is staged as a *draft*, never an
 early `applications` document — see §5 — so nothing is filed, nobody is emailed,
 and no pipeline counter moves until the driver submits it themselves.
 
+**The reader never overwrites what the recruiter typed while it was running, and
+that is a fix.** The panel used to merge into the `formData` *prop* it captured
+when the button was pressed and hand the whole result to the raw setter — so it
+was not "conflicting edits lose", the entire answers object was replaced from a
+stale snapshot and every field typed during the read vanished, with "fill only
+what is blank" judged against that snapshot too. The merge now happens inside
+`useApplicationPrepDraft.applyExtraction`, against the answers as they are at that
+moment, so anything typed since is left alone and reported as kept. A read is up
+to two minutes per pass, twice.
+
+Nothing used to tie an answer to what it was asked about, and `onApply` belongs
+to the *page*, which outlives the panel — so a read started for one driver and
+resolved after the recruiter opened another wrote the first driver's answers, and
+the first driver's PSP carrier **locks**, under the second driver's key, which
+manufactures exactly the unsatisfiable lock state above on somebody who never had
+those employers. The applicant and the document set are captured before the call
+and compared after it, against what is on screen then rather than against the
+closure's own copies. A failed second pass also no longer discards the first: the
+retry is its own `try`, and losing it falls back to the first pass rather than to
+nothing, while still winning wherever it succeeds. All found 2026-09-08.
+
+**A control that cannot be pressed cannot explain itself.** Save and "Create the
+driver's link" were `disabled` whenever their prerequisites were unmet, and
+nothing on the screen said what those were. The link's real precondition was
+*"save first"* — `canMint` was `Boolean(applicantKey)`, which only a save sets —
+and that sentence appeared nowhere at all; the other one was already written on
+the server (`prepare.js`: "Enter the driver's email or phone first — it
+identifies the application") and was unreachable, because the client guard stopped
+the request ever being made. Both are clickable now and the press validates:
+`prepActionPreflight` returns what is missing and which field, modelled on
+`publicApplyPreflight.js`, which does the same job for submission. Clickable is
+not a licence to skip the check — nothing is saved, minted or copied when the
+prerequisites are unmet. `disabled` remains for the one thing it is honest about,
+an operation in flight, through the design system's `loading`; the label stays
+"Save" and a live region beside it speaks, because a label that changes to
+"Saving…" is content rather than an announcement.
+
+Two things the link actions could not previously notice, because no dirty flag
+existed: unsaved edits, which would hand the driver the answers as they were, and
+a **corrected contact detail**, which is worse — `applicantKey` is the key of the
+last save, so minting after one addressed a *different document*, leaving the new
+email on screen beside a link that opens the old record, with `identityLocked`
+then freezing that mismatch in place. Both are refused with an offer to save and
+mint in one press. A carrier's contact correction also retires the document it
+moved off, so one driver is not two rows in the worklist. Email or phone is still
+enough — never both — and each supplied one is now format-checked, which neither
+side did: `dana@` used to become an application's primary key. A refused clipboard
+says so and points at the link, which is on screen and selectable either way.
+Driven through the real fields and the real controls by
+`StartApplicationPage.actions.contract.test.jsx`. All found 2026-09-08.
+
 The reader extracts text in the recruiter's own browser first — a PDF's own text
 layer, else Tesseract OCR of the rendered pages, else the page images sent to the
 vision AI — and only the text (or, for an unreadable document, the images) leaves
 the browser, to one AI task. Any subset of the four documents is valid; a photo of
 a card (JPG/PNG/WebP) is read as readily as a PDF.
+
+**A signed URL is a capability, not a property of the document.** An upload used
+to leave `{name, url, storagePath}` in the form data, and that `url` is a signed
+read URL with a **fifteen-minute** life. It was persisted into the draft verbatim
+and handed to the driver by the invite exchange, so a document a recruiter
+attached on Tuesday was a broken image and a Storage error page by the time the
+driver opened their link — and the same for a recruiter reopening their own draft
+an hour later. The durable identifier was sitting beside it, unused, and the
+company's own dossier view had already been re-signing from it for the same
+reason. Nothing is stored now: `useSignedUploadPreview` mints one from
+`storagePath` when somebody is looking. Access is unchanged —
+`getSignedGuestUploadUrl` authorizes exactly as before, and `storagePath` was
+already in the draft, so whoever could read the draft could already reach the
+file. Found and fixed 2026-09-08.
+
+An expired signature, a deleted object and a refusal all rendered as the same
+broken thumbnail and the same XML page in a new tab, so "your link expired" was
+indistinguishable from "your file is gone" — and only the second means anything
+has to be sent again. `not-found` is the file and says so; anything else is that
+attempt and offers to retry, with the row still reading as attached, because the
+upload gates key on presence and a preview is a courtesy.
 
 **Progress survives, from the first page onward.** Every forward step writes a
 local copy synchronously and a server-side draft in the background, so a closed
@@ -207,6 +279,13 @@ into tamper-evident PDFs. Signing is unlimited and not billed per envelope.
 
 **Previous employment verification (PEV).** A company admin sends a request to a
 past employer, who answers through a token portal with a reminder cycle (§8).
+The employer signs the response **drawn or typed** (since 2026-09-06): a typed
+name is stored as `TEXT_SIGNATURE:<name>` — never rendered into an image — and
+the method (`signatureMethod`: `drawn` | `typed`) is recorded with the
+response and printed on the DQ-file PDF, so the two stay distinguishable. ESIGN
+(15 U.S.C. §7006(5)) and UETA treat a typed name adopted with intent to sign as a
+valid electronic signature; the server refuses any other form and any
+mislabelled method (`functions/employmentVerification/signature.js`).
 
 **Driver-approved corrections.** Company admins cannot silently rewrite a
 submitted application — see §5.
@@ -289,6 +368,93 @@ holding unacknowledged work wins; a server copy another device advanced wins;
 **the loser is always merged underneath, never discarded**, so a field only one
 side has always survives. Work typed since page load outranks both. The decision
 lives in `reconcileApplicationDraft.js`, is pure, and is covered case by case.
+
+**Reconciliation answers "which copy is newer". It also has to answer "whose is
+it".** Every slot on the apply page is namespaced by company slug and nothing
+else — `draft_${slug}`, `apply_discarded_${slug}`, `apply_resume_${slug}`,
+`sh_post_apply_${companyId}` — so two drivers using one browser at one carrier
+share all of them. That was survivable while there was only ever one candidate
+applicant per browser. A carrier's invite link names a *specific* one, and every
+guard on this path answered "was this discarded?", never "is this the same
+applicant?".
+
+The consequence, found 2026-09-08: `loadPublicApplyCompany` sets the company
+*before* it awaits the exchange, and the server-draft reconciliation fires as
+soon as `company?.id` exists — so it raced the exchange over those shared slots.
+Either ordering lost. Read the token slot before the invite stored its own and
+the **previous** applicant's server draft was fetched, merged and applied over
+the invited answers; read it after and the server side was right but `local` was
+still the previous applicant's draft, which wins outright when dirty. Upload
+descriptors are handed to the winner whole and repeating rows are unioned, so
+the symptom was a new driver's application carrying a previous driver's stored
+document information — and it persisted, written back under the invite's draft
+name and autosaved onto the carrier's draft.
+
+**Two mechanisms, deliberately not one.** `PublicApplyHandler` gates the
+reconciliation until the exchange has resolved, which fixes the ordering; the
+`applicantKey` stored beside the resume token identifies whose leftovers this
+browser holds, which fixes the identity. Gating alone is not enough, and the gate
+is on `pending` only and never on `opened`: the exchange returns no `lastStep`,
+so the reconciliation is the only thing that restores an invited driver's page,
+and their own newer unsynced work must still be able to win. A foreign local copy
+is **withheld** from the merge (`local: null`, a supported input meaning "this
+browser has no copy of *this* application") rather than deleted, so the ordinary
+server-won write-back replaces it and no new writer is introduced to a slot whose
+naming and sequence rules are this intricate. The cost is stated where it
+happens: the previous applicant loses their local backup of that slug, while
+their server copy — the persistent primary — is untouched and still reachable by
+identity match.
+
+Per-applicant storage keys were considered and rejected. The name would have to
+move whenever a driver corrects their own email, which is normal and supported,
+so every slot would need renaming in shared storage at the worst possible moment;
+a fresh load cannot know which namespace to read; and the discard mark must stay
+un-namespaced, because naming it was tried and silently restored the bug it was
+meant to fix.
+
+**Three smaller guards came out of the same review, and each was one line of
+intent away from its neighbour.** `restoreFromStoredToken` already *received* the
+server's own `applicantKey` and dropped it, so no caller could ask the question
+at all — it is returned now, used to re-stamp the slot when the server resolved a
+different document (a corrected contact detail, which must never cost the
+applicant their local work), and used to abandon a reconciliation whose answer
+belongs to a different application. Its failure path cleared the resume token
+**unconditionally**, while `startOver` twelve lines below guarded exactly that —
+so a stale token's failed restore could delete the credential a carrier's invite
+had just minted, and a prepared draft has no identity HMAC to fall back on. And
+`sendSave` re-read the shared slot *at transmit time* rather than using the token
+its own tab was issued, so a previous applicant's still-open tab presented the
+invited driver's token and `carriedPreparedFields` copied the carrier's
+`lockedEmployers` and `inviteClaimedAt` onto that other person's application. All
+three live in `useResumeTokenOwnership.js` now, which owns the question "which
+application does this tab hold a credential for".
+
+**A live invitation retires a finished application's confirmation screen, and a
+dead one may not.** `sh_post_apply_${companyId}` is keyed to a company, lasts 24
+hours and sets `submissionStatus = 'success'`, which renders above the wizard —
+and it was restored *before* the exchange, so a new invitation to the same carrier
+in the same tab loaded its answers into state and then showed the previous
+applicant's success screen and documents checklist over them. The restore now
+runs after the exchange and only when nothing opened, and a successful exchange
+clears that session and the unscoped `lastConfirmationNumber` with it. Clearing
+rather than merely skipping, or a later reload of the bare apply page brings the
+screen back. Safe by construction and not by luck: a submission **deletes** the
+draft and the invite hash lives on that document, so a link that still opens
+proves the application it opened was not submitted. A failed exchange touches
+none of it, which is what protects the driver who re-clicks their own dead link
+after submitting. The render precedence itself is unchanged — a restored
+post-submission session has no `intakeMode`, so the success screen must stay
+above the chooser.
+
+**`supersedeOtherDrafts` cannot reach a carrier-prepared draft, and now something
+else does.** It sweeps by `identityKey`, and a prepared draft has none — the HMAC
+is built from the driver's SSN, which the carrier does not know. So a driver who
+corrected their email before their first save landed left the prepared document
+alive with its invite hash intact: two live drafts answering one link, which the
+non-travel of those hashes exists to prevent. `retirePreparedSource` deletes it,
+under the same bar as every other deletion here — the caller must hold that
+document's own current token, which `preparedSourceFor` established a moment
+earlier.
 
 **Merging is field-aware, because a flat spread destroys nested answers.** The
 draft is not flat: repeating lists (employers, violations, accidents, schools,
@@ -708,18 +874,95 @@ and a phone does not open a prepared one: it carries no identity HMAC (the
 carrier does not know the driver's SSN), so only the invite token lets the
 intended driver in.
 
+**That cutoff has two doors, and until 2026-09-08 only one was shut.**
+`getCompanyPreparedDraft` consulted `companyMayReadAnswers`, which tests
+`status`; `exchangeApplicationInvite` consulted `isCompanyPrepared`, which tests
+`origin` — the field recording who *created* the draft, which deliberately never
+changes. So a carrier could mint a link, exchange it itself (the exchange is
+unauthenticated by necessity), and recover exactly the answers the cutoff had
+just withheld, plus a resume token that could rewrite them — and
+`StartApplicationPage` offered the mint button on the very screen that says the
+answers are the driver's. Gating the mint would not have closed it: the driver's
+first save leaves `inviteTokenHash` alone, so the link the carrier had already
+copied kept working.
+
+**So the link is tiered.** Before the driver writes, the answers are the
+carrier's own and the exchange hands over everything. Once the draft is
+`driver_in_progress` it returns `requiresIdentity` and nothing else — no answers,
+no resume token, not even `preparedBy` — and writes nothing, so it can neither
+read the driver's work nor displace the token their browser is saving with.
+(It used to rotate that token on every open, demoting the driver's to a prior
+hash, which grants liveness but never write authorization: a carrier opening its
+own link a few times could silently stop the driver's autosave.) The driver then
+proves who they are through the challenge every returning applicant already
+meets — `findResumableApplication`: last name, date of birth and SSN digits plus
+a contact detail already on the record. The carrier cannot pass it, because a
+prepared draft never holds an SSN; the driver can, on any device, because their
+first save is what supplied the identity HMAC. Minting still works after
+takeover, deliberately: a driver who lost their link needs a replacement, and the
+replacement is now a pointer rather than a credential. Pinned by
+`companyApplications.invite.privacy.test.js`.
+
 **The invite link is its own token, and its own risk.** Minted by
-`mintApplicationInvite` (random 32 bytes, only the SHA-256 stored, returned once,
-prior hash kept live through one regeneration), it expires in 14 days —
-independently of, and always inside, the draft's 30-day retention. It is
-deliberately not the resume token: a resume token lives only in the driver's
-browser and is rotated freely, while this one is designed to be copied into an
-email or a text message. **Accepted risk, in the same family as the absent App
-Check:** a link in a sent-mail archive is a bearer credential for one prepared
-application until it expires or is regenerated. `exchangeApplicationInvite`
-answers a wrong link and an expired one identically, is rate-limited fail-closed
-per IP, and hands back a resume token so the rest of the wizard behaves like any
-other resumed session.
+`mintApplicationInvite` (random 32 bytes, only the SHA-256 stored, returned once),
+it expires in 14 days — independently of, and always inside, the draft's 30-day
+retention. It is deliberately not the resume token: a resume token lives only in
+the driver's browser and is rotated freely, while this one is designed to be
+copied into an email or a text message. **Accepted risk, in the same family as
+the absent App Check:** a link in a sent-mail archive is a bearer credential for
+one prepared application until it expires or is regenerated.
+`exchangeApplicationInvite` answers a wrong link and an expired one identically,
+is rate-limited fail-closed per IP, and hands back a resume token so the rest of
+the wizard behaves like any other resumed session. Minting is rate-limited too,
+per company and caller, and refuses when the carrier has stopped accepting
+intake — every regeneration retires the driver's live link, so an unbounded loop
+would be a way to keep one application permanently unopenable.
+
+**Validity belongs to a token, not to the document, and that is a correction.**
+Until 2026-09-08 matching accepted the current hash *or* any prior hash while
+validity read a single document-level `inviteTokenExpiresAt` that every mint
+rewrote — two independent questions composed into one answer. Regenerating
+therefore did not retire the old link, it **revived** it: a link dead for a week
+opened again, with a fresh resume token, for another fourteen days, while the
+panel told the recruiter the opposite. `MAX_PRIOR_INVITE_HASHES` was also 2 over a
+`[current, ...prior]` slice, so three links were live at once where this brief
+said one. Each accepted hash now carries its own expiry (`priorInvites`), and
+`liveInviteFor` asks both questions of one entry, which is what stops the
+composition being written again. A replaced link keeps
+`min(its own expiry, now + 10 minutes)` — the mid-page grace the prior hash always
+claimed to be, now bounded in time rather than in generation count — and an
+already-expired hash is not carried forward at all. Legacy bare-string prior
+hashes have no expiry of their own and are read as dead. Pinned by
+`companyApplications.invite.expiry.test.js`, whose first case is the sequence the
+original suite structurally could not see: expire, regenerate, present the old
+token.
+
+**A link that will not open says so, and starting fresh is a choice.** Every
+failure used to resolve to `null`, and the bootstrap used the same `false` for
+"the invite could not be opened" as for "there is no invite in this URL" — so a
+wrong link, an expired one, a rate-limited exchange, a Firestore hiccup (the
+limiter fails closed) and a temporary outage were all indistinguishable from
+having followed no link at all, and the driver was dropped into the ordinary
+application, possibly pre-filled from a different applicant's saved draft, with
+nothing said. The consequence was more than a missing message: a silent
+fall-through never claims the invitation, so the carrier's locked employers went
+unenforced and it received a second, unprepared application — losing the
+49 CFR 391.21 employment history it had prepared.
+
+`exchangeApplicationInvite` now throws like every other callable in its file and
+`publicApplyInvite.js` classifies the failure, into statuses named for what the
+driver is told rather than for the server code. **`unopenable` is deliberately one
+bucket** for wrong, expired, already-submitted, superseded and discarded, because
+the server answers all of them identically on purpose and saying more on this
+side of the wire would give away what it withholds. Everything else is separated
+only along the line the driver can act on, and **retry leads for the transient
+causes** precisely because retrying is what prevents the duplicate application.
+`ApplyLinkProblemScreen` renders below the success screen — a dead link may not
+take away a confirmation number — and above the intake chooser, so continuing to
+an ordinary application is an explicit button and never a fallback. The render
+precedence itself is unchanged. `resolveApplyStatusScreen` in
+`PublicApplyScreens.jsx` holds that order beside the screens it orders, because
+three of its four positions were learned from a defect.
 
 **Employers a carrier locked from a PSP report keep their identity.** A PSP
 report names a carrier and its USDOT number beside an inspection date; it does
@@ -733,6 +976,44 @@ browser pre-flight refuses and routes to the employment page, and
 enforcement. It applies **only once `inviteClaimedAt` is stamped**, i.e. to a
 driver who actually opened the carrier's link: refusing someone for leaving out
 an employer nobody showed them would be refusing them for the carrier's homework.
+
+**The exchange no longer stamps that claim; the driver's first save does**
+(changed 2026-09-08). Stamping it on the exchange meant the *carrier* could arm
+the refusal by opening its own link once — after which a driver who applied at
+`/apply/:slug` instead of through the link was blocked at submission by rows
+nobody had ever shown them, which is the exact failure the field exists to
+prevent. So the exchange records which resume token it minted
+(`inviteResumeTokenHash`) and `drafts/save.js` stamps the claim when a save
+presents that token, clearing the field as it does. That proves both halves: the
+link was opened, and the session holding the carrier's answers is the one
+writing.
+
+**A lock is a snapshot, and the carrier kept editing the rows it was taken
+from.** Nothing held the two in step, so four ordinary carrier actions produced an
+application the driver was blocked on at submission and could not fix (found
+2026-09-08): deleting a locked row left the lock behind as an invisible
+requirement, with the row's own Unlock button gone along with the row; correcting
+the NAME on a row locked by USDOT number tripped `locked-employer-changed` while
+the wizard renders that identity as a record rather than a field, so the driver
+was blocked on the one field they are not allowed to touch; and correcting the
+name, or adding a USDOT number, on a row locked by name moved its signature onto
+`locked-employer-missing` for a row sitting right there.
+
+Two halves fix it. **The carrier's editor renders a locked row's identity
+read-only** — the same rule the design system already states for a field its
+viewer may not change, and the same shape the driver's wizard uses — so a
+signature cannot drift while the lock exists; correcting it means Unlock,
+correct, Lock, which mints a lock that matches. And
+**`reconcileLockedEmployers`** drops any lock no longer answered by a row, which
+is the case that leaves nothing to render. It runs on every carrier save
+(`prepare.js`, the authority) and **once inside the exchange that hands the
+application over**, which is what heals a draft already carrying an orphan —
+before its driver can be blocked by it, and while the rows are still provably the
+carrier's. It deliberately never runs against answers the *driver* supplied:
+reconciling at submission would make deleting a locked row enough to delete its
+lock, which is the whole thing the lock prevents. `lockedEmployerCount` — computed
+and returned all along, and rendered nowhere — is now in the worklist, so the
+number is checkable rather than a thing to trust.
 
 **The lock follows the applicant, not the document id.** A draft's id is
 `sha256(company:email:phone)`, so a driver who corrects their own email or phone
@@ -1109,6 +1390,15 @@ button, modal, form control, table, status treatment, arbitrary color or
 unsupported font size unless the roadmap records the gap and the code documents
 the temporary exception. **No 9px or 10px body text.**
 
+**Tables on phones (since 2026-09-06).** A table whose rows are compared keeps
+the table: a labelled, focusable horizontal-scroll region, a sticky header and
+the first column pinned so the row's label stays in view (`DataTable` by
+default, `data-pin-first-column` on a native table). A matrix of per-row form
+controls worked one record at a time — the SMS recruiter-assignment matrix —
+becomes one card per row under 768px (`data-mobile-presentation="cards"`), the
+same elements at every width. The Super Admin feature matrix is the one
+specialized grid. Source and guards: `src/design-system/components/data-table/README.md`.
+
 Two contracts have no exception route at all, because both are enforced by the
 code refusing to run rather than by a check that has to notice. A dialog goes
 through `Modal` and takes its size and shape from the chrome contract — the
@@ -1232,6 +1522,33 @@ cannot resolve the colour at all — and the `theme-color` meta, a literal copy 
   readable. Deliberately not solved by fetching the signed URL back into a Blob:
   that is a cross-origin `fetch` against the Storage bucket, and whether it works
   depends on bucket CORS configuration this repository does not set.
+- **A carrier-prepared draft has no cross-device recovery when the company hides
+  the SSN question.** The invite link stops being a credential once the driver
+  takes the application over (§5), and the driver proves who they are through
+  `findResumableApplication`, which needs last name + date of birth + SSN digits
+  plus a contact detail already on the record. Their first save is what supplies
+  the identity HMAC that lookup matches — but `ssn` is a configurable gate
+  (`GATE_DEFAULT_REQUIRED.ssn` is `true`), so a company that sets it to Optional
+  or Hidden leaves `identityKey: null` and no way for that driver to resume on a
+  second device. Their own browser's resume token still works, and the carrier can
+  still send a replacement link, which takes them to the identity challenge they
+  cannot then pass.
+  Narrow on purpose: 49 CFR 391.21 requires the Social Security Number on the
+  application, so a company in that configuration is already outside the
+  regulation. The fix that closes it properly is out-of-band delivery — minting
+  emails or texts the link to the `contactEmail`/`contactPhone` on the draft and
+  returns only a redacted confirmation, so the carrier never holds it — which is
+  DocuSign's Resend model and depends on per-company email configuration this
+  change did not take on.
+- **A driver cannot dispute a locked employer that is satisfiable but wrong.** A
+  PSP report is an FCRA consumer report and the driver has dispute rights over its
+  contents, but the application holds them to whichever carriers the report named:
+  the identity of a locked row is a record rather than a field for them, by design
+  (§5). Every *unsatisfiable* lock state is gone as of 2026-09-08 — a lock always
+  names a row that is on the application — so nobody is blocked by a requirement
+  they cannot meet. What is missing is the route to say "that carrier is not mine",
+  which is its own feature with its own policy questions about what the carrier
+  then sees.
 - **HEIC photos cannot be read.** The reader accepts PDF, JPG, PNG and WebP;
   browsers cannot decode HEIC (an iPhone's default), so such a photo is refused
   with a message naming the accepted formats. (This is the surviving edge after
@@ -1383,6 +1700,22 @@ in none of its lists. See `AGENTS.md`.
 
 CI runs Playwright as a 4-way shard matrix with `workers: 1` and `retries: 2`
 per shard.
+
+**The first download has a budget.** Measured on 2026-09-06 against the
+production build: the public application on a phone downloaded **517 kB (gzip)**
+before a line of it ran — a 1.18 MB entry script, a 399 kB pdf.js chunk
+preloaded on a page that renders no PDF, and Sentry's Session Replay recorder
+inside the entry. Moving the pdf.js worker wiring out of the entry
+(`src/lib/pdf/pdfWorker.js`, imported by the PDF features, which are already
+lazy chunks) and attaching Replay after load (`src/lib/monitoring/sentry.js`,
+Sentry's own bundler guidance) took it to **363 kB**, with no route or screen
+changed. `npm run check:bundle-budget` sums the entry script, its module
+preloads and its stylesheets from `dist/index.html` and fails the
+`frontend-build` job above **380 kB gzip**, refuses any preload of the pdf.js
+chunk, and refuses a Replay recorder in the entry; `npm run test:bundle-budget`
+drives each refusal on throwaway builds in `callable-contract`, and
+`check:ci-plan` (K1c) pins both steps. The ceiling may only move down with a
+new measurement. Figures are gzip; Hosting also serves brotli, which is smaller.
 
 `npm run typecheck` is a **non-blocking** baseline (`continue-on-error` in the
 workflow) and currently reports pre-existing errors in
