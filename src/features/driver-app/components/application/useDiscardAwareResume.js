@@ -94,6 +94,7 @@ export function useDiscardAwareResume({
     resumeBusy,
     resumeError,
     saveProgressToServer: saveDraftToServer,
+    adoptResumeToken,
     restoreFromStoredToken,
     continueExisting,
     startOver,
@@ -210,6 +211,9 @@ export function useDiscardAwareResume({
     resumeBusy,
     resumeError,
     saveDraftToServer,
+    // Passed through to the invite path, which used to write the shared resume-token
+    // slot directly and therefore never set the ownership refs.
+    adoptResumeToken,
     restoreFromStoredToken,
     continueExisting,
     startOver,

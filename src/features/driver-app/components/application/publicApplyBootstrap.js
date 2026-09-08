@@ -16,20 +16,15 @@ import {
   buildDefaultSandboxPublicProfile,
 } from '@features/sandbox/sandboxConstants';
 import { buildE2EPublicProfile } from './publicApplyHelpers';
-import {
-  readApplicationDraft,
-  saveApplicationDraft,
-  draftSyncState,
-  sameDraftData,
-} from './applicationDraftStorage';
+import { readApplicationDraft } from './applicationDraftStorage';
 import {
   DOC_STATUS,
+  clearPostApplySession,
   savePostApplySession,
   readPostApplySession,
   isRequestSigned,
 } from './postApplyDocsStorage';
-import { reconcileApplicationDraft } from './reconcileApplicationDraft';
-import { exchangeApplicationInvite, writeResumeToken } from '../../services/applicationDraftService';
+import { INVITE_OUTCOMES, openPreparedApplication } from './publicApplyInvite';
 
   /**
    * Restore a recent submission (and its document checklist) after the driver
@@ -87,6 +82,13 @@ export async function loadPublicApplyCompany({
   draftIdRef,
   discardedElsewhere,
   restorePostApplySession,
+  // Through the resume hook, not `writeResumeToken` directly: writing the shared
+  // slot behind the hook's back left the ownership refs unset, and this path only
+  // worked because the resume lookup happened to re-read the slot and find it.
+  adoptResumeToken,
+  // Where the exchange's verdict goes. `PublicApplyHandler` gates the server-draft
+  // reconciliation on it and renders the failure screen from it.
+  setInviteOutcome,
   setCurrentCompanyProfile,
   setError,
   setLoading,
@@ -100,64 +102,78 @@ export async function loadPublicApplyCompany({
      *
      * Taken before the local-draft restore, because it is the stronger claim: this
      * browser may hold an abandoned attempt of its own, and what the driver
-     * clicked is the application their carrier filled in for them.
+     * clicked is the application their carrier filled in for them. Taken before
+     * the post-apply session restore too, and that ordering is the whole of the
+     * fix for a stale confirmation screen hiding a live invitation — see below.
      *
      * The exchange also mints a resume token for this draft. A carrier-prepared
      * draft has no identity HMAC — the carrier does not know the driver's Social
      * Security Number — so that token is the only thing that will authorize the
-     * driver's own autosave from here on. Stored the moment it arrives, before
+     * driver's own autosave from here on. Adopted the moment it arrives, before
      * anything further down can go wrong.
      *
-     * A link that no longer opens is not an error: `exchangeApplicationInvite`
-     * resolves to null and the driver gets the ordinary application.
-     *
-     * Called from every branch that resolves a company, because which link the
-     * driver followed has nothing to do with how the company was looked up.
-     *
-     * @returns {Promise<boolean>} true when a prepared application was opened
+     * @returns {Promise<object>} the outcome, which the caller branches on
      */
-    async function openPreparedApplication(companyData) {
-      const inviteToken = searchParams.get('invite');
-      if (!inviteToken) return false;
-
-      const invited = await exchangeApplicationInvite({
-        companyId: companyData.id,
-        applicantKey: searchParams.get('k') || null,
-        inviteToken,
+    async function openInvite(companyData) {
+      const outcome = await openPreparedApplication({
+        slug, companyId: companyData.id, searchParams,
       });
-      if (!invited) return false;
+      setInviteOutcome(outcome);
+      if (outcome.status !== INVITE_OUTCOMES.OPENED) return outcome;
 
-      /**
-       * The driver has already started this one, so the link alone no longer
-       * opens it — see `functions/companyApplications/invite.js`. There is no
-       * token and no answers in this reply, so nothing may be adopted: writing
-       * `resumeToken: undefined` into the shared slot would destroy the
-       * credential the driver's own browser is saving with, and spreading an
-       * empty `formData` would blank the wizard.
-       *
-       * Falling through hands them the ordinary flow, which offers their own
-       * application back through the identity match on page one — the challenge
-       * the link deliberately no longer replaces.
-       */
-      if (invited.requiresIdentity) return false;
-
-      writeResumeToken(slug, {
-        resumeToken: invited.resumeToken,
-        applicantKey: invited.applicantKey,
+      adoptResumeToken({
+        resumeToken: outcome.payload.resumeToken,
+        applicantKey: outcome.applicantKey,
       });
       restoredFromDraftRef.current = true;
-      draftIdRef.current = invited.applicantKey;
+      draftIdRef.current = outcome.applicantKey;
       setFormData((prev) => ({
         ...prev,
-        ...invited.formData,
+        ...outcome.payload.formData,
         // Decorative, for rendering the rows as locked. The enforcement copy lives
         // on the draft itself, where the locked party cannot reach it.
-        lockedEmployers: invited.lockedEmployers || [],
+        lockedEmployers: outcome.payload.lockedEmployers || [],
       }));
       setIntakeMode('manual');
       sessionStorage.setItem('pending_application_company', companyData.id);
+
+      /**
+       * A live invitation retires a finished one's confirmation screen.
+       *
+       * `sh_post_apply_${companyId}` is keyed to a COMPANY and lasts 24 hours, and
+       * restoring it sets `submissionStatus = 'success'`, which renders above the
+       * wizard. It also ran before the exchange, so a new invitation to the same
+       * carrier in the same tab loaded its answers into state and then showed the
+       * PREVIOUS applicant's success screen and documents checklist over them.
+       *
+       * Cleared rather than merely not restored, or the defect returns through the
+       * other door: left in place, a later reload of the bare `/apply/:slug` in
+       * this tab brings that success screen back over the invited driver's
+       * half-typed application.
+       *
+       * Safe against a real submitted application by construction, not by luck: a
+       * submission DELETES the draft, and the invite hash lives on that document,
+       * so a successful exchange proves the application it opened has not been
+       * submitted. A FAILED exchange deliberately touches none of this, which is
+       * what protects the driver who re-clicks their own emailed link after
+       * submitting — their link is dead, and they keep their confirmation number
+       * and their remaining signing tasks. The signing-room round trip never
+       * reaches here at all: its return path carries no query string, so the
+       * outcome is `absent`.
+       */
+      clearPostApplySession(companyData.id);
+      try {
+        // A single global key with no company or application scoping, read as the
+        // success screen's fallback. Left behind, it shows the previous
+        // applicant's confirmation number on the invited driver's own success
+        // screen later.
+        sessionStorage.removeItem('lastConfirmationNumber');
+      } catch {
+        /* storage unavailable (privacy mode) — nothing was stored to begin with */
+      }
+
       setLoading(false);
-      return true;
+      return outcome;
     }
 
     async function loadCompany() {
@@ -198,8 +214,11 @@ export async function loadPublicApplyCompany({
             setCurrentCompanyProfile(mockCompany);
           }
           sessionStorage.setItem('pending_application_company', mockCompany.id);
+          // Same order as the production branch below, and kept that way
+          // deliberately: the comment there records that a divergence between the
+          // two is exactly why a browser test could not see an earlier bug.
+          if ((await openInvite(mockCompany)).status === INVITE_OUTCOMES.OPENED) return;
           restorePostApplySession(mockCompany);
-          if (await openPreparedApplication(mockCompany)) return;
           if (getE2EQueryParam('e2eIntake', 'manual') !== 'choice') {
             setIntakeMode('manual');
           }
@@ -233,17 +252,24 @@ export async function loadPublicApplyCompany({
           setCurrentCompanyProfile(companyData);
         }
 
-        // Returning from the signing room (or a reload right after submitting):
-        // bring back the success screen + required-documents checklist.
-        restorePostApplySession(companyData);
-
-        // Deliberately AFTER the company is set. `openPreparedApplication` returns
-        // straight out of `loadCompany`, and the wizard it hands the driver reads
+        // Deliberately AFTER the company is set. `openInvite` returns straight out
+        // of `loadCompany`, and the wizard it hands the driver reads
         // `company.companyName` -- so opening the invite first left every real
         // carrier-sent link rendering against no company at all. The E2E branch
         // above sets the company before calling it, which is precisely why a
         // browser test could not see this. The two branches now agree.
-        if (await openPreparedApplication(companyData)) return;
+        //
+        // And deliberately BEFORE the post-apply session restore, which is the
+        // reorder that stops a 24-hour-old confirmation screen for this carrier
+        // hiding a live invitation. `openInvite` explains why clearing that
+        // session on success cannot cost a real submitted application anything.
+        if ((await openInvite(companyData)).status === INVITE_OUTCOMES.OPENED) return;
+
+        // Returning from the signing room (or a reload right after submitting):
+        // bring back the success screen + required-documents checklist. Reached
+        // only when no invitation opened, including when one failed — a dead link
+        // must not take away a success screen.
+        restorePostApplySession(companyData);
 
         // P2-5 FIX: Recover saved draft from localStorage on page revisit.
         //
@@ -289,151 +315,4 @@ export async function loadPublicApplyCompany({
       }
     }
   return loadCompany();
-}
-
-/**
- * The server-draft reconciliation, once the company is known. Returns the
- * effect's own cleanup, exactly as the inline body did.
- */
-export function reconcileServerDraftOnLoad({
-  slug,
-  resetGenerationRef,
-  restoredFromDraftRef,
-  draftIdRef,
-  discardGuardsRef,
-  latestDraftRef,
-  restoreFromStoredToken,
-  setFormData,
-  setCurrentStep,
-  setIntakeMode,
-}) {
-    let current = true;
-    const generation = resetGenerationRef.current;
-    restoreFromStoredToken().then((restored) => {
-      if (!current || !restored) return;
-      // Discarded while this fetch was open. The read itself succeeded, so nothing
-      // looks wrong, and writing its result back would put the discarded answers
-      // into storage *after* the reset cleared them — to be restored on the next
-      // load. Checked by generation rather than by mark, because reacting to the
-      // discard adopted the mark already.
-      if (resetGenerationRef.current !== generation) return;
-      const guards = discardGuardsRef.current;
-      // This used to be `{ ...prev, ...restored.formData }`, which made the server
-      // copy win every field it held whether or not it was the newer one. That
-      // destroyed the local backup with the very failure it exists to survive: a
-      // save fails, the driver refreshes, and the older server values come back
-      // over their edits with nothing said.
-      //
-      // The local copy is re-read here rather than relied upon through `prev`, so
-      // the decision does not depend on the order two effects happen to run in.
-      // All of this outside the updater: a `setFormData` updater has to stay pure,
-      // because React may invoke it more than once, and one of the steps below
-      // writes to storage.
-      const resolved = reconcileApplicationDraft({
-        local: readApplicationDraft(slug),
-        server: restored,
-        live: latestDraftRef.current.formData,
-      });
-      if (!resolved) return;
-
-      // A discard this tab has not noticed yet — no `storage` event delivered, or
-      // one it was suspended through — is caught here, where the generation check
-      // above cannot see it.
-      if (guards.discardedElsewhere()) {
-        guards.handleDiscardedElsewhere();
-        return;
-      }
-
-      // Write the outcome back locally when the **server** copy won.
-      //
-      // Otherwise the next navigation would write that server content out as if it
-      // were unacknowledged local work: the copy would read as dirty, and a further
-      // advance from a third device would then lose to content that came from the
-      // server in the first place. Same reasoning as the explicit Continue path in
-      // `applyRestoredDraft`.
-      //
-      // When *local* won the sequences are deliberately left alone — that copy
-      // really does hold work the server has not seen, and is still owed a save.
-      if (resolved.source === 'server') {
-        // Synced only if the merged body really is the server's body. The reconciler
-        // overlays anything typed since page load, and the server fetch is a round
-        // trip an applicant can type through — so marking the whole merged body
-        // synced would claim the server holds an edit it has never seen. Close the
-        // tab there and the next load, finding a clean local copy, would hand back
-        // the older server value: the silent loss this mechanism exists to prevent,
-        // through a two-second window.
-        //
-        // Keys only the local copy has count the same way, for the same reason.
-        const serverSeq = Number.isInteger(restored.clientSeq) ? restored.clientSeq : null;
-        const holdsMoreThanServer = !sameDraftData(resolved.formData, restored.formData);
-        const reconciled = saveApplicationDraft(slug, resolved.formData, holdsMoreThanServer
-          // One above the server's position, with the synced position left at it:
-          // dirty, so the next navigation or reconnect sends it, while a later
-          // genuine server advance is still recognised by `clientSeq !== syncedSeq`.
-          ? {
-            lastStep: resolved.stepIndex,
-            localSeq: (serverSeq ?? 0) + 1,
-            syncedSeq: serverSeq ?? 0,
-            draftId: draftIdRef.current,
-          }
-          : {
-            lastStep: resolved.stepIndex,
-            localSeq: serverSeq ?? undefined,
-            synced: true,
-            draftId: draftIdRef.current,
-          });
-        if (reconciled.draftId) draftIdRef.current = reconciled.draftId;
-      }
-
-      // Restored content, whichever copy won: both the local draft and the server
-      // draft are *stored* copies of the application, so a discard elsewhere means
-      // what is on screen is the discarded application. Only answers typed in this
-      // tab and never stored survive one.
-      restoredFromDraftRef.current = true;
-      // `resolved.formData` already carries anything typed since load, so it goes
-      // last; `prev` still supplies the wizard's untouched defaults.
-      setFormData((prev) => ({ ...prev, ...resolved.formData }));
-      // `Math.max`: never move an applicant *backwards* from where they already
-      // are in this session.
-      setCurrentStep((prev) => Math.max(prev, restored.stepIndex));
-      setIntakeMode('manual');
-    }).catch(() => {
-      // Handled inside the hook. Nothing here may interrupt the apply page.
-    });
-    return () => { current = false; };
-}
-
-/**
- * The reconnect flush: sends the local copy when the connection returns and
- * it is actually owed a save. Returns the effect's own cleanup.
- */
-export function listenForReconnectFlush({
-  slug,
-  discardGuardsRef,
-  latestDraftRef,
-  draftIdRef,
-  saveDraftToServer,
-}) {
-    const flush = () => {
-      // The longest-delayed writer there is: the applicant may have discarded in
-      // another tab at any point while this one waited for a connection.
-      const guards = discardGuardsRef.current;
-      if (guards.discardedElsewhere()) {
-        guards.handleDiscardedElsewhere();
-        return;
-      }
-      const state = draftSyncState(slug);
-      if (!state?.dirty) return;
-      const { formData: latest, currentStep: step } = latestDraftRef.current;
-      saveDraftToServer({
-        formData: latest,
-        stepIndex: step,
-        localSeq: state.localSeq,
-        // Which application this owes a save for. The acknowledgement is scoped to it,
-        // because a reconnect can be minutes after the fact.
-        draftId: draftIdRef.current,
-      });
-    };
-    window.addEventListener('online', flush);
-    return () => window.removeEventListener('online', flush);
 }

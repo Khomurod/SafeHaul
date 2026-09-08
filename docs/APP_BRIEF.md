@@ -297,6 +297,93 @@ holding unacknowledged work wins; a server copy another device advanced wins;
 side has always survives. Work typed since page load outranks both. The decision
 lives in `reconcileApplicationDraft.js`, is pure, and is covered case by case.
 
+**Reconciliation answers "which copy is newer". It also has to answer "whose is
+it".** Every slot on the apply page is namespaced by company slug and nothing
+else — `draft_${slug}`, `apply_discarded_${slug}`, `apply_resume_${slug}`,
+`sh_post_apply_${companyId}` — so two drivers using one browser at one carrier
+share all of them. That was survivable while there was only ever one candidate
+applicant per browser. A carrier's invite link names a *specific* one, and every
+guard on this path answered "was this discarded?", never "is this the same
+applicant?".
+
+The consequence, found 2026-09-08: `loadPublicApplyCompany` sets the company
+*before* it awaits the exchange, and the server-draft reconciliation fires as
+soon as `company?.id` exists — so it raced the exchange over those shared slots.
+Either ordering lost. Read the token slot before the invite stored its own and
+the **previous** applicant's server draft was fetched, merged and applied over
+the invited answers; read it after and the server side was right but `local` was
+still the previous applicant's draft, which wins outright when dirty. Upload
+descriptors are handed to the winner whole and repeating rows are unioned, so
+the symptom was a new driver's application carrying a previous driver's stored
+document information — and it persisted, written back under the invite's draft
+name and autosaved onto the carrier's draft.
+
+**Two mechanisms, deliberately not one.** `PublicApplyHandler` gates the
+reconciliation until the exchange has resolved, which fixes the ordering; the
+`applicantKey` stored beside the resume token identifies whose leftovers this
+browser holds, which fixes the identity. Gating alone is not enough, and the gate
+is on `pending` only and never on `opened`: the exchange returns no `lastStep`,
+so the reconciliation is the only thing that restores an invited driver's page,
+and their own newer unsynced work must still be able to win. A foreign local copy
+is **withheld** from the merge (`local: null`, a supported input meaning "this
+browser has no copy of *this* application") rather than deleted, so the ordinary
+server-won write-back replaces it and no new writer is introduced to a slot whose
+naming and sequence rules are this intricate. The cost is stated where it
+happens: the previous applicant loses their local backup of that slug, while
+their server copy — the persistent primary — is untouched and still reachable by
+identity match.
+
+Per-applicant storage keys were considered and rejected. The name would have to
+move whenever a driver corrects their own email, which is normal and supported,
+so every slot would need renaming in shared storage at the worst possible moment;
+a fresh load cannot know which namespace to read; and the discard mark must stay
+un-namespaced, because naming it was tried and silently restored the bug it was
+meant to fix.
+
+**Three smaller guards came out of the same review, and each was one line of
+intent away from its neighbour.** `restoreFromStoredToken` already *received* the
+server's own `applicantKey` and dropped it, so no caller could ask the question
+at all — it is returned now, used to re-stamp the slot when the server resolved a
+different document (a corrected contact detail, which must never cost the
+applicant their local work), and used to abandon a reconciliation whose answer
+belongs to a different application. Its failure path cleared the resume token
+**unconditionally**, while `startOver` twelve lines below guarded exactly that —
+so a stale token's failed restore could delete the credential a carrier's invite
+had just minted, and a prepared draft has no identity HMAC to fall back on. And
+`sendSave` re-read the shared slot *at transmit time* rather than using the token
+its own tab was issued, so a previous applicant's still-open tab presented the
+invited driver's token and `carriedPreparedFields` copied the carrier's
+`lockedEmployers` and `inviteClaimedAt` onto that other person's application. All
+three live in `useResumeTokenOwnership.js` now, which owns the question "which
+application does this tab hold a credential for".
+
+**A live invitation retires a finished application's confirmation screen, and a
+dead one may not.** `sh_post_apply_${companyId}` is keyed to a company, lasts 24
+hours and sets `submissionStatus = 'success'`, which renders above the wizard —
+and it was restored *before* the exchange, so a new invitation to the same carrier
+in the same tab loaded its answers into state and then showed the previous
+applicant's success screen and documents checklist over them. The restore now
+runs after the exchange and only when nothing opened, and a successful exchange
+clears that session and the unscoped `lastConfirmationNumber` with it. Clearing
+rather than merely skipping, or a later reload of the bare apply page brings the
+screen back. Safe by construction and not by luck: a submission **deletes** the
+draft and the invite hash lives on that document, so a link that still opens
+proves the application it opened was not submitted. A failed exchange touches
+none of it, which is what protects the driver who re-clicks their own dead link
+after submitting. The render precedence itself is unchanged — a restored
+post-submission session has no `intakeMode`, so the success screen must stay
+above the chooser.
+
+**`supersedeOtherDrafts` cannot reach a carrier-prepared draft, and now something
+else does.** It sweeps by `identityKey`, and a prepared draft has none — the HMAC
+is built from the driver's SSN, which the carrier does not know. So a driver who
+corrected their email before their first save landed left the prepared document
+alive with its invite hash intact: two live drafts answering one link, which the
+non-travel of those hashes exists to prevent. `retirePreparedSource` deletes it,
+under the same bar as every other deletion here — the caller must hold that
+document's own current token, which `preparedSourceFor` established a moment
+earlier.
+
 **Merging is field-aware, because a flat spread destroys nested answers.** The
 draft is not flat: repeating lists (employers, violations, accidents, schools,
 military, addresses) and keyed answer maps (`customAnswers`) are whole structures,

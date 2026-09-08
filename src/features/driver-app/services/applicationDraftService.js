@@ -338,29 +338,38 @@ export async function resumeApplicationDraft(payload) {
  * Opens a link a carrier sent, exchanging its token for the application they
  * prepared.
  *
- * Resolves to `null` for every unsuccessful case — a wrong link, an expired one, a
- * carrier that has stopped accepting applications — because the driver who follows
- * a stale link should land on the ordinary blank application and be able to apply,
- * not on a diagnostic. The one thing the caller must know is whether there is a
- * prepared application to show.
+ * **Throws, like every other callable in this file.** It used to resolve to `null`
+ * for every unsuccessful case on the grounds that a driver following a stale link
+ * should land on the ordinary application rather than a diagnostic — but that
+ * collapsed a five-way outcome into a boolean, and `publicApplyBootstrap` then
+ * used the same `false` for "the invite could not be opened" as for "there is no
+ * invite in this URL". A rate-limited exchange, a Firestore hiccup (the limiter
+ * fails closed) and a temporary outage were all indistinguishable from having no
+ * link at all, and the driver was told nothing.
+ *
+ * Worse than a missing message: a silent fall-through never stamps
+ * `inviteClaimedAt`, so the carrier's locked employers are not enforced and it
+ * receives a second, unprepared application — losing the 49 CFR 391.21 employment
+ * history it had prepared.
+ *
+ * `publicApplyInvite.js` classifies the failure, because it is the caller that has
+ * to decide what to do about it. Wrong and expired stay indistinguishable there.
  */
 export async function exchangeApplicationInvite(payload) {
     if (e2eDraftsEnabled()) {
-        return payload?.inviteToken === E2E_INVITE_TOKEN
-            ? { ...E2E_PREPARED_APPLICATION, formData: { ...E2E_PREPARED_APPLICATION.formData } }
-            : null;
+        if (payload?.inviteToken !== E2E_INVITE_TOKEN) {
+            // Throws exactly as the callable does, so the "a link that opens
+            // nothing" path is a real test of the client's handling rather than of
+            // the double. Same shape as `resumeApplicationDraft` above.
+            const missing = new Error('That application link could not be opened.');
+            missing.code = 'functions/not-found';
+            throw missing;
+        }
+        return { ...E2E_PREPARED_APPLICATION, formData: { ...E2E_PREPARED_APPLICATION.formData } };
     }
-    try {
-        const call = httpsCallable(functions, 'exchangeApplicationInvite');
-        const result = await call(payload);
-        // `HttpsCallableResult.data` is `unknown`, and this is the one caller in
-        // this file that reads a field off it rather than returning it whole.
-        const opened = /** @type {{opened?: boolean}} */ (result.data);
-        return opened?.opened ? result.data : null;
-    } catch (error) {
-        console.warn('[applicationDraftService] Application link could not be opened:', error?.code || error?.message);
-        return null;
-    }
+    const call = httpsCallable(functions, 'exchangeApplicationInvite');
+    const result = await call(payload);
+    return result.data;
 }
 
 /** Discards an unfinished application. Throws, because the caller must not proceed silently. */

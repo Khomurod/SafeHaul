@@ -20,16 +20,20 @@ import { useToast } from '@shared/components/feedback/ToastProvider';
 import { useData } from '@/context/DataContext';
 import { ResumeApplicationDialog } from './ResumeApplicationDialog';
 // The submission path lives in publicApplySubmit.js since the 2026-09-01
-// source-size split (PA-1a); the bootstrap — session restore, company load,
-// server-draft reconciliation and the reconnect flush — in
-// publicApplyBootstrap.js since PA-1b.
+// source-size split (PA-1a); the bootstrap — session restore and the company
+// load — in publicApplyBootstrap.js since PA-1b. The two draft-sync effects
+// moved on to publicApplyDraftSync.js on 2026-09-08, when the reconciliation
+// grew the question of whose application this browser is holding.
 import { submitPublicApplication } from './publicApplySubmit';
 import {
   restorePostApplySessionFor,
   loadPublicApplyCompany,
+} from './publicApplyBootstrap';
+import {
   reconcileServerDraftOnLoad,
   listenForReconnectFlush,
-} from './publicApplyBootstrap';
+} from './publicApplyDraftSync';
+import { INVITE_OUTCOMES } from './publicApplyInvite';
 // And the PA-1c split: the circular discard/resume pair, the draft
 // lifecycle, and the post-submission documents flow.
 import { useDiscardAwareResume } from './useDiscardAwareResume';
@@ -60,6 +64,18 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState({});
   const [intakeMode, setIntakeMode] = useState(null); // null | manual
+  /**
+   * What became of the link in the URL, if there was one. Seeded in the
+   * initialiser so it is right on the FIRST render — the reconciliation effect
+   * below fires as soon as `company?.id` is set, which happens before the
+   * exchange has been awaited, so a `pending` appearing later would not stop it.
+   * `absent` is the ordinary driver-started path, unchanged.
+   */
+  const [inviteOutcome, setInviteOutcome] = useState(
+    () => (searchParams.get('invite')
+      ? { status: 'pending' }
+      : { status: INVITE_OUTCOMES.ABSENT }),
+  );
   const [submissionStatus, setSubmissionStatus] = useState(null);
   const [submittedApplicationId, setSubmittedApplicationId] = useState('');
   const [submittedConfirmationNumber, setSubmittedConfirmationNumber] = useState('');
@@ -113,6 +129,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     resumeBusy,
     resumeError,
     saveDraftToServer,
+    adoptResumeToken,
     restoreFromStoredToken,
     continueExisting,
     startOver,
@@ -160,6 +177,8 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
       slug,
       sandbox,
       searchParams,
+      adoptResumeToken,
+      setInviteOutcome,
       loadGeneration,
       resetGenerationRef,
       restoredFromDraftRef,
@@ -174,7 +193,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
       setCurrentStep,
       setIntakeMode,
     });
-  }, [slug, sandbox, searchParams, setCurrentCompanyProfile, restorePostApplySession, resetGenerationRef, restoredFromDraftRef, draftIdRef]);
+  }, [slug, sandbox, searchParams, setCurrentCompanyProfile, restorePostApplySession, adoptResumeToken, resetGenerationRef, restoredFromDraftRef, draftIdRef]);
 
   /**
    * Latest form state, read by things that run later than the render they belong
@@ -199,9 +218,21 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
    * stale token rather than retrying it on every load.
    */
   useEffect(() => {
-    if (!company?.id || sandbox) return;
+    if (!company?.id || sandbox) return undefined;
+    /**
+     * Not while a link is still being exchanged: this reads the SHARED token slot
+     * and the SHARED local draft, and the exchange owns the answer to whose
+     * application they belong to. See `publicApplyInvite.js`.
+     *
+     * `pending` only, never `opened` — the exchange returns no `lastStep`, so this
+     * is the only thing that restores an invited driver's page, and their own
+     * newer unsynced work must still be able to win. A failed or hung exchange
+     * resolves to an outcome too, so this is never stranded.
+     */
+    if (inviteOutcome.status === 'pending') return undefined;
     return reconcileServerDraftOnLoad({
       slug,
+      invite: inviteOutcome,
       resetGenerationRef,
       restoredFromDraftRef,
       draftIdRef,
@@ -212,7 +243,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
       setCurrentStep,
       setIntakeMode,
     });
-  }, [company?.id, sandbox, slug, restoreFromStoredToken, resetGenerationRef, restoredFromDraftRef, draftIdRef, discardGuardsRef]);
+  }, [company?.id, sandbox, slug, inviteOutcome, restoreFromStoredToken, resetGenerationRef, restoredFromDraftRef, draftIdRef, discardGuardsRef]);
 
   /**
    * Retries the server copy when the connection comes back.

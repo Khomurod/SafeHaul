@@ -111,6 +111,12 @@ function mockCollectionRef(path) {
 function mockDocRef(path) {
     return {
         path,
+        // A real `DocumentReference` carries its own id, and code that compares
+        // "is the document I read the one I am writing?" reads it. Missing here
+        // until 2026-09-08, it made every such comparison see `undefined` and
+        // answer "different" — so a correct guard looked like a bug, and an
+        // incorrect one would have passed. Same reasoning as the `ref` note above.
+        id: path.split('/').pop(),
         get: async () => mockMakeDoc(path),
         set: async (patch, options) => {
             if (mockFailWritesOn && path.includes(mockFailWritesOn)) throw new Error('firestore unavailable');

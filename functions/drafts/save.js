@@ -15,7 +15,8 @@ const draft = require('../shared/applicationDraft');
 const prepared = require('../shared/companyPreparedDraft');
 const {
     applicantKeyOf, clientIp, docId, identityKeyOrNull, liveDraftForToken,
-    mayModifyExistingDraft, recordMatchAttempt, supersedeOtherDrafts, text,
+    mayModifyExistingDraft, recordMatchAttempt, retirePreparedSource,
+    supersedeOtherDrafts, text,
 } = require('./identity');
 
 /**
@@ -227,7 +228,16 @@ exports.saveApplicationProgress = functions
             }
 
             transaction.set(ref, update, { merge: true });
-            return { refused: false, token };
+            return {
+                refused: false,
+                token,
+                // The document the applicant just moved off, for the retirement
+                // below. Carried out of the transaction rather than recomputed,
+                // because ownership of it was proven in here.
+                movedFromPreparedKey: preparedSource && preparedSource.id !== applicantKey
+                    ? preparedSource.id
+                    : null,
+            };
         });
 
         if (attempt.refused) {
@@ -294,6 +304,22 @@ exports.saveApplicationProgress = functions
         if (identityKey && supersedeToken) {
             // Per draft, never per identity. See `supersedeOtherDrafts`.
             await supersedeOtherDrafts(companyId, identityKey, applicantKey, {
+                resumeToken: supersedeToken,
+            });
+        }
+
+        /**
+         * The carrier-prepared document, which the sweep above cannot reach.
+         *
+         * It queries `identityKey`, and a prepared draft has none — the carrier
+         * does not know the SSN the HMAC is built from. So a driver correcting
+         * their email before their first save had landed left it alive, with its
+         * invite token hash intact: two live drafts answering one link, which
+         * `shared/companyPreparedDraft.js` calls the worse problem of the two.
+         * Same ownership bar; see `retirePreparedSource`.
+         */
+        if (attempt.movedFromPreparedKey && supersedeToken) {
+            await retirePreparedSource(companyId, attempt.movedFromPreparedKey, {
                 resumeToken: supersedeToken,
             });
         }
