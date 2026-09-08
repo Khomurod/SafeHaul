@@ -4,6 +4,7 @@ import {
     Button, FileInput, IconButton, IconButtonLink, Notice, ProgressBar,
 } from '@/design-system/components';
 import { ConfirmDialog } from '@design-system/patterns';
+import { PREVIEW_STATE, useSignedUploadPreview } from '../../hooks/useSignedUploadPreview';
 
 /**
  * UploadField
@@ -50,6 +51,15 @@ const UploadField = ({
     onUpload,
     onChange,
     name,
+    /**
+     * Whose Storage the file is in, for re-signing a preview.
+     *
+     * Optional: without it the field falls back to whatever URL the value carries,
+     * which is what a legacy record and an E2E run both have. A preview is a
+     * courtesy, so a caller that cannot supply this loses the thumbnail and
+     * nothing else.
+     */
+    companyId,
     required = false,
     accept = "image/*,application/pdf"
 }) => {
@@ -95,7 +105,16 @@ const UploadField = ({
     // Determine current display
     const hasValue = !!value;
     const fileName = value?.name || (typeof value === 'string' ? 'Uploaded File' : null);
-    const fileUrl = value?.url || (typeof value === 'string' ? value : null);
+    /**
+     * Minted when somebody is looking, not read out of the form data.
+     *
+     * The stored `url` was a fifteen-minute signature, so a document attached by a
+     * recruiter was already dead by the time the driver opened their link — and an
+     * expired signature, a deleted file and a refusal all rendered as the same
+     * broken image. See `useSignedUploadPreview`.
+     */
+    const preview = useSignedUploadPreview(value, companyId);
+    const fileUrl = preview.state === PREVIEW_STATE.READY ? preview.url : null;
     const isImage = fileName?.match(/\.(jpg|jpeg|png|gif|webp)$/i) || (typeof value === 'string');
     const pickerVisible = !hasValue && status !== 'uploading';
 
@@ -264,10 +283,25 @@ const UploadField = ({
                             {fileName}
                         </p>
                         {/* Announced when the upload lands, so a screen-reader user is
-                            told the file was accepted instead of having to re-read. */}
-                        <p role="status" className="flex items-center gap-ds-1 text-ds-xs text-ds-status-success-fg">
-                            <Icon icon={CheckCircle} size="xs" /> Uploaded Successfully
-                        </p>
+                            told the file was accepted instead of having to re-read.
+                            The three preview outcomes are named separately because
+                            only ONE of them means the file has to be sent again. */}
+                        {preview.state === PREVIEW_STATE.MISSING ? (
+                            <p role="status" className="flex items-center gap-ds-1 text-ds-xs text-ds-status-warning-fg">
+                                <Icon icon={AlertCircle} size="xs" /> This file is no longer stored — please upload it again
+                            </p>
+                        ) : preview.state === PREVIEW_STATE.ERROR ? (
+                            <p role="status" className="flex flex-wrap items-center gap-ds-1 text-ds-xs text-ds-content-secondary">
+                                <Icon icon={AlertCircle} size="xs" /> Could not open the preview. The file is still attached.
+                                <Button variant="link" size="sm" onClick={preview.retry}>Try again</Button>
+                            </p>
+                        ) : preview.state === PREVIEW_STATE.LOADING ? (
+                            <p role="status" className="text-ds-xs text-ds-content-secondary">Opening the file…</p>
+                        ) : (
+                            <p role="status" className="flex items-center gap-ds-1 text-ds-xs text-ds-status-success-fg">
+                                <Icon icon={CheckCircle} size="xs" /> Uploaded Successfully
+                            </p>
+                        )}
                     </div>
                     <div className="flex shrink-0 items-center gap-ds-1">
                         {/* `external` is what announces the new tab. The hand-written

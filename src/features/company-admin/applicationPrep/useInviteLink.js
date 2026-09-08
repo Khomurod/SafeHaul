@@ -17,12 +17,22 @@ export function useInviteLink({ companyId, appSlug }) {
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState(null);
     const [copied, setCopied] = useState(false);
+    /**
+     * The clipboard refused.
+     *
+     * It used to be swallowed entirely: the label simply never changed to
+     * "Copied", which reads as nothing having happened at all. The link is on
+     * screen and selectable either way, so this is a lost convenience rather than
+     * a lost link — but only if somebody says so.
+     */
+    const [copyFailed, setCopyFailed] = useState(false);
 
     const mint = useCallback(async (applicantKey) => {
         if (!applicantKey) return null;
         setBusy(true);
         setError(null);
         setCopied(false);
+        setCopyFailed(false);
         try {
             const call = httpsCallable(functions, 'mintApplicationInvite');
             const { data } = await call({ companyId, applicantKey });
@@ -48,11 +58,14 @@ export function useInviteLink({ companyId, appSlug }) {
         try {
             await navigator.clipboard.writeText(link.url);
             setCopied(true);
+            setCopyFailed(false);
             return true;
         } catch {
             // A browser that refuses the clipboard still shows the link on screen,
-            // so this is a lost convenience rather than a lost link.
+            // so this is a lost convenience rather than a lost link — and the panel
+            // now says which, and points at the link.
             setCopied(false);
+            setCopyFailed(true);
             return false;
         }
     }, [link]);
@@ -61,6 +74,7 @@ export function useInviteLink({ companyId, appSlug }) {
         setLink(null);
         setError(null);
         setCopied(false);
+        setCopyFailed(false);
     }, []);
 
     /**
@@ -77,7 +91,7 @@ export function useInviteLink({ companyId, appSlug }) {
         [link],
     );
 
-    return { link, linkFor, busy, error, copied, mint, copy, reset };
+    return { link, linkFor, busy, error, copied, copyFailed, mint, copy, reset };
 }
 
 export default useInviteLink;

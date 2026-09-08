@@ -1784,6 +1784,34 @@ reads as broken, leaves the tab order and takes its label with it; enforcement
 lives in `applicationLockedFields.js` regardless, so the markup's job is to
 explain rather than to prevent.
 
+**Updated 2026-09-08: the carrier's side was not actually following that rule,
+and this paragraph read as if it were.** `PreparedEmployersPanel` left a locked
+row's name and USDOT number as ordinary editable inputs, which is worse than a
+disabled input rather than better — the lock stores a snapshot of that identity,
+so editing the fields it was taken from drifted the two apart and produced an
+application the driver was blocked on at submission and could not fix (the
+sharpest case: a corrected name on a row locked by USDOT number, which the
+wizard renders as a record for them, so they were blocked on the one field they
+are not allowed to touch). A locked row's identity is now a `FieldDisplay` +
+`Badge` record with an explicit **Unlock to correct** action, matching the
+driver's `LockedEmployerIdentity` in shape while keeping carrier-facing wording,
+because the audience differs. The worklist also renders the
+`lockedEmployerCount` it has always been served, so the number is checkable.
+
+**Also 2026-09-08, in the same area and from the same review:** Save and "Create
+the driver's link" were `disabled` whenever their prerequisites were unmet, which
+is the same mistake one level up — a control that cannot be pressed cannot
+explain itself, and the link's real precondition ("save first") appeared nowhere
+on the screen. Both are clickable now and validate on press, with the message in
+`FieldMessage tone="error"` (which owns its own `role="alert"` — do not nest one
+inside another) and focus moved to the offending field. `disabled` is kept only
+for an operation in flight, through `Button`'s `loading`; the **label stays
+"Save"** and a `role="status"` region beside it carries "Saving…", because a
+label that changes is content rather than an announcement and it moves the
+control's accessible name out from under anything looking for it. One new screen,
+`ApplyLinkProblemScreen`, is `patterns/page-state`'s `ErrorState` with actions —
+no new primitive.
+
 One design decision in that set is worth recording because it is a safety
 property, not a preference: **the resume dialog uses two sequential
 `ConfirmDialog`s rather than one dialog with two destructive choices.**
