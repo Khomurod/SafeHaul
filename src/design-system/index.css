@@ -32,3 +32,4 @@
  * seven of them had drifted to hand-picked padding and header colours.
  */
 @import './components/data-table/nativeTable.css';
+@import './components/data-table/pinnedColumn.css';

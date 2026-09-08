@@ -26,6 +26,7 @@ import PreparedEmployersPanel from './PreparedEmployersPanel';
  * submission exactly as they always were.
  */
 export function ApplicationPrepEditor({
+    companyId,
     formData,
     updateField,
     updateList,
@@ -123,7 +124,7 @@ export function ApplicationPrepEditor({
                 />
             </FormSection>
 
-            <ApplicationDocumentsPanel formData={formData} onUpload={onUpload} onChange={onFileChange} />
+            <ApplicationDocumentsPanel companyId={companyId} formData={formData} onUpload={onUpload} onChange={onFileChange} />
         </div>
     );
 }

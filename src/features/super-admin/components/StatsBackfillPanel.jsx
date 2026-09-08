@@ -237,8 +237,13 @@ export default function StatsBackfillPanel() {
                                 <h5 className="mb-ds-2 text-ds-sm font-semibold text-ds-content">
                                     Preview (First {result.preview.length} Days)
                                 </h5>
-                                <div className="max-h-64 overflow-auto rounded-ds-lg border border-ds-border-subtle bg-ds-surface">
-                                    <table className="ds-native-table" data-density="compact">
+                                <div
+                                    role="region"
+                                    aria-label="Backfill preview by day. Scroll to view all rows and columns."
+                                    tabIndex={0}
+                                    className="max-h-64 overflow-auto rounded-ds-lg border border-ds-border-subtle bg-ds-surface focus-visible:outline-none focus-visible:shadow-ds-focus"
+                                >
+                                    <table className="ds-native-table" data-density="compact" data-pin-first-column>
                                         <caption className="sr-only">Backfill preview by day</caption>
                                         <thead className="sticky top-0 bg-ds-table-header-bg">
                                             <tr>

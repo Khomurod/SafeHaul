@@ -50,6 +50,7 @@ jest.mock('pdf-lib', () => ({
   StandardFonts: {
     Helvetica: 'Helvetica',
     HelveticaBold: 'HelveticaBold',
+    HelveticaOblique: 'HelveticaOblique',
   },
 }));
 
@@ -349,7 +350,9 @@ describe('employmentVerification callables', () => {
       expect(responseDocs.get('pev-token-2/submission')).toMatchObject({
         respondentName: 'HR Lead',
         respondentTitle: 'HR Manager',
+        signatureMethod: null,
       });
+      expect(savedStoragePaths).toEqual([]);
       expect(verificationDocs.get('pev-token-2')).toMatchObject({ status: 'completed' });
       expect(applicationDocs.get(appKey('co-1', 'applications', 'app-9')).employers[0].verification).toMatchObject({
         status: 'Completed',
@@ -362,5 +365,98 @@ describe('employmentVerification callables', () => {
         expect.stringContaining('Employment Verification Completed'),
       );
     });
+    // Step J (2026-09-06): the signature arrives as a drawn PNG or a typed
+    // name and is validated by employmentVerification/signature.js before
+    // anything is stored. These three pin what submitVerificationResponse
+    // does with each outcome; the normaliser's own rules live in
+    // pevSignature.test.js.
+    const ONE_PIXEL_PNG_BASE64 =
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+
+    function seedSubmittableRequest(token, applicationId) {
+      verificationDocs.set(token, {
+        token,
+        status: 'sent',
+        companyId: 'co-1',
+        collectionName: 'applications',
+        applicationId,
+        employerIndex: 0,
+        employerName: 'Old Carrier',
+        applicantName: 'Jane Driver',
+        companyName: 'SafeHaul Carrier',
+        expiresAt: createTs(Date.now() + 60000),
+        createdAt: createTs(),
+      });
+      applicationDocs.set(appKey('co-1', 'applications', applicationId), {
+        employers: [{ name: 'Old Carrier' }],
+      });
+    }
+
+    function submit(token, signatureFields) {
+      return submitVerificationResponse({
+        data: {
+          token,
+          response: {
+            wasEmployed: true,
+            respondentName: 'HR Lead',
+            respondentTitle: 'HR Manager',
+            respondentPhone: '555-222-3333',
+            ...signatureFields,
+          },
+        },
+        rawRequest: { ip: '127.0.0.1', headers: { 'user-agent': 'jest' } },
+      });
+    }
+
+    it('stores a typed signature as text, records the method, and writes nothing to Storage', async () => {
+      seedSubmittableRequest('pev-token-3', 'app-3');
+
+      const result = await submit('pev-token-3', {
+        signatureData: 'TEXT_SIGNATURE:  HR Lead ',
+        signatureMethod: 'typed',
+      });
+
+      expect(result.success).toBe(true);
+      const stored = responseDocs.get('pev-token-3/submission');
+      expect(stored).toMatchObject({ signatureMethod: 'typed', signatureText: 'HR Lead' });
+      expect(stored.signaturePath).toBeUndefined();
+      expect(savedStoragePaths).toEqual([]);
+      expect(verificationDocs.get('pev-token-3')).toMatchObject({ status: 'completed' });
+    });
+
+    it('stores a drawn signature as a PNG in Storage and records the path and the method', async () => {
+      seedSubmittableRequest('pev-token-4', 'app-4');
+
+      const result = await submit('pev-token-4', {
+        signatureData: `data:image/png;base64,${ONE_PIXEL_PNG_BASE64}`,
+        signatureMethod: 'drawn',
+      });
+
+      expect(result.success).toBe(true);
+      const stored = responseDocs.get('pev-token-4/submission');
+      expect(stored).toMatchObject({
+        signatureMethod: 'drawn',
+        signaturePath: 'companies/co-1/pev_signatures/pev-token-4.png',
+      });
+      expect(stored.signatureText).toBeUndefined();
+      expect(savedStoragePaths).toEqual(['companies/co-1/pev_signatures/pev-token-4.png']);
+    });
+
+    it('refuses a signature that is neither a PNG nor a typed name before anything is stored', async () => {
+      seedSubmittableRequest('pev-token-5', 'app-5');
+
+      await expect(
+        submit('pev-token-5', {
+          signatureData: 'data:image/svg+xml;base64,PHN2Zy8+',
+          signatureMethod: 'drawn',
+        }),
+      ).rejects.toMatchObject({ code: 'invalid-argument' });
+
+      expect(responseDocs.has('pev-token-5/submission')).toBe(false);
+      expect(savedStoragePaths).toEqual([]);
+      expect(verificationDocs.get('pev-token-5').status).not.toBe('completed');
+      expect(applicationDocs.get(appKey('co-1', 'applications', 'app-5')).employers[0].verification).toBeUndefined();
+    });
+
   });
 });

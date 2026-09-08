@@ -40,7 +40,16 @@ async function prepare(overrides = {}) {
             companyId: COMPANY,
             email: IDENTITY.email,
             phone: IDENTITY.phone,
-            formData: { firstName: 'Dana', lastName: 'Alvarez', cdlNumber: 'TX1234567' },
+            formData: {
+                firstName: 'Dana',
+                lastName: 'Alvarez',
+                cdlNumber: 'TX1234567',
+                // The row the lock names. A lock with no row on the application is
+                // a state the editor cannot produce and `reconcileLockedEmployers`
+                // now refuses, because it is exactly the invisible requirement a
+                // driver gets blocked on at submission and cannot satisfy.
+                employers: [{ companyName: 'Acme Trucking', dotNumber: '123456' }],
+            },
             lockedEmployers: [{ companyName: 'Acme Trucking', dotNumber: '123456' }],
             ...overrides,
         },
@@ -147,19 +156,60 @@ describe('opening a link', () => {
         expect(mockStore.get(PATH()).status).toBe('driver_in_progress');
     });
 
-    it('records that the link was actually opened, once', async () => {
+    it('records that the link was opened when the driver first saves through it, once', async () => {
         await prepare();
         const { inviteToken } = await mint();
         setInviteExpiry(60000);
 
-        await exchange(inviteToken);
+        const { resumeToken } = await exchange(inviteToken);
+
+        // Opening alone is deliberately NOT the fact (moved 2026-09-08). The
+        // carrier holds this link too, and stamping the claim on the exchange let
+        // it arm locked-employer enforcement for a driver who had never been shown
+        // the rows — the exact refusal the field exists to prevent.
+        expect(mockStore.get(PATH()).inviteClaimedAt).toBeUndefined();
+
+        await saveFirstPage({ resumeToken });
         const firstClaim = mockStore.get(PATH()).inviteClaimedAt;
         expect(firstClaim).toBeTruthy();
 
-        await exchange(inviteToken);
         // Kept, not restamped: submission reads it to know the driver saw the
-        // carrier's employers, and re-opening the link is not a new fact.
+        // carrier's employers, and saving again is not a new fact.
+        await saveFirstPage({ resumeToken, lastStep: 2 });
         expect(mockStore.get(PATH()).inviteClaimedAt).toBe(firstClaim);
+    });
+
+    it('heals a lock the carrier orphaned before the driver can be blocked by it', async () => {
+        await prepare();
+        const { inviteToken } = await mint();
+        setInviteExpiry(60000);
+        // A draft written before `prepare.js` reconciled: the lock is there and the
+        // row it names is not. Enforcement reads the DRAFT at submission, so left
+        // alone this refuses the driver's application for an employer nobody ever
+        // showed them, and the carrier cannot fix it — it may not write to the
+        // draft once the driver has started.
+        const before = mockStore.get(PATH());
+        mockStore.set(PATH(), { ...before, formData: { ...before.formData, employers: [] } });
+
+        const opened = await exchange(inviteToken);
+
+        // Healed in the same transaction that hands the application over, which is
+        // the last moment the rows are provably the carrier's — reconciling any
+        // later would make "delete the row" mean "delete the lock", which is the
+        // whole thing the lock prevents.
+        expect(opened.lockedEmployers).toEqual([]);
+        expect(mockStore.get(PATH()).lockedEmployers).toEqual([]);
+    });
+
+    it('leaves a lock alone when its row is still on the application', async () => {
+        await prepare();
+        const { inviteToken } = await mint();
+        setInviteExpiry(60000);
+
+        const opened = await exchange(inviteToken);
+
+        expect(opened.lockedEmployers).toHaveLength(1);
+        expect(mockStore.get(PATH()).lockedEmployers).toHaveLength(1);
     });
 
     it('finds the draft even when the link carries no key', async () => {

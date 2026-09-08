@@ -14,11 +14,21 @@ import { AssignmentRow } from './AssignmentRow';
  * `NumberAssignmentManager.jsx`). It carries `ds-native-table` as of 2026-08-25,
  * so its header, divider, density and cell padding come from the same
  * `--ds-table-*` roles `DataTable` reads instead of from three hand-picked
- * paddings. What's fixed instead: column headers now
- * carry `scope="col"`, a `<caption>` names the table for assistive tech, and
- * the table sits in a labelled, keyboard-focusable horizontal-scroll region
- * (mirroring the approved `DataTable`'s own mobile-overflow pattern) instead
- * of silently overflowing the page on narrow viewports.
+ * paddings. Column headers carry `scope="col"`, a `<caption>` names the table
+ * for assistive tech, and the table sits in a labelled, keyboard-focusable
+ * scroll region.
+ *
+ * On a phone it is one card per team member (audit step K, 2026-09-06). This
+ * matrix is worked one member at a time — nothing in it is compared across
+ * rows — so under 768px `data-mobile-presentation="cards"` stacks each row
+ * with every value under the label of its column (`data-label`, written here in
+ * the feature's own words), instead of putting a `<select>` and its verify
+ * action 400px apart in a sideways-scrolling form. Above 768px the table is a
+ * table, with its first column pinned (`data-pin-first-column`) for the widths
+ * where it still scrolls. The table roles are stated explicitly on every
+ * element because `display: block` can drop the implicit ones — redundant
+ * while it is a table, load-bearing while it is cards. Same DOM at every width,
+ * so the frozen 15-case suite and the a11y suite cover both.
  */
 export function AssignmentTable({ users, ...rowProps }) {
     return (
@@ -32,22 +42,27 @@ export function AssignmentTable({ users, ...rowProps }) {
 
             <div
                 role="region"
-                aria-label="Recruiter assignments. Scroll horizontally to view all columns."
+                aria-label="Recruiter assignments"
                 tabIndex={0}
-                className="overflow-x-auto"
+                className="overflow-x-auto focus-visible:outline-none focus-visible:shadow-ds-focus"
             >
-                <table className="ds-native-table min-w-[720px]">
+                <table
+                    className="ds-native-table min-w-[720px]"
+                    role="table"
+                    data-pin-first-column
+                    data-mobile-presentation="cards"
+                >
                     <caption className="sr-only">Recruiter number assignments</caption>
-                    <thead className="text-ds-content-muted">
-                        <tr>
-                            <th scope="col">Team Member</th>
-                            <th scope="col">Role</th>
-                            <th scope="col">Assigned Number</th>
-                            <th scope="col">Connection</th>
-                            <th scope="col" className="w-10 text-center">Status</th>
+                    <thead role="rowgroup" className="text-ds-content-muted">
+                        <tr role="row">
+                            <th scope="col" role="columnheader">Team Member</th>
+                            <th scope="col" role="columnheader">Role</th>
+                            <th scope="col" role="columnheader">Assigned Number</th>
+                            <th scope="col" role="columnheader">Connection</th>
+                            <th scope="col" role="columnheader" className="w-10 text-center">Status</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody role="rowgroup">
                         {users.map(user => (
                             <AssignmentRow key={user.id} user={user} {...rowProps} />
                         ))}

@@ -1,11 +1,13 @@
-import React from 'react';
-import { SignaturePad } from '@shared/components/signature/SignaturePad';
+import React, { useId } from 'react';
+import { SignatureInput } from '@shared/components/signature/SignatureInput';
 import { Button, FormField, FormSection, Input } from '@/design-system/components';
 
-/** Section 4: Respondent Verification & Signature. Presentation migrated; field
- *  names, placeholders, the SignaturePad wiring, and the E2E test-signature
- *  affordance are unchanged. */
-export function RespondentSection({ formData, formErrors, updateField, isE2EVerifyMock }) {
+/** Section 4: Respondent Verification & Signature. Field names, placeholders
+ *  and the E2E test-signature affordance are unchanged. Since 2026-09-06 the
+ *  signature is collected by `SignatureInput` — drawn on the pad or typed as a
+ *  name — and `updateSignature` stores the mark together with its method. */
+export function RespondentSection({ formData, formErrors, updateField, updateSignature, isE2EVerifyMock }) {
+    const signatureLabelId = `signature-label-${useId().replace(/:/g, '')}`;
     return (
         <FormSection
             title="Section 4: Respondent Verification & Signature"
@@ -79,7 +81,7 @@ export function RespondentSection({ formData, formErrors, updateField, isE2EVeri
               wording of the label, the instructions and the error is unchanged.
             */}
             <div className="grid gap-ds-2">
-                <span className="text-ds-sm font-semibold text-ds-content">
+                <span id={signatureLabelId} className="text-ds-sm font-semibold text-ds-content">
                     Electronic Signature
                     <span className="text-ds-status-danger-fg" aria-hidden="true"> *</span>
                     <span className="ds-visually-hidden"> required</span>
@@ -90,16 +92,16 @@ export function RespondentSection({ formData, formErrors, updateField, isE2EVeri
                         variant="secondary"
                         size="sm"
                         className="w-fit"
-                        onClick={() => updateField('signatureData', 'data:image/png;base64,e2e-signature')}
+                        onClick={() => updateSignature({ data: 'data:image/png;base64,e2e-signature', method: 'drawn' })}
                     >
                         Use Test Signature
                     </Button>
                 )}
-                <SignaturePad
-                    label="Electronic signature drawing area"
-                    instructions="Draw your signature below. By signing, you certify that the information provided is true and accurate."
+                <SignatureInput
+                    labelId={signatureLabelId}
+                    drawInstructions="Draw your signature below. By signing, you certify that the information provided is true and accurate."
                     error={formErrors.signatureData}
-                    onSignatureChange={(data) => updateField('signatureData', data)}
+                    onSignatureChange={updateSignature}
                 />
             </div>
 

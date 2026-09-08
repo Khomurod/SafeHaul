@@ -140,6 +140,34 @@ describe('a prepared application whose driver corrects their contact details', (
         expect(moved.resumeTokenHash).toBeTruthy();
     });
 
+    it('retires the document it moved off, which the identity sweep cannot reach', async () => {
+        await prepare();
+        const resumeToken = inviteDriverIn();
+
+        await saveCorrected({ resumeToken, resumeApplicantKey: keyFor() });
+
+        // Leaving the invite hash behind is only half a promise: the document it
+        // is on has to go too, or the carrier's link still opens a live draft
+        // holding the pre-correction answers while the driver fills in another —
+        // exactly the "two live drafts answering one link" the non-travel of those
+        // hashes exists to avoid. `supersedeOtherDrafts` cannot do it: it sweeps
+        // by `identityKey`, and a prepared draft has none, because the carrier
+        // does not know the SSN the HMAC is built from. Found 2026-09-08.
+        expect(stored(keyFor())).toBeUndefined();
+    });
+
+    it('retires it only for a caller holding that document\'s own token', async () => {
+        await prepare();
+        inviteDriverIn();
+
+        // A caller who knows the identity facts but not the prepared draft's token.
+        // The save itself is authorized — creating a draft at a new key is public —
+        // but it must not be able to delete the carrier's document.
+        await saveCorrected({ email: CORRECTED_EMAIL });
+
+        expect(stored(keyFor())).toBeTruthy();
+    });
+
     it('finds the prepared draft without the browser naming its key', async () => {
         await prepare();
         const resumeToken = inviteDriverIn();

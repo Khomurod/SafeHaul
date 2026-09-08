@@ -29,6 +29,40 @@ async function openMockSigningRoom(page) {
   await expect(page.locator('[data-signing-page="1"]')).toBeVisible({ timeout: 10_000 });
 }
 
+/**
+ * Drives the signing room's pinch handler with real TouchEvents: two fingers
+ * on the first page, spread apart by `factor`, then lifted. Fails loudly
+ * rather than skipping if the page has no touch constructors.
+ */
+async function pinchOut(page, factor) {
+  await page.evaluate((f) => {
+    const scroller = document.querySelector('[data-signing-scroller]');
+    const pageEl = document.querySelector('[data-signing-page="1"]');
+    if (!scroller || !pageEl) throw new Error('signing scroller or page 1 not found');
+    if (typeof TouchEvent !== 'function' || typeof Touch !== 'function') {
+      throw new Error('Touch constructors unavailable: this lane needs hasTouch: true');
+    }
+    const rect = scroller.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + Math.min(rect.height / 2, 300);
+    const finger = (id, x, y) => new Touch({
+      identifier: id, target: pageEl, clientX: x, clientY: y, pageX: x, pageY: y,
+      screenX: x, screenY: y, radiusX: 1, radiusY: 1, rotationAngle: 0, force: 1,
+    });
+    const fire = (type, touches) => pageEl.dispatchEvent(new TouchEvent(type, {
+      touches, targetTouches: touches, changedTouches: touches, bubbles: true, cancelable: true,
+    }));
+    const start = 40;
+    fire('touchstart', [finger(1, cx - start, cy), finger(2, cx + start, cy)]);
+    const steps = 6;
+    for (let i = 1; i <= steps; i += 1) {
+      const d = start * (1 + (f - 1) * (i / steps));
+      fire('touchmove', [finger(1, cx - d, cy), finger(2, cx + d, cy)]);
+    }
+    fire('touchend', []);
+  }, factor);
+}
+
 test.describe('E-Doc recruiter send and public sign', () => {
   test.describe.configure({ timeout: 60_000 });
 
@@ -143,28 +177,19 @@ test.describe('Document-first mobile signing', () => {
     await expect(page.locator('[data-signer-input="date1"]')).toBeFocused();
   });
 
-  test('pinch gesture zooms the document (chromium touch synthesis)', async ({ page, browserName }) => {
-    test.skip(browserName !== 'chromium', 'CDP pinch synthesis is chromium-only');
+  test('pinch gesture zooms the document (two-finger touch sequence)', async ({ page }) => {
     await openMockSigningRoom(page);
 
     const before = await page.locator('[data-signing-page="1"]').boundingBox();
 
-    let session;
-    try {
-      session = await page.context().newCDPSession(page);
-      await session.send('Input.synthesizePinchGesture', {
-        x: 187,
-        y: 400,
-        scaleFactor: 2,
-        relativeSpeed: 300,
-        // Force touch-event synthesis: the default on desktop builds is a
-        // ctrl+wheel emulation, which the touch-only pinch handler ignores.
-        gestureSourceType: 'touch',
-      });
-    } catch {
-      test.skip(true, 'Pinch synthesis unavailable in this environment');
-      return;
-    }
+    // Until 2026-09-06 this asked CDP for `Input.synthesizePinchGesture`, which
+    // headless CI Chromium refuses, so the test skipped on every run. The hook
+    // (`usePdfZoomGestures`) listens for touchstart/touchmove/touchend on the
+    // scroller and reads `e.touches`, so the gesture is driven with exactly
+    // those events: two fingers 80px apart, spread to 160px over six moves, then
+    // lifted — the same ×2 the CDP call asked for. `hasTouch: true` on this
+    // describe gives the page the Touch and TouchEvent constructors.
+    await pinchOut(page, 2);
 
     // The pinch commits on release: the page re-renders wider and overlays
     // scale with it.

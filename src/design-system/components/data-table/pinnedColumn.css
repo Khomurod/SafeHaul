@@ -1,0 +1,146 @@
+/*
+ * The PINNED FIRST COLUMN — one rule for both table contracts.
+ *
+ * ## The decision (audit step K, 2026-09-06)
+ *
+ * A table whose rows are read comparatively keeps the table on a phone and
+ * scrolls sideways inside its labelled region. Nielsen Norman Group's guidance
+ * for mobile tables is the standard applied: when horizontal scrolling is
+ * required, "the leftmost column … should be locked in place, so users can see
+ * the necessary labels at all times", and sticky column headers "help users
+ * know what they are looking at" (Amy Schade, *Mobile Tables: Comparisons and
+ * Other Data Tables*, NN/g, 2017). Every `DataTable` scrolls horizontally on a
+ * phone — its narrowest contract width is 760px — so it pins by default and
+ * `pinFirstColumn={false}` opts out; a native table opts in with
+ * `data-pin-first-column` on the `<table>`.
+ *
+ * ## What a pinned cell needs
+ *
+ * 1. Its own background. `DataTable` already paints every body cell; the native
+ *    contract paints the ROW, so its pinned cells take the row surface here — and
+ *    the hover tint follows, or the frozen cell is the one part of a hovered row
+ *    that does not highlight.
+ * 2. A stacking order that is local. Pinned body cells sit on `--ds-z-layer-1`,
+ *    the pinned header corner on `--ds-z-layer-2` inside its `thead`, and the
+ *    table (or the `DataTable` scroll region) is an `isolation: isolate`
+ *    boundary, so those numbers never compete with a dropdown or a dialog
+ *    outside it.
+ * 3. A visible seam, at the widths where the table scrolls. The cut-off columns
+ *    are the affordance NN/g asks for ("arrows or cut-off elements convey this
+ *    information best"), and a 1px divider on the pinned edge says where the
+ *    frozen part ends. It appears under 768px — the widths at which every
+ *    `DataTable` overflows and `DataTable` already shows its swipe hint — and
+ *    not above, so a desktop table that fits its card looks exactly as it did;
+ *    when a wide table does scroll on a desktop, the opaque pinned cell alone
+ *    makes the cut-off legible. It is drawn with `::after` so it travels with
+ *    the cell and never fights the row focus ring, which `DataTable` draws with
+ *    `box-shadow` on the same cell.
+ *
+ * With `DataTable` selection, the checkbox column is first and the identifying
+ * column second: both pin, the second offset by `--ds-table-selection-width`,
+ * so a bulk action stays reachable and the row label stays readable at once.
+ *
+ * A state row (`<td colSpan>`) is never pinned: it already spans the table, and
+ * a seam at its far edge would be a stray line on an empty table.
+ *
+ * `check:visual-contract` measures `position`, `left`, `z-index` and the
+ * background of a pinned header and body cell at 412px and 1440px in both
+ * contracts (`MobileViewport` and `StickyFirstColumn` are the shots), and
+ * `check:table-layout` measures the same stories for cell overflow.
+ */
+
+/* ---- DataTable ------------------------------------------------------------ */
+
+.ds-data-table[data-pin-first-column] .ds-data-table__scroll-region {
+  isolation: isolate;
+}
+
+.ds-data-table[data-pin-first-column] thead > tr > :first-child,
+.ds-data-table[data-pin-first-column][data-has-selection] thead > tr > :nth-child(2) {
+  position: sticky;
+  left: 0;
+  z-index: var(--ds-z-layer-2);
+}
+
+.ds-data-table[data-pin-first-column] tbody > tr > :first-child:not([colspan]),
+.ds-data-table[data-pin-first-column][data-has-selection] tbody > tr > :nth-child(2) {
+  position: sticky;
+  left: 0;
+  z-index: var(--ds-z-layer-1);
+}
+
+.ds-data-table[data-pin-first-column][data-has-selection] thead > tr > :nth-child(2),
+.ds-data-table[data-pin-first-column][data-has-selection] tbody > tr > :nth-child(2) {
+  left: var(--ds-table-selection-width);
+}
+
+@media (max-width: 767px) {
+  .ds-data-table[data-pin-first-column]:not([data-has-selection]) thead > tr > :first-child::after,
+  .ds-data-table[data-pin-first-column]:not([data-has-selection]) tbody > tr > :first-child:not([colspan])::after,
+  .ds-data-table[data-pin-first-column][data-has-selection] thead > tr > :nth-child(2)::after,
+  .ds-data-table[data-pin-first-column][data-has-selection] tbody > tr > :nth-child(2)::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 1px;
+    background: var(--ds-table-divider);
+    pointer-events: none;
+  }
+}
+
+/* ---- ds-native-table ------------------------------------------------------ */
+
+.ds-native-table[data-pin-first-column] {
+  isolation: isolate;
+}
+
+.ds-native-table[data-pin-first-column] > thead > tr > th:first-child {
+  position: sticky;
+  left: 0;
+  z-index: var(--ds-z-layer-2);
+  background: var(--ds-table-header-bg);
+}
+
+.ds-native-table[data-pin-first-column] > tbody > tr > :first-child:not([colspan]) {
+  position: sticky;
+  left: 0;
+  z-index: var(--ds-z-layer-1);
+  background: var(--ds-table-row-bg);
+}
+
+.ds-native-table[data-pin-first-column][data-row-hover] > tbody > tr:hover > :first-child:not([colspan]) {
+  background: var(--ds-table-row-hover-bg);
+}
+
+@media (max-width: 767px) {
+  .ds-native-table[data-pin-first-column] > thead > tr > th:first-child::after,
+  .ds-native-table[data-pin-first-column] > tbody > tr > :first-child:not([colspan])::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 1px;
+    background: var(--ds-table-divider);
+    pointer-events: none;
+  }
+}
+
+/*
+ * A native table stacked into cards on a phone (`data-mobile-presentation="cards"`,
+ * see nativeTable.css) has no sideways scroll, so nothing to pin: the column
+ * comes unstuck at the same width the cards take over.
+ */
+@media (max-width: 767px) {
+  .ds-native-table[data-mobile-presentation='cards'][data-pin-first-column] > thead > tr > th:first-child,
+  .ds-native-table[data-mobile-presentation='cards'][data-pin-first-column] > tbody > tr > :first-child:not([colspan]) {
+    position: static;
+  }
+
+  .ds-native-table[data-mobile-presentation='cards'][data-pin-first-column] > thead > tr > th:first-child::after,
+  .ds-native-table[data-mobile-presentation='cards'][data-pin-first-column] > tbody > tr > :first-child:not([colspan])::after {
+    content: none;
+  }
+}
