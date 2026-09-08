@@ -58,8 +58,44 @@ Candidate records are a comparison surface with meaningful status, date,
 assignment, and action columns; hiding those columns or converting them to
 cards would remove context. The focused, labelled scroll region preserves the
 native table and all actions, and a mobile-only hint explains the gesture.
-Other tables must make and document their own use-case decision before
-migration.
+
+### Tables on phones: the rule
+
+Decided 2026-09-06 (audit step K), after the roadmap had carried it as an open
+per-table decision. The standard applied is Nielsen Norman Group's guidance for
+mobile tables (Amy Schade, *Mobile Tables: Comparisons and Other Data Tables*,
+2017): when a table must scroll sideways, *"the leftmost column … should be
+locked in place, so users can see the necessary labels at all times"*, sticky
+column headers *"help users know what they are looking at"*, and the cut-off
+columns themselves are the signal that there is more.
+
+- **A table whose rows are compared keeps the table.** A labelled,
+  keyboard-focusable horizontal-scroll region, a sticky header, and the first
+  column pinned. `DataTable` does all three by default — its narrowest contract
+  width is 760px, so it always scrolls on a phone — and `pinFirstColumn={false}`
+  opts out for a table whose first column does not identify the row. With a
+  selection, the checkbox column and the identifying column pin together. A
+  native table opts in with `data-pin-first-column` on the `<table>`. The pin,
+  its surface, hover tint, local stacking order and the 1px seam that appears
+  under 768px are one stylesheet, `pinnedColumn.css`, for both contracts; above
+  that width a table that fits its card looks exactly as it did.
+- **A matrix of per-row form controls worked one record at a time becomes one
+  card per row under 768px** — `data-mobile-presentation="cards"` on a native
+  table (`nativeTable.css`). Every `<td data-label="…">` shows its value under
+  the label of its column, in column order, nothing hidden; the caller states
+  the table roles explicitly because `display: block` can drop them. The SMS
+  recruiter-assignment matrix is the first: a `<select>` and its verify action
+  400px apart in a sideways-scrolling form was the worst case for a thumb, and
+  nothing in that matrix is read across rows.
+- **A specialized interactive grid keeps its own layering.** The Super Admin
+  feature matrix freezes a header row *and* a first column that cross, and
+  keeps its hand-layered `sticky` cells on the contract's three local layers.
+
+`check:visual-contract` measures the pinned cell (`position`, `left`,
+`z-index`, background) and the card shape at 412px and 1440px;
+`check:table-layout` measures both stories for cell overflow; the catalog
+baselines hold the pictures (`pattern-native-table-sticky`,
+`pattern-native-table-cards`, every `data-table-*-mobile`).
 
 The feature toolbar remains outside `DataTable`. This prevents the design
 system from learning feature-specific filters, bulk operations, permissions,

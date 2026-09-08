@@ -24,6 +24,12 @@ import { MISSING_TOKEN, lineDisplay, sanitizePhone } from '../../utils/linePhone
  *  - the connection-status dot in the last column was colour-only, with only
  *    a `title` attribute — no visible or accessible text (now paired with a
  *    visually-hidden status string).
+ *
+ * Since 2026-09-06 (audit step K) the row is also a card on a phone: every
+ * `<td>` names its column in `data-label`, and the roles are stated explicitly
+ * so the table semantics survive `display: block` — see `AssignmentTable.jsx`.
+ * The hand-written hover tint is gone with it: the contract reserves a hover
+ * for rows that activate, and a matrix of form controls has no row activation.
  */
 export function AssignmentRow({
     user,
@@ -65,18 +71,18 @@ export function AssignmentRow({
             : rowStatus.success === false ? 'Connection error' : 'Active';
 
     return (
-        <tr className="transition-colors hover:bg-ds-surface-hover">
-            <th scope="row" className="border-r border-ds-border-subtle text-ds-sm font-medium text-ds-content">
+        <tr role="row">
+            <th scope="row" role="rowheader" className="text-ds-sm font-medium text-ds-content">
                 {memberName}
                 <div className="font-normal text-ds-xs text-ds-content-muted">{user.email}</div>
                 {user._unlinkedAssignment && (
                     <Badge tone="warning" icon={AlertCircle}>Not in current team</Badge>
                 )}
             </th>
-            <td className="text-ds-xs uppercase tracking-wider text-ds-content-muted">
+            <td role="cell" data-label="Role" className="text-ds-xs uppercase tracking-wider text-ds-content-muted">
                 {user.role?.replace('_', ' ')}
             </td>
-            <td>
+            <td role="cell" data-label="Assigned number">
                 <div className="flex flex-col items-start gap-ds-1">
                     <Select
                         aria-label={`Assigned number for ${memberName}`}
@@ -114,7 +120,7 @@ export function AssignmentRow({
                     )}
                 </div>
             </td>
-            <td>
+            <td role="cell" data-label="Connection">
                 {isAssigned ? (
                     <div className="flex items-center gap-ds-2">
                         <IconButton
@@ -143,8 +149,8 @@ export function AssignmentRow({
                     <span className="text-ds-content-muted" aria-hidden="true">-</span>
                 )}
             </td>
-            <td className="text-center">
-                <span aria-hidden="true" className={`mx-auto block h-2 w-2 rounded-ds-full ${dotClassName}`} />
+            <td role="cell" data-label="Status" className="text-center">
+                <span aria-hidden="true" className={`inline-block h-2 w-2 rounded-ds-full align-middle ${dotClassName}`} />
                 <span className="sr-only">{dotText}</span>
             </td>
         </tr>

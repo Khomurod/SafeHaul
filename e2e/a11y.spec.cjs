@@ -295,7 +295,17 @@ test.describe('@a11y migrated design-system surfaces', () => {
             const bad = await page.evaluate(() => {
                 const el = document.activeElement;
                 if (!el || el === document.body) return null;
-                const s = getComputedStyle(el);
+                /*
+                 * A focusable DataTable row draws its ring on its CELLS — a
+                 * `<tr>` cannot carry a box-shadow reliably, so DataTable.css
+                 * puts the inset ring on `tr:focus-visible > *` and resets the
+                 * row's own outline. Read the ring where the row paints it. On a
+                 * 412px screen the collapsed navigation lets Tab reach the rows
+                 * within twenty presses, which is how the mobile lane found
+                 * this heuristic reading the wrong element (2026-09-07).
+                 */
+                const ringHost = el.tagName === 'TR' && el.firstElementChild ? el.firstElementChild : el;
+                const s = getComputedStyle(ringHost);
                 const hasRing = s.boxShadow !== 'none' || s.outlineStyle !== 'none';
                 // The UA default is `auto 1px rgb(16, 16, 16)` — near-black in a
                 // product whose focus colour is blue, and the exact signature of

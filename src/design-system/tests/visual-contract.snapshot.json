@@ -412,6 +412,33 @@
     "height": "24px",
     "borderRadius": "9999px"
   },
+  "mobile · the pinned first column of a DataTable · pinnedHeader": {
+    "position": "sticky",
+    "left": "0px",
+    "zIndex": "2",
+    "backgroundColor": "rgb(241, 245, 249)"
+  },
+  "mobile · the pinned first column of a DataTable · pinnedCell": {
+    "position": "sticky",
+    "left": "0px",
+    "zIndex": "1",
+    "backgroundColor": "rgb(255, 255, 255)"
+  },
+  "mobile · the row and header of a native table that stacks into cards · row": {
+    "display": "block",
+    "position": "static",
+    "paddingTop": "16px"
+  },
+  "mobile · the row and header of a native table that stacks into cards · header": {
+    "display": "block",
+    "position": "absolute",
+    "paddingTop": "0px"
+  },
+  "mobile · the labelled value cell of a native table that stacks into cards · centredCell": {
+    "display": "grid",
+    "textAlign": "start",
+    "paddingLeft": "0px"
+  },
   "mobile · the dialog chrome, and the eight widths that replaced thirty class lists · panel[sm]": {
     "maxWidth": "384px",
     "maxHeight": "823.5px",
@@ -632,15 +659,17 @@
     "backgroundColor": "rgba(0, 0, 0, 0)",
     "height": "72px"
   },
-  "mobile · a frozen column is opaque · stickyTable.headerCell": {
+  "mobile · a frozen column is opaque, pinned, and above what scrolls under it · stickyTable.headerCell": {
     "backgroundColor": "rgb(241, 245, 249)",
     "position": "sticky",
-    "left": "0px"
+    "left": "0px",
+    "zIndex": "2"
   },
-  "mobile · a frozen column is opaque · stickyTable.rowHeader": {
+  "mobile · a frozen column is opaque, pinned, and above what scrolls under it · stickyTable.rowHeader": {
     "backgroundColor": "rgb(255, 255, 255)",
     "position": "sticky",
-    "left": "0px"
+    "left": "0px",
+    "zIndex": "1"
   },
   "mobile · the three page states are the same shape as each other · state": {
     "padding": "24px 16px",
@@ -1070,6 +1099,33 @@
     "height": "24px",
     "borderRadius": "9999px"
   },
+  "desktop · the pinned first column of a DataTable · pinnedHeader": {
+    "position": "sticky",
+    "left": "0px",
+    "zIndex": "2",
+    "backgroundColor": "rgb(241, 245, 249)"
+  },
+  "desktop · the pinned first column of a DataTable · pinnedCell": {
+    "position": "sticky",
+    "left": "0px",
+    "zIndex": "1",
+    "backgroundColor": "rgb(255, 255, 255)"
+  },
+  "desktop · the row and header of a native table that stacks into cards · row": {
+    "display": "table-row",
+    "position": "static",
+    "paddingTop": "0px"
+  },
+  "desktop · the row and header of a native table that stacks into cards · header": {
+    "display": "table-header-group",
+    "position": "static",
+    "paddingTop": "0px"
+  },
+  "desktop · the labelled value cell of a native table that stacks into cards · centredCell": {
+    "display": "table-cell",
+    "textAlign": "center",
+    "paddingLeft": "20px"
+  },
   "desktop · the dialog chrome, and the eight widths that replaced thirty class lists · panel[sm]": {
     "maxWidth": "384px",
     "maxHeight": "810px",
@@ -1290,15 +1346,17 @@
     "backgroundColor": "rgba(0, 0, 0, 0)",
     "height": "72px"
   },
-  "desktop · a frozen column is opaque · stickyTable.headerCell": {
+  "desktop · a frozen column is opaque, pinned, and above what scrolls under it · stickyTable.headerCell": {
     "backgroundColor": "rgb(241, 245, 249)",
     "position": "sticky",
-    "left": "0px"
+    "left": "0px",
+    "zIndex": "2"
   },
-  "desktop · a frozen column is opaque · stickyTable.rowHeader": {
+  "desktop · a frozen column is opaque, pinned, and above what scrolls under it · stickyTable.rowHeader": {
     "backgroundColor": "rgb(255, 255, 255)",
     "position": "sticky",
-    "left": "0px"
+    "left": "0px",
+    "zIndex": "1"
   },
   "desktop · the three page states are the same shape as each other · state": {
     "padding": "32px 16px",

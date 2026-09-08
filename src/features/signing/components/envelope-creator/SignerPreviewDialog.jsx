@@ -1,5 +1,6 @@
 import React, { useId, useMemo, useRef, useState } from 'react';
 import { Document, Page } from 'react-pdf';
+import '@lib/pdf/pdfWorker';
 import { Icon, ChevronLeft, ChevronRight, Eye, X } from '@design-system/icons';
 import { Modal } from '@design-system/patterns';
 import { Badge, Button, IconButton, Notice } from '@/design-system/components';

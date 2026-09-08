@@ -61,6 +61,25 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('VOEPreviewModal axe', () => {
+  // axe cannot measure colour contrast in happy-dom, so the AA floor of the
+  // document's small print is pinned by class instead. Real-browser axe found
+  // slate-400 at 2.56:1 (white), 2.45:1 (the slate-50 box) and ~2:1 inside the
+  // 80%-opacity questionnaire; recoloured 2026-09-06 (audit step G) to slate-500
+  // outside that block and slate-700 inside it, where 500 blends to 3.25:1.
+  it('keeps every grey and red in the document at or above the AA floor', () => {
+    renderModal({ applicant: { ...APPLICANT, signature: null } });
+    const doc = screen.getByTestId('voe-document');
+    const classes = (root) => [...root.querySelectorAll('[class]')].flatMap((el) => el.getAttribute('class').split(/\s+/));
+    const all = classes(doc);
+    expect(all.filter((c) => /^text-(slate|gray)-(100|200|300|400)$/.test(c))).toEqual([]);
+    expect(all.filter((c) => /^text-red-(100|200|300|400|500)$/.test(c) )).toEqual(['text-red-500']); // the alert glyph only: a graphic, 3.76:1 > 3:1
+    const faded = doc.querySelector('.opacity-80');
+    expect(faded).not.toBeNull();
+    const fadedShades = classes(faded).filter((c) => /^text-slate-\d+$/.test(c)).map((c) => Number(c.split('-')[2]));
+    expect(fadedShades.length).toBeGreaterThan(10);
+    expect(fadedShades.filter((n) => n < 700)).toEqual([]);
+  });
+
   it('has no violations with a signed document', async () => {
     const { container } = renderModal();
     expect((await axe(container)).violations).toEqual([]);

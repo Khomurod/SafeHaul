@@ -170,14 +170,19 @@ export const SYSTEM_PROBES = [
          * the Super Admin feature matrix when its hand-picked `bg-ds-surface` was
          * removed in favour of the contract, and what a review on 2026-08-25
          * caught. An `rgba(0, 0, 0, 0)` here is the regression.
+         *
+         * Since 2026-09-06 (audit step K) the frozen column is the contract's own
+         * `data-pin-first-column` rather than a hand-written `sticky` class, so
+         * the selectors read the attribute, and `zIndex` joins the reading: the
+         * pin is only a pin while the cell outranks the cells scrolling under it.
          */
         story: 'patterns-native-table--sticky-first-column',
-        label: 'a frozen column is opaque',
+        label: 'a frozen column is opaque, pinned, and above what scrolls under it',
         selectors: {
-            'stickyTable.headerCell': '.ds-native-table thead th.sticky',
-            'stickyTable.rowHeader': '.ds-native-table tbody th.sticky',
+            'stickyTable.headerCell': '.ds-native-table[data-pin-first-column] > thead > tr > th:first-child',
+            'stickyTable.rowHeader': '.ds-native-table[data-pin-first-column] > tbody > tr > th:first-child',
         },
-        properties: ['backgroundColor', 'position', 'left'],
+        properties: ['backgroundColor', 'position', 'left', 'zIndex'],
     },
     {
         story: 'patterns-page-states--full-page-states',

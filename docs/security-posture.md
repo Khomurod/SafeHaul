@@ -43,8 +43,22 @@ Admin-SDK server submit path.
 | MIME allowlist | `getSignedUploadUrl` (`storageSecure.js`) |
 | Path isolation | Storage writes only under `companies/{id}/{applications\|autofill}/guest_uploads/` |
 | No public Storage read | Storage rules: guest `create` only; `read` for company admins; guests use callable signed URLs |
-| Short-lived preview URLs | `getSignedGuestUploadUrl` — 15-minute signed read URLs, path-validated |
+| Short-lived preview URLs | `getSignedGuestUploadUrl` — 15-minute signed read URLs, path-validated. **Minted when a document is looked at and never persisted** (`useSignedUploadPreview`); baking one into the draft made it expire under the driver, and the durable `storagePath` beside it is what a preview is re-signed from. Authorization is unchanged. |
 | Primary submit path | `submitGuestApplication` via Admin SDK (Firestore client rules are fallback only) |
+
+## The carrier's invite link
+
+The link a carrier sends a driver is a bearer credential, and that is booked as an
+accepted risk in [`APP_BRIEF.md`](./APP_BRIEF.md) §5 alongside the absent App
+Check. Two properties it did **not** have until 2026-09-08:
+
+| Control | Implementation |
+|---------|----------------|
+| Per-token expiry | Each accepted hash carries its own, in `priorInvites`. Validity used to be one document-level field that every mint rewrote, so regenerating **revived** an expired link for a further fourteen days rather than retiring it. `liveInviteFor` asks "does this token open this draft, now" of a single entry, which is what stops the two questions being composed independently again. |
+| Bounded replacement grace | A replaced link keeps `min(its own expiry, now + 10 minutes)`, so a driver mid-page is not cut off and nothing else. An already-expired hash is not carried forward, and a legacy bare-string prior hash — which never had an expiry of its own — reads as dead. One prior generation, not two. |
+| Tiered read | While the draft is `prepared`/`sent` the answers are the carrier's own and the exchange returns them. Once `driver_in_progress` it returns `requiresIdentity` and nothing else, and writes nothing — so a carrier holding the link cannot read the driver's answers, rewrite them, or displace the resume token their browser saves with. The driver proves who they are through `findResumableApplication`, which the carrier cannot pass because a prepared draft never holds an SSN. |
+| Mint guards | Company access, plus a per-company-and-caller rate limit and `assertCompanyAcceptingIntake`. It was the only one of the five prepared-application callables with neither, and every regeneration retires the driver's live link — so an unbounded mint loop could keep one application permanently unopenable. |
+| Claim recorded by the driver, not the link | `inviteClaimedAt` gates locked-employer enforcement at submission and is stamped by the first save presenting the exchange's own resume token. Stamping it on the exchange let the carrier arm that refusal by opening its own link once. |
 
 ## Accepted gap: a direct Storage upload can bypass the backend helper
 

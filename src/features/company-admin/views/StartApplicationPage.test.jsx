@@ -247,14 +247,33 @@ describe('one driver never leaks into the next', () => {
         expect(saved.formData['psp-report-upload']).toBeUndefined();
     });
 
-    it('keeps Save disabled until an email or phone identifies the draft', async () => {
+    it('lets Save be pressed with nothing entered, and says what it needs', async () => {
+        // This used to assert the opposite: Save was `disabled` until an email or
+        // phone existed, and nothing on the screen said so. The precise sentence
+        // was already written on the server and was unreachable, because the
+        // client guard stopped the request ever being made. Changed 2026-09-08 —
+        // `StartApplicationPage.actions.contract.test.jsx` drives the same rule
+        // through the real editor and the real fields.
         render(<StartApplicationPage />);
         fireEvent.click(await screen.findByRole('button', { name: /Start an application/i }));
         fireEvent.click(screen.getByTestId('mode-manual'));
 
-        expect(screen.getByRole('button', { name: /^Save$/i })).toBeDisabled();
+        const save = screen.getByRole('button', { name: /^Save$/i });
+        expect(save).toBeEnabled();
+
+        fireEvent.click(save);
+
+        expect(await screen.findByRole('alert')).toHaveTextContent(/email address or mobile number/i);
+        // And nothing was sent: clickable is not a licence to save an application
+        // with no identity.
+        expect(callables.calls.some((entry) => entry.name === 'saveCompanyPreparedApplication')).toBe(false);
+
         fireEvent.change(screen.getByTestId('editor-email'), { target: { value: 'x@example.test' } });
-        expect(screen.getByRole('button', { name: /^Save$/i })).toBeEnabled();
+        fireEvent.click(screen.getByRole('button', { name: /^Save$/i }));
+
+        await waitFor(() => expect(
+            callables.calls.some((entry) => entry.name === 'saveCompanyPreparedApplication'),
+        ).toBe(true));
     });
 
     it('locks the identity once a link exists, so a sent link cannot be re-keyed', async () => {

@@ -6,17 +6,34 @@
 // proves the reachable page renders, is accessible, never exposes a secret,
 // and does not overflow at any supported width.
 //
-// The real Facebook SDK is not reachable from this environment, so the
-// "Connect Facebook" control may render either enabled (SDK loaded) or
-// disabled with the "SDK Loading..." notice, depending on network
-// reachability to connect.facebook.net — both are valid, frozen states, so
-// assertions here do not depend on which one occurs.
+// The real Facebook SDK is not reachable from this environment. Until
+// 2026-09-06 that left the "Connect Facebook" control in whichever state the
+// network produced, and the keyboard test skipped on every CI run. The SDK is
+// now stubbed at the network edge (`page.route` on connect.facebook.net), the
+// same way the product code loads it — `window.fbAsyncInit` fires, `FB.init`
+// runs, the button enables — so the enabled state is deterministic here and
+// the "SDK Loading..." state stays covered by IntegrationsTab.contract.test.jsx.
+// The stub's `FB.login` answers "popup closed" and counts its calls, so a
+// keyboard activation can be asserted without a Facebook account.
 const { test, expect } = require('@playwright/test');
 const AxeBuilder = require('@axe-core/playwright').default;
 
 const SETTINGS_URL = '/company/settings?e2eAuth=company_admin';
 
+const FB_SDK_STUB = `
+  window.__fbLoginCalls = 0;
+  window.FB = {
+    init() {},
+    api() {},
+    login(callback) { window.__fbLoginCalls += 1; callback({ status: 'unknown' }); },
+  };
+  if (typeof window.fbAsyncInit === 'function') window.fbAsyncInit();
+`;
+
 async function openIntegrationsTab(page) {
+  await page.route('https://connect.facebook.net/**', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/javascript', body: FB_SDK_STUB }),
+  );
   await page.goto(SETTINGS_URL);
   await expect(page.getByRole('button', { name: 'Integrations' })).toBeVisible();
   await page.getByRole('button', { name: 'Integrations' }).click();
@@ -43,18 +60,15 @@ test.describe('Company Settings Integrations', () => {
       .toBeVisible();
   });
 
-  test('shows a reachable, named Connect Facebook control in one of its two frozen states', async ({ page }) => {
+  test('shows a reachable, named Connect Facebook control, enabled once the SDK has loaded', async ({ page }) => {
     await openIntegrationsTab(page);
-    const connect = page.getByRole('button', { name: /Connect Facebook|Connecting\.\.\./ });
+    const connect = page.getByRole('button', { name: 'Connect Facebook' });
     await expect(connect).toBeVisible();
-    // Either state is valid: enabled once the SDK loads, or disabled with the
-    // announced "SDK Loading..." notice while it hasn't.
-    const isDisabled = await connect.isDisabled();
-    if (isDisabled) {
-      const status = page.getByRole('status');
-      await expect(status).toBeVisible();
-      expect(await status.textContent()).toContain('SDK Loading...');
-    }
+    // The SDK is stubbed at the network edge, so "loaded" is the state under
+    // test; the announced "SDK Loading..." state while it is not is covered by
+    // IntegrationsTab.contract.test.jsx, where the load can be held deterministically.
+    await expect(connect).toBeEnabled({ timeout: 15_000 });
+    await expect(page.getByRole('status')).toHaveCount(0);
   });
 
   test('never renders a Facebook access token or app secret in the page', async ({ page }) => {
@@ -75,18 +89,22 @@ test.describe('Company Settings Integrations', () => {
     expect(severe).toEqual([]);
   });
 
-  test('reaches Connect Facebook by keyboard once it is enabled', async ({ page }, testInfo) => {
+  test('reaches Connect Facebook by keyboard and activates it with Enter', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name.startsWith('mobile'), 'Keyboard walkthrough is a desktop lane.');
     await openIntegrationsTab(page);
-    const connect = page.getByRole('button', { name: /Connect Facebook|Connecting\.\.\./ });
+    const connect = page.getByRole('button', { name: 'Connect Facebook' });
     // A native disabled button cannot receive focus at all (by design, not a
-    // bug) — that IS the guard while the SDK hasn't loaded, so the keyboard
-    // check only applies once it's enabled.
-    if (await connect.isDisabled()) {
-      test.skip(true, 'SDK did not finish loading in this environment; button stays disabled by design.');
-    }
+    // bug) — that IS the guard while the SDK hasn't loaded. With the SDK
+    // stubbed, "loaded" is the state under test, so the button must be enabled.
+    await expect(connect).toBeEnabled({ timeout: 15_000 });
     await connect.focus();
     await expect(connect).toBeFocused();
+
+    await page.keyboard.press('Enter');
+    await expect.poll(() => page.evaluate(() => window.__fbLoginCalls)).toBe(1);
+    // "Popup closed" is not an error: the control returns to idle, no alert.
+    await expect(connect).toBeEnabled();
+    await expect(page.getByRole('alert')).toHaveCount(0);
   });
 
   for (const { label, width, height } of [
