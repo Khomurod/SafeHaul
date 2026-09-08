@@ -61,6 +61,16 @@ export function StartApplicationPage() {
     const [listLoading, setListLoading] = useState(true);
     const [listError, setListError] = useState(null);
     const [readOnlyNotice, setReadOnlyNotice] = useState(null);
+    /**
+     * The reader is running, on whichever step is mounted.
+     *
+     * Held here rather than in the panel because there are two instances of it —
+     * one on the upload step, one in the editor — and moving between them unmounts
+     * the first and mounts the second as idle. A read started on the upload step
+     * would otherwise let a second one start in the editor while it was still in
+     * flight.
+     */
+    const [readerBusy, setReaderBusy] = useState(false);
 
     const prep = useApplicationPrepDraft(companyId);
     const invite = useInviteLink({ companyId, appSlug });
@@ -92,6 +102,7 @@ export function StartApplicationPage() {
         invite.reset();
         setDocumentBlobs({});
         setReadOnlyNotice(null);
+        setReaderBusy(false);
     }, [invite, prep]);
 
     const startNew = useCallback(() => { clearForNew(); setView('mode'); }, [clearForNew]);
@@ -202,9 +213,10 @@ export function StartApplicationPage() {
                         companyId={companyId}
                         files={prep.formData}
                         blobs={documentBlobs}
-                        formData={prep.formData}
-                        onApply={prep.setFormData}
-                        onLockCarriers={prep.lockEmployers}
+                        applicantKey={prep.applicantKey}
+                        onApplyExtraction={prep.applyExtraction}
+                        busy={readerBusy}
+                        onBusyChange={setReaderBusy}
                     />
                     {prep.error && <Card padding="md"><FieldMessage tone="error">{prep.error}</FieldMessage></Card>}
                     <div className="flex flex-wrap gap-ds-2">
@@ -244,9 +256,10 @@ export function StartApplicationPage() {
                         companyId={companyId}
                         files={prep.formData}
                         blobs={documentBlobs}
-                        formData={prep.formData}
-                        onApply={prep.setFormData}
-                        onLockCarriers={prep.lockEmployers}
+                        applicantKey={prep.applicantKey}
+                        onApplyExtraction={prep.applyExtraction}
+                        busy={readerBusy}
+                        onBusyChange={setReaderBusy}
                     />
                 )}
 

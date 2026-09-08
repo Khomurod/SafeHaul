@@ -1,7 +1,8 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
 import { normalizeLockedEmployers, reconcileLockedEmployers } from '@/config/applicationLockedFields';
+import { applyExtractedFields } from './applyExtractedFields';
 
 /**
  * One carrier-prepared application, from the recruiter's side.
@@ -38,6 +39,17 @@ export function useApplicationPrepDraft(companyId) {
         (name, payload) => httpsCallable(functions, name)({ companyId, ...payload }).then((r) => r.data),
         [companyId],
     );
+
+    /**
+     * The answers as they are *now*, for the writers that arrive later than the
+     * render they were started from.
+     *
+     * The document reader is the only one, and it is a long one — up to two
+     * minutes per pass, twice. Same device as `latestDraftRef` on the driver's
+     * side, and for the same reason.
+     */
+    const latestFormData = useRef(formData);
+    latestFormData.current = formData;
 
     const updateField = useCallback((key, value) => {
         setFormData((previous) => ({
@@ -102,6 +114,44 @@ export function useApplicationPrepDraft(companyId) {
             setBusy(false);
         }
     }, [call, contactEmail, contactPhone, savedLocks, payloadFormData]);
+
+    /**
+     * Put what the reader found into the application.
+     *
+     * **This is the fix for a defect, and the shape is the fix.** The panel used
+     * to do `applyExtractedFields(formData, extracted)` on the `formData` PROP it
+     * captured when the button was clicked, and hand the result to the raw
+     * `setFormData`. So it was not "conflicting edits lose" — the whole answers
+     * object was replaced from a stale snapshot, and every field the recruiter
+     * typed during the read vanished. The window is the length of the read.
+     *
+     * Worse, "fill only what is blank" was evaluated against that snapshot too, so
+     * a field that was blank at click time and typed during the read was
+     * overwritten rather than kept.
+     *
+     * Reading `latestFormData` instead means the merge sees everything typed since,
+     * `applyExtractedFields` leaves it alone because it is no longer blank, and the
+     * summary says it was kept. The summary is returned rather than derived from a
+     * later render, because the caller renders it immediately.
+     *
+     * Locking travels with it: a PSP carrier the reader named is exactly the claim
+     * a lock makes, and doing both here means a caller cannot do one and forget
+     * the other.
+     */
+    const applyExtraction = useCallback((extracted, options = {}) => {
+        const applied = applyExtractedFields(latestFormData.current, extracted, options);
+        setFormData(applied.formData);
+        if (applied.lockedCarriers.length > 0) {
+            setLockedEmployers((previous) => normalizeLockedEmployers([
+                ...previous,
+                ...applied.lockedCarriers.map((row) => ({
+                    companyName: row?.companyName || row?.name || '',
+                    dotNumber: row?.dotNumber || '',
+                })),
+            ]));
+        }
+        return applied;
+    }, []);
 
     const load = useCallback(async (key) => {
         setBusy(true);
@@ -176,7 +226,7 @@ export function useApplicationPrepDraft(companyId) {
     }, []);
 
     return {
-        formData, setFormData, updateField,
+        formData, setFormData, updateField, applyExtraction,
         contactEmail, contactPhone, identityComplete,
         lockedEmployers, lockEmployers, unlockEmployer,
         applicantKey, status, busy, error,

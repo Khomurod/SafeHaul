@@ -170,6 +170,27 @@ are never in a draft), reviews and signs. It is staged as a *draft*, never an
 early `applications` document — see §5 — so nothing is filed, nobody is emailed,
 and no pipeline counter moves until the driver submits it themselves.
 
+**The reader never overwrites what the recruiter typed while it was running, and
+that is a fix.** The panel used to merge into the `formData` *prop* it captured
+when the button was pressed and hand the whole result to the raw setter — so it
+was not "conflicting edits lose", the entire answers object was replaced from a
+stale snapshot and every field typed during the read vanished, with "fill only
+what is blank" judged against that snapshot too. The merge now happens inside
+`useApplicationPrepDraft.applyExtraction`, against the answers as they are at that
+moment, so anything typed since is left alone and reported as kept. A read is up
+to two minutes per pass, twice.
+
+Nothing used to tie an answer to what it was asked about, and `onApply` belongs
+to the *page*, which outlives the panel — so a read started for one driver and
+resolved after the recruiter opened another wrote the first driver's answers, and
+the first driver's PSP carrier **locks**, under the second driver's key, which
+manufactures exactly the unsatisfiable lock state above on somebody who never had
+those employers. The applicant and the document set are captured before the call
+and compared after it, against what is on screen then rather than against the
+closure's own copies. A failed second pass also no longer discards the first: the
+retry is its own `try`, and losing it falls back to the first pass rather than to
+nothing, while still winning wherever it succeeds. All found 2026-09-08.
+
 The reader extracts text in the recruiter's own browser first — a PDF's own text
 layer, else Tesseract OCR of the rendered pages, else the page images sent to the
 vision AI — and only the text (or, for an unreadable document, the images) leaves
