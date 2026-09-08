@@ -198,6 +198,34 @@ exports.saveApplicationProgress = functions
                 Object.assign(update, prepared.carriedPreparedFields(preparedSource.data()));
             }
 
+            /**
+             * The driver was actually shown the carrier's employers.
+             *
+             * `inviteClaimedAt` is the sole gate on locked-employer enforcement at
+             * submission, and `exchangeApplicationInvite` used to stamp it. That
+             * made the CARRIER able to arm the refusal by opening its own link
+             * once — after which a driver who applied at `/apply/:slug` instead of
+             * through the link was blocked at submission by rows nobody had ever
+             * shown them, which is the exact failure the field exists to prevent.
+             *
+             * So the exchange records which resume token it minted and the claim is
+             * stamped here, by a save presenting that token. That proves both halves:
+             * the link was opened, and the session holding the carrier's answers is
+             * the one writing. Cleared as it is stamped — being shown the rows is a
+             * fact about this driver, not a standing property of the token.
+             *
+             * Deliberately after `carriedPreparedFields`, which carries an
+             * already-stamped claim across a contact correction and would otherwise
+             * overwrite this one.
+             */
+            if (preparedSource && presentedToken && draft.resumeTokenMatches(
+                preparedSource.data()?.inviteResumeTokenHash, presentedToken,
+            )) {
+                update.inviteClaimedAt = preparedSource.data()?.inviteClaimedAt
+                    || draft.serverTimestamp();
+                update.inviteResumeTokenHash = null;
+            }
+
             transaction.set(ref, update, { merge: true });
             return { refused: false, token };
         });

@@ -715,6 +715,35 @@ and a phone does not open a prepared one: it carries no identity HMAC (the
 carrier does not know the driver's SSN), so only the invite token lets the
 intended driver in.
 
+**That cutoff has two doors, and until 2026-09-08 only one was shut.**
+`getCompanyPreparedDraft` consulted `companyMayReadAnswers`, which tests
+`status`; `exchangeApplicationInvite` consulted `isCompanyPrepared`, which tests
+`origin` — the field recording who *created* the draft, which deliberately never
+changes. So a carrier could mint a link, exchange it itself (the exchange is
+unauthenticated by necessity), and recover exactly the answers the cutoff had
+just withheld, plus a resume token that could rewrite them — and
+`StartApplicationPage` offered the mint button on the very screen that says the
+answers are the driver's. Gating the mint would not have closed it: the driver's
+first save leaves `inviteTokenHash` alone, so the link the carrier had already
+copied kept working.
+
+**So the link is tiered.** Before the driver writes, the answers are the
+carrier's own and the exchange hands over everything. Once the draft is
+`driver_in_progress` it returns `requiresIdentity` and nothing else — no answers,
+no resume token, not even `preparedBy` — and writes nothing, so it can neither
+read the driver's work nor displace the token their browser is saving with.
+(It used to rotate that token on every open, demoting the driver's to a prior
+hash, which grants liveness but never write authorization: a carrier opening its
+own link a few times could silently stop the driver's autosave.) The driver then
+proves who they are through the challenge every returning applicant already
+meets — `findResumableApplication`: last name, date of birth and SSN digits plus
+a contact detail already on the record. The carrier cannot pass it, because a
+prepared draft never holds an SSN; the driver can, on any device, because their
+first save is what supplied the identity HMAC. Minting still works after
+takeover, deliberately: a driver who lost their link needs a replacement, and the
+replacement is now a pointer rather than a credential. Pinned by
+`companyApplications.invite.privacy.test.js`.
+
 **The invite link is its own token, and its own risk.** Minted by
 `mintApplicationInvite` (random 32 bytes, only the SHA-256 stored, returned once),
 it expires in 14 days — independently of, and always inside, the draft's 30-day
@@ -761,6 +790,17 @@ browser pre-flight refuses and routes to the employment page, and
 enforcement. It applies **only once `inviteClaimedAt` is stamped**, i.e. to a
 driver who actually opened the carrier's link: refusing someone for leaving out
 an employer nobody showed them would be refusing them for the carrier's homework.
+
+**The exchange no longer stamps that claim; the driver's first save does**
+(changed 2026-09-08). Stamping it on the exchange meant the *carrier* could arm
+the refusal by opening its own link once — after which a driver who applied at
+`/apply/:slug` instead of through the link was blocked at submission by rows
+nobody had ever shown them, which is the exact failure the field exists to
+prevent. So the exchange records which resume token it minted
+(`inviteResumeTokenHash`) and `drafts/save.js` stamps the claim when a save
+presents that token, clearing the field as it does. That proves both halves: the
+link was opened, and the session holding the carrier's answers is the one
+writing.
 
 **The lock follows the applicant, not the document id.** A draft's id is
 `sha256(company:email:phone)`, so a driver who corrects their own email or phone

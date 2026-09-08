@@ -32,19 +32,54 @@
  * who opened the old link a moment ago should not find it dead mid-page. That is a
  * minutes-scale concern, so it is a minutes-scale grace.
  *
- * ## What the exchange hands back
+ * ## What the exchange hands back, and why it depends on whose words are in the draft
  *
- * Everything the ordinary resumed session already needs — the answers, the applicant
- * key, and a freshly minted **resume** token. A carrier-prepared draft carries no
- * identity HMAC (the carrier does not know the driver's Social Security Number), so
- * without that token the driver's own autosave would be refused by the ordinary
- * ownership rules. Minting it here is what makes the rest of the wizard behave
- * exactly like any other resumed application.
+ * While the draft is still `prepared` or `sent` the answers are the CARRIER's own,
+ * so the link hands over everything an ordinary resumed session needs: the answers,
+ * the applicant key, and a freshly minted **resume** token. A carrier-prepared
+ * draft carries no identity HMAC (the carrier does not know the driver's Social
+ * Security Number), so without that token the driver's own autosave would be
+ * refused by the ordinary ownership rules. Minting it here is what makes the rest
+ * of the wizard behave exactly like any other resumed application.
  *
- * It also stamps `inviteClaimedAt`. That is the fact submission reads to decide
- * whether locked employers apply: a driver who never opened the link never saw the
- * carrier's employers, and must not be refused for leaving out rows nobody showed
- * them.
+ * Once the driver has saved — `driver_in_progress` — the answers are theirs, and
+ * `shared/companyPreparedDraft.js` says the carrier stops being able to read them.
+ * That cutoff was enforced at only one of the two doors: `companyApplications/read.js`
+ * consulted `companyMayReadAnswers`, while this file consulted `isCompanyPrepared`,
+ * which tests `origin` — a field recording who *created* the draft, which
+ * deliberately never changes. So a carrier could mint a link, exchange it itself,
+ * and recover exactly the answers the cutoff had just withheld, plus a resume token
+ * that could rewrite them. The driver's first save does not clear
+ * `inviteTokenHash` either, so the ORIGINAL link already did this — gating the mint
+ * would not have closed it. Found and fixed 2026-09-08.
+ *
+ * So the link is **tiered**. After takeover it opens nothing by itself: no answers,
+ * no resume token, just `requiresIdentity`, and the driver proves who they are
+ * through the challenge that already exists for every returning applicant
+ * (`findResumableApplication`: last name, date of birth and SSN digits, plus a
+ * contact detail already on the record). The carrier cannot pass it — a prepared
+ * draft never holds an SSN — and the driver can, on any device, because their first
+ * save is what supplied the identity HMAC. This is the ordinary shape for a
+ * long-lived link: it grants access, and sensitive data behind it wants a second
+ * factor.
+ *
+ * Returning no token after takeover also stops the exchange demoting the driver's
+ * live one. It used to rotate unconditionally, pushing the driver's token into
+ * `priorResumeTokenHashes`, which grants liveness but never write authorization —
+ * so a carrier opening its own link a few times could silently stop the driver's
+ * autosave.
+ *
+ * ## `inviteClaimedAt` is stamped by the driver's first save, not by the exchange
+ *
+ * It is the fact submission reads to decide whether locked employers apply: a
+ * driver who never opened the link never saw the carrier's employers and must not
+ * be refused for leaving out rows nobody showed them. Stamping it on the exchange
+ * let the CARRIER arm that refusal by opening its own link once — after which a
+ * driver who applied at `/apply/:slug` instead of through the link would be blocked
+ * at submission by rows they had never been shown. So the exchange records *which*
+ * resume token it minted (`inviteResumeTokenHash`), and `drafts/save.js` stamps the
+ * claim when a save presents that token — which proves both that the link was
+ * opened and that the session holding the carrier's answers is the one saving.
  */
 
 const crypto = require('crypto');
@@ -308,11 +343,24 @@ exports.exchangeApplicationInvite = functions
         // A resume token per open, so the driver's autosave is authorized the way
         // every other resumed session is. The superseded hash stays live for the
         // same reason it does on a resume lookup: a second tab must not be killed.
+        //
+        // The status is re-read inside the transaction rather than taken from the
+        // candidate: the driver's first save can land between the two, and it is
+        // the one fact that decides whether this open hands over answers at all.
         const resumeToken = draft.mintResumeToken();
-        const restored = await db.runTransaction(async (transaction) => {
+        const outcome = await db.runTransaction(async (transaction) => {
             const fresh = await transaction.get(candidate.ref);
             if (!fresh.exists) return null;
             const stored = fresh.data() || {};
+
+            if (stored.status === prepared.PREPARED_STATUSES.DRIVER_IN_PROGRESS) {
+                // Theirs now. Nothing is written — not the token, not the claim —
+                // so a carrier holding this link cannot read the driver's answers,
+                // cannot rewrite them, and cannot displace the token the driver's
+                // own browser is saving with.
+                return { requiresIdentity: true };
+            }
+
             const prior = [
                 typeof stored.resumeTokenHash === 'string' ? stored.resumeTokenHash : null,
                 ...(Array.isArray(stored.priorResumeTokenHashes) ? stored.priorResumeTokenHashes : []),
@@ -321,21 +369,32 @@ exports.exchangeApplicationInvite = functions
             transaction.set(candidate.ref, {
                 resumeTokenHash: resumeToken.hash,
                 priorResumeTokenHashes: prior,
-                // The fact submission reads to decide whether the locked employers
-                // apply: this driver was actually shown them.
-                inviteClaimedAt: stored.inviteClaimedAt || draft.serverTimestamp(),
+                // Which token the claim belongs to. `drafts/save.js` stamps
+                // `inviteClaimedAt` when a save presents this one, and clears this
+                // field doing so — see the header for why the claim is not stamped
+                // here.
+                inviteResumeTokenHash: resumeToken.hash,
                 updatedAt: draft.serverTimestamp(),
                 expiresAt: draft.expiresAt(),
             }, { merge: true });
-            return stored;
+            return { requiresIdentity: false, stored };
         });
 
-        if (!restored) {
+        if (!outcome) {
             throw new functions.https.HttpsError('not-found', 'That application link could not be opened.');
         }
 
+        if (outcome.requiresIdentity) {
+            // `applicantKey` is already in the link's own query string, so saying it
+            // back discloses nothing. Everything else is withheld, including who
+            // prepared it.
+            return { opened: true, requiresIdentity: true, applicantKey: candidate.id };
+        }
+
+        const restored = outcome.stored;
         return {
             opened: true,
+            requiresIdentity: false,
             applicantKey: candidate.id,
             resumeToken: resumeToken.token,
             formData: restored.formData || {},

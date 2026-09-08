@@ -264,12 +264,21 @@ export function StartApplicationPage() {
                     />
                 )}
 
+                {/*
+                  * Deliberately outside the `!readOnlyNotice` guard its two
+                  * neighbours carry. A driver who has taken the application over
+                  * may still have lost their link, and the boundary that used to
+                  * make this button dangerous is now enforced server-side: after
+                  * takeover the exchange returns no answers and no resume token.
+                  * The panel says so rather than implying a read it cannot do.
+                  */}
                 <InviteLinkPanel
                     link={invite.linkFor(prep.applicantKey)}
                     busy={invite.busy}
                     error={invite.error}
                     copied={invite.copied}
                     canMint={Boolean(prep.applicantKey)}
+                    driverStarted={prep.status === 'driver_in_progress'}
                     onMint={() => invite.mint(prep.applicantKey)}
                     onCopy={invite.copy}
                 />

@@ -162,6 +162,31 @@ describe('opening an application a carrier prepared', () => {
         expect(state.formData.cdlNumber).toBeUndefined();
     });
 
+    it('adopts nothing when the driver has already taken the application over', async () => {
+        // After takeover the exchange returns `requiresIdentity` and withholds both
+        // the answers and the resume token, so the carrier holding this link cannot
+        // read or rewrite what the driver wrote. The browser must not treat that as
+        // an opened application: writing `resumeToken: undefined` into the shared
+        // slot would destroy the credential the driver's own tab saves with.
+        serviceMocks.exchangeApplicationInvite.mockResolvedValue({
+            opened: true, requiresIdentity: true, applicantKey: 'applicant-key-1',
+        });
+        storageMocks.readApplicationDraft.mockReturnValue({
+            data: { firstName: 'Dana', cdlNumber: 'DRIVERS-OWN' },
+            lastStep: 4,
+            meta: { draftId: 'local-draft' },
+        });
+        const { state, args } = harness({ query: 'invite=abc123&k=applicant-key-1' });
+
+        await loadPublicApplyCompany(args);
+
+        expect(serviceMocks.writeResumeToken).not.toHaveBeenCalled();
+        // Their own local work is left exactly where it was, not blanked by an
+        // empty `formData`.
+        expect(state.formData.cdlNumber).toBe('DRIVERS-OWN');
+        expect(state.loading).toBe(false);
+    });
+
     it('does not exchange anything when no link was followed', async () => {
         const { args } = harness();
 

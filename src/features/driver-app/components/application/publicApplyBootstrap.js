@@ -127,6 +127,20 @@ export async function loadPublicApplyCompany({
       });
       if (!invited) return false;
 
+      /**
+       * The driver has already started this one, so the link alone no longer
+       * opens it — see `functions/companyApplications/invite.js`. There is no
+       * token and no answers in this reply, so nothing may be adopted: writing
+       * `resumeToken: undefined` into the shared slot would destroy the
+       * credential the driver's own browser is saving with, and spreading an
+       * empty `formData` would blank the wizard.
+       *
+       * Falling through hands them the ordinary flow, which offers their own
+       * application back through the identity match on page one — the challenge
+       * the link deliberately no longer replaces.
+       */
+      if (invited.requiresIdentity) return false;
+
       writeResumeToken(slug, {
         resumeToken: invited.resumeToken,
         applicantKey: invited.applicantKey,

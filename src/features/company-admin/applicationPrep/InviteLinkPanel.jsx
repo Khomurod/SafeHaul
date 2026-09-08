@@ -20,15 +20,28 @@ import { Button, Card, FieldMessage } from '@/design-system/components';
  * cut off. **The sentence names the grace**, because "retires this one" on its own
  * is the wording that was wrong before.
  */
-export function InviteLinkPanel({ link, busy, error, copied, canMint, onMint, onCopy }) {
+/**
+ * `driverStarted` is not a permission — the boundary is enforced in
+ * `functions/companyApplications/invite.js`, where the exchange stops returning
+ * the driver's answers and stops handing out a resume token. It is here so the
+ * panel does not imply otherwise. Minting deliberately still works: a driver who
+ * lost their link needs a new one, and the link it produces takes them to their
+ * own application and asks them to confirm who they are. Hiding the button would
+ * remove a workflow the boundary does not require removing.
+ */
+export function InviteLinkPanel({ link, busy, error, copied, canMint, driverStarted, onMint, onCopy }) {
     return (
         <Card padding="md">
             <div className="space-y-ds-3">
                 <div>
                     <h3 className="text-ds-body-lg font-semibold text-ds-content">Send it to the driver</h3>
                     <p className="text-ds-sm text-ds-content-secondary">
-                        They open the link, complete what only they can answer, review it and sign. Send it however you
-                        normally reach them.
+                        {driverStarted
+                            ? 'This driver has already started. A new link still reaches their application — it asks '
+                              + 'them to confirm their date of birth and Social Security Number first, so only they '
+                              + 'can open it. Send it however you normally reach them.'
+                            : 'They open the link, complete what only they can answer, review it and sign. Send it '
+                              + 'however you normally reach them.'}
                     </p>
                 </div>
 
@@ -54,11 +67,12 @@ export function InviteLinkPanel({ link, busy, error, copied, canMint, onMint, on
                             Works for {link.expiresInDays} days. Copy it now — it is shown once. Creating a new link
                             retires this one: it stops working about ten minutes later, so a driver part-way through
                             it is not cut off.
+                            {driverStarted && ' Their answers are theirs now, so this link will not show them to you.'}
                         </p>
                     </div>
                 ) : (
                     <Button variant="primary" onClick={onMint} disabled={busy || !canMint}>
-                        <Icon icon={Link2} size="sm" /> Create the driver's link
+                        <Icon icon={Link2} size="sm" /> {driverStarted ? 'Create a replacement link' : "Create the driver's link"}
                     </Button>
                 )}
             </div>
