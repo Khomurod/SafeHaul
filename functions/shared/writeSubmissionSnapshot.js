@@ -149,7 +149,6 @@ async function writeSubmissionSnapshot({
             // sequence before writing anything.
             let sequence = null;
             for (let candidate = 1; candidate <= MAX_SNAPSHOT_SEQUENCE; candidate += 1) {
-                // eslint-disable-next-line no-await-in-loop
                 const existing = await tx.get(collection.doc(`v${candidate}`));
                 if (!existing.exists) { sequence = candidate; break; }
 

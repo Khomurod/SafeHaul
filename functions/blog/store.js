@@ -73,7 +73,6 @@ async function slotIsFilled(publicationDate, themeId) {
 async function unfilledSlots(dueSlotList) {
     const results = [];
     for (const slot of dueSlotList) {
-        // eslint-disable-next-line no-await-in-loop
         if (!(await slotIsFilled(slot.publicationDate, slot.themeId))) results.push(slot);
     }
     return results;
