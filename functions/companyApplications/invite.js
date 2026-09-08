@@ -366,9 +366,27 @@ exports.exchangeApplicationInvite = functions
                 ...(Array.isArray(stored.priorResumeTokenHashes) ? stored.priorResumeTokenHashes : []),
             ].filter(Boolean).slice(0, 2);
 
+            /**
+             * The last moment the employer rows are provably the carrier's.
+             *
+             * A lock whose row the carrier deleted is an invisible requirement the
+             * driver is blocked on at submission and cannot satisfy. `prepare.js`
+             * stops that being written from now on, but drafts already carrying one
+             * need healing — and it has to happen before the driver can influence
+             * the rows, or "delete the row" would become "delete the lock", which
+             * is the whole thing the lock prevents. Here, in the transaction that
+             * hands the application over, is exactly that moment: the status is
+             * still `prepared` or `sent`, so nobody but the carrier has written a
+             * word of it.
+             */
+            const healedLocks = prepared.reconcileLockedEmployers(
+                stored.lockedEmployers, stored.formData,
+            );
+
             transaction.set(candidate.ref, {
                 resumeTokenHash: resumeToken.hash,
                 priorResumeTokenHashes: prior,
+                lockedEmployers: healedLocks,
                 // Which token the claim belongs to. `drafts/save.js` stamps
                 // `inviteClaimedAt` when a save presents this one, and clears this
                 // field doing so — see the header for why the claim is not stamped
@@ -377,7 +395,7 @@ exports.exchangeApplicationInvite = functions
                 updatedAt: draft.serverTimestamp(),
                 expiresAt: draft.expiresAt(),
             }, { merge: true });
-            return { requiresIdentity: false, stored };
+            return { requiresIdentity: false, stored, healedLocks };
         });
 
         if (!outcome) {
@@ -398,7 +416,9 @@ exports.exchangeApplicationInvite = functions
             applicantKey: candidate.id,
             resumeToken: resumeToken.token,
             formData: restored.formData || {},
-            lockedEmployers: Array.isArray(restored.lockedEmployers) ? restored.lockedEmployers : [],
+            // The healed list, so the rows the wizard renders as locked are exactly
+            // the rows submission will enforce.
+            lockedEmployers: outcome.healedLocks,
             preparedBy: restored.preparedBy?.name || null,
         };
     });

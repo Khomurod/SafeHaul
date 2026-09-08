@@ -65,7 +65,14 @@ async function prepare() {
             companyId: COMPANY,
             email: IDENTITY.email,
             phone: IDENTITY.phone,
-            formData: { firstName: 'Dana', lastName: 'Alvarez', cdlNumber: CARRIER_SECRET },
+            formData: {
+                firstName: 'Dana',
+                lastName: 'Alvarez',
+                cdlNumber: CARRIER_SECRET,
+                // The row the lock names — see the invite suite; a lock with no row
+                // is a state the editor cannot produce and the reconcile refuses.
+                employers: [{ companyName: 'Acme Trucking', dotNumber: '123456' }],
+            },
             lockedEmployers: [{ companyName: 'Acme Trucking', dotNumber: '123456' }],
         },
     });

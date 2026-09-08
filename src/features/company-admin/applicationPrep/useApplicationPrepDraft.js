@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
-import { normalizeLockedEmployers } from '@/config/applicationLockedFields';
+import { normalizeLockedEmployers, reconcileLockedEmployers } from '@/config/applicationLockedFields';
 
 /**
  * One carrier-prepared application, from the recruiter's side.
@@ -52,10 +52,33 @@ export function useApplicationPrepDraft(companyId) {
     /** True once there is enough to key the draft — the Save gate. */
     const identityComplete = Boolean(contactEmail || contactPhone);
 
+    /**
+     * The lock list as it will be SAVED, with anything no longer answered by a row
+     * on the application dropped.
+     *
+     * A lock is a snapshot of an employer's identity, and the editor goes on
+     * changing the rows. `PreparedEmployersPanel` now renders a locked row's
+     * identity read-only so a signature cannot drift, which leaves the edit that
+     * leaves nothing to render: a deleted row, whose lock stayed behind as a
+     * requirement the driver was blocked on at submission and could not satisfy.
+     *
+     * Reconciled at the save boundary and not on every render, deliberately. A
+     * lock with no matching row is already invisible on screen — `isLockedEmployerRow`
+     * is only ever asked about rows that exist — so filtering the exposed list
+     * changes nothing a recruiter sees, while it *would* break `lockEmployers`'
+     * own contract in the window before the rows it names have landed in state.
+     * What is stored is the thing that matters, and the server reconciles it again
+     * because the server is the authority. See `reconcileLockedEmployers`.
+     */
+    const savedLocks = useMemo(
+        () => reconcileLockedEmployers(lockedEmployers, formData),
+        [lockedEmployers, formData],
+    );
+
     /** The answers, plus the lock list the server records beside them. */
     const payloadFormData = useMemo(
-        () => ({ ...formData, lockedEmployers }),
-        [formData, lockedEmployers],
+        () => ({ ...formData, lockedEmployers: savedLocks }),
+        [formData, savedLocks],
     );
 
     const save = useCallback(async () => {
@@ -66,7 +89,7 @@ export function useApplicationPrepDraft(companyId) {
                 email: contactEmail,
                 phone: contactPhone,
                 formData: payloadFormData,
-                lockedEmployers,
+                lockedEmployers: savedLocks,
             });
             setApplicantKey(result.applicantKey);
             setLockedEmployers(result.lockedEmployers || []);
@@ -78,7 +101,7 @@ export function useApplicationPrepDraft(companyId) {
         } finally {
             setBusy(false);
         }
-    }, [call, contactEmail, contactPhone, lockedEmployers, payloadFormData]);
+    }, [call, contactEmail, contactPhone, savedLocks, payloadFormData]);
 
     const load = useCallback(async (key) => {
         setBusy(true);

@@ -916,6 +916,33 @@ presents that token, clearing the field as it does. That proves both halves: the
 link was opened, and the session holding the carrier's answers is the one
 writing.
 
+**A lock is a snapshot, and the carrier kept editing the rows it was taken
+from.** Nothing held the two in step, so four ordinary carrier actions produced an
+application the driver was blocked on at submission and could not fix (found
+2026-09-08): deleting a locked row left the lock behind as an invisible
+requirement, with the row's own Unlock button gone along with the row; correcting
+the NAME on a row locked by USDOT number tripped `locked-employer-changed` while
+the wizard renders that identity as a record rather than a field, so the driver
+was blocked on the one field they are not allowed to touch; and correcting the
+name, or adding a USDOT number, on a row locked by name moved its signature onto
+`locked-employer-missing` for a row sitting right there.
+
+Two halves fix it. **The carrier's editor renders a locked row's identity
+read-only** — the same rule the design system already states for a field its
+viewer may not change, and the same shape the driver's wizard uses — so a
+signature cannot drift while the lock exists; correcting it means Unlock,
+correct, Lock, which mints a lock that matches. And
+**`reconcileLockedEmployers`** drops any lock no longer answered by a row, which
+is the case that leaves nothing to render. It runs on every carrier save
+(`prepare.js`, the authority) and **once inside the exchange that hands the
+application over**, which is what heals a draft already carrying an orphan —
+before its driver can be blocked by it, and while the rows are still provably the
+carrier's. It deliberately never runs against answers the *driver* supplied:
+reconciling at submission would make deleting a locked row enough to delete its
+lock, which is the whole thing the lock prevents. `lockedEmployerCount` — computed
+and returned all along, and rendered nowhere — is now in the worklist, so the
+number is checkable rather than a thing to trust.
+
 **The lock follows the applicant, not the document id.** A draft's id is
 `sha256(company:email:phone)`, so a driver who corrects their own email or phone
 on page one writes to a different document than the carrier prepared. The

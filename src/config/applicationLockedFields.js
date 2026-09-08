@@ -135,6 +135,50 @@ function lockedEmployerIssues(lockedEmployers, formData) {
     return issues;
 }
 
+/**
+ * The lock list, with anything no longer answered by a row on the application.
+ *
+ * A lock is a snapshot of an employer's identity taken at the moment the carrier
+ * pressed Lock, and the carrier goes on editing the rows afterwards. Nothing kept
+ * the two in step, so four ordinary carrier actions produced an application the
+ * driver was blocked on and could not fix (found 2026-09-08):
+ *
+ *   - deleting a locked row left the lock behind as an invisible requirement,
+ *     with the row's own Unlock button gone along with the row;
+ *   - correcting the NAME on a row locked by USDOT number tripped
+ *     `locked-employer-changed`, and the wizard renders a locked row's identity
+ *     as a record rather than a field — so the driver was blocked on the one
+ *     field they are not allowed to touch;
+ *   - correcting the name on a row locked by name moved its signature, and
+ *   - adding a USDOT number to a row locked by name moved it too, both landing on
+ *     `locked-employer-missing` for a row that is sitting right there.
+ *
+ * Two things fix that together, and this is the second. The carrier's editor now
+ * renders a locked row's identity read-only, so a signature cannot drift while
+ * the lock exists — the carrier unlocks, corrects, and locks again, which mints a
+ * lock that matches. This handles the case that leaves no trace to render: a
+ * deleted row.
+ *
+ * **Deliberately never run against answers the DRIVER supplied.** Reconciling at
+ * submission would mean deleting a locked row was enough to delete its lock,
+ * which is the whole thing the lock prevents. It runs where the rows are provably
+ * the carrier's: on a carrier save, and once inside the exchange that hands the
+ * application over — which is also what heals a draft that already carries an
+ * orphan, before its driver can be blocked by it.
+ */
+function reconcileLockedEmployers(lockedEmployers, formData) {
+    const locked = normalizeLockedEmployers(lockedEmployers);
+    if (locked.length === 0) return locked;
+
+    const rows = Array.isArray(formData?.employers) ? formData.employers : [];
+    const present = new Set();
+    for (const row of rows) {
+        const signature = employerSignature(row);
+        if (signature) present.add(signature);
+    }
+    return locked.filter((entry) => present.has(entry.signature));
+}
+
 // --- exports -------------------------------------------------------------------
 
 export {
@@ -144,4 +188,5 @@ export {
     lockedEmployerIssues,
     lockedSignatureSet,
     normalizeLockedEmployers,
+    reconcileLockedEmployers,
 };

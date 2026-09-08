@@ -61,7 +61,18 @@ exports.saveCompanyPreparedApplication = onCall({ cors: true }, async (request) 
     }
 
     const { applicantKey, applicantKeyFull } = generateApplicantKey(companyId, email, phone);
-    const lockedEmployers = prepared.normalizeLockedEmployers(request.data?.lockedEmployers);
+    /**
+     * Against the rows in the same payload, not merely normalised.
+     *
+     * A lock is a snapshot of an employer's identity, and the carrier goes on
+     * editing the rows afterwards — so deleting a locked row used to leave the
+     * lock behind as a requirement the driver was blocked on at submission and
+     * could not satisfy, for a row that was no longer on the application at all.
+     * The carrier's editor also renders a locked row's identity read-only now, so
+     * the two halves cannot drift; this is the half that handles a deletion, which
+     * leaves nothing to render. See `reconcileLockedEmployers`.
+     */
+    const lockedEmployers = prepared.reconcileLockedEmployers(request.data?.lockedEmployers, formData);
     const ref = draft.draftsCollection(companyId).doc(applicantKey);
 
     /**

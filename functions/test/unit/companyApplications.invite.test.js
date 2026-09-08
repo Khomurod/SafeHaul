@@ -40,7 +40,16 @@ async function prepare(overrides = {}) {
             companyId: COMPANY,
             email: IDENTITY.email,
             phone: IDENTITY.phone,
-            formData: { firstName: 'Dana', lastName: 'Alvarez', cdlNumber: 'TX1234567' },
+            formData: {
+                firstName: 'Dana',
+                lastName: 'Alvarez',
+                cdlNumber: 'TX1234567',
+                // The row the lock names. A lock with no row on the application is
+                // a state the editor cannot produce and `reconcileLockedEmployers`
+                // now refuses, because it is exactly the invisible requirement a
+                // driver gets blocked on at submission and cannot satisfy.
+                employers: [{ companyName: 'Acme Trucking', dotNumber: '123456' }],
+            },
             lockedEmployers: [{ companyName: 'Acme Trucking', dotNumber: '123456' }],
             ...overrides,
         },
@@ -168,6 +177,39 @@ describe('opening a link', () => {
         // carrier's employers, and saving again is not a new fact.
         await saveFirstPage({ resumeToken, lastStep: 2 });
         expect(mockStore.get(PATH()).inviteClaimedAt).toBe(firstClaim);
+    });
+
+    it('heals a lock the carrier orphaned before the driver can be blocked by it', async () => {
+        await prepare();
+        const { inviteToken } = await mint();
+        setInviteExpiry(60000);
+        // A draft written before `prepare.js` reconciled: the lock is there and the
+        // row it names is not. Enforcement reads the DRAFT at submission, so left
+        // alone this refuses the driver's application for an employer nobody ever
+        // showed them, and the carrier cannot fix it — it may not write to the
+        // draft once the driver has started.
+        const before = mockStore.get(PATH());
+        mockStore.set(PATH(), { ...before, formData: { ...before.formData, employers: [] } });
+
+        const opened = await exchange(inviteToken);
+
+        // Healed in the same transaction that hands the application over, which is
+        // the last moment the rows are provably the carrier's — reconciling any
+        // later would make "delete the row" mean "delete the lock", which is the
+        // whole thing the lock prevents.
+        expect(opened.lockedEmployers).toEqual([]);
+        expect(mockStore.get(PATH()).lockedEmployers).toEqual([]);
+    });
+
+    it('leaves a lock alone when its row is still on the application', async () => {
+        await prepare();
+        const { inviteToken } = await mint();
+        setInviteExpiry(60000);
+
+        const opened = await exchange(inviteToken);
+
+        expect(opened.lockedEmployers).toHaveLength(1);
+        expect(mockStore.get(PATH()).lockedEmployers).toHaveLength(1);
     });
 
     it('finds the draft even when the link carries no key', async () => {
