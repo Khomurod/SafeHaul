@@ -80,7 +80,7 @@ export function VOEDocument({ employer, applicant, companyName, auditId, signatu
                     <div className="text-sm font-bold uppercase space-y-1">
                         <p className="text-lg">{companyName}</p>
                         <p className="text-slate-600 font-medium">SafeHaul Network Member</p>
-                        <p className="text-slate-500 normal-case italic opacity-50">Verified Business Entity</p>
+                        <p className="text-slate-500 normal-case italic">Verified Business Entity</p>
                     </div>
                 </div>
             </div>
