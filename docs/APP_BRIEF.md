@@ -716,17 +716,38 @@ carrier does not know the driver's SSN), so only the invite token lets the
 intended driver in.
 
 **The invite link is its own token, and its own risk.** Minted by
-`mintApplicationInvite` (random 32 bytes, only the SHA-256 stored, returned once,
-prior hash kept live through one regeneration), it expires in 14 days —
-independently of, and always inside, the draft's 30-day retention. It is
-deliberately not the resume token: a resume token lives only in the driver's
-browser and is rotated freely, while this one is designed to be copied into an
-email or a text message. **Accepted risk, in the same family as the absent App
-Check:** a link in a sent-mail archive is a bearer credential for one prepared
-application until it expires or is regenerated. `exchangeApplicationInvite`
-answers a wrong link and an expired one identically, is rate-limited fail-closed
-per IP, and hands back a resume token so the rest of the wizard behaves like any
-other resumed session.
+`mintApplicationInvite` (random 32 bytes, only the SHA-256 stored, returned once),
+it expires in 14 days — independently of, and always inside, the draft's 30-day
+retention. It is deliberately not the resume token: a resume token lives only in
+the driver's browser and is rotated freely, while this one is designed to be
+copied into an email or a text message. **Accepted risk, in the same family as
+the absent App Check:** a link in a sent-mail archive is a bearer credential for
+one prepared application until it expires or is regenerated.
+`exchangeApplicationInvite` answers a wrong link and an expired one identically,
+is rate-limited fail-closed per IP, and hands back a resume token so the rest of
+the wizard behaves like any other resumed session. Minting is rate-limited too,
+per company and caller, and refuses when the carrier has stopped accepting
+intake — every regeneration retires the driver's live link, so an unbounded loop
+would be a way to keep one application permanently unopenable.
+
+**Validity belongs to a token, not to the document, and that is a correction.**
+Until 2026-09-08 matching accepted the current hash *or* any prior hash while
+validity read a single document-level `inviteTokenExpiresAt` that every mint
+rewrote — two independent questions composed into one answer. Regenerating
+therefore did not retire the old link, it **revived** it: a link dead for a week
+opened again, with a fresh resume token, for another fourteen days, while the
+panel told the recruiter the opposite. `MAX_PRIOR_INVITE_HASHES` was also 2 over a
+`[current, ...prior]` slice, so three links were live at once where this brief
+said one. Each accepted hash now carries its own expiry (`priorInvites`), and
+`liveInviteFor` asks both questions of one entry, which is what stops the
+composition being written again. A replaced link keeps
+`min(its own expiry, now + 10 minutes)` — the mid-page grace the prior hash always
+claimed to be, now bounded in time rather than in generation count — and an
+already-expired hash is not carried forward at all. Legacy bare-string prior
+hashes have no expiry of their own and are read as dead. Pinned by
+`companyApplications.invite.expiry.test.js`, whose first case is the sequence the
+original suite structurally could not see: expire, regenerate, present the old
+token.
 
 **Employers a carrier locked from a PSP report keep their identity.** A PSP
 report names a carrier and its USDOT number beside an inspection date; it does
