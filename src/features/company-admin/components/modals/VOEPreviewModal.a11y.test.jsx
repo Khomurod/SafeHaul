@@ -80,6 +80,27 @@ describe('VOEPreviewModal axe', () => {
     expect(fadedShades.filter((n) => n < 700)).toEqual([]);
   });
 
+  // Opacity is part of effective contrast, and the pin above reads only the
+  // shade. axe 4.13 caught what 4.11 did not: `text-slate-500` under
+  // `opacity-50` blends to about 2.3:1 on white, so the sender's "Verified
+  // Business Entity" line failed WCAG 1.4.3 while its shade looked compliant.
+  // Dropping that opacity fixed it; this pins the FAMILY, so any new fractional
+  // opacity over text has to justify itself here instead of reaching a
+  // real-browser run — which is the only place the old pin could have caught it.
+  //
+  // Two treatments are documented and allowed: the questionnaire block, whose
+  // shades the test above separately holds at >= 700, and the watermark, which
+  // is decorative — `pointer-events-none`, `-z-10`, and it wraps a glyph, not
+  // text.
+  it('allows only the two documented opacity treatments in the document', () => {
+    renderModal({ applicant: { ...APPLICANT, signature: null } });
+    const doc = screen.getByTestId('voe-document');
+    const opacities = [...doc.querySelectorAll('[class]')]
+      .flatMap((el) => el.getAttribute('class').split(/\s+/))
+      .filter((c) => /^opacity-/.test(c));
+    expect([...new Set(opacities)].sort()).toEqual(['opacity-80', 'opacity-[0.03]']);
+  });
+
   it('has no violations with a signed document', async () => {
     const { container } = renderModal();
     expect((await axe(container)).violations).toEqual([]);
