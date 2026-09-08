@@ -118,7 +118,6 @@ describe('finding a resumable application', () => {
             { lastName: IDENTITY.lastName, dob: '', ssn: IDENTITY.ssn },
             { lastName: IDENTITY.lastName, dob: IDENTITY.dob, ssn: '1234' },
         ]) {
-            // eslint-disable-next-line no-await-in-loop
             const found = await drafts.findResumableApplication({
                 companyId: COMPANY, email: IDENTITY.email, ...partial,
             }, CONTEXT);

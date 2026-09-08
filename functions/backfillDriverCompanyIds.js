@@ -45,7 +45,6 @@ function candidateDriverIds(data = {}) {
 async function accumulate(collectionName, map) {
     let lastDoc = null;
     let scanned = 0;
-    // eslint-disable-next-line no-constant-condition
     while (true) {
         let q = db.collectionGroup(collectionName)
             .orderBy(admin.firestore.FieldPath.documentId())

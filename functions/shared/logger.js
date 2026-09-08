@@ -19,7 +19,6 @@ function emit(severity, message, ctx = {}) {
         // Never let logging throw (e.g. unserializable / circular context).
         line = JSON.stringify({ severity, message, ctxError: 'unserializable' });
     }
-    // eslint-disable-next-line no-console
     (severity === 'ERROR' ? console.error : console.log)(line);
 }
 

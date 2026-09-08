@@ -66,14 +66,12 @@ async function publishDueSlots({
             // Recorded like any other outcome. "Nothing published for this slot"
             // and "this slot was deliberately held for the next hourly run" are
             // different facts, and only one of them is a problem.
-            // eslint-disable-next-line no-await-in-loop
             await recordSlotRun({ ...deferred, trigger });
             continue;
         }
 
         let result;
         try {
-            // eslint-disable-next-line no-await-in-loop
             result = await runSlot(slot, { store, mediaCredentials: credentials, fetchImpl, aiDeps, now });
         } catch (error) {
             // One slot failing must not stop the others. Message only: article
@@ -96,7 +94,6 @@ async function publishDueSlots({
         // "yesterday's 07:00 article is missing" had no answer in the product.
         // `recordSlotRun` never throws — a ledger write must not turn a published
         // article into a failed run.
-        // eslint-disable-next-line no-await-in-loop
         await recordSlotRun({
             outcome: result.outcome,
             slot: { key: slot.key, themeId: slot.themeId, publicationDate: slot.publicationDate },

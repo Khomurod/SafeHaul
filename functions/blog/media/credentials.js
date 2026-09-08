@@ -135,7 +135,6 @@ async function readAllMediaCredentials(options = {}) {
     for (const provider of PROVIDERS) {
         const values = {};
         for (const field of provider.secretFields) {
-            // eslint-disable-next-line no-await-in-loop
             const value = await readMediaSecret(provider.id, field.name, options).catch(() => null);
             if (value) values[field.name] = value;
         }
