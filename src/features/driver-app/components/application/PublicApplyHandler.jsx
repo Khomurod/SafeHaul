@@ -4,18 +4,13 @@ import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import Stepper from '@shared/components/layout/Stepper';
 import { IntakeChooser } from './IntakeChooser';
 import {
+  buildApplyLinkOutcomeMessage,
   getFieldConfig,
   normalizePostApplicationTemplates,
 } from './publicApplyHelpers';
 import { useGuestFileUpload } from '../../hooks/useGuestFileUpload';
 import { useCdlAutoFill } from '../../hooks/useCdlAutoFill';
-import {
-  ApplyLoadingScreen,
-  ApplyLinkErrorScreen,
-  ParsingCdlScreen,
-  SubmissionSuccessScreen,
-  SubmissionQueuedScreen,
-} from './PublicApplyScreens';
+import { resolveApplyStatusScreen } from './PublicApplyScreens';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import { useData } from '@/context/DataContext';
 import { ResumeApplicationDialog } from './ResumeApplicationDialog';
@@ -76,6 +71,12 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
       ? { status: 'pending' }
       : { status: INVITE_OUTCOMES.ABSENT }),
   );
+  /**
+   * The driver chose to carry on without the link. Its own flag rather than a
+   * rewrite of `inviteOutcome`, which the reconciliation effect depends on —
+   * changing it would fetch the server draft a second time.
+   */
+  const [inviteProblemDismissed, setInviteProblemDismissed] = useState(false);
   const [submissionStatus, setSubmissionStatus] = useState(null);
   const [submittedApplicationId, setSubmittedApplicationId] = useState('');
   const [submittedConfirmationNumber, setSubmittedConfirmationNumber] = useState('');
@@ -245,20 +246,7 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     });
   }, [company?.id, sandbox, slug, inviteOutcome, restoreFromStoredToken, resetGenerationRef, restoredFromDraftRef, draftIdRef, discardGuardsRef]);
 
-  /**
-   * Retries the server copy when the connection comes back.
-   *
-   * Without this, the only triggers for a server save are Next and "Save as
-   * Draft" — so an applicant who lost signal, typed a page, and regained signal
-   * while sitting on that page kept their work locally and never sent it. Nothing
-   * was lost (the submission carries the full form), but the server draft stayed
-   * behind, which is the copy a recruiter sees and the one that survives a lost
-   * device.
-   *
-   * Only when the local copy is actually owed a save. A clean draft needs no
-   * round trip, and a legacy draft counts as owed because nothing is known about
-   * whether the server has its contents.
-   */
+  /** Retries the server copy when the connection comes back — see the listener. */
   useEffect(() => {
     if (!slug || sandbox || !company?.id) return undefined;
     return listenForReconnectFlush({
@@ -382,62 +370,49 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     showSuccess,
   });
 
-  if (loading) return <ApplyLoadingScreen />;
+  /**
+   * Which full-page status screen, if any, precedes the wizard.
+   *
+   * The chain moved into `PublicApplyScreens.jsx` on 2026-09-08: that module
+   * already owns all six screens, so which one a given state calls for is the
+   * same subject — and the ORDER is load-bearing rather than incidental, which
+   * makes it worth having in one place with the screens it orders. See the
+   * function's own comment for what each position is protecting.
+   */
+  const statusScreen = resolveApplyStatusScreen({
+    loading,
+    error,
+    isParsingCdl,
+    autoFillStoragePath,
+    sandbox,
+    sandboxSubmission,
+    onSandboxRestart: () => {
+      setSandboxSubmission(null);
+      setCurrentStep(0);
+      setFormData({});
+      sessionStorage.removeItem('lastConfirmationNumber');
+    },
+    submissionStatus,
+    postApplicationTemplates,
+    submittedApplicationId,
+    postSubmitDocs,
+    openingTemplateId,
+    handleOpenPostApplicationTemplate,
+    submittedConfirmationNumber,
+    onGoHome: () => navigate('/'),
+    onStartNewApplication: handleStartNewApplication,
+    inviteProblem: buildApplyLinkOutcomeMessage(inviteOutcome),
+    inviteProblemDismissed,
+    onContinueWithoutInvite: () => setInviteProblemDismissed(true),
+    intakeMode,
+    companyName: company?.companyName,
+    handleChooseAutoFill,
+    handleChooseManual,
+    cdlAutoFillInputRef,
+    handleCdlAutoFillFileChange,
+  });
+  if (statusScreen) return statusScreen;
 
-  if (error) return <ApplyLinkErrorScreen error={error} />;
-
-  if (isParsingCdl) {
-    return <ParsingCdlScreen autoFillStoragePath={autoFillStoragePath} />;
-  }
-
-  if (sandbox && sandboxSubmission) {
-    return (
-      <SandboxActionPanel
-        applicationId={sandboxSubmission.applicationId}
-        confirmationNumber={sandboxSubmission.confirmationNumber}
-        onDeletedRestart={() => {
-          setSandboxSubmission(null);
-          setCurrentStep(0);
-          setFormData({});
-          sessionStorage.removeItem('lastConfirmationNumber');
-        }}
-      />
-    );
-  }
-
-  // The success screen (with the required-documents checklist) must render
-  // before the intake chooser: a restored post-submission session has no
-  // intakeMode, and the driver must land back on their checklist, not on a
-  // fresh application chooser.
-  if (submissionStatus === 'success') {
-    return (
-      <SubmissionSuccessScreen
-        postApplicationTemplates={postApplicationTemplates}
-        submittedApplicationId={submittedApplicationId}
-        docStates={postSubmitDocs}
-        openingTemplateId={openingTemplateId}
-        handleOpenPostApplicationTemplate={handleOpenPostApplicationTemplate}
-        onGoHome={() => navigate('/')}
-        onStartNewApplication={handleStartNewApplication}
-        confirmationNumber={submittedConfirmationNumber}
-      />
-    );
-  }
-
-  if (!intakeMode) {
-    return (
-      <IntakeChooser
-        companyName={company.companyName}
-        onChooseAutoFill={handleChooseAutoFill}
-        onChooseManual={handleChooseManual}
-        cdlInputRef={cdlAutoFillInputRef}
-        onCdlFileChange={handleCdlAutoFillFileChange}
-      />
-    );
-  }
-
-  // P3-3 FIX: Queued status UI — shown when all direct submit attempts failed but data is queued
-  if (submissionStatus === 'queued') return <SubmissionQueuedScreen onGoHome={() => navigate('/')} />;
 
   return (
     <div className="min-h-screen bg-ds-canvas pb-ds-12">

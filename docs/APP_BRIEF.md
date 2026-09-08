@@ -865,6 +865,33 @@ hashes have no expiry of their own and are read as dead. Pinned by
 original suite structurally could not see: expire, regenerate, present the old
 token.
 
+**A link that will not open says so, and starting fresh is a choice.** Every
+failure used to resolve to `null`, and the bootstrap used the same `false` for
+"the invite could not be opened" as for "there is no invite in this URL" — so a
+wrong link, an expired one, a rate-limited exchange, a Firestore hiccup (the
+limiter fails closed) and a temporary outage were all indistinguishable from
+having followed no link at all, and the driver was dropped into the ordinary
+application, possibly pre-filled from a different applicant's saved draft, with
+nothing said. The consequence was more than a missing message: a silent
+fall-through never claims the invitation, so the carrier's locked employers went
+unenforced and it received a second, unprepared application — losing the
+49 CFR 391.21 employment history it had prepared.
+
+`exchangeApplicationInvite` now throws like every other callable in its file and
+`publicApplyInvite.js` classifies the failure, into statuses named for what the
+driver is told rather than for the server code. **`unopenable` is deliberately one
+bucket** for wrong, expired, already-submitted, superseded and discarded, because
+the server answers all of them identically on purpose and saying more on this
+side of the wire would give away what it withholds. Everything else is separated
+only along the line the driver can act on, and **retry leads for the transient
+causes** precisely because retrying is what prevents the duplicate application.
+`ApplyLinkProblemScreen` renders below the success screen — a dead link may not
+take away a confirmation number — and above the intake chooser, so continuing to
+an ordinary application is an explicit button and never a fallback. The render
+precedence itself is unchanged. `resolveApplyStatusScreen` in
+`PublicApplyScreens.jsx` holds that order beside the screens it orders, because
+three of its four positions were learned from a defect.
+
 **Employers a carrier locked from a PSP report keep their identity.** A PSP
 report names a carrier and its USDOT number beside an inspection date; it does
 not say when the driver started, left, or why. So a locked row's name and USDOT

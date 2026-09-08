@@ -2,6 +2,8 @@ import React, { useId } from 'react';
 import { AlertCircle, Building2 } from '@design-system/icons';
 import { Button } from '@/design-system/components';
 import { ErrorState, LoadingState, PageState } from '@design-system/patterns';
+import { SandboxActionPanel } from '@features/sandbox/SandboxActionPanel';
+import { IntakeChooser } from './IntakeChooser';
 import { RequiredDocumentsChecklist } from './RequiredDocumentsChecklist';
 import { DOC_STATUS } from './postApplyDocsStorage';
 
@@ -118,6 +120,56 @@ export function ParsingCdlScreen({ autoFillStoragePath }) {
   );
 }
 
+/**
+ * A carrier's link that would not open, and the way forward from it.
+ *
+ * Its own screen rather than a reuse of `ApplyLinkErrorScreen`, deliberately.
+ * That one takes only `{ error }`, renders no actions — so there is no explicit
+ * choice on it — and its title "Link Error" is a frozen string that already means
+ * *"this company does not exist"*. Reusing it would conflate a dead company with
+ * a dead invitation and could not carry the two buttons this needs.
+ *
+ * Both actions matter, and which one leads is a decision rather than a
+ * preference. A silent fall-through — what this replaces — never stamps
+ * `inviteClaimedAt`, so the carrier's locked employers go unenforced and it
+ * receives a second, unprepared application. When the failure is transient,
+ * retrying is what prevents that duplicate, so `onRetry` leads when it is
+ * offered. Continuing is always available and always explicit: starting a fresh
+ * application is a choice the driver makes, never a fallback that happens to
+ * them.
+ *
+ * The message comes from `buildApplyLinkOutcomeMessage`, which keeps a wrong link
+ * and an expired one indistinguishable and says nothing about whether another
+ * person's application exists.
+ */
+export function ApplyLinkProblemScreen({ message, onRetry, onContinue }) {
+  const headingId = `apply-link-problem-${useId().replace(/:/g, '')}`;
+  return (
+    <StatusPage labelledBy={headingId}>
+      <div className="w-full max-w-md">
+        <ErrorState
+          icon={AlertCircle}
+          headingLevel={1}
+          titleId={headingId}
+          focusOnMount
+          title="This link could not be opened"
+          description={message}
+          actions={(
+            <>
+              {onRetry && (
+                <Button variant="primary" onClick={onRetry}>Try again</Button>
+              )}
+              <Button variant={onRetry ? 'secondary' : 'primary'} onClick={onContinue}>
+                Continue to the application
+              </Button>
+            </>
+          )}
+        />
+      </div>
+    </StatusPage>
+  );
+}
+
 export function SubmissionSuccessScreen({
   postApplicationTemplates,
   submittedApplicationId,
@@ -212,4 +264,97 @@ export function SubmissionQueuedScreen({ onGoHome }) {
       </div>
     </StatusPage>
   );
+}
+
+/**
+ * Which full-page status screen, if any, precedes the wizard.
+ *
+ * Moved out of `PublicApplyHandler` on 2026-09-08. This module already owns every
+ * screen below, and the ORDER is load-bearing rather than incidental, so it
+ * belongs with them: each position is protecting something, and three of the four
+ * reasons were learned from a real defect.
+ *
+ *  1. **Loading and link error first**, because neither has a company to render
+ *     against.
+ *  2. **The submitted application above the intake chooser.** A restored
+ *     post-submission session has no `intakeMode`, so putting the chooser first
+ *     landed a returning driver on a fresh application instead of on their
+ *     remaining signing tasks.
+ *  3. **An unopenable carrier link below the success screen.** A driver who
+ *     re-clicks their own dead link after submitting must keep their confirmation
+ *     number and checklist — the one thing they cannot get back — so a dead link
+ *     may not take it away.
+ *  4. **And above the chooser**, so continuing to an ordinary application is a
+ *     choice the driver makes rather than a fallback that happens to them. That
+ *     silent fallback is what this position replaces.
+ *
+ * Returns `null` when the wizard itself should render.
+ */
+export function resolveApplyStatusScreen({
+  loading, error, isParsingCdl, autoFillStoragePath,
+  sandbox, sandboxSubmission, onSandboxRestart,
+  submissionStatus, postApplicationTemplates, submittedApplicationId, postSubmitDocs,
+  openingTemplateId, handleOpenPostApplicationTemplate, submittedConfirmationNumber,
+  onGoHome, onStartNewApplication,
+  inviteProblem, inviteProblemDismissed, onContinueWithoutInvite,
+  intakeMode, companyName, handleChooseAutoFill, handleChooseManual,
+  cdlAutoFillInputRef, handleCdlAutoFillFileChange,
+}) {
+  if (loading) return <ApplyLoadingScreen />;
+  if (error) return <ApplyLinkErrorScreen error={error} />;
+  if (isParsingCdl) return <ParsingCdlScreen autoFillStoragePath={autoFillStoragePath} />;
+
+  if (sandbox && sandboxSubmission) {
+    return (
+      <SandboxActionPanel
+        applicationId={sandboxSubmission.applicationId}
+        confirmationNumber={sandboxSubmission.confirmationNumber}
+        onDeletedRestart={onSandboxRestart}
+      />
+    );
+  }
+
+  if (submissionStatus === 'success') {
+    return (
+      <SubmissionSuccessScreen
+        postApplicationTemplates={postApplicationTemplates}
+        submittedApplicationId={submittedApplicationId}
+        docStates={postSubmitDocs}
+        openingTemplateId={openingTemplateId}
+        handleOpenPostApplicationTemplate={handleOpenPostApplicationTemplate}
+        onGoHome={onGoHome}
+        onStartNewApplication={onStartNewApplication}
+        confirmationNumber={submittedConfirmationNumber}
+      />
+    );
+  }
+
+  if (inviteProblem && !inviteProblemDismissed) {
+    return (
+      <ApplyLinkProblemScreen
+        message={inviteProblem.message}
+        // A reload: the URL still carries `?invite=`, every other piece of state
+        // is in storage, and it costs no machinery.
+        onRetry={inviteProblem.retryable ? () => window.location.reload() : null}
+        onContinue={onContinueWithoutInvite}
+      />
+    );
+  }
+
+  if (!intakeMode) {
+    return (
+      <IntakeChooser
+        companyName={companyName}
+        onChooseAutoFill={handleChooseAutoFill}
+        onChooseManual={handleChooseManual}
+        cdlInputRef={cdlAutoFillInputRef}
+        onCdlFileChange={handleCdlAutoFillFileChange}
+      />
+    );
+  }
+
+  // Shown when every direct submit attempt failed but the data is queued.
+  if (submissionStatus === 'queued') return <SubmissionQueuedScreen onGoHome={onGoHome} />;
+
+  return null;
 }

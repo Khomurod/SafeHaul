@@ -18,7 +18,12 @@ import { reconcileApplicationDraft } from './reconcileApplicationDraft';
 import { INVITE_OUTCOMES } from './publicApplyInvite';
 
 /**
- * The server-draft reconciliation, once the company is known. Returns the
+ * The server-draft reconciliation, once the company is known.
+ *
+ * The local copy is normally the same or newer, so this matters in two cases:
+ * storage was partially cleared and the token outlived the draft, or the draft
+ * was discarded or has expired server-side — in which case the hook drops the
+ * stale token rather than retrying it on every load. Returns the
  * effect's own cleanup, exactly as the inline body did.
  */
 export function reconcileServerDraftOnLoad({
@@ -164,6 +169,17 @@ export function reconcileServerDraftOnLoad({
 /**
  * The reconnect flush: sends the local copy when the connection returns and
  * it is actually owed a save. Returns the effect's own cleanup.
+ *
+ * Without this, the only triggers for a server save are Next and "Save as Draft"
+ * — so an applicant who lost signal, typed a page, and regained signal while
+ * sitting on that page kept their work locally and never sent it. Nothing was
+ * lost (the submission carries the full form), but the server draft stayed
+ * behind, which is the copy a recruiter sees and the one that survives a lost
+ * device.
+ *
+ * Only when the local copy is actually owed a save. A clean draft needs no round
+ * trip, and a legacy draft counts as owed because nothing is known about whether
+ * the server has its contents.
  */
 export function listenForReconnectFlush({
   slug,
