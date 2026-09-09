@@ -15,22 +15,10 @@
  * Only the SHA-256 is stored, as everywhere else here: a leaked database row is not
  * a usable link.
  *
- * ## Validity belongs to a TOKEN, not to the document
- *
- * This is the shape of a defect found on 2026-09-08, and the reason the code below
- * looks the way it does. Matching accepted the current hash *or* any prior hash,
- * while validity read a single document-level `inviteTokenExpiresAt` that every
- * mint rewrote unconditionally — two independent questions composed into one
- * answer. So regenerating did not retire the old link, it **revived** it: a link
- * that had been dead for a week opened again, with a fresh resume token, for
- * another fourteen days. The panel meanwhile told the recruiter that "creating a
- * new one retires this one".
- *
- * So each accepted hash now carries its own expiry, and `liveInviteFor` asks both
- * questions of one entry — which is what makes the old composition impossible to
- * write again. The prior hash is kept for the reason it always claimed: a driver
- * who opened the old link a moment ago should not find it dead mid-page. That is a
- * minutes-scale concern, so it is a minutes-scale grace.
+ * The token algebra those two questions are asked with — which hashes open a
+ * draft, and until when — lives in `./inviteTokens.js`, together with the account
+ * of the defect that made composing them independently a revival rather than a
+ * retirement.
  *
  * ## What the exchange hands back, and why it depends on whose words are in the draft
  *
@@ -53,21 +41,37 @@
  * `inviteTokenHash` either, so the ORIGINAL link already did this — gating the mint
  * would not have closed it. Found and fixed 2026-09-08.
  *
- * So the link is **tiered**. After takeover it opens nothing by itself: no answers,
- * no resume token, just `requiresIdentity`, and the driver proves who they are
- * through the challenge that already exists for every returning applicant
- * (`findResumableApplication`: last name, date of birth and SSN digits, plus a
- * contact detail already on the record). The carrier cannot pass it — a prepared
- * draft never holds an SSN — and the driver can, on any device, because their first
- * save is what supplied the identity HMAC. This is the ordinary shape for a
- * long-lived link: it grants access, and sensitive data behind it wants a second
- * factor.
+ * So the link is **tiered**, and since 2026-09-09 the tier is decided by
+ * `companyMayReadAnswers` — the very predicate the other door has always used.
+ * Two questions composed into one boundary is the shape of every defect this file
+ * records, so there is now one question.
  *
- * Returning no token after takeover also stops the exchange demoting the driver's
- * live one. It used to rotate unconditionally, pushing the driver's token into
- * `priorResumeTokenHashes`, which grants liveness but never write authorization —
- * so a carrier opening its own link a few times could silently stop the driver's
- * autosave.
+ * Opened with no identity claim and the answers not the carrier's, it returns
+ * `requiresIdentity` and writes nothing: a carrier holding this link can neither
+ * read the driver's answers nor displace the token their browser is saving with.
+ * (It used to rotate that token on every open, demoting the driver's to a prior
+ * hash, which grants liveness but never write authorization — so a carrier opening
+ * its own link a few times could silently stop the driver's autosave.)
+ *
+ * **The claim is checked against the draft this link names**, in `./inviteIdentity.js`.
+ * The original plan delegated that to `findResumableApplication`, and neither half
+ * of the delegation worked: the client had no screen for `requiresIdentity` at all,
+ * so the driver was dropped into the fresh-application chooser, and the lookup
+ * queries `identityKey ==` — which autosave was erasing on every save issued
+ * without an SSN in memory. Both measured in production on 2026-09-09 against the
+ * reported application. A link that already resolved the document has no business
+ * asking "does any draft here match this identity"; it asks "is this that
+ * applicant".
+ *
+ * ## A continuation link is not only for an application the carrier prepared
+ *
+ * Whose words are in the draft decides what the link hands over. It never decided
+ * whether the link opens — but `isCompanyPrepared` was part of both the mint gate
+ * and the resolution predicate, so a driver who started an application themselves
+ * and stopped could not be sent back to it at all. `/company/drivers/unfinished`
+ * is a list of exactly those people. Minting now works for any live draft, and a
+ * draft the driver authored is always in the identity tier, because the carrier
+ * never wrote a word of it.
  *
  * ## `inviteClaimedAt` is stamped by the driver's first save, not by the exchange
  *
@@ -84,148 +88,38 @@
 
 const crypto = require('crypto');
 const { onCall: onCallV2, HttpsError: HttpsErrorV2 } = require('firebase-functions/v2/https');
-const { functions, runtime } = require('../drafts/runtime');
+const { LIMITS, functions, runtimeWithIdentityKey } = require('../drafts/runtime');
 const { db } = require('../firebaseAdmin');
 const { checkRateLimit } = require('../shared/rateLimiter');
 const { assertCompanyAcceptingIntake } = require('../shared/companyTenant');
 const { assertCompanyAccessForRequest } = require('../shared/companyAccess');
 const draft = require('../shared/applicationDraft');
 const prepared = require('../shared/companyPreparedDraft');
-const { applicantKeyOf, clientIp, docId, text } = require('../drafts/identity');
+const {
+    applicantKeyOf, clientIp, docId, recordMatchAttempt, text,
+} = require('../drafts/identity');
+const {
+    CLAIM_OUTCOMES, readClaim, verifyInviteIdentityClaim,
+} = require('./inviteIdentity');
+const {
+    EXCHANGE_LIMIT, INVITE_DAYS, MINT_LIMIT,
+    carriedPriorInvites, hashInvite, inviteExpiresAt, liveInviteFor,
+} = require('./inviteTokens');
 
 /**
- * How long a link works.
- *
- * Long enough that a driver who is asked on Friday can finish the following week;
- * short enough that a link left in a sent-mail folder is not a standing key to
- * someone's application. Independent of the draft's own 30-day retention, and
- * always the shorter of the two.
+ * The prior-hash list a rotation leaves behind. Liveness only, never authorization
+ * — see `tokenNamesDraft` in `drafts/identity.js`.
  */
-const INVITE_DAYS = 14;
-
-/**
- * How long the link a regeneration replaced keeps working.
- *
- * The whole reason to keep a prior hash at all is the driver who is mid-page on the
- * old link at the moment the recruiter presses "Create a new link". Ten minutes
- * covers that and nothing else. It is a ceiling and never an extension: a prior
- * entry expires at `min(its own expiry, now + this)`, so replacing a link that had
- * two minutes left does not give it ten.
- */
-const INVITE_GRACE_MS = 10 * 60 * 1000;
-
-/** Prior hashes kept live through a regeneration. One, as the brief has always said. */
-const MAX_PRIOR_INVITE_HASHES = 1;
-
-/** Tight: an invite token is a bearer credential and guessing it is the attack. */
-const EXCHANGE_LIMIT = Object.freeze({ limit: 10, windowSeconds: 60 });
-
-/**
- * Minting is cheap for a recruiter and useful to an attacker who has a session:
- * every regeneration retires the driver's live link, so an unbounded loop is a way
- * to keep an application permanently unopenable. Generous for real proofreading.
- */
-const MINT_LIMIT = Object.freeze({ limit: 20, windowSeconds: 300 });
-
-function hashInvite(token) {
-    return crypto.createHash('sha256').update(String(token || '')).digest('hex');
+function priorResumeHashes(stored) {
+    return [
+        typeof stored.resumeTokenHash === 'string' ? stored.resumeTokenHash : null,
+        ...(Array.isArray(stored.priorResumeTokenHashes) ? stored.priorResumeTokenHashes : []),
+    ].filter(Boolean).slice(0, 2);
 }
 
-function inviteMatches(storedHash, token) {
-    const expected = Buffer.from(String(storedHash || ''), 'utf8');
-    const actual = Buffer.from(hashInvite(token), 'utf8');
-    if (expected.length !== actual.length) return false;
-    return crypto.timingSafeEqual(expected, actual);
-}
-
-/**
- * Milliseconds, from whatever the store handed back.
- *
- * Firestore returns a `Timestamp` with `toDate()`; a value written in the same
- * process — and everything in the test double — is a plain `Date`. Reading only
- * one of the two shapes measures the other as "no expiry", which fails in whichever
- * direction the reader happens to default to. Both are read, and anything else is
- * `null`, which every caller below treats as expired.
- */
-function expiryMillis(value) {
-    if (value && typeof value.toDate === 'function') {
-        const date = value.toDate();
-        return date instanceof Date ? date.getTime() : null;
-    }
-    if (value instanceof Date) return value.getTime();
-    return typeof value === 'number' ? value : null;
-}
-
-/**
- * Every hash that could open this draft, newest first, each with its own expiry.
- *
- * `priorInviteTokenHashes` is the legacy shape: bare strings, with no expiry of
- * their own. There is no honest expiry to give them — the only one that ever
- * existed was the document-level field a later mint had already rewritten, which
- * is the defect — so they are not returned at all, i.e. treated as dead. The worst
- * case is one driver, mid-open at the moment of deployment, being asked for a fresh
- * link; the alternative is honouring exactly the amnesty this change removes.
- */
-function inviteEntries(data) {
-    const source = data || {};
-    const entries = [];
-    if (typeof source.inviteTokenHash === 'string') {
-        entries.push({ hash: source.inviteTokenHash, expiresAt: source.inviteTokenExpiresAt });
-    }
-    if (Array.isArray(source.priorInvites)) {
-        for (const entry of source.priorInvites) {
-            if (entry && typeof entry.hash === 'string') {
-                entries.push({ hash: entry.hash, expiresAt: entry.expiresAt });
-            }
-        }
-    }
-    return entries;
-}
-
-/**
- * Does this token open this draft, right now?
- *
- * One function on purpose. "Does the token name the draft" and "is the expiry in
- * the future" used to be two, and composing them independently is precisely what
- * let an expired token ride on a newer token's expiry. Asked of a single entry, the
- * expired case cannot be expressed.
- *
- * A hash that matches but has expired returns `null` rather than continuing the
- * scan: the token *is* that entry, and that entry is dead. (Two entries cannot
- * share a hash — each is 32 random bytes.)
- *
- * @returns {{hash: string, expiresAt: *}|null} the live entry, or null
- */
-function liveInviteFor(data, token, now = Date.now()) {
-    for (const entry of inviteEntries(data)) {
-        if (!inviteMatches(entry.hash, token)) continue;
-        const expires = expiryMillis(entry.expiresAt);
-        return typeof expires === 'number' && expires > now ? entry : null;
-    }
-    return null;
-}
-
-function inviteExpiresAt(now = Date.now()) {
-    return new Date(now + INVITE_DAYS * 24 * 60 * 60 * 1000);
-}
-
-/**
- * The entries a mint carries forward, each capped at the grace window.
- *
- * Reads `inviteEntries`, so the hash being replaced is first and therefore the one
- * that survives `slice`. An entry already past its expiry is dropped rather than
- * extended — that is the difference between a grace and a revival.
- */
-function carriedPriorInvites(data, now = Date.now()) {
-    const graceEnd = now + INVITE_GRACE_MS;
-    const carried = [];
-    for (const entry of inviteEntries(data)) {
-        const expires = expiryMillis(entry.expiresAt);
-        if (typeof expires !== 'number' || expires <= now) continue;
-        carried.push({ hash: entry.hash, expiresAt: new Date(Math.min(expires, graceEnd)) });
-        if (carried.length >= MAX_PRIOR_INVITE_HASHES) break;
-    }
-    return carried;
+/** The lock list as stored, untouched. */
+function storedLocks(stored) {
+    return Array.isArray(stored.lockedEmployers) ? stored.lockedEmployers : [];
 }
 
 /**
@@ -260,7 +154,7 @@ exports.mintApplicationInvite = onCallV2({ cors: true }, async (request) => {
 
     const outcome = await db.runTransaction(async (transaction) => {
         const doc = await transaction.get(ref);
-        if (!doc.exists || !prepared.isCompanyPrepared(doc.data())) return { missing: true };
+        if (!doc.exists) return { missing: true };
         const data = doc.data() || {};
 
         transaction.set(ref, {
@@ -271,22 +165,46 @@ exports.mintApplicationInvite = onCallV2({ cors: true }, async (request) => {
             priorInviteTokenHashes: [],
             inviteTokenExpiresAt: inviteExpiresAt(now),
             invitedAt: draft.serverTimestamp(),
-            // `sent` records that a link exists. The driver taking it over is a
-            // separate, later fact and must not be walked back by a regeneration.
-            status: data.status === prepared.PREPARED_STATUSES.DRIVER_IN_PROGRESS
-                ? prepared.PREPARED_STATUSES.DRIVER_IN_PROGRESS
-                : prepared.PREPARED_STATUSES.SENT,
+            /**
+             * The status a link changes, and the status it must not.
+             *
+             * `sent` records that a link exists for an application the CARRIER
+             * prepared. The driver taking it over is a separate, later fact and must
+             * not be walked back by a regeneration — so `driver_in_progress` stands.
+             *
+             * A draft the DRIVER started has no such life-cycle: it is
+             * `in_progress`, the answers were never the carrier's, and writing
+             * `sent` over it would tell `companyMayReadAnswers` that the carrier
+             * authored answers it has never seen. Its status is left exactly as it
+             * is; the invite fields alone are what a continuation link needs.
+             */
+            ...(prepared.isCompanyPrepared(data)
+                ? {
+                    status: data.status === prepared.PREPARED_STATUSES.DRIVER_IN_PROGRESS
+                        ? prepared.PREPARED_STATUSES.DRIVER_IN_PROGRESS
+                        : prepared.PREPARED_STATUSES.SENT,
+                }
+                : {}),
             updatedAt: draft.serverTimestamp(),
             expiresAt: draft.expiresAt(),
         }, { merge: true });
-        return { missing: false };
+        return { missing: false, driverOwned: !prepared.companyMayReadAnswers(data) };
     });
 
     if (outcome.missing) {
-        throw new HttpsErrorV2('not-found', 'No prepared application was found.');
+        throw new HttpsErrorV2('not-found', 'No unfinished application was found.');
     }
 
-    return { inviteToken: token, applicantKey, expiresInDays: INVITE_DAYS };
+    return {
+        inviteToken: token,
+        applicantKey,
+        expiresInDays: INVITE_DAYS,
+        // Whether the link will ask the driver to confirm who they are. The panel
+        // says so rather than implying the recruiter can open it themselves — and it
+        // comes from the same predicate the exchange decides with, so the sentence
+        // cannot drift from the behaviour the way the expiry copy once did.
+        requiresIdentity: outcome.driverOwned,
+    };
 });
 
 /**
@@ -297,7 +215,11 @@ exports.mintApplicationInvite = onCallV2({ cors: true }, async (request) => {
  * are different facts an attacker would happily learn.
  */
 exports.exchangeApplicationInvite = functions
-    .runWith(runtime)
+    // Binds `SMS_ENCRYPTION_KEY`, because the identity claim below derives the same
+    // HMAC the draft stores. The literal lives in `drafts/runtime.js`, which imports
+    // 1st generation — the generation this callable deploys under — so
+    // `secretBindingGenerations.test.js` still sees one generation per binding site.
+    .runWith(runtimeWithIdentityKey)
     .https.onCall(async (data, context) => {
         const companyId = docId(data?.companyId, 100);
         const applicantKey = applicantKeyOf(data?.applicantKey);
@@ -305,6 +227,7 @@ exports.exchangeApplicationInvite = functions
         if (!companyId || !inviteToken) {
             throw new functions.https.HttpsError('invalid-argument', 'companyId and inviteToken are required.');
         }
+        const claim = readClaim(data?.identity);
 
         const allowed = await checkRateLimit(
             `invite_exchange_${clientIp(context)}`,
@@ -317,9 +240,17 @@ exports.exchangeApplicationInvite = functions
         await assertCompanyAcceptingIntake(db, companyId);
 
         const collection = draft.draftsCollection(companyId);
-        const opens = (doc) => Boolean(
-            doc && prepared.isCompanyPrepared(doc.data()) && liveInviteFor(doc.data(), inviteToken),
-        );
+        /**
+         * Does this token open this document?
+         *
+         * `isCompanyPrepared` used to be part of this question, which made a
+         * continuation link something only a carrier-prepared application could
+         * have — so "Started (unfinished)", the list of drafts a driver began and
+         * abandoned, had no way to send anybody back to their own work. Whose words
+         * are in the draft decides what the link HANDS OVER, below; it has no
+         * business deciding whether the link opens at all.
+         */
+        const opens = (doc) => Boolean(doc && liveInviteFor(doc.data(), inviteToken));
         let candidate = null;
         if (applicantKey) {
             // The link carries the key, so this is one read. It is a hint and not a
@@ -328,8 +259,9 @@ exports.exchangeApplicationInvite = functions
             if (doc.exists && opens(doc)) candidate = doc;
         }
         if (!candidate) {
+            // No `origin` filter either, for the same reason, which also drops this
+            // path's dependency on the `origin`/`updatedAt` composite index.
             const recent = await collection
-                .where('origin', '==', prepared.ORIGIN_COMPANY)
                 .orderBy('updatedAt', 'desc')
                 .limit(50)
                 .get();
@@ -344,7 +276,7 @@ exports.exchangeApplicationInvite = functions
         // every other resumed session is. The superseded hash stays live for the
         // same reason it does on a resume lookup: a second tab must not be killed.
         //
-        // The status is re-read inside the transaction rather than taken from the
+        // Everything is re-read inside the transaction rather than taken from the
         // candidate: the driver's first save can land between the two, and it is
         // the one fact that decides whether this open hands over answers at all.
         const resumeToken = draft.mintResumeToken();
@@ -353,18 +285,57 @@ exports.exchangeApplicationInvite = functions
             if (!fresh.exists) return null;
             const stored = fresh.data() || {};
 
-            if (stored.status === prepared.PREPARED_STATUSES.DRIVER_IN_PROGRESS) {
-                // Theirs now. Nothing is written — not the token, not the claim —
-                // so a carrier holding this link cannot read the driver's answers,
-                // cannot rewrite them, and cannot displace the token the driver's
-                // own browser is saving with.
-                return { requiresIdentity: true };
+            /**
+             * One predicate for both doors, at last.
+             *
+             * `companyApplications/read.js` has always asked `companyMayReadAnswers`
+             * — the carrier authored these answers AND the driver has not written
+             * over them — while this file asked its own narrower question. Two
+             * questions composed into one boundary is the shape of the defect this
+             * whole file keeps recording, so there is now one.
+             */
+            if (!prepared.companyMayReadAnswers(stored)) {
+                if (!claim) {
+                    // Theirs. Nothing is written — not the token, not the claim — so
+                    // a carrier holding this link cannot read the driver's answers,
+                    // cannot rewrite them, and cannot displace the token the
+                    // driver's own browser is saving with.
+                    return { requiresIdentity: true };
+                }
+
+                const verdict = verifyInviteIdentityClaim({ companyId, stored, claim });
+                if (verdict.outcome !== CLAIM_OUTCOMES.OK) {
+                    return { refused: verdict.outcome };
+                }
+
+                const prior = priorResumeHashes(stored);
+                transaction.set(candidate.ref, {
+                    resumeTokenHash: resumeToken.hash,
+                    priorResumeTokenHashes: prior,
+                    // Establishes the HMAC when the draft had none, so the next
+                    // replacement link is verified rather than merely checked
+                    // against two answers. Never cleared: a null here would be the
+                    // erasure `identityKeyForSave` exists to stop.
+                    ...(verdict.identityKey ? { identityKey: verdict.identityKey } : {}),
+                    // Which token the claim belongs to, exactly as the hand-over
+                    // branch does — `drafts/save.js` stamps `inviteClaimedAt` when a
+                    // save presents it. A driver-authored draft has no locked
+                    // employers, so for one this changes nothing.
+                    inviteResumeTokenHash: resumeToken.hash,
+                    updatedAt: draft.serverTimestamp(),
+                    expiresAt: draft.expiresAt(),
+                }, { merge: true });
+                // Deliberately NO `reconcileLockedEmployers` here. It may only run
+                // while the employer rows are provably the carrier's; reconciling
+                // against answers the driver supplied would make deleting a locked
+                // row enough to delete its lock, which is the whole thing the lock
+                // prevents.
+                return {
+                    requiresIdentity: false, stored, healedLocks: storedLocks(stored), tier: verdict.tier,
+                };
             }
 
-            const prior = [
-                typeof stored.resumeTokenHash === 'string' ? stored.resumeTokenHash : null,
-                ...(Array.isArray(stored.priorResumeTokenHashes) ? stored.priorResumeTokenHashes : []),
-            ].filter(Boolean).slice(0, 2);
+            const prior = priorResumeHashes(stored);
 
             /**
              * The last moment the employer rows are provably the carrier's.
@@ -395,27 +366,88 @@ exports.exchangeApplicationInvite = functions
                 updatedAt: draft.serverTimestamp(),
                 expiresAt: draft.expiresAt(),
             }, { merge: true });
-            return { requiresIdentity: false, stored, healedLocks };
+            return { requiresIdentity: false, stored, healedLocks, tier: 'author' };
         });
 
         if (!outcome) {
             throw new functions.https.HttpsError('not-found', 'That application link could not be opened.');
         }
 
+        if (outcome.refused) {
+            /**
+             * A refused claim, spent against a budget kept per targeted draft.
+             *
+             * The link is a bearer credential, so whoever holds it was already told
+             * `requiresIdentity` and knows an application is there — saying "those
+             * details do not match" therefore discloses nothing new, and saying
+             * nothing would leave a driver who mistyped their date of birth with no
+             * way to tell that from a dead link. What must be bounded is guessing:
+             * the per-IP limit above does not stop a distributed attempt at one
+             * draft, so the draft itself carries a budget. Keyed on the applicant
+             * key, which is already a hash and cannot be varied without addressing
+             * a different application.
+             */
+            const withinBudget = await checkRateLimit(
+                `invite_identity_denied_${candidate.id}`,
+                LIMITS.matchPerIdentity.limit, LIMITS.matchPerIdentity.windowSeconds, 'closed',
+            );
+            // Inside the budget, as `drafts/save.js` does it: what the budget bounds
+            // is the audit writes one caller can cause, so recording first would
+            // have made a probe loop unbounded writes — which is the thing it is
+            // there to stop. The first attempts are recorded, which is all a spike
+            // needs to be visible.
+            if (withinBudget) {
+                await recordMatchAttempt(companyId, outcome.refused, 'invite_identity_refused');
+            } else {
+                throw new functions.https.HttpsError('resource-exhausted', 'Too many attempts. Please wait a moment.');
+            }
+            throw new functions.https.HttpsError(
+                'permission-denied',
+                outcome.refused === CLAIM_OUTCOMES.UNVERIFIABLE
+                    ? 'We cannot confirm this application belongs to you from what has been saved so far.'
+                    : 'Those details do not match this application.',
+            );
+        }
+
         if (outcome.requiresIdentity) {
             // `applicantKey` is already in the link's own query string, so saying it
             // back discloses nothing. Everything else is withheld, including who
-            // prepared it.
+            // prepared it and how far the driver got.
             return { opened: true, requiresIdentity: true, applicantKey: candidate.id };
         }
 
         const restored = outcome.stored;
+        /**
+         * A confirmed identity is an authentication event and is recorded; an
+         * ordinary hand-over is not.
+         *
+         * The distinction is the operational question this collection answers —
+         * "how many people are being asked to prove who they are, and how often does
+         * it fail" — and auditing every open would drown it in rows for the tier
+         * where nothing was proved. The value-free rule holds: the tier that
+         * verified, never what was presented. `author` is the hand-over.
+         */
+        if (outcome.tier !== 'author') {
+            await recordMatchAttempt(companyId, outcome.tier, 'invite_identity_confirmed');
+        }
         return {
             opened: true,
             requiresIdentity: false,
             applicantKey: candidate.id,
             resumeToken: resumeToken.token,
             formData: restored.formData || {},
+            // Where the driver actually was. Withheld until 2026-09-09, which was
+            // survivable only because a carrier-prepared draft is always on page
+            // one: a driver confirming their identity to continue their own
+            // application would otherwise be handed their answers and dropped back
+            // at the start of the wizard.
+            lastStep: Number.isInteger(restored.lastStep) ? restored.lastStep : 0,
+            lastSemanticStep: typeof restored.lastSemanticStep === 'string'
+                ? restored.lastSemanticStep
+                : null,
+            // So the browser can reconcile its own copy against this one instead of
+            // assuming one of them is newer — see `reconcileApplicationDraft`.
+            clientSeq: Number.isInteger(restored.clientSeq) ? restored.clientSeq : null,
             // The healed list, so the rows the wizard renders as locked are exactly
             // the rows submission will enforce.
             lockedEmployers: outcome.healedLocks,
@@ -423,17 +455,14 @@ exports.exchangeApplicationInvite = functions
         };
     });
 
+/**
+ * Re-exported for the suites, from wherever each piece now lives. The expiry suite
+ * reads this object rather than the module that defines each function, so the split
+ * above is invisible to it — which is the point: a test that pins BEHAVIOUR should
+ * not fail because a file was divided.
+ */
 exports.__private = {
-    EXCHANGE_LIMIT,
-    INVITE_DAYS,
-    INVITE_GRACE_MS,
-    MAX_PRIOR_INVITE_HASHES,
-    MINT_LIMIT,
-    carriedPriorInvites,
-    expiryMillis,
-    hashInvite,
-    inviteEntries,
-    inviteExpiresAt,
-    inviteMatches,
-    liveInviteFor,
+    ...require('./inviteTokens'),
+    ...require('./inviteIdentity'),
+    priorResumeHashes,
 };

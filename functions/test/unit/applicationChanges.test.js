@@ -171,3 +171,170 @@ describe('submitChangeResolution', () => {
     expect(mockReviewRef.set).toHaveBeenCalledWith(expect.objectContaining({ status: 'completed' }), { merge: true });
   });
 });
+
+/**
+ * Employers, through the whole approval workflow.
+ *
+ * `employers` is the one editable field that is not just a value: a Previous
+ * Employment Verification mirror lives on each row, so a whole-array replacement
+ * from a browser could move one employer's completed verification onto another.
+ * These cases drive the two callables that write that array and assert the
+ * property in both — see `shared/employerEdits.js` for why the resolution pass is
+ * the authoritative one.
+ */
+describe('employers through the approval workflow', () => {
+  const ABC = { employerId: 'aaaaaaaaaaaa', companyName: 'ABC Trucking', verification: { status: 'Completed', respondentName: 'Pat' } };
+  const XYZ = { employerId: 'bbbbbbbbbbbb', companyName: 'XYZ Transport' };
+
+  /** The pending change as `submitChangeResolution` reads it back. */
+  const pendingEmployers = (proposedValue) => [{
+    id: 'employers',
+    data: () => ({
+      fieldKey: 'employers', status: 'pending',
+      originalValue: [ABC, XYZ], proposedValue,
+    }),
+  }];
+
+  const employersWritten = () => {
+    const call = mockBatch.set.mock.calls.find(([ref]) => ref === mockAppRef);
+    return call ? call[1].employers : undefined;
+  };
+
+  beforeEach(() => {
+    mockState.appSnap = { exists: true, data: () => ({ firstName: 'John', employers: [ABC, XYZ] }) };
+  });
+
+  it('proposes an added employer with an identity and no verification', async () => {
+    const res = await proposeApplicationChanges({
+      auth,
+      data: {
+        ...target,
+        changes: [{ fieldKey: 'employers', proposedValue: [ABC, XYZ, { companyName: 'New Freight Co' }] }],
+      },
+    });
+
+    expect(res.applied).toContain('employers');
+    const written = mockBatch.set.mock.calls.find(([ref]) => ref.__pc === 'employers')[1];
+    expect(written.proposedValue).toHaveLength(3);
+    expect(written.proposedValue[2].employerId).toMatch(/^[0-9a-f]{12}$/);
+    expect(written.proposedValue[2].verification).toBeUndefined();
+    // And the existing row keeps its own.
+    expect(written.proposedValue[0].verification).toMatchObject({ status: 'Completed' });
+  });
+
+  it('strips a verification block the client tried to send', async () => {
+    await proposeApplicationChanges({
+      auth,
+      data: {
+        ...target,
+        changes: [{
+          fieldKey: 'employers',
+          // XYZ, carrying ABC's completed verification. This is the corruption.
+          proposedValue: [{ ...XYZ, verification: { status: 'Completed', respondentName: 'Pat' } }],
+        }],
+      },
+    });
+
+    const written = mockBatch.set.mock.calls.find(([ref]) => ref.__pc === 'employers')[1];
+    expect(written.proposedValue[0].companyName).toBe('XYZ Transport');
+    expect(written.proposedValue[0].verification).toBeUndefined();
+  });
+
+  it('records the removal, and the verification state that went with it', async () => {
+    await proposeApplicationChanges({
+      auth,
+      data: { ...target, changes: [{ fieldKey: 'employers', proposedValue: [XYZ] }] },
+    });
+
+    expect(mockAdd).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'Company Edit Proposed',
+      details: expect.stringContaining('ABC Trucking (verification: Completed)'),
+    }));
+  });
+
+  it('re-attaches verification from the LIVE record when the driver approves', async () => {
+    // The proposal was written before ABC's verification completed; approving its
+    // stored snapshot would roll that completion back.
+    mockState.pendingDocs = pendingEmployers([
+      { employerId: 'aaaaaaaaaaaa', companyName: 'ABC Trucking' },
+      XYZ,
+    ]);
+    mockState.appSnap = {
+      exists: true,
+      data: () => ({ employers: [{ ...ABC, verification: { status: 'Completed', respondentName: 'Later' } }, XYZ] }),
+    };
+
+    await submitChangeResolution({
+      data: { token: 'tok-123', resolutions: [{ fieldKey: 'employers', action: 'approve' }] },
+    });
+
+    expect(employersWritten()[0].verification).toMatchObject({ respondentName: 'Later' });
+  });
+
+  it('will not let the driver’s own edit set a verification', async () => {
+    // `submitChangeResolution` writes `r.value` straight onto the document, so the
+    // review portal is a write surface with no other validation on this field.
+    mockState.pendingDocs = pendingEmployers([XYZ]);
+
+    await submitChangeResolution({
+      data: {
+        token: 'tok-123',
+        resolutions: [{
+          fieldKey: 'employers',
+          action: 'edit',
+          value: [{ ...XYZ, verification: { status: 'Completed', respondentName: 'Forged' } }],
+        }],
+      },
+    });
+
+    const written = employersWritten();
+    expect(written[0].companyName).toBe('XYZ Transport');
+    expect(written[0].verification).toBeUndefined();
+  });
+
+  it('leaves the record alone when the driver rejects', async () => {
+    mockState.pendingDocs = pendingEmployers([XYZ]);
+
+    await submitChangeResolution({
+      data: { token: 'tok-123', resolutions: [{ fieldKey: 'employers', action: 'reject' }] },
+    });
+
+    // No write to the application document at all: the canonical original stands.
+    expect(employersWritten()).toBeUndefined();
+    expect(mockBatch.set).toHaveBeenCalledWith(
+      { __pc: 'employers' },
+      expect.objectContaining({ status: 'rejected' }),
+      { merge: true },
+    );
+  });
+
+  it('names the removal in the driver-review audit line too', async () => {
+    mockState.pendingDocs = pendingEmployers([XYZ]);
+
+    await submitChangeResolution({
+      data: { token: 'tok-123', resolutions: [{ fieldKey: 'employers', action: 'approve' }] },
+    });
+
+    expect(mockAdd).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'Driver Reviewed Company Edits',
+      details: expect.stringContaining('ABC Trucking (verification: Completed)'),
+    }));
+  });
+
+  it('never writes to the frozen submission snapshot', async () => {
+    // `companies/{id}/applications/{appId}/submission/{version}` is Admin-SDK-only
+    // and immutable. Nothing on this path may reach it — the only subcollections
+    // touched are `pending_changes` and `activity_logs`.
+    mockState.pendingDocs = pendingEmployers([XYZ]);
+    await proposeApplicationChanges({
+      auth, data: { ...target, changes: [{ fieldKey: 'employers', proposedValue: [XYZ] }] },
+    });
+    await submitChangeResolution({
+      data: { token: 'tok-123', resolutions: [{ fieldKey: 'employers', action: 'approve' }] },
+    });
+
+    const written = mockBatch.set.mock.calls.map(([ref]) => (ref.__pc ? `pending_changes/${ref.__pc}` : 'application'));
+    expect(written.every((path) => path === 'application' || path.startsWith('pending_changes/'))).toBe(true);
+    expect(mockAdd.mock.calls.every(([row]) => typeof row.action === 'string')).toBe(true);
+  });
+});

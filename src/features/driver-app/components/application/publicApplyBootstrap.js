@@ -19,12 +19,13 @@ import { buildE2EPublicProfile } from './publicApplyHelpers';
 import { readApplicationDraft } from './applicationDraftStorage';
 import {
   DOC_STATUS,
-  clearPostApplySession,
   savePostApplySession,
   readPostApplySession,
   isRequestSigned,
 } from './postApplyDocsStorage';
-import { INVITE_OUTCOMES, openPreparedApplication } from './publicApplyInvite';
+import {
+  INVITE_OUTCOMES, adoptOpenedApplication, openPreparedApplication,
+} from './publicApplyInvite';
 
   /**
    * Restore a recent submission (and its document checklist) after the driver
@@ -104,13 +105,15 @@ export async function loadPublicApplyCompany({
      * browser may hold an abandoned attempt of its own, and what the driver
      * clicked is the application their carrier filled in for them. Taken before
      * the post-apply session restore too, and that ordering is the whole of the
-     * fix for a stale confirmation screen hiding a live invitation — see below.
+     * fix for a stale confirmation screen hiding a live invitation.
      *
      * The exchange also mints a resume token for this draft. A carrier-prepared
      * draft has no identity HMAC — the carrier does not know the driver's Social
      * Security Number — so that token is the only thing that will authorize the
-     * driver's own autosave from here on. Adopted the moment it arrives, before
-     * anything further down can go wrong.
+     * driver's own autosave from here on. `adoptOpenedApplication` takes it on the
+     * moment it arrives, before anything further down can go wrong, and is shared
+     * with the identity-confirmation path in `PublicApplyHandler` so the two
+     * cannot diverge.
      *
      * @returns {Promise<object>} the outcome, which the caller branches on
      */
@@ -121,57 +124,16 @@ export async function loadPublicApplyCompany({
       setInviteOutcome(outcome);
       if (outcome.status !== INVITE_OUTCOMES.OPENED) return outcome;
 
-      adoptResumeToken({
-        resumeToken: outcome.payload.resumeToken,
-        applicantKey: outcome.applicantKey,
+      adoptOpenedApplication({
+        outcome,
+        companyId: companyData.id,
+        adoptResumeToken,
+        restoredFromDraftRef,
+        draftIdRef,
+        setFormData,
+        setCurrentStep,
+        setIntakeMode,
       });
-      restoredFromDraftRef.current = true;
-      draftIdRef.current = outcome.applicantKey;
-      setFormData((prev) => ({
-        ...prev,
-        ...outcome.payload.formData,
-        // Decorative, for rendering the rows as locked. The enforcement copy lives
-        // on the draft itself, where the locked party cannot reach it.
-        lockedEmployers: outcome.payload.lockedEmployers || [],
-      }));
-      setIntakeMode('manual');
-      sessionStorage.setItem('pending_application_company', companyData.id);
-
-      /**
-       * A live invitation retires a finished one's confirmation screen.
-       *
-       * `sh_post_apply_${companyId}` is keyed to a COMPANY and lasts 24 hours, and
-       * restoring it sets `submissionStatus = 'success'`, which renders above the
-       * wizard. It also ran before the exchange, so a new invitation to the same
-       * carrier in the same tab loaded its answers into state and then showed the
-       * PREVIOUS applicant's success screen and documents checklist over them.
-       *
-       * Cleared rather than merely not restored, or the defect returns through the
-       * other door: left in place, a later reload of the bare `/apply/:slug` in
-       * this tab brings that success screen back over the invited driver's
-       * half-typed application.
-       *
-       * Safe against a real submitted application by construction, not by luck: a
-       * submission DELETES the draft, and the invite hash lives on that document,
-       * so a successful exchange proves the application it opened has not been
-       * submitted. A FAILED exchange deliberately touches none of this, which is
-       * what protects the driver who re-clicks their own emailed link after
-       * submitting — their link is dead, and they keep their confirmation number
-       * and their remaining signing tasks. The signing-room round trip never
-       * reaches here at all: its return path carries no query string, so the
-       * outcome is `absent`.
-       */
-      clearPostApplySession(companyData.id);
-      try {
-        // A single global key with no company or application scoping, read as the
-        // success screen's fallback. Left behind, it shows the previous
-        // applicant's confirmation number on the invited driver's own success
-        // screen later.
-        sessionStorage.removeItem('lastConfirmationNumber');
-      } catch {
-        /* storage unavailable (privacy mode) — nothing was stored to begin with */
-      }
-
       setLoading(false);
       return outcome;
     }

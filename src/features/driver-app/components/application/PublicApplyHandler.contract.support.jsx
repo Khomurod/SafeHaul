@@ -254,9 +254,13 @@ export const SIGNED_DRAFT = {
  * touches a mocked import.
  */
 export const makeRenderers = ({ PublicApplyHandler, MemoryRouter, Route, Routes }) => {
-  function renderHandler() {
+  /**
+   * @param {string} [query] A query string, for the suites that follow a carrier's
+   *   link. Empty by default, so every existing case renders exactly as before.
+   */
+  function renderHandler(query = '') {
     return render(
-      <MemoryRouter initialEntries={['/apply/acme']}>
+      <MemoryRouter initialEntries={[`/apply/acme${query}`]}>
         <Routes>
           <Route path="/apply/:slug" element={<PublicApplyHandler />} />
         </Routes>
@@ -311,14 +315,29 @@ export const saveProgressSpy = vi.fn();
 export const findResumableSpy = vi.fn();
 export const resumeDraftSpy = vi.fn();
 export const startNewSpy = vi.fn();
+/**
+ * The carrier's link, exchanged.
+ *
+ * Defaults to the callable's own refusal rather than to a resolved value: a suite
+ * that renders no `?invite=` never reaches the service at all, and one that does
+ * should have to say what it expects back. A silently-resolving default would make
+ * "the link opened" the accident of a shared fixture.
+ */
+export const exchangeInviteSpy = vi.fn();
 
 export function stubDraftCallables() {
   draftCallables.saveApplicationProgress = saveProgressSpy;
   draftCallables.findResumableApplication = findResumableSpy;
   draftCallables.resumeApplicationDraft = resumeDraftSpy;
   draftCallables.startNewApplication = startNewSpy;
+  draftCallables.exchangeApplicationInvite = exchangeInviteSpy;
   saveProgressSpy.mockResolvedValue({ data: { saved: true, applicantKey: 'key-1', resumeToken: 'token-1' } });
   findResumableSpy.mockResolvedValue({ data: { resumable: false } });
   resumeDraftSpy.mockResolvedValue({ data: { restored: false } });
   startNewSpy.mockResolvedValue({ data: { discarded: true } });
+  exchangeInviteSpy.mockImplementation(async () => {
+    throw Object.assign(new Error('That application link could not be opened.'), {
+      code: 'functions/not-found',
+    });
+  });
 }

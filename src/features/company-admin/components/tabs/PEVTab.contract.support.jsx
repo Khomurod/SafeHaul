@@ -26,7 +26,20 @@ import { vi } from 'vitest';
 
 export const toastMocks = { showSuccess: vi.fn(), showError: vi.fn() };
 export const dataMock = { value: { currentCompanyProfile: {} } };
-export const fsMocks = { updateDoc: vi.fn() };
+export const fsMocks = { updateDoc: vi.fn(), getDoc: vi.fn() };
+/**
+ * What the application document holds, for the read that precedes every mirror
+ * write.
+ *
+ * `PEVTab.writeVerification` re-reads the document before writing, because
+ * writing a snapshot of `appData.employers` back over the whole array erases
+ * anything that changed on another row since the dossier loaded — including the
+ * `employerId` `sendVerificationRequest` stamps, which is what a completed
+ * verification is filed against. So the harness has to have a stored document,
+ * not only a prop; `makeRenderTab` seeds it from the same rows it renders, and
+ * `updateDoc` writes into it so a second action in one test sees the first.
+ */
+export const storedDoc = { employers: [] };
 export const storageMocks = { uploadBytes: vi.fn(), getDownloadURL: vi.fn() };
 export const fnMocks = { callable: vi.fn(), httpsCallable: vi.fn() };
 export const activityMocks = { logActivity: vi.fn() };
@@ -40,6 +53,7 @@ export const libFirebaseMock = () => ({ db: {}, storage: {}, functions: {} });
 export const firebaseFirestoreMock = () => ({
   doc: vi.fn((_db, ...segments) => segments.join('/')),
   updateDoc: fsMocks.updateDoc,
+  getDoc: fsMocks.getDoc,
 });
 export const firebaseStorageMock = () => ({
   ref: vi.fn((_storage, path) => path),
@@ -82,13 +96,15 @@ export const voePreviewModalMock = () => ({
 // --- fixtures and helpers, verbatim ----------------------------------------
 
 /**
- * A factory, not a shared constant, and deliberately so: `handleFinalSend` and
- * `handleUploadResult` take a shallow `[...employers]` copy and then mutate the
- * employer objects inside it, which are the very objects handed in through
- * `appData`. A shared fixture would therefore carry one test's "Sent" status
- * into the next. That in-place mutation of a prop is a real (pre-existing) smell
- * — it is recorded in the roadmap rather than changed here, because the employer
- * data shape and the Firestore write are frozen contracts for this campaign.
+ * A factory, not a shared constant.
+ *
+ * It was that way because `handleFinalSend` and `handleUploadResult` took a
+ * shallow `[...employers]` copy and then mutated the employer objects inside it —
+ * the very objects handed in through `appData` — so a shared fixture carried one
+ * test's "Sent" status into the next. That in-place mutation of a prop is gone as
+ * of 2026-09-09: `writeVerification` re-reads the document and replaces the row,
+ * so nothing reaches back into the prop. The factory stays, because a fixture
+ * shared between tests is a bad idea whether or not anything mutates it.
  */
 export const makeEmployers = () => [
   {
@@ -119,14 +135,21 @@ export const makeEmployers = () => [
  * The original `renderTab`, verbatim, except the tab arrives as an argument:
  * each suite imports it after its own hoisted mocks.
  */
-export const makeRenderTab = (PEVTab) => (overrides = {}) => render(
-  <PEVTab
-    companyId="co-1"
-    applicationId="app-1"
-    collectionName="applications"
-    appData={{ firstName: 'Maria', lastName: 'Garcia', employers: makeEmployers(), ...overrides }}
-  />,
-);
+export const makeRenderTab = (PEVTab) => (overrides = {}) => {
+  const appData = { firstName: 'Maria', lastName: 'Garcia', employers: makeEmployers(), ...overrides };
+  // The stored document the mirror write re-reads. Seeded from the same rows the
+  // tab is rendered with, so "what is on screen" and "what is stored" agree
+  // unless a test deliberately makes them differ.
+  storedDoc.employers = JSON.parse(JSON.stringify(appData.employers || []));
+  return render(
+    <PEVTab
+      companyId="co-1"
+      applicationId="app-1"
+      collectionName="applications"
+      appData={appData}
+    />,
+  );
+};
 
 /** The original suite's `beforeEach` body, verbatim, for each suite to call. */
 export function resetHarness() {
@@ -135,6 +158,14 @@ export function resetHarness() {
   fnMocks.callable.mockResolvedValue({
     data: { success: true, token: 'tok-9', verificationUrl: 'https://portal.test/v/tok-9' },
   });
-  fsMocks.updateDoc.mockResolvedValue(undefined);
+  storedDoc.employers = [];
+  fsMocks.getDoc.mockImplementation(async () => ({
+    exists: () => true,
+    data: () => ({ employers: storedDoc.employers }),
+  }));
+  // Writes land in the stored document too, so two actions in one test compose.
+  fsMocks.updateDoc.mockImplementation(async (_ref, patch) => {
+    if (Array.isArray(patch?.employers)) storedDoc.employers = patch.employers;
+  });
   activityMocks.logActivity.mockResolvedValue(undefined);
 }

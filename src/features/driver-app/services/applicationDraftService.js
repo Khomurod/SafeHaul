@@ -94,6 +94,48 @@ const E2E_PREPARED_APPLICATION = Object.freeze({
     preparedBy: 'E2E Recruiter',
 });
 
+/**
+ * The same application, after the driver has taken it over.
+ *
+ * A second token rather than a mode on the first, because the two are different
+ * facts about one draft and a browser test needs to open them in sequence: the
+ * carrier's link while the answers are still the carrier's, then a *replacement*
+ * link once the driver has saved. That second open is the one that used to drop
+ * the driver into the fresh-application chooser, and it cannot be reached from a
+ * browser at all without a double — the exchange is a callable and an E2E run
+ * points at an unreachable project on purpose.
+ *
+ * The claim below is what the driver types on the confirmation screen. It is
+ * checked here the way the server checks it: the contact detail has to be one the
+ * draft holds, and the date of birth has to match. `E2E_TAKEOVER_SSN` is a
+ * fixture value and not a real Social Security Number.
+ */
+const E2E_TAKEOVER_INVITE_TOKEN = 'e2e-invite-token-taken-over';
+const E2E_TAKEOVER_SSN = '123-45-6789';
+const E2E_TAKEN_OVER_APPLICATION = Object.freeze({
+    opened: true,
+    requiresIdentity: false,
+    applicantKey: E2E_APPLICANT_KEY,
+    resumeToken: E2E_RESUME_TOKEN,
+    formData: {
+        firstName: 'Prepared',
+        lastName: 'Driver',
+        email: 'prepared@example.com',
+        phone: '5555550188',
+        dob: '1990-01-01',
+        // What the DRIVER typed after taking it over, so a test can prove the
+        // continuation returned their work and not the carrier's starting point.
+        cdlNumber: 'E2EDRIVEROWN4',
+    },
+    // Where they actually were. The carrier's own open is always page one, so this
+    // is the value that proves a confirmed driver is not sent back to the start.
+    lastStep: 3,
+    lastSemanticStep: 'violations',
+    clientSeq: 7,
+    lockedEmployers: [],
+    preparedBy: null,
+});
+
 function e2eDraftsEnabled() {
     if (import.meta.env.PROD) return false;
     return isE2ETestMode;
@@ -357,6 +399,30 @@ export async function resumeApplicationDraft(payload) {
  */
 export async function exchangeApplicationInvite(payload) {
     if (e2eDraftsEnabled()) {
+        if (payload?.inviteToken === E2E_TAKEOVER_INVITE_TOKEN) {
+            const claim = payload?.identity;
+            if (!claim) {
+                // The link is a pointer now, not a credential. Nothing else comes
+                // back — not the answers, not a token, not who prepared it.
+                return { opened: true, requiresIdentity: true, applicantKey: E2E_APPLICANT_KEY };
+            }
+            const contact = String(claim.contact || '').trim().toLowerCase();
+            const matches = contact === E2E_TAKEN_OVER_APPLICATION.formData.email
+                || contact.replace(/\D/g, '') === E2E_TAKEN_OVER_APPLICATION.formData.phone;
+            if (!matches
+                || String(claim.dob || '') !== E2E_TAKEN_OVER_APPLICATION.formData.dob
+                || String(claim.ssn || '').replace(/\D/g, '') !== E2E_TAKEOVER_SSN.replace(/\D/g, '')) {
+                // Throws with the callable's own code, so the screen's refusal path
+                // is a test of the client rather than of the double.
+                const denied = new Error('Those details do not match this application.');
+                denied.code = 'functions/permission-denied';
+                throw denied;
+            }
+            return {
+                ...E2E_TAKEN_OVER_APPLICATION,
+                formData: { ...E2E_TAKEN_OVER_APPLICATION.formData },
+            };
+        }
         if (payload?.inviteToken !== E2E_INVITE_TOKEN) {
             // Throws exactly as the callable does, so the "a link that opens
             // nothing" path is a real test of the client's handling rather than of

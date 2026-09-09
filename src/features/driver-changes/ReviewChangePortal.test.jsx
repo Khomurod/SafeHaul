@@ -230,3 +230,67 @@ describe('ReviewChangePortal', () => {
         expect((await axe(container)).violations).toEqual([]);
     });
 });
+
+/**
+ * The employment history, as the driver is asked to approve it.
+ *
+ * Before 2026-09-09 employers could not be edited at all, so this change never
+ * appeared here. It does now, and the generic array preview renders "N item(s)" —
+ * which asked a driver to approve **"2 item(s) → 1 item(s)"** with no way to tell
+ * which employer had gone.
+ */
+describe('an employers change', () => {
+    const ABC = { employerId: 'aaaaaaaaaaaa', companyName: 'ABC Trucking', startDate: '2020-01', endDate: '2022-06' };
+    const XYZ = { employerId: 'bbbbbbbbbbbb', companyName: 'XYZ Transport', startDate: '2022-07' };
+
+    const employersChange = (proposedValue) => reviewWith([{
+        fieldKey: 'employers',
+        fieldLabel: 'Employment History',
+        originalValue: [ABC, XYZ],
+        proposedValue,
+        status: 'pending',
+    }]);
+
+    it('names the employer being removed instead of counting items', async () => {
+        loadResolves(employersChange([XYZ]));
+        renderPortal();
+
+        expect(await screen.findByText('Removed')).toBeInTheDocument();
+        expect(screen.getByText('ABC Trucking')).toBeInTheDocument();
+        expect(screen.queryByText(/item\(s\)/)).not.toBeInTheDocument();
+    });
+
+    it('shows which fields moved on an employer that was corrected', async () => {
+        loadResolves(employersChange([{ ...ABC, endDate: '2022-08' }, XYZ]));
+        renderPortal();
+
+        expect(await screen.findByText(/To:/)).toBeInTheDocument();
+        expect(screen.getByText('2022-06')).toBeInTheDocument();
+        expect(screen.getByText('2022-08')).toBeInTheDocument();
+    });
+
+    it('offers approve and reject but not Edit, because a list is not a text box', async () => {
+        loadResolves(employersChange([XYZ]));
+        renderPortal();
+
+        await screen.findByText('Removed');
+        const decision = screen.getByRole('group', { name: /Decision for Employment History/i });
+        expect(decision).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Approve/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Reject/i })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /^Edit$/i })).not.toBeInTheDocument();
+    });
+
+    it('sends a plain approve, with no value of its own', async () => {
+        loadResolves(employersChange([XYZ]));
+        renderPortal();
+        await screen.findByText('Removed');
+
+        fireEvent.click(screen.getByRole('button', { name: /Submit my responses/i }));
+
+        await waitFor(() => expect(mockCallable).toHaveBeenCalledWith('submitChangeResolution', {
+            token: 'tok-1',
+            resolutions: [{ fieldKey: 'employers', action: 'approve' }],
+        }));
+    });
+});

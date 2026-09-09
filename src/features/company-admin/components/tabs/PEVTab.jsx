@@ -8,7 +8,7 @@ import { useData } from '@/context/DataContext';
 import { VOEPreviewModal } from '../modals/VOEPreviewModal';
 import { PEVRequestModal } from '../modals/PEVRequestModal';
 import { db, storage, functions } from '@lib/firebase';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { httpsCallable } from 'firebase/functions';
 import { PaywallMessage } from '@shared/components/feedback/PaywallMessage';
@@ -101,6 +101,45 @@ export function PEVTab({ companyId, applicationId, appData, collectionName = 'ap
     const [loadingResultUrl, setLoadingResultUrl] = useState(null); // Track which index is loading a signed URL
 
     const employers = useMemo(() => appData?.employers || [], [appData]);
+
+    /**
+     * Write a verification mirror onto one employer row, without clobbering the rest.
+     *
+     * `[...employers]` from `appData` is a snapshot of whenever the dossier last
+     * read the application, and this writes the WHOLE array back — so anything
+     * that changed on another row in between is lost. That was survivable while
+     * the only thing on a row was what the recruiter typed. It stopped being
+     * survivable on 2026-09-09, when `sendVerificationRequest` began stamping a
+     * stable `employerId` on the rows it resolves: the callable would mint the
+     * identity, the write-back below would erase it a moment later, and the
+     * employer's own answer would then have no row it could safely be filed
+     * against.
+     *
+     * So the document is re-read here and the change applied to what is actually
+     * stored — and the row is found by `employerId` when the callable returned one,
+     * because an index is exactly the thing that moves.
+     *
+     * @param {{employerId?: string, index: number, apply: (verification: object) => void}} target
+     * @returns {Promise<object|null>} the verification as written, for the
+     *   optimistic override, or null when the row could not be found.
+     */
+    const writeVerification = useCallback(async ({ employerId, index, apply }) => {
+        const appRef = doc(db, 'companies', companyId, collectionName, applicationId);
+        const snap = await getDoc(appRef);
+        const rows = snap.exists() && Array.isArray(snap.data()?.employers)
+            ? [...snap.data().employers]
+            : [];
+        const found = employerId
+            ? rows.findIndex((row) => row?.employerId === employerId)
+            : index;
+        if (found < 0 || !rows[found]) return null;
+
+        const verification = { history: [], ...(rows[found].verification || {}) };
+        apply(verification);
+        rows[found] = { ...rows[found], verification };
+        await updateDoc(appRef, { employers: rows });
+        return verification;
+    }, [companyId, collectionName, applicationId]);
 
     /**
      * Opens a PEV result file. Handles both:
@@ -200,31 +239,34 @@ export function PEVTab({ companyId, applicationId, appData, collectionName = 'ap
                 'pev'
             );
 
-            // Update appData directly since verifications are usually stored alongside employers
-            const updatedEmployers = [...employers];
-            if (!updatedEmployers[emp.index].verification) {
-                updatedEmployers[emp.index].verification = { history: [] };
-            }
-            updatedEmployers[emp.index].verification.status = 'Sent';
-            updatedEmployers[emp.index].verification.method = method;
-            updatedEmployers[emp.index].verification.token = result.data.token;
-            updatedEmployers[emp.index].verification.verificationUrl = verificationUrl;
-            updatedEmployers[emp.index].verification.history.push({
-                action: 'Sent via Portal',
-                method,
-                recipient,
-                verificationUrl,
-                token: result.data.token,
-                timestamp: new Date().toISOString()
+            // The same fields and the same history entry as before; what changed is
+            // that they land on the stored row rather than on a stale snapshot of
+            // it — see `writeVerification`.
+            const written = await writeVerification({
+                employerId: result.data.employerId,
+                index: emp.index,
+                apply: (verification) => {
+                    verification.status = 'Sent';
+                    verification.method = method;
+                    verification.token = result.data.token;
+                    verification.verificationUrl = verificationUrl;
+                    verification.history = [...(verification.history || []), {
+                        action: 'Sent via Portal',
+                        method,
+                        recipient,
+                        verificationUrl,
+                        token: result.data.token,
+                        timestamp: new Date().toISOString(),
+                    }];
+                },
             });
 
-            const appRef = doc(db, 'companies', companyId, collectionName, applicationId);
-            await updateDoc(appRef, { employers: updatedEmployers });
-
-            setLocalOverrides(prev => ({
-                ...prev,
-                [emp.index]: updatedEmployers[emp.index].verification
-            }));
+            if (written) {
+                setLocalOverrides(prev => ({
+                    ...prev,
+                    [emp.index]: written,
+                }));
+            }
 
             showSuccess(`Verification request sent to ${getFieldValue(emp.companyName || emp.name)} via ${method} (${recipient})`);
             setShowPreviewModal(false);
@@ -246,27 +288,28 @@ export function PEVTab({ companyId, applicationId, appData, collectionName = 'ap
             await uploadBytes(fileRefObj, file);
             const downloadUrl = await getDownloadURL(fileRefObj);
 
-            // Update DB
-            const updatedEmployers = [...employers];
-            if (!updatedEmployers[index].verification) {
-                updatedEmployers[index].verification = { history: [] };
-            }
-            updatedEmployers[index].verification.status = 'Completed';
-            updatedEmployers[index].verification.resultUrl = downloadUrl;
-            updatedEmployers[index].verification.history.push({
-                action: 'Result Uploaded',
-                fileName: file.name,
-                url: downloadUrl,
-                timestamp: new Date().toISOString()
+            // Update DB, against what is stored rather than a stale snapshot.
+            const written = await writeVerification({
+                employerId: employers[index]?.employerId,
+                index,
+                apply: (verification) => {
+                    verification.status = 'Completed';
+                    verification.resultUrl = downloadUrl;
+                    verification.history = [...(verification.history || []), {
+                        action: 'Result Uploaded',
+                        fileName: file.name,
+                        url: downloadUrl,
+                        timestamp: new Date().toISOString(),
+                    }];
+                },
             });
 
-            const appRef = doc(db, 'companies', companyId, collectionName, applicationId);
-            await updateDoc(appRef, { employers: updatedEmployers });
-
-            setLocalOverrides(prev => ({
-                ...prev,
-                [index]: updatedEmployers[index].verification
-            }));
+            if (written) {
+                setLocalOverrides(prev => ({
+                    ...prev,
+                    [index]: written,
+                }));
+            }
 
             showSuccess('Verification result uploaded successfully.');
         } catch (error) {

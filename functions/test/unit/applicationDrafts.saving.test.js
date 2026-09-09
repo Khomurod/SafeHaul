@@ -23,6 +23,75 @@ const {
 
 beforeEach(resetDraftState);
 
+/**
+ * The identity HMAC survives a save that cannot compute one.
+ *
+ * ## The defect, measured in production on 2026-09-09
+ *
+ * `identityKey` was written as `identityKey || null` on **every** save. The HMAC
+ * needs a Social Security Number, and a draft deliberately never stores one — so
+ * the SSN lives only in the page's own state, and the first autosave issued after
+ * a reload (or after a restore from the server copy, which has none either)
+ * recomputed the key as null and erased it.
+ *
+ * `findResumableApplication` queries `identityKey ==`, so what the applicant
+ * silently lost was cross-device resume — and, for a carrier-prepared
+ * application, the only thing that could ever prove the driver owns it. Three of
+ * six live drafts held `identityKey: null`, one of them at the consent step, its
+ * `resumeApplicationDraft` restore followed 46 seconds later by the save that
+ * erased it.
+ */
+describe('the identity a draft is matched on', () => {
+    const identityOf = () => mockStore.get(`companies/${COMPANY}/application_drafts/${keyFor()}`).identityKey;
+
+    it('is not erased by a later save that has no Social Security Number', async () => {
+        const { resumeToken } = await saveFirstPage();
+        const established = identityOf();
+        expect(established).toMatch(/^[0-9a-f]{64}$/);
+
+        // Exactly what an autosave after a page reload sends.
+        await saveFirstPage({ resumeToken, ssn: '', lastStep: 4 });
+
+        expect(identityOf()).toBe(established);
+    });
+
+    it('follows a corrected contact detail even when that save has no SSN', async () => {
+        // The applicant fixes a typo in their own email on a reloaded page. The
+        // document id is `sha256(company:email:phone)`, so this writes a different
+        // document — and leaving the identity behind on the old key would cost them
+        // the match just as surely as erasing it.
+        const { resumeToken } = await saveFirstPage();
+        const established = identityOf();
+
+        const moved = await saveFirstPage({
+            resumeToken, ssn: '', email: 'dana.alvarez@example.test',
+        });
+
+        const movedPath = `companies/${COMPANY}/application_drafts/${moved.applicantKey}`;
+        expect(mockStore.get(movedPath).identityKey).toBe(established);
+        // And exactly one live draft, because the sweep reads the key that was
+        // written rather than the one this request could compute.
+        expect(mockDeletedPaths).toContain(`companies/${COMPANY}/application_drafts/${keyFor()}`);
+    });
+
+    it('still moves when the applicant corrects an identity field', async () => {
+        const { resumeToken } = await saveFirstPage();
+        const established = identityOf();
+
+        await saveFirstPage({ resumeToken, lastName: 'Alvarez-Reed' });
+
+        expect(identityOf()).toMatch(/^[0-9a-f]{64}$/);
+        expect(identityOf()).not.toBe(established);
+    });
+
+    it('is null, not undefined, on a first save that cannot compute one', async () => {
+        // A carrier-prepared draft the driver has just taken over: the field is
+        // present and empty, which is what "there has never been one" looks like.
+        await saveFirstPage({ ssn: '' });
+        expect(identityOf()).toBeNull();
+    });
+});
+
 describe('saving progress', () => {
     it('writes a draft keyed by the existing deterministic applicant key', async () => {
         const result = await saveFirstPage();

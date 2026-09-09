@@ -28,6 +28,13 @@ import { Button, Card, FieldMessage } from '@/design-system/components';
  * lost their link needs a new one, and the link it produces takes them to their
  * own application and asks them to confirm who they are. Hiding the button would
  * remove a workflow the boundary does not require removing.
+ *
+ * **And until 2026-09-09 that last sentence was another claim about the server
+ * that was not true.** The link did reach the right application and did ask for
+ * identity — and the browser had no screen for that answer at all, so the driver
+ * landed on the fresh-application chooser. The sentence below names all four
+ * things the screen now asks for, because naming only two of them is the same
+ * kind of drift the expiry copy above records.
  */
 export function InviteLinkPanel({ link, busy, error, copied, copyFailed, driverStarted, onMint, onCopy }) {
     return (
@@ -38,8 +45,9 @@ export function InviteLinkPanel({ link, busy, error, copied, copyFailed, driverS
                     <p className="text-ds-sm text-ds-content-secondary">
                         {driverStarted
                             ? 'This driver has already started. A new link still reaches their application — it asks '
-                              + 'them to confirm their date of birth and Social Security Number first, so only they '
-                              + 'can open it. Send it however you normally reach them.'
+                              + 'them to confirm their last name, date of birth, Social Security Number and one of '
+                              + 'their contact details first, so only they can open it. Send it however you '
+                              + 'normally reach them.'
                             : 'They open the link, complete what only they can answer, review it and sign. Send it '
                               + 'however you normally reach them.'}
                     </p>

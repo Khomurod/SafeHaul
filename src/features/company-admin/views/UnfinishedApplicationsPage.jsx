@@ -1,12 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
-import { Icon, RefreshCw } from '@design-system/icons';
+import { Icon, Copy, Link2, RefreshCw } from '@design-system/icons';
 
 import { functions } from '@lib/firebase';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 import { useData } from '@/context/DataContext';
 import { Badge, Button, Card, DataTable, FieldMessage } from '@/design-system/components';
 import { PageContainer, PageHeader, Stack } from '@/design-system/layouts';
+import { useInviteLink } from '../applicationPrep/useInviteLink';
 
 /**
  * Applications somebody started and did not finish.
@@ -33,6 +34,24 @@ import { PageContainer, PageHeader, Stack } from '@/design-system/layouts';
  * agreed to submit it is a decision they have not made, so the server does not
  * send it and this screen could not display it. There is no Social Security
  * Number to withhold — drafts never store one.
+ *
+ * ## What it can now DO, and why that is not a hole in the rule above
+ *
+ * Until 2026-09-09 this screen had exactly one control — Refresh. A recruiter
+ * looking at somebody who stopped at the licence page could call them, and that
+ * was the whole of it: there was no way to send them back to their own work,
+ * because `mintApplicationInvite` refused any draft the carrier had not itself
+ * prepared. So the answer to "how do I get this driver to finish?" was "ask them
+ * to start again", which throws away everything the draft feature exists to keep.
+ *
+ * **Copy continuation link** mints one and copies it. It changes nothing about
+ * what this screen may read: the link is a *pointer*, and
+ * `exchangeApplicationInvite` hands over a draft's answers only while the carrier
+ * itself authored them — which for a driver-started application is never. Whoever
+ * opens this link is asked to confirm their last name, date of birth, Social
+ * Security Number and a contact detail already on the record before anything is
+ * returned, and a recruiter cannot pass that check. Minting is rate-limited per
+ * company and caller, and every regeneration retires the previous link.
  */
 
 /*
@@ -111,6 +130,10 @@ function describeError(error, fallback) {
 export function UnfinishedApplicationsPage() {
     const { currentCompanyProfile } = useData();
     const companyId = currentCompanyProfile?.id;
+    // The same fallback `StartApplicationPage` uses: a company with no configured
+    // apply slug is still reachable by its id, so a link is never unmintable for
+    // want of a slug.
+    const appSlug = currentCompanyProfile?.appSlug || companyId;
 
     const isMock = isE2ETestMode && getE2EQueryParam('e2eUnfinished', '') === 'mock';
 
@@ -118,6 +141,17 @@ export function UnfinishedApplicationsPage() {
     const [retentionDays, setRetentionDays] = useState(30);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+
+    /**
+     * The continuation link, and which row it belongs to.
+     *
+     * `linkFor` rather than `link`, and that is structural rather than tidiness:
+     * the hook holds one link at a time and does not watch which row asked for it,
+     * so a plain read would leave the previous driver's URL sitting under the next
+     * driver's Copy button. One press away from sending a stranger somebody else's
+     * application.
+     */
+    const invite = useInviteLink({ companyId, appSlug });
 
     const load = useCallback(async () => {
         if (isMock) {
@@ -144,6 +178,34 @@ export function UnfinishedApplicationsPage() {
     }, [companyId, isMock]);
 
     useEffect(() => { load(); }, [load]);
+
+    /**
+     * Which row is minting. The hook's own `busy` is not enough: it is a single
+     * flag for a table, so reading it would spin every button on the screen.
+     */
+    const [busyKey, setBusyKey] = useState(null);
+
+    /**
+     * Mint, then copy.
+     *
+     * The raw token exists exactly once — the callable returns it and never can
+     * again — so it is minted at the moment somebody asks for it rather than for
+     * every row on load. A refused clipboard is not a lost link: the hook records
+     * it and the row says so, with the URL selectable beside it.
+     */
+    const { mint, copy, copyUrl, linkFor, copied, copyFailed } = invite;
+    const mintFor = useCallback(async (applicantKey) => {
+        setBusyKey(applicantKey);
+        try {
+            const url = await mint(applicantKey);
+            // `copyUrl`, not `copy`: `copy` reads the hook's `link` state as it was
+            // captured by THIS render, which is still null at this point. Minting
+            // and copying in one press is what makes that difference visible.
+            if (url) await copyUrl(url);
+        } finally {
+            setBusyKey(null);
+        }
+    }, [mint, copyUrl]);
 
     const columns = useMemo(() => [
         {
@@ -192,7 +254,55 @@ export function UnfinishedApplicationsPage() {
                 </span>
             ),
         },
-    ], []);
+        {
+            key: 'continue',
+            header: 'Continue',
+            priority: 'secondary',
+            width: 'lg',
+            render: (entry) => {
+                const minted = linkFor(entry.applicantKey);
+                const name = [entry.firstName, entry.lastName].filter(Boolean).join(' ')
+                    || entry.email || entry.phone || 'this applicant';
+                return (
+                    <div className="flex flex-col items-start gap-ds-2">
+                        <Button
+                            variant={minted ? 'primary' : 'secondary'}
+                            size="sm"
+                            loading={busyKey === entry.applicantKey}
+                            /* Record-specific, because a table of identical
+                               "Copy link" buttons tells a screen-reader user
+                               nothing about which row they are on. */
+                            aria-label={minted
+                                ? `Copy the continuation link for ${name}`
+                                : `Create a continuation link for ${name}`}
+                            onClick={() => (minted ? copy() : mintFor(entry.applicantKey))}
+                        >
+                            <Icon icon={minted ? Copy : Link2} size="sm" />
+                            {minted ? (copied ? 'Copied' : 'Copy link') : 'Copy continuation link'}
+                        </Button>
+                        {minted && (
+                            <>
+                                <code className="block max-w-full overflow-x-auto rounded-ds-md border border-ds-border-subtle bg-ds-surface-subtle p-ds-2 text-ds-xs text-ds-content">
+                                    {minted.url}
+                                </code>
+                                <p className="text-ds-xs text-ds-content-muted">
+                                    Works for {minted.expiresInDays} days and is shown once. It asks them to
+                                    confirm who they are, so it will not show you their answers.
+                                </p>
+                            </>
+                        )}
+                        {copyFailed && minted && (
+                            <FieldMessage tone="error">
+                                Your browser would not let us copy it. Select the link above and copy it yourself.
+                            </FieldMessage>
+                        )}
+                    </div>
+                );
+            },
+        },
+        // The pieces read above, not the hook's return object — that is a fresh
+        // literal on every render, which would make this `useMemo` a no-op.
+    ], [linkFor, copy, copied, copyFailed, busyKey, mintFor]);
 
     return (
         <PageContainer>

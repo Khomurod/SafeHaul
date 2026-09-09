@@ -53,10 +53,25 @@ export function useInviteLink({ companyId, appSlug }) {
         }
     }, [appSlug, companyId]);
 
-    const copy = useCallback(async () => {
-        if (!link?.url) return false;
+    /**
+     * Copy a URL that is not necessarily the one in state yet.
+     *
+     * The parameter is the whole point. `copy()` below reads `link`, which is
+     * captured from the render it was created in — so a caller that mints and then
+     * copies in one press holds a `copy` whose `link` is still `null`, and the
+     * copy silently does nothing. That is exactly the shape of the
+     * "refused clipboard used to be silent" defect this hook already records, one
+     * step earlier in the sequence: nothing failed, so nothing was said.
+     *
+     * `mint` returns the URL for this reason; the row action on
+     * `UnfinishedApplicationsPage` passes it straight here. Found by its own
+     * contract test on 2026-09-09.
+     */
+    const copyUrl = useCallback(async (url) => {
+        // Not a clipboard refusal — there was nothing to copy — so no message.
+        if (!url) return false;
         try {
-            await navigator.clipboard.writeText(link.url);
+            await navigator.clipboard.writeText(url);
             setCopied(true);
             setCopyFailed(false);
             return true;
@@ -68,7 +83,10 @@ export function useInviteLink({ companyId, appSlug }) {
             setCopyFailed(true);
             return false;
         }
-    }, [link]);
+    }, []);
+
+    /** The button beside a link that is already on screen. */
+    const copy = useCallback(() => copyUrl(link?.url), [copyUrl, link]);
 
     const reset = useCallback(() => {
         setLink(null);
@@ -91,7 +109,7 @@ export function useInviteLink({ companyId, appSlug }) {
         [link],
     );
 
-    return { link, linkFor, busy, error, copied, copyFailed, mint, copy, reset };
+    return { link, linkFor, busy, error, copied, copyFailed, mint, copy, copyUrl, reset };
 }
 
 export default useInviteLink;

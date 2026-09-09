@@ -115,7 +115,7 @@ describe('minting a link', () => {
         expect(mockStore.get(PATH()).status).toBe('driver_in_progress');
     });
 
-    it('requires company access, and refuses for a draft the driver authored', async () => {
+    it('requires company access, and refuses when there is no draft at all', async () => {
         await prepare();
         mockAssertCompanyAccess.mockRejectedValueOnce(
             Object.assign(new Error('denied'), { code: 'permission-denied' }),
@@ -123,8 +123,37 @@ describe('minting a link', () => {
         await expect(mint()).rejects.toThrow();
 
         resetDraftState();
-        await saveFirstPage();
         await expect(mint()).rejects.toMatchObject({ code: 'not-found' });
+    });
+
+    /**
+     * A continuation link for an application the DRIVER started.
+     *
+     * This used to be refused: `isCompanyPrepared` gated the mint, so the people on
+     * `/company/drivers/unfinished` — a list whose entire purpose is "who started and
+     * did not finish" — could not be sent back to their own work. Whose words are in
+     * the draft decides what the link hands over, not whether it opens.
+     */
+    it('mints a continuation link for a draft the driver authored', async () => {
+        await saveFirstPage();
+        const minted = await mint();
+
+        expect(minted.inviteToken).toEqual(expect.any(String));
+        // Announced, so the panel can say the driver will be asked to confirm who
+        // they are instead of implying the recruiter could open it.
+        expect(minted.requiresIdentity).toBe(true);
+
+        const stored = mockStore.get(PATH());
+        expect(stored.inviteTokenHash).toEqual(expect.any(String));
+        // Never `sent`, and never `origin: company`: the carrier authored none of
+        // this, and saying otherwise would tell `companyMayReadAnswers` it had.
+        expect(stored.status).toBe('in_progress');
+        expect(stored.origin).toBeUndefined();
+    });
+
+    it('says a prepared application the driver has not touched needs no identity', async () => {
+        await prepare();
+        await expect(mint()).resolves.toMatchObject({ requiresIdentity: false });
     });
 });
 

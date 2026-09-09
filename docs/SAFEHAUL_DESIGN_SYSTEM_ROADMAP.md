@@ -1777,6 +1777,45 @@ the separate identity screen was removed, because the email and phone are
 ordinary schema fields of the editor. No new visual primitive was introduced for
 any of them (`ApplicationModeChooser` is `Card` + `Button` content).
 
+Added 2026-09-09, both on approved components and `--ds-*` tokens from the start,
+and neither introducing a visual primitive:
+
+- **The public driver application's "Confirm it's you" screen**
+  (`ApplyIdentityCheckScreen`) — one centred `Card as="main"` with an inverse
+  masthead, four `FormField` + `Input` pairs, `Notice` for the refusal and a
+  full-width `lg` primary action. It follows `ReviewChangePortal`'s shape because
+  it is the same kind of thing: a public, mobile-first, single-task form, which is
+  the one case the control-scale rule names `lg` for. Deliberately **not** a
+  `PageState`: that pattern's own contract says extra content between the
+  description and the actions is "not a second layout — anything that needs its
+  own structure is a page, not a state", and four labelled fields with a
+  validation surface is its own structure. Axe-clean on the empty and the refused
+  state (`e2e/a11y.spec.cjs`).
+- **Company → Drivers → Started (unfinished)** gains a **Continue** column
+  (`Button` + `Icon` + `FieldMessage`), so a recruiter can send a stalled
+  applicant back to their own work. All columns on that table already reach the
+  phone through the pinned-first-column horizontal scroll `check:table-layout`
+  enforces, and this one is no exception — nothing is dropped at any width.
+  **Its two committed pixel baselines are stale until re-recorded**: the column is
+  new, and the environment the change was written in ships a different Chromium
+  build from the one Playwright pins here, which the font tripwire diagnoses in
+  one sentence. Re-record with `npm run test:visual:update` where the pinned
+  browser is installed; the desktop and mobile renders were reviewed by
+  inspection in the meantime.
+- **The dossier's Previous Employers editor** (`PreviousEmployersEditor`) —
+  `Card` per row, `FormField`/`Input`/`Select`/`ChoiceGroup` from the shared
+  schema table, a `Badge` spelling out each row's verification state, and the
+  approved `ConfirmDialog` before removing a row that has verification activity.
+  It exists because `SchemaSection` renders an `array` section read-only whatever
+  `isEditing` says, and that renderer is shared with the driver's own wizard — so
+  the editor is a feature component swapped in for one section rather than a
+  change to the shared renderer. Status is never colour alone: the badge reads
+  "Verification: Completed".
+- **The change-review portal's employer diff** — the generic array preview reads
+  "N item(s)", which is not a decision a driver can make about their own
+  employment history. Named rows, added/removed/changed, from the existing
+  typography and tokens.
+
 One choice there is a rule rather than a preference, and it is the same one the
 driver wizard's locked employer rows follow: **a field the viewer may not change
 is a read-only display with a badge, never a disabled input.** A disabled input

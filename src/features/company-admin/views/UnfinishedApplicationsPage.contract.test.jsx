@@ -12,16 +12,26 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 
 const callableSpy = vi.fn();
 const httpsCallableSpy = vi.fn();
+/**
+ * Per-name callables, with `callableSpy` as the default.
+ *
+ * The list and the mint are different callables reached from one screen, and a
+ * single shared double would have the mint resolving a list of drafts — which is
+ * the shape of failure that looks like a passing test.
+ */
+const byName = {};
 
 vi.mock('firebase/functions', () => ({
     httpsCallable: (...args) => {
         httpsCallableSpy(...args);
-        return callableSpy;
+        return byName[args[1]] || callableSpy;
     },
 }));
 vi.mock('@lib/firebase', () => ({ functions: {}, db: {}, storage: {} }));
 vi.mock('@/context/DataContext', () => ({
-    useData: () => ({ currentCompanyProfile: { id: 'company-1', companyName: 'Acme Freight' } }),
+    useData: () => ({
+        currentCompanyProfile: { id: 'company-1', companyName: 'Acme Freight', appSlug: 'acme' },
+    }),
 }));
 
 import { UnfinishedApplicationsPage } from './UnfinishedApplicationsPage';
@@ -51,9 +61,25 @@ const DRAFTS = [
     },
 ];
 
+const mintSpy = vi.fn();
+const writeTextSpy = vi.fn();
+
 beforeEach(() => {
     vi.clearAllMocks();
+    for (const key of Object.keys(byName)) delete byName[key];
     callableSpy.mockResolvedValue({ data: { drafts: DRAFTS, retentionDays: 30 } });
+    byName.mintApplicationInvite = mintSpy;
+    mintSpy.mockResolvedValue({
+        data: {
+            inviteToken: 'invite-token-1', applicantKey: 'key-1',
+            expiresInDays: 14, requiresIdentity: true,
+        },
+    });
+    // happy-dom ships a real `navigator.clipboard`, and redefining the property on
+    // the instance does not displace it — so this spies on the method that is
+    // actually there rather than substituting an object nothing reads.
+    writeTextSpy.mockResolvedValue(undefined);
+    vi.spyOn(navigator.clipboard, 'writeText').mockImplementation(writeTextSpy);
 });
 
 describe('listing', () => {
@@ -157,5 +183,88 @@ describe('what it does not show', () => {
         expect(screen.queryByRole('button', { name: /^Open$/ })).toBeNull();
         expect(screen.queryByRole('button', { name: /edit/i })).toBeNull();
         expect(screen.queryByRole('button', { name: /delete/i })).toBeNull();
+    });
+});
+
+/**
+ * Sending an unfinished applicant back to their own work.
+ *
+ * Until 2026-09-09 this screen had one control — Refresh — because
+ * `mintApplicationInvite` refused any draft the carrier had not itself prepared.
+ * So a recruiter watching somebody stop at the licence page could only ask them
+ * to start again, which throws away every answer the draft feature exists to
+ * keep. The cases below are the workflow and the restraint that goes with it.
+ */
+describe('the continuation link', () => {
+    it('mints one for the row it was pressed on, and copies it', async () => {
+        render(<UnfinishedApplicationsPage />);
+        await screen.findByText('Dana Alvarez');
+
+        fireEvent.click(await screen.findByRole('button', {
+            name: /Create a continuation link for Dana Alvarez/i,
+        }));
+
+        await waitFor(() => expect(mintSpy).toHaveBeenCalledWith({
+            companyId: 'company-1', applicantKey: 'key-1',
+        }));
+        await waitFor(() => expect(writeTextSpy)
+            .toHaveBeenCalledWith('http://localhost:3000/apply/acme?invite=invite-token-1&k=key-1'));
+    });
+
+    it('shows the link, its life and what it will not do', async () => {
+        render(<UnfinishedApplicationsPage />);
+        await screen.findByText('Dana Alvarez');
+        fireEvent.click(await screen.findByRole('button', {
+            name: /Create a continuation link for Dana Alvarez/i,
+        }));
+
+        expect(await screen.findByText(/apply\/acme\?invite=invite-token-1/)).toBeInTheDocument();
+        // The link is a pointer, and the screen says so: a recruiter must not read
+        // this as a way to see the driver's half-finished answers.
+        expect(screen.getByText(/will not show you their answers/i)).toBeInTheDocument();
+        expect(screen.getByText(/Works for 14 days/i)).toBeInTheDocument();
+    });
+
+    it('never shows one driver’s link under another driver’s button', async () => {
+        // Structural, not a matter of remembering to reset: the hook holds one link
+        // and does not watch which row asked, so a plain read would leave Dana's
+        // URL under the next row's Copy button — one press from sending a stranger
+        // somebody else's application.
+        render(<UnfinishedApplicationsPage />);
+        await screen.findByText('Dana Alvarez');
+        fireEvent.click(await screen.findByRole('button', {
+            name: /Create a continuation link for Dana Alvarez/i,
+        }));
+        await screen.findByText(/apply\/acme\?invite=invite-token-1/);
+
+        // The second row still offers to CREATE one, and shows no URL.
+        expect(screen.getByRole('button', {
+            name: /Create a continuation link for starter@example.test|Create a continuation link for this applicant/i,
+        })).toBeInTheDocument();
+        expect(screen.getAllByText(/invite=invite-token-1/)).toHaveLength(1);
+    });
+
+    it('says so when the clipboard refuses, because the link is not lost', async () => {
+        writeTextSpy.mockRejectedValue(new Error('denied'));
+        render(<UnfinishedApplicationsPage />);
+        await screen.findByText('Dana Alvarez');
+        fireEvent.click(await screen.findByRole('button', {
+            name: /Create a continuation link for Dana Alvarez/i,
+        }));
+
+        expect(await screen.findByText(/would not let us copy it/i)).toBeInTheDocument();
+        expect(screen.getByText(/apply\/acme\?invite=invite-token-1/)).toBeInTheDocument();
+    });
+
+    it('still shows no answers anywhere on the screen', async () => {
+        // The whole point of the restraint above, re-asserted now that the screen
+        // has an action: `listApplicationDrafts` returns no `formData`, and nothing
+        // added here asks for any.
+        render(<UnfinishedApplicationsPage />);
+        await screen.findByText('Dana Alvarez');
+
+        const names = httpsCallableSpy.mock.calls.map(([, name]) => name);
+        expect(names).not.toContain('getCompanyPreparedDraft');
+        expect(names).not.toContain('resumeApplicationDraft');
     });
 });

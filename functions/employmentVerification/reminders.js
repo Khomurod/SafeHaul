@@ -5,6 +5,7 @@
  */
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { admin, db } = require("../firebaseAdmin");
+const { resolveEmployerTarget } = require("../shared/employerIdentity");
 const { logger } = require("firebase-functions");
 const {
     sendReminderEmail,
@@ -115,7 +116,19 @@ async function updateApplicationVerificationStatus(verificationData, statusText)
 
         const appData = appSnap.data();
         const employers = [...(appData.employers || [])];
-        const idx = verificationData.employerIndex;
+        // By identity, never by position — see `responses.js` and
+        // `shared/employerIdentity.js`. A reminder that cannot find its employer
+        // says so and mirrors nothing; the request document still records the
+        // reminder itself, which is what the cycle actually runs on.
+        const target = resolveEmployerTarget(employers, verificationData);
+        if (!target) {
+            logger.warn(
+                `[PEV] Reminder for ${verificationData.token || 'a request'} could not be matched `
+                + 'to an employer; the status was not mirrored onto the application.',
+            );
+            return;
+        }
+        const idx = target.index;
 
         if (employers[idx]) {
             if (!employers[idx].verification) {

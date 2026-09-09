@@ -13,6 +13,17 @@
  *  - createChangeReview         (company_admin)  → mints a token review link
  *  - getChangeReview            (public/token)   → driver loads before/after
  *  - submitChangeResolution     (public/token)   → driver approve/reject/edit
+ *
+ * ## `employers` is the one field that is not just a value
+ *
+ * Arrays on the editable allowlist are replaced wholesale, which is fine for
+ * violations and addresses and is not fine for employers: a Previous Employment
+ * Verification mirror lives ON each employer row, and a whole-array replacement
+ * from a browser would let one employer's completed verification land on another.
+ * So both the proposal and the resolution route `employers` through
+ * `shared/employerEdits.js`, which strips every PEV field the client sent and
+ * re-attaches it from the record BY IDENTITY. See that file for why identity
+ * rather than position, and why the resolution is the authoritative pass.
  */
 
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
@@ -22,6 +33,9 @@ const { admin, db } = require("./firebaseAdmin");
 const { assertCompanyAdminStrict } = require("./shared/companyAccess");
 const { checkRateLimit } = require("./shared/rateLimiter");
 const { isEditableField, fieldLabel, valuesEqual } = require("./shared/applicationEditableFields");
+const {
+    describeEmployerEdit, reconcileEmployerEdit,
+} = require("./shared/employerEdits");
 
 const ALLOWED_COLLECTIONS = new Set(['applications', 'leads']);
 const REVIEW_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
@@ -63,12 +77,23 @@ exports.proposeApplicationChanges = onCall({ cors: true }, async (request) => {
     const batch = db.batch();
     const applied = [];
     const skipped = [];
+    /** Employers the proposal removes, for the audit line below. */
+    let removedEmployers = [];
 
     for (const change of changes) {
         const fieldKey = change?.fieldKey;
         if (!fieldKey || !isEditableField(fieldKey)) { skipped.push(fieldKey); continue; }
         const originalValue = current[fieldKey] ?? null;
-        const proposedValue = change.proposedValue ?? null;
+        let proposedValue = change.proposedValue ?? null;
+        if (fieldKey === 'employers') {
+            // Never the client's own `verification` blocks, and never its own row
+            // identities where the record already has them. Done BEFORE the equality
+            // check below, or a proposal that changed nothing but re-sent a stale
+            // mirror would be recorded as a change to it.
+            const reconciled = reconcileEmployerEdit(proposedValue, current.employers);
+            proposedValue = reconciled.employers;
+            removedEmployers = reconciled.removed;
+        }
         if (valuesEqual(originalValue, proposedValue)) { skipped.push(fieldKey); continue; }
 
         batch.set(ref.collection('pending_changes').doc(fieldKey), {
@@ -96,9 +121,17 @@ exports.proposeApplicationChanges = onCall({ cors: true }, async (request) => {
 
     // Best-effort audit log (does not block).
     try {
+        // An employer removal is named, with the verification state that went with
+        // it. "Employment history changed" is not an audit trail: the question
+        // somebody asks six months later is whether the row that had a completed
+        // verification is the row that went.
+        const removalNote = applied.includes('employers')
+            ? describeEmployerEdit(removedEmployers)
+            : null;
         await ref.collection('activity_logs').add({
             action: 'Company Edit Proposed',
-            details: `Pending driver approval: ${applied.map(fieldLabel).join(', ')}`,
+            details: `Pending driver approval: ${applied.map(fieldLabel).join(', ')}`
+                + (removalNote ? ` — ${removalNote}` : ''),
             type: 'user',
             companyId,
             performedBy: request.auth.uid,
@@ -212,6 +245,29 @@ exports.submitChangeResolution = onCall({ cors: true }, async (request) => {
     const ref = appRef(review.companyId, review.collectionName, review.applicationId);
     const pendingSnap = await ref.collection('pending_changes').get();
     const byKey = new Map(pendingSnap.docs.map((d) => [d.id, d.data()]));
+    // The record as it stands NOW, not as it stood when the change was proposed.
+    // A verification can complete while a review link sits unopened for days.
+    const liveSnap = await ref.get();
+    const live = liveSnap.exists ? (liveSnap.data() || {}) : {};
+
+    /**
+     * The authoritative pass for `employers`.
+     *
+     * Whatever is about to be written — the company's proposal, approved as it
+     * stands, or the driver's own corrected value, which arrives unvalidated —
+     * has its PEV mirrors stripped and re-attached from the live record by
+     * identity. Two things follow, and both matter:
+     *
+     *  - a verification that completed while this review was outstanding is not
+     *    rolled back by a `proposedValue` snapshot that predates it;
+     *  - the driver's `edit` action, which writes `r.value` straight onto the
+     *    document, cannot set a verification block on anybody.
+     */
+    const settleEmployers = (value) => {
+        const { employers, removed } = reconcileEmployerEdit(value, live.employers);
+        return { value: employers, removed };
+    };
+    let removedEmployers = [];
 
     const batch = db.batch();
     const docUpdates = {};
@@ -221,14 +277,21 @@ exports.submitChangeResolution = onCall({ cors: true }, async (request) => {
         const change = byKey.get(fieldKey);
         if (!change || change.status !== 'pending') continue; // ignore unknown/resolved
         const pcRef = ref.collection('pending_changes').doc(fieldKey);
+        const settle = (value) => {
+            if (fieldKey !== 'employers') return value;
+            const settled = settleEmployers(value);
+            removedEmployers = settled.removed;
+            return settled.value;
+        };
 
         if (action === 'approve') {
-            docUpdates[fieldKey] = change.proposedValue ?? null;
-            batch.set(pcRef, { status: 'approved', resolvedValue: change.proposedValue ?? null, resolution: 'approve', resolvedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+            const approved = settle(change.proposedValue ?? null);
+            docUpdates[fieldKey] = approved;
+            batch.set(pcRef, { status: 'approved', resolvedValue: approved, resolution: 'approve', resolvedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
         } else if (action === 'reject') {
             batch.set(pcRef, { status: 'rejected', resolvedValue: change.originalValue ?? null, resolution: 'reject', resolvedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
         } else if (action === 'edit') {
-            const driverValue = r.value ?? null; // driver's edit is final
+            const driverValue = settle(r.value ?? null); // driver's edit is final
             docUpdates[fieldKey] = driverValue;
             batch.set(pcRef, { status: 'edited', resolvedValue: driverValue, resolution: 'edit', resolvedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
         } else {
@@ -250,9 +313,11 @@ exports.submitChangeResolution = onCall({ cors: true }, async (request) => {
     }
 
     try {
+        const removalNote = describeEmployerEdit(removedEmployers);
         await ref.collection('activity_logs').add({
             action: 'Driver Reviewed Company Edits',
-            details: resolutions.map((r) => `${r.fieldKey}: ${r.action}`).join(', '),
+            details: resolutions.map((r) => `${r.fieldKey}: ${r.action}`).join(', ')
+                + (removalNote ? ` — ${removalNote}` : ''),
             type: 'user',
             companyId: review.companyId,
             performedBy: 'driver',

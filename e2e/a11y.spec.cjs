@@ -54,6 +54,34 @@ test.describe('@a11y mobile-critical journeys (no serious/critical violations)',
         expect(await seriousViolations(page)).toEqual([]);
     });
 
+    /**
+     * The screen a driver meets when their carrier sends a replacement link for
+     * an application they have already started.
+     *
+     * A public, mobile-first, single-task form asking for four things, one of
+     * them a Social Security Number — so its labelling, its error announcement
+     * and its focus order are exactly what this lane is for. It did not exist
+     * before 2026-09-09; the outcome behind it fell through to the intake
+     * chooser.
+     */
+    test('confirm-your-identity, and its refusal', async ({ page }) => {
+        await page.goto('/apply/e2e-company?invite=e2e-invite-token-taken-over&k=e2e-applicant-key');
+        await expect(
+            page.getByRole('heading', { level: 1, name: /Confirm it’s you/ }),
+        ).toBeVisible({ timeout: 15_000 });
+        expect(await seriousViolations(page)).toEqual([]);
+
+        // The refusal too: an announced `alert` and four fields that keep their
+        // names while it is on screen.
+        await page.getByLabel(/^Last name/).fill('Driver');
+        await page.getByLabel(/^Date of birth/).fill('1985-05-05');
+        await page.getByLabel(/^Social Security Number/).fill('123-45-6789');
+        await page.getByLabel(/^Email or phone number/).fill('prepared@example.com');
+        await page.getByRole('button', { name: 'Continue my application' }).click();
+        await expect(page.getByText(/do not match this application/)).toBeVisible();
+        expect(await seriousViolations(page)).toEqual([]);
+    });
+
     // Every wizard step, not only the landing step. The custom-questions,
     // review and consent steps carry the densest controls in the product and
     // were the ones with unlabelled inputs before the design-system migration.

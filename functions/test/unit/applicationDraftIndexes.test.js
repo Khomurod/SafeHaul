@@ -42,6 +42,8 @@ const callableSource = fs.readFileSync(path.join(REPO_ROOT, 'functions/drafts/re
 const PREPARED_SOURCE_FILES = Object.freeze([
     'functions/companyApplications/read.js',
     'functions/companyApplications/invite.js',
+    'functions/companyApplications/inviteTokens.js',
+    'functions/companyApplications/inviteIdentity.js',
 ]);
 
 const draft = require('../../shared/applicationDraft');
@@ -100,14 +102,33 @@ describe('the carrier-prepared queries on the same collection', () => {
         ])).toBe(true);
     });
 
-    it.each(PREPARED_SOURCE_FILES)('declares an index for every equality filter in %s', (file) => {
-        const source = fs.readFileSync(path.join(REPO_ROOT, file), 'utf8');
-        const filtered = [...source.matchAll(/\.where\('([a-zA-Z]+)',\s*'=='/g)].map((match) => match[1]);
+    /**
+     * Asked of the SET, not of each file.
+     *
+     * It used to require every listed file to contain at least one equality filter,
+     * on the grounds that a file which stopped containing the query was a file the
+     * query had moved out of. That reasoning holds for a *move* and fails for a
+     * *deletion*: on 2026-09-09 `exchangeApplicationInvite`'s fallback scan dropped
+     * its `origin == 'company'` filter outright — a continuation link has to be
+     * able to resolve a draft the driver authored — and this test failed for a
+     * change that removed an index dependency rather than adding one.
+     *
+     * The hazard it was built for is still caught, one level up: the union over the
+     * whole surface must be non-empty, so a query cannot vanish from every listed
+     * file unnoticed, and `read.js` is still asserted to hold the `origin` one by
+     * the case above.
+     */
+    const equalityFiltersIn = (file) => [...fs
+        .readFileSync(path.join(REPO_ROOT, file), 'utf8')
+        .matchAll(/\.where\('([a-zA-Z]+)',\s*'=='/g)].map((match) => match[1]);
 
-        // Not "nothing to check": a file that has stopped containing the query is
-        // a file the query moved out of, and that is what this must catch.
-        expect(filtered.length).toBeGreaterThan(0);
-        for (const field of filtered) {
+    it('still queries this collection by equality somewhere on the prepared surface', () => {
+        const union = PREPARED_SOURCE_FILES.flatMap(equalityFiltersIn);
+        expect(union.length).toBeGreaterThan(0);
+    });
+
+    it.each(PREPARED_SOURCE_FILES)('declares an index for every equality filter in %s', (file) => {
+        for (const field of equalityFiltersIn(file)) {
             expect(hasIndex('application_drafts', [
                 { fieldPath: field, order: 'ASCENDING' },
                 { fieldPath: 'updatedAt', order: 'DESCENDING' },
