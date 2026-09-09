@@ -186,22 +186,43 @@ export function UnfinishedApplicationsPage() {
     const [busyKey, setBusyKey] = useState(null);
 
     /**
+     * Which row's mint failed, so the hook's single error can be shown on it.
+     *
+     * The same shape as `linkFor` and for the same reason: the hook holds one
+     * error at a time and does not watch which row asked. Rendering it unscoped
+     * would put "your session has ended" under every driver on the screen.
+     */
+    const [failedKey, setFailedKey] = useState(null);
+
+    /**
      * Mint, then copy.
      *
      * The raw token exists exactly once — the callable returns it and never can
      * again — so it is minted at the moment somebody asks for it rather than for
      * every row on load. A refused clipboard is not a lost link: the hook records
      * it and the row says so, with the URL selectable beside it.
+     *
+     * A refused MINT is a lost link, and until review found it on 2026-09-09 that
+     * was the one failure nobody said anything about: `useInviteLink` set its
+     * `error`, this screen never read it, so an expired session or a spent rate
+     * limit stopped the button spinning and produced nothing — no link, no
+     * message. The same silent shape as the clipboard defect this hook already
+     * records, one step earlier again.
      */
-    const { mint, copy, copyUrl, linkFor, copied, copyFailed } = invite;
+    const { mint, copy, copyUrl, linkFor, copied, copyFailed, error: mintError } = invite;
     const mintFor = useCallback(async (applicantKey) => {
         setBusyKey(applicantKey);
+        setFailedKey(null);
         try {
             const url = await mint(applicantKey);
+            if (!url) {
+                setFailedKey(applicantKey);
+                return;
+            }
             // `copyUrl`, not `copy`: `copy` reads the hook's `link` state as it was
             // captured by THIS render, which is still null at this point. Minting
             // and copying in one press is what makes that difference visible.
-            if (url) await copyUrl(url);
+            await copyUrl(url);
         } finally {
             setBusyKey(null);
         }
@@ -296,13 +317,16 @@ export function UnfinishedApplicationsPage() {
                                 Your browser would not let us copy it. Select the link above and copy it yourself.
                             </FieldMessage>
                         )}
+                        {mintError && failedKey === entry.applicantKey && (
+                            <FieldMessage tone="error">{mintError}</FieldMessage>
+                        )}
                     </div>
                 );
             },
         },
         // The pieces read above, not the hook's return object — that is a fresh
         // literal on every render, which would make this `useMemo` a no-op.
-    ], [linkFor, copy, copied, copyFailed, busyKey, mintFor]);
+    ], [linkFor, copy, copied, copyFailed, busyKey, mintFor, mintError, failedKey]);
 
     return (
         <PageContainer>

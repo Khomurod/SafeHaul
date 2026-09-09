@@ -106,37 +106,56 @@ exports.sendVerificationRequest = onCall({ cors: true }, async (request) => {
          *
          * Resolved server-side against the application itself: the client may pass
          * an `employerId` it already knows, and the server still has to find the
-         * row. A row with no id yet is stamped now — one targeted write, and only
-         * when it is actually missing — because a request issued against a row that
-         * cannot be found again is a result with nowhere safe to go.
+         * row. A row with no id yet is stamped now — because a request issued
+         * against a row that cannot be found again is a result with nowhere safe to
+         * go.
+         *
+         * ## Why a transaction, and not a read followed by an update
+         *
+         * `withEmployerIds` mints an id for every row that lacks one and the write
+         * is the whole array, so two recruiters sending requests for two different
+         * employers on the same unstamped application at the same time each mint a
+         * *different* set of ids and each write all of them. The second write wins,
+         * and the first request is left recording an `employerId` that is no longer
+         * on the document — which `recordVerificationResponse` then cannot resolve,
+         * so the answer that comes back has nowhere to go. Exactly the orphaning the
+         * identity was introduced to prevent, arriving by a different door. Review
+         * found it on 2026-09-09.
+         *
+         * Reading and stamping inside one transaction makes the loser retry against
+         * the winner's array, find the ids already there, and stamp nothing.
          *
          * The application document is where employers live; a `leads` record uses
          * the same shape and the same allowlisted collection names.
          */
         const appRef = db.collection('companies').doc(companyId)
             .collection(collectionName).doc(applicationId);
-        const appSnap = await appRef.get();
-        if (!appSnap.exists) throw new HttpsError('not-found', 'Application not found.');
-        const stored = Array.isArray(appSnap.data()?.employers) ? appSnap.data().employers : [];
-        const { employers: stamped, changed } = withEmployerIds(stored);
-        if (changed) await appRef.update({ employers: stamped });
+        const { target, employerId, employers: stamped } = await db.runTransaction(async (tx) => {
+            const appSnap = await tx.get(appRef);
+            if (!appSnap.exists) throw new HttpsError('not-found', 'Application not found.');
+            const stored = Array.isArray(appSnap.data()?.employers) ? appSnap.data().employers : [];
+            const { employers: withIds, changed } = withEmployerIds(stored);
 
-        const target = resolveEmployerTarget(stamped, {
-            employerId: request.data?.employerId,
-            employerIndex: empIndex,
-            // The name the caller is sending the request about, so the legacy
-            // index route has something to check against. `employerName` may be
-            // absent from the payload, in which case the stored row's own name is
-            // what the request records.
-            employerName: employerName || employerNameOf(stamped[empIndex]),
+            const found = resolveEmployerTarget(withIds, {
+                employerId: request.data?.employerId,
+                employerIndex: empIndex,
+                // The name the caller is sending the request about, so the legacy
+                // index route has something to check against. `employerName` may be
+                // absent from the payload, in which case the stored row's own name is
+                // what the request records.
+                employerName: employerName || employerNameOf(withIds[empIndex]),
+            });
+            // Refused before anything is written: an id stamped for a request that
+            // cannot be issued is a change nobody asked for.
+            if (!found) {
+                throw new HttpsError(
+                    'not-found',
+                    'That employer is no longer on this application. Refresh and try again.',
+                );
+            }
+            if (changed) tx.update(appRef, { employers: withIds });
+            return { target: found, employerId: withIds[found.index].employerId, employers: withIds };
         });
-        if (!target) {
-            throw new HttpsError(
-                'not-found',
-                'That employer is no longer on this application. Refresh and try again.',
-            );
-        }
-        const employerId = stamped[target.index].employerId;
 
         // Generate unique token
         const token = uuidv4();

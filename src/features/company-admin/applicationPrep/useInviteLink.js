@@ -4,6 +4,23 @@ import { functions } from '@lib/firebase';
 import { describeError } from './useApplicationPrepDraft';
 
 /**
+ * A refused mint, in words about minting.
+ *
+ * `describeError` is shared with the prep-draft hook and answers
+ * `resource-exhausted` with "Too many saves in a row", which is the wrong noun
+ * here — nothing was being saved, and `mintApplicationInvite` has a rate limit of
+ * its own. It only started mattering when `UnfinishedApplicationsPage` began
+ * rendering this error at all (2026-09-09); before that the message went nowhere,
+ * which was the defect. Everything else `describeError` says is right for both.
+ */
+function describeMintError(error) {
+    if (error?.code === 'functions/resource-exhausted') {
+        return 'Too many links created in a row. Wait a moment and try again.';
+    }
+    return describeError(error);
+}
+
+/**
  * The link the carrier sends the driver.
  *
  * The raw token comes back from the callable exactly once and is never retrievable
@@ -46,7 +63,7 @@ export function useInviteLink({ companyId, appSlug }) {
             setLink({ url, expiresInDays: data.expiresInDays, applicantKey: data.applicantKey });
             return url;
         } catch (mintError) {
-            setError(describeError(mintError));
+            setError(describeMintError(mintError));
             return null;
         } finally {
             setBusy(false);

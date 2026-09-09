@@ -256,6 +256,36 @@ describe('the continuation link', () => {
         expect(screen.getByText(/apply\/acme\?invite=invite-token-1/)).toBeInTheDocument();
     });
 
+    /**
+     * The one failure that used to produce nothing at all, found in review on
+     * 2026-09-09.
+     *
+     * `useInviteLink` records a refused mint in its `error`, and this screen never
+     * read it — so an ended session or a spent rate limit stopped the button
+     * spinning and left the recruiter with no link and no explanation. Exactly the
+     * silence the clipboard case above already fixed, one step earlier: a lost link
+     * this time, not a lost convenience.
+     */
+    it('says so when the mint itself is refused, and says it on the right row', async () => {
+        mintSpy.mockRejectedValue({ code: 'functions/resource-exhausted' });
+        render(<UnfinishedApplicationsPage />);
+        await screen.findByText('Dana Alvarez');
+        fireEvent.click(await screen.findByRole('button', {
+            name: /Create a continuation link for Dana Alvarez/i,
+        }));
+
+        // Named for what was refused. The shared `describeError` calls this one
+        // "too many saves", and nothing here was being saved.
+        expect(await screen.findByText(/Too many links created in a row/i)).toBeInTheDocument();
+        // Not the clipboard's message: nothing was copied because nothing existed.
+        expect(screen.queryByText(/would not let us copy it/i)).not.toBeInTheDocument();
+        // And no link was shown, on this row or any other.
+        expect(screen.queryByText(/invite=/)).not.toBeInTheDocument();
+        // Scoped to the row that asked. The hook holds one error at a time, so an
+        // unscoped read would print it under every driver on the screen.
+        expect(screen.getAllByText(/Too many links created in a row/i)).toHaveLength(1);
+    });
+
     it('still shows no answers anywhere on the screen', async () => {
         // The whole point of the restraint above, re-asserted now that the screen
         // has an action: `listApplicationDrafts` returns no `formData`, and nothing

@@ -422,11 +422,13 @@ name and autosaved onto the carrier's draft.
 reconciliation until the exchange has resolved, which fixes the ordering; the
 `applicantKey` stored beside the resume token identifies whose leftovers this
 browser holds, which fixes the identity. Gating alone is not enough, and the gate
-is on `pending` only and never on `opened`: the exchange returns no `lastStep`,
-so the reconciliation is the only thing that restores an invited driver's page,
-and their own newer unsynced work must still be able to win. A foreign local copy
-is **withheld** from the merge (`local: null`, a supported input meaning "this
-browser has no copy of *this* application") rather than deleted, so the ordinary
+is on `pending` only and never on `opened`: their own newer unsynced work must
+still be able to win. (Until the exchange returned `lastStep` — see *A confirmed
+exchange returns the step* below — the reconciliation was also the only thing
+that restored an invited driver's page at all; now the two agree through the
+reconciliation's `Math.max`.) A foreign local copy is **withheld** from the merge
+(`local: null`, a supported input meaning "this browser has no copy of *this*
+application") rather than deleted, so the ordinary
 server-won write-back replaces it and no new writer is introduced to a slot whose
 naming and sequence rules are this intricate. The cost is stated where it
 happens: the previous applicant loses their local backup of that slug, while
@@ -960,7 +962,13 @@ real check on the SSN and subsumes the other two facts. Without one — a draft 
 erasure caught, or one predating the field — the name and date of birth are
 checked against the draft's own answers and a well-formed SSN is required but
 cannot be verified; a success then **establishes** the HMAC, so a draft passes
-through that tier at most once. A refusal is `permission-denied` with a sentence
+through that tier at most once. **That tier needs both stored facts and refuses
+as `unverifiable` without them**, which review corrected on 2026-09-09: checking
+whichever fact the draft happened to hold left a bar made entirely of things the
+carrier can read off its own worklist, since the date of birth is the one compared
+fact it is never shown and the SSN is required rather than verified here. It costs
+a driver who is on a new device *and* has typed almost nothing yet; their own
+device is asked nothing at all. A refusal is `permission-denied` with a sentence
 the driver can act on (they may simply have mistyped), rate-limited per targeted
 draft as well as per caller, and audited as `invite_identity_refused`. Saying
 "those details do not match" discloses nothing new: the holder was already told
@@ -972,6 +980,26 @@ resolves the very application the link named — the strongest resume path is th
 one that asks the applicant for nothing, and a replacement link may not take it
 away. A token belonging to a *different* applicant does not satisfy it, and their
 local copy is withheld from the merge exactly as it is on the `opened` path.
+
+**And withheld from the page load's own restore, which is a second reader of the
+same slot.** Review found on 2026-09-09 that `requires_identity` fell through to
+both of `loadPublicApplyCompany`'s remaining steps, and neither is harmless while
+a live invitation is waiting on one question. The local-draft restore put a
+previous applicant's answers into `formData` *behind* the confirmation screen,
+where nothing shows them and the adopt merge keeps every key the target
+application does not itself hold — so the next autosave would write a stranger's
+rows onto this driver's application. And the post-apply restore sets
+`submissionStatus` to `success`, which renders **above** the confirmation screen:
+a driver who had submitted an application to this carrier in the same tab within
+the last 24 hours saw that old screen and no question at all — the same reported
+symptom wearing a different mask, and permanent, because the session is rewritten
+on every load. Both steps are now gated on the outcome by one shared decision that
+the production and E2E branches read, and the stale session is *cleared* rather
+than merely skipped, or a later reload of the bare apply page brings the success
+screen back over the driver's half-typed work. Sound for the same reason the
+`opened` path's clearing is: submission deletes the draft the invite hash lives
+on, so an exchange that resolved a live draft proves the application it named has
+not been submitted. A link that *failed* still touches none of it.
 
 **A confirmed exchange returns the step.** Withholding it was survivable only
 while a prepared draft was always on page one: handing a driver their answers and

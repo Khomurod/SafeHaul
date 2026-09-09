@@ -211,6 +211,40 @@ export async function openPreparedApplication({ slug, companyId, searchParams, i
 }
 
 /**
+ * Retire a finished application's confirmation screen, because a live one arrived.
+ *
+ * `sh_post_apply_${companyId}` is keyed to a COMPANY and lasts 24 hours, and
+ * restoring it sets `submissionStatus = 'success'`, which renders above everything
+ * the invitation is trying to show — so a new invitation to the same carrier in the
+ * same tab would put the PREVIOUS applicant's success screen and documents
+ * checklist over it.
+ *
+ * Cleared rather than merely not restored, or the defect returns through the other
+ * door: left in place, a later reload of the bare `/apply/:slug` in this tab brings
+ * that success screen back over the invited driver's half-typed application.
+ *
+ * Safe against a real submitted application by construction, not by luck: a
+ * submission DELETES the draft, and the invite hash lives on that document, so an
+ * exchange that resolved a live draft proves the application it named has not been
+ * submitted. That proof is what makes this callable from the identity path as well
+ * as this one — `requiresIdentity` withholds the ANSWERS, but the draft it
+ * withholds them from is live, or the exchange would have said `not-found`. A
+ * FAILED exchange deliberately touches none of this, which is what protects the
+ * driver who re-clicks their own emailed link after submitting.
+ */
+export function retireStalePostApplySession(companyId) {
+    clearPostApplySession(companyId);
+    try {
+        // A single global key with no company or application scoping, read as the
+        // success screen's fallback. Left behind, it shows the previous applicant's
+        // confirmation number on the invited driver's own success screen later.
+        sessionStorage.removeItem('lastConfirmationNumber');
+    } catch {
+        /* storage unavailable (privacy mode) — nothing was stored to begin with */
+    }
+}
+
+/**
  * Take on the application an exchange handed over.
  *
  * One function for the two ways in — a link opened while the answers were still
@@ -260,35 +294,44 @@ export function adoptOpenedApplication({
     setIntakeMode('manual');
     sessionStorage.setItem('pending_application_company', companyId);
 
-    /**
-     * A live invitation retires a finished one's confirmation screen.
-     *
-     * `sh_post_apply_${companyId}` is keyed to a COMPANY and lasts 24 hours, and
-     * restoring it sets `submissionStatus = 'success'`, which renders above the
-     * wizard — so a new invitation to the same carrier in the same tab would show
-     * the PREVIOUS applicant's success screen and documents checklist over the
-     * answers just loaded.
-     *
-     * Cleared rather than merely not restored, or the defect returns through the
-     * other door: left in place, a later reload of the bare `/apply/:slug` in this
-     * tab brings that success screen back over the invited driver's half-typed
-     * application.
-     *
-     * Safe against a real submitted application by construction, not by luck: a
-     * submission DELETES the draft, and the invite hash lives on that document, so
-     * a successful exchange proves the application it opened has not been
-     * submitted. A FAILED exchange deliberately touches none of this, which is what
-     * protects the driver who re-clicks their own emailed link after submitting.
-     */
-    clearPostApplySession(companyId);
-    try {
-        // A single global key with no company or application scoping, read as the
-        // success screen's fallback. Left behind, it shows the previous applicant's
-        // confirmation number on the invited driver's own success screen later.
-        sessionStorage.removeItem('lastConfirmationNumber');
-    } catch {
-        /* storage unavailable (privacy mode) — nothing was stored to begin with */
-    }
+    // A live invitation retires a finished one's confirmation screen. Shared with
+    // the identity path, which has to do it before the answers arrive rather than
+    // after — see `retireStalePostApplySession` for why that is sound.
+    retireStalePostApplySession(companyId);
+}
+
+/**
+ * What the rest of the page load may still do, once an invitation did not open.
+ *
+ * Both callers of `openPreparedApplication` in `publicApplyBootstrap` continue past
+ * it — restoring a submission and restoring this browser's local draft — and
+ * `requires_identity` is a live invitation waiting on one question, so neither step
+ * is harmless there:
+ *
+ *  - **The submission restore** sets `submissionStatus = 'success'`, which renders
+ *    ABOVE the confirmation screen. A 24-hour-old success screen for this carrier
+ *    would hide the question permanently, and the driver would be back to the
+ *    reported symptom by a second route.
+ *  - **The local-draft restore** puts whatever this browser was holding into
+ *    `formData`, and when the slot belongs to somebody else that is a previous
+ *    applicant's answers — behind the confirmation screen, where the driver cannot
+ *    see them, and still in `formData` when the claim succeeds: the adopt spread
+ *    keeps every key the target application does not itself have, and autosave
+ *    then writes them onto it.
+ *
+ * One decision, read by both branches, so the E2E path cannot drift from the
+ * production one — the file already records a bug that hid in exactly that gap.
+ *
+ * Every other non-opening outcome is a link that FAILED, and both steps stay: a
+ * dead link must not cost the driver their own submission screen or their own
+ * local work.
+ */
+export function permissionsAfterInvite(outcome) {
+    const awaitingIdentity = outcome?.status === INVITE_OUTCOMES.REQUIRES_IDENTITY;
+    return {
+        restoreSubmission: !awaitingIdentity,
+        restoreLocalDraft: !(awaitingIdentity && outcome?.foreignSlot),
+    };
 }
 
 export default openPreparedApplication;

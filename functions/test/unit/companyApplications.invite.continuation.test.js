@@ -239,6 +239,40 @@ describe('what the link refuses', () => {
         });
     });
 
+    /**
+     * The hole review found on 2026-09-09, and the reason the `answers` tier wants
+     * BOTH stored facts rather than whichever it happens to have.
+     *
+     * The draft below holds a last name and no date of birth — the ordinary shape of
+     * an application a driver has only just taken over. Checking "what we have"
+     * means checking the last name and a contact detail, which are both printed on
+     * the carrier's own worklist, while the two facts it cannot see go unchecked: an
+     * absent stored date of birth is compared against nothing, and with no HMAC on
+     * file the SSN is only required to be well-formed. So the carrier could have
+     * typed its own screen back at us, with any date and any nine digits, and been
+     * handed the driver's answers.
+     */
+    it('refuses when the draft holds a last name but no date of birth', async () => {
+        await prepare();
+        const { inviteToken } = await mint();
+        const { resumeToken } = await open(inviteToken);
+        await saveFirstPage({
+            resumeToken, ssn: '',
+            formData: { firstName: 'Dana', lastName: IDENTITY.lastName, cdlNumber: DRIVER_SECRET },
+        });
+
+        const replacement = await mint();
+        // A claim made entirely of what the carrier can see, plus invented secrets.
+        await expect(open(replacement.inviteToken, {
+            lastName: IDENTITY.lastName, dob: '1990-01-01', ssn: '000-00-0000', contact: IDENTITY.email,
+        })).rejects.toMatchObject({
+            code: 'permission-denied',
+            message: expect.stringContaining('cannot confirm'),
+        });
+        // And the driver's own answers stayed where they were.
+        expect(mockStore.get(PATH()).formData.cdlNumber).toBe(DRIVER_SECRET);
+    });
+
     it('cannot resurrect a submitted or discarded application', async () => {
         await driverStartedWithoutIdentity();
         const { inviteToken } = await mint();

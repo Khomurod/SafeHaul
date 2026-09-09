@@ -25,6 +25,7 @@ import {
 } from './postApplyDocsStorage';
 import {
   INVITE_OUTCOMES, adoptOpenedApplication, openPreparedApplication,
+  permissionsAfterInvite, retireStalePostApplySession,
 } from './publicApplyInvite';
 
   /**
@@ -122,6 +123,13 @@ export async function loadPublicApplyCompany({
         slug, companyId: companyData.id, searchParams,
       });
       setInviteOutcome(outcome);
+      if (outcome.status === INVITE_OUTCOMES.REQUIRES_IDENTITY) {
+        // A live application the driver has already started, waiting on one
+        // question. Nothing is adopted — there is no token and no answers in this
+        // reply — but the stale success screen has to go now rather than when the
+        // claim succeeds, because it renders ABOVE the question and would hide it.
+        retireStalePostApplySession(companyData.id);
+      }
       if (outcome.status !== INVITE_OUTCOMES.OPENED) return outcome;
 
       adoptOpenedApplication({
@@ -179,12 +187,15 @@ export async function loadPublicApplyCompany({
           // Same order as the production branch below, and kept that way
           // deliberately: the comment there records that a divergence between the
           // two is exactly why a browser test could not see an earlier bug.
-          if ((await openInvite(mockCompany)).status === INVITE_OUTCOMES.OPENED) return;
-          restorePostApplySession(mockCompany);
+          const e2eInvite = await openInvite(mockCompany);
+          if (e2eInvite.status === INVITE_OUTCOMES.OPENED) return;
+          // Same decision as the production branch, from the same function.
+          const e2ePermits = permissionsAfterInvite(e2eInvite);
+          if (e2ePermits.restoreSubmission) restorePostApplySession(mockCompany);
           if (getE2EQueryParam('e2eIntake', 'manual') !== 'choice') {
             setIntakeMode('manual');
           }
-          const e2eDraft = readApplicationDraft(slug);
+          const e2eDraft = e2ePermits.restoreLocalDraft ? readApplicationDraft(slug) : null;
           if (e2eDraft) {
             // Same flag as the production path below: stored content on screen, so a
             // discard elsewhere takes it with it. Kept in step so a browser test
@@ -225,13 +236,23 @@ export async function loadPublicApplyCompany({
         // reorder that stops a 24-hour-old confirmation screen for this carrier
         // hiding a live invitation. `openInvite` explains why clearing that
         // session on success cannot cost a real submitted application anything.
-        if ((await openInvite(companyData)).status === INVITE_OUTCOMES.OPENED) return;
+        const invite = await openInvite(companyData);
+        if (invite.status === INVITE_OUTCOMES.OPENED) return;
+
+        /**
+         * What a live-but-unopened invitation leaves the rest of this load allowed
+         * to do. `requires_identity` is the case that needs it: the two restores
+         * below would render a stale success screen over the confirmation question
+         * and load a previous applicant's answers behind it. See
+         * `permissionsAfterInvite`.
+         */
+        const permits = permissionsAfterInvite(invite);
 
         // Returning from the signing room (or a reload right after submitting):
         // bring back the success screen + required-documents checklist. Reached
-        // only when no invitation opened, including when one failed — a dead link
-        // must not take away a success screen.
-        restorePostApplySession(companyData);
+        // when an invitation FAILED too — a dead link must not take away a success
+        // screen — but not while a live one is asking the driver to confirm.
+        if (permits.restoreSubmission) restorePostApplySession(companyData);
 
         // P2-5 FIX: Recover saved draft from localStorage on page revisit.
         //
@@ -239,7 +260,7 @@ export async function loadPublicApplyCompany({
         // then showing page one meant a returning applicant had to click Next
         // eight times past forms that were already filled in, which reads as
         // "nothing was saved".
-        const savedDraft = readApplicationDraft(slug);
+        const savedDraft = permits.restoreLocalDraft ? readApplicationDraft(slug) : null;
         // Discarded while the profile was loading, either way it can happen. If the
         // event was delivered, the reaction has already adopted the mark — it ran with
         // nothing on screen to reset — so every later comparison reads clean and only

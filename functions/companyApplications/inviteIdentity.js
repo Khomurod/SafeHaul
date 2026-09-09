@@ -61,17 +61,25 @@
  *   value, because it also had to present a live invite token and match two stored
  *   answers.
  *
+ *   Both of those answers, and the tier refuses rather than checking whichever it
+ *   has: the date of birth is the one compared fact the carrier is never shown, so
+ *   waiving it when the draft does not hold one leaves a check made entirely of
+ *   things the carrier already knows. Review found that on 2026-09-09.
+ *
  * Honest about its own limit: in the `answers` tier the SSN is *required* and not
  * *verified*. It still moves the bar from "knows what it typed" to "knows the
  * driver's Social Security Number", and a carrier that has that can impersonate
  * the driver anywhere in this product.
  *
- * A draft holding neither a last name nor a date of birth cannot be verified at
- * all, and this says so (`unverifiable`) rather than guessing. That is the state
- * the task calls "essential identity information never existed": the safest useful
+ * A draft that does not hold both of those facts cannot be verified at all, and
+ * this says so (`unverifiable`) rather than guessing. That is the state the task
+ * calls "essential identity information never existed": the safest useful
  * behaviour is to tell the driver we cannot confirm it is theirs and let them start
  * a new application, never to hand the answers over and never to duplicate the
- * record.
+ * record. It costs a driver who is on a new device AND has typed almost nothing
+ * yet — their own device still resumes with no question asked, because it holds the
+ * resume token — and what it buys is that a link cannot be turned into the answers
+ * by whoever minted it.
  */
 
 const draft = require('../shared/applicationDraft');
@@ -160,12 +168,21 @@ function verifyInviteIdentityClaim({ companyId, stored, claim }) {
     const answers = stored?.formData || {};
     const storedLastName = draft.normalizeName(answers.lastName);
     const storedDob = draft.normalizeDob(answers.dob);
-    if (!storedLastName && !storedDob) return refuse(CLAIM_OUTCOMES.UNVERIFIABLE);
 
-    if (storedLastName && draft.normalizeName(claim.lastName) !== storedLastName) {
+    // BOTH, and this is the whole strength of the tier. Accepting whichever one the
+    // draft happens to hold reads like leniency towards a driver who has not typed
+    // much yet, and is actually a hole: with only a last name stored, every fact
+    // this compares is a fact the carrier can see on its own worklist — the name and
+    // a contact detail — while the two it cannot see are the two nothing verifies
+    // here, since an absent stored date of birth is compared against nothing and the
+    // SSN is only required to be well-formed. The bar would collapse to "the party
+    // that minted the link can read its own screen", which is no bar at all.
+    if (!storedLastName || !storedDob) return refuse(CLAIM_OUTCOMES.UNVERIFIABLE);
+
+    if (draft.normalizeName(claim.lastName) !== storedLastName) {
         return refuse(CLAIM_OUTCOMES.IDENTITY_MISMATCH);
     }
-    if (storedDob && draft.normalizeDob(claim.dob) !== storedDob) {
+    if (draft.normalizeDob(claim.dob) !== storedDob) {
         return refuse(CLAIM_OUTCOMES.IDENTITY_MISMATCH);
     }
 

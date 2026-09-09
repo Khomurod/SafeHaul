@@ -28,6 +28,7 @@ jest.mock('../../firebaseAdmin', () => require('./employmentVerification.support
 const {
   appKey, applicationDocs, verificationDocs,
   mockAssertCompanyAccessForRequest, mockSendDynamicEmail, resetPevState,
+  setTransactionInterference, writeApplicationOutOfBand,
 } = require('./employmentVerification.support');
 
 const { sendVerificationRequest } = require('../../employmentVerification');
@@ -126,6 +127,51 @@ describe('employmentVerification callables', () => {
         },
       })).rejects.toMatchObject({ code: 'not-found' });
       expect(verificationDocs.size).toBe(0);
+    });
+
+    /**
+     * The identity's own lost-update race, found in review on 2026-09-09.
+     *
+     * Stamping ids means writing the WHOLE employers array, so two recruiters
+     * sending requests for two different employers on the same never-yet-stamped
+     * application each mint a different set and each write all of them. Read, read,
+     * write, write: the second write erases the first's ids, and the first request
+     * is left recording an `employerId` that is not on the document any more — so
+     * the answer that comes back cannot be filed, which is the exact orphaning the
+     * identity was introduced to prevent.
+     *
+     * The competing commit below lands between this request's read and its write.
+     * A transaction notices and re-runs; a read followed by an update does not.
+     */
+    it('does not erase employer ids a request that raced it had already minted', async () => {
+      const key = appKey('co-1', 'applications', 'app-1');
+      applicationDocs.set(key, {
+        employers: [{ companyName: 'ABC Trucking' }, { companyName: 'XYZ Transport' }],
+      });
+
+      // The other recruiter's request commits first, stamping both rows.
+      setTransactionInterference(() => writeApplicationOutOfBand(key, {
+        employers: [
+          { companyName: 'ABC Trucking', employerId: 'aaaaaaaaaaaa' },
+          { companyName: 'XYZ Transport', employerId: 'bbbbbbbbbbbb' },
+        ],
+      }));
+
+      await sendVerificationRequest({
+        auth: { uid: 'user-1' },
+        data: {
+          companyId: 'co-1', applicationId: 'app-1', employerIndex: 1,
+          applicantName: 'John Driver', employerName: 'XYZ Transport',
+          employerEmail: 'hr@xyz.com', deliveryMethod: 'email',
+        },
+      });
+
+      // The other request's identity survived — the whole point.
+      const stored = applicationDocs.get(key);
+      expect(stored.employers[0].employerId).toBe('aaaaaaaaaaaa');
+      expect(stored.employers[1].employerId).toBe('bbbbbbbbbbbb');
+      // And this one recorded an id that is genuinely on the row it names.
+      expect(verificationDocs.get('pev-token-123456').employerId).toBe('bbbbbbbbbbbb');
     });
 
     it('refuses when the row at that index is a different employer', async () => {
