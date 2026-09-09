@@ -1795,13 +1795,34 @@ and neither introducing a visual primitive:
   (`Button` + `Icon` + `FieldMessage`), so a recruiter can send a stalled
   applicant back to their own work. All columns on that table already reach the
   phone through the pinned-first-column horizontal scroll `check:table-layout`
-  enforces, and this one is no exception — nothing is dropped at any width.
-  **Its two committed pixel baselines are stale until re-recorded**: the column is
-  new, and the environment the change was written in ships a different Chromium
-  build from the one Playwright pins here, which the font tripwire diagnoses in
-  one sentence. Re-record with `npm run test:visual:update` where the pinned
-  browser is installed; the desktop and mobile renders were reviewed by
-  inspection in the meantime.
+  enforces, and this one is no exception — nothing is dropped at any width. Its
+  two pixel baselines were re-recorded in the same commit, and the whole lane is
+  green either side of them: 30/30 application screens, 208/208 catalog, and
+  `check:visual-contract` reports all 208 measurements unchanged.
+
+**The font tripwire earned its keep on that re-recording, and the lesson is worth
+the paragraph.** The change was written in a container that ships Chromium
+revision **1194**, while `@playwright/test` 1.62.1 pins **1234** — so the obvious
+move, pointing `PW_CHROMIUM_EXECUTABLE` at the browser that happened to be
+present, launches a *different build* of Chromium. Every functional spec still
+passes that way; the pixel lane does not, and it fails in the shape most likely
+to be misread. Untouched screens missed by ~23,000 pixels against a 100-pixel
+budget, and `check:visual-contract` reported eight sub-pixel "geometry moves"
+(`badge` 61 → 60.48px, a page state's `description` 378 → 370.95px) on primitives
+the branch did not touch. Two plausible wrong conclusions were available: bake
+those numbers in with `--update`, or record the baselines anyway. Both would have
+put one machine's text metrics into the repository.
+
+The tripwire said it in one sentence instead — *"text metrics moved (435.02px vs
+426px). Inter loaded, but not the build the baselines were captured with"* — and
+the remedy was to install the pinned revision (`npx playwright install chromium`)
+rather than to widen anything. With 1234 in place the untouched `login` baseline
+passed, only the two screens that had genuinely changed failed, and the geometry
+snapshot came back exactly unchanged. **So: the pixel lane is runnable outside
+CI, and `PW_CHROMIUM_EXECUTABLE` is for the functional lanes only.** A visual
+baseline is a claim about one browser build, so recording one under any other
+build is recording noise — which is the same sentence section 7 already writes
+about the font, one layer down.
 - **The dossier's Previous Employers editor** (`PreviousEmployersEditor`) —
   `Card` per row, `FormField`/`Input`/`Select`/`ChoiceGroup` from the shared
   schema table, a `Badge` spelling out each row's verification state, and the
