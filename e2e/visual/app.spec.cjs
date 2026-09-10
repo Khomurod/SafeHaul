@@ -127,7 +127,7 @@ const SCREENS = [
      *  - the signing room is where a legally operative signature is made;
      *  - the change-review portal is a public token route with no navigation
      *    around it, so nothing else on the screen would reveal a broken state;
-     *  - Started (unfinished) and the two lead lists are three more tables, and
+     *  - Unfinished applications and the two lead lists are three more tables, and
      *    tables are where this campaign found most of its geometry defects;
      *  - Import Leads carries the `FileInput` dropzone that four uploads
      *    migrated onto, so its appearance is now a shared contract rather than

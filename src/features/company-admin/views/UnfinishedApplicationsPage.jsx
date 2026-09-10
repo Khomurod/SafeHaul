@@ -1,120 +1,141 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
-import { Icon, Copy, Link2, RefreshCw } from '@design-system/icons';
+import { Icon, Plus, RefreshCw } from '@design-system/icons';
 
 import { functions } from '@lib/firebase';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 import { useData } from '@/context/DataContext';
-import { Badge, Button, Card, DataTable, FieldMessage } from '@/design-system/components';
+import { Button, Card, FieldMessage } from '@/design-system/components';
 import { PageContainer, PageHeader, Stack } from '@/design-system/layouts';
 import { useInviteLink } from '../applicationPrep/useInviteLink';
+import ApplicationPrepWorkspace from '../applicationPrep/ApplicationPrepWorkspace';
+import UnfinishedWorklistTable from '../applicationPrep/UnfinishedWorklistTable';
 
 /**
- * Applications somebody started and did not finish.
+ * One workspace for every application that has been started and not submitted.
  *
  * ## Why this screen exists
  *
- * Answers are now saved from the applicant's first Next rather than only at
+ * Answers are saved from the applicant's first Next rather than only at
  * submission, which stops a driver losing their work — but on its own that only
  * helps an applicant who happens to come back. This is the other half: a carrier
- * watching people drop off at the licence page finally has somebody to call.
+ * watching people drop off at the licence page finally has somebody to call, and
+ * a recruiter with a driver's paperwork in hand can start the application for
+ * them.
  *
- * ## Why it is not the applications list
+ * ## Why it used to be two screens, and why it is one now
  *
- * These are deliberately kept out of the ATS funnel. An unfinished application is
- * not a submitted one: nothing has been signed, no consent has been given, no
- * snapshot exists and no confirmation number was issued. Putting them in the
- * pipeline would mean statuses, assignment and exports treating a half-typed form
- * as a candidate record — and the applicant never agreed to file it.
+ * *Started (unfinished)* listed every unfinished draft; *Start an application* was
+ * a task screen that had grown a second list of its own, scoped to what the
+ * carrier had prepared. Because `listApplicationDrafts` filters by nothing, a
+ * carrier-prepared draft was returned by both — so the same application appeared
+ * on two screens with different columns and different actions, and a recruiter had
+ * to know which page answered which question.
+ *
+ * That split was never a security boundary. Both callables return contact and
+ * progress; **neither has ever returned an answer.** The read rule lives in one
+ * place — `companyMayReadAnswers`, enforced by `getCompanyPreparedDraft`, which
+ * also refuses outright any draft the carrier did not author — and it is unchanged
+ * by who lists what. So the two screens became one place, and the merge changed no
+ * permission.
+ *
+ * The separation that *is* a rule is still here: an unfinished application stays
+ * out of the applications pipeline. Nothing has been signed, no consent has been
+ * given, no snapshot exists and no confirmation number was issued. Putting these
+ * in the ATS funnel would mean statuses, assignment and exports treating a
+ * half-typed form as a candidate record the applicant never agreed to file.
  *
  * ## What it deliberately does not show
  *
- * The answers. This is a contact list: a name, a way to reach them, how far they
- * got and when. Reading someone's partial DOT questionnaire before they have
- * agreed to submit it is a decision they have not made, so the server does not
- * send it and this screen could not display it. There is no Social Security
- * Number to withhold — drafts never store one.
+ * The answers, unless the carrier wrote them and the driver has not yet touched
+ * them. *Open* appears only on the carrier's own rows, and what comes back is the
+ * server's decision on every load, never this screen's. There is no Social
+ * Security Number to withhold — drafts never store one.
  *
- * ## What it can now DO, and why that is not a hole in the rule above
- *
- * Until 2026-09-09 this screen had exactly one control — Refresh. A recruiter
- * looking at somebody who stopped at the licence page could call them, and that
- * was the whole of it: there was no way to send them back to their own work,
- * because `mintApplicationInvite` refused any draft the carrier had not itself
- * prepared. So the answer to "how do I get this driver to finish?" was "ask them
- * to start again", which throws away everything the draft feature exists to keep.
- *
- * **Copy continuation link** mints one and copies it. It changes nothing about
- * what this screen may read: the link is a *pointer*, and
- * `exchangeApplicationInvite` hands over a draft's answers only while the carrier
- * itself authored them — which for a driver-started application is never. Whoever
- * opens this link is asked to confirm their last name, date of birth, Social
- * Security Number and a contact detail already on the record before anything is
- * returned, and a recruiter cannot pass that check. Minting is rate-limited per
- * company and caller, and every regeneration retires the previous link.
+ * Which action a row offers depends on its state, and that lives in
+ * `unfinishedRowActions.js` rather than here.
  */
 
 /*
- * Fixture drafts for the `?e2eUnfinished=mock` harness, following the same shape
- * as `ReviewChangePortal`'s: gated on `VITE_E2E_TEST_MODE`, which a production
- * build never sets.
+ * Fixture rows for the `?e2eUnfinished=mock` harness, gated on
+ * `VITE_E2E_TEST_MODE`, which a production build never sets.
  *
  * It exists because this screen is in the blocking pixel lane and its content
  * came from a real `listApplicationDrafts` callable. With no credentials the call
- * fails, and *how* it fails decides what renders — so the committed baseline was
- * a loading skeleton in one environment and CI captured something 30% different.
- * A screenshot of a screen whose content depends on a network failure is not a
+ * fails, and *how* it fails decides what renders — so the committed baseline was a
+ * loading skeleton in one environment and CI captured something 30% different. A
+ * screenshot of a screen whose content depends on a network failure is not a
  * baseline.
  *
- * The three rows are the cases worth seeing: a complete contact, a draft with no
- * name typed yet, and one with no contact details at all. Timestamps are fixed
- * and sit before the lane's frozen clock.
+ * The rows are one per state the worklist can show — both origins, all four
+ * statuses — plus the two shapes that used to break the old table: a draft with no
+ * name typed yet, and one with no contact details at all. Timestamps are fixed and
+ * sit before the lane's frozen clock.
  */
 const MOCK_DRAFTS = Object.freeze([
     Object.freeze({
-        id: 'draft-1',
+        applicantKey: 'aaaa1111bbbb2222cccc',
+        origin: 'driver',
+        status: 'in_progress',
         firstName: 'Dana',
         lastName: 'Whitfield',
         email: 'dana.whitfield@example.test',
         phone: '(555) 010-2233',
         lastSemanticStep: 'license',
+        lastStep: 2,
         updatedAt: '2026-06-14T16:45:00.000Z',
     }),
     Object.freeze({
-        id: 'draft-2',
+        applicantKey: 'dddd3333eeee4444ffff',
+        origin: 'company',
+        status: 'driver_in_progress',
+        firstName: 'Priya',
+        lastName: 'Raman',
+        email: 'priya.raman@example.test',
+        phone: '(555) 010-8890',
+        lastSemanticStep: 'employment',
+        lastStep: 5,
+        preparedBy: { uid: 'u-1', name: 'Rae Recruiter' },
+        lockedEmployerCount: 2,
+        updatedAt: '2026-06-13T11:20:00.000Z',
+    }),
+    Object.freeze({
+        applicantKey: 'bbbb5555cccc6666dddd',
+        origin: 'driver',
+        status: 'in_progress',
         email: 'starter@example.test',
         lastSemanticStep: 'contact',
+        lastStep: 0,
         updatedAt: '2026-06-12T09:05:00.000Z',
     }),
     Object.freeze({
-        id: 'draft-3',
+        applicantKey: 'eeee7777ffff8888aaaa',
+        origin: 'company',
+        status: 'sent',
         firstName: 'Marcus',
         lastName: 'Iyer',
-        lastSemanticStep: 'employment',
+        email: 'marcus.iyer@example.test',
+        phone: '(555) 010-4417',
+        lastSemanticStep: 'contact',
+        lastStep: 0,
+        preparedBy: { uid: 'u-1', name: 'Rae Recruiter' },
+        lockedEmployerCount: 1,
+        updatedAt: '2026-06-10T14:02:00.000Z',
+    }),
+    Object.freeze({
+        applicantKey: 'cccc9999dddd0000eeee',
+        origin: 'company',
+        status: 'prepared',
+        firstName: 'Tomas',
+        lastName: 'Okafor',
+        email: 'tomas.okafor@example.test',
+        phone: '(555) 010-7712',
+        lastSemanticStep: null,
+        lastStep: 0,
+        preparedBy: { uid: 'u-2', name: 'Sam Sourcer' },
         updatedAt: '2026-06-09T21:30:00.000Z',
     }),
 ]);
-
-/** The wizard's own step names, in order, so "how far did they get" reads plainly. */
-const STEP_LABELS = Object.freeze({
-    contact: 'Personal information',
-    qualifications: 'Qualifications',
-    license: 'License & credentials',
-    violations: 'Driving record',
-    accidents: 'Accident history',
-    employment: 'Employment history',
-    general: 'General questions',
-    custom_questions: 'Company questions',
-    review: 'Review',
-    consent: 'Agreements & signature',
-});
-
-function describeStep(entry) {
-    if (entry.lastSemanticStep && STEP_LABELS[entry.lastSemanticStep]) {
-        return STEP_LABELS[entry.lastSemanticStep];
-    }
-    return `Step ${(entry.lastStep || 0) + 1}`;
-}
 
 function describeError(error, fallback) {
     switch (error?.code) {
@@ -130,9 +151,8 @@ function describeError(error, fallback) {
 export function UnfinishedApplicationsPage() {
     const { currentCompanyProfile } = useData();
     const companyId = currentCompanyProfile?.id;
-    // The same fallback `StartApplicationPage` uses: a company with no configured
-    // apply slug is still reachable by its id, so a link is never unmintable for
-    // want of a slug.
+    // A company with no configured apply slug is still reachable by its id, so a
+    // link is never unmintable for want of a slug.
     const appSlug = currentCompanyProfile?.appSlug || companyId;
 
     const isMock = isE2ETestMode && getE2EQueryParam('e2eUnfinished', '') === 'mock';
@@ -141,6 +161,15 @@ export function UnfinishedApplicationsPage() {
     const [retentionDays, setRetentionDays] = useState(30);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+
+    /**
+     * Which application the recruiter is working on, or null for the worklist.
+     *
+     * `key` is what mounts a fresh `ApplicationPrepWorkspace` per target, so one
+     * driver's answers, documents and minted link cannot survive the move to
+     * another. That used to be a `clearForNew` somebody had to remember to call.
+     */
+    const [prepTarget, setPrepTarget] = useState(null);
 
     /**
      * The continuation link, and which row it belongs to.
@@ -152,6 +181,17 @@ export function UnfinishedApplicationsPage() {
      * application.
      */
     const invite = useInviteLink({ companyId, appSlug });
+    const { mint, copyUrl, linkFor, copied, copyFailed, error: mintError } = invite;
+
+    /**
+     * Which row is minting, and which row's mint failed.
+     *
+     * The hook's own `busy` and `error` are single values for a whole table, so
+     * reading them unscoped would spin every button and print one row's failure
+     * under every driver.
+     */
+    const [busyKey, setBusyKey] = useState(null);
+    const [failedKey, setFailedKey] = useState(null);
 
     const load = useCallback(async () => {
         if (isMock) {
@@ -165,6 +205,9 @@ export function UnfinishedApplicationsPage() {
         setLoading(true);
         setError(null);
         try {
+            // One call, one row per document. There is no second list to union
+            // against and therefore no way to show a draft twice — see
+            // `functions/drafts/list.js`.
             const call = httpsCallable(functions, 'listApplicationDrafts');
             const result = await call({ companyId });
             setDrafts(result.data?.drafts || []);
@@ -180,45 +223,39 @@ export function UnfinishedApplicationsPage() {
     useEffect(() => { load(); }, [load]);
 
     /**
-     * Which row is minting. The hook's own `busy` is not enough: it is a single
-     * flag for a table, so reading it would spin every button on the screen.
-     */
-    const [busyKey, setBusyKey] = useState(null);
-
-    /**
-     * Which row's mint failed, so the hook's single error can be shown on it.
-     *
-     * The same shape as `linkFor` and for the same reason: the hook holds one
-     * error at a time and does not watch which row asked. Rendering it unscoped
-     * would put "your session has ended" under every driver on the screen.
-     */
-    const [failedKey, setFailedKey] = useState(null);
-
-    /**
      * Mint, then copy.
      *
      * The raw token exists exactly once — the callable returns it and never can
      * again — so it is minted at the moment somebody asks for it rather than for
      * every row on load. A refused clipboard is not a lost link: the hook records
-     * it and the row says so, with the URL selectable beside it.
-     *
-     * A refused MINT is a lost link, and until review found it on 2026-09-09 that
-     * was the one failure nobody said anything about: `useInviteLink` set its
-     * `error`, this screen never read it, so an expired session or a spent rate
-     * limit stopped the button spinning and produced nothing — no link, no
-     * message. The same silent shape as the clipboard defect this hook already
-     * records, one step earlier again.
+     * it and the row says so, with the URL selectable beside it. A refused MINT is
+     * a lost link, and the row says that too.
      */
-    const { mint, copy, copyUrl, linkFor, copied, copyFailed, error: mintError } = invite;
-    const mintFor = useCallback(async (applicantKey) => {
-        setBusyKey(applicantKey);
+    const createLink = useCallback(async (entry) => {
+        const key = entry.applicantKey;
+        setBusyKey(key);
         setFailedKey(null);
         try {
-            const url = await mint(applicantKey);
+            const url = await mint(key);
             if (!url) {
-                setFailedKey(applicantKey);
+                setFailedKey(key);
                 return;
             }
+            /**
+             * The row said "Not sent yet"; a link now exists, so it does not.
+             *
+             * Patched locally rather than reloaded, because `load()` sets `loading`
+             * and the table swaps its body for a skeleton — which would take the
+             * just-minted URL off the screen at the exact moment the recruiter
+             * needs to copy it. This is not optimism either: minting is precisely
+             * what moves a `prepared` draft to `sent` server-side, and it moves
+             * nothing else, which is why only that one transition is mirrored.
+             */
+            setDrafts((rows) => rows.map((row) => (
+                row.applicantKey === key && row.origin === 'company' && row.status === 'prepared'
+                    ? { ...row, status: 'sent' }
+                    : row
+            )));
             // `copyUrl`, not `copy`: `copy` reads the hook's `link` state as it was
             // captured by THIS render, which is still null at this point. Minting
             // and copying in one press is what makes that difference visible.
@@ -226,117 +263,42 @@ export function UnfinishedApplicationsPage() {
         } finally {
             setBusyKey(null);
         }
-    }, [mint, copyUrl]);
+    }, [copyUrl, mint]);
 
-    const columns = useMemo(() => [
-        {
-            key: 'name',
-            header: 'Applicant',
-            rowHeader: true,
-            priority: 'primary',
-            width: 'lg',
-            render: (entry) => {
-                const name = [entry.firstName, entry.lastName].filter(Boolean).join(' ');
-                return (
-                    <span className="font-medium text-ds-content">
-                        {name || 'Name not entered yet'}
-                    </span>
-                );
-            },
-        },
-        {
-            key: 'contact',
-            header: 'Contact',
-            priority: 'secondary',
-            width: 'lg',
-            render: (entry) => (
-                <div className="flex flex-col gap-ds-1 text-ds-sm text-ds-content-secondary">
-                    {entry.email && <span>{entry.email}</span>}
-                    {entry.phone && <span>{entry.phone}</span>}
-                    {!entry.email && !entry.phone && <span>No contact details yet</span>}
-                </div>
-            ),
-        },
-        {
-            key: 'progress',
-            header: 'Reached',
-            priority: 'secondary',
-            width: 'md',
-            render: (entry) => <Badge tone="info">{describeStep(entry)}</Badge>,
-        },
-        {
-            key: 'updated',
-            header: 'Last activity',
-            priority: 'tertiary',
-            width: 'md',
-            render: (entry) => (
-                <span className="text-ds-sm text-ds-content-secondary">
-                    {entry.updatedAt ? new Date(entry.updatedAt).toLocaleString() : 'Unknown'}
-                </span>
-            ),
-        },
-        {
-            key: 'continue',
-            header: 'Continue',
-            priority: 'secondary',
-            width: 'lg',
-            render: (entry) => {
-                const minted = linkFor(entry.applicantKey);
-                const name = [entry.firstName, entry.lastName].filter(Boolean).join(' ')
-                    || entry.email || entry.phone || 'this applicant';
-                return (
-                    <div className="flex flex-col items-start gap-ds-2">
-                        <Button
-                            variant={minted ? 'primary' : 'secondary'}
-                            size="sm"
-                            loading={busyKey === entry.applicantKey}
-                            /* Record-specific, because a table of identical
-                               "Copy link" buttons tells a screen-reader user
-                               nothing about which row they are on. */
-                            aria-label={minted
-                                ? `Copy the continuation link for ${name}`
-                                : `Create a continuation link for ${name}`}
-                            onClick={() => (minted ? copy() : mintFor(entry.applicantKey))}
-                        >
-                            <Icon icon={minted ? Copy : Link2} size="sm" />
-                            {minted ? (copied ? 'Copied' : 'Copy link') : 'Copy continuation link'}
-                        </Button>
-                        {minted && (
-                            <>
-                                <code className="block max-w-full overflow-x-auto rounded-ds-md border border-ds-border-subtle bg-ds-surface-subtle p-ds-2 text-ds-xs text-ds-content">
-                                    {minted.url}
-                                </code>
-                                <p className="text-ds-xs text-ds-content-muted">
-                                    Works for {minted.expiresInDays} days and is shown once. It asks them to
-                                    confirm who they are, so it will not show you their answers.
-                                </p>
-                            </>
-                        )}
-                        {copyFailed && minted && (
-                            <FieldMessage tone="error">
-                                Your browser would not let us copy it. Select the link above and copy it yourself.
-                            </FieldMessage>
-                        )}
-                        {mintError && failedKey === entry.applicantKey && (
-                            <FieldMessage tone="error">{mintError}</FieldMessage>
-                        )}
-                    </div>
-                );
-            },
-        },
-        // The pieces read above, not the hook's return object — that is a fresh
-        // literal on every render, which would make this `useMemo` a no-op.
-    ], [linkFor, copy, copied, copyFailed, busyKey, mintFor, mintError, failedKey]);
+    const openPrepared = useCallback((entry) => {
+        setPrepTarget({ key: entry.applicantKey, applicantKey: entry.applicantKey });
+    }, []);
+
+    const startNew = useCallback(() => setPrepTarget({ key: 'new', applicantKey: null }), []);
+
+    // Back to the worklist, and reload it: a save may have created a row, changed a
+    // name, or moved a status.
+    const exitPrep = useCallback(() => { setPrepTarget(null); load(); }, [load]);
+
+    if (prepTarget) {
+        return (
+            <ApplicationPrepWorkspace
+                key={prepTarget.key}
+                companyId={companyId}
+                appSlug={appSlug}
+                openKey={prepTarget.applicantKey}
+                onExit={exitPrep}
+            />
+        );
+    }
 
     return (
         <PageContainer>
             <Stack gap="lg">
                 <PageHeader
-                    title="Started (unfinished)"
-                    description={`Applications somebody began and has not submitted. They are not in the applications pipeline: nothing has been signed and no consent has been given. Kept for ${retentionDays} days, then removed automatically.`}
+                    title="Unfinished applications"
+                    description={`Applications somebody began and has not submitted — whether a driver started one or you did. They are not in the applications pipeline: nothing has been signed and no consent has been given. Kept for ${retentionDays} days, then removed automatically.`}
                 />
 
                 <div className="flex flex-wrap gap-ds-2">
+                    <Button variant="primary" onClick={startNew} disabled={!companyId}>
+                        <Icon icon={Plus} size="sm" /> Start an application
+                    </Button>
                     <Button variant="secondary" onClick={load} disabled={loading}>
                         <Icon icon={RefreshCw} size="sm" /> Refresh
                     </Button>
@@ -353,17 +315,19 @@ export function UnfinishedApplicationsPage() {
                     </Card>
                 )}
 
-                <DataTable
-                    ariaLabel="Unfinished applications"
-                    density="compact"
-                    minWidth="md"
-                    data={drafts}
-                    columns={columns}
-                    isLoading={loading}
-                    loadingLabel="Loading unfinished applications"
-                    empty={{
-                        title: 'No unfinished applications.',
-                        description: 'Everyone who has started an application has either submitted it or their draft has expired.',
+                <UnfinishedWorklistTable
+                    rows={drafts}
+                    loading={loading}
+                    onOpen={openPrepared}
+                    link={{
+                        linkFor,
+                        busyKey,
+                        copied,
+                        copyFailed,
+                        error: mintError,
+                        failedKey,
+                        onCreate: createLink,
+                        onCopy: copyUrl,
                     }}
                 />
             </Stack>

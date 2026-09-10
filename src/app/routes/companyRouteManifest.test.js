@@ -68,6 +68,51 @@ describe('company route manifest contract', () => {
     }
   });
 
+  /**
+   * One destination for unfinished work, and the old URL still resolves.
+   *
+   * `Started (unfinished)` and `Start an application` were two sidebar items over
+   * one collection of drafts — `listApplicationDrafts` filters by nothing, so a
+   * carrier-prepared draft appeared under both. They became one workspace on
+   * 2026-09-10, and this is what stops the second item drifting back in.
+   */
+  describe('the unfinished-applications workspace', () => {
+    const routeById = (id) => COMPANY_ROUTE_MANIFEST.find((route) => route.id === id);
+
+    it('is the only navigable destination for unfinished work', () => {
+      const applicationsItems = COMPANY_ROUTE_MANIFEST
+        .filter((route) => route.nav?.kind === 'group-item' && route.nav.group === 'applications')
+        .map((route) => route.nav.label);
+
+      expect(applicationsItems).toContain('Unfinished applications');
+      expect(applicationsItems).not.toContain('Started (unfinished)');
+      expect(applicationsItems).not.toContain('Start an application');
+    });
+
+    it('keeps the old start-application URL reachable, with no menu item', () => {
+      const legacy = routeById('startApplication');
+
+      // A recruiter may have bookmarked it; a 404 is a worse outcome than a
+      // redirect to where the feature went. `CompanySidebar` builds its menu by
+      // filtering on `nav.kind`, so no `nav` means no item.
+      expect(legacy).toBeDefined();
+      expect(legacy.path).toBe('drivers/start-application');
+      expect(legacy.screen).toBe('startApplicationRedirect');
+      expect(legacy.nav).toBeUndefined();
+    });
+
+    it('still separates unfinished work from the submitted pipeline', () => {
+      // The separation that IS a rule, unlike the one above: nothing here has been
+      // signed or consented to, so it is not a candidate record.
+      const workspace = routeById('unfinishedApplications');
+
+      expect(workspace.path).toBe('drivers/unfinished');
+      expect(workspace.screen).toBe('companyUnfinishedApplications');
+      expect(routeById('applications').path).toBe('drivers/applications');
+      expect(workspace.path).not.toBe(routeById('applications').path);
+    });
+  });
+
   it('registers campaigns as a standalone feature route', () => {
     const campaignsRoute = COMPANY_ROUTE_MANIFEST.find((route) => route.id === 'campaigns');
 

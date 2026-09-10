@@ -1,5 +1,12 @@
 /**
- * Starting an application: choosing a mode, and switching between drivers.
+ * Starting an application from the unified workspace, and switching between drivers.
+ *
+ * Retargeted on 2026-09-10 from `StartApplicationPage`, which no longer exists as
+ * a screen: starting an application is the primary action inside
+ * `UnfinishedApplicationsPage`, and the wizard itself moved to
+ * `ApplicationPrepWorkspace`. These cases deliberately still drive the whole
+ * company flow through the page rather than the extracted component — the flow is
+ * what a recruiter performs, and the split is an internal one.
  *
  * What is pinned here is the flow this page owns — the Manual/AI choice, the AI
  * upload step, and that per-application state (identity, answers, documents, the
@@ -22,6 +29,7 @@ const callables = vi.hoisted(() => ({ httpsCallable: vi.fn(), calls: [] }));
 
 vi.mock('firebase/functions', () => ({ httpsCallable: callables.httpsCallable }));
 vi.mock('@lib/firebase', () => ({ functions: {} }));
+vi.mock('@lib/runtime/e2eMode', () => ({ isE2ETestMode: false, getE2EQueryParam: () => null }));
 vi.mock('@/context/DataContext', () => ({
     useData: () => ({ currentCompanyProfile: { id: 'co-1', appSlug: 'blue-line' } }),
 }));
@@ -38,10 +46,10 @@ vi.mock('@features/driver-app/hooks/useGuestFileUpload', () => ({
     }),
 }));
 
-vi.mock('../applicationPrep/PreparedApplicationsTable', () => ({
-    default: ({ applications, onOpen }) => (
+vi.mock('../applicationPrep/UnfinishedWorklistTable', () => ({
+    default: ({ rows, onOpen }) => (
         <div>
-            {applications.map((row) => (
+            {rows.map((row) => (
                 <button key={row.applicantKey} type="button" onClick={() => onOpen(row)}>
                     {`open ${row.applicantKey}`}
                 </button>
@@ -88,9 +96,10 @@ vi.mock('../applicationPrep/InviteLinkPanel', () => ({
     ),
 }));
 
-import StartApplicationPage from './StartApplicationPage';
+import UnfinishedApplicationsPage from './UnfinishedApplicationsPage';
 
 const DANA = {
+    origin: 'company',
     applicantKey: 'key-dana',
     status: 'sent',
     readable: true,
@@ -106,6 +115,7 @@ const DANA = {
 };
 
 const SAM = {
+    origin: 'company',
     applicantKey: 'key-sam',
     status: 'prepared',
     readable: true,
@@ -116,14 +126,37 @@ const SAM = {
     lockedEmployers: [],
 };
 
+/**
+ * The carrier prepared it and the driver has since written to it.
+ *
+ * `getCompanyPreparedDraft` answers `readable: false` with no `formData`, because
+ * `companyMayReadAnswers` no longer holds. What the screen must do with that is
+ * SAY so — a blank form with no explanation reads as "nothing was filled in".
+ */
+const TAKEN_OVER = {
+    origin: 'company',
+    applicantKey: 'key-taken',
+    status: 'driver_in_progress',
+    readable: false,
+    firstName: 'Priya',
+    lastName: 'Raman',
+    email: 'priya@example.test',
+    formData: null,
+    lockedEmployers: [],
+};
+
 function callableFor(name) {
     return async (payload) => {
         callables.calls.push({ name, payload });
         switch (name) {
-            case 'listCompanyPreparedApplications':
-                return { data: { applications: [DANA, SAM] } };
-            case 'getCompanyPreparedDraft':
-                return { data: payload.applicantKey === 'key-sam' ? SAM : DANA };
+            // The one list the workspace reads. A carrier-prepared draft is one
+            // row here because it is one document — see `functions/drafts/list.js`.
+            case 'listApplicationDrafts':
+                return { data: { drafts: [DANA, SAM, TAKEN_OVER], retentionDays: 30 } };
+            case 'getCompanyPreparedDraft': {
+                const byKey = { 'key-sam': SAM, 'key-taken': TAKEN_OVER };
+                return { data: byKey[payload.applicantKey] || DANA };
+            }
             case 'saveCompanyPreparedApplication':
                 return { data: { applicantKey: 'key-new', lockedEmployers: [] } };
             case 'mintApplicationInvite':
@@ -144,6 +177,11 @@ async function openFromList(applicantKey) {
     await waitFor(() => expect(screen.getByTestId('prep-editor')).toBeInTheDocument());
 }
 
+/** Open a row that will come back unreadable, so there is no editor to wait on. */
+async function openTakenOver() {
+    fireEvent.click(await screen.findByText('open key-taken'));
+}
+
 beforeEach(() => {
     callables.calls = [];
     callables.httpsCallable.mockImplementation((_functions, name) => callableFor(name));
@@ -151,7 +189,7 @@ beforeEach(() => {
 
 describe('choosing how to start a new application', () => {
     it('offers the AI and manual choices before anything else', async () => {
-        render(<StartApplicationPage />);
+        render(<UnfinishedApplicationsPage />);
         fireEvent.click(await screen.findByRole('button', { name: /Start an application/i }));
 
         expect(screen.getByTestId('mode-ai')).toBeInTheDocument();
@@ -161,7 +199,7 @@ describe('choosing how to start a new application', () => {
     });
 
     it('manual goes straight to the editor, with no reader', async () => {
-        render(<StartApplicationPage />);
+        render(<UnfinishedApplicationsPage />);
         fireEvent.click(await screen.findByRole('button', { name: /Start an application/i }));
         fireEvent.click(screen.getByTestId('mode-manual'));
 
@@ -170,7 +208,7 @@ describe('choosing how to start a new application', () => {
     });
 
     it('AI goes to the upload step, then on to the editor with the reader', async () => {
-        render(<StartApplicationPage />);
+        render(<UnfinishedApplicationsPage />);
         fireEvent.click(await screen.findByRole('button', { name: /Start an application/i }));
         fireEvent.click(screen.getByTestId('mode-ai'));
 
@@ -185,15 +223,110 @@ describe('choosing how to start a new application', () => {
     });
 });
 
+describe('a prepared application the driver has taken over', () => {
+    it('says why the fields are empty instead of showing a blank form', async () => {
+        // The server withholds the answers (`companyMayReadAnswers`), and the
+        // recruiter has to be told that rather than shown an empty editor — which
+        // reads as "nothing was filled in" about work they did themselves.
+        render(<UnfinishedApplicationsPage />);
+        await openTakenOver();
+
+        expect(await screen.findByText(/their answers are theirs now/i)).toBeInTheDocument();
+        // And no editor at all, rather than one bound to `formData: null`.
+        expect(screen.queryByTestId('prep-editor')).toBeNull();
+        expect(screen.queryByTestId('ai-panel')).toBeNull();
+    });
+
+    /**
+     * The same thing again, under `StrictMode` — which is what `main.jsx` actually
+     * renders the app inside.
+     *
+     * React replays an effect's setup/cleanup/setup in development, and a mount
+     * flag written only in the cleanup is therefore left `false` forever: the load
+     * resolves, the staleness guard rejects it, and the notice never appears. The
+     * plain-render case above passes throughout, so this is the case that has to
+     * exist — it is the one the recruiter actually meets in a dev build, and it is
+     * the SECOND guard in this effect to fail this way (the first cancelled its own
+     * in-flight load). Found in review on 2026-09-10.
+     */
+    it('says it under StrictMode too, which is how the app is really rendered', async () => {
+        render(
+            <React.StrictMode>
+                <UnfinishedApplicationsPage />
+            </React.StrictMode>,
+        );
+        fireEvent.click(await screen.findByText('open key-taken'));
+
+        expect(await screen.findByText(/their answers are theirs now/i)).toBeInTheDocument();
+        expect(screen.queryByTestId('prep-editor')).toBeNull();
+    });
+
+    it('still offers the link panel, because they may have lost their link', async () => {
+        render(<UnfinishedApplicationsPage />);
+        await openTakenOver();
+
+        await screen.findByText(/their answers are theirs now/i);
+        // Safe because the boundary is enforced server-side: after takeover the
+        // exchange returns no answers and no resume token.
+        expect(screen.getByTestId('invite-link')).toBeInTheDocument();
+    });
+});
+
+describe('a row that will not open', () => {
+    it('says what went wrong instead of offering an empty form', async () => {
+        // The old screen returned early and rendered `prep.error` nowhere, so the
+        // press did nothing at all. Falling through to the editor would be the
+        // other wrong answer: an editable form for a record this instance never
+        // loaded.
+        callables.httpsCallable.mockImplementation((_functions, name) => async (payload) => {
+            callables.calls.push({ name, payload });
+            if (name === 'getCompanyPreparedDraft') {
+                throw Object.assign(new Error('nope'), { code: 'functions/unavailable' });
+            }
+            return callableFor(name)(payload);
+        });
+        render(<UnfinishedApplicationsPage />);
+        fireEvent.click(await screen.findByText('open key-dana'));
+
+        await waitFor(() => expect(screen.queryByTestId('prep-editor')).toBeNull());
+        expect(screen.getByText(/Back to unfinished applications/)).toBeInTheDocument();
+        // And no link panel for a record it could not read.
+        expect(screen.queryByTestId('invite-link')).toBeNull();
+    });
+
+    it('says it under StrictMode too, where the guard used to swallow it', async () => {
+        // The other half of the same defect: a discarded continuation skips
+        // `setLoadFailed` as readily as it skips the ownership notice, so the
+        // failed open would fall back to an editable form for a record it never
+        // read — in development builds only.
+        callables.httpsCallable.mockImplementation((_functions, name) => async (payload) => {
+            callables.calls.push({ name, payload });
+            if (name === 'getCompanyPreparedDraft') {
+                throw Object.assign(new Error('nope'), { code: 'functions/unavailable' });
+            }
+            return callableFor(name)(payload);
+        });
+        render(
+            <React.StrictMode>
+                <UnfinishedApplicationsPage />
+            </React.StrictMode>,
+        );
+        fireEvent.click(await screen.findByText('open key-dana'));
+
+        await waitFor(() => expect(screen.queryByTestId('prep-editor')).toBeNull());
+        expect(screen.queryByTestId('invite-link')).toBeNull();
+    });
+});
+
 describe('one driver never leaks into the next', () => {
     it("does not offer the previous driver's link for the next driver", async () => {
-        render(<StartApplicationPage />);
+        render(<UnfinishedApplicationsPage />);
         await openFromList('key-dana');
 
         fireEvent.click(screen.getByText('mint'));
         await waitFor(() => expect(screen.getByTestId('invite-link')).toHaveTextContent('k=key-dana'));
 
-        fireEvent.click(screen.getByText('Back to the list'));
+        fireEvent.click(screen.getByText(/Back to unfinished applications/));
         await openFromList('key-sam');
 
         // Not merely stale display: the action beside it is Copy.
@@ -201,14 +334,14 @@ describe('one driver never leaks into the next', () => {
     });
 
     it("replaces the previous driver's answers and documents", async () => {
-        render(<StartApplicationPage />);
+        render(<UnfinishedApplicationsPage />);
         await openFromList('key-dana');
         expect(editorFormData().cdlNumber).toBe('TX1234567');
 
         fireEvent.click(screen.getByText('attach'));
         await waitFor(() => expect(panelProps().blobs).toHaveProperty('psp-report-upload'));
 
-        fireEvent.click(screen.getByText('Back to the list'));
+        fireEvent.click(screen.getByText(/Back to unfinished applications/));
         await openFromList('key-sam');
 
         expect(editorFormData().cdlNumber).toBe('OK7654321');
@@ -216,7 +349,7 @@ describe('one driver never leaks into the next', () => {
     });
 
     it('forgets the bytes when the document is removed', async () => {
-        render(<StartApplicationPage />);
+        render(<UnfinishedApplicationsPage />);
         await openFromList('key-dana');
 
         fireEvent.click(screen.getByText('attach'));
@@ -227,10 +360,10 @@ describe('one driver never leaks into the next', () => {
     });
 
     it("saves none of the previous driver's answers under the new key", async () => {
-        render(<StartApplicationPage />);
+        render(<UnfinishedApplicationsPage />);
         await openFromList('key-dana');
 
-        fireEvent.click(screen.getByText('Back to the list'));
+        fireEvent.click(screen.getByText(/Back to unfinished applications/));
         fireEvent.click(await screen.findByRole('button', { name: /Start an application/i }));
         fireEvent.click(screen.getByTestId('mode-manual'));
 
@@ -252,9 +385,9 @@ describe('one driver never leaks into the next', () => {
         // phone existed, and nothing on the screen said so. The precise sentence
         // was already written on the server and was unreachable, because the
         // client guard stopped the request ever being made. Changed 2026-09-08 —
-        // `StartApplicationPage.actions.contract.test.jsx` drives the same rule
+        // `UnfinishedApplicationsPage.prepActions.contract.test.jsx` drives the same rule
         // through the real editor and the real fields.
-        render(<StartApplicationPage />);
+        render(<UnfinishedApplicationsPage />);
         fireEvent.click(await screen.findByRole('button', { name: /Start an application/i }));
         fireEvent.click(screen.getByTestId('mode-manual'));
 
@@ -277,14 +410,14 @@ describe('one driver never leaks into the next', () => {
     });
 
     it('locks the identity once a link exists, so a sent link cannot be re-keyed', async () => {
-        render(<StartApplicationPage />);
+        render(<UnfinishedApplicationsPage />);
 
         // A draft already 'sent' (its link is out) opens with identity locked.
         await openFromList('key-dana');
         expect(screen.getByTestId('identity-locked')).toHaveTextContent('true');
 
         // A merely 'prepared' draft is editable — until a link is minted for it.
-        fireEvent.click(screen.getByText('Back to the list'));
+        fireEvent.click(screen.getByText(/Back to unfinished applications/));
         await openFromList('key-sam');
         expect(screen.getByTestId('identity-locked')).toHaveTextContent('false');
 

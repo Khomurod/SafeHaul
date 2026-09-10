@@ -1,10 +1,20 @@
 /**
- * Contract proof for the "Started (unfinished)" screen.
+ * Contract proof for the unified unfinished-applications workspace.
  *
- * The properties worth pinning are mostly about restraint. Answers are now saved
- * from the applicant's first Next, which means a carrier can see records nobody
- * has signed, consented to or submitted — so what this screen may show is a
- * narrower question than what it *could* show.
+ * The properties worth pinning are mostly about restraint. Answers are saved from
+ * the applicant's first Next, which means a carrier can see records nobody has
+ * signed, consented to or submitted — so what this screen may show is a narrower
+ * question than what it *could* show.
+ *
+ * ## And, since 2026-09-10, that a merged screen did not merge the rules
+ *
+ * `Started (unfinished)` and `Start an application` became one place. Both
+ * origins now share one table, so the cases below pin the three things that could
+ * go wrong in exactly that move: a draft appearing twice, a driver-started row
+ * offering a read it must not offer, and a link landing on the wrong applicant.
+ * The prep wizard reached from here has its own two suites
+ * (`UnfinishedApplicationsPage.prep*`); `unfinishedRowActions.test.js` drives the
+ * per-state rules directly.
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -33,33 +43,75 @@ vi.mock('@/context/DataContext', () => ({
         currentCompanyProfile: { id: 'company-1', companyName: 'Acme Freight', appSlug: 'acme' },
     }),
 }));
+// The prep workspace reached from here uploads through this, which wants a
+// ToastProvider. Uploads are the prep suites' subject, not this one's.
+vi.mock('@features/driver-app/hooks/useGuestFileUpload', () => ({
+    useGuestFileUpload: () => ({ handleFileUpload: vi.fn(), isUploading: false }),
+}));
 
 import { UnfinishedApplicationsPage } from './UnfinishedApplicationsPage';
 
-const DRAFTS = [
-    {
-        applicantKey: 'key-1',
-        firstName: 'Dana',
-        lastName: 'Alvarez',
-        email: 'dana@example.test',
-        phone: '2145550147',
-        lastSemanticStep: 'license',
-        lastStep: 2,
-        startedAt: '2026-08-14T09:00:00Z',
-        updatedAt: '2026-08-14T09:20:00Z',
-    },
-    {
-        applicantKey: 'key-2',
-        firstName: '',
-        lastName: '',
-        email: '',
-        phone: '',
-        lastSemanticStep: null,
-        lastStep: 0,
-        startedAt: '2026-08-15T09:00:00Z',
-        updatedAt: '2026-08-15T09:00:00Z',
-    },
-];
+/** The driver started this one herself. The carrier may never read her answers. */
+const DRIVER_STARTED = {
+    applicantKey: 'key-1',
+    origin: 'driver',
+    status: 'in_progress',
+    firstName: 'Dana',
+    lastName: 'Alvarez',
+    email: 'dana@example.test',
+    phone: '2145550147',
+    lastSemanticStep: 'license',
+    lastStep: 2,
+    createdAt: '2026-08-14T09:00:00Z',
+    updatedAt: '2026-08-14T09:20:00Z',
+};
+
+/** A driver-started draft with nothing typed yet — the shape that used to break rows. */
+const DRIVER_NAMELESS = {
+    applicantKey: 'key-2',
+    origin: 'driver',
+    status: 'in_progress',
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    lastSemanticStep: null,
+    lastStep: 0,
+    createdAt: '2026-08-15T09:00:00Z',
+    updatedAt: '2026-08-15T09:00:00Z',
+};
+
+/** The carrier's own, not yet sent. Its answers are the carrier's until the driver writes. */
+const COMPANY_PREPARED = {
+    applicantKey: 'key-3',
+    origin: 'company',
+    status: 'prepared',
+    firstName: 'Marcus',
+    lastName: 'Iyer',
+    email: 'marcus@example.test',
+    phone: '2145550188',
+    lastSemanticStep: null,
+    lastStep: 0,
+    preparedBy: { uid: 'u-1', name: 'Rae Recruiter' },
+    lockedEmployerCount: 2,
+    createdAt: '2026-08-16T09:00:00Z',
+    updatedAt: '2026-08-16T09:00:00Z',
+};
+
+/** The carrier prepared it and the driver has since written. The one-way door. */
+const COMPANY_TAKEN_OVER = {
+    ...COMPANY_PREPARED,
+    applicantKey: 'key-4',
+    status: 'driver_in_progress',
+    firstName: 'Priya',
+    lastName: 'Raman',
+    email: 'priya@example.test',
+    lastSemanticStep: 'employment',
+    lastStep: 5,
+};
+
+const DRAFTS = [DRIVER_STARTED, DRIVER_NAMELESS];
+const ALL_FOUR = [DRIVER_STARTED, DRIVER_NAMELESS, COMPANY_PREPARED, COMPANY_TAKEN_OVER];
 
 const mintSpy = vi.fn();
 const writeTextSpy = vi.fn();
@@ -125,7 +177,7 @@ describe('listing', () => {
         callableSpy.mockResolvedValue({ data: { drafts: [], retentionDays: 30 } });
         render(<UnfinishedApplicationsPage />);
 
-        await waitFor(() => expect(screen.getByText('No unfinished applications.')).toBeTruthy());
+        await waitFor(() => expect(screen.getByText('Nothing is unfinished.')).toBeTruthy());
     });
 
     it('surfaces a load failure with a retry', async () => {
@@ -172,17 +224,150 @@ describe('what it does not show', () => {
         expect(document.body.innerHTML).not.toContain('drug-test-positive');
     });
 
-    it('offers no way to open or edit an unfinished application', async () => {
+    it('offers no way to open or edit a DRIVER-started application', async () => {
         render(<UnfinishedApplicationsPage />);
         await waitFor(() => expect(screen.getByText('Dana Alvarez')).toBeTruthy());
 
-        // A contact list, not a pipeline screen. Reading someone's partial DOT
-        // questionnaire before they agreed to submit it is a decision they have
-        // not made.
+        // Reading someone's partial DOT questionnaire before they agreed to submit
+        // it is a decision they have not made. Merging the two screens did not
+        // change that: `getCompanyPreparedDraft` refuses a draft the carrier did
+        // not author outright, so an Open here would be a button that cannot work.
+        expect(screen.queryByRole('button', { name: /Open the application for Dana Alvarez/i })).toBeNull();
         expect(screen.queryByRole('button', { name: /^View$/ })).toBeNull();
-        expect(screen.queryByRole('button', { name: /^Open$/ })).toBeNull();
         expect(screen.queryByRole('button', { name: /edit/i })).toBeNull();
         expect(screen.queryByRole('button', { name: /delete/i })).toBeNull();
+    });
+});
+
+/**
+ * The consolidation itself: one list, two origins, different powers.
+ */
+describe('one workspace for both origins', () => {
+    beforeEach(() => {
+        callableSpy.mockResolvedValue({ data: { drafts: ALL_FOUR, retentionDays: 30 } });
+    });
+
+    it('reads one list, so a prepared draft cannot appear twice', async () => {
+        render(<UnfinishedApplicationsPage />);
+        await waitFor(() => expect(screen.getByText('Marcus Iyer')).toBeTruthy());
+
+        // The old pair of screens both returned a carrier-prepared draft — this one
+        // asks `listApplicationDrafts` and nothing else, so a row is a document.
+        const names = httpsCallableSpy.mock.calls.map(([, name]) => name);
+        expect(names).toContain('listApplicationDrafts');
+        expect(names).not.toContain('listCompanyPreparedApplications');
+        for (const name of ['Dana Alvarez', 'Marcus Iyer', 'Priya Raman']) {
+            expect(screen.getAllByText(name)).toHaveLength(1);
+        }
+    });
+
+    it('says who started each one', async () => {
+        render(<UnfinishedApplicationsPage />);
+        await waitFor(() => expect(screen.getByText('Marcus Iyer')).toBeTruthy());
+
+        // `selector: 'span'` because the first column's HEADER is also "Driver",
+        // and a count that silently included a `<th>` would pass for the wrong
+        // reason the day a row stopped rendering.
+        expect(screen.getAllByText('Driver', { selector: 'span' })).toHaveLength(2);
+        expect(screen.getAllByText('Company', { selector: 'span' })).toHaveLength(2);
+        // And who at the company, which the old prepared-only table showed.
+        expect(screen.getAllByText('Rae Recruiter')).toHaveLength(2);
+    });
+
+    it('names each state in the product’s own words, not a draft status', async () => {
+        render(<UnfinishedApplicationsPage />);
+        await waitFor(() => expect(screen.getByText('Marcus Iyer')).toBeTruthy());
+
+        expect(screen.getByText('Not sent yet')).toBeTruthy();
+        expect(screen.getByText('Driver is filling it in')).toBeTruthy();
+        expect(screen.getAllByText('Unfinished')).toHaveLength(2);
+        // No internal vocabulary reaches the recruiter.
+        expect(document.body.innerHTML).not.toContain('driver_in_progress');
+        expect(document.body.innerHTML).not.toContain('in_progress');
+    });
+
+    it('offers Open on the carrier’s own rows, both before and after takeover', async () => {
+        render(<UnfinishedApplicationsPage />);
+        await waitFor(() => expect(screen.getByText('Marcus Iyer')).toBeTruthy());
+
+        // Before takeover the carrier is still the author of the answers.
+        expect(screen.getByRole('button', { name: /Open the application for Marcus Iyer/i })).toBeInTheDocument();
+        // After takeover it may still open the record — and the SERVER decides what
+        // comes back (`companyMayReadAnswers`), which is why the button stays. That
+        // is the behaviour the continuation work shipped, and merging must not
+        // quietly remove the recruiter's way back to their own prepared record.
+        expect(screen.getByRole('button', { name: /Open the application for Priya Raman/i })).toBeInTheDocument();
+    });
+
+    it('still shows no answers, whatever the origin', async () => {
+        callableSpy.mockResolvedValue({
+            data: {
+                drafts: ALL_FOUR.map((row) => ({
+                    ...row,
+                    formData: { cdlNumber: 'D9988776' },
+                    ssn: '123-45-6789',
+                })),
+                retentionDays: 30,
+            },
+        });
+        render(<UnfinishedApplicationsPage />);
+        await waitFor(() => expect(screen.getByText('Marcus Iyer')).toBeTruthy());
+
+        expect(document.body.innerHTML).not.toContain('D9988776');
+        expect(document.body.innerHTML).not.toContain('123-45-6789');
+    });
+
+    it('shows how many employers the carrier locked, on its own rows only', async () => {
+        render(<UnfinishedApplicationsPage />);
+        await waitFor(() => expect(screen.getByText('Marcus Iyer')).toBeTruthy());
+
+        // Kept from the prepared-only table: an orphaned lock used to block a
+        // driver's submission invisibly.
+        expect(screen.getAllByText('2 employers locked')).toHaveLength(2);
+    });
+
+    it('starts a new application from here, and comes back to the list', async () => {
+        render(<UnfinishedApplicationsPage />);
+        await waitFor(() => expect(screen.getByText('Marcus Iyer')).toBeTruthy());
+
+        fireEvent.click(screen.getByRole('button', { name: /Start an application/i }));
+        // The fork the prep workspace opens on.
+        await waitFor(() => expect(screen.getByText(/How do you want to fill this in/i)).toBeTruthy());
+
+        fireEvent.click(screen.getByRole('button', { name: /^Cancel$/i }));
+        await waitFor(() => expect(screen.getByText('Marcus Iyer')).toBeTruthy());
+        // The worklist reloads, because a save may have added or moved a row.
+        expect(callableSpy.mock.calls.length).toBeGreaterThan(1);
+    });
+
+    it('stops a row reading "Not sent yet" once its link exists', async () => {
+        mintSpy.mockResolvedValue({
+            data: {
+                inviteToken: 'invite-token-3', applicantKey: 'key-3',
+                expiresInDays: 14, requiresIdentity: false,
+            },
+        });
+        render(<UnfinishedApplicationsPage />);
+        await waitFor(() => expect(screen.getByText('Not sent yet')).toBeTruthy());
+
+        fireEvent.click(screen.getByRole('button', { name: /Create the driver's link for Marcus Iyer/i }));
+
+        // Minting is what moves a prepared draft to `sent` server-side, so the row
+        // must not keep contradicting the link now sitting under it.
+        await waitFor(() => expect(screen.queryByText('Not sent yet')).toBeNull());
+        expect(screen.getAllByText('Link sent')).toHaveLength(1);
+        // And the link the recruiter came for is still on screen, not swapped out
+        // for a loading skeleton by a reload.
+        expect(screen.getByText(/invite=invite-token-3/)).toBeInTheDocument();
+    });
+
+    it('names the mint action for what it is at each stage', async () => {
+        render(<UnfinishedApplicationsPage />);
+        await waitFor(() => expect(screen.getByText('Marcus Iyer')).toBeTruthy());
+
+        expect(screen.getByRole('button', { name: /Create the driver's link for Marcus Iyer/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Create a continuation link for Dana Alvarez/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Create a continuation link for Priya Raman/i })).toBeInTheDocument();
     });
 });
 
