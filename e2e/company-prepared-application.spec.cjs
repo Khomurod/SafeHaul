@@ -100,6 +100,122 @@ test.describe('an application a carrier prepared', () => {
 });
 
 /**
+ * The replacement link, in a real browser.
+ *
+ * ## The reported failure, and why only a browser could show it
+ *
+ * A carrier-prepared application for a driver who had reached the consent step.
+ * The recruiter pressed "Create a replacement link"; the driver opened it and the
+ * page rendered the fresh-application chooser — "How would you like to start your
+ * driver application?" — with their own half-finished application sitting behind
+ * the link. Measured in production on 2026-09-09.
+ *
+ * `exchangeApplicationInvite` answered correctly the whole time: `requiresIdentity`,
+ * with no answers and no token. The defect was that the outcome matched no branch
+ * in `resolveApplyStatusScreen`, and the chooser sits at the bottom of it. Nothing
+ * short of rendering the page could see that, which is why it is here rather than
+ * only in the contract suite.
+ *
+ * Served by the `e2e-invite-token-taken-over` fixture in
+ * `applicationDraftService.js`: a second token rather than a mode on the first,
+ * because the two are different facts about one draft and this needs the one that
+ * comes after the driver has saved. The fixture checks the claim the way the
+ * server does and THROWS `permission-denied` when it does not match, so the
+ * refusal below tests the client rather than the double.
+ */
+test.describe('a replacement link for a driver who already started', () => {
+    const TAKEN_OVER_URL = '/apply/e2e-company?invite=e2e-invite-token-taken-over&k=e2e-applicant-key';
+
+    /** Everything the confirmation screen asks for. */
+    async function confirmIdentity(page, overrides = {}) {
+        const claim = {
+            lastName: 'Driver',
+            dob: '1990-01-01',
+            ssn: '123-45-6789',
+            contact: 'prepared@example.com',
+            ...overrides,
+        };
+        await page.getByLabel(/^Last name/).fill(claim.lastName);
+        await page.getByLabel(/^Date of birth/).fill(claim.dob);
+        await page.getByLabel(/^Social Security Number/).fill(claim.ssn);
+        await page.getByLabel(/^Email or phone number/).fill(claim.contact);
+        await page.getByRole('button', { name: 'Continue my application' }).click();
+    }
+
+    test('asks who they are instead of offering a fresh application', async ({ page }) => {
+        await page.goto(TAKEN_OVER_URL);
+
+        await expect(
+            page.getByRole('heading', { level: 1, name: /Confirm it’s you/ }),
+        ).toBeVisible();
+        // The reported symptom, asserted as an absence.
+        await expect(page.getByRole('button', { name: 'Fill Out Manually' })).toHaveCount(0);
+        await expect(page.getByText(/How would you like to start/)).toHaveCount(0);
+    });
+
+    test('returns them to their own answers, at the step they left', async ({ page }) => {
+        await page.goto(TAKEN_OVER_URL);
+        await page.getByRole('heading', { level: 1, name: /Confirm it’s you/ }).waitFor();
+
+        await confirmIdentity(page);
+
+        // `lastStep: 3` on the fixture — the driving record, not page one. A
+        // confirmed driver handed their answers and dropped at the start of the
+        // wizard reads as "nothing was saved", which is the failure the whole
+        // draft feature exists to prevent.
+        await expectStep(page, 'Motor Vehicle Record');
+        // The confirmation screen is gone, and so is any offer to start again.
+        await expect(page.getByRole('heading', { level: 1, name: /Confirm it’s you/ })).toHaveCount(0);
+        await expect(page.getByRole('button', { name: 'Fill Out Manually' })).toHaveCount(0);
+        // *Which* answers came back is pinned by the contract suite, which can read
+        // the payload; from here the observable fact is the step.
+    });
+
+    test('says so when the details do not match, and keeps asking', async ({ page }) => {
+        await page.goto(TAKEN_OVER_URL);
+        await page.getByRole('heading', { level: 1, name: /Confirm it’s you/ }).waitFor();
+
+        await confirmIdentity(page, { dob: '1985-05-05' });
+
+        await expect(page.getByText(/do not match this application/)).toBeVisible();
+        // Somebody who mistyped a date needs another go, not a new application.
+        await expect(page.getByRole('heading', { level: 1, name: /Confirm it’s you/ })).toBeVisible();
+        await expect(page.getByRole('button', { name: 'Fill Out Manually' })).toHaveCount(0);
+    });
+
+    test('names the field a driver left blank rather than spending an attempt', async ({ page }) => {
+        await page.goto(TAKEN_OVER_URL);
+        await page.getByRole('heading', { level: 1, name: /Confirm it’s you/ }).waitFor();
+
+        await page.getByLabel(/^Last name/).fill('Driver');
+        await page.getByRole('button', { name: 'Continue my application' }).click();
+
+        await expect(page.getByText('Enter your date of birth.')).toBeVisible();
+    });
+
+    test('lets them start a new application instead, as a press', async ({ page }) => {
+        await page.goto(TAKEN_OVER_URL);
+        await page.getByRole('heading', { level: 1, name: /Confirm it’s you/ }).waitFor();
+
+        await page.getByRole('button', { name: 'Start a new application instead' }).click();
+
+        /*
+         * A fresh application, page one, empty. Exactly what the dead-link case
+         * above asserts, and for the same reason: the way out is a press.
+         *
+         * Not the intake chooser, because an E2E run sets `intakeMode` to manual
+         * on load unless `?e2eIntake=choice` says otherwise — so what a browser
+         * test can see here is the wizard behind it. The chooser's own position in
+         * the render order is pinned by `PublicApplyScreens.gate.test.jsx` and by
+         * the contract suite, which control that flag.
+         */
+        await expectStep(page, 'Personal Information');
+        await expect(page.locator('#first-name')).toHaveValue('');
+        await expect(page.getByRole('heading', { level: 1, name: /Confirm it’s you/ })).toHaveCount(0);
+    });
+});
+
+/**
  * The carrier's own side: the Manual/AI choice, and where each one lands. This
  * needs no callable — the choice and the editor render on their own; the reading,
  * saving and link-minting are covered by their unit suites, which mock the

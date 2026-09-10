@@ -3,6 +3,7 @@ import { AlertCircle, Building2 } from '@design-system/icons';
 import { Button } from '@/design-system/components';
 import { ErrorState, LoadingState, PageState } from '@design-system/patterns';
 import { SandboxActionPanel } from '@features/sandbox/SandboxActionPanel';
+import { ApplyIdentityCheckScreen } from './ApplyIdentityCheckScreen';
 import { IntakeChooser } from './IntakeChooser';
 import { RequiredDocumentsChecklist } from './RequiredDocumentsChecklist';
 import { DOC_STATUS } from './postApplyDocsStorage';
@@ -287,6 +288,14 @@ export function SubmissionQueuedScreen({ onGoHome }) {
  *  4. **And above the chooser**, so continuing to an ordinary application is a
  *     choice the driver makes rather than a fallback that happens to them. That
  *     silent fallback is what this position replaces.
+ *  5. **The identity check in the same position, for the same reason.** A link
+ *     whose application the driver has already started resolves to
+ *     `requires_identity`, and until 2026-09-09 that outcome matched no branch at
+ *     all — so the chooser rendered, and a driver sent a replacement link was
+ *     offered a brand-new application with no mention of the one they had spent
+ *     an hour on. It sits below the success screen because a confirmed
+ *     submission outranks a request to confirm anything, and above the chooser
+ *     because that fall-through IS the defect.
  *
  * Returns `null` when the wizard itself should render.
  */
@@ -297,6 +306,7 @@ export function resolveApplyStatusScreen({
   openingTemplateId, handleOpenPostApplicationTemplate, submittedConfirmationNumber,
   onGoHome, onStartNewApplication,
   inviteProblem, inviteProblemDismissed, onContinueWithoutInvite,
+  identityCheck, onConfirmIdentity,
   intakeMode, companyName, handleChooseAutoFill, handleChooseManual,
   cdlAutoFillInputRef, handleCdlAutoFillFileChange,
 }) {
@@ -337,6 +347,20 @@ export function resolveApplyStatusScreen({
         // is in storage, and it costs no machinery.
         onRetry={inviteProblem.retryable ? () => window.location.reload() : null}
         onContinue={onContinueWithoutInvite}
+      />
+    );
+  }
+
+  if (identityCheck) {
+    return (
+      <ApplyIdentityCheckScreen
+        companyName={companyName}
+        busy={identityCheck.busy}
+        error={identityCheck.error}
+        onConfirm={onConfirmIdentity}
+        // The same handler the link-problem screen uses: dismiss the outcome and
+        // fall through to the chooser, as an explicit press.
+        onStartFresh={onContinueWithoutInvite}
       />
     );
   }

@@ -1777,6 +1777,66 @@ the separate identity screen was removed, because the email and phone are
 ordinary schema fields of the editor. No new visual primitive was introduced for
 any of them (`ApplicationModeChooser` is `Card` + `Button` content).
 
+Added 2026-09-09, both on approved components and `--ds-*` tokens from the start,
+and neither introducing a visual primitive:
+
+- **The public driver application's "Confirm it's you" screen**
+  (`ApplyIdentityCheckScreen`) — one centred `Card as="main"` with an inverse
+  masthead, four `FormField` + `Input` pairs, `Notice` for the refusal and a
+  full-width `lg` primary action. It follows `ReviewChangePortal`'s shape because
+  it is the same kind of thing: a public, mobile-first, single-task form, which is
+  the one case the control-scale rule names `lg` for. Deliberately **not** a
+  `PageState`: that pattern's own contract says extra content between the
+  description and the actions is "not a second layout — anything that needs its
+  own structure is a page, not a state", and four labelled fields with a
+  validation surface is its own structure. Axe-clean on the empty and the refused
+  state (`e2e/a11y.spec.cjs`).
+- **Company → Drivers → Started (unfinished)** gains a **Continue** column
+  (`Button` + `Icon` + `FieldMessage`), so a recruiter can send a stalled
+  applicant back to their own work. All columns on that table already reach the
+  phone through the pinned-first-column horizontal scroll `check:table-layout`
+  enforces, and this one is no exception — nothing is dropped at any width. Its
+  two pixel baselines were re-recorded in the same commit, and the whole lane is
+  green either side of them: 30/30 application screens, 208/208 catalog, and
+  `check:visual-contract` reports all 208 measurements unchanged.
+
+**The font tripwire earned its keep on that re-recording, and the lesson is worth
+the paragraph.** The change was written in a container that ships Chromium
+revision **1194**, while `@playwright/test` 1.62.1 pins **1234** — so the obvious
+move, pointing `PW_CHROMIUM_EXECUTABLE` at the browser that happened to be
+present, launches a *different build* of Chromium. Every functional spec still
+passes that way; the pixel lane does not, and it fails in the shape most likely
+to be misread. Untouched screens missed by ~23,000 pixels against a 100-pixel
+budget, and `check:visual-contract` reported eight sub-pixel "geometry moves"
+(`badge` 61 → 60.48px, a page state's `description` 378 → 370.95px) on primitives
+the branch did not touch. Two plausible wrong conclusions were available: bake
+those numbers in with `--update`, or record the baselines anyway. Both would have
+put one machine's text metrics into the repository.
+
+The tripwire said it in one sentence instead — *"text metrics moved (435.02px vs
+426px). Inter loaded, but not the build the baselines were captured with"* — and
+the remedy was to install the pinned revision (`npx playwright install chromium`)
+rather than to widen anything. With 1234 in place the untouched `login` baseline
+passed, only the two screens that had genuinely changed failed, and the geometry
+snapshot came back exactly unchanged. **So: the pixel lane is runnable outside
+CI, and `PW_CHROMIUM_EXECUTABLE` is for the functional lanes only.** A visual
+baseline is a claim about one browser build, so recording one under any other
+build is recording noise — which is the same sentence section 7 already writes
+about the font, one layer down.
+- **The dossier's Previous Employers editor** (`PreviousEmployersEditor`) —
+  `Card` per row, `FormField`/`Input`/`Select`/`ChoiceGroup` from the shared
+  schema table, a `Badge` spelling out each row's verification state, and the
+  approved `ConfirmDialog` before removing a row that has verification activity.
+  It exists because `SchemaSection` renders an `array` section read-only whatever
+  `isEditing` says, and that renderer is shared with the driver's own wizard — so
+  the editor is a feature component swapped in for one section rather than a
+  change to the shared renderer. Status is never colour alone: the badge reads
+  "Verification: Completed".
+- **The change-review portal's employer diff** — the generic array preview reads
+  "N item(s)", which is not a decision a driver can make about their own
+  employment history. Named rows, added/removed/changed, from the existing
+  typography and tokens.
+
 One choice there is a rule rather than a preference, and it is the same one the
 driver wizard's locked employer rows follow: **a field the viewer may not change
 is a read-only display with a badge, never a disabled input.** A disabled input

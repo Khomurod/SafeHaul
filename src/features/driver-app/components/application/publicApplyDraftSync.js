@@ -39,6 +39,11 @@ export function reconcileServerDraftOnLoad({
   discardGuardsRef,
   latestDraftRef,
   restoreFromStoredToken,
+  // Called when this browser turns out to already hold the token for the very
+  // application the link named. See below: the strongest resume path is the one
+  // that asks the applicant for nothing, and a replacement link must not take it
+  // away.
+  onIdentitySatisfied,
   setFormData,
   setCurrentStep,
   setIntakeMode,
@@ -54,14 +59,36 @@ export function reconcileServerDraftOnLoad({
       // discard adopted the mark already.
       if (resetGenerationRef.current !== generation) return;
 
-      // Another writer moved the shared token slot while this fetch was open, so
-      // what came back is a different application than the link opened. Abandoned
+      // What came back is a different application than the link named. Abandoned
       // rather than reset: the invited answers are already on screen and in the
       // slot, and nothing here is written back. The key is available at all only
       // because `restoreFromStoredToken` now returns it — it used to be dropped,
       // which meant no caller COULD ask this question.
-      if (invite?.status === INVITE_OUTCOMES.OPENED
+      //
+      // Asked of any outcome that NAMED an applicant, which since 2026-09-09 means
+      // `requires_identity` too. It used to read `=== OPENED`, and that was only
+      // safe while the other outcome carried no answers to contaminate: a
+      // confirmation screen renders over the wizard, and the previous applicant's
+      // leftovers would have been merged and written back underneath it while the
+      // driver was still typing their date of birth.
+      if (invite?.applicantKey
         && restored.applicantKey && restored.applicantKey !== invite.applicantKey) return;
+
+      /**
+       * This browser already holds the credential for the application the link
+       * named, so there is nothing to ask.
+       *
+       * The identity challenge exists because a link may be in the carrier's
+       * hands. A resume token in this browser's storage is not: it was issued to
+       * whoever created or resumed this draft. Asking anyway would be asking a
+       * question we know the answer to — and it would mean a driver who clicked
+       * their own replacement link on their own phone was made to retype their
+       * Social Security Number to see work that was already restored on screen.
+       */
+      if (invite?.status === INVITE_OUTCOMES.REQUIRES_IDENTITY
+        && restored.applicantKey === invite.applicantKey) {
+        onIdentitySatisfied?.();
+      }
 
       const guards = discardGuardsRef.current;
       // This used to be `{ ...prev, ...restored.formData }`, which made the server

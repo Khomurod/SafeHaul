@@ -2,6 +2,18 @@
  * PEV — verification request creation.
  * Company admin triggers a Previous Employment Verification: mints the token,
  * stores the verification_requests doc, and emails the previous employer.
+ *
+ * ## The request records WHICH employer, not just where it was
+ *
+ * `employerIndex` was the only pointer, and it is positional: delete or reorder an
+ * employer and a request issued for one carrier writes its answer onto another.
+ * Since employers became editable that is a supported workflow, so the request now
+ * also records `employerId` — a stable identity minted on the row itself — and the
+ * write-back resolves by it. See `shared/employerIdentity.js`.
+ *
+ * The id is resolved and, when the row does not yet have one, **stamped here**, so
+ * a request is never issued against a row that cannot be found again. The index is
+ * still stored, for the requests that predate this and for the audit record.
  */
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { admin, db } = require("../firebaseAdmin");
@@ -10,6 +22,7 @@ const { assertCompanyAccessForRequest } = require("../shared/companyAccess");
 const { v4: uuidv4 } = require("uuid");
 const { logger } = require("firebase-functions");
 const { buildVerificationEmailHTML } = require("./emailTemplates");
+const { employerNameOf, resolveEmployerTarget, withEmployerIds } = require("../shared/employerIdentity");
 
 /**
  * RFC 5321/5322 compatible email validation.
@@ -88,6 +101,62 @@ exports.sendVerificationRequest = onCall({ cors: true }, async (request) => {
         const companyData = companyDoc.data();
         const companyName = companyData.companyName || companyData.name || 'Prospective Employer';
 
+        /**
+         * Which employer this request is for, as an identity rather than a position.
+         *
+         * Resolved server-side against the application itself: the client may pass
+         * an `employerId` it already knows, and the server still has to find the
+         * row. A row with no id yet is stamped now — because a request issued
+         * against a row that cannot be found again is a result with nowhere safe to
+         * go.
+         *
+         * ## Why a transaction, and not a read followed by an update
+         *
+         * `withEmployerIds` mints an id for every row that lacks one and the write
+         * is the whole array, so two recruiters sending requests for two different
+         * employers on the same unstamped application at the same time each mint a
+         * *different* set of ids and each write all of them. The second write wins,
+         * and the first request is left recording an `employerId` that is no longer
+         * on the document — which `recordVerificationResponse` then cannot resolve,
+         * so the answer that comes back has nowhere to go. Exactly the orphaning the
+         * identity was introduced to prevent, arriving by a different door. Review
+         * found it on 2026-09-09.
+         *
+         * Reading and stamping inside one transaction makes the loser retry against
+         * the winner's array, find the ids already there, and stamp nothing.
+         *
+         * The application document is where employers live; a `leads` record uses
+         * the same shape and the same allowlisted collection names.
+         */
+        const appRef = db.collection('companies').doc(companyId)
+            .collection(collectionName).doc(applicationId);
+        const { target, employerId, employers: stamped } = await db.runTransaction(async (tx) => {
+            const appSnap = await tx.get(appRef);
+            if (!appSnap.exists) throw new HttpsError('not-found', 'Application not found.');
+            const stored = Array.isArray(appSnap.data()?.employers) ? appSnap.data().employers : [];
+            const { employers: withIds, changed } = withEmployerIds(stored);
+
+            const found = resolveEmployerTarget(withIds, {
+                employerId: request.data?.employerId,
+                employerIndex: empIndex,
+                // The name the caller is sending the request about, so the legacy
+                // index route has something to check against. `employerName` may be
+                // absent from the payload, in which case the stored row's own name is
+                // what the request records.
+                employerName: employerName || employerNameOf(withIds[empIndex]),
+            });
+            // Refused before anything is written: an id stamped for a request that
+            // cannot be issued is a change nobody asked for.
+            if (!found) {
+                throw new HttpsError(
+                    'not-found',
+                    'That employer is no longer on this application. Refresh and try again.',
+                );
+            }
+            if (changed) tx.update(appRef, { employers: withIds });
+            return { target: found, employerId: withIds[found.index].employerId, employers: withIds };
+        });
+
         // Generate unique token
         const token = uuidv4();
         const now = admin.firestore.Timestamp.now();
@@ -103,8 +172,11 @@ exports.sendVerificationRequest = onCall({ cors: true }, async (request) => {
             companyId,
             applicationId,
             collectionName,
-            employerIndex: Number(employerIndex),
-            employerName: employerName || 'Former Employer',
+            employerIndex: target.index,
+            // The identity the write-back resolves by. `employerIndex` above stays
+            // for the audit record and for nothing else.
+            employerId,
+            employerName: employerName || employerNameOf(stamped[target.index]) || 'Former Employer',
             employerEmail: employerEmail || null,
             applicantName,
             employmentStartDate: employmentStartDate || 'N/A',
@@ -149,9 +221,19 @@ exports.sendVerificationRequest = onCall({ cors: true }, async (request) => {
             token,
             emailResult,
             verificationUrl: `${baseUrl}/verify/${token}`,
+            // So the caller writing the initial mirror can find the row this
+            // request was actually filed against, rather than the index it
+            // pressed on. See `PEVTab.writeVerification`.
+            employerId,
         };
 
     } catch (error) {
+        // An `HttpsError` raised in here is a decision, not a fault: "that employer
+        // is no longer on this application" and "company not found" both carry a
+        // sentence the recruiter can act on, and re-wrapping them as `internal`
+        // replaced it with "Failed to send verification request". `responses.js`
+        // already re-throws this way.
+        if (error instanceof HttpsError) throw error;
         logger.error('[PEV] Error sending verification request:', error);
         throw new HttpsError('internal', `Failed to send verification request: ${error.message}`);
     }

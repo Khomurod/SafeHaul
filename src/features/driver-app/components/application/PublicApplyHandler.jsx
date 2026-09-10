@@ -10,6 +10,7 @@ import {
 } from './publicApplyHelpers';
 import { useGuestFileUpload } from '../../hooks/useGuestFileUpload';
 import { useCdlAutoFill } from '../../hooks/useCdlAutoFill';
+import { useInviteIdentityCheck } from '../../hooks/useInviteIdentityCheck';
 import { resolveApplyStatusScreen } from './PublicApplyScreens';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import { useData } from '@/context/DataContext';
@@ -147,6 +148,30 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     setIntakeMode,
   });
 
+  /**
+   * "Confirm it's you", for a link whose application the driver already started.
+   *
+   * Placed after the resume hook because it needs `adoptResumeToken` from it: the
+   * token a confirmed exchange mints goes through that hook rather than into the
+   * shared slot behind its back, or its ownership refs stay unset.
+   */
+  const {
+    markIdentitySatisfied, onConfirmIdentity, identityCheck,
+  } = useInviteIdentityCheck({
+    slug,
+    companyId: company?.id,
+    searchParams,
+    inviteOutcome,
+    setInviteOutcome,
+    dismissed: inviteProblemDismissed,
+    adoptResumeToken,
+    restoredFromDraftRef,
+    draftIdRef,
+    setFormData,
+    setCurrentStep,
+    setIntakeMode,
+  });
+
   const cdlUploadConfig = getFieldConfig(company?.applicationConfig, 'cdlUpload');
   const medCardConfig = getFieldConfig(company?.applicationConfig, 'medCardUpload');
   const mvrConsentConfig = getFieldConfig(company?.applicationConfig, 'mvrConsent');
@@ -240,11 +265,12 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
       discardGuardsRef,
       latestDraftRef,
       restoreFromStoredToken,
+      onIdentitySatisfied: markIdentitySatisfied,
       setFormData,
       setCurrentStep,
       setIntakeMode,
     });
-  }, [company?.id, sandbox, slug, inviteOutcome, restoreFromStoredToken, resetGenerationRef, restoredFromDraftRef, draftIdRef, discardGuardsRef]);
+  }, [company?.id, sandbox, slug, inviteOutcome, restoreFromStoredToken, resetGenerationRef, restoredFromDraftRef, draftIdRef, discardGuardsRef, markIdentitySatisfied]);
 
   /** Retries the server copy when the connection comes back — see the listener. */
   useEffect(() => {
@@ -404,6 +430,8 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     inviteProblem: buildApplyLinkOutcomeMessage(inviteOutcome),
     inviteProblemDismissed,
     onContinueWithoutInvite: () => setInviteProblemDismissed(true),
+    identityCheck,
+    onConfirmIdentity,
     intakeMode,
     companyName: company?.companyName,
     handleChooseAutoFill,

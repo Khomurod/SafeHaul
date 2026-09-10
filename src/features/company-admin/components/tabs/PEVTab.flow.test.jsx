@@ -26,6 +26,7 @@ import {
     dataMock,
     fsMocks,
     fnMocks,
+    storedDoc,
     activityMocks,
 } from './PEVTab.contract.support';
 
@@ -203,6 +204,69 @@ describe('PEVTab initiation flow and callable payload', () => {
       token: 'tok-9',
     });
     expect(typeof written.history.at(-1).timestamp).toBe('string');
+  });
+
+  /**
+   * The stored `employerId` survives the write that follows a send.
+   *
+   * `sendVerificationRequest` stamps a stable identity on the row it resolves —
+   * that identity is what the employer's own answer is later filed against — and
+   * this write used to put a snapshot of `appData.employers` back over the whole
+   * array, erasing it a moment later. The completion write-back would then find
+   * no row it could safely mirror onto. Found in self-review on 2026-09-09,
+   * before it shipped.
+   */
+  it('does not erase the employer identity the callable just stamped', async () => {
+    fnMocks.callable.mockResolvedValue({
+      data: {
+        success: true,
+        token: 'tok-9',
+        verificationUrl: 'https://portal.test/v/tok-9',
+        employerId: 'aaaaaaaaaaaa',
+      },
+    });
+    // The stored document has the id; the rendered prop does not, which is
+    // exactly the state the server's stamp leaves behind.
+    renderTab();
+    storedDoc.employers = storedDoc.employers.map((row, index) => (
+      index === 0 ? { ...row, employerId: 'aaaaaaaaaaaa' } : row
+    ));
+
+    fireEvent.click(screen.getAllByRole('button', { name: /Initiate PEV/i })[0]);
+    fireEvent.click(screen.getByText('proceed-email'));
+    fireEvent.click(screen.getByText('preview-send'));
+
+    await waitFor(() => expect(fsMocks.updateDoc).toHaveBeenCalled());
+    const [, payload] = fsMocks.updateDoc.mock.calls[0];
+    expect(payload.employers[0].employerId).toBe('aaaaaaaaaaaa');
+    expect(payload.employers[0].verification.status).toBe('Sent');
+  });
+
+  it('finds the row by identity rather than by the index it was pressed on', async () => {
+    // The array moved under the recruiter's screen. The index they pressed now
+    // names a different employer; the identity does not.
+    fnMocks.callable.mockResolvedValue({
+      data: {
+        success: true,
+        token: 'tok-9',
+        verificationUrl: 'https://portal.test/v/tok-9',
+        employerId: 'aaaaaaaaaaaa',
+      },
+    });
+    renderTab();
+    storedDoc.employers = [
+      { companyName: 'Somebody Else', employerId: 'zzzzzzzzzzzz' },
+      { companyName: 'Acme Freight', employerId: 'aaaaaaaaaaaa' },
+    ];
+
+    fireEvent.click(screen.getAllByRole('button', { name: /Initiate PEV/i })[0]);
+    fireEvent.click(screen.getByText('proceed-email'));
+    fireEvent.click(screen.getByText('preview-send'));
+
+    await waitFor(() => expect(fsMocks.updateDoc).toHaveBeenCalled());
+    const [, payload] = fsMocks.updateDoc.mock.calls[0];
+    expect(payload.employers[1].verification.status).toBe('Sent');
+    expect(payload.employers[0].verification).toBeUndefined();
   });
 
   it('maps the three delivery-method values to their frozen method labels', async () => {

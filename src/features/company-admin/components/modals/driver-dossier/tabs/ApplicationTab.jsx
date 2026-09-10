@@ -6,6 +6,7 @@ import { useApplicationChanges } from '@features/applications/hooks/useApplicati
 import { useSubmissionRecord } from '@features/applications/hooks/useSubmissionRecord';
 import { SubmissionRecordNotice } from '@features/applications/components/SubmissionRecordNotice';
 import { PreservedApplicationView } from '@features/applications/components/PreservedApplicationView';
+import { PreviousEmployersEditor } from '@features/applications/components/PreviousEmployersEditor';
 import { Badge, Button, Card, Notice, SegmentedControl } from '@/design-system/components';
 import {
     IdentityCard,
@@ -27,6 +28,19 @@ import {
  * `SchemaSection` rendering/editing path and the propose-changes / review-link
  * workflow. Those are the complex-editing surface and are the next campaign;
  * only their trigger buttons are restyled here, with the callbacks untouched.
+ *
+ * ## Employment history is edited by its own component, and that is not cosmetic
+ *
+ * `SchemaSection` renders an `array` section read-only whatever `isEditing` says,
+ * so until 2026-09-09 "Edit application" could change every scalar field and none
+ * of the employment history — the section a recruiter most often has to correct.
+ * That renderer is shared with the driver's own wizard, so the editor lives in the
+ * applications feature (`PreviousEmployersEditor`) and is swapped in here for the
+ * one section while editing. Every other section renders exactly as before.
+ *
+ * The verification mirror on each employer row is never edited or moved: the
+ * server strips whatever a client sends and re-attaches it by employer identity
+ * (`functions/shared/employerEdits.js`).
  *
  * Frozen contracts: the SSN masking rule, every `--` / `'A'` / `'Driver'`
  * fallback, the CDL expiry bands and their exact labels, the clean-record copy,
@@ -128,7 +142,19 @@ export function ApplicationTab({ appData, fileUrls = {}, canEdit = false, compan
     }
 
     const startEdit = () => {
-        setEditedData({ ...appData });
+        setEditedData({
+            ...appData,
+            /**
+             * A copy of the rows, not the record's own array.
+             *
+             * The spread above is shallow, so `editedData.employers` would be the
+             * very array on `appData` — and `handlePropose` diffs the two by
+             * value. An editor working in place would corrupt the original AND
+             * make the diff conclude nothing had changed. One level is enough:
+             * the editor replaces whole rows rather than reaching inside them.
+             */
+            employers: Array.isArray(appData.employers) ? [...appData.employers] : [],
+        });
         setEditing(true);
         // Edits operate on the current record; the preserved one is frozen.
         setViewMode('full');
@@ -300,14 +326,24 @@ export function ApplicationTab({ appData, fileUrls = {}, canEdit = false, compan
                                 <h4 className="mb-ds-4 flex items-center gap-ds-2 text-ds-body-lg font-bold text-ds-content">
                                     {section.title}
                                 </h4>
-                                <SchemaSection
-                                    sectionId={section.id}
-                                    data={editing ? editedData : appData}
-                                    mode="display"
-                                    isEditing={editing}
-                                    onChange={handleFieldChange}
-                                    fileUrls={fileUrls}
-                                />
+                                {editing && section.id === 'employmentHistory' ? (
+                                    /* The one section `SchemaSection` cannot edit —
+                                       see the header. Read-only rendering is still
+                                       its job, so this swap is scoped to editing. */
+                                    <PreviousEmployersEditor
+                                        employers={editedData.employers}
+                                        onChange={(employers) => handleFieldChange('employers', employers)}
+                                    />
+                                ) : (
+                                    <SchemaSection
+                                        sectionId={section.id}
+                                        data={editing ? editedData : appData}
+                                        mode="display"
+                                        isEditing={editing}
+                                        onChange={handleFieldChange}
+                                        fileUrls={fileUrls}
+                                    />
+                                )}
                             </div>
                         ))}
                     </div>

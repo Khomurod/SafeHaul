@@ -8,6 +8,7 @@ const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { admin, db, storage } = require("../firebaseAdmin");
 const { checkRateLimit } = require("../shared/rateLimiter");
 const { logger } = require("firebase-functions");
+const { resolveEmployerTarget } = require("../shared/employerIdentity");
 const { generateVerificationPDF } = require("./pdf");
 const { notifyCarrierVerificationComplete } = require("./notifications");
 const { normaliseSignature } = require("./signature");
@@ -159,7 +160,30 @@ exports.submitVerificationResponse = onCall({ cors: true, memory: '1GiB', timeou
             if (appSnap.exists) {
                 const appData = appSnap.data();
                 const employers = [...(appData.employers || [])];
-                const idx = verificationData.employerIndex;
+                /**
+                 * Which employer this answer belongs to.
+                 *
+                 * `employerIndex` alone used to decide, and it is positional: a
+                 * carrier that deleted or reordered an employer after sending the
+                 * request would have this completed verification — its respondent,
+                 * its signature and its result PDF — filed against a DIFFERENT
+                 * company, silently. `resolveEmployerTarget` answers by
+                 * `employerId`, falls back to the index only for a request that
+                 * predates ids AND still finds the employer it was sent to by name,
+                 * and otherwise answers null. Null is refused below rather than
+                 * guessed at: the response itself is stored on this request document
+                 * and its PDF is generated, so nothing is lost by declining to
+                 * mirror it onto the wrong row.
+                 */
+                const target = resolveEmployerTarget(employers, verificationData);
+                if (!target) {
+                    logger.warn(
+                        `[PEV] Verification ${token} could not be matched to an employer on `
+                        + `${verificationData.collectionName || 'applications'}/${verificationData.applicationId}; `
+                        + 'the response and its PDF are on the request record and were not mirrored.',
+                    );
+                }
+                const idx = target ? target.index : -1;
 
                 if (employers[idx]) {
                     if (!employers[idx].verification) {

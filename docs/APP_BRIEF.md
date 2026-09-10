@@ -7,7 +7,9 @@ It is deliberately short enough to read at the start of every task. It describes
 *what the application is and why it behaves the way it does* — not every file.
 Deep detail lives in the linked runbooks under [`docs/`](.).
 
-Verified against the code and configuration on **2026-08-19**.
+Verified against the code and configuration on **2026-08-19**, and against
+deployed Firestore data, Cloud Functions and Cloud Logging on **2026-09-09** for
+the application-continuation and employer/PEV rules in §4, §5 and §12.
 
 ---
 
@@ -262,10 +264,15 @@ off, or — behind its own explicit destructive confirmation — delete it and s
 genuinely fresh. A failed or unmatched lookup is indistinguishable from "nothing
 exists", and the applicant simply carries on filling the form.
 
-**Unfinished applications are visible to the carrier.** `/company/drivers/unfinished`
-lists who started and did not finish, with contact details only — deliberately no
-answers and no way to open or edit one. It is a call to make, not a record in the
-ATS funnel.
+**Unfinished applications are visible to the carrier, and can be sent back.**
+`/company/drivers/unfinished` lists who started and did not finish, with contact
+details only — deliberately no answers and no way to open or edit one. It is a
+call to make, not a record in the ATS funnel. **Copy continuation link** (added
+2026-09-09) mints a link for that draft and copies it; the link is a pointer, so
+whoever opens it must confirm their own identity before anything comes back, and a
+recruiter cannot pass that check. Before it existed the screen had one control —
+Refresh — and the only way to get a stalled applicant moving was to ask them to
+start again.
 
 **Recruiter pipeline (ATS).** Applications and leads are separate collections
 under the company with the same shape of tooling: status funnel, activity log,
@@ -332,6 +339,27 @@ arrival, at every depth of the object. Matching a returning applicant uses a key
 HMAC of company + last name + date of birth + SSN digits, never the SSN itself, so
 there is no new place a Social Security Number comes to rest.
 
+**And because the SSN is never stored, a save cannot be allowed to recompute the
+identity HMAC as nothing.** `saveApplicationProgress` wrote
+`identityKey: identityKey || null` on *every* save, and the HMAC needs the SSN —
+which lives only in the page's own React state. So the first autosave issued after
+a page reload, or after a restore from the server copy, recomputed the key as null
+and **erased it**. `findResumableApplication` queries `identityKey ==`, so what the
+applicant silently lost was cross-device resume, and what a carrier-prepared
+application lost was the only thing that could ever prove the driver owns it.
+
+Measured in production on 2026-09-09: three of six live drafts held
+`identityKey: null`, including the reported one at the consent step, whose
+`resumeApplicationDraft` restore was followed 46 seconds later by the save that
+erased it. `identityKeyForSave` now takes a computed key when there is one — an
+applicant may correct their own last name or date of birth — and otherwise leaves
+the stored one alone; when the applicant key has *moved* (a corrected email writes
+a different document) it is inherited from the draft the resume token opened,
+which is the same applicant, proven by that token. The at-most-one-live-draft
+sweep reads the key that was **written** rather than the one the request could
+compute, or an applicant correcting their email on a reloaded page would leave two
+live drafts.
+
 On resume the applicant must re-enter it, and that is now **enforced rather than
 assumed**. The wizard validates a step when it is pressed Next on, so an applicant
 who resumed at the licence page never passed back through page one, nothing
@@ -394,11 +422,13 @@ name and autosaved onto the carrier's draft.
 reconciliation until the exchange has resolved, which fixes the ordering; the
 `applicantKey` stored beside the resume token identifies whose leftovers this
 browser holds, which fixes the identity. Gating alone is not enough, and the gate
-is on `pending` only and never on `opened`: the exchange returns no `lastStep`,
-so the reconciliation is the only thing that restores an invited driver's page,
-and their own newer unsynced work must still be able to win. A foreign local copy
-is **withheld** from the merge (`local: null`, a supported input meaning "this
-browser has no copy of *this* application") rather than deleted, so the ordinary
+is on `pending` only and never on `opened`: their own newer unsynced work must
+still be able to win. (Until the exchange returned `lastStep` — see *A confirmed
+exchange returns the step* below — the reconciliation was also the only thing
+that restored an invited driver's page at all; now the two agree through the
+reconciliation's `Math.max`.) A foreign local copy is **withheld** from the merge
+(`local: null`, a supported input meaning "this browser has no copy of *this*
+application") rather than deleted, so the ordinary
 server-won write-back replaces it and no new writer is introduced to a slot whose
 naming and sequence rules are this intricate. The cost is stated where it
 happens: the previous applicant loses their local backup of that slug, while
@@ -886,22 +916,107 @@ answers are the driver's. Gating the mint would not have closed it: the driver's
 first save leaves `inviteTokenHash` alone, so the link the carrier had already
 copied kept working.
 
-**So the link is tiered.** Before the driver writes, the answers are the
-carrier's own and the exchange hands over everything. Once the draft is
-`driver_in_progress` it returns `requiresIdentity` and nothing else — no answers,
-no resume token, not even `preparedBy` — and writes nothing, so it can neither
-read the driver's work nor displace the token their browser is saving with.
+**So the link is tiered, and since 2026-09-09 one predicate decides the tier.**
+`companyMayReadAnswers` — the carrier authored these answers *and* the driver has
+not written over them — is now asked at both doors, which is what stops the
+composition being written a third time. While it holds, the exchange hands over
+everything. Otherwise it returns `requiresIdentity` and nothing else — no answers,
+no resume token, no step, not even `preparedBy` — and writes nothing, so it can
+neither read the driver's work nor displace the token their browser is saving with.
 (It used to rotate that token on every open, demoting the driver's to a prior
 hash, which grants liveness but never write authorization: a carrier opening its
-own link a few times could silently stop the driver's autosave.) The driver then
-proves who they are through the challenge every returning applicant already
-meets — `findResumableApplication`: last name, date of birth and SSN digits plus
-a contact detail already on the record. The carrier cannot pass it, because a
-prepared draft never holds an SSN; the driver can, on any device, because their
-first save is what supplied the identity HMAC. Minting still works after
-takeover, deliberately: a driver who lost their link needs a replacement, and the
-replacement is now a pointer rather than a credential. Pinned by
+own link a few times could silently stop the driver's autosave.) Minting still
+works after takeover, deliberately: a driver who lost their link needs a
+replacement, and the replacement is a pointer rather than a credential. Pinned by
 `companyApplications.invite.privacy.test.js`.
+
+**The second tier was a sentence, not a mechanism, and that was the reported
+bug.** It delegated to `findResumableApplication`, and neither half of the
+delegation worked. Measured in production on 2026-09-09 against a carrier-prepared
+application at the consent step:
+
+- **Nothing rendered `requires_identity`.** The outcome reached
+  `resolveApplyStatusScreen`, matched no branch, and the intake chooser is what
+  sits at the bottom of that function — so a driver who opened the replacement
+  link their recruiter had just sent was shown *"How would you like to start your
+  driver application?"* with their own hour of work behind the link and nothing
+  said. The exchange returned 200 both times they tried. The code comment standing
+  in for the missing screen claimed the driver "is asked for their details by the
+  ordinary resume flow underneath"; that flow only fires on the first Next of page
+  one, inside the blank application the chooser had just started.
+- **The lookup could not have matched anyway.** It queries `identityKey ==`, and
+  autosave was erasing that field (below). The reported draft held
+  `identityKey: null`.
+- **A global lookup is the wrong question.** The link already resolved the
+  document from its own token. "Does any draft at this company match this
+  identity" throws that away, needs a composite index, and makes the applicant
+  guess which of their contact details the recruiter typed.
+
+**The claim is now checked against the draft the link names**
+(`companyApplications/inviteIdentity.js`), and `ApplyIdentityCheckScreen` asks for
+it: last name, date of birth, Social Security Number, and one contact detail
+already on the record — the sentence `InviteLinkPanel` had been showing recruiters
+all along. Two tiers of *checking*, because production holds both shapes. With an
+`identityKey` on file the claim is verified by recomputing the HMAC, which is a
+real check on the SSN and subsumes the other two facts. Without one — a draft the
+erasure caught, or one predating the field — the name and date of birth are
+checked against the draft's own answers and a well-formed SSN is required but
+cannot be verified; a success then **establishes** the HMAC, so a draft passes
+through that tier at most once. **That tier needs both stored facts and refuses
+as `unverifiable` without them**, which review corrected on 2026-09-09: checking
+whichever fact the draft happened to hold left a bar made entirely of things the
+carrier can read off its own worklist, since the date of birth is the one compared
+fact it is never shown and the SSN is required rather than verified here. It costs
+a driver who is on a new device *and* has typed almost nothing yet; their own
+device is asked nothing at all. A refusal is `permission-denied` with a sentence
+the driver can act on (they may simply have mistyped), rate-limited per targeted
+draft as well as per caller, and audited as `invite_identity_refused`. Saying
+"those details do not match" discloses nothing new: the holder was already told
+`requiresIdentity`.
+
+**A device that already holds the draft's resume token is asked nothing at all.**
+`reconcileServerDraftOnLoad` satisfies the challenge when the stored token
+resolves the very application the link named — the strongest resume path is the
+one that asks the applicant for nothing, and a replacement link may not take it
+away. A token belonging to a *different* applicant does not satisfy it, and their
+local copy is withheld from the merge exactly as it is on the `opened` path.
+
+**And withheld from the page load's own restore, which is a second reader of the
+same slot.** Review found on 2026-09-09 that `requires_identity` fell through to
+both of `loadPublicApplyCompany`'s remaining steps, and neither is harmless while
+a live invitation is waiting on one question. The local-draft restore put a
+previous applicant's answers into `formData` *behind* the confirmation screen,
+where nothing shows them and the adopt merge keeps every key the target
+application does not itself hold — so the next autosave would write a stranger's
+rows onto this driver's application. And the post-apply restore sets
+`submissionStatus` to `success`, which renders **above** the confirmation screen:
+a driver who had submitted an application to this carrier in the same tab within
+the last 24 hours saw that old screen and no question at all — the same reported
+symptom wearing a different mask, and permanent, because the session is rewritten
+on every load. Both steps are now gated on the outcome by one shared decision that
+the production and E2E branches read, and the stale session is *cleared* rather
+than merely skipped, or a later reload of the bare apply page brings the success
+screen back over the driver's half-typed work. Sound for the same reason the
+`opened` path's clearing is: submission deletes the draft the invite hash lives
+on, so an exchange that resolved a live draft proves the application it named has
+not been submitted. A link that *failed* still touches none of it.
+
+**A confirmed exchange returns the step.** Withholding it was survivable only
+while a prepared draft was always on page one: handing a driver their answers and
+dropping them at the start of the wizard reads as "nothing was saved", which is
+the failure the whole draft feature exists to prevent.
+
+**A continuation link is not only for an application the carrier prepared.**
+`isCompanyPrepared` gated the mint and the exchange's resolution predicate, so the
+people on `/company/drivers/unfinished` — a list whose whole purpose is "who
+started and did not finish" — could not be sent back to their own work at all, and
+the only answer to "how do I get this driver to finish?" was "ask them to start
+again". Minting now works for any live draft; whose words are in the draft decides
+what the link *hands over*, never whether it opens. A driver-authored draft is
+always in the identity tier, its `status` and `origin` are left exactly as they
+are, and it never appears in the prepared-applications list. Dropping the
+`origin == 'company'` filter from the exchange's fallback scan also removed that
+path's dependency on the `origin`/`updatedAt` composite index.
 
 **The invite link is its own token, and its own risk.** Minted by
 `mintApplicationInvite` (random 32 bytes, only the SHA-256 stored, returned once),
@@ -1034,6 +1149,55 @@ originals for unapproved edits. The driver approves, rejects or corrects them
 through a token link (`/review-change/:token`, 30-day TTL). The
 `hasPendingCompanyChanges` flag clears only when all fields are resolved. All
 writes go through callables; client writes to `pending_changes` are denied.
+
+**Previous employers are editable through that workflow, and `employers` is the
+one field that is not just a value.** `SchemaSection` renders an `array` section
+read-only whatever `isEditing` says, so until 2026-09-09 Edit Application could
+change every scalar field and none of the employment history — the section a
+recruiter most often has to correct, since 49 CFR 391.21(b)(10) wants three years
+accounted for. That renderer is shared with the driver's own wizard, so
+`PreviousEmployersEditor` (add / edit / delete) is swapped in for the one section
+while editing and every other section renders exactly as before. Nothing there
+writes: it produces an array that goes through `proposeApplicationChanges` like
+any other edit. The driver's review portal renders that change as named employers
+added, removed and changed field by field, rather than as the generic
+"2 item(s) → 1 item(s)" — which is not a decision anybody can make.
+
+**An employer has an identity, because a verification is filed against it.** A PEV
+mirror lives on the employer row (status, respondent, result document, history)
+and `verification_requests/{token}` addressed it **positionally**, by
+`employerIndex`. Both the employer's own response and the reminder cycle wrote
+their result into `employers[idx]`, which is sound only while nobody changes the
+array — and making employers editable makes changing it a supported workflow. The
+failure is exact: with `[0] ABC Trucking` completed and `[1] XYZ Transport` not
+started, deleting ABC makes XYZ index 0, and ABC's outstanding request then files
+ABC's respondent, signature and result PDF against **XYZ**, silently. Reordering
+does the same.
+
+So each row carries an `employerId` — twelve opaque hex characters, minted once
+and never rewritten, deliberately *not* derived from the row's contents, because
+`employerSignature` in `applicationLockedFields.js` is content-derived and
+correcting a typo would move it. Rows are stamped lazily by the two paths that
+already write the array (the change proposal, and `sendVerificationRequest`),
+never by a migration and never on the frozen snapshot. `resolveEmployerTarget`
+answers by id; for a request that predates ids it honours the index **only while
+the row there is still the employer the request was sent to**, which the request
+itself recorded as `employerName`, and otherwise refuses the write-back rather
+than guessing. Nothing is lost by refusing: `verification_requests` holds the
+response, the signature, the method and the PDF permanently and is the
+authoritative record — the row is a mirror of it.
+
+**A client never decides which employer owns a verification.**
+`shared/employerEdits.js` strips every PEV field the browser sent and re-attaches
+it from the record by identity — at proposal time so the driver sees an accurate
+diff, and **again at resolution time**, which is the authoritative pass: a
+verification can complete while a review link sits unopened for days, and
+applying the proposal's snapshot would roll it back. That second pass is also what
+closes the driver's `edit` action, which writes its value straight onto the
+document with no other validation. Removing an employer that has verification
+activity is allowed — a carrier legitimately removes a row added in error — but it
+is confirmed explicitly, named in the activity log with the verification state
+that went with it, and never deletes the PEV record.
 
 **Application gates have one resolver.** Whether a standard DOT question is
 required, optional or hidden is resolved by `src/config/applicationGates.js`,
@@ -1522,20 +1686,29 @@ cannot resolve the colour at all — and the `theme-color` meta, a literal copy 
   readable. Deliberately not solved by fetching the signed URL back into a Blob:
   that is a cross-origin `fetch` against the Storage bucket, and whether it works
   depends on bucket CORS configuration this repository does not set.
-- **A carrier-prepared draft has no cross-device recovery when the company hides
-  the SSN question.** The invite link stops being a credential once the driver
-  takes the application over (§5), and the driver proves who they are through
-  `findResumableApplication`, which needs last name + date of birth + SSN digits
-  plus a contact detail already on the record. Their first save is what supplies
-  the identity HMAC that lookup matches — but `ssn` is a configurable gate
-  (`GATE_DEFAULT_REQUIRED.ssn` is `true`), so a company that sets it to Optional
-  or Hidden leaves `identityKey: null` and no way for that driver to resume on a
-  second device. Their own browser's resume token still works, and the carrier can
-  still send a replacement link, which takes them to the identity challenge they
-  cannot then pass.
-  Narrow on purpose: 49 CFR 391.21 requires the Social Security Number on the
-  application, so a company in that configuration is already outside the
-  regulation. The fix that closes it properly is out-of-band delivery — minting
+- **A continuation link's identity check cannot verify a Social Security Number
+  against a draft that has no identity HMAC on file.** Largely closed on
+  2026-09-09 and worth stating precisely, because the previous wording of this
+  limitation ("no cross-device recovery when the company hides the SSN question")
+  described a much larger hole that turned out to be a defect rather than a
+  design limit: the HMAC was being *erased* by ordinary autosave (§5), and the
+  challenge the link handed off to had no screen at all.
+  What remains: a draft with no `identityKey` — one the erasure caught before the
+  fix, or one whose company set `ssn` to Optional or Hidden
+  (`GATE_DEFAULT_REQUIRED.ssn` is `true`, so this is opt-out) — is verified
+  against the last name and date of birth its own answers hold, and the SSN it
+  also demands is required but **not checked**. That moves the bar from "knows
+  what it typed" to "knows the driver's Social Security Number", which a carrier
+  that has anyway can use to impersonate the driver everywhere else in this
+  product; it is not the same as verifying it. One success establishes the HMAC,
+  so a draft is in that tier at most once.
+  A draft holding **neither** a last name nor a date of birth cannot be verified
+  at all and is refused outright (`unverifiable`), with the driver told plainly and
+  offered a new application rather than being handed somebody's answers. That is
+  narrow — a last name is required to leave page one — and it is the honest answer
+  when the identity information never existed.
+  Their own browser's resume token still works throughout, and asks nothing.
+  The fix that closes the residue properly is out-of-band delivery — minting
   emails or texts the link to the `contactEmail`/`contactPhone` on the draft and
   returns only a redacted confirmation, so the carrier never holds it — which is
   DocuSign's Resend model and depends on per-company email configuration this

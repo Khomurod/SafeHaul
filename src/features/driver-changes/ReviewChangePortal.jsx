@@ -5,6 +5,7 @@ import { functions } from '@lib/firebase';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 import { Icon, Loader2, Check, X, Pencil, ShieldCheck, CheckCircle2 } from '@design-system/icons';
 import { Button, Card, Input, Notice, SegmentedControl, StatusMedallion } from '@/design-system/components';
+import { isEmployerChange, summarizeEmployerChange } from './employerChangeSummary';
 
 const MOCK_REVIEW = {
     applicantName: 'Test Driver',
@@ -21,6 +22,77 @@ function previewValue(v) {
     return String(v);
 }
 const isScalar = (v) => v === null || v === undefined || typeof v !== 'object';
+
+/**
+ * The employment history, as something a driver can actually decide about.
+ *
+ * `previewValue` renders any array as "N item(s)", so this change used to read
+ * **"2 item(s) → 1 item(s)"** — and the one thing the driver needs to know is
+ * WHICH employer went. 49 CFR 391.21(b)(10) makes that consequential: the
+ * application has to account for three years, and the row the recruiter removed
+ * may be the reason it does.
+ *
+ * Rows are matched by the stable `employerId`, so a renamed employer reads as a
+ * change rather than as a removal plus an addition — which is exactly the
+ * distinction being approved. See `employerChangeSummary.js`.
+ */
+function EmployerChangeSummary({ originalValue, proposedValue }) {
+    const { added, removed, changed, unchanged } = summarizeEmployerChange(originalValue, proposedValue);
+    const nothing = added.length === 0 && removed.length === 0 && changed.length === 0;
+
+    if (nothing) {
+        return (
+            <p className="mb-3 text-ds-sm text-ds-content-muted">
+                The employers on your application are unchanged.
+            </p>
+        );
+    }
+
+    return (
+        <div className="mb-3 space-y-2 text-ds-sm">
+            {removed.length > 0 && (
+                <div>
+                    <p className="text-ds-xs font-semibold uppercase text-ds-content-muted">Removed</p>
+                    <ul className="list-disc pl-5">
+                        {removed.map((entry) => (
+                            <li key={`removed-${entry.label}`} className="text-ds-content">{entry.label}</li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+            {added.length > 0 && (
+                <div>
+                    <p className="text-ds-xs font-semibold uppercase text-ds-content-muted">Added</p>
+                    <ul className="list-disc pl-5">
+                        {added.map((entry) => (
+                            <li key={`added-${entry.label}`} className="text-ds-content">{entry.label}</li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+            {changed.map((entry) => (
+                <div key={`changed-${entry.label}`}>
+                    <p className="text-ds-xs font-semibold uppercase text-ds-content-muted">{entry.label}</p>
+                    <ul className="list-disc pl-5">
+                        {entry.fields.map((field) => (
+                            <li key={field.label} className="text-ds-content">
+                                {`${field.label}: `}
+                                <span className="line-through text-ds-content-muted">{field.from || '—'}</span>
+                                <span aria-hidden="true">{' → '}</span>
+                                <span className="font-semibold">{field.to || '—'}</span>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            ))}
+            {unchanged > 0 && (
+                <p className="text-ds-xs text-ds-content-muted">
+                    {`${unchanged} other employer${unchanged === 1 ? '' : 's'} unchanged.`}
+                </p>
+            )}
+        </div>
+    );
+}
 
 // Feature-owned segmented decision control. Active tone uses semantic status
 // tokens; icon + label + aria-pressed carry the state (not colour alone).
@@ -160,17 +232,24 @@ export function ReviewChangePortal() {
                                 return (
                                     <div key={c.fieldKey} className="rounded-ds-lg border border-ds-border p-ds-4">
                                         <p className="mb-2 text-ds-xs font-bold uppercase tracking-wide text-ds-content-muted">{fieldName}</p>
-                                        <div className="mb-3 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-ds-sm">
-                                            <span className="text-ds-content-muted">
-                                                <span className="text-ds-xs font-semibold uppercase">Current: </span>
-                                                <span className="line-through">{previewValue(c.originalValue)}</span>
-                                            </span>
-                                            <span aria-hidden="true" className="text-ds-content-muted">→</span>
-                                            <span className="text-ds-content">
-                                                <span className="text-ds-xs font-semibold uppercase text-ds-content-muted">Proposed: </span>
-                                                <span className="font-semibold">{previewValue(c.proposedValue)}</span>
-                                            </span>
-                                        </div>
+                                        {isEmployerChange(c.fieldKey) ? (
+                                            <EmployerChangeSummary
+                                                originalValue={c.originalValue}
+                                                proposedValue={c.proposedValue}
+                                            />
+                                        ) : (
+                                            <div className="mb-3 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-ds-sm">
+                                                <span className="text-ds-content-muted">
+                                                    <span className="text-ds-xs font-semibold uppercase">Current: </span>
+                                                    <span className="line-through">{previewValue(c.originalValue)}</span>
+                                                </span>
+                                                <span aria-hidden="true" className="text-ds-content-muted">→</span>
+                                                <span className="text-ds-content">
+                                                    <span className="text-ds-xs font-semibold uppercase text-ds-content-muted">Proposed: </span>
+                                                    <span className="font-semibold">{previewValue(c.proposedValue)}</span>
+                                                </span>
+                                            </div>
+                                        )}
                                         <SegmentedControl
                                             ariaLabel={`Decision for ${fieldName}`}
                                             columns={canEdit ? 3 : 2}

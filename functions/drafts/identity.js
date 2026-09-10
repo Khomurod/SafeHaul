@@ -68,6 +68,40 @@ function identityKeyOrNull(parts, where) {
 }
 
 /**
+ * The identity HMAC a save should leave on the document.
+ *
+ * **A save must never be able to erase one.** `identityKey` used to be written as
+ * `identityKey || null` on every save, and the HMAC needs the Social Security
+ * Number — which a draft deliberately never stores. So the SSN lives only in the
+ * browser's form state, and any save issued after a reload (or after a restore
+ * from the server copy, which has no SSN either) recomputed the key as null and
+ * wiped it. `findResumableApplication` queries `identityKey ==`, so the applicant
+ * silently lost cross-device resume, and a carrier-prepared application lost the
+ * only thing that could ever prove the driver owns it.
+ *
+ * Measured in production on 2026-09-09: three of six live drafts held
+ * `identityKey: null`, including one at the consent step whose `resumeApplicationDraft`
+ * restore was followed 46 seconds later by the save that erased it.
+ *
+ * So a computed key wins — an applicant may correct their own last name or date of
+ * birth, and the key must follow them — and otherwise the stored one stands. When
+ * the applicant key has MOVED (a corrected email or phone writes a different
+ * document) the key is inherited from the draft the resume token actually opened:
+ * that is the same applicant, proven by the token, and leaving it behind would
+ * make correcting a typo cost them their identity match.
+ *
+ * @param {{computed: ?string, existing: object, opened: object}} sources
+ * @returns {?string} the key to write, or null when there has never been one
+ */
+function identityKeyForSave({ computed, existing, opened }) {
+    if (computed) return computed;
+    const stored = existing?.exists ? existing.data()?.identityKey : null;
+    if (typeof stored === 'string' && stored) return stored;
+    const inherited = opened?.exists ? opened.data()?.identityKey : null;
+    return typeof inherited === 'string' && inherited ? inherited : null;
+}
+
+/**
  * May this caller modify a draft that already exists?
  *
  * **Creating a draft and changing one are different situations.** The callable is
@@ -395,6 +429,7 @@ module.exports = {
     clientIp,
     docId,
     findByToken,
+    identityKeyForSave,
     identityKeyOrNull,
     mayModifyExistingDraft,
     priorHashesAfterRotation,

@@ -14,9 +14,9 @@ const { generateApplicantKey } = require('../shared/buildApplicationDoc');
 const draft = require('../shared/applicationDraft');
 const prepared = require('../shared/companyPreparedDraft');
 const {
-    applicantKeyOf, clientIp, docId, identityKeyOrNull, liveDraftForToken,
-    mayModifyExistingDraft, recordMatchAttempt, retirePreparedSource,
-    supersedeOtherDrafts, text,
+    applicantKeyOf, clientIp, docId, identityKeyForSave, identityKeyOrNull,
+    liveDraftForToken, mayModifyExistingDraft, recordMatchAttempt,
+    retirePreparedSource, supersedeOtherDrafts, text,
 } = require('./identity');
 
 /**
@@ -161,7 +161,12 @@ exports.saveApplicationProgress = functions
                 contactEmail: email.toLowerCase(),
                 contactPhone: phone.replace(/\D/g, ''),
                 // The SSN itself is never stored — see ./shared/applicationDraft.js.
-                identityKey: identityKey || null,
+                // Never `identityKey || null`: the HMAC needs an SSN, a draft holds
+                // none, and every save after a reload therefore erased it. See
+                // `identityKeyForSave`.
+                identityKey: identityKeyForSave({
+                    computed: identityKey, existing, opened,
+                }),
                 formData: draft.sanitizeDraftData(formData),
                 lastStep: Number.isInteger(data?.lastStep) ? Math.max(0, Math.min(20, data.lastStep)) : 0,
                 lastSemanticStep: text(data?.lastSemanticStep, 40) || null,
@@ -231,6 +236,8 @@ exports.saveApplicationProgress = functions
             return {
                 refused: false,
                 token,
+                // What the write actually settled on, for the sweep below.
+                identityKey: update.identityKey,
                 // The document the applicant just moved off, for the retirement
                 // below. Carried out of the transaction rather than recomputed,
                 // because ownership of it was proven in here.
@@ -301,9 +308,13 @@ exports.saveApplicationProgress = functions
         // Gated on the caller's own resume token, because this deletes documents.
         // See `supersedeOtherDrafts` for why "knows the identity" is not enough.
         const supersedeToken = text(data?.resumeToken, 128);
-        if (identityKey && supersedeToken) {
+        // The key that was WRITTEN, not the one this request could compute: a save
+        // carrying no SSN keeps the stored key, and the duplicate it just moved off
+        // is filed under that same key. Reading the computed one meant an applicant
+        // who corrected their email on a reloaded page left both drafts alive.
+        if (attempt.identityKey && supersedeToken) {
             // Per draft, never per identity. See `supersedeOtherDrafts`.
-            await supersedeOtherDrafts(companyId, identityKey, applicantKey, {
+            await supersedeOtherDrafts(companyId, attempt.identityKey, applicantKey, {
                 resumeToken: supersedeToken,
             });
         }
