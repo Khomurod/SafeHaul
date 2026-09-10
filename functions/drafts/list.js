@@ -12,6 +12,7 @@
 const { onCall: onCallV2, HttpsError: HttpsErrorV2 } = require('firebase-functions/v2/https');
 const { assertCompanyAccessForRequest } = require('../shared/companyAccess');
 const draft = require('../shared/applicationDraft');
+const prepared = require('../shared/companyPreparedDraft');
 const { docId } = require('./identity');
 // ---------------------------------------------------------------------------
 // Recruiter view
@@ -38,6 +39,24 @@ const { docId } = require('./identity');
  *
  * A second generation callable, unlike the guest-facing ones, because it is an
  * authenticated staff read with no rate-limit-by-IP consideration.
+ *
+ * ## Why this is the ONLY list, as of 2026-09-10
+ *
+ * There used to be two. This one reads the whole collection; the narrower
+ * `listCompanyPreparedApplications` reads `origin == 'company'` — so a draft the
+ * carrier prepared was returned by BOTH, and the product showed it on two
+ * different screens with two different sets of columns and actions. That was never
+ * a security boundary: both callables return contact-and-progress and neither has
+ * ever returned an answer. The read rule lives in `getCompanyPreparedDraft`
+ * (`companyMayReadAnswers`, plus an outright refusal of any draft the carrier did
+ * not author), which is unchanged and unaffected by who lists what.
+ *
+ * So the unified workspace reads this one, and every row it shows is one document
+ * from one query. **Deduplication is structural rather than a merge step somebody
+ * has to keep correct** — there is no union of two result sets to reconcile, and no
+ * key to match them on wrongly. `toCompanySummary` supplies the shape, because it
+ * was already the answer-free summary and already resolved `origin` for
+ * driver-authored drafts.
  */
 exports.listApplicationDrafts = onCallV2({ cors: true }, async (request) => {
     const companyId = docId(request.data?.companyId, 100);
@@ -54,24 +73,11 @@ exports.listApplicationDrafts = onCallV2({ cors: true }, async (request) => {
             .get();
 
         return {
-            drafts: snapshot.docs.map((doc) => {
-                const data = doc.data() || {};
-                const form = data.formData || {};
-                return {
-                    applicantKey: doc.id,
-                    // From the draft's own answers, which is where the applicant
-                    // typed them; the normalized contact copies alongside exist
-                    // for matching, not for display.
-                    firstName: typeof form.firstName === 'string' ? form.firstName.slice(0, 80) : '',
-                    lastName: typeof form.lastName === 'string' ? form.lastName.slice(0, 80) : '',
-                    email: data.contactEmail || '',
-                    phone: data.contactPhone || '',
-                    lastSemanticStep: data.lastSemanticStep || null,
-                    lastStep: Number.isInteger(data.lastStep) ? data.lastStep : 0,
-                    startedAt: data.createdAt?.toDate?.()?.toISOString?.() || null,
-                    updatedAt: data.updatedAt?.toDate?.()?.toISOString?.() || null,
-                };
-            }),
+            // One document in, one row out. `toCompanySummary` reads the name from
+            // the draft's own answers, where the applicant typed it — the
+            // normalized contact copies beside it exist for matching, not display —
+            // and carries no answers of any kind.
+            drafts: snapshot.docs.map((doc) => prepared.toCompanySummary(doc)),
             retentionDays: draft.RETENTION_DAYS,
             generatedAt: new Date().toISOString(),
         };

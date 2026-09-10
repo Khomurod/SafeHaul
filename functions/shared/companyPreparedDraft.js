@@ -123,10 +123,21 @@ function isoOf(value) {
 }
 
 /**
- * The contact-and-progress shape, identical in spirit to `listApplicationDrafts`.
+ * The contact-and-progress shape — and since 2026-09-10, the ONLY list shape.
  *
  * This is what a carrier sees once the driver has taken the application over, and
  * what it sees for every draft in a list. It carries no answers.
+ *
+ * `listApplicationDrafts` maps every draft through this, driver-authored ones
+ * included, which is why `origin` resolves to `'driver'` rather than being omitted:
+ * this shape was always written to describe *any* draft, and the unified
+ * unfinished-applications workspace is what finally asks it to. Nothing here is
+ * driver-owned — a name and contact detail the recruiter may already read, how far
+ * they got, and the carrier's own metadata about its own workflow (who prepared
+ * it, whether a link went out, how many employers the safety record locked). The
+ * answers are reached only through `getCompanyPreparedDraft`, which is where
+ * `companyMayReadAnswers` lives and where a driver-authored draft is refused
+ * outright.
  */
 function toCompanySummary(doc) {
     const data = doc.data() || {};
@@ -140,6 +151,10 @@ function toCompanySummary(doc) {
         email: data.contactEmail || '',
         phone: data.contactPhone || '',
         lastSemanticStep: data.lastSemanticStep || null,
+        // The numeric step behind the semantic one, because a draft saved before
+        // `lastSemanticStep` existed has only this — and "Step 3 of 9" is still an
+        // answer to "how far did they get" where a missing name is not.
+        lastStep: Number.isInteger(data.lastStep) ? data.lastStep : 0,
         preparedBy: data.preparedBy ? {
             uid: text(data.preparedBy.uid, 128),
             name: text(data.preparedBy.name, 120),

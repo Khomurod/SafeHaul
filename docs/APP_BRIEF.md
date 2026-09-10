@@ -154,8 +154,8 @@ relieved) when the company turns it on. A company that configures nothing sees
 exactly the application it had before 2026-09-02.
 
 **A carrier can start an application for a driver.** Company → Applications →
-Start an application first asks **how** to fill it in: **Let AI read the
-documents** or **Fill in manually**. The AI path uploads the driver's licence,
+Unfinished applications → **+ Start an application** first asks **how** to fill it
+in: **Let AI read the documents** or **Fill in manually**. The AI path uploads the driver's licence,
 medical card, PSP report and motor vehicle record, reads them, and prefills what
 it can; the manual path goes straight to the form (documents can still be
 attached there, just not read). Both land in one editable form where the recruiter
@@ -221,7 +221,7 @@ enough — never both — and each supplied one is now format-checked, which nei
 side did: `dana@` used to become an application's primary key. A refused clipboard
 says so and points at the link, which is on screen and selectable either way.
 Driven through the real fields and the real controls by
-`StartApplicationPage.actions.contract.test.jsx`. All found 2026-09-08.
+`UnfinishedApplicationsPage.prepActions.contract.test.jsx`. All found 2026-09-08.
 
 The reader extracts text in the recruiter's own browser first — a PDF's own text
 layer, else Tesseract OCR of the rendered pages, else the page images sent to the
@@ -264,15 +264,48 @@ off, or — behind its own explicit destructive confirmation — delete it and s
 genuinely fresh. A failed or unmatched lookup is indistinguishable from "nothing
 exists", and the applicant simply carries on filling the form.
 
-**Unfinished applications are visible to the carrier, and can be sent back.**
-`/company/drivers/unfinished` lists who started and did not finish, with contact
-details only — deliberately no answers and no way to open or edit one. It is a
-call to make, not a record in the ATS funnel. **Copy continuation link** (added
-2026-09-09) mints a link for that draft and copies it; the link is a pointer, so
-whoever opens it must confirm their own identity before anything comes back, and a
-recruiter cannot pass that check. Before it existed the screen had one control —
-Refresh — and the only way to get a stalled applicant moving was to ask them to
-start again.
+**One workspace for everything unfinished.** `/company/drivers/unfinished` —
+*Unfinished applications* — lists every application that has been started and not
+submitted, whichever side started it, with **+ Start an application** as its
+primary action. It is a call to make, not a record in the ATS funnel. **Create a
+continuation link** mints a link for a row and copies it; the link is a pointer,
+so whoever opens it must confirm their own identity before anything comes back,
+and a recruiter cannot pass that check. Before that existed (2026-09-09) the
+screen had one control — Refresh — and the only way to get a stalled applicant
+moving was to ask them to start again.
+
+**It was two screens until 2026-09-10, and the split was navigational rather than
+a rule.** *Started (unfinished)* was the worklist; *Start an application* was a
+task screen that had grown a second list of its own, scoped to `origin ==
+'company'`. Because `listApplicationDrafts` filters by nothing, a carrier-prepared
+draft was returned by both — so one application appeared on two screens with
+different columns and different actions, and a recruiter had to know which page
+answered which question about it. Neither list had ever returned an answer
+(`toCompanySummary` is the shape for both), and the read rule lives in one place,
+so merging them changed no permission. The workspace now reads
+`listApplicationDrafts` alone: **a row is a row because it is a document**, so
+there is no union of two result sets to keep deduplicated.
+
+What each row may *do* still depends on its state, and deliberately is not
+uniform (`unfinishedRowActions.js`):
+
+| Started by | Status | The carrier may… |
+|---|---|---|
+| Company | `prepared` | open and keep editing; mint the driver's first link |
+| Company | `sent` | open and keep editing; mint a replacement link |
+| Company | `driver_in_progress` | open the record — the server withholds the answers; mint a continuation link |
+| Driver | `in_progress` | mint a continuation link. Nothing else. |
+
+*Open* appears only on the carrier's own rows, which mirrors a server rule rather
+than inventing a client one: `getCompanyPreparedDraft` refuses any draft the
+carrier did not author with a flat `not-found`, so offering it on a driver-started
+row would be offering a button that cannot work. What comes back for the carrier's
+own row is `companyMayReadAnswers`'s decision on every load.
+
+The separation that *is* a rule is untouched: an unfinished application stays out
+of the applications pipeline. `drivers/start-application` remains a route with no
+sidebar item, redirecting to the workspace with its query string intact, so a
+bookmark does not become a dead end.
 
 **Recruiter pipeline (ATS).** Applications and leads are separate collections
 under the company with the same shape of tooling: status funnel, activity log,
@@ -897,7 +930,8 @@ read it the moment the driver writes.** It lives at
 status of `prepared` → `sent` → `driver_in_progress`. The carrier may read back
 the answers it wrote until the driver's first save, which flips the status
 one-way (in `drafts/save.js`) and from then on returns contact and progress only —
-the same shape `listApplicationDrafts` has always returned. The company's own
+literally the same function `listApplicationDrafts` maps every draft through
+(`toCompanySummary`), which is what let the two worklists become one. The company's own
 authorship is what earns that read; the driver's first write ends it. A carrier
 may never overwrite a draft the driver started themselves, and knowing an email
 and a phone does not open a prepared one: it carries no identity HMAC (the
@@ -911,8 +945,8 @@ intended driver in.
 changes. So a carrier could mint a link, exchange it itself (the exchange is
 unauthenticated by necessity), and recover exactly the answers the cutoff had
 just withheld, plus a resume token that could rewrite them — and
-`StartApplicationPage` offered the mint button on the very screen that says the
-answers are the driver's. Gating the mint would not have closed it: the driver's
+the prepared-application screen offered the mint button on the very screen that
+says the answers are the driver's. Gating the mint would not have closed it: the driver's
 first save leaves `inviteTokenHash` alone, so the link the carrier had already
 copied kept working.
 
@@ -1656,6 +1690,20 @@ cannot resolve the colour at all — and the `theme-color` meta, a literal copy 
   deploy from it. Deploy jobs are guarded by repository name.
 
 **Current limitations:**
+
+- **The unfinished-applications workspace shows the 200 most recently active
+  drafts.** `listApplicationDrafts` has always been capped at 200, ordered by
+  `updatedAt` descending, and it is now the workspace's only source. The narrow
+  consequence of consolidating (2026-09-10) is that the retired
+  `Start an application` screen had its own cap of 100 scoped to
+  `origin == 'company'`, so a carrier-prepared draft could in principle have been
+  visible there and not here: it would have to be outside the 200 most recently
+  active drafts while still inside the 100 most recent carrier-prepared ones,
+  which needs more than 200 unfinished applications inside the 30-day retention
+  window and most of them driver-started. No pagination was added — the rows that
+  fall off are the least recently touched, and inventing a second list to page
+  would undo the property that makes the merge safe (one query, so one row per
+  document). Raise the cap if a carrier ever reports a missing row.
 
 - **Facebook lead capture wrote to a tenant that does not exist (fixed
   2026-08-25).** `connectFacebookPage` stored the caller's user id where a

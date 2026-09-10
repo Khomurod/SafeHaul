@@ -220,11 +220,17 @@ test.describe('a replacement link for a driver who already started', () => {
  * needs no callable — the choice and the editor render on their own; the reading,
  * saving and link-minting are covered by their unit suites, which mock the
  * callables an E2E run cannot reach.
+ *
+ * Reached from the unified unfinished-applications workspace since 2026-09-10,
+ * where starting an application is the primary action. `e2eUnfinished=mock` puts
+ * the worklist behind it in a known state, so what these cases prove is the
+ * wizard and not how a credential-less list call happens to fail.
  */
 test.describe('a carrier starting an application', () => {
     test.describe.configure({ timeout: 90_000 });
 
-    const START_URL = '/company/drivers/start-application?e2eAuth=company_admin';
+    const START_URL = '/company/drivers/unfinished?e2eAuth=company_admin&e2eUnfinished=mock';
+    const LEGACY_URL = '/company/drivers/start-application?e2eAuth=company_admin&e2eUnfinished=mock';
 
     test('asks how to fill it in, then manual goes to the editable form', async ({ page }) => {
         await page.goto(START_URL);
@@ -250,5 +256,28 @@ test.describe('a carrier starting an application', () => {
         await expect(page.getByRole('heading', { name: "Upload the driver's documents" })).toBeVisible();
         // The reader is here, in its pre-run state, before any document is attached.
         await expect(page.getByRole('heading', { name: 'Read the documents' })).toBeVisible();
+    });
+
+    test('shows both origins in one list, and opens only the carrier’s own', async ({ page }) => {
+        await page.goto(START_URL);
+
+        // A driver-started row and a carrier-prepared row, in one table.
+        await expect(page.getByText('Dana Whitfield')).toBeVisible();
+        await expect(page.getByText('Marcus Iyer')).toBeVisible();
+        await expect(page.getByRole('button', { name: /Open the application for Marcus Iyer/i })).toBeVisible();
+        // The driver's own answers are not the carrier's to read, merged screen or
+        // not — and `getCompanyPreparedDraft` would refuse the row anyway.
+        await expect(page.getByRole('button', { name: /Open the application for Dana Whitfield/i })).toHaveCount(0);
+    });
+
+    test('the old start-application URL still lands somewhere useful', async ({ page }) => {
+        // A recruiter may have bookmarked it. A 404 would be a worse outcome than a
+        // redirect to where the feature went.
+        await page.goto(LEGACY_URL);
+
+        await expect(page.getByRole('heading', { level: 1, name: 'Unfinished applications' })).toBeVisible();
+        await expect(page).toHaveURL(/\/company\/drivers\/unfinished/);
+        // The auth parameter survived, or this page would be signed out.
+        await expect(page).toHaveURL(/e2eAuth=company_admin/);
     });
 });

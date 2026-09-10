@@ -21,8 +21,34 @@ const drafts = require('../../applicationDrafts');
 const draft = require('../../shared/applicationDraft');
 const {
     mockStore, mockAssertCompanyAccess, IDENTITY, COMPANY, CONTEXT, keyFor, saveFirstPage,
-    resetDraftState,
+    resetDraftState, mockServerTimestamp,
 } = require('./applicationDrafts.support');
+
+/** A draft the carrier prepared, written straight in — no callable needed to shape it. */
+function seedPreparedDraft(key, status) {
+    mockStore.set(`companies/${COMPANY}/application_drafts/${key}`, {
+        origin: 'company',
+        status,
+        contactEmail: 'prepared@example.test',
+        contactPhone: '2145550111',
+        formData: { firstName: 'Marcus', lastName: 'Iyer', cdlNumber: 'PREPARED-ONLY-1' },
+        lastSemanticStep: 'license',
+        lastStep: 2,
+        lockedEmployers: [{ companyName: 'Acme Trucking', dotNumber: '123456' }],
+        preparedBy: { uid: 'recruiter-1', name: 'Rae Recruiter' },
+        createdAt: mockServerTimestamp(),
+        updatedAt: mockServerTimestamp(),
+    });
+}
+
+/** The list, indexed by applicant key, so nothing depends on the double's ordering. */
+async function listByKey() {
+    const result = await drafts.listApplicationDrafts({
+        auth: { uid: 'recruiter-1' },
+        data: { companyId: COMPANY },
+    });
+    return { result, byKey: new Map(result.drafts.map((row) => [row.applicantKey, row])) };
+}
 
 beforeEach(resetDraftState);
 
@@ -150,6 +176,123 @@ describe('the company view of unfinished applications', () => {
         expect(serialized).not.toContain('D9988776');
         expect(serialized).not.toContain('drug-test-positive');
         expect(result.drafts[0]).not.toHaveProperty('formData');
+    });
+
+    /**
+     * The whole basis of the unified workspace, and the reason it cannot show a
+     * draft twice.
+     *
+     * Until 2026-09-10 a carrier-prepared draft was returned by this callable AND
+     * by the narrower `listCompanyPreparedApplications`, and the product listed it
+     * on two separate screens. One query over one collection means one row per
+     * document — there is no union to reconcile and no key to match wrongly — so
+     * the property below is structural, not a merge step to keep correct.
+     */
+    it('lists driver-started and carrier-prepared drafts together, once each', async () => {
+        await saveFirstPage();
+        seedPreparedDraft('aa11bb22cc33dd44ee55', 'sent');
+
+        const { result, byKey } = await listByKey();
+
+        expect(result.drafts).toHaveLength(2);
+        expect(byKey.size).toBe(2);
+
+        // The driver's own, which is what this callable always returned.
+        expect(byKey.get(keyFor())).toMatchObject({
+            origin: 'driver',
+            status: 'in_progress',
+            firstName: 'Dana',
+            lastSemanticStep: 'qualifications',
+        });
+
+        // And the carrier's, with the metadata that used to need a second call.
+        expect(byKey.get('aa11bb22cc33dd44ee55')).toMatchObject({
+            origin: 'company',
+            status: 'sent',
+            firstName: 'Marcus',
+            preparedBy: { name: 'Rae Recruiter' },
+            lockedEmployerCount: 1,
+            lastStep: 2,
+        });
+    });
+
+    it('still hands over no answers, for either origin', async () => {
+        // The property the widened shape must not have cost. `toCompanySummary`
+        // carries contact and progress; the answers are reached only through
+        // `getCompanyPreparedDraft`, where `companyMayReadAnswers` lives.
+        await saveFirstPage({ formData: { firstName: 'Dana', cdlNumber: 'DRIVER-ONLY-1' } });
+        seedPreparedDraft('aa11bb22cc33dd44ee55', 'driver_in_progress');
+
+        const { result } = await listByKey();
+
+        const serialized = JSON.stringify(result);
+        expect(serialized).not.toContain('DRIVER-ONLY-1');
+        expect(serialized).not.toContain('PREPARED-ONLY-1');
+        for (const row of result.drafts) {
+            expect(row).not.toHaveProperty('formData');
+            expect(row).not.toHaveProperty('identityKey');
+            expect(row).not.toHaveProperty('resumeTokenHash');
+        }
+    });
+
+    it('marks a taken-over prepared draft as the driver filling it in', async () => {
+        // The status the read rule turns on, carried into the worklist so a
+        // recruiter can see the state without the screen guessing at it.
+        seedPreparedDraft('aa11bb22cc33dd44ee55', 'driver_in_progress');
+
+        const { byKey } = await listByKey();
+
+        expect(byKey.get('aa11bb22cc33dd44ee55')).toMatchObject({
+            origin: 'company',
+            status: 'driver_in_progress',
+        });
+    });
+
+    it('reads a draft written before origin, status and step names existed', async () => {
+        // The drafts already live in production when this shipped. `origin` marks a
+        // carrier-prepared draft and its ABSENCE has always meant the driver typed
+        // it, so the unified worklist must read a bare legacy document as
+        // driver-started and unfinished rather than guessing "company" — which
+        // would offer a recruiter an Open on somebody else's application.
+        mockStore.set(`companies/${COMPANY}/application_drafts/f0f0f0f0f0f0f0f0f0f0`, {
+            contactEmail: 'legacy@example.test',
+            formData: { firstName: 'Older', lastName: 'Draft' },
+        });
+
+        const { byKey } = await listByKey();
+        const row = byKey.get('f0f0f0f0f0f0f0f0f0f0');
+
+        expect(row).toMatchObject({
+            origin: 'driver',
+            status: 'in_progress',
+            firstName: 'Older',
+            email: 'legacy@example.test',
+            lastStep: 0,
+            lastSemanticStep: null,
+            lockedEmployerCount: 0,
+            preparedBy: null,
+        });
+        // And no timestamps rather than an invented one.
+        expect(row.updatedAt).toBeNull();
+    });
+
+    it('drops a draft the moment it stops existing, which is what submission does', async () => {
+        // `submitGuestApplication` promotes the answers and DELETES the draft, and
+        // the workspace lists this collection and nothing else — so submission
+        // removes a row without anything having to remember to. Modest as a proof
+        // (the store is a double), but it pins the contract that matters after the
+        // consolidation: there is no second source and no cached list that could
+        // keep showing an application that has been filed.
+        await saveFirstPage();
+        seedPreparedDraft('aa11bb22cc33dd44ee55', 'sent');
+        expect((await listByKey()).result.drafts).toHaveLength(2);
+
+        mockStore.delete(`companies/${COMPANY}/application_drafts/${keyFor()}`);
+
+        const { result, byKey } = await listByKey();
+        expect(result.drafts).toHaveLength(1);
+        expect(byKey.has(keyFor())).toBe(false);
+        expect(byKey.has('aa11bb22cc33dd44ee55')).toBe(true);
     });
 
     it('requires company membership', async () => {

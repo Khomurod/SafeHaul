@@ -48,9 +48,18 @@ exports.getCompanyPreparedDraft = onCall({ cors: true }, async (request) => {
 /**
  * Every application this carrier has prepared, newest first.
  *
- * Contact and progress only, for every row — the list is a worklist ("who have we
- * started, who has not come back"), and a row that opens is read through
+ * Contact and progress only, for every row — and a row that opens is read through
  * `getCompanyPreparedDraft`, which applies the rule.
+ *
+ * **No longer what the unfinished-applications workspace lists.** Until 2026-09-10
+ * this was the list behind "Start an application" while `listApplicationDrafts`
+ * was the list behind "Started (unfinished)", and a carrier-prepared draft
+ * therefore appeared on both screens. The two are now one workspace reading
+ * `listApplicationDrafts` alone, so a draft is one row because it is one document.
+ * This callable keeps its narrower, company-scoped contract for any caller that
+ * wants exactly the carrier's own prepared work; it is deliberately not deleted,
+ * because nothing about it was wrong and removing a deployed callable is a larger
+ * change than the consolidation needed.
  */
 exports.listCompanyPreparedApplications = onCall({ cors: true }, async (request) => {
     const companyId = docId(request.data?.companyId, 100);

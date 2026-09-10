@@ -37,7 +37,7 @@ vi.mock('@features/driver-app/hooks/useGuestFileUpload', () => ({
     useGuestFileUpload: () => ({ handleFileUpload: vi.fn(), isUploading: false }),
 }));
 
-import { StartApplicationPage } from './StartApplicationPage';
+import { UnfinishedApplicationsPage } from './UnfinishedApplicationsPage';
 
 /** Saved keys are derived from the contact details, so a correction moves them. */
 const keyFor = (email) => `key-${email || 'none'}`;
@@ -53,7 +53,7 @@ beforeEach(() => {
     callables.httpsCallable.mockImplementation((_functions, name) => async (payload) => {
         callables.calls.push({ name, payload });
         if (callables.fail === name) throw Object.assign(new Error('nope'), { code: 'functions/unavailable' });
-        if (name === 'listCompanyPreparedApplications') return { data: { applications: [] } };
+        if (name === 'listApplicationDrafts') return { data: { drafts: [], retentionDays: 30 } };
         if (name === 'saveCompanyPreparedApplication') {
             return { data: { saved: true, applicantKey: keyFor(payload.email), lockedEmployers: [] } };
         }
@@ -67,7 +67,7 @@ beforeEach(() => {
 
 /** Into the editor, with a fresh application open. */
 async function openEditor() {
-    render(<StartApplicationPage />);
+    render(<UnfinishedApplicationsPage />);
     fireEvent.click(await screen.findByRole('button', { name: /Start an application/i }));
     fireEvent.click(await screen.findByRole('button', { name: /Start typing/i }));
     await screen.findByRole('heading', { name: 'Driver details' });

@@ -1,24 +1,20 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { httpsCallable } from 'firebase/functions';
-import { Icon, ArrowLeft, ArrowRight, Plus, Save } from '@design-system/icons';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Icon, ArrowLeft, ArrowRight, Save } from '@design-system/icons';
 
-import { functions } from '@lib/firebase';
-import { useData } from '@/context/DataContext';
 import { Button, Card, FieldMessage } from '@/design-system/components';
 import { PageContainer, PageHeader, Stack } from '@/design-system/layouts';
 import { useGuestFileUpload } from '@features/driver-app/hooks/useGuestFileUpload';
-import { useApplicationPrepDraft, describeError } from '../applicationPrep/useApplicationPrepDraft';
-import { useInviteLink } from '../applicationPrep/useInviteLink';
-import { PREP_ACTIONS, prepActionPreflight } from '../applicationPrep/prepActionPreflight';
-import ApplicationModeChooser from '../applicationPrep/ApplicationModeChooser';
-import ApplicationDocumentsPanel from '../applicationPrep/ApplicationDocumentsPanel';
-import ApplicationPrepEditor from '../applicationPrep/ApplicationPrepEditor';
-import ApplicationAiPrepPanel from '../applicationPrep/ApplicationAiPrepPanel';
-import InviteLinkPanel from '../applicationPrep/InviteLinkPanel';
-import PreparedApplicationsTable from '../applicationPrep/PreparedApplicationsTable';
+import { useApplicationPrepDraft } from './useApplicationPrepDraft';
+import { useInviteLink } from './useInviteLink';
+import { PREP_ACTIONS, prepActionPreflight } from './prepActionPreflight';
+import ApplicationModeChooser from './ApplicationModeChooser';
+import ApplicationDocumentsPanel from './ApplicationDocumentsPanel';
+import ApplicationPrepEditor from './ApplicationPrepEditor';
+import ApplicationAiPrepPanel from './ApplicationAiPrepPanel';
+import InviteLinkPanel from './InviteLinkPanel';
 
 /**
- * Starting a driver's application for them.
+ * Preparing one driver's application — the mode choice, the documents, the editor.
  *
  * ## Why a carrier can do this at all
  *
@@ -41,41 +37,54 @@ import PreparedApplicationsTable from '../applicationPrep/PreparedApplicationsTa
  * form where the email and phone — the fields that key the draft — are entered.
  * The only fields a driver cannot later change are the employers a PSP report
  * named, which stay locked to their identity.
- */
-/**
- * Move focus to a field the preflight named.
  *
- * `SchemaRenderer` suffixes its ids with `-edit` in edit mode, which is the mode
- * this screen is always in — the driver's wizard renders the same fields as
- * `#email`, which is what the e2e specs there point at. The preflight names the
- * logical field and this resolves it, so neither has to know about the other's
- * renderer. Tried in that order because this screen only ever has the first.
+ * ## Why it is a component and not the screen
+ *
+ * Split out of `StartApplicationPage` on 2026-09-10, when that screen and
+ * `Started (unfinished)` became one workspace. This is the *task*; the worklist
+ * around it is the *place*. `UnfinishedApplicationsPage` mounts one of these with
+ * a `key` per target, which is what makes "one driver never leaks into the next"
+ * structural rather than a reset somebody has to remember: a different driver is a
+ * different component instance, so the answers, the documents and the minted link
+ * cannot survive the move. `onExit` returns to the worklist, which reloads.
  */
 function focusPrepField(fieldId) {
+    // `SchemaRenderer` suffixes its ids with `-edit` in edit mode, which is the mode
+    // this screen is always in — the driver's wizard renders the same fields as
+    // `#email`, which is what the e2e specs there point at. The preflight names the
+    // logical field and this resolves it, so neither has to know about the other's
+    // renderer. Tried in that order because this screen only ever has the first.
     const field = document.getElementById(`${fieldId}-edit`) || document.getElementById(fieldId);
     field?.focus();
 }
 
-export function StartApplicationPage() {
-    const { currentCompanyProfile } = useData();
-    const companyId = currentCompanyProfile?.id;
-    const appSlug = currentCompanyProfile?.appSlug || companyId;
-
-    // list → mode → (upload, AI only) → editor.
-    const [view, setView] = useState('list');
+export function ApplicationPrepWorkspace({ companyId, appSlug, openKey = null, onExit }) {
+    // A new application starts at the fork; an existing one opens straight into the
+    // editor, because the choice of how to fill it in was made when it was created.
+    const [view, setView] = useState(openKey ? 'editor' : 'mode');
     const [intakeMode, setIntakeMode] = useState('ai');
     /**
      * The `File` objects this tab holds, keyed by upload field. An upload puts
      * `{name, url, storagePath}` into the form data and sends the bytes to Storage,
      * so the reader — which needs bytes — has nothing unless they are kept. As
-     * long-lived as this tab: a draft re-opened tomorrow has the documents on the
-     * application and nothing here, and the reader panel says so.
+     * long-lived as this component: a draft re-opened tomorrow has the documents on
+     * the application and nothing here, and the reader panel says so.
      */
     const [documentBlobs, setDocumentBlobs] = useState({});
-    const [applications, setApplications] = useState([]);
-    const [listLoading, setListLoading] = useState(true);
-    const [listError, setListError] = useState(null);
     const [readOnlyNotice, setReadOnlyNotice] = useState(null);
+    /**
+     * The draft this instance was opened for could not be read.
+     *
+     * Worth its own state because the alternative is worse in both directions. The
+     * previous screen returned early on a failed load and left the recruiter on the
+     * list with `prep.error` rendered nowhere, so the press did nothing at all;
+     * falling through to the editor instead would offer an empty editable form for
+     * a record that exists, which invites typing into a draft that is not the one
+     * they opened. (Nothing could be corrupted — the preflight refuses a save with
+     * no email or phone — but "your edits went somewhere" is not a thing to leave
+     * ambiguous.) So the error shows and the form does not.
+     */
+    const [loadFailed, setLoadFailed] = useState(false);
     /**
      * The reader is running, on whichever step is mounted.
      *
@@ -101,55 +110,48 @@ export function StartApplicationPage() {
     const invite = useInviteLink({ companyId, appSlug });
     const { handleFileUpload, isUploading } = useGuestFileUpload(companyId);
 
-    const loadList = useCallback(async () => {
-        if (!companyId) return;
-        setListLoading(true);
-        setListError(null);
-        try {
-            const call = httpsCallable(functions, 'listCompanyPreparedApplications');
-            const { data } = await call({ companyId });
-            setApplications(data?.applications || []);
-        } catch (error) {
-            setListError(describeError(error));
-            setApplications([]);
-        } finally {
-            setListLoading(false);
-        }
-    }, [companyId]);
-
-    useEffect(() => { loadList(); }, [loadList]);
-
-    // Everything this hook holds belongs to one applicant, and the email/phone in it
-    // key the draft — so a fresh start clears all of it before the next one, or one
-    // driver's answers, documents and locks save under another driver's key.
-    const clearForNew = useCallback(() => {
-        prep.reset();
-        invite.reset();
-        setDocumentBlobs({});
-        setReadOnlyNotice(null);
-        setReaderBusy(false);
-    }, [invite, prep]);
-
-    const startNew = useCallback(() => { clearForNew(); setView('mode'); }, [clearForNew]);
-    const chooseManual = useCallback(() => { setIntakeMode('manual'); setView('editor'); }, []);
-    const chooseAi = useCallback(() => { setIntakeMode('ai'); setView('upload'); }, []);
-
-    const openExisting = useCallback(async (entry) => {
-        // The previous application's link and documents go first — both are keyed to
-        // one driver.
-        invite.reset();
-        setDocumentBlobs({});
-        const result = await prep.load(entry.applicantKey);
-        if (!result) return;
-        // Once the driver has started, the answers are theirs — the screen says why
-        // the fields are empty rather than showing a blank form as if nothing had
-        // been filled in.
-        setReadOnlyNotice(result.readable
-            ? null
-            : 'This driver has started filling it in, so their answers are theirs now. You can still see how far they have got.');
-        setIntakeMode('ai');
-        setView('editor');
-    }, [invite, prep]);
+    /**
+     * Load the draft this instance was mounted for, once.
+     *
+     * The ref rather than an empty dependency list: `prep` is a fresh object on
+     * every render, so listing it re-runs this effect constantly and an empty list
+     * would lie about that. A `key` change remounts, so "once per instance" is
+     * once per target.
+     *
+     * ## Why the staleness guard is a mount flag and not a per-effect flag
+     *
+     * The obvious `let cancelled = false; return () => { cancelled = true; }` is
+     * wrong here, and it fails silently. `prep.load` sets state, which re-renders,
+     * which runs this effect's cleanup — cancelling the load that is still in
+     * flight — and the re-run then returns early at the guard above, so nothing
+     * ever revives it. The result: `setReadOnlyNotice` never fires, and a recruiter
+     * opening an application the driver has taken over sees an empty form with no
+     * explanation, which reads as "nothing was filled in" about work they did
+     * themselves. Caught by
+     * `UnfinishedApplicationsPage.prep.test.jsx` before it shipped; the flag below
+     * flips only on a real unmount, which is the thing actually worth checking.
+     */
+    const loadedFor = useRef(null);
+    const mounted = useRef(true);
+    useEffect(() => () => { mounted.current = false; }, []);
+    useEffect(() => {
+        if (!openKey || !companyId || loadedFor.current === openKey) return;
+        loadedFor.current = openKey;
+        (async () => {
+            const result = await prep.load(openKey);
+            if (!mounted.current) return;
+            if (!result) {
+                setLoadFailed(true);
+                return;
+            }
+            // Once the driver has started, the answers are theirs — the screen says
+            // why the fields are empty rather than showing a blank form as if
+            // nothing had been filled in.
+            setReadOnlyNotice(result.readable
+                ? null
+                : 'This driver has started filling it in, so their answers are theirs now. You can still see how far they have got.');
+        })();
+    }, [companyId, openKey, prep]);
 
     /**
      * Run an action, or say what it needs.
@@ -216,37 +218,12 @@ export function StartApplicationPage() {
     }, [prep]);
 
     const updateList = useCallback((key, value) => prep.updateField(key, value), [prep]);
-    const backToList = useCallback(() => { setView('list'); loadList(); }, [loadList]);
 
     const driverName = [prep.formData.firstName, prep.formData.lastName].filter(Boolean).join(' ');
     // Once a link exists — minted this session, or a loaded draft already `sent` —
     // the email and phone that key the draft are fixed: re-keying would strand the
     // link the driver already has. The editor renders them read-only.
     const identityLocked = prep.status === 'sent' || Boolean(invite.link);
-
-    if (view === 'list') {
-        return (
-            <PageContainer>
-                <Stack gap="lg">
-                    <PageHeader
-                        title="Start an application"
-                        description="Fill in what you already know from a driver's paperwork, then send them a link to finish and sign it. Nothing is filed until they do."
-                    />
-                    <div className="flex flex-wrap gap-ds-2">
-                        <Button variant="primary" onClick={startNew} disabled={!companyId}>
-                            <Icon icon={Plus} size="sm" /> Start an application
-                        </Button>
-                    </div>
-                    {listError && <Card padding="md"><FieldMessage tone="error">{listError}</FieldMessage></Card>}
-                    <PreparedApplicationsTable
-                        applications={applications}
-                        loading={listLoading}
-                        onOpen={openExisting}
-                    />
-                </Stack>
-            </PageContainer>
-        );
-    }
 
     if (view === 'mode') {
         return (
@@ -256,8 +233,11 @@ export function StartApplicationPage() {
                         title="How do you want to fill this in?"
                         description="Let the reader take what it can from the driver's documents, or type it yourself. Either way you review and edit everything before the driver ever sees it."
                     />
-                    <ApplicationModeChooser onChooseAi={chooseAi} onChooseManual={chooseManual} />
-                    <div><Button variant="ghost" onClick={() => setView('list')}>Cancel</Button></div>
+                    <ApplicationModeChooser
+                        onChooseAi={() => { setIntakeMode('ai'); setView('upload'); }}
+                        onChooseManual={() => { setIntakeMode('manual'); setView('editor'); }}
+                    />
+                    <div><Button variant="ghost" onClick={onExit}>Cancel</Button></div>
                 </Stack>
             </PageContainer>
         );
@@ -310,8 +290,8 @@ export function StartApplicationPage() {
                     description="Fill in what you know, including the driver's email and phone. The driver completes the rest, reviews all of it, and signs."
                 />
                 <div className="flex flex-wrap gap-ds-2">
-                    <Button variant="ghost" onClick={backToList}>
-                        <Icon icon={ArrowLeft} size="sm" /> Back to the list
+                    <Button variant="ghost" onClick={onExit}>
+                        <Icon icon={ArrowLeft} size="sm" /> Back to unfinished applications
                     </Button>
                     {/* Clickable even when something is missing: the press says what.
                         `loading` is the one honest `disabled` — an operation in
@@ -350,7 +330,7 @@ export function StartApplicationPage() {
                 {readOnlyNotice && <Card padding="md"><FieldMessage tone="help">{readOnlyNotice}</FieldMessage></Card>}
                 {prep.error && <Card padding="md"><FieldMessage tone="error">{prep.error}</FieldMessage></Card>}
 
-                {!readOnlyNotice && intakeMode === 'ai' && (
+                {!readOnlyNotice && !loadFailed && intakeMode === 'ai' && (
                     <ApplicationAiPrepPanel
                         companyId={companyId}
                         files={prep.formData}
@@ -362,7 +342,7 @@ export function StartApplicationPage() {
                     />
                 )}
 
-                {!readOnlyNotice && (
+                {!readOnlyNotice && !loadFailed && (
                     <ApplicationPrepEditor
                         companyId={companyId}
                         formData={prep.formData}
@@ -385,6 +365,7 @@ export function StartApplicationPage() {
                   * takeover the exchange returns no answers and no resume token.
                   * The panel says so rather than implying a read it cannot do.
                   */}
+                {!loadFailed && (
                 <InviteLinkPanel
                     link={invite.linkFor(prep.applicantKey)}
                     busy={invite.busy}
@@ -395,9 +376,10 @@ export function StartApplicationPage() {
                     onMint={createLink}
                     onCopy={copyLink}
                 />
+                )}
             </Stack>
         </PageContainer>
     );
 }
 
-export default StartApplicationPage;
+export default ApplicationPrepWorkspace;

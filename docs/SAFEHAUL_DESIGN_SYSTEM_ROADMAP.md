@@ -1837,6 +1837,60 @@ about the font, one layer down.
   employment history. Named rows, added/removed/changed, from the existing
   typography and tokens.
 
+**Updated 2026-09-10: those two company screens are now one, and the table is a
+new component rather than a widened old one.** `Started (unfinished)` and `Start
+an application` each carried a table — `listApplicationDrafts` filters by nothing,
+so a carrier-prepared draft appeared in both, with different columns and different
+actions. `UnfinishedWorklistTable` replaces `PreparedApplicationsTable` on the one
+remaining screen: `DataTable` at `density="compact"`, six columns (Driver | Started
+by | Status | Progress | Last activity | Action), `Badge` for the state, `Button` +
+`Icon` for the row actions and `FieldMessage` for a refused mint or clipboard.
+
+Three design decisions in it are worth recording:
+
+- **The state is a `Badge` whose label carries the meaning**, never the tone —
+  "Not sent yet", "Link sent", "Driver is filling it in", "Unfinished". No
+  internal status string reaches the recruiter, and a test asserts that
+  `driver_in_progress` appears nowhere in the rendered HTML.
+- **Row actions are not uniform, and the asymmetry is the point.** *Open* renders
+  only on the carrier's own rows. That is not styling: `getCompanyPreparedDraft`
+  refuses a draft the carrier did not author, so rendering it elsewhere would be a
+  control that cannot work — the same rule as "explain rather than prevent", one
+  level up. The decision lives in `unfinishedRowActions.js`, a pure module with
+  its own suite, because a rule buried in a column's `render` callback is a rule
+  nobody can test.
+- **The locked-employer count moved into the *Started by* cell** rather than
+  keeping a column. It only ever applies to a carrier-prepared row, and a seventh
+  column reading "None" against every driver-started one is noise where the point
+  was checkability.
+
+**Ten pixel baselines were re-recorded, not two, and the count is the point.** Two
+are this screen. The other eight are `company-dashboard`, `company-candidate-list`,
+`company-settings`, `company-profile`, `company-edocs`, `company-campaigns`,
+`company-leads` and `company-import-leads` — every screen that renders
+`CompanySidebar`, which lost an item and renamed another. `login` and `super-admin`
+passed untouched, and that is the signal worth reading: a change to the shell moves
+every screen inside it, while a run in which unrelated screens ALSO move is the
+wrong-browser-build failure the paragraph above describes. Recorded under the
+pinned revision, with `PW_CHROMIUM_EXECUTABLE` unset.
+
+Only `company-unfinished` needed a *mobile* re-record. The other seven company
+screens collapse the sidebar behind a hamburger at that width, so the navigation
+change is invisible there — a useful check that the ten were the right ten.
+
+The `?e2eUnfinished=mock` fixture now carries one row per state the table can
+show, so the baseline documents all four rather than only the driver-started case.
+
+**One defect in this work was found by looking at that baseline and could not have
+been found any other way.** Folding the contact details into the Driver column
+took away the room their own column used to give them — and Driver is the column
+`DataTable` PINS on a phone, so the longest address was clipped flush against the
+next column and read as running into it. `check:table-layout` cannot catch this: it
+drives catalog stories, and this is a feature table with no story. `break-words` on
+the contact lines fixes it. The lesson is narrow and worth keeping: **a guardrail
+scoped to the catalog is not a guarantee about a feature screen**, so a feature
+table that changes shape still wants a human to look at the mobile capture.
+
 One choice there is a rule rather than a preference, and it is the same one the
 driver wizard's locked employer rows follow: **a field the viewer may not change
 is a read-only display with a badge, never a disabled input.** A disabled input

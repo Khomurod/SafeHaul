@@ -1,6 +1,7 @@
 import React from 'react';
 import { COMPANY_ROUTE_MANIFEST } from './companyRouteManifest';
 import { LegacyInterestRedirect } from './LegacyInterestRedirect';
+import { StartApplicationRedirect } from './StartApplicationRedirect';
 
 const lazyNamed = (loader, exportName) =>
   React.lazy(() => loader().then((module) => ({ default: module[exportName] })));
@@ -32,10 +33,9 @@ export const featureScreens = Object.freeze({
     () => import('@features/company-admin/views/UnfinishedApplicationsPage'),
     'UnfinishedApplicationsPage',
   ),
-  startApplicationPage: lazyNamed(
-    () => import('@features/company-admin/views/StartApplicationPage'),
-    'StartApplicationPage',
-  ),
+  // Tiny synchronous redirect — the screen it replaced is now the primary action
+  // inside `companyUnfinishedApplications`. Not worth a lazy chunk.
+  startApplicationRedirect: StartApplicationRedirect,
   companyCampaignsPage: lazyNamed(
     () => import('@features/campaigns/pages/CompanyCampaignsPage'),
     'CompanyCampaignsPage',

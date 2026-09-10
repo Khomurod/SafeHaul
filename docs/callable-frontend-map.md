@@ -48,7 +48,6 @@ Maps each **`httpsCallable`** export in [`functions/index.js`](../functions/inde
 | `parseCdlWithGroq` | [`useCdlAutoFill.js`](../src/features/driver-app/hooks/useCdlAutoFill.js) | CDL image OCR. Routed through the shared AI platform; the vendor name is a retained compatibility alias |
 | `saveCompanyPreparedApplication` | [`useApplicationPrepDraft.js`](../src/features/company-admin/applicationPrep/useApplicationPrepDraft.js) | Company staff: stage a driver application the carrier filled in (a draft, never an `applications` document) |
 | `getCompanyPreparedDraft` | [`useApplicationPrepDraft.js`](../src/features/company-admin/applicationPrep/useApplicationPrepDraft.js) | Company staff: read back a prepared application — full answers only until the driver's first save |
-| `listCompanyPreparedApplications` | [`StartApplicationPage.jsx`](../src/features/company-admin/views/StartApplicationPage.jsx) | Company staff: the worklist of applications this carrier has started |
 | `mintApplicationInvite` | [`useInviteLink.js`](../src/features/company-admin/applicationPrep/useInviteLink.js) | Company staff: mint the driver's link (raw token returned once, 14-day expiry) |
 | `exchangeApplicationInvite` | [`publicApplyBootstrap.js`](../src/features/driver-app/components/application/publicApplyBootstrap.js) | **Guest:** open a carrier's link. Tiered on the draft's status: while it is `prepared`/`sent` the answers are the carrier's own, so it returns them with the locked employers and a resume token; once `driver_in_progress` it returns `requiresIdentity` alone and the driver proves who they are through `findResumableApplication` |
 | `extractCompanyApplicationDocuments` | [`ApplicationAiPrepPanel.jsx`](../src/features/company-admin/applicationPrep/ApplicationAiPrepPanel.jsx) | Company staff: read any subset of a driver's licence, medical card, PSP report and MVR — one text task, per-document vision fallback |
@@ -92,6 +91,7 @@ These are exported and may be used by **scripts**, **future UI**, **legacy clien
 | Callable | Notes |
 |----------|-------|
 | `backfillSmsSentPhones` | Per-company SMS phone backfill; only `backfillAllSmsSentPhones` is wired in UI |
+| `listCompanyPreparedApplications` | Was the list behind "Start an application" until 2026-09-10, when that screen and "Started (unfinished)" became one workspace reading `listApplicationDrafts` alone. Kept, not deleted: its narrower `origin == 'company'` contract is correct and still tested, and removing a deployed callable is a larger change than the consolidation needed |
 | `executeReactivationBatch` | SMS reactivation batch; referenced in bulk session comments, no `src/` caller |
 | `migrateEmailSettings` | One-time migration; invoke callable manually (ops) |
 | `reconcileCompanyDashboardStats` | KPI reconciliation callable ([`dashboardStatsRollup.js`](../functions/dashboardStatsRollup.js)) |
@@ -205,7 +205,7 @@ value-free audit record.
 | `findResumableApplication` | same | "Is there an unfinished application to continue?" Answers with a short-lived token or a **uniform no-match** — identical whether nothing exists, something exists under a different contact detail, or the applicant has already submitted. Rate-limited per caller *and* per identity. |
 | `resumeApplicationDraft` | same | Exchanges the token for the saved answers and the step to return to. The token is the authorization, so it does not re-ask the identity questions. |
 | `startNewApplication` | same | Hard-deletes the matched draft in a transaction, so there is never a window with two live drafts for one person. |
-| `listApplicationDrafts` | [`UnfinishedApplicationsPage.jsx`](../src/features/company-admin/views/UnfinishedApplicationsPage.jsx) | Staff-facing, 2nd-generation, company-guarded: who started and did not finish, with contact details only. No answers, and no way to open or edit one — an unfinished application is a call to make, not a record in the ATS funnel. |
+| `listApplicationDrafts` | [`UnfinishedApplicationsPage.jsx`](../src/features/company-admin/views/UnfinishedApplicationsPage.jsx) | Staff-facing, 2nd-generation, company-guarded, and since 2026-09-10 the **only** list behind the unified unfinished-applications workspace: every unfinished draft, both origins, one row per document. Contact, progress and the carrier's own workflow metadata — never answers. Opening a row goes through `getCompanyPreparedDraft`, which serves the carrier's own prepared work and refuses anything else, so a driver-started application still cannot be read. |
 
 Neither the draft nor any of these responses carries an SSN. See
 [`docs/firestore-data-model.md`](./firestore-data-model.md) →
