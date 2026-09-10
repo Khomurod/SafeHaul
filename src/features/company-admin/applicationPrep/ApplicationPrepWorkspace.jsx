@@ -118,28 +118,35 @@ export function ApplicationPrepWorkspace({ companyId, appSlug, openKey = null, o
      * would lie about that. A `key` change remounts, so "once per instance" is
      * once per target.
      *
-     * ## Why the staleness guard is a mount flag and not a per-effect flag
+     * ## There is deliberately no staleness guard, and that took two tries to learn
      *
-     * The obvious `let cancelled = false; return () => { cancelled = true; }` is
-     * wrong here, and it fails silently. `prep.load` sets state, which re-renders,
-     * which runs this effect's cleanup — cancelling the load that is still in
-     * flight — and the re-run then returns early at the guard above, so nothing
-     * ever revives it. The result: `setReadOnlyNotice` never fires, and a recruiter
-     * opening an application the driver has taken over sees an empty form with no
-     * explanation, which reads as "nothing was filled in" about work they did
-     * themselves. Caught by
-     * `UnfinishedApplicationsPage.prep.test.jsx` before it shipped; the flag below
-     * flips only on a real unmount, which is the thing actually worth checking.
+     * Both of the obvious ones break this feature, silently, and both were caught
+     * only because a test asserts the notice below actually appears:
+     *
+     * 1. `let cancelled = false` with a cleanup that sets it. `prep.load` sets
+     *    state, which re-renders, which runs this effect's cleanup — cancelling the
+     *    load still in flight — and the re-run returns early at the guard above, so
+     *    nothing revives it.
+     * 2. A `mounted` ref written only in a cleanup. `main.jsx` renders inside
+     *    `React.StrictMode`, which replays setup/cleanup/setup in development, so
+     *    the flag is left `false` forever and every load's continuation is
+     *    discarded — in dev builds only, which is worse than always.
+     *
+     * Either way the recruiter opens an application the driver has taken over and
+     * sees an empty form with no explanation, which reads as "nothing was filled
+     * in" about work they did themselves.
+     *
+     * So: no guard. `loadedFor` already makes this run once per instance, and the
+     * only thing a guard would add is suppressing a `setState` after unmount —
+     * which React 19 ignores silently, with no warning and nothing leaked. A guard
+     * that is not there cannot be got wrong, and this one has been got wrong twice.
      */
     const loadedFor = useRef(null);
-    const mounted = useRef(true);
-    useEffect(() => () => { mounted.current = false; }, []);
     useEffect(() => {
         if (!openKey || !companyId || loadedFor.current === openKey) return;
         loadedFor.current = openKey;
         (async () => {
             const result = await prep.load(openKey);
-            if (!mounted.current) return;
             if (!result) {
                 setLoadFailed(true);
                 return;

@@ -237,6 +237,30 @@ describe('a prepared application the driver has taken over', () => {
         expect(screen.queryByTestId('ai-panel')).toBeNull();
     });
 
+    /**
+     * The same thing again, under `StrictMode` — which is what `main.jsx` actually
+     * renders the app inside.
+     *
+     * React replays an effect's setup/cleanup/setup in development, and a mount
+     * flag written only in the cleanup is therefore left `false` forever: the load
+     * resolves, the staleness guard rejects it, and the notice never appears. The
+     * plain-render case above passes throughout, so this is the case that has to
+     * exist — it is the one the recruiter actually meets in a dev build, and it is
+     * the SECOND guard in this effect to fail this way (the first cancelled its own
+     * in-flight load). Found in review on 2026-09-10.
+     */
+    it('says it under StrictMode too, which is how the app is really rendered', async () => {
+        render(
+            <React.StrictMode>
+                <UnfinishedApplicationsPage />
+            </React.StrictMode>,
+        );
+        fireEvent.click(await screen.findByText('open key-taken'));
+
+        expect(await screen.findByText(/their answers are theirs now/i)).toBeInTheDocument();
+        expect(screen.queryByTestId('prep-editor')).toBeNull();
+    });
+
     it('still offers the link panel, because they may have lost their link', async () => {
         render(<UnfinishedApplicationsPage />);
         await openTakenOver();
@@ -267,6 +291,29 @@ describe('a row that will not open', () => {
         await waitFor(() => expect(screen.queryByTestId('prep-editor')).toBeNull());
         expect(screen.getByText(/Back to unfinished applications/)).toBeInTheDocument();
         // And no link panel for a record it could not read.
+        expect(screen.queryByTestId('invite-link')).toBeNull();
+    });
+
+    it('says it under StrictMode too, where the guard used to swallow it', async () => {
+        // The other half of the same defect: a discarded continuation skips
+        // `setLoadFailed` as readily as it skips the ownership notice, so the
+        // failed open would fall back to an editable form for a record it never
+        // read — in development builds only.
+        callables.httpsCallable.mockImplementation((_functions, name) => async (payload) => {
+            callables.calls.push({ name, payload });
+            if (name === 'getCompanyPreparedDraft') {
+                throw Object.assign(new Error('nope'), { code: 'functions/unavailable' });
+            }
+            return callableFor(name)(payload);
+        });
+        render(
+            <React.StrictMode>
+                <UnfinishedApplicationsPage />
+            </React.StrictMode>,
+        );
+        fireEvent.click(await screen.findByText('open key-dana'));
+
+        await waitFor(() => expect(screen.queryByTestId('prep-editor')).toBeNull());
         expect(screen.queryByTestId('invite-link')).toBeNull();
     });
 });
