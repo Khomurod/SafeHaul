@@ -15,8 +15,9 @@
  * and it runs on both sides of the signer's visit: `getPublicEnvelope` stamps
  * what is shown and `submitPublicEnvelope` stamps what is stored and sealed.
  * Keeping both on the server clock is the point — a device with a wrong date
- * cannot display one day and have the PDF print another. The browser copy is
- * for the recruiter-side signer preview only.
+ * cannot display one day and have the PDF print another. `getPublicEnvelope`
+ * also reports the instant it stamped, so a room left open across UTC midnight
+ * can re-check against this clock before it submits instead of the device's.
  */
 
 /** Same grammar as the placeholder tokens the prefill engine resolves. */

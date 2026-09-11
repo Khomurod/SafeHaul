@@ -15,11 +15,12 @@
  * so nothing in here may import back. It is MIRRORED by `functions/shared/signedDate.js`,
  * which is the authoritative copy — `functions/` is CommonJS and deployed
  * separately, so the two cannot import each other and any change must be made
- * in both. The SIGNER never meets this copy: the server stamps what they are
- * shown (`getPublicEnvelope`) and what is stored (`submitPublicEnvelope`), so a
- * mis-set device clock cannot put a date on screen that the sealed PDF then
- * contradicts. This copy serves the recruiter-side signer preview, which has no
- * signer and no server round trip.
+ * in both. The server, not this copy, decides the date: it stamps what the signer
+ * is shown (`getPublicEnvelope`) and what is stored (`submitPublicEnvelope`), so
+ * a mis-set device clock cannot put a date on screen that the sealed PDF then
+ * contradicts. This copy serves the recruiter-side signer preview, and the
+ * signing room's re-check for a session that spans UTC midnight — which reads the
+ * server's own clock off `serverTime` rather than the device's.
  */
 
 /** Same grammar as `prefillEngine`'s TOKEN_PATTERN — kept local to avoid a cycle. */
@@ -93,4 +94,29 @@ export function stampSignedDateFields(fields = [], now = new Date()) {
         const value = resolveSignedDateValue(field, now);
         return value === null ? field : { ...field, defaultValue: value };
     });
+}
+
+/**
+ * Re-stamp an envelope that is already open, for the case a signing session
+ * spans UTC midnight: the room showed the day the document was opened while the
+ * server will seal the day it was submitted. Returns `null` when nothing moved,
+ * so a caller can skip the state update entirely — which is every submission but
+ * the rare one that crosses the boundary.
+ *
+ * A value the signer has TYPED is left alone: it is theirs, and the server
+ * decides the stored value for a Date Signed field regardless. Only a value that
+ * still matches the stamp it was seeded with follows the new one.
+ */
+export function rollSignedDateFields(fields = [], fieldValues = {}, at = new Date()) {
+    const next = stampSignedDateFields(fields, at);
+    if (!next.some((field, i) => field?.defaultValue !== fields[i]?.defaultValue)) return null;
+
+    const nextValues = { ...fieldValues };
+    next.forEach((field, i) => {
+        const before = fields[i];
+        if (!field || !before || field.defaultValue === before.defaultValue) return;
+        if (nextValues[field.id] === before.defaultValue) nextValues[field.id] = field.defaultValue;
+    });
+
+    return { fields: next, fieldValues: nextValues };
 }

@@ -56,7 +56,7 @@ export default function SigningRoom() {
     const navigate = useNavigate();
     const accessToken = searchParams.get('token');
     const isMobile = useIsMobile();
-    const { showError } = useToast();
+    const { showError, showWarning } = useToast();
 
     // Post-application flow: the apply page stores a return path for its own
     // requests before navigating here. Recruiter-sent documents have none, so
@@ -65,11 +65,8 @@ export default function SigningRoom() {
 
     // Envelope loading + field-value initialization (draft merge, locked-field
     // seeding, E2E mock) live in useSigningEnvelope.
-    const { request, fieldValues, setFieldValues, loading, error } = useSigningEnvelope({
-        companyId,
-        requestId,
-        accessToken,
-    });
+    const { request, fieldValues, setFieldValues, loading, error, refreshSignedDate } =
+        useSigningEnvelope({ companyId, requestId, accessToken });
     // ESIGN-8 FIX: Track electronic consent before allowing signing.
     // UETA (15 U.S.C. Sec. 96) and ESIGN Act (15 U.S.C. Sec. 7001) require affirmative consent
     // to use electronic records/signatures. Without this screen, e-signatures may not be
@@ -217,6 +214,19 @@ export default function SigningRoom() {
     }, [activeSignature, handleFieldChange]);
 
     const handleFinishSigning = async () => {
+        // Date Signed is stamped by the server when this submission lands. If the
+        // server's day has rolled over while the document sat open, what is on
+        // screen is no longer what will be printed — so correct the document and
+        // let the signer look at it, rather than sealing a date they never saw.
+        const movedDateField = refreshSignedDate();
+        if (movedDateField) {
+            showWarning(
+                'The date has changed. The Date Signed on this document has been updated — please review it and submit again.'
+            );
+            scrollToField(movedDateField);
+            return;
+        }
+
         if (lockedRequiredMissing.length > 0) {
             showError(
                 'This document has required locked fields with no value. Please ask the sender to correct and resend it.'

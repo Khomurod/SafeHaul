@@ -157,6 +157,18 @@ describe('getPublicEnvelope', () => {
     }
   });
 
+  it('reports the instant it stamped, so the room can see the day roll over', async () => {
+    // Without it the room would have to ask the device clock whether the day has
+    // changed before submitting, which is the clock this whole rule distrusts.
+    jest.useFakeTimers().setSystemTime(new Date('2026-09-11T23:55:00Z'));
+    try {
+      const result = await getPublicEnvelope(validRequest);
+      expect(result.serverTime).toBe('2026-09-11T23:55:00.000Z');
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it('returns signed status without PDF when already signed', async () => {
     mockGet.mockResolvedValue({
       exists: true,

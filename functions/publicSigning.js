@@ -124,17 +124,25 @@ exports.getPublicEnvelope = onCall({ cors: true }, async (request) => {
                 expires: Date.now() + 60 * 60 * 1000
             });
 
+            // A Date Signed field is delivered unresolved and stamped HERE,
+            // from the server clock, so the signer reads the day they are
+            // actually signing. Doing it in the browser instead would print
+            // whatever a mis-set device clock claimed, while the stored value
+            // and the sealed PDF still came from this machine — the same
+            // screen-versus-PDF disagreement this whole rule exists to end.
+            const viewedAt = new Date();
+
             return {
                 title: data.title,
                 recipientName: data.recipientName,
                 // recipientEmail intentionally omitted — never expose PII on public endpoint
-                // A Date Signed field is delivered unresolved and stamped HERE,
-                // from the server clock, so the signer reads the day they are
-                // actually signing. Doing it in the browser instead would print
-                // whatever a mis-set device clock claimed, while the stored value
-                // and the sealed PDF still came from this machine — the same
-                // screen-versus-PDF disagreement this whole rule exists to end.
-                fields: stampSignedDateFields(normalizePublicFields(data.fields)),
+                fields: stampSignedDateFields(normalizePublicFields(data.fields), viewedAt),
+                // The instant the line above was stamped. A document left open
+                // across UTC midnight would otherwise show the day it was opened
+                // while `submitPublicEnvelope` sealed the day it was submitted —
+                // so the room re-checks against THIS clock before it submits,
+                // rather than against a device clock it cannot trust.
+                serverTime: viewedAt.toISOString(),
                 pdfUrl: url,
                 status: data.status
             };

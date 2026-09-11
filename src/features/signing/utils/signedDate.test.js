@@ -4,6 +4,7 @@ import {
     SIGNING_DATE_PLACEHOLDER,
     formatSignedDate,
     resolveSignedDateValue,
+    rollSignedDateFields,
     stampSignedDateFields,
 } from './signedDate';
 import { buildPrefillContext, resolveFieldForSend } from './prefillEngine';
@@ -168,5 +169,81 @@ describe('the send path defers the signing date', () => {
         });
         expect(field.defaultValue).toBe('June 1, 2026');
         expect(resolveSignedDateValue(field, SIGNED_ON)).toBe('September 11, 2026');
+    });
+});
+
+describe('a signing session that crosses UTC midnight', () => {
+    // Opened on the 11th, submitted on the 12th. Without the roll, the signer
+    // approves a document showing the 11th while the server seals the 12th.
+    const OPENED_AT = new Date('2026-09-11T23:55:00Z');
+    const SUBMITTED_AT = new Date('2026-09-12T00:05:00Z');
+
+    const openEnvelope = () => stampSignedDateFields([
+        {
+            id: 'date_signed',
+            type: 'date',
+            required: true,
+            prefillPolicy: 'locked',
+            bindingKey: SIGNING_DATE_KEY,
+            defaultValue: SIGNING_DATE_PLACEHOLDER,
+        },
+        { id: 'dob', type: 'text', bindingKey: 'dob', defaultValue: 'January 2, 1980' },
+    ], OPENED_AT);
+
+    it('reports nothing to do while the day has not moved', () => {
+        expect(rollSignedDateFields(openEnvelope(), {}, OPENED_AT)).toBeNull();
+    });
+
+    it('reports nothing to do for an envelope with no signing date at all', () => {
+        const fields = [{ id: 'name', type: 'text', defaultValue: 'Artificial Person' }];
+        expect(rollSignedDateFields(fields, { name: 'Artificial Person' }, SUBMITTED_AT)).toBeNull();
+    });
+
+    it('moves the field and the value it seeded, and nothing else', () => {
+        const fields = openEnvelope();
+        expect(fields[0].defaultValue).toBe('September 11, 2026');
+
+        const rolled = rollSignedDateFields(
+            fields,
+            { date_signed: 'September 11, 2026', dob: 'January 2, 1980' },
+            SUBMITTED_AT,
+        );
+
+        expect(rolled.fields[0].defaultValue).toBe('September 12, 2026');
+        expect(rolled.fieldValues.date_signed).toBe('September 12, 2026');
+        expect(rolled.fields[1]).toBe(fields[1]);
+        expect(rolled.fieldValues.dob).toBe('January 2, 1980');
+    });
+
+    it('leaves a value the signer typed alone', () => {
+        // Their words are theirs; the server decides the stored Date Signed
+        // anyway, so there is nothing to gain by overwriting what they wrote.
+        const fields = openEnvelope();
+
+        const rolled = rollSignedDateFields(
+            fields,
+            { date_signed: '1999-01-01', dob: 'January 2, 1980' },
+            SUBMITTED_AT,
+        );
+
+        expect(rolled.fields[0].defaultValue).toBe('September 12, 2026');
+        expect(rolled.fieldValues.date_signed).toBe('1999-01-01');
+    });
+
+    it('cannot roll a hand-typed token once it has been resolved — a known limit', () => {
+        // A field carries its meaning in `bindingKey`, which survives resolution.
+        // A bare `{{current_date}}` typed into free text does not: once the
+        // server has stamped it for display there is nothing left in the field
+        // that says the date came from there, and guessing by looking for the
+        // date string would also rewrite a hire date that happens to be today.
+        // The SEALED value is still right — `submitPublicEnvelope` reads the
+        // stored template, where the token is intact — so what lags across UTC
+        // midnight is this one field's on-screen preview, not the record.
+        const fields = stampSignedDateFields([
+            { id: 'attestation', type: 'text', defaultValue: 'Signed on {{current_date}}' },
+        ], OPENED_AT);
+
+        expect(fields[0].defaultValue).toBe('Signed on September 11, 2026');
+        expect(rollSignedDateFields(fields, {}, SUBMITTED_AT)).toBeNull();
     });
 });
