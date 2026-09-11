@@ -2,6 +2,11 @@ const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { admin, db } = require('./firebaseAdmin');
 const { checkRateLimit } = require('./shared/rateLimiter');
 const { assertCompanyAcceptingIntake } = require('./shared/companyTenant');
+const {
+  SIGNING_DATE_KEY,
+  SIGNING_DATE_PLACEHOLDER,
+  resolveSignedDateValue,
+} = require('./shared/signedDate');
 
 const DOUBLE_TOKEN_PATTERN = /\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g;
 const SINGLE_TOKEN_PATTERN = /\{([a-zA-Z0-9_]+)\}/g;
@@ -30,6 +35,20 @@ function formatDateForPlaceholder(date = new Date()) {
     month: 'long',
     day: 'numeric',
   });
+}
+
+/**
+ * A follow-up document is created the moment an application is submitted and may
+ * be signed days later, so the signing date is NOT resolved here. It travels as
+ * a sentinel through both token passes — a brace-free string, because re-emitting
+ * `{{current_date}}` in the double pass would leave `{current_date}` for the
+ * single-brace pass to eat — and is restored to the canonical placeholder
+ * afterwards. `submitPublicEnvelope` stamps it with the real signing date.
+ */
+const DEFERRED_SIGNING_DATE = '\u0000signed_date\u0000';
+
+function restoreDeferredSigningDate(text) {
+  return normalizeString(text).split(DEFERRED_SIGNING_DATE).join(SIGNING_DATE_PLACEHOLDER);
 }
 
 function normalizePrefillPolicy(field = {}) {
@@ -89,7 +108,7 @@ function buildPrefillContextFromApplication(application = {}, companyName = '') 
     email,
     phone,
     company_name: normalizeString(companyName).trim(),
-    current_date: formatDateForPlaceholder(),
+    [SIGNING_DATE_KEY]: DEFERRED_SIGNING_DATE,
     date: formatDateForPlaceholder(),
     address: normalizeString(application.street).trim(),
     city: normalizeString(application.city).trim(),
@@ -108,6 +127,10 @@ function buildPrefillContextFromApplication(application = {}, companyName = '') 
     context[normalized] = normalizeString(value).trim();
   }
 
+  // Applied last: an application field whose name normalizes to `current_date`
+  // must not be able to resolve the signing date back to creation time.
+  context[SIGNING_DATE_KEY] = DEFERRED_SIGNING_DATE;
+
   return context;
 }
 
@@ -124,7 +147,8 @@ function resolveFieldForPostSubmit(field = {}, context = {}) {
     };
   }
 
-  const hasResolvedValue = isPresent(resolved.value);
+  const resolvedValue = restoreDeferredSigningDate(resolved.value);
+  const hasResolvedValue = isPresent(resolvedValue);
   const readOnly = policy === 'locked' && hasResolvedValue;
   const shouldBlockMissingLockedRequired =
     Boolean(field.required) && policy === 'locked' && !hasResolvedValue;
@@ -132,7 +156,7 @@ function resolveFieldForPostSubmit(field = {}, context = {}) {
   return {
     field: {
       ...field,
-      defaultValue: resolved.value,
+      defaultValue: resolvedValue,
       readOnly,
       prefillPolicy: policy,
     },
@@ -348,8 +372,13 @@ exports.createPostApplicationSigningRequest = onCall({ cors: true }, async (requ
       status: 'sent',
       storagePath: template.storagePath,
       fields: resolvedFields,
+      // A Date Signed field has no value yet — it is stamped when the signer
+      // submits — so it is deliberately absent here rather than seeded with its
+      // own unresolved placeholder.
       fieldValues: resolvedFields.reduce((acc, field) => {
-        if (isPresent(field.defaultValue)) acc[field.id] = field.defaultValue;
+        if (isPresent(field.defaultValue) && resolveSignedDateValue(field) === null) {
+          acc[field.id] = field.defaultValue;
+        }
         return acc;
       }, {}),
       recipientName: recipientName || null,

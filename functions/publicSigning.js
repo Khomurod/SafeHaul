@@ -2,6 +2,11 @@ const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { admin, db, storage } = require("./firebaseAdmin");
 const crypto = require('crypto');
 const { checkRateLimit } = require("./shared/rateLimiter");
+const {
+    SIGNING_DATE_KEY,
+    resolveSignedDateValue,
+    stampSignedDateFields,
+} = require("./shared/signedDate");
 
 // ESIGN-5 FIX: Constant-time token comparison to eliminate timing side-channel attacks.
 // JavaScript's !== operator short-circuits on the first differing character, leaking token length
@@ -123,7 +128,13 @@ exports.getPublicEnvelope = onCall({ cors: true }, async (request) => {
                 title: data.title,
                 recipientName: data.recipientName,
                 // recipientEmail intentionally omitted — never expose PII on public endpoint
-                fields: normalizePublicFields(data.fields),
+                // A Date Signed field is delivered unresolved and stamped HERE,
+                // from the server clock, so the signer reads the day they are
+                // actually signing. Doing it in the browser instead would print
+                // whatever a mis-set device clock claimed, while the stored value
+                // and the sealed PDF still came from this machine — the same
+                // screen-versus-PDF disagreement this whole rule exists to end.
+                fields: stampSignedDateFields(normalizePublicFields(data.fields)),
                 pdfUrl: url,
                 status: data.status
             };
@@ -197,10 +208,10 @@ exports.submitPublicEnvelope = onCall({ cors: true }, async (request) => {
             claimCommitted = true;
         });
 
-        const fields = Array.isArray(requestData?.fields)
-            ? requestData.fields.filter((f) => f && f.id)
-            : [];
-        const allowedFieldIds = new Set(fields.map((f) => String(f.id)));
+        const rawFields = Array.isArray(requestData?.fields) ? requestData.fields : [];
+        const allowedFieldIds = new Set(
+            rawFields.filter((f) => f && f.id).map((f) => String(f.id)),
+        );
 
         const bucket = storage.bucket();
         const finalValues = {};
@@ -223,6 +234,40 @@ exports.submitPublicEnvelope = onCall({ cors: true }, async (request) => {
                 finalValues[key] = value;
             }
         }
+
+        // DATE-SIGNED FIX: a field whose meaning is "Date Signed" takes the date
+        // the signer actually finished, never the date the document was created
+        // or sent. This machine decides it, exactly as it decided what to show in
+        // `getPublicEnvelope`, so a stale local draft, a wrong device clock or a
+        // hand-edited payload cannot backdate a signature. Stamping happens
+        // BEFORE the required-field check so a locked Date Signed field delivered
+        // as an unresolved placeholder can never read as missing.
+        const signedOn = new Date();
+        let stampedAnySignedDate = false;
+        const sealedFields = rawFields.map((field) => {
+            if (!field || !field.id) return field;
+            const stamped = resolveSignedDateValue(field, signedOn);
+            if (stamped === null) return field;
+            stampedAnySignedDate = true;
+
+            // The Date Signed field IS the date, so the server's answer always
+            // wins. A field that merely MENTIONS the date ("{{full_name}} signed
+            // on {{current_date}}") can also be an editable box the signer typed
+            // in, and replacing the whole string would throw their words away —
+            // there, the existing locked/editable convention decides, exactly as
+            // it does for every other prefill.
+            const isDateSignedField =
+                String(field.bindingKey || '').trim().toLowerCase() === SIGNING_DATE_KEY;
+            const submitted = finalValues[field.id];
+            const signerTypedSomething = typeof submitted === 'string' && submitted.trim() !== '';
+
+            if (isDateSignedField || isLockedFieldForSubmit(field) || !signerTypedSomething) {
+                finalValues[field.id] = stamped;
+            }
+            return { ...field, defaultValue: stamped };
+        });
+
+        const fields = sealedFields.filter((f) => f && f.id);
 
         const missingRequired = [];
         for (const field of fields) {
@@ -275,6 +320,11 @@ exports.submitPublicEnvelope = onCall({ cors: true }, async (request) => {
         await docRef.update({
             status: 'pending_seal',
             fieldValues: finalValues,
+            // Only rewritten when a Date Signed field was actually stamped, so a
+            // document without one keeps the exact array it was sent with. The
+            // sealer falls back to `field.defaultValue` when a value is absent,
+            // which is why the placeholder must not survive into the record.
+            ...(stampedAnySignedDate ? { fields: sealedFields } : {}),
             signedAt: admin.firestore.FieldValue.serverTimestamp(),
             auditTrail: {
                 ...auditData,

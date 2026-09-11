@@ -1,4 +1,5 @@
 import { parseIsoDateParts } from '@shared/utils/dateFormHelpers';
+import { SIGNING_DATE_KEY, SIGNING_DATE_PLACEHOLDER } from './signedDate';
 
 const TOKEN_PATTERN = /{{\s*([a-zA-Z0-9_]+)\s*}}/g;
 
@@ -71,14 +72,23 @@ export function buildPrefillContext({
   return baseContext;
 }
 
-export function resolveTemplateText(template, context = {}) {
+/**
+ * `preserveKeys` names tokens that must survive this pass verbatim, in their
+ * canonical `{{key}}` spelling. Only the signing date uses it: its value is not
+ * knowable until the signer submits, so resolving it here is what stamped the
+ * creation date onto the document. A preserved token is not "unresolved" — it
+ * is deferred on purpose, and nothing downstream should treat it as missing.
+ */
+export function resolveTemplateText(template, context = {}, { preserveKeys = [] } = {}) {
   const raw = normalizeString(template);
   const tokens = extractTemplateTokens(raw);
   const unresolvedTokens = [];
+  const preserved = new Set(preserveKeys.map(normalizeTokenKey));
 
   TOKEN_PATTERN.lastIndex = 0;
   const value = raw.replace(TOKEN_PATTERN, (_, tokenKey) => {
     const key = normalizeTokenKey(tokenKey);
+    if (preserved.has(key)) return `{{${key}}}`;
     const mapped = context[key];
     if (!isPresent(mapped)) {
       unresolvedTokens.push(key);
@@ -114,13 +124,24 @@ export function resolveFieldForSend(field = {}, context = {}, options = {}) {
 
   const bindingKey = normalizeTokenKey(field.bindingKey);
 
-  let resolved = resolveTemplateText(templateText, context);
-  if (!templateText && bindingKey && isPresent(context[bindingKey])) {
-    resolved = {
-      value: normalizeString(context[bindingKey]),
-      tokens: [],
-      unresolvedTokens: [],
-    };
+  // The signing date is the one value a sender cannot know, so it is carried
+  // through delivery as its own token and stamped when the signer submits.
+  // `deferSigningDate: false` is for previews, which have no signer and must
+  // show a real date rather than a placeholder.
+  const deferSigningDate = options.deferSigningDate !== false;
+  const preserveKeys = deferSigningDate ? [SIGNING_DATE_KEY] : [];
+
+  let resolved = resolveTemplateText(templateText, context, { preserveKeys });
+  if (!templateText && bindingKey) {
+    if (deferSigningDate && bindingKey === SIGNING_DATE_KEY) {
+      resolved = { value: SIGNING_DATE_PLACEHOLDER, tokens: [], unresolvedTokens: [] };
+    } else if (isPresent(context[bindingKey])) {
+      resolved = {
+        value: normalizeString(context[bindingKey]),
+        tokens: [],
+        unresolvedTokens: [],
+      };
+    }
   }
 
   const resolvedValue = resolved.value;

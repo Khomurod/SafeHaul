@@ -324,6 +324,49 @@ describe('createPostApplicationSigningRequest', () => {
     expect(res.success).toBe(true);
   });
 
+  it('leaves the signing date unresolved so it is stamped when the driver signs', async () => {
+    // A follow-up document is created the instant an application is submitted and
+    // may be signed days later. Resolving `current_date` here is what printed the
+    // submission date on a document signed a week afterwards.
+    mockTemplateGet.mockResolvedValue({
+      exists: true,
+      data: () => ({
+        title: 'W-9 Form',
+        storagePath: 'secure_documents/co1/templates/w9.pdf',
+        fields: [
+          {
+            id: 'date_signed',
+            type: 'date',
+            required: true,
+            readOnly: true,
+            bindingKey: 'current_date',
+            defaultValue: '{{current_date}}',
+          },
+          // The single-brace spelling this callable also supports, inside text.
+          { id: 'attested', type: 'text', required: false, defaultValue: '{first_name} signed on {current_date}' },
+          { id: 'name', type: 'text', required: false, defaultValue: '{{first_name}} {{last_name}}' },
+        ],
+      }),
+    });
+
+    const res = await createPostApplicationSigningRequest(baseReq);
+    expect(res.success).toBe(true);
+
+    const payload = requestPayloadFromTxnSet();
+    const dateSigned = payload.fields.find((f) => f.id === 'date_signed');
+    expect(dateSigned.defaultValue).toBe('{{current_date}}');
+    // Deferred, not missing: the field is still locked and still sendable.
+    expect(dateSigned.readOnly).toBe(true);
+    // Ordinary application data is still resolved at creation, exactly as before.
+    expect(payload.fields.find((f) => f.id === 'attested').defaultValue)
+      .toBe('Anthony signed on {{current_date}}');
+    // Nothing pretends a value that depends on the signing date already exists,
+    // while everything that is genuinely known is seeded as before.
+    expect(payload.fieldValues).not.toHaveProperty('date_signed');
+    expect(payload.fieldValues).not.toHaveProperty('attested');
+    expect(payload.fieldValues.name).toBe('Anthony Collins');
+  });
+
   it('marks locked fields readOnly when value is prefilled', async () => {
     mockTemplateGet.mockResolvedValueOnce({
       exists: true,

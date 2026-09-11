@@ -317,6 +317,27 @@ fields (optionally AI-suggested), send them, and recipients sign at
 `/sign/:companyId/:requestId` **with no account**. Signed envelopes are sealed
 into tamper-evident PDFs. Signing is unlimited and not billed per envelope.
 
+**Date Signed is stamped when the signer submits, never when the document is
+created.** Every other prefill — a name, an address, a date of birth, a hire
+date, a licence expiry — is already true when an envelope goes out and is
+resolved then. The `current_date` binding is not: it means *the day the signer
+finished*, so it travels through delivery as an unresolved `{{current_date}}`
+placeholder and is stamped once, server-side, by `submitPublicEnvelope`. That
+covers every path that shares the field vocabulary — recruiter-sent envelopes,
+templates, and the post-application follow-up documents
+(`functions/postApplicationEdocs.js`) — and it repairs documents sent before the
+rule existed, because a field still *bound* to `current_date` is restamped even
+when an older send baked a literal date into it. `getPublicEnvelope` stamps the
+same value for display, so the date on screen and the date in the sealed PDF
+both come from the server clock and a mis-set device clock cannot make them
+disagree; both render in **UTC**, which also matches the `signedAt` server
+timestamp. The
+rule is deliberately narrow: only the Date Signed binding and the
+`{{current_date}}` token are touched, and an editable box that merely mentions
+the date keeps whatever the signer typed into it. One definition, mirrored in
+`src/features/signing/utils/signedDate.js` and `functions/shared/signedDate.js`
+(CommonJS cannot import the app's ESM), so any change must be made in both.
+
 **Previous employment verification (PEV).** A company admin sends a request to a
 past employer, who answers through a token portal with a reminder cycle (§8).
 The employer signs the response **drawn or typed** (since 2026-09-06): a typed
