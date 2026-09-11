@@ -20,6 +20,7 @@ import {
     isFieldLocked,
     resolveFieldsForSend,
 } from '@features/signing/utils/prefillEngine';
+import { stampSignedDateFields } from '@features/signing/utils/signedDate';
 import { sortFieldsForFlow } from '@features/signing/utils/signerFieldFlow';
 
 /**
@@ -73,7 +74,10 @@ export function buildSignerPreview({
 
     // Resolve first (editor shape), then serialize — the send path's order.
     const { fields: resolved, missingLockedRequired } = resolveFieldsForSend(fields, context);
-    const signerFields = serializeTemplateFields(resolved);
+    // The send path deliberately leaves the signing date unresolved; the signing
+    // room stamps it on load. A preview that stopped at the send path would show
+    // a signer a literal `{{current_date}}`, so it takes the same second step.
+    const signerFields = serializeTemplateFields(stampSignedDateFields(resolved, now || new Date()));
 
     // What the recipient would still have to fill in: required, not locked, and
     // with no prefilled value.

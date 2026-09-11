@@ -108,6 +108,67 @@ describe('getPublicEnvelope', () => {
     expect(result.fields[0].yPosition).toBe(34);
   });
 
+  it('shows the signer the day they are signing, not the day it was sent', async () => {
+    // The browser is deliberately NOT the one that decides this: a device with a
+    // wrong clock would print a date the sealed PDF never agrees with.
+    jest.useFakeTimers().setSystemTime(new Date('2026-09-11T12:00:00Z'));
+    try {
+      mockGet.mockResolvedValue({
+        exists: true,
+        data: () =>
+          baseEnvelope({
+            expiresAt: { toMillis: () => Date.now() + 3600000 },
+            fields: [
+              {
+                id: 'date_signed',
+                type: 'date',
+                pageNumber: 1,
+                required: true,
+                readOnly: true,
+                prefillPolicy: 'locked',
+                bindingKey: 'current_date',
+                defaultValue: '{{current_date}}',
+              },
+              // Sent before the fix, with the creation date already baked in.
+              {
+                id: 'legacy_date_signed',
+                type: 'date',
+                pageNumber: 1,
+                required: true,
+                bindingKey: 'current_date',
+                defaultValue: 'May 7, 2026',
+              },
+              { id: 'dob', type: 'text', pageNumber: 1, bindingKey: 'dob', defaultValue: 'January 2, 1980' },
+              { id: 'hire_date', type: 'date', pageNumber: 1, defaultValue: 'March 1, 2026' },
+            ],
+          }),
+      });
+
+      const byId = Object.fromEntries(
+        (await getPublicEnvelope(validRequest)).fields.map((f) => [f.id, f]),
+      );
+      expect(byId.date_signed.defaultValue).toBe('September 11, 2026');
+      expect(byId.legacy_date_signed.defaultValue).toBe('September 11, 2026');
+      // Every other date on the same page is shown exactly as it is stored.
+      expect(byId.dob.defaultValue).toBe('January 2, 1980');
+      expect(byId.hire_date.defaultValue).toBe('March 1, 2026');
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('reports the instant it stamped, so the room can see the day roll over', async () => {
+    // Without it the room would have to ask the device clock whether the day has
+    // changed before submitting, which is the clock this whole rule distrusts.
+    jest.useFakeTimers().setSystemTime(new Date('2026-09-11T23:55:00Z'));
+    try {
+      const result = await getPublicEnvelope(validRequest);
+      expect(result.serverTime).toBe('2026-09-11T23:55:00.000Z');
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it('returns signed status without PDF when already signed', async () => {
     mockGet.mockResolvedValue({
       exists: true,

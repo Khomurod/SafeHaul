@@ -6,11 +6,12 @@
  * seeding locked/default values and merging any persisted local draft.
  * Presentation, navigation, and submission stay in SigningRoom.
  */
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
 import { isFieldLocked } from '@features/signing/utils/prefillEngine';
 import { normalizeSignerField } from '@features/signing/utils/signerFieldStyle';
+import { rollSignedDateFields } from '@features/signing/utils/signedDate';
 import { readDraft } from '@features/signing/utils/signingDraft';
 import { getE2EQueryParam, isE2ETestMode } from '@lib/runtime/e2eMode';
 
@@ -92,6 +93,11 @@ export function useSigningEnvelope({ companyId, requestId, accessToken }) {
     const [fieldValues, setFieldValues] = useState({});
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    // How far this device's clock sits from the server's, measured once from the
+    // instant the server stamped the Date Signed fields. Everything time-related
+    // in this room is derived through it, so a wrong device clock cannot put a
+    // date on screen that the sealed document will contradict.
+    const clockOffsetMs = useRef(0);
 
     useEffect(() => {
         async function load() {
@@ -126,6 +132,9 @@ export function useSigningEnvelope({ companyId, requestId, accessToken }) {
                     data.fields = data.fields.filter(f => f != null).map(normalizeSignerField);
                 }
 
+                const serverNow = Date.parse(data.serverTime || '');
+                clockOffsetMs.current = Number.isFinite(serverNow) ? serverNow - Date.now() : 0;
+
                 setRequest(data);
 
                 if (data.fields) {
@@ -141,5 +150,24 @@ export function useSigningEnvelope({ companyId, requestId, accessToken }) {
         load();
     }, [companyId, requestId, accessToken]);
 
-    return { request, fieldValues, setFieldValues, loading, error };
+    /**
+     * Bring the displayed Date Signed up to the server's current day, for the
+     * document that was opened before UTC midnight and is being submitted after
+     * it. Returns the first field that moved — so the caller can stop, say so and
+     * show the signer where — or null when the day has not changed, which is
+     * every submission but the rare one that crosses the boundary.
+     */
+    const refreshSignedDate = useCallback(() => {
+        if (!Array.isArray(request?.fields) || request.fields.length === 0) return null;
+        const at = new Date(Date.now() + clockOffsetMs.current);
+        const rolled = rollSignedDateFields(request.fields, fieldValues, at);
+        if (!rolled) return null;
+        setRequest((prev) => (prev ? { ...prev, fields: rolled.fields } : prev));
+        setFieldValues(rolled.fieldValues);
+        return rolled.fields.find(
+            (field, i) => field?.defaultValue !== request.fields[i]?.defaultValue,
+        ) || null;
+    }, [request, fieldValues]);
+
+    return { request, fieldValues, setFieldValues, loading, error, refreshSignedDate };
 }

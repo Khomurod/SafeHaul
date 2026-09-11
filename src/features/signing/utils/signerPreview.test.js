@@ -9,6 +9,7 @@ import {
 } from './signerPreview';
 import { serializeTemplateFields } from './templateFieldSerializer';
 import { buildPrefillContext, resolveFieldsForSend } from './prefillEngine';
+import { stampSignedDateFields } from './signedDate';
 
 const field = (id, overrides = {}) => ({
     id,
@@ -31,10 +32,19 @@ const field = (id, overrides = {}) => ({
 const NOW = new Date('2026-03-04T12:00:00Z');
 
 describe('buildSignerPreview', () => {
-    it('produces exactly what the send path would produce', () => {
+    it('produces exactly what the send path would produce, then stamps the signing date', () => {
         const fields = [
             field('a', { bindingKey: 'full_name', defaultValue: '{{full_name}}' }),
             field('b', { type: 'signature', defaultValue: '' }),
+            // The send path leaves this one unresolved on purpose; the preview
+            // has to take the signing room's second step or it would show a
+            // reviewer a literal `{{current_date}}`.
+            field('c', {
+                type: 'date',
+                bindingKey: 'current_date',
+                defaultValue: '{{current_date}}',
+                prefillPolicy: 'locked',
+            }),
         ];
 
         const preview = buildSignerPreview({
@@ -54,9 +64,12 @@ describe('buildSignerPreview', () => {
             companyName: 'Artificial Freight Co',
             now: NOW,
         });
-        const expected = serializeTemplateFields(resolveFieldsForSend(fields, context).fields);
+        const expected = serializeTemplateFields(
+            stampSignedDateFields(resolveFieldsForSend(fields, context).fields, NOW),
+        );
 
         expect(preview.fields).toEqual(expected);
+        expect(preview.fields.find((f) => f.id === 'c').defaultValue).toBe('March 4, 2026');
     });
 
     it('emits signer-shaped geometry, not editor-shaped', () => {

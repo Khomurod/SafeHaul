@@ -21,6 +21,7 @@ import {
     initialPlainPrefillState,
     resolveFieldsForSend,
 } from '@features/signing/utils/prefillEngine';
+import { resolveSignedDateValue } from '@features/signing/utils/signedDate';
 
 export function useTemplateSendFlow({
     currentCompanyProfile,
@@ -175,8 +176,11 @@ export function useTemplateSendFlow({
                 appBaseUrl: window.location.origin, // DOMAIN FIX: Store sender's domain for backend link generation
                 fields: autoFilledFields,
                 templateId: selectedTemplate.id,
+                // A Date Signed field has no value yet — it is stamped when the
+                // signer submits — so it is deliberately absent here rather than
+                // seeded with its own unresolved placeholder.
                 fieldValues: autoFilledFields.reduce((acc, f) => {
-                    if (f.defaultValue) acc[f.id] = f.defaultValue;
+                    if (f.defaultValue && resolveSignedDateValue(f) === null) acc[f.id] = f.defaultValue;
                     return acc;
                 }, {})
             };
