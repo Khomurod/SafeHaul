@@ -182,7 +182,7 @@ export const ModernDriverTable = memo(function ModernDriverTable({
                         {ariaLabel}. Scroll horizontally to view all columns.
                     </caption>
                     {/* ── Header ── */}
-                    <thead className="sticky top-0 z-ds-sticky">
+                    <thead className="sticky top-0 z-ds-raised">
                         <tr>
                             {showCheckboxes && (
                                 <th scope="col" className="w-12">

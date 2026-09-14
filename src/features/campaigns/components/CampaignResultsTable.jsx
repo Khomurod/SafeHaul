@@ -105,7 +105,7 @@ export function CampaignResultsTable({ companyId, campaignId }) {
             >
                 <table className="ds-native-table min-w-[640px]" data-density="compact" data-row-hover data-pin-first-column>
                     <caption className="sr-only">Recipient delivery log</caption>
-                    <thead className="sticky top-0 z-ds-sticky">
+                    <thead className="sticky top-0 z-ds-raised">
                         <tr>
                             <th scope="col">Recipient</th>
                             <th scope="col">Contact</th>

@@ -72,9 +72,18 @@
   min-width: 920px;
 }
 
+/*
+ * `raised`, not `sticky`. A table header is PAGE CONTENT: it must cover the
+ * rows beneath it and nothing else. `sticky` is the application-chrome rung the
+ * workspace topbar sits on, and a tie there is decided by DOM order — the table
+ * comes after the topbar, so a sticky header on that rung painted over the
+ * topbar's own open dropdown. The pinned-column `isolate` used to hide this,
+ * but it only applies to a table that pins, so the correctness of the chrome
+ * must not depend on it.
+ */
 .ds-data-table thead {
   position: sticky;
-  z-index: var(--ds-z-sticky);
+  z-index: var(--ds-z-raised);
   top: 0;
 }
 
