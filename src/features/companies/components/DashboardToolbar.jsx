@@ -82,7 +82,15 @@ export const DashboardToolbar = memo(function DashboardToolbar({
 
 
     return (
-        <div className="relative z-ds-dropdown flex shrink-0 flex-col gap-ds-3 border-b border-ds-border-subtle bg-ds-surface p-ds-4">
+        /*
+         * No stacking layer. This toolbar overlays nothing — the filter panel
+         * below expands in flow rather than floating over the table — and
+         * `z-ds-dropdown` on a page container outranked the workspace topbar,
+         * which sits on `sticky`. Everything the topbar contains is trapped in
+         * the topbar's own stacking context, so the open notifications panel
+         * could never climb over a page element on the dropdown layer.
+         */
+        <div className="relative flex shrink-0 flex-col gap-ds-3 border-b border-ds-border-subtle bg-ds-surface p-ds-4">
 
             <div className="flex flex-col items-center justify-between gap-ds-4 sm:flex-row">
                 <div className="flex flex-wrap items-center gap-ds-4">

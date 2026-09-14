@@ -1182,6 +1182,49 @@ programme rests on: **a test that targets a utility class is coupled to how the
 thing looks, and how a thing looks is exactly what this work frees up to
 change.**
 
+### Which rung a thing is entitled to — the half the scale cannot state
+
+Added 2026-09-14, after the company Notifications dropdown was found rendering
+*under* page toolbars and sticky table headers on Driver Applications, Company
+Leads and My Leads.
+
+The scale was fine. `tokens.test.js` asserted strict ordering and every layer had
+a utility. What nothing asserted is the other half: **which rung a given thing is
+entitled to**, and that is where this bug lived.
+
+`.ds-workspace__topbar` is `position: relative; z-index: var(--ds-z-sticky)`, so
+it is a stacking context and **everything inside it is capped at `sticky` against
+the page** — the notifications panel included, however correctly its own
+`z-ds-dropdown` reads *within* that context. So:
+
+- a page element on `dropdown` (30) beats the entire chrome outright. The
+  candidate/lead toolbar carried `z-ds-dropdown` and overlays nothing — its
+  filter panel expands in flow — so the layer was never doing any work.
+- a page element on `sticky` (20) **ties** with the chrome, and a tie is decided
+  by DOM order, which the page always wins because it comes after the topbar.
+  `DataTable`'s sticky header carried `z-ds-sticky`, as did four hand-written
+  `<thead>`s and the custom-questions header.
+
+The second half had been hiding behind `isolation: isolate`: the pinned-column
+rule wraps the scroll region in one, and every `DataTable` pins by default. So
+the header was contained by an opt-out-able side effect of a *different* feature,
+and `pinFirstColumn={false}` would have re-exposed it with nothing to catch that.
+
+**The rule, stated once: application chrome is `sticky`, the page chrome that
+scrolls beneath it is `raised`, a real dropdown is `dropdown`.** That is not new
+— `foundation.css` already said it, in the paragraph about Company Settings'
+header covering the topbar's drop shadow — it simply was not enforced.
+
+`tests/stackingLayers.test.js` enforces it now, and the shape of what it can
+check is worth keeping. "Is this page content?" is a judgement call, so it is not
+asked over the whole tree; **`<thead>` is unambiguously page content**, so the
+one rule stated tree-wide is that no table header may sit on the chrome rung or
+above. The named sites — the topbar's own layer, the notifications panel, the
+candidate toolbar — are pinned individually with the reason attached. Measured in
+Chromium before and after against the tree's real token values: with the old
+values the toolbar and the header painted over the open panel at both probe
+points; with the new ones the panel is on top.
+
 ### The second rule that parses — a class list held in a variable
 
 Added 2026-09-05, and it is the paragraph above ("the rest of the file still
@@ -1956,7 +1999,7 @@ every consumer that can use it does:
 |---|---|---|
 | Dialog shell | `patterns/modal` | 2026-08-22 |
 | Dialog **chrome** (size / scroll / fill / mobile / placement / tone) | `patterns/modal` → `Modal.css` | 2026-09-05 |
-| **Stacking layers** | `tokens/foundation.css` → `--ds-z-*` | 2026-09-05 — 74 raw values to one recorded exception |
+| **Stacking layers** | `tokens/foundation.css` → `--ds-z-*`, entitlement in `tests/stackingLayers.test.js` | 2026-09-05 — 74 raw values to one recorded exception; 2026-09-14 — which rung a thing may claim, after page chrome on `sticky`/`dropdown` covered the notifications panel |
 | Confirmation dialog | `patterns/modal` → `ConfirmDialog` | 2026-08-25 |
 | Toast / notification | `shared/components/feedback/ToastProvider` — **not in the design system** | consumers complete; primitive not promoted |
 | Empty / error / loading state | `patterns/page-state` | 2026-08-25 |
