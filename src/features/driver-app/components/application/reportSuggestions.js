@@ -17,6 +17,7 @@
  *    and end dates stay theirs to enter.
  */
 import { ENDORSEMENT_OPTIONS, LICENSE_CLASS_OPTIONS } from '@/config/form-options';
+import { toUsStateName } from '@shared/utils/usStates';
 import { EMPTY_EMPLOYER } from './steps/components/employmentRowShapes';
 
 export const REPORT_KINDS = Object.freeze({
@@ -42,11 +43,16 @@ export function integrationEnabled(profile, kind) {
 const normalizeText = (value) => String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
 const digits = (value) => String(value || '').replace(/\D/g, '');
 
-export function carrierAlreadyListed(employers, carrier) {
+/** The employer row a carrier sighting is already on the application as, or null. */
+export function findListedCarrier(employers, carrier) {
     const list = Array.isArray(employers) ? employers : [];
     const dot = digits(carrier?.dotNumber);
     const name = normalizeText(carrier?.name);
-    return list.some((row) => (dot && digits(row?.dotNumber) === dot) || (name && normalizeText(row?.companyName) === name));
+    return list.find((row) => (dot && digits(row?.dotNumber) === dot) || (name && normalizeText(row?.companyName) === name)) || null;
+}
+
+export function carrierAlreadyListed(employers, carrier) {
+    return findListedCarrier(employers, carrier) !== null;
 }
 
 /** An employer row from a carrier sighting: name and USDOT only, dates left blank. */
@@ -125,7 +131,11 @@ const FULL_DATE = /^\d{4}-\d{2}-\d{2}$/;
 export function licenseFillPlan(formData, license) {
     const offered = {
         cdlNumber: String(license?.cdlNumber || '').trim(),
-        cdlState: String(license?.cdlState || '').trim().toUpperCase(),
+        // A record prints a postal code and the readers are asked for one; the
+        // licence-state picker holds names, and upper-casing alone produced "TX"
+        // (and "TEXAS"), which it rendered as "Alabama". Mapped like the class and
+        // the endorsements beside it: to one of the form's own options, or nothing.
+        cdlState: toUsStateName(license?.cdlState),
         cdlClass: normalizeLicenseClass(license?.cdlClass),
         cdlExpiration: FULL_DATE.test(String(license?.cdlExpiration || '')) ? license.cdlExpiration : '',
         endorsements: (Array.isArray(license?.endorsements) ? license.endorsements : [])

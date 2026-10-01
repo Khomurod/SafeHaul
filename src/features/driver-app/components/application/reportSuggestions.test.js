@@ -86,12 +86,15 @@ describe('license fill plan', () => {
             ['cdlExpiration', 'fill'],
             ['endorsements', 'fill'],
         ]);
-        expect(licensePatch(plan)).toEqual({ cdlState: 'TX', cdlClass: 'Class A', cdlExpiration: '2030-12-31', endorsements: 'H,N' });
+        // 'tx' is filled as 'Texas': the licence-state picker holds names, and given
+        // the code it rendered "Alabama" (2026-10-01).
+        expect(licensePatch(plan)).toEqual({ cdlState: 'Texas', cdlClass: 'Class A', cdlExpiration: '2030-12-31', endorsements: 'H,N' });
         expect(licensePatch(plan)).not.toHaveProperty('cdlNumber');
     });
 
     it('offers nothing for a value the form cannot hold', () => {
-        const plan = licenseFillPlan({}, { cdlClass: 'Commercial', cdlExpiration: '2030-12', endorsements: ['Z'] });
+        const plan = licenseFillPlan({}, { cdlState: 'ON', cdlClass: 'Commercial', cdlExpiration: '2030-12', endorsements: ['Z'] });
+        expect(plan.find((row) => row.id === 'cdlState').action).toBe('none');
         expect(plan.find((row) => row.id === 'cdlClass').action).toBe('none');
         expect(plan.find((row) => row.id === 'cdlExpiration').action).toBe('none');
         expect(plan.find((row) => row.id === 'endorsements').action).toBe('none');

@@ -36,7 +36,7 @@ const functions = require('firebase-functions/v1');
 const { checkRateLimit } = require('../shared/rateLimiter');
 const { assertCompanyAccess } = require('../shared/companyAccess');
 const { extractApplicationDocuments, DOCUMENT_KINDS } = require('../ai/tasks/applicationDocumentExtraction');
-const { extractReportSuggestions } = require('../ai/tasks/reportExtraction');
+const { extractReportSuggestions, looseDateToIso } = require('../ai/tasks/reportExtraction');
 const { extractCdlFields } = require('../ai/tasks/cdlExtraction');
 const { extractMedicalCardFields } = require('../ai/tasks/medicalCardExtraction');
 
@@ -107,14 +107,19 @@ function visionReaderFor(kind) {
             return async (imageDataUrls) => {
                 const result = await extractCdlFields({ imageDataUrl: imageDataUrls[0] });
                 const fields = result.fields || {};
+                // The licence reader keeps dates "exactly as printed" — its own prompt
+                // asks for that — so they are normalised here, as every other reader's
+                // already were. Passed through, "03/11/1988" filled the carrier's date
+                // of birth as a value no date control can show, and the expiration was
+                // dropped by the fill plan as not being a date at all (2026-10-01).
                 return {
                     driver: {
                         firstName: fields.firstName || '',
                         lastName: fields.lastName || '',
-                        dateOfBirth: fields.dateOfBirth || '',
+                        dateOfBirth: looseDateToIso(fields.dateOfBirth),
                         fullAddress: fields.fullAddress || '',
                     },
-                    license: { cdlNumber: fields.cdlNumber || '', cdlExpiration: fields.expirationDate || '' },
+                    license: { cdlNumber: fields.cdlNumber || '', cdlExpiration: looseDateToIso(fields.expirationDate) },
                 };
             };
         case 'medical':

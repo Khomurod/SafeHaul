@@ -143,6 +143,17 @@ describe('the vision fallback', () => {
         expect(result.extracted.violations[0].source).toBe('psp');
     });
 
+    it('returns a licence photo\'s dates as dates, not as printed', async () => {
+        // The licence reader keeps dates "exactly as printed". Passed through, the
+        // carrier's date of birth held "03/11/1988" — a value no date control can
+        // show — and the expiration was dropped by the fill plan (2026-10-01).
+        const result = await call({ cdl: { pages: [PAGE] } });
+
+        expect(result.methods).toEqual({ cdl: 'vision' });
+        expect(result.extracted.driver.dateOfBirth).toBe('1988-03-11');
+        expect(result.extracted.license.cdlExpiration).toBe('2030-12-31');
+    });
+
     it('mixes both routes in one request and reports which was used for what', async () => {
         const result = await call({ psp: { text: 'PSP body' }, medical: { pages: [PAGE] } });
 

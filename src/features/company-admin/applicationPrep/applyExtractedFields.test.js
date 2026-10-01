@@ -7,6 +7,11 @@
  * both, and a lock on one side has to find its row on the other.
  */
 import { describe, expect, it } from 'vitest';
+import {
+    lockedEmployerIssues,
+    normalizeLockedEmployers,
+    reconcileLockedEmployers,
+} from '@/config/applicationLockedFields';
 import { applyExtractedFields } from './applyExtractedFields';
 
 const EXTRACTED = {
@@ -31,8 +36,10 @@ describe('filling an empty application', () => {
 
         expect(formData).toMatchObject({
             firstName: 'Dana', lastName: 'Alvarez', dob: '1988-03-11',
-            street: '1 Main St', city: 'Dallas', state: 'TX', zip: '75001',
-            cdlNumber: 'TX1234567', cdlState: 'TX', cdlClass: 'Class A',
+            // The licence prints 'TX'; the driver's state pickers hold names and
+            // rendered the code as "Alabama" (2026-10-01), so both are filled as one.
+            street: '1 Main St', city: 'Dallas', state: 'Texas', zip: '75001',
+            cdlNumber: 'TX1234567', cdlState: 'Texas', cdlClass: 'Class A',
             cdlExpiration: '2030-12-31', endorsements: 'H,N', medCardExpiration: '2027-06-30',
         });
         expect(added.fields).toBeGreaterThan(8);
@@ -86,7 +93,7 @@ describe('an application the recruiter already typed into', () => {
     it('still fills the fields that were blank', () => {
         const { formData } = applyExtractedFields(TYPED, EXTRACTED, OPTIONS);
         expect(formData.lastName).toBe('Alvarez');
-        expect(formData.cdlState).toBe('TX');
+        expect(formData.cdlState).toBe('Texas');
     });
 
     it('does not add an employer or a violation it already has', () => {
@@ -130,5 +137,58 @@ describe('a partial answer', () => {
     it('survives an empty or missing extraction', () => {
         expect(applyExtractedFields({}, {}, OPTIONS).formData.employers).toEqual([]);
         expect(applyExtractedFields({}, null, OPTIONS).added).toEqual({ employers: 0, violations: 0, fields: 0 });
+    });
+});
+
+/*
+ * A lock the driver can satisfy, whatever the report's spelling.
+ *
+ * The reader matches a report's carrier to a row already on the application by
+ * USDOT number or by name. It used to lock the REPORT's spelling, so a row the
+ * recruiter typed as "Acme Trucking LLC" was locked as "ACME TRUCKING": every
+ * carrier save kept the lock (same USDOT signature), and the driver was then
+ * refused at submission with `locked-employer-changed` on a name the wizard shows
+ * them as a record they cannot edit (2026-10-01). Driven here through the same
+ * functions the save and the submission use.
+ */
+describe('locking a carrier that is already on the application', () => {
+    const lockAndSubmit = (rows, carrier) => {
+        const { formData, lockedCarriers } = applyExtractedFields(
+            { employers: rows }, { carriers: [carrier] }, OPTIONS,
+        );
+        const saved = reconcileLockedEmployers(normalizeLockedEmployers(lockedCarriers), formData);
+        return { formData, saved, issues: lockedEmployerIssues(saved, formData) };
+    };
+
+    it('locks the row as it stands when the report spells the carrier differently', () => {
+        const { formData, saved, issues } = lockAndSubmit(
+            [{ id: 1, companyName: 'Acme Trucking LLC', dotNumber: '123456' }],
+            { name: 'ACME TRUCKING', dotNumber: '123456' },
+        );
+        expect(formData.employers).toHaveLength(1);
+        expect(saved).toHaveLength(1);
+        expect(saved[0].companyName).toBe('Acme Trucking LLC');
+        expect(issues).toEqual([]);
+    });
+
+    it('keeps the lock when the row matched by name has no USDOT number', () => {
+        const { saved, issues } = lockAndSubmit(
+            [{ id: 1, companyName: 'Acme Trucking', dotNumber: '' }],
+            { name: 'ACME TRUCKING', dotNumber: '123456' },
+        );
+        expect(saved).toHaveLength(1);
+        expect(issues).toEqual([]);
+    });
+});
+
+describe('dates a date control cannot show', () => {
+    it('are left for a person to enter rather than filled where nobody sees them', () => {
+        const { formData } = applyExtractedFields({}, {
+            driver: { firstName: 'Dana', dateOfBirth: '03/11/1988' },
+            license: { medCardExpiration: '2027-06' },
+        }, OPTIONS);
+        expect(formData.firstName).toBe('Dana');
+        expect(formData).not.toHaveProperty('dob');
+        expect(formData).not.toHaveProperty('medCardExpiration');
     });
 });

@@ -1209,6 +1209,17 @@ lock, which is the whole thing the lock prevents. `lockedEmployerCount` — comp
 and returned all along, and rendered nowhere — is now in the worklist, so the
 number is checkable rather than a thing to trust.
 
+**The AI reader locks the row, not the report's spelling.** When a report names a
+carrier already on the application, matched by name or USDOT number, the lock
+records that row's own name and number as they stand. Locking the report's
+spelling produced locks no driver could satisfy (found 2026-10-01). A row "Acme
+Trucking LLC" matched by number to the report's "ACME TRUCKING" passed every
+carrier save, then failed submission as `locked-employer-changed`, on a name the
+driver sees as a record they cannot edit. A row matched by name with no number gave
+the lock a signature no row had, and the next save silently dropped it. The reader
+also reads the whole USDOT value before taking its digits: cutting it to twelve
+characters first turned "USDOT 1234567" into the lockable identity "123456".
+
 **The lock follows the applicant, not the document id.** A draft's id is
 `sha256(company:email:phone)`, so a driver who corrects their own email or phone
 on page one writes to a different document than the carrier prepared. The
@@ -1287,6 +1298,16 @@ is hidden and not required until a company opts in, and `emergencyContacts` is
 hidden by default, because flipping either would retroactively change or block
 every existing company's application.
 
+**A US state is stored as its full name.** Both of the wizard's state pickers list
+the fifty names in `src/shared/utils/usStates.js`, which the company editors'
+options also read, and every writer converts to one: CDL photo auto-fill, the MVR
+import and the carrier's AI reader. Documents print postal codes, and until
+2026-10-01 those were stored as "TX". A `<select>` given a value it has no option
+for shows its first enabled option, so a driver with an Austin address saw
+"Alabama" in both pickers while the form held "TX", and the step's validation
+passed because the value was not empty. A value no name matches is now left for
+the driver rather than stored. A stored value the list cannot name, such as an
+older record, is shown as itself rather than as somebody else's state.
 **ATS statuses are stored strings.** `src/shared/constants/atsStatus.js` holds
 the canonical funnel (`New`, `Contact Attempt 1–3`, `In Process`, `Hired`,
 `Terminated`, `Declined`), plus `Interested` and a list of legacy aliases kept
