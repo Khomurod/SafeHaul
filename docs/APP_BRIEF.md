@@ -282,10 +282,11 @@ exists", and the applicant simply carries on filling the form.
 submitted, whichever side started it, with **+ Start an application** as its
 primary action. It is a call to make, not a record in the ATS funnel. **Create a
 continuation link** mints a link for a row and copies it; the link is a pointer,
-so whoever opens it must confirm their own identity before anything comes back,
-and a recruiter cannot pass that check. Before that existed (2026-09-09) the
-screen had one control — Refresh — and the only way to get a stalled applicant
-moving was to ask them to start again.
+so whoever opens it must confirm their own identity before anything comes back.
+A recruiter cannot pass that check on a draft that holds the identity HMAC, which
+is the normal case; §12 describes the narrow tier where one can. Before that
+existed (2026-09-09) the screen had one control — Refresh — and the only way to
+get a stalled applicant moving was to ask them to start again.
 
 **It was two screens until 2026-09-10, and the split was navigational rather than
 a rule.** *Started (unfinished)* was the worklist; *Start an application* was a
@@ -1849,11 +1850,17 @@ cannot resolve the colour at all — and the `theme-color` meta, a literal copy 
   fix, or one whose company set `ssn` to Optional or Hidden
   (`GATE_DEFAULT_REQUIRED.ssn` is `true`, so this is opt-out) — is verified
   against the last name and date of birth its own answers hold, and the SSN it
-  also demands is required but **not checked**. That moves the bar from "knows
-  what it typed" to "knows the driver's Social Security Number", which a carrier
-  that has anyway can use to impersonate the driver everywhere else in this
-  product; it is not the same as verifying it. One success establishes the HMAC,
-  so a draft is in that tier at most once.
+  also demands is required but **not checked**: any nine digits pass. This entry
+  used to say that raised the bar to "knows the driver's Social Security Number",
+  which an unchecked number cannot do (corrected 2026-10-01). On a draft the
+  carrier prepared, the carrier typed the last name, the date of birth and the
+  contact detail itself, so in this tier a recruiter can pass the check on its own
+  application and receive the driver's answers and a resume token. The HMAC that
+  success establishes is built from whatever digits were entered. A prepared draft
+  reaches this tier only when the driver's saves never carried an SSN: the company
+  made it Optional or Hidden, or the driver pressed *Save as Draft* on page one
+  before typing it. One success establishes the HMAC, so a draft is in that tier at
+  most once.
   A draft holding **neither** a last name nor a date of birth cannot be verified
   at all and is refused outright (`unverifiable`), with the driver told plainly and
   offered a new application rather than being handed somebody's answers. That is
@@ -1874,6 +1881,31 @@ cannot resolve the colour at all — and the `theme-color` meta, a literal copy 
   they cannot meet. What is missing is the route to say "that carrier is not mine",
   which is its own feature with its own policy questions about what the carrier
   then sees.
+- **A custom "file upload" question keeps only the file's name.** The file is
+  uploaded, but `DynamicQuestionsStep` discards the storage path the upload
+  returns and records `file.name` as the answer, so the recruiter sees a filename
+  and nothing references the file. A failed upload still records the name. Fixing
+  it means storing a document reference in `customAnswers`, which the snapshot, the
+  PDF and the dossier all render as text today (found 2026-10-01).
+- **Required custom questions are enforced only on their own page.** Neither the
+  final pre-flight nor `submitGuestApplication` checks them, so an application
+  resumed past that page can be submitted without the answer (found 2026-10-01).
+- **A rule or question a carrier switches on mid-application appears only after a
+  reload.** The server judges the current settings and the page keeps the ones it
+  loaded. The applicant is taken to the right page with the server's sentence, but
+  the new fields are not on it until the page is reloaded (observed 2026-10-01 with
+  the Hours of Service statement).
+- **The offline queue's replay retries a refusal.** A direct submission stops at a
+  refusal (§5). An entry that meets one later, for example because a rule changed
+  while it waited, is retried up to ten times and then marked failed, with nobody
+  told (found 2026-10-01).
+- **The dossier's Edit Application offers fields the server will not change.** It
+  renders every schema section editable, while `proposeApplicationChanges` applies
+  only its allowlist and returns the rest as `skipped`, which the screen never
+  mentions. An edit to, say, a qualification answer disappears (found 2026-10-01).
+- **The District of Columbia is not in the wizard's state list.** The list has the
+  fifty states only, so a DC address or licence cannot be selected (found
+  2026-10-01; the list predates that audit).
 - **HEIC photos cannot be read.** The reader accepts PDF, JPG, PNG and WebP;
   browsers cannot decode HEIC (an iPhone's default), so such a photo is refused
   with a message naming the accepted formats. (This is the surviving edge after
