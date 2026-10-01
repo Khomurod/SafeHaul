@@ -1334,6 +1334,13 @@ for shows its first enabled option, so a driver with an Austin address saw
 passed because the value was not empty. A value no name matches is now left for
 the driver rather than stored. A stored value the list cannot name, such as an
 older record, is shown as itself rather than as somebody else's state.
+
+**A phone number is a US number: ten digits, or eleven starting with 1.** One rule
+(`isValidPhone`) applies on page one, in the final pre-flight (which goes back to
+page one) and in the carrier's editor. Page one used to accept any ten digits or
+more, so "+52 55 1234 5678" moved on and was refused only at Submit, nine pages
+later, by a toast that did not say where the field was (found 2026-10-01).
+
 **ATS statuses are stored strings.** `src/shared/constants/atsStatus.js` holds
 the canonical funnel (`New`, `Contact Attempt 1–3`, `In Process`, `Hired`,
 `Terminated`, `Declined`), plus `Interested` and a list of legacy aliases kept

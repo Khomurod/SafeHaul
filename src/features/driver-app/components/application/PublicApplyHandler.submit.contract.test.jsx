@@ -381,6 +381,16 @@ describe('PublicApplyHandler submission contract', () => {
     await submit();
     expect(showError).toHaveBeenCalledWith('Invalid Email Address.');
     expect(callableSpy).not.toHaveBeenCalled();
+    // On the page that holds the field, not left on the signature page.
+    expect(screen.getByTestId('current-step')).toHaveTextContent('0');
+  });
+
+  it('sends a phone number page one used to accept back to page one', async () => {
+    await renderWithCompleteDraft({ phone: '+52 55 1234 5678' });
+    await submit();
+    expect(showError).toHaveBeenCalledWith('Enter a 10-digit US phone number.');
+    expect(callableSpy).not.toHaveBeenCalled();
+    expect(screen.getByTestId('current-step')).toHaveTextContent('0');
   });
 
   it('reports a failed local draft save instead of silently losing it', async () => {

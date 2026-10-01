@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useCallback } from 'react';
 import InputField from '@shared/components/form/InputField';
 import { useFieldValidation } from '@shared/hooks/useFieldValidation';
-import { required, email as emailRule, phone as phoneRule } from '@shared/utils/fieldValidators';
+import { required, email as emailRule, phone as phoneRule, PHONE_RULE_MESSAGE } from '@shared/utils/fieldValidators';
+import { isValidPhone } from '@shared/utils/validation';
 import DateTripletField from '@shared/components/form/DateTripletField';
 import { ageFromIsoDate } from '@shared/utils/dateFormHelpers';
 import RadioGroup from '@shared/components/form/RadioGroup';
@@ -162,10 +163,13 @@ const Step1_Contact = ({ formData, updateFormData, onNavigate, onPartialSubmit }
             return false;
         }
 
-        // 3. Phone (at least 10 digits)
-        const digitsOnly = formData.phone.replace(/\D/g, '');
-        if (digitsOnly.length < 10) {
-            showError("Phone number must have at least 10 digits.");
+        // 3. Phone — the rule the final pre-flight applies (`isValidPhone`), and the
+        // one the inline check below the field already used. This gate accepted any
+        // ten digits or more, so "+52 55 1234 5678" moved on from this page and was
+        // refused only at Submit, nine pages later, by a toast that did not say
+        // where the field was (found 2026-10-01).
+        if (!isValidPhone(formData.phone)) {
+            showError(PHONE_RULE_MESSAGE);
             return false;
         }
 
