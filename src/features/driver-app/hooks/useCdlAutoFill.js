@@ -18,6 +18,7 @@ import { ref, uploadBytes } from 'firebase/storage';
 import { functions, storage } from '@lib/firebase';
 import { useToast } from '@shared/components/feedback/ToastProvider';
 import { parseAddressPartsFromCdl } from '@shared/utils/parseCdlAddress';
+import { toUsStateName } from '@shared/utils/usStates';
 import {
   AUTO_FILL_IMAGE_TYPES,
   parseIsoFromLooseDate,
@@ -93,6 +94,10 @@ export function useCdlAutoFill({ companyId, onAutoFilled, onReturnToChooser }) {
       const dobIso = parseIsoFromLooseDate(fields.dateOfBirth);
       const cdlExpIso = parseIsoFromLooseDate(fields.expirationDate);
       const addr = parseAddressPartsFromCdl(fields.fullAddress);
+      // The licence prints a postal code ("TX"); both pickers it fills hold names
+      // ("Texas"), and given a code they rendered "Alabama". One the list cannot
+      // name is left for the driver rather than stored where no picker can show it.
+      const stateName = toUsStateName(addr.state);
 
       onAutoFilled((prev) => ({
         ...prev,
@@ -101,12 +106,12 @@ export function useCdlAutoFill({ companyId, onAutoFilled, onReturnToChooser }) {
         dob: dobIso || prev.dob || '',
         street: addr.street || prev.street || '',
         city: addr.city || prev.city || '',
-        state: addr.state || prev.state || '',
+        state: stateName || prev.state || '',
         zip: addr.zip || prev.zip || '',
         cdlNumber: fields.cdlNumber || prev.cdlNumber || '',
         cdlExpiration: cdlExpIso || prev.cdlExpiration || '',
         // Best-effort: when address parsing yields a valid state, mirror to CDL state too.
-        cdlState: addr.state || prev.cdlState || '',
+        cdlState: stateName || prev.cdlState || '',
       }));
 
       showSuccess('CDL auto-fill complete. Please review your information.');
