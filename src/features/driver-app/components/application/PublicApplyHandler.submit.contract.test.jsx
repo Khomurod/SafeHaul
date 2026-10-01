@@ -137,6 +137,8 @@ describe('PublicApplyHandler submission contract', () => {
     await submit();
 
     await waitFor(() => expect(order).toEqual(['enqueue', 'submit', 'dequeue']));
+    const now = new Date();
+    const localDay = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     expect(enqueueSpy).toHaveBeenCalledWith(
       expect.objectContaining({ applicationId: 'generated-app-id' }),
       'company-1',
@@ -148,6 +150,9 @@ describe('PublicApplyHandler submission contract', () => {
       {
         type: 'guest',
         userId: null,
+        // The day the applicant pressed Submit, so a replay is judged on the day the
+        // page was, as the direct attempt is (found in review, 2026-10-01).
+        applicantToday: localDay,
         applySlug: 'acme',
         // Null for this fixture, and correctly so: it is a draft written before drafts
         // were named, so nothing can prove which application it is and the late close

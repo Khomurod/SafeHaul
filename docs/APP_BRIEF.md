@@ -971,10 +971,11 @@ their own from Settings.
 judges "the seven days before today" and "expired" against the device's calendar.
 The server runs in UTC, and for part of every day the two are different dates, so
 the week the page asked for was the wrong week by the time it arrived and the
-server refused it. A submission now carries `applicantToday`, and
-`applicantReferenceDay` (`functions/shared/buildApplicationDoc.js`) judges by it
-when it is a real date within one day of the server's own, which covers every real
-time zone. Anything else falls back to the server's clock, so a device clock wrong
+server refused it. A submission now carries `applicantToday`, the day the
+applicant pressed Submit, and a replay from the offline queue sends that same day
+from its queue entry. `applicantReferenceDay`
+(`functions/shared/buildApplicationDoc.js`) judges by it when it is a real date
+within one day of the server's own, which covers every real time zone. Anything else falls back to the server's clock, so a device clock wrong
 by more than a day gains nothing. This was reproduced in a browser set to UTC+14,
 and a US applicant submitting after 8 p.m. Eastern (5 p.m. Pacific) in summer is
 in the same position the other way round. Found and fixed 2026-10-01.

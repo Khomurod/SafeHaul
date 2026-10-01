@@ -142,6 +142,11 @@ export async function submitPublicApplication({
     // committed comes back as the SAME submission instead of a resubmission the
     // driver never made.
     const submissionAttemptId = newSubmissionAttemptId();
+    // The day the applicant's clock says it is, the day this page checked "the last
+    // seven days" and "expired" against. Sent with every attempt and stored on the
+    // queue entry, so a replay is judged on this day too. The server runs on UTC
+    // and accepts it within a day of its own; see `applicantReferenceDay`.
+    const applicantToday = toIsoDay(new Date());
 
     if (isE2ETestMode && !sandbox) {
       // Deterministic offline-queue path for E2E: "all direct submits failed but
@@ -161,7 +166,7 @@ export async function submitPublicApplication({
             // submission finally lands, the queue can end the draft's local life
             // exactly as a direct submission does — and the draft's identity with
             // it, so a late replay closes this application and not a newer one.
-            { type: 'guest', userId: null, ...submittedDraftIdentity(submitMark) },
+            { type: 'guest', userId: null, applicantToday, ...submittedDraftIdentity(submitMark) },
           );
           clearApplicationDraft(slug);
           sessionStorage.removeItem('pending_application_recruiter');
@@ -295,6 +300,9 @@ export async function submitPublicApplication({
           queueId = await enqueueSubmission(applicationData, company.id, {
             type: 'guest',
             userId: null,
+            // A replay is judged on the day the applicant pressed Submit, not on
+            // whatever day it lands; left out, the server would use its own UTC day.
+            applicantToday,
             // Carried so a replay that succeeds hours later can close this draft's
             // local life — write the mark other tabs read, drop the token, clear the
             // copy. Without it a queued submission that lands leaves every other open
@@ -329,10 +337,7 @@ export async function submitPublicApplication({
             phone: phone,
             signature: formData.signature,
             formData: applicationData,
-            // The day the applicant's clock says it is — the day this page checked
-            // "the last seven days" and "expired" against. The server runs on UTC
-            // and accepts this within a day of its own; see `applicantReferenceDay`.
-            applicantToday: toIsoDay(new Date()),
+            applicantToday,
           });
 
           // Use server-generated values if available
