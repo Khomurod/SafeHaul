@@ -172,6 +172,19 @@ are never in a draft), reviews and signs. It is staged as a *draft*, never an
 early `applications` document — see §5 — so nothing is filed, nobody is emailed,
 and no pipeline counter moves until the driver submits it themselves.
 
+**The editor offers each field the way the driver's wizard holds it.** A state is
+picked from the wizard's own list of names, a choice from the field's options, and
+endorsements are checkboxes. The editor does not offer the Social Security Number,
+which only the driver supplies, or a second copy of the medical-card upload, which
+belongs to the documents panel. Until 2026-10-01 the shared `SchemaRenderer` edit
+mode had nothing but a text box: a recruiter's "TX" reached the driver as a value
+no picker lists (Chromium showed "Alabama"), endorsements in whatever spelling was
+typed (the wizard ticks a box only for an exact `H,N`), an upload as
+"[object Object]", and an SSN box whose contents the server dropped while the
+driver was asked for it anyway. Uploads, the signature and the
+applicant's certification render display-only in that mode, which the dossier's
+*Edit Application* shares; `proposeApplicationChanges` skips all of them.
+
 **The reader never overwrites what the recruiter typed while it was running, and
 that is a fix.** The panel used to merge into the `formData` *prop* it captured
 when the button was pressed and hand the whole result to the raw setter — so it

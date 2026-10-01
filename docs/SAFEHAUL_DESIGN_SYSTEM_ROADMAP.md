@@ -1977,6 +1977,44 @@ action discarded the draft would delete a driver's saved application on a stray
 keypress. Discarding is therefore its own explicit `tone="danger"` confirmation,
 and Escape at either stage deletes nothing.
 
+**Updated 2026-10-01: the schema renderer's edit mode is no longer a text box for
+every type.** `SchemaSection`'s edit mode has exactly two callers: the carrier's
+prep editor and the dossier's *Edit Application*. The driver's wizard renders its
+own step components and does not use it. The 2026-09-09 entry above, and
+`PreviousEmployersEditor`'s header, say the renderer is shared with the wizard, and
+it is not. Every type without its own branch fell through to `Input type="text"`.
+A select or a checkbox was retyped as free text the wizard could not show (a
+carrier's "TX" reached the driver's state picker as "Alabama"), an upload read
+"[object Object]", and the signature showed as a base64 string. Now:
+
+- `select` is `FormField` + `Select` over the field's own options, with an empty
+  "Select…" first. A stored value the options do not hold is offered as itself
+  (`SchemaEditSelect` in `src/shared/components/schema/SchemaEditControls.jsx`).
+- `checkbox` is one `Checkbox` for a yes/no question, or a `ChoiceGroup` of
+  `Checkbox`es for a multi-choice one, written in the wizard's own storage format
+  (`SchemaEditCheckbox`).
+- `file`, `signature` and `array`, and any field the schema marks `readOnly` (the
+  consent section's three), render as the ordinary display row.
+
+On the driver's side, `StateSelectField` offers a stored value its list does not
+hold as its own option instead of letting the browser show the first state. No new
+primitive, token or stylesheet: both are compositions of `FormField`, `Select`,
+`Checkbox` and `ChoiceGroup`, and the ids keep the edit mode's existing
+`${key}-edit` convention, which `ApplicationPrepWorkspace` focuses by.
+
+Evidence: `SchemaRenderer.test.jsx`, `StateSelectField.test.jsx` and
+`ApplicationPrepEditor.test.jsx`; the browser specs
+`company-prepared-application.spec.cjs` (the editor offers both state pickers and
+the endorsement checkboxes, and no SSN or medical-card box) and
+`guest-cdl-autofill.spec.cjs` (both of the driver's pickers show the licence's
+state); and an axe scan of the editor with its pickers and checkboxes reached by
+name and toggled from the keyboard (`e2e/a11y.spec.cjs`). Each new test failed on
+the code before the change. **Not run: the pixel lane.** No baseline captures
+either editor's edit mode. The one that renders `StateSelectField`
+(`public-application`) shows it empty, and an empty value renders no extra option.
+This container's Chromium is not the pinned revision, so recording or comparing
+baselines here would measure the wrong build (see above).
+
 One area is deliberately **NO-GO** and remains unmigrated, blocked on an owner
 decision in §6:
 

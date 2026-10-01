@@ -304,6 +304,29 @@ test.describe('@a11y migrated design-system surfaces', () => {
         await expect(options.first()).toHaveAttribute('aria-pressed', 'true');
     });
 
+    /**
+     * The carrier's prep editor. Its select and checkbox fields were text boxes
+     * until 2026-10-01, and the controls that replaced them are the design
+     * system's own. What this checks is that the editor gives them names and that
+     * a keyboard reaches them, not the browser's own handling of a select.
+     */
+    test("the carrier's prep editor names the pickers and checkboxes it offers", async ({ page }) => {
+        await page.goto('/company/drivers/unfinished?e2eAuth=company_admin&e2eUnfinished=mock');
+        await page.getByRole('button', { name: /Start an application/i }).click();
+        await page.getByTestId('mode-manual').click();
+        await expect(page.getByRole('heading', { name: 'Driver details' })).toBeVisible({ timeout: 30_000 });
+
+        expect(await seriousViolations(page)).toEqual([]);
+
+        await expect(page.getByRole('combobox', { name: 'State', exact: true })).toBeVisible();
+        await expect(page.getByRole('combobox', { name: 'License State', exact: true })).toBeVisible();
+        await expect(page.getByRole('group', { name: 'Endorsements' })).toBeVisible();
+        const hazmat = page.getByRole('checkbox', { name: 'Hazmat (H)' });
+        await hazmat.focus();
+        await page.keyboard.press('Space');
+        await expect(hazmat).toBeChecked();
+    });
+
     test('every focusable control on the candidate list shows a focus ring', async ({ page }) => {
         await page.goto('/company/drivers/applications?e2eAuth=company_admin');
         await expect(page.getByRole('table').first()).toBeVisible({ timeout: 30_000 });

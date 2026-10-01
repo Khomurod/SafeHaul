@@ -24,6 +24,8 @@ import {
 } from '@design-system/components';
 import InputField from '@shared/components/form/InputField';
 import { domIdSegment } from '@shared/utils/domId';
+import { isEditableInPlace, normalizeOption } from './schemaOptions';
+import { SchemaEditCheckbox, SchemaEditSelect } from './SchemaEditControls';
 
 // Field type constants for type checking (matches config schema string types)
 const FIELD_TYPES = {
@@ -40,21 +42,6 @@ const FIELD_TYPES = {
     ARRAY: 'array'
 };
 
-
-/**
- * Normalize a radio/select option to a { value, label } pair.
- * Schema options come in two shapes: plain strings (['yes', 'no']) and objects
- * ({ label: 'Yes', value: 'yes' } from form-options.js). Rendering the object
- * form directly as a React child throws "Objects are not valid as a React child"
- * (React error #31), which crashes the edit form for any yes/no field.
- */
-function normalizeOption(opt) {
-    if (opt && typeof opt === 'object') {
-        const value = opt.value;
-        return { value, label: opt.label ?? String(value) };
-    }
-    return { value: opt, label: String(opt) };
-}
 
 /**
  * Render a single field based on schema and mode
@@ -209,7 +196,7 @@ function renderDisplayMode(definition, value, onChange, isEditing, fileUrls = {}
     const displayValue = formatDisplayValue(value, definition, fileUrls);
 
     // Editing mode in admin panel
-    if (isEditing && !definition.readOnly) {
+    if (isEditing && !definition.readOnly && isEditableInPlace(type)) {
         /*
          * The admin edit surface. Every control here was previously unlabelled —
          * a `<label>` with no `htmlFor` above a control with no `id`, so nothing
@@ -236,6 +223,14 @@ function renderDisplayMode(definition, value, onChange, isEditing, fileUrls = {}
                     </ChoiceGroup>
                 </div>
             );
+        }
+
+        // Never a text box: see `SchemaEditControls.jsx` for what free text wrote.
+        if (type === FIELD_TYPES.SELECT) {
+            return <SchemaEditSelect definition={definition} value={value} onChange={onChange} />;
+        }
+        if (type === FIELD_TYPES.CHECKBOX) {
+            return <SchemaEditCheckbox definition={definition} value={value} onChange={onChange} />;
         }
 
         return (
