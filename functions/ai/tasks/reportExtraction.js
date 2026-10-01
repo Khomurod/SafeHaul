@@ -138,11 +138,27 @@ function normalizeViolations(raw) {
         .slice(0, MAX_ITEMS);
 }
 
+/**
+ * The USDOT number in what the report printed beside a carrier.
+ *
+ * Read the whole value, then take the number — the same lesson as the state code
+ * below. Cutting to twelve characters first turned "USDOT 1234567" into "123456"
+ * (found 2026-10-01): seven digits is the ordinary length now, and the wrong number
+ * became the identity a carrier then LOCKED, so the driver was held to an employer
+ * nobody had. A labelled number wins over an unlabelled one ("MC 765432 USDOT …").
+ */
+function usdotDigits(raw) {
+    const value = text(raw, 60);
+    const labelled = /dot\D*?(\d+)/i.exec(value);
+    const digits = labelled ? labelled[1] : (/\d+/.exec(value) || [''])[0];
+    return digits.slice(0, 12);
+}
+
 function normalizePspOutput(raw) {
     const carriers = (Array.isArray(raw?.carriers) ? raw.carriers : [])
         .map((entry) => ({
             name: text(entry?.carrierName, 120),
-            dotNumber: text(entry?.usdotNumber, 12).replace(/\D/g, ''),
+            dotNumber: usdotDigits(entry?.usdotNumber),
             firstSeen: looseDateToIso(entry?.earliestDate).slice(0, 7),
             lastSeen: looseDateToIso(entry?.latestDate).slice(0, 7),
             recordType: /crash/i.test(text(entry?.recordType)) && /inspect/i.test(text(entry?.recordType))

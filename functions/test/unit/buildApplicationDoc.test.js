@@ -193,3 +193,29 @@ describe('assertLockedEmployers', () => {
     expect(() => assertLockedEmployers([], undefined)).not.toThrow();
   });
 });
+
+describe('applicantReferenceDay', () => {
+    const { applicantReferenceDay } = require('../../shared/buildApplicationDoc');
+    const { toIsoDay } = require('../../shared/applicationDates');
+    const now = new Date();
+    const shift = (days) => {
+        const date = new Date(`${toIsoDay(now)}T12:00:00`);
+        date.setDate(date.getDate() + days);
+        return toIsoDay(date);
+    };
+
+    it.each([-1, 0, 1])('believes a day %i from ours: every real timezone is within one', (days) => {
+        expect(toIsoDay(applicantReferenceDay(shift(days), now))).toBe(shift(days));
+    });
+
+    it.each([
+        ['two days behind', () => shift(-2)],
+        ['two days ahead', () => shift(2)],
+        ['an impossible date', () => '2026-02-30'],
+        ['another format', () => '09/30/2026'],
+        ['a date and time', () => `${shift(0)}T23:59:00Z`],
+        ['nothing', () => undefined],
+    ])('falls back to our own day for %s', (_label, claimed) => {
+        expect(applicantReferenceDay(claimed(), now)).toBe(now);
+    });
+});

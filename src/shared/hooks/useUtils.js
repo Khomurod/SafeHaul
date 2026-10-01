@@ -1,12 +1,7 @@
 import { useCallback, useMemo } from "react";
-
-const US_STATES = [
-    'Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut', 'Delaware', 'Florida', 'Georgia',
-    'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas', 'Kentucky', 'Louisiana', 'Maine', 'Maryland',
-    'Massachusetts', 'Michigan', 'Minnesota', 'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire', 'New Jersey',
-    'New Mexico', 'New York', 'North Carolina', 'North Dakota', 'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island', 'South Carolina',
-    'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming'
-];
+// One list for every state picker and for the writers that fill them, so a
+// value a document produced is always one a picker can show. See usStates.js.
+import { US_STATE_NAMES } from "@shared/utils/usStates";
 
 /**
  * Hook to contain all static data and non-state-management utility functions.
@@ -14,7 +9,7 @@ const US_STATES = [
 export const useUtils = () => {
 
     // Static data list of states
-    const states = useMemo(() => US_STATES, []);
+    const states = useMemo(() => US_STATE_NAMES, []);
 
     /**
      * Updates the page UI with the specific company's branding.

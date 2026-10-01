@@ -150,12 +150,17 @@ describe('runSubmissionPreflight', () => {
         expect(setCurrentStep).toHaveBeenCalledWith(99);
     });
 
-    it('refuses an invalid email or phone without moving the applicant', () => {
+    // Both used to be refused with a toast and no routing, which left the applicant
+    // on the signature page with no idea which page held the field (2026-10-01).
+    it('refuses an invalid email or phone and goes to the page that holds them', () => {
         const bad = run({ formData: completeForm({ email: 'nope' }) });
         expect(bad.result.ok).toBe(false);
-        expect(bad.setCurrentStep).not.toHaveBeenCalled();
+        expect(bad.setCurrentStep).toHaveBeenCalledWith('contact');
+        expect(bad.showError).toHaveBeenCalledWith('Invalid Email Address.');
         const badPhone = run({ formData: completeForm({ phone: '12' }) });
         expect(badPhone.result.ok).toBe(false);
+        expect(badPhone.setCurrentStep).toHaveBeenCalledWith('contact');
+        expect(badPhone.showError).toHaveBeenCalledWith('Enter a 10-digit US phone number.');
     });
 });
 

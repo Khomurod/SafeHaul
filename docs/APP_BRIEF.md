@@ -172,6 +172,19 @@ are never in a draft), reviews and signs. It is staged as a *draft*, never an
 early `applications` document — see §5 — so nothing is filed, nobody is emailed,
 and no pipeline counter moves until the driver submits it themselves.
 
+**The editor offers each field the way the driver's wizard holds it.** A state is
+picked from the wizard's own list of names, a choice from the field's options, and
+endorsements are checkboxes. The editor does not offer the Social Security Number,
+which only the driver supplies, or a second copy of the medical-card upload, which
+belongs to the documents panel. Until 2026-10-01 the shared `SchemaRenderer` edit
+mode had nothing but a text box: a recruiter's "TX" reached the driver as a value
+no picker lists (Chromium showed "Alabama"), endorsements in whatever spelling was
+typed (the wizard ticks a box only for an exact `H,N`), an upload as
+"[object Object]", and an SSN box whose contents the server dropped while the
+driver was asked for it anyway. Uploads, the signature and the
+applicant's certification render display-only in that mode, which the dossier's
+*Edit Application* shares; `proposeApplicationChanges` skips all of them.
+
 **The reader never overwrites what the recruiter typed while it was running, and
 that is a fix.** The panel used to merge into the `formData` *prop* it captured
 when the button was pressed and hand the whole result to the raw setter — so it
@@ -269,10 +282,11 @@ exists", and the applicant simply carries on filling the form.
 submitted, whichever side started it, with **+ Start an application** as its
 primary action. It is a call to make, not a record in the ATS funnel. **Create a
 continuation link** mints a link for a row and copies it; the link is a pointer,
-so whoever opens it must confirm their own identity before anything comes back,
-and a recruiter cannot pass that check. Before that existed (2026-09-09) the
-screen had one control — Refresh — and the only way to get a stalled applicant
-moving was to ask them to start again.
+so whoever opens it must confirm their own identity before anything comes back.
+A recruiter cannot pass that check on a draft that holds the identity HMAC, which
+is the normal case; §12 describes the narrow tier where one can. Before that
+existed (2026-09-09) the screen had one control — Refresh — and the only way to
+get a stalled applicant moving was to ask them to start again.
 
 **It was two screens until 2026-09-10, and the split was navigational rather than
 a rule.** *Started (unfinished)* was the worklist; *Start an application* was a
@@ -388,6 +402,20 @@ normalization or truncation** — existing records would become unreachable.
 (`src/lib/submissionQueue.js`) with exponential backoff and retried when the
 connection returns. This only works because the IDs are deterministic.
 
+**A refusal is not a failure to deliver.** Only a submission that did not reach the
+server is retried and queued: a dropped connection (the SDK reports it as
+`internal`), a timeout, a cold start, the rate limiter. When the server read the
+application and refused it (`invalid-argument`, `failed-precondition` and the other
+permanent codes in `publicApplyRefusal.js`), the page stops retrying, removes the
+queue entry, shows the server's own sentence and goes to the page the refusal's
+issues name. The draft is untouched, so the applicant corrects it and submits
+again. Until 2026-10-01 a refusal was retried three times and then shown as
+"Application Saved … will be automatically submitted. No data will be lost." The
+replay sent the same payload into the same refusal ten times and marked the entry
+failed, with nobody told: the driver believed they had applied and the carrier
+never received the application. That was reproduced against the real callable, with
+a rule switched on in the carrier's settings while the driver was mid-application.
+
 **Drafts are never written into `applications`, and this is load-bearing.** Four
 triggers fire on `create` under `companies/{id}/applications/{appId}` —
 notification, applicant email confirmation, driver sync / shadow profile, and the
@@ -461,6 +489,11 @@ holding unacknowledged work wins; a server copy another device advanced wins;
 **the loser is always merged underneath, never discarded**, so a field only one
 side has always survives. Work typed since page load outranks both. The decision
 lives in `reconcileApplicationDraft.js`, is pure, and is covered case by case.
+The page it restores never overrides a Back pressed while the server read was
+still out: the step the read started from is captured, and an applicant now below
+it stays where they put themselves. Until 2026-10-01 a driver who went back a page
+during that round trip, which can include a cold start, was sent straight back to
+where they had been.
 
 **Reconciliation answers "which copy is newer". It also has to answer "whose is
 it".** Every slot on the apply page is namespaced by company slug and nothing
@@ -934,6 +967,19 @@ under an answer reading No.
 Super Admin sets any company's rules from Companies → Edit; Company Admins set
 their own from Settings.
 
+**The reference day is the applicant's, within a day of the server's.** The browser
+judges "the seven days before today" and "expired" against the device's calendar.
+The server runs in UTC, and for part of every day the two are different dates, so
+the week the page asked for was the wrong week by the time it arrived and the
+server refused it. A submission now carries `applicantToday`, the day the
+applicant pressed Submit, and a replay from the offline queue sends that same day
+from its queue entry. `applicantReferenceDay`
+(`functions/shared/buildApplicationDoc.js`) judges by it when it is a real date
+within one day of the server's own, which covers every real time zone. Anything else falls back to the server's clock, so a device clock wrong
+by more than a day gains nothing. This was reproduced in a browser set to UTC+14,
+and a US applicant submitting after 8 p.m. Eastern (5 p.m. Pacific) in summer is
+in the same position the other way round. Found and fixed 2026-10-01.
+
 **Acceptance IP is server-observed.** The browser may report its user agent
 (self-description) but its claimed IP is overwritten unconditionally with the
 address the server saw. Evidence forgeable by the party it incriminates is not
@@ -1196,6 +1242,17 @@ lock, which is the whole thing the lock prevents. `lockedEmployerCount` — comp
 and returned all along, and rendered nowhere — is now in the worklist, so the
 number is checkable rather than a thing to trust.
 
+**The AI reader locks the row, not the report's spelling.** When a report names a
+carrier already on the application, matched by name or USDOT number, the lock
+records that row's own name and number as they stand. Locking the report's
+spelling produced locks no driver could satisfy (found 2026-10-01). A row "Acme
+Trucking LLC" matched by number to the report's "ACME TRUCKING" passed every
+carrier save, then failed submission as `locked-employer-changed`, on a name the
+driver sees as a record they cannot edit. A row matched by name with no number gave
+the lock a signature no row had, and the next save silently dropped it. The reader
+also reads the whole USDOT value before taking its digits: cutting it to twelve
+characters first turned "USDOT 1234567" into the lockable identity "123456".
+
 **The lock follows the applicant, not the document id.** A draft's id is
 `sha256(company:email:phone)`, so a driver who corrects their own email or phone
 on page one writes to a different document than the carrier prepared. The
@@ -1273,6 +1330,23 @@ must never disagree about what was asked. Defaults are load-bearing: `mvrConsent
 is hidden and not required until a company opts in, and `emergencyContacts` is
 hidden by default, because flipping either would retroactively change or block
 every existing company's application.
+
+**A US state is stored as its full name.** Both of the wizard's state pickers list
+the fifty names in `src/shared/utils/usStates.js`, which the company editors'
+options also read, and every writer converts to one: CDL photo auto-fill, the MVR
+import and the carrier's AI reader. Documents print postal codes, and until
+2026-10-01 those were stored as "TX". A `<select>` given a value it has no option
+for shows its first enabled option, so a driver with an Austin address saw
+"Alabama" in both pickers while the form held "TX", and the step's validation
+passed because the value was not empty. A value no name matches is now left for
+the driver rather than stored. A stored value the list cannot name, such as an
+older record, is shown as itself rather than as somebody else's state.
+
+**A phone number is a US number: ten digits, or eleven starting with 1.** One rule
+(`isValidPhone`) applies on page one, in the final pre-flight (which goes back to
+page one) and in the carrier's editor. Page one used to accept any ten digits or
+more, so "+52 55 1234 5678" moved on and was refused only at Submit, nine pages
+later, by a toast that did not say where the field was (found 2026-10-01).
 
 **ATS statuses are stored strings.** `src/shared/constants/atsStatus.js` holds
 the canonical funnel (`New`, `Contact Attempt 1–3`, `In Process`, `Hired`,
@@ -1777,11 +1851,17 @@ cannot resolve the colour at all — and the `theme-color` meta, a literal copy 
   fix, or one whose company set `ssn` to Optional or Hidden
   (`GATE_DEFAULT_REQUIRED.ssn` is `true`, so this is opt-out) — is verified
   against the last name and date of birth its own answers hold, and the SSN it
-  also demands is required but **not checked**. That moves the bar from "knows
-  what it typed" to "knows the driver's Social Security Number", which a carrier
-  that has anyway can use to impersonate the driver everywhere else in this
-  product; it is not the same as verifying it. One success establishes the HMAC,
-  so a draft is in that tier at most once.
+  also demands is required but **not checked**: any nine digits pass. This entry
+  used to say that raised the bar to "knows the driver's Social Security Number",
+  which an unchecked number cannot do (corrected 2026-10-01). On a draft the
+  carrier prepared, the carrier typed the last name, the date of birth and the
+  contact detail itself, so in this tier a recruiter can pass the check on its own
+  application and receive the driver's answers and a resume token. The HMAC that
+  success establishes is built from whatever digits were entered. A prepared draft
+  reaches this tier only when the driver's saves never carried an SSN: the company
+  made it Optional or Hidden, or the driver pressed *Save as Draft* on page one
+  before typing it. One success establishes the HMAC, so a draft is in that tier at
+  most once.
   A draft holding **neither** a last name nor a date of birth cannot be verified
   at all and is refused outright (`unverifiable`), with the driver told plainly and
   offered a new application rather than being handed somebody's answers. That is
@@ -1802,6 +1882,31 @@ cannot resolve the colour at all — and the `theme-color` meta, a literal copy 
   they cannot meet. What is missing is the route to say "that carrier is not mine",
   which is its own feature with its own policy questions about what the carrier
   then sees.
+- **A custom "file upload" question keeps only the file's name.** The file is
+  uploaded, but `DynamicQuestionsStep` discards the storage path the upload
+  returns and records `file.name` as the answer, so the recruiter sees a filename
+  and nothing references the file. A failed upload still records the name. Fixing
+  it means storing a document reference in `customAnswers`, which the snapshot, the
+  PDF and the dossier all render as text today (found 2026-10-01).
+- **Required custom questions are enforced only on their own page.** Neither the
+  final pre-flight nor `submitGuestApplication` checks them, so an application
+  resumed past that page can be submitted without the answer (found 2026-10-01).
+- **A rule or question a carrier switches on mid-application appears only after a
+  reload.** The server judges the current settings and the page keeps the ones it
+  loaded. The applicant is taken to the right page with the server's sentence, but
+  the new fields are not on it until the page is reloaded (observed 2026-10-01 with
+  the Hours of Service statement).
+- **The offline queue's replay retries a refusal.** A direct submission stops at a
+  refusal (§5). An entry that meets one later, for example because a rule changed
+  while it waited, is retried up to ten times and then marked failed, with nobody
+  told (found 2026-10-01).
+- **The dossier's Edit Application offers fields the server will not change.** It
+  renders every schema section editable, while `proposeApplicationChanges` applies
+  only its allowlist and returns the rest as `skipped`, which the screen never
+  mentions. An edit to, say, a qualification answer disappears (found 2026-10-01).
+- **The District of Columbia is not in the wizard's state list.** The list has the
+  fifty states only, so a DC address or licence cannot be selected (found
+  2026-10-01; the list predates that audit).
 - **HEIC photos cannot be read.** The reader accepts PDF, JPG, PNG and WebP;
   browsers cannot decode HEIC (an iPhone's default), so such a photo is refused
   with a message naming the accepted formats. (This is the surviving edge after

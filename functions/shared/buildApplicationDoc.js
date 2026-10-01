@@ -118,16 +118,44 @@ function assertRequiredUnpersistedFields(applicationConfig, formData) {
 }
 
 /**
+ * The day the rules are judged on: the applicant's own, when it is a day their
+ * timezone can be in, else ours.
+ *
+ * The wizard checks "the last seven days" of the Hours of Service statement and
+ * whether a card has "expired" against the applicant's calendar, and this process
+ * runs on UTC. Judged on our day, every submission sent between 00:00 UTC and the
+ * applicant's own midnight — each US evening — failed a statement the wizard had
+ * just accepted, and one whose card expires that day failed an expiry it had just
+ * passed (found 2026-10-01). The browser sends its day; it is believed only within
+ * a day of ours, which every real timezone is, so it cannot carry a week-old
+ * statement through or backdate an expiry by more than the clock already allows.
+ *
+ * @param {unknown} claimed `YYYY-MM-DD` from the browser, or anything else
+ * @param {Date} [now] injected for determinism
+ * @returns {Date} a reference day for `evaluateApplicationRules`
+ */
+function applicantReferenceDay(claimed, now = new Date()) {
+    const { parseApplicationDate, toIsoDay } = require('./applicationDates');
+    if (typeof claimed !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(claimed)) return now;
+    const parsed = parseApplicationDate(claimed);
+    if (!parsed || parsed.day === null || parsed.iso !== claimed) return now;
+    const day = new Date(`${claimed}T12:00:00`);
+    const ours = new Date(`${toIsoDay(now)}T12:00:00`);
+    return Math.abs(Math.round((day - ours) / 86400000)) <= 1 ? day : now;
+}
+
+/**
  * Refuses a submission the company's Application Rules do not accept.
  *
  * The rules come from the company's own record (the public projection the
  * driver rendered, then the company document), never from the payload, so a
  * resumed draft that skipped the page whose rule now fails, or a hand-built
- * request, gets the same refusal the wizard gives — in the same words.
+ * request, gets the same refusal the wizard gives — in the same words. `today` is
+ * the reference day, from `applicantReferenceDay`; omitted, it is ours.
  */
-function assertApplicationRules(applicationRules, applicationConfig, formData) {
+function assertApplicationRules(applicationRules, applicationConfig, formData, today) {
     const { evaluateApplicationRules } = require('./applicationRules');
-    const verdict = evaluateApplicationRules({ rules: applicationRules, applicationConfig, formData: formData || {} });
+    const verdict = evaluateApplicationRules({ rules: applicationRules, applicationConfig, formData: formData || {}, today });
     if (verdict.blocking.length > 0) {
         throw new functions.https.HttpsError(
             'invalid-argument',
@@ -238,6 +266,7 @@ function buildApplicationDoc({
 }
 
 module.exports = {
+    applicantReferenceDay,
     assertApplicationRules,
     assertLockedEmployers,
     assertRequiredUnpersistedFields,

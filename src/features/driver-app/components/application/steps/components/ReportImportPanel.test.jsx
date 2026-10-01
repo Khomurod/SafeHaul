@@ -123,7 +123,8 @@ describe('ReportImportPanel', () => {
             expect(button).toHaveTextContent('Fill 3 empty fields');
             fireEvent.click(button);
 
-            expect(store.data).toMatchObject({ cdlNumber: 'MINE-1', cdlState: 'TX', cdlClass: 'Class A', cdlExpiration: '2030-12-31', endorsements: 'T' });
+            // The report prints the postal code; the License State picker lists names.
+            expect(store.data).toMatchObject({ cdlNumber: 'MINE-1', cdlState: 'Texas', cdlClass: 'Class A', cdlExpiration: '2030-12-31', endorsements: 'T' });
             expect(store.update).toHaveBeenCalledTimes(3);
             expect(screen.getByTestId('apply-license-details')).toBeDisabled();
             expect(screen.getByTestId('apply-license-details')).toHaveTextContent('Details filled');

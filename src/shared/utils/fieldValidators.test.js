@@ -26,9 +26,12 @@ describe('fieldValidators (C5)', () => {
     it('phone checks presence then 10/11-digit format', () => {
         const v = phone('Phone');
         expect(v('')).toMatch(/required/i);
-        expect(v('555')).toMatch(/valid phone/i);
+        expect(v('555')).toBe('Enter a 10-digit US phone number.');
         expect(v('(555) 123-4567')).toBeNull();
         expect(v('15551234567')).toBeNull();
+        // More than ten digits is not "at least 10", which the message used to say.
+        expect(v('+52 55 1234 5678')).toBe('Enter a 10-digit US phone number.');
+        expect(v('25551234567')).toBe('Enter a 10-digit US phone number.');
     });
 
     it('ssn validates 9 digits', () => {
@@ -41,7 +44,7 @@ describe('fieldValidators (C5)', () => {
         expect(fromFieldDefinition({ label: 'Email', type: 'email', required: true })('bad'))
             .toMatch(/valid email/i);
         expect(fromFieldDefinition({ label: 'Phone', type: 'tel', required: true })('123'))
-            .toMatch(/valid phone/i);
+            .toBe('Enter a 10-digit US phone number.');
         expect(fromFieldDefinition({ label: 'Name', type: 'text', required: true })(''))
             .toMatch(/required/i);
         // Non-required text field never errors.

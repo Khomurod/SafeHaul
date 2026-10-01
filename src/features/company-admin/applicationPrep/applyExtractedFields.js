@@ -1,12 +1,13 @@
 import {
-    carrierAlreadyListed,
     employerFromCarrier,
+    findListedCarrier,
     licenseFillPlan,
     licensePatch,
     violationAlreadyListed,
     violationFromSuggestion,
 } from '@features/driver-app/components/application/reportSuggestions';
 import { parseAddressPartsFromCdl } from '@shared/utils/parseCdlAddress';
+import { toUsStateName } from '@shared/utils/usStates';
 
 /**
  * Putting what the documents said into the application the carrier is preparing.
@@ -42,6 +43,15 @@ function isBlank(value) {
 }
 
 /**
+ * A date the form's date controls can show, or nothing — the rule the fill plan
+ * already applies to the licence expiration. A value they cannot show is held by
+ * the form and seen by nobody: the carrier's box and the driver's picker were both
+ * blank over "03/11/1988" (2026-10-01).
+ */
+const FULL_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const fullDate = (value) => (FULL_DATE.test(String(value ?? '').trim()) ? String(value).trim() : '');
+
+/**
  * @param {object} formData what the carrier has so far
  * @param {object} extracted the reader's normalised answer
  * @param {object} [options] `{ now }` for deterministic row ids in tests
@@ -59,7 +69,7 @@ export function applyExtractedFields(formData, extracted, options = {}) {
     const driverValues = {
         firstName: driver.firstName,
         lastName: driver.lastName,
-        dob: driver.dateOfBirth,
+        dob: fullDate(driver.dateOfBirth),
     };
     for (const field of DRIVER_FIELDS) {
         if (isBlank(driverValues[field])) continue;
@@ -73,7 +83,10 @@ export function applyExtractedFields(formData, extracted, options = {}) {
 
     // The licence prints one address line; the application holds four fields.
     if (!isBlank(driver.fullAddress)) {
-        const parts = parseAddressPartsFromCdl(driver.fullAddress);
+        const parsed = parseAddressPartsFromCdl(driver.fullAddress);
+        // The parser returns the postal code the licence prints; the driver's state
+        // picker holds names and rendered a code as "Alabama". See usStates.js.
+        const parts = { ...parsed, state: toUsStateName(parsed.state) };
         for (const field of ADDRESS_FIELDS) {
             if (isBlank(parts[field])) continue;
             if (isBlank(current[field])) {
@@ -94,7 +107,7 @@ export function applyExtractedFields(formData, extracted, options = {}) {
 
     // `medCardExpiration` is not part of the licence plan — it comes from a
     // different card — so it fills on the same terms, separately.
-    const medCard = extracted?.license?.medCardExpiration;
+    const medCard = fullDate(extracted?.license?.medCardExpiration);
     if (!isBlank(medCard)) {
         if (isBlank(current.medCardExpiration)) {
             next.medCardExpiration = medCard;
@@ -108,11 +121,21 @@ export function applyExtractedFields(formData, extracted, options = {}) {
     const employers = Array.isArray(current.employers) ? [...current.employers] : [];
     const lockedCarriers = [];
     (extracted?.carriers || []).forEach((carrier, index) => {
-        if (carrierAlreadyListed(employers, carrier)) {
+        const listed = findListedCarrier(employers, carrier);
+        if (listed) {
             // Already on the application, by name or USDOT number. Locking it is
             // still right — the report names it either way — but adding it again
             // would be a duplicate row nobody asked for.
-            lockedCarriers.push(carrier);
+            //
+            // And it is the ROW that is locked, as it stands. Locking the report's
+            // own spelling made a lock no driver could satisfy (found 2026-10-01): a
+            // row "Acme Trucking LLC" matched by USDOT to the report's "ACME
+            // TRUCKING" passed every carrier save, then failed submission as
+            // `locked-employer-changed` — on a name the wizard shows the driver as a
+            // record they cannot edit. Matched by name with no number on the row, the
+            // report's number gave the lock a signature no row had, and the save
+            // silently dropped it.
+            lockedCarriers.push({ companyName: listed.companyName || '', dotNumber: listed.dotNumber || '' });
             return;
         }
         employers.push(employerFromCarrier(carrier, now + index));

@@ -290,4 +290,60 @@ describe('submitGuestApplication', () => {
       spy.mockRestore();
     });
   });
+
+  /*
+   * The wizard checks "the last seven days" against the applicant's calendar, and
+   * this process runs on UTC, so every submission sent between 00:00 UTC and the
+   * applicant's own midnight — each US evening — failed an Hours of Service
+   * statement the wizard had just accepted (proven 2026-10-01 against these very
+   * modules). Built from the process's OWN calendar, so the scenario "the
+   * applicant is a day behind us" holds in whatever timezone the suite runs.
+   */
+  describe('rules judged on the applicant\'s own day', () => {
+    const { toIsoDay } = require('../../shared/applicationDates');
+    const dayOffset = (iso, days) => {
+      const date = new Date(`${iso}T12:00:00`);
+      date.setDate(date.getDate() + days);
+      return toIsoDay(date);
+    };
+    const ourDay = toIsoDay(new Date());
+    const theirDay = dayOffset(ourDay, -1);
+    const statementFor = (day) => ({
+      hosDailyHours: Array.from({ length: 7 }, (_, i) => ({ date: dayOffset(day, -(i + 1)), hours: '8' })),
+      hosLastRelievedDate: dayOffset(day, -1),
+      hosLastRelievedTime: '18:00',
+    });
+    const submitWith = (applicantToday) => submitGuestApplication({
+      ...validPayload,
+      ...(applicantToday === undefined ? {} : { applicantToday }),
+      formData: { ...validPayload.formData, ...statementFor(theirDay) },
+    }, ctxBase);
+    const tenantDefault = companyTenant.assertCompanyAcceptingIntake.getMockImplementation();
+
+    beforeEach(() => {
+      companyTenant.assertCompanyAcceptingIntake.mockResolvedValue({
+        companyName: 'Tenant Co',
+        applicationConfig: {
+          cdlUpload: { hidden: false, required: false },
+          medCardUpload: { hidden: false, required: false },
+        },
+        applicationRules: { hoursOfServiceStatement: 'application' },
+      });
+    });
+    afterEach(() => {
+      companyTenant.assertCompanyAcceptingIntake.mockImplementation(tenantDefault);
+    });
+
+    it('accepts the statement the wizard accepted, on the day the applicant sent', async () => {
+      await expect(submitWith(theirDay)).resolves.toMatchObject({ success: true });
+    });
+
+    it('judges it on our own day when no day was sent', async () => {
+      await expect(submitWith(undefined)).rejects.toMatchObject({ code: 'invalid-argument' });
+    });
+
+    it('does not believe a day further than one from ours', async () => {
+      await expect(submitWith(dayOffset(ourDay, -5))).rejects.toMatchObject({ code: 'invalid-argument' });
+    });
+  });
 });

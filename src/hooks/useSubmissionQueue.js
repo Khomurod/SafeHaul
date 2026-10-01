@@ -117,6 +117,12 @@ export function useSubmissionQueue() {
                         queueProcessedAt: new Date().toISOString(),
                     },
                 },
+                // The day the applicant pressed Submit, exactly as the direct attempt
+                // sent it. Without it a replay is judged on the server's UTC day, which
+                // can be the wrong week for an evening Hours of Service statement. An
+                // entry queued before the field existed sends nothing, and the server
+                // uses its own day.
+                ...(entry?.applicantToday ? { applicantToday: entry.applicantToday } : {}),
             });
 
             // The submission landed, so the server has just deleted the draft behind

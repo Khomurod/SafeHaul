@@ -112,6 +112,11 @@ export async function enqueueSubmission(data, companyId, options = {}) {
         // The page's discard mark at the moment of queueing, so a replay can tell
         // whether the application was discarded while this entry waited.
         applyDiscardMark: options.applyDiscardMark || null,
+        // The applicant's calendar day when they pressed Submit (`YYYY-MM-DD`), for
+        // guest entries. The replay sends it as `applicantToday`, so the server judges
+        // "the last seven days" and expiry on the day the page did rather than on the
+        // day the replay lands. Entries queued before this field existed read as `null`.
+        applicantToday: options.applicantToday || null,
         createdAt: Date.now(),
         attempts: 0,
         lastAttemptAt: null,

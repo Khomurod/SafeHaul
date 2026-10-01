@@ -248,6 +248,25 @@ test.describe('a carrier starting an application', () => {
         await expect(page.getByText('Read the documents')).toHaveCount(0);
     });
 
+    test('offers each field in the vocabulary the driver\'s wizard reads', async ({ page }) => {
+        // Measured 2026-10-01: every one of these was a free-text box, so a carrier's
+        // "TX" reached the driver's state picker — which lists names — as "Alabama",
+        // the medical card read "[object Object]", and a Social Security Number box
+        // took input the server then silently discarded.
+        await page.goto(START_URL);
+        await page.getByRole('button', { name: /Start an application/i }).click();
+        await page.getByTestId('mode-manual').click();
+        await expect(page.getByRole('heading', { name: 'Driver details' })).toBeVisible();
+
+        await expect(page.locator('select#state-edit')).toBeVisible();
+        await expect(page.locator('select#cdlState-edit')).toBeVisible();
+        await page.selectOption('#cdlState-edit', 'Texas');
+        await expect(page.locator('#cdlState-edit')).toHaveValue('Texas');
+        await expect(page.getByLabel('Hazmat (H)')).toBeVisible();
+        await expect(page.locator('#ssn-edit')).toHaveCount(0);
+        await expect(page.locator('#medical-card-upload-edit')).toHaveCount(0);
+    });
+
     test('the AI choice leads to the document upload step', async ({ page }) => {
         await page.goto(START_URL);
         await page.getByRole('button', { name: /Start an application/i }).click();

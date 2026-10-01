@@ -13,6 +13,7 @@
 // upload is sent to page one, not to page three and then page one.
 import { resolveWizardStepIndex } from '@shared/components/layout/Stepper';
 import { isValidEmail, isValidPhone } from '@shared/utils/validation';
+import { PHONE_RULE_MESSAGE } from '@shared/utils/fieldValidators';
 import { evaluateApplicationRules, normalizeApplicationAnswers } from '@/config/applicationRules';
 import { lockedEmployerIssues } from '@/config/applicationLockedFields';
 import { hasUploadedFile } from './publicApplyHelpers';
@@ -116,13 +117,17 @@ export function runSubmissionPreflight({
     return { ok: false, formData };
   }
 
-  // Validate email and phone
+  // Validate email and phone — and go to the page that holds them. Both used to be
+  // refused here with a toast and no routing, which left the applicant on the
+  // signature page with no idea where the field was (found 2026-10-01).
   if (!isValidEmail(formData.email)) {
     showError("Invalid Email Address.");
+    goTo('contact');
     return { ok: false, formData };
   }
   if (!isValidPhone(formData.phone)) {
-    showError("Invalid Phone Number.");
+    showError(PHONE_RULE_MESSAGE);
+    goTo('contact');
     return { ok: false, formData };
   }
 

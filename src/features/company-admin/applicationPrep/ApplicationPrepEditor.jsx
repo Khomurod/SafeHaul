@@ -8,6 +8,19 @@ import ApplicationDocumentsPanel from './ApplicationDocumentsPanel';
 import PreparedEmployersPanel from './PreparedEmployersPanel';
 
 /**
+ * Two schema fields are not offered to the carrier at all (found 2026-10-01). The
+ * Social Security Number is the driver's to give: a draft never holds one, so the
+ * server discarded what a recruiter typed and the driver was asked for it anyway —
+ * a box whose contents silently vanished. And the medical card's upload belongs to
+ * the documents panel below; rendered by the schema it was a second, text-box copy
+ * of the same field, reading "[object Object]".
+ */
+const NOT_ASKED_OF_THE_CARRIER = Object.freeze({
+    ssn: { hidden: true },
+    'medical-card-upload': { hidden: true },
+});
+
+/**
  * Everything the carrier can fill in before the driver sees it.
  *
  * Scalar sections come straight from `SchemaSection`, the same schema-driven
@@ -93,13 +106,14 @@ export function ApplicationPrepEditor({
                     isEditing
                     onChange={updateField}
                     lockedKeys={identityLockedKeys}
+                    config={NOT_ASKED_OF_THE_CARRIER}
                 />
                 <SchemaSection sectionId="currentAddress" data={formData} isEditing onChange={updateField} />
             </FormSection>
 
             <FormSection title="Licence and medical card">
                 <SchemaSection sectionId="license" data={formData} isEditing onChange={updateField} />
-                <SchemaSection sectionId="medicalCard" data={formData} isEditing onChange={updateField} />
+                <SchemaSection sectionId="medicalCard" data={formData} isEditing onChange={updateField} config={NOT_ASKED_OF_THE_CARRIER} />
             </FormSection>
 
             <PreparedEmployersPanel

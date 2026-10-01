@@ -74,13 +74,17 @@ describe('Submission Queue Service', () => {
 
             const queueId = await enqueueSubmission(data, companyId, {
                 type: 'guest',
-                userId: null
+                userId: null,
+                applicantToday: '2026-10-01'
             });
 
             const entry = await getQueueEntry(queueId);
 
             expect(entry).toBeDefined();
             expect(entry.companyId).toBe(companyId);
+            // Beside the answers, not inside them: it describes the submission.
+            expect(entry.applicantToday).toBe('2026-10-01');
+            expect(entry.data).not.toHaveProperty('applicantToday');
             expect(entry.data.firstName).toBe('Jane');
             expect(entry.data.email).toBe('jane@example.com');
             expect(entry.type).toBe('guest');
@@ -96,6 +100,7 @@ describe('Submission Queue Service', () => {
 
             expect(entry.type).toBe('authenticated');
             expect(entry.userId).toBeNull();
+            expect(entry.applicantToday).toBeNull();
         });
 
         it('should handle multiple enqueues', async () => {

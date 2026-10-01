@@ -81,6 +81,21 @@ describe('normalizePspOutput', () => {
     });
 
     it.each([
+        // Seven digits is the ordinary length now. The value used to be cut to twelve
+        // characters BEFORE the digits were taken, so these became 123456 and 3 —
+        // and the wrong number became the identity a carrier locked (2026-10-01).
+        ['USDOT 1234567', '1234567'],
+        ['US DOT No. 3456789', '3456789'],
+        ['USDOT# 1234567', '1234567'],
+        ['1234567', '1234567'],
+        ['MC 765432 USDOT 1234567', '1234567'],
+        ['n/a', ''],
+    ])('reads the USDOT number out of %p as %p', (printed, expected) => {
+        const out = normalizePspOutput({ carriers: [{ carrierName: 'X', usdotNumber: printed }] });
+        expect(out.carriers[0].dotNumber).toBe(expected);
+    });
+
+    it.each([
         ['crash', 'crash'],
         ['Crash and inspection', 'both'],
         ['roadside', 'unknown'],

@@ -50,6 +50,9 @@ export function reconcileServerDraftOnLoad({
 }) {
     let current = true;
     const generation = resetGenerationRef.current;
+    // Where the applicant was when this went out, so a Back pressed while it is
+    // in flight can be told from where a restore put them. See `setCurrentStep`.
+    const stepAtStart = latestDraftRef.current.currentStep;
     restoreFromStoredToken().then((restored) => {
       if (!current || !restored) return;
       // Discarded while this fetch was open. The read itself succeeded, so nothing
@@ -184,8 +187,12 @@ export function reconcileServerDraftOnLoad({
       // last; `prev` still supplies the wizard's untouched defaults.
       setFormData((prev) => ({ ...prev, ...resolved.formData }));
       // `Math.max`: never move an applicant *backwards* from where they already
-      // are in this session.
-      setCurrentStep((prev) => Math.max(prev, restored.stepIndex));
+      // are in this session — and never *forwards* past a Back they pressed while
+      // this was in flight. That press is their answer to "where am I", and the
+      // fetch is a cold-startable round trip: until 2026-10-01 a driver who
+      // confirmed their identity on a continuation link, or reloaded, and went back
+      // a page inside that window was put straight back where they had been.
+      setCurrentStep((prev) => (prev < stepAtStart ? prev : Math.max(prev, restored.stepIndex)));
       setIntakeMode('manual');
     }).catch(() => {
       // Handled inside the hook. Nothing here may interrupt the apply page.

@@ -105,7 +105,36 @@ describe('useSubmissionQueue frontend-backend alignment', () => {
         }),
       }),
     );
+    // Queued before entries carried the applicant's day: nothing is sent, and the
+    // server judges on its own day as it always did.
+    expect(firebaseFunctionMocks.submitGuestApplication.mock.calls[0][0]).not.toHaveProperty('applicantToday');
     expect(firestoreMocks.setDoc).not.toHaveBeenCalled();
+  });
+
+  it('sends the day the applicant pressed Submit with a replay', async () => {
+    // Left out, a replay was judged on the server's UTC day: after 8 p.m. Eastern
+    // that is tomorrow, and an Hours of Service statement the page accepted is the
+    // wrong week (found in review, 2026-10-01).
+    queueMocks.processQueue.mockImplementationOnce(async (submitFn) => {
+      await submitFn(
+        { email: 'guest@example.com', lifecycle: { isGuest: true }, firstName: 'Guest' },
+        'co-guest',
+        { id: 'guest-q-day', type: 'guest', applicantToday: '2026-10-01' },
+      );
+      return { processed: 1, succeeded: 1, failed: 0 };
+    });
+
+    const { result } = renderHook(() => useSubmissionQueue());
+    await waitFor(() => expect(queueMocks.initQueue).toHaveBeenCalled());
+
+    await act(async () => {
+      await result.current.processQueueNow();
+    });
+
+    const payload = firebaseFunctionMocks.submitGuestApplication.mock.calls[0][0];
+    expect(payload.applicantToday).toBe('2026-10-01');
+    // A fact about the submission, not an answer, so it stays out of the application.
+    expect(payload.formData).not.toHaveProperty('applicantToday');
   });
 
   it('ends the draft\'s local life when a queued guest submission finally lands', async () => {

@@ -29,12 +29,19 @@ export function email(label = 'Email', { isRequired = true } = {}) {
     };
 }
 
+/**
+ * What `isValidPhone` actually accepts: ten digits, or eleven starting with 1. It
+ * used to say "at least 10 digits", which an international number satisfied while
+ * being refused.
+ */
+export const PHONE_RULE_MESSAGE = 'Enter a 10-digit US phone number.';
+
 /** Phone: required-or-optional plus format via isValidPhone. */
 export function phone(label = 'Phone', { isRequired = true } = {}) {
     return (value) => {
         const v = (value ?? '').toString().trim();
         if (!v) return isRequired ? `${label} is required.` : null;
-        if (!isValidPhone(v)) return 'Enter a valid phone number (at least 10 digits).';
+        if (!isValidPhone(v)) return PHONE_RULE_MESSAGE;
         return null;
     };
 }

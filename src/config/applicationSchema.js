@@ -15,7 +15,8 @@ import {
     LICENSE_CLASS_OPTIONS,
     ENDORSEMENT_OPTIONS,
     MILITARY_BRANCH_OPTIONS,
-    MILES_DRIVEN_OPTIONS
+    MILES_DRIVEN_OPTIONS,
+    US_STATE_OPTIONS
 } from './form-options';
 
 // ============================================================================
@@ -78,7 +79,9 @@ export const ADDRESS_SECTION = {
     fields: [
         { key: 'street', label: 'Address 1', type: 'text', required: true, placeholder: '123 Main St' },
         { key: 'city', label: 'City', type: 'text', required: true, placeholder: 'Anytown' },
-        { key: 'state', label: 'State', type: 'select', required: true },
+        // Options are the wizard's own state list: the company editors render a select
+        // from them, so a value typed here is always one the driver's picker can show.
+        { key: 'state', label: 'State', type: 'select', required: true, options: US_STATE_OPTIONS },
         { key: 'zip', label: 'ZIP Code', type: 'text', required: true, placeholder: '12345' },
         { key: 'residence-3-years', label: 'Lived at this residence for 3 years or more?', type: 'radio', options: YES_NO_OPTIONS, configKey: 'addressHistory' },
     ]
@@ -162,7 +165,7 @@ export const LICENSE_SECTION = {
     title: 'License Information',
     stepNumber: 3,
     fields: [
-        { key: 'cdlState', label: 'License State', type: 'select', required: true },
+        { key: 'cdlState', label: 'License State', type: 'select', required: true, options: US_STATE_OPTIONS },
         { key: 'cdlClass', label: 'License Class', type: 'radio', options: LICENSE_CLASS_OPTIONS, required: true },
         { key: 'cdlNumber', label: 'License Number', type: 'text', required: true },
         { key: 'cdlExpiration', label: 'License Expiration', type: 'date', required: true },
@@ -305,10 +308,13 @@ export const CONSENT_SECTION = {
     id: 'consent',
     title: 'Certification & Signature',
     stepNumber: 9,
+    // The applicant's own attestation: shown, never offered for a company to edit.
+    // `proposeApplicationChanges` skips all three anyway (they are not on its
+    // allowlist), so an editable box here only ever looked like an edit.
     fields: [
-        { key: 'final-certification', label: 'I certify that all information is true and complete', type: 'checkbox', required: true },
-        { key: 'signature', label: 'Signature', type: 'signature', required: true },
-        { key: 'signatureDate', label: 'Date', type: 'date', required: true },
+        { key: 'final-certification', label: 'I certify that all information is true and complete', type: 'checkbox', required: true, readOnly: true },
+        { key: 'signature', label: 'Signature', type: 'signature', required: true, readOnly: true },
+        { key: 'signatureDate', label: 'Date', type: 'date', required: true, readOnly: true },
     ]
 };
 

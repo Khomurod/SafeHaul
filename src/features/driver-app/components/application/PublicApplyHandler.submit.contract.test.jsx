@@ -84,8 +84,13 @@ describe('PublicApplyHandler submission contract', () => {
 
     const payload = callableSpy.mock.calls[0][0];
     expect(Object.keys(payload).sort()).toEqual(
-      ['companyId', 'email', 'formData', 'phone', 'signature'].sort(),
+      ['applicantToday', 'companyId', 'email', 'formData', 'phone', 'signature'].sort(),
     );
+    // The applicant's own calendar day, which the server judges "the last seven
+    // days" and "expired" against when it is within a day of its own (2026-10-01).
+    const now = new Date();
+    const localDay = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    expect(payload.applicantToday).toBe(localDay);
     expect(payload.companyId).toBe('company-1');
     expect(payload.email).toBe('ada@example.com');
     expect(payload.phone).toBe('5555551234');
@@ -132,6 +137,8 @@ describe('PublicApplyHandler submission contract', () => {
     await submit();
 
     await waitFor(() => expect(order).toEqual(['enqueue', 'submit', 'dequeue']));
+    const now = new Date();
+    const localDay = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     expect(enqueueSpy).toHaveBeenCalledWith(
       expect.objectContaining({ applicationId: 'generated-app-id' }),
       'company-1',
@@ -143,6 +150,9 @@ describe('PublicApplyHandler submission contract', () => {
       {
         type: 'guest',
         userId: null,
+        // The day the applicant pressed Submit, so a replay is judged on the day the
+        // page was, as the direct attempt is (found in review, 2026-10-01).
+        applicantToday: localDay,
         applySlug: 'acme',
         // Null for this fixture, and correctly so: it is a draft written before drafts
         // were named, so nothing can prove which application it is and the late close
@@ -157,6 +167,47 @@ describe('PublicApplyHandler submission contract', () => {
 
   it('retries the callable three times, then falls back to the queued screen', async () => {
     callableSpy.mockRejectedValue(new Error('offline'));
+
+    await renderWithCompleteDraft();
+    await submit();
+
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Application Saved' })).toBeInTheDocument(), {
+      timeout: 10_000,
+    });
+    expect(callableSpy).toHaveBeenCalledTimes(3);
+    expect(dequeueSpy).not.toHaveBeenCalled();
+  }, 20_000);
+
+  it('stops at a refusal: no retries, no queued screen, the server\'s sentence and the page it names', async () => {
+    // A refusal used to be retried three times and then shown as "Application
+    // Saved … No data will be lost", while the replay sent the same payload into the
+    // same refusal and gave up silently: an application the driver believed sent
+    // and the carrier never received (found 2026-10-01).
+    const refusal = Object.assign(
+      new Error("The application does not meet this carrier's requirements: Complete the Hours of Service statement."),
+      {
+        code: 'functions/invalid-argument',
+        details: { issues: [{ code: 'hours-of-service-required', semanticStep: 'general', fieldId: 'hosDailyHours' }] },
+      },
+    );
+    callableSpy.mockRejectedValue(refusal);
+
+    await renderWithCompleteDraft();
+    await submit();
+
+    // The rendered consequence first, then the calls made before it (CLAUDE.md,
+    // rule 7). 6 = General Questions with no custom questions; the page was 0.
+    await waitFor(() => expect(screen.getByTestId('current-step')).toHaveTextContent('6'));
+    expect(showError).toHaveBeenCalledWith(refusal.message);
+    // Retries would have run before the page changed, so one call means none.
+    expect(callableSpy).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('heading', { name: 'Application Saved' })).toBeNull();
+    // The entry written for guaranteed delivery goes, or it would replay the refusal.
+    expect(dequeueSpy).toHaveBeenCalledWith('queue-1');
+  });
+
+  it('still queues an ordinary failure to deliver', async () => {
+    callableSpy.mockRejectedValue(Object.assign(new Error('internal'), { code: 'functions/internal' }));
 
     await renderWithCompleteDraft();
     await submit();
@@ -335,6 +386,16 @@ describe('PublicApplyHandler submission contract', () => {
     await submit();
     expect(showError).toHaveBeenCalledWith('Invalid Email Address.');
     expect(callableSpy).not.toHaveBeenCalled();
+    // On the page that holds the field, not left on the signature page.
+    expect(screen.getByTestId('current-step')).toHaveTextContent('0');
+  });
+
+  it('sends a phone number page one used to accept back to page one', async () => {
+    await renderWithCompleteDraft({ phone: '+52 55 1234 5678' });
+    await submit();
+    expect(showError).toHaveBeenCalledWith('Enter a 10-digit US phone number.');
+    expect(callableSpy).not.toHaveBeenCalled();
+    expect(screen.getByTestId('current-step')).toHaveTextContent('0');
   });
 
   it('reports a failed local draft save instead of silently losing it', async () => {

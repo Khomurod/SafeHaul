@@ -7,6 +7,7 @@ const functions = require('firebase-functions/v1');
 const { admin, db, storage } = require('./firebaseAdmin');
 const { assertCompanyAcceptingIntake } = require('./shared/companyTenant');
 const {
+    applicantReferenceDay,
     assertApplicationRules,
     assertLockedEmployers,
     assertRequiredUnpersistedFields,
@@ -218,8 +219,15 @@ exports.submitGuestApplication = functions
         // draft deliberately never carried them, so this is the only place that can
         // catch a required Social Security Number going missing.
         assertRequiredUnpersistedFields(applicationConfig, normalizedFormData);
-        // The company's Application Rules, from its own record — never the client.
-        assertApplicationRules(applicationRules, applicationConfig, normalizedFormData);
+        // The company's Application Rules, from its own record — never the client —
+        // judged on the applicant's day when it is within one of ours: the wizard
+        // asked for "the last seven days" by their calendar, and this runs on UTC.
+        assertApplicationRules(
+            applicationRules,
+            applicationConfig,
+            normalizedFormData,
+            applicantReferenceDay(data?.applicantToday),
+        );
 
         const {
             applicantKeyFull,

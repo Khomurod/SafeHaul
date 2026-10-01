@@ -1,3 +1,5 @@
+import { US_STATE_NAMES } from '@shared/utils/usStates';
+
 export const YES_NO_OPTIONS = [
   { label: 'Yes', value: 'yes' },
   { label: 'No', value: 'no' }
@@ -13,6 +15,12 @@ export const EXPERIENCE_OPTIONS = [
   { label: '4 Years', value: '4' },
   { label: '5+ Years', value: '5+' }
 ];
+
+/**
+ * The state pickers' own vocabulary, as options. Full names, because that is what
+ * the wizard stores; `toUsStateName` maps a postal code onto one of these.
+ */
+export const US_STATE_OPTIONS = US_STATE_NAMES.map((name) => ({ label: name, value: name }));
 
 export const LICENSE_CLASS_OPTIONS = [
   { label: 'Class A', value: 'Class A' },
