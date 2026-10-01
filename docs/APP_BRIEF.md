@@ -401,6 +401,20 @@ normalization or truncation** — existing records would become unreachable.
 (`src/lib/submissionQueue.js`) with exponential backoff and retried when the
 connection returns. This only works because the IDs are deterministic.
 
+**A refusal is not a failure to deliver.** Only a submission that did not reach the
+server is retried and queued: a dropped connection (the SDK reports it as
+`internal`), a timeout, a cold start, the rate limiter. When the server read the
+application and refused it (`invalid-argument`, `failed-precondition` and the other
+permanent codes in `publicApplyRefusal.js`), the page stops retrying, removes the
+queue entry, shows the server's own sentence and goes to the page the refusal's
+issues name. The draft is untouched, so the applicant corrects it and submits
+again. Until 2026-10-01 a refusal was retried three times and then shown as
+"Application Saved … will be automatically submitted. No data will be lost." The
+replay sent the same payload into the same refusal ten times and marked the entry
+failed, with nobody told: the driver believed they had applied and the carrier
+never received the application. That was reproduced against the real callable, with
+a rule switched on in the carrier's settings while the driver was mid-application.
+
 **Drafts are never written into `applications`, and this is load-bearing.** Four
 triggers fire on `create` under `companies/{id}/applications/{appId}` —
 notification, applicant email confirmation, driver sync / shadow profile, and the

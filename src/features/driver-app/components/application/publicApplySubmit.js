@@ -28,6 +28,7 @@ import { SANDBOX_APP_SLUG } from '@features/sandbox/sandboxConstants';
 import { clearApplicationDraft } from './applicationDraftStorage';
 import { savePostApplySession } from './postApplyDocsStorage';
 import { runSubmissionPreflight } from './publicApplyPreflight';
+import { isPermanentRefusal, refusalStepIndex } from './publicApplyRefusal';
 
 export async function submitPublicApplication({
   // State values as they stood when the applicant pressed Submit.
@@ -387,6 +388,8 @@ export async function submitPublicApplication({
         } catch (error) {
           console.warn(`[PublicApplyHandler] Attempt ${attempt} failed:`, error);
           lastError = error;
+          // The same answers would get the same answer.
+          if (isPermanentRefusal(error)) break;
           if (attempt < 3) {
             await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt - 1)));
           }
@@ -405,6 +408,25 @@ export async function submitPublicApplication({
       // something that is never going to happen.
       if (discardedElsewhere() || resetGenerationRef.current !== submitGeneration) {
         await abandonForDiscard();
+        return;
+      }
+
+      // Refused, not undelivered: say what the server said, and take the applicant
+      // to the page it names. The queue entry goes, or it would replay the refusal
+      // later behind a screen promising the opposite. The draft is untouched, so
+      // nothing they typed is lost and they can correct it and submit again.
+      if (isPermanentRefusal(lastError)) {
+        if (queueId) {
+          try {
+            await dequeueSubmission(queueId);
+          } catch (dequeueError) {
+            console.warn('[PublicApplyHandler] Dequeue after a refusal failed:', dequeueError);
+          }
+        }
+        const step = refusalStepIndex(lastError, customQuestions.length > 0);
+        if (step !== null) setCurrentStep(step);
+        setSubmissionStatus('error');
+        showError(lastError?.message || 'Your application could not be submitted. Please check your answers and try again.');
         return;
       }
 

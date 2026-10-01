@@ -168,6 +168,47 @@ describe('PublicApplyHandler submission contract', () => {
     expect(dequeueSpy).not.toHaveBeenCalled();
   }, 20_000);
 
+  it('stops at a refusal: no retries, no queued screen, the server\'s sentence and the page it names', async () => {
+    // A refusal used to be retried three times and then shown as "Application
+    // Saved … No data will be lost", while the replay sent the same payload into the
+    // same refusal and gave up silently: an application the driver believed sent
+    // and the carrier never received (found 2026-10-01).
+    const refusal = Object.assign(
+      new Error("The application does not meet this carrier's requirements: Complete the Hours of Service statement."),
+      {
+        code: 'functions/invalid-argument',
+        details: { issues: [{ code: 'hours-of-service-required', semanticStep: 'general', fieldId: 'hosDailyHours' }] },
+      },
+    );
+    callableSpy.mockRejectedValue(refusal);
+
+    await renderWithCompleteDraft();
+    await submit();
+
+    // The rendered consequence first, then the calls made before it (CLAUDE.md,
+    // rule 7). 6 = General Questions with no custom questions; the page was 0.
+    await waitFor(() => expect(screen.getByTestId('current-step')).toHaveTextContent('6'));
+    expect(showError).toHaveBeenCalledWith(refusal.message);
+    // Retries would have run before the page changed, so one call means none.
+    expect(callableSpy).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('heading', { name: 'Application Saved' })).toBeNull();
+    // The entry written for guaranteed delivery goes, or it would replay the refusal.
+    expect(dequeueSpy).toHaveBeenCalledWith('queue-1');
+  });
+
+  it('still queues an ordinary failure to deliver', async () => {
+    callableSpy.mockRejectedValue(Object.assign(new Error('internal'), { code: 'functions/internal' }));
+
+    await renderWithCompleteDraft();
+    await submit();
+
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Application Saved' })).toBeInTheDocument(), {
+      timeout: 10_000,
+    });
+    expect(callableSpy).toHaveBeenCalledTimes(3);
+    expect(dequeueSpy).not.toHaveBeenCalled();
+  }, 20_000);
+
   it('surfaces an error instead of the queued screen when the queue is unavailable', async () => {
     isQueueSupportedSpy.mockReturnValue(false);
     callableSpy.mockRejectedValue(new Error('offline'));
