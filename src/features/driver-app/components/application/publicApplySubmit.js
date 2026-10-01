@@ -25,6 +25,7 @@ import {
   generateConfirmationNumber
 } from '@lib/applicationId';
 import { SANDBOX_APP_SLUG } from '@features/sandbox/sandboxConstants';
+import { toIsoDay } from '@/config/applicationDates';
 import { clearApplicationDraft } from './applicationDraftStorage';
 import { savePostApplySession } from './postApplyDocsStorage';
 import { runSubmissionPreflight } from './publicApplyPreflight';
@@ -328,6 +329,10 @@ export async function submitPublicApplication({
             phone: phone,
             signature: formData.signature,
             formData: applicationData,
+            // The day the applicant's clock says it is — the day this page checked
+            // "the last seven days" and "expired" against. The server runs on UTC
+            // and accepts this within a day of its own; see `applicantReferenceDay`.
+            applicantToday: toIsoDay(new Date()),
           });
 
           // Use server-generated values if available

@@ -84,8 +84,13 @@ describe('PublicApplyHandler submission contract', () => {
 
     const payload = callableSpy.mock.calls[0][0];
     expect(Object.keys(payload).sort()).toEqual(
-      ['companyId', 'email', 'formData', 'phone', 'signature'].sort(),
+      ['applicantToday', 'companyId', 'email', 'formData', 'phone', 'signature'].sort(),
     );
+    // The applicant's own calendar day, which the server judges "the last seven
+    // days" and "expired" against when it is within a day of its own (2026-10-01).
+    const now = new Date();
+    const localDay = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    expect(payload.applicantToday).toBe(localDay);
     expect(payload.companyId).toBe('company-1');
     expect(payload.email).toBe('ada@example.com');
     expect(payload.phone).toBe('5555551234');
