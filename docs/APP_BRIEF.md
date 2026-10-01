@@ -488,6 +488,11 @@ holding unacknowledged work wins; a server copy another device advanced wins;
 **the loser is always merged underneath, never discarded**, so a field only one
 side has always survives. Work typed since page load outranks both. The decision
 lives in `reconcileApplicationDraft.js`, is pure, and is covered case by case.
+The page it restores never overrides a Back pressed while the server read was
+still out: the step the read started from is captured, and an applicant now below
+it stays where they put themselves. Until 2026-10-01 a driver who went back a page
+during that round trip, which can include a cold start, was sent straight back to
+where they had been.
 
 **Reconciliation answers "which copy is newer". It also has to answer "whose is
 it".** Every slot on the apply page is namespaced by company slug and nothing
