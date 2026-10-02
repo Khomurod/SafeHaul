@@ -22,7 +22,7 @@ jest.mock('firebase-functions/v1', () => {
 });
 
 // Plain functions rather than `jest.fn` wrappers: the suite resets every mock
-// before each test (it queues `*Once` values — see AGENTS.md), and a reset
+// before each test (it queues `*Once` values — see .claude/rules/testing.md), and a reset
 // `jest.fn` collection() would return undefined, which the callable's own
 // try/catch would read as "the profile had no answer".
 const mockPublicProfileGet = jest.fn();

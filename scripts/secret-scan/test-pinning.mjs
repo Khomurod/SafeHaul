@@ -121,7 +121,7 @@ console.log('\nL. The scanner is ours, pinned by content, and cannot be exempted
  * stale path or a second copy of the closure logic, and the assertions belong
  * beside the thing they describe regardless.
  *
- * The L numbers are kept deliberately. `AGENTS.md` cites L24a, L25 and L26 by
+ * The L numbers are kept deliberately. `.claude/rules/release-pipeline.md` cites L24a, L25 and L26 by
  * name, and the commit that measured each of these refers to them; renaming them
  * to fit this file's D-series would break that trail for nothing. What each one
  * asserts is unchanged — only the source it reads is wider, because

@@ -132,8 +132,8 @@ jobs:
     # #159 on `8c3315d` failed on 67 findings from 2025-12..2026-03 and skipped
     # both deploys. `scripts/secret-scan.mjs` owns the range instead, pins the
     # scanner by version and digest, and fails closed when it cannot determine a
-    # base. Its docblock records what was measured; AGENTS.md ("Changing the
-    # release pipeline", rule 4) records the rule.
+    # base. Its docblock records what was measured;
+    # `.claude/rules/release-pipeline.md` ("Security gates") records the rule.
     permissions:
       contents: read
       # Read-only, and only for one question: did an earlier commit carry a
@@ -276,6 +276,21 @@ jobs:
           # the head, carrying a validated release, containing whatever the walk
           # would have chosen, and not from before the backlog existed — because an
           # escape hatch nobody checks is a bypass, measured four times now.
+          SOURCE_SIZE_BASE: ${{ github.event.inputs.source_size_base || '' }}
+
+      # The files AI agents read as instructions stay small: one nobody can hold
+      # in mind is one nobody follows, and Codex silently cuts long ones off.
+      # Limits live in scripts/agent-docs-limits.mjs; the guard's tests run first.
+      - name: Verify the agent-docs guard
+        run: npm run test:agent-docs
+
+      # Limits may only move down, compared with the same base commit the
+      # source-size step above uses, from the same three inputs.
+      - name: Check agent instruction sizes
+        run: npm run check:agent-docs -- --require-baseline
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_PR_BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
           SOURCE_SIZE_BASE: ${{ github.event.inputs.source_size_base || '' }}
 
       # The shared AI platform is only worth having if it cannot be bypassed,
@@ -480,8 +495,8 @@ jobs:
 
       # Sharding splits the suite ACROSS runners; it does not raise `workers`
       # within one. Each shard gets its own machine, its own dev server and its
-      # own port 5000, so the shared-dev-server hazard documented in CLAUDE.md
-      # ("CI Playwright concurrency: workers: 1 is deliberate") does not apply —
+      # own port 5000, so the shared-dev-server hazard in `.claude/rules/testing.md`
+      # ("Playwright in CI") does not apply —
       # that hazard is two suites contending for one server on one machine.
       # `workers: 1` and `retries: 2` are untouched.
       #

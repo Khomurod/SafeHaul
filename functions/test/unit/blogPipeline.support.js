@@ -15,7 +15,7 @@
  *
  * ## The `Once` hazard does not apply here, and it was checked
  *
- * `AGENTS.md` records that `clearAllMocks` does not drain a `*Once` queue, and
+ * `.claude/rules/testing.md` records that `clearAllMocks` does not drain a `*Once` queue, and
  * that splitting a file changes test ordering — the timing that makes such a leak
  * surface. This suite queues no `*Once` value anywhere (verified before the
  * split), so `resetBlogState` keeps using `clearAllMocks` exactly as before.

@@ -65,16 +65,16 @@ export const UNMEASURED_FORMATS = Object.freeze([
   },
   {
     extension: '.md',
-    reason: 'Documentation is meant to be long. docs/APP_BRIEF.md is 1154 lines because '
-      + 'it is the orientation document, and shortening it to pass a code metric would '
-      + 'be a straight loss.',
+    reason: 'Documentation is measured by its own standard instead: the files AI agents '
+      + 'read as instructions have per-file limits in scripts/agent-docs-limits.mjs '
+      + '(npm run check:agent-docs), and a code metric would count prose as statements.',
   },
   {
     extension: '.yml',
     reason: 'Workflows. .github/ is outside the roots this standard covers, and '
-      + '.github/workflows/main.yml (1148 lines) is governed by npm run check:ci-plan, '
+      + '.github/workflows/main.yml (over 1,000 lines) is governed by npm run check:ci-plan, '
       + 'which asserts its structure job by job rather than by length. Recorded as a '
-      + 'known limitation in AGENTS.md rather than silently omitted.',
+      + 'known limitation in .claude/rules/source-size.md rather than silently omitted.',
   },
   {
     extension: '.yaml',
@@ -236,7 +236,7 @@ export const DOCUMENTED_EXCEPTIONS = Object.freeze([
       + 'what is permitted, because overlapping match statements are OR-united. '
       + 'The owner chose the documented exception over bending the metric or '
       + 'funding a full permission-matrix rewrite, on 2026-09-01, from the three '
-      + 'options recorded in docs/source-size-refactor/TRACKER.md § RU-2.',
+      + 'options recorded in docs/archive/source-size-refactor/TRACKER.md § RU-2.',
   },
 ]);
 

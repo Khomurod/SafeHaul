@@ -20,7 +20,7 @@
  *
  * ## The `Once` hazard, checked
  *
- * `AGENTS.md` records that `clearAllMocks` does not drain a `*Once` queue. Neither
+ * `.claude/rules/testing.md` records that `clearAllMocks` does not drain a `*Once` queue. Neither
  * suite queues one today, so `resetPevState` keeps `clearAllMocks` and
  * re-establishes the three implementations below afterwards. A suite that starts
  * queuing one must drain that double itself with `mockReset()`, as

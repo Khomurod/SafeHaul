@@ -139,7 +139,7 @@ const MODULE_CALL = new RegExp(`\\b(?:import|require)${BETWEEN}\\(([^)]*)\\)`, '
  * `process.getBuiltinModule`: `const p = globalThis.process` in front of it is
  * the same route, and was reproduced alongside the reported one.
  *
- * It is not a proof, and AGENTS.md records why rather than implying otherwise: a
+ * It is not a proof, and `.claude/rules/release-pipeline.md` says so rather than implying otherwise: a
  * determined author with commit access can still reach a loader, and no static
  * check living in the same repository defeats an author who can also edit the
  * check. What this closes is the accidental and the disguised-but-legible.

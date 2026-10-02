@@ -24,7 +24,7 @@
  *
  * ## The `Once` hazard does not apply here, and it was checked
  *
- * `AGENTS.md` records that `clearAllMocks` does not drain a `*Once` queue, and
+ * `.claude/rules/testing.md` records that `clearAllMocks` does not drain a `*Once` queue, and
  * that splitting a file changes test ordering — the timing that makes such a leak
  * surface. `resetDraftState` therefore keeps using `clearAllMocks`, and
  * re-establishes the implementations below afterwards.
@@ -40,7 +40,7 @@
  * Switching this helper to `resetAllMocks` is the textbook answer and is not
  * available: Jest 30's `mockReset` replaces every implementation with one
  * returning `undefined`, so it would have to re-establish all six doubles, which
- * is the separate measured change `AGENTS.md` describes for the 18 files under
+ * is the separate measured change `.claude/rules/testing.md` describes for the 18 files under
  * `functions/`. **So a suite that queues a `*Once` value drains it itself** —
  * `mockReset()` on that one double, before calling `resetDraftState`, which then
  * puts its implementation back. `companyApplications.invite.expiry.test.js` shows

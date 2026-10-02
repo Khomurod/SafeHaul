@@ -45,7 +45,8 @@ Read those files during the task rather than relying on memory of them.
 
 Before editing anything:
 
-- Read `CLAUDE.md` and the instruction files it imports.
+- Read `CLAUDE.md`, the instruction files it imports, and the `.claude/rules/`
+  file for the area you touch.
 - Read the parts of the App Brief that touch the request — behavior, business
   rules, permissions, integrations, background jobs, ripple risks, preserved
   decisions, known limitations.

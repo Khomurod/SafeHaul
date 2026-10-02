@@ -77,7 +77,7 @@ function renderNameForm(props = {}) {
  * only documentation and tooling. Reproduced by resolving the memberships one
  * macrotask later: three tests fail with the exact CI messages.
  *
- * This is AGENTS.md rule 7 in a third spelling. The first two were about the same
+ * This is the waiting rule in `.claude/rules/testing.md`, in a third spelling. The first two were about the same
  * element rendering before its content; this one is a DIFFERENT element that
  * happens to carry the same text. The criterion is unchanged — wait for something
  * that cannot exist until the state you are asserting on does — and the role
@@ -308,7 +308,7 @@ describe('UserMembershipsManager — listing contract', () => {
      * this passes. On a loaded CI runner the gap opens, and it did: this exact
      * message, on 2026-08-26 and again on 2026-09-06.
      *
-     * `AGENTS.md` rule 7 is the general form — wait on the rendered consequence,
+     * The waiting rule in `.claude/rules/testing.md` is the general form — wait on the rendered consequence,
      * which is the assertion you were going to make anyway. Note the shape it
      * takes here: rule 7's scan looked for `await waitFor(...)` followed by a
      * synchronous `expect(screen.getBy…)`, and this site is

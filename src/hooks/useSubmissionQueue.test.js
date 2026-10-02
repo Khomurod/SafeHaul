@@ -5,7 +5,7 @@ import { useSubmissionQueue } from './useSubmissionQueue';
 // Defaults are given AS the implementation (`vi.fn(async () => x)`), not chained on
 // with `mockResolvedValue`, because `vi.resetAllMocks()` in `beforeEach` reverts a
 // mock to the implementation it was created with and wipes anything chained on
-// afterwards. AGENTS.md rule 6.
+// afterwards. See .claude/rules/testing.md.
 const queueMocks = vi.hoisted(() => ({
   initQueue: vi.fn(async () => undefined),
   getAllPending: vi.fn(async () => [{ id: 'q1' }]),
