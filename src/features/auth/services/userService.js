@@ -7,8 +7,7 @@ import {
   addDoc,
   deleteDoc,
   query,
-  where,
-  documentId
+  where
 } from "firebase/firestore";
 import { db, functions } from '@lib/firebase';
 
@@ -42,34 +41,10 @@ export async function updateUser(userId, data, companyId = null) {
   return result.data;
 }
 
-export async function loadAllUsers() {
-  return await getDocs(collection(db, "users"));
-}
-
-export async function getUsersFromIds(userIds) {
-  if (!userIds || userIds.length === 0) {
-    return null;
-  }
-  const userRef = collection(db, "users");
-  const q = query(userRef, where(documentId(), "in", userIds));
-  return await getDocs(q);
-}
-
-export async function loadAllMemberships() {
-  return await getDocs(collection(db, "memberships"));
-}
-
 export async function getMembershipsForUser(userId) {
   if (!userId) return null;
   const membershipsRef = collection(db, "memberships");
   const q = query(membershipsRef, where("userId", "==", userId));
-  return await getDocs(q);
-}
-
-export async function getMembershipsForCompany(companyId) {
-  if (!companyId) return null;
-  const membershipsRef = collection(db, "memberships");
-  const q = query(membershipsRef, where("companyId", "==", companyId));
   return await getDocs(q);
 }
 

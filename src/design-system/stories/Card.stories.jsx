@@ -20,10 +20,8 @@ const meta = {
     docs: {
       description: {
         component: [
-          '**Status: Approved for `Card`. `MetricCard` is Approved with a caveat** — it is',
-          'proven by the Company dashboard, but a compatibility `StatCard` still exists',
-          'elsewhere and the roadmap keeps the card family open until those consumers are',
-          'migrated. Prefer `MetricCard`; do not add new `StatCard` usage.',
+          '**Status: Approved for `Card` and `MetricCard`.** `MetricCard` is proven by the',
+          'Company dashboard; prefer it over a locally built stat card.',
           '',
           '### Intended use',
           '',

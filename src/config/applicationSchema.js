@@ -361,16 +361,6 @@ export const APPLICATION_SCHEMA = {
 // ============================================================================
 
 /**
- * Get all field keys for a given step
- */
-export function getFieldsForStep(stepNumber) {
-    return APPLICATION_SCHEMA.sections
-        .filter(s => s.stepNumber === stepNumber)
-        .flatMap(s => s.fields || [])
-        .map(f => f.key);
-}
-
-/**
  * Get field definition by key
  */
 export function getFieldByKey(key) {
@@ -382,29 +372,6 @@ export function getFieldByKey(key) {
         if (arrayField) return { ...arrayField, section: section.id, isArrayField: true };
     }
     return null;
-}
-
-/**
- * Get all field keys in the entire schema (flat list)
- */
-export function getAllFieldKeys() {
-    const keys = new Set();
-
-    for (const section of APPLICATION_SCHEMA.sections) {
-        section.fields?.forEach(f => keys.add(f.key));
-        section.itemFields?.forEach(f => keys.add(f.key));
-    }
-
-    return Array.from(keys);
-}
-
-/**
- * Check if a field should be visible based on company config
- */
-export function isFieldVisible(field, applicationConfig) {
-    if (!field.configKey) return true;
-    const config = applicationConfig?.[field.configKey];
-    return !config?.hidden;
 }
 
 /**

@@ -22,9 +22,6 @@
  * caches it in IndexedDB after the first document.
  */
 
-/** Recognition is slower than a network call; this bounds a stuck worker, not a slow one. */
-export const OCR_TIMEOUT_MS = 120000;
-
 /**
  * Recognise text in already-rendered page images.
  *
