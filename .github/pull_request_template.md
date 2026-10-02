@@ -1,3 +1,8 @@
+## Кратко
+
+<!-- For the owner, in plain Russian, three or four lines: what changed for
+     users, what was checked, the risks, and what the owner must do. No jargon. -->
+
 ## What changed and why
 
 <!-- The problem, not the patch. What was wrong, and what a reader would get
@@ -5,65 +10,34 @@
 
 ## Evidence
 
-Tick what you actually ran. **Never tick an unrun check** — an unticked box is
-information; a wrongly ticked one is a lie the next person acts on. Delete the
-rows that do not apply and say why in one line.
+Tick only what you actually ran: an unticked box is information, a wrongly
+ticked one is a lie the next person acts on. Delete the rows that do not apply
+and say why in one line.
 
 | Check | Ran | Notes |
 |---|---|---|
-| `npm run lint:frontend` | [ ] | |
-| `npm test` | [ ] | |
+| `npm run lint:frontend` (and `npm run lint` in `functions/` if it changed) | [ ] | |
+| `npm test` (and `npm test` in `functions/` if it changed) | [ ] | |
 | `npm run build` | [ ] | |
-| Relevant E2E (`--project=chromium` and `--project=mobile-chrome`) | [ ] | which specs |
-
-### UI changes only
-
-Delete this whole section for a change that renders nothing.
-
-| Check | Ran | Notes |
-|---|---|---|
-| `npm run check:ui-contract` | [ ] | inventory shrank by N / unchanged — it may not grow: `--update` refuses an addition, and a new entry has to be one the base commit already carried |
-| `npm run check:visual-contract` | [ ] | geometry unchanged, or the diff and why |
-| `npm run test:stories` | [ ] | |
-| `npm run check:table-layout` | [ ] | required if a table, cell or column width moved |
-| `npm run test:visual` | [ ] | **blocking** since 2026-08-25; if a baseline moved, say why and commit the re-recording |
-| `npm run test:e2e -- --grep "@a11y"` | [ ] | **blocking** since 2026-08-25, inside the `frontend-e2e` lane |
-| Desktop review at 1440 | [ ] | |
-| **Mobile review at 412** | [ ] | not a shrunk desktop — say what you checked |
-| Keyboard: tab order, visible focus, accessible names | [ ] | |
-| Dialogs: focus trap, focus restored on Escape *and* Cancel | [ ] | |
-| Roadmap / component README / catalog updated **in this commit** | [ ] | |
+| Browser tests for the flows touched (`--project=chromium` and `--project=mobile-chrome`) | [ ] | which specs |
+| The guards this change touches (`AGENTS.md` §4) | [ ] | which |
 | Final `git diff` read in full, no unrelated changes | [ ] | |
 
-## Design-system conformance
+### UI changes only — delete this section for a change that renders nothing
 
-- [ ] Every control uses an approved primitive, or the exception is recorded in
-      `docs/SAFEHAUL_DESIGN_SYSTEM_ROADMAP.md` **and** at the call site.
-- [ ] Colours are `--ds-*` semantic roles. No raw palette class, no raw hex.
-- [ ] Type is on the `--ds-*` scale. Nothing below 12px.
-- [ ] Heights and spacing come from the control scale and the surface geometry
-      roles — no hand-picked `h-*` or `p-*` on a control.
-- [ ] Status is never colour alone.
-- [ ] Radii and shadows come from the `--ds-*` scales, matched **by value**:
-      Tailwind's `rounded-lg` is 8px where `rounded-ds-lg` is 12px, and its
-      `shadow-sm` is the `shadow-ds-xs` step.
-- [ ] `ui-contract.allowlist.json` is regenerated if the counts moved, and any
-      new entry says **why** it is allowed. There is no `debt` option any more —
-      and a reason is not enough on its own: the base commit must already carry
-      the violation, so a file this change creates can never carry an entry and a
-      recorded exception can never grow. `--update` only shrinks.
-- [ ] Nothing here is a **hand-composed pattern**: a status screen built from
-      `Card` + `StatusMedallion` + heading + body + actions, or a `Modal` with
-      its own Cancel/Confirm footer. Both are made of approved primitives, so no
-      check can see them — use `patterns/page-state` and `ConfirmDialog`. See
-      roadmap §7.
+| Check | Ran | Notes |
+|---|---|---|
+| `npm run check:ui-contract` and `npm run test:stories` | [ ] | the allowlist may only shrink |
+| `check:visual-contract`, `check:table-layout`, `test:visual` (components, tokens, styles or tables moved) | [ ] | |
+| Desktop review at 1440 and phone review at 412 | [ ] | what you checked on the phone |
+| Keyboard order, visible focus, accessible names; dialogs trap and restore focus | [ ] | |
+| Roadmap and component docs updated in this change | [ ] | |
 
-## Nothing here changes behaviour
+The design-system rules are in `.claude/rules/ui.md` and roadmap §3.
 
-A UI/consistency change must not touch any of these. Tick to confirm, or say
-which one it touches and why that is approved:
+## What it touches
 
-- [ ] Firebase rules, indexes, data shape, Cloud Functions, callable contracts
-- [ ] Permissions, roles, tenant isolation, routes, feature flags
-- [ ] Business workflows — recruiting, application, signing, verification
-- [ ] Uploads, drafts, offline queues, PDF geometry, domain status vocabulary
+<!-- "None", or name each and why it is approved: Firebase rules, indexes, data
+     shape, Cloud Functions or callable contracts; permissions, roles, tenant
+     isolation, routes, feature flags; business workflows; uploads, drafts,
+     offline queues, PDF geometry, status vocabulary. -->

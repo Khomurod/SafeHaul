@@ -2147,7 +2147,7 @@ completion** — a PR never deploys, so it cannot exercise the path you changed.
 | Guest/public security posture | [`docs/security-posture.md`](./security-posture.md) |
 | Shared AI platform | [`docs/ai-platform.md`](./ai-platform.md) |
 | Automated blog | [`docs/news-and-insights.md`](./news-and-insights.md) |
-| Hosting, releases, promotion | [`docs/FIREBASE_HOSTING_RUNBOOK.md`](./FIREBASE_HOSTING_RUNBOOK.md) |
+| Hosting, releases, promotion | [`docs/FIREBASE_HOSTING_RUNBOOK.md`](./FIREBASE_HOSTING_RUNBOOK.md); the owner's pre-release check is [`docs/RELEASE_CHECKLIST.md`](./RELEASE_CHECKLIST.md) |
 | Credentials and integrations inventory | [`docs/environment-and-integrations-runbook.md`](./environment-and-integrations-runbook.md) |
 | Operations, alerting, retention | [`docs/production-readiness-runbook.md`](./production-readiness-runbook.md) |
 | Historical record reconstruction | [`docs/application-record-reconstruction-runbook.md`](./application-record-reconstruction-runbook.md) |

@@ -53,6 +53,9 @@ only to learn *why* a rule exists).
   Firestore, Auth, Storage, Functions and integrations as Production. Merging to
   `main` deploys Testing and the shared backend at once; Production
   (`app.safehaul.io`) changes only when someone promotes a tested version.
+- **The owner's own pages** are `docs/OWNER_GUIDE.md` and
+  `docs/RELEASE_CHECKLIST.md`, in Russian. Keep them true when you change what
+  they describe.
 
 ## 3. Rules that always apply
 

@@ -364,6 +364,7 @@ CI additionally runs `check:callable-contract`, `check:ai-boundary`,
 | Topic | Document |
 |---|---|
 | **What the app is — start here** | [docs/APP_BRIEF.md](docs/APP_BRIEF.md) |
+| Owner's guide and pre-release checklist (Russian) | [docs/OWNER_GUIDE.md](docs/OWNER_GUIDE.md) · [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md) |
 | Rules for AI agents: working process and tools, plus topic rules for tests, UI, releases and file sizes | [AGENTS.md](AGENTS.md) · [.claude/rules/](.claude/rules/) |
 | Communication patterns, SMS routing, bulk worker | [ARCHITECTURE.md](ARCHITECTURE.md) |
 | Product positioning and capability claims | [PRODUCT.md](PRODUCT.md) |
