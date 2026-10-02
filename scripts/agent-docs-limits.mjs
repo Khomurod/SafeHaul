@@ -49,12 +49,12 @@ export const AGENT_DOC_LIMITS = [
         why: 'required reading before any change; may only move down until it is condensed',
     },
     {
-        pattern: 'docs/SAFEHAUL_DESIGN_SYSTEM_ROADMAP.md', mustExist: true, maxLines: 2617,
-        why: 'required reading before UI work; may only move down until it is condensed',
+        pattern: 'docs/SAFEHAUL_DESIGN_SYSTEM_ROADMAP.md', mustExist: true, maxLines: 560, maxBytes: 50 * 1024,
+        why: 'required reading before UI work; history belongs in docs/archive/',
     },
     {
-        pattern: 'src/design-system/README.md', mustExist: true, maxLines: 447,
-        why: 'required reading before UI work; may only move down until it is condensed',
+        pattern: 'src/design-system/README.md', mustExist: true, maxLines: 180, maxBytes: 14 * 1024,
+        why: 'required reading before UI work; history belongs in docs/archive/',
     },
     {
         pattern: '.github/pull_request_template.md', mustExist: true, maxLines: 45,
