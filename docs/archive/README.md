@@ -11,6 +11,7 @@ and the design-system documents, stated as they apply today.
 
 | File | What it holds |
 |---|---|
+| `app-brief-2026-10-02.md` | `docs/APP_BRIEF.md` in full, before it was condensed |
 | `agent-instructions-2026-10-02.md` | `AGENTS.md` and `CLAUDE.md` in full, before they were condensed |
 | `design-system-docs-2026-10-02.md` | The design-system roadmap and `src/design-system/README.md` in full, before they were condensed, with the roadmap's dated update log |
 | `source-size-refactor/` | The finished 2026-08 source-size campaign: its plan and its tracker |
