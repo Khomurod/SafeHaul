@@ -9,9 +9,7 @@
  * To make a change fit, shorten the text. Move history to `docs/archive/` and
  * keep only the rule. CI compares this file with the base commit and refuses any
  * raised, loosened or removed limit (`agent-docs-baseline.mjs`), so a raise
- * cannot ride along with the text it lets in; it is the owner's decision. A
- * ceiling marked "may only move down" is today's size of a document still
- * waiting to be condensed.
+ * cannot ride along with the text it lets in; it is the owner's decision.
  *
  * `pattern` is a glob over tracked paths: `**` crosses directories, `*` does not.
  */
@@ -45,8 +43,8 @@ export const AGENT_DOC_LIMITS = [
         why: 'loaded whole when Codex picks the skill',
     },
     {
-        pattern: 'docs/APP_BRIEF.md', mustExist: true, maxLines: 2165,
-        why: 'required reading before any change; may only move down until it is condensed',
+        pattern: 'docs/APP_BRIEF.md', mustExist: true, maxLines: 1500, maxBytes: 94 * 1024,
+        why: 'required reading before any change; history belongs in docs/archive/',
     },
     {
         pattern: 'docs/SAFEHAUL_DESIGN_SYSTEM_ROADMAP.md', mustExist: true, maxLines: 560, maxBytes: 50 * 1024,
