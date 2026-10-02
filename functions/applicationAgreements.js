@@ -80,8 +80,10 @@ async function resolveAgreementCompanyName(companyId, companyData) {
     return companyName;
 }
 
+// 256MB, not 128MB: a cold start loads the whole of index.js, and on 128MB's
+// share of CPU (about 200 MHz on 1st Gen) that no longer fits the start-up limit.
 exports.getApplicationAgreements = functions
-    .runWith({ memory: '128MB', timeoutSeconds: 15 })
+    .runWith({ memory: '256MB', timeoutSeconds: 15 })
     .https.onCall(async (data, context) => {
         const { checkRateLimit } = require('./shared/rateLimiter');
         const clientIp = (context && context.rawRequest && context.rawRequest.ip) || 'unknown';
