@@ -6,9 +6,6 @@
  *
  * Hard requirements (runs inside Sentry's pipeline): never throw (a scrub failure
  * must not drop telemetry), cycle-safe, depth-bounded.
- *
- * Mirror of functions/shared/scrub.js (kept in sync; separate packages/module
- * systems prevent a shared module).
  */
 
 const PII_KEY = /(ssn|social[\s_-]?security|dob|date[\s_-]?of[\s_-]?birth|passwd|password|token|secret|authorization|api[\s_-]?key|credential|cookie|email|phone)/i;
