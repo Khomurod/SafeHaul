@@ -1033,6 +1033,10 @@ unparseable number — but nothing populates them from a recipient's reply (§12
   nearly all of them, while a change to `functions/package.json` or its lockfile
   alone redeploys none, so a dependency upgrade reaches a function only when its
   own code, or a file it loads, next changes.
+- **Every function loads the whole of `functions/index.js` on a cold start**, so
+  a heavier dependency slows them all. 256 MB is the floor: a 1st Gen function at
+  128 MB gets about 200 MHz, too little to load it within the start-up limit, and
+  `functions/test/unit/functionMemoryFloor.test.js` refuses anything smaller.
 - **The blog owns its stylesheet.** `/news`, `/news/{slug}` and `/news/feed.xml`
   are rendered by `serveBlogPublic` and styled by five files in
   `web/assets/css/`, cut from the retired marketing site's single sheet at its

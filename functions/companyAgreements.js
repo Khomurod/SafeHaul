@@ -101,8 +101,11 @@ async function describeCompanyAgreements(companyId) {
     });
 }
 
+// All three run at 256MB, not 128MB: a cold start loads the whole of index.js,
+// and on 128MB's share of CPU (about 200 MHz on 1st Gen) that no longer fits the
+// start-up limit.
 exports.listCompanyAgreementWording = functions
-    .runWith({ memory: '128MB', timeoutSeconds: 15 })
+    .runWith({ memory: '256MB', timeoutSeconds: 15 })
     .https.onCall(async (data, context) => {
         const auth = requireAuth(context);
         const companyId = requireCompanyId(data);
@@ -113,7 +116,7 @@ exports.listCompanyAgreementWording = functions
     });
 
 exports.publishCompanyAgreementWording = functions
-    .runWith({ memory: '128MB', timeoutSeconds: 15 })
+    .runWith({ memory: '256MB', timeoutSeconds: 15 })
     .https.onCall(async (data, context) => {
         const auth = requireSuperAdmin(context);
         const companyId = requireCompanyId(data);
@@ -145,7 +148,7 @@ exports.publishCompanyAgreementWording = functions
     });
 
 exports.revertCompanyAgreementWording = functions
-    .runWith({ memory: '128MB', timeoutSeconds: 15 })
+    .runWith({ memory: '256MB', timeoutSeconds: 15 })
     .https.onCall(async (data, context) => {
         requireSuperAdmin(context);
         const companyId = requireCompanyId(data);
