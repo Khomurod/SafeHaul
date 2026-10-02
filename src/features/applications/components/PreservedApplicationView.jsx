@@ -60,17 +60,30 @@ function maskSensitive(value) {
  *
  * A button rather than a link because it acts first: the link is minted when it
  * is pressed, since a signed URL lives minutes and this screen can stay open for
- * hours. The same shape `PEVTab` opens verification results with.
+ * hours.
+ *
+ * The tab is opened inside the press itself and pointed at the file once the link
+ * arrives. A browser that allows a new tab only during the click's own user
+ * activation blocks one opened after an `await`, and a cold callable can take
+ * seconds — the tab would silently never appear. `opener` is cleared at once,
+ * which is what `noopener` would have done for a URL opened directly.
  */
 function OpenUploadedFile({ storagePath }) {
     const { showError } = useToast();
     const [opening, setOpening] = useState(false);
 
     const open = async () => {
+        const tab = window.open('', '_blank');
+        if (!tab) {
+            showError('Your browser blocked the new tab. Allow pop-ups for this site, then try again.');
+            return;
+        }
+        tab.opener = null;
         setOpening(true);
         try {
-            window.open(await signedApplicationFileUrl(storagePath), '_blank', 'noopener,noreferrer');
+            tab.location.href = await signedApplicationFileUrl(storagePath);
         } catch (error) {
+            tab.close();
             showError(error?.code === 'functions/not-found'
                 ? 'This file could not be found. It may have been deleted.'
                 : 'Could not open this file. Please try again.');

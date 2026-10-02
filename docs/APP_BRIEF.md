@@ -272,7 +272,10 @@ Every renderer — the driver's review, the snapshot, the PDF and the dossier �
 shows the name, including for an answer whose question was later deleted. The
 dossier's *Supplemental Questions* offers **Open file**, which mints a link with
 `getSignedApplicationFileUrl` when pressed, and deleting the application deletes
-the file too (only paths under the deleting company's own `companies/{id}/`).
+the file too — only from the company's application-upload folder,
+`companies/{id}/applications/guest_uploads/`, because the answer is whatever the
+applicant's browser sent and the deletion runs with the Admin SDK. While the upload
+is on its way the picker is busy and Continue waits, as on the License step.
 
 **Progress survives, from the first page onward.** Every forward step writes a
 local copy synchronously and a server-side draft in the background, so a closed
@@ -1903,6 +1906,17 @@ cannot resolve the colour at all — and the `theme-color` meta, a literal copy 
 - **Required custom questions are enforced only on their own page.** Neither the
   final pre-flight nor `submitGuestApplication` checks them, so an application
   resumed past that page can be submitted without the answer (found 2026-10-01).
+- **A submitted upload's storage path is taken on trust.** `submitGuestApplication`
+  checks only that an upload field holds something, not that its `storagePath`
+  is in the company's own upload folder, and `deleteApplication` deletes every
+  top-level `{ storagePath }` the application carries, with the Admin SDK. So a
+  hand-crafted submission naming some other file would have that file deleted
+  along with the application. Viewing is not affected: `getSignedApplicationFileUrl`
+  refuses a path outside a company the caller can access. Custom-question uploads
+  were held to `companies/{id}/applications/guest_uploads/` when deletion first
+  reached them (2026-10-02); the standard upload fields were left as they were,
+  because restricting them needs every folder a legitimately attached file can
+  live in, which that change did not survey (found 2026-10-02).
 - **A rule or question a carrier switches on mid-application appears only after a
   reload.** The server judges the current settings and the page keeps the ones it
   loaded. The applicant is taken to the right page with the server's sentence, but

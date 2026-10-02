@@ -31,18 +31,20 @@ const storagePathOf = (value) => (
  * Collect Storage object paths from an application doc's file fields ({ storagePath } objects).
  *
  * A custom file question keeps its upload inside `customAnswers` (since
- * 2026-10-02). Those values are whatever the applicant's browser sent, so only
- * this company's own files are taken from there: a path naming another tenant is
- * not this deletion's to remove.
+ * 2026-10-02). Those values are whatever the applicant's browser sent, so only a
+ * path in the namespace `getSignedUploadUrl` issues application uploads into is
+ * taken from there — `companies/{companyId}/applications/guest_uploads/`. The
+ * company prefix alone was not enough: a crafted answer could name one of the
+ * same company's DQ or PEV files, and this deletion runs with the Admin SDK.
  */
 function collectStoragePaths(data, companyId) {
     const record = data || {};
     const paths = Object.values(record).map(storagePathOf).filter(Boolean);
     const answers = record.customAnswers && typeof record.customAnswers === 'object' ? record.customAnswers : {};
-    const ownPrefix = companyId ? `companies/${companyId}/` : null;
+    const uploadPrefix = companyId ? `companies/${companyId}/applications/guest_uploads/` : null;
     for (const value of Object.values(answers)) {
         const path = storagePathOf(value);
-        if (path && ownPrefix && path.startsWith(ownPrefix)) paths.push(path);
+        if (path && uploadPrefix && path.startsWith(uploadPrefix)) paths.push(path);
     }
     return paths;
 }

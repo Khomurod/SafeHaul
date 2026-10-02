@@ -176,10 +176,13 @@ describe('a custom file answer', () => {
         }],
     };
     const openButton = () => screen.getByRole('button', { name: 'Open file (opens in a new tab)' });
+    /** The tab `window.open` hands back, opened blank inside the press. */
+    let tab;
 
     beforeEach(() => {
         vi.resetAllMocks();
-        vi.spyOn(window, 'open').mockImplementation(() => null);
+        tab = { opener: 'the dossier', location: { href: '' }, close: vi.fn() };
+        vi.spyOn(window, 'open').mockImplementation(() => tab);
     });
     afterEach(() => vi.restoreAllMocks());
 
@@ -191,14 +194,16 @@ describe('a custom file answer', () => {
 
         fireEvent.click(openButton());
 
+        // Opened during the press, before any await, so a popup blocker allows it.
+        expect(window.open).toHaveBeenCalledWith('', '_blank');
+        expect(tab.opener).toBeNull();
         await waitFor(() => expect(openButton()).toBeEnabled());
         expect(mockSignedUrl).toHaveBeenCalledWith(STORAGE_PATH);
-        expect(window.open).toHaveBeenCalledWith(
-            'https://storage.example.test/signed/resume.pdf', '_blank', 'noopener,noreferrer',
-        );
+        expect(tab.location.href).toBe('https://storage.example.test/signed/resume.pdf');
+        expect(tab.close).not.toHaveBeenCalled();
     });
 
-    it('says so when the file is no longer there', async () => {
+    it('says so when the file is no longer there, and closes the tab it opened', async () => {
         mockSignedUrl.mockRejectedValue(Object.assign(new Error('gone'), { code: 'functions/not-found' }));
         render(<PreservedApplicationView record={FILE_RECORD} />);
 
@@ -208,7 +213,21 @@ describe('a custom file answer', () => {
             'This file could not be found. It may have been deleted.',
         ));
         await waitFor(() => expect(openButton()).toBeEnabled());
-        expect(window.open).not.toHaveBeenCalled();
+        expect(tab.close).toHaveBeenCalled();
+        expect(tab.location.href).toBe('');
+    });
+
+    it('says so when the browser blocks the tab, without asking for a link', () => {
+        window.open.mockImplementation(() => null);
+        render(<PreservedApplicationView record={FILE_RECORD} />);
+
+        fireEvent.click(openButton());
+
+        expect(mockShowError).toHaveBeenCalledWith(
+            'Your browser blocked the new tab. Allow pop-ups for this site, then try again.',
+        );
+        expect(mockSignedUrl).not.toHaveBeenCalled();
+        expect(openButton()).toBeEnabled();
     });
 
     it('offers nothing to open for an ordinary answer', () => {

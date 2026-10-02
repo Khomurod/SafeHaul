@@ -64,8 +64,9 @@ export function DynamicQuestionsStep({
     handleFileUpload // Optional file upload handler from parent
 }) {
     const { showError } = useToast();
-    // The file question whose upload is still on its way.
-    const [uploadingKey, setUploadingKey] = useState(null);
+    // Every file question whose upload is still on its way, by question key.
+    const [uploading, setUploading] = useState({});
+    const anyUploading = Object.keys(uploading).length > 0;
     const ty = new Date().getFullYear();
 
     const questionKey = (field, index) =>
@@ -109,9 +110,14 @@ export function DynamicQuestionsStep({
         );
     }
 
+    /**
+     * Every write merges into the answers as they are when it is applied, never
+     * as this render last saw them. An upload lands on its own schedule, and a
+     * keystroke between the moment it lands and the render that shows it would
+     * otherwise write back the answers without the file in them.
+     */
     const handleChange = (key, value) => {
-        const currentAnswers = formData.customAnswers || {};
-        updateFormData('customAnswers', { ...currentAnswers, [key]: value });
+        updateFormData('customAnswers', (answers) => ({ ...(answers || {}), [key]: value }));
     };
 
     /**
@@ -120,10 +126,14 @@ export function DynamicQuestionsStep({
      * upload has landed. It is merged into the answers as they are when it lands,
      * not as they were when the file was chosen: an upload takes a moment, and the
      * driver may answer another question meanwhile.
+     *
+     * While it is on its way the picker is `loading` — disabled, so a second file
+     * cannot race the first and land under it — and Continue waits, as the License
+     * step's does, so nothing moves on before the file has landed.
      */
     const uploadAnswer = async (key, file) => {
         if (!file || !handleFileUpload) return;
-        setUploadingKey(key);
+        setUploading((current) => ({ ...current, [key]: true }));
         try {
             const uploaded = await handleFileUpload(key, file);
             if (uploaded) {
@@ -134,19 +144,23 @@ export function DynamicQuestionsStep({
             // recorded: a filename with no file behind it is what used to make a
             // failed upload read as an answer.
         } finally {
-            setUploadingKey((current) => (current === key ? null : current));
+            setUploading((current) => {
+                const next = { ...current };
+                delete next[key];
+                return next;
+            });
         }
     };
 
     const handleCheckboxChange = (key, optValue) => {
-        const currentAnswers = formData.customAnswers || {};
-        const current = currentAnswers[key] || [];
-        const currentArray = Array.isArray(current) ? current : [];
-        const isChecked = currentArray.includes(optValue);
-        const newValues = isChecked
-            ? currentArray.filter(v => v !== optValue)
-            : [...currentArray, optValue];
-        handleChange(key, newValues);
+        updateFormData('customAnswers', (answers) => {
+            const current = (answers || {})[key];
+            const currentArray = Array.isArray(current) ? current : [];
+            const newValues = currentArray.includes(optValue)
+                ? currentArray.filter(v => v !== optValue)
+                : [...currentArray, optValue];
+            return { ...(answers || {}), [key]: newValues };
+        });
     };
 
     const optionParts = (opt) => ({
@@ -296,13 +310,10 @@ export function DynamicQuestionsStep({
                             description={field.helpText || 'PDF, PNG, JPG accepted'}
                             required={field.required && !value}
                             accept={field.accept || "image/*,application/pdf"}
+                            loading={Boolean(uploading[key])}
                             onChange={(e) => uploadAnswer(key, e.target.files?.[0])}
                         />
-                        {uploadingKey === key ? (
-                            <span role="status" className="text-center text-ds-xs text-ds-content-muted">
-                                Uploading...
-                            </span>
-                        ) : value && (
+                        {value && (
                             <span role="status" className="text-center text-ds-xs font-medium text-ds-status-success-fg">
                                 ✓ Selected: {typeof value === 'string' ? value : value.name}
                             </span>
@@ -378,6 +389,8 @@ export function DynamicQuestionsStep({
             <StepNavigation
                 onBack={() => onNavigate('back')}
                 onContinue={handleContinue}
+                continueLabel={anyUploading ? 'Uploading...' : 'Continue'}
+                continueLoading={anyUploading}
             />
         </div>
     );

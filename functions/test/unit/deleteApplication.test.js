@@ -116,15 +116,18 @@ describe('collectStoragePaths', () => {
   });
 
   // A custom file question keeps its upload inside `customAnswers` (2026-10-02).
-  it('gathers custom-question uploads too, but only the deleting company’s own', () => {
+  it('gathers custom-question uploads too, but only from the application-upload namespace', () => {
     const own = 'companies/co1/applications/guest_uploads/u1_resume.pdf';
     const paths = collectStoragePaths({
       'cdl-front': { storagePath: 'companies/co1/applications/guest_uploads/x.jpg' },
       customAnswers: {
         q1: { name: 'resume.pdf', storagePath: own },
         q2: 'Regional',
-        // Whatever the applicant's browser sent: another tenant's file is not ours to delete.
+        // Whatever the applicant's browser sent: another tenant's file is not ours to delete,
         q3: { name: 'theirs.pdf', storagePath: 'companies/co2/applications/guest_uploads/theirs.pdf' },
+        // and neither is one of this company's own records that no upload could have made.
+        q4: { name: 'dq.pdf', storagePath: 'companies/co1/drivers/d1/dq_files/medical.pdf' },
+        q5: { name: 'pev.pdf', storagePath: 'companies/co1/applications/app9/pev_results/1_result.pdf' },
       },
     }, 'co1');
     expect(paths.sort()).toEqual([own, 'companies/co1/applications/guest_uploads/x.jpg'].sort());
