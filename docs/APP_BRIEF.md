@@ -1346,9 +1346,12 @@ verification document must carry no `ds-*` class and `Icon` stamps one.
 (`scripts/secret-scan.mjs`, a pinned Gitleaks CLI) — all blocking. CI's frontend
 job runs `lint:frontend`, not the root `npm run lint`, so a check that lives
 only in the root lint is not a CI gate. Only `npm run typecheck` is
-**non-blocking** (`continue-on-error`): it currently reports pre-existing errors
-in `src/config/applicationDefinition.js`, so a red typecheck is not a broken
-build, and a pre-existing one is not yours.
+**non-blocking** (`continue-on-error`): it reports pre-existing type errors in
+the modules `jsconfig.json` checks (mostly JSDoc `{object}` parameters, which
+TypeScript 7 no longer reads as `any`), so a red typecheck is not a broken
+build, and a pre-existing one is not yours. A `TS5xxx` error is different: the
+configuration was rejected and nothing was checked, so fix the configuration.
+TypeScript 7 has no `baseUrl`; paths in `jsconfig.json` are relative (`./src/*`).
 
 **The secret scan covers what the change introduced** — this event's commit
 range plus the resulting source tree — never the whole history. A pull request

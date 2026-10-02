@@ -14,14 +14,13 @@
     "skipLibCheck": true,
     "maxNodeModuleJsDepth": 0,
     "strict": false,
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
-      "@app/*": ["src/app/*"],
-      "@features/*": ["src/features/*"],
-      "@shared/*": ["src/shared/*"],
-      "@design-system/*": ["src/design-system/*"],
-      "@lib/*": ["src/lib/*"]
+      "@/*": ["./src/*"],
+      "@app/*": ["./src/app/*"],
+      "@features/*": ["./src/features/*"],
+      "@shared/*": ["./src/shared/*"],
+      "@design-system/*": ["./src/design-system/*"],
+      "@lib/*": ["./src/lib/*"]
     }
   },
   "//": "D3: type-safety beachhead. checkJs is SCOPED to the highest-leverage modules first (lib, config, service layer) and ratcheted outward later — including all of src would flood editors with thousands of pre-existing errors. Runs as a NON-BLOCKING CI warning lane (see .github/workflows/main.yml typecheck job).",
