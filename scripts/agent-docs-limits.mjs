@@ -57,8 +57,16 @@ export const AGENT_DOC_LIMITS = [
         why: 'required reading before UI work; may only move down until it is condensed',
     },
     {
-        pattern: '.github/pull_request_template.md', mustExist: true, maxLines: 69,
-        why: 'every agent fills it in for every change; may only move down until it is condensed',
+        pattern: '.github/pull_request_template.md', mustExist: true, maxLines: 45,
+        why: 'every agent fills it in for every change, and the owner reads its summary',
+    },
+    {
+        pattern: 'docs/OWNER_GUIDE.md', mustExist: true, maxLines: 80,
+        why: "the owner's one page on working with agents and releasing",
+    },
+    {
+        pattern: 'docs/RELEASE_CHECKLIST.md', mustExist: true, maxLines: 60,
+        why: 'a ten-minute check the owner runs before every release',
     },
 ];
 
