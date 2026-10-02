@@ -30,7 +30,8 @@ jest.mock('../../firebaseAdmin', () => ({
   },
 }));
 
-const { deleteApplication, collectStoragePaths } = require('../../deleteApplication');
+const { deleteApplication } = require('../../deleteApplication');
+const { collectStoragePaths } = require('../../shared/applicationStorage');
 
 const req = (data) => ({ auth: { uid: 'admin1' }, data });
 

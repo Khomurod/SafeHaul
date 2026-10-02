@@ -1202,12 +1202,6 @@ verification document must carry no `ds-*` class and `Icon` stamps one.
 
 **Current limitations:**
 
-- **Deleting a sandbox application leaves its files.**
-  `deleteSandboxApplication` removes only the Firestore record
-  (`db.recursiveDelete`); the applicant's uploads and the preserved PDF under
-  `application_originals/SANDBOX/{applicationId}/` stay in Storage, unlike
-  `deleteApplication`. So test only with Magic Fill data
-  (`docs/RELEASE_CHECKLIST.md`).
 - **The unfinished-applications workspace shows the 200 most recently active
   drafts** (`listApplicationDrafts`, by `updatedAt`). No pagination — a second
   list would break one-query, one-row-per-document. Raise the cap if a carrier
@@ -1251,8 +1245,11 @@ verification document must carry no `ds-*` class and `Icon` stamps one.
 - **A submitted upload's storage path is taken on trust.**
   `submitGuestApplication` only checks that an upload field holds something, and
   `deleteApplication` deletes every top-level `{ storagePath }` with the Admin
-  SDK, so a hand-crafted submission could get another file deleted. Viewing is
-  safe (`getSignedApplicationFileUrl` refuses paths outside the caller's
+  SDK, so a hand-crafted submission could get another file deleted.
+  `deleteSandboxApplication` removes the same files
+  (`shared/applicationStorage.js`) but only inside `companies/SANDBOX/`, so a
+  public sandbox submission cannot reach a real company's file. Viewing is safe
+  (`getSignedApplicationFileUrl` refuses paths outside the caller's
   companies). Only custom-question uploads are held to
   `companies/{id}/applications/guest_uploads/`; restricting the standard fields
   needs a survey of every folder a legitimate file can live in.
