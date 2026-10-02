@@ -146,6 +146,12 @@ function e2eResumeMode() {
 }
 
 /**
+ * The browser-test hooks this module reads and writes on `window`.
+ *
+ * @typedef {Window & { __e2eFailDraftSave?: boolean, __e2eDraftSaves?: object[] }} E2EWindow
+ */
+
+/**
  * Whether a browser test has asked the next progress save to fail.
  *
  * Settable at runtime rather than only by query parameter, because the case worth
@@ -156,7 +162,7 @@ function e2eResumeMode() {
 function e2eSaveShouldFail() {
     if (!e2eDraftsEnabled()) return false;
     if (getE2EQueryParam('e2eDraftSave', '') === 'fail') return true;
-    return typeof window !== 'undefined' && window.__e2eFailDraftSave === true;
+    return typeof window !== 'undefined' && /** @type {E2EWindow} */ (window).__e2eFailDraftSave === true;
 }
 
 /** Where the resume token for this device lives. One per company slug. */
@@ -315,8 +321,9 @@ export async function saveApplicationProgress(payload) {
         // HMAC and never stores it — and the assertion that matters is that it is
         // absent from `formData`, which is the part that is persisted.
         if (typeof window !== 'undefined') {
-            window.__e2eDraftSaves = window.__e2eDraftSaves || [];
-            window.__e2eDraftSaves.push(payload);
+            const hooks = /** @type {E2EWindow} */ (window);
+            hooks.__e2eDraftSaves = hooks.__e2eDraftSaves || [];
+            hooks.__e2eDraftSaves.push(payload);
         }
         return { saved: true, applicantKey: E2E_APPLICANT_KEY, resumeToken: E2E_RESUME_TOKEN };
     }
@@ -365,7 +372,9 @@ export async function resumeApplicationDraft(payload) {
         // so the "start over, then reload" path is a real test of the client's
         // stale-token handling rather than of the double.
         if (e2eResumeMode() !== 'offer') {
-            const missing = new Error('That saved application could not be found.');
+            const missing = /** @type {Error & { code?: string }} */ (
+                new Error('That saved application could not be found.')
+            );
             missing.code = 'functions/not-found';
             throw missing;
         }
@@ -414,7 +423,9 @@ export async function exchangeApplicationInvite(payload) {
                 || String(claim.ssn || '').replace(/\D/g, '') !== E2E_TAKEOVER_SSN.replace(/\D/g, '')) {
                 // Throws with the callable's own code, so the screen's refusal path
                 // is a test of the client rather than of the double.
-                const denied = new Error('Those details do not match this application.');
+                const denied = /** @type {Error & { code?: string }} */ (
+                    new Error('Those details do not match this application.')
+                );
                 denied.code = 'functions/permission-denied';
                 throw denied;
             }
@@ -427,7 +438,9 @@ export async function exchangeApplicationInvite(payload) {
             // Throws exactly as the callable does, so the "a link that opens
             // nothing" path is a real test of the client's handling rather than of
             // the double. Same shape as `resumeApplicationDraft` above.
-            const missing = new Error('That application link could not be opened.');
+            const missing = /** @type {Error & { code?: string }} */ (
+                new Error('That application link could not be opened.')
+            );
             missing.code = 'functions/not-found';
             throw missing;
         }

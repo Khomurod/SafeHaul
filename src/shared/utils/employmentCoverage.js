@@ -69,7 +69,7 @@ export function isOngoing(value) {
  * Turn one record into an inclusive month span, or null when it cannot be placed
  * on the calendar.
  *
- * @param {object} record   Anything with start/end-ish fields.
+ * @param {Record<string, unknown>} record Anything with start/end-ish fields.
  * @param {number} nowIndex Reference month, used to close ongoing periods.
  */
 export function toSpan(record, nowIndex) {
@@ -126,6 +126,7 @@ export function mergeSpans(spans) {
  * @param {object} history
  * @param {Array} [history.employers]
  * @param {Array} [history.unemploymentPeriods]
+ * @param {Array} [history.unemployment]   The wizard's key for the same list.
  * @param {Array} [history.schools]
  * @param {Array} [history.military]
  * @param {object} [opts]

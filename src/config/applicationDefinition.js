@@ -155,15 +155,15 @@ export function decodeRepeatingRows(rows) {
  * saw are absent too. What is left is exactly what was asked, with the wording
  * the record will freeze.
  *
- * @param {object} opts
- * @param {object} opts.applicationConfig The company's saved gate map.
- * @param {object} opts.formData          The driver's answers so far.
+ * @param {object} [opts]
+ * @param {object} [opts.applicationConfig] The company's saved gate map.
+ * @param {object} [opts.formData]          The driver's answers so far.
  * @param {Array}  [opts.customQuestions] The company's custom questions.
  * @param {object} [opts.applicationRules] The company's Application Rules: vehicle
  *   wording and hidden categories are applied to the table, and the answers are
  *   normalised the way submission normalises them (an explicit "no violations"
  *   drops leftover rows), so the driver reviews the record that will be frozen.
- * @param {number} [opts.stepByFieldId]   Optional map of field id → wizard step,
+ * @param {Record<string, number>} [opts.stepByFieldId] Optional map of field id → wizard step,
  *   so a section can offer an Edit control that lands on the right page.
  * @returns {{sections: Array, customAnswers: Array}}
  */
