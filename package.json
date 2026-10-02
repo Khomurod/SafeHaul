@@ -54,7 +54,7 @@
     "test:bundle-budget": "node scripts/test-bundle-budget.mjs"
   },
   "dependencies": {
-    "@sentry/react": "^10.75.0",
+    "@sentry/react": "^11.0.0",
     "dompurify": "^3.4.2",
     "exceljs": "^4.4.0",
     "firebase": "^11.0.2",
