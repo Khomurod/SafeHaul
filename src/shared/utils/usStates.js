@@ -14,13 +14,15 @@
  * So writers normalise through `toUsStateName`, and the pickers render a value
  * they do not list as itself (see `StateSelectField`), never as a neighbour.
  *
- * The District of Columbia is absent, as it always has been from the wizard's list
- * (a known limitation, App Brief §12): `toUsStateName('DC')` is `''`, and a writer
- * leaves the field for the applicant rather than storing a value no picker can show.
+ * The District of Columbia is listed too, since 2026-10-02, in its alphabetical
+ * place: it issues its own licences and is a real address. Until then the list had
+ * the fifty states only, so a DC address or licence could not be selected at all
+ * and `toUsStateName('DC')` was `''`.
  */
 
 export const US_STATE_NAMES = Object.freeze([
-    'Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut', 'Delaware', 'Florida', 'Georgia',
+    'Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut', 'Delaware',
+    'District of Columbia', 'Florida', 'Georgia',
     'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas', 'Kentucky', 'Louisiana', 'Maine', 'Maryland',
     'Massachusetts', 'Michigan', 'Minnesota', 'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire', 'New Jersey',
     'New Mexico', 'New York', 'North Carolina', 'North Dakota', 'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island', 'South Carolina',
@@ -29,7 +31,7 @@ export const US_STATE_NAMES = Object.freeze([
 
 /** USPS codes, in the same order as the names above. */
 const US_STATE_CODES = Object.freeze([
-    'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
+    'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'DC', 'FL', 'GA',
     'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
     'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
     'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',

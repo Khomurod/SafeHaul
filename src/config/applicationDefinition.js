@@ -70,10 +70,16 @@ function formatFileForDisplay(value) {
     return null;
 }
 
+/** `{ name, storagePath }`: the shape every upload on an application has. */
+function isUploadedFile(value) {
+    return Boolean(value) && typeof value === 'object' && typeof value.storagePath === 'string';
+}
+
 /** Mirrors the server's `formatAnswerForDisplay`. */
 export function formatAnswerForDisplay(value, field = {}) {
     if (isBlank(value)) return null;
-    if (field.type === 'file') return formatFileForDisplay(value);
+    // A custom question's upload is `fileUpload`; the schema's is `file`.
+    if (field.type === 'file' || field.type === 'fileUpload') return formatFileForDisplay(value);
     if (field.type === 'date') return formatDateForDisplay(value);
 
     if (Array.isArray(value)) {
@@ -82,6 +88,8 @@ export function formatAnswerForDisplay(value, field = {}) {
     }
     if (typeof value === 'boolean') return value ? 'Yes' : 'No';
     if (typeof value === 'number') return String(value);
+    // An upload whose question no longer says it was a file still reads as a name.
+    if (isUploadedFile(value)) return formatFileForDisplay(value);
 
     const raw = String(value).trim();
     if (raw.toLowerCase() === 'yes') return 'Yes';

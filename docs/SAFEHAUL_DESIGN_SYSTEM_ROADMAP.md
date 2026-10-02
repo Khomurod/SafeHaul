@@ -2015,6 +2015,22 @@ either editor's edit mode. The one that renders `StateSelectField`
 This container's Chromium is not the pinned revision, so recording or comparing
 baselines here would measure the wrong build (see above).
 
+**Updated 2026-10-02: a custom file question keeps its file, and the dossier can
+open it.** Two small additions, both compositions of approved primitives:
+
+- `DynamicQuestionsStep` says **Uploading...** in the status line that says
+  "✓ Selected" once the file has landed. The answer is recorded only then, so the
+  line no longer claims a file that never arrived.
+- `PreservedApplicationView`'s *Supplemental Questions* offers **Open file** beside
+  a file answer: `Button variant="secondary" size="sm"` with the `FileText` glyph.
+  It is a button rather than a `Link` because it acts first — it mints a
+  short-lived signed URL when pressed, as `PEVTab` does for verification results —
+  and its accessible name ends "(opens in a new tab)" in a `ds-visually-hidden`
+  span, the announcement `Link external` gives an anchor.
+
+No new primitive, token, stylesheet or allowlist entry (`check:ui-contract`: 601
+files, 246 known violations, none new).
+
 One area is deliberately **NO-GO** and remains unmigrated, blocked on an owner
 decision in §6:
 

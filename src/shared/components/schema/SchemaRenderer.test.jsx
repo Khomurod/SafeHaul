@@ -2,6 +2,7 @@ import React from 'react';
 import { render, cleanup, fireEvent } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SchemaField, SchemaSection } from './SchemaRenderer';
+import { US_STATE_NAMES } from '@shared/utils/usStates';
 
 afterEach(cleanup);
 
@@ -115,8 +116,9 @@ describe('SchemaField edit mode speaks the wizard\'s vocabulary', () => {
         const select = getByLabelText('State');
         expect(select.tagName).toBe('SELECT');
         expect(select).toHaveValue('Texas');
-        // The placeholder plus the 50 states the wizard's picker offers.
-        expect(select.options).toHaveLength(51);
+        // The placeholder plus every name the wizard's picker offers (DC included).
+        expect(select.options.length).toBe(US_STATE_NAMES.length + 1);
+        expect([...select.options].map((option) => option.value)).toContain('District of Columbia');
         fireEvent.change(select, { target: { value: 'Oklahoma' } });
         expect(onChange).toHaveBeenCalledWith('state', 'Oklahoma');
     });

@@ -263,6 +263,17 @@ has to be sent again. `not-found` is the file and says so; anything else is that
 attempt and offers to retry, with the row still reading as attached, because the
 upload gates key on presence and a preview is a courtesy.
 
+**A custom "file upload" question's answer is the file.** Since 2026-10-02 it is
+recorded in `customAnswers` as `{ name, storagePath }`, like every other upload,
+and only once the upload has landed — a failed upload records nothing. Until then
+it recorded the chosen file's name at once and discarded the storage path, so the
+company saw a filename nothing referenced, even for an upload that had failed.
+Every renderer — the driver's review, the snapshot, the PDF and the dossier —
+shows the name, including for an answer whose question was later deleted. The
+dossier's *Supplemental Questions* offers **Open file**, which mints a link with
+`getSignedApplicationFileUrl` when pressed, and deleting the application deletes
+the file too (only paths under the deleting company's own `companies/{id}/`).
+
 **Progress survives, from the first page onward.** Every forward step writes a
 local copy synchronously and a server-side draft in the background, so a closed
 tab, a dropped connection, a failed CDL scan or a page error no longer costs an
@@ -283,8 +294,10 @@ submitted, whichever side started it, with **+ Start an application** as its
 primary action. It is a call to make, not a record in the ATS funnel. **Create a
 continuation link** mints a link for a row and copies it; the link is a pointer,
 so whoever opens it must confirm their own identity before anything comes back.
-A recruiter cannot pass that check on a draft that holds the identity HMAC, which
-is the normal case; §12 describes the narrow tier where one can. Before that
+A recruiter cannot pass that check: a draft holding the identity HMAC verifies the
+SSN, and a prepared draft without one is refused rather than checked against what
+the carrier typed itself — the driver continues on the device where they started
+(§12). Before that
 existed (2026-09-09) the screen had one control — Refresh — and the only way to
 get a stalled applicant moving was to ask them to start again.
 
@@ -1071,16 +1084,19 @@ already on the record — the sentence `InviteLinkPanel` had been showing recrui
 all along. Two tiers of *checking*, because production holds both shapes. With an
 `identityKey` on file the claim is verified by recomputing the HMAC, which is a
 real check on the SSN and subsumes the other two facts. Without one — a draft the
-erasure caught, or one predating the field — the name and date of birth are
-checked against the draft's own answers and a well-formed SSN is required but
+erasure caught, or one predating the field — a draft the driver started has its
+name and date of birth checked against its own answers and a well-formed SSN is required but
 cannot be verified; a success then **establishes** the HMAC, so a draft passes
 through that tier at most once. **That tier needs both stored facts and refuses
 as `unverifiable` without them**, which review corrected on 2026-09-09: checking
 whichever fact the draft happened to hold left a bar made entirely of things the
 carrier can read off its own worklist, since the date of birth is the one compared
-fact it is never shown and the SSN is required rather than verified here. It costs
-a driver who is on a new device *and* has typed almost nothing yet; their own
-device is asked nothing at all. A refusal is `permission-denied` with a sentence
+fact it is never shown and the SSN is required rather than verified here. **A
+draft the carrier prepared gets no such tier** (since 2026-10-02): the carrier
+typed its name, date of birth and contact detail itself, so without the HMAC it is
+refused as `unverifiable` and the driver continues on the device where they
+started (§12). It costs a driver who is on a new device *and* has typed almost
+nothing yet; their own device is asked nothing at all. A refusal is `permission-denied` with a sentence
 the driver can act on (they may simply have mistyped), rate-limited per targeted
 draft as well as per caller, and audited as `invite_identity_refused`. Saying
 "those details do not match" discloses nothing new: the holder was already told
@@ -1332,9 +1348,10 @@ hidden by default, because flipping either would retroactively change or block
 every existing company's application.
 
 **A US state is stored as its full name.** Both of the wizard's state pickers list
-the fifty names in `src/shared/utils/usStates.js`, which the company editors'
-options also read, and every writer converts to one: CDL photo auto-fill, the MVR
-import and the carrier's AI reader. Documents print postal codes, and until
+the names in `src/shared/utils/usStates.js` — the fifty states and, since
+2026-10-02, the District of Columbia — which the company editors' options also read
+(the FMCSA employer lookup keeps its own copy, DC included), and every writer converts to one: CDL photo
+auto-fill, the MVR import and the carrier's AI reader. Documents print postal codes, and until
 2026-10-01 those were stored as "TX". A `<select>` given a value it has no option
 for shows its first enabled option, so a driver with an Austin address saw
 "Alabama" in both pickers while the form held "TX", and the step's validation
@@ -1849,27 +1866,28 @@ cannot resolve the colour at all — and the `theme-color` meta, a literal copy 
   challenge the link handed off to had no screen at all.
   What remains: a draft with no `identityKey` — one the erasure caught before the
   fix, or one whose company set `ssn` to Optional or Hidden
-  (`GATE_DEFAULT_REQUIRED.ssn` is `true`, so this is opt-out) — is verified
-  against the last name and date of birth its own answers hold, and the SSN it
-  also demands is required but **not checked**: any nine digits pass. This entry
-  used to say that raised the bar to "knows the driver's Social Security Number",
-  which an unchecked number cannot do (corrected 2026-10-01). On a draft the
-  carrier prepared, the carrier typed the last name, the date of birth and the
-  contact detail itself, so in this tier a recruiter can pass the check on its own
-  application and receive the driver's answers and a resume token. The HMAC that
-  success establishes is built from whatever digits were entered. A prepared draft
-  reaches this tier only when the driver's saves never carried an SSN: the company
-  made it Optional or Hidden, or the driver pressed *Save as Draft* on page one
-  before typing it. One success establishes the HMAC, so a draft is in that tier at
-  most once.
+  (`GATE_DEFAULT_REQUIRED.ssn` is `true`, so this is opt-out). **A draft the
+  driver started** is verified against the last name and date of birth its own
+  answers hold — the carrier is never shown that date of birth — and the SSN it
+  also demands is required but **not checked**: any nine digits pass, and one
+  success establishes the HMAC, so a draft is in that tier at most once. **A draft
+  the carrier prepared is refused** (`unverifiable`, since 2026-10-02): the carrier
+  typed its last name, date of birth and contact detail itself, so that check let
+  a recruiter pass on its own application and be handed the driver's answers and a
+  resume token (found 2026-10-01). The driver is told to continue on the phone or
+  computer where they started — that browser's resume token asks nothing — or to
+  start a new application. The cost: a driver in this tier who has lost that
+  device starts over. A prepared draft reaches it only when the driver's saves
+  never carried an SSN: the company made it Optional or Hidden, or the driver
+  pressed *Save as Draft* on page one before typing it.
   A draft holding **neither** a last name nor a date of birth cannot be verified
   at all and is refused outright (`unverifiable`), with the driver told plainly and
   offered a new application rather than being handed somebody's answers. That is
   narrow — a last name is required to leave page one — and it is the honest answer
   when the identity information never existed.
   Their own browser's resume token still works throughout, and asks nothing.
-  The fix that closes the residue properly is out-of-band delivery — minting
-  emails or texts the link to the `contactEmail`/`contactPhone` on the draft and
+  What would let that driver continue from another device is out-of-band
+  delivery — minting emails or texts the link to the `contactEmail`/`contactPhone` on the draft and
   returns only a redacted confirmation, so the carrier never holds it — which is
   DocuSign's Resend model and depends on per-company email configuration this
   change did not take on.
@@ -1882,12 +1900,6 @@ cannot resolve the colour at all — and the `theme-color` meta, a literal copy 
   they cannot meet. What is missing is the route to say "that carrier is not mine",
   which is its own feature with its own policy questions about what the carrier
   then sees.
-- **A custom "file upload" question keeps only the file's name.** The file is
-  uploaded, but `DynamicQuestionsStep` discards the storage path the upload
-  returns and records `file.name` as the answer, so the recruiter sees a filename
-  and nothing references the file. A failed upload still records the name. Fixing
-  it means storing a document reference in `customAnswers`, which the snapshot, the
-  PDF and the dossier all render as text today (found 2026-10-01).
 - **Required custom questions are enforced only on their own page.** Neither the
   final pre-flight nor `submitGuestApplication` checks them, so an application
   resumed past that page can be submitted without the answer (found 2026-10-01).
@@ -1904,9 +1916,6 @@ cannot resolve the colour at all — and the `theme-color` meta, a literal copy 
   renders every schema section editable, while `proposeApplicationChanges` applies
   only its allowlist and returns the rest as `skipped`, which the screen never
   mentions. An edit to, say, a qualification answer disappears (found 2026-10-01).
-- **The District of Columbia is not in the wizard's state list.** The list has the
-  fifty states only, so a DC address or licence cannot be selected (found
-  2026-10-01; the list predates that audit).
 - **HEIC photos cannot be read.** The reader accepts PDF, JPG, PNG and WebP;
   browsers cannot decode HEIC (an iPhone's default), so such a photo is refused
   with a message naming the accepted formats. (This is the surviving edge after

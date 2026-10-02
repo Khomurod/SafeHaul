@@ -5,7 +5,7 @@
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 
 const showError = vi.fn();
 vi.mock('@shared/components/feedback/ToastProvider', () => ({
@@ -169,8 +169,14 @@ describe('DynamicQuestionsStep answer contract', () => {
     expect(screen.getByLabelText('Legacy')).toHaveValue('flat value');
   });
 
-  it('uploads a chosen file and records its name as the answer', () => {
-    const handleFileUpload = vi.fn();
+  /*
+   * Until 2026-10-02 this recorded `file.name` the moment a file was chosen and
+   * threw away the storage path the upload returned, so the company saw a filename
+   * nothing referenced — and a failed upload still read as answered.
+   */
+  it('records the uploaded file as the answer once the upload has landed', async () => {
+    let land;
+    const handleFileUpload = vi.fn(() => new Promise((resolve) => { land = resolve; }));
     const { updateFormData } = renderStep(
       [{ id: 'q5', label: 'Resume', type: 'fileUpload' }],
       { handleFileUpload },
@@ -180,7 +186,44 @@ describe('DynamicQuestionsStep answer contract', () => {
     fireEvent.change(screen.getByLabelText(/Resume/), { target: { files: [f] } });
 
     expect(handleFileUpload).toHaveBeenCalledWith('q5', f);
-    expect(updateFormData).toHaveBeenCalledWith('customAnswers', { q5: 'resume.pdf' });
+    expect(screen.getByText('Uploading...')).toBeInTheDocument();
+    expect(updateFormData).not.toHaveBeenCalled();
+
+    const uploaded = { name: 'resume.pdf', storagePath: 'companies/c1/applications/guest_uploads/u1_resume.pdf' };
+    await act(async () => { land(uploaded); });
+
+    expect(screen.queryByText('Uploading...')).toBeNull();
+    expect(updateFormData).toHaveBeenCalledWith('customAnswers', expect.any(Function));
+    // Merged into the answers as they are when it lands, so one given meanwhile survives.
+    const merge = updateFormData.mock.calls[0][1];
+    expect(merge({ q1: 'answered meanwhile' })).toEqual({ q1: 'answered meanwhile', q5: uploaded });
+    expect(merge(undefined)).toEqual({ q5: uploaded });
+  });
+
+  it('records nothing when the upload fails', async () => {
+    let fail;
+    const handleFileUpload = vi.fn(() => new Promise((_, reject) => { fail = reject; }));
+    const { updateFormData } = renderStep(
+      [{ id: 'q5', label: 'Resume', type: 'fileUpload' }],
+      { handleFileUpload },
+    );
+
+    fireEvent.change(screen.getByLabelText(/Resume/), {
+      target: { files: [new File(['x'], 'resume.pdf', { type: 'application/pdf' })] },
+    });
+    await act(async () => { fail(new Error('Upload failed.')); });
+
+    // The handler finished — it no longer says an upload is under way — and wrote nothing.
+    expect(screen.queryByText('Uploading...')).toBeNull();
+    expect(updateFormData).not.toHaveBeenCalled();
+  });
+
+  it('shows an uploaded file by its name', () => {
+    renderStep(
+      [{ id: 'q5', label: 'Resume', type: 'fileUpload' }],
+      { formData: { customAnswers: { q5: { name: 'resume.pdf', storagePath: 'companies/c1/x/guest_uploads/u1.pdf' } } } },
+    );
+    expect(screen.getByText('✓ Selected: resume.pdf')).toBeInTheDocument();
   });
 });
 

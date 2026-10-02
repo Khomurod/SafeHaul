@@ -140,6 +140,17 @@ describe('fmcsaEmployerSocrata', () => {
     });
   });
 
+  // DC joined the shared state list on 2026-10-02, so a DC carrier's state fills in.
+  it('maps a District of Columbia carrier to the name the pickers list', async () => {
+    const { US_STATE_NAMES } = await import('@shared/utils/usStates');
+    const m = mapFmcsaRowToEmployerFields(
+      { dot_number: 100, legal_name: 'CAPITOL HAULING LLC', phy_city: 'Washington', phy_state: 'DC' },
+      US_STATE_NAMES,
+    );
+    expect(m.state).toBe('District of Columbia');
+    expect(normalizeEmployerStateToFmcsaPhyState('District of Columbia')).toBe('DC');
+  });
+
   it('mapFmcsaRowToEmployerFields maps phy_state abbr to full name when allowlist uses full names', () => {
     const m = mapFmcsaRowToEmployerFields(
       {

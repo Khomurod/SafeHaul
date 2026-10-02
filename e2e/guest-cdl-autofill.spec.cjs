@@ -20,7 +20,7 @@ const { chooseRadio, continueToStep, expectStep, fillStep2 } = require('./helper
 
 const STORAGE_PATH = 'companies/e2e-company/autofill/guest_uploads/1_cdl.jpg';
 
-async function stubAutoFillNetwork(page) {
+async function stubAutoFillNetwork(page, fullAddress = '2210 ELM ST, AUSTIN, TX 78701') {
     await page.route('**/getSignedUploadUrl', (route) => route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -47,43 +47,68 @@ async function stubAutoFillNetwork(page) {
             firstName: 'LUIS',
             lastName: 'ORTEGA',
             dateOfBirth: '03/14/1984',
-            fullAddress: '2210 ELM ST, AUSTIN, TX 78701',
+            fullAddress,
             cdlNumber: '41234567',
             expirationDate: '03/14/2030',
         } } }),
     }));
 }
 
+/** Pick "Upload CDL for Auto-Fill" and wait for page one to be filled from it. */
+async function autoFillFromLicence(page) {
+    // `e2eIntake=choice` shows the chooser, as `guest-application-intake.spec.cjs` does.
+    await page.goto('/apply/e2e-company?e2eIntake=choice');
+    await expect(page.getByRole('button', { name: /Upload CDL for Auto-Fill/ })).toBeVisible();
+
+    await page.locator('input[type="file"]').first().setInputFiles({
+        name: 'cdl.jpg',
+        mimeType: 'image/jpeg',
+        buffer: Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0xff, 0xd9]),
+    });
+
+    await expectStep(page, 'Personal Information');
+}
+
+/** Finish page one and step two, which the licence cannot answer, to reach the License step. */
+async function continueToLicenseStep(page) {
+    await page.fill('#ssn', '123-45-6789');
+    await page.fill('#phone', '5125550142');
+    await page.fill('#email', 'luis.ortega@example.com');
+    await chooseRadio(page, 'sms-consent-yes');
+    await chooseRadio(page, 'residence-3-years-yes');
+    await continueToStep(page, 'Qualification');
+    await fillStep2(page);
+    await expectStep(page, 'License');
+}
+
 test.describe('CDL photo auto-fill', () => {
     test('fills both state pickers with the state the licence printed', async ({ page }) => {
         await stubAutoFillNetwork(page);
-        // `e2eIntake=choice` shows the chooser, as `guest-application-intake.spec.cjs` does.
-        await page.goto('/apply/e2e-company?e2eIntake=choice');
-        await expect(page.getByRole('button', { name: /Upload CDL for Auto-Fill/ })).toBeVisible();
+        await autoFillFromLicence(page);
 
-        await page.locator('input[type="file"]').first().setInputFiles({
-            name: 'cdl.jpg',
-            mimeType: 'image/jpeg',
-            buffer: Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0xff, 0xd9]),
-        });
-
-        await expectStep(page, 'Personal Information');
         await expect(page.locator('#first-name')).toHaveValue('LUIS');
         await expect(page.locator('#city')).toHaveValue('AUSTIN');
         await expect(page.locator('#state')).toHaveValue('Texas');
         await expect(page.locator('#state option:checked')).toHaveText('Texas');
 
-        await page.fill('#ssn', '123-45-6789');
-        await page.fill('#phone', '5125550142');
-        await page.fill('#email', 'luis.ortega@example.com');
-        await chooseRadio(page, 'sms-consent-yes');
-        await chooseRadio(page, 'residence-3-years-yes');
-        await continueToStep(page, 'Qualification');
-        await fillStep2(page);
-
-        await expectStep(page, 'License');
+        await continueToLicenseStep(page);
         await expect(page.locator('#cdl-state')).toHaveValue('Texas');
         await expect(page.locator('#cdl-state option:checked')).toHaveText('Texas');
         await expect(page.locator('#cdl-number')).toHaveValue('41234567');
+    });
+
+    // The District of Columbia joined the state list on 2026-10-02. Before that a DC
+    // licence left both pickers empty, because "DC" had no name to become.
+    test('fills both state pickers with the District of Columbia from a DC licence', async ({ page }) => {
+        await stubAutoFillNetwork(page, '1100 4TH ST SW, WASHINGTON, DC 20024');
+        await autoFillFromLicence(page);
+
+        await expect(page.locator('#city')).toHaveValue('WASHINGTON');
+        await expect(page.locator('#state')).toHaveValue('District of Columbia');
+        await expect(page.locator('#state option:checked')).toHaveText('District of Columbia');
+
+        await continueToLicenseStep(page);
+        await expect(page.locator('#cdl-state')).toHaveValue('District of Columbia');
+        await expect(page.locator('#cdl-state option:checked')).toHaveText('District of Columbia');
     });
 });

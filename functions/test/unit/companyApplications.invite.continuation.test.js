@@ -22,6 +22,14 @@
  * Every fixture here is synthetic. `driverStartedWithoutIdentity` reproduces the
  * *shape* of that record — a taken-over prepared draft with no identity HMAC — and
  * `driverStartedWithIdentity` the shape every draft written from now on has.
+ *
+ * **Since 2026-10-02 the first shape is refused.** On a prepared draft the carrier
+ * typed the last name, the date of birth and the contact detail itself, and with
+ * no HMAC the SSN cannot be checked, so the claim that rescued the reported record
+ * was one a recruiter could make too — and be handed the driver's answers. It is
+ * now `unverifiable`, the driver's own device still resumes with its token, and the
+ * `answers` tier survives for a draft the driver started, whose date of birth the
+ * carrier has never seen. `driverStartedOwnWithoutIdentity` is that shape.
  */
 
 process.env.SMS_ENCRYPTION_KEY = 'x'.repeat(32);
@@ -113,11 +121,20 @@ async function driverStartedWithIdentity() {
     return { inviteToken, resumeToken };
 }
 
+/** An application the DRIVER started, whose saves never carried their SSN. */
+async function driverStartedOwnWithoutIdentity() {
+    await saveFirstPage({
+        ssn: '',
+        lastStep: 4,
+        formData: { firstName: 'Dana', lastName: IDENTITY.lastName, cdlNumber: DRIVER_SECRET, dob: IDENTITY.dob },
+    });
+}
+
 beforeEach(resetDraftState);
 
 describe('the replacement link a recruiter creates for a driver who already started', () => {
     it('returns them to the same application, with their answers and their step', async () => {
-        await driverStartedWithoutIdentity();
+        await driverStartedWithIdentity();
         const { inviteToken } = await mint();
 
         const opened = await open(inviteToken, CLAIM);
@@ -135,7 +152,7 @@ describe('the replacement link a recruiter creates for a driver who already star
     });
 
     it('creates no second draft', async () => {
-        await driverStartedWithoutIdentity();
+        await driverStartedWithIdentity();
         const { inviteToken } = await mint();
         await open(inviteToken, CLAIM);
 
@@ -143,8 +160,8 @@ describe('the replacement link a recruiter creates for a driver who already star
         expect(drafts).toEqual([PATH()]);
     });
 
-    it('establishes the identity HMAC the draft had lost, so the next link verifies it', async () => {
-        await driverStartedWithoutIdentity();
+    it('establishes the identity HMAC a driver-started draft had lost, so the next link verifies it', async () => {
+        await driverStartedOwnWithoutIdentity();
         expect(mockStore.get(PATH()).identityKey).toBeNull();
 
         const { inviteToken } = await mint();
@@ -166,10 +183,12 @@ describe('the replacement link a recruiter creates for a driver who already star
     it('leaves the driver resuming where they left off on a device that still holds a token', async () => {
         // The strongest path asks the applicant for nothing, and a replacement link
         // must not take it away: the token the driver's browser holds still opens
-        // the draft after somebody else has opened the link.
+        // the draft after somebody else has opened the link — or been refused by it,
+        // which is the answer every claim on this draft now gets (see the header).
         const { resumeToken } = await driverStartedWithoutIdentity();
         const { inviteToken } = await mint();
         await open(inviteToken);
+        await expect(open(inviteToken, CLAIM)).rejects.toMatchObject({ code: 'permission-denied' });
 
         const restored = await require('../../applicationDrafts').resumeApplicationDraft(
             { companyId: COMPANY, applicantKey: keyFor(), resumeToken }, CONTEXT,
@@ -187,6 +206,31 @@ describe('what the link refuses', () => {
             .rejects.toMatchObject({ code: 'permission-denied' });
         // Nothing was written, so the driver's own token is not demoted by a guess.
         expect(mockStore.get(PATH()).identityKey).toBeNull();
+    });
+
+    /**
+     * The hole closed on 2026-10-02. Every fact in this claim is one the carrier
+     * typed into its own prepared application, and with no HMAC on file the SSN
+     * cannot be checked — so a match proves nothing about who is asking.
+     */
+    it('refuses a prepared application with no HMAC even when every detail matches', async () => {
+        await driverStartedWithoutIdentity();
+        const { inviteToken } = await mint();
+        const before = mockStore.get(PATH());
+
+        await expect(open(inviteToken, CLAIM)).rejects.toMatchObject({
+            code: 'permission-denied',
+            message: expect.stringContaining('where you started it'),
+        });
+
+        // Nothing handed over and nothing written: no HMAC built from whatever digits
+        // were typed, and the driver's own token is still the live one.
+        const after = mockStore.get(PATH());
+        expect(after.identityKey).toBeNull();
+        expect(after.resumeTokenHash).toBe(before.resumeTokenHash);
+        const audit = [...mockStore.keys()].filter((key) => key.includes('application_draft_audit'));
+        expect(audit).toHaveLength(1);
+        expect(mockStore.get(audit[0])).toMatchObject({ action: 'invite_identity_refused', outcome: 'unverifiable' });
     });
 
     it('refuses a wrong date of birth even with no HMAC on file', async () => {
@@ -336,9 +380,10 @@ describe('what the link refuses', () => {
      * the whole of the `answers` tier, and the first assertion below is what it
      * costs. The second is what stops it being the tier everything lands in: one
      * successful pass writes the HMAC, so the same wrong SSN is refused afterwards.
+     * Only a draft the driver started reaches this tier; a prepared one is refused.
      */
     it('cannot check an SSN it has nothing to check against, and says so by healing', async () => {
-        await driverStartedWithoutIdentity();
+        await driverStartedOwnWithoutIdentity();
         const first = await mint();
 
         await expect(open(first.inviteToken, { ...CLAIM, ssn: '000-00-0000' }))
@@ -391,9 +436,11 @@ describe('the locks a carrier took, through the identity path', () => {
         });
         const { inviteToken } = await mint();
         const { resumeToken } = await open(inviteToken);
-        // The driver deletes the locked row and saves.
+        // The driver deletes the locked row and saves — with their SSN, so the
+        // replacement link below can verify them (a prepared draft without the HMAC
+        // is refused outright, and would never reach the identity path).
         await saveFirstPage({
-            resumeToken, ssn: '',
+            resumeToken,
             formData: { firstName: 'Dana', lastName: IDENTITY.lastName, dob: IDENTITY.dob, employers: [] },
         });
 

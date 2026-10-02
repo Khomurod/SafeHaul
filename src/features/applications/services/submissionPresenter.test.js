@@ -158,6 +158,20 @@ describe('no internal identifier is ever user-visible', () => {
         expect(row.labelUnavailable).toBe(false);
     });
 
+    it('offers a custom file answer to open, and nothing else', () => {
+        const storagePath = 'companies/c1/applications/guest_uploads/u1_resume.pdf';
+        const [file, text] = toDisplayCustomAnswers(snapshot({
+            customAnswers: [
+                { questionId: 'q1', label: 'Your resume', labelMissing: false, displayValue: 'resume.pdf', value: { name: 'resume.pdf', storagePath } },
+                { questionId: 'q2', label: 'Preferred route type?', labelMissing: false, displayValue: 'OTR', value: 'OTR' },
+            ],
+        }));
+        expect(file).toMatchObject({ value: 'resume.pdf', storagePath });
+        // The path is for opening the file, never for reading: the shown value is the name.
+        expect(file.value).not.toContain('guest_uploads');
+        expect(text.storagePath).toBeNull();
+    });
+
     it('gives an unanswered custom question the same honest placeholder', () => {
         const [row] = toDisplayCustomAnswers(snapshot({
             customAnswers: [{ questionId: 'q1', label: 'Any restrictions?', labelMissing: false, displayValue: null }],

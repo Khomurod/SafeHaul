@@ -134,11 +134,19 @@ export function toDisplaySections(snapshot) {
         .filter((section) => section.answers.length > 0);
 }
 
+/** Where a custom file answer's upload is stored; null for every other answer. */
+function uploadedFilePath(value) {
+    return value && typeof value === 'object' && typeof value.storagePath === 'string' && value.storagePath
+        ? value.storagePath
+        : null;
+}
+
 /**
  * Custom questions as display rows.
  *
  * A question with no recorded wording is labelled explicitly. Printing its id
- * instead is the exact defect this replaces.
+ * instead is the exact defect this replaces. A file answer also carries its
+ * `storagePath`, which is never shown — the view offers to open the file.
  */
 export function toDisplayCustomAnswers(snapshot) {
     if (!isPreservedSnapshot(snapshot) || !Array.isArray(snapshot.customAnswers)) return [];
@@ -151,6 +159,7 @@ export function toDisplayCustomAnswers(snapshot) {
         unmatched: Boolean(answer.unknownQuestion),
         value: answer.displayValue || NOT_PROVIDED,
         isMissing: !answer.displayValue,
+        storagePath: uploadedFilePath(answer.value),
     }));
 }
 

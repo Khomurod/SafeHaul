@@ -22,10 +22,12 @@
 // treatment is the established card-with-header pattern the dossier already
 // uses.
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Icon as DsIcon, FileText, ShieldCheck, ShieldOff, ShieldAlert } from '@design-system/icons';
-import { Badge, Card, FieldDisplay } from '@/design-system/components';
+import { Badge, Button, Card, FieldDisplay } from '@/design-system/components';
 import { EmptyState } from '@/design-system/patterns';
+import { useToast } from '@shared/components/feedback/ToastProvider';
+import { signedApplicationFileUrl } from '../services/applicationFileLink';
 
 /** A value the driver did not supply, said in words rather than left blank. */
 const NOT_PROVIDED_TONE = 'italic text-ds-content-muted';
@@ -51,6 +53,40 @@ function maskSensitive(value) {
     const digits = String(value ?? '').replace(/\D/g, '');
     if (!digits) return value;
     return `***-**-${digits.slice(-4)}`;
+}
+
+/**
+ * Opens the file a driver uploaded for a custom question.
+ *
+ * A button rather than a link because it acts first: the link is minted when it
+ * is pressed, since a signed URL lives minutes and this screen can stay open for
+ * hours. The same shape `PEVTab` opens verification results with.
+ */
+function OpenUploadedFile({ storagePath }) {
+    const { showError } = useToast();
+    const [opening, setOpening] = useState(false);
+
+    const open = async () => {
+        setOpening(true);
+        try {
+            window.open(await signedApplicationFileUrl(storagePath), '_blank', 'noopener,noreferrer');
+        } catch (error) {
+            showError(error?.code === 'functions/not-found'
+                ? 'This file could not be found. It may have been deleted.'
+                : 'Could not open this file. Please try again.');
+        } finally {
+            setOpening(false);
+        }
+    };
+
+    return (
+        <div className="mt-ds-2">
+            <Button variant="secondary" size="sm" onClick={open} loading={opening}>
+                <DsIcon icon={FileText} size="sm" />
+                Open file<span className="ds-visually-hidden"> (opens in a new tab)</span>
+            </Button>
+        </div>
+    );
 }
 
 function AnswerRow({ answer }) {
@@ -238,6 +274,7 @@ export function PreservedApplicationView({ record }) {
                                 )}
                                 <dd className={`mt-ds-1 whitespace-pre-wrap text-ds-sm [overflow-wrap:anywhere] ${answer.isMissing ? NOT_PROVIDED_TONE : 'text-ds-content-secondary'}`}>
                                     {answer.value}
+                                    {answer.storagePath && <OpenUploadedFile storagePath={answer.storagePath} />}
                                 </dd>
                             </div>
                         ))}

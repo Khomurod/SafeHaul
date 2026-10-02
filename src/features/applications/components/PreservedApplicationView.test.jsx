@@ -6,8 +6,12 @@
 // wording could have changed since.
 
 import React from 'react';
-import { describe, it, expect, afterEach } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
+import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
+
+const { mockSignedUrl, mockShowError } = vi.hoisted(() => ({ mockSignedUrl: vi.fn(), mockShowError: vi.fn() }));
+vi.mock('../services/applicationFileLink', () => ({ signedApplicationFileUrl: mockSignedUrl }));
+vi.mock('@shared/components/feedback/ToastProvider', () => ({ useToast: () => ({ showError: mockShowError }) }));
 
 import { PreservedApplicationView } from './PreservedApplicationView';
 
@@ -155,5 +159,60 @@ describe('PreservedApplicationView', () => {
         expect(screen.queryByText('Supplemental Questions')).toBeNull();
         expect(screen.queryByText('Legal Agreements')).toBeNull();
         expect(screen.queryByText('Employment History Coverage')).toBeNull();
+    });
+});
+
+/*
+ * A custom file question's answer, since 2026-10-02. It used to be a filename
+ * nothing referenced; it is the upload itself now, and the company can open it.
+ */
+describe('a custom file answer', () => {
+    const STORAGE_PATH = 'companies/c1/applications/guest_uploads/u1_resume.pdf';
+    const FILE_RECORD = {
+        ...RECORD,
+        customAnswers: [{
+            key: 'q3', label: 'Your resume', labelUnavailable: false, unmatched: false,
+            value: 'resume.pdf', isMissing: false, storagePath: STORAGE_PATH,
+        }],
+    };
+    const openButton = () => screen.getByRole('button', { name: 'Open file (opens in a new tab)' });
+
+    beforeEach(() => {
+        vi.resetAllMocks();
+        vi.spyOn(window, 'open').mockImplementation(() => null);
+    });
+    afterEach(() => vi.restoreAllMocks());
+
+    it('is shown by its name, and opens in a new tab from a freshly signed link', async () => {
+        mockSignedUrl.mockResolvedValue('https://storage.example.test/signed/resume.pdf');
+        render(<PreservedApplicationView record={FILE_RECORD} />);
+        expect(screen.getByText('resume.pdf')).toBeInTheDocument();
+        expect(document.body.textContent).not.toContain('guest_uploads');
+
+        fireEvent.click(openButton());
+
+        await waitFor(() => expect(openButton()).toBeEnabled());
+        expect(mockSignedUrl).toHaveBeenCalledWith(STORAGE_PATH);
+        expect(window.open).toHaveBeenCalledWith(
+            'https://storage.example.test/signed/resume.pdf', '_blank', 'noopener,noreferrer',
+        );
+    });
+
+    it('says so when the file is no longer there', async () => {
+        mockSignedUrl.mockRejectedValue(Object.assign(new Error('gone'), { code: 'functions/not-found' }));
+        render(<PreservedApplicationView record={FILE_RECORD} />);
+
+        fireEvent.click(openButton());
+
+        await waitFor(() => expect(mockShowError).toHaveBeenCalledWith(
+            'This file could not be found. It may have been deleted.',
+        ));
+        await waitFor(() => expect(openButton()).toBeEnabled());
+        expect(window.open).not.toHaveBeenCalled();
+    });
+
+    it('offers nothing to open for an ordinary answer', () => {
+        render(<PreservedApplicationView record={RECORD} />);
+        expect(screen.queryByRole('button', { name: /Open file/ })).toBeNull();
     });
 });

@@ -24,7 +24,7 @@ jest.mock('../../firebaseAdmin', () => ({
   },
   storage: {
     bucket: () => ({
-      file: () => ({ delete: (...a) => mockFileDelete(...a) }),
+      file: (path) => ({ delete: (...a) => mockFileDelete(path, ...a) }),
       deleteFiles: (...a) => mockDeleteFiles(...a),
     }),
   },
@@ -85,6 +85,17 @@ describe('deleteApplication', () => {
     expect(mockRecursiveDelete).toHaveBeenCalledWith(mockRef);
   });
 
+  it('also removes the upload a custom file question holds', async () => {
+    const resume = 'companies/co1/applications/guest_uploads/u1_resume.pdf';
+    mockGet.mockResolvedValue({ exists: true, data: () => ({
+      'cdl-front': { storagePath: 'companies/co1/applications/guest_uploads/x.jpg' },
+      customAnswers: { q1: { name: 'resume.pdf', storagePath: resume } },
+    }) });
+    await deleteApplication(req({ companyId: 'co1', applicationId: 'app1' }));
+    expect(mockFileDelete).toHaveBeenCalledTimes(2);
+    expect(mockFileDelete).toHaveBeenCalledWith(resume);
+  });
+
   it('still deletes the doc if storage cleanup throws', async () => {
     mockDeleteFiles.mockRejectedValueOnce(new Error('storage boom'));
     const res = await deleteApplication(req({ companyId: 'co1', applicationId: 'app1' }));
@@ -102,5 +113,20 @@ describe('collectStoragePaths', () => {
       nested: { storagePath: 'c/d.pdf' },
     });
     expect(paths.sort()).toEqual(['a/b.jpg', 'c/d.pdf']);
+  });
+
+  // A custom file question keeps its upload inside `customAnswers` (2026-10-02).
+  it('gathers custom-question uploads too, but only the deleting company’s own', () => {
+    const own = 'companies/co1/applications/guest_uploads/u1_resume.pdf';
+    const paths = collectStoragePaths({
+      'cdl-front': { storagePath: 'companies/co1/applications/guest_uploads/x.jpg' },
+      customAnswers: {
+        q1: { name: 'resume.pdf', storagePath: own },
+        q2: 'Regional',
+        // Whatever the applicant's browser sent: another tenant's file is not ours to delete.
+        q3: { name: 'theirs.pdf', storagePath: 'companies/co2/applications/guest_uploads/theirs.pdf' },
+      },
+    }, 'co1');
+    expect(paths.sort()).toEqual([own, 'companies/co1/applications/guest_uploads/x.jpg'].sort());
   });
 });
