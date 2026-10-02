@@ -17,8 +17,13 @@
  * `customAnswers` object write, the checkbox array toggle, the per-type
  * `isEmptyAnswer` rule, the required-question gate and its exact
  * "Please answer required question: …" toast, the `linearScale` numeric coercion,
- * the `handleFileUpload(key, file)` call plus the `file?.name || ''` answer, and
- * the `dotRequired` DOT marker.
+ * the `handleFileUpload(key, file)` call, and the `dotRequired` DOT marker.
+ *
+ * DEFECT FIXED (2026-10-02): a file question recorded `file?.name` as its answer
+ * the moment a file was chosen, without waiting for the upload and discarding the
+ * storage path it returned. So the company saw a filename that nothing referenced,
+ * and a failed upload still read as answered. The answer is now the uploaded file
+ * itself, recorded only once the upload has landed — see `uploadAnswer`.
  *
  * DEFECTS FIXED (2026-07-27):
  * - Every control was unlabelled. The question text sat in a `<label>` that
@@ -33,7 +38,7 @@
  *   and, at the ends, the endpoint wording.
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Shield } from '@design-system/icons';
 import DateTripletField from '@shared/components/form/DateTripletField';
 import { useToast } from '@shared/components/feedback/ToastProvider';
@@ -59,6 +64,9 @@ export function DynamicQuestionsStep({
     handleFileUpload // Optional file upload handler from parent
 }) {
     const { showError } = useToast();
+    // Every file question whose upload is still on its way, by question key.
+    const [uploading, setUploading] = useState({});
+    const anyUploading = Object.keys(uploading).length > 0;
     const ty = new Date().getFullYear();
 
     const questionKey = (field, index) =>
@@ -102,20 +110,57 @@ export function DynamicQuestionsStep({
         );
     }
 
+    /**
+     * Every write merges into the answers as they are when it is applied, never
+     * as this render last saw them. An upload lands on its own schedule, and a
+     * keystroke between the moment it lands and the render that shows it would
+     * otherwise write back the answers without the file in them.
+     */
     const handleChange = (key, value) => {
-        const currentAnswers = formData.customAnswers || {};
-        updateFormData('customAnswers', { ...currentAnswers, [key]: value });
+        updateFormData('customAnswers', (answers) => ({ ...(answers || {}), [key]: value }));
+    };
+
+    /**
+     * A file question's answer is the uploaded file — `{ name, storagePath }`, the
+     * shape every other upload on the application has — recorded only once the
+     * upload has landed. It is merged into the answers as they are when it lands,
+     * not as they were when the file was chosen: an upload takes a moment, and the
+     * driver may answer another question meanwhile.
+     *
+     * While it is on its way the picker is `loading` — disabled, so a second file
+     * cannot race the first and land under it — and Continue waits, as the License
+     * step's does, so nothing moves on before the file has landed.
+     */
+    const uploadAnswer = async (key, file) => {
+        if (!file || !handleFileUpload) return;
+        setUploading((current) => ({ ...current, [key]: true }));
+        try {
+            const uploaded = await handleFileUpload(key, file);
+            if (uploaded) {
+                updateFormData('customAnswers', (answers) => ({ ...(answers || {}), [key]: uploaded }));
+            }
+        } catch {
+            // `handleFileUpload` has already told the driver it failed. Nothing is
+            // recorded: a filename with no file behind it is what used to make a
+            // failed upload read as an answer.
+        } finally {
+            setUploading((current) => {
+                const next = { ...current };
+                delete next[key];
+                return next;
+            });
+        }
     };
 
     const handleCheckboxChange = (key, optValue) => {
-        const currentAnswers = formData.customAnswers || {};
-        const current = currentAnswers[key] || [];
-        const currentArray = Array.isArray(current) ? current : [];
-        const isChecked = currentArray.includes(optValue);
-        const newValues = isChecked
-            ? currentArray.filter(v => v !== optValue)
-            : [...currentArray, optValue];
-        handleChange(key, newValues);
+        updateFormData('customAnswers', (answers) => {
+            const current = (answers || {})[key];
+            const currentArray = Array.isArray(current) ? current : [];
+            const newValues = currentArray.includes(optValue)
+                ? currentArray.filter(v => v !== optValue)
+                : [...currentArray, optValue];
+            return { ...(answers || {}), [key]: newValues };
+        });
     };
 
     const optionParts = (opt) => ({
@@ -265,13 +310,8 @@ export function DynamicQuestionsStep({
                             description={field.helpText || 'PDF, PNG, JPG accepted'}
                             required={field.required && !value}
                             accept={field.accept || "image/*,application/pdf"}
-                            onChange={(e) => {
-                                const file = e.target.files[0];
-                                if (file && handleFileUpload) {
-                                    handleFileUpload(key, file);
-                                }
-                                handleChange(key, file?.name || '');
-                            }}
+                            loading={Boolean(uploading[key])}
+                            onChange={(e) => uploadAnswer(key, e.target.files?.[0])}
                         />
                         {value && (
                             <span role="status" className="text-center text-ds-xs font-medium text-ds-status-success-fg">
@@ -349,6 +389,8 @@ export function DynamicQuestionsStep({
             <StepNavigation
                 onBack={() => onNavigate('back')}
                 onContinue={handleContinue}
+                continueLabel={anyUploading ? 'Uploading...' : 'Continue'}
+                continueLoading={anyUploading}
             />
         </div>
     );

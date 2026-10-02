@@ -46,8 +46,9 @@ export function InviteLinkPanel({ link, busy, error, copied, copyFailed, driverS
                         {driverStarted
                             ? 'This driver has already started. A new link still reaches their application — it asks '
                               + 'them to confirm their last name, date of birth, Social Security Number and one of '
-                              + 'their contact details first, so only they can open it. Send it however you '
-                              + 'normally reach them.'
+                              + 'their contact details first, so only they can open it. If they saved before '
+                              + 'entering their Social Security Number, it cannot confirm them, and they continue '
+                              + 'on the phone or computer where they started. Send it however you normally reach them.'
                             : 'They open the link, complete what only they can answer, review it and sign. Send it '
                               + 'however you normally reach them.'}
                     </p>

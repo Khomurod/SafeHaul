@@ -404,7 +404,8 @@ exports.exchangeApplicationInvite = functions
             throw new functions.https.HttpsError(
                 'permission-denied',
                 outcome.refused === CLAIM_OUTCOMES.UNVERIFIABLE
-                    ? 'We cannot confirm this application belongs to you from what has been saved so far.'
+                    ? 'We cannot confirm this application belongs to you from what has been saved so far. '
+                        + 'Continue it on the phone or computer where you started it, or start a new application.'
                     : 'Those details do not match this application.',
             );
         }

@@ -52,8 +52,9 @@
  *   is a real check on the SSN. Every draft written after `identityKeyForSave`
  *   reaches this tier and stays in it.
  *
- * - **`answers`** — the draft holds no `identityKey`, because a save erased it or
- *   because it predates the field. There is nothing to verify an SSN against, so
+ * - **`answers`** — a draft the driver started holds no `identityKey`, because a
+ *   save erased it or because it predates the field (a prepared one is refused
+ *   instead; see below). There is nothing to verify an SSN against, so
  *   the name and date of birth are checked against the draft's own answers and a
  *   well-formed SSN is required. **A successful check then establishes the
  *   `identityKey`**, so a draft passes through this tier at most once — and it is
@@ -67,9 +68,15 @@
  *   things the carrier already knows. Review found that on 2026-09-09.
  *
  * Honest about its own limit: in the `answers` tier the SSN is *required* and not
- * *verified*. It still moves the bar from "knows what it typed" to "knows the
- * driver's Social Security Number", and a carrier that has that can impersonate
- * the driver anywhere in this product.
+ * *verified* — any nine digits pass — so the tier is exactly as strong as the date
+ * of birth the carrier is never shown. That holds only for a draft the driver
+ * started. On one the carrier **prepared**, the carrier typed the last name, the
+ * date of birth and the contact detail itself, so the tier compared nothing it did
+ * not already know and a recruiter could pass it and be handed the driver's
+ * answers and a resume token. Since 2026-10-02 a prepared draft with no HMAC is
+ * refused as `unverifiable` instead: the driver continues on the device that holds
+ * their resume token, which asks nothing, or starts a new application. The proper
+ * fix for a driver who has lost that device is out-of-band delivery (App Brief §12).
  *
  * A draft that does not hold both of those facts cannot be verified at all, and
  * this says so (`unverifiable`) rather than guessing. That is the state the task
@@ -83,6 +90,7 @@
  */
 
 const draft = require('../shared/applicationDraft');
+const { isCompanyPrepared } = require('../shared/companyPreparedDraft');
 const { identityKeyOrNull, text } = require('../drafts/identity');
 
 /**
@@ -160,7 +168,14 @@ function verifyInviteIdentityClaim({ companyId, stored, claim }) {
         return { outcome: CLAIM_OUTCOMES.OK, identityKey: computed, tier: 'hmac' };
     }
 
-    // Nothing on file to verify against: check what the draft does hold.
+    // Nothing on file to verify against, and on a draft the carrier prepared nothing
+    // the draft holds is a secret from the carrier: it typed the last name, the date
+    // of birth and the contact detail itself, and an SSN cannot be checked here. So
+    // no claim opens it, and the driver continues on the device whose resume token
+    // already does. See the header.
+    if (isCompanyPrepared(stored)) return refuse(CLAIM_OUTCOMES.UNVERIFIABLE);
+
+    // A draft the driver started: check what it does hold.
     if (draft.normalizeSsn(claim.ssn).length !== 9) {
         return refuse(CLAIM_OUTCOMES.IDENTITY_INCOMPLETE);
     }

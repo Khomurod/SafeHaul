@@ -30,7 +30,9 @@ export function useGuestFileUpload(companyId) {
       }
 
       if (isE2ETestMode) {
-        if (e2eUploadMode === 'deny') {
+        // `deny` refuses every upload; `deny:<field>` only that one, so a spec can
+        // get past the standard documents and watch a later upload fail.
+        if (e2eUploadMode === 'deny' || e2eUploadMode === `deny:${fieldName}`) {
           const permissionError = new Error('E2E upload blocked by mock permission guard.');
           permissionError.code = 'permission-denied';
           throw permissionError;

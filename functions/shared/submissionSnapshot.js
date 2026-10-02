@@ -88,6 +88,11 @@ function formatFileForDisplay(value) {
     return null;
 }
 
+/** `{ name, storagePath }`: the shape every upload on an application has. */
+function isUploadedFile(value) {
+    return Boolean(value) && typeof value === 'object' && typeof value.storagePath === 'string';
+}
+
 /**
  * Turn a stored answer into the string a human should read.
  * Returns null when there is nothing to show, so renderers decide how to say
@@ -95,7 +100,9 @@ function formatFileForDisplay(value) {
  */
 function formatAnswerForDisplay(value, field = {}) {
     if (isBlank(value)) return null;
-    if (field.type === 'file') return formatFileForDisplay(value);
+    // A custom question's upload is `fileUpload` in the question builder's
+    // vocabulary and `file` in the schema's; both are a file.
+    if (field.type === 'file' || field.type === 'fileUpload') return formatFileForDisplay(value);
     if (field.type === 'date') return formatDateForDisplay(value);
 
     if (Array.isArray(value)) {
@@ -104,6 +111,10 @@ function formatAnswerForDisplay(value, field = {}) {
     }
     if (typeof value === 'boolean') return value ? 'Yes' : 'No';
     if (typeof value === 'number') return String(value);
+    // An uploaded file wherever it turns up: an answer whose question has since
+    // been deleted no longer says it was a file, and must still read as the
+    // file's name rather than `[object Object]`.
+    if (isUploadedFile(value)) return formatFileForDisplay(value);
 
     const raw = String(value).trim();
     if (raw.toLowerCase() === 'yes') return 'Yes';

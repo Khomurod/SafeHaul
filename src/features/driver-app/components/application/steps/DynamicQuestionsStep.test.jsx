@@ -5,7 +5,7 @@
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 
 const showError = vi.fn();
 vi.mock('@shared/components/feedback/ToastProvider', () => ({
@@ -30,6 +30,21 @@ const renderStep = (questions, props = {}) => {
   );
   return { ...utils, updateFormData, onNavigate };
 };
+
+/**
+ * The answers the step's writes leave behind, applied in order to `before`.
+ *
+ * Every write is a merge over the answers as they are when it is applied, so a
+ * write is a function here. Applying them in order is what React does with
+ * writes queued before a render, and the mock never re-renders the step — so
+ * this is also the moment a write computed from the step's last render would
+ * undo the one before it.
+ */
+const applyWrites = (updateFormData, before) => updateFormData.mock.calls.reduce((answers, [name, write]) => {
+  expect(name).toBe('customAnswers');
+  expect(write).toEqual(expect.any(Function));
+  return write(answers);
+}, before);
 
 describe('DynamicQuestionsStep labelling', () => {
   beforeEach(() => vi.clearAllMocks());
@@ -116,7 +131,7 @@ describe('DynamicQuestionsStep answer contract', () => {
     const { updateFormData } = renderStep([{ id: 'q1', label: 'Why us?', type: 'shortAnswer' }]);
 
     fireEvent.change(screen.getByLabelText('Why us?'), { target: { value: 'Great pay' } });
-    expect(updateFormData).toHaveBeenCalledWith('customAnswers', { q1: 'Great pay' });
+    expect(applyWrites(updateFormData, undefined)).toEqual({ q1: 'Great pay' });
   });
 
   it('merges into existing answers instead of replacing them', () => {
@@ -126,7 +141,7 @@ describe('DynamicQuestionsStep answer contract', () => {
     );
 
     fireEvent.change(screen.getByLabelText('Second'), { target: { value: 'new' } });
-    expect(updateFormData).toHaveBeenCalledWith('customAnswers', { q1: 'kept', q2: 'new' });
+    expect(applyWrites(updateFormData, { q1: 'kept' })).toEqual({ q1: 'kept', q2: 'new' });
   });
 
   it('toggles checkbox answers as an array', () => {
@@ -136,17 +151,18 @@ describe('DynamicQuestionsStep answer contract', () => {
     );
 
     fireEvent.click(screen.getByRole('checkbox', { name: 'Flatbed' }));
-    expect(updateFormData).toHaveBeenCalledWith('customAnswers', { q3: ['Reefer', 'Flatbed'] });
+    expect(applyWrites(updateFormData, { q3: ['Reefer'] })).toEqual({ q3: ['Reefer', 'Flatbed'] });
 
+    // A second tick before any re-render toggles the answers as the first left them.
     fireEvent.click(screen.getByRole('checkbox', { name: 'Reefer' }));
-    expect(updateFormData).toHaveBeenCalledWith('customAnswers', { q3: [] });
+    expect(applyWrites(updateFormData, { q3: ['Reefer'] })).toEqual({ q3: ['Flatbed'] });
   });
 
   it('coerces linear-scale answers to numbers', () => {
     const { updateFormData } = renderStep([{ id: 'q4', label: 'Rate', type: 'linearScale', min: 1, max: 3 }]);
 
     fireEvent.click(screen.getByRole('radio', { name: '2' }));
-    expect(updateFormData).toHaveBeenCalledWith('customAnswers', { q4: 2 });
+    expect(applyWrites(updateFormData, undefined)).toEqual({ q4: 2 });
   });
 
   it('resolves the answer key from id, then key, then a positional fallback', () => {
@@ -169,8 +185,14 @@ describe('DynamicQuestionsStep answer contract', () => {
     expect(screen.getByLabelText('Legacy')).toHaveValue('flat value');
   });
 
-  it('uploads a chosen file and records its name as the answer', () => {
-    const handleFileUpload = vi.fn();
+  /*
+   * Until 2026-10-02 this recorded `file.name` the moment a file was chosen and
+   * threw away the storage path the upload returned, so the company saw a filename
+   * nothing referenced — and a failed upload still read as answered.
+   */
+  it('records the uploaded file as the answer once the upload has landed', async () => {
+    let land;
+    const handleFileUpload = vi.fn(() => new Promise((resolve) => { land = resolve; }));
     const { updateFormData } = renderStep(
       [{ id: 'q5', label: 'Resume', type: 'fileUpload' }],
       { handleFileUpload },
@@ -180,7 +202,94 @@ describe('DynamicQuestionsStep answer contract', () => {
     fireEvent.change(screen.getByLabelText(/Resume/), { target: { files: [f] } });
 
     expect(handleFileUpload).toHaveBeenCalledWith('q5', f);
-    expect(updateFormData).toHaveBeenCalledWith('customAnswers', { q5: 'resume.pdf' });
+    // While it is on its way: nothing recorded, the picker busy (so a second file
+    // cannot race it), and Continue waiting, as the License step's does.
+    expect(updateFormData).not.toHaveBeenCalled();
+    expect(screen.getByLabelText(/Resume/)).toBeDisabled();
+    expect(screen.getByText('Uploading Resume…')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Uploading...' })).toBeDisabled();
+
+    const uploaded = { name: 'resume.pdf', storagePath: 'companies/c1/applications/guest_uploads/u1_resume.pdf' };
+    await act(async () => { land(uploaded); });
+
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled();
+    expect(screen.getByLabelText(/Resume/)).toBeEnabled();
+    expect(updateFormData).toHaveBeenCalledWith('customAnswers', expect.any(Function));
+    // Merged into the answers as they are when it lands, so one given meanwhile survives.
+    const merge = updateFormData.mock.calls[0][1];
+    expect(merge({ q1: 'answered meanwhile' })).toEqual({ q1: 'answered meanwhile', q5: uploaded });
+    expect(merge(undefined)).toEqual({ q5: uploaded });
+  });
+
+  it('records nothing when the upload fails', async () => {
+    let fail;
+    const handleFileUpload = vi.fn(() => new Promise((_, reject) => { fail = reject; }));
+    const { updateFormData } = renderStep(
+      [{ id: 'q5', label: 'Resume', type: 'fileUpload' }],
+      { handleFileUpload },
+    );
+
+    fireEvent.change(screen.getByLabelText(/Resume/), {
+      target: { files: [new File(['x'], 'resume.pdf', { type: 'application/pdf' })] },
+    });
+    await act(async () => { fail(new Error('Upload failed.')); });
+
+    // The handler finished — Continue is back and the picker usable — and wrote nothing.
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled();
+    expect(screen.getByLabelText(/Resume/)).toBeEnabled();
+    expect(updateFormData).not.toHaveBeenCalled();
+  });
+
+  it('keeps a file that lands just before another answer is typed', async () => {
+    let land;
+    const handleFileUpload = vi.fn(() => new Promise((resolve) => { land = resolve; }));
+    const { updateFormData } = renderStep(
+      [
+        { id: 'q1', label: 'Why us?', type: 'shortAnswer' },
+        { id: 'q5', label: 'Resume', type: 'fileUpload' },
+      ],
+      { handleFileUpload },
+    );
+
+    fireEvent.change(screen.getByLabelText(/Resume/), { target: { files: [new File(['x'], 'resume.pdf')] } });
+    const uploaded = { name: 'resume.pdf', storagePath: 'companies/c1/applications/guest_uploads/u1_resume.pdf' };
+    await act(async () => { land(uploaded); });
+    // The step has not re-rendered with the file yet, and the driver types.
+    fireEvent.change(screen.getByLabelText('Why us?'), { target: { value: 'Great pay' } });
+
+    expect(applyWrites(updateFormData, undefined)).toEqual({ q5: uploaded, q1: 'Great pay' });
+  });
+
+  it('keeps Continue waiting until every upload has landed', async () => {
+    const landers = {};
+    const handleFileUpload = vi.fn((key) => new Promise((resolve) => { landers[key] = resolve; }));
+    renderStep(
+      [
+        { id: 'q5', label: 'Resume', type: 'fileUpload' },
+        { id: 'q6', label: 'Reference letter', type: 'fileUpload' },
+      ],
+      { handleFileUpload },
+    );
+
+    fireEvent.change(screen.getByLabelText(/Resume/), { target: { files: [new File(['x'], 'resume.pdf')] } });
+    fireEvent.change(screen.getByLabelText(/Reference letter/), { target: { files: [new File(['y'], 'letter.pdf')] } });
+    await act(async () => { landers.q5({ name: 'resume.pdf', storagePath: 'companies/c1/applications/guest_uploads/r.pdf' }); });
+
+    // One has landed; the other is still on its way, so neither may move on yet.
+    expect(screen.getByLabelText(/Resume/)).toBeEnabled();
+    expect(screen.getByLabelText(/Reference letter/)).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Uploading...' })).toBeDisabled();
+
+    await act(async () => { landers.q6({ name: 'letter.pdf', storagePath: 'companies/c1/applications/guest_uploads/l.pdf' }); });
+    expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled();
+  });
+
+  it('shows an uploaded file by its name', () => {
+    renderStep(
+      [{ id: 'q5', label: 'Resume', type: 'fileUpload' }],
+      { formData: { customAnswers: { q5: { name: 'resume.pdf', storagePath: 'companies/c1/x/guest_uploads/u1.pdf' } } } },
+    );
+    expect(screen.getByText('✓ Selected: resume.pdf')).toBeInTheDocument();
   });
 });
 

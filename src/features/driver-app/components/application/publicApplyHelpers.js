@@ -4,6 +4,7 @@
  */
 
 import { GATE_DEFAULT_REQUIRED, resolveApplicationGate } from '@/config/applicationGates';
+import { getE2EQueryParam } from '@lib/runtime/e2eMode';
 
 /**
  * Resolve a company application gate.
@@ -183,11 +184,21 @@ export const fileToDataUrl = (file) => new Promise((resolve, reject) => {
   reader.readAsDataURL(file);
 });
 
+/**
+ * `?e2eCustomQuestions=file` gives the fixture one required custom "file upload"
+ * question, so a browser test can reach `DynamicQuestionsStep`. Off by default:
+ * a custom step renumbers every step title, and every other spec and pixel
+ * baseline is written against the wizard without one.
+ */
+const e2eCustomQuestions = () => (getE2EQueryParam('e2eCustomQuestions', '') === 'file'
+  ? [{ id: 'e2e-resume', label: 'Upload your resume', type: 'fileUpload', required: true }]
+  : []);
+
 export const buildE2EPublicProfile = (slugValue) => ({
   id: 'e2e-company',
   companyName: 'E2E Logistics',
   appSlug: slugValue || 'e2e-company',
-  customQuestions: [],
+  customQuestions: e2eCustomQuestions(),
   applicationConfig: {
     cdlUpload: { hidden: false, required: true },
     medCardUpload: { hidden: false, required: true },

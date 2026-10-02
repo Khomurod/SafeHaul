@@ -243,6 +243,25 @@ describe('custom answers never surface a question id as wording', () => {
     expect(a.label).toBeNull();
   });
 
+  const UPLOADED = { name: 'resume.pdf', storagePath: 'companies/co-a/applications/guest_uploads/u1_resume.pdf' };
+
+  it('records a custom file answer as the file, shown by its name', () => {
+    const def = buildApplicationDefinition({
+      company: company({ customQuestions: [{ id: 'q1', label: 'Your resume', type: 'fileUpload' }] }),
+    });
+    const [answer] = snapshot({ definition: def, formData: { customAnswers: { q1: UPLOADED } } }).customAnswers;
+    expect(answer.displayValue).toBe('resume.pdf');
+    // The record keeps the reference, so the company can open the file later.
+    expect(answer.value).toEqual(UPLOADED);
+  });
+
+  it('shows an upload by its name even after its question was deleted', () => {
+    const orphan = snapshot({ definition: withQuestions(), formData: { customAnswers: { gone: UPLOADED } } })
+      .customAnswers.find((a) => a.questionId === 'gone');
+    expect(orphan.unknownQuestion).toBe(true);
+    expect(orphan.displayValue).toBe('resume.pdf');
+  });
+
   it('yields an empty list when there are no questions and no answers', () => {
     expect(snapshot().customAnswers).toEqual([]);
     expect(buildCustomAnswers({ customQuestions: [] }, 'not-an-object')).toEqual([]);

@@ -21,13 +21,30 @@ const { ORIGINAL_PDF_PREFIX } = require("./shared/preserveApplicationPdf");
 
 const ALLOWED_COLLECTIONS = new Set(['applications', 'leads']);
 
-/** Collect Storage object paths from an application doc's file fields ({ storagePath } objects). */
-function collectStoragePaths(data) {
-    const paths = [];
-    for (const value of Object.values(data || {})) {
-        if (value && typeof value === 'object' && typeof value.storagePath === 'string' && value.storagePath) {
-            paths.push(value.storagePath);
-        }
+const storagePathOf = (value) => (
+    value && typeof value === 'object' && typeof value.storagePath === 'string' && value.storagePath
+        ? value.storagePath
+        : null
+);
+
+/**
+ * Collect Storage object paths from an application doc's file fields ({ storagePath } objects).
+ *
+ * A custom file question keeps its upload inside `customAnswers` (since
+ * 2026-10-02). Those values are whatever the applicant's browser sent, so only a
+ * path in the namespace `getSignedUploadUrl` issues application uploads into is
+ * taken from there — `companies/{companyId}/applications/guest_uploads/`. The
+ * company prefix alone was not enough: a crafted answer could name one of the
+ * same company's DQ or PEV files, and this deletion runs with the Admin SDK.
+ */
+function collectStoragePaths(data, companyId) {
+    const record = data || {};
+    const paths = Object.values(record).map(storagePathOf).filter(Boolean);
+    const answers = record.customAnswers && typeof record.customAnswers === 'object' ? record.customAnswers : {};
+    const uploadPrefix = companyId ? `companies/${companyId}/applications/guest_uploads/` : null;
+    for (const value of Object.values(answers)) {
+        const path = storagePathOf(value);
+        if (path && uploadPrefix && path.startsWith(uploadPrefix)) paths.push(path);
     }
     return paths;
 }
@@ -61,7 +78,7 @@ exports.deleteApplication = onCall({ cors: true }, async (request) => {
     // doc; the prefix sweep catches admin-uploaded per-application files.
     try {
         const bucket = storage.bucket();
-        const filePaths = collectStoragePaths(data);
+        const filePaths = collectStoragePaths(data, companyId);
         await Promise.allSettled([
             ...filePaths.map((p) => bucket.file(p).delete()),
             bucket.deleteFiles({ prefix: `companies/${companyId}/${collectionName}/${applicationId}/` }),

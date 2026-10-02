@@ -120,6 +120,9 @@ describe('the two resolvers agree', () => {
             ['2026-07', { type: 'date' }],
             ['companies/c/a/guest_uploads/9ab-cdl.jpg?token=x', { type: 'file' }],
             [{ name: 'medcard.pdf' }, { type: 'file' }],
+            // A custom question's upload, and one whose question no longer says so.
+            [{ name: 'resume.pdf', storagePath: 'companies/c/applications/guest_uploads/u1_resume.pdf' }, { type: 'fileUpload' }],
+            [{ name: 'resume.pdf', storagePath: 'companies/c/applications/guest_uploads/u1_resume.pdf' }, {}],
             [['H', 'N'], {}],
             ['yes', {}],
             ['NO', {}],
@@ -198,5 +201,14 @@ describe('buildApplicationReview', () => {
             customQuestions: [{ id: 'q1', label: 'Why apply?' }],
         });
         expect(customAnswers[0]).toMatchObject({ label: 'Why apply?', value: 'Not provided', isMissing: true });
+    });
+
+    it('shows the driver a custom file answer by its name before they sign', () => {
+        const { customAnswers } = buildApplicationReview({
+            applicationConfig: {},
+            formData: { customAnswers: { q1: { name: 'resume.pdf', storagePath: 'companies/c/applications/guest_uploads/u1_resume.pdf' } } },
+            customQuestions: [{ id: 'q1', label: 'Your resume', type: 'fileUpload' }],
+        });
+        expect(customAnswers[0]).toMatchObject({ label: 'Your resume', value: 'resume.pdf', isMissing: false });
     });
 });

@@ -2015,6 +2015,41 @@ either editor's edit mode. The one that renders `StateSelectField`
 This container's Chromium is not the pinned revision, so recording or comparing
 baselines here would measure the wrong build (see above).
 
+**Updated 2026-10-02: a custom file question keeps its file, and the dossier can
+open it.** Two small additions, both compositions of approved primitives:
+
+- `DynamicQuestionsStep` passes `loading` to its `FileInput` while a custom file
+  question's upload is on its way — the picker's own spinner, disabled state and
+  "Uploading …" announcement, so a second file cannot race the first — and its
+  Continue reads **Uploading...** and waits, exactly as the License step's does.
+  "✓ Selected" appears only once the file has landed, so it no longer claims a
+  file that never arrived.
+- `PreservedApplicationView`'s *Supplemental Questions* offers **Open file** beside
+  a file answer: `Button variant="secondary" size="sm"` with the `FileText` glyph.
+  It is a button rather than a `Link` because it acts first — it mints a
+  short-lived signed URL when pressed — and its accessible name ends "(opens in a
+  new tab)" in a `ds-visually-hidden` span, the announcement `Link external` gives
+  an anchor. The tab is opened inside the press and pointed at the file once the
+  link arrives, so a popup blocker that allows new tabs only during the click
+  does not swallow it.
+
+No new primitive, token, stylesheet or allowlist entry (`check:ui-contract`: 601
+files, 246 known violations, none new).
+
+Evidence: `DynamicQuestionsStep.test.jsx` (the picker and Continue busy while an
+upload is on its way, two uploads at once, a failed upload recording nothing)
+and `PreservedApplicationView.test.jsx` (the tab opened during the press with no
+opener, closed again on failure, a blocked tab said in words); the browser spec
+`guest-custom-file-question.spec.cjs` on `chromium` and `mobile-chrome`; and a
+throwaway review in real Chromium at 1440 px and on the Pixel 7 lane, not
+committed: the step idle, uploading and landed with no horizontal overflow, Tab
+order picker → Back → Continue, and the dossier's **Open file** reached by Tab
+with a visible focus ring, opened with Enter onto the file with
+`window.opener === null`, and a not-found reply closing the tab and saying so. A
+long file name wraps on the phone. `test:stories` 545 passed. **Not run: the
+pixel lane**, for the reason above, and `check:visual-contract` reports eight
+sub-pixel font differences here that the base commit reports identically.
+
 One area is deliberately **NO-GO** and remains unmigrated, blocked on an owner
 decision in §6:
 
