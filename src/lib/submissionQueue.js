@@ -88,6 +88,8 @@ async function ensureDb() {
  *   a late replay can tell it apart from a newer application on the same page
  * @param {string} [options.applyDiscardMark] - The page's discard mark when this was
  *   queued, so a replay can refuse to submit an application discarded since
+ * @param {string} [options.applicantToday] - The applicant's calendar day at Submit
+ *   (`YYYY-MM-DD`), for guest submissions, so a late replay is judged on that day
  * @returns {Promise<string>} Queue entry ID
  */
 export async function enqueueSubmission(data, companyId, options = {}) {

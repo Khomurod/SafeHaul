@@ -110,7 +110,7 @@ function isLockedEmployerRow(row, lockedEmployers) {
  * wizard, the pre-flight and the server say the same sentence in the same place.
  *
  * @param {Array} lockedEmployers as recorded on the prepared application
- * @param {object} formData the answers being checked
+ * @param {Record<string, unknown>} formData the answers being checked
  * @returns {Array<{code: string, severity: string, semanticStep: string, fieldId: string, message: string}>}
  */
 function lockedEmployerIssues(lockedEmployers, formData) {

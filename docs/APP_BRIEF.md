@@ -1356,10 +1356,10 @@ verification document must carry no `ds-*` class and `Icon` stamps one.
 (`scripts/secret-scan.mjs`, a pinned Gitleaks CLI) — all blocking. CI's frontend
 job runs `lint:frontend`, not the root `npm run lint`, so a check that lives
 only in the root lint is not a CI gate. Only `npm run typecheck` is
-**non-blocking** (`continue-on-error`): it reports pre-existing type errors in
-the modules `jsconfig.json` checks (mostly JSDoc `{object}` parameters, which
-TypeScript 7 no longer reads as `any`), so a red typecheck is not a broken
-build, and a pre-existing one is not yours. A `TS5xxx` error is different: the
+**non-blocking** (`continue-on-error`), and the modules `jsconfig.json` checks
+have no type errors, so a red typecheck is a new error to fix, not a broken
+build. TypeScript 7 no longer reads a JSDoc `{object}` as `any`: name the fields
+a function reads, or use `Record<string, unknown>`. A `TS5xxx` error means the
 configuration was rejected and nothing was checked, so fix the configuration.
 TypeScript 7 has no `baseUrl`; paths in `jsconfig.json` are relative (`./src/*`).
 

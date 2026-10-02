@@ -147,7 +147,8 @@ function stripSensitive(formData) {
  * client payload, server arrival), and a fourth undocumented one here would only
  * defend against a key an attacker who can already read memory had planted.
  *
- * @returns {{ data: object, lastStep: number|null, meta: object|null }|null}
+ * @returns {{ data: object, lastStep: number|null, meta: { localSeq: number, syncedSeq: number,
+ *   savedAt: string|null, draftId: string|null }|null }|null}
  *   `null` when absent or corrupt. `meta` is `null` for a **legacy** draft —
  *   one written before sync metadata existed. Those already sit in real drivers'
  *   browsers, so they must keep working: the caller cannot tell whether such a

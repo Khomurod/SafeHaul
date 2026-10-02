@@ -158,7 +158,7 @@ export function buildFmcsaEmployerLikeSearchUrl(
 
 /**
  * Map a Socrata row to employer step field values.
- * @param {object} row
+ * @param {Record<string, unknown>} row
  * @param {string[]} [statesAllowlist] - e.g. two-letter codes from useUtils().states
  */
 export function mapFmcsaRowToEmployerFields(row, statesAllowlist = []) {
