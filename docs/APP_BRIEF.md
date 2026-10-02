@@ -2071,9 +2071,9 @@ The retirement campaign **completed on 2026-09-01**: the backlog
 deleted, as its own instructions required. 500 is the hard maximum for every
 handwritten file, with one owner-approved exception: `src/firestore.rules` is
 measured on every run against a 689-line ceiling that may never grow and may
-only move down (see `AGENTS.md`). No unaccounted file exceeds the maximum.
-`docs/source-size-refactor/PLAN.md` and
-`docs/source-size-refactor/TRACKER.md` remain as the campaign's record. The commit it compares
+only move down (see `.claude/rules/source-size.md`). No unaccounted file exceeds
+the maximum. `docs/archive/source-size-refactor/` keeps the campaign's plan and
+tracker as its record. The commit it compares
 against is a pull request's own base, or the newest ancestor GitHub says carried
 a fully validated release — never the branch's own history, and never a
 manually-named commit that does not contain either. Where there is no earlier
@@ -2081,7 +2081,12 @@ backlog at all, each entry must name a file the base already carried at that
 size, so a bootstrap cannot exempt debt it created. Workflows, JSON, Markdown and
 the one MDX story are deliberately unmeasured, with reasons recorded in the
 checker, and a test refuses any tracked format anywhere in the repository that is
-in none of its lists. See `AGENTS.md`.
+in none of its lists. See `.claude/rules/source-size.md`.
+
+**Instructions for AI agents stay small.** `AGENTS.md` is one page every agent
+reads; `.claude/rules/` holds topic rules loaded per area; history lives in
+`docs/archive/`. `npm run check:agent-docs` (unskippable, in `callable-contract`)
+fails any file over its limit in `scripts/agent-docs-limits.mjs`.
 
 CI runs Playwright as a 4-way shard matrix with `workers: 1` and `retries: 2`
 per shard.
@@ -2117,13 +2122,8 @@ CI ran `lint:frontend`, so no job executed it; `K4` in `npm run check:ci-plan`
 now pins the step. The hand-run accessibility
 audit and the screenshot capture went with the marketing site they served.
 
-**Local test-runner safety.** Four rules — run one Playwright suite at a time,
-never use a broad `pkill`, collect a long suite's real exit status before
-calling it a failure, and never fabricate a commit around a failing PR API —
-each learned the expensive way. Also: do not edit files in the module graph
-while a Playwright suite is running. [`AGENTS.md`](../AGENTS.md#local-test-runner-process-safety)
-is authoritative and explains why each exists; follow it exactly rather than
-this summary.
+**Local test-runner safety** — one Playwright suite at a time, no broad `pkill`,
+and the rest — is in [`.claude/rules/testing.md`](../.claude/rules/testing.md).
 
 **Operationally:** a green CI run is *not* evidence that anything shipped.
 `verify-shipped` reads the deployed SHA back off the live site, and the live
@@ -2138,7 +2138,7 @@ completion** — a PR never deploys, so it cannot exercise the path you changed.
 
 | Topic | Document |
 |---|---|
-| Agent working process, MCP tool policy, UI policy | [`AGENTS.md`](../AGENTS.md) / [`CLAUDE.md`](../CLAUDE.md) |
+| Rules for AI agents, and their topic rules | [`AGENTS.md`](../AGENTS.md), [`.claude/rules/`](../.claude/rules/); history in [`archive/`](./archive/) |
 | Architecture patterns | [`ARCHITECTURE.md`](../ARCHITECTURE.md) |
 | Product positioning, capability claims | [`PRODUCT.md`](../PRODUCT.md) |
 | Collections, fields, access summary | [`docs/firestore-data-model.md`](./firestore-data-model.md) |

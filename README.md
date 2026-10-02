@@ -350,8 +350,8 @@ CI additionally runs `check:callable-contract`, `check:ai-boundary`,
 > **Run only one Playwright suite at a time**, and **never use broad
 > process-killing patterns** such as `pkill -f vite` — that matches the invoking
 > shell's own command line and kills it. Both rules exist because the failure
-> actually happened. The full rules, and why each exists, are in
-> [AGENTS.md](AGENTS.md#local-test-runner-process-safety).
+> actually happened. The full rules are in
+> [.claude/rules/testing.md](.claude/rules/testing.md).
 
 > A green CI run is **not** evidence that anything shipped. `verify-shipped`
 > reads the deployed SHA back off the live site, and the live commit is readable
@@ -364,7 +364,7 @@ CI additionally runs `check:callable-contract`, `check:ai-boundary`,
 | Topic | Document |
 |---|---|
 | **What the app is — start here** | [docs/APP_BRIEF.md](docs/APP_BRIEF.md) |
-| Working process, MCP tool policy, test-runner and pipeline rules | [AGENTS.md](AGENTS.md) · [CLAUDE.md](CLAUDE.md) |
+| Rules for AI agents: working process and tools, plus topic rules for tests, UI, releases and file sizes | [AGENTS.md](AGENTS.md) · [.claude/rules/](.claude/rules/) |
 | Communication patterns, SMS routing, bulk worker | [ARCHITECTURE.md](ARCHITECTURE.md) |
 | Product positioning and capability claims | [PRODUCT.md](PRODUCT.md) |
 | Public-site visual specification | [DESIGN.md](DESIGN.md) |

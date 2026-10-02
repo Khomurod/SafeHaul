@@ -195,8 +195,8 @@ describe('PublicApplyHandler submission contract', () => {
     await renderWithCompleteDraft();
     await submit();
 
-    // The rendered consequence first, then the calls made before it (CLAUDE.md,
-    // rule 7). 6 = General Questions with no custom questions; the page was 0.
+    // The rendered consequence first, then the calls made before it
+    // (.claude/rules/testing.md). 6 = General Questions with no custom questions; the page was 0.
     await waitFor(() => expect(screen.getByTestId('current-step')).toHaveTextContent('6'));
     expect(showError).toHaveBeenCalledWith(refusal.message);
     // Retries would have run before the page changed, so one call means none.

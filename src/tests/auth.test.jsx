@@ -138,7 +138,7 @@ describe('Authentication Flow', () => {
      * row in CI on 2026-09-08, on a change that touched only `functions/`.
      *
      * So the promise is a deferred the test rejects, and the test waits for the
-     * rendered consequence before it ends (AGENTS.md, rule 7).
+     * rendered consequence before it ends (.claude/rules/testing.md).
      */
     it('disables Sign in while authentication is pending, and re-enables it after', async () => {
         const { signInWithEmailAndPassword } = await import('firebase/auth');

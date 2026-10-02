@@ -1,5 +1,5 @@
 /**
- * AGENTS.md, "Local test-runner process safety", rule 6: `vi.clearAllMocks()`
+ * `.claude/rules/testing.md`, "Writing reliable Vitest tests": `vi.clearAllMocks()`
  * resets call records and leaves queued `*Once` values in place, so a test that
  * queues one its component never consumes leaks it into the next test. That
  * cost a real CI failure on 2026-08-26, and the 2026-09-06 audit found the same
@@ -44,7 +44,7 @@ describe('mock reset hygiene', () => {
 
         expect(
             offenders,
-            `these files queue a *Once value but only clear mocks; use vi.resetAllMocks() (AGENTS.md rule 6):\n  ${offenders.join('\n  ')}`,
+            `these files queue a *Once value but only clear mocks; use vi.resetAllMocks() (.claude/rules/testing.md):\n  ${offenders.join('\n  ')}`,
         ).toEqual([]);
     });
 });

@@ -16,7 +16,7 @@ import { composeStories } from '@storybook/react-vite';
  *
  * The official Vitest addon runs stories in Playwright browser mode. That would
  * mean a second browser-driven suite in CI on top of the existing Playwright
- * lane, and `AGENTS.md` records real, expensive failures caused by two suites
+ * lane, and `.claude/rules/testing.md` records the expensive failures caused by two suites
  * contending for one dev server. Portable stories give the same coverage inside
  * the suite that already exists, with no browser and no extra server.
  *
@@ -56,7 +56,7 @@ const BLOCKING_IMPACTS = new Set(['serious', 'critical']);
  * example button "Add driver" or gives `tone="success"` the label "Finish
  * signing", it stops documenting a neutral primitive and starts publishing a
  * feature's vocabulary and its domain-to-tone mapping as the reusable standard —
- * exactly what `AGENTS.md` reserves for feature folders. Four such labels were
+ * exactly what `.claude/rules/ui.md` reserves for feature folders. Four such labels were
  * caught in review on this catalog's first pass; this stops the fifth.
  *
  * Deliberately checked against the **rendered DOM**, not the source. A story's

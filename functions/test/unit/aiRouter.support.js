@@ -17,7 +17,7 @@
  *
  * ## This file DOES queue `*Once` values, so the reset is `resetAllMocks`
  *
- * `AGENTS.md` records that `clearAllMocks` does NOT drain a `*Once` queue, and
+ * `.claude/rules/testing.md` records that `clearAllMocks` does NOT drain a `*Once` queue, and
  * that splitting a file changes test ordering — the timing that makes such a
  * leak surface. The original queued two `mockResolvedValueOnce` values, so
  * `resetAiRouterState` uses **`resetAllMocks`** and re-establishes every

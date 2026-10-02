@@ -49,7 +49,7 @@ function callableError(code) {
 
 beforeEach(() => {
     // `resetAllMocks`, not `clearAllMocks`: this file queues a `*Once` value, and
-    // `clearAllMocks` does not drain that queue (AGENTS.md rule 6) — a value the
+    // `clearAllMocks` does not drain that queue (.claude/rules/testing.md) — a value the
     // test never consumes leaks into the next one. `src/tests/mockResetHygiene.test.js`
     // fails the build for the pair, which is how this was caught.
     vi.resetAllMocks();

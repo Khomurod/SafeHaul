@@ -28,8 +28,8 @@
  * repositories and delete them. One of them failed; all five had the same
  * shape. This repository's own rule for a CI bug is to list every job with that
  * shape *before* fixing one, because patching the instance in front of you is
- * how one root cause becomes three separate rounds — which is written down in
- * `CLAUDE.md` after it happened three times in one day.
+ * how one root cause becomes three separate rounds — the "fix the family" rule
+ * in `.claude/rules/release-pipeline.md`, written after it happened three times in one day.
  *
  * `scripts/test-ui-contract-scope.mjs` §S10 asserts no recursive `rmSync` in
  * `scripts/` is written without retries, so the next harness cannot reintroduce

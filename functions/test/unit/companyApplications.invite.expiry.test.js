@@ -105,7 +105,7 @@ async function afterMoving(ms, run) {
 
 beforeEach(() => {
     // `resetDraftState` uses `clearAllMocks`, which does NOT drain a `*Once`
-    // queue (AGENTS.md rule 6) — and this file queues two. `mockReset` drains it,
+    // queue (.claude/rules/testing.md) — and this file queues two. `mockReset` drains it,
     // at the cost of the implementation, which `resetDraftState` then puts back:
     // the order of these three lines is load-bearing, not stylistic.
     mockCheckRateLimit.mockReset();

@@ -390,8 +390,8 @@ console.log('\nS10. Throwaway directories are removed without racing git');
  * this stops the next harness copying the old shape from an older one.
  *
  * Five files had it, only one failed — which is why this is written over the
- * set rather than over the instance, the rule `CLAUDE.md` records after one CI
- * root cause was patched three times.
+ * set rather than over the instance — the "fix the family" rule in
+ * `.claude/rules/release-pipeline.md`, written after one CI root cause was patched three times.
  */
 {
     const offenders = [];
