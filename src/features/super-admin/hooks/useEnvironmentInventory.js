@@ -11,12 +11,6 @@ import { describeVaultError, listEnvironmentAndIntegrations } from '../services/
  * boolean** read from the running bundle. No value is stored, derived or cached.
  */
 
-export const STATUS_LABELS = Object.freeze({
-    configured: 'Configured',
-    missing: 'Missing',
-    unknown: 'Unknown',
-});
-
 const EMPTY_FILTERS = Object.freeze({
     category: 'all',
     source: 'all',

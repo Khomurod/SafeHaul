@@ -42,8 +42,6 @@ export const PAGES_PER_REQUEST = 3;
  */
 export const MAX_SCAN_PAGES = PAGES_PER_REQUEST * 12;
 
-export const SCAN_SCOPES = Object.freeze(['current', 'selected', 'all']);
-
 const STATUS = Object.freeze({
     IDLE: 'idle',
     SCANNING: 'scanning',

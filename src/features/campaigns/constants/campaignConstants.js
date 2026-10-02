@@ -36,31 +36,9 @@ export const LAST_CALL_RESULTS = [
  * outright. Terminal sessions are inert history and may be deleted explicitly.
  */
 export const CANCELLABLE_SESSION_STATUSES = ['active', 'queued', 'scheduled', 'paused'];
-export const TERMINAL_SESSION_STATUSES = ['completed', 'cancelled', 'failed'];
 
 export const isCancellableSessionStatus = (status) =>
     CANCELLABLE_SESSION_STATUSES.includes(status);
-
-export const CAMPAIGN_MODES = {
-    DASHBOARD: 'dashboard',
-    WIZARD: 'wizard',
-    AUDIENCE: 'audience',
-    AUTOMATIONS: 'automations'
-};
-
-export const WIZARD_STEPS = {
-    TARGETING: 1,
-    MESSAGE: 2,
-    REVIEW: 3
-};
-
-/**
- * Transforms a UI filter selection into a database-ready query value.
- */
-export const getDbValue = (id, dictionary) => {
-    const item = dictionary.find(i => i.id === id);
-    return item ? item.value : id;
-};
 
 /**
  * Friendly error messages for Bulletproof Logic

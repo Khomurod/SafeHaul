@@ -6,21 +6,13 @@ import {
   updateDoc,
   addDoc,
   query,
-  where,
-  documentId
+  where
 } from "firebase/firestore";
 import { db } from '@lib/firebase';
 import { sanitizeQuestionPayload } from '@shared/utils/sanitizeUserContent';
 
 export async function loadCompanies() {
   return await getDocs(collection(db, "companies"));
-}
-
-export async function getCompaniesFromIds(companyIds) {
-  if (!companyIds || companyIds.length === 0) return null;
-  const companyRef = collection(db, "companies");
-  const q = query(companyRef, where(documentId(), "in", companyIds));
-  return await getDocs(q);
 }
 
 export async function getCompanyProfile(companyId) {

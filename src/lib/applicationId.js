@@ -58,19 +58,6 @@ function normalizeEmail(email) {
  * const appId = await generateApplicationId('company-123', 'john@example.com', '555-123-4567');
  * // Returns: '3a7f2b9c8d1e4f5a6b7c'
  */
-/**
- * Full SHA-256 applicant key (64 hex chars) for collision detection on upsert.
- */
-export async function generateApplicantKeyFull(companyId, email, phone) {
-    if (!companyId) {
-        throw new Error('companyId is required for applicant key generation');
-    }
-    const normalizedEmail = normalizeEmail(email);
-    const normalizedPhone = normalizePhone(phone);
-    const canonicalInput = `${companyId}:${normalizedEmail}:${normalizedPhone}`;
-    return sha256(canonicalInput);
-}
-
 export async function generateApplicationId(companyId, email, phone) {
     if (!companyId) {
         throw new Error('companyId is required for application ID generation');

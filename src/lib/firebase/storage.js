@@ -5,24 +5,6 @@ import {
     uploadBytes
 } from "firebase/storage";
 
-export async function getFileUrl(storagePath) {
-    if (!storagePath) {
-        console.warn("No storage path provided.");
-        return null;
-    }
-    try {
-        const fileRef = ref(storage, storagePath);
-        const url = await getDownloadURL(fileRef);
-        return url;
-    } catch (error) {
-        console.error("Error getting file URL for path:", storagePath, error);
-        if (error.code === 'storage/object-not-found') {
-            console.warn("File not found at path:", storagePath);
-        }
-        return null;
-    }
-}
-
 export async function uploadCompanyLogo(companyId, file) {
     if (!companyId || !file) {
         throw new Error("Company ID and file are required for upload.");
