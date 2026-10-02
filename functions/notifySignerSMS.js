@@ -6,7 +6,7 @@
  * configured SMS provider (RingCentral/8x8).
  */
 const { onDocumentCreated } = require('firebase-functions/v2/firestore');
-const admin = require('firebase-admin');
+const { admin } = require('./firebaseAdmin');
 const SMSAdapterFactory = require('./integrations/factory');
 const db = admin.firestore();
 

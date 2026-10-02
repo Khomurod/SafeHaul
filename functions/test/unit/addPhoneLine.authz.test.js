@@ -37,7 +37,7 @@ jest.mock('../../integrations/adapters/ringcentral', () => {
 // Recording Firestore mock. Captures every .set()/.update() with its doc path so we can
 // inspect what was actually persisted to the keychain / provider doc.
 const mockWrites = [];
-jest.mock('firebase-admin', () => {
+jest.mock('../../firebaseAdmin', () => {
   const writes = mockWrites;
   const makeDoc = (path) => ({
     _path: path,
@@ -52,10 +52,12 @@ jest.mock('firebase-admin', () => {
     add: async () => ({ id: 'auto' }),
   });
   return {
-    firestore: Object.assign(
-      () => ({ collection: (name) => makeCol(name) }),
-      { FieldValue: { serverTimestamp: () => '__ts' } },
-    ),
+    admin: {
+      firestore: Object.assign(
+        () => ({ collection: (name) => makeCol(name) }),
+        { FieldValue: { serverTimestamp: () => '__ts' } },
+      ),
+    },
   };
 });
 

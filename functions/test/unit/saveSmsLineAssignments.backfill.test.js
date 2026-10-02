@@ -22,22 +22,24 @@ jest.mock('../../shared/companyAccess', () => ({
 
 let mockDocData;
 const mockUpdate = jest.fn().mockResolvedValue();
-jest.mock('firebase-admin', () => ({
-  firestore: Object.assign(
-    () => ({
-      collection: () => ({
-        doc: () => ({
-          collection: () => ({
-            doc: () => ({
-              get: async () => ({ exists: mockDocData !== null, data: () => mockDocData }),
-              update: (...a) => mockUpdate(...a),
+jest.mock('../../firebaseAdmin', () => ({
+  admin: {
+    firestore: Object.assign(
+      () => ({
+        collection: () => ({
+          doc: () => ({
+            collection: () => ({
+              doc: () => ({
+                get: async () => ({ exists: mockDocData !== null, data: () => mockDocData }),
+                update: (...a) => mockUpdate(...a),
+              }),
             }),
           }),
         }),
       }),
-    }),
-    { FieldValue: { serverTimestamp: () => '__ts' } },
-  ),
+      { FieldValue: { serverTimestamp: () => '__ts' } },
+    ),
+  },
 }));
 
 const { saveSmsLineAssignments } = require('../../integrations/controllers/configController');

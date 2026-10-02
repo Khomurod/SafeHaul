@@ -4,7 +4,7 @@
  */
 
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
-const admin = require('firebase-admin');
+const { admin } = require('../../../firebaseAdmin');
 const SMSAdapterFactory = require('../../factory');
 const { encrypt } = require('../../encryption');
 const RingCentralAdapter = require('../../adapters/ringcentral');
