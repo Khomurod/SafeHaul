@@ -1,34 +1,22 @@
 # SafeHaul design-system standard and roadmap
 
 **Mandatory reading before any UI, UX, styling, responsive, accessibility or
-visual-component change.** Read it together with
+visual-component change**, together with
 [`src/design-system/README.md`](../src/design-system/README.md) and the relevant
-component/pattern docs.
+component/pattern docs. It states the **current standard only**: the permanent
+rules, the approved exceptions, the automated guardrails and the open decisions.
 
-This file holds the **permanent rules, the approved exceptions, the automated
-guardrails and the decisions that are still open**. It is not a history of the
-migration — that lives in Git. Record here only what a future change could get
-wrong.
-
----
-
-## Status legend
-
-- `[ ]` Not started · `[~]` In progress · `[x]` Completed and verified ·
-  `[!]` Blocked or requires an owner decision
-
-`[~]` and `[!]` are project conventions. If a renderer shows them as ordinary
-unchecked boxes, the text status is authoritative.
-
----
+**Status legend:** `[ ]` Not started · `[~]` In progress · `[x]` Completed and
+verified · `[!]` Blocked or requires an owner decision. `[~]` and `[!]` are
+project conventions; if a renderer shows plain boxes, the text status is
+authoritative.
 
 ## 1. Non-negotiable architecture
 
-- The design system controls reusable visual appearance and interaction.
-- Feature folders control feature content, available actions, and
-  domain-to-UI mapping.
-- Hooks and services control data, state, integrations, and business logic.
-- `src/app` controls composition, routes, guards, and providers.
+- The design system controls reusable visual appearance and interaction; feature
+  folders control feature content, available actions and domain-to-UI mapping.
+- Hooks and services control data, state, integrations and business logic;
+  `src/app` controls composition, routes, guards and providers.
 - Feature screens stay with their features and consume approved design-system
   components.
 - **The design system must never know what a driver, recruiter, application,
@@ -38,19 +26,19 @@ unchecked boxes, the text status is authoritative.
   to simplify UI code.
 - Legacy styles are removed only after all known consumers migrate and the
   replacement is functionally, visually, responsively and accessibly verified.
+- **WCAG 2.2 AA is the permanent standard** for every primitive, pattern and
+  screen (owner, 2026-09-04).
 
 ### What UI work must not change
 
-- route URLs, authorization, role checks, and feature flags;
-- Firebase rules, indexes, data shape, Cloud Functions, or integrations;
+- route URLs, authorization, role checks and feature flags;
+- Firebase rules, indexes, data shape, Cloud Functions or integrations;
 - submission, campaign, recruiting, verification, signing or document workflows;
-- PDF field geometry, signing coordinates, upload semantics, or offline queues;
+- PDF field geometry, signing coordinates, upload semantics or offline queues;
 - domain status vocabulary, without a separate product decision;
 - feature ownership of screens and actions;
 - branded artwork, unless accessibility or consistency requires an approved
   adjustment.
-
----
 
 ## 2. Target architecture
 
@@ -97,119 +85,183 @@ shared compatibility UI -> design-system (during migration)
 design-system -> React/presentation libraries only
 ```
 
-The reverse directions are prohibited and enforced by
+The reverse directions are prohibited — including any `@shared` import inside
+`src/design-system`, in stylesheets as well as modules — and enforced by
 `src/design-system/tests/architecture.test.js`.
-
----
 
 ## 3. Rules for writing UI
 
+**Components, colour and type**
 - **Reuse approved components and semantic `--ds-*` tokens.** Do not create a
   local button, modal, form control, table, status treatment, arbitrary colour,
   unsupported font size or competing visual primitive unless this file records
-  the missing capability **and** the code documents the temporary exception.
+  the missing capability (§5) **and** the code documents the temporary
+  exception.
 - **No 9px or 10px body text.** The floor is 12px for interface text.
+- **Status is never colour alone** — always text or icon plus tone; a `Badge`'s
+  label carries the meaning.
+- **`--ds-color-content-muted` is safe on every surface** (slate-600: AA on
+  `surface`, `surface-subtle`, `canvas` and all six status backgrounds, asserted
+  by `tokens.test.js`). Call sites already on `content-secondary` need no
+  change.
+- **Dark surfaces use the inverse roles**: `--ds-color-surface-inverse`,
+  `-inverse-subtle` and `-inverse-hover`, `--ds-color-border-inverse`, text in
+  `--ds-color-content-on-inverse` / `-on-inverse-muted`, and status text in
+  `--ds-color-status-*-fg-on-inverse`; never invent a dark header or console
+  colour (`--ds-color-content-inverse` is a separate white token). Headers that
+  moved to the app surface while those roles were missing (`PEVRequestModal`,
+  `VOEPreviewModal`, `VerificationPortal`) are correct and need no change.
+- **Brand colours are named.** `--ds-color-brand-primary` (#004C68) and
+  `--ds-color-brand-accent` (#0BE2A4) alias the primitives
+  `--ds-color-brand-deep` and `--ds-color-brand-mint`; with
+  `--ds-color-brand-mint-gradient-start` and `-end` they are the four brand
+  values, and every literal copy is compared by a test (§7). The accent is a
+  foreground on the inverse surface only (about 1.6:1 on a light one). The
+  gradient start sits one unit off `-mint` on purpose: the artwork as authored.
+- **Convert radius and shadow by value, never by name.** Tailwind's names sit
+  one step off the `--ds-*` scale: `rounded` 4px = `rounded-ds-sm`, `rounded-lg`
+  8px = `rounded-ds-md`, `rounded-xl` 12px = `rounded-ds-lg`, `rounded-2xl`
+  16px = `rounded-ds-xl`, `rounded-full` = `rounded-ds-full`; `shadow-sm` is the
+  `shadow-ds-xs` step, and Tailwind shadows are pure black where the `--ds-*`
+  ones are slate-tinted.
+- **`sr-only` and `.ds-visually-hidden` are the same rule, and both stay.**
+  Anything that decides "is this hidden?" (an E2E sweep, a guard exemption)
+  names both; a hidden control is 1×1, not 0×0.
+
+**Controls**
 - **One control scale, and the default is the aligned case.**
-  `--ds-control-height-{sm,md,lg}` is 36 / 44 / 52px and is read by `Button`,
-  `IconButton`, `Input`, `Select` and `Textarea`, all defaulting to `md`. Do not
-  set a size to make a control match its neighbour — the default already does.
-  `lg` is for the primary action of a public, mobile-first, single-task screen.
-  A thing that is not a control must not read a control height.
-- **Icon size inside a control belongs to the design system, and so does the
-  space beside it.** `Button` sizes any contained `svg` from the step's icon
-  token, which outranks the width/height attributes an icon library renders —
-  passing `size={24}` to a glyph in a button does nothing, deliberately. The gap
-  between that glyph and its label is `--ds-space-2` on `.ds-button`, inherited by
-  `.ds-button__content`, so a call site does not set it either.
-  `check:visual-contract` measures both halves at all three sizes; until
-  2026-08-25 it measured only the icon.
+  `--ds-control-height-{sm,md,lg}` is 36 / 44 / 52px, read by `Button`,
+  `IconButton`, `Input`, `Select` and `Textarea`, all defaulting to `md`. Never
+  set a size to match a neighbour or use `size="lg"` to line a button up with an
+  input: `lg` is for the primary action of a public, mobile-first, single-task
+  screen (`StepNavigation`, `Step9_Consent`, `EmploymentCoveragePrompt`,
+  `UploadField`, `LoginScreen`, `VerificationPortal`, `SignatureSheet`,
+  `ReviewChangePortal`, `ApplyIdentityCheckScreen`). A thing that is not a
+  control must not read a control height (`--ds-metric-icon-size`,
+  `--ds-table-selection-control-size`).
+- **`xs` is 24px — the WCAG 2.2 SC 2.5.8 minimum — and icon-only**:
+  `IconButton size="xs"` reaches it, `Button` refuses it, `shape="round"` cuts a
+  disc for a control on another element's corner. On the PDF overlays a pointer
+  target meets 24×24 on the target itself rather than leaning on 2.5.8's
+  equivalent-control exception (owner decision for the corner badges,
+  2026-09-05; the resize handles follow because neither exception fits them).
+- **`Button variant="link"`** is an action that reads as inline text: still a
+  `<button>`, the one variant off the height scale, with a pseudo-element taking
+  its hit area to about 26px; `IconButton` refuses it.
+- **Form controls are 16px under 639px** (`--ds-font-size-control-mobile` on
+  `.ds-form-control`, selects too): no iOS zoom.
+- **A control that saves immediately is a `Switch`**; a `Checkbox` announces a
+  value you set and then submit.
+- **A `Select` bound to stored data offers a stored value its options lack as
+  its own option**, rather than letting the browser show the first option.
+- **Explain rather than prevent.** A field the viewer may not change is a
+  read-only display with a `Badge`, never a disabled input; enforcement lives in
+  logic (e.g. `applicationLockedFields.js`). Do not disable an action because a
+  prerequisite is unmet: let it validate on press, say why in
+  `FieldMessage tone="error"` and focus the offending field. `disabled` is for
+  an operation in flight (`Button`'s `loading`); `aria-disabled="true"` looks
+  the same but stays in the tab order, so the caller refuses the activation
+  itself. A control that cannot work is not rendered.
+
+**Icons**
 - **Every glyph comes from `@design-system/icons`, at a step on the scale.**
-  `--ds-icon-size-{xs,sm,md,lg,xl,2xl,3xl}` is 12 / 14 / 16 / 18 / 20 / 24 / 32px,
-  and `--ds-control-icon-{sm,md,lg}` — which named three of those numbers first —
-  are aliases of it, because two vocabularies for one set of numbers is a
-  guarantee that they drift. Nothing below 12px: a stroked glyph loses its
-  interior and reads as a smudge.
+  `--ds-icon-size-{xs,sm,md,lg,xl,2xl,3xl}` is 12 / 14 / 16 / 18 / 20 / 24 /
+  32px (`--ds-control-icon-{sm,md,lg}` are aliases); nothing below 12px. A glyph
+  is a **token**, rendered only through `<Icon icon={…}>`:
+  `<Trash2 size={13} />` throws by name, as does a token rendered from a local
+  binding (`<Glyph />`, `<item.icon />`). Never name a local binding `Icon` — it
+  shadows the imported one.
+- **A container sizes the glyph it holds, and owns the gap beside it.**
+  `Button`, `IconButton`, `Tabs`, `Chip`, `SegmentedControl`, `FileInput` and
+  `StatusMedallion` size any contained `svg` (`size={24}` in a button does
+  nothing, deliberately; `Icon.css` sizes through a zero-specificity
+  `:where()`), so a glyph inside one states no size. The gap is `--ds-space-2`
+  on `.ds-button`, inherited by `.ds-button__content`. `StatusMedallion` holds
+  24 at `md` and 32 at `lg`; `Badge` sizes only a glyph passed via its `icon`
+  prop (§5).
+- **An off-scale size means a missing container, not a short scale.** Snap a
+  1–4px delta to the step. A glyph in a **fixed** frame with real geometry (a
+  128px logo frame, a 12px PDF handle) takes its size from the frame, with the
+  arithmetic at the call site; in a **fluid** container it snaps, and a
+  page-level state glyph is `3xl` (32).
+- **Decorative glyphs are `aria-hidden`; a glyph that *is* the control takes
+  `label`** and becomes `role="img"` with that name. A blank `label` throws.
 
-  A glyph is imported as a **token**, not a component, so `<Trash2 size={13} />`
-  throws by name at the call site. That is deliberate and is the whole point:
-  re-exporting the components would have let every one of 209 files move to the
-  new import path while keeping whatever pixel number it already passed. A static
-  rule cannot close that, because the commonest shape hides the name entirely —
-  `const Glyph = ICONS[status]; <Glyph size={16} />`.
-
-  `Icon.css` states its sizes through `:where()`, at zero specificity, so the
-  rule above — a container sizes the glyph it contains — still wins every
-  argument. Written as a plain class selector it would have silently made every
-  icon in every button 16px.
-
-  Decorative glyphs are `aria-hidden`; a glyph that *is* the control takes
-  `label` and becomes `role="img"` with that name. A blank `label` throws rather
-  than announcing an image and then saying nothing about it.
-- **Status is never colour alone** — always text or icon plus tone.
+**States, announcements and focus**
 - **A state must announce itself.** Loading and empty are `role="status"`
   (polite); errors are `role="alert"`. Use `EmptyState` / `ErrorState` /
-  `LoadingState` from `@design-system/patterns`, which choose for you. A polite
-  error is silent until the user happens to navigate to it; an assertive empty
-  state interrupts them to say there is nothing.
-- **A busy control is a state too, and `aria-busy` is not an announcement.**
-  Nothing reads `aria-busy` off a control that `loading` has just disabled and
-  taken focus from, and a button label that changed from "Upload logo" to
-  "Uploading…" is ordinary content, not a live region. The primitive that owns
-  the `loading` prop owns the region that goes with it — `FileInput` renders one
-  polite `role="status"`, always present and empty when idle, because a live
-  region has to exist before it fills for the fill to be announced. Recorded
-  2026-08-26: the `FileInput` migration deleted the two regions the avatar and
-  logo pickers had and put `aria-busy` plus a label change in their place, and
-  the feature tests were rewritten to assert the replacement — so both screens
-  went silent with their tests green.
-- **Restoring focus is a claim about where focus was.** A component that disables
-  itself may put focus back where the disabling took it from, and it must decide
-  by asking what was focused — never by which event delivered the data.
-  `FileInput` armed its restore on any `change`, and its own drop handler
-  dispatches one from the input, so a dragged-and-dropped upload ended with focus
-  inside a clipped 1×1 file input the user had never touched (2026-08-26).
-  `document.activeElement === theControl` at the moment the data arrives is the
-  whole question; `<body>` afterwards means "there is nothing to steal from", and
-  never "this focus was mine".
-- **A link navigates; a button acts.** Use `Link` / `ButtonLink` /
-  `IconButtonLink`, never a styled `<a>` and never a `<button>` dressed as a
-  link. Pass `external` instead of hand-writing `target="_blank"`, so the new
-  tab is announced and `rel` closes the reverse-tabnabbing hole.
-- **`--ds-color-content-muted` is safe on every surface.** It is slate-600 as of
-  2026-08-21 (8.6:1 on `surface`, 7.0:1 on `surface-subtle`, 6.4:1 on
-  `status-warning-bg`). It was slate-500 and approved on `surface` *only*, which
-  three real axe findings proved was a rule too easy to forget. There is no
-  per-surface rule left; `tokens.test.js` asserts AA on every pairing including
-  the two that used to fail. Existing `content-secondary` call sites that were
-  working around the old limit are correct and need no change.
-- **Every overlay goes through `Modal`** (`@design-system/patterns`). No
-  hand-built `fixed inset-0` dialog. A repository-wide scan returns `Modal.css`
-  and nothing else — true since 2026-09-05, when `overlayClassName` was removed
-  and `hand-built-overlay` lost the `prepare` step that used to strip it.
-- **A stacking layer has a name.** `z-ds-raised` / `sticky` / `dropdown` /
-  `drawer` / `modal` / `toast` for the application scale, `z-ds-layer-1..4` for
-  something that only orders siblings inside one `isolate` container.
-  `raw-z-index` and `css-raw-z-index` refuse a bare number in either spelling.
-  The one recorded exception is `VOEDocument`'s `-z-10` watermark.
-- **A dialog's chrome is `size`/`scroll`/`fill`/`mobile`/`placement`/`tone`, not
-  a class list.** Added 2026-09-05, and every one of the 41 call sites was
-  migrated the same day; no `overlayClassName` remains in `src/`. `Modal`'s `className` and `overlayClassName`
-  REPLACE the panel and backdrop, and 38 of the 41 call sites used them to write
-  **30 different spellings** of the same handful of intentions — a hairline
-  border here and none there, `max-h-[85vh]` beside `max-h-[92vh]`,
-  `backdrop-blur-md` beside `backdrop-blur-sm`. Every one of those classes is
-  on-contract, which is exactly why no guard saw it: the variation was the
-  defect. Surface, border, radius, shadow, overlay colour, blur and stacking
-  layer now have no prop at all, and an unsupported value on the six that do
-  **throws** — a silent fallback to the default is how thirty spellings
-  accumulated. The two legacy props were removed on 2026-09-05 and now throw
-  too; there is no styling escape hatch left.
-- **No blocking browser dialogs.** `confirm()` and `alert()`, with or without a
-  `window.` prefix, are rejected by a ratchet test — use `ConfirmDialog`.
-- **Scroll regions must be keyboard-reachable and named**, and every row action
-  needs a record-specific accessible name.
+  `LoadingState` from `@design-system/patterns`.
+- **Never nest live regions.** Inside a caller's always-mounted
+  `role="status"`/`role="alert"` wrapper a `Notice` takes `announce="off"` (two
+  regions announce twice; moving the role onto a conditional child silences it);
+  `FieldMessage tone="error"` is its own `role="alert"`. A polite region must
+  exist, empty and not `display: none`, before it fills.
+- **A busy control is a state too, and `aria-busy` is not an announcement.** The
+  primitive that owns `loading` owns its region: `FileInput` renders one polite
+  `role="status"`, always present and empty when idle. A changing label is
+  content, not an announcement, and moves the accessible name — keep "Save" and
+  put "Saving…" in a `role="status"`.
+- **Restoring focus is a claim about where focus was.** Ask what was focused
+  when the data arrived (`document.activeElement === theControl`), never which
+  event delivered it; `<body>` afterwards means "nothing to steal from", never
+  "this focus was mine". A state replacing the control just activated moves
+  focus (`PageState focusOnMount`).
+- **A drop target always cancels the drop** (`preventDefault` first, even when
+  disabled or loading) — the browser's default for a dropped file is to navigate
+  to it. A call site that unmounts `FileInput` once a file is chosen shows
+  `onReject`'s message in a region that outlives the picker, only while it is
+  gone.
 
----
+**Links, dialogs and layers**
+- **A link navigates; a button acts.** Use `Link` / `ButtonLink` /
+  `IconButtonLink`, never a styled `<a>` or a `<button>` dressed as a link. Pass
+  `external`, not `target="_blank"`, so the new tab is announced and `rel`
+  closes reverse-tabnabbing; a button that acts, then opens a tab, ends its name
+  in `ds-visually-hidden` "(opens in a new tab)", opens the tab inside the press
+  and points it at the URL once it arrives (closing it on failure), so a popup
+  blocker does not swallow it.
+- **Every overlay goes through `Modal`** (`@design-system/patterns`); no
+  hand-built `fixed inset-0` dialog. Its chrome is `size` / `scroll` / `fill` /
+  `mobile` / `placement` / `tone`, not a class list: surface, border, radius,
+  shadow, overlay colour, blur and stacking layer have no prop, an unsupported
+  value throws, and so do the removed `className` / `overlayClassName`. A new
+  shape is a case in `Modal.css` with the row here that justifies it.
+- **Confirmations are `ConfirmDialog`**, which routes Escape to `onCancel` — so
+  a cancel never destroys anything; a destructive choice gets its own
+  `tone="danger"` confirmation.
+- **No blocking browser dialogs.** `confirm()` and `alert()`, with or without
+  `window.`, are rejected.
+- **A stacking layer has a name.** The application scale is `z-ds-raised` (10) /
+  `sticky` (20) / `dropdown` (30) / `drawer-backdrop` (40) / `drawer` (50) /
+  `modal` (60) / `toast` (100). `z-ds-layer-1..4` only orders siblings inside
+  one `isolate` container (outside one it loses to everything), and a dialog
+  never renders inside an isolated container. Application chrome is `sticky`,
+  page chrome scrolling beneath it `raised`, a real dropdown `dropdown`; no
+  `<thead>` sits on `sticky` or above. The one recorded bare number is
+  `VOEDocument`'s `-z-10` watermark.
+
+**Tables**
+- **Display tables are `DataTable`.** A native `<table>` is approved only per
+  §5, and every one — a visually hidden one included — carries `ds-native-table`
+  and reads the `--ds-table-*` roles. A native table is not a licence to style a
+  table by hand: the contract (`pinnedColumn.css`) paints a frozen cell's
+  surface and hover tint, never a hand-picked `bg-*`.
+- **Tables on phones follow one rule.** Rows that are *compared* keep the table:
+  a labelled, focusable horizontal-scroll region, a sticky header, the first
+  column pinned (`DataTable` by default — `pinFirstColumn={false}` opts out, and
+  with a selection the checkbox and identifying column pin together;
+  `data-pin-first-column` on a native table). A matrix of per-row controls
+  worked one record at a time becomes one card per row under 768px
+  (`data-mobile-presentation="cards"`, labels from `data-label`, the same DOM at
+  every width, and the table roles stated explicitly — `role="table"`,
+  `"rowgroup"`, `"row"`, `"columnheader"`, `"cell"` — because `display: block`
+  drops the implicit ones). The Super Admin feature matrix is the one
+  specialized grid. Source: `components/data-table/README.md` ("Tables on
+  phones"), `pinnedColumn.css`, the `Patterns/Native table` story.
+- **Scroll regions are keyboard-reachable and named**; every row action has a
+  record-specific accessible name. Prefer deciding which actions a row offers in
+  a pure, tested module (as `unfinishedRowActions.js` does) over a `render`
+  callback.
 
 ## 4. Verification matrix
 
@@ -230,2388 +282,252 @@ Apply checks proportionally, and **never claim an unrun check**:
 1. implementation is complete;
 2. existing behavior is preserved;
 3. relevant tests pass;
-4. desktop visual behavior is reviewed;
-5. mobile behavior is reviewed where applicable;
+4. desktop visual behavior is reviewed (1440px);
+5. mobile behavior is reviewed where applicable (412px);
 6. keyboard and accessibility behavior is reviewed;
 7. documentation and catalog examples are updated;
 8. the final diff contains no unrelated changes.
 
 If a check cannot run, say so, and leave the item open or `[!]`. **Never mark
-work complete because code exists.**
-
----
+work complete because code exists.** The PR checklist is
+`.github/pull_request_template.md`. Running the visual checks honestly:
+- `check:visual-contract`, `check:table-layout` and `test:visual` need
+  `npm run build-storybook`.
+- A pixel baseline is a claim about one browser build: record or compare it only
+  under the pinned Chromium (`npx playwright install chromium`);
+  `PW_CHROMIUM_EXECUTABLE` is for the functional lanes only. A shell change
+  moves every screen inside it; untouched screens moving too means the wrong
+  build, not a result for `--update`.
+- The same holds for `check:visual-contract`: sub-pixel moves on primitives the
+  change did not touch mean the wrong Chromium build. Compare with what the base
+  commit reports; never `-- --update` from it.
+- Every pixel-lane route reaches a settled state from fixture data, and a
+  subject's `ready` names the last thing to arrive. Remove a non-deterministic
+  input; never widen `maxDiffPixels` or weaken `check:visual-contract` to absorb
+  it.
+- `check:table-layout` measures the catalog only: a feature table that changes
+  shape needs a human look on mobile.
+- A test must not find a region by a styling utility (`.z-30`,
+  `.rounded-t-ds-xl`): use a `data-testid` or the chrome contract
+  (`.ds-modal[data-placement="bottom"]`), and assert an axe `include` matched
+  before running axe.
 
 ## 5. Approved, evidenced exceptions — these are not debt
 
 Do not "fix" these without reading why they exist. Each is recorded in the
-component itself as well.
+component too, and every allowlist entry tolerated for one of them cites this
+section. (Other entries: the design system's own `DataTable`, `FileInput` and
+`TabList`, where the rules send feature code; two test doubles; the two
+pre-existing `rounded-full` status dots in `VOEPreviewModal`'s sub-header;
+tinted blocks `hand-composed-notice` tolerates — §7.)
 
-- **`ModernDriverTable` does not adopt `DataTable`.** It combines consumer-owned
-  `render()` columns with per-cell `stopPropagation`, row activation, per-row
-  selection *and* a footer pager, plus a caller `getRowClassName` with no
-  `getRowTone` equivalent. `DataTable` is a display-table contract and that
-  combination is unproven on the highest-row-count surface in the product. 33
-  contract tests assert everything `DataTable` would have supplied, so no
-  accessibility debt hides behind the exception. One consumer remains:
-  `UnifiedDriverList`.
-- **`DataTable` is not adopted for editable matrices or per-row interactive
-  rows.** `FeaturesView`, `AssignmentTable`, `LineManager`, `CompaniesView`,
-  `CampaignResultsTable` and `DetailedReportModal` use the approved native-table
-  pattern with `--ds-*` tokens instead. The approved `DataTable` is proven only
-  for display tables.
-
-  Four more were confirmed against this rule on 2026-08-21 and now read the
-  `--ds-table-*` roles explicitly rather than resolving to the same values by
-  coincidence: `AnalyticsView` (three linked tables sharing one scroll region,
-  each with per-row actions), `ViewCompanyAppsModal` (a per-row filter control
-  inside a dialog), `StatsBackfillPanel` (an operator console with six per-row
-  actions and live progress) and `UsersView` — the last because it sits inside a
-  virtualised scroll region, and `DataTable` owns its own scroll container, so
-  adopting it would nest two and reproduce the dead-gutter defect
-  `check:table-layout` exists to catch.
-
-  **A native table is not a licence to style a table by hand.** That sentence has
-  been here since the pattern was approved, and on 2026-08-25 it was measured for
-  the first time: **seven of the eleven referenced no `--ds-table-*` role at
-  all**, and the four that did referenced one or two. They looked right because
-  `bg-ds-surface-subtle` happens to be what the header role resolves to — a
-  coincidence a re-tuned role would have broken in silence — and their inline cell
-  padding had already drifted to three values (24px, 20px, 16px) against a
-  contract of 20px.
-
-  **"Eleven" is a count of files, and it is worth being exact about, because the
-  guard is not.** Eleven feature files carry an approved `raw-table` exception,
-  and between them they hold **fifteen** `<table>` elements, because three files
-  carry more than one: `FeaturesView` ×2, `ModernDriverTable` ×2 and
-  `AnalyticsView` ×3. **All fifteen apply `ds-native-table`, the invisible one
-  included** (`AnalyticsView.jsx:128`, `className="sr-only ds-native-table"`).
-
-  That is a correction, and the reasoning behind it is the useful part. There used
-  to be a carve-out for a table nobody sees — the text equivalent of the chart
-  above it has no appearance to put on contract, which is true. The *inference*
-  was the problem: deciding "is this hidden?" from a class list means deciding it
-  across Tailwind's whole variant space, and `sr-only xl:not-sr-only` is hidden on
-  a phone and visible on a desktop. That pattern is already in this repository
-  (`DossierHeader.jsx`), so it was not hypothetical. Rather than guard an
-  open-ended axis, the axis is gone. Measured in a real browser first: `sr-only`
-  keeps `position:absolute` and `clip:rect(0,0,0,0)`, so the element stays
-  invisible whatever the contract does to its box.
-
-  Counting **tables rather than files** mattered on 2026-08-25 for a separate
-  reason: the first version of the tether check asked whether the *file* mentioned
-  the class, which a three-table file satisfies with one. See the guardrail table
-  in section 7.
-
-  `ds-native-table` (`components/data-table/nativeTable.css`) is that contract — using `height` on body cells rather than `min-height`, which CSS leaves undefined on a table-cell box and browsers ignore, so the density role was a no-op until 2026-08-25:
-  header surface and foreground, divider, row background, hover, cell padding and
-  row height from the same roles `DataTable` reads, including the narrower inline
-  padding under 768px that `DataTable` has always had — and, since 2026-09-06,
-  the two phone-behaviour attributes, `data-pin-first-column` and
-  `data-mobile-presentation="cards"` (§6, tables on phones). All eleven apply it,
-  `check:ui-contract` fails any approved `raw-table` file that does not, and
-  `check:table-layout` measures native tables in a real browser — until then **no
-  native table was measured anywhere**, so the guard written because a Delete
-  button rendered as "Dele" on a phone had been looking only at the catalog's four
-  `DataTable`s.
-- ~~**`CallOutcomeModalUI`'s outcome grid stays a `role="group"` of raw
-  `<button aria-pressed>` cards.**~~ **RETIRED 2026-08-25.** It is
-  `SegmentedControl`, as are the dossier summary toggle, the e-doc
-  delivery-method toggle and the change-review decision group. The primitive
-  keeps exactly that semantic — `role="group"` + `aria-pressed`, deliberately not
-  a radiogroup — so nothing about how these announce changed.
-
-  **The PEV FMCSA rows were listed here and do not fit, which was an error in
-  this file.** An FMCSA suggestion row is a three-line record summary — legal
-  name, USDOT and location, then whether FMCSA listed contact details — and
-  `SegmentedControl` takes a string `label`. It cannot express one, however well
-  the semantics match. That is the SelectableCard/Listbox gap below, and the
-  allowlist entry says so.
-- ~~**File inputs stay local.**~~ **RETIRED 2026-08-25.** Seven of the nine
-  migrated to `FileInput`: `BulkUploadLayout`, the driver application's
-  `UploadField`, the dynamic-questions upload, `BrandingSection`,
-  `ProfileAvatarField`, the campaign recipient import and the e-doc envelope
-  creator. `DQFileTab` and `EditCompanyModal` were already on it.
-
-  Migrating them is what revealed why the primitive had two consumers rather than
-  nine: it covered **one of the product's three shapes**. `variant="dropzone"`,
-  `loading` and `labelHidden` exist now, and the roadmap's lesson is the general
-  one — *a primitive that fits a third of its call sites does not get adopted.*
-
-  Two remain, and both are **programmatic** pickers rather than under-served
-  ones: `PEVTab`'s per-employer result upload (the affordance is a table row
-  action) and `IntakeChooser`'s CDL scan (the affordance is one of two intake
-  choice cards). `FileInput` is a visible control by contract, so neither is a
-  gap in it.
-- ~~**Styled `<a>` navigations stay local.**~~ **RETIRED 2026-08-21.**
-  `Link`, `ButtonLink` and `IconButtonLink` exist
-  (`components/link`). The remaining feature-owned anchors are being migrated to
-  them; a new styled `<a>` is a violation, not an exception. Pass `external`
-  rather than hand-writing `target="_blank"` — every external anchor in the
-  product opened a new tab with no announcement, which is a WCAG 3.2.5 failure,
-  and the primitive exists mainly to fix that.
-- **`VOEPreviewModal`'s generated 49 CFR §391.23 document keeps its raw palette
-  and its sub-12px type.** It is immutable legal content, and it must render the
-  same next year as it does today: a `--ds-*` role is themeable **by design**, so
-  tokenising the document would mean a future palette change silently restyling a
-  signed regulatory artefact that has already been exported. Its class list is
-  also the capture surface for a rasteriser, so any edit changes every exported
-  PDF and every printed page. Tokenising it needs a re-proof of export parity — a
-  real captured PDF and a real printed page — not a passing unit test. Enforced in
-  both directions by `VOEPreviewModal.export.test.jsx`.
-
-  **The reason recorded here until 2026-09-04 was a different one, and it was
-  false.** It said the document is rasterised into a bare print window with no
-  `--ds-*` properties, so a token would resolve to nothing. Neither export path
-  works that way: `html2canvas` reads **computed** style, which resolves `var()`
-  before the rasteriser sees it, and `handlePrint` inlines the application's own
-  stylesheets through `collectPrintStyles` (rebuilt 2026-07-27) — every readable
-  sheet, `tokens/foundation.css` and `semantic.css` included. Tokens would
-  resolve. **165 of the inventory's exceptions rested on that sentence**, which is
-  the reason this correction matters more than its size: an exception whose stated
-  ground is checkable and wrong invites the next reader to check it, find it
-  wrong, and conclude the whole exception was unfounded. The `DeviceMockup` entry
-  below had the right shape all along — *"would look identical today and would
-  mean that re-tuning the console surface silently restyles a picture of a
-  phone"*. That is the argument, and it is the one recorded now.
-- **The audience preview scrim is `bg-black/20`, and no role matches it.**
-  `--ds-color-overlay` is `rgb(15 23 42 / 0.6)` — slate-900 at 60% — where the
-  scrim is pure black at 20%, so migrating it would visibly lighten and re-tint
-  the backdrop. Declaring a semantic `rgb(… / a)` token is the right fix and is
-  what the rule's own remedy points at; naming a new scrim **role** is a
-  design-system decision rather than a mechanical one, so it belongs with the
-  surface and status-notice work. Recorded until then.
-
-- **Signature ink is a literal in four places, and must stay one.** The canvas a
-  signature is drawn on is rasterised to a PNG and stored as part of a signed
-  document — `SignatureSheet.jsx` into a sealed PDF, `SignaturePad.jsx` through
-  `onSignatureChange`, and `lib/signature.js` through `getSignatureDataUrl()` into
-  the driver's submitted application. Re-theming the product can never be allowed
-  to retint a signature somebody has already given, so the ink does not follow a
-  token. `SignatureSheet.jsx` had documented exactly this in its own source since
-  it was written; the other three were the same decision, undocumented.
-
-  **All four were invisible to `check:ui-contract` until 2026-09-05**, because
-  `raw-hex-colour` matched only arbitrary-value classes (`bg-[#hex]`) and
-  CSS-style declarations (`color: #hex`). It now also reads SVG presentation
-  attributes (`fill="#004C68"`) and JS assignments (`ctx.strokeStyle = '#333'`),
-  which is how every raw colour left in this tree is actually spelled. The rule
-  stays deliberately narrow about what a `#` is: an anchor target, a gradient
-  reference, an id selector and a placeholder that looks like a hex are all left
-  alone, and the ratchet suite pins each.
-
-- **`DeviceMockup` keeps literal greys and `text-[10px]` — it is artwork, not
-  interface.** The component draws a picture of a physical phone. The status-bar
-  time is that small because a real one is, and the bezel, side buttons and
-  battery pips are moulded plastic, not a surface of the SafeHaul interface.
-  Mapping the bezel onto `--ds-color-surface-inverse-subtle` would look
-  identical today and would mean that re-tuning the console surface silently
-  restyles a picture of a phone. Migrated 2026-08-24 to declare that palette
-  once, in a named `DEVICE` constant at the top of the file, so it is four
-  reviewable literals rather than ten anonymous classes. The *screen* is the
-  other way round: what renders on it is SafeHaul's own preview content, so it
-  takes `--ds-color-surface` like any other drawn surface.
-
-  Two real defects were fixed in passing. Its `dark:` variants were the only
-  ones in the application, so under an OS dark preference the phone half-inverted
-  while every screen around it stayed light; they are gone. And the simulated
-  status bar was in the accessibility tree, so a screen reader announced a fake
-  clock before the message — it is now `aria-hidden`, while the message itself
-  stays readable.
-
-- **`SignerField`, `ResizableDraggableField` and `AiSuggestionOverlay` keep
-  hand-built controls, because the PDF owns their geometry.** These overlay
-  author-placed field boxes whose size comes from the document's own
-  coordinates and can be as small as 8px. Every approved control carries the
-  shared 36/44/52px control height and inline padding, which would break
-  alignment with the PDF underneath. All of them keep an accessible name, a
-  focus-visible ring and `--ds-*` tones. Retiring them needs a compact
-  icon-button step and a geometry-free field in the design system.
-- ~~**Hand-rolled tab strips.**~~ **RETIRED 2026-08-25.** All eleven adopted
-  `TabList` / `TabPanel`. `check:ui-contract`'s `hand-rolled-tablist` rule is what
-  keeps the twelfth from being written — the primitive shipped on 2026-08-21 and
-  had **zero** consumers four days later, which is what a roadmap line buys
-  without a guard.
-
-  Two shapes were added so the primitive could fit its call sites rather than
-  half of them: `variant="pill"` for a secondary strip inside a panel, and
-  `fitted` for a strip that must span a narrow popover. Two defects in the
-  primitive itself were fixed on the way: `aria-controls` pointed every tab at a
-  panel that does not exist, and selection was appended to the accessible *name*
-  as a hidden "(selected)" — now a `forced-colors` rule, which is where a
-  colour-only concern belongs.
-
-  One deliberate behaviour change: the dossier's vertical rail answered both
-  arrow axes and now answers only the one its `aria-orientation` announces. That
-  is the ARIA pattern, and the primitive's reason is specific — a vertical strip
-  that also ate Left/Right would take the horizontal scroll keys from the region
-  around it.
-- ~~**`EnvelopeSidebar`'s `RailSection` disclosure header.**~~ **RETIRED
-  2026-08-25.** It is `Disclosure`, the consumer that primitive was built for.
-- ~~**`EnvelopeSidebar`'s field-palette tiles stay raw `<button>`s.**~~
-  **RETIRED 2026-09-05.** `Button` has an API for it now — a status tone on a
-  `secondary` — and the tiles are `<Button variant="secondary" tone={…}
-  fullWidth justify="start">`. Which field type reads as which colour stays in
-  `fieldDefinitions.jsx`, because that is domain knowledge; what a tone LOOKS
-  like moved to the design system, where it was always meant to be.
-
-  **And the "same family as the PEV FMCSA rows" claim was wrong**, which is why
-  this exception outlived the primitive that could have retired it. The tiles
-  carry `aria-label="Add … field"`, no `aria-pressed` and no selected state:
-  clicking one ADDS a field rather than selecting one. They are toned actions,
-  not single-select options, and citing them under SelectableCard would have had
-  that primitive built partly for a consumer it does not have.
-- **`LoginScreen`'s hero wash and `IntegrationsTab`'s Facebook tile keep raw
-  hexes.** The hero's three blobs are artwork: blurred over 256–384px,
-  `aria-hidden`, no information in them. Everything on that panel that carries
-  meaning now uses the named brand roles. `#1877F2` is Facebook's mark, not a
-  SafeHaul role, and must not move when this product's palette does.
-
-- **The `web/` public site is out of scope, and deliberately so.** The
-  marketing site that used to live in `landing/` has been removed; what remains
-  is hand-written CSS with no build step, no framework and no Tailwind, dressing
-  the server-rendered blog and a standalone privacy page. It keeps its own
-  approved visual specification in `DESIGN.md` — a paper/graphite/ink language
-  with Archivo display type, quite different from the application's on purpose.
-  "Public pages" in this campaign means the public *application* routes
-  (`/apply/:slug`, `/verify/:token`, `/review-change/:token`, `/sign/...`,
-  `/login`), all of which are migrated. A future audit should not read `web/` as
-  unmigrated product.
+| Exception | Where | Why it is allowed | Retires when |
+|---|---|---|---|
+| `ModernDriverTable` does not adopt `DataTable` | `src/shared/components/table/ModernDriverTable.jsx`; one consumer, `UnifiedDriverList` | Consumer-owned `render()` columns with per-cell `stopPropagation`, row activation, per-row selection *and* a footer pager, plus a caller `getRowClassName` with no `getRowTone` equivalent — unproven for `DataTable` on the highest-row-count surface. Its contract tests assert everything `DataTable` would supply | — |
+| Native tables for editable matrices and per-row interactive rows | `FeaturesView` (×2), `AssignmentTable`, `LineManager`, `CompaniesView`, `CampaignResultsTable`, `DetailedReportModal`, `ModernDriverTable` (×2), `AnalyticsView` (×3: linked tables in one scroll region with per-row actions, plus the chart's `sr-only` text equivalent), `ViewCompanyAppsModal` (per-row filter in a dialog), `StatsBackfillPanel` (six per-row actions, live progress), `UsersView` (in a virtualised scroll region: `DataTable` owns its own, and nesting two reproduces the dead-gutter defect) | `DataTable` is proven only for display tables. Every `<table>` applies `ds-native-table` (`components/data-table/nativeTable.css`) and so reads the `--ds-table-*` roles; `check:ui-contract` checks it per `<table>`, `check:table-layout` measures it | — |
+| The generated 49 CFR §391.23 document | `VOEDocument.jsx`, shown by `VOEPreviewModal`: raw palette, sub-12px and off-scale type, Tailwind radii/shadow, the `-z-10` watermark, three glyphs opened through `glyphComponent` | Immutable legal content that must render the same next year: a `--ds-*` role is themeable by design, and a palette change must never restyle a signed, exported regulatory artefact. Its class list is the rasteriser's capture surface. (Not because tokens would fail to resolve — `html2canvas` reads computed style and `collectPrintStyles` inlines the app's stylesheets.) Its raw shades still meet AA, and the `voe-print-export` axe scan includes it. `VOEPreviewModal.export.test.jsx` enforces the boundary both ways | Export parity is re-proved — a real captured PDF and a real printed page, not a unit test. Treat any exported document as immutable content |
+| White paper in the print safety net | `src/shared/utils/printDocument.js` (`PRINT_DOCUMENT_STYLES`) | `background: #ffffff` is a fact about paper, not a surface role; these rules are injected as a string for the case where `collectPrintStyles` could not read a sheet | — |
+| Signature ink | `SignatureSheet.jsx`, `SignaturePad.jsx`, `lib/signature.js` (×2, which must agree) | The canvas is rasterised to a PNG stored in a signed document; re-theming must never retint a signature already given | Never |
+| `DeviceMockup` artwork | `campaigns/components/DeviceMockup.jsx` | A picture of a physical phone: bezel, buttons and battery pips are moulded plastic, declared once in the `DEVICE` constant; the status-bar time is `text-[10px]` because a real one is that small. The *screen* takes `--ds-color-surface`; the fake status bar is `aria-hidden` | Never |
+| Login hero wash | `LoginScreen.jsx` (raw hexes, `bg-white/5`) | Artwork: three blobs blurred over 256–384px, `aria-hidden`, no information; an opacity modifier cannot apply to a `var()` colour. Everything meaningful on the panel uses the brand roles | — |
+| Facebook's brand blue | `IntegrationsTab.jsx` (`#1877F2`) | A third-party mark, not a SafeHaul role; it must not move when this palette does | — |
+| Audience preview scrim `bg-black/20` | `AudienceBuilder.jsx` | No role matches: `--ds-color-overlay` is slate-900 at 60%, so a swap would lighten and re-tint the backdrop | A semantic scrim role is named (§6) |
+| PDF-geometry controls | `SignerField` (signature button, three inputs, and their own 16px `text-base` because they are not `.ds-form-control`); `ResizableDraggableField`'s inline label editor | They overlay author-placed field boxes as small as 8px, which the shared 36/44/52 heights and padding would break. Each keeps an accessible name, a focus-visible ring and `--ds-*` tones | A geometry-free field exists in the design system |
+| Programmatic file pickers | `PEVTab` (per-employer result upload opened by a row action; `hidden` and named), `IntakeChooser` (CDL scan behind one of two choice cards; the card is the `Button`, the input is `aria-hidden`) | `FileInput` is a visible control by contract, and here the affordance is something else | — |
+| Roles `Button` cannot carry | `EmployerNameAutocomplete` (`role="option"` in the combobox listbox); `CampaignCard` (two `role="menuitem"` overflow entries and one chrome-less stat trigger) | `Button` renders `role="button"`, which breaks the option and menuitem contracts; the stat trigger is a chrome-less text-and-icon cell trigger. All are tokenised with the shared focus ring | The Combobox / Listbox and Menu rows below |
+| Bottom app bar | `EditorMobileBar` | Equal-width 56px icon-over-label targets — the platform convention, deliberately taller than 44px; each named "Open <section>" | Not being built (one consumer) |
+| Raw Tailwind spacing | Tree-wide (`p-4`, `gap-3`, `mb-6`…) | `--ds-space-1..12` and Tailwind's `1..12` are the same 4–48px values, so nothing diverges; `p-7`, `p-9`, `p-11`, `p-20` have no `ds-` step | If `--ds-space-*` is ever re-tuned: a one-to-one sweep |
+| The `web/` public site | `web/` | Hand-written CSS with no build step for the blog and privacy page, with its own spec in `DESIGN.md`. "Public pages" here means the application routes `/apply/:slug`, `/verify/:token`, `/review-change/:token`, `/sign/...` and `/login`, all migrated | Out of scope |
 
 ### Missing primitives that live code is waiting on
 
-These are the gaps that source comments say are "tracked in the roadmap". Each
-one keeps a feature-owned control in the tree with a documented exception, and
-each exception retires when the primitive lands. **Do not delete an entry here
-while its call site still cites it.**
+Each gap keeps a feature-owned control in the tree with a documented exception
+that retires when the primitive lands. **Do not delete an entry while its call
+site still cites it.** Before declaring a family closed, check the primitive
+against every shape its call sites have (one that fits a third of them does not
+get adopted), cite only consumers that really have the shape, and ship it with
+its consumers and a `check:ui-contract` rule — a roadmap line is not a guard. A
+rule must not demand a component that does not exist: record the gap here
+instead.
 
-**The five that closed on 2026-08-21 have all of their call sites migrated as of
-2026-08-25**, so their rows are gone from this table rather than sitting here
-"built" with nothing using them. That gap between building and adopting is the
-lesson worth keeping:
-
-> `TabList`, `SegmentedControl`, `Disclosure` and `FileInput` shipped on
-> 2026-08-21 with **zero, zero, zero and two** consumers, and eleven tab strips,
-> four toggle groups and nine raw file inputs still in the tree — every one under
-> a comment saying "the design system has no such primitive yet". Four days
-> later nothing had moved, because **a roadmap line saying "these will migrate" is
-> not a guard.** `check:ui-contract` has a rule per family now.
-
-And a second lesson, from doing the migrations: `FileInput` covered **one of the
-product's three shapes**, `TabList` one of its three, and `SegmentedControl`
-could not express a multi-line row at all. *A primitive that fits a third of its
-call sites does not get adopted, and the missing third looks like neglect from
-the outside.* Check the shapes before declaring a family closed.
-
-A third, found the same day and worse than either: **`PageState` and
-`ConfirmDialog` had consumers, and duplicates kept being written anyway.**
-Fifteen hand-composed states and ten hand-composed confirmations, several of
-them added *after* the pattern existed, one of them a local component with the
-same name as the approved export. Neither family had a `check:ui-contract` rule,
-because a hand-composed pattern is not a raw HTML element — it is correct
-primitives in a shape the design system already owns, which no class-list or
-tag-name rule can see. What closed it was reading the tree for the *composition*
-rather than for the element: every file outside the design system that used
-`StatusMedallion`, and every local component whose name ends in `Dialog`. That
-search is written into the guardrail table in §7 as a **review** step, honestly
-labelled, because it is not automated and pretending otherwise is how the gap
-opened.
-
-**The first version of that search was too narrow, which is worth recording
-because it is the same mistake one level up.** It looked for a local
-`*Confirm*Dialog*`, found six, and missed four more named after what they delete
-— `RemoveLineDialog`, `DeleteRecordDialog`, `DeleteFileDialog`,
-`ToggleActiveDialog`. A search for the *word* "confirm" finds the dialogs that
-call themselves confirmations; a search for the *shape* finds the rest. The
-procedure in §7 is the broad one.
-
-| Primitive | Status | Cited by |
+| Gap | Status | Call sites, and why the nearest primitive does not fit |
 |---|---|---|
-| **Toned `Button` variant** | **[x] RESOLVED 2026-09-05** | Built. `tone` now takes `default / neutral / info / success / warning / danger / accent`, and means two different things by variant: on `primary` it FILLS and only `success` is allowed (a primary already carries the page's strongest emphasis, so a second colour competes rather than adds); on `secondary` and `ghost` it is the status tint trio. `danger` and `link` refuse a tone at all — `danger` is one, and `link` has no box to tint — checked in `Button.jsx` so an unsupported pair names its call site instead of rendering an untoned button. Retired both consumers: `EnvelopeSidebar`'s eight field-palette tiles (the legend for what `ResizableDraggableField` draws on the PDF) and `Stepper`'s sandbox-only Magic Fill, whose own code comment said it would go "as soon as the roadmap's remaining Button tones land" |
-| **Inline editable value** | **[x] RESOLVED 2026-09-05** | Built as `Input variant="inline"` — borderless, transparent and only as wide as it needs to be, overriding the CHROME while leaving `size` to own the height, so an inline field still lines up with the controls around it. It refuses to render without an `aria-label`, an `aria-labelledby` or an `id` a `<label>` points at: a bordered field is named by its `FormField` wrapper and an inline one has none by construction. **Researched rather than decided**: Atlassian, PatternFly and Cloudscape all publish an `InlineEdit` component — a READ view that swaps to an EDIT view — and none of these four is that. Every one is permanently editable and saves on blur or change, so `InlineEdit` here would be a primitive with zero consumers, which is the mistake §8 records. The name is a trap worth writing down. **The plan's 24px `xs` height was wrong in both directions and the measurement says so**: the two date fields are already 36px and would have SHRUNK toward the WCAG 2.5.8 floor, while the two goal editors had no height at all and rendered at roughly 20px — UNDER the minimum for something a person clicks into, the same defect P-2 fixed on the PDF badges. Both pairs take `size="sm"` (36px), which leaves the dates untouched and takes the goal editors over the line, growing each goal chip by about 16px. **And a WCAG 2.5.3 failure was found by applying the standard**: the goal fields show a visible `DIALS` / `CONTACTS` but announced as "Daily dial goal for {name}" — singular, so the spoken name did not contain the visible word and a speech-input user saying "Dials" could not reach the field. The names now lead with the visible word and keep the member's name, because the row repeats per member. Retired `ManageTeamModal` (2) and `InlineLeaderboard` (2). `ResizableDraggableField:207` stays, its geometric reason unchanged: the editor sits inside the draggable rectangle, whose minimum is 8px |
-| **Tinted chip link** | **[x] RESOLVED 2026-09-05** | Built as `Chip href` — see the **Filter chip** row, which turned out to be the same primitive. The audit corrected one thing this row claimed: only ONE of the two cited chips is a `tel:` link. The candidate list's per-row call chip is a `<button>` that opens the call-outcome dialog, so a gap phrased around "a pill that is also a link" would have shipped a link-only primitive and left it unmigrated. `Chip` renders an `<a>` when given `href` and a `<button>` otherwise, and refuses `href` together with `pressed` — a link goes somewhere and is not a two-state control, and `aria-pressed` on an anchor is invalid ARIA |
-| **SelectableCard / Listbox / Combobox** | **[x] PARTLY RESOLVED 2026-09-05** | `SelectableCard` is built and all four cited card consumers are migrated: the PEV FMCSA suggestion rows, `VirtualLeadList`'s exclusion rows (plus its deliberately non-interactive twin, which is why `as="div"` exists and refuses a state), `CompanyChooserModal`'s company rows and `PageThumbnailRail`'s page thumbnails. The audit's finding was that three recorded gap NAMES were one shape: a card carrying multi-line structured content that a person picks, which `SegmentedControl` could never take because its `label` is a string — and this file's earlier claim that it had retired the FMCSA rows was wrong, corrected 2026-09-04. **Three ARIA states across four sites, kept apart rather than averaged**: `selected` → `aria-pressed` (a choice you can turn off), `current` → `aria-current` (which of a set you are on), and neither (the company chooser, where picking signs you in rather than selecting). Both together throws. They render identically on purpose — they differ in what they TELL assistive technology, not in what they look like — and `check:visual-contract` measures both so they cannot drift apart unseen, which no screenshot would catch because nothing puts the two side by side. **`EnvelopeSidebar`'s field-palette tiles were listed here until 2026-09-05 and should not have been**: they have no selected state, so they were toned ACTIONS and went to `Button`'s `tone` instead. A gap that cites a consumer it does not have gets a primitive built for the wrong shape. **The combobox half stays open**: `EmployerNameAutocomplete.jsx` hand-builds the full ARIA combobox — `role="combobox"` with `aria-expanded`, `aria-controls` and `aria-activedescendant` over a `role="listbox"` — because there is no primitive for a text input that filters a list. It is written correctly, which is exactly why it is worth promoting rather than leaving as one feature's private achievement |
-| **Filter chip** | **[x] RESOLVED 2026-09-05** | Built as `Chip` / `ChipGroup`, together with the **Tinted chip link** row above — the audit found one primitive under two gap names. A chip is the interactive twin of `Badge`: same pill, same 12px semibold text, same six status tints, same 12px leading glyph, plus a pointer, a focus ring and a pressed state. Two sizes, named after the shared control-height steps rather than a private scale so one vocabulary covers the control family — `xs` is the same 24px as `IconButton size="xs"` and `sm` the same 36px as `Button size="sm"`. `pressed` sets `aria-pressed` **and** draws a leading check, because the fill is what disappears in forced-colours mode. `ChipGroup` refuses to render unnamed: "pressed" alone does not say what was chosen. Retired six violations across four files. **Two normalisations worth naming**: the four sites carried three radii and three heights for one affordance, so radius went to the pill two of them already had, and the candidate list's 32px call chip went UP to 36px rather than down to 24px — it was the one site with a real touch target, and putting it on the scale should not cost it. **Measured off the baselines rather than predicted**: the row pitch is unchanged at 92px either way, because the row is sized by its two-line stack and had the slack; what did move is the pipeline strip, 8px SHORTER at the 24px step, which shows one more table row at 1440x900. **And one a11y repair**: `CompanyCandidatesListPage`'s pipeline strip had neither a group name nor `aria-pressed`, so a screen-reader user heard six unrelated buttons and no indication of which one the table was filtered by |
-| **Pressed state on `Button`** | **[x] RESOLVED 2026-09-05** | Not a gap this file had recorded, and it is the reason the candidate list's sort toggles could not migrate in the previous slice. `pressed` sets `aria-pressed` and `data-pressed`, styled at 0-3-0 (`.ds-button[data-variant='ghost'][data-pressed]`) — above anything a feature can write, which is the whole point: the toggles marked the active direction with a `text-ds-action-primary` utility at 0-1-0 against the variant rule's `color` at 0-2-0. It draws a fill AND an inset ring rather than a colour swap, because the toggles' old pressed state was colour only. A bare `aria-pressed` still works and is not the same thing: nineteen call sites pass it through and draw the state with a variant swap, which is a perfectly good answer; `pressed` is for a toggle that must keep its variant. The focus ring is composed with the pressed ring rather than chosen between — `.ds-button:focus-visible` sets `box-shadow` at 0-2-0, so every pressed rule outranks it and would otherwise have silently deleted it, which is the same class of loss the prop exists to prevent |
-| **Compact icon-button step** | **[x] RESOLVED 2026-09-05** | Built as `xs`: 24px — the WCAG 2.2 SC 2.5.8 (AA) target-size MINIMUM — and icon-only, because 12px text cannot sit in 24px with any padding, so `Button` refuses the step and only `IconButton` reaches it. `shape="round"` cuts it as a disc, for a control sitting ON another element's corner where a rounded square reads as a second nested box. **Owner decision, 2026-09-05.** The three PDF corner badges measured **14x14** (a 10px glyph in 2px of padding). The minimum was reachable two ways: every placed field ALSO has a conformant 36x36 Remove control in the field list, which is exactly the equivalent-control exception 2.5.8 allows, so the badges could have stayed small with that measurement written down. The owner chose to meet the minimum on the badge itself. The cost is real and was shown before the choice: on a 28x27 checkbox field a 24px badge is nearly as wide as the field it sits on. Retired `ResizableDraggableField` (1) and `AiSuggestionOverlay` (2). **The candidate list's sort toggles did NOT migrate, and the recorded reason was wrong about why.** It named the compact-step gap, which this closes — and the toggles are already `h-6 w-6`, so size was never their blocker. The real one is the PRESSED state: each shows the active sort direction with `text-ds-action-primary`, and `.ds-button[data-variant='ghost']` sets `color` at 0-2-0 specificity, so a feature-side text utility at 0-1-0 loses and migrating them today would silently drop the only indication of which sort is applied — the same trap `Button.css` records for background overrides, one property over. They need a `pressed` API, which shipped in the next slice on 2026-09-05 — see the **Pressed state on `Button`** row — and both toggles migrated there. **Closed out 2026-09-06 (audit step F):** the two resize handles (`ResizableDraggableField`, `AiSuggestionOverlay`), the last sub-minimum pointer targets in the editor, became 24×24 boxes centred on the field corner — the badge's own idiom on the opposite corner — with the 10px glyph drawn where it always was. Neither exception fitted them: Spacing fails because the handle sits on the field, which is itself a target, and Alt+arrows is keyboard-only, so Equivalent does not reach a pointer user. The appearance test pins the geometry |
-| **Step indicator (read, not operated)** | **Open**, found 2026-09-05 | Found while scoping `hand-rolled-current`. `BulkUploadLayout.jsx:111` is a `<li>` and `SendTemplateWizard.jsx:120` a `<span>`, both carrying `aria-current="step"` on a progress display a person READS rather than operates. Neither primitive fits: `SelectableCard` is for something selectable and `SectionNavigation` is a navigation rail. Both are correct markup today, which is why the rule is scoped to `<button>` and does not fire on them — a rule is the wrong instrument for "we have not built this yet", and leaving them to be caught by one would mean demanding a component that does not exist. Recorded here instead so it is not forgotten |
-| **Card-section disclosure** | **[x] RESOLVED 2026-09-05** | Built as `Disclosure variant="card"`, and this is the first §5 row in four slices whose recorded claim survived its own audit unchanged — worth saying, because P-3, P-4 and P-5 each found theirs wrong. The variant overrides the rail CHROME only: the section's bottom border, the trigger's padding, the hover tint and the uppercase micro-label. It deliberately does **not** draw a card — `Card` owns the surface, border, radius and padding, and the variant only takes off what would fight it — so the name says where it goes, not what it paints. `description` and `leading` throw on the rail and `meta` throws on a card, each being a layout nobody has built or reviewed. **The audit's real finding was about the RULE, not the shape.** The plan proposed `hand-rolled-disclosure` on a raw `<button aria-expanded>`; run over the tree that matched **two** elements — this one and `EditorMobileBar`'s bottom app-bar tab, which would then have needed a second recorded reason. Meanwhile eleven live sites wear `aria-expanded` and ten are not disclosures at all: four menu triggers, a combobox (where the attribute sits on an `<input>`), a navigation group, a drawer trigger, a filter toggle and a row expander, nine of them already on `Button` or `IconButton`. Scoping the rule to a `<button aria-expanded>` **inside a heading** — the WAI-ARIA disclosure-section shape, and the one structural feature separating the one from the ten — matched exactly the migrating site and **added zero allowlist entries**. Retired `EmailSettingsTab`'s single entry, so the file leaves the allowlist |
-| **Tinted icon tile** | **Open**, found 2026-09-05, RE-COUNTED 2026-09-06 | Found while building the card disclosure's `leading` slot, and this row was wrong in three ways until 6d read every tinted block in company-admin, campaigns and shared. **It said four sites; there are at least 25.** Seventeen more are in that area alone: `applicationTabCards:310` (Truck), `NewDocumentDialog:81`, `TemplateLibraryPanel:107`, `NotesTab:229`, `LaunchPad:96` (Rocket), `InlineLeaderboard:164` (initials) and `:202` (Trophy), `PEVRequestModal:221`, `QuickLeadModal:154`, `VOEPreviewModal:121` and `:276`, `DriverProfileModal:250`, `PEVTabParts:63`, `NotificationItem:81`, `PaywallMessage:23`, `CompanyChooserModal:139`, `FeatureLockedModal:52` — alongside the four originally recorded (`EmailSettingsTab`, `DashboardHeader`, `ReviewChangePortal`, `CompanySidebar`) — and four more that 6e added: `PersonalProfileTab:119`, `LoginScreen:338`, and `AnalyticsView:276` and `:302`, the last two holding a NUMBER rather than a glyph, which is the rank-disc category P-5's avatar audit already named. **It said "filled with the primary action colour"; they span six status tints** — info, success, warning, danger, accent and neutral — which is why the row is renamed from *Filled* to *Tinted*. **And it implied one size**: they are 32, 40, 48, 64 and 80px, square and round. `StatusMedallion` is the near miss and still does not fit: it is a circle with status tones, and half of these are rounded squares carrying a brand or domain glyph rather than a status. **This is now the largest un-owned shape left in the application** — larger than the status notice was at 65 — and it is invisible to every rule for exactly the same reason: every one uses correct `--ds-*` roles, so this is composition drift, not palette drift. It is also why `Notice`'s `accent` and `neutral` glyph defaults will stay recorded guesses: in this codebase those two tints are spoken for by the tile, not by any message. Deliberately NOT built inside 6d — widening a migration slice to build a second primitive is how a slice stops being reviewable. **7b took one off the list and found a second the count had never reached, and the test it used is the one to reuse.** `LoginScreen:338` was recorded here; `SandboxTransferSuccess:17` was not, because no enumeration had covered `sandbox` — the same gap 6f's rule found for notices. Neither is a tile: a status-tinted CIRCLE around a glyph is `StatusMedallion` exactly, and both migrated. What stays on this row is the other half — a rounded SQUARE carrying a brand or domain glyph on a brand colour, which no primitive owns; `ReviewChangePortal:117` is the clean example, a shield on `bg-ds-action-primary`, and it keeps its tile with the glyph snapped from 22 to a step. So: circle plus status tone is a medallion today; square plus brand colour is the shape still waiting to be built. At least 23 remain |
-| **Section rail with per-item status** | **[x] RESOLVED 2026-09-05** | Built by extending `SectionNavigation` with four props, and the recorded reason was accurate on every count — the second §5 row running whose claim survived its own audit, after three that did not. `currentType='page'\|'step'` (`aria-current="step"` is what ARIA defines for a position in a process; a wizard announcing "current page" tells a screen-reader user they navigated somewhere they did not), `item.status: complete\|incomplete` for the trailing marker, an optional `group.label` (a single-group rail has no heading to give, and a `<section>` with no accessible name is a landmark claiming nothing, so it falls back to a `<div>`), and `frame='card'\|'none'` (the component draws its own border, radius, padding, surface and shadow; the rail sits inside a sidebar panel that already draws one). **The measurement that changed the design**: the status marker needs a third grid track, and declaring it on the shared template looks free because an empty `auto` track is 0 wide. Measured in Chromium first — 268px of label width became **256px**, because grid places its `gap` between every declared track whether or not anything occupies it. Unscoped, every item in `SuperAdminSidebar` and `CompanySettings` would have quietly lost a `--ds-space-3`; the track is scoped to `[data-status]` and `check:visual-contract` now reads both templates, three tracks and two. Retired BOTH of `CampaignEditor`'s entries — `hand-rolled-current` and `hand-styled-button` were the same one control, as its own reason text said — and the file leaves the allowlist. **Three normalisations, none of them guarded by a pixel test**: the icon goes 18→20px, the label from `sm`-bold to body-medium, and the current treatment from an info tint to `surface-selected` plus a left border. No app-screen baseline covers the campaign editor — `company-campaigns` captures the LIST — so hand review at 1440 and 412 was the only check, and the new catalog story is the guard from here. The migration also GAINS Arrow/Home/End roving focus the hand-built rail never had |
-| **Bottom app bar** | **Not being built** | `EditorMobileBar`'s items are equal-width stacked icon-over-label targets at 56px, the platform convention for a bottom bar and deliberately taller than the 44px control step. One consumer |
-| **Status notice / callout** | **[x] RESOLVED 2026-09-06** | *The largest remaining composition gap, and the one being done now.* A tinted bordered block with a sentence — "your application was submitted but these documents are outstanding", "this company will be blocked from logging in", a queue error. No primitive owns it: `FieldMessage` is scoped to one form field, `Badge` is a chip, `PageState` is a whole slot, so the shape is rebuilt each time. Every one uses `--ds-*` roles, so this is COMPOSITION drift rather than palette drift, which is why no rule sees it. **Slice 6a enumerated it, and the earlier estimate was wrong in both directions.** This row previously said 109 lines across 87 files and admitted the true count was not enumerated. Measured: 107 lines across **59** files, and the file count was the badly wrong half. **Counting lines was itself the error.** Three line-based passes gave 74, 67 and 65, all estimates dressed as counts — a line count double-counts a ternary tone-picker and a tone lookup table, and the container test was window-sensitive (7 tinted containers at a 10-line window, 12 at 20, 14 at 30). Parsing the tree and asking each element whether a form control sits in its OWN subtree settles it: **70 elements carry the signature, 7 are not messages, 63 are notices, plus 2 whose tone comes from a lookup table — 65 notices.** Six of the seven hold form controls; the seventh, `EnvelopeSidebar:272`, was found while scoping 6c's migration and is a `<Button>` with its own helper text inside a tint — a call to action. It had been the ONLY accent-toned block in the tree and the sole evidence behind `Notice`'s accent glyph, so accent has zero consumers and its default is recorded as a guess alongside neutral's. Corrected 2026-09-05, before the migration was built on it. `.js` files carry it zero times. **The six containers are the fourth consecutive slice where a shape-only signature would demand the wrong component** (17 of 25 discs, 10 of 11 `aria-expanded`, 3 of 5 `aria-current`), so 6f's rule is scoped accordingly. **Shapes, measured against a plan that had them backwards**: title+body 27, icon+sentence 14, plain sentence 14, with actions 9 — the plan predicted ~30 icon+sentence and ~12 title+body, so `title` is the majority shape rather than an optional extra. **Two splits decide the defaults**: only 26 of 64 announce themselves (`role="alert"`/`"status"`/`aria-live`), so `announce` defaults to OFF or 38 quiet blocks become interruptions; and 37 of 64 carry an icon, so defaulting to one — which Polaris, Carbon and Atlassian all do — is the published standard AND adds an icon to about 27 places that have none, which the migration PR must state at both widths rather than slip in. Full record in `src/design-system/components/notice/README.md`. `ConfirmDialog:153` is itself a notice inside `src/design-system/`, and the answer there is migration, not an exemption. **6b built it (2026-09-05) with ZERO consumers on purpose, and 6c proved why.** Migrating the first area — driver-app, verification and signing — changed the component in three ways, each forced by a real consumer rather than chosen. **Actions moved from a trailing slot to under the message**: Atlassian's `SectionMessage` renders actions after the content, Polaris' `Banner` puts them in a footer under the body, and the blocks here that carry a button already did the same 2 to 1 — and the `@media (max-width: 639px)` rule that used to unwind the trailing placement was the evidence rather than the fix, so it is deleted. **`titleAs` was added** because 8 of the 19 titled blocks in the tree use a real `<h2>`/`<h3>`/`<h4>`, and flattening those to a paragraph would remove them from the document outline silently. **The focus ring moved into the component**, because three consumers here are the error summary a form moves focus to and each was carrying its own `focus-visible:` utility. Had all 65 migrated in the same change, every one of those would have been baked into 52 files before anyone read the first site. **6c also moved the area's own count 20 → 17**: the upload field's progress state is a `ProgressBar` in a tint and its success state is a file row, and `StatusScreens:191` is a named `<section aria-labelledby>` landmark `Notice` has no way to be — a recorded gap rather than a `titleId` prop with one caller. Live regions balance exactly (8 alert → 8 assertive, 1 status → 1 polite). **6d then migrated company-admin, campaigns and shared: 34 candidates → 12 notices**, the largest drop of any slice and the seventh consecutive time a shape-only signature named the wrong component. **Seventeen of the 22 non-notices are tinted ICON TILES** — see the Tinted icon tile row, which 6d re-counted from four sites to at least 21 — and the other five are a tinted list row, an unread-row tint, a modal header band, a chat bubble and the already-recorded badge-tone map. That also settles `Notice`'s two remaining GUESSES rather than closing them: all six neutral- and accent-tinted candidates turned out to be tiles, a medallion or a bubble, so neither tone has a message consumer and neither default can be measured from this codebase. **Both tones stay** — Polaris' default `Banner` is exactly a neutral one and Atlassian's `SectionMessage` ships `discovery`, an accent notice for announcing something new; narrowing the component to today's consumers would guarantee the next announcement banner is hand-rolled. Two migrations needed care a table would have missed: `DQFileTab:321` sits inside an ALWAYS-MOUNTED `<div role="alert">` that stays, with the notice inside taking `announce="off"`, because moving the role onto a conditionally-rendered element looks faithful and quietly stops the announcement; and `LaunchPad`'s success and failure blocks are the two outcomes of one pre-flight check and were drawn differently, so both migrate and now share one treatment. **6e closed the migration: super-admin, settings, auth and the signing room, 34 candidates → 16 notices** (a 50% drop, against 6d's 65% and 6c's 15%). It added one rule the other areas had not needed: **five sites already own an always-mounted `role="status"`/`role="alert"` wrapper**, so the notice inside must take `announce="off"` — two nested live regions announce twice, and moving the role onto the conditional child stops the announcement entirely. Four sites compute their tone from a ternary, which is the shape 6a counted separately and could not classify from a line. **The audit was wrong about `StatsBackfillPanel:207`** and reading the file caught it: a results panel with a nested summary card and a preview table, so the plan's own test — a toned card becomes a notice unless the card carries other structure — disqualifies it (17 → 16). It also **disproved two of the four glyph substitutions 6c recorded as wrong**: `StatsBackfillPanel`'s and `PersonalProfileTab`'s both came from a scan that returned a CONTROL's icon as the block's leading mark. That is the same lesson at a third level — a text window cannot tell a child from a sibling (6a), a diff hunk cannot tell a child from a neighbour (6c), **and a subtree scan cannot tell a slot from anything inside it (6e)**. 6f's rule must count slots — and it does. **`hand-composed-notice` landed 2026-09-06 and closes this row.** The scope is a SLOT test: an element carrying BOTH halves of the signature, whose own body holds words rather than a lone glyph and holds no control, table or nested `Card`. That is what excludes the 25 tinted icon tiles STRUCTURALLY instead of with 25 boilerplate reasons — the `debt` hatch Phase 4 already refused, at a smaller scale. **And the rule immediately found what three audits had not**: `ReviewChangePortal:132` and `SandboxActionPanel:127`/`:133`, three genuine notices in `driver-changes` and `sandbox` — two feature areas none of 6c, 6d or 6e covered, because the plan named three migration areas and they did not add up to the application. An audit covers what it was pointed at; a rule covers what exists. `ConfirmDialog:153` migrated too, which is 6a's ruling honoured: the rule does NOT exempt `src/design-system/`, because a pattern that hand-builds the component beside it is the drift rather than an exception to it. 228 → 247 violations across 34 → 46 files, every one of the 19 new entries a recorded judgement — the guard improving, per the §7 precedent. **P29 was hollow when first written** and running the mutation is what showed it: the fixture put its words inside the nested element, so truncating the body still found them. Rewritten with two fixtures that each change verdict, the sharper being that a body read too short makes the rule accuse a block that frames a form. Third hollow assertion this campaign has caught by running the mutation rather than reasoning about it |
-| **Avatar / initial disc** | **[x] RESOLVED 2026-09-05** | Built as `Avatar`, and the audit corrected this row twice over. **The count was wrong in both directions**: the row said eight discs "holding an initial, an index number or a count", which conflated four different components. Reading all 25 round discs in the tree found exactly **8 avatars** — a disc holding a person's initial — and 17 that are something else: glyph medallions (`StatusMedallion`'s, and three of them the row wrongly counted), unread-count badges, a numbered step marker, a radio dot and a selection indicator. `Avatar` is the wrong remedy for every one of the seventeen, which is why `hand-rolled-avatar` reads what a disc HOLDS rather than its shape; a shape-only rule was written first and matched all 25. **The size question was researched rather than decided in-house**: Primer (16/20/24/32/40/48/64), Polaris (20/24/28/32/40), Atlassian and Red Hat all publish a FIXED step scale the consumer picks from, and the five steps built here are all Primer steps and are exactly the sizes already in use. 36px is on nobody's scale — Primer runs base-4 to 32 then base-8 — so `CompanyTopbar` and `UsersView` moved to 40. **And the dossier's responsive 48→64 is KEPT**, against this plan's own proposal to collapse it: Primer types its avatar `number | { narrow?, regular?, wide? }`, so a responsive size is the reference system's documented shape rather than API invented for one consumer. Two more findings applied: circle-vs-square is Primer's stated rule for people vs organisations, and **five of the eight discs were not `aria-hidden`**, so a screen-reader user heard the initial read out beside the name it abbreviates — `Avatar` has no prop to un-hide one |
-| **Toast promotion** | **Open**, recorded 2026-09-04 | Not a missing shape — a missing *home*. `ToastProvider` at `src/shared/components/feedback/ToastProvider.jsx` is the single owner and every consumer uses it, which is why §8 lists the family as complete; but it lives outside `design-system/` and has no story, no baseline and no entry in the catalog. Promoting it is a move plus a catalog entry, not a build |
-| **Menu / overflow menu** | **Not being built** | `TemplateLibraryPanel.jsx`, where every template action is a visible button. At that size that is a better answer than an overflow menu, not a workaround. `CampaignCard`'s card menu is the other candidate, and its entries are `role="menuitem"`, which `Button` cannot be |
+| **Tinted icon tile** | Open — the largest un-owned shape | A rounded **square** carrying a brand or domain glyph on a brand or status tint: about two dozen sites, 32–80px, e.g. `ReviewChangePortal` (a shield on `bg-ds-action-primary`), `PaywallMessage`, `BrandingSection` (frame-sized glyph), `PersonalProfileTab`. Every rule misses it because each uses correct roles. A status-tinted **circle** around a glyph is `StatusMedallion` today — migrate those. It is also why `Notice`'s `accent`/`neutral` glyph defaults stay recorded guesses |
+| **Combobox / Listbox** | Open | `EmployerNameAutocomplete.jsx` hand-builds the full ARIA combobox (`role="combobox"` with `aria-expanded`, `aria-controls`, `aria-activedescendant` over a `role="listbox"`), correctly; nothing owns a text input that filters a list. Worth promoting |
+| **Step indicator (read, not operated)** | Open | `BulkUploadLayout.jsx` (`<li>`) and `SendTemplateWizard.jsx` (`<span>`) carry `aria-current="step"` on a progress display a person reads. `SelectableCard` is for picking and `SectionNavigation` is a navigation rail; `hand-rolled-current` is scoped to `<button>`, so it leaves them alone |
+| **"Badge does not size its glyph"** | Open | `Badge` sizes a glyph passed through its `icon` prop but has no rule for one passed as a child, so `EnvelopeHistory` keeps `size="xs"`; `DataTable` and `SectionNavigation` carry no `> svg` rule either |
+| **Notice as a named landmark** | Open (one consumer) | `StatusScreens` (ESIGN consent) is a `<section aria-labelledby>` region a reader can jump back to; `Notice` cannot be a landmark, and one caller is not enough to design a prop around |
+| **Toast promotion** | Open — a missing home, not a missing shape | `ToastProvider` (`src/shared/components/feedback/ToastProvider.jsx`) is the single owner and every consumer uses it, but it sits outside `design-system/` with no story, baseline or catalog entry. Promoting it is a move plus a catalog entry |
+| **Bottom app bar** | Not being built | `EditorMobileBar` (exception above); one consumer |
+| **Menu / overflow menu** | Not being built | `TemplateLibraryPanel.jsx` shows every template action as a visible button, which at that size is the better answer; `CampaignCard`'s card menu keeps `role="menuitem"` entries, which `Button` cannot be |
 
----
+Closed gaps are listed with their families in §8.
 
 ## 6. Open decisions and blockers
 
-These do not block compatibility-first migrations that preserve the current
-identity and record evidence.
+Nothing open here gates a primitive, a token or a baseline: the visible families
+are fully approved, §7 is permanent.
 
-**All three of the things this section used to gate have happened, so read the
-preamble as history rather than as a live constraint.** Baselines are published —
-172 of them, committed beside the specs that record them. The visible component
-families are **fully approved**, since the last two decisions holding them (the
-semantic brand and action colours, and WCAG 2.2 AA) were answered by the owner on
-2026-09-04, below. And the enforcement is permanent: `npm run test:visual`,
-`check:visual-contract`, `check:ui-contract`, `npm run test:stories`,
-`check:table-layout` and the `@a11y` specs all fail the build today, and nothing
-in `main.yml` makes any of them advisory.
+| Decision | Blocked on | Decided by |
+|---|---|---|
+| `[!]` Replacement wording for the customer named in operator copy: `StatsBackfillPanel`'s All-Companies help text reads "Only run after verifying Ray Star LLC results.", preserved verbatim | The repository establishes no generic replacement | Owner (product/copy) |
+| `[ ]` A semantic scrim role, retiring the audience preview's `bg-black/20` (§5) | Naming a new role is a design-system decision, not a mechanical swap | Design-system decision |
+| `[ ]` Whether `Notice` may carry positioning and elevation, so `QueueStatusIndicator`'s fixed floating banner (`fixed bottom-4 right-4 z-ds-toast`, `shadow-ds-lg`, its local `QueueNotice`) can be absorbed | `Notice`'s `className` contract is margin and width only, so this is a component change, not a migration | Design-system decision |
+| `[ ]` `rem` instead of `px` for the `--ds-*` contract | Zoom scales both (WCAG 2.2 SC 1.4.4 is met), but `px` ignores a user's default font-size preference; it would be its own campaign with its own visual review | Recorded, not scheduled |
+| `[!]` **NO-GO beyond presentation:** Company Settings → SMS. Number assignment is migrated for presentation only, and its contracts are frozen: the `saveSmsLineAssignments` and `verifyLineConnection` payloads, the line-token model, the `sms_provider` document. `LineManager` (the Phone Line Wallet, secret entry) stays unmigrated and out of scope | Entanglement with `LineManager` | Owner |
 
-Be exact about which of those are *pinned* against becoming advisory again,
-because the difference is the whole reason this file records lessons rather than
-intentions:
-
-| Gate | Held by |
+| Settled ruling that still binds | What it requires |
 |---|---|
-| `npm run test:visual` | `scripts/test-ci-plan.mjs` K1 — the step must exist and carry no `continue-on-error` |
-| the `@a11y` specs | K2 and K2b — they may not be grep-inverted out, nor run advisory |
-| `npm run check:ui-contract` | `scripts/test-ui-contract-ci.mjs` W13/W14, plus W1/W2, which also pin that it runs in a job no lane selection can skip |
-| `check:visual-contract`, `npm run test:stories`, `check:table-layout` | K1b — added 2026-09-04, when writing this table found that these three were blocking only because nobody had added `continue-on-error` to them, which is not the same as being unable to. Each is pinned by name *and* asserted to exist, because renaming a step makes an assertion about it vacuously true |
-
-The remaining items below are **product, legal and copy** decisions, not
-design-system blockers: none of them gates a primitive, a token or a baseline.
-
-- `[x]` **Approve a `content-muted` value that is safe on `surface-subtle`.
-  RESOLVED 2026-08-21 — owner approved.** `content-muted` is slate-600. It clears
-  AA on `surface`, `surface-subtle`, `canvas` and all six status backgrounds, so
-  the surface-only rule is gone and `tokens.test.js` asserts the whole matrix,
-  including the two pairings (`surface-subtle` 4.34:1, `status-warning-bg`
-  4.27:1) that used to fail. Every muted label in the product is slightly darker.
-  Call sites that had moved to `content-secondary` to work around the old limit
-  were not moved back and do not need to be.
-- `[x]` **Every input in the product zoomed the viewport on an iPhone. FIXED
-  2026-08-25.** iOS Safari zooms in when a focused input's `font-size` is under
-  16px and does not zoom back out; the control scale is 13–15px, so every form in
-  the product did it. `--ds-font-size-control-mobile: 16px` now applies to
-  `.ds-form-control` under `max-width: 639px`.
-
-  Two things make this safer than it sounds. **Heights do not move** — 16px at
-  the body line-height is a 24px content box, which fits inside all three
-  min-heights, so the type grows and the control stays put; verified in a real
-  browser by `check:visual-contract`, which recorded a `fontSize` change and no
-  `height` change. And **the blast radius was exactly what it should be**: 19
-  pixel baselines moved and every one of them was `-mobile`.
-
-  Selects are included even though iOS only zooms for text entry, because
-  excluding them would put a 14px select beside a 16px input — the divergence the
-  input/select probe added the same week forbids.
-
-  `SignerField` is not covered and keeps its local workaround: its inputs are not
-  `.ds-form-control` (they overlay PDF coordinate boxes), so the rule cannot
-  reach them. Its allowlist entry says so.
-- `[x]` **The onboarding tour's dialog semantics. RETIRED 2026-08-25 — the tour
-  was removed.** The question was real: the tour was a coach mark on a
-  `pointer-events-none` layer, correctly not using `Modal`, but its centred first
-  step dimmed the page with a blocking backdrop and had no `role="dialog"`, no
-  focus move and no Escape. The owner's answer was to delete the tour rather than
-  give it modal semantics, so this closes by removal rather than by decision. If
-  a guided tour is ever reintroduced, this is the question it has to answer, and
-  the two accessibility fixes made to it on the way out — an accessible name on
-  the close control, and step progress announced in text rather than by a
-  coloured dot — are the baseline to start from.
-- `[x]` **Decide what the Unified Driver Database bulk actions should do.
-  RESOLVED 2026-09-06 — removed.** Message, Assign, Move Status and Archive were
-  placeholders that fired a *success* toast and did nothing; from 2026-07-28 they
-  sat disabled and labelled unavailable so the decision stayed visible. The
-  decision follows the bulk-action UX guidance (a control that does nothing is
-  not shown): the bar and the row-selection checkboxes that existed only to feed
-  it are gone, and `UnifiedDriverList.bulkSafety.test.jsx` pins the absence. A
-  real bulk action returns together with its selection when a recruiter asks for
-  one — "Export" first, because it is safe and useful; "Archive" only once an
-  archived state is defined, since nothing in the repository defines one and
-  Archive is not delete. The cross-tenant reasons that blocked inventing an
-  implementation (`LeadAssignmentModal` is single-company; campaigns own bulk SMS
-  with their own consent rules) still hold and still bind whoever adds the first
-  real action.
-- `[x]` **Move `Modal` and `ConfirmDialog` into `design-system/patterns`.
-  RESOLVED 2026-08-21.** Both moved together, as required, to
-  `design-system/patterns/modal`, with their tests and their four catalog
-  stories. Import them from `@design-system/patterns`; the `shared` barrel
-  deliberately does not re-export them, so there is one place to import each.
-  The domain modals (`CallOutcomeModal`, `CompanyChooserModal`,
-  `FeatureLockedModal`, `ManageTeamModal`) stay in `shared` and import from the
-  design system.
-
-  The point of the move is the rule it unlocked:
-  `tests/architecture.test.js` now forbids `@shared` imports inside
-  `src/design-system` outright. That rule could not be written before, because
-  these two files were the counterexample.
-- `[x]` **Promote a `Switch` primitive. RESOLVED 2026-08-21.**
-  `components/switch` is Company Settings' `ToggleSwitch`, which was already
-  correct — it was feature-owned only because the design system had no switch,
-  so `FeaturesView` could not import it and used a `Checkbox` instead,
-  announcing the wrong role for a control that saves immediately. Both call
-  sites migrate with their feature families.
-- `[x]` **Decide how an employer signs the verification portal without a
-  mouse. RESOLVED 2026-09-06 — drawn or typed, method recorded (audit step J).**
-  A canvas cannot be drawn on with a keyboard, so `SignaturePad` alone — the
-  legally operative mark on a 49 CFR §391.23 response — had **no keyboard or
-  assistive-technology path to producing a signature**, and axe could not see it
-  because axe cannot detect a missing input modality. The standard settled the
-  legal half: ESIGN (15 U.S.C. §7006(5)) and UETA define an electronic signature
-  as any symbol or process adopted with intent to sign, so a typed name is one,
-  and every mainstream e-signature product offers Draw and Type side by side.
-  What made it safe here was the record, not the picture: `SignatureInput`
-  (`shared/components/signature`) wraps the pad with a `SegmentedControl`
-  Draw | Type choice; a typed name is stored as `TEXT_SIGNATURE:<name>` — the
-  driver application's own convention — and is **never rasterised**; the method
-  travels with the response, the server refuses any other form or a mislabelled
-  method, and the DQ-file PDF prints the typed name in an oblique face under a
-  "(typed)" label. Switching method clears the mark, the same "what is stored is
-  what you can see" invariant the pad keeps on resize. Draw stays the default so
-  the pad's contract tests and the ink-measuring E2E specs are untouched; a
-  keyboard-only E2E test signs by typing and submits.
-- `[x]` **Align control heights across the primitives. RESOLVED 2026-08-21.**
-  One scale — `--ds-control-height-sm/md/lg` = 36 / 44 / 52px — read by `Button`,
-  `IconButton`, `Input`, `Select` and `Textarea`, all defaulting to `md`.
-  `.ds-form-control`'s hardcoded `min-height: 44px` now reads the token, so the
-  rendered height of a form control did not change; what changed is that the
-  default button grew 40 → 44px to meet it. 44px is WCAG 2.2 SC 2.5.5 (Enhanced)
-  and is now the default rather than something a screen opts into.
-
-  The consequence that matters for future work: `lg` used to mean "44px, so it
-  matches an input", and 25 internal call sites — Settings forms, dialog footers,
-  Super Admin panels — had used it that way. They were moved to the default, so
-  their height is unchanged and their type is no longer one step oversized.
-  `lg` now means what its name says, and the public driver/employer flows that
-  genuinely want the largest target (`StepNavigation`, `Step9_Consent`,
-  `EmploymentCoveragePrompt`, `UploadField`, `LoginScreen`, `VerificationPortal`,
-  `SignatureSheet`, `ReviewChangePortal`) keep it. **Do not reintroduce
-  `size="lg"` to line a button up with an input.**
-
-  Two non-controls were following `--ds-control-height-md` and would have grown
-  with it: `MetricCard`'s icon chip and the table's selection hit area. They have
-  their own roles now (`--ds-metric-icon-size`,
-  `--ds-table-selection-control-size`). `SectionNavigation` moved from `lg` to
-  `md`, preserving its rendered 44px.
-- `[x]` **Add an inverse surface to the semantic token contract. RESOLVED.**
-  `--ds-color-surface-inverse` and `--ds-color-surface-inverse-subtle` now exist
-  in `src/design-system/tokens/semantic.css` alongside
-  `--ds-color-content-inverse`. A dark dialog header or banner is expressible in
-  approved tokens; there is no longer a reason to invent a colour for one.
-  (Call sites that moved to `surface-subtle` while this was blocked — such as
-  `PEVRequestModal`'s header — were not migrated back, and do not need to be.)
-- `[x]` **Decide whether the VOE document's small print may be recoloured.
-  RESOLVED 2026-09-06 — recoloured to the nearest AA greys (audit step G).**
-  Real-browser axe reported 4 serious `color-contrast` nodes inside the generated
-  document (2.56:1, 1.95:1, two at 2.45:1): conventional grey legal small print
-  on a printed-form facsimile. The standard settled it — WCAG 2.2 SC 1.4.3 has no
-  exemption for legal small print, only for logotypes, decoration and disabled
-  controls — so the question was never *whether* but *how little*: the same
-  slate family, sizes untouched, `text-slate-400` → `500` (4.76:1 on white,
-  4.55:1 on the slate-50 box) everywhere except inside the 80%-opacity
-  questionnaire, where the fade blends 500 down to 3.25:1 and `700` (5.74:1) is
-  the first shade that clears. The missing-signature warning's `red-400`/`red-500`
-  text (2.6:1 / 3.76:1) went to `red-600` (4.83:1) by the same rule. Export parity
-  is re-proved by the `voe-print-export` lane, whose axe scan now includes the
-  document instead of excluding it; the allowlist counts are unchanged because
-  a raw shade replaced a raw shade, and its reason records the one-off.
-- `[x]` **The Facebook Integrations tenant binding. FIXED 2026-08-25.**
-  `connectFacebookPage` derived the tenant from `request.auth.uid` under a
-  comment assuming a 1:1 user-to-company mapping, which this application has
-  never had. The caller now names the company and the server authorizes it
-  against `roles[companyId]` — the same default-deny check `addUserToCompany`
-  makes. Fifteen tests cover the matrix, including the case that matters most: a
-  company admin naming a company they do not administer is rejected, so the fix
-  cannot become a worse bug than the one it closes.
-
-  Binding the page to a real company also made a second-order problem worth
-  closing. The callable read the page's existing binding, made two Facebook API
-  round-trips, and only then wrote — so two admins of two different companies
-  connecting the same unclaimed page concurrently both read "unclaimed" and the
-  later write took the page. The check and the claim are now one transaction that
-  runs before Facebook is contacted; a connect that fails afterwards releases the
-  claim, and a failed token refresh restores the connection the company already
-  had. Three mutations of the production code (claim not written early, rollback
-  made unconditional, stale token left in place on a reclaim) each fail a
-  different test.
-
-  The presentation migration this item was blocking is therefore unblocked, but
-  the feature flag stays **off** by owner decision, and the visible
-  "not production-ready" notice stays with it. `scripts/audit-facebook-lead-tenancy.mjs`
-  is a read-only report on whether any leads were stranded under a uid while the
-  fault was live; no migration was written, because whether stranded records are
-  real drivers or test noise is not something the code can tell.
-- `[x]` **Decide the responsive/interaction strategy for editable matrices**
-  (per-row form controls), starting with the SMS number-assignment recruiter
-  matrix. **RESOLVED 2026-09-06 — one card per row under 768px, the same DOM at
-  every width (audit step K).** The matrix is worked one member at a time and
-  nothing in it is compared across rows, so the shape that fits a phone is a
-  card per team member with every value under the label of its column, in
-  column order — `data-mobile-presentation="cards"` on the `ds-native-table`
-  contract, labels from the feature's own `data-label`s, roles stated
-  explicitly so `display: block` cannot drop them. Behaviour parity is by
-  construction: the `<select>`s, verify buttons and status text are the same
-  elements at 412px and 1440px, so the frozen 15-case suite and the a11y suite
-  cover both, and the catalog's `CardsOnMobile` story is the real-browser
-  picture. Above 768px the matrix is a table with its name column pinned.
-- `[x]` **Decide table responsive behavior per remaining use case.**
-  **RESOLVED 2026-09-06 — one rule, applied to every table (audit step K).**
-  Nielsen Norman Group's mobile-table guidance is the standard: a table whose
-  rows are *compared* keeps the table on a phone — labelled, focusable
-  horizontal scroll, sticky header, and the first column pinned so the row's
-  label stays in view (*"the leftmost column … should be locked in place"*).
-  `DataTable` pins by default (`pinFirstColumn={false}` opts out; with a
-  selection the checkbox and the identifying column pin together); the eleven
-  comparative native tables carry `data-pin-first-column`; four scroll regions
-  that were unlabelled (`AnalyticsView` ×2, `StatsBackfillPanel`, the feature
-  alert-stats dialog) are now named and focusable. A matrix worked one record at
-  a time becomes cards (the row above); the Super Admin feature matrix, whose
-  frozen header and frozen column cross, is the one specialized grid and keeps
-  its hand-layered cells. The rule, its source and its guards are in
-  `components/data-table/README.md` ("Tables on phones"), `pinnedColumn.css`
-  and the `Patterns/Native table` story docs.
-  - **Decided 2026-08-17 — AI Integrations → Logs (`AiLogsPanel.jsx`):**
-    `DataTable` at `density="compact"`, `minWidth="wide"`, with the default
-    labelled horizontal scroll on mobile. Chosen over stacked cards because the
-    columns are read *comparatively* — an operator scans a run of rows for the
-    one that failed, and stacking destroys that. Nothing is hidden at any width:
-    the full provider-by-provider detail lives in a dialog reached by activating
-    the row, so the table itself carries only what fits. The status column is
-    `xl` rather than `md` because it holds a `Badge` (which does not wrap) plus
-    trailing detail text; `DataTable.stories.jsx` covers that arrangement so
-    `check:table-layout` measures it in a real browser.
-- `[x]` **Select visual-baseline hosting. RESOLVED — the baselines live in this
-  repository.** `playwright.config.cjs` sets `snapshotPathTemplate` so each
-  baseline sits beside the spec that records it, committed and reviewed as part of
-  the diff. No external service, no credentials, and a baseline change shows up in
-  code review like any other change. Chromatic was excluded by scope, not
-  evaluated and rejected — and it is not needed for this. Who *approves* a
-  baseline change is the same person who approves the pull request it arrives in;
-  the lane is blocking as of 2026-08-25, so there is always one.
-- `[x]` **Approve semantic brand/action colours. RESOLVED 2026-09-04 — owner
-  approved.** The palette as it stands is the approved one: the blue-led action
-  colours the compatibility-first consumers preserved, alongside the SafeHaul
-  brand assets in navy (`#004C68`) and mint (`#0BE2A4`). No recolouring is
-  pending, and no consumer is waiting on this to be settled.
-- `[x]` **Confirm WCAG 2.2 AA as the permanent standard. CONFIRMED 2026-09-04 —
-  owner approved.** It is the target for every primitive, pattern and screen, and
-  it is what the `@a11y` lane and `npm run test:stories` are measuring against.
-
-  **Together these two close the gate this whole section describes.** The
-  preamble above says the open decisions block "declaring the affected families
-  fully approved, publishing durable visual baselines, or making the related CI
-  enforcement permanently blocking" — these were the last two holding the visible
-  families, so **the visible component families are fully approved** as of
-  2026-09-04. The enforcement is already permanent and is not advisory anywhere:
-  `npm run test:visual`, `check:visual-contract`, `check:ui-contract`,
-  `npm run test:stories`, `check:table-layout` and the `@a11y` grep all fail the
-  build, and `scripts/test-ci-plan.mjs` K1 asserts none of them carries a
-  `continue-on-error`.
-
-  What is still open in this section is **product, legal and copy** — not a
-  design-system blocker: the Unified Driver Database bulk actions, how an
-  employer signs the verification portal without an account, whether the VOE
-  document's small print may be recoloured, the SMS/number-assignment strategy,
-  and the replacement wording for the customer named in operator copy. None of
-  them gates a primitive, a token or a baseline.
-- `[x]` **Decide whether Inter remains externally hosted. RESOLVED 2026-08-25 —
-  it is served from this repository.** Not a preference in the end. The
-  application opened with `@import url('https://rsms.me/inter/inter.css')`, and
-  GitHub's runners did not get it: every one of the twenty application visual
-  baselines failed on every CI run, invisibly, behind `continue-on-error`. The
-  recorded diff was every glyph offset with every box unchanged.
-
-  Two consequences reached past CI. Anyone whose network cannot reach that host
-  saw the whole product in a fallback font, and every user's IP was disclosed to a
-  third party in order to render text.
-
-  `src/design-system/fonts/` holds the two variable faces under SIL OFL 1.1.
-  This sends **fewer** bytes than the CDN did — the name `Inter` mapped to the
-  *static* faces there, one file per weight, and this product uses four — in two
-  requests rather than eight. `scripts/test-ci-plan.mjs` K3 fails on a remote
-  `@import` in either stylesheet.
-- `[!]` **Approve replacement wording for the customer named in operator copy.**
-  `StatsBackfillPanel`'s All-Companies help text reads "Only run after verifying
-  Ray Star LLC results." Preserved verbatim; the repository establishes no
-  generic replacement.
-
----
+| Brand and action colours approved (owner, 2026-09-04) | The palette as it stands — the blue-led action colours beside the navy (`#004C68`) and mint (`#0BE2A4`) brand assets. No recolouring is pending |
+| Inter is served from this repository | `src/design-system/fonts/` holds the two variable faces (SIL OFL 1.1); no stylesheet may `@import` a remote font (`test-ci-plan.mjs` K3) |
+| Visual baselines live in this repository | `playwright.config.cjs` sets `snapshotPathTemplate` so each sits beside its spec; a baseline change is reviewed and approved with its pull request. No external service |
+| Unified Driver Database bulk actions removed | A control that does nothing is not shown; `UnifiedDriverList.bulkSafety.test.jsx` pins the absence. A real action returns with its selection when a recruiter asks — "Export" first, "Archive" only once an archived state is defined (Archive is not delete). `LeadAssignmentModal` is single-company and campaigns own bulk SMS with their own consent rules; both bind the first real action |
+| Employers sign the verification portal by drawing or typing | `SignatureInput` (`shared/components/signature`) wraps the pad in a `SegmentedControl` Draw \| Type choice, Draw by default; a typed name is stored as `TEXT_SIGNATURE:<name>` and never rasterised; the method travels with the response and the server refuses a mislabelled one; the DQ-file PDF prints a typed name in an oblique face under "(typed)"; switching method clears the mark |
+| Editable matrices and tables on phones | The §3 table rule; the SMS recruiter matrix is one card per row under 768px and a table with its name column pinned above it |
+| AI Integrations → Logs (`AiLogsPanel.jsx`) | `DataTable` at `density="compact"`, `minWidth="wide"`, default labelled horizontal scroll; nothing hidden at any width, full detail in a dialog reached by activating the row; status column `xl` (a non-wrapping `Badge` plus detail text) |
+| Guided tour removed (owner) | A reintroduced tour must first answer the dialog question — a blocking backdrop needs `role="dialog"`, a focus move and Escape — starting from a named close control and step progress announced in text |
+| Facebook Integrations flag stays off (owner) | The visible "not production-ready" notice stays with it; `scripts/audit-facebook-lead-tenancy.mjs` is a read-only report |
+| `Modal` and `ConfirmDialog` live in `design-system/patterns/modal` | Import them from `@design-system/patterns`; the `shared` barrel does not re-export them. The domain modals (`CallOutcomeModal`, `CompanyChooserModal`, `FeatureLockedModal`, `ManageTeamModal`) stay in `shared` |
 
 ## 7. Permanent automated guardrails
 
-These exist because a human review missed the thing they now catch. Do not
-weaken or delete one without replacing the guarantee.
-
-| Guard | What it enforces |
-|---|---|
-| `src/design-system/tests/architecture.test.js` | No imports from features, application context, Firebase **or `shared`** into `src/design-system` — in stylesheets as well as modules. The `shared` half became enforceable on 2026-08-21, when `Modal`/`ConfirmDialog` moved out of it; the CSS half was added on 2026-08-25, after `index.css` had spent the whole campaign importing a token file from `shared` while this table claimed the rule was enforced |
-| `src/design-system/tests/tokens.test.js` | The semantic token contract and its contrast pairings, in both directions |
-| `src/tests/noBlockingBrowserDialogs.test.js` | No `confirm(` / `alert(` anywhere under `src/`, with or without a `window.` prefix. It walks every non-test file, strips comments and string literals, and is proven to catch a real call rather than passing vacuously |
-| `npm run test:stories` (`src/tests/designSystemStories.a11y.test.jsx`) | Every catalog story renders and passes axe |
-| `npm run check:table-layout` (`scripts/check-table-layout.mjs`) | Measures the built catalog in a real browser at 412px and 1440px: a cell must contain its content (`scrollWidth > clientWidth` is a violation unless the column opts into `truncate`), and no region may reserve a gutter it never scrolls into. Covers `DataTable` **and** the `ds-native-table` contract — until 2026-08-25 no native table was measured anywhere, so the fifteen tables across eleven files that are not `DataTable` had no layout guard at all. Honours `PW_CHROMIUM_EXECUTABLE`, so it runs in a sandbox whose Chromium is not the pinned build — a guard that cannot run gets skipped |
-| `npm run check:ui-contract` (`scripts/check-ui-contract.mjs`) | The design-system contract, zero-tolerance. Raw palette classes, raw hex, sub-12px text, off-scale type, **Tailwind radii and shadows** (whose names collide with the `--ds-*` ones one step off), hand-built overlays, raw tables, hand-styled buttons/fields/anchors, **hand-rolled tablists, hand-rolled toggles, current-item controls and avatar discs, raw file inputs and hand-written `target="_blank"`** — in JSX, in stories and in CSS. Measured against `src/design-system/ui-contract.allowlist.json`: anything unlisted fails, so does a count *lower* than recorded, so does an entry that does not say why it is allowed, and so does an approved native table that does not apply `ds-native-table` — counted **per `<table>`**, not per file, because the first version of that rule was satisfied by one class in a file with three tables, and one of the eleven approved files has exactly that. There is no exemption for an invisible table: that carve-out was removed after review round eight, because deciding "is this hidden?" from a class list means deciding it across Tailwind's whole variant space. **Since 2026-09-05 the styled-control rules resolve a hoisted class list** (`scripts/ui-contract/bindings.mjs`) rather than reading the characters inside the opening tag, so moving a class list to a `const` is no longer an exemption. **Since 2026-09-05 the scan reaches `index.html`** as well as `src/`, because Tailwind compiles it and a class written there ships in the application stylesheet exactly like one written in a component — which is how `<body class="bg-gray-50">` survived the whole campaign unseen — **fixed to `bg-ds-canvas` on 2026-09-06**, the last thing the campaign left recorded rather than approved, and pinned by `src/tests/pageShell.test.js` because this rule cannot hold it (it refuses raw *palette* names, so a swap to another role passes). Allowlist keys are repo-relative from version 2 as a result. **Since 2026-09-04 the allowlist is itself compared against the base commit** (`scripts/ui-contract/baseline.mjs`, sharing the size guard's `SOURCE_SIZE_BASE`): an entry may only record a violation the base already carried, `--update` refuses to write an addition, and CI passes `--require-baseline` from `callable-contract`, which no lane selection can skip |
-| `npm run test:ui-contract` (`scripts/test-ui-contract.mjs`) | The contract's own decisions, on fixtures. **Since 2026-09-05 §P covers the four rules that read a control's state, identity or place — `hand-rolled-toggle`, `hand-rolled-current`, `hand-rolled-avatar` and `hand-rolled-disclosure` — and lives in its own suite** (`scripts/test-ui-contract-state.mjs`, split out when the avatar rule took the parent to 528 lines). The split is by responsibility: these three share a difficulty none of the other fifteen rules has, which is that the correct shape and the wrong one are nearly the same markup — a `<Button aria-pressed>` and a `<button aria-pressed>` differ by a capital letter, an avatar and an empty-state medallion are both a centred round box with a fixed size, and a disclosure trigger and a menu trigger are both a button wearing `aria-expanded` where what tells them apart is the element WRAPPING it. **And §P22 records what a hollow assertion looks like when you catch one.** Its first version claimed that replacing the brace-aware tag scan with `indexOf('>')` would break the disclosure counter's body offset; running that mutation left the count unchanged, because the body region still contained the trigger. Running it also turned up a real defect the assertion had not been looking for — a self-closing `<h3 />` above a real disclosure counted **2**, its region running on to the next heading's close tag — so the counter gained a self-closing branch, and the assertion now pins that instead, with the naive attribute read as the mutation that breaks it. A test that survives its own mutation is the defect this campaign found in `classAndAttributeCount` three slices earlier; the difference is that this one was caught by running the mutation rather than by a later review. `test-ui-contract-ci.mjs` §W6 reads the suite list off DISK, so a split cannot leave a file unrun, whose whole difficulty is that the correct shape and the wrong one differ by one capital letter: nineteen live sites pass `aria-pressed` straight to `Button`, and `<button aria-pressed>` is a second toggle contract. The counter reads the element name off the open tag rather than matching the attribute, and §P drives four mutations against that — a case-insensitive tag reader, a widened design-system exemption, a `JSX_RULE_NAMES` that stopped covering the styled-control rules, and the story routing dropped. The design system is exempt from these two rules and no others (`SegmentedControl` **is** the `<button aria-pressed>` group the toggle remedy points at, and `SectionNavigation` **is** the `<button aria-current>` rail), and the exemption is a named list rather than a path skip. §P6 is deliberately not "exactly N rules" — an assertion people edit routinely stops being read — but a SET assertion: every exempt name must be a real rule, and the difference between the full JSX rule set and what the design system gets must be exactly that list. §P7 is the other half, and a mutation proved it needed to be: it named one rule, so dropping the second from the story rule set passed. An exemption and its catalog counterpart are two halves of one decision, and it is now driven over the set |
-| `npm run check:icon-contract` (`scripts/check-icon-contract.mjs`) | A file under `src/`, outside `src/design-system/icons/`, importing `lucide-react` — or a recorded one importing more glyphs than it did. Scoped to the application because it was briefly the whole tree, and its first honest verdict was that its own test file "imports 8 glyphs": the fixtures there are real import statements inside string literals, and a text scanner cannot tell one from a description of one. Campaign semantics borrowed from `source-size` rather than an allowlist rule: 178 boilerplate reasons would be the `debt` hatch renamed. Direction is read out of the newest validated ancestor via `checkBacklogDirection`, so a change cannot record its own exemption — and `scripts/test-icon-contract-ci.mjs` (X1-X14) pins that CI runs it unskippably, with `--require-baseline`, before which its own tests have run |
-| `npm run check:visual-contract` (`scripts/check-visual-contract.mjs`) | Computed geometry in a real browser at both widths — control heights, cell padding, radii, resolved token colours — against a committed snapshot. This is the blocking visual guard, because the numbers are portable across machines and a failure names what moved (`button[md].height: 44px -> 40px`). 62 measurements as of 2026-08-25. Four of the recent ones are a frozen table column's background — a `sticky` cell that loses its own surface lets the scrolled columns paint through it, and that regression is now `rgb(255, 255, 255) -> rgba(0, 0, 0, 0)` in a diff rather than something found on a screen. The last six are the **gap between a glyph and its label**, which the design system owns (`.ds-button` sets `gap: var(--ds-space-2)`, `.ds-button__content` inherits it) and nothing measured: the icon *size* had a probe and the spacing beside it did not, so a re-tuned gap would have surfaced as a pixel diff on `button-with-icons` — a screenshot changed — instead of `columnGap: 8px -> 12px`, which says what moved. Mutation-proven with exactly that diff |
-| `npm run test:visual` (`e2e/visual/`) | Pixel baselines for **71 catalog subjects and 15 application screens**, at 1440px and 412px, committed to the repository. **Blocking as of 2026-08-25** — see below. The catalog describe is deliberately **not** `mode: 'serial'`: it was until 2026-08-25, and a serial group stops at its first failure, so 142 of the lane's 174 tests could report one regression and skip the rest |
-| `npm run test:e2e -- --grep "@a11y"` (`e2e/a11y.spec.cjs` and friends) | Real-browser axe on the mobile-critical journeys, plus the keyboard behaviour axe cannot see: roving `tabIndex`, arrow/Home/End on a tab strip, `aria-pressed` on a segmented group, a focusable file input named by its field, and that every control a Tab press reaches shows the product's focus ring rather than the browser's black one. **Blocking as of 2026-08-25**, inside the `frontend-e2e` lane |
-| **A review step, not automated** — see below | A *hand-composed pattern*: correct primitives arranged into a shape the design system already owns. No class-list or tag-name rule can see one, and this is how fifteen page states and ten confirmation dialogs accumulated beside the patterns that own them. The two searches that find them are `StatusMedallion` used outside `src/design-system`, and a locally declared component whose name ends in `Dialog` — and the second search has to be that broad, because the first pass of it looked for `*Confirm*Dialog*` and missed four confirmations named after what they delete **Since 2026-09-06 one of these searches is automated and one is not, and the difference is worth stating.** `hand-composed-notice` closed the tinted-message-block half: it reads what an element's own BODY holds — words rather than a lone glyph, no control or table or nested `Card` — which is a structural test a rule can make. What it CANNOT decide is the remaining judgement the three migration slices made by hand: whether a tinted block that does carry words is a message, a labelled DATA block, a chat bubble, a list row or a modal header band. So the review step stays, narrowed: **search `bg-ds-status-\w+-bg` outside `src/design-system/` and read every tinted block the rule tolerates**, because each of the 19 allowlisted ones is a judgement and a judgement can be wrong. The rule catches the shape; a person still has to say what it is. **And it has one mechanical blind spot, found on 2026-09-06 and worth stating rather than leaving the row reading as though the shape is now impossible**: the rule matches an element carrying both halves of the signature as LITERAL classes, so a block whose tint arrives through a lookup — `const { wrapper } = TONES[tone]` — is invisible to it. 6a counted that case separately for exactly this reason. Two files were still hand-composed notices this way, both of them the two 6a's plan had named for absorption and neither of them absorbed: `SubmissionRecordNotice.jsx` (migrated in 7b) and `QueueStatusIndicator.jsx` (its own local `QueueNotice`, waiting for the shared slice). Phase 7 found both from the OTHER end — each held its glyph in a local binding and rendered it directly, which throws once the name is a token |
-
-### A guard that reports one failure out of eight
-
-Four defects came out of the review of the final head on 2026-08-25, and the
-worst of them was in a guard rather than in the product. They are recorded
-together because they share one shape: **a check that runs, goes red, and tells
-you less than the truth.**
-
-**`mode: 'serial'` on the catalog lane hid every failure after the first.**
-`catalog.spec.cjs` held 142 of the pixel lane's 174 tests in one serial
-`describe`, and Playwright skips the remainder of a serial group once a test in
-it fails. A one-line CSS change moved eight subjects; the run reported
-`1 failed / 81 did not run`, at every worker count, with `--max-failures=0`, and
-after two full re-runs producing identical numbers. Removing serial mode turned
-the same tree into `8 failed` — seven regressions had been invisible. Nothing
-needed serial: `beforeAll` runs once per worker, each worker gets its own catalog
-server on its own random port, and the subjects are independent screenshots. This
-is also why the twenty `app.spec.cjs` font failures were all visible in CI while
-this file's never would have been — that describe was never serial.
-
-The lesson is not "serial mode is bad". It is that **a red guard has to be
-readable**, and one nobody had yet seen fail in anger was reporting an eighth of
-what it knew. The font failure that started this campaign was invisible because
-`continue-on-error` swallowed it; this one would have been visible and wrong.
-
-**The native-table row height was a no-op, and the guard had already said so.**
-`ds-native-table` set `min-height` on its body cells. CSS 2.1 leaves `min-height`
-on a `table-cell` box undefined and browsers ignore it, so the density role never
-applied and rows were whatever their content made them — while `thead` used
-`height` and therefore matched `DataTable` at 48px. `height` on a table cell is
-treated as a *minimum*, which is the wanted behaviour: short rows get the
-contract height, two-line rows still grow.
-
-Worth being blunt about the discovery: `visual-contract.snapshot.json` had
-recorded `nativeTable.cell` at 60.5px desktop / 63.5px mobile directly beside
-`DataTable`'s body cell at 72px, in the same committed file, and it was read as
-"56 measurements recorded" without anyone noticing the two numbers disagreed. The
-probe is literally named *a native table is the same table as DataTable*. **A
-guard that captures the defect is half a guard; somebody has to read what it
-captured.** Both now measure 72px.
-
-**The dropzone ignored dropped files, and eight comments said otherwise.** The
-`FileInput` docblock, its CSS, its story and five call sites all claimed the
-`<label>` made the panel "the browser's own drag-and-drop target ... without a
-single event handler". A label forwards *activation* — a click — to the control it
-labels, never a drop, and the input is clipped to 1×1, so a file dropped on any of
-the four dashed upload panels landed on the label and was discarded. Not a
-regression: none of them had a drop handler before the migration either. The false
-claim was new, though, and an affordance that looks droppable and is not is worse
-than one that does not.
-
-`FileInput` has an explicit `onDrop` now, and the implementation detail is the
-point: it assigns the dropped `FileList` to the real input and dispatches `change`
-from it, rather than calling `onChange` with a hand-made object — so every call
-site keeps reading `event.target.files` and none of them changed. Both browser
-behaviours it depends on were measured in Chromium before being relied on, after a
-first attempt to verify by synthetic `DragEvent` proved that a scripted drop
-cannot populate a file input at all and was therefore the wrong instrument. Two
-tests, mutation-proven three ways — removing the handler, substituting a hand-made
-event (which fails with `{ files: [...] }` is not the input, so the test guards the
-contract rather than the call count), and dropping the loading guard.
-
-**The tether matched substrings, not class tokens.** One commit after
-`check:ui-contract` learned not to match a tag with `[^>]*`, its new native-table
-check was matching classes with `includes()` — so `not-sr-only` counted as hidden
-and `ds-native-table-broken` counted as compliant, and neither would have failed
-anything. Both bypasses were reproduced before the fix and are part of a six-case
-mutation matrix now.
-
-### Three rounds on one check, and the same mistake each time
-
-The review of `31b14db` returned three more findings, and two of them were the
-previous round's fixes being incomplete. Recorded together because the pattern is
-the lesson.
-
-**The native-table tether took three rounds.** Round one matched the tag with
-`<table\b[^>]*>`, which stops at the `>` inside `=>`. Round two matched the class
-with `includes()`, so `ds-native-table-broken` counted as compliant and
-`not-sr-only` counted as hidden. Round three searched the whole attribute slice,
-so `<table data-testid="ds-native-table" className="other">` counted as compliant
-and `<table aria-label="sr-only" className="other">` counted as hidden. Each
-version was reproduced before being fixed, and the matrix is nine cases now.
-
-**The shape of the mistake never changed.** Every version asked *"does this text
-appear somewhere?"* when the question is *"does this element carry this class?"* A
-guard built on substring presence will keep finding new ways to be wrong, because
-the thing it is checking is not the thing it is asking about. That is worth more
-than the three fixes: **when a check fails review twice, the next fix should
-change what it asks, not how carefully it looks.**
-
-**The same `[^>]*` was still in the rule that guards a runtime crash.**
-`jsx-label-on-throwing-primitive` catches a JSX `label={...}` on a primitive that
-*throws* on a non-string label — a crash the moment the branch renders, which is
-how `DashboardToolbar`'s filter panel carried one for ten migration slices. It was
-still a regex, so:
-
-    <FormField label={<span>Date</span>} onClick={() => go()}>   -> caught
-    <FormField onClick={() => go()} label={<span>Date</span>}>   -> INVISIBLE
-
-Prop ordering decided whether a crashing branch passed CI, and the second form is
-the ordinary React one. It reads open tags through `openTagAttributes` now, like
-the styled-control rules and the tether. The lesson recorded when that scanner was
-written — that `[^>]*` had hidden three quarters of the violations — was true of
-more rules than the ones fixed that day, and nobody swept the file for the rest.
-There are none left; `grep '\[^>\]\*'` over the script returns only prose.
-
-**A disabled drop target still owes the page a `preventDefault`.** `FileInput`'s
-new drop handlers returned early when `inert || loading` — before cancelling the
-event. That handed the drop back to the browser, whose default action for a
-dropped file is to navigate to it, so dropping a second file onto a panel that was
-mid-upload could replace the page and take a half-filled application with it. On
-the public driver application that is somebody's work gone.
-
-Refusing the file and cancelling the event are separate obligations. Both handlers
-cancel first now, unconditionally, and only the assignment and the `change`
-dispatch are conditional. Three tests — uploading, disabled, idle — assert on
-`fireEvent`'s return value, which is `false` exactly when a handler called
-`preventDefault`, so the guarantee is asserted rather than read off the source.
-
-### `check:ui-contract` reads JSX as text — the root cause, and the one rule that no longer does
-
-Recorded on 2026-08-25 after this class of defect produced **eight** findings in
-seven review rounds, so the next person working on this file has the reason in
-front of them rather than rediscovering it.
-
-The first five were the same root cause — a rule reasoning about JSX by matching
-characters in it. The last two are the more interesting ones: they are in the AST
-walk that replaced the matching, and both were the *walk* claiming to know the
-semantics of an expression form it had only guessed at:
-
-| Defect | How it failed |
-|---|---|
-| `hand-styled-button\|field\|anchor` matched `<(button)\b([^>]*)>` | `[^>]*` stops at the `>` in `=>`; hid **49 violations in 32 files**, showing 12 in 8 |
-| the native-table tether matched `<table\b[^>]*>` | same truncation, this time producing false *failures* |
-| the tether matched classes with `includes()` | `ds-native-table-broken` counted as compliant, `not-sr-only` as hidden |
-| the tether searched the whole attribute slice | a `data-testid` naming the contract counted as the contract |
-| `jsx-label-on-throwing-primitive` matched `[^>]*?` | prop ordering decided whether a **runtime crash** reached CI |
-| the tether's own AST walk trusted a quasi beside an interpolation | `` `ds-native-table${'-broken'}` `` counted as compliant |
-| the same walk trusted every `CallExpression` | `selectClass('ds-native-table', 'other')` counted as compliant |
-| the walk read the FIRST `className` and ignored what followed | `<table className="ds-native-table" {...props}>` counted as compliant, though a later spread overrides it |
-| the hidden-table carve-out inferred "invisible" from a class list | `className="sr-only xl:not-sr-only"` is hidden on a phone and visible on a desktop — a pattern already in `DossierHeader.jsx` |
-
-Four different fixes, one unchanged question. Each version asked *"does this text
-appear somewhere?"* when the question is *"does this element carry this
-attribute?"* `openTagAttributes` plus the `className` extractor is a decent
-hand-rolled parser for an open tag and the nine-case matrix says it handles what
-we have thrown at it — but it is still a parser written by accident, one review
-finding at a time, and the honest expectation is that a sixth case exists that
-nobody has thought of.
-
-**The native-table tether now parses. Done 2026-08-25, on the fourth finding.**
-The paragraph above originally said the parse was deferred; a fourth review round
-then found the bypass no string match can close:
-
-    <table className={enabled ? 'ds-native-table' : 'other'}>
-
-The token **is** in that text. The rendered table is off-contract half the time.
-The question is not "does this text appear" but "is this true on every branch",
-and that is a question about structure — so `tablesOffContract` asks
-`@babel/parser` for the `<table>` nodes and walks the `className` expression,
-requiring the token on every path a render can take. Anything unprovable is a
-violation, a bare `className={x}` included: a guard that assumes the best about an
-identifier is the guard that let four bypasses through.
-
-**And then the walk itself was wrong, twice — rounds five and six.** Worth
-recording, because it is the more interesting failure:
-
-    className={`ds-native-table${enabled ? '' : '-broken'}`}
-    className={selectClass('ds-native-table', 'other')}
-
-The first passed because a quasi splitting to `['ds-native-table']` looks
-certain while an interpolation sitting against it can extend the token. The
-second passed because the walk trusted every `CallExpression` on the reasoning
-that a call's arguments are all joined — which was *my* reasoning, not
-JavaScript's. `selectClass` returns one of them.
-
-Both had the same cause: **every permissive branch was a guess at an expression
-form's semantics, and each guess accommodated a form that does not exist here.**
-This repository contains no `clsx`, `classnames` or `cx`, and all fifteen real
-`<table>` classNames are plain string literals. The branches were added to avoid
-hypothetical false failures and produced real false passes instead.
-
-So the accepted set shrank to what is unambiguous: a string literal, a
-conditional where **both** branches carry it, `||`/`??` where both sides do, and
-a template literal where the token is **bounded** — followed or preceded by
-whitespace inside its own chunk, or against the edge of the whole template rather
-than an interpolation. `&&` can never be certain. Calls, arrays, concatenation,
-the object form and a bare identifier are all *not provable, therefore not
-allowed*, and they fail loudly. Extending the set now means adding a branch with
-a test rather than an assumption.
-
-Eighteen cases, all mutation-verified: **all six proven bypasses fail**; five
-further unprovable forms fail by construction; and seven legitimate forms pass —
-a plain class, a class among others, a conditional carrying the token in both
-branches, a template literal with the token before *or* after a space, an
-arrow-function attribute ahead of the class, and a genuine `sr-only`. The
-allowlist counts came out identical at 235 across 40 files, which is the check
-that swapping the engine changed nothing it should not have.
-
-**Round seven, and why it was fixed rather than reverted.** I had committed on the
-pull request that a seventh finding on this rule would mean reverting it rather
-than patching again — the reasoning being that six failures on one guard is
-evidence of bad scoping, not of a good next patch. The seventh arrived:
-`<table className="ds-native-table" {...props}>` passed, because the walk read the
-first `className` and ignored a later spread that overrides it at runtime.
-
-It was fixed, and the departure from that commitment is deliberate rather than
-convenient. **The attribute axis is closed in a way the expression axis is not.**
-An opening element's attributes are exactly `JSXAttribute | JSXSpreadAttribute` —
-two node types, no third way to set a prop — so "find the last thing that can set
-the class list and require it to be provable" is complete over the grammar. That
-is a different kind of statement from the expression fixes, each of which was a
-guess about one form among an open-ended set. Reverting would also have knowingly
-restored four already-demonstrated bypasses, which is worse for the repository
-than the commitment was worth.
-
-**Round eight removed an axis instead of guarding it.** The hidden-table carve-out
-— `AnalyticsView`'s `sr-only` chart-equivalent was exempt, on the sound reasoning
-that something invisible has no appearance to get wrong — turned out to rest on an
-undecidable inference. Deciding "is this hidden?" from a class list means deciding
-it across Tailwind's whole variant space, and `sr-only xl:not-sr-only` is hidden on
-a phone and visible on a desktop. That combination is already in this repository,
-so it was never hypothetical.
-
-The fix was not to guard the variant space. **The carve-out is gone: every approved
-`<table>` carries `ds-native-table`, the invisible one included.** Measured in a
-real browser against the built stylesheet before doing it, because the obvious
-worry is that the contract would un-hide it — `sr-only` keeps `position:absolute`
-and `clip:rect(0,0,0,0)`, so the box grows from 10×20 to 47×39 and stays
-`visible: false` either way. An invisible table carrying a visual contract costs
-nothing; inferring invisibility from classes cost a review round.
-
-That is the pattern across all eight: **every fix that held removed a judgement
-the guard was making, and every fix that failed added one.** The expression set
-shrank, the attribute axis was closed by enumeration, and the hidden axis was
-deleted. What remains asks one question with no discretion in it — does the last
-attribute that can set the class list provably contain `ds-native-table`.
-
-The commitment still stands for the *expression* axis: a further bypass there
-means the walk is the wrong shape, and the rule goes back to the simple per-table
-class check with the problem recorded as open.
-
-**The rest of the file still matches text**, and that is the remaining debt. It
-was not converted wholesale because this script gates every other check in the
-repository and each rule's counts would have to be re-proven one at a time; the
-tether was converted because a bypass had been demonstrated in it four times, and
-a fourth patch would have been the wrong answer to the same question.
-
-The rule for anyone touching this file: **if a check needs a third fix, change
-what it asks rather than how carefully it looks** — and check whether the same
-shape exists in the sibling rules, because twice now it did and nobody swept for
-it.
-
-### Fourteen numbers, and the escalation war they came from
-
-Recorded 2026-09-05, when the stacking scale was completed.
-
-The tree carried **74 raw `z-*` sites spelling fourteen different values**:
-`z-10` through `z-50`, then `z-[55]`, `z-[60]`, `z-[65]`, `z-[70]`, `z-[80]`,
-`z-[100]` and `z-[9999]`. That distribution is the diagnosis on its own. A bare
-number says nothing about what it is *for*, so the only way to raise something
-was to pick one bigger than whatever it had lost to — and each winner became the
-next thing to outbid. Three of the four highest values are on dialogs that each
-needed to sit above a different neighbour.
-
-The scale in `tokens/foundation.css` names the layers instead: `raised` 10,
-`sticky` 20, `dropdown` 30, `drawer-backdrop` 40, `drawer` 50, `modal` 60,
-`toast` 100, with ten-unit gaps so a new layer does not renumber the others.
-`tokens.test.js` asserts strict ordering and that every layer has a Tailwind
-utility — a layer a class list cannot name is a layer somebody writes a number
-for.
-
-**`layer-1` … `layer-4` are deliberately absent.** They are local layers inside
-an `isolate` context in the envelope editor, and they arrive in the slice that
-gives them consumers, because `tokens.consumers.test.js` refuses a token nothing
-reads. That rule is what keeps this list a vocabulary rather than an inventory.
-
-**And one claim in this file was wrong, which is worth keeping rather than
-quietly deleting.** The audit recorded the drawer/dialog conflict as a *live
-layering bug*: `WorkspaceFrame`'s mobile drawer read `--ds-z-modal`, so in the
-CSS it outranked every `<Modal>`. The CSS half is true and is fixed. The "live"
-half is not: while the drawer is open its backdrop covers every page control,
-and nothing rendered inside the drawer opens a dialog — both checked before
-writing this. So the ordering was wrong rather than visibly broken. What the fix
-removes is a trap the next "open a dialog from the navigation" would have fallen
-into; the nine `z-[60]`/`z-[70]` overlays in the tree were compensating for
-*each other* and for the tables beneath them, not for the drawer.
-
-### Local layers, and the two tests that were pinned to a paint colour
-
-Added 2026-09-05, finishing the stacking work. **74 raw `z-*` sites became one**
-— `VOEDocument.jsx:93`'s `-z-10`, which the allowlist already records with the
-frozen-document reason.
-
-The last 34 fell into two kinds, and telling them apart is the whole point.
-Eleven were application layers nobody had named: pinned chrome bars in the
-signing room and the envelope editor (`sticky`), a slide-in inspector panel that
-is a drawer by any reading (`drawer`), sidebars and in-panel headers (`raised`).
-The rest were **local** — they order siblings inside one container and mean
-nothing outside it — and those get `--ds-z-layer-1..4`, deliberately 1..4 rather
-than another rung of the same ladder.
-
-**A local layer is only local inside a stacking context**, and that is the part
-worth checking rather than assuming: a `z-index: 2` with no context around it is
-not a small local value, it is an application value that loses to everything.
-Two containers are isolated by hand for exactly this — the PDF page wrapper in
-`PdfFieldWorkbench` and the feature matrix's scroll region — and
-`tokens.test.js` asserts both, because deleting an `isolate` is a silent change
-nothing else would catch. Both were checked for the one thing that makes
-isolation dangerous: a dialog rendered *inside* an isolated container would be
-trapped behind page content. Neither contains one; every dialog in the envelope
-editor is rendered by `EnvelopeCreatorLayout` as a sibling of the workbench.
-
-**And renaming the classes found two tests pinned to how something looks.**
-
-    AxeBuilder.include('.z-30')            // the editor top bar
-    AxeBuilder.include('.rounded-t-ds-xl') // the mobile bottom sheet
-
-Both selected a region to audit by a *styling* utility. The first threw when its
-class disappeared, which is how it was noticed. The second did not, and the
-difference is instructive: it passes a second `include` as well, and axe throws
-only when NO include matches — so a broken sheet selector would have quietly
-shrunk that audit to "the editor nav only" and still reported green. Measured by
-pointing it at a placement that does not exist: **the test passed.**
-
-Both are rescoped — one to a `data-testid`, one to the chrome contract
-(`.ds-modal[data-placement="bottom"]`) — and the second now asserts its own
-scope matches before running axe. The general rule is the one this whole
-programme rests on: **a test that targets a utility class is coupled to how the
-thing looks, and how a thing looks is exactly what this work frees up to
-change.**
-
-### Which rung a thing is entitled to — the half the scale cannot state
-
-Added 2026-09-14, after the company Notifications dropdown was found rendering
-*under* page toolbars and sticky table headers on Driver Applications, Company
-Leads and My Leads.
-
-The scale was fine. `tokens.test.js` asserted strict ordering and every layer had
-a utility. What nothing asserted is the other half: **which rung a given thing is
-entitled to**, and that is where this bug lived.
-
-`.ds-workspace__topbar` is `position: relative; z-index: var(--ds-z-sticky)`, so
-it is a stacking context and **everything inside it is capped at `sticky` against
-the page** — the notifications panel included, however correctly its own
-`z-ds-dropdown` reads *within* that context. So:
-
-- a page element on `dropdown` (30) beats the entire chrome outright. The
-  candidate/lead toolbar carried `z-ds-dropdown` and overlays nothing — its
-  filter panel expands in flow — so the layer was never doing any work.
-- a page element on `sticky` (20) **ties** with the chrome, and a tie is decided
-  by DOM order, which the page always wins because it comes after the topbar.
-  `DataTable`'s sticky header carried `z-ds-sticky`, as did four hand-written
-  `<thead>`s and the custom-questions header.
-
-The second half had been hiding behind `isolation: isolate`: the pinned-column
-rule wraps the scroll region in one, and every `DataTable` pins by default. So
-the header was contained by an opt-out-able side effect of a *different* feature,
-and `pinFirstColumn={false}` would have re-exposed it with nothing to catch that.
-
-**The rule, stated once: application chrome is `sticky`, the page chrome that
-scrolls beneath it is `raised`, a real dropdown is `dropdown`.** That is not new
-— `foundation.css` already said it, in the paragraph about Company Settings'
-header covering the topbar's drop shadow — it simply was not enforced.
-
-`tests/stackingLayers.test.js` enforces it now, and the shape of what it can
-check is worth keeping. "Is this page content?" is a judgement call, so it is not
-asked over the whole tree; **`<thead>` is unambiguously page content**, so the
-one rule stated tree-wide is that no table header may sit on the chrome rung or
-above. The named sites — the topbar's own layer, the notifications panel, the
-candidate toolbar — are pinned individually with the reason attached. Measured in
-Chromium before and after against the tree's real token values: with the old
-values the toolbar and the header painted over the open panel at both probe
-points; with the new ones the panel is on top.
-
-### The second rule that parses — a class list held in a variable
-
-Added 2026-09-05, and it is the paragraph above ("the rest of the file still
-matches text") coming due in the way that paragraph predicted.
-
-The styled-control rules read the characters inside an opening tag and ask
-whether they carry geometry or colour. That works for the way a class list is
-usually written:
-
-    <input className="w-full rounded-ds-md border bg-ds-surface p-ds-3" />
-
-and it is blind to the way it is sometimes written:
-
-    const commonClasses = "w-full rounded-ds-md border bg-ds-surface p-ds-3";
-    <input className={commonClasses} />
-
-Nothing between `<input` and `/>` says anything about geometry, so the rule saw a
-bare, unstyled control. **Measured before the fix: the hoisted form counted 0 and
-the identical inline form counted 1** — moving one string to a `const` was a
-complete exemption from `hand-styled-button`, `hand-styled-field` and
-`hand-styled-anchor` alike, available to anyone, recorded nowhere.
-
-It is the same question the native-table tether had to stop asking. "Does this
-text appear inside the tag" is not "what class list does this element render",
-and no widening of the regex closes the gap: the widened regex would have to
-answer *what is this identifier bound to*, which is a question about the whole
-file. A regex that guesses reads `className={props.className}` — a pass-through
-that styles nothing — as a violation on every component in the tree that forwards
-one.
-
-So it parses. `scripts/ui-contract/bindings.mjs` resolves the identifier and
-requires proof, and the shared reading both rules now need moved to
-`scripts/ui-contract/jsx.mjs` rather than being copied — `lastClassSetter` in
-particular, which encodes round seven above and whose copy would have started at
-round one.
-
-**What it refuses to judge is the design.** A name is resolved only when the file
-binds it exactly once, that binding is a variable declarator with an initialiser,
-and the initialiser can be proved to yield styling text down every path — the same
-`certainlyText` walk, with the same small accepted set, that the table rule shrank
-to after round six. Two declarations, a later assignment, a function parameter of
-the same name, an import, a destructure: unresolvable, and nothing is counted.
-This rule may under-report and must never fire on a control it cannot prove is
-styled, because the shape it reads is also how React forwards a prop.
-
-Two boundaries are pinned separately in `test-ui-contract.mjs` §H, because either
-one alone looks sufficient and is not. **The rule set:** only the full JSX set and
-the story set ask for the styled-control rules, so a stylesheet or an HTML
-document never reaches the parser however its text reads. **The pre-filter:**
-inside the JSX set, a file with no `className={identifier}` is not parsed at all,
-which is what keeps the whole-tree scan at a third of a second. H1 and H2 were
-written first as an ordinary stylesheet and an ordinary HTML page, and *both
-passed with the rule-set layer deleted* — neither text contains the shape, so the
-pre-filter was quietly answering. They now carry the shape inside a string, which
-is how a stylesheet really acquires one (a `content:` value), and each mutation
-now names the check it breaks.
-
-Live result: **five violations in one file**, `CustomQuestionsBuilder.jsx` —
-question-preview controls sharing one hand-written class list. They were migrated
-rather than recorded, to `Input`, `Select` and `Textarea`, which is what a preview
-should have been rendering anyway: what the recruiter is shown is now the control
-the applicant will actually meet, dimmed by the same `:disabled` treatment as
-every other disabled control in the app.
-
-### The one guard that is a person, and why it is not a script
-
-Every other row in that table is a command. One is not, and saying so plainly is
-better than a rule that looks automated and is not.
-
-A **hand-composed pattern** is a dialog or a page state built out of the right
-primitives — `Modal`, `Card`, `StatusMedallion`, `Button`, `--ds-*` tokens
-throughout — arranged into a composition that `patterns/modal` or
-`patterns/page-state` already owns. Every static rule in `check:ui-contract`
-looks for the *wrong ingredient*: a raw palette class, a hex, a bare `<table>`, a
-`<button>` with a class list. A hand-composed pattern has no wrong ingredient. It
-passes every rule, and on 2026-08-25 twenty-five of them did.
-
-Two searches find them, and both belong in a review of any UI change:
+These exist because a human review missed what they now catch. Do not weaken or
+delete one without replacing the guarantee. All are blocking, and none may carry
+`continue-on-error`.
+
+| Guard | What it refuses | CI job · pinned by |
+|---|---|---|
+| `src/design-system/tests/architecture.test.js` | An import from features, application context, Firebase or `shared` into `src/design-system`, in modules and stylesheets (every `@import` and `url()` is resolved); a story importing features, Firebase, context or domain services | `frontend-quality` |
+| `src/design-system/tests/tokens.test.js`, `src/design-system/tests/tokens.consumers.test.js` | A broken semantic token contract or a contrast pairing below AA (both directions); an unbridged Tailwind utility; a control sizing itself in pixels; stacking layers out of order or without a utility; a removed hand-placed `isolate` (`PdfFieldWorkbench`'s page wrapper, the feature matrix's scroll region); a token nothing reads | `frontend-quality` |
+| `src/design-system/tests/stackingLayers.test.js` | A `<thead>` on `sticky` or above; the topbar, notifications panel and candidate toolbar layers are pinned individually | `frontend-quality` |
+| `src/tests/noBlockingBrowserDialogs.test.js` | `confirm(` / `alert(` anywhere under `src/`, with or without `window.` (comments and strings stripped) | `frontend-quality` |
+| `src/tests/pageShell.test.js` — *the one class no guard could hold* — and `src/tests/brandAssets.test.jsx` | `index.html`'s `<body>` without exactly one background utility, `bg-ds-canvas`, on a declared role (`raw-palette-class` cannot hold it — a swap to another role passes — and the pixel lane cannot see it); a favicon or `theme-color` literal differing from the brand tokens, favicon paths or gradient geometry differing from the logo's, a hex in `Logo.jsx` or `SafeHaulLoader.jsx` | `frontend-quality` |
+| `VOEPreviewModal.export.test.jsx` | A `ds-*` class inside the exported §391.23 document, or a missing token outside it | `frontend-quality` |
+| `src/tests/uiContract.ratchet.test.js` | `check:ui-contract`'s rules missing their defects or firing on correct code | `frontend-quality` |
+| `npm run check:ui-contract` (`scripts/check-ui-contract.mjs`) | Zero-tolerance against the allowlist: raw palette classes; raw hex (`raw-hex-colour`: classes, CSS, SVG presentation attributes, JS assignments — not anchors, gradient references, id selectors or hex-like placeholders); sub-12px and off-scale type; Tailwind and bare radii/shadows (`tailwind-radius`, `tailwind-shadow`); `@apply`; bare stacking numbers (`raw-z-index`, `css-raw-z-index`); hand-built overlays (`hand-built-overlay`); raw tables (`raw-table`); hand-styled controls (`hand-styled-button`, `hand-styled-field`, `hand-styled-anchor` — a class list hoisted into a variable is resolved, `scripts/ui-contract/bindings.mjs`); hand-rolled `role="tablist"` strips (`hand-rolled-tablist`), toggles (`hand-rolled-toggle`, a raw `<button aria-pressed>`), current-item controls (`hand-rolled-current`, a raw `<button aria-current>`), avatar discs (`hand-rolled-avatar`, a round disc holding a person's initial) and disclosures (`hand-rolled-disclosure`, a `<button aria-expanded>` inside a heading); hand-composed notices (a `bg-ds-status-*-bg` tint with its matching border on an element whose own body holds words and no control, table or `Card` — `src/design-system/` included); raw file inputs; hand-written `target="_blank"`; a JSX-element `label` on a primitive that throws on a non-string one (`jsx-label-on-throwing-primitive`); an approved native table without `ds-native-table`, counted per `<table>`. It scans what Tailwind's `content` compiles — `src/` and `index.html` (class-list rules only there and in stories) | `callable-contract`, with `--require-baseline` · `scripts/test-ui-contract-ci.mjs` W1/W2, W13/W14 |
+| `src/design-system/ui-contract.allowlist.json` (read by `check:ui-contract`) | Anything unlisted, a count higher or lower than recorded, an entry whose rule has no `reasons` text — there is no `debt` option. Compared against git (`scripts/ui-contract/baseline.mjs`, sharing `SOURCE_SIZE_BASE`): an entry may record only a violation the base commit already carried, so a recorded exception is a frozen ceiling and a file the change creates can never carry one; a moved or split file keeps its entries through git's rename and copy attribution, never a violation the move introduced; a change that widens a rule may record what the base already held. `--update` only shrinks — write an addition by hand, with a reason. Keys are repo-relative. The design system is exempt from `hand-rolled-toggle` and `hand-rolled-current` only (`SegmentedControl`, `SectionNavigation` are those shapes), as a named list, not a path skip | `callable-contract` · `scripts/test-ui-contract-baseline.mjs` |
+| `npm run test:ui-contract` (five suites) | Wrong decisions on fixtures (`scripts/test-ui-contract.mjs`; §H keeps stylesheets and HTML out of the JSX parser); the state rules (`scripts/test-ui-contract-state.mjs`, §P, with §P6/§P7 asserting exemptions as a set); lost coverage — per-format floors, every Tailwind `content` root scanned (`scripts/test-ui-contract-scope.mjs`, §S2f); an inventory the branch could edit (`scripts/test-ui-contract-baseline.mjs`); CI not running it unskippably (`scripts/test-ui-contract-ci.mjs`, W6 reading the suite list off disk) | `callable-contract` |
+| `npm run check:icon-contract` (`scripts/check-icon-contract.mjs`) | A `lucide-react` import anywhere under `src/` outside `src/design-system/icons/`. There is no backlog, and the checker refuses an empty one | `callable-contract`, with `--require-baseline` · `scripts/test-icon-contract-ci.mjs` X1–X18 (X17 refuses an empty backlog) |
+| `react/jsx-no-undef` and `react-hooks/rules-of-hooks` = `error` (`eslint.config.js`) | A JSX name that was never imported, such as `<Icon>`; a hook called conditionally | `frontend-quality` · X15/X16, X18 |
+| `npm run test:stories` (`src/tests/designSystemStories.a11y.test.jsx`) | A catalog story that fails to render or fails axe | `storybook-build` · `test-ci-plan.mjs` K1b |
+| `npm run check:table-layout` (`scripts/check-table-layout.mjs`) | In a real browser at 412px and 1440px, over `DataTable` and `ds-native-table`: a cell whose content overflows unless its column opts into `truncate`, and a region reserving a gutter it never scrolls into. It must stay a real-browser check (jsdom has no layout engine); it waits on `document.fonts.ready` plus two painted frames, fails if it measures zero tables, and honours `PW_CHROMIUM_EXECUTABLE` | `storybook-build` · K1b |
+| `npm run check:visual-contract` (`scripts/check-visual-contract.mjs`) | Computed geometry at both widths against `src/design-system/tests/visual-contract.snapshot.json` — control heights, cell padding, radii, resolved colours, glyph sizes and the glyph–label gap, frozen-column backgrounds, `SelectableCard`'s states, `SectionNavigation`'s grid templates. A failure names what moved | `storybook-build` · K1b |
+| `npm run test:visual` (`e2e/visual/`) | A pixel change to a catalog subject or application screen at 1440px or 412px, against baselines committed beside the specs. It reports every failure (the catalog describe is never `mode: 'serial'`); its first test is a font tripwire (`document.fonts.check('400 16px Inter')` plus pangram metrics, never `getComputedStyle().fontFamily`); both lanes freeze the clock (`e2e/visual/settle.cjs`), and `playwright.visual.config.cjs` pins `locale: 'en-US'` and `timezoneId: 'UTC'`. A failing run uploads the `visual-regression-diff` artifact | `storybook-build` · K1 |
+| `npm run test:e2e -- --grep "@a11y"` (`e2e/a11y.spec.cjs` and friends) | Real-browser axe failures on the mobile-critical journeys, plus what axe cannot see: roving `tabIndex`, arrow/Home/End on a tab strip, `aria-pressed` on a segmented group, a file input named by its field, the product's focus ring on every Tab stop | `frontend-e2e` · K2/K2b |
+| `npm run check:ci-plan` (`scripts/test-ci-plan.mjs`) | Any step above made advisory, renamed away or grep-inverted (K1, K1b, K2, K2b); a remote `@import` in `src/index.css` or `.storybook/preview.css` (K3), or a missing font file or licence (K3b) | `callable-contract` |
+
+### The one guard that is a person
+
+A **hand-composed pattern** — correct primitives in a shape the design system
+owns: a status screen from `Card` + `StatusMedallion` + heading + body +
+actions, a `Modal` with its own Cancel/Confirm footer, a tinted message block —
+passes every rule. Review every UI change with these searches, plus
+`bg-ds-status-\w+-bg` outside `src/design-system/`:
 
 ```
 grep -rl StatusMedallion src/features src/shared     # a medallion outside the DS
 grep -rnE '(function|const)\s+\w*Dialog\w*\s*[=(]' src --include=*.jsx
 ```
 
-Neither is a clean automated rule, and after 2026-08-25 both are mostly
-legitimate hits. `StatusMedallion` is used in eight files outside this directory,
-and every one is a composition the patterns genuinely do not cover:
+Search by shape, not by word: a confirmation is often named after what it
+deletes. Known-good hits: `StatusMedallion` in `StatusScreens`
+(`EsignConsentScreen`), `FeatureLockedModal` (a marketing interstitial),
+`FeatureDeactivationWarning` (a notice with one action) and inside ordinary
+content in `SandboxActionPanel`, `NumberAssignmentManager`, `DQFileTab`,
+`BulkUploadLayout`; `*Dialog` wrappers around `ConfirmDialog`
+(`ReleaseConfirmDialog`, `RemoveMembershipDialog`, `RunAllConfirmDialog`). Each
+tinted block `hand-composed-notice` tolerates is a judgement that can be wrong —
+read them.
 
-| File | Why it is not a page state or a confirmation |
-|---|---|
-| `signing-room/StatusScreens.jsx` | `EsignConsentScreen` — a consent *form* with a nested `<h2>` disclosure region, a bulleted legal notice and a two-way decision |
-| `modals/FeatureLockedModal.jsx` | A marketing interstitial: a *badged* medallion, a "Coming Soon" `Badge` between heading and body, and two CTAs one of which leaves the product |
-| `FeatureDeactivationWarning.jsx` | An interstitial notice listing scheduled deactivations, with one action and a dismiss — no confirm/cancel pair guarding anything |
-| `SandboxActionPanel.jsx`, `NumberAssignmentManager.jsx`, `DQFileTab.jsx`, `BulkUploadLayout.jsx` | A medallion inside ordinary page content, not in a dialog or a state at all |
+### Rules for changing a guard
 
-A local `*Dialog` component is likewise often a correct wrapper around
-`ConfirmDialog` — `ReleaseConfirmDialog`, `RemoveMembershipDialog` and
-`RunAllConfirmDialog` are all wrappers now. A check that fires on correct code
-gets switched off; that lesson is already recorded twice in this file. So this
-stays a review step with a written procedure and a list of known-good hits,
-rather than becoming a rule nobody trusts.
-
-### Why `check:table-layout` is a browser check, and must stay one
-
-**jsdom has no layout engine** — `scrollWidth` and `offsetWidth` are always `0`
-there — so contract tests and `npm run test:stories` are *structurally*
-incapable of detecting a cell overflowing its column, however many are written.
-The E2E overflow assertion measures `document.documentElement`, so a gap *inside*
-a card never reaches it. Every check was green while a Delete button was
-rendering as "Dele" on a real phone.
-
-Two construction rules the guard learned the hard way: it waits on observable
-state (`document.fonts.ready` plus two painted frames) rather than a flat delay,
-and it fails if it measures zero tables, because that is a broken check rather
-than a clean result. **A guard that cannot fail on the broken input is not a
-guard** — prove any replacement fails before you trust it passing.
-
-**Honest limitation:** the guard covers the catalog, not the application. A
-feature screen with no story is not measured. `e2e/visual/app.spec.cjs` closes
-part of that gap — it screenshots 15 real screens at both widths, and since
-2026-08-25 it is blocking — but it checks appearance, not overflow. A feature
-that changes a column's content still needs measuring on its own screen.
-
-### The pixel lane is blocking, and why it was not
-
-This section used to say the lane could not be enforced because "the catalog
-deliberately does not load Inter, so text rasterises with whatever the runner's
-`sans-serif` resolves to", and prescribed watching the font tripwire "for a few
-weeks" before flipping it.
-
-**The CI record contradicted that in both directions.** On 2026-08-25 someone
-finally read it: every run reported `20 failed / 132 passed`. All **130 catalog**
-baselines passed on GitHub's runners — the machine-portability fear never
-materialised — and all **20 application** baselines failed, every time, because
-the *application* fetched Inter from `rsms.me` and the runner did not get it. The
-half with the tripwire was the half that was fine. The half that was broken had
-no tripwire at all.
-
-So the lane had never once been green. It uploaded a 52MB diff artifact nobody
-opened and raised its "a pixel baseline changed" annotation on every single run.
-**A lane that always fails teaches everyone to ignore it, which is worse than no
-lane** — and it is why "make it blocking after a few weeks of green" was never
-going to happen: there was no green to wait for.
-
-The fix was to remove the machine-dependent input rather than to tolerate it. The
-typeface is served from `src/design-system/fonts/` (§6), the catalog loads the
-same file as the application, `continue-on-error` is gone, and
-`scripts/test-ci-plan.mjs` K1/K3 assert both halves of that so neither can drift
-back.
-
-The tripwire is still the first test in `catalog.spec.cjs` and it asserts
-something real now: `document.fonts.check('400 16px Inter')`, so a missing font is
-one sentence rather than 150 diffs, plus the pangram metrics to catch a different
-*build* of Inter. Deliberately **not** `getComputedStyle().fontFamily`, which
-names Inter whether or not Inter loaded — that is exactly how this hid.
-
-Do not weaken `check:visual-contract` to compensate for pixel noise. The geometry
-guard is the one that says *what* changed (`button[md].height: 44px -> 40px`), and
-the two answer different questions.
-
-Both visual lanes freeze the clock at a fixed instant. Without that the company
-dashboard's date range stamps today's date into its baseline, and it would have
-failed the morning after it was recorded.
-
-**A review of this campaign's own diff found the one thing the contract had not
-said**, which is worth recording next to the guards it prompted. `ds-native-table`
-paints the row surface on the `<tr>`, and the Super Admin feature matrix freezes
-its first column with `sticky left-0`. Its hand-picked `bg-ds-surface` was removed
-in favour of the contract — and the contract had no rule for a sticky cell, so the
-frozen company names became transparent and the twenty scrolled columns painted
-through them. The contract owns it now (header surface, row surface, and the hover
-tint so a frozen cell does not stay unhighlighted in a hovered row), a
-`StickyFirstColumn` story puts it in the catalog, and `check:visual-contract`
-measures its background at both widths. Verified by removing the rule and watching
-the guard report `rgb(255, 255, 255) -> rgba(0, 0, 0, 0)`.
-
-**Making a lane blocking is what finds its flakes, and one of them surfaced the
-same day.** The `super-admin` subject waited on `<h1>Super Admin</h1>`, which is
-in the banner and painted immediately — so the screenshot raced the three
-dashboard metric cards. The committed baseline had caught them mid-load showing
-`•••`; the first run after the lane went blocking caught them resolved showing
-`0`, and the lane failed on a three-glyph diff with nothing wrong in the product.
-
-The fix is the same principle as the font: **remove the non-deterministic input,
-do not widen the tolerance.** `DashboardView` announces "Platform totals loaded.",
-so the subject waits for that and the screenshot is pinned to the settled state.
-Re-recorded, then run three more times to prove it. Raising `maxDiffPixels`
-would have hidden it — and hidden the next real regression in those cards too.
-
-The general rule for a subject in either lane: **`ready` must name the last thing
-that arrives on the screen, not the first.** A `<h1>` in a banner is almost never
-that.
-
-**And the same lane found a worse one on the first CI run where it was allowed to
-finish.** `Started (unfinished)` was the one screen in the list whose content came
-from a *real* `listApplicationDrafts` callable rather than a fixture harness. With
-no credentials the call fails — and *how* it fails decides what renders, so the
-committed baseline was a loading skeleton captured in one environment while CI
-captured something 30% different. A screenshot of a screen whose content depends
-on a network failure is not a baseline. It has a `?e2eUnfinished=mock` harness
-now, like every other route in the lane, and the baseline shows three fixture
-drafts: a complete contact, one with no name typed yet, one with no contact
-details.
-
-Two rules follow from it, both cheap and both now in place:
-
-- **Every route in the pixel lane must reach a settled state from fixture data.**
-  The lane's own header already said so; one screen did not, and nothing checked.
-- **`playwright.visual.config.cjs` pins `locale: 'en-US'` and
-  `timezoneId: 'UTC'`.** That screen writes a timestamp through
-  `toLocaleString()` with no arguments, which takes the *runtime's* locale and
-  zone: "6/14/2026, 4:45:00 PM" on one machine, "14/06/2026, 21:45" on another —
-  a different column width and a reflowed table. `settle.cjs` already freezes the
-  clock; this freezes how it is written.
-
-### Two scales, the same names, one step apart
-
-The final audit's most useful finding, 2026-08-25, and the reason
-`tailwind-radius` and `tailwind-shadow` exist as rules.
-
-Tailwind's radius scale and the `--ds-*` one share their names and are offset by
-one step:
-
-| class | Tailwind | the `--ds-*` step with the same **value** |
-|---|---|---|
-| `rounded` | 4px | `rounded-ds-sm` |
-| `rounded-lg` | **8px** | `rounded-ds-md` |
-| `rounded-xl` | **12px** | `rounded-ds-lg` |
-| `rounded-2xl` | 16px | `rounded-ds-xl` |
-| `rounded-full` | 9999px | `rounded-ds-full` |
-
-So `rounded-lg` and `rounded-ds-lg` sat in the same product, on adjacent
-surfaces, sharing a name and rendering different corners — for the whole of
-2026, without anyone noticing. Shadows have the identical problem: Tailwind's
-`shadow-sm` is the `--ds-shadow-xs` step, and every Tailwind shadow is pure
-black where the `--ds-*` ones are tinted with the same slate as the rest of the
-product.
-
-This is worse than an arbitrary value, because the name actively misleads: a
-developer reaching for `rounded-lg` and meaning the design system's `lg` gets
-8px and has no reason to look twice. **Convert by value, never by name.**
-
-The sweep that closed it found 55 occurrences in 26 files. Fifty of them were
-`rounded-full`, which is 9999px in both scales — a naming inconsistency with no
-visual divergence. Only four actually rendered differently from their
-`--ds-*` namesake, and they are fixed. Nineteen remain, all in the two files
-that were already fully exempt: the VOE export document and the `DeviceMockup`
-artwork.
-
-### A container that did not own its glyph, and the measurement that found it
-
-Phase 4's plan says design-system containers size the glyph they hold, and names
-seven. Measured against the CSS on 2026-09-06, **five did** — `Button`, `Tabs`,
-`Chip`, `FileInput` and `SegmentedControl` each carry a `> svg` rule. `Badge`,
-`DataTable`, `SectionNavigation` and, the one that mattered, `StatusMedallion`
-did not.
-
-So every caller of the medallion chose its own glyph size:
-
-| call site | medallion | glyph |
-|---|---|---|
-| the catalog, every specimen | `md` and `lg` | 24 |
-| `PageState` | `lg` | 24 |
-| `ConfirmDialog` | `md` | 24 |
-| `SandboxActionPanel`, `NumberAssignmentManager` ×2 | `md` | 24 |
-| `FeatureDeactivationWarning` | `lg` | 24 |
-| `StatusScreens` | `md` | **28** |
-| `FeatureLockedModal` | `lg` | **40** |
-| `BulkUploadLayout` | `lg` | **48** |
-
-**Nobody chose 24 either**, and the code said so: `PageState` and
-`ConfirmDialog` each carried a comment recording that 24 was simply what a bare
-lucide glyph rendered before the icon contract. A library default, frozen into
-the stories and then cited as the standard.
-
-**What found it was an off-scale number, and that is the transferable part.**
-Phase 7's first measurement asked the whole tree what sizes its 607 glyph uses
-actually take: 546 (90%) are already a step on the scale, 29 state no size at
-all, and 32 are off it. Of those 32, **sixteen are one role wearing four
-numbers** — a large glyph announcing a page-level state, at 28, 40, 48 or
-`h-12 w-12`. A size that is not on the scale is the signal that a container is
-missing, not that the scale is too short.
-
-**The ratio was researched rather than decided in-house.** Tailwind UI's
-feature-icon block is a 48px disc holding a 24px glyph; Material 3 puts 24px in
-a 40–48px container. Nothing published sits below about 40%. At 24px the
-medallion was 37.5% at `md` (64px) and **30% at `lg`** (80px) — under every
-published band, which is exactly why three callers reached past it. So `md`
-keeps 24 and `lg` becomes 32: 40%, already a step on the icon scale, and nothing
-that was ever deliberately chosen moves. The reasoning lives in
-`StatusMedallion.css` beside the rule.
-
-The probe `components-statusmedallion--sizes` reads the disc **and** its glyph
-at both steps, together — a disc measured without its glyph cannot see the
-ratio, and the ratio is the decision.
-
-### Raw Tailwind spacing is left alone, deliberately
-
-The final audit also counted **512 raw Tailwind spacing utilities** (`p-4`,
-`gap-3`, `mb-6`…) across 100 files, and decided against converting them. The
-reasoning, so the next audit does not rediscover it as an open item:
-
-**The two spacing scales are numerically identical.** `--ds-space-1..12` are
-4/8/12/16/20/24/32/40/48px, and Tailwind's `1..12` are the same nine values. So
-unlike radius and shadow above, there is no divergence to see and none to fix:
-`p-4` and `p-ds-4` render the same 16px today. Converting 512 call sites would
-be a large mechanical diff with real regression risk and no visual change, at
-the end of a campaign — and several of the values in use (`p-7`, `p-9`, `p-11`,
-`p-20`) have no `ds-` equivalent at all, so a blanket rewrite would not even be
-possible without inventing scale steps.
-
-The residual risk is real but narrow: if `--ds-space-*` is ever re-tuned, raw
-utilities will not follow. If that day comes, this is the sweep to do, and it is
-mechanical because the mapping is one-to-one.
-
-**One genuine difference is worth knowing.** Tailwind's spacing is in `rem`;
-`--ds-space-*` is in `px`. Browser *zoom* scales both, so WCAG 2.2 SC 1.4.4
-(Resize Text) is unaffected — that criterion is satisfied through zoom. What `px`
-does not follow is a user's **default font size** preference. The whole
-`--ds-*` contract is px-based, type included, so this is a property of the design
-system rather than of these 512 call sites, and moving it to `rem` would be its
-own campaign with its own visual review. Recorded, not scheduled.
-
-### `sr-only` and `ds-visually-hidden` are the same rule, and both stay
-
-The final audit of 2026-08-25 found two ways to hide text from sight while
-leaving it to a screen reader: Tailwind's `sr-only` (34 files) and the design
-system's `.ds-visually-hidden` (35 files). Same decision as the spacing scales
-above, for the same reason and with one consequence that was **not** harmless.
-
-`.ds-visually-hidden` in `utilities.css` is the classic clip rule —
-`position:absolute; width:1px; height:1px; padding:0; margin:-1px;
-overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0` — which is
-byte-for-byte what Tailwind's `sr-only` emits. Neither is ever seen, both
-compute identically, so there is no appearance to diverge and nothing for a
-visual guard to catch. Rewriting 34 files to rename a class nobody can see is
-diff for its own sake.
-
-**What was not harmless: the guards disagreed about which name means hidden.**
-`lead-intake.spec.cjs` skipped both. `driver-dossier.spec.cjs` and both sweeps in
-`public-application-responsive.spec.cjs` named only `ds-visually-hidden` — so the
-*same* hidden control was exempt on one screen and a failure on another,
-depending on which of two identical utilities the feature happened to use. It
-matters because a hidden control clips to **1×1, not 0×0**, so the
-zero-size `continue` above does not catch it and the target-size sweep would have
-reported a 1×1 control as undersized. No screen was failing on the day this was
-found; the two that could have been were one `sr-only` control away from a false
-failure that looks exactly like a real one. All four sites name both utilities
-now, and `check:ui-contract`'s native-table exemption is written the same way.
-
-The lesson is the one this file keeps relearning at a smaller scale: two spellings
-of one idea are tolerable in *appearance* and dangerous in a *rule*, because a
-rule has to decide.
-
-### The one class no guard could hold
-
-The campaign's very last recorded violation was a single word, and it is worth a
-section because of what removing it measured rather than because of what it cost.
-
-`<body class="bg-gray-50">` in the repository-root `index.html` painted the whole
-application's page ground. Widening the scan to Tailwind's `content` found it on
-2026-09-05; the fix landed separately on 2026-09-06 because the allowlist entry
-predicted the swap would "move every application-screen pixel baseline", and
-those can only be re-recorded from CI's `visual-regression-diff` artifact.
-
-**That prediction was wrong, and the arithmetic says so.** `--ds-color-canvas`
-resolves to slate-50 `#f8fafc`; Tailwind's gray-50 is `#f9fafb`. One unit on red,
-none on green, one on blue. Run through Playwright's own bundled pixelmatch at
-the pixel lane's own `threshold: 0.02` (`e2e/visual/settle.cjs`), two 200×200
-fills of those two colours produce **0** differing pixels against a budget of
-100 — and 40,000 of 40,000 at `threshold: 0`, so the tolerance is what absorbs
-it, not a mistake in the comparison. No baseline moved. **A reason recorded in
-good faith is still a claim, and this file's own standard is that a claim gets
-measured before it is spent** — a slice was scheduled around a re-recording that
-was never going to be needed.
-
-The second measurement is the one that mattered more. **Neither guard that reads
-this file can hold the fixed value in place**, in either direction:
-
-- `raw-palette-class` refuses raw *palette* names. Swapping the body to another
-  semantic role — `bg-ds-surface`, say, which is white and would visibly flatten
-  every screen — reports `none new`. Reproduced.
-- The pixel lane cannot resolve the colour, per the measurement above.
-
-So the class could be deleted or pointed at the wrong role and everything would
-stay green. `src/tests/pageShell.test.js` pins it: the body carries `bg-ds-canvas`,
-carries exactly one background utility, and that role is declared. **A guard that
-refuses the wrong kind of value has not thereby pinned the right one** — which is
-the same sentence as "a check must not take its scope from something narrower
-than the claim it is making", one step over.
-
-Retiring the entry turned up a third thing in the same file, unguarded by
-anything and unrelated to the class list. `<meta name="theme-color"
-content="#004C68">` is a fifth literal copy of `--ds-color-brand-deep` — the
-first SafeHaul colour a phone user sees, before a pixel of the application — and
-the UI-contract scan deliberately runs only the class-list rules on HTML, so a
-hex in an attribute there is outside what that guard claims to check.
-`brandAssets.test.jsx` exists precisely because "a copy nothing compares is a copy
-that diverges", and it was comparing the favicon three lines below while this one
-sat uncompared. It compares both now.
-
-**One adjacent finding, recorded and not fixed.** `.bg-gray-50` is still compiled
-into the shipped stylesheet, now with no user at all: Tailwind's extractor pulls
-candidate class names out of any scanned text including prose, and three source
-files mention the class in historical comments. `tailwind.config.js` already
-documents this hazard for stories — a story writing the word "shadow" compiled a
-`.shadow` rule into the production bundle — so this is that same defect in a
-second place. Rewording accurate history to satisfy an extractor is the wrong
-trade for ~85 bytes; it is written down here instead.
+- Prove a guard fails on the broken input before trusting it passing — run the
+  mutation. A guard that cannot fail is not a guard, and a red guard must report
+  every failure it knows of.
+- A guard that measures nothing fails: zero tables, zero files or a vanished
+  subject is a broken check, not a pass.
+- Read JSX through `scripts/ui-contract/jsx.mjs` (`lastClassSetter`,
+  `certainlyText`, `parseModule`); never copy them into a new rule.
+- Ask "does this element carry this attribute?", never "does this text appear?".
+  When a check needs a third fix, change what it asks rather than how carefully
+  it looks, and sweep the sibling rules for the same shape.
+- The native-table tether accepts only the provable on the last attribute that
+  sets the class list (a string literal, a conditional or `||`/`??` with the
+  token on both sides, a bounded template-literal token; `&&`, calls, arrays,
+  concatenation, objects, bare identifiers fail). One more bypass reverts it to
+  a per-table check, recorded as open.
+- A styled-control rule may under-report but must never fire on a control it
+  cannot prove is styled (one binding, no reassignment or shadow, styling text
+  on every path); `className={props.className}` is a pass-through.
+- A guard must not take its scope from something narrower than its claim, and
+  one that refuses the wrong kind of value has not pinned the right one — pin it
+  with a test. A copy nothing compares is a copy that diverges.
 
 ### Still open
 
-- `[x]` **Ratcheting rules for arbitrary colours and unsupported type sizes.**
-  Done 2026-08-21 — `check:ui-contract`.
-- `[x]` **Ratcheting rules for raw tables, duplicate buttons, local modals and
-  local form controls, with machine-readable approved locations.** Done
-  2026-08-21, with one honest limit found on 2026-08-25: "local modals" is
-  enforced as *hand-built overlay construction*, which is what `fixed inset-0`
-  catches. A **hand-composed confirmation inside the approved `Modal`** — the
-  medallion, heading, description and Cancel/Confirm footer that `ConfirmDialog`
-  owns — has no wrong ingredient and passes every rule. Six of those had
-  accumulated. That gap is a review step now, written down in the guardrail table
-  above rather than left implied. The machine-readable locations are
-  `src/design-system/ui-contract.allowlist.json`, where every tolerated
-  violation carries a `reasons` entry naming the exception that justifies it.
-  The `debt` alternative was removed on 2026-08-25 when the last of it cleared.
-- `[x]` **A design-system PR checklist.** Done 2026-08-21 —
-  `.github/pull_request_template.md`, with an explicit "never tick an unrun
-  check" instruction and a section confirming no backend, permission, route or
-  workflow behaviour changed.
-- `[x]` **Make the pixel lane blocking. DONE 2026-08-25.** The prescription in
-  this line — watch the font tripwire for a few weeks, then flip it — could never
-  have worked, because the tripwire guards the *catalog* and the catalog half was
-  already green. What was red was the twenty application-screen baselines, every
-  run, hidden by `continue-on-error: true`. See "The pixel lane is blocking, and
-  why it was not" above: the cause was the externally-hosted typeface, and the
-  lane went blocking the day that was fixed rather than after a waiting period
-  that was measuring the wrong thing.
-- `[x]` **Drive the tolerated-violation inventory to zero debt and make the
-  check zero-tolerance. DONE 2026-08-25.** 660 violations across 59 files at the
-  start, every one of them carrying a `debt` tag naming the slice that owed the
-  work. The file is now `src/design-system/ui-contract.allowlist.json`, every
-  entry carries a `reasons` entry, and the `debt` escape hatch is gone. The check
-  fails on anything unlisted, on a count higher *or lower* than recorded, and on
-  an entry whose rule has no reason — the last of those is what stops "add it to
-  the allowlist" from being a way to make any failure go away.
-
-  **For the current number, run the check** — `npm run check:ui-contract` prints
-  it, and this file is not where a number that moves every slice should live. It
-  read 236 violations across 43 files on 2026-09-04, quoted as a dated
-  observation rather than a figure to keep in step. Section 8 records the final
-  set when the campaign closes.
-
-  Since 2026-09-04 the inventory is also compared against the base commit
-  (`scripts/ui-contract/baseline.mjs`): an entry may only record a violation the
-  base already carried, `--update` refuses to write an addition, and the check
-  runs from `callable-contract`, which no lane selection can skip. A written
-  reason answers "is it written down"; only git answers "was it already there".
-
-  **The recorded count has gone up twice, and both times that was the guard
-  improving rather than the tree getting worse.** 193 → 213 when two new rules
-  caught Tailwind radii and shadows, and the twenty they found were all in files
-  that were already fully exempt. 213 across 26 files → **235 across 40** when the
-  scanner was fixed on 2026-08-25: its open-tag regex terminated at the `>` inside
-  `=>`, so any control whose `className` followed an arrow-function attribute — the
-  common React ordering — was invisible to it. 49 hand-styled controls existed
-  where it reported 12. The larger number is the honest one.
-- `[x]` **A dropped file the `accept` list refuses is rejected silently.**
-  **Closed 2026-08-26.** `FileInput.handleDrop` filtered dropped files by
-  `accept` (2026-08-25, after a PDF dropped on the company-logo control was saved
-  as the logo) and returned without telling anyone — no message, no announcement,
-  and the panel looked exactly as it did. The native picker never had this
-  problem because its own dialog will not offer a file it cannot accept.
-
-  The three questions this item was holding open were answered as follows.
-
-  - **Polite or assertive: assertive.** `FormControls`' `FieldMessage` renders an
-    error as `role="alert"` and everything else politely, and this system has one
-    rule for errors. A rejection is the direct answer to something the user just
-    did, with nothing competing to be heard. The `loading` region stays polite,
-    because an upload starting is information rather than a correction.
-  - **A mixed drop says so.** `resolveDroppedFiles` names what was refused and,
-    on a single-file field, says that only the first was taken — the other way a
-    drop could quietly swallow a file, and one the picker never had either.
-  - **The copy** names files while there are three or fewer and counts them after
-    that, because a screen reader reading nine filenames is worse than being told
-    there were nine.
-
-  Two things were measured rather than assumed. `role="alert"` is mounted only
-  while it has something to say: the always-mounted-and-hidden shape was written
-  first, and `display: none` takes a live region out of the accessibility tree
-  altogether, so the region a screen reader was meant to be watching is not there
-  to watch. And the message is recorded *after* the accepted files dispatch their
-  `change`, because that handler clears any standing rejection — the other order
-  let a mixed drop erase the message it had just earned.
-
-  A third question arrived with the review of the fix, and it is the one that
-  mattered most: **the component cannot promise its own message survives.**
-  `EnvelopeSidebar` renders the picker only while `!file`, `UploadField` only in
-  its idle state — so a *mixed* drop hands them the accepted file, they
-  re-render, and the alert is unmounted in the commit that created it. Reproduced
-  before it was fixed. `onReject` fires after `onChange` (so a call site clearing
-  stale state does not wipe the message that just arrived), and both call sites
-  surface it in a region that outlives the picker.
-
-  **Who shows it is derived, not decided**, and that took three review rounds to
-  get right. `FileInput` shows its own message whenever it is mounted; a call
-  site that removes the picker shows the message only while the picker is *gone*.
-  Exact complements, so there is never a second copy and never a render where the
-  visible text disagrees with the input's `aria-invalid`. The three attempts
-  before it each failed the same way: an ownership flag left the mounted input
-  with no invalid state, then clearing the message on each transition that
-  remounts the picker meant enumerating them — and a review found a missed one
-  every time (a failed upload, the success reset, `confirmClear`). There is
-  nothing to enumerate now, because a mounted picker showing its own state cannot
-  disagree with itself.
-
-  The rules live in `dropAcceptance.js` (`matchesAccept`, `resolveDroppedFiles`),
-  pure and directly tested. The component's suite was split by behaviour in the
-  same change, because adding this took it past the 500-line standard:
-
-  | file | tests | pins |
-  | --- | ---: | --- |
-  | `dropAcceptance.test.js` | 27 | `accept`'s three syntaxes, case folding both ways, every message shape, and that `accepted`/`rejected` account for each dropped file exactly once |
-  | `FileInput.test.jsx` | 19 | the core contract: label, variants, description, aria |
-  | `FileInput.drop.test.jsx` | 9 | how a dropped file reaches the input at all, and what a disabled panel still owes the page |
-  | `FileInput.rejection.test.jsx` | 24 | the message, the `role="alert"` choice, `aria-invalid`, clearing, the `onReject` ownership rule and an axe check |
-  | `FileInput.upload.test.jsx` | 6 | the polite upload region and focus restoration |
-  | `UploadField.test.jsx` | 8 | the transition: message kept while uploading and after the parent takes the value, dropped whenever the picker comes back |
-  | `EnvelopeSidebar.drop.test.jsx` | 4 | the same transition where the parent re-renders with the chosen file |
-
----
+- Most `check:ui-contract` rules still match text; only the native-table tether
+  and the styled-control rules parse.
+- `hand-composed-notice` reads literal classes, so a tint arriving through a
+  lookup (`const { wrapper } = TONES[tone]`) is invisible to it.
+- `check:table-layout` measures the catalog, not the application — a feature
+  screen with no story is not measured (`test:visual`'s screens check
+  appearance, not overflow); some screens have no baseline at all, e.g. the
+  campaign editor and the schema editors' edit mode.
+- In `index.html` the scan runs only the class-list rules; values in attributes
+  there are pinned by tests, not a rule.
+- Tailwind's extractor compiles class names found in prose (`.bg-gray-50` ships
+  from comments that name it — the hazard `tailwind.config.js` documents for
+  stories). Recorded, not fixed.
 
 ## 8. Migration state
 
-**The programme is closed.** The eight-phase plan opened on 2026-09-04 with a
-six-auditor finding that the green `check:ui-contract` did **not** prove
-conformance — the gate could be loosened from inside a pull request, whole
-categories of off-contract markup were structurally invisible to it, nine
-primitives were missing, and the documentation carried at least thirteen
-statements that would have sent the next contributor to redo finished work. Each
-of those is now answered, and the answers are in the sections above rather than in
-this paragraph. What is worth stating once, here, is the shape of what changed:
+**The programme is closed.** All 19 screen areas are migrated — the company
+workspace and settings, login/auth, the public driver application, the driver
+dossier, PEV/VOE, e-docs and signing, lead intake and Super Admin — plus the
+Environment & Integrations vault, AI Integrations, Blog Posts and AI provider
+priority; newer screens use approved components and `--ds-*` tokens from the
+start. Every remaining exception rests on a true reason recorded at the call
+site and in the allowlist (`npm run check:ui-contract` prints the count). One
+area is NO-GO beyond presentation (§6).
 
-- **The gate judges every change against git**, not against the branch making the
-  change, so a pull request can no longer raise its own ceiling.
-- **What the gate can see is wider**: the application's front page, colours inside
-  SVG attributes and JavaScript assignments, `@apply`, bare `rounded`/`shadow`,
-  and a class list hoisted into a variable.
-- **Nine primitives shipped with their consumers**, each with a rule that refuses
-  the hand-rolled shape, so none of them sits unused.
-- **Two campaigns ran to zero and deleted their own lists** — the status notice
-  and the icon contract — which is the only ending that makes a rule absolute.
-- **Every remaining exception rests on a reason that is true**, recorded where it
-  is taken as well as in the allowlist; the falsified `VOEDocument` premise was
-  replaced with the surviving one.
+**Complete families** — the primitive exists *and* every consumer that can use
+it does:
 
-**One entry outlived the close by two days, deliberately.** `index.html`'s
-`bg-gray-50` was recorded rather than approved when the scan first reached that
-file, so the widening could land separately from the fix; the fix went in on
-2026-09-06 and the entry is gone. Its recorded reason predicted a full
-re-recording of the application-screen baselines, and measuring that prediction
-showed no baseline moves at all — see "The one class no guard could hold" in
-section 7, which also records the two blind spots the swap exposed and the test
-written to cover them.
-
-**The screen inventory is complete: 19 of 19 areas migrated, closed 2026-07-28**,
-covering the company workspace and settings, login/auth, the public driver
-application, the driver dossier, PEV/VOE, e-docs and the signing experience,
-lead intake, and Super Admin. Later campaigns extended it to the Environment &
-Integrations vault, AI Integrations and Blog Posts, and operator-controlled AI
-provider priority.
-
-Screens added since, built on approved components and `--ds-*` tokens from the
-start rather than migrated: AI Integrations → credential-access diagnostic and the
-per-lane health badges, Blog Posts → Publication runs, the driver application's
-two-stage resume dialog (the approved `ConfirmDialog`, twice — see below), and
-Company → Drivers → Started (unfinished), and — 2026-09-02 — the Application
-Rules, Agreements and Integrations tabs of Company → Company Profile, the same
-rules panel inside Super Admin → Edit Company, and in the driver application the
-step-level issue alerts (`StepIssues`), the Hours of Service section, the
-Yes/No violations and accidents questions and the PSP/MVR report-import panel
-(`FormSection` + `FileInput` + `Badge` + `Button`), and — 2026-09-03 — Company →
-Applications → Start an application, where a carrier fills in a driver's
-application and sends them a link: the worklist (`DataTable` + `Badge`), the
-editor screen (`SchemaSection` for the scalar sections, including the email and
-phone that key the draft, and the wizard's own `DynamicRow` for employers and
-violations), the document panel (`UploadField`), the reader panel and the link
-panel (`Card` + `Button` + `Badge` + `FieldMessage`). Updated 2026-09-03: the
-flow now opens with a **mode chooser** (two `Card`s — read the documents, or fill
-in manually) and, on the AI path, a dedicated **upload step** before the editor;
-the separate identity screen was removed, because the email and phone are
-ordinary schema fields of the editor. No new visual primitive was introduced for
-any of them (`ApplicationModeChooser` is `Card` + `Button` content).
-
-Added 2026-09-09, both on approved components and `--ds-*` tokens from the start,
-and neither introducing a visual primitive:
-
-- **The public driver application's "Confirm it's you" screen**
-  (`ApplyIdentityCheckScreen`) — one centred `Card as="main"` with an inverse
-  masthead, four `FormField` + `Input` pairs, `Notice` for the refusal and a
-  full-width `lg` primary action. It follows `ReviewChangePortal`'s shape because
-  it is the same kind of thing: a public, mobile-first, single-task form, which is
-  the one case the control-scale rule names `lg` for. Deliberately **not** a
-  `PageState`: that pattern's own contract says extra content between the
-  description and the actions is "not a second layout — anything that needs its
-  own structure is a page, not a state", and four labelled fields with a
-  validation surface is its own structure. Axe-clean on the empty and the refused
-  state (`e2e/a11y.spec.cjs`).
-- **Company → Drivers → Started (unfinished)** gains a **Continue** column
-  (`Button` + `Icon` + `FieldMessage`), so a recruiter can send a stalled
-  applicant back to their own work. All columns on that table already reach the
-  phone through the pinned-first-column horizontal scroll `check:table-layout`
-  enforces, and this one is no exception — nothing is dropped at any width. Its
-  two pixel baselines were re-recorded in the same commit, and the whole lane is
-  green either side of them: 30/30 application screens, 208/208 catalog, and
-  `check:visual-contract` reports all 208 measurements unchanged.
-
-**The font tripwire earned its keep on that re-recording, and the lesson is worth
-the paragraph.** The change was written in a container that ships Chromium
-revision **1194**, while `@playwright/test` 1.62.1 pins **1234** — so the obvious
-move, pointing `PW_CHROMIUM_EXECUTABLE` at the browser that happened to be
-present, launches a *different build* of Chromium. Every functional spec still
-passes that way; the pixel lane does not, and it fails in the shape most likely
-to be misread. Untouched screens missed by ~23,000 pixels against a 100-pixel
-budget, and `check:visual-contract` reported eight sub-pixel "geometry moves"
-(`badge` 61 → 60.48px, a page state's `description` 378 → 370.95px) on primitives
-the branch did not touch. Two plausible wrong conclusions were available: bake
-those numbers in with `--update`, or record the baselines anyway. Both would have
-put one machine's text metrics into the repository.
-
-The tripwire said it in one sentence instead — *"text metrics moved (435.02px vs
-426px). Inter loaded, but not the build the baselines were captured with"* — and
-the remedy was to install the pinned revision (`npx playwright install chromium`)
-rather than to widen anything. With 1234 in place the untouched `login` baseline
-passed, only the two screens that had genuinely changed failed, and the geometry
-snapshot came back exactly unchanged. **So: the pixel lane is runnable outside
-CI, and `PW_CHROMIUM_EXECUTABLE` is for the functional lanes only.** A visual
-baseline is a claim about one browser build, so recording one under any other
-build is recording noise — which is the same sentence section 7 already writes
-about the font, one layer down.
-- **The dossier's Previous Employers editor** (`PreviousEmployersEditor`) —
-  `Card` per row, `FormField`/`Input`/`Select`/`ChoiceGroup` from the shared
-  schema table, a `Badge` spelling out each row's verification state, and the
-  approved `ConfirmDialog` before removing a row that has verification activity.
-  It exists because `SchemaSection` renders an `array` section read-only whatever
-  `isEditing` says, and that renderer is shared with the driver's own wizard — so
-  the editor is a feature component swapped in for one section rather than a
-  change to the shared renderer. Status is never colour alone: the badge reads
-  "Verification: Completed".
-- **The change-review portal's employer diff** — the generic array preview reads
-  "N item(s)", which is not a decision a driver can make about their own
-  employment history. Named rows, added/removed/changed, from the existing
-  typography and tokens.
-
-**Updated 2026-09-10: those two company screens are now one, and the table is a
-new component rather than a widened old one.** `Started (unfinished)` and `Start
-an application` each carried a table — `listApplicationDrafts` filters by nothing,
-so a carrier-prepared draft appeared in both, with different columns and different
-actions. `UnfinishedWorklistTable` replaces `PreparedApplicationsTable` on the one
-remaining screen: `DataTable` at `density="compact"`, six columns (Driver | Started
-by | Status | Progress | Last activity | Action), `Badge` for the state, `Button` +
-`Icon` for the row actions and `FieldMessage` for a refused mint or clipboard.
-
-Three design decisions in it are worth recording:
-
-- **The state is a `Badge` whose label carries the meaning**, never the tone —
-  "Not sent yet", "Link sent", "Driver is filling it in", "Unfinished". No
-  internal status string reaches the recruiter, and a test asserts that
-  `driver_in_progress` appears nowhere in the rendered HTML.
-- **Row actions are not uniform, and the asymmetry is the point.** *Open* renders
-  only on the carrier's own rows. That is not styling: `getCompanyPreparedDraft`
-  refuses a draft the carrier did not author, so rendering it elsewhere would be a
-  control that cannot work — the same rule as "explain rather than prevent", one
-  level up. The decision lives in `unfinishedRowActions.js`, a pure module with
-  its own suite, because a rule buried in a column's `render` callback is a rule
-  nobody can test.
-- **The locked-employer count moved into the *Started by* cell** rather than
-  keeping a column. It only ever applies to a carrier-prepared row, and a seventh
-  column reading "None" against every driver-started one is noise where the point
-  was checkability.
-
-**Ten pixel baselines were re-recorded, not two, and the count is the point.** Two
-are this screen. The other eight are `company-dashboard`, `company-candidate-list`,
-`company-settings`, `company-profile`, `company-edocs`, `company-campaigns`,
-`company-leads` and `company-import-leads` — every screen that renders
-`CompanySidebar`, which lost an item and renamed another. `login` and `super-admin`
-passed untouched, and that is the signal worth reading: a change to the shell moves
-every screen inside it, while a run in which unrelated screens ALSO move is the
-wrong-browser-build failure the paragraph above describes. Recorded under the
-pinned revision, with `PW_CHROMIUM_EXECUTABLE` unset.
-
-Only `company-unfinished` needed a *mobile* re-record. The other seven company
-screens collapse the sidebar behind a hamburger at that width, so the navigation
-change is invisible there — a useful check that the ten were the right ten.
-
-The `?e2eUnfinished=mock` fixture now carries one row per state the table can
-show, so the baseline documents all four rather than only the driver-started case.
-
-**One defect in this work was found by looking at that baseline and could not have
-been found any other way.** Folding the contact details into the Driver column
-took away the room their own column used to give them — and Driver is the column
-`DataTable` PINS on a phone, so the longest address was clipped flush against the
-next column and read as running into it. `check:table-layout` cannot catch this: it
-drives catalog stories, and this is a feature table with no story. `break-words` on
-the contact lines fixes it. The lesson is narrow and worth keeping: **a guardrail
-scoped to the catalog is not a guarantee about a feature screen**, so a feature
-table that changes shape still wants a human to look at the mobile capture.
-
-One choice there is a rule rather than a preference, and it is the same one the
-driver wizard's locked employer rows follow: **a field the viewer may not change
-is a read-only display with a badge, never a disabled input.** A disabled input
-reads as broken, leaves the tab order and takes its label with it; enforcement
-lives in `applicationLockedFields.js` regardless, so the markup's job is to
-explain rather than to prevent.
-
-**Updated 2026-09-08: the carrier's side was not actually following that rule,
-and this paragraph read as if it were.** `PreparedEmployersPanel` left a locked
-row's name and USDOT number as ordinary editable inputs, which is worse than a
-disabled input rather than better — the lock stores a snapshot of that identity,
-so editing the fields it was taken from drifted the two apart and produced an
-application the driver was blocked on at submission and could not fix (the
-sharpest case: a corrected name on a row locked by USDOT number, which the
-wizard renders as a record for them, so they were blocked on the one field they
-are not allowed to touch). A locked row's identity is now a `FieldDisplay` +
-`Badge` record with an explicit **Unlock to correct** action, matching the
-driver's `LockedEmployerIdentity` in shape while keeping carrier-facing wording,
-because the audience differs. The worklist also renders the
-`lockedEmployerCount` it has always been served, so the number is checkable.
-
-**Also 2026-09-08, in the same area and from the same review:** Save and "Create
-the driver's link" were `disabled` whenever their prerequisites were unmet, which
-is the same mistake one level up — a control that cannot be pressed cannot
-explain itself, and the link's real precondition ("save first") appeared nowhere
-on the screen. Both are clickable now and validate on press, with the message in
-`FieldMessage tone="error"` (which owns its own `role="alert"` — do not nest one
-inside another) and focus moved to the offending field. `disabled` is kept only
-for an operation in flight, through `Button`'s `loading`; the **label stays
-"Save"** and a `role="status"` region beside it carries "Saving…", because a
-label that changes is content rather than an announcement and it moves the
-control's accessible name out from under anything looking for it. One new screen,
-`ApplyLinkProblemScreen`, is `patterns/page-state`'s `ErrorState` with actions —
-no new primitive.
-
-One design decision in that set is worth recording because it is a safety
-property, not a preference: **the resume dialog uses two sequential
-`ConfirmDialog`s rather than one dialog with two destructive choices.**
-`ConfirmDialog` routes Escape to `onCancel`, so a single dialog whose cancel
-action discarded the draft would delete a driver's saved application on a stray
-keypress. Discarding is therefore its own explicit `tone="danger"` confirmation,
-and Escape at either stage deletes nothing.
-
-**Updated 2026-10-01: the schema renderer's edit mode is no longer a text box for
-every type.** `SchemaSection`'s edit mode has exactly two callers: the carrier's
-prep editor and the dossier's *Edit Application*. The driver's wizard renders its
-own step components and does not use it. The 2026-09-09 entry above, and
-`PreviousEmployersEditor`'s header, say the renderer is shared with the wizard, and
-it is not. Every type without its own branch fell through to `Input type="text"`.
-A select or a checkbox was retyped as free text the wizard could not show (a
-carrier's "TX" reached the driver's state picker as "Alabama"), an upload read
-"[object Object]", and the signature showed as a base64 string. Now:
-
-- `select` is `FormField` + `Select` over the field's own options, with an empty
-  "Select…" first. A stored value the options do not hold is offered as itself
-  (`SchemaEditSelect` in `src/shared/components/schema/SchemaEditControls.jsx`).
-- `checkbox` is one `Checkbox` for a yes/no question, or a `ChoiceGroup` of
-  `Checkbox`es for a multi-choice one, written in the wizard's own storage format
-  (`SchemaEditCheckbox`).
-- `file`, `signature` and `array`, and any field the schema marks `readOnly` (the
-  consent section's three), render as the ordinary display row.
-
-On the driver's side, `StateSelectField` offers a stored value its list does not
-hold as its own option instead of letting the browser show the first state. No new
-primitive, token or stylesheet: both are compositions of `FormField`, `Select`,
-`Checkbox` and `ChoiceGroup`, and the ids keep the edit mode's existing
-`${key}-edit` convention, which `ApplicationPrepWorkspace` focuses by.
-
-Evidence: `SchemaRenderer.test.jsx`, `StateSelectField.test.jsx` and
-`ApplicationPrepEditor.test.jsx`; the browser specs
-`company-prepared-application.spec.cjs` (the editor offers both state pickers and
-the endorsement checkboxes, and no SSN or medical-card box) and
-`guest-cdl-autofill.spec.cjs` (both of the driver's pickers show the licence's
-state); and an axe scan of the editor with its pickers and checkboxes reached by
-name and toggled from the keyboard (`e2e/a11y.spec.cjs`). Each new test failed on
-the code before the change. **Not run: the pixel lane.** No baseline captures
-either editor's edit mode. The one that renders `StateSelectField`
-(`public-application`) shows it empty, and an empty value renders no extra option.
-This container's Chromium is not the pinned revision, so recording or comparing
-baselines here would measure the wrong build (see above).
-
-**Updated 2026-10-02: a custom file question keeps its file, and the dossier can
-open it.** Two small additions, both compositions of approved primitives:
-
-- `DynamicQuestionsStep` passes `loading` to its `FileInput` while a custom file
-  question's upload is on its way — the picker's own spinner, disabled state and
-  "Uploading …" announcement, so a second file cannot race the first — and its
-  Continue reads **Uploading...** and waits, exactly as the License step's does.
-  "✓ Selected" appears only once the file has landed, so it no longer claims a
-  file that never arrived.
-- `PreservedApplicationView`'s *Supplemental Questions* offers **Open file** beside
-  a file answer: `Button variant="secondary" size="sm"` with the `FileText` glyph.
-  It is a button rather than a `Link` because it acts first — it mints a
-  short-lived signed URL when pressed — and its accessible name ends "(opens in a
-  new tab)" in a `ds-visually-hidden` span, the announcement `Link external` gives
-  an anchor. The tab is opened inside the press and pointed at the file once the
-  link arrives, so a popup blocker that allows new tabs only during the click
-  does not swallow it.
-
-No new primitive, token, stylesheet or allowlist entry (`check:ui-contract`: 601
-files, 246 known violations, none new).
-
-Evidence: `DynamicQuestionsStep.test.jsx` (the picker and Continue busy while an
-upload is on its way, two uploads at once, a failed upload recording nothing)
-and `PreservedApplicationView.test.jsx` (the tab opened during the press with no
-opener, closed again on failure, a blocked tab said in words); the browser spec
-`guest-custom-file-question.spec.cjs` on `chromium` and `mobile-chrome`; and a
-throwaway review in real Chromium at 1440 px and on the Pixel 7 lane, not
-committed: the step idle, uploading and landed with no horizontal overflow, Tab
-order picker → Back → Continue, and the dossier's **Open file** reached by Tab
-with a visible focus ring, opened with Enter onto the file with
-`window.opener === null`, and a not-found reply closing the tab and saying so. A
-long file name wraps on the phone. `test:stories` 545 passed. **Not run: the
-pixel lane**, for the reason above, and `check:visual-contract` reports eight
-sub-pixel font differences here that the base commit reports identically.
-
-One area is deliberately **NO-GO** and remains unmigrated, blocked on an owner
-decision in §6:
-
-| Area | Blocked on |
+| Family | Owned by |
 |---|---|
-| Company Settings → SMS / number assignment | Editable-matrix responsive strategy; entanglement with the out-of-scope secret-entry `LineManager` |
-
-**Integrations (Facebook) is no longer on that list**, and both halves of its
-entry are out of date. The `request.auth.uid` tenant-binding defect that blocked
-it was fixed on 2026-08-25 (see §6), and `IntegrationsTab.jsx` is migrated: it
-renders through `Badge`, `Button`, `Card`, `FieldMessage`, `PageHeader`,
-`ResponsiveGrid` and `Stack`, and its only recorded exception is Facebook's own
-brand blue on the connection tile — a third-party mark, which is not a SafeHaul
-role and must not be re-tuned by a change to this product's palette.
-
-Component families that are **complete** — meaning the primitive exists *and*
-every consumer that can use it does:
-
-| Family | Owned by | Closed |
-|---|---|---|
-| Dialog shell | `patterns/modal` | 2026-08-22 |
-| Dialog **chrome** (size / scroll / fill / mobile / placement / tone) | `patterns/modal` → `Modal.css` | 2026-09-05 |
-| **Stacking layers** | `tokens/foundation.css` → `--ds-z-*`, entitlement in `tests/stackingLayers.test.js` | 2026-09-05 — 74 raw values to one recorded exception; 2026-09-14 — which rung a thing may claim, after page chrome on `sticky`/`dropdown` covered the notifications panel |
-| Confirmation dialog | `patterns/modal` → `ConfirmDialog` | 2026-08-25 |
-| Toast / notification | `shared/components/feedback/ToastProvider` — **not in the design system** | consumers complete; primitive not promoted |
-| Empty / error / loading state | `patterns/page-state` | 2026-08-25 |
-| Navigation and external links | `components/link` | 2026-08-25 |
-| Tab strip | `components/tabs` | 2026-08-25 |
-| Single-select toggle group | `components/segmented` | 2026-08-25 |
-| File picker | `components/file-input` | 2026-08-25 |
-| Table (display and native) | `components/data-table` + `ds-native-table` | 2026-08-25 |
-| **Icons** | `icons/` (`Icon` + 171 glyph tokens) | 2026-09-06 — contract 2026-09-05, **migration closed 2026-09-06**: 178 files and 800 glyph imports drained in nine slices, `lucide-import.backlog.json` deleted, the rule absolute. One recorded exception: `VOEDocument.jsx` opens three glyphs through `glyphComponent` because the exported regulatory document must carry no `ds-*` class |
-| **Interactive pill / chip** | `components/chip` (`Chip` + `ChipGroup`) | 2026-09-05 — 6 violations across 4 files, and every citer migrated |
-| **Pressed state** | `components/button` → `pressed` + `components/chip` | 2026-09-05 — `hand-rolled-toggle` refuses a raw `<button aria-pressed>`; **0 recorded** since `SelectableCard` landed |
-| **Editable-in-place value** | `components/form` → `Input variant="inline"` | 2026-09-05 — 4 violations across 2 files, both leave the allowlist; one WCAG 2.5.3 name repaired on the way |
-| **Person or organisation disc** | `components/avatar` | 2026-09-05 — 8 discs across 8 files; `hand-rolled-avatar` refuses a raw one, 0 recorded. 17 other round discs are deliberately outside it |
-| **Collapsible section** | `components/disclosure` | 2026-09-05 — `variant="card"` joins the rail appearance; `hand-rolled-disclosure` refuses a `<button aria-expanded>` inside a heading, **0 recorded**. The other ten `aria-expanded` sites are menus, a combobox, a nav group, a drawer and a filter toggle, all deliberately outside it |
-| **Section rail** | `components/section-navigation` | 2026-09-05 — a step rail joins the page rail via `currentType`, `item.status`, an optional `group.label` and `frame`; `hand-rolled-current` now has **0 recorded** consumers, the rule from P-4 covering both |
-| **Selectable record card** | `components/selectable-card` | 2026-09-05 — 6 violations across 4 files, all four leave the allowlist; `hand-rolled-current` refuses a raw `<button aria-current>`, 3 recorded (one wizard rail for P-8, two test doubles) |
-| **Status notice / callout** | `components/notice` | 2026-09-06 — the most copy-pasted shape in the application, 65 hand-built copies across 52 files. Built with ZERO consumers on purpose (6b), which paid for itself within a day: the first migration area corrected the component three times over. Migrated in three slices by area — 17 + 12 + 16 blocks — and the candidate counts fell 20→17, 34→12 and 34→16 on reading, because a signature cannot tell a message from a tile, a chip, a list row or a modal header band. `hand-composed-notice` refuses a hand-built one and reads the element's own BODY to do it; 19 recorded exceptions, each a judgement rather than a boilerplate reason |
+| Dialog shell and chrome (`size` / `scroll` / `fill` / `mobile` / `placement` / `tone`); confirmation dialog | `patterns/modal` → `Modal`, `Modal.css`, `ConfirmDialog` |
+| Empty / error / loading state | `patterns/page-state` |
+| Stacking layers | `tokens/foundation.css` → `--ds-z-*`; entitlement in `tests/stackingLayers.test.js` |
+| Icons | `icons/` (`Icon` + glyph tokens); one recorded exception, `VOEDocument.jsx` (§5) |
+| Table (display and native) | `components/data-table` + `ds-native-table` |
+| Pressed state; toned button; compact icon-button step | `components/button` → `pressed`, `tone`, `IconButton size="xs"` (pressed also `components/chip`) |
+| Navigation and external links; tab strip; single-select toggle group; file picker | `components/link`, `components/tabs`, `components/segmented`, `components/file-input` |
+| Interactive pill / chip; person or organisation disc; selectable record card | `components/chip` (`Chip` + `ChipGroup`), `components/avatar`, `components/selectable-card` |
+| Editable-in-place value; collapsible section | `components/form` → `Input variant="inline"`; `components/disclosure` (rail and `variant="card"`) |
+| Section rail (page and step); status notice / callout | `components/section-navigation`; `components/notice` |
+| Toast / notification | `shared/components/feedback/ToastProvider` — consumers complete, **not in the design system** (§5) |
 
 Families still in progress — inputs, select/textarea, loading primitives beyond
-`ProgressBar` — are tracked by the guardrail work in §7 rather than by a list of
-screens, because the screens are done and what remains is preventing regression.
-
-The icon row closed in two steps, and the distance between them is the point.
-The **contract** was complete on 2026-09-05 — the design system entirely on it,
-catalog included, `check:icon-contract` refusing a new importer — while 178 files
-outside the design system still named `lucide-react` directly. A contract nobody
-outside has adopted is a rule with an exception list, so the family was not closed
-until that list was empty and the file holding it was gone.
-
-**It went on 2026-09-06.** Nine slices, smallest area first, drained 178 files and
-800 glyph imports to zero; the checker then refused the empty list in as many
-words — *"the campaign is finished, so delete the file — an empty list is an
-invitation to add to it"* — and `lucide-import.backlog.json` was deleted. Nothing
-under `src/` outside the registry may import the package, nothing is recorded, and
-there is no list to add to. Three files drained early, on their way through other
-work (`candidateListColumns.jsx` in the chip slice, two more with the Notice
-migration), because a file being rewritten to use `Icon` is the cheapest moment to
-finish it.
-
-**One exception survives, and it is recorded where it is taken.**
-`VOEDocument.jsx` opens three glyphs by hand through `glyphComponent`, the
-contract's own opener, because `VOEPreviewModal.export.test.jsx` asserts the
-exported §391.23 document carries no `ds-*` class anywhere — its class list is a
-rasteriser's capture surface, and a themeable role must never reach a signed
-regulatory artefact — while `Icon` stamps `ds-icon` on everything it renders. Both
-ordinary doors are shut, so the file uses the named one and says why above the
-calls. It still imports from `@design-system/icons` like every other file, which
-is what keeps it inside the contract rather than beside it.
-
-**Phase 7 opened by measuring what it is actually migrating**, and the number
-that mattered was not the file count. Across all 175 files there are **607 glyph
-element uses**: 546 (90%) already state a size that is a step on the scale, 29
-state none at all, and 32 are off it. So nine tenths of the migration is
-mechanical, and the policy only has to answer the other tenth — which it does
-once, here, rather than per area:
-
-- **A delta of 1–4px was never a decision.** 10, 11, 15, 22 and 36 sit within
-  four pixels of a step, which is the entire premise of having a scale. Snap
-  them, and read the three PDF-overlay sites whose geometry comes from document
-  coordinates rather than from taste.
-- **28, 40 and 48 are one role wearing three numbers.** All sixteen are a large
-  glyph announcing a page-level state. Snapping 48 to 32 is a 33% reduction, so
-  the container owns this size instead — see *A container that did not own its
-  glyph* in §7, which is the gap this measurement exposed and the slice that
-  closed it.
-- **No size at all is the trap, not the easy case.** lucide renders 24px with no
-  `size` and the contract renders 16, so a bare glyph is `2xl` when it stands
-  alone and takes no size when a container sizes it — and those two are
-  indistinguishable in the source. Every one is flagged for a person.
-- **400px is `VOEDocument`**, the print document, already a recorded exception.
-
-**And the tooling found something the sizing policy did not predict.** A glyph
-handed to a design-system container is safe — the container resolves it through
-`glyphComponent`. A glyph handed to LOCAL code that renders it as a component is
-not: once the name is a token, rendering it throws, on a screen, in a branch no
-unit test reaches. Those two are indistinguishable at the call site, so the
-codemod looks at the RECEIVER instead: a capitalised JSX tag whose name the file
-neither imported nor declared can only be a local binding.
-
-**21 files across the campaign have that shape**, twenty of them genuinely a
-glyph. Not one would have failed a test first. Three were in the pilot area
-alone — `PreservedApplicationView` (a glyph out of a status map),
-`SubmissionRecordNotice` (a `let` filled in by a three-branch `if`) and
-`PortalStatusScreens` (a local `StatusIcon` taking an `icon` prop and rendering
-it), the last on the public verification portal.
-
-**7b drained the pilot: 175 → 166 files, 762 → 723 glyph imports**, across
-`applications`, `auth`, `companies`, `driver-changes`, `sandbox` and
-`verification` — six areas chosen because they are small and DIVERSE, so the
-codemod and the review discipline were proved on a broad sample before 46
-super-admin files ride on them.
-
-**7c then drained `driver-app`: 166 → 156 files, 723 → 695 imports** — and its
-tests caught a fourth defect in the codemod, which is the clearest argument yet
-for having migrated the small areas first.
-
-`UploadField.jsx` writes `import { Image as ImageIcon } from 'lucide-react'` and
-renders `<ImageIcon>`. The codemod took the IMPORTED name for both roles, so it
-wrote `Image` into the new import and left `<ImageIcon>` untouched because
-nothing matched it: the file then imported a name it never used and used a name
-it never imported. **`ReferenceError: ImageIcon is not defined`**, in eighteen
-tests across three files, including the whole CDL and medical-card gate suite.
-
-The local name is what the file writes and what element matching must use; the
-imported name is what the registry exports; the rewritten import carries both.
-**Five files in the campaign are aliased** — `Image as ImageIcon`,
-`Link as LinkIcon` twice, `Users as UsersIcon` — so this would have broken four
-more files in `settings` and `shared`, in areas whose tests are thinner. `A7` and
-`A8` pin it, and both halves reproduce red.
-
-**7d drained `campaigns`: 156 → 146 files, 695 → 646 imports**, and found the
-hazard the local-binding detector had been reporting without naming.
-
-`CampaignDetails.jsx` declares `function StatCard({ icon: Icon, … })` and renders
-`<Icon size={20} />`. That is the local-binding shape, so the detector flagged
-it — but the repair is not the usual one. **The contract's own component is
-called `Icon`**, and the migration adds `import { Icon } from
-'@design-system/icons'` to the same file. The parameter then shadows the import
-inside that function, and what the shadow holds is a glyph token, which throws
-when rendered. Writing `<Icon icon={Icon} />` is nonsense; **the LOCAL binding is
-what has to be renamed**, because the name was free before the contract existed
-and is not any more.
-
-**Thirteen files in the campaign have a local binding named `Icon`** — one here
-and twelve still ahead, concentrated in `super-admin` (4), `signing` (3),
-`company-admin` (3) and `shared` (2). Every one of them is already in the
-21-file local-binding list, so none can be missed; the flag now says the extra
-sentence when the tag is called `Icon`, so the next twelve slices do not each
-rediscover it.
-
-**7e drained `shared`: 146 → 131 files, 646 → 578 imports.** Twelve decisions
-across fifteen files, the densest ratio of any area — six were "the container
-already owns it" (four glyphs inside `Button`, two inside `StatusMedallion`,
-which only became true in 7a), two were snaps, one was the flag's own stated
-exception (a heading level held in a prop), and two were real local bindings.
-
-`PaywallMessage:27` **confirms the Tinted icon tile row rather than shrinking
-it**: an 80px rounded SQUARE with a shadow on a warning tint is the half of that
-shape no primitive owns, so it keeps its tile and the glyph snaps 40 → 32,
-exactly as `ReviewChangePortal:117` did. `ModernDriverTable:218` snaps 36 → 32
-for a different reason worth recording: it is the DEFAULT for an overridable
-`emptyIcon` prop, so moving it into a container would change every caller's
-empty state rather than this one.
-
-**`QueueStatusIndicator` was NOT absorbed into `Notice`, and that is a revised
-judgement rather than an omission.** 6a's plan named it, and 7b's note repeated
-that intent. Reading the file changes the answer: it is a **fixed-position
-floating banner** (`fixed bottom-4 right-4 z-ds-toast`, `shadow-ds-lg`), and
-`Notice` deliberately owns neither positioning nor elevation — its `className`
-contract is margin and width only. Absorbing it therefore needs a decision about
-whether `Notice` should carry a shadow, which is a component change rather than a
-migration, and widening a migration slice to make one is what this campaign has
-refused since 6d. Its local binding is fixed here because that is the icon
-contract's actual requirement; the absorption stays open, with this reason
-instead of the old one.
-
-**And 7e is where the campaign found the defect it had been able to ship all
-along.** Three of the fifteen files — `ErrorBoundary`, `FeatureErrorBoundary`
-and `QueueStatusIndicator` — went out of the slice rendering `<Icon icon={X} />`
-while their import line read `import { Home, RefreshCw } from
-'@design-system/icons'`, with no `Icon` in it. Every one of them throws
-`ReferenceError: Icon is not defined` the moment it renders, and
-`QueueStatusIndicator` mounts at the App root, so going offline took the whole
-application down.
-
-The codemod cannot leave that behind: it sets `needsIcon` whenever it writes a
-tag and puts `Icon` at the head of the import it emits. It is a **hand repair of
-a site the codemod FLAGGED** that can — a flagged site is by definition one the
-tool refused to decide, so the import it wrote is correct for what it wrote and
-wrong for what a person adds afterwards. Six slices had that exposure; this is
-the first time it was taken.
-
-What is worth recording is how nearly it escaped. Not one of 5,170 unit tests
-saw it, because these three surfaces render only on a crash or an offline queue
-and none had ever been rendered. `check:icon-contract` counts `lucide-react`
-imports and is structurally blind to what a file renders. `check:ui-contract`
-reads class lists. Lint was silent because plain `no-undef` does not resolve JSX
-identifiers — that is the whole reason `react/jsx-no-undef` exists, and it was
-off. The **only** thing that failed was the `@a11y` end-to-end lane, at a
-180-second timeout whose message named a checkbox.
-
-So the fix is the rule, not the three files: `react/jsx-no-undef` is now `error`
-in `eslint.config.js`. Measured before enabling it — exactly five violations
-across the whole tracked tree, all three of them these files, so nothing from
-7a–7d had reached `main` carrying it and the rule cost nothing to turn on. It is
-pinned by `test-icon-contract-ci.mjs` **X15** (the rule is `error`, not `warn` —
-a warning is a note in a log nobody reads) and **X16** (a CI job actually runs
-that lint), both mutation-proven: downgrading it, deleting it, and stubbing out
-both lint invocations in `main.yml` each fail. `CrashAndQueueSurfaces.contract.test.jsx`
-is the specific half — nine tests that render all three surfaces and every one of
-the queue banner's four branches, five of which go red against the original
-import lines.
-
-The lesson is one this repository already has in another spelling: **a guard's
-subject is not the same as its blast radius.** `check:icon-contract` makes a
-claim about which files import `lucide-react`, and that claim was true on every
-run while three files it had "drained" could not render at all.
-
-**7f drained `settings`: 131 → 110 files, 578 → 494 imports.** Five flags across
-twenty-one files, the lightest ratio of any area — two glyphs a `StatusMedallion`
-already sizes, one snap (`AutomatedSmsTab:77`, 22 → `xl`, two pixels), one real
-token reaching a local binding (`QuestionEditor`'s `TypeIcon`, fed by
-`QuestionConfig.js` in the same slice — renamed `typeGlyph` and rendered through
-`Icon`), and one that needed measuring rather than deciding.
-
-**`BrandingSection:49` is the measured one, and the answer is not a snap.** The
-"no company logo set" placeholder is a 48px glyph in a **128px** frame — 37.5%,
-which is the bottom of the published band and exactly the ratio 7a measured for
-`StatusMedallion` at `md`: Tailwind UI's feature-icon block is 50%, Material 3 is
-50–60%, shadcn's avatar fallback is 40%, and nothing published sits below about
-37%. The contract's scale tops out at `3xl` = 32, which in a 128px frame is
-**25%** — below every one of those figures, and a third smaller on a screen
-people look at. So the frame owns the glyph, the same answer 7a gave the
-medallion, and the size is recorded at the call site with the arithmetic that
-chose it. It joins `PaywallMessage` as the **Tinted icon tile** row's second
-measured instance; a primitive would absorb both.
-
-**And 7f found the seventh codemod defect — the one that produced an absence.**
-`NumberAssignmentManager.jsx` reports "Couldn't Load SMS Settings" and "We
-couldn't find any phone numbers". The scanner masks strings before looking for
-tags, an apostrophe reads as a string opening, and with an odd number of them the
-mask blanks **the rest of the file**. It found one of four tags. The three it
-could not see — `<Phone>`, `<Beaker>`, `<Save>` — survived the migration as raw
-glyph renders, and a glyph token throws by construction, so the SMS settings
-screen died on `TypeError: Phone is an icon token`. Twenty-five tests caught it,
-which is why it never reached a branch.
-
-Two fixes, and the second is the one that matters. The **cause**: an apostrophe
-between two letters is prose, not a delimiter, so `couldn't` no longer opens a
-string while `const doc = 'renders <Bell />'` is still masked exactly as before
-(`test-icon-contract-reading.mjs` H5–H7). The **class**: `migrate()` now checks
-its own work — after every edit, a glyph name may appear as a tag only because a
-flag says so, and any other survivor is reported as a **MISS** and fails the run.
-
-That check had to be built twice, and the first version is the lesson. It counted
-through the same mask the scan uses, which means it could only ever agree with
-itself: a region the scan cannot see is a region the check cannot see, so it
-would have passed the very defect that prompted it. It reads through
-`maskCommentsOnly` instead — comments are unambiguous, strings are not — so the
-conservative reading sees everything the scan sees and more. Verified by
-restoring the apostrophe bug: the check names three misses at lines 135, 144 and
-153, **without being told what the cause was**. That is the property worth
-having, because defect eight will not be an apostrophe.
-
-Also on 7f: the codemod's tests outgrew 500 lines and split by responsibility
-rather than by size — `test-icon-contract-codemod.mjs` pins what the tool
-**writes**, `test-icon-contract-reading.mjs` pins what it **reads**. The split is
-along how the two halves fail: a bad rewrite is visible in the diff, a bad read
-produces an absence. `test-icon-contract-ci.mjs` X6 derives the suite list from
-disk and refused the new file until `package.json` chained it — mutation-proven,
-and the reason X6 was written that way.
-
-**A leak scan the same day found no cross-slice hazard.** A slice converts a
-file, so its glyph names become tokens; if that file exports one as data and a
-file in a not-yet-converted area renders it directly, that file throws — the same
-shape as the 7e defect one level out. Scanned rather than assumed: across all
-remaining backlog files exactly three exported data values hold a glyph
-(`QUESTION_TYPES`, `FIELD_CATEGORIES`, `NAV_ICONS`) and **every consumer of each
-is inside its own area**, so each remaining slice is self-contained on this axis.
-
-**7g drained `signing`: 110 → 88 files, 494 → 395 imports.** Eleven flags, in two
-clusters that needed different answers.
-
-**Four local bindings, three of them shadowing `Icon`.** `EnvelopeHistory:184`,
-`EditorMobileBar:41` and `FieldToolsPanel:76`/`:94` all held a glyph under the
-name `Icon`, which is the contract's own export — so the repair is to rename the
-LOCAL binding (`Glyph`), never to write `<Icon icon={Icon} />`.
-`EnvelopeSidebar:318` held one as `IconComp`, which does not shadow but is still a
-token; it became `itemGlyph`. `EnvelopeHistory` also keeps `size="xs"` explicitly,
-because `Badge` sizes the glyph it takes through its `icon` PROP and has no rule
-for one passed as a CHILD — the roadmap's open "Badge does not size its glyph"
-gap, met in the wild for the first time.
-
-**Three sites where the container's geometry is real, not taste.** The sizing
-policy singles the PDF overlays out for exactly this. Two resize handles
-(`ResizableDraggableField:258`, `AiSuggestionOverlay:193`) are `h-3 w-3` — 12px —
-with `p-0.5`, so the inner box is 8px and the scale's *smallest* step, `xs` = 12,
-would overflow the handle it sits in. Off the scale either way, so the handle owns
-it, the same shape as `BrandingSection`'s logo frame in 7f. `PageThumbnailRail:162`
-is the opposite case and snaps: 10 → `xs`, two pixels, landing on the same step as
-the caption beside it. (The 12px hit target was the separate WCAG 2.5.8 checkpoint from
-P-2; it closed on 2026-09-06 with a 24×24 pointer box centred on the corner and
-the glyph drawn where it always was — see the P-2 row.)
-
-The rest were ordinary: `AiSuggestionOverlay:139` 11 → `xs` beside its
-`text-ds-xs` label, `EnvelopeCreator:332` 36 → `3xl`, `EnvelopeSidebar:329`
-15 → `sm`, and `StatusScreens:174` a bare glyph the medallion has owned since 7a.
-
-**And the new lint rule earned its keep on its first slice.** Three files came out
-of the hand repairs rendering `<Icon …>` without importing `Icon` —
-`EnvelopeCreator`, `EditorMobileBar`, `PageThumbnailRail` — the identical 7e
-defect, in three more files, on the very next area. `react/jsx-no-undef` named all
-three by file and line. That is the difference between a rule and a lesson: the
-lesson was written down in 7e and the same mistake was made anyway, and the rule
-caught it in seconds rather than in a 180-second end-to-end timeout.
-
-**7h drained `company-admin`: 88 → 46 files, 395 → 201 imports.** The largest
-area, and by flag ratio one of the easiest — fifteen decisions across forty-two
-files. Four local bindings (three shadowing `Icon`), two bare glyphs inside
-`ButtonLink`/`IconButtonLink` whose `.ds-button__content > svg` rule owns them,
-two padding-sized tinted tiles snapping 22 → `xl`, and three page-level state
-glyphs.
-
-**Those three fixed a rule the campaign had been applying case by case.** A glyph
-in a **fixed** container takes its size from the container — `BrandingSection`'s
-128px logo frame in 7f, the 12px resize handles in 7g. A glyph in a **fluid** one
-has no ratio to hold, so it snaps, and `3xl` (32) is this product's answer for a
-page-level state glyph because that is what an `lg` `StatusMedallion` and
-`PageState` have rendered since 7a. `ApplicationTab:125` (48), `DocumentsTab:103`
-(40) and `PEVTab:352` (40) are all the fluid case.
-
-**And two shapes came out of this slice that nothing had seen before.**
-
-**`VOEDocument` cannot use `Icon` at all**, and its own guard is what says so.
-`VOEPreviewModal.export.test.jsx` asserts the exported document carries no `ds-*`
-class anywhere, because its class list is the capture surface for a rasteriser and
-a themeable role must never reach a signed regulatory artefact — and `Icon` stamps
-`ds-icon` on everything it renders. A token throws if rendered directly. So the
-file opens its three glyphs by hand through **`glyphComponent`**, the contract's
-own documented opener: it still imports from `@design-system/icons` like every
-other file, `check:icon-contract` is satisfied, and the exception is three named
-calls in one place rather than a `lucide-react` import nobody would question. The
-400px watermark is a print dimension, two orders of magnitude past where the scale
-stops. This is the only file in the application that opens a token by hand.
-
-**`CompanySidebar` renders `<item.icon size={20} />`** — a **member expression**,
-and the eighth codemod defect. The tool scans for `<Name`; `<item.icon` has no
-name, so it neither rewrote the site nor flagged it, and `localRenderedTags` was
-blind for the same reason. The post-condition could not see it either. After the
-import moved, `item.icon` was a token and the company navigation threw on every
-page; three tests caught it.
-
-That is a different **shape**, not a different spelling, which is why it gets its
-own reader (`memberExpressionTags`) rather than a wider regex, and why it is
-FLAGGED rather than rewritten — the tool cannot know what the expression resolves
-to. React's own member tags (`Provider`, `Consumer`, `Fragment`, `StrictMode`,
-`Suspense`, `Profiler`) are excluded by property name, because a glyph can never be
-one. A tree-wide scan found **13 member-expression tags in `src/`**: eleven are
-those React shapes, and the two that are not — `EnvironmentActions:79`
-`<action.icon>` and `ReleaseManagementView:236` `<phasePresentation.Icon>` — are
-both in `super-admin`, so 7i will meet them as flags rather than as a broken
-screen. Pinned by `test-icon-contract-reading.mjs` M1–M4.
-
-**7i drained `super-admin` and finished the campaign: 46 → 0 files, 201 → 0
-imports.** Sixteen flags — the fourteen the pre-slice sizing predicted, plus the
-**two member expressions 7h's new reader added**: `EnvironmentActions:79`
-`<action.icon>` and `ReleaseManagementView:236` `<phasePresentation.Icon>`. Both
-were met as flags rather than as screens that throw, which is the whole point of
-adding the reader in the slice before rather than after.
-
-Five local bindings (four shadowing `Icon`, renamed `Glyph`; `CompaniesView`'s
-`TitleIcon` and `SystemHealthView`'s `StatusIcon` renamed for clarity), three
-`size={15}` snaps to `sm` following the precedent `candidateListColumns` set, one
-page-level error state snapping 40 → `3xl` under 7h's fixed-versus-fluid rule, and
-five bare glyphs standing alone in headings taking `2xl` — which is what lucide
-rendered for them before, so nothing moved on screen.
-
-**And then the file went.** With the last entry drained the checker refuses an
-empty list in as many words — *"the campaign is finished, so delete the file — an
-empty list is an invitation to add to it"* — so
-`src/design-system/icons/lucide-import.backlog.json` is deleted and the rule is
-absolute.
-
-`test-icon-contract-reading.mjs` **G1 had to grow a second state for that**, and
-the reason is this section's own principle: G1 asserted that the matcher reaches
-every recorded file, and with no backlog it would simply have crashed, or worse,
-passed over nothing. It now branches — while a backlog exists, the old claim;
-once it is gone, the stronger one, that **nothing governed imports the package at
-all** — and it takes its scope from `isGoverned`, the checker's own function,
-rather than re-deciding which directory is exempt. Mutation-proven: one restored
-`lucide-react` import in `AnalyticsView.jsx` fails it by name. A test that quietly
-stops asserting when its subject disappears is the same failure this campaign
-spent eight defects learning to see.
-
-**The catalog was teaching the habit.** The guard's first live run refused 23
-story files — the design system's own catalog, still importing the package
-directly. That is the same finding as the `z-30` story in the stacking slice,
-and the same lesson: the catalog is what people copy, so it is the last place a
-bad shape should survive. All 23 are migrated, and no baseline moved.
-
-**Two shapes only the token could catch**, both found by migrating rather than
-by any rule. `StatusMedallion.stories.jsx` keyed its fixtures on `Icon:` and
-rendered `<Icon />` from the destructured row; `ManagedValueInventory.stories.jsx`
-rendered `<action.icon size={16} />` through a member expression, with the glyph's
-name thirty lines away in a data table. A text rule sees nothing to object to in
-either. This is the argument for the registry handing out tokens rather than
-re-exporting components, stated as evidence instead of as a prediction.
-
-**"A primitive existing is not the same as the exception being gone."** That
-sentence sat in this section for four days while being untrue of five of the
-families above, and on 2026-08-25 it was measured rather than repeated:
-
-- `TabList`/`TabPanel` had **0 consumers** and 11 hand-rolled `role="tablist"`
-  strips, in at least three visual treatments, two of them with no ARIA at all.
-- `SegmentedControl` had **0 consumers** and five hand-rolled toggle groups, one
-  of them 40px tall — off the 36/44/52 control scale entirely.
-- `FileInput` had 2 consumers and **9 raw `<input type="file">`**, none of them
-  recorded as exceptions.
-- `PageState` had 5 consumers and **15 hand-composed states**: nine full-page
-  status screens in the signing room and the public application (between them two
-  title sizes, two medallion sizes, icons at 28/32/40/48px and three different
-  gaps under the medallion — five appearances for one thing), two more page-level
-  states (a document-load failure and a permissions boundary), and four
-  panel-level empties, two of which announced nothing when a filter emptied the
-  list. Three native-table empty rows announced nothing either, while `DataTable`
-  and `ModernDriverTable` both announced their own — and two of those three put
-  the live-region role on the `<td>`, which replaces the cell role.
-- `ConfirmDialog` had consumers *and* **ten hand-composed duplicates**, one of
-  them a local component with the same name shadowing the import, three with no
-  medallion at all, and one — the permanent record delete in the Unified Driver
-  Database, the most destructive action in the product — carrying its severity in
-  the *heading's colour* with no medallion, which is status by colour alone. Each had lost the same three capabilities: initial focus on
-  Cancel rather than on the destructive action, the synchronous double-activation
-  guard, and Escape/backdrop dismissal disabled while the action is in flight. The
-  first two apply at every one of the six — on "Delete this user?" they are not
-  cosmetic. The third does not, and the migrated files say so rather than
-  implying it: all six close the dialog before starting the work and report
-  progress on the page behind it, so `loading` is deliberately not passed.
-
-Every one of those is migrated. The lesson is recorded in §5: **building a
-primitive and adopting it are two pieces of work, and only the first one is
-visible in a diff.** A campaign that ships a primitive with no consumers has
-added a fourth way to do the thing, not removed three.
-
-**Campaigns, migrated 2026-08-24.** `AudienceBuilder`, `VirtualLeadList`,
-`ContentComposer` and `DeviceMockup` carried 55 raw palette classes between them
-and now carry four, all of them the `DeviceMockup` artwork exception above.
-
-The interesting part was the audience preview panel, because the reason it was
-never migrated turned out to be a stale comment. `VirtualLeadList` said the
-design system "has no approved dark-surface tokens yet"; `AudienceBuilder` said
-the dark treatment was temporary and would be *removed* when the list migrated.
-Both were written after `--ds-color-surface-inverse` and its on-inverse content,
-border and status roles had already landed (§6, resolved), and the two comments
-contradicted each other about what the outcome should be. The panel is a
-console surface, the token contract expresses console surfaces, and
-`SystemHealthView`'s log panel was already using the same three roles. So the
-panel stays dark and now says so in tokens.
-
-That migration added one capability to the design system: **`PageState` takes
-`surface="inverse"`**. Its three states previously had to be hand-composed on
-that panel, because the default title colour is `--ds-color-content` — near
-black, and therefore invisible on `--ds-color-surface-inverse`. The medallion is
-deliberately *not* inverted: its tinted backgrounds are light, so it reads as a
-light chip exactly as `Badge` already does on those surfaces. Both text
-pairings are covered by the AA assertions in `tests/tokens.test.js`.
-
-Two behavioural details were corrected with it, neither of them cosmetic. The
-failure state used to shrink the panel from 500px to 400px, moving everything
-below it up the page at the moment the user was reading an error; it now reuses
-the panel's own class. And the two hand-built tinted count chips in the preview
-header are `Badge`s — they are counts with a status meaning, on a surface whose
-list rows were already using `Badge` for the same job.
-
-**Settings, driver flows, signing, onboarding and auth, migrated 2026-08-25.**
-This is the slice that took migration debt to zero: every violation the ratchet
-still tolerates now names the exception that justifies it, and nothing is left
-marked as debt.
-
-Two capabilities were added to the design system on the way, both because live
-code had already written them by hand more than once.
-
-**Brand colours are named.** `--ds-color-brand-primary` (#004C68) and
-`--ds-color-brand-accent` (#0BE2A4) are the mark's own two colours, and the
-product had carried them as bare hexes since the beginning — in the logo SVG, the
-loader, the favicon, and the login hero, which is the one place they are used as
-*interface* colour rather than inside artwork. The accent is blessed as a
-foreground on the inverse surface only: on a light surface the same colour is
-about 1.6:1, which is exactly the mistake a named token invites if nobody writes
-it down.
-
-**Naming them did not stop the drift, and it took until 2026-09-05 to notice.**
-This paragraph used to end "so a brand change is now a deliberate edit rather
-than a drift between four copies of a hex". Only the login hero had actually
-moved onto the token; the logo, the loader and the favicon still carried
-literals, so there were still three copies and nothing compared them — and one
-had already diverged. **The favicon filled the mark's leading facet with a flat
-`#0CE1A5` where the logo fills it with a gradient running to `#077B5A`**, so the
-tab icon and the logo were two different pictures.
-
-Closed properly now. There are **four** brand values, not two: the gradient pair
-joins the deep and the mint, and its start sits one unit off `brand-mint`
-(#0CE1A5 against #0BE2A4) — the artwork as authored, preserved rather than
-tidied, because collapsing them would be a change to the mark. `Logo.jsx` and
-`SafeHaulLoader.jsx` read all four through `var()` and contain no hex at all.
-The favicon cannot — a `data:` URI has no document to resolve a custom property
-against — so it keeps the four literally, and `src/tests/brandAssets.test.js`
-compares them against the tokens, compares the four path shapes against the
-logo's, compares the gradient geometry, and fails if either component grows a
-literal back. **A copy nothing compares is a copy that diverges**, which is the
-general form of the lesson and the reason the fix is a test rather than an
-edit.
-
-**`Button variant="link"`.** Six screens had hand-written "an action that reads
-as inline text" — all of them using the correct tokens, and between them using
-two font weights and three font sizes. It stays a `<button>` because it performs
-an action rather than navigating, and it is the one variant that leaves the
-control-height scale: a 44px-tall link inside a form row pushes the text around
-it apart. Its hit area is not its text — a pseudo-element takes the pointer
-region to about 26px without changing the layout box, so it clears WCAG 2.5.8
-rather than leaning on the "inline in a sentence" exemption for the uses that are
-not in a sentence. `IconButton` refuses the variant outright, because there the
-same rule would produce a 44×16px target.
-
-Two other things were put right, neither of them cosmetic:
-
-- **The Super Admin feature matrix announced the wrong role.** Its cells were
-  `Checkbox`, which announces a value you set and then submit; toggling one
-  writes to Firestore immediately. They are `Switch` now. This was the call site
-  the roadmap recorded when `Switch` was promoted, and the local
-  `settings/questions/ToggleSwitch` it was promoted from is deleted, with its two
-  call sites moved across.
-- **The login hero used five text opacities**, one of which (`text-white/50`)
-  measured roughly 3.6:1 on its background, below AA for body text. They are now
-  the two on-inverse content roles, which are AA-asserted.
+`ProgressBar` — are tracked by the guardrails in §7 rather than by a list of
+screens. Open shapes are in §5.
 
 ### Catalog
 
-The component catalog is Storybook (`npm run storybook`,
-`npm run build-storybook`). Stories render only hand-written fixture data from
-`src/design-system/stories/fixtures.js`; **no production data may appear in a
-story.** Visual-regression baselines live in this repository beside the spec that
-records them, and the lane is blocking — §6 and §7.
-
-Stories are scanned by `check:ui-contract` as of 2026-08-25, for the rules that
-read a class list. They used to be skipped as "catalog furniture already covered
-by `test:stories`", which does not hold: that runs axe, not this, and a story is
-the design system's own published example of how to build something. The
-markup-shaped rules are left off deliberately — a story legitimately
-*demonstrates* a native table, and a story's prose *discusses* the patterns the
+Storybook (`npm run storybook`, `npm run build-storybook`), built in CI by
+`storybook-build` with no credentials. Stories render only hand-written fixtures
+from `src/design-system/stories/fixtures.js` — **no production data may appear
+in a story** — use no domain vocabulary, and state **Approved**, **Needs
+review** or **Temporary**. The catalog is what people copy, so stories meet
+`check:ui-contract`'s class-list rules; the markup-shaped rules are off, as a
+story legitimately demonstrates a native table and discusses the patterns the
 rules forbid.
-
----
 
 ## 9. Keeping this file useful
 
-Update this file in the **same task** that changes what it describes. Add an
-entry only when it is a rule, an approved exception, a guardrail or an open
-decision. Completion narratives, dated verification tables, test counts and
-implementation logs belong in the pull request and in Git history, not here — a
-document that agents must read before every UI change earns its length back in
-accuracy, not in completeness.
+This file states the current standard only; history lives in
+`docs/archive/design-system-docs-2026-10-02.md`. When you finish design-system
+work, update the relevant row here in the same change. Add an entry only when it
+is a rule, an approved exception, a guardrail or an open decision; completion
+narratives, dated verification tables, test counts and implementation logs
+belong in the pull request and in Git history. `npm run check:agent-docs` caps
+this file's length.

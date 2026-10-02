@@ -54,5 +54,6 @@ focus and dismissal behaviour rather than a single control.
 
 Existing `src/shared/components` implementations remain compatibility sources
 until each consumer is migrated. The live list of families and their status is
-`docs/SAFEHAUL_DESIGN_SYSTEM_ROADMAP.md` section 5 — this file describes what is
-in this directory, not what is left to do.
+`docs/SAFEHAUL_DESIGN_SYSTEM_ROADMAP.md` section 8 (complete families) and
+section 5 (missing primitives) — this file describes what is in this directory,
+not what is left to do.

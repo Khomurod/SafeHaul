@@ -31,7 +31,7 @@
     "src/features/campaigns/components/AudienceBuilder.jsx": {
       "raw-black-white-class": 1,
       "reasons": {
-        "raw-black-white-class": "roadmap §5 — `bg-black/20`, the scrim behind the audience preview list. Recorded rather than migrated because NO existing role matches it, measured: `--ds-color-overlay` is rgb(15 23 42 / 0.6) — slate-900 at 60% — where this is pure black at 20%, so the swap would visibly lighten and re-tint the backdrop. The rule's remedy points at declaring a semantic `rgb(… / a)` token, and that is the right fix; naming a new scrim ROLE is a design-system decision rather than a mechanical one, so it belongs with the status-notice and surface work rather than inside a rule-widening slice. Retire this entry there."
+        "raw-black-white-class": "roadmap §5 — `bg-black/20`, the scrim behind the audience preview list. Recorded rather than migrated because NO existing role matches it, measured: `--ds-color-overlay` is rgb(15 23 42 / 0.6) — slate-900 at 60% — where this is pure black at 20%, so the swap would visibly lighten and re-tint the backdrop. The rule's remedy points at declaring a semantic `rgb(… / a)` token, and that is the right fix; naming a new scrim ROLE is a design-system decision rather than a mechanical one, so it waits on the scrim-role decision recorded in roadmap §6. Retire this entry with it."
       }
     },
     "src/features/campaigns/components/CampaignCard.jsx": {
@@ -99,7 +99,7 @@
     "src/features/company-admin/components/modals/VOEPreviewModal.jsx": {
       "tailwind-radius": 2,
       "reasons": {
-        "tailwind-radius": "the two 8px recipient/applicant status dots in the sub-header — pre-existing chrome, kept byte-identical when the generated §391.23 document moved to VOEDocument.jsx (source-size split); converting them to rounded-ds-full is the roadmap's call, not a refactor's."
+        "tailwind-radius": "the two 8px recipient/applicant status dots in the sub-header — pre-existing chrome, kept byte-identical when the generated §391.23 document moved to VOEDocument.jsx (source-size split); `rounded-full` is the same value as `rounded-ds-full`, and converting them is left for a change that touches this chrome (roadmap §5)."
       }
     },
     "src/features/company-admin/components/tabs/NotesTab.jsx": {
@@ -165,7 +165,7 @@
     "src/features/settings/components/PersonalProfileTab.jsx": {
       "hand-composed-notice": 1,
       "reasons": {
-        "hand-composed-notice": "A tinted ICON TILE holding LinkIcon, beside a heading and a copy control, inside a named region. One of the 25 tiles the Tinted icon tile roadmap row now records. Reviewed in slice 6e."
+        "hand-composed-notice": "A tinted ICON TILE holding LinkIcon, beside a heading and a copy control, inside a named region. One of the tiles the Tinted icon tile row (roadmap §5) records."
       }
     },
     "src/features/settings/components/number-assignment/AssignmentTable.jsx": {
@@ -215,7 +215,7 @@
     "src/features/signing/components/envelope-creator/ResizableDraggableField.jsx": {
       "hand-styled-field": 1,
       "reasons": {
-        "hand-styled-field": "roadmap §5 — the inline field-label editor sits inside the draggable field rectangle, whose minimum size is 8px. The approved `Input`'s control height would overflow the box it is labelling. Same exception family as this file's corner remove badge."
+        "hand-styled-field": "roadmap §5 — the inline field-label editor sits inside the draggable field rectangle, whose minimum size is 8px. The approved `Input`'s control height would overflow the box it is labelling. Same exception family as `SignerField`'s controls (roadmap §5, PDF-geometry controls)."
       }
     },
     "src/features/signing/components/signing-room/SignerField.jsx": {
@@ -271,7 +271,7 @@
     "src/features/super-admin/components/modals/ViewCompanyAppsModal.jsx": {
       "raw-table": 1,
       "reasons": {
-        "raw-table": "roadmap §5 — a native table with a per-row filter control and a per-row action, inside a dialog. Uses the --ds-table-* roles. Converting it to DataTable would need the editable-matrix decision that §6 still records as open."
+        "raw-table": "roadmap §5 — a native table with a per-row filter control and a per-row action, inside a dialog. Uses the --ds-table-* roles. Converting it to DataTable is out of scope: DataTable is proven only for display tables, and a per-row filter control is the per-row interaction §5 approves a native table for."
       }
     },
     "src/features/super-admin/views/AnalyticsView.jsx": {

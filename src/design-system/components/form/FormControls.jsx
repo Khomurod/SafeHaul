@@ -171,7 +171,7 @@ function controlSize(size, component) {
  * answer for an editable value sitting in a sentence — and it is **not** what
  * any of these four are. Every one is permanently editable and saves on blur or
  * change; none has a read view. Building `InlineEdit` here would be a primitive
- * with zero consumers, which is the mistake the roadmap's §8 records.
+ * with zero consumers, which is the mistake roadmap §5 records.
  *
  * ## It keeps the control scale rather than escaping it
  *
