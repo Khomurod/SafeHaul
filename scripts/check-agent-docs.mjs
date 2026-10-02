@@ -6,13 +6,19 @@
  * (`git ls-files -z`, as the source-size guard reads them), so a renamed file
  * is still measured and a file a pattern requires cannot disappear quietly.
  *
- *   npm run check:agent-docs
+ * Two more refusals keep the lock honest. Limits are compared with the base
+ * commit and may only move down (`agent-docs-baseline.mjs`), and every
+ * repository path the instructions name in backticks must exist, so a topic
+ * file cannot be deleted or renamed while the rules still send agents to it.
+ *
+ *   npm run check:agent-docs [-- --require-baseline]
  */
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { AGENT_DOC_LIMITS, ALWAYS_LOADED, ALWAYS_LOADED_MAX_BYTES } from './agent-docs-limits.mjs';
+import { checkLimitsDirection } from './agent-docs-baseline.mjs';
 import { countLines } from './source-size.mjs';
 
 /** Glob over repository paths: `**` crosses directories (and may match none), `*` and `?` do not. */
@@ -82,12 +88,46 @@ export function checkAgentDocs(files, {
     return problems;
 }
 
+/** Files whose named paths must exist: the instructions every agent follows. */
+const REFERENCE_CHECKED = ['AGENTS.md', 'CLAUDE.md', '**/AGENTS.md', '**/CLAUDE.md', '.claude/rules/**/*.md'].map(globToRegExp);
+
+/** Repository paths a text names in backticks, such as `docs/APP_BRIEF.md` or `.claude/rules/`. */
+export function namedPaths(text) {
+    const paths = new Set();
+    for (const [, token] of text.matchAll(/`([^`\n]+)`/g)) {
+        // A path has a slash, is relative, and holds no command, glob, placeholder or URL.
+        if (!token.includes('/') || token.startsWith('/') || /[\s*{}<>=$…]|:\/\//.test(token)) continue;
+        paths.add(token);
+    }
+    return [...paths];
+}
+
+/** One sentence per named path that is not in the repository. */
+export function missingPaths(files, tracked) {
+    const known = new Set(tracked);
+    const problems = [];
+    for (const file of files.filter((candidate) => REFERENCE_CHECKED.some((re) => re.test(candidate.path)))) {
+        for (const path of namedPaths(file.text)) {
+            const dir = path.endsWith('/') ? path : `${path}/`;
+            if (known.has(path) || tracked.some((candidate) => candidate.startsWith(dir))) continue;
+            problems.push(`${file.path}: names \`${path}\`, which is not in the repository. Fix the reference or restore the file.`);
+        }
+    }
+    return problems;
+}
+
+/** Every tracked path, as git lists it. */
+export function trackedPaths(cwd = process.cwd()) {
+    return execFileSync('git', ['ls-files', '-z'], { cwd, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
+        .split('\0')
+        .filter(Boolean);
+}
+
 /** Every tracked file at least one limit applies to, read from disk. */
 export function readAgentDocs({ cwd = process.cwd(), limits = AGENT_DOC_LIMITS } = {}) {
     const patterns = limits.map((limit) => globToRegExp(limit.pattern));
-    return execFileSync('git', ['ls-files', '-z'], { cwd, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
-        .split('\0')
-        .filter((path) => path && patterns.some((pattern) => pattern.test(path)))
+    return trackedPaths(cwd)
+        .filter((path) => patterns.some((pattern) => pattern.test(path)))
         // Tracked but absent from the working tree (a staged deletion): nothing to read.
         .filter((path) => existsSync(resolve(cwd, path)))
         .map((path) => ({ path, text: readFileSync(resolve(cwd, path), 'utf8') }));
@@ -95,8 +135,14 @@ export function readAgentDocs({ cwd = process.cwd(), limits = AGENT_DOC_LIMITS }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
     const files = readAgentDocs();
-    const problems = checkAgentDocs(files);
+    const direction = await checkLimitsDirection({
+        current: { limits: AGENT_DOC_LIMITS, alwaysLoaded: ALWAYS_LOADED, alwaysLoadedMaxBytes: ALWAYS_LOADED_MAX_BYTES },
+        cwd: process.cwd(),
+        requireBaseline: process.argv.includes('--require-baseline'),
+    });
+    const problems = [...checkAgentDocs(files), ...missingPaths(files, trackedPaths()), ...direction.problems];
     for (const file of files) console.log(`  ${String(countLines(file.text)).padStart(5)} lines  ${file.path}`);
+    console.log(`\nbaseline: ${direction.describe}`);
     if (problems.length > 0) {
         console.error(`\nAgent instruction files over their limits:\n${problems.map((p) => `  - ${p}`).join('\n')}`);
         process.exit(1);

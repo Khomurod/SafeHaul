@@ -7,9 +7,11 @@
  * limits are the lock that keeps the condensed files small.
  *
  * To make a change fit, shorten the text. Move history to `docs/archive/` and
- * keep only the rule. Raising a number here is a decision for the owner, not a
- * way to make a check pass. A ceiling marked "may only move down" is today's
- * size of a document still waiting to be condensed.
+ * keep only the rule. CI compares this file with the base commit and refuses any
+ * raised, loosened or removed limit (`agent-docs-baseline.mjs`), so a raise
+ * cannot ride along with the text it lets in; it is the owner's decision. A
+ * ceiling marked "may only move down" is today's size of a document still
+ * waiting to be condensed.
  *
  * `pattern` is a glob over tracked paths: `**` crosses directories, `*` does not.
  */

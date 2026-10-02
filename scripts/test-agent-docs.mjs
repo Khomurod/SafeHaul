@@ -4,10 +4,16 @@
  * been seen to refuse is a report, not a lock.
  */
 import { execFileSync } from 'node:child_process';
-import { dirname, resolve } from 'node:path';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { checkAgentDocs, globToRegExp, hasPathsFrontmatter, readAgentDocs } from './check-agent-docs.mjs';
+import {
+    checkAgentDocs, globToRegExp, hasPathsFrontmatter, missingPaths, namedPaths, readAgentDocs, trackedPaths,
+} from './check-agent-docs.mjs';
 import { AGENT_DOC_LIMITS } from './agent-docs-limits.mjs';
+import { LIMITS_PATH, loosenedLimits, readLimitsAt } from './agent-docs-baseline.mjs';
+import { initThrowawayRepo, removeTree } from './lib/throwaway.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 let failures = 0;
@@ -94,6 +100,65 @@ assert('G3. files within their limits pass', checkAgentDocs(base(), options).len
         console.log(String(error.stderr || error.stdout));
     }
     assert('G13. this repository passes its own limits', ok);
+}
+
+
+console.log('\nH. Limits only move down, and named files exist');
+{
+    const base = {
+        limits: [{ pattern: 'AGENTS.md', maxLines: 150, maxBytes: 100, mustExist: true }, { pattern: 'r/*.md', maxLines: 50, requirePaths: true }],
+        alwaysLoaded: ['CLAUDE.md', 'AGENTS.md'], alwaysLoadedMaxBytes: 200,
+    };
+    const tighter = { ...base, limits: [{ ...base.limits[0], maxLines: 120 }, base.limits[1]] };
+    assert('H1. a lowered limit passes', loosenedLimits(base, tighter).length === 0, loosenedLimits(base, tighter).join('; '));
+    const cases = [
+        ['H2. a raised line limit is refused', { ...base, limits: [{ ...base.limits[0], maxLines: 151 }, base.limits[1]] }, 'maxLines raised from 150 to 151'],
+        ['H3. a removed byte limit is refused', { ...base, limits: [{ ...base.limits[0], maxBytes: undefined }, base.limits[1]] }, 'maxBytes raised from 100 to no limit'],
+        ['H4. a removed limit is refused', { ...base, limits: [base.limits[0]] }, 'r/*.md: its limit was removed'],
+        ['H5. dropping mustExist is refused', { ...base, limits: [{ ...base.limits[0], mustExist: false }, base.limits[1]] }, 'no longer required to exist'],
+        ['H6. dropping requirePaths is refused', { ...base, limits: [base.limits[0], { ...base.limits[1], requirePaths: false }] }, 'no longer required to carry'],
+        ['H7. a raised always-loaded budget is refused', { ...base, alwaysLoadedMaxBytes: 201 }, 'budget was raised from 200 to 201'],
+        ['H8. a file dropped from the always-loaded budget is refused', { ...base, alwaysLoaded: ['AGENTS.md'] }, 'CLAUDE.md: dropped'],
+    ];
+    for (const [label, current, expected] of cases) {
+        const problems = loosenedLimits(base, current);
+        assert(label, problems.some((p) => p.includes(expected)), problems.join('; '));
+    }
+}
+{
+    const dir = mkdtempSync(join(tmpdir(), 'agent-docs-'));
+    try {
+        const git = initThrowawayRepo(dir);
+        writeFileSync(join(dir, 'README.md'), 'x\n');
+        git('add', '.');
+        git('commit', '-q', '-m', 'before the limits existed');
+        const before = git('rev-parse', 'HEAD');
+        mkdirSync(join(dir, 'scripts'));
+        writeFileSync(join(dir, LIMITS_PATH),
+            "export const AGENT_DOC_LIMITS = [{ pattern: 'AGENTS.md', maxLines: 7 }];\nexport const ALWAYS_LOADED = ['AGENTS.md'];\nexport const ALWAYS_LOADED_MAX_BYTES = 9;\n");
+        git('add', '.');
+        git('commit', '-q', '-m', 'limits');
+        const was = await readLimitsAt(git('rev-parse', 'HEAD'), { cwd: dir });
+        assert('H9. the limits are read as committed at the base',
+            was?.limits[0].maxLines === 7 && was.alwaysLoadedMaxBytes === 9, JSON.stringify(was));
+        assert('H10. a base from before the limits existed has nothing to compare',
+            (await readLimitsAt(before, { cwd: dir })) === null);
+    } finally {
+        removeTree(dir);
+    }
+}
+{
+    const text = 'Read `.claude/rules/gone.md`, `docs/`, `npm run x/y`, `src/**/*.jsx`, `/implement`, `a=b/c`, `https://x.io/a`.';
+    assert('H11. only plain relative paths count as named', JSON.stringify(namedPaths(text)) === JSON.stringify(['.claude/rules/gone.md', 'docs/']),
+        JSON.stringify(namedPaths(text)));
+    const files = [{ path: 'AGENTS.md', text }, { path: 'docs/notes.md', text: '`also/gone.md`' }];
+    const problems = missingPaths(files, ['AGENTS.md', 'docs/a.md']);
+    assert('H12. a missing file named by the instructions is refused; a directory with files passes; other docs are not checked',
+        problems.length === 1 && problems[0].includes('`.claude/rules/gone.md`'), problems.join('; '));
+    const tracked = trackedPaths(repoRoot).filter((path) => path !== '.claude/rules/testing.md');
+    const realFiles = readAgentDocs({ cwd: repoRoot });
+    assert('H13. deleting a topic file that AGENTS.md names is refused',
+        missingPaths(realFiles, tracked).some((p) => p.includes('`.claude/rules/testing.md`')));
 }
 
 console.log(failures === 0 ? '\nagent-docs guard: all assertions passed.' : `\n${failures} assertion(s) failed.`);
