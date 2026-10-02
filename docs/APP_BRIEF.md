@@ -1028,6 +1028,11 @@ unparseable number — but nothing populates them from a recipient's reply (§12
 - **Callable names are a contract.** `scripts/check-callable-contract.mjs` fails
   CI if the SPA calls a name `functions/index.js` does not export; see
   [`docs/callable-frontend-map.md`](./callable-frontend-map.md).
+- **`functions/firebaseAdmin.js` sits under almost every function.** Functions
+  deploy incrementally, following source files: editing the wrapper redeploys
+  nearly all of them, while a change to `functions/package.json` or its lockfile
+  alone redeploys none, so a dependency upgrade reaches a function only when its
+  own code, or a file it loads, next changes.
 - **The blog owns its stylesheet.** `/news`, `/news/{slug}` and `/news/feed.xml`
   are rendered by `serveBlogPublic` and styled by five files in
   `web/assets/css/`, cut from the retired marketing site's single sheet at its
@@ -1316,10 +1321,12 @@ verification document must carry no `ds-*` class and `Icon` stamps one.
   diagnostic, per-capability connection tests, model-pin verification and a
   manual publication check need real credentials in a deployed environment; a
   green test run is not evidence any of them passed.
-- **20 known dependency advisories remain (10 root, 10 under `functions/`, all
-  moderate), all behind a major version.** Root needs `exceljs`; `functions/`
-  needs `firebase-admin` 14, a major upgrade for its own change; nothing blocks
-  the install (`firebase-functions` already accepts `^14`).
+- **Known dependency advisories.** `npm audit` (root and `functions/`) gives the
+  live list; most have an in-range fix (`npm audit fix`). A few wait on a major
+  or upstream: root `exceljs` and the `@grpc/grpc-js` 1.9 the `firebase` web SDK
+  pins; under `functions/`, `uuid` via `gaxios` 6 (required by
+  `@google-cloud/storage` 8), which calls only `uuid.v4` — outside the
+  advisory's v3/v5/v6 — and which `npm audit fix` would only downgrade.
   `.github/dependabot.yml` raises weekly grouped update PRs for the root,
   `functions/` and GitHub Actions, majors separately, with a **seven-day
   cooldown** so a package compromised and pulled within days never arrives;
@@ -1400,6 +1407,15 @@ reads; `.claude/rules/` holds topic rules loaded per area; history lives in
 `scripts/agent-docs-limits.mjs` (this brief included), refuses a limit raised
 against the base commit, and refuses a path the instructions name that does not
 exist.
+
+**Cloud Functions reach the Admin SDK through `functions/firebaseAdmin.js`**
+(its `admin`, `db`, `auth`, `storage`) or a modular `firebase-admin/<service>`
+import: `firebase-admin` 14's root export has no services, and suites that mock
+it would not notice. `functions/test/unit/firebaseAdmin.test.js` refuses a root
+require or an `admin.<path>` the wrapper lacks, and loads `index.js` under plain
+Node. Under Jest the ES-module-only `jose` (App Check and phone-number tokens,
+neither used — §10) maps to an empty stand-in; Jest on Node 22 cannot
+`require()` it.
 
 **Playwright** runs in CI as a 4-way shard matrix with `workers: 1` and
 `retries: 2` per shard (§10). **Local test-runner safety** — one Playwright

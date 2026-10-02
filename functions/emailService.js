@@ -1,4 +1,4 @@
-const admin = require('firebase-admin');
+const { admin } = require('./firebaseAdmin');
 const nodemailer = require('nodemailer');
 const { decrypt } = require('./integrations/encryption');
 

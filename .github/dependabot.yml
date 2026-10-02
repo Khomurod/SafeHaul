@@ -13,7 +13,7 @@
 # - Minor and patch updates arrive grouped, one pull request per manifest per
 #   week, so the owner reads two or three pull requests instead of forty. A
 #   major version always gets its own pull request, because it may need work
-#   (firebase-admin 14 and exceljs 3.x are the two known ones today).
+#   (exceljs 3.x is the known one today).
 # - The five GitHub Actions the workflows pin are grouped too.
 version: 2
 updates:

@@ -1,8 +1,8 @@
-const admin = require('firebase-admin');
+const { initializeApp, getApps } = require('firebase-admin/app');
 
 // Initialize Admin SDK once
-if (!admin.apps.length) {
-  admin.initializeApp();
+if (!getApps().length) {
+  initializeApp();
 }
 
 // Bulk Actions (Resilient session-based)

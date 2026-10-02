@@ -57,7 +57,7 @@ const mockStore = new Map();
 // commit. That is what makes "two callers race for the same page" a meaningful
 // test rather than a coin toss.
 let mockTxQueue = Promise.resolve();
-jest.mock('firebase-admin', () => {
+jest.mock('../../firebaseAdmin', () => {
     const DELETE = '__delete_sentinel__';
     const readPath = (path) => {
         if (mockStore.has(path)) return { exists: true, data: () => mockStore.get(path) };
@@ -119,11 +119,13 @@ jest.mock('firebase-admin', () => {
         return run;
     };
     return {
-        firestore: Object.assign(
-            () => ({ collection: (name) => makeCol(name), runTransaction }),
-            { FieldValue: { serverTimestamp: () => '__ts', delete: () => DELETE } },
-        ),
-        storage: () => ({}),
+        admin: {
+            firestore: Object.assign(
+                () => ({ collection: (name) => makeCol(name), runTransaction }),
+                { FieldValue: { serverTimestamp: () => '__ts', delete: () => DELETE } },
+            ),
+            storage: () => ({}),
+        },
     };
 });
 

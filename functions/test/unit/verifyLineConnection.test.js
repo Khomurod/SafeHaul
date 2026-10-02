@@ -17,15 +17,17 @@ jest.mock('../../integrations/adapters/eightbyeight', () => class {});
 jest.mock('@ringcentral/sdk', () => ({ SDK: class {} }));
 
 const mockMembershipGet = jest.fn();
-jest.mock('firebase-admin', () => ({
-  firestore: Object.assign(
-    () => ({
-      collection: () => ({
-        where: () => ({ where: () => ({ get: (...a) => mockMembershipGet(...a) }) }),
+jest.mock('../../firebaseAdmin', () => ({
+  admin: {
+    firestore: Object.assign(
+      () => ({
+        collection: () => ({
+          where: () => ({ where: () => ({ get: (...a) => mockMembershipGet(...a) }) }),
+        }),
       }),
-    }),
-    { FieldValue: { serverTimestamp: () => '__ts' } },
-  ),
+      { FieldValue: { serverTimestamp: () => '__ts' } },
+    ),
+  },
 }));
 
 const { verifyLineConnection } = require('../../integrations/controllers/configController');

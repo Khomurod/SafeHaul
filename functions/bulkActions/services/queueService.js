@@ -1,7 +1,8 @@
+const { getApp, getApps } = require("firebase-admin/app");
 const { admin, db } = require("../../firebaseAdmin");
 const { CloudTasksClient } = require("@google-cloud/tasks");
 
-const PROJECT_ID = (admin.apps.length ? admin.app().options.projectId : null) || process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT;
+const PROJECT_ID = (getApps().length ? getApp().options.projectId : null) || process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT;
 // Allow region to be configured, default to us-central1 if not set
 const LOCATION = process.env.FUNCTION_REGION || process.env.GCP_REGION || 'us-central1';
 const QUEUE_NAME = "bulk-actions-queue";

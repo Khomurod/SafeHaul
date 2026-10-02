@@ -1,4 +1,4 @@
-const admin = require('firebase-admin');
+const { admin } = require('../firebaseAdmin');
 const { decrypt } = require('./encryption');
 const { normalizePhoneForKeychain } = require('../utils/phoneUtils');
 const RingCentralAdapter = require('./adapters/ringcentral');
