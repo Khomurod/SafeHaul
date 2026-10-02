@@ -889,7 +889,7 @@ projection, and `/apply/:slug` is not gated by any flag. See
 | **AI providers** | CDL auto-fill, e-doc field placement, blog generation, reading an applicant's own PSP report or MVR into *suggestions* where the company enables it (`extractApplicationReport`), and — for any company — reading the paperwork a recruiter attaches when starting an application (`extractCompanyApplicationDocuments`: one text task over whichever documents were attached, with a per-document vision fallback) | Secret Manager via the frozen registry in `functions/ai/registry` |
 | **Telegram** | **Retired** with the marketing-site lead form (`LD-R3`); no callable in `functions/index.js` sends to it. Its six landing callables were deleted by the first promotion carrying `LD-R3`; `promote-production.yml` still runs `scripts/retire-landing-functions.mjs` after each promotion (idempotent, now a no-op, and it never touches `listLandingLeads`). A rollback to a pre-`LD-R3` release would call functions that no longer exist; the procedure is in `docs/FIREBASE_HOSTING_RUNBOOK.md` | Secrets unbound; rotate the bot token (runbook) |
 | **Socrata / Transportation.gov** | FMCSA employer autocomplete | Public app token |
-| **Sentry** | Error monitoring (frontend + functions) | DSN |
+| **Sentry** | Error monitoring for the browser app (`@sentry/react`); Cloud Functions log to Cloud Logging only | DSN |
 | **GitHub API** | Release promotion from the Super Admin UI | GitHub App credential, server-side only |
 
 **Hard boundaries:**
@@ -1318,13 +1318,12 @@ verification document must carry no `ds-*` class and `Icon` stamps one.
   green test run is not evidence any of them passed.
 - **20 known dependency advisories remain (10 root, 10 under `functions/`, all
   moderate), all behind a major version.** Root needs `exceljs`; `functions/`
-  needs `firebase-admin` 14, which cannot install until
-  `firebase-functions-test` accepts it (3.5.0 stops at `^13`;
-  `firebase-functions` 7.3.2 already accepts `^14`). `.github/dependabot.yml`
-  raises weekly grouped update PRs for the root, `functions/` and GitHub
-  Actions, majors separately, with a **seven-day cooldown** so a package
-  compromised and pulled within days never arrives; advisory-driven security
-  fixes are not delayed.
+  needs `firebase-admin` 14, a major upgrade for its own change; nothing blocks
+  the install (`firebase-functions` already accepts `^14`).
+  `.github/dependabot.yml` raises weekly grouped update PRs for the root,
+  `functions/` and GitHub Actions, majors separately, with a **seven-day
+  cooldown** so a package compromised and pulled within days never arrives;
+  advisory-driven security fixes are not delayed.
 - **Several one-time backfill callables are still exported**
   (`backfillUserCompanyIds`, `backfillDriverCompanyIds`,
   `backfillPublicProfiles`, `migrateEmailSettings`,

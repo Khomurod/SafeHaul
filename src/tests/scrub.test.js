@@ -1,4 +1,4 @@
-// A5 coverage: frontend PII scrubber (mirrors functions/shared/scrub.js).
+// A5 coverage: frontend PII scrubber.
 import { describe, it, expect } from 'vitest';
 import { scrub, scrubString } from '../shared/utils/scrub';
 
