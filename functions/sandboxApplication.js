@@ -3,9 +3,10 @@
  */
 
 const functions = require('firebase-functions/v1');
-const { db } = require('./firebaseAdmin');
+const { db, storage } = require('./firebaseAdmin');
 const { FieldValue } = require('firebase-admin/firestore');
 const { assertCompanyAcceptingIntake } = require('./shared/companyTenant');
+const { collectStoragePaths, deleteApplicationFiles } = require('./shared/applicationStorage');
 
 const SANDBOX_ID = 'SANDBOX';
 const INACTIVE_STATUSES = ['inactive', 'suspended', 'disabled'];
@@ -65,6 +66,23 @@ exports.deleteSandboxApplication = functions
     if (d.companyId !== SANDBOX_ID) {
       throw new functions.https.HttpsError('failed-precondition', 'Not a sandbox application.');
     }
+
+    // The same best-effort Storage cleanup as deleteApplication, before the doc
+    // is gone. A sandbox submission is public and its file fields are whatever
+    // the browser sent, so only paths inside the sandbox's own tree are deleted:
+    // a crafted path naming a real company's file is left alone.
+    try {
+      const ownTree = `companies/${SANDBOX_ID}/`;
+      await deleteApplicationFiles({
+        bucket: storage.bucket(),
+        companyId: SANDBOX_ID,
+        applicationId,
+        paths: collectStoragePaths(d, SANDBOX_ID).filter((path) => path.startsWith(ownTree)),
+      });
+    } catch (err) {
+      console.warn(`[deleteSandboxApplication] Storage cleanup partial failure for ${applicationId}: ${err?.message || err}`);
+    }
+
     await db.recursiveDelete(ref);
     return { success: true };
   });

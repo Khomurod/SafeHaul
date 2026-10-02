@@ -10,44 +10,17 @@
  *  - Restricted to company_admin (or super admin) via assertCompanyAdminStrict
  *  - Verifies the target doc actually belongs to {companyId} (tenant safety)
  *
- * Mirrors the cascade pattern of deleteSandboxApplication / deleteCompany.
+ * The Storage half is shared with deleteSandboxApplication
+ * (`shared/applicationStorage.js`), so the two deletions remove the same files.
  */
 
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { db, storage } = require("./firebaseAdmin");
 const { logger } = require("firebase-functions");
 const { assertCompanyAdminStrict } = require("./shared/companyAccess");
-const { ORIGINAL_PDF_PREFIX } = require("./shared/preserveApplicationPdf");
+const { collectStoragePaths, deleteApplicationFiles } = require("./shared/applicationStorage");
 
 const ALLOWED_COLLECTIONS = new Set(['applications', 'leads']);
-
-const storagePathOf = (value) => (
-    value && typeof value === 'object' && typeof value.storagePath === 'string' && value.storagePath
-        ? value.storagePath
-        : null
-);
-
-/**
- * Collect Storage object paths from an application doc's file fields ({ storagePath } objects).
- *
- * A custom file question keeps its upload inside `customAnswers` (since
- * 2026-10-02). Those values are whatever the applicant's browser sent, so only a
- * path in the namespace `getSignedUploadUrl` issues application uploads into is
- * taken from there — `companies/{companyId}/applications/guest_uploads/`. The
- * company prefix alone was not enough: a crafted answer could name one of the
- * same company's DQ or PEV files, and this deletion runs with the Admin SDK.
- */
-function collectStoragePaths(data, companyId) {
-    const record = data || {};
-    const paths = Object.values(record).map(storagePathOf).filter(Boolean);
-    const answers = record.customAnswers && typeof record.customAnswers === 'object' ? record.customAnswers : {};
-    const uploadPrefix = companyId ? `companies/${companyId}/applications/guest_uploads/` : null;
-    for (const value of Object.values(answers)) {
-        const path = storagePathOf(value);
-        if (path && uploadPrefix && path.startsWith(uploadPrefix)) paths.push(path);
-    }
-    return paths;
-}
 
 exports.deleteApplication = onCall({ cors: true }, async (request) => {
     if (!request.auth) {
@@ -75,21 +48,16 @@ exports.deleteApplication = onCall({ cors: true }, async (request) => {
 
     // Best-effort Storage cleanup BEFORE the doc is deleted (so we can read paths).
     // Per-file deletes catch the guest_uploads shared-folder files referenced on the
-    // doc; the prefix sweep catches admin-uploaded per-application files.
+    // doc; the prefix sweeps catch admin-uploaded per-application files and the
+    // preserved original PDFs.
     try {
-        const bucket = storage.bucket();
-        const filePaths = collectStoragePaths(data, companyId);
-        await Promise.allSettled([
-            ...filePaths.map((p) => bucket.file(p).delete()),
-            bucket.deleteFiles({ prefix: `companies/${companyId}/${collectionName}/${applicationId}/` }),
-            // The preserved original application PDFs. These live outside the
-            // `companies/` tree precisely so no Storage rule can reach them,
-            // which also means the sweep above cannot. They may carry a full
-            // Social Security Number, so leaving them behind after the owning
-            // record is gone would strand unreachable sensitive documents in
-            // the bucket forever — nothing could even locate them afterwards.
-            bucket.deleteFiles({ prefix: `${ORIGINAL_PDF_PREFIX}/${companyId}/${applicationId}/` }),
-        ]);
+        await deleteApplicationFiles({
+            bucket: storage.bucket(),
+            companyId,
+            collectionName,
+            applicationId,
+            paths: collectStoragePaths(data, companyId),
+        });
     } catch (err) {
         logger.warn(`[deleteApplication] Storage cleanup partial failure for ${applicationId}: ${err?.message || err}`);
     }
@@ -100,5 +68,3 @@ exports.deleteApplication = onCall({ cors: true }, async (request) => {
     logger.info(`[deleteApplication] ${collectionName}/${applicationId} deleted for company ${companyId} by ${request.auth.uid}`);
     return { success: true, applicationId, collectionName };
 });
-
-exports.collectStoragePaths = collectStoragePaths;
