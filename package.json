@@ -60,7 +60,7 @@
     "firebase": "^11.0.2",
     "html2canvas": "^1.4.1",
     "jspdf": "^4.0.0",
-    "lucide-react": "^0.552.0",
+    "lucide-react": "^1.48.0",
     "papaparse": "^5.7.0",
     "pdfjs-dist": "5.4.296",
     "react": "^19.3.0",
