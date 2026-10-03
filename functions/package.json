@@ -16,7 +16,7 @@
   "main": "index.js",
   "dependencies": {
     "@google-cloud/secret-manager": "^7.1.0",
-    "@google-cloud/tasks": "^7.1.1",
+    "@google-cloud/tasks": "^7.2.0",
     "@ringcentral/sdk": "^5.0.11",
     "axios": "^1.13.2",
     "firebase-admin": "^14.5.0",
