@@ -57,7 +57,7 @@
     "@sentry/react": "^10.75.0",
     "dompurify": "^3.4.2",
     "exceljs": "^4.4.0",
-    "firebase": "^11.0.2",
+    "firebase": "^12.19.0",
     "html2canvas": "^1.4.1",
     "jspdf": "^4.0.0",
     "lucide-react": "^0.552.0",
