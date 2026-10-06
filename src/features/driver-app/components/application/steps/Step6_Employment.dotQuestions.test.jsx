@@ -99,6 +99,36 @@ describe('Step6_Employment — what 49 CFR 391.21 asks', () => {
         expect(screen.queryByRole('group', { name: dotTestingQuestion })).not.toBeInTheDocument();
     });
 
+    // The questions leave with a job that moves before the three years, and so
+    // must their answers, or the record would hold answers to questions the page
+    // no longer asks.
+    it('drops the two answers when the end date moves before the three years', () => {
+        const row = employer({ endDate: '2024-05-31', subjectToFmcsrs: 'yes', subjectToDotTesting: 'no' });
+        const { updateFormData } = renderStep({ employers: [row] });
+
+        fireEvent.change(document.getElementById('emp-end-0-year'), { target: { value: '2019' } });
+
+        const [updated] = updateFormData.mock.calls
+            .filter(([key]) => key === 'employers')
+            .reduce((list, [, update]) => update(list), [row]);
+        expect(updated.endDate).toMatch(/^2019-05/);
+        expect(updated.subjectToFmcsrs).toBe('');
+        expect(updated.subjectToDotTesting).toBe('');
+    });
+
+    it('keeps the answers when the end date stays within the three years', () => {
+        const row = employer({ endDate: '2024-05-31', subjectToFmcsrs: 'yes', subjectToDotTesting: 'no' });
+        const { updateFormData } = renderStep({ employers: [row] });
+
+        fireEvent.change(document.getElementById('emp-end-0-year'), { target: { value: '2025' } });
+
+        const [updated] = updateFormData.mock.calls
+            .filter(([key]) => key === 'employers')
+            .reduce((list, [, update]) => update(list), [row]);
+        expect(updated.endDate).toMatch(/^2025-05/);
+        expect(updated).toMatchObject({ subjectToFmcsrs: 'yes', subjectToDotTesting: 'no' });
+    });
+
     it('requires the reason for leaving', () => {
         renderStep({ employers: [employer()] });
 

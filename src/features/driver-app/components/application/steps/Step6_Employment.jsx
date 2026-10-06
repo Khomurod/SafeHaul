@@ -7,7 +7,7 @@ import { useUtils } from '@shared/hooks/useUtils';
 import { useData } from '@/context/DataContext';
 import { YES_NO_OPTIONS } from '@/config/form-options';
 import { useToast } from '@shared/components/feedback';
-import { employerRowHasVerifierContact } from '@shared/utils/employmentApplicationHelpers';
+import { answersClearedByEndDate, employerRowHasVerifierContact } from '@shared/utils/employmentApplicationHelpers';
 import EmployerNameAutocomplete from './components/EmployerNameAutocomplete';
 import { FormSection } from '@/design-system/components';
 import { StepNavigation } from './components/StepNavigation';
@@ -257,7 +257,10 @@ const Step6_Employment = ({ formData, updateFormData, onNavigate, onPartialSubmi
                     idPrefix={'emp-end-' + index}
                     name="endDate"
                     value={item.endDate}
-                    onChange={handleChange}
+                    onChange={(name, value) => {
+                        handleChange(name, value);
+                        for (const key of answersClearedByEndDate(item, value)) handleChange(key, '');
+                    }}
                     required={empHistoryConfig.required}
                     maxToday={true}
                     minYear={ty - 40}

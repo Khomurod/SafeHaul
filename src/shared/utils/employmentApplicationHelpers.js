@@ -50,3 +50,13 @@ export function employerRowMissingAnswers(employer, today = new Date()) {
     }
     return missing;
 }
+
+/**
+ * The (b)(10)(iv) answers an end date takes away: a job that now ended before
+ * the three years loses them with their questions, so the record never holds an
+ * answer to a question the page no longer asks.
+ */
+export function answersClearedByEndDate(employer, endDate, today = new Date()) {
+    if (!endedBeforeLastThreeYears({ endDate }, today)) return [];
+    return ['subjectToFmcsrs', 'subjectToDotTesting'].filter((key) => !isBlankAnswer(employer?.[key]));
+}
