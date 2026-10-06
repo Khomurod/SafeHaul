@@ -368,8 +368,11 @@ function buildAgreementRecords({ definition, acceptances = {}, signature = null,
             title: resolved.title,
             // The verbatim text as displayed. This is what the signature binds to.
             body: resolved.body,
-            // What was presented beside it, such as the FCRA summary of rights.
-            links: resolved.links || [],
+            // What was presented beside it, such as the FCRA summary of rights,
+            // and only when the acceptance says the page showed it: Testing and
+            // Production share this backend, and a frontend built before
+            // agreement links existed never draws them.
+            links: evidence && evidence.linksShown === true ? (resolved.links || []) : [],
             legacyWording: resolved.legacy,
             companyWording: Boolean(resolved.companyWording),
             presentedOn: resolved.presentedOn || 'consent',

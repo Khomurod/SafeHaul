@@ -144,6 +144,9 @@ const Step9_Consent = ({ formData, updateFormData, onNavigate, onFinalSubmit, is
                 accepted: true,
                 acceptedAt: new Date().toISOString(),
                 version: agreement.version,
+                // Whether this page drew the version's links (the FCRA summary of
+                // rights): the server records them as provided only on this word.
+                linksShown: Array.isArray(agreement.links) && agreement.links.length > 0,
                 // The client's own user agent is legitimate to self-report. The IP
                 // is deliberately NOT sent from here: a client-supplied address is
                 // trivially forged, so the server stamps it at submission instead.

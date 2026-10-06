@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
@@ -168,6 +168,30 @@ describe('Step9_Consent', () => {
         // when the step is shown again.
         fireEvent.click(nextButton());
         await waitFor(() => expect(box('fcraDisclosure')).toBeInTheDocument());
+    });
+
+    // The server records a version's links as provided only on the page's word:
+    // the shared backend also serves a frontend that never draws them.
+    it("says in the evidence whether the page showed a document's links", async () => {
+        const seen = {};
+        function Recorder() {
+            const [formData, setFormData] = useState({});
+            useEffect(() => { Object.assign(seen, formData); }, [formData]);
+            const updateFormData = (key, value) => setFormData((p) => ({ ...p, [key]: value }));
+            return (
+                <Step9_Consent formData={formData} updateFormData={updateFormData} onNavigate={vi.fn()}
+                    onFinalSubmit={vi.fn()} isSubmitting={false} isUploading={false} />
+            );
+        }
+        render(<Recorder />);
+        await waitFor(() => expect(box('electronicSignature')).toBeInTheDocument());
+        fireEvent.click(box('electronicSignature'));
+        fireEvent.click(nextButton());
+        await waitFor(() => expect(box('fcraDisclosure')).toBeInTheDocument());
+        fireEvent.click(box('fcraDisclosure'));
+
+        await waitFor(() => expect(seen.agreementAcceptances?.fcraDisclosure?.linksShown).toBe(true));
+        expect(seen.agreementAcceptances.electronicSignature.linksShown).toBe(false);
     });
 
     it('withdrawing an acknowledgement re-blocks submission', async () => {

@@ -539,8 +539,8 @@ PDF on download.**
 `clearinghouseConsent`) live in `functions/shared/legalAgreements.js`. Current
 `v2` (`v1` stays submittable for drafts that accepted it) follows primary
 sources: FMCSA's PSP language word for word, an FCRA disclosure and
-authorization only (the CFPB summary of rights is a version `link`: shown,
-frozen, printed), and FMCSA's limited-query Clearinghouse consent (a full query
+authorization only (the CFPB summary of rights is a version `link`, recorded
+only if shown), and FMCSA's limited-query Clearinghouse consent (a full query
 is consented only in the Clearinghouse). The MVR authorization is answered on
 the Violations step (`consent-mvr`, with its version); on Consent each other
 agreement has a page of its own (the FCRA and PSP stand-alone rules), then the
