@@ -4,7 +4,7 @@
 // path behind Continue, the post-submission close, Start Over with its
 // quota-ordering rules, and the explicit Save-as-Draft. Bodies verbatim; the
 // refs arrive as the ref objects, so ownership semantics are unchanged.
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import {
   readApplicationDraft,
   saveApplicationDraft,
@@ -62,11 +62,35 @@ export function useDraftLifecycle({
     return localSeq;
   }, [slug, sandbox, formData, draftIdRef]);
 
+  /**
+   * Where Continue goes after Edit on the Review page.
+   *
+   * Review's Edit buttons are the wizard's only numeric jumps. The step they open
+   * is remembered with the Review step it was opened from, and Continue on that
+   * same step returns to Review instead of walking every later page again. The
+   * edited step still validates first: a step calls `onNavigate('next')` only once
+   * its own checks pass. Any other navigation forgets it, and so does the end of
+   * that application: a discard (here or in another tab) or a Start Over changes
+   * the discard mark, and the wizard they reset is a new application whose page
+   * one must not jump to the old Review. A later page the edit left incomplete is
+   * still caught: the submission pre-flight and the server check the whole
+   * application and route the applicant to what is missing.
+   */
+  const reviewReturnRef = useRef(null);
+
   const handleNavigate = (direction) => {
     let nextStep = currentStep;
-    if (direction === 'next') nextStep = currentStep + 1;
-    else if (direction === 'back') nextStep = Math.max(0, currentStep - 1);
-    else if (typeof direction === 'number') nextStep = direction;
+    const reviewReturn = reviewReturnRef.current;
+    reviewReturnRef.current = null;
+    if (direction === 'next') {
+      const returnsToReview = reviewReturn?.editedStep === currentStep
+        && reviewReturn.discardMark === discardMarkRef.current;
+      nextStep = returnsToReview ? reviewReturn.reviewStep : currentStep + 1;
+    } else if (direction === 'back') nextStep = Math.max(0, currentStep - 1);
+    else if (typeof direction === 'number') {
+      nextStep = direction;
+      reviewReturnRef.current = { editedStep: direction, reviewStep: currentStep, discardMark: discardMarkRef.current };
+    }
 
     // Before the step moves, not just before the write. Advancing and then
     // refusing to persist would leave the applicant a page further on with nothing

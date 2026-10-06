@@ -130,7 +130,9 @@ client write.
 SSN and ZIP open the number pad, and the SSN stays masked and is never
 autofilled. Previous addresses, employers and the FMCSA lookup turn autofill off.
 The auto-fill CDL photo is the CDL front, even when unreadable, unless the
-company hides that upload; what the AI reads fills only empty fields.
+company hides that upload; what the AI reads fills only empty fields. Continue on
+a page opened by Edit on Review goes straight back to Review; the submission
+pre-flight and the server still check the whole application.
 
 **The company shapes what the wizard asks, without code.** Company Settings →
 Company Profile has five tabs: *Standard Questions* (show / hide / require the
