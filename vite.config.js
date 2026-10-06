@@ -33,7 +33,11 @@ export default defineConfig({
       'firebase/storage',
       'firebase/app-check'
     ],
-    include: ['pdfjs-dist'],
+    // exceljs and papaparse are imported only by the bulk-import Web Worker,
+    // which the start-up dependency scan does not crawl. Without them here, the
+    // dev server discovers them on the first import and reloads the page
+    // mid-upload, which failed e2e/lead-intake.spec.cjs on every cold start.
+    include: ['pdfjs-dist', 'exceljs', 'papaparse'],
     esbuildOptions: {
       target: 'esnext', // CRITICAL: Allows Top-Level Await for PDF.js
     },
