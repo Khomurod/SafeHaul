@@ -126,6 +126,12 @@ the canonical sections in `functions/shared/applicationSections.json`.
 Submission goes through the `submitGuestApplication` callable (Admin SDK), not a
 client write.
 
+**The CDL photo is taken once.** The auto-fill photo is stored as the
+application's CDL front, where any upload goes, so the License step shows it
+attached and the driver never takes it again. That holds even when the licence
+cannot be read: the driver then fills in the form with the photo already
+attached. What the AI reads only fills fields the driver left empty.
+
 **The phone fills page 1 from the applicant's own contact card.** Only fields
 about the applicant carry autofill tokens: name, phone, email, date of birth and
 current address. SSN and ZIP open the number pad, and the SSN stays masked and is

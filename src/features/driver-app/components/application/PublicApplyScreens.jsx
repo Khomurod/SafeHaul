@@ -99,7 +99,9 @@ export function ApplyLinkErrorScreen({ error }) {
   );
 }
 
-export function ParsingCdlScreen({ autoFillStoragePath }) {
+// It used to print the photo's raw Storage path under the spinner. That path is
+// now the application's own CDL front, and meant nothing to a driver anyway.
+export function ParsingCdlScreen() {
   const headingId = `apply-parsing-cdl-${useId().replace(/:/g, '')}`;
   return (
     <StatusPage labelledBy={headingId}>
@@ -109,13 +111,7 @@ export function ParsingCdlScreen({ autoFillStoragePath }) {
           titleId={headingId}
           title="Reading your CDL..."
           description="Our AI is extracting your basic details so you can skip typing."
-        >
-          {autoFillStoragePath && (
-            <p className="text-center text-ds-xs text-ds-content-muted [overflow-wrap:anywhere]">
-              {autoFillStoragePath}
-            </p>
-          )}
-        </LoadingState>
+        />
       </div>
     </StatusPage>
   );
@@ -300,7 +296,7 @@ export function SubmissionQueuedScreen({ onGoHome }) {
  * Returns `null` when the wizard itself should render.
  */
 export function resolveApplyStatusScreen({
-  loading, error, isParsingCdl, autoFillStoragePath,
+  loading, error, isParsingCdl,
   sandbox, sandboxSubmission, onSandboxRestart,
   submissionStatus, postApplicationTemplates, submittedApplicationId, postSubmitDocs,
   openingTemplateId, handleOpenPostApplicationTemplate, submittedConfirmationNumber,
@@ -312,7 +308,7 @@ export function resolveApplyStatusScreen({
 }) {
   if (loading) return <ApplyLoadingScreen />;
   if (error) return <ApplyLinkErrorScreen error={error} />;
-  if (isParsingCdl) return <ParsingCdlScreen autoFillStoragePath={autoFillStoragePath} />;
+  if (isParsingCdl) return <ParsingCdlScreen />;
 
   if (sandbox && sandboxSubmission) {
     return (

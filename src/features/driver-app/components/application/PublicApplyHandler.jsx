@@ -92,12 +92,12 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
   const { isUploading, handleFileUpload } = useGuestFileUpload(company?.id);
   const {
     isParsingCdl,
-    autoFillStoragePath,
     cdlInputRef: cdlAutoFillInputRef,
     handleChooseAutoFill,
     handleCdlFileChange: handleCdlAutoFillFileChange,
   } = useCdlAutoFill({
     companyId: company?.id,
+    applicationConfig: company?.applicationConfig,
     onAutoFilled: (updater) => {
       setFormData(updater);
       setCurrentStep(0);
@@ -409,7 +409,6 @@ export function PublicApplyHandler({ sandbox = false } = {}) {
     loading,
     error,
     isParsingCdl,
-    autoFillStoragePath,
     sandbox,
     sandboxSubmission,
     onSandboxRestart: () => {

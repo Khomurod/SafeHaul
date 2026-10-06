@@ -56,16 +56,15 @@ describe('ApplyLinkErrorScreen', () => {
 
 describe('ParsingCdlScreen', () => {
   it('keeps the frozen heading and body and announces progress', () => {
-    render(<ParsingCdlScreen autoFillStoragePath="guest_uploads/e2e/cdl.png" />);
+    render(<ParsingCdlScreen />);
     expectSingleH1('Reading your CDL...');
     expect(screen.getByText(/extracting your basic details/)).toBeInTheDocument();
     expect(screen.getByRole('status')).toBeInTheDocument();
-    expect(screen.getByText('guest_uploads/e2e/cdl.png')).toBeInTheDocument();
   });
 
-  it('omits the storage path when there is none', () => {
-    render(<ParsingCdlScreen autoFillStoragePath="" />);
-    expect(screen.queryByText(/guest_uploads/)).toBeNull();
+  it('shows the driver no Storage path', () => {
+    render(<ParsingCdlScreen />);
+    expect(screen.queryByText(/guest_uploads|companies\//)).toBeNull();
   });
 });
 
