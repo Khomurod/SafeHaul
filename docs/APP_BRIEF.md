@@ -127,8 +127,9 @@ Submission goes through the `submitGuestApplication` callable (Admin SDK), not a
 client write.
 
 **Fewer taps.** Only the applicant's own page-1 fields carry autofill tokens;
-SSN and ZIP open the number pad, and the SSN stays masked and is never
-autofilled. Previous addresses, employers and the FMCSA lookup turn autofill off.
+SSN and ZIP open the number pad, and the SSN stays masked. The SSN, previous
+addresses, employers and the FMCSA lookup set `autocomplete="off"`, a request
+that some browsers and password managers ignore, not a guarantee.
 The auto-fill CDL photo is the CDL front, even when unreadable, unless the
 company hides that upload; what the AI reads fills only empty fields. Continue on
 a page opened by Edit on Review goes straight back to Review; the submission
