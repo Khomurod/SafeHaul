@@ -533,12 +533,15 @@ PDF on download.**
 **Legal agreement wording is versioned and frozen.** Five agreements
 (`mvrAuthorization`, `electronicSignature`, `fcraDisclosure`, `pspDisclosure`,
 `clearinghouseConsent`) live in `functions/shared/legalAgreements.js`, current
-version `v1`, each with `presentedOn`: the MVR authorization on the Violations
-step (`consent-mvr` records `agreementAcceptances.mvrAuthorization` with the
-version shown), the rest on Consent. A submission binds to the version the
-applicant saw, not what is deployed. `legacy-1` bodies are a **frozen forensic
-record — never edit them**; `clearinghouseConsent` deliberately has no
-`legacy-1`, so reconstruction cannot attribute a consent nobody gave.
+version `v1`. The MVR authorization is answered on the Violations step
+(`consent-mvr` records `agreementAcceptances.mvrAuthorization` with the version
+shown). On Consent each other agreement is a page of its own (the FCRA and PSP
+stand-alone rules), then the certification, ending with the exact 49 CFR
+391.21(b)(12) sentence (hard-coded in `Step9_Consent.jsx`, not frozen), and the
+signature. An acceptance counts only at the version on screen, and a submission
+binds to the version the applicant saw, not what is deployed. `legacy-1` bodies
+are a **frozen forensic record — never edit them**; `clearinghouseConsent` has
+no `legacy-1`, so reconstruction cannot attribute a consent nobody gave.
 **Applications submitted before the MVR authorization existed have no acceptance
 for it**; their records say so, and nothing back-fills one.
 
