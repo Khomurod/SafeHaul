@@ -20,6 +20,10 @@ import { StateSelectField } from './StateSelectField';
  * 3 years, at least one complete previous address is needed, and the hint says
  * so the moment they answer No — the rule engine refuses Continue and submission
  * with the same sentence.
+ *
+ * The row fields share their names with the current address on the same page, so
+ * each sets `autoComplete="off"`: filling the current address from the phone's
+ * contact card must not copy it into a previous address too.
  */
 export function PreviousAddressesSection({ formData, updateFormData, states, ty, requiredHint = false }) {
     return (
@@ -43,6 +47,7 @@ export function PreviousAddressesSection({ formData, updateFormData, states, ty,
                             label="Address"
                             id={`prev-street-${index}`}
                             name="street"
+                            autoComplete="off"
                             value={item.street}
                             onChange={(n, v) => handleRowChange('street', v)}
                             placeholder="123 Old St"
@@ -53,6 +58,7 @@ export function PreviousAddressesSection({ formData, updateFormData, states, ty,
                                 label="City"
                                 id={`prev-city-${index}`}
                                 name="city"
+                                autoComplete="off"
                                 value={item.city}
                                 onChange={(n, v) => handleRowChange('city', v)}
                                 placeholder="City"
@@ -61,6 +67,7 @@ export function PreviousAddressesSection({ formData, updateFormData, states, ty,
                             <StateSelectField
                                 id={`prev-state-${index}`}
                                 name="state"
+                                autoComplete="off"
                                 states={states}
                                 value={item.state}
                                 onChange={(e) => handleRowChange('state', e.target.value)}
@@ -69,6 +76,7 @@ export function PreviousAddressesSection({ formData, updateFormData, states, ty,
                                 label="ZIP Code"
                                 id={`prev-zip-${index}`}
                                 name="zip"
+                                autoComplete="off"
                                 value={item.zip}
                                 onChange={(n, v) => handleRowChange('zip', v)}
                                 placeholder="Zip"

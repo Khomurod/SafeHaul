@@ -195,7 +195,7 @@ const Step3_License = ({ formData, updateFormData, handleFileUpload, onNavigate,
                     horizontal={false}
                 />
 
-                <InputField label="License Number" id="cdl-number" name="cdlNumber" required={true} value={formData.cdlNumber} onChange={updateFormData} />
+                <InputField label="License Number" id="cdl-number" name="cdlNumber" autoComplete="off" autoCapitalize="characters" autoCorrect="off" spellCheck={false} required={true} value={formData.cdlNumber} onChange={updateFormData} />
                 <div>
                     <DateTripletField
                         label="License Expiration"

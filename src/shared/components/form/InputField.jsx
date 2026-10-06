@@ -19,8 +19,13 @@ import { FieldMessage, Input, Label } from '@/design-system/components';
  * `aria-describedby` wiring — all covered by `src/tests/InputField.test.jsx`,
  * `src/tests/a11y/primitives.a11y.test.jsx` and the field-validation
  * integration tests.
+ *
+ * `autoComplete`, `autoCapitalize`, `autoCorrect` and `spellCheck` pass straight
+ * to the input and are omitted when not given, so a call site opts in field by
+ * field. A field without a token never claims to be the applicant's own name or
+ * address, which matters on rows about employers and previous addresses.
  */
-const InputField = ({ label, id, name, type = 'text', value, onChange, onBlur, required = false, placeholder, className = "", error, min, max, step, inputMode }) => {
+const InputField = ({ label, id, name, type = 'text', value, onChange, onBlur, required = false, placeholder, className = "", error, min, max, step, inputMode, autoComplete, autoCapitalize, autoCorrect, spellCheck }) => {
     const isFile = type === 'file';
     // C2: associate the error message with the input for assistive tech.
     const errorId = error ? `${id || name}-error` : undefined;
@@ -89,6 +94,10 @@ const InputField = ({ label, id, name, type = 'text', value, onChange, onBlur, r
                 max={max}
                 step={step}
                 inputMode={inputMode}
+                autoComplete={autoComplete}
+                autoCapitalize={autoCapitalize}
+                autoCorrect={autoCorrect}
+                spellCheck={spellCheck}
                 // C2: WCAG 2.1 AA — programmatically expose required/invalid state and the
                 // associated error message so screen readers announce them.
                 aria-required={required || undefined}

@@ -41,3 +41,34 @@ describe('InputField accessibility (C2)', () => {
     expect(onBlur).toHaveBeenCalledWith('city', 'Dallas');
   });
 });
+
+describe('InputField autofill and keyboard hints', () => {
+  it('passes them to the input when a call site asks for them', () => {
+    render(
+      <InputField
+        id="cdl-number"
+        name="cdlNumber"
+        label="License Number"
+        value=""
+        onChange={() => {}}
+        autoComplete="off"
+        autoCapitalize="characters"
+        autoCorrect="off"
+        spellCheck={false}
+      />,
+    );
+    const input = screen.getByLabelText(/License Number/i);
+    expect(input).toHaveAttribute('autocomplete', 'off');
+    expect(input).toHaveAttribute('autocapitalize', 'characters');
+    expect(input).toHaveAttribute('autocorrect', 'off');
+    expect(input).toHaveAttribute('spellcheck', 'false');
+  });
+
+  it('adds none of them by default', () => {
+    render(<InputField id="city" name="city" label="City" value="" onChange={() => {}} />);
+    const input = screen.getByLabelText(/City/i);
+    for (const attribute of ['autocomplete', 'autocapitalize', 'autocorrect', 'spellcheck']) {
+      expect(input).not.toHaveAttribute(attribute);
+    }
+  });
+});

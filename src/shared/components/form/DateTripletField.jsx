@@ -33,6 +33,10 @@ const emptyTriplet = () => ({ year: '', month: '', day: '' });
  * rendered clipped. The row now wraps on narrow screens (month and day share
  * the first line, the year takes the whole second line) and each cell is
  * `min-w-0`, so the year is always shown in full on desktop and mobile alike.
+ *
+ * `autoComplete="bday"` gives the selects `bday-month`, `bday-day` and
+ * `bday-year`, for the applicant's own date of birth only. There is no default:
+ * the same field records employment, licence and accident dates.
  */
 export default function DateTripletField({
     label,
@@ -45,6 +49,7 @@ export default function DateTripletField({
     minYear = 1920,
     maxYear,
     maxToday = false,
+    autoComplete,
 }) {
     const rawId = useId().replace(/:/g, '');
     const groupLabelId = `${idPrefix}-group-label-${rawId}`;
@@ -201,6 +206,7 @@ export default function DateTripletField({
                     <label className="ds-visually-hidden" htmlFor={`${idPrefix}-month`}>{partName('month')}</label>
                     <Select
                         id={`${idPrefix}-month`}
+                        autoComplete={autoComplete ? `${autoComplete}-month` : undefined}
                         value={p.month === '' ? '' : String(p.month)}
                         onChange={onMonthChange}
                         required={required}
@@ -221,6 +227,7 @@ export default function DateTripletField({
                     <label className="ds-visually-hidden" htmlFor={`${idPrefix}-day`}>{partName('day')}</label>
                     <Select
                         id={`${idPrefix}-day`}
+                        autoComplete={autoComplete ? `${autoComplete}-day` : undefined}
                         value={p.day === '' ? '' : String(p.day)}
                         onChange={onDayChange}
                         required={required}
@@ -237,6 +244,7 @@ export default function DateTripletField({
                     <label className="ds-visually-hidden" htmlFor={`${idPrefix}-year`}>{partName('year')}</label>
                     <Select
                         id={`${idPrefix}-year`}
+                        autoComplete={autoComplete ? `${autoComplete}-year` : undefined}
                         value={p.year === '' ? '' : String(p.year)}
                         onChange={onYearChange}
                         required={required}

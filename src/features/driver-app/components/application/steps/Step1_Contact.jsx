@@ -65,6 +65,11 @@ const FIELD_ID_BY_NAME = {
  * company's `requirePreviousAddressUnderThreeYears` rule asks for a previous
  * address as soon as the applicant answers No to the three-year question. The
  * previous-address editor moved to `PreviousAddressesSection` unchanged.
+ *
+ * 2026-10-06: the applicant's own name, contact, date-of-birth and current-address
+ * fields carry autofill tokens, so a phone can fill them from the saved contact
+ * card, and SSN and ZIP open the number pad. The SSN stays a masked field with
+ * autofill off. `applicationAutofill.test.jsx` pins which fields may be filled.
  */
 const Step1_Contact = ({ formData, updateFormData, onNavigate, onPartialSubmit }) => {
     const ty = new Date().getFullYear();
@@ -232,10 +237,10 @@ const Step1_Contact = ({ formData, updateFormData, onNavigate, onPartialSubmit }
             {/* --- Personal Details --- */}
             <FormSection title="Personal Information">
                 <div className="grid grid-cols-1 gap-ds-6 sm:grid-cols-2">
-                    <InputField label="First Name" id="first-name" name="firstName" required={true} value={formData.firstName} onChange={handleChange} onBlur={handleFieldBlur} error={errors.firstName} placeholder="John" />
-                    <InputField label="Middle Name" id="middle-name" name="middleName" value={formData.middleName} onChange={updateFormData} placeholder="M" />
-                    <InputField label="Last Name" id="last-name" name="lastName" required={true} value={formData.lastName} onChange={handleChange} onBlur={handleFieldBlur} error={errors.lastName} placeholder="Doe" />
-                    <InputField label="Suffix" id="suffix" name="suffix" value={formData.suffix} onChange={updateFormData} placeholder="Jr." />
+                    <InputField label="First Name" id="first-name" name="firstName" autoComplete="given-name" required={true} value={formData.firstName} onChange={handleChange} onBlur={handleFieldBlur} error={errors.firstName} placeholder="John" />
+                    <InputField label="Middle Name" id="middle-name" name="middleName" autoComplete="additional-name" value={formData.middleName} onChange={updateFormData} placeholder="M" />
+                    <InputField label="Last Name" id="last-name" name="lastName" autoComplete="family-name" required={true} value={formData.lastName} onChange={handleChange} onBlur={handleFieldBlur} error={errors.lastName} placeholder="Doe" />
+                    <InputField label="Suffix" id="suffix" name="suffix" autoComplete="honorific-suffix" value={formData.suffix} onChange={updateFormData} placeholder="Jr." />
                 </div>
 
                 <div className="border-t border-ds-border-subtle pt-ds-4">
@@ -267,6 +272,7 @@ const Step1_Contact = ({ formData, updateFormData, onNavigate, onPartialSubmit }
                                 value={formData.ssn}
                                 onChange={updateFormData}
                                 placeholder="XXX-XX-XXXX"
+                                inputMode="numeric"
                                 autoComplete="off"
                             />
                             {hasSSNWarning(formData.ssn) && <ValidationWarning message="Format usually matches XXX-XX-XXXX" />}
@@ -286,6 +292,7 @@ const Step1_Contact = ({ formData, updateFormData, onNavigate, onPartialSubmit }
                                 maxToday={true}
                                 minYear={1920}
                                 helpText="Select month, day, and year — easier than scrolling a calendar."
+                                autoComplete="bday"
                             />
                             {dobUnder21 && (
                                 <FieldMessage tone="error" className="mt-ds-1" data-testid="dob-age-message">
@@ -298,11 +305,11 @@ const Step1_Contact = ({ formData, updateFormData, onNavigate, onPartialSubmit }
 
                 <div className="grid grid-cols-1 gap-ds-6 border-t border-ds-border-subtle pt-ds-4 sm:grid-cols-2">
                     <div>
-                        <InputField label="Phone" id="phone" name="phone" type="tel" required={true} value={formData.phone} onChange={handleChange} onBlur={handleFieldBlur} error={errors.phone} placeholder="(555) 555-5555" />
+                        <InputField label="Phone" id="phone" name="phone" type="tel" autoComplete="tel" required={true} value={formData.phone} onChange={handleChange} onBlur={handleFieldBlur} error={errors.phone} placeholder="(555) 555-5555" />
                         {!errors.phone && hasPhoneWarning(formData.phone) && <ValidationWarning message="Please double-check phone format." />}
                     </div>
                     <div>
-                        <InputField label="Email" id="email" name="email" type="email" required={true} value={formData.email} onChange={handleChange} onBlur={handleFieldBlur} error={errors.email} placeholder="you@example.com" />
+                        <InputField label="Email" id="email" name="email" type="email" autoComplete="email" required={true} value={formData.email} onChange={handleChange} onBlur={handleFieldBlur} error={errors.email} placeholder="you@example.com" />
                         {!errors.email && hasEmailWarning(formData.email) && <ValidationWarning message="Email address looks incomplete." />}
                     </div>
                 </div>
@@ -335,19 +342,20 @@ const Step1_Contact = ({ formData, updateFormData, onNavigate, onPartialSubmit }
             {/* --- Current Address --- */}
             <FormSection title="Current Address">
                 <div>
-                    <InputField label="Address 1" id="street" name="street" required={true} value={formData.street} onChange={handleChange} onBlur={handleFieldBlur} error={errors.street} placeholder="123 Main St" />
+                    <InputField label="Address 1" id="street" name="street" autoComplete="address-line1" required={true} value={formData.street} onChange={handleChange} onBlur={handleFieldBlur} error={errors.street} placeholder="123 Main St" />
                 </div>
                 <div className="grid grid-cols-1 gap-ds-6 sm:grid-cols-3">
-                    <InputField label="City" id="city" name="city" required={true} value={formData.city} onChange={handleChange} onBlur={handleFieldBlur} error={errors.city} placeholder="Anytown" />
+                    <InputField label="City" id="city" name="city" autoComplete="address-level2" required={true} value={formData.city} onChange={handleChange} onBlur={handleFieldBlur} error={errors.city} placeholder="Anytown" />
                     <StateSelectField
                         id="state"
                         name="state"
+                        autoComplete="address-level1"
                         states={states}
                         value={formData.state}
                         onChange={(e) => handleStateChange(e.target.name, e.target.value)}
                     />
                     <div>
-                        <InputField label="ZIP Code" id="zip" name="zip" required={true} value={formData.zip} onChange={handleChange} onBlur={handleFieldBlur} error={errors.zip} placeholder="12345" />
+                        <InputField label="ZIP Code" id="zip" name="zip" autoComplete="postal-code" inputMode="numeric" required={true} value={formData.zip} onChange={handleChange} onBlur={handleFieldBlur} error={errors.zip} placeholder="12345" />
                         {!errors.zip && hasZipWarning(formData.zip) && <ValidationWarning message="Standard ZIP is 5 digits." />}
                     </div>
                 </div>
