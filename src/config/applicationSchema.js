@@ -120,8 +120,13 @@ export const DRUG_ALCOHOL_SECTION = {
     id: 'drugAlcohol',
     title: 'Drug & Alcohol History',
     stepNumber: 2,
+    // The 49 CFR 40.25(j) question, and the broader one it replaced on
+    // 2026-10-06, which the Production frontend asks until it is promoted. Each
+    // shows only on an application that answered it.
     fields: [
-        { key: 'drug-test-positive', label: 'Drug and alcohol positive tests or refusals?', type: 'radio', options: YES_NO_OPTIONS, required: true },
+        { key: 'pre-employment-test-positive', label: 'Positive pre-employment test or refusal in the past two years?', type: 'radio', options: YES_NO_OPTIONS, required: true, presentWhenAnswered: true },
+        { key: 'pre-employment-test-explanation', label: 'Please explain', type: 'textarea', dependsOn: 'pre-employment-test-positive', showWhen: 'yes' },
+        { key: 'drug-test-positive', label: 'Drug and alcohol positive tests or refusals?', type: 'radio', options: YES_NO_OPTIONS, required: true, presentWhenAnswered: true },
         { key: 'drug-test-explanation', label: 'Please explain', type: 'textarea', dependsOn: 'drug-test-positive', showWhen: 'yes' },
         { key: 'dot-return-to-duty', label: 'Can you provide documentation for DOT return to duty process?', type: 'radio', options: YES_NO_OPTIONS, required: true },
     ]
@@ -378,6 +383,10 @@ export function getFieldByKey(key) {
  * Check if a field should be visible based on conditional logic
  */
 export function isFieldConditionallyVisible(field, formData) {
+    if (field.presentWhenAnswered) {
+        const value = formData?.[field.key];
+        return value !== undefined && value !== null && String(value).trim() !== '';
+    }
     if (!field.dependsOn) return true;
     return formData[field.dependsOn] === field.showWhen;
 }

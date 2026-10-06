@@ -126,7 +126,7 @@ async function fillStep2(page) {
   await page.locator('label[for="legal-work-yes"]').waitFor({ state: 'visible', timeout: 15_000 });
   await chooseRadio(page, 'legal-work-yes');
   await chooseRadio(page, 'english-fluency-yes');
-  await chooseRadio(page, 'drug-test-positive-no');
+  await chooseRadio(page, 'pre-employment-test-positive-no');
   await chooseRadio(page, 'dot-return-to-duty-yes');
   await chooseRadio(page, 'experience-years-1');
   await continueToStep(page, 'License');

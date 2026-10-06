@@ -31,6 +31,7 @@ function completeForm(overrides = {}) {
         // Never stored with a draft, so always re-entered before submission.
         ssn: '123-45-6789',
         cdlExpiration: NEXT_YEAR,
+        'pre-employment-test-positive': 'no',
         'has-violations': 'no',
         'has-accidents': 'no',
         signature: 'data:image/png;base64,AAA',
@@ -68,6 +69,21 @@ describe('runSubmissionPreflight', () => {
         // An explicit No drops the leftover rows, exactly as the server will.
         expect(result.formData.violations).toEqual([]);
         expect(result.formData['has-violations']).toBe('no');
+    });
+
+    // A draft saved before the 49 CFR 40.25(j) question replaced the broader one
+    // was never asked it, and one resumed past Qualifications never reaches it.
+    it('sends a draft without the 40.25(j) answer back to Qualifications', () => {
+        const { result, setCurrentStep, showError } = run({
+            formData: completeForm({
+                'pre-employment-test-positive': undefined,
+                'drug-test-positive': 'yes',
+                'drug-test-explanation': 'A refusal in 2015.',
+            }),
+        });
+        expect(result.ok).toBe(false);
+        expect(setCurrentStep).toHaveBeenCalledWith('qualifications');
+        expect(showError).toHaveBeenCalledWith('Please answer the drug and alcohol testing question on Qualifications to submit.');
     });
 
     it('walks the applicant to the page whose rule fails, with the page\'s own sentence', () => {

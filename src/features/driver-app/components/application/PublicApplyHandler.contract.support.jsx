@@ -241,6 +241,7 @@ export const SIGNED_DRAFT = {
   // session", so the value is present here on purpose. The resumed-without-it
   // case is covered explicitly below.
   ssn: '123-45-6789',
+  'pre-employment-test-positive': 'no',
   'cdl-front': UPLOADED,
   'cdl-back': UPLOADED,
   'medical-card-upload': UPLOADED,

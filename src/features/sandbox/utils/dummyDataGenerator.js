@@ -70,7 +70,7 @@ function patchStep2Qualifications() {
   return {
     'legal-work': 'yes',
     'english-fluency': 'yes',
-    'drug-test-positive': 'no',
+    'pre-employment-test-positive': 'no',
     'dot-return-to-duty': 'yes',
     'experience-years': '5+',
   };

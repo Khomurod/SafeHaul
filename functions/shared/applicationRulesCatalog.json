@@ -150,6 +150,7 @@
         },
         "fields": {
             "known-by-other-name": ["otherName"],
+            "pre-employment-test-positive": ["pre-employment-test-explanation"],
             "drug-test-positive": ["drug-test-explanation"],
             "has-twic": ["twicExpiration", "twic-card-upload"],
             "revoked-licenses": ["revocationExplanation"],

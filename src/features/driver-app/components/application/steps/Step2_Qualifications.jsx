@@ -10,7 +10,7 @@ import { useApplicationRules, useStepGate } from '@features/driver-app/hooks/use
  * Presentation migrated to the approved `FormSection` / `FormField` / `Textarea`
  * primitives and the shared `RadioGroup` adapter (2026-07-27). Field keys,
  * `YES_NO_OPTIONS` / `EXPERIENCE_OPTIONS`, the conditional drug-test
- * explanation, the frozen DOT question wording, and the VAL-1
+ * explanation, the DOT question wording (except as noted below), and the VAL-1
  * `form.checkValidity()` gate are unchanged.
  *
  * The per-step "Step 2 of 9" heading was removed: `Stepper` renders the
@@ -23,15 +23,33 @@ import { useApplicationRules, useStepGate } from '@features/driver-app/hooks/use
  * change — only which of them are offered. An answer a company has since hidden
  * is not rendered, so the applicant must choose again; the rule engine refuses it
  * at submission for the same reason, on the same page.
+ *
+ * 2026-10-06: the drug and alcohol question is now the one 49 CFR 40.25(j)
+ * requires, in its own terms: pre-employment tests in the past two years. It
+ * asked "ever", and about any DOT test, which is wider than the rule. The answer
+ * has its own key, `pre-employment-test-positive`: the backend is shared with
+ * the Production frontend, which asks the broader question (`drug-test-positive`)
+ * until it is promoted, and each is recorded under its own label. Answering the
+ * new question clears a draft's earlier answer to the broader one, which no page
+ * shows any more.
  */
+const RETIRED_DRUG_TEST_KEYS = ['drug-test-positive', 'drug-test-explanation'];
+
 const Step2_Qualifications = ({ formData, updateFormData, onNavigate, onPartialSubmit }) => {
     const yesNoOptions = YES_NO_OPTIONS;
-    const drugTestPositive = formData['drug-test-positive'] === 'yes';
+    const preEmploymentPositive = formData['pre-employment-test-positive'] === 'yes';
     const rules = useApplicationRules();
     const experienceOptions = EXPERIENCE_OPTIONS.filter(
         (option) => !rules.experienceOptionsHidden.includes(option.value),
     );
     const { blocking, attempted, issuesRef, refuseIfBlocked } = useStepGate('qualifications', formData);
+
+    const answerPreEmploymentTest = (name, value) => {
+        updateFormData(name, value);
+        for (const key of RETIRED_DRUG_TEST_KEYS) {
+            if (formData[key]) updateFormData(key, '');
+        }
+    };
 
     // VAL-1: Validate required radio fields before advancing.
     // form.checkValidity() does not catch radio groups unless they have a required attribute
@@ -70,23 +88,23 @@ const Step2_Qualifications = ({ formData, updateFormData, onNavigate, onPartialS
 
             <FormSection title="Drug & Alcohol History">
                 <p className="text-ds-sm text-ds-content-secondary">
-                    Have you ever tested positive, or refused to test on a pre-employment drug or alcohol test by an employer to whom you applied, but did not obtain safety-sensitive transportation work covered by DOT drug and alcohol testing regulations, or have you ever tested positive or refused to test on any DOT-mandated drug or alcohol test?
+                    In the past two years, have you tested positive, or refused to test, on any pre-employment drug or alcohol test administered by an employer to which you applied for, but did not obtain, safety-sensitive transportation work covered by DOT agency drug and alcohol testing rules?
                 </p>
                 <RadioGroup
-                    label="Drug and alcohol positive tests or refusals?"
-                    name="drug-test-positive"
+                    label="Positive pre-employment test or refusal in the past two years?"
+                    name="pre-employment-test-positive"
                     options={yesNoOptions}
-                    value={formData['drug-test-positive']}
-                    onChange={updateFormData}
+                    value={formData['pre-employment-test-positive']}
+                    onChange={answerPreEmploymentTest}
                     required={true}
                 />
-                {drugTestPositive && (
-                    <div id="drug-test-details" className="border-t border-ds-border-subtle pt-ds-4">
-                        <FormField id="drug-test-explanation" label="Please explain:">
+                {preEmploymentPositive && (
+                    <div id="pre-employment-test-details" className="border-t border-ds-border-subtle pt-ds-4">
+                        <FormField id="pre-employment-test-explanation" label="Please explain:">
                             <Textarea
-                                name="drug-test-explanation"
+                                name="pre-employment-test-explanation"
                                 rows="3"
-                                value={formData['drug-test-explanation'] || ""}
+                                value={formData['pre-employment-test-explanation'] || ""}
                                 onChange={(e) => updateFormData(e.target.name, e.target.value)}
                             />
                         </FormField>

@@ -68,7 +68,7 @@ const formData = {
     'residence-3-years': 'no',
     previousAddresses: [{ street: '55 Kingsley Court Apt 4B', city: 'Dallas', state: 'TX', zip: '75204', startDate: '2021-03', endDate: '2023-08' }],
     'legal-work': 'yes', 'english-fluency': 'yes', 'experience-years': '5-10 years',
-    'drug-test-positive': 'no', 'dot-return-to-duty': 'no',
+    'pre-employment-test-positive': 'no', 'dot-return-to-duty': 'no',
     referralSource: 'Referred by a current driver',
     cdlNumber: '18422771', cdlState: 'TX', cdlClass: 'Class A', cdlExpiration: '2029-04-17',
     endorsements: 'H,N,T', medCardExpiration: '2027-01-09',
