@@ -61,6 +61,16 @@ describe('looseDateToIso', () => {
     it('offers a month or day that cannot exist blank rather than inventing a date', () => {
         expect(looseDateToIso('13/45/2024')).toBe('');
         expect(looseDateToIso('00/10/2024')).toBe('');
+        // A day the month does not have, in either shape a model may answer in.
+        expect(looseDateToIso('02/31/2024')).toBe('');
+        expect(looseDateToIso('04/31/2024')).toBe('');
+        expect(looseDateToIso('02/29/2023')).toBe('');
+        expect(looseDateToIso('2024-02-30')).toBe('');
+        expect(looseDateToIso('13/2024')).toBe('');
+        expect(looseDateToIso('2024-13')).toBe('');
+        // Leap years still have their 29th.
+        expect(looseDateToIso('02/29/2024')).toBe('2024-02-29');
+        expect(looseDateToIso('2024-02-29')).toBe('2024-02-29');
     });
 
     it.each([['', ''], ['unknown', ''], ['N/A', ''], [null, ''], [42, ''], ['12/31', '']])(
@@ -138,6 +148,8 @@ describe('normalizePspOutput', () => {
         expect(out.violations).toEqual([]);
         expect(KINDS.psp.schema.properties).not.toHaveProperty('violations');
         expect(KINDS.psp.prompt).not.toMatch(/violation/i);
+        // "Return an empty array" invites a bare [], which the object schema refuses.
+        expect(KINDS.psp.prompt).toContain('return {"carriers": []}');
     });
 
     it('still reads violations from a motor vehicle record, which lists convictions', () => {

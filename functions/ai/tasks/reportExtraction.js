@@ -84,7 +84,7 @@ const PSP_PROMPT = [
     'Return ONLY strict JSON. No markdown. No prose.',
     'List every motor carrier named in the crash or inspection records: carrierName, usdotNumber (digits only, or empty),',
     'earliestDate and latestDate of the records mentioning that carrier (as printed, or empty), and recordType (inspection, crash, or both).',
-    'Do not infer employment dates; report only what is printed. If nothing is readable, return an empty array.',
+    'Do not infer employment dates; report only what is printed. If nothing is readable, return {"carriers": []}.',
 ].join(' ');
 
 const MVR_PROMPT = [
@@ -111,6 +111,16 @@ function fullYear(twoDigits, now = new Date()) {
     return year > now.getFullYear() + 10 ? year - 100 : year;
 }
 
+const pad2 = (value) => String(value).padStart(2, '0');
+const isMonth = (month) => month >= 1 && month <= 12;
+
+/** `YYYY-MM-DD` for a day the calendar has, else '': "02/31" is a misreading, not a date. */
+function isoDay(year, month, day) {
+    const date = new Date(Date.UTC(Number(year), month - 1, day));
+    const exists = isMonth(month) && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+    return exists ? `${year}-${pad2(month)}-${pad2(day)}` : '';
+}
+
 /**
  * Printed dates come in every shape a state or FMCSA prints them in. Normalise to
  * `YYYY-MM-DD`, `YYYY-MM` when only a month is legible, or '' — a date that
@@ -122,19 +132,17 @@ function looseDateToIso(raw) {
     if (!value) return '';
     let match;
     if ((match = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(value))) {
-        return `${match[1]}-${match[2].padStart(2, '0')}-${match[3].padStart(2, '0')}`;
+        return isoDay(match[1], Number(match[2]), Number(match[3]));
     }
     if ((match = /^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/.exec(value))) {
-        const [month, day] = [Number(match[1]), Number(match[2])];
-        if (month < 1 || month > 12 || day < 1 || day > 31) return '';
         const year = match[3].length === 2 ? fullYear(Number(match[3])) : Number(match[3]);
-        return `${year}-${match[1].padStart(2, '0')}-${match[2].padStart(2, '0')}`;
+        return isoDay(year, Number(match[1]), Number(match[2]));
     }
     if ((match = /^(\d{1,2})[/-](\d{4})$/.exec(value))) {
-        return `${match[2]}-${match[1].padStart(2, '0')}`;
+        return isMonth(Number(match[1])) ? `${match[2]}-${pad2(match[1])}` : '';
     }
     if ((match = /^(\d{4})-(\d{1,2})$/.exec(value))) {
-        return `${match[1]}-${match[2].padStart(2, '0')}`;
+        return isMonth(Number(match[2])) ? `${match[1]}-${pad2(match[2])}` : '';
     }
     const parsed = new Date(value);
     if (!Number.isNaN(parsed.getTime()) && /\d{4}/.test(value)) {
