@@ -102,14 +102,23 @@ function OpenUploadedFile({ storagePath }) {
     );
 }
 
-function AnswerRow({ answer }) {
+function AnswerRow({ answer, openUploads }) {
     const value = answer.sensitive && !answer.isMissing ? maskSensitive(answer.value) : answer.value;
-    return (
+    const display = (
         <FieldDisplay label={answer.label} className="min-w-0">
             <span className={`whitespace-pre-wrap [overflow-wrap:anywhere] ${answer.isMissing ? NOT_PROVIDED_TONE : ''}`}>
                 {value}
             </span>
         </FieldDisplay>
+    );
+    if (!openUploads || !answer.storagePath) return display;
+    // Beside the value rather than inside it: `FieldDisplay` holds its value in a
+    // `<p>`, which cannot contain the button's block.
+    return (
+        <div className="min-w-0">
+            {display}
+            <OpenUploadedFile storagePath={answer.storagePath} />
+        </div>
     );
 }
 
@@ -197,8 +206,12 @@ function AgreementRow({ agreement }) {
 /**
  * @param {object} props
  * @param {object} props.record Output of `presentSubmission`.
+ * @param {boolean} [props.openUploads=false] Also offer **Open file** beside a
+ *   standard upload (a licence, a medical card). A custom question's file always
+ *   has one; the dossier shows the standard documents elsewhere, and an
+ *   unfinished application, which has no dossier, asks for this.
  */
-export function PreservedApplicationView({ record }) {
+export function PreservedApplicationView({ record, openUploads = false }) {
     if (!record || !record.isPreserved) {
         /*
          * A hand-composed `EmptyState` until 2026-09-06: a bordered box with
@@ -236,7 +249,7 @@ export function PreservedApplicationView({ record }) {
                 <Section key={section.id} title={section.title}>
                     <div className="grid grid-cols-1 gap-x-ds-8 gap-y-ds-4 md:grid-cols-2">
                         {section.answers.filter((answer) => !answer.repeating).map((answer) => (
-                            <AnswerRow key={answer.key} answer={answer} />
+                            <AnswerRow key={answer.key} answer={answer} openUploads={openUploads} />
                         ))}
                     </div>
                     {section.answers.filter((answer) => answer.repeating).map((answer) => (

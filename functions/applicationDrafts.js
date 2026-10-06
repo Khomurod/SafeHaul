@@ -43,9 +43,10 @@
  */
 
 // The handlers live in `drafts/`, split by what they do to a draft: identify,
-// save, resume, list. This module is the deployment surface and nothing else —
-// `index.js` reads these names off it, so **the export names here are the
-// contract** and a rename is a redeployment.
+// save, resume, list, and a Company Admin's read and delete. This module is
+// the deployment surface and nothing else — `index.js` reads these names off
+// it, so **the export names here are the contract** and a rename is a
+// redeployment.
 const { LIMITS, NO_MATCH } = require('./drafts/runtime');
 const {
     applicantKeyOf, docId, findByToken, supersedeOtherDrafts, text,
@@ -55,12 +56,15 @@ const {
     findResumableApplication, resumeApplicationDraft, startNewApplication,
 } = require('./drafts/resume');
 const { listApplicationDrafts } = require('./drafts/list');
+const { getApplicationDraft, deleteApplicationDraft } = require('./drafts/admin');
 
 exports.saveApplicationProgress = saveApplicationProgress;
 exports.findResumableApplication = findResumableApplication;
 exports.resumeApplicationDraft = resumeApplicationDraft;
 exports.startNewApplication = startNewApplication;
 exports.listApplicationDrafts = listApplicationDrafts;
+exports.getApplicationDraft = getApplicationDraft;
+exports.deleteApplicationDraft = deleteApplicationDraft;
 
 exports.__private = {
     LIMITS, NO_MATCH, findByToken, supersedeOtherDrafts, text, docId, applicantKeyOf,

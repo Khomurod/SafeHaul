@@ -132,6 +132,10 @@ exports.startNewApplication = applicationDrafts.startNewApplication;
 // The recruiter half: unfinished applications are only useful to the carrier if
 // somebody can see them.
 exports.listApplicationDrafts = applicationDrafts.listApplicationDrafts;
+// A Company Admin reads any unfinished application, whoever started it, and may
+// delete one. Recruiters keep the narrower read in `getCompanyPreparedDraft`.
+exports.getApplicationDraft = applicationDrafts.getApplicationDraft;
+exports.deleteApplicationDraft = applicationDrafts.deleteApplicationDraft;
 
 // Applications a carrier starts on the driver's behalf: prepared as a draft,
 // completed and signed by the driver through the ordinary public wizard.

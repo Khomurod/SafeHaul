@@ -111,7 +111,7 @@ Used by Cloud Functions with Admin SDK:
 | `companies/{id}/blacklist/{phone}` | Company opt-out list |
 | `companies/{id}/inbound_messages/{id}` | Inbound SMS (STOP handling trigger) |
 | `companies/{id}/application_drafts/{applicantKey}` | An unfinished driver application, saved after each Next — **or** one a carrier prepared (`origin: 'company'`, `status: prepared\|sent\|driver_in_progress`, `preparedBy`, `inviteTokenHash`, `inviteClaimedAt`, `lockedEmployers`). See below |
-| `companies/{id}/application_draft_audit/{id}` | Value-free records of resume-match attempts and discards |
+| `companies/{id}/application_draft_audit/{id}` | Value-free records of resume-match attempts and discards, and of a Company Admin's views and deletions |
 | `companies/{id}/legal_agreements/{agreementId}` | Company-published agreement wording: `{ activeVersion, versions: { 'c-<hash>': { body, createdAt, createdBy, note } } }`. Callables only; publish/revert is Super Admin only |
 
 ---
@@ -260,6 +260,12 @@ and nothing else. Not the name, the date of birth, the SSN, the identity hash or
 the contact detail. What matters operationally is how many resume attempts a
 company's apply page is seeing and how many matched; a spike is visible and
 nothing about a person is retained.
+
+A Company Admin's actions are the exception that says who and which:
+`company_viewed_draft` (`getApplicationDraft`) and `company_deleted_draft`
+(`deleteApplicationDraft`) add `actorUid` (the staff account), `applicantKey`
+(the draft's id, already a hash) and the draft's `origin` and `status` — still
+nothing the driver typed. They expire with the rest, after 30 days.
 
 ---
 

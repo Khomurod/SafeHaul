@@ -195,8 +195,10 @@ describe('starting over', () => {
         expect(code).not.toMatch(/collection\(\s*['"]applications['"]\s*\)/);
         expect(code).not.toMatch(/['"]submission['"]/);
         // Draft storage is reached only through the shared module, whose
-        // `draftsCollection` is bound to the draft subcollection; the only other
-        // collection these files name is their own value-free audit trail.
+        // `draftsCollection` is bound to the draft subcollection. The other
+        // collections these files name are their own audit trail, which holds no
+        // answers, and the company and its public profile, read for a Company
+        // Admin's view (`drafts/admin.js`).
         expect(code).toMatch(/require\('\.\.\/shared\/applicationDraft'\)/);
         expect(code).toMatch(/application_draft_audit/);
     });

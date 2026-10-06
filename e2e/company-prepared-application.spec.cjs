@@ -294,16 +294,18 @@ test.describe('a carrier starting an application', () => {
         await expect(page.getByRole('heading', { name: 'Read the documents' })).toBeVisible();
     });
 
-    test('shows both origins in one list, and opens only the carrier’s own', async ({ page }) => {
+    test('shows both origins in one list, and a Company Admin can open and delete every row', async ({ page }) => {
         await page.goto(START_URL);
 
         // A driver-started row and a carrier-prepared row, in one table.
         await expect(page.getByText('Dana Whitfield')).toBeVisible();
         await expect(page.getByText('Marcus Iyer')).toBeVisible();
         await expect(page.getByRole('button', { name: /Open the application for Marcus Iyer/i })).toBeVisible();
-        // The driver's own answers are not the carrier's to read, merged screen or
-        // not — and `getCompanyPreparedDraft` would refuse the row anyway.
-        await expect(page.getByRole('button', { name: /Open the application for Dana Whitfield/i })).toHaveCount(0);
+        // The owner's decision of 2026-10-06: an admin reads what the driver wrote
+        // too. A recruiter still cannot, which the unit suites pin; this harness
+        // signs in only as an admin.
+        await expect(page.getByRole('button', { name: /Open the application for Dana Whitfield/i })).toBeVisible();
+        await expect(page.getByRole('button', { name: /^Delete the application for/ })).toHaveCount(5);
     });
 
     test('the old start-application URL still lands somewhere useful', async ({ page }) => {

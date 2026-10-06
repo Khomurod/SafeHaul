@@ -116,6 +116,8 @@ export function toDisplayAnswer(answer) {
          */
         ...(answer.repeating ? resolveRows(answer) : { rows: [], usedCurrentColumns: false }),
         rawValue: answer.repeating ? answer.value : undefined,
+        // An upload's location, never shown: a view that may open files offers to.
+        storagePath: answer.repeating ? null : uploadedFilePath(answer.value),
     };
 }
 

@@ -32,11 +32,13 @@ describe('who started it', () => {
 describe('a driver-started application', () => {
     const row = describeUnfinishedRow({ origin: 'driver', status: 'in_progress' });
 
-    it('cannot be opened by the carrier', () => {
+    it('cannot be opened by a recruiter', () => {
         // Not a style choice: `getCompanyPreparedDraft` refuses a draft the carrier
-        // did not author with a flat `not-found`, so an Open here would be a button
-        // that cannot work.
-        expect(row.canOpenPrepared).toBe(false);
+        // did not author with a flat `not-found`, and `getApplicationDraft` refuses
+        // anyone but a Company Admin, so an Open here would be a button that cannot
+        // work.
+        expect(row.openMode).toBeNull();
+        expect(row.canDelete).toBe(false);
     });
 
     it('is the driver’s answers, and says so plainly', () => {
@@ -56,7 +58,7 @@ describe('an application the carrier prepared', () => {
     it('before a link goes out, is open and offers the first link', () => {
         const row = describeUnfinishedRow({ ...COMPANY, status: 'prepared' });
 
-        expect(row.canOpenPrepared).toBe(true);
+        expect(row.openMode).toBe('prepare');
         expect(row.driverOwnsAnswers).toBe(false);
         expect(row.statusLabel).toBe('Not sent yet');
         expect(row.mintLabel).toBe("Create the driver's link");
@@ -70,7 +72,7 @@ describe('an application the carrier prepared', () => {
 
         expect(row.statusLabel).toBe('Link sent');
         expect(row.mintLabel).toBe('Create a replacement link');
-        expect(row.canOpenPrepared).toBe(true);
+        expect(row.openMode).toBe('prepare');
         expect(row.driverOwnsAnswers).toBe(false);
     });
 
@@ -81,7 +83,7 @@ describe('an application the carrier prepared', () => {
         // link; the answers themselves are refused by the server on every load, so
         // the carrier keeps its way back to its own record without gaining a read.
         expect(row.driverOwnsAnswers).toBe(true);
-        expect(row.canOpenPrepared).toBe(true);
+        expect(row.openMode).toBe('prepare');
         expect(row.statusLabel).toBe('Driver is filling it in');
         expect(row.mintLabel).toBe('Create a continuation link');
     });
@@ -92,6 +94,47 @@ describe('an application the carrier prepared', () => {
         expect(describeUnfinishedRow({ ...COMPANY, lockedEmployerCount: 4 }).lockedEmployersLabel)
             .toBe('4 employers locked');
         expect(describeUnfinishedRow({ ...COMPANY, lockedEmployerCount: 0 }).lockedEmployersLabel).toBeNull();
+    });
+});
+
+/**
+ * The owner's decision of 2026-10-06: a Company Admin opens every row and may
+ * delete any of them. Recruiters keep everything above.
+ */
+describe('for a Company Admin', () => {
+    const ADMIN = { isCompanyAdmin: true };
+
+    it('reads a driver-started application, rather than having no way in', () => {
+        const row = describeUnfinishedRow({ origin: 'driver', status: 'in_progress' }, ADMIN);
+
+        expect(row.openMode).toBe('review');
+        expect(row.canDelete).toBe(true);
+        // What the link will do is unchanged: it still asks the driver who they are.
+        expect(row.driverOwnsAnswers).toBe(true);
+        expect(row.mintLabel).toBe('Create a continuation link');
+    });
+
+    it('reads a prepared application the driver has taken over, where a recruiter sees progress only', () => {
+        const row = describeUnfinishedRow({ ...COMPANY, status: 'driver_in_progress' }, ADMIN);
+
+        expect(row.openMode).toBe('review');
+        expect(describeUnfinishedRow({ ...COMPANY, status: 'driver_in_progress' }).openMode).toBe('prepare');
+    });
+
+    it('still edits what the carrier itself is preparing, as a recruiter does', () => {
+        for (const status of ['prepared', 'sent']) {
+            const row = describeUnfinishedRow({ ...COMPANY, status }, ADMIN);
+            expect(row.openMode).toBe('prepare');
+            expect(row.canDelete).toBe(true);
+        }
+    });
+
+    it('is the narrower reading when nobody says who is looking', () => {
+        // A missing viewer must never widen what a row offers.
+        expect(describeUnfinishedRow({ origin: 'driver' }).canDelete).toBe(false);
+        expect(describeUnfinishedRow({ origin: 'driver' }, {}).openMode).toBeNull();
+        expect(describeUnfinishedRow({ origin: 'driver' }, { isCompanyAdmin: 'yes' }).openMode).toBeNull();
+        expect(describeUnfinishedRow({ origin: 'driver' }, { isCompanyAdmin: 1 }).canDelete).toBe(false);
     });
 });
 
