@@ -16,8 +16,7 @@ import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
 import { aiReadErrorMessage } from '@shared/utils/aiReadErrors';
 import {
-    RASTER_MAX_WIDTH,
-    RASTER_QUALITY,
+    compressImageFile,
     loadPdfDocument,
     renderPageToDataUrl,
 } from '@features/signing/utils/pdfPageRasterizer';
@@ -30,39 +29,6 @@ export const REPORT_MAX_PAGE_CHARS = 4 * 1024 * 1024;
 export const REPORT_MAX_FILE_BYTES = 15 * 1024 * 1024;
 const IMAGE_TYPES = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp']);
 const PAGE_TOO_LARGE = 'That page is too large to read. Please upload a smaller photo, or a PDF.';
-
-/**
- * Re-encode a photo the way PDF pages are rendered: at most `RASTER_MAX_WIDTH`
- * wide, JPEG, in memory. A phone photo is several megabytes and base64 grows it
- * by a third, so sent raw it would clear the 15 MB file check here and then be
- * refused by the callable's per-page ceiling every time. Returns null where the
- * environment has no bitmap or canvas support, and the caller falls back to the
- * raw file — still bounded by `REPORT_MAX_PAGE_CHARS`.
- */
-export async function compressImageFile(file) {
-    if (typeof createImageBitmap !== 'function' || typeof document === 'undefined') return null;
-    let bitmap;
-    try {
-        bitmap = await createImageBitmap(file);
-    } catch {
-        return null;
-    }
-    try {
-        const scale = Math.min(1, RASTER_MAX_WIDTH / bitmap.width);
-        const canvas = document.createElement('canvas');
-        const context = canvas.getContext('2d');
-        if (!context) return null;
-        canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-        canvas.height = Math.max(1, Math.round(bitmap.height * scale));
-        context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-        const dataUrl = canvas.toDataURL('image/jpeg', RASTER_QUALITY);
-        canvas.width = 0;
-        canvas.height = 0;
-        return typeof dataUrl === 'string' && dataUrl.startsWith('data:image/') ? dataUrl : null;
-    } finally {
-        bitmap.close?.();
-    }
-}
 
 function assertPageFits(dataUrl) {
     if (typeof dataUrl !== 'string' || dataUrl.length > REPORT_MAX_PAGE_CHARS) throw new Error(PAGE_TOO_LARGE);

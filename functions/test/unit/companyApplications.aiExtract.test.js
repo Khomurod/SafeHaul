@@ -164,6 +164,14 @@ describe('the vision fallback', () => {
         expect(result.extracted.license.cdlNumber).toBe('TX1234567');
     });
 
+    it('says which documents were too long to read in full, and none when nothing was cut', async () => {
+        mockText.mockResolvedValue({ ...TEXT_RESULT, truncated: ['psp'] });
+        expect((await call({ psp: { text: 'long' } })).truncated).toEqual(['psp']);
+
+        mockText.mockResolvedValue(TEXT_RESULT);
+        expect((await call({ psp: { text: 'short' } })).truncated).toEqual([]);
+    });
+
     it('names the documents the model itself could not read', async () => {
         mockText.mockResolvedValue({
             ...TEXT_RESULT,

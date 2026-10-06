@@ -187,15 +187,15 @@ uploads, the signature and the applicant's certification are display-only and
 `proposeApplicationChanges` skips them.
 
 **The document reader** extracts text in the recruiter's browser — a PDF's text
-layer, else Tesseract OCR, else page images for the vision AI — and only that
-text (or the images, for an unreadable document) leaves the browser, to one AI
-task. Any subset of the four documents is valid; JPG/PNG/WebP photos read like
-PDFs. A read is up to two minutes per pass, twice; a failed second pass falls
-back to the first, and the second wins wherever it succeeds.
-`useApplicationPrepDraft.applyExtraction` merges into the answers *as they are
-then*, so anything typed during the read is kept (and reported). The applicant
-and document set are captured before the call and compared with the screen after
-it; a result for another driver or document set is not applied.
+layer, else Tesseract OCR, else page images (a photo re-encoded like a page) for
+the vision AI — and only that text or those images leave the browser. Any subset
+of the four documents is valid; the text task shares 16,000 characters among
+them and the summary names one read only in part. A read is up to two minutes
+per pass, twice; a failed second pass falls back to the first, and the second
+wins where it succeeds. `useApplicationPrepDraft.applyExtraction` merges into
+the answers *as they are then*, so anything typed meanwhile is kept (and
+reported). The applicant and document set are captured before the call and
+compared after it; a result for another driver or document set is not applied.
 
 **A control that cannot be pressed cannot explain itself.** Save and "Create the
 driver's link" stay clickable and validate on press: `prepActionPreflight`

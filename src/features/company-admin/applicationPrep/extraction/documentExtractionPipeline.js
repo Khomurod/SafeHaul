@@ -1,4 +1,4 @@
-import { renderPageToDataUrl } from '@features/signing/utils/pdfPageRasterizer';
+import { compressImageFile, renderPageToDataUrl } from '@features/signing/utils/pdfPageRasterizer';
 import { fileToDataUrl } from '@features/driver-app/components/application/publicApplyHelpers';
 import { extractPdfText, loadPdf, MIN_CHARS_PER_DOCUMENT } from './pdfTextLayer';
 import { recognizePages } from './ocrFallback';
@@ -47,9 +47,14 @@ async function renderPages(file, deps) {
     // every photo threw `readImage is not a function` and was reported as an
     // unreadable file, while PDFs (which have their own `loadPdf`) worked. That is
     // the whole reason a CDL photo failed while a PSP/MVR PDF read fine.
-    const { load = loadPdf, renderPage = renderPageToDataUrl, readImage = fileToDataUrl } = deps;
+    const {
+        load = loadPdf, renderPage = renderPageToDataUrl, readImage = fileToDataUrl, compressImage = compressImageFile,
+    } = deps;
     if (!isPdf(file)) {
-        const dataUrl = await readImage(file);
+        // Re-encoded the way pages are rendered. Sent raw, a phone photo of a few
+        // megabytes is past the callable's per-page ceiling once base64 grows it,
+        // and the whole read was refused.
+        const dataUrl = (await compressImage(file)) || (await readImage(file));
         return dataUrl ? [dataUrl] : [];
     }
     const document = await load(file);
@@ -125,6 +130,20 @@ export async function extractOneDocument({ kind, file }, deps = {}) {
 export async function extractDocuments(documents, deps = {}) {
     const attached = (documents || []).filter((entry) => entry?.file && entry?.kind);
     const results = await Promise.all(attached.map((entry) => extractOneDocument(entry, deps)));
+
+    // The callable takes a document as text or as pages, never both. A kind read
+    // both ways (a licence front whose text was readable, a back that was not)
+    // is read again as pages on its text side, so neither side is dropped.
+    const asText = (result) => result.method === 'text' || result.method === 'ocr';
+    const readBothWays = new Set(results
+        .filter((result) => result.method === 'pages')
+        .map((result) => result.kind)
+        .filter((kind) => results.some((result) => result.kind === kind && asText(result))));
+    await Promise.all(results.map(async (result, index) => {
+        if (readBothWays.has(result.kind) && asText(result)) {
+            results[index] = await extractOneDocument(attached[index], { ...deps, forcePages: true });
+        }
+    }));
 
     const payload = {};
     const methods = {};

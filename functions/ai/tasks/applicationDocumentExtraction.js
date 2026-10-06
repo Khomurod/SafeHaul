@@ -48,15 +48,14 @@ const DOCUMENT_LABELS = Object.freeze({
 });
 
 /**
- * How much of each document reaches the prompt, and how much in total.
+ * How much document text reaches the prompt, in total.
  *
  * Sized against the same arithmetic `blog/research/fetchSources.js` documents: a
  * provider's per-minute token budget is the binding constraint, and the ceiling
- * has to be one a caller cannot raise. Four documents at 5,000 characters is a
- * long prompt for a text lane and a short one for a long-context provider, which
- * is why the task asks for `LONG_CONTEXT` rather than hoping.
+ * has to be one a caller cannot raise. It is a long prompt for a text lane and a
+ * short one for a long-context provider, which is why the task asks for
+ * `LONG_CONTEXT` rather than hoping. How it is shared is `shareDocumentText`'s.
  */
-const MAX_CHARS_PER_DOCUMENT = 5000;
 const MAX_TOTAL_CHARS = 16000;
 
 /** Below the router's own default and below the callable's timeout, as the siblings are. */
@@ -148,22 +147,35 @@ function text(value, max = 200) {
 }
 
 /**
- * The labelled document handed to the model.
+ * The labelled document handed to the model, and which documents it had to cut.
  *
- * Truncated here as well as in the caller, because the caller is a browser and a
- * ceiling a client enforces is a ceiling a client can raise.
+ * The total is fixed; the share is not. Shortest first, each document takes at
+ * most an equal part of what is left and passes on what it does not use, so a
+ * long PSP report alone or beside a short licence is read up to the whole total.
+ * A fixed 5,000 characters each used to cut that report's later records while
+ * most of the budget sat unused. Truncated here as well as in the caller, because
+ * the caller is a browser and a ceiling a client enforces is one it can raise.
  */
-function buildDocumentText(documents) {
-    const parts = [];
+function shareDocumentText(documents) {
+    const bodies = DOCUMENT_KINDS
+        .map((kind) => [kind, typeof documents?.[kind] === 'string' ? documents[kind].trim() : ''])
+        .filter(([, body]) => body);
+    const allowance = {};
     let budget = MAX_TOTAL_CHARS;
-    for (const kind of DOCUMENT_KINDS) {
-        const body = typeof documents?.[kind] === 'string' ? documents[kind].trim() : '';
-        if (!body || budget <= 0) continue;
-        const slice = body.slice(0, Math.min(MAX_CHARS_PER_DOCUMENT, budget));
-        budget -= slice.length;
-        parts.push(`=== ${DOCUMENT_LABELS[kind]} ===\n${slice}`);
-    }
-    return parts.join('\n\n');
+    [...bodies]
+        .sort((a, b) => a[1].length - b[1].length)
+        .forEach(([kind, body], index, ordered) => {
+            allowance[kind] = Math.min(body.length, Math.floor(budget / (ordered.length - index)));
+            budget -= allowance[kind];
+        });
+    return {
+        text: bodies.map(([kind, body]) => `=== ${DOCUMENT_LABELS[kind]} ===\n${body.slice(0, allowance[kind])}`).join('\n\n'),
+        truncated: bodies.filter(([kind, body]) => allowance[kind] < body.length).map(([kind]) => kind),
+    };
+}
+
+function buildDocumentText(documents) {
+    return shareDocumentText(documents).text;
 }
 
 /** Which documents the model said it could not read, mapped back to their keys. */
@@ -220,7 +232,7 @@ function normalizeDocumentOutput(raw) {
  * @param {object} [deps] injection seam for tests
  */
 async function extractApplicationDocuments({ documents }, deps = {}) {
-    const inputText = buildDocumentText(documents);
+    const { text: inputText, truncated } = shareDocumentText(documents);
     if (!inputText) throw new Error('No document text was provided.');
 
     const task = defineTask({
@@ -239,6 +251,8 @@ async function extractApplicationDocuments({ documents }, deps = {}) {
     const result = await runAiTask(task, deps);
     return {
         extracted: normalizeDocumentOutput(result.output),
+        // Read only in part: said so on screen, so a recruiter checks the rest.
+        truncated,
         providerId: result.providerId,
         model: result.model,
         latencyMs: result.latencyMs,
@@ -253,9 +267,9 @@ module.exports = {
     DOCUMENT_PROMPT,
     DOCUMENT_PER_ATTEMPT_MS,
     DOCUMENT_TOTAL_DEADLINE_MS,
-    MAX_CHARS_PER_DOCUMENT,
     MAX_TOTAL_CHARS,
     buildDocumentText,
+    shareDocumentText,
     extractApplicationDocuments,
     normalizeDocumentOutput,
     normalizeUnreadable,

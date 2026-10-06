@@ -12,9 +12,9 @@ jest.mock('../../ai/router/router', () => ({ runAiTask: (...args) => mockRunAiTa
 
 const {
     DOCUMENT_KINDS,
-    MAX_CHARS_PER_DOCUMENT,
     MAX_TOTAL_CHARS,
     buildDocumentText,
+    shareDocumentText,
     extractApplicationDocuments,
     normalizeDocumentOutput,
     normalizeUnreadable,
@@ -57,19 +57,40 @@ describe('the document it builds', () => {
         expect(buildDocumentText({})).toBe('');
     });
 
-    it('truncates per document, and again in total', () => {
-        const long = 'x'.repeat(MAX_CHARS_PER_DOCUMENT * 2);
-        const built = buildDocumentText({ cdl: long, medical: long, psp: long, mvr: long });
+    // Each section's own body, measured between its heading and the next.
+    const bodiesOf = (text) => text.split('\n\n').map((section) => section.split('\n').slice(1).join('\n'));
 
-        expect(built.length).toBeLessThanOrEqual(MAX_TOTAL_CHARS + 200);
-        // A ceiling the caller cannot raise: the browser truncates too, but a
-        // browser's ceiling is one a browser can lift. Each section's own body,
-        // measured between its heading and the next, stays inside the per-document
-        // limit even when the total budget would have allowed more.
-        const sections = built.split('\n\n').map((section) => section.split('\n').slice(1).join('\n'));
-        for (const body of sections) {
-            expect(body.length).toBeLessThanOrEqual(MAX_CHARS_PER_DOCUMENT);
-        }
+    it('holds the total however the documents are sent, a ceiling the caller cannot raise', () => {
+        // The browser truncates too, but a browser's ceiling is one a browser can lift.
+        const long = 'x'.repeat(MAX_TOTAL_CHARS);
+        const { text, truncated } = shareDocumentText({ cdl: long, medical: long, psp: long, mvr: long });
+
+        expect(bodiesOf(text).map((body) => body.length)).toEqual([4000, 4000, 4000, 4000]);
+        expect(bodiesOf(text).join('').length).toBeLessThanOrEqual(MAX_TOTAL_CHARS);
+        expect(truncated).toEqual(['cdl', 'medical', 'psp', 'mvr']);
+    });
+
+    it('lets a long report use what the other documents leave, instead of a fixed share', () => {
+        // A five-page PSP report used to be cut at 5,000 characters even when it was
+        // the only document, its later records lost with most of the budget unused.
+        const long = 'x'.repeat(MAX_TOTAL_CHARS * 2);
+
+        const alone = shareDocumentText({ psp: long });
+        expect(bodiesOf(alone.text)[0]).toHaveLength(MAX_TOTAL_CHARS);
+        expect(alone.truncated).toEqual(['psp']);
+
+        const beside = shareDocumentText({ cdl: 'DL TX 1234567', psp: long });
+        const [licence, report] = bodiesOf(beside.text);
+        expect(licence).toBe('DL TX 1234567');
+        expect(report).toHaveLength(MAX_TOTAL_CHARS - 'DL TX 1234567'.length);
+        expect(beside.truncated).toEqual(['psp']);
+    });
+
+    it('cuts nothing that fits, and keeps the documents in their usual order', () => {
+        const { text, truncated } = shareDocumentText({ mvr: 'MVR body', cdl: 'Licence text' });
+        expect(truncated).toEqual([]);
+        expect(text.indexOf("DRIVER'S LICENSE")).toBeLessThan(text.indexOf('MOTOR VEHICLE RECORD'));
+        expect(buildDocumentText({ mvr: 'MVR body', cdl: 'Licence text' })).toBe(text);
     });
 });
 
@@ -104,6 +125,12 @@ describe('the task it defines', () => {
 });
 
 describe('what it returns', () => {
+    it('says which documents were too long to read in full', async () => {
+        const long = 'x'.repeat(MAX_TOTAL_CHARS * 2);
+        const { truncated } = await extractApplicationDocuments({ documents: { cdl: 'a', psp: long } });
+        expect(truncated).toEqual(['psp']);
+    });
+
     it('maps everything onto the fields the application actually holds', async () => {
         const { extracted } = await extractApplicationDocuments({ documents: { cdl: 'a', psp: 'b', mvr: 'c' } });
 
