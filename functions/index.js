@@ -367,3 +367,17 @@ const releaseManagement = require('./releaseManagement');
 exports.getReleaseStatus = releaseManagement.getReleaseStatus;
 exports.promoteTestingToProduction = releaseManagement.promoteTestingToProduction;
 exports.rollbackProductionRelease = releaseManagement.rollbackProductionRelease;
+
+// 24. Operator alerts in Telegram
+// An hourly check that AI reading works for users and that the blog still
+// publishes, and the Super Admin controls (System Health) that connect it to the
+// owner's Telegram. Built fresh, per the Telegram ruling under Website Leads.
+const platformWatcher = require('./ops/watcher');
+exports.watchAiAndBlog = platformWatcher.watchAiAndBlog;
+
+const platformAlerts = require('./ops/callables');
+exports.getPlatformAlerts = platformAlerts.getPlatformAlerts;
+exports.savePlatformAlertToken = platformAlerts.savePlatformAlertToken;
+exports.connectPlatformAlertChat = platformAlerts.connectPlatformAlertChat;
+exports.sendPlatformAlertTest = platformAlerts.sendPlatformAlertTest;
+exports.deletePlatformAlerts = platformAlerts.deletePlatformAlerts;

@@ -4,6 +4,7 @@ import { Badge, Button, Card, ProgressBar } from '@/design-system/components';
 import { Stack } from '@/design-system/layouts';
 import { ConfirmDialog } from '@design-system/patterns';
 import { useSystemHealth } from '../hooks/useSystemHealth';
+import { TelegramAlertsCard } from './alerts/TelegramAlertsCard';
 
 /**
  * System Health & Diagnostics — Super Admin infrastructure test runner and
@@ -120,6 +121,9 @@ export function SystemHealthView() {
                     Deep inspection of Storage, Database, and Cloud Function integrity.
                 </p>
             </header>
+
+            {/* The hourly watcher of AI and the blog, and where it sends its alerts. */}
+            <TelegramAlertsCard />
 
             {/* Maintenance actions. The explanatory copy was previously only a
                 `title` tooltip on each button. */}

@@ -21,10 +21,13 @@ Maps each **`httpsCallable`** export in [`functions/index.js`](../functions/inde
 | `cancelBulkSession` | [`CampaignDetails.jsx`](../src/features/campaigns/components/CampaignDetails.jsx) | Stop bulk campaign |
 | `checkImportPhones` | [`useCampaignTargeting.js`](../src/features/campaigns/hooks/useCampaignTargeting.js) | CSV import phone dedup check |
 | `connectFacebookPage` | [`IntegrationsTab.jsx`](../src/features/settings/components/IntegrationsTab.jsx) | Facebook Lead Ads OAuth |
+| `connectPlatformAlertChat` | [`platformAlerts.js`](../src/features/super-admin/services/platformAlerts.js) | Super Admin: connect the Telegram chat that wrote to the alert bot |
 | `createPortalUser` | [`CreateView.jsx`](../src/features/super-admin/components/CreateView.jsx), [`TeamManagementTab.jsx`](../src/features/settings/components/TeamManagementTab.jsx), [`useSystemHealth.js`](../src/features/super-admin/hooks/useSystemHealth.js) | Provision HR/recruiter/company user |
 | `createPostApplicationSigningRequest` | [`PublicApplyHandler.jsx`](../src/features/driver-app/components/application/PublicApplyHandler.jsx) | Post-submit e-doc envelope |
 | `createChangeReview` | [`useApplicationChanges.js`](../src/features/applications/hooks/useApplicationChanges.js) | Mint a token link for the driver to review company edits |
 | `deleteApplication` | [`useApplicationDelete.js`](../src/features/applications/hooks/useApplicationDelete.js) | Company-admin hard delete of an application/lead (cascade + storage) |
+| `deletePlatformAlerts` | [`platformAlerts.js`](../src/features/super-admin/services/platformAlerts.js) | Super Admin: turn Telegram alerts off; destroys the bot token |
+| `getPlatformAlerts` | [`platformAlerts.js`](../src/features/super-admin/services/platformAlerts.js) | Super Admin: the alert connection and what the hourly watcher last saw |
 | `proposeApplicationChanges` | [`useApplicationChanges.js`](../src/features/applications/hooks/useApplicationChanges.js) | Company edits saved as pending driver-approval changes |
 | `deleteCompany` | [`DeleteCompanyModal.jsx`](../src/features/super-admin/components/modals/DeleteCompanyModal.jsx) | Remove tenant |
 | `deletePortalUser` | [`DeleteUserModal.jsx`](../src/features/super-admin/components/modals/DeleteUserModal.jsx), [`ManageTeamModal.jsx`](../src/shared/components/modals/ManageTeamModal.jsx), [`EditUserNameForm.jsx`](../src/features/super-admin/components/users/EditUserNameForm.jsx) | Delete portal account |
@@ -64,7 +67,9 @@ Maps each **`httpsCallable`** export in [`functions/index.js`](../functions/inde
 | `runSecurityAudit` | [`useSystemHealth.js`](../src/features/super-admin/hooks/useSystemHealth.js) | Security audit |
 | `saveEmailSettings` | [`EmailSettingsTab.jsx`](../src/features/settings/components/EmailSettingsTab.jsx) | Persist SMTP config |
 | `saveIntegrationConfig` | [`IntegrationManager.jsx`](../src/features/super-admin/components/integrations/IntegrationManager.jsx) | Save encrypted SMS credentials |
+| `savePlatformAlertToken` | [`platformAlerts.js`](../src/features/super-admin/services/platformAlerts.js) | Super Admin: store a Telegram bot token, once Telegram has accepted it |
 | `sendAutomatedEmail` | [`useCallOutcome.js`](../src/shared/hooks/useCallOutcome.js) | Template email from dossier/call flow |
+| `sendPlatformAlertTest` | [`platformAlerts.js`](../src/features/super-admin/services/platformAlerts.js) | Super Admin: send a test alert to the connected chat |
 | `sendSMS` | [`DocumentsManager.jsx`](../src/features/company-admin/views/DocumentsManager.jsx), [`EnvelopeCreator.jsx`](../src/features/signing/EnvelopeCreator.jsx) | Outbound SMS |
 | `sendTestSMS` | [`SMSDiagnosticModal.jsx`](../src/features/settings/components/SMSDiagnosticModal.jsx), [`IntegrationManager.jsx`](../src/features/super-admin/components/integrations/IntegrationManager.jsx) | SMS connectivity test |
 | `sendVerificationRequest` | [`PEVTab.jsx`](../src/features/company-admin/components/tabs/PEVTab.jsx) | Start PEV request |
@@ -217,6 +222,8 @@ Neither the draft nor any of these responses carries an SSN. See
   rewrites for `/news`, `/news/**`, `/api/news/**`, `/sitemap.xml` and
   `/robots.txt`. Read-only; non-GET methods get 405.
 - `publishScheduledBlogPosts` - hourly scheduled function, `America/Chicago`.
+- `watchAiAndBlog` - hourly scheduled function at minute 40, `America/Chicago`:
+  the AI and blog watcher behind Super Admin → System Health → Telegram alerts.
 
 ## Maintenance
 
