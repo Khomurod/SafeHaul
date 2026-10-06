@@ -960,14 +960,14 @@ released if the connect then fails.
 |---|---|---|
 | `enforceFeatureSchedules` | every 15 min | Auto-disables features whose `featureSchedules` entry has passed |
 | `reconcilePublicProfilesSchedule` | every 60 min | Rewrites public profiles the `onWrite` trigger can never reach (e.g. after the projection itself changes) |
-| `publishScheduledBlogPosts` | hourly at :15, America/Chicago | Fills at most one of the day's three themed slots if due and empty |
+| `publishScheduledBlogPosts` | hourly at :15, America/Chicago | From 07:00, offers the day to one theme per run, in rotation, until its one article publishes |
 | `processVerificationReminders` | every 24 h | PEV reminders at 5 / 15 / 20 days; at 30 days marks `no_response` and notifies the carrier, documenting the good-faith effort |
 | `cleanupOrphanedSignatures` | every 24 h | Retries deleting signature PNGs left after sealing — without it, signature-image PII accumulates in Storage |
 | Release health check | daily 07:17 UTC (GitHub Actions) | Reads what is actually live and opens/closes a GitHub issue |
 
-The blog scheduler runs hourly, not three times a day, on purpose: that makes it
-idempotent, retry-safe, able to recover a slot missed in an outage, and
-incapable of posting three articles a minute apart. Every publication run,
+The blog publishes one article a day, and its scheduler runs hourly on purpose:
+that makes it idempotent, retry-safe, able to recover a day missed in an outage,
+and unable to publish twice in a day (any filled slot closes it). Every run,
 scheduled or operator-triggered, records one row per slot in `blog_runs` naming
 the stage that refused: sourcing, generation, validation, claim check,
 verification, originality, image or publication. An AI transaction's `success`
@@ -1122,12 +1122,12 @@ unparseable number — but nothing populates them from a recipient's reply (§12
   at all, asserted by `src/tests/hostingConfig.test.js`.
 - **Marketing claims must trace to the capability registry.**
   `functions/ai/knowledge/safehaulCapabilities.js` is the source of truth;
-  `npm run check:public-claims` enforces it as a step of the always-required
-  `callable-contract` CI job (every push and pull request; no lane selection
-  skips it) and in the root `npm run lint`. It is a phrase list, so it cannot
-  see a claim that is merely too generous. Never claim DOT/FMCSA compliance,
-  MVR/PSP/Clearinghouse checks, document-expiry monitoring, a job board, or any
-  named carrier endorsement.
+  `npm run check:public-claims` enforces it in the `callable-contract` CI job,
+  which every push and pull request runs, and in the root `npm run lint`. It is
+  a phrase list read clause by clause: a denial is a limitation, a news article
+  counts only where it names SafeHaul (`claimScope.js`), and an overstatement
+  slips past it. Never claim DOT/FMCSA compliance, MVR/PSP/Clearinghouse checks,
+  document-expiry monitoring, a job board, or any named carrier endorsement.
 - **A `web/` change runs the `frontend_unit` CI lane** — static content is
   tested, by `src/tests/hostingConfig.test.js`; `scripts/ci-plan.mjs` holds the
   mapping and `A5`/`A5b` in `scripts/test-ci-plan.mjs` pin it. The claims check
@@ -1336,8 +1336,8 @@ verification document must carry no `ds-*` class and `Icon` stamps one.
   there, retiring itself when the work is verified done. See
   [`docs/application-record-reconstruction-runbook.md`](./application-record-reconstruction-runbook.md).
 - **A deleted blog article does not free its slot.** Deletion is a tombstone and
-  `slotIsFilled` tests only that the slot's document exists, so the
-  `{date, theme}` slot stays filled (the ledger records a row saying so).
+  `slotIsFilled` tests only that the slot's document exists, so the slot stays
+  filled and the day stays closed (the ledger records a row saying so).
   Reopening a slot means changing the `create()`-based anti-double-publish
   guarantee, with its own justification and tests; see
   [`docs/news-and-insights.md`](./news-and-insights.md).
@@ -1345,8 +1345,8 @@ verification document must carry no `ds-*` class and `Icon` stamps one.
   originally specified — a recorded owner decision against free-tier provider
   limits, not drift. Raising a provider tier reverses it.
 - **`themesAreDistinct` is not wired into the blog pipeline** — exported and
-  tested, called by nothing; same-day distinctness comes from the rule of one
-  document per `{date, theme}` and the 60-day duplicate window.
+  tested, called by nothing; with one article a day there is no day's set to
+  check, and the 60-day duplicate window keeps successive days apart.
 - **The AI live-credential checks cannot run in CI.** The credential-access
   diagnostic, per-capability connection tests, model-pin verification and a
   manual publication check need real credentials in a deployed environment; a

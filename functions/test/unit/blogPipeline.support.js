@@ -119,6 +119,16 @@ function firebaseAdminMock() {
                     },
                 };
             },
+            // Reads, then the writes once the handler resolves, as a commit does.
+            runTransaction: async (handler) => {
+                const writes = [];
+                const result = await handler({
+                    getAll: (...refs) => Promise.all(refs.map((ref) => ref.get())),
+                    create: (ref, data) => { writes.push(() => ref.create(data)); },
+                });
+                for (const write of writes) await write();
+                return result;
+            },
         },
     };
 }

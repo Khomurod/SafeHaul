@@ -43,9 +43,9 @@ export function describeStage(stage) {
  * What each outcome means, in an operator's terms.
  *
  * `deferred_to_next_run` is the one most worth spelling out: it looks like a
- * failure in a list of outcomes and is the pipeline working exactly as intended —
- * at most one article publishes per run, so a backlog fills over successive
- * hourly runs rather than appearing three articles at a time.
+ * failure in a list of outcomes and was the pipeline working exactly as intended.
+ * Only rows from before one article a day (October 2026) carry it, when a run
+ * held a second due slot for the next hour instead of publishing two at once.
  */
 const OUTCOME_COPY = Object.freeze({
     published: { tone: 'success', label: 'Published' },

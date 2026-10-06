@@ -1,8 +1,8 @@
 # SafeHaul News & Insights
 
-An automated blog. Three articles publish every calendar day, one per theme,
-generated through the [shared AI platform](./ai-platform.md) from researched
-sources and an approved capability package.
+An automated blog. One article publishes every calendar day, its theme rotating
+through three, generated through the [shared AI platform](./ai-platform.md) from
+researched sources and an approved capability package.
 
 - [Themes and schedule](#themes-and-schedule)
 - [Why the timezone work matters](#why-the-timezone-work-matters)
@@ -23,21 +23,29 @@ sources and an approved capability package.
 
 ## Themes and schedule
 
-| Slot | Theme | Local hour | Sources required | Primary source required |
-| --- | --- | --- | --- | --- |
-| 0 | Industry news and regulation | 07:00 | 2, or 1 primary | Yes |
-| 1 | Recruiting and retention | 12:00 | 1 | No |
-| 2 | SafeHaul and product education | 17:00 | 0 (uses the knowledge package) | No |
+| Slot | Theme | Sources required | Primary source required |
+| --- | --- | --- | --- |
+| 0 | Industry news and regulation | 2, or 1 primary | Yes |
+| 1 | Recruiting and retention | 1 | No |
+| 2 | SafeHaul and product education | 0 (uses the knowledge package) | No |
 
-All times are **America/Chicago**, because the audience is the US trucking
-industry.
+The day opens at **07:00 America/Chicago**, because the audience is the US
+trucking industry. Each day has a theme of its own, rotating by date, so each
+theme comes round every third day.
 
-The scheduler runs **hourly at minute 15**, not three times a day. Each run asks
-"which of today's slots are due and still empty" and fills at most one. That
-single choice provides four properties without extra machinery: it is idempotent,
-retry-safe, it recovers a slot missed during a provider outage (the slot stays due
-for the rest of the local day), and it never puts three articles on the site
-within a minute of each other.
+The scheduler runs **hourly at minute 15**. Each run asks whether the day has its
+article and, if not, offers the day to one theme: the 07:15 run to the day's own,
+each later run to the next theme in the rotation. A theme with nothing to publish
+(no current sources, only repeats, a refused draft) passes the day on an hour
+later instead of holding it, and a run makes one attempt at most, which fits the
+function's 540-second timeout. Once any of the day's three slots holds an article,
+a deleted one included, every later run that day does nothing. That provides four
+properties without extra machinery: it is idempotent, retry-safe, it recovers a
+day missed during a provider outage (the day stays open until midnight), and it
+never publishes two articles in a day.
+
+It was three a day, one per theme at 07:00, 12:00 and 17:00, until the owner
+chose fewer articles in October 2026. Article keys did not change.
 
 It never reaches into a previous day. Yesterday's missed article is not published
 today under today's date.
@@ -59,10 +67,12 @@ produces identical slot keys for both occurrences of 01:30.
 ## Idempotency
 
 The unique key for a publication is `${publicationDate}_${themeId}`, and that key
-**is the Firestore document id**. Creation uses `create()`, which fails if the
-document exists, so a scheduler retry, a duplicated delivery and a catch-up run
-all lose the race rather than producing a second article. There is no
-check-then-write window to lose.
+**is the Firestore document id**. Creation is a transaction that reads the day's
+three keys and creates the post only if none exists, so a scheduler retry, a
+duplicated delivery, a catch-up run and two manual runs either side of an hour all
+lose the race rather than producing a second article. There is no check-then-write
+window to lose. The scheduler also treats the day as closed once any of its three
+keys exists, before it spends anything on generation.
 
 ## Research source policy
 
@@ -140,7 +150,19 @@ intake (retired), guaranteed compliance, and legal advice.
 A **deterministic pattern check** enforces this on every draft, ahead of the AI
 verification step, because it is free and cannot be talked out of a verdict. It
 applies to every theme — a news article that mentions SafeHaul in passing is
-checked too.
+checked too. It reads sentence by sentence and clause by clause
+(`functions/ai/knowledge/claimScope.js`):
+
+- **A phrase is a claim where SafeHaul is its subject.** In the SafeHaul theme and
+  on the marketing pages, every sentence. In a news or recruiting article, a
+  sentence that names SafeHaul and the one after it, so advice such as "run an
+  MVR check on every applicant" is not read as a claim that SafeHaul runs one.
+- **A limitation is not a claim.** A phrase denied earlier in its clause ("does
+  not send renewal reminders", "is not legal advice") or by its own predicate
+  ("drip sequences are not available") passes. The package requires articles to
+  state those limitations, and the check used to refuse every one that did.
+- **It is a backstop, not a parser.** "Not only does SafeHaul run MVR checks"
+  reads as a denial; the AI fact-check is the second line.
 
 `KNOWLEDGE_VERSION` is stamped onto every published article, so any claim can be
 traced back to the package that authorised it. **Bump it whenever the entries
@@ -178,12 +200,14 @@ recorded refusal out:
 fabricated topic, an unsupported claim or an unlicensed image to reach the daily
 count. Recorded outcomes: `published`, `skipped_no_sources`,
 `skipped_all_duplicates`, `skipped_validation`, `skipped_unsupported_claims`,
-`skipped_prohibited_claim`, `skipped_not_original`, `skipped_slot_taken`,
-`failed_generation`, `deferred_to_next_run`.
+`skipped_prohibited_claim`, `skipped_not_original`, `skipped_slot_taken` and
+`failed_generation`. Rows from before one article a day may also carry
+`deferred_to_next_run`: a second due slot held for the next hour.
 
 If the verification step itself cannot run, the article is **not** published.
 Publishing unverified factual claims is the failure mode the pipeline exists to
-avoid.
+avoid. A verdict that lists unsupported claims refuses the article whatever its
+`supported` flag says.
 
 ### The run ledger: which stage refused, and why
 
@@ -192,8 +216,8 @@ persisted per run or per slot, so "the transaction succeeded and no article
 published" had no answer anywhere in the product — and the two AI transactions a
 run makes both reported `success`, because a provider *had* replied in shape.
 
-`blog_runs` now records one row per slot per run, on every path — scheduled,
-manual, and a slot deferred to the next run:
+`blog_runs` now records one row per slot per run, on every path, scheduled and
+manual:
 
 | Field | Notes |
 | --- | --- |
@@ -219,8 +243,8 @@ bookkeeping did not land.
 
 ## Duplicate prevention
 
-Three articles a day for a year is a thousand articles, and the same handful of
-stories recur constantly in trade coverage. Four independent checks over the last
+One article a day is 365 articles a year, and the same handful of stories recur
+constantly in trade coverage. Four independent checks over the last
 **60 days**, because each catches what the others miss:
 
 1. **Canonical source URL** — the same underlying article, however retitled.
@@ -234,13 +258,12 @@ The window includes **tombstoned** articles: a deleted article still means the
 topic was covered, so deleting one does not invite the generator to rewrite it
 the same day.
 
-Same-day distinctness comes from two rules that run: one document per
-`{publicationDate, theme}`, so a theme cannot publish twice in a day, and the
-duplicate window above, which catches two themes converging on one story.
-`themesAreDistinct` in `dedupe.js` is a stricter post-hoc check for a day's set;
-it is exported and tested but **not wired into the pipeline**. This document used
-to describe it as an enforced rule, which is worse than not having it — a
-documented safeguard that does not run is one nobody re-examines.
+With one article a day there is no day's set to keep distinct; the duplicate
+window above keeps successive days off one story. `themesAreDistinct` in
+`dedupe.js`, a check for a day's set of three, is exported and tested but **not
+wired into the pipeline**. This document used to describe it as an enforced rule,
+which is worse than not having it — a documented safeguard that does not run is
+one nobody re-examines.
 
 ## Image licensing
 
@@ -475,13 +498,13 @@ produce a replacement. The ledger records a row saying exactly that when an
 article is deleted, so the behaviour is visible instead of being discovered.
 
 Freeing the slot safely was considered and **deliberately not done here.** The
-`create()` on that document id is the *only* thing preventing a double
-publication, and the tombstone is also what stops the generator rewriting the same
-topic the same day. Reopening a slot means a transaction that removes the post
-while moving the duplicate-prevention record somewhere that survives, which is a
-change to the anti-double-publish guarantee and needs its own justification and
-its own tests. Until then: delete removes the article from every public surface,
-and the day publishes two.
+transaction that reads the day's keys and `create()`s on that document id is the
+*only* thing preventing a double publication, and the tombstone is also what
+stops the generator rewriting the same topic the same day. Reopening a slot means
+a transaction that removes the post while moving the duplicate-prevention record
+somewhere that survives, which is a change to the anti-double-publish guarantee
+and needs its own justification and its own tests. Until then: delete removes
+the article from every public surface, and that day has no article.
 
 ## Super Admin operation
 
@@ -492,10 +515,11 @@ not meant to be hand-edited, so every one of those additions would be surface
 area with no user.
 
 **Run today's publication check** invokes the same idempotent path the schedule
-uses, so it cannot double-publish. It is useful for filling a slot missed during
-a provider outage without waiting for the next hour. A run that publishes nothing
-is usually correct — the slots are already filled — and is reported as
-information, not as a failure.
+uses, so it cannot double-publish. It is useful for publishing the day's article
+after a provider outage without waiting for the next hour, and it offers the day
+to the theme that hour's scheduled run would. A run that publishes nothing is
+usually correct — the day's article is out, or not due before 07:00 — and is
+reported as information, not as a failure.
 
 **Publication runs** reads the ledger: one row per slot per run, with the stage
 that refused, the safe detail, the trigger, and the fact-check's own verdict where
@@ -510,19 +534,23 @@ included one — a fixture asserting a field the server never sent.
 
 ## Testing
 
-`functions/test/unit/blogPipeline.test.js` — 112 tests. No test contacts a real
-feed, AI provider or image provider.
+The `functions/test/unit/blogPipeline.*.test.js` suites, `claimScope.test.js`
+and `articleFactCheck.test.js`. No test contacts a real feed, AI provider or image
+provider.
 
-Proven: exactly three daily theme slots; publication date derived in
-America/Chicago; both 2026 DST transitions handled without a duplicate or missing
-date slot; slots open at their local hour and stay open; no duplicate after a
-retry; at most one article per run; a missed slot filled later the same day; never
+Proven: exactly three themes; publication date derived in America/Chicago; both
+2026 DST transitions handled without a duplicate or missing date; the day opens
+at 07:00 and is offered to one theme per hourly run, starting with the day's own
+and rotating by date; one article a day, a deleted one closing the day too; no
+duplicate after a retry; a day missed in the morning published later; never
 publishing for a previous day; publication continuing when a publisher is
 unreachable; the 60-day window; all four duplicate checks; tombstones still
 counted; distinct themes; a primary source required for regulation; corroboration
 required; sources saved with title, publisher, URL and date; SafeHaulNewsBot
-identification; a 403 respected; unsupported SafeHaul claims rejected; publication
-refused when verification cannot run; unsafe HTML escaped; unknown blocks dropped;
+identification; a 403 respected; unsupported SafeHaul claims rejected, while
+advice to carriers and the package's own limitations are not; publication refused
+when verification cannot run or lists an unsupported claim; unsafe HTML escaped;
+unknown blocks dropped;
 heading levels clamped; slug traversal rejected; complete image licence metadata;
 the local fallback; unrecognised Openverse licences rejected; canonical metadata
 and JSON-LD present; deleted articles gone from every public surface; unpublished
@@ -553,7 +581,7 @@ Stated honestly rather than omitted:
   significant terms, so two short headlines about the same rule can slip through
   when they share only two. The canonical-URL and fingerprint checks catch that
   case in practice; the residual gap is asserted in
-  `blogPipeline.test.js` so it cannot change silently.
+  `blogPipeline.scheduling.test.js` so it cannot change silently.
 - **Feed availability is not guaranteed.** Publishers change or withdraw feeds.
   A source that starts failing is recorded per run but does not raise an alert.
 - **No visual-regression baselines** for the article or index pages; the roadmap
@@ -565,8 +593,9 @@ Stated honestly rather than omitted:
   that a real provider produces a publishable article, because no test may call
   one.
 - **A deleted slot stays filled.** See [Deletion behaviour](#deletion-behaviour).
-  Deleting an article does not cause a replacement to be written, and reopening
-  the slot was deliberately left out of the change that added the ledger.
+  Deleting an article does not cause a replacement to be written, so that day has
+  none, and reopening the slot was deliberately left out of the change that added
+  the ledger.
 - **The enforced word floor is 150**, a long way below the 700–1,200 words
   originally specified. That is a recorded owner decision taken three times
   against free-tier provider limits, not drift. Raising a provider tier is what

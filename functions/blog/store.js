@@ -3,10 +3,10 @@
  *
  * Collection: `blog_posts`, keyed by `${publicationDate}_${themeId}`.
  *
- * The document id *is* the idempotency mechanism. A create uses Firestore's
- * `create()`, which fails if the document already exists, so a scheduler retry,
- * a duplicated Pub/Sub delivery and a catch-up run all lose the race rather
- * than producing a second article for the same date and theme. There is no
+ * The document id *is* the idempotency mechanism. A create runs in a transaction
+ * that first reads the day's three slots, so a scheduler retry, a duplicated
+ * Pub/Sub delivery and a catch-up run all lose the race rather than producing a
+ * second article for the same date, whatever its theme. There is no
  * check-then-write window to lose.
  *
  * Deletion is a tombstone: `status` becomes `deleted` and `deletedAt` is
@@ -34,17 +34,27 @@ function collection() {
 }
 
 /**
- * Creates a post, refusing to overwrite an existing slot.
+ * Creates a post, refusing to overwrite an existing slot or to give a day a
+ * second article.
+ *
+ * The day's three slots are read in the same transaction as the create. The
+ * scheduler checks the day before minutes of generation, so two manual runs
+ * either side of an hour, offering the day to different themes, could both pass
+ * that check; a transaction locks what it reads, so the later one sees the
+ * earlier one's article here and stands down.
  *
  * @returns {Promise<{ created: boolean, id: string }>} `created: false` when the
- *   slot was already filled, which is a normal retry outcome and not an error.
+ *   slot or its day was already filled, a normal retry outcome and not an error.
  */
 async function createPost(post) {
     const id = slotKey(post.publicationDate, post.theme);
     const ref = collection().doc(id);
+    const day = THEME_IDS.map((themeId) => collection().doc(slotKey(post.publicationDate, themeId)));
 
-    try {
-        await ref.create({
+    return db.runTransaction(async (transaction) => {
+        const taken = (await transaction.getAll(...day)).some((snapshot) => snapshot.exists);
+        if (taken) return { created: false, id };
+        transaction.create(ref, {
             ...post,
             id,
             status: STATUS.PUBLISHED,
@@ -53,14 +63,7 @@ async function createPost(post) {
             deletedAt: null,
         });
         return { created: true, id };
-    } catch (error) {
-        // ALREADY_EXISTS. Another run filled this slot first; that is the
-        // duplicate-safety guarantee working, not a failure.
-        if (error?.code === 6 || /ALREADY_EXISTS/i.test(error?.message || '')) {
-            return { created: false, id };
-        }
-        throw error;
-    }
+    });
 }
 
 /** Whether a slot already holds a post, deleted or not. */

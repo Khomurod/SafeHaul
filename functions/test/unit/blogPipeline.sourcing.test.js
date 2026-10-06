@@ -200,6 +200,69 @@ describe('claim verification against the knowledge package', () => {
         expect(result.outcome).toBe(generate.OUTCOME.SKIPPED_UNSUPPORTED_CLAIMS);
     });
 
+    it('refuses a verdict that lists unsupported claims, whatever its flag says', async () => {
+        // The prompt asks for `supported: false` whenever anything is listed; a
+        // verdict that listed a claim and said `true` used to publish.
+        mockVerifyArticleClaims.mockResolvedValue({
+            verification: { supported: true, unsupportedClaims: ['The rule takes effect in January 2027.'], notes: '' },
+            transactionId: 'txn-verify-contradictory',
+        });
+
+        const result = await generate.runSlot(
+            { themeId: 'industry-news', publicationDate: '2026-08-02', key: '2026-08-02_industry-news', slotIndex: 0 },
+            { store, fetchImpl: researchFetch(), now: Date.parse('2026-08-02T13:00:00Z') },
+        );
+
+        expect(result.outcome).toBe(generate.OUTCOME.SKIPPED_UNSUPPORTED_CLAIMS);
+        expect(result.verification).toEqual({ supported: false, unsupportedClaimCount: 1 });
+        expect(mockPosts.size).toBe(0);
+    });
+
+    it('publishes a news article that gives carriers advice without mentioning SafeHaul', async () => {
+        // "Run an MVR check on every applicant" is advice to a carrier. It was
+        // refused as a claim that SafeHaul runs MVR checks.
+        mockGenerateArticle.mockResolvedValue({
+            article: draftArticle({
+                blocks: [
+                    ...draftArticle().blocks,
+                    { type: 'heading', level: 2, text: 'What a carrier should do' },
+                    { type: 'paragraph', text: 'Before hiring, run an MVR check on every applicant and a pre-employment Clearinghouse query. This article is not legal advice.' },
+                ],
+            }),
+            providerId: 'groq',
+            model: 'm',
+            fallbackCount: 0,
+        });
+
+        const result = await generate.runSlot(
+            { themeId: 'industry-news', publicationDate: '2026-08-02', key: '2026-08-02_industry-news', slotIndex: 0 },
+            { store, fetchImpl: researchFetch(), now: Date.parse('2026-08-02T13:00:00Z') },
+        );
+
+        expect(result.outcome).toBe(generate.OUTCOME.PUBLISHED);
+    });
+
+    it('publishes a SafeHaul article that states the limitation the package requires', async () => {
+        mockGenerateArticle.mockResolvedValue({
+            article: draftArticle({
+                blocks: [
+                    ...draftArticle().blocks,
+                    { type: 'paragraph', text: 'SafeHaul stores and organises documents. It does not monitor expiry dates or send renewal reminders.' },
+                ],
+            }),
+            providerId: 'groq',
+            model: 'm',
+            fallbackCount: 0,
+        });
+
+        const result = await generate.runSlot(
+            { themeId: 'safehaul-education', publicationDate: '2026-08-02', key: '2026-08-02_safehaul-education', slotIndex: 2 },
+            { store, fetchImpl: researchFetch(), now: Date.parse('2026-08-02T13:00:00Z') },
+        );
+
+        expect(result.outcome).toBe(generate.OUTCOME.PUBLISHED);
+    });
+
     it('records the knowledge package version on every published post', async () => {
         await generate.runSlot(
             { themeId: 'industry-news', publicationDate: '2026-08-02', key: '2026-08-02_industry-news', slotIndex: 0 },

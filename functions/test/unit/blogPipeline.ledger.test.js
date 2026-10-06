@@ -41,7 +41,8 @@ describe('the run ledger records what happened', () => {
 
     it('records a published run with the transactions that produced it', async () => {
         await publishDueSlots({
-            now: Date.parse('2026-08-02T13:00:00Z'),
+            // 07:30 in Chicago: the day's first run, for its own theme.
+            now: Date.parse('2026-08-02T12:30:00Z'),
             fetchImpl: researchFetch(),
             mediaCredentials: new Map(),
         });
@@ -86,7 +87,7 @@ describe('the run ledger records what happened', () => {
         });
 
         await publishDueSlots({
-            now: Date.parse('2026-08-02T13:00:00Z'),
+            now: Date.parse('2026-08-02T12:30:00Z'),
             fetchImpl: researchFetch(),
             mediaCredentials: new Map(),
         });
@@ -114,27 +115,25 @@ describe('the run ledger records what happened', () => {
         for (const outcome of Object.values(generate.OUTCOME)) {
             expect(runLedger.STAGE_BY_OUTCOME[outcome]).toBeTruthy();
         }
-        // Plus the scheduler's own, which the pipeline never returns.
-        expect(runLedger.STAGE_BY_OUTCOME.deferred_to_next_run).toBe('scheduling');
     });
 
-    it('records a slot held for the next run, because that is not a failure', async () => {
-        // Two slots due, one article per run: the second is deferred, and saying
-        // so is the difference between a backlog and a broken pipeline.
-        await publishDueSlots({
-            now: Date.parse('2026-08-02T18:00:00Z'),
+    it('writes no row for a run that finds the day\'s article already published', async () => {
+        const run = (utc) => publishDueSlots({
+            now: Date.parse(`2026-08-02T${utc}Z`),
             fetchImpl: researchFetch(),
             mediaCredentials: new Map(),
         });
 
-        const deferred = mockLedger.filter((row) => row.outcome === 'deferred_to_next_run');
-        expect(deferred.length).toBeGreaterThan(0);
-        expect(deferred[0].stage).toBe('scheduling');
+        await run('12:30:00');
+        await run('13:30:00');
+
+        // One row, for the run that published. The later run attempted nothing.
+        expect(mockLedger.map((row) => row.outcome)).toEqual(['published']);
     });
 
     it('never records article text, a source body or a prompt', async () => {
         await publishDueSlots({
-            now: Date.parse('2026-08-02T13:00:00Z'),
+            now: Date.parse('2026-08-02T12:30:00Z'),
             fetchImpl: researchFetch(),
             mediaCredentials: new Map(),
         });

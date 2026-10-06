@@ -279,8 +279,13 @@ async function runSlot(slot, context) {
     // --- 9. SafeHaul claim check (deterministic, runs for every theme) --------
     // Deliberately before the AI verification step: it is free, it cannot be
     // talked out of a verdict, and it applies even to a news article that
-    // mentions SafeHaul in passing.
-    const claimCheck = knowledgePackage.checkClaims(`${validated.title} ${plainText}`);
+    // mentions SafeHaul in passing. There, only what it says about SafeHaul is
+    // checked: "run an MVR check on every applicant" is advice to a carrier, not
+    // a claim that SafeHaul runs one. The title is its own sentence.
+    const claimCheck = knowledgePackage.checkClaims(
+        `${validated.title}.\n${plainText}`,
+        { scope: usesKnowledge ? 'all' : 'mentions' },
+    );
     if (!claimCheck.ok) {
         return finish({
             outcome: OUTCOME.SKIPPED_PROHIBITED_CLAIM,
@@ -307,21 +312,25 @@ async function runSlot(slot, context) {
             return finish({ outcome: OUTCOME.SKIPPED_UNSUPPORTED_CLAIMS, slot, detail: 'verification step unavailable' });
         }
 
+        // A verdict that lists unsupported claims is not a pass, whatever its
+        // flag says: the prompt asks for `supported: false` whenever anything is
+        // listed, and a reply listing claims beside `true` used to publish.
+        const listed = Array.isArray(verification.unsupportedClaims) ? verification.unsupportedClaims : [];
+        verification = { ...verification, unsupportedClaims: listed, supported: verification.supported === true && listed.length === 0 };
+
         // The verdict, recorded whichever way it went. A successful fact-check
         // transaction that returned `supported: false` is the case that read as
         // two green rows and no article.
         trail.verification = {
-            supported: Boolean(verification.supported),
-            unsupportedClaimCount: Array.isArray(verification.unsupportedClaims)
-                ? verification.unsupportedClaims.length
-                : 0,
+            supported: verification.supported,
+            unsupportedClaimCount: listed.length,
         };
 
         if (!verification.supported) {
             return finish({
                 outcome: OUTCOME.SKIPPED_UNSUPPORTED_CLAIMS,
                 slot,
-                detail: verification.unsupportedClaims.slice(0, 3).join(' | '),
+                detail: listed.slice(0, 3).join(' | ') || 'the fact-check did not confirm the draft',
             });
         }
     }

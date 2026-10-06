@@ -1,11 +1,17 @@
 /**
  * Daily themes, publication slots and America/Chicago date handling.
  *
- * Three articles publish every calendar day, one per theme. The unique key for
- * a publication is `${publicationDate}:${themeId}`, which is what makes the
- * whole pipeline idempotent: a scheduler retry, a duplicate delivery or a
- * catch-up run for a missed slot all compute the same key and the second write
- * is refused.
+ * One article publishes every calendar day. The day's theme rotates through the
+ * three, so each comes round every third day; when the day's theme has nothing
+ * it may publish (no current sources, only repeats, a refused draft), the next
+ * run offers the day to the next theme. It was three a day, one per theme, until
+ * the owner chose fewer articles in October 2026.
+ *
+ * The unique key for a publication is `${publicationDate}_${themeId}`, which is
+ * what makes the whole pipeline idempotent: a scheduler retry, a duplicate
+ * delivery or a catch-up run for a missed slot all compute the same key and the
+ * second write is refused. The scheduler closes the day once any of its keys
+ * holds an article.
  *
  * ## Why the timezone work is done with Intl and not arithmetic
  *
@@ -23,17 +29,18 @@
 
 const TIMEZONE = 'America/Chicago';
 
+/** Local hour at or after which the day's article may publish. */
+const PUBLISH_HOUR = 7;
+
 /**
- * The three themes. Distinct by design: the day's three articles must cover
- * three different subjects, not one story written three ways.
+ * The three themes. Distinct by design: three different subjects, not one story
+ * written three ways.
  */
 const THEMES = Object.freeze([
     {
         id: 'industry-news',
         slotIndex: 0,
         name: 'Industry news and regulation',
-        /** Local hour at or after which this slot may publish. */
-        publishHour: 7,
         description: 'Trucking news, regulation, safety, freight-market or industry developments.',
         topics: ['regulation', 'compliance', 'safety', 'freight-market', 'enforcement', 'economics', 'infrastructure'],
         requiresSources: true,
@@ -46,7 +53,6 @@ const THEMES = Object.freeze([
         id: 'recruitment',
         slotIndex: 1,
         name: 'Recruiting and retention',
-        publishHour: 12,
         description: 'Driver recruitment, retention and fleet-growth guidance.',
         topics: ['recruitment', 'driver-retention', 'labor-market', 'wages', 'fleet-operations'],
         requiresSources: true,
@@ -58,7 +64,6 @@ const THEMES = Object.freeze([
         id: 'safehaul-education',
         slotIndex: 2,
         name: 'SafeHaul and product education',
-        publishHour: 17,
         description: 'A SafeHaul capability, use case, or an explanation of an industry problem SafeHaul addresses.',
         topics: ['fleet-operations', 'compliance', 'recruitment'],
         // This theme is written from the approved capability package rather
@@ -131,32 +136,43 @@ function slotKey(publicationDate, themeId) {
     return `${publicationDate}_${themeId}`;
 }
 
+/** The day's themes in the order they are offered the day: its own first, then the rest. */
+function themesInOrderFor(publicationDate) {
+    // Days since the epoch, as the SafeHaul theme already counts them to rotate
+    // its features: stateless, and the same answer on every run of the day.
+    const day = Math.floor(Date.parse(`${publicationDate}T00:00:00Z`) / 86400000);
+    return THEMES.map((_, offset) => THEMES[(day + offset) % THEMES.length]);
+}
+
 /**
- * Which slots are due at this instant.
+ * Which slot is due at this instant: one, or none before `PUBLISH_HOUR`.
  *
- * A slot is due once its local hour has arrived and stays due for the rest of
- * the local day, which is what lets a later run fill a slot missed because
- * every provider was down at the time. It never reaches into a previous day —
- * yesterday's missed article is not published today under today's date.
+ * Each hourly run from `PUBLISH_HOUR` offers the day to one theme: the first run
+ * to the day's own, the next run to the next theme in the rotation, and so on.
+ * A theme with nothing to publish passes the day on an hour later instead of
+ * holding it, and a run makes one attempt at most, which fits the function's
+ * timeout. The scheduler does nothing once any of the day's slots holds an
+ * article. It never reaches into a previous day — yesterday's missed article is
+ * not published today under today's date.
  *
  * @param {Date|number} [at]
  * @returns {Array<{ themeId: string, publicationDate: string, key: string, slotIndex: number }>}
  */
 function dueSlots(at = Date.now()) {
-    const publicationDate = publicationDateFor(at);
     const hour = localHourFor(at);
+    if (hour < PUBLISH_HOUR) return [];
+    const publicationDate = publicationDateFor(at);
+    const theme = themesInOrderFor(publicationDate)[(hour - PUBLISH_HOUR) % THEMES.length];
 
-    return THEMES
-        .filter((theme) => hour >= theme.publishHour)
-        .map((theme) => ({
-            themeId: theme.id,
-            publicationDate,
-            key: slotKey(publicationDate, theme.id),
-            slotIndex: theme.slotIndex,
-        }));
+    return [{
+        themeId: theme.id,
+        publicationDate,
+        key: slotKey(publicationDate, theme.id),
+        slotIndex: theme.slotIndex,
+    }];
 }
 
-/** Every slot for a date, due or not. Used by the console and by tests. */
+/** Every slot for a date, due or not: what the scheduler reads to know whether the day has its article. */
 function allSlotsFor(publicationDate) {
     return THEMES.map((theme) => ({
         themeId: theme.id,
@@ -168,12 +184,14 @@ function allSlotsFor(publicationDate) {
 
 module.exports = {
     TIMEZONE,
+    PUBLISH_HOUR,
     THEMES,
     THEME_IDS: Object.freeze(THEMES.map((theme) => theme.id)),
     getTheme,
     publicationDateFor,
     localHourFor,
     slotKey,
+    themesInOrderFor,
     dueSlots,
     allSlotsFor,
 };

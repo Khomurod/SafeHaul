@@ -74,7 +74,6 @@ const STAGE = Object.freeze({
 const STAGE_BY_OUTCOME = Object.freeze({
     published: STAGE.PUBLICATION,
     skipped_slot_taken: STAGE.PUBLICATION,
-    deferred_to_next_run: STAGE.SCHEDULING,
     skipped_no_sources: STAGE.SOURCING,
     // A repeat is an originality judgement, even though it is made before a word
     // is written.

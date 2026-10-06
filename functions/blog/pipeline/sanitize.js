@@ -132,11 +132,15 @@ function renderBlocksToHtml(blocks) {
     }).join('\n');
 }
 
-/** Plain text of an article, for word counts and similarity comparison. */
+/**
+ * Plain text of an article, for word counts and the two claim checks. One block
+ * or list item per line, so a heading or a bullet without a full stop stays its
+ * own sentence for the SafeHaul claim check (`claimScope.js`).
+ */
 function blocksToPlainText(blocks) {
     return sanitizeBlocks(blocks).map((block) => (
-        block.type === 'list' ? block.items.join(' ') : block.text
-    )).join(' ');
+        block.type === 'list' ? block.items.join('\n') : block.text
+    )).join('\n');
 }
 
 function wordCount(blocks) {

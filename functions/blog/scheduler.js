@@ -1,20 +1,20 @@
 /**
  * Blog publication scheduler.
  *
- * Runs hourly rather than three times a day, on purpose. Each run asks "which
- * of today's slots are due and still empty" and fills them. That single design
- * choice gives four properties the requirements ask for, without extra
- * machinery:
+ * Runs hourly rather than once a day, on purpose. Each run asks "does today have
+ * its article yet" and, if not, offers the day to one theme, the next in the
+ * rotation each hour (`dueSlots`). That single design choice gives four
+ * properties the requirements ask for, without extra machinery:
  *
- *  - **Idempotent.** A slot already filled is skipped, and the create is keyed
- *    on the document id, so a duplicate invocation cannot double-publish.
+ *  - **Idempotent.** A day that holds an article is skipped, and the create is
+ *    keyed on the document id, so a duplicate invocation cannot double-publish.
  *  - **Retry-safe.** A retried run recomputes the same slot keys and loses the
  *    create race rather than adding a second article.
  *  - **Recovers from an outage.** If every AI provider was down at 07:00, the
- *    08:00 run fills the morning slot. The slot stays due for the rest of the
- *    local day.
- *  - **Never more than one article per date and theme**, because that pair *is*
- *    the primary key.
+ *    08:00 run publishes the day's article. The day stays open for the rest of
+ *    the local day.
+ *  - **One article a day.** A run does nothing once any of the day's slots holds
+ *    an article, and makes one attempt at most.
  *
  * It never reaches into a previous day: yesterday's missed article is not
  * published today under today's date.
@@ -22,18 +22,21 @@
 
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 
-const { dueSlots, TIMEZONE, THEMES } = require('./pipeline/themes');
+const { dueSlots, allSlotsFor, TIMEZONE, THEMES } = require('./pipeline/themes');
 const { runSlot, OUTCOME } = require('./pipeline/generate');
 const store = require('./store');
 const mediaStore = require('./media/credentials');
 const { recordSlotRun } = require('./runLedger');
 
 /**
- * A run publishes at most one article, even when two slots are outstanding.
- * Filling a backlog all at once would put three articles on the site within a
- * minute of each other; the next hourly run picks up the next one.
+ * Whether the day already has its article: any of its three slots filled. A
+ * deleted article counts, because `slotIsFilled` sees its tombstone; deleting
+ * the day's article does not invite a second one (docs/news-and-insights.md).
  */
-const MAX_PUBLISHED_PER_RUN = 1;
+async function dayIsTaken(publicationDate) {
+    const day = allSlotsFor(publicationDate);
+    return (await store.unfilledSlots(day)).length < day.length;
+}
 
 /**
  * Does the work. Exported separately from the scheduled wrapper so it can be
@@ -43,9 +46,7 @@ async function publishDueSlots({
     now = Date.now(), fetchImpl, aiDeps, mediaCredentials, trigger = 'scheduled',
 } = {}) {
     const slots = dueSlots(now);
-    const outstanding = await store.unfilledSlots(slots);
-
-    if (outstanding.length === 0) {
+    if (slots.length === 0 || await dayIsTaken(slots[0].publicationDate)) {
         return { attempted: 0, published: 0, results: [], dueCount: slots.length };
     }
 
@@ -53,29 +54,14 @@ async function publishDueSlots({
     const results = [];
     let published = 0;
 
-    // Earliest slot first, so a backlog fills in the order it was meant to run.
-    outstanding.sort((a, b) => a.slotIndex - b.slotIndex);
-
-    for (const slot of outstanding) {
-        if (published >= MAX_PUBLISHED_PER_RUN) {
-            const deferred = {
-                outcome: 'deferred_to_next_run',
-                slot: { key: slot.key, themeId: slot.themeId, publicationDate: slot.publicationDate },
-            };
-            results.push({ outcome: deferred.outcome, slot: deferred.slot });
-            // Recorded like any other outcome. "Nothing published for this slot"
-            // and "this slot was deliberately held for the next hourly run" are
-            // different facts, and only one of them is a problem.
-            await recordSlotRun({ ...deferred, trigger });
-            continue;
-        }
-
+    for (const slot of slots) {
         let result;
         try {
             result = await runSlot(slot, { store, mediaCredentials: credentials, fetchImpl, aiDeps, now });
         } catch (error) {
-            // One slot failing must not stop the others. Message only: article
-            // drafts and provider bodies never reach a log.
+            // Recorded as a failed generation rather than failing the run, so the
+            // ledger says so. Message only: article drafts and provider bodies
+            // never reach a log.
             console.error(`[blog/scheduler] slot ${slot.key} threw: ${error?.message || 'unknown'}`);
             result = { outcome: OUTCOME.FAILED_GENERATION, slot, detail: 'unhandled error' };
         }
@@ -114,7 +100,7 @@ async function publishDueSlots({
         );
     }
 
-    return { attempted: outstanding.length, published, results, dueCount: slots.length };
+    return { attempted: results.length, published, results, dueCount: slots.length };
 }
 
 /**
@@ -139,5 +125,4 @@ exports.publishScheduledBlogPosts = onSchedule({
 });
 
 module.exports.publishDueSlots = publishDueSlots;
-module.exports.MAX_PUBLISHED_PER_RUN = MAX_PUBLISHED_PER_RUN;
 module.exports.THEMES = THEMES;

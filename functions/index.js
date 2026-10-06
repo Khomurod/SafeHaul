@@ -333,8 +333,8 @@ exports.diagnoseAiCredentialAccessV1 = aiIntegrationsV1.diagnoseAiCredentialAcce
 // 22. SafeHaul News & Insights
 // Public rendering is one onRequest handler behind Hosting rewrites, so /news,
 // /news/{slug}, the feed, the sitemap and the landing card endpoint share a
-// single ordering-obvious rewrite block. The scheduler runs hourly and fills
-// whichever of the day's three themed slots are due and still empty.
+// single ordering-obvious rewrite block. The scheduler runs hourly and, from
+// 07:00 Chicago, offers the day to one theme per run until its article publishes.
 const blogPublic = require('./blog/publicApi');
 exports.serveBlogPublic = blogPublic.serveBlogPublic;
 

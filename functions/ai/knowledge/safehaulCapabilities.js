@@ -19,11 +19,14 @@
  *  - `KNOWLEDGE_VERSION` is stamped onto every published article, so a claim
  *    can always be traced back to the package that authorised it.
  *
- * Maintenance: `test/unit/blogPipeline.test.js` exercises this package against
- * the generator — that a prohibited claim skips publication, that the approved
- * claims survive into a briefing, and that `KNOWLEDGE_VERSION` is stamped onto
- * every published post.
+ * Maintenance: `test/unit/blogPipeline.sourcing.test.js` exercises this package
+ * against the generator — that a prohibited claim skips publication, that the
+ * approved claims survive into a briefing, and that `KNOWLEDGE_VERSION` is
+ * stamped onto every published post — and `test/unit/claimScope.test.js` that
+ * every approved claim and stated limitation passes `checkClaims`.
  */
+
+const { claimsMade } = require('./claimScope');
 
 /**
  * Bump on any meaningful change to the entries below. Published articles record
@@ -388,15 +391,19 @@ function buildKnowledgeBriefing() {
 /**
  * Checks generated text against the prohibited-claim list.
  *
- * Substring matching over a curated phrase list is intentionally simple: it is
- * a deterministic backstop, not a language model.
- * `test/unit/blogPipeline.test.js` pins the phrases it must catch.
+ * Pattern matching over a curated phrase list is intentionally simple: it is a
+ * deterministic backstop, not a language model. Where a match counts, sentence
+ * by sentence and clause by clause, is `claimScope.js`'s.
+ * `test/unit/blogPipeline.sourcing.test.js` pins the phrases it must catch.
  */
 const PROHIBITED_PATTERNS = Object.freeze([
     { pattern: /free\s+forever/i, claim: 'SafeHaul is free forever' },
     { pattern: /\bapp\s*check\b/i, claim: 'SafeHaul uses Firebase App Check' },
     { pattern: /\brecaptcha\b/i, claim: 'SafeHaul uses reCAPTCHA attestation' },
-    { pattern: /\b(mvr|psp)\b.{0,40}\b(check|screening|integration)/i, claim: 'SafeHaul runs MVR or PSP checks' },
+    { pattern: /\b(mvr|psp)s?\b.{0,40}\b(check|screening|integration)/i, claim: 'SafeHaul runs MVR or PSP checks' },
+    // "Pulls MVRs and PSP reports automatically" named neither a check nor a
+    // screening, and passed.
+    { pattern: /\b(pull|order|run|request|fetch|retriev|obtain)\w*\b.{0,30}\b(mvr|psp|motor vehicle record|driving record)s?\b/i, claim: 'SafeHaul runs MVR or PSP checks' },
     { pattern: /clearinghouse\s+(query|check|automation|integration)/i, claim: 'SafeHaul runs Clearinghouse queries' },
     { pattern: /(automat\w*|smart)\s+(dq|document|qualification)\s+(file\s+)?(expir\w*|monitor\w*|reminder|alert)/i, claim: 'SafeHaul automates DQ expiry monitoring' },
     // Same claim, opposite word order — "automating expiration tracking (DQ files)".
@@ -418,14 +425,14 @@ const PROHIBITED_PATTERNS = Object.freeze([
 
 /**
  * @param {string} text article text to check
+ * @param {{ scope?: 'all'|'mentions' }} [options] which sentences speak about
+ *   SafeHaul: every one (the default, for its own pages and articles), or only
+ *   those that name it (an industry article); see `claimScope.js`
  * @returns {{ ok: boolean, violations: Array<{ claim: string }> }}
  */
-function checkClaims(text) {
-    const haystack = typeof text === 'string' ? text : '';
-    const violations = [];
-    for (const entry of PROHIBITED_PATTERNS) {
-        if (entry.pattern.test(haystack)) violations.push({ claim: entry.claim });
-    }
+function checkClaims(text, options) {
+    const violations = claimsMade(typeof text === 'string' ? text : '', PROHIBITED_PATTERNS, options)
+        .map((claim) => ({ claim }));
     return { ok: violations.length === 0, violations };
 }
 
