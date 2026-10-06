@@ -144,10 +144,11 @@ async function fillStep3RequiredFields(page) {
 }
 
 /**
- * Steps 4 → 8. Every advance asserts the new step before the next interaction,
- * so a lost or doubled click fails where it happens instead of three steps later.
+ * Steps 4 → 7, ending on Review. Every advance asserts the new step before the
+ * next interaction, so a lost or doubled click fails where it happens instead of
+ * three steps later.
  */
-async function completeRemainingSteps(page) {
+async function completeStepsToReview(page) {
   await expectStep(page, 'Motor Vehicle Record');
   await chooseRadio(page, 'consent-mvr-yes');
   await chooseRadio(page, 'revoked-licenses-no');
@@ -162,7 +163,11 @@ async function completeRemainingSteps(page) {
 
   await chooseRadio(page, 'has-felony-no');
   await continueToStep(page, 'Review Information');
+}
 
+/** Steps 4 → 8: through Review to the consent page. */
+async function completeRemainingSteps(page) {
+  await completeStepsToReview(page);
   await page.getByRole('button', { name: 'Confirm & Proceed' }).click();
   await expectStep(page, 'Agreements & Signature');
 }
@@ -205,6 +210,7 @@ module.exports = {
   fillStep1,
   fillStep2,
   fillStep3RequiredFields,
+  completeStepsToReview,
   completeRemainingSteps,
   applySignature,
   submitApplication,

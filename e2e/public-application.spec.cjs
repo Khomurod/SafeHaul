@@ -6,6 +6,8 @@ const {
   fillStep3RequiredFields,
   uploadStandardDocuments,
   continueToStep,
+  expectStep,
+  completeStepsToReview,
   completeRemainingSteps,
   applySignature,
   submitApplication,
@@ -39,6 +41,25 @@ test.describe('guest public application', () => {
 
     await expect(page.getByText('Application Submitted!')).toBeVisible();
     await expect(page.getByText('Confirmation Number')).toBeVisible();
+  });
+
+  test('after Edit on Review, Continue returns straight to Review', async ({ page }) => {
+    await page.goto('/apply/e2e-company');
+    await fillStep1(page, 'review');
+    await fillStep2(page);
+    await fillStep3RequiredFields(page);
+    await uploadStandardDocuments(page);
+    await continueToStep(page, 'Motor Vehicle Record');
+    await completeStepsToReview(page);
+
+    // The first section is page one. Continue there skips the six pages after it.
+    await page.getByRole('button', { name: /^Edit / }).first().click();
+    await expectStep(page, 'Personal Information');
+    await continueToStep(page, 'Review Information');
+
+    // Only that once: from Review onwards the wizard moves one page at a time again.
+    await page.getByRole('button', { name: 'Confirm & Proceed' }).click();
+    await expectStep(page, 'Agreements & Signature');
   });
 
   test('guest upload shows permission error when upload guard denies access', async ({ page }) => {
