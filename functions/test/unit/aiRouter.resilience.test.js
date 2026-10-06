@@ -206,6 +206,82 @@ describe('deadline reporting', () => {
     });
 });
 
+describe('what a failed task means to the person who asked', () => {
+    const { failureKind } = require('../../ai/router/errors');
+    const terminal = (fields) => require('../../ai/router/router').__test.buildTerminalFailure({
+        attempted: [], skipped: [], lastError: null, failures: [], ...fields,
+    });
+
+    it('reports every capable provider resting as unavailable, not as unconfigured', () => {
+        const failure = terminal({
+            skipped: [
+                { providerId: 'gemini', reason: SKIP_REASONS.COOLDOWN },
+                { providerId: 'mistral', reason: SKIP_REASONS.COOLDOWN },
+                { providerId: 'cerebras', reason: SKIP_REASONS.INCAPABLE },
+            ],
+        });
+        expect(failure.category).toBe('provider_unavailable');
+        expect(failureKind(failure)).toBe('unavailable');
+    });
+
+    it('still reports nothing configured as a configuration gap', () => {
+        const failure = terminal({ skipped: [{ providerId: 'gemini', reason: SKIP_REASONS.UNCONFIGURED }] });
+        expect(failure.category).toBe('not_configured');
+        expect(failureKind(failure)).toBe('not_configured');
+    });
+
+    it('keeps each provider\'s failure on an exhausted walk, and reads outages as unavailable', () => {
+        const failure = terminal({
+            attempted: ['gemini', 'groq'],
+            lastError: new AiError('quota_exceeded', 'spent'),
+            failures: [{ providerId: 'gemini', category: 'timeout' }, { providerId: 'groq', category: 'quota_exceeded' }],
+        });
+        expect(failure.category).toBe('all_providers_failed');
+        expect(failure.failureCategories).toEqual(['timeout', 'quota_exceeded']);
+        expect(failureKind(failure)).toBe('unavailable');
+    });
+
+    it('reads a walk where every provider answered unusably as unreadable', () => {
+        const failure = terminal({
+            attempted: ['gemini', 'groq'],
+            lastError: new AiError('malformed_response', 'prose'),
+            failures: [
+                { providerId: 'gemini', category: 'schema_validation_failed' },
+                { providerId: 'groq', category: 'malformed_response' },
+            ],
+        });
+        expect(failureKind(failure)).toBe('unreadable');
+    });
+
+    it('reads a mixed walk as unavailable, since a provider that did not answer might have', () => {
+        const failure = terminal({
+            attempted: ['gemini', 'groq'],
+            lastError: new AiError('timeout', 'slow'),
+            failures: [
+                { providerId: 'gemini', category: 'schema_validation_failed' },
+                { providerId: 'groq', category: 'timeout' },
+            ],
+        });
+        expect(failureKind(failure)).toBe('unavailable');
+    });
+
+    it('reads a SafeHaul fault as neither an outage nor the document', () => {
+        expect(failureKind(new AiError('internal', 'TypeError'))).toBe('failed');
+        expect(failureKind(new Error('no category'))).toBe('failed');
+        expect(failureKind(undefined)).toBe('failed');
+        // Every adapter threw, or every vendor refused the request: waiting will
+        // not fix that. One outage on the trail still might.
+        const walk = (...categories) => terminal({
+            attempted: categories.map((_, index) => `p${index}`),
+            lastError: new AiError(categories[0], 'x'),
+            failures: categories.map((category, index) => ({ providerId: `p${index}`, category })),
+        });
+        expect(failureKind(walk('internal', 'internal'))).toBe('failed');
+        expect(failureKind(walk('provider_request_rejected', 'internal'))).toBe('failed');
+        expect(failureKind(walk('internal', 'timeout'))).toBe('unavailable');
+    });
+});
+
 describe('a per-attempt deadline lets a task fail over before the total runs out', () => {
     /**
      * The defect: every provider's `timeoutMs` equalled the task's total, so the

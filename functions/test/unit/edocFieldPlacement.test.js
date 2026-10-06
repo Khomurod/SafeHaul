@@ -430,12 +430,17 @@ describe('provider failures', () => {
     });
   });
 
-  it('maps exhaustion of every provider to internal', async () => {
-    mockAnalyzeDocumentPages.mockRejectedValue(new AiError('all_providers_failed', '4 attempted'));
-    await expect(callWith({ companyId: 'c1', scanId: 's1', pages: onePage() })).rejects.toMatchObject({
-      code: 'internal',
-      message: 'The AI service could not analyze this document.',
-    });
+  // An exhausted walk is the services failing unless every answer was unusable;
+  // the trail on the error, as the router builds it, says which.
+  const exhausted = (...trail) => Object.assign(new AiError('all_providers_failed', 'walk'), { failureCategories: trail });
+  it.each([
+    ['every provider failed', exhausted('quota_exceeded', 'timeout'), 'unavailable', /temporarily unavailable/i],
+    ['every provider able to read pages is resting', new AiError('provider_unavailable', 'cooling'), 'unavailable', /temporarily unavailable/i],
+    ['every provider answered unusably', exhausted('schema_validation_failed', 'malformed_response'), 'internal', /could not analyze this document/],
+  ])('says what happened when %s', async (_when, error, code, message) => {
+    mockAnalyzeDocumentPages.mockRejectedValue(error);
+    await expect(callWith({ companyId: 'c1', scanId: 's1', pages: onePage() }))
+      .rejects.toMatchObject({ code, message: expect.stringMatching(message) });
   });
 
   it('maps an unexpected error to internal without leaking its detail', async () => {

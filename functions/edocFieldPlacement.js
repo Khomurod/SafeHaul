@@ -32,6 +32,7 @@ const {
   MANUAL_REVIEW_KINDS,
 } = require('./shared/edocFieldSemantics');
 const { analyzeDocumentPages } = require('./ai/tasks/edocFieldPlacement');
+const { failureKind } = require('./ai/router/errors');
 
 /** Ceilings. Kept modest: page images are large and the model is the slow part. */
 /**
@@ -304,6 +305,15 @@ exports.analyzeEdocFieldPlacement = onCall(
       }
       if (category === 'timeout' || category === 'network' || category === 'deadline_exceeded') {
         throw new HttpsError('unavailable', 'Could not reach the AI service. Please retry.');
+      }
+      // Every provider failed or is resting after recent failures: the
+      // services, not this document (see `failureKind`).
+      if (failureKind(err) === 'unavailable') {
+        throw new HttpsError(
+          'unavailable',
+          'The AI Field Assistant is temporarily unavailable. Please try again in a few minutes, or place fields manually.',
+          { category }
+        );
       }
       // Category and provider only — never the payload, and never the
       // provider's own error text, which can quote document contents.

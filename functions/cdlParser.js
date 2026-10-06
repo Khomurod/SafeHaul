@@ -23,6 +23,7 @@ const { checkRateLimit } = require("./shared/rateLimiter");
 const { assertCompanyAcceptingIntake } = require("./shared/companyTenant");
 const { extractCdlFields, CDL_JSON_SCHEMA, normalizeFields } = require("./ai/tasks/cdlExtraction");
 const { extractJsonObject } = require("./ai/validation/schema");
+const { failureKind } = require("./ai/router/errors");
 
 /**
  * Server-side ceiling on the submitted image.
@@ -62,11 +63,11 @@ const IMAGE_DATA_URL_PREFIX = /^data:image\/(png|jpeg|jpg|webp);base64,/;
 const FUNCTION_TIMEOUT_SECONDS = 60;
 
 /**
- * Maps a shared-platform failure category onto the HttpsError codes and
- * user-facing strings this callable has always returned. Preserved exactly so
- * the driver-application wizard's error handling keeps working unchanged.
+ * Maps a shared-platform failure onto an HttpsError and the sentence the driver
+ * reads. The wizard shows the message as it is, so the wording is the product.
  */
-function toHttpsError(category) {
+function toHttpsError(error) {
+    const category = error?.category;
     switch (category) {
         case "not_configured":
         case "capability_unavailable":
@@ -95,10 +96,25 @@ function toHttpsError(category) {
         case "schema_validation_failed":
             return new functions.https.HttpsError("internal", "AI returned unreadable data. Please retry.");
         default:
-            return new functions.https.HttpsError(
-                "internal",
-                "AI parsing failed. Please retry with a clearer photo.",
-            );
+            // Every provider was tried and failed, or every one able to read a
+            // photo is resting after recent failures. That is the services, not
+            // the photo: "retry with a clearer photo" sent drivers to retake a
+            // licence photo that was fine. A photo too unclear to read comes back
+            // as a blank read, which has its own message below.
+            switch (failureKind(error)) {
+                case "unreadable":
+                    return new functions.https.HttpsError("internal", "AI returned unreadable data. Please retry.");
+                case "unavailable":
+                    return new functions.https.HttpsError(
+                        "unavailable",
+                        "AI auto-fill is temporarily unavailable. Please try again in a few minutes, or enter your licence details manually.",
+                    );
+                default:
+                    return new functions.https.HttpsError(
+                        "internal",
+                        "AI auto-fill did not work this time. Please try again, or enter your licence details manually.",
+                    );
+            }
     }
 }
 
@@ -140,7 +156,7 @@ exports.parseCdlWithGroq = functions
             console.error(
                 `[parseCdlWithGroq] AI task failed category=${error?.category || "internal"} provider=${error?.providerId || "none"}`,
             );
-            throw toHttpsError(error?.category);
+            throw toHttpsError(error);
         }
 
         const normalized = result.fields;

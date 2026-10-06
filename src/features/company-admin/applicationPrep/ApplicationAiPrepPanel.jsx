@@ -4,6 +4,7 @@ import { Icon, AlertCircle, Loader2, Sparkles } from '@design-system/icons';
 
 import { functions } from '@lib/firebase';
 import { Badge, Button, Card, FieldMessage } from '@/design-system/components';
+import { aiReadErrorMessage } from '@shared/utils/aiReadErrors';
 import { describeError } from './useApplicationPrepDraft';
 import { extractDocuments } from './extraction/documentExtractionPipeline';
 import { attachedDocuments } from './attachedDocuments';
@@ -81,6 +82,22 @@ function documentSetOf(readable) {
         .map((entry) => `${entry.field}:${entry.file?.name || ''}:${entry.file?.size || 0}`)
         .sort()
         .join('|');
+}
+
+/**
+ * A failed read, in words about reading.
+ *
+ * `describeError` speaks for saving the draft: it answers `resource-exhausted`
+ * with "Too many saves in a row", and passes a bare code ("deadline-exceeded",
+ * "internal") through as if it were a sentence. The reader's own message names
+ * its hourly limit or what to do instead; a read the server never answered gets
+ * a sentence of this panel's own.
+ */
+function describeReadError(error) {
+    if (error?.code === 'functions/permission-denied' || error?.code === 'functions/unauthenticated') {
+        return describeError(error);
+    }
+    return aiReadErrorMessage(error, 'Reading the documents did not finish. Please try again, or type the details in.');
 }
 
 export function ApplicationAiPrepPanel({
@@ -191,7 +208,7 @@ export function ApplicationAiPrepPanel({
             setState('done');
         } catch (readError) {
             if (!mounted.current) return;
-            setError(describeError(readError));
+            setError(describeReadError(readError));
             setState('error');
         } finally {
             onBusyChange?.(false);

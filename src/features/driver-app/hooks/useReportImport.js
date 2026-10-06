@@ -14,6 +14,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@lib/firebase';
+import { aiReadErrorMessage } from '@shared/utils/aiReadErrors';
 import {
     RASTER_MAX_WIDTH,
     RASTER_QUALITY,
@@ -142,7 +143,7 @@ export function useReportImport({ companyId, kind }) {
             setStatus('ready');
         } catch (err) {
             if (requestRef.current !== request) return;
-            setError(err?.message || 'Could not read that file. You can continue and enter the details yourself.');
+            setError(aiReadErrorMessage(err, 'Reading the report did not finish. You can try again, or continue and enter the details yourself.'));
             setStatus('error');
         }
     }, [companyId, kind]);

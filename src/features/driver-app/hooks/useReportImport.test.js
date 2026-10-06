@@ -123,6 +123,15 @@ describe('useReportImport', () => {
         expect(result.current.suggestions).toBeNull();
     });
 
+    it('replaces a bare code the server never sent, such as a browser timeout', async () => {
+        callableMocks.extract.mockRejectedValue(Object.assign(new Error('deadline-exceeded'), { code: 'functions/deadline-exceeded' }));
+        const { result } = renderHook(() => useReportImport({ companyId: 'co-1', kind: 'psp' }));
+        await act(async () => { await result.current.importFile(PNG); });
+        expect(result.current.status).toBe('error');
+        expect(result.current.error).not.toBe('deadline-exceeded');
+        expect(result.current.error).toMatch(/enter the details yourself/);
+    });
+
     it('refuses to call without a company', async () => {
         const { result } = renderHook(() => useReportImport({ companyId: undefined, kind: 'mvr' }));
         await act(async () => { await result.current.importFile(PNG); });

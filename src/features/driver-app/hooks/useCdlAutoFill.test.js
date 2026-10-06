@@ -100,6 +100,9 @@ describe('useCdlAutoFill', () => {
 
         expect(onReturnToChooser).not.toHaveBeenCalled();
         expect(mocks.showError).toHaveBeenCalledWith(expect.stringMatching(/photo is attached/));
+        // The read can fail because the service is down, so the message must not
+        // say the licence itself could not be read.
+        expect(mocks.showError).not.toHaveBeenCalledWith(expect.stringMatching(/could not read your CDL/i));
         expect(updater({ firstName: '' })).toEqual({
             firstName: '',
             'cdl-front': { name: 'cdl.jpg', storagePath: STORAGE_PATH },
@@ -135,6 +138,26 @@ describe('useCdlAutoFill', () => {
 
             expect(onAutoFilled).not.toHaveBeenCalled();
             expect(onReturnToChooser).toHaveBeenCalledTimes(1);
+        });
+
+        it("shows the server's sentence, which says what to do next", async () => {
+            const message = 'AI auto-fill is temporarily unavailable. Please try again in a few minutes, or enter your licence details manually.';
+            mocks.parseCdl.mockImplementation(async () => { throw Object.assign(new Error(message), { code: 'functions/unavailable' }); });
+
+            await pickPhoto(hidden);
+
+            expect(mocks.showError).toHaveBeenCalledWith(message);
+        });
+
+        it('replaces a bare code the server never sent, such as a browser timeout', async () => {
+            mocks.parseCdl.mockImplementation(async () => {
+                throw Object.assign(new Error('deadline-exceeded'), { code: 'functions/deadline-exceeded' });
+            });
+
+            await pickPhoto(hidden);
+
+            expect(mocks.showError).not.toHaveBeenCalledWith('deadline-exceeded');
+            expect(mocks.showError).toHaveBeenCalledWith(expect.stringMatching(/continue manually/i));
         });
     });
 });
