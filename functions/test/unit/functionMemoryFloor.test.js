@@ -28,6 +28,9 @@ it('configures no function below the memory a cold start needs', () => {
 
     const rows = JSON.parse(run.stdout.trim().split('\n').pop());
     expect(rows.length).toBeGreaterThan(100);
-    // `null` is the platform default, which is 256MB on both generations.
-    expect(rows.filter(([, mb]) => mb !== null && mb < MEMORY_FLOOR_MB)).toEqual([]);
+    // `null` is the platform default, which is 256MB on both generations. Anything
+    // that is not a plain number (a params expression, say) cannot be checked here,
+    // so it is refused rather than passed.
+    const unchecked = rows.filter(([, mb]) => mb !== null && !(typeof mb === 'number' && mb >= MEMORY_FLOOR_MB));
+    expect(unchecked).toEqual([]);
 }, 70000);

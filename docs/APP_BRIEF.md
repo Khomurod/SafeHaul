@@ -1031,8 +1031,10 @@ unparseable number — but nothing populates them from a recipient's reply (§12
 - **`functions/firebaseAdmin.js` sits under almost every function.** Functions
   deploy incrementally, following source files: editing the wrapper redeploys
   nearly all of them, while a change to `functions/package.json` or its lockfile
-  alone redeploys none, so a dependency upgrade reaches a function only when its
-  own code, or a file it loads, next changes.
+  alone redeploys only the functions every push includes
+  (`DEPLOY_FUNCTIONS_ALWAYS_INCLUDE` in `main.yml`), so a dependency upgrade
+  reaches any other function only when its own code, or a file it loads, next
+  changes.
 - **Every function loads the whole of `functions/index.js` on a cold start**, so
   a heavier dependency slows them all. 256 MB is the floor: a 1st Gen function at
   128 MB gets about 200 MHz, too little to load it within the start-up limit, and
