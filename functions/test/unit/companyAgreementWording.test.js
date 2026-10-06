@@ -116,6 +116,30 @@ describe('what the applicant is shown and what the record binds to', () => {
       .toEqual(['https://files.consumerfinance.gov/f/documents/bcfp_consumer-rights-summary_2018-09.pdf']);
   });
 
+  it('fixes the companions into the version, so publishing later never changes what it presented', () => {
+    const own = 'Our counsel\'s disclosure: {{companyName}} may obtain consumer reports about you for employment purposes.';
+    // Published before versions carried companions: the id is the text's alone,
+    // and the version presents none, as it did when it was shown.
+    const before = { currentVersion: companyVersionId('fcraDisclosure', own), versions: {
+      [companyVersionId('fcraDisclosure', own)]: { body: own, createdAt: '2026-09-02T00:00:00Z' },
+    } };
+    const docs = normalizeWordingDocs({ fcraDisclosure: before });
+    expect(resolveCompanyAgreement('fcraDisclosure', before.currentVersion, docs, CO).links).toEqual([]);
+
+    // Publishing the same text now makes a new version that carries them.
+    const after = publishWordingVersion(before, 'fcraDisclosure', own, { now: '2026-10-06T00:00:00Z' });
+    expect(after.currentVersion).not.toBe(before.currentVersion);
+    expect(Object.keys(after.versions)).toHaveLength(2);
+  });
+
+  it('refuses a version whose stored companions were changed after publishing', () => {
+    const own = 'Our counsel\'s disclosure: {{companyName}} may obtain consumer reports about you for employment purposes.';
+    const doc = publishWordingVersion(null, 'fcraDisclosure', own, { now: '2026-10-06T00:00:00Z' });
+    const tampered = JSON.parse(JSON.stringify(doc));
+    tampered.versions[doc.currentVersion].links[0].url = 'https://example.test/not-the-summary.pdf';
+    expect(normalizeWordingDoc('fcraDisclosure', tampered)).toBeNull();
+  });
+
   it('honours the version the applicant was shown, not the one published since', () => {
     const first = publishWordingVersion(null, 'mvrAuthorization', FIRST, { now: '2026-09-02T00:00:00Z' });
     const second = publishWordingVersion(first, 'mvrAuthorization', SECOND, { now: '2026-09-03T00:00:00Z' });

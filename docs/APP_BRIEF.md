@@ -552,13 +552,13 @@ authorization existed have no acceptance for it**; their records say so, and
 nothing back-fills one.
 
 **Company wording is immutable too.** Versions are content-addressed (`c-<12 hex>`
-of agreement id + body) at `companies/{id}/legal_agreements/{agreementId}`, with
-no client rule; `listCompanyAgreementWording`, `publishCompanyAgreementWording`
-and `revertCompanyAgreementWording` are the only access (who may publish: §6).
-The apply page gets the active text, with the platform version's `links`, from
-`getApplicationAgreements`; the snapshot freezes it at its `c-` version (an older
-acceptance keeps its exact text; a version whose hash no longer matches its body
-is dropped). A submission binds each agreement to the version its acceptance
+of agreement id + body + the `links` copied from the platform's current version
+at publishing) at `companies/{id}/legal_agreements/{agreementId}`, with no
+client rule; `listCompanyAgreementWording`, `publishCompanyAgreementWording` and
+`revertCompanyAgreementWording` are the only access (who may publish: §6). The
+apply page gets the active text from `getApplicationAgreements`; the snapshot
+freezes it at its `c-` version (a version whose hash no longer matches is
+dropped; one published before links existed presents none). A submission binds each agreement to the version its acceptance
 names when real (held by the company, or a current platform version), so
 mid-application publishing never replaces what was read. An unreadable wording
 record **fails** the read (`unavailable`) instead of falling back to platform

@@ -230,4 +230,11 @@ describe('v2 — each changed agreement follows its primary source', () => {
     expect(submittableVersions()).toEqual(new Set(['v1', 'v2']));
     expect(resolveAgreement('fcraDisclosure', 'v1', CO).links).toEqual([]);
   });
+
+  it('keeps each version under the title it was presented with', () => {
+    // A v1 acceptance submitted after v2 shipped freezes v1's own wording, title included.
+    expect(resolveAgreement('clearinghouseConsent', 'v1', CO).title).toBe('FMCSA CLEARINGHOUSE FULL QUERY CONSENT');
+    expect(resolveAgreement('clearinghouseConsent', 'v2', CO).title).toBe('FMCSA DRUG AND ALCOHOL CLEARINGHOUSE CONSENT');
+    expect(resolveAgreement('fcraDisclosure', 'v1', CO).title).toBe(resolveAgreement('fcraDisclosure', 'v2', CO).title);
+  });
 });

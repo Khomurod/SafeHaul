@@ -257,6 +257,10 @@ I further understand that if I refuse to provide consent for {{companyName}} to 
  * document the law requires, or where the next consent is given. Frozen into
  * the snapshot with the text, so the PDF shows what was provided.
  */
+// The CFPB's current Appendix K model form: the file keeps its 2018-09 name,
+// but its content is the March 2023 revision (mandatory from March 20, 2024),
+// titled "Summary of Consumer Rights Model Form (Mar. 2023)", and the CFPB's own
+// model-forms page links it as the current form.
 const CFPB_SUMMARY_OF_RIGHTS = Object.freeze({
     label: 'A Summary of Your Rights Under the Fair Credit Reporting Act',
     url: 'https://files.consumerfinance.gov/f/documents/bcfp_consumer-rights-summary_2018-09.pdf',
@@ -347,10 +351,9 @@ const AGREEMENTS = Object.freeze({
         order: 4,
         required: true,
         requiresSignature: true,
-        // Not "full query": v2 is a limited-query consent, and a full-query
-        // consent is given only in the Clearinghouse. v1 records keep the title
-        // frozen in their own snapshots.
-        title: 'FMCSA DRUG AND ALCOHOL CLEARINGHOUSE CONSENT',
+        // The title v1 was shown under. A version may name its own, and a
+        // submission still bound to v1 freezes the title v1 was presented with.
+        title: 'FMCSA CLEARINGHOUSE FULL QUERY CONSENT',
         // DELIBERATELY NO `legacy-1`. The pre-modernization consent screen
         // presented exactly three agreements — electronic signature, FCRA and
         // PSP. It never asked for Clearinghouse consent, even though the old
@@ -362,7 +365,13 @@ const AGREEMENTS = Object.freeze({
         // historical record say, truthfully, that consent was never obtained.
         versions: {
             v1: { body: V1_CLEARINGHOUSE_CONSENT },
-            v2: { body: V2_CLEARINGHOUSE_CONSENT, links: [CLEARINGHOUSE_FULL_QUERY] },
+            // Not "full query": v2 is a limited-query consent, and a full-query
+            // consent is given only in the Clearinghouse.
+            v2: {
+                body: V2_CLEARINGHOUSE_CONSENT,
+                title: 'FMCSA DRUG AND ALCOHOL CLEARINGHOUSE CONSENT',
+                links: [CLEARINGHOUSE_FULL_QUERY],
+            },
         },
     },
 });
@@ -417,7 +426,8 @@ function resolveAgreement(agreementId, version, { companyName } = {}) {
     return {
         id: agreement.id,
         version,
-        title: agreement.title,
+        // A version's own title, where it has one, is part of what it presents.
+        title: entry.title || agreement.title,
         body,
         requiresSignature: agreement.requiresSignature,
         // Which page of the application shows it: `consent` (the final
