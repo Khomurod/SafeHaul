@@ -172,3 +172,62 @@ describe('unknown ids and versions fail loudly', () => {
     expect(() => resolveAgreement('fcraDisclosure', 'v99', CO)).toThrow(/Unknown version/);
   });
 });
+
+describe('v2 — each changed agreement follows its primary source', () => {
+  const { createHash } = require('crypto');
+  const v2 = (id) => resolveAgreement(id, 'v2', CO);
+  const { submittableVersions } = require('../../shared/legalAgreements');
+
+  it('presents FMCSA\'s mandatory PSP language word for word, the carrier in both blanks', () => {
+    // https://www.psp.fmcsa.dot.gov/PspApi/documents/PSPDisclosureandAuthorizationForm.pdf
+    // ("LAST UPDATED 2/11/2016"), from "IMPORTANT DISCLOSURE" to "authorized
+    // above.", with its two blanks as "_" and whitespace folded. The language
+    // "must be used in whole, exactly as provided", so any edit changes this hash.
+    const template = AGREEMENTS.pspDisclosure.versions.v2.body;
+    const folded = template
+      .replace(/\{\{companyName\}\}/g, '_')
+      .replace(/\s+/g, ' ')
+      .trim();
+    expect(createHash('sha256').update(folded, 'utf8').digest('hex'))
+      .toBe('c6ffbcd14c36a0948f405f81f33be18f2151546a5fd0b334284f2272c263a222');
+    expect(template.match(/\{\{companyName\}\}/g)).toHaveLength(2);
+    expect(v2('pspDisclosure').body.startsWith('IMPORTANT DISCLOSURE REGARDING BACKGROUND REPORTS FROM THE PSP Online Service')).toBe(true);
+    expect(v2('pspDisclosure').body).toContain('I authorize Artificial Freight Co (“Prospective Employer”)');
+  });
+
+  it('keeps the FCRA document to the disclosure and its authorization, and links the summary of rights beside it', () => {
+    const fcra = v2('fcraDisclosure');
+    expect(fcra.body).toContain('AUTHORIZATION');
+    // What a stand-alone disclosure must not carry, and v1 did.
+    expect(fcra.body).not.toMatch(/without reservation|release|acknowledge|summary of rights/i);
+    expect(fcra.links).toEqual([{
+      label: 'A Summary of Your Rights Under the Fair Credit Reporting Act',
+      url: 'https://files.consumerfinance.gov/f/documents/bcfp_consumer-rights-summary_2018-09.pdf',
+      note: 'Provided with this disclosure. Please read it before you agree.',
+    }]);
+  });
+
+  it('asks only for the limited-query consent the Clearinghouse accepts outside itself', () => {
+    const consent = v2('clearinghouseConsent');
+    expect(consent.body).toMatch(/^GENERAL CONSENT FOR LIMITED QUERIES/);
+    expect(consent.body).toContain('This consent covers multiple limited queries for the duration of my employment with Artificial Freight Co.');
+    expect(consent.body).not.toMatch(/full query/i);
+    expect(consent.title).toBe('FMCSA DRUG AND ALCOHOL CLEARINGHOUSE CONSENT');
+    const [where] = consent.links;
+    expect(where.url).toBe('https://clearinghouse.fmcsa.dot.gov');
+    expect(where.note).toContain('Artificial Freight Co, it must also run a full query');
+  });
+
+  it('moves the unchanged MVR authorization and electronic-signature agreement to v2 word for word', () => {
+    for (const id of ['mvrAuthorization', 'electronicSignature']) {
+      expect(v2(id).body).toBe(resolveAgreement(id, 'v1', CO).body);
+      expect(v2(id).links).toEqual([]);
+    }
+  });
+
+  it('is the current version, while v1 stays submittable for an application accepted before it', () => {
+    expect(CURRENT_AGREEMENT_VERSION).toBe('v2');
+    expect(submittableVersions()).toEqual(new Set(['v1', 'v2']));
+    expect(resolveAgreement('fcraDisclosure', 'v1', CO).links).toEqual([]);
+  });
+});

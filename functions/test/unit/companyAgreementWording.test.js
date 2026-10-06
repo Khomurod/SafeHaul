@@ -102,7 +102,18 @@ describe('what the applicant is shown and what the record binds to', () => {
     expect(mvr.companyWording).toBe(true);
     expect(mvr.body).toBe(FIRST.replace('{{companyName}}', CO.companyName));
     expect(mvr.presentedOn).toBe('drivingRecord');
-    expect(set.find((a) => a.id === 'fcraDisclosure').version).toBe('v1');
+    expect(set.find((a) => a.id === 'fcraDisclosure').version).toBe('v2');
+  });
+
+  it('keeps the platform companions beside a company\'s own wording, such as the FCRA summary of rights', () => {
+    const own = 'Our counsel\'s disclosure: {{companyName}} may obtain consumer reports about you for employment purposes.';
+    const docs = normalizeWordingDocs({
+      fcraDisclosure: publishWordingVersion(null, 'fcraDisclosure', own, { now: '2026-10-06T00:00:00Z' }),
+    });
+    const fcra = applyCompanyWording(resolveAgreementSet(CO), docs, CO).find((a) => a.id === 'fcraDisclosure');
+    expect(fcra.companyWording).toBe(true);
+    expect(fcra.links.map((link) => link.url))
+      .toEqual(['https://files.consumerfinance.gov/f/documents/bcfp_consumer-rights-summary_2018-09.pdf']);
   });
 
   it('honours the version the applicant was shown, not the one published since', () => {

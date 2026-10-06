@@ -532,37 +532,37 @@ PDF on download.**
 
 **Legal agreement wording is versioned and frozen.** Five agreements
 (`mvrAuthorization`, `electronicSignature`, `fcraDisclosure`, `pspDisclosure`,
-`clearinghouseConsent`) live in `functions/shared/legalAgreements.js`, current
-version `v1`. The MVR authorization is answered on the Violations step
-(`consent-mvr` records `agreementAcceptances.mvrAuthorization` with the version
-shown). On Consent each other agreement is a page of its own (the FCRA and PSP
-stand-alone rules), then the certification, ending with the exact 49 CFR
-391.21(b)(12) sentence (hard-coded in `Step9_Consent.jsx`, not frozen), and the
-signature. An acceptance counts only at the version on screen, and a submission
-binds to the version the applicant saw, not what is deployed. `legacy-1` bodies
-are a **frozen forensic record — never edit them**; `clearinghouseConsent` has
-no `legacy-1`, so reconstruction cannot attribute a consent nobody gave.
-**Applications submitted before the MVR authorization existed have no acceptance
-for it**; their records say so, and nothing back-fills one.
+`clearinghouseConsent`) live in `functions/shared/legalAgreements.js`. Current
+`v2` (`v1` stays submittable for drafts that accepted it) follows primary
+sources: FMCSA's PSP language word for word, an FCRA disclosure and
+authorization only (the CFPB summary of rights is a version `link`: shown,
+frozen, printed), and FMCSA's limited-query Clearinghouse consent (a full query
+is consented only in the Clearinghouse). The MVR authorization is answered on
+the Violations step (`consent-mvr`, with its version); on Consent each other
+agreement has a page of its own (the FCRA and PSP stand-alone rules), then the
+certification, ending with the exact 49 CFR 391.21(b)(12) sentence (hard-coded
+in `Step9_Consent.jsx`, not frozen), and the signature. An acceptance counts
+only at the version on screen; a submission binds to the version the applicant
+saw, not what is deployed. **An acceptance's IP is the one the server saw**,
+never the browser's claim: evidence forgeable by the party it incriminates is
+not evidence. `legacy-1` bodies are a **frozen forensic record — never edit
+them**; `clearinghouseConsent` has no `legacy-1`, so reconstruction cannot
+attribute a consent nobody gave. **Applications submitted before the MVR
+authorization existed have no acceptance for it**; their records say so, and
+nothing back-fills one.
 
-**Company wording is immutable too.** Versions are content-addressed
-(`c-<12 hex>` of agreement id + body) at
-`companies/{id}/legal_agreements/{agreementId}`, with no client rule;
-`listCompanyAgreementWording`, `publishCompanyAgreementWording` and
-`revertCompanyAgreementWording` are the only access. **Publishing or reverting
-is Super Admin only**; Company Admins read what is in force. The apply page gets
-the active text from `getApplicationAgreements`; the snapshot freezes it at its
-`c-` version (an older acceptance keeps its exact text; a version whose hash no
-longer matches its body is dropped). A submission binds each agreement to the
-version its acceptance names when real (held by the company, or a current
-platform version), so mid-application publishing never replaces what was read.
-An unreadable wording record **fails** the read (`unavailable`) instead of
-falling back to platform text: the page retries; a submission takes the
-failed-snapshot path.
-
-**Acceptance IP is server-observed.** The browser may report its user agent, but
-its claimed IP is always overwritten with the address the server saw: evidence
-forgeable by the party it incriminates is not evidence.
+**Company wording is immutable too.** Versions are content-addressed (`c-<12 hex>`
+of agreement id + body) at `companies/{id}/legal_agreements/{agreementId}`, with
+no client rule; `listCompanyAgreementWording`, `publishCompanyAgreementWording`
+and `revertCompanyAgreementWording` are the only access (who may publish: §6).
+The apply page gets the active text, with the platform version's `links`, from
+`getApplicationAgreements`; the snapshot freezes it at its `c-` version (an older
+acceptance keeps its exact text; a version whose hash no longer matches its body
+is dropped). A submission binds each agreement to the version its acceptance
+names when real (held by the company, or a current platform version), so
+mid-application publishing never replaces what was read. An unreadable wording
+record **fails** the read (`unavailable`) instead of falling back to platform
+text: the page retries; a submission takes the failed-snapshot path.
 
 ### What the application asks and enforces
 

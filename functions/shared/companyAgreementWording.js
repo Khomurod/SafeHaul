@@ -27,7 +27,7 @@
 // snapshot tests can drive it directly.
 
 const crypto = require('crypto');
-const { AGREEMENTS, renderAgreementBody } = require('./legalAgreements');
+const { AGREEMENTS, CURRENT_AGREEMENT_VERSION, renderAgreementBody, renderAgreementLinks } = require('./legalAgreements');
 
 /** Company version ids start with this, so they can never collide with `v1` / `legacy-1`. */
 const COMPANY_VERSION_PREFIX = 'c-';
@@ -132,6 +132,9 @@ function resolveCompanyAgreement(agreementId, version, wordingDocs, { companyNam
         presentedOn: agreement.presentedOn || 'consent',
         legacy: false,
         companyWording: true,
+        // The companions a document needs (the FCRA summary of rights) do not
+        // depend on its wording, so a company's own text keeps the platform's.
+        links: renderAgreementLinks(agreement.versions[CURRENT_AGREEMENT_VERSION]?.links, { companyName }),
     };
 }
 

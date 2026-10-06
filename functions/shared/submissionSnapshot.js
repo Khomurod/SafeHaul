@@ -368,6 +368,8 @@ function buildAgreementRecords({ definition, acceptances = {}, signature = null,
             title: resolved.title,
             // The verbatim text as displayed. This is what the signature binds to.
             body: resolved.body,
+            // What was presented beside it, such as the FCRA summary of rights.
+            links: resolved.links || [],
             legacyWording: resolved.legacy,
             companyWording: Boolean(resolved.companyWording),
             presentedOn: resolved.presentedOn || 'consent',

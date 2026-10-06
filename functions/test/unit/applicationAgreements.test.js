@@ -121,8 +121,11 @@ describe('getApplicationAgreements', () => {
 
   it('reports the current agreement version so acceptance can be recorded against it', async () => {
     const result = await getApplicationAgreements({ companyId: 'co1' }, ctx);
-    expect(result.agreementVersion).toBe('v1');
-    expect(result.agreements.every((a) => a.version === 'v1')).toBe(true);
+    expect(result.agreementVersion).toBe('v2');
+    expect(result.agreements.every((a) => a.version === 'v2')).toBe(true);
+    // A version's companions travel with it, so the page can show them.
+    expect(result.agreements.find((a) => a.id === 'fcraDisclosure').links[0].label)
+      .toBe('A Summary of Your Rights Under the Fair Credit Reporting Act');
   });
 
   it('rejects a missing companyId', async () => {
@@ -153,7 +156,7 @@ describe('getApplicationAgreements', () => {
     expect(mvr.body).toBe(body.replace('{{companyName}}', 'Blue Line Freight'));
     // Agreements the company did not customise stay on the platform wording.
     const fcra = result.agreements.find((a) => a.id === 'fcraDisclosure');
-    expect(fcra.version).toBe('v1');
+    expect(fcra.version).toBe('v2');
     expect(fcra.companyWording).toBe(false);
   });
 

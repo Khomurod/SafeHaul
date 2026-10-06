@@ -68,7 +68,7 @@ describe('listCompanyAgreementWording', () => {
     const result = await listCompanyAgreementWording({ companyId: 'co1' }, superAdmin);
     expect(result.agreements.map((a) => a.id)).toEqual(['mvrAuthorization', 'electronicSignature', 'fcraDisclosure', 'pspDisclosure', 'clearinghouseConsent']);
     const mvr = result.agreements[0];
-    expect(mvr.platformVersion).toBe('v1');
+    expect(mvr.platformVersion).toBe('v2');
     expect(mvr.platformBody).toContain('Blue Line Freight');
     expect(mvr.currentVersion).toBeNull();
     expect(mvr.versions).toEqual([]);

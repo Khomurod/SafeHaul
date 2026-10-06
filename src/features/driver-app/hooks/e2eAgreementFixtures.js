@@ -41,7 +41,7 @@ export const E2E_AGREEMENTS = [
     fixture('electronicSignature', 'Agreement to Conduct Transaction Electronically', true),
     fixture('fcraDisclosure', 'Background Check Disclosure and Authorization', true),
     fixture('pspDisclosure', 'FMCSA PSP Disclosure and Authorization', true),
-    fixture('clearinghouseConsent', 'FMCSA Clearinghouse Full Query Consent', true),
+    fixture('clearinghouseConsent', 'FMCSA Drug and Alcohol Clearinghouse Consent', true),
 ];
 
 export default E2E_AGREEMENTS;

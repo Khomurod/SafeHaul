@@ -40,7 +40,7 @@ describe('submission freezes a snapshot', () => {
     const snap = onlySnapshot();
     expect(snap.frozen).toBe(true);
     expect(snap.definitionVersion).toMatch(/^[a-f0-9]{16}$/);
-    expect(snap.agreementVersion).toBe('v1');
+    expect(snap.agreementVersion).toBe('v2');
     // Company identity comes from the company document — the public profile
     // deliberately does not expose an address or DOT number.
     expect(snap.company.companyName).toBe('Artificial Freight Co');
