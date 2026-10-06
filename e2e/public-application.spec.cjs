@@ -7,6 +7,8 @@ const {
   uploadStandardDocuments,
   continueToStep,
   expectStep,
+  chooseRadio,
+  fillDateTriplet,
   completeStepsToReview,
   completeRemainingSteps,
   applySignature,
@@ -60,6 +62,55 @@ test.describe('guest public application', () => {
     // Only that once: from Review onwards the wizard moves one page at a time again.
     await page.getByRole('button', { name: 'Confirm & Proceed' }).click();
     await expectStep(page, 'Agreements & Signature');
+  });
+
+  test('an employer of the past three years needs the reason for leaving and the two DOT answers', async ({ page }) => {
+    await page.goto('/apply/e2e-company');
+    await fillStep1(page, 'employer');
+    await fillStep2(page);
+    await fillStep3RequiredFields(page);
+    await uploadStandardDocuments(page);
+    await continueToStep(page, 'Motor Vehicle Record');
+    await chooseRadio(page, 'consent-mvr-yes');
+    await chooseRadio(page, 'revoked-licenses-no');
+    await chooseRadio(page, 'driving-convictions-no');
+    await chooseRadio(page, 'drug-alcohol-convictions-no');
+    await chooseRadio(page, 'has-violations-no');
+    await continueToStep(page, 'Accident History');
+    await chooseRadio(page, 'has-accidents-no');
+    await continueToStep(page, 'Employment History');
+
+    // One job from four years ago until today, so the three years are covered.
+    const today = new Date();
+    await page.getByRole('button', { name: '+ Add Employer' }).click();
+    await page.fill('#emp-name-0', 'Artificial Freight Co');
+    await page.fill('#emp-street-0', '1 Test Way');
+    await page.fill('#emp-city-0', 'Springfield');
+    await page.selectOption('#emp-state-0', 'Texas');
+    await page.fill('#emp-phone-0', '5555550100');
+    await fillDateTriplet(page, 'emp-start-0', { month: 1, day: 1, year: today.getFullYear() - 4 });
+    await fillDateTriplet(page, 'emp-end-0', { month: today.getMonth() + 1, day: today.getDate(), year: today.getFullYear() });
+
+    // Unanswered, the page does not move on, and nothing was chosen for the driver.
+    await expect(page.locator('#emp-fmcsrs-0-yes')).not.toBeChecked();
+    await expect(page.locator('#emp-fmcsrs-0-no')).not.toBeChecked();
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await expectStep(page, 'Employment History');
+    await expect(page.locator('#emp-reason-0:invalid')).toHaveCount(1);
+
+    await page.fill('#emp-reason-0', 'Better route');
+    await chooseRadio(page, 'emp-fmcsrs-0-yes');
+    await chooseRadio(page, 'emp-dot-tested-0-no');
+    await continueToStep(page, 'General Questions');
+    await chooseRadio(page, 'has-felony-no');
+    await continueToStep(page, 'Review Information');
+
+    const answer = (label) => page.locator('.ds-field-display').filter({
+      has: page.locator('.ds-field-display__label', { hasText: label }),
+    });
+    await expect(answer('Reason for Leaving')).toContainText('Better route');
+    await expect(answer('Subject to FMCSRs')).toContainText('Yes');
+    await expect(answer('Safety-Sensitive (DOT Drug & Alcohol Testing)')).toContainText('No');
   });
 
   test('guest upload shows permission error when upload guard denies access', async ({ page }) => {

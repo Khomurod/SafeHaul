@@ -119,7 +119,7 @@
             "min": 1,
             "max": 10,
             "label": "Years of history the application must account for",
-            "help": "FMCSA asks for 3 years for most drivers and 10 years for CDL drivers. The DOT application text still asks for the full 10 years."
+            "help": "49 CFR 391.21 asks for every employer of the past 3 years, and for a CDL job also the employers of the 7 years before that the driver drove a commercial vehicle for. The application tells drivers so. Choosing more years makes drivers account for every month of them."
         },
         {
             "id": "requireFelonyExplanation",

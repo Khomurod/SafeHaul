@@ -273,7 +273,7 @@ export const ACCIDENTS_SECTION = {
 
 export const EMPLOYMENT_SECTION = {
     id: 'employmentHistory',
-    title: 'Employment History (Past 10 Years)',
+    title: 'Employment History',
     stepNumber: 6,
     type: 'array',
     itemFields: [
@@ -289,6 +289,10 @@ export const EMPLOYMENT_SECTION = {
         { key: 'reasonForLeaving', label: 'Reason for Leaving', type: 'text' },
         { key: 'supervisorName', label: 'Supervisor Name', type: 'text' },
         { key: 'mayContact', label: 'May we contact?', type: 'radio', options: YES_NO_OPTIONS },
+        // 49 CFR 391.21(b)(10)(iv), asked of a job of the past three years since
+        // 2026-10-06; absent on older rows and older jobs.
+        { key: 'subjectToFmcsrs', label: 'Subject to FMCSRs?', type: 'radio', options: YES_NO_OPTIONS },
+        { key: 'subjectToDotTesting', label: 'Safety-Sensitive (DOT Drug & Alcohol Testing)?', type: 'radio', options: YES_NO_OPTIONS },
     ]
 };
 

@@ -16,6 +16,8 @@ import { isValidEmail, isValidPhone } from '@shared/utils/validation';
 import { PHONE_RULE_MESSAGE } from '@shared/utils/fieldValidators';
 import { evaluateApplicationRules, normalizeApplicationAnswers } from '@/config/applicationRules';
 import { lockedEmployerIssues } from '@/config/applicationLockedFields';
+import { resolveApplicationGate } from '@/config/applicationGates';
+import { employerRowMissingAnswers } from '@shared/utils/employmentApplicationHelpers';
 import { hasUploadedFile } from './publicApplyHelpers';
 import { getMissingRequiredUnpersistedFields } from './requiredUnpersistedFields';
 
@@ -103,6 +105,25 @@ export function runSubmissionPreflight({
     showError(first.message);
     goTo(first.semanticStep);
     return { ok: false, formData };
+  }
+
+  /**
+   * What the Employment page requires of each employer when the company
+   * requires the history: the reason for leaving, and the 49 CFR
+   * 391.21(b)(10)(iv) answers for a job of the past three years. A draft saved
+   * before the page asked them, and resumed past it, never answered them.
+   */
+  const employmentGate = resolveApplicationGate(company?.applicationConfig, 'employmentHistory');
+  if (!employmentGate.hidden && employmentGate.required) {
+    const employers = Array.isArray(normalized.employers) ? normalized.employers : [];
+    for (let i = 0; i < employers.length; i += 1) {
+      const missing = employerRowMissingAnswers(employers[i]);
+      if (missing.length === 0) continue;
+      const list = missing.length > 1 ? `${missing.slice(0, -1).join(', ')} and ${missing[missing.length - 1]}` : missing[0];
+      showError(`Employer ${i + 1}: please add ${list} to submit.`);
+      goTo('employment');
+      return { ok: false, formData };
+    }
   }
 
   const requiredUploadErrors = [];

@@ -5,6 +5,8 @@
  *
  * A plain module rather than an export of `EmploymentHistoryRows.jsx`, because a
  * component file that also exports a constant loses fast refresh.
+ *
+ * The two 49 CFR 391.21(b)(10)(iv) answers start empty: nothing is pre-selected.
  */
 export const EMPTY_EMPLOYER = Object.freeze({
     companyName: '',
@@ -22,4 +24,6 @@ export const EMPTY_EMPLOYER = Object.freeze({
     supervisorPhone: '',
     supervisorEmail: '',
     mayContact: '',
+    subjectToFmcsrs: '',
+    subjectToDotTesting: '',
 });
