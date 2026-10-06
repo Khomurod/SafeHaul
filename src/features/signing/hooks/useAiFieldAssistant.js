@@ -30,8 +30,8 @@ import { loadPdfDocument, renderPageToDataUrl } from '@features/signing/utils/pd
 
 /** Pages per callable request. The backend hard-caps this at 5. */
 export const PAGES_PER_REQUEST = 3;
-// The callable's function timeout: a read may take 100s, past the browser default of 70s.
-export const ANALYZE_TIMEOUT_MS = 120000;
+// Past the callable's 120s timeout, so upload and transit cannot end a read that succeeds.
+export const ANALYZE_TIMEOUT_MS = 130000;
 
 /**
  * Most pages one scan may cover.

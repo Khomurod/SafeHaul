@@ -93,15 +93,16 @@ describe('hybrid analysis', () => {
         expect(payload.pages).toEqual([{ pageNumber: 2, imageDataUrl: 'data:image/jpeg;base64,AAA' }]);
     });
 
-    it('waits as long as the server may take to answer', async () => {
+    it('waits longer than the server may take to answer', async () => {
         // The server reads for up to 100s inside a 120s function. The browser's
-        // default of 70s gave up on slow scans that went on to succeed.
+        // default of 70s gave up on slow scans that went on to succeed, and its
+        // clock also covers the upload and the reply, so it has to outlast 120s.
         const { result } = setup();
         await act(async () => {
             await result.current.startScan({ scope: 'current' });
         });
 
-        expect(ANALYZE_TIMEOUT_MS).toBe(120000);
+        expect(ANALYZE_TIMEOUT_MS).toBeGreaterThan(120000);
         expect(httpsCallable).toHaveBeenCalledWith(expect.anything(), 'analyzeEdocFieldPlacement', { timeout: ANALYZE_TIMEOUT_MS });
     });
 

@@ -343,8 +343,10 @@ a 45s timeout of its own, the whole budget, so without the cap a stalled one
 spent it all: the read timed out with other providers unused, and the total
 deadline, being task-fatal, ended the walk before the stall could count against
 that provider, so the next request waited on it again. With the cap a stall is a
-`timeout`, which fails over and is recorded like any other failure.
-`aiReadingDeadlines.test.js` pins the cap on each of them.
+`timeout`, which fails over and is recorded like any other failure, and a
+provider whose policy allows a retry (Hugging Face) retries only when a full
+slice would still be left for the next provider. `aiReadingDeadlines.test.js`
+pins the cap on each of them.
 
 ### "Do not retry this provider" is not "do not try the others"
 
