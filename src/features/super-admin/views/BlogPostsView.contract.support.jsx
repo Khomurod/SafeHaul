@@ -153,7 +153,7 @@ function stubCallables(overrides = {}) {
     });
     callables.deleteBlogPost = vi.fn().mockResolvedValue({ data: { deleted: true } });
     callables.runBlogPublicationNow = vi.fn().mockResolvedValue({
-        data: { dueCount: 3, attempted: 0, published: 0, results: [] },
+        data: { dueCount: 1, attempted: 0, published: 0, results: [] },
     });
     callables.listBlogRuns = vi.fn().mockResolvedValue({
         data: { runs: RUNS, truncated: false, unavailable: false, retentionDays: 30 },

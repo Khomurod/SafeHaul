@@ -311,8 +311,12 @@ async function verifyArticleClaims({ articleText, sources, knowledge }, deps = {
         privacy: PRIVACY.PUBLIC,
         totalDeadlineMs: 120000,
         // The verdict, so the Logs tab does not report a refusal as an
-        // unqualified success. A word, and only ever one of these two.
-        verdictOf: (output) => (output?.supported ? 'supported' : 'unsupported'),
+        // unqualified success. A word, and only ever one of these two; a verdict
+        // that lists claims is "unsupported" whatever its flag, as the pipeline
+        // reads it.
+        verdictOf: (output) => (output?.supported === true && !(output?.unsupportedClaims?.length)
+            ? 'supported'
+            : 'unsupported'),
     });
 
     const result = await runAiTask(task, deps);

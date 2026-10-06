@@ -33,11 +33,10 @@ const {
 beforeEach(resetBlogState);
 
 describe('themes and scheduling', () => {
-    it('defines exactly three daily themes with distinct slots', () => {
+    it('defines exactly three themes with distinct slots', () => {
         expect(themes.THEMES).toHaveLength(3);
         expect(new Set(themes.THEMES.map((theme) => theme.id)).size).toBe(3);
         expect(new Set(themes.THEMES.map((theme) => theme.slotIndex)).size).toBe(3);
-        expect(new Set(themes.THEMES.map((theme) => theme.publishHour)).size).toBe(3);
     });
 
     it('covers the three required subject areas', () => {
@@ -67,19 +66,28 @@ describe('themes and scheduling', () => {
         const second = new Date('2026-11-01T07:30:00Z'); // 01:30 CST
         expect(themes.publicationDateFor(first)).toBe('2026-11-01');
         expect(themes.publicationDateFor(second)).toBe('2026-11-01');
-        expect(themes.dueSlots(first).map((slot) => slot.key))
-            .toEqual(themes.dueSlots(second).map((slot) => slot.key));
+        // The day the scheduler checks for an article is the same day both times.
+        expect(themes.allSlotsFor(themes.publicationDateFor(first)).map((slot) => slot.key))
+            .toEqual(themes.allSlotsFor(themes.publicationDateFor(second)).map((slot) => slot.key));
     });
 
-    it('opens each slot at its local hour and keeps it open for the rest of the day', () => {
-        const early = new Date('2026-08-02T11:00:00Z'); // 06:00 local, before slot 1
-        const morning = new Date('2026-08-02T13:00:00Z'); // 08:00 local
-        const evening = new Date('2026-08-02T23:30:00Z'); // 18:30 local
+    it('opens the day at 07:00 and offers it to one theme per hourly run, in rotation', () => {
+        // 2 August 2026 in Chicago, CDT. Its own theme is industry news.
+        const at = (utc) => themes.dueSlots(new Date(`2026-08-02T${utc}Z`)).map((slot) => slot.themeId);
 
-        expect(themes.dueSlots(early)).toHaveLength(0);
-        expect(themes.dueSlots(morning).map((slot) => slot.themeId)).toEqual(['industry-news']);
-        expect(themes.dueSlots(evening).map((slot) => slot.themeId))
-            .toEqual(['industry-news', 'recruitment', 'safehaul-education']);
+        expect(at('11:15:00')).toEqual([]); // 06:15, before the day opens
+        expect(at('12:15:00')).toEqual(['industry-news']); // 07:15
+        expect(at('13:15:00')).toEqual(['recruitment']); // 08:15
+        expect(at('14:15:00')).toEqual(['safehaul-education']); // 09:15
+        expect(at('15:15:00')).toEqual(['industry-news']); // 10:15, round again
+        expect(at('23:30:00')).toHaveLength(1); // 18:30, still open, still one
+    });
+
+    it('starts each day with the next theme, so each comes round every third day', () => {
+        const firstOf = (date) => themes.dueSlots(new Date(`${date}T12:15:00Z`))[0].themeId;
+
+        expect(['2026-08-02', '2026-08-03', '2026-08-04', '2026-08-05'].map(firstOf))
+            .toEqual(['industry-news', 'recruitment', 'safehaul-education', 'industry-news']);
     });
 
     it('keys a slot on publication date and theme', () => {
@@ -126,21 +134,41 @@ describe('idempotency and retry safety', () => {
         expect(mockPosts.size).toBe(1);
     });
 
-    it('publishes at most one article per scheduler run', async () => {
-        // All three slots are due at 18:00 local, but a single run must not put
-        // three articles on the site within a minute of each other.
-        const summary = await publishDueSlots({
-            now: Date.parse('2026-08-02T23:30:00Z'),
-            fetchImpl: researchFetch(),
-        });
+    it('publishes one article a day, and nothing more once it has', async () => {
+        const morning = await publishDueSlots({ now: Date.parse('2026-08-02T12:30:00Z'), fetchImpl: researchFetch() });
+        const evening = await publishDueSlots({ now: Date.parse('2026-08-02T23:30:00Z'), fetchImpl: researchFetch() });
 
-        expect(summary.dueCount).toBe(3);
-        expect(summary.published).toBe(1);
-        expect(summary.results.some((entry) => entry.outcome === 'deferred_to_next_run')).toBe(true);
+        expect(morning).toMatchObject({ dueCount: 1, attempted: 1, published: 1 });
+        expect(evening).toMatchObject({ attempted: 0, published: 0 });
+        expect([...mockPosts.keys()]).toEqual(['2026-08-02_industry-news']);
     });
 
-    it('fills a slot missed earlier in the day on a later run', async () => {
-        // Nothing published at 07:00. The 13:00 run must still fill slot one.
+    it('passes the day to the next theme each hour until one publishes', async () => {
+        // No feed answers, so neither sourced theme can publish; the SafeHaul
+        // theme, written from the capability package, can.
+        const noFeeds = async () => ({ ok: false, status: 404, text: async () => '' });
+        const run = async (utc) => (await publishDueSlots({
+            now: Date.parse(`2026-08-02T${utc}Z`),
+            fetchImpl: noFeeds,
+        })).results.map((entry) => [entry.slot.themeId, entry.outcome]);
+
+        expect(await run('12:30:00')).toEqual([['industry-news', 'skipped_no_sources']]);
+        expect(await run('13:30:00')).toEqual([['recruitment', 'skipped_no_sources']]);
+        expect(await run('14:30:00')).toEqual([['safehaul-education', 'published']]);
+        expect(await run('15:30:00')).toEqual([]);
+    });
+
+    it('does nothing once any of the day\'s slots holds an article, a deleted one included', async () => {
+        mockPosts.set('2026-08-02_recruitment', { title: 'Deleted', theme: 'recruitment', publicationDate: '2026-08-02', status: 'deleted' });
+
+        const summary = await publishDueSlots({ now: Date.parse('2026-08-02T12:30:00Z'), fetchImpl: researchFetch() });
+
+        expect(summary).toMatchObject({ attempted: 0, published: 0 });
+        expect(mockGenerateArticle).not.toHaveBeenCalled();
+    });
+
+    it('publishes the day\'s article on a later run when the morning missed it', async () => {
+        // Nothing published in the morning. A run at 13:00 still publishes.
         const summary = await publishDueSlots({
             now: Date.parse('2026-08-02T18:00:00Z'),
             fetchImpl: researchFetch(),
@@ -157,11 +185,11 @@ describe('idempotency and retry safety', () => {
         expect(ids.every((id) => id.startsWith('2026-08-02_'))).toBe(true);
     });
 
-    it('runs each due slot even when one publisher is unreachable', async () => {
+    it('publishes even when one publisher is unreachable', async () => {
         // researchFetch answers only the Federal Register; every other source
         // returns 503. Publication must still happen.
         const summary = await publishDueSlots({
-            now: Date.parse('2026-08-02T13:00:00Z'),
+            now: Date.parse('2026-08-02T12:30:00Z'),
             fetchImpl: researchFetch(),
         });
 

@@ -41,22 +41,35 @@ describe('manual publication check', () => {
         await waitFor(() => expect(callables.runBlogPublicationNow).toHaveBeenCalled());
     });
 
-    it('reports "already filled" as information, not as a failure', async () => {
+    it('reports "already published" as information, not as a failure', async () => {
+        await renderView();
+
+        fireEvent.click(screen.getByRole('button', { name: /Run today’s publication check/i }));
+
+        await waitFor(() => expect(showInfo).toHaveBeenCalledWith('Today’s article is already published.'));
+        expect(showError).not.toHaveBeenCalled();
+    });
+
+    it('says when the day is not due yet, rather than that its article is out', async () => {
+        stubCallables({
+            runBlogPublicationNow: vi.fn().mockResolvedValue({
+                data: { dueCount: 0, attempted: 0, published: 0, results: [] },
+            }),
+        });
         await renderView();
 
         fireEvent.click(screen.getByRole('button', { name: /Run today’s publication check/i }));
 
         await waitFor(() => expect(showInfo).toHaveBeenCalledWith(
-            'Every due slot for today is already filled.',
+            'Nothing is due yet: the day’s article publishes from 07:00 Chicago time.',
         ));
-        expect(showError).not.toHaveBeenCalled();
     });
 
     it('reports how many articles were published', async () => {
         stubCallables({
             runBlogPublicationNow: vi.fn().mockResolvedValue({
                 data: {
-                    dueCount: 3,
+                    dueCount: 1,
                     attempted: 1,
                     published: 1,
                     results: [{ slot: '2026-08-02_industry-news', theme: 'industry-news', outcome: 'published' }],
@@ -74,7 +87,7 @@ describe('manual publication check', () => {
         stubCallables({
             runBlogPublicationNow: vi.fn().mockResolvedValue({
                 data: {
-                    dueCount: 3,
+                    dueCount: 1,
                     attempted: 1,
                     published: 0,
                     results: [{
@@ -132,8 +145,8 @@ describe('publication run ledger', () => {
     it('says a held slot was held, rather than leaving it looking like a failure', async () => {
         await renderView();
 
-        // At most one article publishes per run, so a backlog fills over
-        // successive hourly runs. That is the pipeline working.
+        // Rows from before one article a day still say a run held a slot for
+        // the next hour. That was the pipeline working.
         expect(screen.getByText('Held for the next run')).toBeTruthy();
     });
 

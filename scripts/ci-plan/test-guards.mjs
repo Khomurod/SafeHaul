@@ -221,11 +221,20 @@ console.log('\nK. Guards that stay guards');
         specifiers.length > 0 && specifiers.every((specifier) => specifier.startsWith('node:')),
         'this checker stays dependency-free on purpose: it is the one gate that must survive a '
         + `broken install in the always-required job: ${specifiers.join(', ')}`);
-    const capabilities = stripComments(readFileSync(
-        resolvePath(here, '../functions/ai/knowledge/safehaulCapabilities.js'), 'utf8'));
+    // A helper the package requires from its own folder (`claimScope.js`) is part
+    // of it, and must itself require nothing: nothing installed is ever reached.
+    const knowledgeFile = (name) => stripComments(readFileSync(
+        resolvePath(here, `../functions/ai/knowledge/${name}.js`), 'utf8'));
+    const capabilities = knowledgeFile('safehaulCapabilities');
+    const ownHelper = /\brequire\(\s*'\.\/([\w-]+)'\s*\)/g;
+    const loaded = [
+        capabilities.replace(ownHelper, ''),
+        ...[...capabilities.matchAll(ownHelper)].map((match) => knowledgeFile(match[1])),
+    ];
     assert('K4. the capability package the checker loads needs nothing installed either',
-        !/\brequire\s*\(/.test(capabilities) && !/^\s*import\s/m.test(capabilities),
-        'it is a data module; the first dependency added to it would break the always-required job');
+        loaded.every((source) => !/\brequire\s*\(/.test(source) && !/^\s*import\s/m.test(source)),
+        'it is a data module, and a helper from its own folder must require nothing; the first '
+        + 'installed dependency would break the always-required job');
     assert('K4. the checker reads the public site from `web/`',
         /PUBLIC_DIR = path\.join\(ROOT, 'web'\)/.test(checker),
         'the checker must read the directory the hosting targets serve, or it validates the wrong site');
