@@ -303,8 +303,11 @@ describe('a Company Admin', () => {
         expect(openButton('Dana Alvarez')).toBeNull();
     });
 
-    it('includes a super admin, as every admin-only screen does', async () => {
-        mocks.claims = { globalRole: 'super_admin', roles: { globalRole: 'super_admin' } };
+    it.each([
+        ['under roles', { roles: { globalRole: 'super_admin' } }],
+        ['at the top level', { globalRole: 'super_admin' }],
+    ])('includes a super admin whose claim sits %s, as every admin-only screen does', async (_where, claims) => {
+        mocks.claims = claims;
         await renderList();
 
         expect(openButton('Dana Alvarez')).toBeInTheDocument();

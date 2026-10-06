@@ -22,5 +22,8 @@ export function isCompanyWorkspaceRole(role) {
  */
 export function isCompanyAdminForRoute(claims, companyId) {
   const roles = claims?.roles || {};
-  return roles.globalRole === 'super_admin' || (!!companyId && roles[companyId] === 'company_admin');
+  // Both places a super admin's claim can sit, as `extractRoleContext`, the
+  // Firestore rules and the server's own checks read it.
+  const superAdmin = claims?.globalRole === 'super_admin' || roles.globalRole === 'super_admin';
+  return superAdmin || (!!companyId && roles[companyId] === 'company_admin');
 }
