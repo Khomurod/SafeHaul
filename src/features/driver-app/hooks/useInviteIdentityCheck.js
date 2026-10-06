@@ -124,6 +124,18 @@ export function useInviteIdentityCheck({
                 setCurrentStep,
                 setIntakeMode,
             });
+            // The driver has just typed these to prove who they are, and page one
+            // must not ask again. Into the form in memory only: a draft never
+            // stores the SSN (`NEVER_STORED`, and a save sends it outside
+            // `formData`), so it lasts as long as this tab, as if typed on page
+            // one. Only where empty, so an answer already on the application is
+            // never overwritten.
+            setFormData((prev) => ({
+                ...prev,
+                ssn: prev.ssn || identity.ssn,
+                dob: prev.dob || identity.dob,
+                lastName: prev.lastName || identity.lastName,
+            }));
             // Last, so the screen does not come down until the answers are on it.
             setInviteOutcome(outcome);
         } finally {

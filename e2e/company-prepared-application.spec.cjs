@@ -171,6 +171,23 @@ test.describe('a replacement link for a driver who already started', () => {
         // the payload; from here the observable fact is the step.
     });
 
+    test('does not ask for the SSN again on page one', async ({ page }) => {
+        await page.goto(TAKEN_OVER_URL);
+        await page.getByRole('heading', { level: 1, name: /Confirm it’s you/ }).waitFor();
+
+        await confirmIdentity(page);
+        await expectStep(page, 'Motor Vehicle Record');
+
+        // Back to page one: the SSN they typed to prove who they are is already
+        // there. That it never reaches a draft is pinned by the contract suite.
+        for (const step of ['License', 'Qualification', 'Personal Information']) {
+            // Exact: the License step also has "Upload CDL (Back)".
+            await page.getByRole('button', { name: 'Back', exact: true }).click();
+            await expectStep(page, step);
+        }
+        await expect(page.locator('#ssn')).toHaveValue('123-45-6789');
+    });
+
     test('says so when the details do not match, and keeps asking', async ({ page }) => {
         await page.goto(TAKEN_OVER_URL);
         await page.getByRole('heading', { level: 1, name: /Confirm it’s you/ }).waitFor();

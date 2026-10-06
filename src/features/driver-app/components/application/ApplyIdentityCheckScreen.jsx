@@ -81,7 +81,7 @@ const FIELDS = Object.freeze([
         autoComplete: 'off',
         inputMode: 'numeric',
         placeholder: 'XXX-XX-XXXX',
-        description: 'Only used to confirm this application is yours. It is not stored on the unfinished application.',
+        description: 'Used to confirm this application is yours, so you will not type it again. It is not stored on the unfinished application.',
         missing: 'Enter your Social Security Number.',
         invalid: (value) => (String(value).replace(/\D/g, '').length === 9
             ? null
