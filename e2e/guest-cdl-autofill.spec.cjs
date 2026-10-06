@@ -14,13 +14,17 @@
  * `company-settings-integrations.spec.cjs` stubs the Facebook SDK: reserving the
  * upload path, the Storage upload itself, and the AI parser's reply. Everything
  * after the reply is the product.
+ *
+ * The photo is the application's CDL front (2026-10-06), so the License step must
+ * show it attached whether or not the licence could be read: the driver never
+ * photographs it a second time.
  */
 const { test, expect } = require('@playwright/test');
 const { chooseRadio, continueToStep, expectStep, fillStep2 } = require('./helpers/wizardHelpers.cjs');
 
-const STORAGE_PATH = 'companies/e2e-company/autofill/guest_uploads/1_cdl.jpg';
+const STORAGE_PATH = 'companies/e2e-company/applications/guest_uploads/1_cdl.jpg';
 
-async function stubAutoFillNetwork(page, fullAddress = '2210 ELM ST, AUSTIN, TX 78701') {
+async function stubAutoFillNetwork(page, fullAddress = '2210 ELM ST, AUSTIN, TX 78701', { readable = true } = {}) {
     await page.route('**/getSignedUploadUrl', (route) => route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -40,7 +44,7 @@ async function stubAutoFillNetwork(page, fullAddress = '2210 ELM ST, AUSTIN, TX 
             updated: '2026-10-01T00:00:00.000Z',
         }),
     }));
-    await page.route('**/parseCdlWithGroq', (route) => route.fulfill({
+    await page.route('**/parseCdlWithGroq', (route) => route.fulfill(readable ? {
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({ result: { fields: {
@@ -51,6 +55,10 @@ async function stubAutoFillNetwork(page, fullAddress = '2210 ELM ST, AUSTIN, TX 
             cdlNumber: '41234567',
             expirationDate: '03/14/2030',
         } } }),
+    } : {
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: { status: 'INTERNAL', message: 'Could not read the licence.' } }),
     }));
 }
 
@@ -95,6 +103,7 @@ test.describe('CDL photo auto-fill', () => {
         await expect(page.locator('#cdl-state')).toHaveValue('Texas');
         await expect(page.locator('#cdl-state option:checked')).toHaveText('Texas');
         await expect(page.locator('#cdl-number')).toHaveValue('41234567');
+        await expect(page.locator('[data-upload-field="cdl-front"]')).toHaveAttribute('data-upload-state', 'uploaded');
     });
 
     // The District of Columbia joined the state list on 2026-10-02. Before that a DC
@@ -110,5 +119,25 @@ test.describe('CDL photo auto-fill', () => {
         await continueToLicenseStep(page);
         await expect(page.locator('#cdl-state')).toHaveValue('District of Columbia');
         await expect(page.locator('#cdl-state option:checked')).toHaveText('District of Columbia');
+    });
+
+    test('keeps the photo as the CDL front when the licence cannot be read', async ({ page }) => {
+        await stubAutoFillNetwork(page, undefined, { readable: false });
+        await autoFillFromLicence(page);
+
+        // The driver goes on by hand: nothing was read, so page one is empty.
+        await expect(page.locator('#first-name')).toHaveValue('');
+        await page.fill('#first-name', 'Luis');
+        await page.fill('#last-name', 'Ortega');
+        await page.selectOption('#state', 'Texas');
+        await page.fill('#street', '2210 Elm St');
+        await page.fill('#city', 'Austin');
+        await page.fill('#zip', '78701');
+        await page.selectOption('#dob-month', '3');
+        await page.selectOption('#dob-day', '14');
+        await page.selectOption('#dob-year', '1984');
+
+        await continueToLicenseStep(page);
+        await expect(page.locator('[data-upload-field="cdl-front"]')).toHaveAttribute('data-upload-state', 'uploaded');
     });
 });
